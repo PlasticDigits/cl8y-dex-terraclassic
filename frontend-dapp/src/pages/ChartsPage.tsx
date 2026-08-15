@@ -18,7 +18,8 @@ import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelect
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
 import { formatNum } from '@/utils/formatAmount'
-import { pairStatsUsdField, resolveTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
@@ -154,9 +155,18 @@ export default function ChartsPage() {
     retry: false,
   })
 
+  const pairOrientation = usePairDisplayOrientation({
+    pairAddr: activePairAddr,
+    asset0: activePair?.asset_0,
+    asset1: activePair?.asset_1,
+    token0Symbol: activePair?.asset_0.symbol ?? 'Base',
+    token1Symbol: activePair?.asset_1.symbol ?? 'Quote',
+  })
+
   const tapeLastPriceUsd = useMemo(
     () =>
-      resolveTapeLastPriceUsd({
+      resolveDisplayTapeLastPriceUsd({
+        inverted: pairOrientation.inverted,
         priceUsd: tradesQuery.data?.[0]?.price_usd,
         price: tradesQuery.data?.[0]?.price,
         decimalsBase: activePair?.asset_0.decimals,
@@ -164,8 +174,16 @@ export default function ChartsPage() {
         quoteSymbol: activePair?.asset_1.symbol,
         quoteDenom: activePair?.asset_1.denom,
         ustcUsd: ustcOracleQuery.data?.price_usd,
+        displayBaseSymbol: pairOrientation.displayBase,
+        displayBaseDenom: pairOrientation.inverted ? activePair?.asset_1.denom : activePair?.asset_0.denom,
       }),
-    [tradesQuery.data, activePair, ustcOracleQuery.data?.price_usd]
+    [
+      tradesQuery.data,
+      activePair,
+      ustcOracleQuery.data?.price_usd,
+      pairOrientation.inverted,
+      pairOrientation.displayBase,
+    ]
   )
 
   const leaderboardQuery = useQuery({
@@ -375,7 +393,15 @@ export default function ChartsPage() {
       {/* Price Chart */}
       {activePairAddr && (
         <div className="h-[min(70vh,720px)]">
-          <PriceChart pairAddress={activePairAddr} tapeLastPriceUsd={tapeLastPriceUsd} />
+          <PriceChart
+            pairAddress={activePairAddr}
+            tapeLastPriceUsd={tapeLastPriceUsd}
+            displayInverted={pairOrientation.inverted}
+            onToggleDisplayInvert={pairOrientation.toggleInverted}
+            pairPillLabel={pairOrientation.pillLabel}
+            invertAriaLabel={pairOrientation.invertAriaLabel}
+            displayBaseSymbol={pairOrientation.displayBase}
+          />
         </div>
       )}
 

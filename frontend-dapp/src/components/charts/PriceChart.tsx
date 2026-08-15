@@ -5,7 +5,12 @@ import { Spinner } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { PriceChartEmptyState } from './PriceChartEmptyState'
 import { PriceChartLightweightCanvas } from './PriceChartLightweightCanvas'
-import { indexerCandlesToChartPoints, indexerCandlesToVolumeHistogramPoints } from './priceChartCandles'
+import {
+  applyChartDisplayInvert,
+  indexerCandlesToChartPoints,
+  indexerCandlesToVolumeHistogramPoints,
+} from './priceChartCandles'
+import { PairDisplayInvertPill } from '@/components/trade/PairDisplayInvertControls'
 import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 import { chartPointsToRsiLine, chartPointsToSmaLine } from './priceChartIndicators'
 import { PriceChartOverlayMenu } from './PriceChartOverlayMenu'
@@ -21,9 +26,24 @@ interface PriceChartProps {
   defaultInterval?: string
   /** Latest trade price in USD from indexer tape (newest-first); preferred over candle close for headline */
   tapeLastPriceUsd?: string | null
+  /** UI-only invert of factory USD series (GitLab #524). */
+  displayInverted?: boolean
+  onToggleDisplayInvert?: () => void
+  pairPillLabel?: string
+  invertAriaLabel?: string
+  displayBaseSymbol?: string
 }
 
-export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLastPriceUsd }: PriceChartProps) {
+export default function PriceChart({
+  pairAddress,
+  defaultInterval = '1h',
+  tapeLastPriceUsd,
+  displayInverted = false,
+  onToggleDisplayInvert,
+  pairPillLabel,
+  invertAriaLabel,
+  displayBaseSymbol,
+}: PriceChartProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const chartHeadingId = useId()
   const chartLiveSummaryId = useId()
@@ -64,7 +84,10 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
       keepPreviousCandlesForIntervalSwitch(pairAddress, previousData, previousQuery),
   })
 
-  const chartPoints = useMemo(() => indexerCandlesToChartPoints(candlesQuery.data), [candlesQuery.data])
+  const chartPoints = useMemo(
+    () => applyChartDisplayInvert(indexerCandlesToChartPoints(candlesQuery.data), displayInverted),
+    [candlesQuery.data, displayInverted]
+  )
 
   const headlineUsd = useMemo(
     () => resolveTradeChartHeadlineUsd(tapeLastPriceUsd, chartPoints),
@@ -114,11 +137,12 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
     if (showEmptyState) {
       return `Price chart empty. No candles for interval ${interval}.`
     }
+    const tokenPart = displayBaseSymbol ? ` for 1 ${displayBaseSymbol}` : ''
     if (intervalRefetching) {
-      const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD.` : ''
+      const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD${tokenPart}.` : ''
       return `Price chart updating to interval ${interval}.${pricePart}`
     }
-    const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD.` : ' Last price unavailable.'
+    const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD${tokenPart}.` : ' Last price unavailable.'
     const candlePart = chartPoints.length > 0 ? ` ${chartPoints.length} candles on chart.` : ''
     return `Price chart. Interval ${interval}.${pricePart}${candlePart}`
   }, [
@@ -130,6 +154,7 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
     interval,
     headlineUsd,
     chartPoints.length,
+    displayBaseSymbol,
   ])
 
   return (
@@ -154,6 +179,13 @@ export default function PriceChart({ pairAddress, defaultInterval = '1h', tapeLa
               >
                 Price (USD)
               </h3>
+              {onToggleDisplayInvert && pairPillLabel && (
+                <PairDisplayInvertPill
+                  label={pairPillLabel}
+                  ariaLabel={invertAriaLabel ?? `Show inverted ${pairPillLabel} pricing`}
+                  onToggle={onToggleDisplayInvert}
+                />
+              )}
               {headlineUsd != null && (
                 <div
                   className="flex items-baseline gap-2"

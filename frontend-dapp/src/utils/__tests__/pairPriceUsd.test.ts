@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { IndexerPair, IndexerTrade } from '@/types'
-import { pairStatsUsdField, resolveTapeLastPriceUsd, resolveTapePriceUsd } from '../pairPriceUsd'
+import {
+  pairStatsUsdField,
+  resolveDisplayTapeLastPriceUsd,
+  resolveTapeLastPriceUsd,
+  resolveTapePriceUsd,
+} from '../pairPriceUsd'
 
 const ust1UstrPair: Pick<IndexerPair, 'asset_0' | 'asset_1'> = {
   asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1', denom: null, decimals: 6 },
@@ -91,6 +96,45 @@ describe('resolveTapePriceUsd', () => {
     const n = parseFloat(usd!)
     expect(n).toBeGreaterThan(0.9)
     expect(n).toBeLessThan(1.1)
+  })
+})
+
+describe('resolveDisplayTapeLastPriceUsd (#524)', () => {
+  it('returns factory USD when not inverted', () => {
+    expect(
+      resolveDisplayTapeLastPriceUsd({
+        inverted: false,
+        priceUsd: '0.982',
+        price: '206.62',
+        quoteSymbol: 'cUSTC',
+        ustcUsd: '0.004928',
+      })
+    ).toBe('0.982')
+  })
+
+  it('inverts factory ~$1 via human ~206 to cUSTC dollars', () => {
+    const usd = resolveDisplayTapeLastPriceUsd({
+      inverted: true,
+      priceUsd: '1',
+      price: '206',
+      quoteSymbol: 'cUSTC',
+      displayBaseSymbol: 'cUSTC',
+      ustcUsd: '0.004928',
+    })
+    expect(usd).not.toBeNull()
+    expect(parseFloat(usd!)).toBeCloseTo(1 / 206, 8)
+  })
+
+  it('falls back to USTC catalog when human price is missing', () => {
+    const usd = resolveDisplayTapeLastPriceUsd({
+      inverted: true,
+      priceUsd: '1',
+      price: null,
+      quoteSymbol: 'cUSTC',
+      displayBaseSymbol: 'cUSTC',
+      ustcUsd: '0.004928',
+    })
+    expect(usd).toBe('0.004928')
   })
 })
 

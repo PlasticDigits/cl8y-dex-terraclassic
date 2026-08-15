@@ -59,6 +59,14 @@ import {
 } from '@/utils/limitOrderPriceEdit'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
+import { PairDisplayInvertIconButton } from '@/components/trade/PairDisplayInvertControls'
+import {
+  displayPriceToFactoryToken1PerToken0,
+  displaySideFromFactory,
+  factorySideFromDisplay,
+  factoryToken1PerToken0ToDisplayPrice,
+  invertFinitePositive,
+} from '@/utils/tradePairDisplayOrientation'
 
 function TicketSection({
   title,
@@ -119,6 +127,11 @@ export type TradeOrderTicketProps = {
   indexerPair?: IndexerPair | null
   latestTrade?: IndexerTrade | null
   tapeHeadlineUsd?: string | null
+  /** Factory `asset_0` USD for escrow notional (GitLab #155 / #524). */
+  factoryTapeHeadlineUsd?: string | null
+  displayInverted?: boolean
+  onToggleDisplayInvert?: () => void
+  invertAriaLabel?: string
   /**
    * When set (e.g. from `TradePage` with `OrderBookPanel`), book rows and ticket share one cancel mutation
    * ([GitLab #162](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/162)).
@@ -145,6 +158,10 @@ function TradeOrderTicketContent({
   indexerPair,
   latestTrade,
   tapeHeadlineUsd,
+  factoryTapeHeadlineUsd,
+  displayInverted = false,
+  onToggleDisplayInvert,
+  invertAriaLabel,
   cancelLimitOrderMutation,
   limitBookDraftKey = 0,
   limitBookDraft,
@@ -199,8 +216,10 @@ function TradeOrderTicketContent({
 
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
-  const escrowToken = side === 'bid' ? token1 : token0
-  const receiveToken = side === 'bid' ? token0 : token1
+  const factorySide = factorySideFromDisplay(side, displayInverted)
+  const factoryPrice = displayPriceToFactoryToken1PerToken0(price, displayInverted) ?? price
+  const escrowToken = factorySide === 'bid' ? token1 : token0
+  const receiveToken = factorySide === 'bid' ? token0 : token1
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
   const receiveDecimals = receiveToken ? getDecimals(tokenAssetInfo(receiveToken)) : 6
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, escrowToken)
@@ -210,10 +229,15 @@ function TradeOrderTicketContent({
   const escrowUsdNotionalApprox = useMemo(() => {
     const amt = parsePositivePriceHuman(amountHuman)
     if (amt == null) return null
-    const usd = escrowAmountUsdAnchorNotional(amt, side === 'ask', refToken1PerToken0, tapeHeadlineUsd)
+    const usd = escrowAmountUsdAnchorNotional(
+      amt,
+      factorySide === 'ask',
+      refToken1PerToken0,
+      factoryTapeHeadlineUsd ?? tapeHeadlineUsd
+    )
     if (usd == null || !Number.isFinite(usd)) return null
     return `$${formatNum(usd, 4)}`
-  }, [amountHuman, side, refToken1PerToken0, tapeHeadlineUsd])
+  }, [amountHuman, factorySide, refToken1PerToken0, factoryTapeHeadlineUsd, tapeHeadlineUsd])
 
   const handleSideChange = useCallback(
     (next: 'bid' | 'ask') => {
@@ -249,22 +273,27 @@ function TradeOrderTicketContent({
   const expectedReceiveHuman = useMemo(
     () =>
       limitOrderExpectedReceiveHuman({
-        side,
+        side: factorySide,
         escrowAmountHuman: amountHuman,
         escrowDecimals,
-        priceHuman: price,
+        priceHuman: factoryPrice,
         effectiveFeeBps,
       }),
-    [side, amountHuman, escrowDecimals, price, effectiveFeeBps]
+    [factorySide, amountHuman, escrowDecimals, factoryPrice, effectiveFeeBps]
   )
 
   const receiveUsdNotionalApprox = useMemo(() => {
     const amt = expectedReceiveHuman != null ? parsePositivePriceHuman(expectedReceiveHuman) : null
     if (amt == null) return null
-    const usd = escrowAmountUsdAnchorNotional(amt, side === 'bid', refToken1PerToken0, tapeHeadlineUsd)
+    const usd = escrowAmountUsdAnchorNotional(
+      amt,
+      factorySide === 'bid',
+      refToken1PerToken0,
+      factoryTapeHeadlineUsd ?? tapeHeadlineUsd
+    )
     if (usd == null || !Number.isFinite(usd)) return null
     return `$${formatNum(usd, 4)}`
-  }, [expectedReceiveHuman, side, refToken1PerToken0, tapeHeadlineUsd])
+  }, [expectedReceiveHuman, factorySide, refToken1PerToken0, factoryTapeHeadlineUsd, tapeHeadlineUsd])
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr, address],
@@ -297,24 +326,24 @@ function TradeOrderTicketContent({
   const isTradeBlocked = isPaused || tradingBlacklist.blocked
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
-  const limitBookQuery = useLimitBookInfinite(pairAddr, side)
+  const limitBookQuery = useLimitBookInfinite(pairAddr, factorySide)
   const placeInsertHintAfter = useMemo(() => {
     const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
-    return resolveLimitInsertHintAfter(side, price, orders, { hasMore })
-  }, [limitBookQuery.data?.pages, side, price])
+    return resolveLimitInsertHintAfter(factorySide, factoryPrice, orders, { hasMore })
+  }, [limitBookQuery.data?.pages, factorySide, factoryPrice])
 
   const crossingBlocker = useMemo(
-    () => describeLimitCrossingBlocker(side, price, bestBid, bestAsk),
-    [side, price, bestBid, bestAsk]
+    () => describeLimitCrossingBlocker(factorySide, factoryPrice, bestBid, bestAsk),
+    [factorySide, factoryPrice, bestBid, bestAsk]
   )
 
   const placePriceGate = useMemo(
     () =>
-      evaluateLimitOrderPricePlaceGate(side, price, refToken1PerToken0, {
+      evaluateLimitOrderPricePlaceGate(factorySide, factoryPrice, refToken1PerToken0, {
         refResolutionLoading,
         refResolutionError,
       }),
-    [side, price, refToken1PerToken0, refResolutionLoading, refResolutionError]
+    [factorySide, factoryPrice, refToken1PerToken0, refResolutionLoading, refResolutionError]
   )
 
   const placeEscrowGate = useMemo(
@@ -442,7 +471,7 @@ function TradeOrderTicketContent({
       if (!address) throw new Error('Connect wallet')
       if (!selectedPair) throw new Error('Select a pair')
       if (!escrowToken.startsWith('terra1')) throw new Error('Escrow token must be CW20')
-      const cross = describeLimitCrossingBlocker(side, price, bestBid, bestAsk)
+      const cross = describeLimitCrossingBlocker(factorySide, factoryPrice, bestBid, bestAsk)
       if (cross) throw new Error(cross)
       const escrowGate = evaluateLimitOrderEscrowPlaceGate(amountHuman, escrowDecimals, escrowBalanceQuery)
       if (!escrowGate.canPlaceLimit) {
@@ -459,7 +488,7 @@ function TradeOrderTicketContent({
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
         throw new Error(nativeGate.userMessage)
       }
-      const priceGate = evaluateLimitOrderPricePlaceGate(side, price, refToken1PerToken0, {
+      const priceGate = evaluateLimitOrderPricePlaceGate(factorySide, factoryPrice, refToken1PerToken0, {
         refResolutionLoading,
         refResolutionError,
       })
@@ -473,8 +502,8 @@ function TradeOrderTicketContent({
         escrowToken,
         selectedPair.contract_addr,
         raw,
-        side,
-        price,
+        factorySide,
+        factoryPrice,
         maxSteps,
         expiresAt,
         placeInsertHintAfter
@@ -516,7 +545,7 @@ function TradeOrderTicketContent({
       return
     }
     if (!editContext) return
-    const cross = describeLimitCrossingBlocker(side, price, bestBid, bestAsk)
+    const cross = describeLimitCrossingBlocker(factorySide, factoryPrice, bestBid, bestAsk)
     if (cross) {
       updatePriceMutation.reset()
       return
@@ -524,7 +553,7 @@ function TradeOrderTicketContent({
     updatePriceMutation.mutate(
       {
         orderId: editContext.orderId,
-        price,
+        price: factoryPrice,
         maxAdjustSteps: maxSteps,
         hintAfterOrderId: editHintAfterOrderId,
       },
@@ -609,13 +638,13 @@ function TradeOrderTicketContent({
   useEffect(() => {
     if (!limitBookDraft || limitBookDraftKey < 1) return
     setOrderTab('limit')
-    setSide(limitBookDraft.side)
-    setPrice(limitBookDraft.price)
+    setSide(displaySideFromFactory(limitBookDraft.side, displayInverted))
+    setPrice(factoryToken1PerToken0ToDisplayPrice(limitBookDraft.price, displayInverted) ?? limitBookDraft.price)
     setLimitEscrowAmountFromDraft(limitBookDraft.amountHuman)
     setEditContext(buildLimitBookEditContext(limitBookDraft))
     setEditHintAfterOrderId(limitBookDraft.hintAfterOrderId ?? null)
     onLimitBookDraftConsumed?.()
-  }, [limitBookDraftKey, limitBookDraft, onLimitBookDraftConsumed, setLimitEscrowAmountFromDraft])
+  }, [limitBookDraftKey, limitBookDraft, onLimitBookDraftConsumed, setLimitEscrowAmountFromDraft, displayInverted])
 
   if (pairsLoading) {
     return (
@@ -627,14 +656,29 @@ function TradeOrderTicketContent({
 
   const token0Display = indexerPair?.asset_0.symbol ?? getTokenDisplaySymbol(token0 || 'Base')
   const token1Display = indexerPair?.asset_1.symbol ?? getTokenDisplaySymbol(token1 || 'Quote')
-  const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(token0Display)
+  const displayBase = displayInverted ? token1Display : token0Display
+  const displayQuote = displayInverted ? token0Display : token1Display
+  const displayRef = displayInverted ? invertFinitePositive(refToken1PerToken0) : refToken1PerToken0
+  const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(displayBase)
   const sideAction =
     side === 'bid'
-      ? { verb: 'Buy', receive: token0Display, pay: token1Display, tone: 'bid' as const }
-      : { verb: 'Sell', receive: token0Display, pay: token0Display, tone: 'ask' as const }
+      ? { verb: 'Buy', receive: displayBase, pay: displayQuote, tone: 'bid' as const }
+      : { verb: 'Sell', receive: displayQuote, pay: displayBase, tone: 'ask' as const }
   const walletLabel = isWalletConnected && address ? `${address.slice(0, 8)}…${address.slice(-6)}` : 'Connect wallet'
-  const bestBidLabel = bestBookLoading ? '…' : (bestBid ?? '—')
-  const bestAskLabel = bestBookLoading ? '…' : (bestAsk ?? '—')
+  const formatBookHead = (raw: string | null | undefined) => {
+    if (bestBookLoading) return '…'
+    if (raw == null) return '—'
+    if (!displayInverted) return raw
+    const inv = invertFinitePositive(raw)
+    return inv == null ? '—' : String(inv)
+  }
+  const bestBidLabel = formatBookHead(displayInverted ? bestAsk : bestBid)
+  const bestAskLabel = formatBookHead(displayInverted ? bestBid : bestAsk)
+  const handleToggleDisplayInvert = () => {
+    const flipped = displayPriceToFactoryToken1PerToken0(price, true)
+    if (flipped) setPrice(flipped)
+    onToggleDisplayInvert?.()
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0 card-glass !p-0">
@@ -647,12 +691,21 @@ function TradeOrderTicketContent({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--ink-subtle)' }}>
-              Order ticket
-            </p>
-            <h3 className="mt-1 text-base font-semibold font-heading truncate" style={{ color: 'var(--ink)' }}>
-              {selectedPair ? `${sideAction.verb} ${sideAction.receive}` : 'Select a pair'}
-            </h3>
+            <div className="flex items-center gap-2 min-w-0">
+              <h3
+                className="text-base font-semibold font-heading truncate"
+                style={{ color: 'var(--ink)' }}
+                data-testid="trade-ticket-heading"
+              >
+                {selectedPair ? `${sideAction.verb} ${displayBase}` : 'Select a pair'}
+              </h3>
+              {selectedPair && onToggleDisplayInvert && (
+                <PairDisplayInvertIconButton
+                  ariaLabel={invertAriaLabel ?? `Show ${displayQuote} / ${displayBase} pricing`}
+                  onToggle={handleToggleDisplayInvert}
+                />
+              )}
+            </div>
           </div>
           <button
             type="button"
@@ -759,7 +812,7 @@ function TradeOrderTicketContent({
                 pairAddr={pairAddr}
                 selectedPair={selectedPair}
                 pairs={pairs}
-                side={side}
+                side={factorySide}
                 isPaused={isTradeBlocked}
               />
             </TicketSection>
@@ -774,11 +827,11 @@ function TradeOrderTicketContent({
                 price={price}
                 onPriceChange={setPrice}
                 inputId={limitPriceInputId}
-                refToken1PerToken0={refToken1PerToken0}
+                refToken1PerToken0={displayRef}
                 refSource={refSource}
                 tapeHeadlineUsd={tapeHeadlineUsd}
-                token0Label={token0Display}
-                token1Label={token1Display}
+                token0Label={displayBase}
+                token1Label={displayQuote}
                 compact
               />
               <LimitOrderEscrowAmountField
@@ -818,7 +871,7 @@ function TradeOrderTicketContent({
               {selectedPair && pairAddr.startsWith('terra1') && (
                 <LimitOrderPreSubmitSummary
                   compact
-                  pairLabel={`${token0Display} / ${token1Display}`}
+                  pairLabel={`${displayBase} / ${displayQuote}`}
                   sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
                   escrowAmountLabel={
                     amountHuman.trim() ? `${amountHuman.trim()} ${sideAction.pay}` : `— ${sideAction.pay}`

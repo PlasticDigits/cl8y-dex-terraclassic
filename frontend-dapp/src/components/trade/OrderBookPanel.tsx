@@ -13,6 +13,7 @@ import { partitionLimitPlacementsByLifecycle } from '@/utils/limitPlacementLifec
 import { TRADE_PANEL_BOOK_UNAVAILABLE } from '@/utils/indexerTradeOutageCopy'
 import { flattenLimitBookPages } from '@/utils/limitBookInsertHint'
 import { TradeMarketDataUnavailableNotice } from '@/components/trade/TradeMarketDataUnavailableNotice'
+import { factoryToken1PerToken0ToDisplayPrice } from '@/utils/tradePairDisplayOrientation'
 
 function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
   return orders.reduce((acc, order) => {
@@ -24,8 +25,9 @@ function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
   }, 0n)
 }
 
-function formatBookPrice(raw: string): string {
-  return formatNum(raw, 7)
+function formatBookPrice(raw: string, inverted = false): string {
+  const shown = inverted ? (factoryToken1PerToken0ToDisplayPrice(raw, true) ?? raw) : raw
+  return formatNum(shown, 7)
     .replace(/(\.\d*?[1-9])0+$/, '$1')
     .replace(/\.0+$/, '')
 }
@@ -50,6 +52,7 @@ function BookRow({
   onPrefillLimitTicket,
   cancellations,
   hintAfterOrderId,
+  displayInverted,
 }: {
   order: IndexerShallowLimitOrder
   side: 'bid' | 'ask'
@@ -64,6 +67,7 @@ function BookRow({
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
   cancellations: { order_id: number }[]
   hintAfterOrderId?: number | null
+  displayInverted?: boolean
 }) {
   let remainingRaw = 0n
   let cumulativeRaw = 0n
@@ -118,7 +122,7 @@ function BookRow({
     })
   }
 
-  const rowLabel = `${rowSide} order ${order.order_id}, price ${formatBookPrice(order.price)}, size ${formatTokenAmount(order.remaining, sizeDecimals, 4)}, cumulative ${formatTokenAmount(cumulative, sizeDecimals, 4)}`
+  const rowLabel = `${rowSide} order ${order.order_id}, price ${formatBookPrice(order.price, displayInverted)}, size ${formatTokenAmount(order.remaining, sizeDecimals, 4)}, cumulative ${formatTokenAmount(cumulative, sizeDecimals, 4)}`
 
   return (
     <tr
@@ -137,7 +141,7 @@ function BookRow({
             #{order.order_id}
           </span>
           <span className="font-semibold leading-tight" style={{ color: sideColor }}>
-            {formatBookPrice(order.price)}
+            {formatBookPrice(order.price, displayInverted)}
           </span>
         </div>
       </td>
@@ -202,6 +206,7 @@ function BookSideColumn({
   openWalletModal,
   cancelMutation,
   onPrefillLimitTicket,
+  displayInverted,
 }: {
   title: string
   pairAddress: string
@@ -215,6 +220,7 @@ function BookSideColumn({
   openWalletModal?: () => void
   cancelMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
+  displayInverted?: boolean
 }) {
   const cancellationsQuery = usePairLimitCancellations(pairAddress)
 
@@ -323,6 +329,7 @@ function BookSideColumn({
                     onPrefillLimitTicket={onPrefillLimitTicket}
                     cancellations={cancellations}
                     hintAfterOrderId={index > 0 ? orders[index - 1]?.order_id : null}
+                    displayInverted={displayInverted}
                   />
                 ))}
               </tbody>
@@ -358,6 +365,9 @@ export type OrderBookPanelProps = {
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
   /** Factory pair (asset_infos) for cancel-all placement partition; optional if cancel-all unused. */
   factoryPair?: PairInfo
+  displayInverted?: boolean
+  displayBaseSymbol?: string
+  displayQuoteSymbol?: string
 }
 
 export function OrderBookPanel({
@@ -370,6 +380,9 @@ export function OrderBookPanel({
   cancelLimitOrderMutation,
   onPrefillLimitTicket,
   factoryPair,
+  displayInverted = false,
+  displayBaseSymbol,
+  displayQuoteSymbol,
 }: OrderBookPanelProps) {
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddress],
@@ -416,8 +429,8 @@ export function OrderBookPanel({
     )
   }
 
-  const baseSymbol = pair?.asset_0.symbol ?? 'Base'
-  const quoteSymbol = pair?.asset_1.symbol ?? 'Quote'
+  const baseSymbol = displayBaseSymbol ?? pair?.asset_0.symbol ?? 'Base'
+  const quoteSymbol = displayQuoteSymbol ?? pair?.asset_1.symbol ?? 'Quote'
   const priceLabel = `${quoteSymbol}/${baseSymbol}`
 
   return (
@@ -473,6 +486,7 @@ export function OrderBookPanel({
           openWalletModal={openWalletModal}
           cancelMutation={cancelLimitOrderMutation}
           onPrefillLimitTicket={onPrefillLimitTicket}
+          displayInverted={displayInverted}
         />
         <BookSideColumn
           title="Bids"
@@ -487,6 +501,7 @@ export function OrderBookPanel({
           openWalletModal={openWalletModal}
           cancelMutation={cancelLimitOrderMutation}
           onPrefillLimitTicket={onPrefillLimitTicket}
+          displayInverted={displayInverted}
         />
       </div>
     </div>

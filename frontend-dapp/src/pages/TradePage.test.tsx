@@ -143,6 +143,7 @@ const emptyStats = {
 describe('TradePage', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    window.sessionStorage.clear()
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     mockTradeDesktopLayout(false)
     vi.mocked(getConnectedWallet).mockReturnValue(null)
@@ -817,6 +818,114 @@ describe('TradePage', () => {
 
     await waitFor(() => {
       expect(vi.mocked(indexerClient.getPair).mock.calls.length).toBeGreaterThan(callsAfterError)
+    })
+  })
+
+  describe('UST1 pair display invert (GitLab #524)', () => {
+    const UST1_PAIR = 'terra1ust1pair000000000000000000000000000001'
+    const OTHER_PAIR = PAIR
+    const ust1IndexerPair: IndexerPair = {
+      ...mockIndexerPair,
+      pair_address: UST1_PAIR,
+      asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1tok000000000000000000000000001', denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: 'terra1custctok0000000000000000000000002', denom: null, decimals: 6 },
+    }
+
+    function mockUst1AndOtherPairs() {
+      vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: UST1_PAIR,
+            liquidity_token: 'terra1lpust1000000000000000000000000001',
+            asset_infos: [
+              { token: { contract_addr: 'terra1ust1tok000000000000000000000000001' } },
+              { token: { contract_addr: 'terra1custctok0000000000000000000000002' } },
+            ],
+          },
+          {
+            contract_addr: OTHER_PAIR,
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [
+              { token: { contract_addr: 'terra1aaa0000000000000000000000000000001' } },
+              { token: { contract_addr: 'terra1bbb0000000000000000000000000000002' } },
+            ],
+          },
+        ],
+      })
+      vi.mocked(indexerClient.getPair).mockImplementation(async (addr) =>
+        addr === UST1_PAIR ? ust1IndexerPair : mockIndexerPair
+      )
+      vi.mocked(indexerClient.getTrades).mockResolvedValue([
+        {
+          id: 1,
+          pair_address: UST1_PAIR,
+          block_height: 1,
+          block_timestamp: '2026-08-15T00:00:00Z',
+          tx_hash: 'AA',
+          sender: 'terra1t',
+          offer_asset: 'UST1',
+          ask_asset: 'cUSTC',
+          offer_amount: '1000000',
+          return_amount: '206000000',
+          price: '206',
+          price_usd: '1',
+        },
+      ])
+    }
+
+    it('defaults UST1/cUSTC to other-side pill, heading, and no Order ticket', async () => {
+      mockUst1AndOtherPairs()
+      renderWithProviders(<TradePage />, { route: `/trade/${UST1_PAIR}` })
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-pair-invert-pill')).toHaveTextContent('cUSTC/UST1')
+      })
+      expect(await screen.findByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
+      expect(screen.getByTestId('trade-ticket-pair-invert')).toBeInTheDocument()
+      expect(screen.queryByText(/order ticket/i)).not.toBeInTheDocument()
+      const last = await screen.findByTestId('trade-chart-headline-price')
+      expect(last.textContent ?? '').not.toMatch(/^\s*Last\s*1(\.0+)?\s*$/)
+    })
+
+    it('pill and ticket icon share one invert state', async () => {
+      mockUst1AndOtherPairs()
+      const user = userEvent.setup()
+      renderWithProviders(<TradePage />, { route: `/trade/${UST1_PAIR}` })
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
+      })
+      await user.click(screen.getByTestId('trade-pair-invert-pill'))
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-pair-invert-pill')).toHaveTextContent('UST1/cUSTC')
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy UST1')
+      })
+      await user.click(screen.getByTestId('trade-ticket-pair-invert'))
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-pair-invert-pill')).toHaveTextContent('cUSTC/UST1')
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
+      })
+    })
+
+    it('does not invert when switching to a non-UST1 pair (H4)', async () => {
+      mockUst1AndOtherPairs()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [ust1IndexerPair, mockIndexerPair],
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      const user = userEvent.setup()
+      renderWithProviders(<TradePage />, { route: `/trade/${UST1_PAIR}` })
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
+      })
+      const pairInput = screen.getByRole('combobox', { name: 'Trading pair' })
+      await user.click(pairInput)
+      const listbox = await screen.findByRole('listbox')
+      await user.click(within(listbox).getByRole('option', { name: /AAA/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy AAA')
+      })
+      expect(screen.getByTestId('trade-pair-invert-pill')).toHaveTextContent('AAA/BBB')
     })
   })
 })

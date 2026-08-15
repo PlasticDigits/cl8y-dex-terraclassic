@@ -22,6 +22,7 @@ import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
+import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
 import {
@@ -43,12 +44,13 @@ import {
 } from '@/utils/tradePairRoute'
 import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
 import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
-import type { IndexerPair } from '@/types'
+import { assetInfoLabel, type IndexerPair } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { TradeRecentTradesSection } from '@/components/trade/TradeRecentTradesSection'
 import { detectTradeIndexerOutage } from '@/utils/tradeIndexerOutage'
-import { resolveTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { TradeWorkspaceDisclosure } from '@/components/trade/TradeWorkspaceDisclosure'
@@ -79,6 +81,11 @@ type TradeChartSlotProps = {
   isRetrying: boolean
   onRetry: () => void
   tapeLastPriceUsd?: string | null
+  displayInverted?: boolean
+  onToggleDisplayInvert?: () => void
+  pairPillLabel?: string
+  invertAriaLabel?: string
+  displayBaseSymbol?: string
   /** When false, chart fills the parent card without an extra wrapper (desktop panel). */
   wrapInCard?: boolean
 }
@@ -92,6 +99,11 @@ function TradeChartSlot({
   isRetrying,
   onRetry,
   tapeLastPriceUsd,
+  displayInverted,
+  onToggleDisplayInvert,
+  pairPillLabel,
+  invertAriaLabel,
+  displayBaseSymbol,
   wrapInCard = true,
 }: TradeChartSlotProps) {
   if (!pairRouteReady) {
@@ -111,7 +123,17 @@ function TradeChartSlot({
       />
     )
   }
-  const chart = <PriceChart pairAddress={pairAddr} tapeLastPriceUsd={tapeLastPriceUsd} />
+  const chart = (
+    <PriceChart
+      pairAddress={pairAddr}
+      tapeLastPriceUsd={tapeLastPriceUsd}
+      displayInverted={displayInverted}
+      onToggleDisplayInvert={onToggleDisplayInvert}
+      pairPillLabel={pairPillLabel}
+      invertAriaLabel={invertAriaLabel}
+      displayBaseSymbol={displayBaseSymbol}
+    />
+  )
   if (!wrapInCard) return chart
   return <div className="card-glass !p-2 flex-1 min-h-0 flex flex-col">{chart}</div>
 }
@@ -332,9 +354,22 @@ export default function TradePage() {
     }
   }, [])
 
-  const tapeLastPriceUsd = useMemo(
+  const factoryToken0 = factoryPair ? assetInfoLabel(factoryPair.asset_infos[0]) : ''
+  const factoryToken1 = factoryPair ? assetInfoLabel(factoryPair.asset_infos[1]) : ''
+  const token0Symbol = activePair?.asset_0.symbol ?? (factoryToken0 ? getTokenDisplaySymbol(factoryToken0) : 'Base')
+  const token1Symbol = activePair?.asset_1.symbol ?? (factoryToken1 ? getTokenDisplaySymbol(factoryToken1) : 'Quote')
+  const pairOrientation = usePairDisplayOrientation({
+    pairAddr,
+    asset0: activePair?.asset_0 ?? (factoryToken0 ? { contractAddr: factoryToken0, symbol: token0Symbol } : null),
+    asset1: activePair?.asset_1 ?? (factoryToken1 ? { contractAddr: factoryToken1, symbol: token1Symbol } : null),
+    token0Symbol,
+    token1Symbol,
+  })
+
+  const factoryTapeLastPriceUsd = useMemo(
     () =>
-      resolveTapeLastPriceUsd({
+      resolveDisplayTapeLastPriceUsd({
+        inverted: false,
         priceUsd: tradesQuery.data?.[0]?.price_usd,
         price: tradesQuery.data?.[0]?.price,
         decimalsBase: activePair?.asset_0.decimals,
@@ -346,6 +381,29 @@ export default function TradePage() {
     [tradesQuery.data, activePair, ustcOracleQuery.data?.price_usd]
   )
 
+  const tapeLastPriceUsd = useMemo(
+    () =>
+      resolveDisplayTapeLastPriceUsd({
+        inverted: pairOrientation.inverted,
+        priceUsd: tradesQuery.data?.[0]?.price_usd,
+        price: tradesQuery.data?.[0]?.price,
+        decimalsBase: activePair?.asset_0.decimals,
+        decimalsQuote: activePair?.asset_1.decimals,
+        quoteSymbol: activePair?.asset_1.symbol,
+        quoteDenom: activePair?.asset_1.denom,
+        ustcUsd: ustcOracleQuery.data?.price_usd,
+        displayBaseSymbol: pairOrientation.displayBase,
+        displayBaseDenom: pairOrientation.inverted ? activePair?.asset_1.denom : activePair?.asset_0.denom,
+      }),
+    [
+      tradesQuery.data,
+      activePair,
+      ustcOracleQuery.data?.price_usd,
+      pairOrientation.inverted,
+      pairOrientation.displayBase,
+    ]
+  )
+
   const chartSlotProps = {
     pairRouteReady,
     pairAddr,
@@ -354,6 +412,11 @@ export default function TradePage() {
     isRetrying: indexerPairRetry.isRetrying,
     onRetry: indexerPairRetry.retry,
     tapeLastPriceUsd,
+    displayInverted: pairOrientation.inverted,
+    onToggleDisplayInvert: pairOrientation.toggleInverted,
+    pairPillLabel: pairOrientation.pillLabel,
+    invertAriaLabel: pairOrientation.invertAriaLabel,
+    displayBaseSymbol: pairOrientation.displayBase,
   }
 
   const tradeOrderTicket = (
@@ -364,6 +427,10 @@ export default function TradePage() {
       indexerPair={activePair}
       latestTrade={tradesQuery.data?.[0]}
       tapeHeadlineUsd={tapeLastPriceUsd}
+      factoryTapeHeadlineUsd={factoryTapeLastPriceUsd}
+      displayInverted={pairOrientation.inverted}
+      onToggleDisplayInvert={pairOrientation.toggleInverted}
+      invertAriaLabel={pairOrientation.invertAriaLabel}
       cancelLimitOrderMutation={limitCancelMutation}
       limitBookDraftKey={limitBookDraftKey}
       limitBookDraft={limitBookDraft}
@@ -379,7 +446,15 @@ export default function TradePage() {
     cancelLimitOrderMutation: limitCancelMutation,
     onPrefillLimitTicket: pushLimitBookDraft,
     factoryPair,
+    displayInverted: pairOrientation.inverted,
+    displayBaseSymbol: pairOrientation.displayBase,
+    displayQuoteSymbol: pairOrientation.displayQuote,
   }
+
+  const displayPairMenuLabel = useMemo(() => {
+    const hit = pairs.find((p) => p.contract_addr === pairAddr)
+    return hit ? pairInfoMenuLabel(hit, { variant: 'full', displayInverted: pairOrientation.inverted }) : undefined
+  }, [pairs, pairAddr, pairOrientation.inverted])
 
   const onPairPrefetchIntent = useCallback(
     (addr: string) => {
@@ -455,13 +530,14 @@ export default function TradePage() {
             emptyLabel="No pairs on factory"
             onChange={onPairChange}
             onOptionIntent={onPairPrefetchIntent}
+            selectedLabelOverride={displayPairMenuLabel}
           />
         </LcdQueryGate>
       </div>
 
       {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
       {!showWorkspaceSkeleton && showTradeWorkspace && showPairSwitchLoading && (
-        <TradePairSwitchStatus pairLabel={activePairMenuLabel} />
+        <TradePairSwitchStatus pairLabel={displayPairMenuLabel ?? activePairMenuLabel} />
       )}
 
       {/*
