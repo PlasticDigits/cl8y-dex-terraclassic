@@ -12,6 +12,10 @@ pub struct Config {
 pub struct Tier {
     pub min_cl8y_balance: Uint128,
     pub discount_bps: u16,
+    /// Placement-only discount ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)).
+    /// Absent on pre-#514 storage → query falls back to `discount_bps`.
+    #[serde(default)]
+    pub limit_discount_bps: Option<u16>,
     pub governance_only: bool,
 }
 

@@ -71,6 +71,8 @@ export function tokenAssetInfo(identifier: string): AssetInfo {
 export interface Tier {
   min_cl8y_balance: string
   discount_bps: number
+  /** Placement-only discount (#514). Omitted → use `discount_bps`. */
+  limit_discount_bps?: number | null
   governance_only: boolean
 }
 
@@ -83,6 +85,8 @@ export interface TierEntry {
 /** Fee discount query response */
 export interface DiscountResponse {
   discount_bps: number
+  /** Resolved limit-order placement discount (#514). Omitted on pre-#514 registries. */
+  limit_discount_bps?: number | null
   needs_deregister: boolean
   registration_epoch: number | null
 }

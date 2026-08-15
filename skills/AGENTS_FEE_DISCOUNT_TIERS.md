@@ -20,6 +20,7 @@ Do **not** duplicate numeric tier tables in [`docs/deployment-guide.md`](../docs
 - **LocalTerra:** `scripts/deploy-dex-local.sh` deploys **TCL8Y** (18-decimal proxy) for `cl8y_token` / `VITE_CL8Y_TOKEN_ADDRESS`; trading tokens (EMBER, etc.) are 6 decimals and must not substitute ([#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)). Verify: `make verify-issue-383`.
 - **Frontend gas (GitLab #384):** `/tiers` **`register`** / **`deregister`** must use dedicated limits in [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) (`REGISTER_FEE_DISCOUNT_GAS_LIMIT` **300k**, `DEREGISTER_FEE_DISCOUNT_GAS_LIMIT` **250k**). The dApp does not LCD-simulate execute gas — missing cases fell through to **`BASE_GAS_LIMIT` (200k)** and blocked FT-3 / FT-4 UI on LocalTerra. Verify: `make verify-issue-384`.
 - Effective pair fee: `fee_bps * (10000 - discount_bps) / 10000` (integer division).
+- **Limit placement vs swap ([GitLab #514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514), invariant I13):** `AddTier` / `UpdateTier` take optional `limit_discount_bps`. Placement uses that discount (`floor(effective/2)`); swaps and book **takes** keep `discount_bps`. Omitted field → placement equals swap discount (custom test tiers). Production ladder shifts placement one step; **tier 9 → 10000 (0 bps place)**; CL8Y minima unchanged (tier 9 still **7,500 CL8Y**). Helper: `dex_common::fee_discount::standard_shifted_limit_discount_bps`. Crossing the book still charges the **taker** half of the taker’s swap effective fee (unregistered @ 180 bps pair = 90 bps). Upgrade: [`scripts/upgrade-514-limit-discount.sh`](../scripts/upgrade-514-limit-discount.sh) (fee-discount **1.1.0** backfill + pair **1.12.0**). Verify: `make verify-issue-514`. Do **not** raise `discount_bps` to 10000 on tier 9 — that would also zero T9 take fees.
 - Router must be on the fee-discount **trusted router** list before `trader` forwarding applies on **execute**.
 - **Quotes:** pass optional `trader` (and `sender` if needed) on `HybridSimulation` / router `SimulateSwapOperations` for execute-matching discounted output ([GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238), [skills/AGENTS_HYBRID_QUOTING.md](./AGENTS_HYBRID_QUOTING.md)). **dApp + indexer** must forward the connected wallet on all quote LCD hops and route-solve calls ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)).
 - **Pair cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** `execute_swap` and limit placement cache registry `GetDiscount` for **300s** per `(trader, sender)`; sim reads cache only. Do not assume quotes re-query registry every block within TTL — document **I9** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Constant: `dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`.
@@ -44,6 +45,9 @@ Route solver GET cache keys on resolved `discount_tier` from synced `traders.tie
 make check-fee-discount-tier-docs
 # or
 python3 scripts/check_fee_discount_tier_docs.py
+
+# Limit placement discount shift (#514) — no LocalTerra
+make verify-issue-514
 
 # Registry outage observability (#365 / #375) — no LocalTerra
 make verify-issue-365

@@ -270,8 +270,8 @@ The fee-discount contract manages tiered swap fee discounts for CL8Y token holde
 
 | Variant                | Fields                                                     | Auth        |
 |------------------------|------------------------------------------------------------|-------------|
-| `AddTier`              | `tier_id: u8`, `min_cl8y_balance: Uint128`, `discount_bps: u16`, `governance_only: bool` | Governance  |
-| `UpdateTier`           | `tier_id: u8`, `min_cl8y_balance?: Uint128`, `discount_bps?: u16`, `governance_only?: bool` | Governance  |
+| `AddTier`              | `tier_id: u8`, `min_cl8y_balance: Uint128`, `discount_bps: u16`, `limit_discount_bps?: u16`, `governance_only: bool` | Governance  |
+| `UpdateTier`           | `tier_id: u8`, `min_cl8y_balance?: Uint128`, `discount_bps?: u16`, `limit_discount_bps?: u16`, `governance_only?: bool` | Governance  |
 | `RemoveTier`           | `tier_id: u8`                                              | Governance  |
 | `Register`             | `tier_id: u8`                                              | EOA only (self-register) |
 | `RegisterWallet`       | `wallet: String`, `tier_id: u8`                            | Governance  |
@@ -294,11 +294,11 @@ The fee-discount contract manages tiered swap fee discounts for CL8Y token holde
 
 ### Tier ladder (canonical)
 
-Default production tiers (IDs, CL8Y minimums, `min_cl8y_balance` wei, `discount_bps`, `governance_only`) live in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)** only — aligned with `smartcontracts/tests/src/tier_fixtures.rs` and [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh). Do not copy numeric tables here ([GitLab #198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
+Default production tiers (IDs, CL8Y minimums, `min_cl8y_balance` wei, `discount_bps`, `limit_discount_bps`, `governance_only`) live in **[`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md)** only — aligned with `smartcontracts/tests/src/tier_fixtures.rs` and [`scripts/deploy-dex-local.sh`](../scripts/deploy-dex-local.sh). Do not copy numeric tables here ([GitLab #198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md). Invariant **I13** ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)): placement uses `limit_discount_bps`; swaps / book takes use `discount_bps`.
 
 ### Discount Calculation
 
-The Pair applies the discount as: `effective_fee = fee_bps * (10000 - discount_bps) / 10000`. For example, a pair with 30 bps fee and a Tier 5 trader (5000 bps discount, 50% off the fee) yields an effective fee of 15 bps.
+The Pair applies the **swap / take** discount as: `effective_fee = fee_bps * (10000 - discount_bps) / 10000`. Maker **placement** uses `limit_discount_bps` the same way, then charges `floor(effective/2)`. Example: 180 bps pair, tier 9 (`discount_bps` 9500, `limit_discount_bps` 10000) → swap effective **9 bps**, placement **0 bps**. A pair with 30 bps fee and a Tier 5 trader (5000 bps swap discount) still yields 15 bps on swaps.
 
 ### Balance Verification
 

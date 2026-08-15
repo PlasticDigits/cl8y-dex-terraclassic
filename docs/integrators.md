@@ -25,7 +25,7 @@ Total limit-book fee rate matches the pair’s **effective** swap commission (`f
 - **Maker half** is charged once when the order is placed (`Cw20HookMsg::PlaceLimitOrder`), from the escrowed CW20 amount. The resting order’s `remaining` is reduced accordingly.
 - **Taker half** is charged on each **fill** against the book (same notional bases as before: bids — token1 `cost`; asks — token0 `fill`), and appears as `commission_amount` on `limit_order_fill` wasm events for that fill.
 
-Updating only the **price** of an existing order (`ExecuteMsg::UpdateLimitOrderPrice`) re-links the order in the FIFO book **without** charging the maker placement fee again. Cancel + new placement pays a new maker-side half.
+Updating only the **price** of an existing order (`ExecuteMsg::UpdateLimitOrderPrice`) re-links the order in the FIFO book **without** charging the maker placement fee again. Cancel + new placement pays a new maker-side half. Placement uses the maker’s `limit_discount_bps` when set ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)); fills still charge the **taker** half of the taker’s swap `discount_bps`. See [fee-discount-tiers.md](./reference/fee-discount-tiers.md) **I13**.
 
 Details and tx attributes: [limit-orders.md](./limit-orders.md).
 
