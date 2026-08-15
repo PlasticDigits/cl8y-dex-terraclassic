@@ -10,6 +10,7 @@ import {
   checkRateLimitExceeded,
   queryPausedState,
   queryWrapMapperConfig,
+  wrapMapperFeeBps,
   wrapTreasuryMatchesEnv,
   wrapUnwrapFeeNote,
 } from '@/services/terraclassic/wrapMapper'
@@ -99,7 +100,7 @@ export default function WrapPage() {
     queryFn: queryWrapMapperConfig,
     enabled: wrapEnabled,
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    refetchInterval: 30_000, // W14 — do not quote a stale unwrap fee after set_fees
   })
 
   const pausedQuery = useQuery({
@@ -140,7 +141,7 @@ export default function WrapPage() {
   })
 
   const config = configQuery.data ?? null
-  const feeBps = config?.fee_bps
+  const feeBps = wrapMapperFeeBps(config, mode)
   const treasuryMismatch = !!config && !wrapTreasuryMatchesEnv(config)
   const configUnavailable = wrapEnabled && configQuery.isFetched && config == null
   const pauseUnknown = wrapEnabled && pausedQuery.isFetched && pausedQuery.data === null

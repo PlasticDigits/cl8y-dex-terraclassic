@@ -39,10 +39,14 @@ import {
   amountForTargetNetAfterWrapMapperFee,
   wrapUnwrapFeeNote,
   queryWrapMapperFeeBps,
+  queryWrapMapperConfig,
   queryPausedState,
   checkRateLimitExceeded,
   wrapTreasuryMatchesEnv,
   clearWrapMapperConfigCache,
+  parseWrapMapperFeePair,
+  wrapMapperFeeBps,
+  retuneUnwrapFeeBps,
 } from '../wrapMapper'
 
 describe('wrapMapper helpers', () => {
@@ -135,18 +139,77 @@ describe('wrap-mapper fee math (GitLab #507)', () => {
     expect(wrapUnwrapFeeNote('wrap', 100)).toBe('Wrap (1.00% fee)')
     expect(wrapUnwrapFeeNote('unwrap', 50)).toBe('Unwrap (0.50% fee; You Receive after burn tax)')
     expect(wrapUnwrapFeeNote('unwrap', 200, '0.015')).toBe('Unwrap (2.00% fee; You Receive after 1.5% burn tax)')
+    expect(wrapUnwrapFeeNote('unwrap', 51, '0.015')).toBe('Unwrap (0.51% fee; You Receive after 1.5% burn tax)')
     expect(wrapUnwrapFeeNote('wrap', null)).toBe('Wrap fee unavailable')
     expect(wrapUnwrapFeeNote('unwrap', undefined)).toBe('Unwrap fee unavailable')
   })
 
-  it('queryWrapMapperFeeBps reads on-chain config', async () => {
+  it('parseWrapMapperFeePair reads split fees and fails closed on partial', () => {
+    expect(parseWrapMapperFeePair({ fee_wrap_bps: 200, fee_unwrap_bps: 51 })).toEqual({
+      fee_wrap_bps: 200,
+      fee_unwrap_bps: 51,
+    })
+    expect(parseWrapMapperFeePair({ fee_wrap_bps: '200', fee_unwrap_bps: '51' })).toEqual({
+      fee_wrap_bps: 200,
+      fee_unwrap_bps: 51,
+    })
+    expect(parseWrapMapperFeePair({ fee_bps: 200 })).toEqual({
+      fee_wrap_bps: 200,
+      fee_unwrap_bps: 200,
+    })
+    expect(parseWrapMapperFeePair({ fee_wrap_bps: 200 })).toBeNull()
+    expect(parseWrapMapperFeePair({ fee_unwrap_bps: 51 })).toBeNull()
+    expect(parseWrapMapperFeePair({ fee_wrap_bps: 200, fee_unwrap_bps: -1 })).toBeNull()
+    expect(parseWrapMapperFeePair({})).toBeNull()
+    expect(parseWrapMapperFeePair(null)).toBeNull()
+  })
+
+  it('wrapMapperFeeBps picks wrap vs unwrap and does not swap fields', () => {
+    const split = { fee_wrap_bps: 200, fee_unwrap_bps: 51 }
+    expect(wrapMapperFeeBps(split, 'wrap')).toBe(200)
+    expect(wrapMapperFeeBps(split, 'unwrap')).toBe(51)
+    expect(wrapMapperFeeBps({ fee_bps: 200 }, 'wrap')).toBe(200)
+    expect(wrapMapperFeeBps({ fee_bps: 200 }, 'unwrap')).toBe(200)
+    expect(wrapMapperFeeBps({ fee_wrap_bps: 200 }, 'unwrap')).toBeNull()
+  })
+
+  it('retuneUnwrapFeeBps matches 1.5% tax → 51 (ustr-cmm#9)', () => {
+    expect(retuneUnwrapFeeBps(0.015)).toBe(51)
+    expect(() => retuneUnwrapFeeBps(0.02)).toThrow(/subsidy/i)
+  })
+
+  it('queryWrapMapperFeeBps reads split on-chain config (#516)', async () => {
+    queryContract.mockResolvedValue({
+      governance: 'terra1gov',
+      treasury: 'terra1treasury_mock',
+      paused: false,
+      fee_wrap_bps: 200,
+      fee_unwrap_bps: 51,
+    })
+    await expect(queryWrapMapperFeeBps('wrap')).resolves.toBe(200)
+    await expect(queryWrapMapperFeeBps('unwrap')).resolves.toBe(51)
+  })
+
+  it('queryWrapMapperFeeBps maps transitional fee_bps to both sides', async () => {
     queryContract.mockResolvedValue({
       governance: 'terra1gov',
       treasury: 'terra1treasury_mock',
       paused: false,
       fee_bps: 100,
     })
-    await expect(queryWrapMapperFeeBps()).resolves.toBe(100)
+    await expect(queryWrapMapperFeeBps('wrap')).resolves.toBe(100)
+    await expect(queryWrapMapperFeeBps('unwrap')).resolves.toBe(100)
+  })
+
+  it('queryWrapMapperConfig returns null on partial split fees (fail closed)', async () => {
+    queryContract.mockResolvedValue({
+      governance: 'terra1gov',
+      treasury: 'terra1treasury_mock',
+      paused: false,
+      fee_wrap_bps: 200,
+    })
+    await expect(queryWrapMapperConfig()).resolves.toBeNull()
+    await expect(queryWrapMapperFeeBps('unwrap')).rejects.toThrow(/config unavailable/i)
   })
 
   it('queryWrapMapperFeeBps throws when config unavailable (fail closed)', async () => {
@@ -191,7 +254,8 @@ describe('wrap-mapper fee math (GitLab #507)', () => {
         governance: 'terra1gov',
         treasury: 'terra1treasury_mock',
         paused: false,
-        fee_bps: 100,
+        fee_wrap_bps: 200,
+        fee_unwrap_bps: 51,
       })
     ).toBe(true)
     expect(
@@ -199,7 +263,8 @@ describe('wrap-mapper fee math (GitLab #507)', () => {
         governance: 'terra1gov',
         treasury: 'terra1other',
         paused: false,
-        fee_bps: 100,
+        fee_wrap_bps: 200,
+        fee_unwrap_bps: 51,
       })
     ).toBe(false)
   })

@@ -3,7 +3,7 @@
 #
 # Checks (no keys / no mutating txs):
 #   - window effective_swap: paused, oracle paused/age vs max_oracle_age_sec
-#   - wrap-mapper config.paused + fee_bps + treasury match
+#   - wrap-mapper config.paused + fee_wrap_bps/fee_unwrap_bps (or pre-migrate fee_bps) + treasury match
 #   - treasury vFDUSD balance + allowance to ust1-window
 #   - wrap solvency: bank uluna/uusd on treasury ≥ cLUNC/cUSTC total_supply
 #
@@ -126,17 +126,30 @@ WCFG="$(smart "$UST1_OPS_WRAP_MAPPER" '{"config":{}}')" || {
 }
 if [[ -n "$WCFG" && "$WCFG" != "null" ]]; then
   W_PAUSED="$(echo "$WCFG" | jq -r '.paused // false')"
-  W_FEE="$(echo "$WCFG" | jq -r '.fee_bps // 0')"
+  W_WRAP_FEE="$(echo "$WCFG" | jq -r '.fee_wrap_bps // empty')"
+  W_UNWRAP_FEE="$(echo "$WCFG" | jq -r '.fee_unwrap_bps // empty')"
+  W_LEGACY_FEE="$(echo "$WCFG" | jq -r '.fee_bps // empty')"
   W_TREAS="$(echo "$WCFG" | jq -r '.treasury // ""')"
   W_GOV="$(echo "$WCFG" | jq -r '.governance // ""')"
-  echo "    paused=$W_PAUSED fee_bps=$W_FEE treasury=$W_TREAS"
+  echo "    paused=$W_PAUSED fee_wrap_bps=${W_WRAP_FEE:-<empty>} fee_unwrap_bps=${W_UNWRAP_FEE:-<empty>} fee_bps=${W_LEGACY_FEE:-<empty>}"
+  echo "    treasury=$W_TREAS"
   echo "    governance=$W_GOV"
   if [[ "$W_PAUSED" == "true" ]]; then
     if [[ "$STRICT_PAUSE" == "1" ]]; then bad "wrap-mapper paused (STRICT)"; else warn "wrap-mapper paused"; fi
   else
     ok "wrap-mapper not paused"
   fi
-  ok "wrap-mapper fee_bps=$W_FEE (on-chain authoritative; UI must query)"
+  if [[ -n "$W_WRAP_FEE" || -n "$W_UNWRAP_FEE" ]]; then
+    if [[ -z "$W_WRAP_FEE" || -z "$W_UNWRAP_FEE" ]]; then
+      bad "wrap-mapper split fees partial (fee_wrap_bps=${W_WRAP_FEE:-<empty>} fee_unwrap_bps=${W_UNWRAP_FEE:-<empty>}) — fail closed"
+    else
+      ok "wrap-mapper fee_wrap_bps=$W_WRAP_FEE fee_unwrap_bps=$W_UNWRAP_FEE (on-chain; UI must query; #516)"
+    fi
+  elif [[ -n "$W_LEGACY_FEE" ]]; then
+    warn "wrap-mapper still single fee_bps=$W_LEGACY_FEE (ustr-cmm#9 migrate pending; UI maps both sides)"
+  else
+    bad "wrap-mapper config missing fee_wrap_bps/fee_unwrap_bps and fee_bps"
+  fi
   if [[ "$W_TREAS" == "$UST1_OPS_TREASURY" ]]; then
     ok "wrap-mapper treasury matches registry CMM treasury"
   else

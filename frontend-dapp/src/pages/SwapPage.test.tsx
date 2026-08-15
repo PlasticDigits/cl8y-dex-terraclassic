@@ -86,8 +86,19 @@ vi.mock('@/services/terraclassic/wrapMapper', () => ({
     governance: 'terra1gov',
     treasury: 'terra1treasury',
     paused: false,
-    fee_bps: 100,
+    fee_wrap_bps: 100,
+    fee_unwrap_bps: 100,
   }),
+  wrapMapperFeeBps: (
+    config: { fee_wrap_bps?: number; fee_unwrap_bps?: number; fee_bps?: number } | null,
+    kind: 'wrap' | 'unwrap'
+  ) => {
+    if (!config) return null
+    if (config.fee_wrap_bps != null && config.fee_unwrap_bps != null) {
+      return kind === 'wrap' ? config.fee_wrap_bps : config.fee_unwrap_bps
+    }
+    return config.fee_bps ?? null
+  },
   queryRateLimit: vi.fn().mockResolvedValue({
     config: { max_amount_per_window: '110000000000000', window_seconds: 86400 },
     current_window_start: null,
@@ -188,7 +199,8 @@ describe('SwapPage', () => {
       governance: 'terra1gov',
       treasury: 'terra1treasury',
       paused: false,
-      fee_bps: 100,
+      fee_wrap_bps: 100,
+      fee_unwrap_bps: 100,
     })
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
     vi.mocked(getConnectedWallet).mockReturnValue(null)
@@ -1321,7 +1333,8 @@ describe('SwapPage', () => {
         governance: 'terra1gov',
         treasury: 'terra1wrong_treasury_address____________',
         paused: false,
-        fee_bps: 100,
+        fee_wrap_bps: 100,
+        fee_unwrap_bps: 100,
       })
       await renderConnectedNativeWrapSwap()
 

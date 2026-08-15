@@ -16,7 +16,7 @@
 - [ ] Wrap-mapper set on router (`SetWrapMapper`)
 - [ ] Treasury funded with native tokens (≥40M USTC in production)
 - [ ] Test wallet has native LUNC and USTC balances
-- [ ] Query wrap-mapper `Config { fee_bps }` — record value (on-chain authoritative; columbus-5 observed **200**; LocalTerra deploy default often **50** unless changed)
+- [ ] Query wrap-mapper `Config` — record `fee_wrap_bps` / `fee_unwrap_bps` (or pre-migrate single `fee_bps`). Post-migrate columbus-5 target **200 / 51** ([#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); LocalTerra deploy default often **50** unless changed. Do not hardcode.
 
 ### Mainnet Coolify env checklist (#507)
 
@@ -33,20 +33,20 @@ Before testing on `https://dex.cl8y.com`, confirm Coolify frontend build-args (r
 - [ ] Token selector shows **cLUNC** / **cUSTC** (not legacy LUNC-C / USTC-C labels)
 - [ ] Soft-launch `frontend.env.example` from deploy script has wrap keys **commented only** (not active)
 
-### Fee formula (wrap-mapper `fee_bps`)
+### Fee formula (wrap-mapper split fees, #516)
 
-For amount `A` and on-chain `fee_bps`:
+For amount `A` and the **matching** on-chain fee (`fee_wrap_bps` on wrap, `fee_unwrap_bps` on unwrap; transitional `fee_bps` only when both split fields are absent):
 
-`net = A − floor(A × fee_bps / 10_000)`
+`net = A − floor(A × bps / 10_000)`
 
-When `fee_bps > 0`, UI must **not** claim 1:1.
+When that fee > 0, UI must **not** claim 1:1. Do not claim “2% flat” on unwrap (tax still applies).
 
 | Direction | Expected You Receive |
 |-----------|----------------------|
-| **Wrap** | `net` per fee formula only (`MsgExecuteContract` untaxed) |
-| **Unwrap** | `net` after fee, then Classic burn tax on InstantWithdraw (`floor(net × burn_tax_rate)`) |
+| **Wrap** | `net` per **wrap** fee only (`MsgExecuteContract` untaxed). 10 000 @ 200 → **9 800** |
+| **Unwrap** | `net` after **unwrap** fee, then Classic burn tax (`floor(net × burn_tax_rate)`). 10 000 @ 51 + 1.5% → **9 800** (not 9 653). Pre-migrate @ 200 + 1.5% → **9 653** — quote that until config is live. |
 
-Playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) (**W8–W11**), [`skills/AGENTS_NATIVE_WRAP_TAX.md`](../../skills/AGENTS_NATIVE_WRAP_TAX.md).
+Playbooks: [`skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](../../skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (**W12–W15**), [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) (**W8–W11**), [`skills/AGENTS_NATIVE_WRAP_TAX.md`](../../skills/AGENTS_NATIVE_WRAP_TAX.md).
 
 ### 0. Discoverability (post–Coolify wrap env)
 
@@ -58,7 +58,7 @@ Playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UN
 
 #### LUNC → cLUNC
 - [ ] Select LUNC as "From" and cLUNC as "To" on swap page (or use **More → Wrap**)
-- [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
+- [ ] Inline note references wrap fee (not "1:1" when wrap fee > 0)
 - [ ] Button label is **Wrap** (not "Swap") on the direct wrap route
 - [ ] Enter amount — estimated output = `net` per fee formula above
 - [ ] Execute wrap — transaction succeeds
@@ -68,7 +68,7 @@ Playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UN
 
 #### USTC → cUSTC
 - [ ] Select USTC as "From" and cUSTC as "To" on swap page
-- [ ] Inline note references wrap fee (not "1:1" when `fee_bps > 0`)
+- [ ] Inline note references wrap fee (not "1:1" when wrap fee > 0)
 - [ ] Button label is **Wrap**
 - [ ] Execute wrap — transaction succeeds
 - [ ] USTC balance decreases by entered amount
@@ -79,10 +79,10 @@ Playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UN
 
 #### cLUNC → LUNC
 - [ ] Select cLUNC as "From" and LUNC as "To" on swap page
-- [ ] Inline note references unwrap fee **and** burn tax on payout (not "1:1" when `fee_bps > 0`)
+- [ ] Inline note references unwrap fee **and** burn tax on payout (not "1:1" when unwrap fee > 0; not “2% flat”)
 - [ ] Exchange-deposit warning visible (withdraw to own wallet first) — [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)
 - [ ] Button label is **Unwrap**
-- [ ] Enter amount — estimated output = post-fee then burn tax (e.g. 10 000 @ 200 bps + 1.5% tax → **9 653**, not 9 800)
+- [ ] Enter amount — estimated output = post-unwrap-fee then burn tax (post-migrate 10 000 @ 51 + 1.5% → **≈9 800**; pre-migrate @ 200 + 1.5% → **9 653**) — [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)
 - [ ] Execute unwrap — transaction succeeds
 - [ ] cLUNC balance decreases by entered amount
 - [ ] LUNC balance increases by **post-tax** native received (matches quote)
@@ -112,7 +112,7 @@ Playbooks: [`skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md`](../../skills/AGENTS_WRAP_UN
 - [ ] Route display shows unwrap step (EMBER → … → cLUNC → LUNC)
 - [ ] Inline note: "This swap will unwrap your tokens"
 - [ ] Execute swap — transaction succeeds with `unwrap_output: true`
-- [ ] Quoted receive nets mapper `fee_bps` on final unwrap leg
+- [ ] Quoted receive nets mapper **`fee_unwrap_bps`** on final unwrap leg
 - [ ] CW20 input token balance decreases
 - [ ] LUNC balance increases
 - [ ] Treasury LUNC balance decreases by output amount

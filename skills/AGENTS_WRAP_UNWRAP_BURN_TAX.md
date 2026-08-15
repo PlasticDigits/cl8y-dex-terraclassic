@@ -2,11 +2,12 @@
 
 Use when changing **native wrap/unwrap quotes**, InstantWithdraw tax math, wrap fee notes, or exchange-deposit unwrap warnings.
 
-**Issue:** [GitLab **#512**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)
+**Issue:** [GitLab **#512**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)  
+**≈2% unwrap all-in:** [GitLab **#516**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516) / [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — asymmetric `fee_wrap_bps` / `fee_unwrap_bps`, **not** InstantWithdraw gross-up.
 
 ## Problem (mainnet evidence)
 
-Unwrapping cLUNC → LUNC via wrap-mapper → treasury `InstantWithdraw` → `BankMsg::Send` is **burn-taxed**. With `fee_bps = 200` and `burn_tax_rate = 0.015`:
+Unwrapping cLUNC → LUNC via wrap-mapper → treasury `InstantWithdraw` → `BankMsg::Send` is **burn-taxed**. With a **single** `fee_bps = 200` and `burn_tax_rate = 0.015`:
 
 | Step | Amount (10 000 LUNC CW20) |
 |------|---------------------------|
@@ -16,7 +17,7 @@ Unwrapping cLUNC → LUNC via wrap-mapper → treasury `InstantWithdraw` → `Ba
 
 Tx: `C282C337B3F3E4AC7ECC95B92E82DCD1484C2E6FA766A07DBFAFAC49F6B280A0`.
 
-Wrap-mapper `fee_bps` was raised to **200** so the fee residual *can* cover tax (ustr-cmm deployment policy), but **current contracts do not gross-up** InstantWithdraw — tax incidence falls on the user. On-chain gross-up lives in **ustr-cmm** (follow-up migrate), not this dApp alone.
+After [ustr-cmm#9](https://gitlab.com/PlasticDigits2/ustr-cmm/-/work_items/9) migrate (`fee_wrap_bps=200`, `fee_unwrap_bps=51`), the same 10 000 unwrap is **≈9 800** (fee then tax). Until that config is live, UI must quote the truthful 200+tax stack — do not fake 2%.
 
 ## Classic tax rules (do not confuse)
 
@@ -33,10 +34,12 @@ LCD: `GET ${LCD}/terra/tax/v1beta1/params` → `params.burn_tax_rate` (e.g. `"0.
 
 | ID | Rule |
 |----|------|
-| **W8** | Direct **wrap** / wrap-input mint quotes use **mapper `fee_bps` only** — never burn-tax `wrap_deposit` gross. Display for 10 000 @ 200 bps = **9 800**, not ~9 751. |
-| **W9** | Direct **unwrap** / `unwrap_output` **You Receive** = post-fee then post–burn-tax. `routerMinReceiveBase` stays post-fee pre-tax for router `minimum_receive` (**R3**). |
-| **W10** | Unwrap fee line discloses burn tax on payout (single line; no permanent essay — still **W7**). |
+| **W8** | Direct **wrap** / wrap-input mint quotes use **mapper wrap fee only** (`fee_wrap_bps`, or transitional `fee_bps`) — never burn-tax `wrap_deposit` gross. Display for 10 000 @ 200 bps = **9 800**, not ~9 751. |
+| **W9** | Direct **unwrap** / `unwrap_output` **You Receive** = post-**unwrap**-fee then post–burn-tax. `routerMinReceiveBase` stays post-fee pre-tax for router `minimum_receive` (**R3**). |
+| **W10** | Unwrap fee line discloses burn tax on payout (single line; no permanent essay — still **W7**). Do not claim “2% flat” if that implies tax-free. |
 | **W11** | Unwrap UI warns: withdraw to **own wallet** first — exchanges often ignore contract-initiated deposits (even with memo). |
+
+Split-fee field rules: **W12–W15** in [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md).
 
 ## Code map
 
@@ -46,10 +49,11 @@ LCD: `GET ${LCD}/terra/tax/v1beta1/params` → `params.burn_tax_rate` (e.g. `"0.
 | [`router.ts`](../frontend-dapp/src/services/terraclassic/router.ts) | `netCw20AfterNativeWrap`, `netNativeAfterUnwrap`, `simulateNativeSwap` |
 | [`wrapMapper.ts`](../frontend-dapp/src/services/terraclassic/wrapMapper.ts) | `wrapUnwrapFeeNote(kind, feeBps, burnTaxRate?)` |
 | [`WrapPage.tsx`](../frontend-dapp/src/pages/WrapPage.tsx) / [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Fee note + exchange-deposit warning |
-| [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) | Provide auto-fill: fee-only wrap net |
+| [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) | Provide auto-fill: wrap-fee-only net |
 
 ## Related playbooks
 
+- [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — #516 dual fees + retune
 - [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md) — history of #342; superseded for wrap mint by **W8**
 - [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) — W1–W7 + Coolify env (#507)
 - [`AGENTS_ROUTER_MINIMUM_RECEIVE.md`](./AGENTS_ROUTER_MINIMUM_RECEIVE.md) — R3 post-fee floor
@@ -59,6 +63,7 @@ LCD: `GET ${LCD}/terra/tax/v1beta1/params` → `params.burn_tax_rate` (e.g. `"0.
 
 ```bash
 make verify-issue-512
+make verify-issue-516
 # or:
 bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
   src/utils/__tests__/nativeTransferTax.test.ts \
@@ -67,7 +72,3 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
   src/utils/__tests__/poolProvideCounterpart.test.ts \
   src/pages/WrapPage.test.tsx
 ```
-
-## Follow-up (not in this dApp MR)
-
-On-chain **gross-up** InstantWithdraw in ustr-cmm wrap-mapper/treasury so recipient nets `gross − fee` and tax is paid from fee residual — then bump dependency + migrate mainnet wrap-mapper. Until then, accurate UI quotes + disclosure are the shipped mitigation.

@@ -228,27 +228,27 @@ export function findRouteWithNativeSupport(
 }
 
 /**
- * CW20 amount minted for a gross native wrap deposit: wrap-mapper `fee_bps` only.
+ * CW20 amount minted for a gross native wrap deposit: wrap-mapper `fee_wrap_bps` only.
  *
  * Classic does **not** burn-tax `MsgExecuteContract` funds (user → treasury wrap_deposit),
- * so mint = `gross − floor(gross × fee_bps / 10_000)` (GitLab #512; corrects #342 double-count).
+ * so mint = `gross − floor(gross × fee_wrap_bps / 10_000)` (GitLab #512 / #516).
  * Must match `executeNativeSwap` / pool auto-wrap send amounts (#507).
  */
 export async function netCw20AfterNativeWrap(grossNative: bigint, denom?: string): Promise<bigint> {
   void denom // retained for call-site clarity (native denom of the wrap_deposit)
-  const feeBps = await queryWrapMapperFeeBps()
+  const feeBps = await queryWrapMapperFeeBps('wrap')
   return netAfterWrapMapperFee(grossNative, feeBps)
 }
 
 /**
- * Native amount a user receives after unwrap: mapper fee then InstantWithdraw burn tax (#512).
- * `routerMinReceiveBase` is the post-fee pre-tax amount (R3 / router `minimum_receive`).
+ * Native amount a user receives after unwrap: `fee_unwrap_bps` then InstantWithdraw burn tax
+ * (#512 / #516). `routerMinReceiveBase` is the post-fee pre-tax amount (R3).
  */
 export async function netNativeAfterUnwrap(
   wrappedAmount: bigint,
   nativeDenom: string
 ): Promise<{ receive: bigint; routerMinReceiveBase: bigint }> {
-  const feeBps = await queryWrapMapperFeeBps()
+  const feeBps = await queryWrapMapperFeeBps('unwrap')
   const afterFee = netAfterWrapMapperFee(wrappedAmount, feeBps)
   const receive = await netUlunaAfterTransferTaxAsync(afterFee, nativeDenom)
   return { receive, routerMinReceiveBase: afterFee }
@@ -256,7 +256,7 @@ export async function netNativeAfterUnwrap(
 
 /**
  * Simulate a swap that may involve native tokens by substituting with wrapped equivalents.
- * Direct wrap/unwrap and unwrap_output paths apply on-chain wrap-mapper `fee_bps` (#507)
+ * Direct wrap/unwrap and unwrap_output paths apply on-chain wrap / unwrap mapper fees (#507 / #516)
  * and Classic burn tax on unwrap InstantWithdraw (#512).
  */
 export async function simulateNativeSwap(

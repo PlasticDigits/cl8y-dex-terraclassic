@@ -46,6 +46,7 @@ import {
   checkRateLimitExceeded,
   getNativeForWrapped,
   queryWrapMapperConfig,
+  wrapMapperFeeBps,
   wrapUnwrapFeeNote,
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
@@ -395,6 +396,7 @@ export default function SwapPage() {
     queryFn: queryWrapMapperConfig,
     enabled: wrapMapperActive || isWrapOrUnwrap,
     staleTime: 30_000,
+    refetchInterval: 30_000,
   })
 
   const unwrapBurnTaxDenom =
@@ -429,7 +431,9 @@ export default function SwapPage() {
   })
 
   const wrapMapperConfig = wrapMapperConfigQuery.data ?? null
-  const wrapMapperFeeBps = wrapMapperConfig?.fee_bps
+  const wrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'wrap')
+  const unwrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'unwrap')
+  const wrapNoteFeeBps = wrapUnwrapType === 'unwrap' ? unwrapFeeBps : wrapFeeBps
   const wrapNeedsSafetyGate =
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
     (wrapMapperActive || isWrapOrUnwrap || !!(nativeRouteInfo?.needsWrapInput || nativeRouteInfo?.needsUnwrapOutput))
@@ -461,7 +465,8 @@ export default function SwapPage() {
         debouncedHybridMaxMakers,
         slippageTolerance,
         address,
-        wrapMapperFeeBps ?? null,
+        wrapFeeBps ?? null,
+        unwrapFeeBps ?? null,
         wrapMapperConfig != null,
       ] as const,
     [
@@ -476,7 +481,8 @@ export default function SwapPage() {
       debouncedHybridMaxMakers,
       slippageTolerance,
       address,
-      wrapMapperFeeBps,
+      wrapFeeBps,
+      unwrapFeeBps,
       wrapMapperConfig,
     ]
   )
@@ -1624,7 +1630,7 @@ export default function SwapPage() {
                           >
                             {wrapUnwrapFeeNote(
                               wrapUnwrapType,
-                              wrapMapperFeeBps,
+                              wrapNoteFeeBps,
                               wrapUnwrapType === 'unwrap' ? unwrapBurnTaxQuery.data?.rate : null
                             )}
                           </span>

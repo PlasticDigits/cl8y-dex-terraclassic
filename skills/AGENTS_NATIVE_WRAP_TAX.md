@@ -2,7 +2,7 @@
 
 Use when changing **native LUNC/USTC → CW20** multi-msg flows (`wrap_deposit` + CW20 action) or debugging **`Overflow: Cannot Sub`** on wrapped amounts.
 
-> **#512 correction:** Classic does **not** burn-tax `MsgExecuteContract` funds. CW20 minted after wrap is **mapper `fee_bps` only**. Earlier #342 guidance that applied Terraswap-style tax to wrap mint **over-deducted** quotes (e.g. display 9751 vs receive 9800 at 200 bps). Burn tax applies on **unwrap InstantWithdraw** (`BankMsg::Send`) — see [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md).
+> **#512 correction:** Classic does **not** burn-tax `MsgExecuteContract` funds. CW20 minted after wrap is **mapper wrap fee only** (`fee_wrap_bps`). Earlier #342 guidance that applied Terraswap-style tax to wrap mint **over-deducted** quotes (e.g. display 9751 vs receive 9800 at 200 bps). Burn tax applies on **unwrap InstantWithdraw** (`BankMsg::Send`) — see [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md). Split fees / ≈2% unwrap all-in: [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (#516).
 
 ## Canonical references
 
