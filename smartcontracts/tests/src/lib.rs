@@ -2427,6 +2427,9 @@ mod fee_discount_tests {
                     tier_id,
                     min_cl8y_balance: Uint128::new(min_cl8y),
                     discount_bps,
+                    limit_discount_bps: Some(
+                        dex_common::fee_discount::standard_shifted_limit_discount_bps(discount_bps),
+                    ),
                     governance_only,
                 },
                 &[],
@@ -2976,7 +2979,11 @@ mod fee_discount_tests {
         assert!(tiers.tiers[0].tier.governance_only);
         assert_eq!(tiers.tiers[1].tier_id, 1);
         assert_eq!(tiers.tiers[1].tier.discount_bps, 250);
+        assert_eq!(tiers.tiers[1].tier.limit_discount_bps, Some(1_000));
         assert!(!tiers.tiers[1].tier.governance_only);
+        let t9 = tiers.tiers.iter().find(|t| t.tier_id == 9).expect("tier 9");
+        assert_eq!(t9.tier.discount_bps, 9_500);
+        assert_eq!(t9.tier.limit_discount_bps, Some(10_000));
         let t255 = tiers
             .tiers
             .iter()
@@ -5473,6 +5480,7 @@ mod fee_discount_coverage_tests {
                 tier_id: 1,
                 min_cl8y_balance: Uint128::new(ONE_CL8Y),
                 discount_bps: 1000,
+                limit_discount_bps: None,
                 governance_only: false,
             },
             &[],
@@ -5494,6 +5502,7 @@ mod fee_discount_coverage_tests {
                 tier_id: 1,
                 min_cl8y_balance: Some(Uint128::new(2 * ONE_CL8Y)),
                 discount_bps: Some(2000),
+                limit_discount_bps: None,
                 governance_only: None,
             },
             &[],
@@ -5706,6 +5715,7 @@ mod fee_discount_coverage_tests {
                     tier_id: 1,
                     min_cl8y_balance: Uint128::new(ONE_CL8Y),
                     discount_bps: 500,
+                    limit_discount_bps: None,
                     governance_only: false,
                 },
                 &[],
@@ -5727,6 +5737,7 @@ mod fee_discount_coverage_tests {
                     tier_id: 99,
                     min_cl8y_balance: Uint128::zero(),
                     discount_bps: 10001,
+                    limit_discount_bps: None,
                     governance_only: false,
                 },
                 &[],
@@ -5765,6 +5776,7 @@ mod fee_discount_coverage_tests {
                 tier_id: 0,
                 min_cl8y_balance: Uint128::zero(),
                 discount_bps: 10000,
+                limit_discount_bps: None,
                 governance_only: true,
             },
             &[],
@@ -7696,6 +7708,9 @@ mod fuzz_tests {
                         tier_id: tid,
                         min_cl8y_balance: Uint128::new(min_w),
                         discount_bps: disc,
+                        limit_discount_bps: Some(
+                            dex_common::fee_discount::standard_shifted_limit_discount_bps(disc),
+                        ),
                         governance_only: gov_only,
                     },
                     &[],
@@ -11888,6 +11903,7 @@ mod new_feature_tests {
                 tier_id: 1,
                 min_cl8y_balance: Uint128::new(ONE_CL8Y),
                 discount_bps: 1000,
+                limit_discount_bps: None,
                 governance_only: false,
             },
             &[],
@@ -12665,6 +12681,9 @@ mod fee_treasury_tests {
                     tier_id,
                     min_cl8y_balance: Uint128::new(min_cl8y),
                     discount_bps,
+                    limit_discount_bps: Some(
+                        dex_common::fee_discount::standard_shifted_limit_discount_bps(discount_bps),
+                    ),
                     governance_only,
                 },
                 &[],

@@ -77,17 +77,17 @@ MAINNET_SOFT_LAUNCH_PAIRS=(
 # Parsed by scripts/check_fee_discount_tier_docs.py.
 mainnet_soft_launch_fee_discount_tier_msgs() {
   cat <<'EOF'
-{"add_tier":{"tier_id":0,"min_cl8y_balance":"0","discount_bps":10000,"governance_only":true}}
-{"add_tier":{"tier_id":1,"min_cl8y_balance":"1000000000000000000","discount_bps":250,"governance_only":false}}
-{"add_tier":{"tier_id":2,"min_cl8y_balance":"5000000000000000000","discount_bps":1000,"governance_only":false}}
-{"add_tier":{"tier_id":3,"min_cl8y_balance":"20000000000000000000","discount_bps":2000,"governance_only":false}}
-{"add_tier":{"tier_id":4,"min_cl8y_balance":"75000000000000000000","discount_bps":3500,"governance_only":false}}
-{"add_tier":{"tier_id":5,"min_cl8y_balance":"200000000000000000000","discount_bps":5000,"governance_only":false}}
-{"add_tier":{"tier_id":6,"min_cl8y_balance":"500000000000000000000","discount_bps":6000,"governance_only":false}}
-{"add_tier":{"tier_id":7,"min_cl8y_balance":"1500000000000000000000","discount_bps":7500,"governance_only":false}}
-{"add_tier":{"tier_id":8,"min_cl8y_balance":"3500000000000000000000","discount_bps":8500,"governance_only":false}}
-{"add_tier":{"tier_id":9,"min_cl8y_balance":"7500000000000000000000","discount_bps":9500,"governance_only":false}}
-{"add_tier":{"tier_id":255,"min_cl8y_balance":"0","discount_bps":0,"governance_only":true}}
+{"add_tier":{"tier_id":0,"min_cl8y_balance":"0","discount_bps":10000,"limit_discount_bps":10000,"governance_only":true}}
+{"add_tier":{"tier_id":1,"min_cl8y_balance":"1000000000000000000","discount_bps":250,"limit_discount_bps":1000,"governance_only":false}}
+{"add_tier":{"tier_id":2,"min_cl8y_balance":"5000000000000000000","discount_bps":1000,"limit_discount_bps":2000,"governance_only":false}}
+{"add_tier":{"tier_id":3,"min_cl8y_balance":"20000000000000000000","discount_bps":2000,"limit_discount_bps":3500,"governance_only":false}}
+{"add_tier":{"tier_id":4,"min_cl8y_balance":"75000000000000000000","discount_bps":3500,"limit_discount_bps":5000,"governance_only":false}}
+{"add_tier":{"tier_id":5,"min_cl8y_balance":"200000000000000000000","discount_bps":5000,"limit_discount_bps":6000,"governance_only":false}}
+{"add_tier":{"tier_id":6,"min_cl8y_balance":"500000000000000000000","discount_bps":6000,"limit_discount_bps":7500,"governance_only":false}}
+{"add_tier":{"tier_id":7,"min_cl8y_balance":"1500000000000000000000","discount_bps":7500,"limit_discount_bps":8500,"governance_only":false}}
+{"add_tier":{"tier_id":8,"min_cl8y_balance":"3500000000000000000000","discount_bps":8500,"limit_discount_bps":9500,"governance_only":false}}
+{"add_tier":{"tier_id":9,"min_cl8y_balance":"7500000000000000000000","discount_bps":9500,"limit_discount_bps":10000,"governance_only":false}}
+{"add_tier":{"tier_id":255,"min_cl8y_balance":"0","discount_bps":0,"limit_discount_bps":0,"governance_only":true}}
 EOF
 }
 

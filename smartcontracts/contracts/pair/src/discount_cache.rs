@@ -21,9 +21,15 @@ pub(crate) fn effective_fee_bps_from_discount(
     fee_bps: u16,
     discount: &fee_discount::DiscountResponse,
 ) -> u16 {
-    let discounted =
-        (fee_bps as u32) * (10000u32.saturating_sub(discount.discount_bps as u32)) / 10000u32;
-    discounted as u16
+    fee_discount::effective_fee_bps(fee_bps, discount.discount_bps)
+}
+
+/// Maker-placement effective fee using the #514 limit discount (falls back to swap discount).
+pub(crate) fn limit_effective_fee_bps_from_discount(
+    fee_bps: u16,
+    discount: &fee_discount::DiscountResponse,
+) -> u16 {
+    fee_discount::effective_fee_bps(fee_bps, discount.resolved_limit_discount_bps())
 }
 
 fn cache_key(

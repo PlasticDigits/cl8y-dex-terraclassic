@@ -622,6 +622,7 @@ fn hybrid_book_fill_uses_taker_discounted_effective_fee_bps() {
             tier_id: 1,
             min_cl8y_balance: Uint128::zero(),
             discount_bps: 5000,
+            limit_discount_bps: None,
             governance_only: false,
         },
         &[],
@@ -765,6 +766,7 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
             tier_id: 1,
             min_cl8y_balance: Uint128::zero(),
             discount_bps: 2500,
+            limit_discount_bps: None,
             governance_only: false,
         },
         &[],
@@ -6827,4 +6829,172 @@ fn batch_claim_expired_foreign_owner_reverts_whole_tx() {
             "order {id} must remain parked after a rejected foreign-owner batch claim"
         );
     }
+}
+
+/// GitLab #514 — limit placement uses the shifted discount; swap / book-take stays on `discount_bps`.
+#[test]
+fn limit_placement_shifted_discount_swap_fee_unchanged_514() {
+    let mut app = App::default();
+    let env = setup_env_with_fee(&mut app, 180);
+    let maker = Addr::unchecked("mm_t9");
+    let cw20_code_id = app.store_code(cw20_mintable_contract());
+    let fd_code_id = app.store_code(fee_discount_contract());
+
+    let cl8y = create_cw20_token_with_decimals(
+        &mut app,
+        cw20_code_id,
+        &env.user,
+        "CL8Y",
+        "CL8Y",
+        18,
+        Uint128::new(20_000_000_000_000_000_000_000u128),
+    );
+    let fd = app
+        .instantiate_contract(
+            fd_code_id,
+            env.governance.clone(),
+            &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                governance: env.governance.to_string(),
+                cl8y_token: cl8y.to_string(),
+            },
+            &[],
+            "fd_514",
+            None,
+        )
+        .unwrap();
+
+    app.execute_contract(
+        env.governance.clone(),
+        fd.clone(),
+        &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+            tier_id: 9,
+            min_cl8y_balance: Uint128::new(7_500_000_000_000_000_000_000u128),
+            discount_bps: 9_500,
+            limit_discount_bps: Some(10_000),
+            governance_only: false,
+        },
+        &[],
+    )
+    .unwrap();
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &FactoryExecuteMsg::SetDiscountRegistry {
+            pair: env.pair.to_string(),
+            registry: Some(fd.to_string()),
+        },
+        &[],
+    )
+    .unwrap();
+
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(5_000_000),
+        Uint128::new(5_000_000),
+    );
+
+    transfer_tokens(
+        &mut app,
+        &cl8y,
+        &env.user,
+        &maker,
+        Uint128::new(7_500_000_000_000_000_000_000u128),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &maker,
+        Uint128::new(1_000_000),
+    );
+    app.execute_contract(
+        maker.clone(),
+        fd.clone(),
+        &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 9 },
+        &[],
+    )
+    .unwrap();
+
+    let discount: cl8y_dex_fee_discount::msg::DiscountResponse = app
+        .wrap()
+        .query_wasm_smart(
+            fd.to_string(),
+            &cl8y_dex_fee_discount::msg::QueryMsg::GetDiscount {
+                trader: maker.to_string(),
+                sender: maker.to_string(),
+            },
+        )
+        .unwrap();
+    assert_eq!(discount.discount_bps, 9_500);
+    assert_eq!(discount.limit_discount_bps, Some(10_000));
+
+    let escrow = Uint128::new(200_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &maker,
+        &env.token_b,
+        escrow,
+        Decimal::one(),
+    );
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(
+        lo.remaining, escrow,
+        "tier 9 placement fee must be 0 bps at 180 pair fee"
+    );
+
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &maker,
+        Uint128::new(200_000),
+    );
+    let swap_in = Uint128::new(50_000);
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(pool_only_hybrid_params(swap_in)),
+        trader: Some(maker.to_string()),
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            maker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: swap_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    let eff = wasm_attr_last(&res.events, "effective_fee_bps")
+        .expect("effective_fee_bps")
+        .parse::<u16>()
+        .unwrap();
+    assert_eq!(eff, 9, "tier 9 swap/take must stay at 9 bps (95% of 180)");
+
+    let unreg_escrow = Uint128::new(100_000);
+    let unreg_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        unreg_escrow,
+        Decimal::percent(99),
+    );
+    let unreg = query_limit(&app, &env.pair, unreg_id);
+    let expected_unreg_fee = unreg_escrow.multiply_ratio(90u128, 10_000u128);
+    assert_eq!(
+        unreg.remaining,
+        unreg_escrow.checked_sub(expected_unreg_fee).unwrap(),
+        "unregistered placement stays 90 bps"
+    );
 }

@@ -15,12 +15,15 @@ pub enum ExecuteMsg {
         tier_id: u8,
         min_cl8y_balance: Uint128,
         discount_bps: u16,
+        /// When omitted, placement uses `discount_bps` (no extra break).
+        limit_discount_bps: Option<u16>,
         governance_only: bool,
     },
     UpdateTier {
         tier_id: u8,
         min_cl8y_balance: Option<Uint128>,
         discount_bps: Option<u16>,
+        limit_discount_bps: Option<u16>,
         governance_only: Option<bool>,
     },
     RemoveTier {
@@ -76,6 +79,8 @@ pub struct ConfigResponse {
 #[cw_serde]
 pub struct DiscountResponse {
     pub discount_bps: u16,
+    #[serde(default)]
+    pub limit_discount_bps: Option<u16>,
     pub needs_deregister: bool,
     pub registration_epoch: Option<u64>,
 }

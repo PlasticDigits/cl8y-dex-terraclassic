@@ -10,6 +10,12 @@ import { formatTokenAmountAbbrev } from '@/utils/formatAmount'
 import { lookupByCW20 } from '@/utils/tokenRegistry'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
+import {
+  effectiveSwapFeeBps,
+  makerPlacementFeeBps,
+  resolveLimitDiscountBps,
+  bpsToPercentLabel,
+} from '@/utils/limitOrderFeeSummary'
 
 const CL8Y_DECIMALS = lookupByCW20(CL8Y_TOKEN_ADDRESS)?.decimals ?? 18
 
@@ -26,6 +32,11 @@ function effectiveFeeLabel(discountBps: number, baseFee = 180): string {
   const effective = (baseFee * (10000 - discountBps)) / 10000
   const pct = effective / 100
   return pct % 1 === 0 ? `${pct.toFixed(1)}%` : `${pct.toFixed(2)}%`
+}
+
+function limitPlaceLabel(tier: { discount_bps: number; limit_discount_bps?: number | null }, baseFee = 180): string {
+  const limitDisc = resolveLimitDiscountBps(tier.discount_bps, tier.limit_discount_bps)
+  return bpsToPercentLabel(makerPlacementFeeBps(effectiveSwapFeeBps(baseFee, limitDisc)))
 }
 
 const TierRow = memo(function TierRow({
@@ -305,36 +316,42 @@ export default function TiersPage() {
         </h3>
         <div className="text-sm space-y-2" style={{ color: 'var(--ink-dim)' }}>
           <p>
-            Your swap fee is reduced based on your registered tier. You must hold the fee-discount contract&apos;s
-            configured CL8Y CW20 (<span className="font-mono text-xs">{CL8Y_TOKEN_ADDRESS || 'not configured'}</span>)
-            and register on this page — other similarly named tokens do not count. If you drop below the required
-            holding at any time, you lose your tier.
+            Your swap fee is reduced based on your registered tier. Limit-order <em>placement</em> uses a deeper
+            discount (tier 9 is 0). Taking or swapping still uses the swap discount. You must hold the fee-discount
+            contract&apos;s configured CL8Y CW20 (
+            <span className="font-mono text-xs">{CL8Y_TOKEN_ADDRESS || 'not configured'}</span>) and register on this
+            page — other similarly named tokens do not count. If you drop below the required holding at any time, you
+            lose your tier.
           </p>
           <p className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
             The default base fee is {(baseFee / 100).toFixed(1)}% for most pairs. Some pairs may have a different base
             fee &mdash; your tier discount applies as a percentage off whichever base fee the pair uses.
           </p>
-          <div className="grid grid-cols-4 gap-2 text-xs mt-3">
+          <div className="grid grid-cols-5 gap-2 text-xs mt-3">
             <div className="label-glass !mb-0">Tier</div>
             <div className="label-glass !mb-0">CL8Y Hold</div>
             <div className="label-glass !mb-0">Discount</div>
             <div className="label-glass !mb-0">Eff. Fee*</div>
+            <div className="label-glass !mb-0">Limit place*</div>
             <div style={{ color: 'var(--ink-subtle)' }}>No tier</div>
             <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
             <div style={{ color: 'var(--ink-subtle)' }}>&mdash;</div>
             <div style={{ color: 'var(--ink-subtle)' }}>{(baseFee / 100).toFixed(1)}%</div>
+            <div style={{ color: 'var(--ink-subtle)' }}>{bpsToPercentLabel(Math.floor(baseFee / 2))}</div>
             {selfRegisterTiers.map((t) => (
               <React.Fragment key={t.tier_id}>
                 <div style={{ color: 'var(--ink)' }}>Tier {t.tier_id}</div>
                 <div style={{ color: 'var(--ink)' }}>{formatCl8y(t.tier.min_cl8y_balance)}</div>
                 <div style={{ color: 'var(--cyan)' }}>{discountLabel(t.tier.discount_bps)}</div>
                 <div style={{ color: 'var(--mint)' }}>{effectiveFeeLabel(t.tier.discount_bps, baseFee)}</div>
+                <div style={{ color: 'var(--cyan)' }}>{limitPlaceLabel(t.tier, baseFee)}</div>
               </React.Fragment>
             ))}
           </div>
           <p className="text-xs mt-2" style={{ color: 'var(--ink-subtle)' }}>
-            *Effective fee shown assumes the default {(baseFee / 100).toFixed(1)}% base fee. Pairs with a custom base
-            fee will have a proportionally different effective fee.
+            *Effective fee is the swap / book-take rate at the default {(baseFee / 100).toFixed(1)}% base. Limit place
+            is half of the limit-order discount (tier 9 is 0). Crossing the book still charges the taker&apos;s swap
+            fee.
           </p>
         </div>
       </div>

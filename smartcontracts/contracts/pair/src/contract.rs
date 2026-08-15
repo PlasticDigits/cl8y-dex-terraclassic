@@ -45,7 +45,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.11.0";
+const CONTRACT_VERSION: &str = "1.12.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -130,22 +130,41 @@ fn effective_fee_bps_for_sim(
 }
 
 /// Fee discount for a wallet placing a limit order (`trader` == `sender` == order owner).
+/// Returns `(swap_effective_fee_bps, limit_effective_fee_bps, deregister_msgs)`.
+/// Placement uses the limit effective (#514); swap/take stays on `discount_bps`.
 pub(crate) fn effective_fee_bps_with_discount_msgs(
     mut deps: DepsMut,
     block_time: u64,
     fee_bps: u16,
     discount_registry: Option<Addr>,
     owner: Addr,
-) -> Result<(u16, Vec<CosmosMsg>), ContractError> {
+) -> Result<(u16, u16, Vec<CosmosMsg>), ContractError> {
     let trader = owner.to_string();
-    effective_fee_bps_with_deregister_msgs(
+    let (swap_effective, discount) = lookup_effective_fee_bps_cached(
         deps.branch(),
         block_time,
         fee_bps,
-        discount_registry,
+        &discount_registry,
         &trader,
         &trader,
-    )
+    )?;
+    let limit_effective = match &discount {
+        Some(d) => crate::discount_cache::limit_effective_fee_bps_from_discount(fee_bps, d),
+        None => fee_bps,
+    };
+    let mut deregister_msgs = vec![];
+    if let (Some(registry), Some(discount)) = (discount_registry.as_ref(), discount.as_ref()) {
+        deregister_msgs.extend(deregister_msgs_for_discount(
+            registry.clone(),
+            &trader,
+            discount,
+        )?);
+        if !deregister_msgs.is_empty() {
+            let trader_addr = deps.api.addr_validate(&trader)?;
+            invalidate_discount_cache(deps.storage, &trader_addr, &trader_addr)?;
+        }
+    }
+    Ok((swap_effective, limit_effective, deregister_msgs))
 }
 
 /// Integer square root via Newton's method. Returns floor(√n).

@@ -1,7 +1,21 @@
 /**
- * Pair fee math for limit-order **maker placement** copy (GitLab #157).
- * On-chain: `effective_fee_bps / 2` at placement (`orderbook::maker_placement_fee_bps`).
+ * Pair fee math for limit-order **maker placement** copy (GitLab #157, #514).
+ * On-chain: `floor(limit_effective / 2)` at placement (`orderbook::maker_fee_bps`).
+ * Limit effective uses `limit_discount_bps` when set; otherwise swap `discount_bps`.
  */
+
+/** Placement discount: explicit limit field, else swap discount (pre-#514 / custom tiers). */
+export function resolveLimitDiscountBps(
+  swapDiscountBps: number | null | undefined,
+  limitDiscountBps?: number | null
+): number {
+  if (limitDiscountBps != null && Number.isFinite(Number(limitDiscountBps))) {
+    return Math.min(Math.max(Math.floor(Number(limitDiscountBps)), 0), 10000)
+  }
+  const swap = Math.floor(Number(swapDiscountBps ?? 0))
+  if (!Number.isFinite(swap) || swap <= 0) return 0
+  return Math.min(Math.max(swap, 0), 10000)
+}
 
 /** Integer fee after tier discount, matching pair `effective_fee_bps` composition. */
 export function effectiveSwapFeeBps(pairFeeBps: number, discountBps: number | null | undefined): number {

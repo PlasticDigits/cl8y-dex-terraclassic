@@ -13,7 +13,8 @@ use crate::state::{
 };
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Bumped for #514 `limit_discount_bps` (cw2 migrate backfills standard tiers).
+const CONTRACT_VERSION: &str = "1.1.0";
 
 pub fn instantiate(
     deps: DepsMut,
@@ -47,6 +48,7 @@ pub fn execute(
             tier_id,
             min_cl8y_balance,
             discount_bps,
+            limit_discount_bps,
             governance_only,
         } => execute_add_tier(
             deps,
@@ -54,12 +56,14 @@ pub fn execute(
             tier_id,
             min_cl8y_balance,
             discount_bps,
+            limit_discount_bps,
             governance_only,
         ),
         ExecuteMsg::UpdateTier {
             tier_id,
             min_cl8y_balance,
             discount_bps,
+            limit_discount_bps,
             governance_only,
         } => execute_update_tier(
             deps,
@@ -67,6 +71,7 @@ pub fn execute(
             tier_id,
             min_cl8y_balance,
             discount_bps,
+            limit_discount_bps,
             governance_only,
         ),
         ExecuteMsg::RemoveTier { tier_id } => execute_remove_tier(deps, info, tier_id),
@@ -98,22 +103,44 @@ fn ensure_governance(deps: &DepsMut, info: &MessageInfo) -> Result<(), ContractE
     Ok(())
 }
 
+fn ensure_discount_bps(value: u16) -> Result<(), ContractError> {
+    if value > 10000 {
+        return Err(ContractError::InvalidDiscountBps { value });
+    }
+    Ok(())
+}
+
+fn discount_response(
+    discount_bps: u16,
+    limit_discount_bps: Option<u16>,
+    needs_deregister: bool,
+    registration_epoch: Option<u64>,
+) -> DiscountResponse {
+    let resolved =
+        dex_common::fee_discount::resolve_limit_discount_bps(limit_discount_bps, discount_bps);
+    DiscountResponse {
+        discount_bps,
+        limit_discount_bps: Some(resolved),
+        needs_deregister,
+        registration_epoch,
+    }
+}
+
 /// Create a new fee discount tier. Governance only.
-/// `discount_bps` must be ≤ 10000 and the `tier_id` must not already exist.
+/// `discount_bps` / `limit_discount_bps` must be ≤ 10000 and the `tier_id` must not already exist.
 fn execute_add_tier(
     deps: DepsMut,
     info: MessageInfo,
     tier_id: u8,
     min_cl8y_balance: Uint128,
     discount_bps: u16,
+    limit_discount_bps: Option<u16>,
     governance_only: bool,
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
-
-    if discount_bps > 10000 {
-        return Err(ContractError::InvalidDiscountBps {
-            value: discount_bps,
-        });
+    ensure_discount_bps(discount_bps)?;
+    if let Some(limit) = limit_discount_bps {
+        ensure_discount_bps(limit)?;
     }
 
     if TIERS.has(deps.storage, tier_id) {
@@ -123,6 +150,7 @@ fn execute_add_tier(
     let tier = Tier {
         min_cl8y_balance,
         discount_bps,
+        limit_discount_bps,
         governance_only,
     };
     TIERS.save(deps.storage, tier_id, &tier)?;
@@ -132,6 +160,11 @@ fn execute_add_tier(
         .add_attribute("tier_id", tier_id.to_string())
         .add_attribute("min_cl8y_balance", min_cl8y_balance)
         .add_attribute("discount_bps", discount_bps.to_string())
+        .add_attribute(
+            "limit_discount_bps",
+            dex_common::fee_discount::resolve_limit_discount_bps(limit_discount_bps, discount_bps)
+                .to_string(),
+        )
         .add_attribute("governance_only", governance_only.to_string()))
 }
 
@@ -142,6 +175,7 @@ fn execute_update_tier(
     tier_id: u8,
     min_cl8y_balance: Option<Uint128>,
     discount_bps: Option<u16>,
+    limit_discount_bps: Option<u16>,
     governance_only: Option<bool>,
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
@@ -154,10 +188,12 @@ fn execute_update_tier(
         tier.min_cl8y_balance = balance;
     }
     if let Some(bps) = discount_bps {
-        if bps > 10000 {
-            return Err(ContractError::InvalidDiscountBps { value: bps });
-        }
+        ensure_discount_bps(bps)?;
         tier.discount_bps = bps;
+    }
+    if let Some(bps) = limit_discount_bps {
+        ensure_discount_bps(bps)?;
+        tier.limit_discount_bps = Some(bps);
     }
     if let Some(gov) = governance_only {
         tier.governance_only = gov;
@@ -476,11 +512,7 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
     let tier_id = match REGISTRATIONS.may_load(deps.storage, &effective_trader)? {
         Some(id) => id,
         None => {
-            return Ok(DiscountResponse {
-                discount_bps: 0,
-                needs_deregister: false,
-                registration_epoch: None,
-            });
+            return Ok(discount_response(0, Some(0), false, None));
         }
     };
 
@@ -491,28 +523,26 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
     let tier = match TIERS.may_load(deps.storage, tier_id)? {
         Some(t) => t,
         None => {
-            return Ok(DiscountResponse {
-                discount_bps: 0,
-                needs_deregister: true,
-                registration_epoch: Some(epoch),
-            });
+            return Ok(discount_response(0, Some(0), true, Some(epoch)));
         }
     };
 
     if tier.governance_only {
-        return Ok(DiscountResponse {
-            discount_bps: tier.discount_bps,
-            needs_deregister: false,
-            registration_epoch: None,
-        });
+        return Ok(discount_response(
+            tier.discount_bps,
+            tier.limit_discount_bps,
+            false,
+            None,
+        ));
     }
 
     if tier.min_cl8y_balance.is_zero() {
-        return Ok(DiscountResponse {
-            discount_bps: tier.discount_bps,
-            needs_deregister: false,
-            registration_epoch: None,
-        });
+        return Ok(discount_response(
+            tier.discount_bps,
+            tier.limit_discount_bps,
+            false,
+            None,
+        ));
     }
 
     let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
@@ -523,17 +553,14 @@ fn query_discount(deps: Deps, trader: String, sender: String) -> StdResult<Disco
     )?;
 
     if balance.balance >= tier.min_cl8y_balance {
-        Ok(DiscountResponse {
-            discount_bps: tier.discount_bps,
-            needs_deregister: false,
-            registration_epoch: None,
-        })
+        Ok(discount_response(
+            tier.discount_bps,
+            tier.limit_discount_bps,
+            false,
+            None,
+        ))
     } else {
-        Ok(DiscountResponse {
-            discount_bps: 0,
-            needs_deregister: true,
-            registration_epoch: Some(epoch),
-        })
+        Ok(discount_response(0, Some(0), true, Some(epoch)))
     }
 }
 
@@ -579,6 +606,28 @@ fn query_is_trusted_router(deps: Deps, addr: String) -> StdResult<IsTrustedRoute
     Ok(IsTrustedRouterResponse { is_trusted })
 }
 
+fn is_standard_ladder_tier(tier_id: u8) -> bool {
+    tier_id == 0 || tier_id == 255 || (1..=9).contains(&tier_id)
+}
+
+/// Persist #514 limit discounts on the production ladder when the field is still unset.
+fn backfill_standard_limit_discounts(deps: DepsMut) -> Result<u32, ContractError> {
+    let rows: Vec<(u8, Tier)> = TIERS
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<StdResult<Vec<_>>>()?;
+    let mut updated = 0u32;
+    for (tier_id, mut tier) in rows {
+        if tier.limit_discount_bps.is_some() || !is_standard_ladder_tier(tier_id) {
+            continue;
+        }
+        tier.limit_discount_bps =
+            Some(dex_common::fee_discount::standard_shifted_limit_discount_bps(tier.discount_bps));
+        TIERS.save(deps.storage, tier_id, &tier)?;
+        updated += 1;
+    }
+    Ok(updated)
+}
+
 pub fn migrate(
     deps: DepsMut,
     _env: Env,
@@ -587,7 +636,10 @@ pub fn migrate(
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
         .map_err(ContractError::Std)?;
 
+    let backfilled = backfill_standard_limit_discounts(deps)?;
+
     Ok(Response::new()
         .add_attribute("action", "migrate")
-        .add_attribute("version", CONTRACT_VERSION))
+        .add_attribute("version", CONTRACT_VERSION)
+        .add_attribute("limit_discount_backfilled", backfilled.to_string()))
 }

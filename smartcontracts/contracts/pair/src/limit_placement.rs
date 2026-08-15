@@ -117,13 +117,14 @@ pub fn execute_place_limit_orders_batch(
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
-    let (effective_fee_bps, deregister_msgs) = effective_fee_bps_with_discount_msgs(
-        deps.branch(),
-        now,
-        fee_config.fee_bps,
-        discount_registry,
-        owner.clone(),
-    )?;
+    let (_swap_effective_fee_bps, effective_fee_bps, deregister_msgs) =
+        effective_fee_bps_with_discount_msgs(
+            deps.branch(),
+            now,
+            fee_config.fee_bps,
+            discount_registry,
+            owner.clone(),
+        )?;
 
     let token_a = token_addr(&pair_info.asset_infos[0]);
     let token_b = token_addr(&pair_info.asset_infos[1]);

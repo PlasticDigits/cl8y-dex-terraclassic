@@ -17,6 +17,23 @@ DOCS = ROOT / "docs"
 
 TierRow = tuple[int, int, int, bool]  # tier_id, min_cl8y_balance, discount_bps, governance_only
 
+# GitLab #514 — must match dex_common::fee_discount::standard_shifted_limit_discount_bps
+_LIMIT_SHIFT = {
+    250: 1000,
+    1000: 2000,
+    2000: 3500,
+    3500: 5000,
+    5000: 6000,
+    6000: 7500,
+    7500: 8500,
+    8500: 9500,
+    9500: 10000,
+}
+
+
+def shifted_limit_discount_bps(discount_bps: int) -> int:
+    return _LIMIT_SHIFT.get(discount_bps, discount_bps)
+
 
 def parse_canonical_md(path: Path) -> list[TierRow]:
     rows: list[TierRow] = []
@@ -24,7 +41,7 @@ def parse_canonical_md(path: Path) -> list[TierRow]:
         if not line.startswith("|") or line.startswith("|-"):
             continue
         parts = [p.strip() for p in line.split("|")[1:-1]]
-        if len(parts) < 6 or parts[0] == "Tier ID":
+        if len(parts) < 7 or parts[0] == "Tier ID":
             continue
         try:
             tier_id = int(parts[0])
@@ -32,7 +49,14 @@ def parse_canonical_md(path: Path) -> list[TierRow]:
             continue
         wei = parts[2].strip("`")
         discount_bps = int(parts[3])
-        gov_only = parts[5].strip("`").lower() == "true"
+        limit_discount_bps = int(parts[4])
+        gov_only = parts[6].strip("`").lower() == "true"
+        expected_limit = shifted_limit_discount_bps(discount_bps)
+        if limit_discount_bps != expected_limit:
+            raise ValueError(
+                f"canonical tier {tier_id}: limit_discount_bps {limit_discount_bps} "
+                f"!= shifted {expected_limit} from discount_bps {discount_bps}"
+            )
         rows.append((tier_id, int(wei), discount_bps, gov_only))
     if not rows:
         raise ValueError(f"no tier rows parsed from {path}")
@@ -70,11 +94,21 @@ def parse_deploy_local(path: Path) -> list[TierRow]:
             continue
         payload = json.loads(m.group(1))
         tier = payload["add_tier"]
+        discount_bps = int(tier["discount_bps"])
+        if "limit_discount_bps" not in tier:
+            raise ValueError(f"{path}: add_tier tier_id={tier.get('tier_id')} missing limit_discount_bps")
+        limit_bps = int(tier["limit_discount_bps"])
+        expected_limit = shifted_limit_discount_bps(discount_bps)
+        if limit_bps != expected_limit:
+            raise ValueError(
+                f"{path}: tier {tier.get('tier_id')} limit_discount_bps {limit_bps} "
+                f"!= shifted {expected_limit}"
+            )
         rows.append(
             (
                 int(tier["tier_id"]),
                 int(tier["min_cl8y_balance"]),
-                int(tier["discount_bps"]),
+                discount_bps,
                 bool(tier["governance_only"]),
             )
         )
@@ -100,11 +134,21 @@ def parse_soft_launch_defaults(path: Path) -> list[TierRow]:
             continue
         payload = json.loads(line)
         tier = payload["add_tier"]
+        discount_bps = int(tier["discount_bps"])
+        if "limit_discount_bps" not in tier:
+            raise ValueError(f"{path}: add_tier tier_id={tier.get('tier_id')} missing limit_discount_bps")
+        limit_bps = int(tier["limit_discount_bps"])
+        expected_limit = shifted_limit_discount_bps(discount_bps)
+        if limit_bps != expected_limit:
+            raise ValueError(
+                f"{path}: tier {tier.get('tier_id')} limit_discount_bps {limit_bps} "
+                f"!= shifted {expected_limit}"
+            )
         rows.append(
             (
                 int(tier["tier_id"]),
                 int(tier["min_cl8y_balance"]),
-                int(tier["discount_bps"]),
+                discount_bps,
                 bool(tier["governance_only"]),
             )
         )
@@ -156,6 +200,15 @@ def main() -> int:
     assert_same("canonical md", canonical, "deploy-dex-local.sh", deploy)
     assert_same("canonical md", canonical, "mainnet-soft-launch-defaults.sh", soft)
     scan_docs_for_drift()
+
+    rust_helper = ROOT / "smartcontracts/packages/dex-common/src/fee_discount.rs"
+    rust_text = rust_helper.read_text()
+    if "fn standard_shifted_limit_discount_bps" not in rust_text:
+        print(f"ERROR: {rust_helper} missing standard_shifted_limit_discount_bps", file=sys.stderr)
+        sys.exit(1)
+    if "9_500 => 10_000" not in rust_text:
+        print(f"ERROR: {rust_helper} missing tier-9 → 10000 shift arm", file=sys.stderr)
+        sys.exit(1)
 
     print(
         f"OK: {len(canonical)} tiers aligned across "

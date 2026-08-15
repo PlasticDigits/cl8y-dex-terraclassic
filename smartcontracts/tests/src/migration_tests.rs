@@ -26,11 +26,11 @@ const FACTORY_VERSION: &str = "1.6.0";
 const FACTORY_PRIOR_VERSION: &str = "1.5.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.10.0";
+const PAIR_VERSION: &str = "1.12.0";
 const PAIR_PRIOR_VERSION: &str = "1.7.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
-const FEE_DISCOUNT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const FEE_DISCOUNT_VERSION: &str = "1.1.0";
 const FEE_DISCOUNT_PRIOR_VERSION: &str = "0.9.0";
 
 const ONE_CL8Y: u128 = 1_000_000_000_000_000_000;
@@ -182,6 +182,9 @@ fn setup_migration_env(app: &mut App) -> MigrationEnv {
                 tier_id,
                 min_cl8y_balance: Uint128::new(min_cl8y),
                 discount_bps,
+                limit_discount_bps: Some(
+                    dex_common::fee_discount::standard_shifted_limit_discount_bps(discount_bps),
+                ),
                 governance_only,
             },
             &[],
