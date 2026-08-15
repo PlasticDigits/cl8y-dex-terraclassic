@@ -15,6 +15,8 @@ export type CopyButtonProps = {
   successMessage?: string
   /** When set, renders as a full-width wallet dropdown row with visible label (GitLab #185). */
   menuLabel?: string
+  /** Visible label on a normal button (not a menu item) — WalletConnect pairing copy (#519). */
+  buttonLabel?: string
   'data-testid'?: string
 }
 
@@ -37,6 +39,7 @@ export function CopyButton({
   className = '',
   successMessage = COPY_BUTTON_SUCCESS_MESSAGE,
   menuLabel,
+  buttonLabel,
   'data-testid': testId = 'copy-button',
 }: CopyButtonProps) {
   const liveId = useId()
@@ -71,6 +74,26 @@ export function CopyButton({
   }, [text, clearResetTimer, scheduleIdle])
 
   const liveMessage = feedback === 'success' ? successMessage : feedback === 'error' ? COPY_BUTTON_FAILURE_MESSAGE : ''
+
+  if (buttonLabel) {
+    return (
+      <button
+        type="button"
+        className={`btn-muted walletconnect-pairing-copy ${className}`.trim()}
+        style={{ color: 'var(--ink)' }}
+        aria-label={ariaLabel}
+        aria-describedby={liveMessage ? liveId : undefined}
+        data-testid={testId}
+        onClick={() => void handleClick()}
+      >
+        {copyIcon}
+        {buttonLabel}
+        <span id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">
+          {liveMessage}
+        </span>
+      </button>
+    )
+  }
 
   if (menuLabel) {
     return (

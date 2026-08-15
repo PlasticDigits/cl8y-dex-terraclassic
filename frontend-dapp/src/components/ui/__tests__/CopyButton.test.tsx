@@ -58,6 +58,23 @@ describe('CopyButton', () => {
     expect(screen.getByTestId('copy-tx')).toHaveAttribute('aria-label', 'Copy transaction hash')
   })
 
+  it('renders a labeled button when buttonLabel is set (GitLab #519)', async () => {
+    const user = userEvent.setup()
+    render(
+      <CopyButton
+        text="wc:topic@1?bridge=https%3A%2F%2Fexample"
+        ariaLabel="Copy pairing link"
+        buttonLabel="Copy pairing link"
+        data-testid="pairing-copy"
+      />
+    )
+    const button = screen.getByTestId('pairing-copy')
+    expect(button).not.toHaveAttribute('role', 'menuitem')
+    expect(button).toHaveTextContent('Copy pairing link')
+    await user.click(button)
+    expect(mockCopyToClipboard).toHaveBeenCalledWith('wc:topic@1?bridge=https%3A%2F%2Fexample')
+  })
+
   it('renders wallet menu row when menuLabel is set (GitLab #185)', async () => {
     const user = userEvent.setup()
     render(

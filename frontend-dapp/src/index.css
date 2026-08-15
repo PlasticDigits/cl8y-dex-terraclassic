@@ -1704,6 +1704,18 @@
     border-color: rgba(251, 191, 36, 0.24);
     color: var(--alert-warning-text);
   }
+
+  /* WalletConnect same-device mobile pairing (#519). */
+  .walletconnect-pairing-link,
+  .walletconnect-pairing-copy {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    text-align: center;
+  }
 }
 
 @layer utilities {

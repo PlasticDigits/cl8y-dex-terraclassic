@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { AppShellNavLink } from '@/components/common/AppShellNavLink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
+import WalletConnectPairingModal from '@/components/wallet/WalletConnectPairingModal'
 import NetworkBadge from '@/components/wallet/NetworkBadge'
 import EnvironmentRibbon from '@/components/legal/EnvironmentRibbon'
 import LegalFooterNotice from '@/components/legal/LegalFooterNotice'
@@ -121,6 +122,7 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <RiskAcknowledgementModal />
+      <WalletConnectPairingModal />
       {(isMoreMenuOpen || isMobileMoreOpen) && (
         <button
           type="button"

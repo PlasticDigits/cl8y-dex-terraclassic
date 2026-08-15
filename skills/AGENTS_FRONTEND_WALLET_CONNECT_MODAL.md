@@ -22,7 +22,7 @@ Use when changing wallet list UI, extension detection in the modal, **Install** 
 
 1. **Missing extension:** communicate with subdued row + **Install** only — do not add a second “not installed” text badge; it competes for horizontal space with **Extension** / **Ready** on mobile.
 2. **Long wallet names:** keep **`min-w-0`** on the label flex column, **`truncate`** on the name, and **`title={fullName}`** for hover tooltip.
-3. **WalletConnect rows:** never show extension-missing treatment; detection returns “present” for those names by design.
+3. **WalletConnect rows:** never show extension-missing treatment; detection returns “present” for those names by design. Same-device mobile pairing (deep-link + copy, not QR-only) is [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) — [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md).
 4. **Logos (#490):** every production row (Station, Keplr, Cosmostation, LuncDash, Galaxy Station) shows a **32px circular** local icon via `WalletOptionIcon`. Prefer **official / product** marks vendored under `public/wallets/`. Do **not** use generic bridge-style placeholder glyphs (globe/star/dollar). If a verified official asset is unavailable, ship a **unique** wallet-specific SVG (not a shared placeholder) and document it in `PROVENANCE.md`. Never hotlink CDNs. Simulated Wallet may use an original non-vendor glyph only.
 5. **a11y:** icons are decorative (`alt=""`, `aria-hidden`); keep the button `aria-label` + visible name.
 6. **Before closing #139 / #490:** run **`npm run build`** and **`npx vitest run`** in `frontend-dapp` — both are required QA gates ([docs/frontend.md § Connect modal](../docs/frontend.md#connect-modal-extension-install), [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)).
@@ -32,3 +32,4 @@ Use when changing wallet list UI, extension detection in the modal, **Install** 
 - Dev wallet / bundle safety: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - Production build / `tsc -b` hygiene: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
 - Connected header chip (chain logo, not wallet brand): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md)
+- WalletConnect same-device mobile pairing: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519))

@@ -73,7 +73,7 @@ Wallet signing uses the fork **`@goblinhunt/cosmes`** (`frontend-dapp/package.js
 
 | Artifact | Purpose |
 |----------|---------|
-| [`patches/@goblinhunt+cosmes+*.patch`](../frontend-dapp/patches/) | `KeplrExtension`: per-sign **`preferNoSetFee`**, post-sign fee guard vs **`stdDoc.fee`**; `StationController`: extension → **amino always** |
+| [`patches/@goblinhunt+cosmes+*.patch`](../frontend-dapp/patches/) | `KeplrExtension`: per-sign **`preferNoSetFee`**, post-sign fee guard vs **`stdDoc.fee`**; `StationController`: extension → **amino always**; `QRCodeModal`: mobile pairing hook + no auto-redirect ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)) |
 | [`patches/.cosmes-patch-sha256`](../frontend-dapp/patches/.cosmes-patch-sha256) | Committed SHA-256 of the patch file — CI fails if the patch changes without updating this hash ([#367](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/367)) |
 | [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts) | Regression: hash gate + asserts patched symbols exist in **built** `node_modules/@goblinhunt/cosmes/dist/...` after `postinstall` |
 
@@ -102,14 +102,33 @@ Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExt
 |-----------|---------|
 | Align with `getKeplrLikeExtension` | **Cosmostation** detection must stay in sync with [`keplrLikeExtension.ts`](../frontend-dapp/src/services/terraclassic/keplrLikeExtension.ts); if that mapping changes, update **`isBrowserWalletExtensionDetected`** and the Vitest suite in [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). **Leap** is intentionally **not** offered ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). |
 | Station vs Station shim | **Station** uses **`'station' in window`** (extension injected), not only `station.keplr`, so the row does not depend on the Keplr-shaped shim being present. |
-| WalletConnect | **`WalletType.WALLETCONNECT`** options must **not** be treated as missing extensions; they are always offered as QR / mobile flows (detection returns “present” for install UI purposes). |
+| WalletConnect | **`WalletType.WALLETCONNECT`** options must **not** be treated as missing extensions; they are always offered as QR (desktop) / same-device deep-link + copy (mobile) flows (detection returns “present” for install UI purposes). See [§ WalletConnect same-device mobile](#walletconnect-same-device-mobile) ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). |
 | No duplicate “missing” chrome | Missing extensions are communicated by the dimmed row + **Install** CTA only — do not add a second **Not installed** badge ([GitLab #160](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/160)). |
 | Long labels | Wallet **name** column uses **`min-w-0`**, **`truncate`**, and **`title={name}`** so long names (e.g. **COSMOSTATION**) do not collide with the **Extension** / **Ready** badges on small viewports. |
 | Re-check after install | The modal subscribes via **`useSyncExternalStore`** to **`window` `focus`** and **`visibilitychange`** so returning from a store install refreshes badges without a full page reload. |
 | Regression tests | [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
 | **Build gate** | QA checklist item 4: **`npm run build`** and **`npx vitest run`** in `frontend-dapp` must pass on `main` before closing [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). See [Production build — Vite source maps § `tsc -b`](#vite-production-sourcemaps). |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos).
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos) · [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (same-device WalletConnect, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)).
+
+### WalletConnect same-device mobile pairing {#walletconnect-same-device-mobile}
+
+On a phone, the wallet app is on the **same device** as the browser — a QR-only pairing sheet cannot be scanned ([GitLab #519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). Cosmes `QRCodeModal` used to `window.location.href` the deep link from the async WalletConnect callback (not a user gesture) and still painted a QR; that is why community reports needed a second device. Desktop → phone scanning stays the desktop path.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **WC-M1** Mobile sheet | Mobile UA / iPad desktop-UA / coarse+narrow / viewport ≤767px shows **Open {wallet}**, **Open wallet** (`wc:`), and **Copy pairing link** — not QR-only. |
+| **WC-M2** Desktop QR | Hook returns `false` on desktop; cosmes still shows **Scan via {name}** + QR canvas. |
+| **WC-M3** User gesture | Deep links open from a tap (`<a href>` / button). Do not auto-redirect from `createSession` / `display_uri`. |
+| **WC-M4** Copy raw `wc:` | Clipboard writes the pairing URI via [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) `buttonLabel` (React) so the user can paste into the wallet. |
+| **WC-M5** Allowlist | `isAllowedWalletConnectDeepLink` — `wc:`, `luncdash:`, `keplrwallet:`, `galaxystation:`, `intent:`, Hexxagon / Terra Station hosts only. |
+| **WC-M6** Hook + fallback | Boot installs `globalThis.__CL8Y_WC_PAIRING_MODAL__`. Patched cosmes delegates when the hook handles the URI; vanilla mobile fallback still has Open + Copy if the hook is missing. Requires `patch-package` `postinstall`. |
+| **WC-M7** In-app browser | Opening the dApp inside a wallet’s in-app browser remains a valid alternate connect path (document; not the only fix). |
+| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts). `make verify-issue-519`. |
+
+Implementation: [`walletConnectPairing.ts`](../frontend-dapp/src/utils/walletConnectPairing.ts), [`walletConnectPairingHook.ts`](../frontend-dapp/src/services/terraclassic/walletConnectPairingHook.ts) (installed from [`main.tsx`](../frontend-dapp/src/main.tsx)), [`WalletConnectPairingModal.tsx`](../frontend-dapp/src/components/wallet/WalletConnectPairingModal.tsx) in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx). Lunc Dash deep link stays `luncdash://wallet_connect?payload=…` (same as cosmes).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md).
 
 ### Connect modal: circular wallet logos {#connect-modal-wallet-logos}
 
@@ -180,7 +199,7 @@ Reusable one-click clipboard control for addresses, contract IDs, and tx hashes 
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) only. |
+| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) only. WalletConnect pairing uses **`buttonLabel`** ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). |
 | **Accessible control** | Button has explicit **`aria-label`**; success/failure is announced in a **`sr-only`** region with **`aria-live="polite"`** and **`aria-atomic="true"`**. |
 | **Retail copy** | Strings live in [`copyButtonCopy.ts`](../frontend-dapp/src/utils/copyButtonCopy.ts); failures use a permission-safe message, not raw `DOMException` text. |
 | **Trim before write** | Whitespace-only `text` fails without calling the clipboard API. |
