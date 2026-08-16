@@ -8,7 +8,9 @@ export const LIMIT_ORDER_DUST_FLUSH_THRESHOLD = 10
 /** Normalized lifecycle from indexer (`GET .../limit-placements`). Legacy rows without the field count as active. */
 export type LimitPlacementLifecycle = 'active' | 'parked_expired' | 'refunded' | 'filled'
 
-export function normalizedLimitPlacementLifecycle(row: IndexerLimitPlacement): LimitPlacementLifecycle {
+export function normalizedLimitPlacementLifecycle(
+  row: Pick<IndexerLimitPlacement, 'lifecycle_status'>
+): LimitPlacementLifecycle {
   const s = row.lifecycle_status?.trim().toLowerCase()
   if (s === 'parked_expired' || s === 'refunded' || s === 'filled') return s
   return 'active'
