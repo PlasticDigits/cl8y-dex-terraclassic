@@ -2,6 +2,7 @@
 /**
  * Loopback LCD proxy for Playwright E2E when host :1317 hangs (docker userland-proxy).
  * Forwards HTTP to `docker exec … curl http://127.0.0.1:1317…` (GitLab #292 / LT9).
+ * Sends CORS `*` so Chromium on the Vite origin can call the proxy (host :1317 hangs).
  */
 import http from 'node:http'
 import { execFileSync } from 'node:child_process'
@@ -36,13 +37,24 @@ function forward(method, urlPath) {
   return { status: Number.isFinite(status) ? status : 502, body }
 }
 
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+}
+
 const server = http.createServer((req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS)
+    res.end()
+    return
+  }
   try {
     const { status, body } = forward(req.method || 'GET', req.url || '/')
-    res.writeHead(status, { 'content-type': 'application/json' })
+    res.writeHead(status, { 'content-type': 'application/json', ...CORS })
     res.end(body)
   } catch (e) {
-    res.writeHead(502, { 'content-type': 'text/plain' })
+    res.writeHead(502, { 'content-type': 'text/plain', ...CORS })
     res.end(e instanceof Error ? e.message : String(e))
   }
 })

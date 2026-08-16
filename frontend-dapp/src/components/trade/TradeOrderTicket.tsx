@@ -52,6 +52,11 @@ import { limitPriceDecimalsFromPair } from '@/utils/limitOrderPriceScale'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { limitOrderExpectedReceiveHuman } from '@/utils/limitOrderExpectedReceive'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
+import {
+  TradeMarketSubmitChrome,
+  TradeTicketSubmitFooter,
+  type TradeMarketSubmitChromeModel,
+} from '@/components/trade/TradeTicketSubmitFooter'
 import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import {
   buildLimitBookEditContext,
@@ -180,6 +185,7 @@ function TradeOrderTicketContent({
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
   const [orderTab, setOrderTab] = useState<'limit' | 'market'>('limit')
+  const [marketSubmitChrome, setMarketSubmitChrome] = useState<TradeMarketSubmitChromeModel | null>(null)
   const orderTypeTabBaseId = useId()
   const limitOrderTabId = `${orderTypeTabBaseId}-limit-tab`
   const marketOrderTabId = `${orderTypeTabBaseId}-market-tab`
@@ -698,9 +704,9 @@ function TradeOrderTicketContent({
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 card-glass !p-0">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden card-glass !p-0" data-testid="trade-order-ticket-card">
       <div
-        className="p-4 border-b border-white/10"
+        className="shrink-0 p-4 border-b border-white/10"
         style={{
           background:
             'radial-gradient(circle at 20% 0%, rgba(251, 146, 60, 0.18), transparent 34%), rgba(255,255,255,0.025)',
@@ -831,6 +837,8 @@ function TradeOrderTicketContent({
                 pairs={pairs}
                 side={factorySide}
                 isPaused={isTradeBlocked}
+                dockSubmit
+                onSubmitChromeChange={setMarketSubmitChrome}
               />
             </TicketSection>
           </div>
@@ -919,8 +927,8 @@ function TradeOrderTicketContent({
               )}
             </TicketSection>
             {/*
-              Validation / place guards stay in normal document flow (GitLab #500).
-              Sticky CTA chrome must not host blocking banners that obscure expiry/date inputs.
+              Validation / place guards stay in normal document flow above the ticket footer
+              (GitLab #500 / #527 T527-4). Footer chrome must not host blocking banners.
             */}
             <div className="trade-limit-inline-guards space-y-2" data-testid="trade-limit-inline-guards">
               {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
@@ -931,54 +939,6 @@ function TradeOrderTicketContent({
               )}
               {!priceOnlyEdit && (
                 <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
-              )}
-            </div>
-            <div className="trade-limit-submit-sticky" data-testid="trade-limit-submit-sticky">
-              <button
-                type="button"
-                data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
-                className={TRADE_MONEY_CTA_CLASS}
-                disabled={
-                  priceOnlyEdit
-                    ? updatePriceMutation.isPending ||
-                      !selectedPair ||
-                      isTradeBlocked ||
-                      (isWalletConnected && !updatePriceCombinedOk)
-                    : placeMutation.isPending ||
-                      !selectedPair ||
-                      isTradeBlocked ||
-                      editNonPriceChanged ||
-                      (isWalletConnected && !placeLimitCombinedOk)
-                }
-                onClick={() => {
-                  if (!isWalletConnected) openWalletModal()
-                  else if (priceOnlyEdit) submitUpdateLimitPrice()
-                  else placeMutation.mutate()
-                }}
-              >
-                {!isWalletConnected
-                  ? 'Connect Wallet'
-                  : priceOnlyEdit
-                    ? updatePriceMutation.isPending
-                      ? 'Updating…'
-                      : 'Update price'
-                    : terraBroadcastPendingButtonLabel(
-                        placeMutation.phase,
-                        placeMutation.isPending,
-                        'Place limit',
-                        'Placing…'
-                      )}
-              </button>
-              <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
-              {updatePriceMutation.isError && (
-                <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
-              )}
-              {updatePriceMutation.isSuccess && (
-                <TxResultAlert type="success" message="Limit order price updated." txHash={updatePriceMutation.data} />
-              )}
-              {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-              {placeMutation.isSuccess && (
-                <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
               )}
             </div>
             {pairAddr && address && (
@@ -1094,6 +1054,62 @@ function TradeOrderTicketContent({
           </div>
         </details>
       </div>
+      <TradeTicketSubmitFooter>
+        {orderTab === 'market' ? (
+          marketSubmitChrome ? (
+            <TradeMarketSubmitChrome model={marketSubmitChrome} />
+          ) : null
+        ) : (
+          <>
+            <button
+              type="button"
+              data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
+              className={TRADE_MONEY_CTA_CLASS}
+              disabled={
+                priceOnlyEdit
+                  ? updatePriceMutation.isPending ||
+                    !selectedPair ||
+                    isTradeBlocked ||
+                    (isWalletConnected && !updatePriceCombinedOk)
+                  : placeMutation.isPending ||
+                    !selectedPair ||
+                    isTradeBlocked ||
+                    editNonPriceChanged ||
+                    (isWalletConnected && !placeLimitCombinedOk)
+              }
+              onClick={() => {
+                if (!isWalletConnected) openWalletModal()
+                else if (priceOnlyEdit) submitUpdateLimitPrice()
+                else placeMutation.mutate()
+              }}
+            >
+              {!isWalletConnected
+                ? 'Connect Wallet'
+                : priceOnlyEdit
+                  ? updatePriceMutation.isPending
+                    ? 'Updating…'
+                    : 'Update price'
+                  : terraBroadcastPendingButtonLabel(
+                      placeMutation.phase,
+                      placeMutation.isPending,
+                      'Place limit',
+                      'Placing…'
+                    )}
+            </button>
+            <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
+            {updatePriceMutation.isError && (
+              <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
+            )}
+            {updatePriceMutation.isSuccess && (
+              <TxResultAlert type="success" message="Limit order price updated." txHash={updatePriceMutation.data} />
+            )}
+            {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
+            {placeMutation.isSuccess && (
+              <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
+            )}
+          </>
+        )}
+      </TradeTicketSubmitFooter>
     </div>
   )
 }
