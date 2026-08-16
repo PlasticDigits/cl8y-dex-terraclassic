@@ -42,3 +42,4 @@ Indexer outage tests that assert tape copy must **expand** `trade-sub-lg-tape-di
 - Anti-cognitive-overload retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Swap route display / market quote row: [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
+- Slippage chip grouping (do not wrap 0.5% onto the label): [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
