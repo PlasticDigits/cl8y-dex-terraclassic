@@ -3,6 +3,7 @@ import { useQueries, useQueryClient, type InfiniteData } from '@tanstack/react-q
 import { getPairLimitBookPage } from '@/services/indexer/client'
 import type { IndexerLimitBookPageResponse } from '@/types'
 import { limitBookPageQueryKey } from '@/utils/limitBookPagination'
+import { scaleRawLimitPriceForDisplay, type LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
 
 function bestPriceFromLimitBookCache(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -20,7 +21,7 @@ function bestPriceFromLimitBookCache(
  * Falls back to the paginated `limitBookPage` query cache when the dedicated head fetch has not resolved yet
  * ([#385](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/385)).
  */
-export function useTradeBestBookPrices(pairAddr: string) {
+export function useTradeBestBookPrices(pairAddr: string, limitPriceScale?: LimitPriceDecimals | null) {
   const queryClient = useQueryClient()
   const [bidQ, askQ] = useQueries({
     queries: [
@@ -51,8 +52,10 @@ export function useTradeBestBookPrices(pairAddr: string) {
     [bestAskFromQuery, queryClient, pairAddr]
   )
 
-  const bestBid = bestBidFromQuery ?? bestBidFromCache
-  const bestAsk = bestAskFromQuery ?? bestAskFromCache
+  const bestBidRaw = bestBidFromQuery ?? bestBidFromCache
+  const bestAskRaw = bestAskFromQuery ?? bestAskFromCache
+  const bestBid = bestBidRaw ? scaleRawLimitPriceForDisplay(bestBidRaw, limitPriceScale) : null
+  const bestAsk = bestAskRaw ? scaleRawLimitPriceForDisplay(bestAskRaw, limitPriceScale) : null
   const isLoading = bidQ.isLoading || askQ.isLoading
   const isError = bidQ.isError || askQ.isError
 

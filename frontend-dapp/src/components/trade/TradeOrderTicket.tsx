@@ -48,6 +48,7 @@ import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
+import { limitPriceDecimalsFromPair } from '@/utils/limitOrderPriceScale'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { limitOrderExpectedReceiveHuman } from '@/utils/limitOrderExpectedReceive'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
@@ -220,6 +221,7 @@ function TradeOrderTicketContent({
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const factorySide = factorySideFromDisplay(side, displayInverted)
   const factoryPrice = displayPriceToFactoryToken1PerToken0(price, displayInverted) ?? price
+  const limitPriceScale = limitPriceDecimalsFromPair(indexerPair)
   const escrowToken = factorySide === 'bid' ? token1 : token0
   const receiveToken = factorySide === 'bid' ? token0 : token1
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
@@ -327,12 +329,12 @@ function TradeOrderTicketContent({
   })
   const isTradeBlocked = isPaused || tradingBlacklist.blocked
 
-  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
+  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr, limitPriceScale)
   const limitBookQuery = useLimitBookInfinite(pairAddr, factorySide)
   const placeInsertHintAfter = useMemo(() => {
     const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
-    return resolveLimitInsertHintAfter(factorySide, factoryPrice, orders, { hasMore })
-  }, [limitBookQuery.data?.pages, factorySide, factoryPrice])
+    return resolveLimitInsertHintAfter(factorySide, factoryPrice, orders, { hasMore }, limitPriceScale)
+  }, [limitBookQuery.data?.pages, factorySide, factoryPrice, limitPriceScale])
 
   const crossingBlocker = useMemo(
     () => describeLimitCrossingBlocker(factorySide, factoryPrice, bestBid, bestAsk),
@@ -508,7 +510,8 @@ function TradeOrderTicketContent({
         factoryPrice,
         maxSteps,
         expiresAt,
-        placeInsertHintAfter
+        placeInsertHintAfter,
+        limitPriceScale
       )
     },
     onSuccess: async () => {
@@ -558,6 +561,7 @@ function TradeOrderTicketContent({
         price: factoryPrice,
         maxAdjustSteps: maxSteps,
         hintAfterOrderId: editHintAfterOrderId,
+        limitPriceScale,
       },
       {
         onSuccess: () => {
@@ -999,6 +1003,7 @@ function TradeOrderTicketContent({
                   cancelLimitOrderMutation={cancelMutation}
                   cancellations={cancellationsQuery.data ?? []}
                   highlightOrderId={highlightPlacementOrderId}
+                  limitPriceScale={limitPriceScale}
                 />
               </div>
             )}

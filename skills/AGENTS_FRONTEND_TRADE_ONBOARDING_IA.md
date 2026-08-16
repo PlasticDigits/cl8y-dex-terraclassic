@@ -21,6 +21,7 @@ Use when changing first-visit trade guidance, money-action button sizing on trad
 3. **Progressive disclosure is opt-in** — first visit collapses tape and wallet history only; chart, book, and order ticket stay visible.
 4. **Persist panel prefs** in `localStorage` via `readTradePanelExpanded` / `writeTradePanelExpanded` (button handlers on desktop tape); do not write from `Panel` `onExpand` on mount — `react-resizable-panels` can spuriously expand during layout (GitLab #417 `TradePage` rAF re-collapse).
 5. **Mobile bottom nav** (`MOBILE_BOTTOM_NAV_ITEMS` in [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)) must remain reachable — onboarding strip is in-page, not fixed over the tab bar.
+6. **Do not add Pool to this strip** for LUNC LP discovery ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)). Retail LP how-to is dismissible + `<details>` on `/pool` only — see [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md).
 
 ## Regression tests
 
