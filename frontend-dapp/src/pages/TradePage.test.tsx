@@ -89,6 +89,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getPairLimitBookPage: vi.fn(),
     getPairLimitPlacements: vi.fn(),
     getTraderLimitPlacements: vi.fn(),
+    getTraderLimitFills: vi.fn(),
     getPairLimitCancellations: vi.fn(),
     getCandles: vi.fn(),
     getPairStats: vi.fn(),
@@ -100,6 +101,11 @@ vi.mock('@/services/terraclassic/pair', () => ({
   getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   placeLimitOrder: vi.fn(),
   cancelLimitOrder: vi.fn(),
+  queryOrderStatus: vi.fn().mockResolvedValue({ order_id: 1, status: 'active' }),
+  parsePairOrderStatus: (raw: { status?: string }) => {
+    const s = raw?.status?.trim().toLowerCase()
+    return s === 'active' || s === 'parked_refund' || s === 'unknown' ? s : undefined
+  },
 }))
 
 import { getPairPaused } from '@/services/terraclassic/pair'
@@ -175,7 +181,9 @@ describe('TradePage', () => {
       next_after_order_id: null,
     })
     vi.mocked(indexerClient.getTraderLimitPlacements).mockResolvedValue([])
+    vi.mocked(indexerClient.getPairLimitPlacements).mockResolvedValue([])
     vi.mocked(indexerClient.getPairLimitCancellations).mockResolvedValue([])
+    vi.mocked(indexerClient.getTraderLimitFills).mockResolvedValue([])
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
     vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ ticker: 'ustc', price_usd: '0.02', sources: [] })
@@ -271,6 +279,38 @@ describe('TradePage', () => {
     expect(sticky.contains(guards)).toBe(false)
     // Guards precede sticky in DOM so banners never sit under the pinned CTA chrome.
     expect(guards.compareDocumentPosition(sticky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('keeps compact My open limits above sticky Place limit (GitLab #530 AC6)', async () => {
+    mockTradeDesktopLayout(true)
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getTraderLimitPlacements).mockResolvedValue([
+      {
+        id: 1,
+        pair_address: PAIR,
+        block_height: 1,
+        block_timestamp: '2026-08-15T14:21:43Z',
+        tx_hash: 'abc',
+        order_id: 1,
+        owner: MAKER,
+        side: 'ask',
+        price: '82.044004487226',
+        lifecycle_status: 'active',
+      },
+    ])
+
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    const sticky = await screen.findByTestId('trade-limit-submit-sticky')
+    const anchor = await screen.findByTestId('trade-ticket-placements-anchor')
+    const cancelBtn = await screen.findByTestId('trade-cancel-placement-1')
+
+    expect(sticky.contains(anchor)).toBe(false)
+    expect(sticky.contains(cancelBtn)).toBe(false)
+    expect(anchor.compareDocumentPosition(sticky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(cancelBtn).toHaveTextContent('Cancel')
+    expect(cancelBtn).not.toBeDisabled()
   })
 
   it('book Edit prefills the visible desktop limit ticket (GitLab #178)', async () => {

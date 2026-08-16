@@ -29,6 +29,9 @@ import {
   provideLiquidity,
   withdrawLiquidity,
   claimExpiredLimitOrder,
+  cancelLimitOrder,
+  queryOrderStatus,
+  parsePairOrderStatus,
 } from '../pair'
 import type {
   AssetInfo,
@@ -502,6 +505,44 @@ describe('claimExpiredLimitOrder', () => {
     expect(result).toBe('txhash_claim')
     expect(mockedExecute).toHaveBeenCalledWith(WALLET_ADDR, PAIR_ADDR, {
       claim_expired_limit_order: { order_id: 99 },
+    })
+  })
+})
+
+describe('queryOrderStatus / cancelLimitOrder (GitLab #530)', () => {
+  it('queries OrderStatus with factory order_id only (invert-safe)', async () => {
+    mockedQuery.mockResolvedValueOnce({
+      order_id: 1,
+      status: 'active',
+      owner: WALLET_ADDR,
+      side: 'ask',
+      price: '82.044004487226',
+      remaining: '1000000',
+    })
+
+    const result = await queryOrderStatus(PAIR_ADDR, 1)
+
+    expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, { order_status: { order_id: 1 } })
+    expect(result.status).toBe('active')
+    expect(parsePairOrderStatus(result)).toBe('active')
+  })
+
+  it('rejects order_id 0 before LCD (L21)', async () => {
+    await expect(queryOrderStatus(PAIR_ADDR, 0)).rejects.toThrow(/Invalid order id/)
+    expect(mockedQuery).not.toHaveBeenCalled()
+  })
+
+  it('does not coerce a missing status string to unknown', () => {
+    expect(parsePairOrderStatus({ order_id: 1, status: 'bogus' })).toBeUndefined()
+    expect(parsePairOrderStatus(undefined)).toBeUndefined()
+  })
+
+  it('cancel payload is pair + order_id only (no price / invert fields)', async () => {
+    mockedExecute.mockResolvedValueOnce('txhash_cancel')
+    const result = await cancelLimitOrder(WALLET_ADDR, PAIR_ADDR, 1)
+    expect(result).toBe('txhash_cancel')
+    expect(mockedExecute).toHaveBeenCalledWith(WALLET_ADDR, PAIR_ADDR, {
+      cancel_limit_order: { order_id: 1 },
     })
   })
 })

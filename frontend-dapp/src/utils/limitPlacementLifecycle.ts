@@ -6,11 +6,11 @@ import { formatTokenAmount, getDecimals } from '@/utils/formatAmount'
 export const LIMIT_ORDER_DUST_FLUSH_THRESHOLD = 10
 
 /** Normalized lifecycle from indexer (`GET .../limit-placements`). Legacy rows without the field count as active. */
-export function normalizedLimitPlacementLifecycle(
-  row: IndexerLimitPlacement
-): 'active' | 'parked_expired' | 'refunded' {
+export type LimitPlacementLifecycle = 'active' | 'parked_expired' | 'refunded' | 'filled'
+
+export function normalizedLimitPlacementLifecycle(row: IndexerLimitPlacement): LimitPlacementLifecycle {
   const s = row.lifecycle_status?.trim().toLowerCase()
-  if (s === 'parked_expired' || s === 'refunded') return s
+  if (s === 'parked_expired' || s === 'refunded' || s === 'filled') return s
   return 'active'
 }
 
@@ -19,6 +19,7 @@ export function placementLifecycleLabel(row: IndexerLimitPlacement): string {
   const lc = normalizedLimitPlacementLifecycle(row)
   if (lc === 'parked_expired') return 'Expired (claimable)'
   if (lc === 'refunded') return 'Refunded'
+  if (lc === 'filled') return 'Filled'
   return 'Active'
 }
 
@@ -32,6 +33,7 @@ export function partitionLimitPlacementsByLifecycle(rows: IndexerLimitPlacement[
     const lc = normalizedLimitPlacementLifecycle(r)
     if (lc === 'parked_expired') parkedExpired.push(r)
     else if (lc === 'active') active.push(r)
+    // `filled` / `refunded` are not cancelable open rows (#530).
   }
   const sortDesc = (a: IndexerLimitPlacement, b: IndexerLimitPlacement) => b.order_id - a.order_id
   active.sort(sortDesc)

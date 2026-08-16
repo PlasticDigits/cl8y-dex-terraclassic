@@ -8,6 +8,8 @@ import type {
   HybridSimulationResponse,
   HybridSwapParams,
   PairInfo,
+  PairOrderStatusKind,
+  PairOrderStatusResponse,
   PairPausedResponse,
   PoolResponse,
 } from '@/types'
@@ -29,6 +31,28 @@ export async function getPool(pairAddress: string): Promise<PoolResponse> {
 
 export async function getPairPaused(pairAddress: string): Promise<PairPausedResponse> {
   return queryContract<PairPausedResponse>(pairAddress, { is_paused: {} })
+}
+
+/** Parse a successful LCD `OrderStatus` decode. Failures must stay errors — never coerce to `unknown` (L21). */
+export function parsePairOrderStatus(
+  raw: PairOrderStatusResponse | string | null | undefined
+): PairOrderStatusKind | undefined {
+  const s = (typeof raw === 'string' ? raw : raw?.status)?.trim().toLowerCase()
+  if (s === 'active' || s === 'parked_refund' || s === 'unknown') return s
+  return undefined
+}
+
+/**
+ * Typed custody lookup (`QueryMsg::OrderStatus`). `order_id == 0` is invalid on-chain.
+ * Callers must not treat a thrown error as `Unknown` (GitLab #505 / #530).
+ */
+export async function queryOrderStatus(pairAddress: string, orderId: number): Promise<PairOrderStatusResponse> {
+  if (!Number.isFinite(orderId) || orderId < 1) {
+    throw new Error('Invalid order id')
+  }
+  return queryContract<PairOrderStatusResponse>(pairAddress, {
+    order_status: { order_id: orderId },
+  })
 }
 
 /** Pool-only forward quote via `hybrid_simulation` (GitLab #190). */

@@ -3,6 +3,8 @@ import { useQuery, useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
+import { useLimitOrderStatuses, useRecentlyCancelledOrderIds } from '@/hooks/useLimitOrderStatuses'
+import { useTraderLimitFills } from '@/hooks/useTraderLimitFills'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
@@ -399,6 +401,10 @@ export default function LimitOrdersPage() {
         : placeNativeGasGate
 
   const myPlacements = useMemo(() => placementsQuery.data ?? [], [placementsQuery.data])
+  const openPlacementOrderIds = useMemo(() => myPlacements.map((r) => r.order_id), [myPlacements])
+  const { byOrderId: lcdStatuses } = useLimitOrderStatuses(pairAddr, openPlacementOrderIds)
+  const fillsQuery = useTraderLimitFills(address ?? undefined, pairAddr)
+  const recentlyCancelledOrderIds = useRecentlyCancelledOrderIds(pairAddr)
 
   const parsedCancelOrderId = parseInt(cancelOrderId, 10)
   const cancelIdIndexedAsCancelled =
@@ -859,6 +865,9 @@ export default function LimitOrdersPage() {
                     openWalletModal={openWalletModal}
                     cancelLimitOrderMutation={limitCancelMutation}
                     cancellations={cancellationsQuery.data ?? []}
+                    fills={fillsQuery.data ?? []}
+                    lcdStatuses={lcdStatuses}
+                    recentlyCancelledOrderIds={recentlyCancelledOrderIds}
                   />
                 </div>
               )}
