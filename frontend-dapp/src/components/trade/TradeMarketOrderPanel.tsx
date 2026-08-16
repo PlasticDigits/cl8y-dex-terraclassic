@@ -38,7 +38,8 @@ import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
-import { SLIPPAGE_PROTECTION_LABEL, SLIPPAGE_TOLERANCE_PRESETS_PERCENT } from '@/utils/slippageProtectionCopy'
+import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
+import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
 import { TxResultAlert, Spinner } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -520,23 +521,19 @@ export function TradeMarketOrderPanel({
           Docs
         </a>
       </p>
-      <div className="flex flex-wrap gap-2 text-[10px]">
-        <span style={{ color: 'var(--ink-dim)' }}>{SLIPPAGE_PROTECTION_LABEL}:</span>
-        {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((v) => (
-          <button
-            key={v}
-            type="button"
-            className={`${TRADE_SLIPPAGE_PRESET_CLASS} ${slippageTolerance === v ? 'tab-glass-active' : 'tab-glass-inactive'}`}
-            data-testid={`trade-market-slippage-preset-${v}`}
-            onClick={() => {
-              sounds.playButtonPress()
-              setSlippageTolerance(v)
-            }}
-          >
-            {v}%
-          </button>
-        ))}
-      </div>
+      <SlippageProtectionPresets
+        selectedPercent={slippageTolerance}
+        onSelect={(v) => {
+          sounds.playButtonPress()
+          setSlippageTolerance(v)
+        }}
+        chipClassName={TRADE_SLIPPAGE_PRESET_CLASS}
+        groupTestId="trade-market-slippage-presets"
+        presetTestIdPrefix="trade-market-slippage-preset-"
+        labelClassName="text-[10px]"
+        labelStyle={{ color: 'var(--ink-dim)' }}
+        showColon
+      />
       <LimitOrderEscrowAmountField
         compact
         escrowLabel={getTokenDisplaySymbol(fromToken || '—')}

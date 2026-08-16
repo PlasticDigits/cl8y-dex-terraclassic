@@ -121,12 +121,15 @@ import {
 import {
   formatTransactionDeadline,
   HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
+  isSlippageCustomOutOfRange,
+  persistSlippageCustomInput,
   ROUTE_EXECUTION_SLIPPAGE_LABEL,
   ROUTE_EXECUTION_SLIPPAGE_TOOLTIP,
+  sanitizeSlippageCustomInput,
   SLIPPAGE_PROTECTION_LABEL,
-  SLIPPAGE_TOLERANCE_PRESETS_PERCENT,
   TRANSACTION_DEADLINE_LABEL,
 } from '@/utils/slippageProtectionCopy'
+import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
@@ -1083,22 +1086,15 @@ export default function SwapPage() {
 
   const handleCustomSlippage = useCallback(
     (value: string) => {
-      // Block non-numeric input: only allow digits and one decimal point
-      const sanitized = value.replace(/[^\d.]/g, '').replace(/(\.\d*)\./g, '$1') // keep only first decimal (e.g. "5.5.5" -> "5.55")
+      const sanitized = sanitizeSlippageCustomInput(value)
       setCustomSlippage(sanitized)
-      const parsed = parseFloat(sanitized)
-      if (!isNaN(parsed) && parsed >= 0.01 && parsed <= 50) {
-        setSlippageTolerance(parsed)
-      } else if (!isNaN(parsed) && parsed > 50) {
-        setSlippageTolerance(50)
-      }
+      const persist = persistSlippageCustomInput(sanitized)
+      if (persist != null) setSlippageTolerance(persist)
     },
     [setSlippageTolerance]
   )
 
-  const customSlippageError =
-    customSlippage !== '' &&
-    (isNaN(parseFloat(customSlippage)) || parseFloat(customSlippage) < 0.01 || parseFloat(customSlippage) > 50)
+  const customSlippageError = isSlippageCustomOutOfRange(customSlippage)
 
   const handleToggleSettings = useCallback(() => {
     sounds.playButtonPress()
@@ -1206,39 +1202,36 @@ export default function SwapPage() {
           {showSettings && (
             <>
               <div id="swap-slippage-settings" className="mb-4 sm:mb-6 card-glass animate-fade-in-up">
-                <p className="label-glass mb-3">{SLIPPAGE_PROTECTION_LABEL}</p>
-                <div className="flex flex-wrap gap-2">
-                  {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((val) => (
-                    <button
-                      key={val}
-                      onClick={() => handleSlippagePreset(val)}
-                      className={`tab-glass !text-xs !px-3 !py-1.5 ${
-                        slippageTolerance === val && !customSlippage ? 'tab-glass-active' : 'tab-glass-inactive'
-                      }`}
-                    >
-                      {val}%
-                    </button>
-                  ))}
-                  <div className="relative flex-1">
-                    <label htmlFor={swapCustomSlippagePctInputId} className="sr-only">
-                      Custom slippage protection (percent)
-                    </label>
-                    <input
-                      id={swapCustomSlippagePctInputId}
-                      type="text"
-                      value={customSlippage}
-                      onChange={(e) => handleCustomSlippage(e.target.value)}
-                      placeholder="Custom"
-                      className="input-glass !text-xs !py-1.5"
-                    />
-                    <span
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
-                      style={{ color: 'var(--ink-subtle)' }}
-                    >
-                      %
-                    </span>
-                  </div>
-                </div>
+                <SlippageProtectionPresets
+                  selectedPercent={slippageTolerance}
+                  onSelect={handleSlippagePreset}
+                  customActive={Boolean(customSlippage)}
+                  chipClassName="tab-glass !text-xs !px-3 !py-1.5"
+                  groupTestId="swap-slippage-presets"
+                  presetTestIdPrefix="swap-slippage-preset-"
+                  labelClassName="label-glass"
+                  customSlot={
+                    <div className="relative min-w-[5rem] flex-1" data-testid="swap-slippage-custom">
+                      <label htmlFor={swapCustomSlippagePctInputId} className="sr-only">
+                        Custom slippage protection (percent)
+                      </label>
+                      <input
+                        id={swapCustomSlippagePctInputId}
+                        type="text"
+                        value={customSlippage}
+                        onChange={(e) => handleCustomSlippage(e.target.value)}
+                        placeholder="Custom"
+                        className="input-glass !text-xs !py-1.5"
+                      />
+                      <span
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+                        style={{ color: 'var(--ink-subtle)' }}
+                      >
+                        %
+                      </span>
+                    </div>
+                  }
+                />
                 {customSlippageError && (
                   <p
                     className="mt-2 text-xs font-semibold uppercase tracking-wide"
