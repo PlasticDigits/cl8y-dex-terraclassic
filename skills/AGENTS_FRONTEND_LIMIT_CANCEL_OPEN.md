@@ -40,7 +40,7 @@ Prefer LCD `OrderStatus` (or equivalent) plus indexer placement / fill / cancel.
 3. **No double refund** — Cancel only while `ORDERS` has the row. After park, Claim only.
 4. **Disabled Cancel must say why** — paused, restricted, already gone, filled, or claim instead. Do not leave a mute **Cancel**.
 5. **`/trade` reachability** — compact Cancel must be clickable (`elementFromPoint` hits the button, not `trade-limit-submit`).
-6. **Invert is display-only** — **Sell UST1** (#524) still cancels factory `order_id` on the selected pair. `#529` place-price bounds are out of scope unless cancel itself reverts.
+6. **Invert is display-only** — **Sell UST1** (#524) still cancels factory `order_id` on the selected pair. Place-price bounds (**#529** / **L20**) do not apply to cancel; see [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md).
 7. **Copy (#489)** — no `token0` / `token1` / raw `bid`/`ask`. One-sentence blocking errors.
 8. **Testids** — keep `trade-cancel-placement-{id}`, `limits-page-cancel-placement-{id}`, `trade-book-cancel-{bid\|ask}-{id}`, `trade-ticket-placements-anchor`.
 

@@ -141,6 +141,17 @@ describe('PoolPage', () => {
     expect(screen.getByText(/liquidity pools/i)).toBeTruthy()
   })
 
+  it('shows retail LP how-to and still renders Provide / IL when opened (GitLab #531)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    expect(screen.getByTestId('pool-lp-howto')).toBeInTheDocument()
+    expect(screen.getByTestId('pool-lp-howto-details')).toBeInTheDocument()
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+    await user.click(provide[0]!)
+    expect(await screen.findByTestId('pool-il-risk-notice')).toBeInTheDocument()
+  })
+
   it('shows impermanent loss notice when provide panel is open (GitLab #366)', async () => {
     const user = userEvent.setup()
     renderWithProviders(<PoolPage />, { route: '/pool' })

@@ -20,6 +20,7 @@ Constants live in [`slippageProtectionCopy.ts`](../frontend-dapp/src/utils/slipp
 | Default + presets + warn threshold | [`slippageProtectionCopy.ts`](../frontend-dapp/src/utils/slippageProtectionCopy.ts) |
 | Zustand initial state | [`dex.ts`](../frontend-dapp/src/stores/dex.ts) |
 | Swap Settings presets + warn + route-impact copy | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) |
+| Shared chip group (#528) | [`SlippageProtectionPresets.tsx`](../frontend-dapp/src/components/common/SlippageProtectionPresets.tsx) |
 | Trade market presets | [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) |
 | Pre-sign max spread row | [`SwapPreSubmitSummary.tsx`](../frontend-dapp/src/components/swap/SwapPreSubmitSummary.tsx) |
 | Unit tests (constants + store) | [`slippageProtectionCopy.test.ts`](../frontend-dapp/src/utils/__tests__/slippageProtectionCopy.test.ts) |
@@ -31,11 +32,13 @@ Constants live in [`slippageProtectionCopy.ts`](../frontend-dapp/src/utils/slipp
 cd frontend-dapp && npm run test:run -- \
   src/utils/__tests__/slippageProtectionCopy.test.ts \
   src/pages/SwapPage.test.tsx \
+  src/components/common/__tests__/SlippageProtectionPresets.test.tsx \
+  src/components/trade/__tests__/TradeMarketOrderPanel.slippagePresets.test.tsx \
   src/components/trade/__tests__/TradeMarketOrderPanel.submitSnapshot.test.tsx \
   src/components/swap/__tests__/SwapPreSubmitSummary.test.tsx
 ```
 
-Or: `make test-frontend` from repo root (Node 24 on `PATH`).
+Or: `make test-frontend` from repo root (Node 24 on `PATH`). Chip grouping: `make verify-issue-528`.
 
 ## Related
 

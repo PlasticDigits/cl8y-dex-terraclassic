@@ -171,6 +171,12 @@ import {
 } from '@/test/tradingBlacklistMocks'
 import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
 import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
+import { useDexStore } from '@/stores/dex'
+import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
+import { sounds } from '@/lib/sounds'
+import { useDexStore } from '@/stores/dex'
+import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
+import { sounds } from '@/lib/sounds'
 
 async function expandSwapAdvancedSettings(user: ReturnType<typeof userEvent.setup>) {
   const toggle = screen.getByTestId('swap-advanced-settings-toggle')
@@ -343,6 +349,65 @@ describe('SwapPage', () => {
       await expandSwapAdvancedSettings(user)
 
       expect(window.localStorage.getItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)).toBe('1')
+    })
+  })
+
+  describe('Slippage protection preset grouping (#528)', () => {
+    beforeEach(() => {
+      useDexStore.setState({ slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT })
+    })
+
+    afterEach(() => {
+      useDexStore.setState({ slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT })
+    })
+
+    it('keeps Custom outside the chip group and defaults 5% active', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+      const group = screen.getByTestId('swap-slippage-presets')
+      expect(group).toHaveAttribute('role', 'group')
+      expect(within(group).queryByTestId('swap-slippage-custom')).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-slippage-custom')).toBeInTheDocument()
+      expect(screen.getByTestId('swap-slippage-preset-5')).toHaveClass('tab-glass-active')
+      expect(screen.getByTestId('swap-slippage-preset-0.5')).toHaveClass('tab-glass-inactive')
+    })
+
+    it('clicking a preset updates the store and plays press sound', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+      await user.click(screen.getByTestId('swap-slippage-preset-0.5'))
+      expect(useDexStore.getState().slippageTolerance).toBe(0.5)
+      expect(sounds.playButtonPress).toHaveBeenCalled()
+      expect(screen.getByTestId('swap-slippage-preset-0.5')).toHaveClass('tab-glass-active')
+    })
+
+    it('sanitizes Custom input; range error below 0.01; clamp/warn above 5 and 50', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+      const custom = screen.getByRole('textbox', { name: /Custom slippage protection/i })
+      await user.type(custom, '1e9')
+      expect((custom as HTMLInputElement).value).toBe('19')
+      expect(useDexStore.getState().slippageTolerance).toBe(19)
+      expect(screen.getByText(/High slippage protection increases front-running risk/i)).toBeInTheDocument()
+
+      await user.clear(custom)
+      await user.type(custom, '0')
+      expect(screen.getByText(/Must be between 0.01% and 50%/i)).toBeInTheDocument()
+      expect(useDexStore.getState().slippageTolerance).not.toBe(0)
+
+      await user.clear(custom)
+      await user.type(custom, '99')
+      expect(useDexStore.getState().slippageTolerance).toBe(50)
+      expect(screen.getByText(/Must be between 0.01% and 50%/i)).toBeInTheDocument()
     })
   })
 

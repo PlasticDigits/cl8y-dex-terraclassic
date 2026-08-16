@@ -332,7 +332,21 @@ mod helpers {
         setup_env_with_fee(app, 30)
     }
 
+    /// Like [`setup_full_env`] but with explicit CW20 decimals (GitLab #529 6-vs-18 pairs).
+    pub fn setup_env_with_asset_decimals(app: &mut App, decimals0: u8, decimals1: u8) -> TestEnv {
+        setup_env_with_fee_and_decimals(app, 30, decimals0, decimals1)
+    }
+
     pub fn setup_env_with_fee(app: &mut App, fee_bps: u16) -> TestEnv {
+        setup_env_with_fee_and_decimals(app, fee_bps, 6, 6)
+    }
+
+    pub fn setup_env_with_fee_and_decimals(
+        app: &mut App,
+        fee_bps: u16,
+        decimals0: u8,
+        decimals1: u8,
+    ) -> TestEnv {
         let governance = Addr::unchecked("governance");
         let treasury = Addr::unchecked("treasury");
         let user = Addr::unchecked("user");
@@ -342,12 +356,28 @@ mod helpers {
         let factory_code_id = app.store_code(factory_contract());
         let router_code_id = app.store_code(router_contract());
 
-        let initial_amount = Uint128::new(1_000_000_000_000);
+        let human_units: u128 = 1_000_000;
+        let initial_a = Uint128::new(10u128.pow(decimals0 as u32).saturating_mul(human_units));
+        let initial_b = Uint128::new(10u128.pow(decimals1 as u32).saturating_mul(human_units));
 
-        let token_a =
-            create_cw20_token(app, cw20_code_id, &user, "Token A", "TKNA", initial_amount);
-        let token_b =
-            create_cw20_token(app, cw20_code_id, &user, "Token B", "TKNB", initial_amount);
+        let token_a = create_cw20_token_with_decimals(
+            app,
+            cw20_code_id,
+            &user,
+            "Token A",
+            "TKNA",
+            decimals0,
+            initial_a,
+        );
+        let token_b = create_cw20_token_with_decimals(
+            app,
+            cw20_code_id,
+            &user,
+            "Token B",
+            "TKNB",
+            decimals1,
+            initial_b,
+        );
 
         let factory = app
             .instantiate_contract(

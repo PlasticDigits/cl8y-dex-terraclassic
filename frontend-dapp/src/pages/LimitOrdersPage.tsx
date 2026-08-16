@@ -62,6 +62,7 @@ import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePri
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
+import { limitPriceDecimalsFromPair } from '@/utils/limitOrderPriceScale'
 import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import {
   buildLimitBookEditContext,
@@ -127,10 +128,6 @@ export default function LimitOrdersPage() {
   const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(), [])
 
   const limitBookQuery = useLimitBookInfinite(pairAddr, side)
-  const placeInsertHintAfter = useMemo(() => {
-    const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
-    return resolveLimitInsertHintAfter(side, price, orders, { hasMore })
-  }, [limitBookQuery.data?.pages, side, price])
 
   const {
     effectiveFeeBps,
@@ -174,6 +171,11 @@ export default function LimitOrdersPage() {
   })
 
   const indexerPair: IndexerPair | undefined = indexerPairQuery.data
+  const limitPriceScale = limitPriceDecimalsFromPair(indexerPair)
+  const placeInsertHintAfter = useMemo(() => {
+    const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
+    return resolveLimitInsertHintAfter(side, price, orders, { hasMore }, limitPriceScale)
+  }, [limitBookQuery.data?.pages, side, price, limitPriceScale])
   const latestTrade = tradesForLimitQuery.data?.[0]
   const ustcOracleQuery = useQuery({
     queryKey: ['indexer-oracle-price', 'ustc'],
@@ -445,7 +447,8 @@ export default function LimitOrdersPage() {
         price,
         maxSteps,
         expiresAt,
-        placeInsertHintAfter
+        placeInsertHintAfter,
+        limitPriceScale
       )
     },
     onSuccess: async () => {
@@ -492,6 +495,7 @@ export default function LimitOrdersPage() {
         price,
         maxAdjustSteps: maxSteps,
         hintAfterOrderId: editHintAfterOrderId,
+        limitPriceScale,
       },
       {
         onSuccess: () => {
@@ -638,6 +642,7 @@ export default function LimitOrdersPage() {
                     token1Symbol={token1Display}
                     refToken1PerToken0={refToken1PerToken0}
                     refResolutionLoading={refResolutionLoading}
+                    limitPriceScale={limitPriceScale}
                     disabled={isTradeBlocked}
                     onPlaced={(ids) => {
                       if (ids.length > 0) setLastIndexedOrderId(Math.max(...ids))
@@ -859,6 +864,7 @@ export default function LimitOrdersPage() {
                     openWalletModal={openWalletModal}
                     cancelLimitOrderMutation={limitCancelMutation}
                     cancellations={cancellationsQuery.data ?? []}
+                    limitPriceScale={limitPriceScale}
                   />
                 </div>
               )}
