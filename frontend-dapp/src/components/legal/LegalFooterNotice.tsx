@@ -1,5 +1,6 @@
 import { NFA_SHORT, SECURITY_REPORT_ISSUE_URL, USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { SECURITY_POSTURE_DOC_URL } from '@/utils/constants'
+import { POOL_LP_HOWTO_FOOTER_LABEL, POOL_LP_HOWTO_HREF } from '@/utils/poolLpHowtoCopy'
 
 export default function LegalFooterNotice() {
   return (
@@ -23,6 +24,10 @@ export default function LegalFooterNotice() {
         data-testid="user-incident-faq-link"
       >
         Incidents
+      </a>
+      {' · '}
+      <a href={POOL_LP_HOWTO_HREF} className="underline" data-testid="pool-lp-howto-footer-link">
+        {POOL_LP_HOWTO_FOOTER_LABEL}
       </a>
       {' · '}
       <a className="app-legal-footer-link" href={SECURITY_REPORT_ISSUE_URL} target="_blank" rel="noopener noreferrer">

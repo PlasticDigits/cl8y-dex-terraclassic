@@ -2,56 +2,61 @@
 
 Use when adding or editing **user-facing** steps for providing or withdrawing **LUNC** liquidity on dex.cl8y.com ([GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/531)).
 
-Issue **#531 is open**. Support already told users they can provide/withdraw v2 LP or place limits, and that there is **no incentive program**. They still cannot find the steps on the dApp. `#489` (no always-on essays), `#417` (onboarding is Swap/Trade/Limits only), `#147` / `#213` (provide gas + native wrap), and `#366` (IL notice) still apply.
+Support already told users they can provide/withdraw v2 LP or place limits, and that there is **no incentive program**. The dApp answer is the opt-in `/pool` how-to — not this engineering page and not `docs/frontend.md` as the only guide.
+
+`#489` (no always-on essays), `#417` (onboarding is Swap/Trade/Limits only), `#147` / `#213` (provide gas + native wrap), and `#366` (IL notice) still apply.
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
-| [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/531) | Full spec: current code, guardrails, AC, path tests, attack plan |
+| [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/531) | Spec: AC, path tests, attack plan |
+| [`docs/frontend.md` § Retail LUNC liquidity how-to](../docs/frontend.md#retail-lunc-liquidity-howto) | Invariants **H531-1–H531-10** |
+| [`docs/user-lunc-liquidity.md`](../docs/user-lunc-liquidity.md) | Human backup (GitLab); in-app is primary |
+| [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts) | Static retail strings + forbidden-copy check |
+| [`poolLpHowto.ts`](../frontend-dapp/src/utils/poolLpHowto.ts) | Hint dismiss `cl8y-dex-pool-lp-howto-hint-dismissed` |
+| [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx) | Dismissible hint + `<details>` on `/pool` (`#lp-howto`) |
+| [`LegalFooterNotice.tsx`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) | Footer **Add liquidity** → `/pool#lp-howto` |
+| [`PortfolioLpOverviewSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioLpOverviewSection.tsx) | **How to add liquidity** next to Manage on Pool |
 | [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) | Opt-in how-to only — no permanent lectures |
-| [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | First-visit strip (no Pool today) |
-| [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md) | Auto-fill + withdraw preview (`#480`) |
-| [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) | `/wrap` + cLUNC (`#507`) |
-| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Provide / withdraw, native LUNC checkbox, GitLab IL link |
-| [`TradeOnboardingStrip.tsx`](../frontend-dapp/src/components/common/TradeOnboardingStrip.tsx) | Swap · Trade · Limits only |
+| [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | First-visit strip stays Swap · Trade · Limits |
+| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Provide / withdraw, native LUNC checkbox, IL |
 | [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) | Pool folds into **More** below 1200px |
-| [`docs/frontend.md`](../docs/frontend.md) § Pool provide | Engineering invariants — **not** the retail answer |
-| [`docs/user-incident-faq.md`](../docs/user-incident-faq.md) | Incident FAQ only |
 
-## Current gap
+## Invariants (H531-1–H531-10)
 
-Mechanics work. There is **no retail how-to** on dex.cl8y.com. `/pool` links GitLab `frontend.md`. Onboarding never mentions Pool or Wrap. Users hear “provide LUNC” as one action; the product is two:
-
-1. **v2 AMM LP** — both sides of a pair; native LUNC via **Use native LUNC (auto-wrap)** or `/wrap` first; withdraw via LP tokens.
-2. **Maker limits** — escrow on `/trade` or `/limits`. Not pool shares. Not a farm.
-
-## Target
-
-One short retail how-to the dApp can open in one tap, plus one discoverability hook (dismissible `/pool` line, onboarding Pool link, or Portfolio/footer “How to add liquidity”). Do **not** add APR/points/rewards.
-
-How-to must state: both tokens required; wrap or auto-wrap for native LUNC; bank LUNC still needed for gas; withdraw on `/pool`; no incentive program; limits are optional and **not** LP.
+1. **H531-1** — Same-origin `/pool#lp-howto` names Pool provide/withdraw and optional limit maker.
+2. **H531-2** — Wrapped LUNC; **Use native LUNC (auto-wrap)** or `/wrap`; bank LUNC for gas.
+3. **H531-3** — Both tokens required. Off-ratio extra is donated.
+4. **H531-4** — No incentive program. No APR / points / farm chrome.
+5. **H531-5** — Withdraw on `/pool`; LP tokens are the share.
+6. **H531-6** — Limits are maker escrow, not LP. Link `/trade` or `/limits` only.
+7. **H531-7** — No always-on lecture on Swap/Trade/Limits/Wrap. `/pool` hint is dismissible; `<details>` stays.
+8. **H531-8** — How-to is on `/pool` so More / mobile Pool still find it.
+9. **H531-9** — IL, pause, blacklist, gas, ratio, clickwrap, NFA unchanged.
+10. **H531-10** — Static React (no `innerHTML`). In-app links only. Mention **Create Pair** LUNC creation fee; creating a pair is not required to LP an existing pool. Unwrap is not free.
 
 ## Rules of thumb
 
-1. **#489** — no always-on essay on Swap/Trade/Limits/Wrap. Entry is `<details>`, first-visit dismissible, or a dedicated help page.
-2. **Do not invent incentives.** One sentence: no LP/maker program currently.
-3. **Do not conflate** v2 LP, limit escrow, `/ust1` mint, and `/wrap` as the destination. Wrap is a **step** for native LUNC.
-4. **Keep safety gates** — IL (#366), NFA (#138), clickwrap (#517), pause/blacklist, gas (#147), ratio donate warning, pre-sign (#462). Docs never replace blocking errors.
-5. **No pool-math / wrap-fee / treasury changes** in this issue.
-6. **Copy** — Pool / Provide / Withdraw / Limit + token symbols. No `token0` / `CW20 Send` / “AMM invariant”.
-7. **More / mobile** — “open Pool” must work when Pool is under header **More** (< 1200px) and on the mobile tab bar.
-8. **Engineering `docs/frontend.md` stays** the invariant source; point agents at the retail doc so they do not paste protocol essays onto the page.
+1. Edit copy in `poolLpHowtoCopy.ts` — keep `forbiddenPoolLpHowtoCopyHits()` empty.
+2. Do **not** extend `TradeOnboardingStrip` with a Pool lecture.
+3. Do **not** invent incentives or conflate LP, limits, `/ust1`, and `/wrap` as the destination.
+4. Do **not** change pool math, wrap fees, or treasury in this issue.
+5. How-to must stay **in-flow** (`relative`) — no `position:fixed` overlay on Provide, wallet, or clickwrap.
+6. Pair-creation fee belongs in the how-to **and** on `/create` (live amount). Existing-pool LP does not pay that fee.
 
 ## Verify
 
-Issue: [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/531) (AC1–AC10, C1–C6, Playwright P1–P8, attack A1–A10). After implement: `make verify-issue-531` (add the script in the same MR).
-
 ```bash
+make verify-issue-531
 make test-frontend
-# scoped: PoolPage + TradeOnboardingStrip (if extended)
-# Playwright: /pool how-to + tablet More + phone bottom nav
+# scoped:
+#   PoolPage + PoolLpHowto + poolLpHowtoCopy + LegalFooterNotice
+# Playwright (5 workers, e2e-smoke):
+#   frontend-dapp/e2e/pool-lp-howto-531.spec.ts
 ```
+
+Issue: [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/531) (AC1–AC10, C1–C6, Playwright P1–P8, attack A1–A10).
 
 ## Related
 
