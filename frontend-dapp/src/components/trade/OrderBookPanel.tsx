@@ -15,6 +15,7 @@ import { TRADE_PANEL_BOOK_UNAVAILABLE } from '@/utils/indexerTradeOutageCopy'
 import { flattenLimitBookPages } from '@/utils/limitBookInsertHint'
 import { TradeMarketDataUnavailableNotice } from '@/components/trade/TradeMarketDataUnavailableNotice'
 import { factoryToken1PerToken0ToDisplayPrice } from '@/utils/tradePairDisplayOrientation'
+import { limitPriceDecimalsFromPair, scaleRawLimitPriceForDisplay } from '@/utils/limitOrderPriceScale'
 
 function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
   return orders.reduce((acc, order) => {
@@ -26,8 +27,13 @@ function rawTotal(orders: IndexerShallowLimitOrder[]): bigint {
   }, 0n)
 }
 
-function formatBookPrice(raw: string, inverted = false): string {
-  const shown = inverted ? (factoryToken1PerToken0ToDisplayPrice(raw, true) ?? raw) : raw
+function formatBookPrice(
+  raw: string,
+  inverted = false,
+  scale?: { decimals0: number; decimals1: number } | null
+): string {
+  const human = scaleRawLimitPriceForDisplay(raw, scale)
+  const shown = inverted ? (factoryToken1PerToken0ToDisplayPrice(human, true) ?? human) : human
   return formatNum(shown, 7)
     .replace(/(\.\d*?[1-9])0+$/, '$1')
     .replace(/\.0+$/, '')
@@ -54,6 +60,7 @@ function BookRow({
   cancellations,
   hintAfterOrderId,
   displayInverted,
+  limitPriceScale,
 }: {
   order: IndexerShallowLimitOrder
   side: 'bid' | 'ask'
@@ -69,6 +76,7 @@ function BookRow({
   cancellations: { order_id: number }[]
   hintAfterOrderId?: number | null
   displayInverted?: boolean
+  limitPriceScale?: { decimals0: number; decimals1: number } | null
 }) {
   let remainingRaw = 0n
   let cumulativeRaw = 0n
@@ -115,7 +123,7 @@ function BookRow({
     const amountHuman = fromRawAmount(order.remaining, sizeDecimals)
     onPrefillLimitTicket({
       side: rowSide,
-      price: order.price,
+      price: scaleRawLimitPriceForDisplay(order.price, limitPriceScale),
       amountHuman,
       orderId: order.order_id,
       expiresAt: order.expires_at ?? null,
@@ -123,7 +131,7 @@ function BookRow({
     })
   }
 
-  const rowLabel = `${rowSide} order ${order.order_id}, price ${formatBookPrice(order.price, displayInverted)}, size ${formatTokenAmount(order.remaining, sizeDecimals, 4)}, cumulative ${formatTokenAmount(cumulative, sizeDecimals, 4)}`
+  const rowLabel = `${rowSide} order ${order.order_id}, price ${formatBookPrice(order.price, displayInverted, limitPriceScale)}, size ${formatTokenAmount(order.remaining, sizeDecimals, 4)}, cumulative ${formatTokenAmount(cumulative, sizeDecimals, 4)}`
 
   return (
     <tr
@@ -142,7 +150,7 @@ function BookRow({
             #{order.order_id}
           </span>
           <span className="font-semibold leading-tight" style={{ color: sideColor }}>
-            {formatBookPrice(order.price, displayInverted)}
+            {formatBookPrice(order.price, displayInverted, limitPriceScale)}
           </span>
         </div>
       </td>
@@ -210,6 +218,7 @@ function BookSideColumn({
   cancelMutation,
   onPrefillLimitTicket,
   displayInverted,
+  limitPriceScale,
 }: {
   title: string
   pairAddress: string
@@ -224,6 +233,7 @@ function BookSideColumn({
   cancelMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   onPrefillLimitTicket?: (draft: LimitBookTicketDraft) => void
   displayInverted?: boolean
+  limitPriceScale?: { decimals0: number; decimals1: number } | null
 }) {
   const cancellationsQuery = usePairLimitCancellations(pairAddress)
 
@@ -333,6 +343,7 @@ function BookSideColumn({
                     cancellations={cancellations}
                     hintAfterOrderId={index > 0 ? orders[index - 1]?.order_id : null}
                     displayInverted={displayInverted}
+                    limitPriceScale={limitPriceScale}
                   />
                 ))}
               </tbody>
@@ -492,6 +503,7 @@ export function OrderBookPanel({
           cancelMutation={cancelLimitOrderMutation}
           onPrefillLimitTicket={onPrefillLimitTicket}
           displayInverted={displayInverted}
+          limitPriceScale={limitPriceDecimalsFromPair(pair)}
         />
         <BookSideColumn
           title="Bids"
@@ -507,6 +519,7 @@ export function OrderBookPanel({
           cancelMutation={cancelLimitOrderMutation}
           onPrefillLimitTicket={onPrefillLimitTicket}
           displayInverted={displayInverted}
+          limitPriceScale={limitPriceDecimalsFromPair(pair)}
         />
       </div>
     </div>

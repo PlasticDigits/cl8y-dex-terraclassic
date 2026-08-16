@@ -65,12 +65,22 @@ import {
 
 const TRADE_PAIR_SELECT_ID = 'trade-pair-select'
 
-function TradeResizeHandleVertical() {
-  return <PanelResizeHandle className="w-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0" />
+function TradeResizeHandleVertical({ testId }: { testId?: string }) {
+  return (
+    <PanelResizeHandle
+      className="w-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+      data-testid={testId}
+    />
+  )
 }
 
-function TradeResizeHandleHorizontal() {
-  return <PanelResizeHandle className="h-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0" />
+function TradeResizeHandleHorizontal({ testId }: { testId?: string }) {
+  return (
+    <PanelResizeHandle
+      className="h-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
+      data-testid={testId}
+    />
+  )
 }
 
 type TradeChartSlotProps = {
@@ -550,7 +560,10 @@ export default function TradePage() {
           <div className="min-h-[280px] md:col-span-2 md:row-start-2">
             <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
           </div>
-          <div className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col" data-testid="trade-sub-lg-ticket-col">
+          <div
+            className="min-h-0 md:col-start-2 md:row-start-1 flex flex-col md:max-h-[min(72vh,44rem)]"
+            data-testid="trade-sub-lg-ticket-col"
+          >
             {tradeOrderTicket}
           </div>
           <div
@@ -585,7 +598,7 @@ export default function TradePage() {
             <Panel defaultSize={24} minSize={18} className="min-w-0">
               <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
             </Panel>
-            <TradeResizeHandleVertical />
+            <TradeResizeHandleVertical testId="trade-book-chart-resize-handle" />
             <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
               <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
                 <Panel defaultSize={58} minSize={30} className="min-h-0">
@@ -593,7 +606,7 @@ export default function TradePage() {
                     <TradeChartSlot {...chartSlotProps} wrapInCard={false} />
                   </div>
                 </Panel>
-                <TradeResizeHandleHorizontal />
+                <TradeResizeHandleHorizontal testId="trade-chart-tape-resize-handle" />
                 <Panel
                   ref={tapePanelRef}
                   defaultSize={
@@ -640,7 +653,7 @@ export default function TradePage() {
                 </Panel>
               </PanelGroup>
             </Panel>
-            <TradeResizeHandleVertical />
+            <TradeResizeHandleVertical testId="trade-ticket-resize-handle" />
             <Panel defaultSize={24} minSize={18} className="min-w-0 min-h-0">
               {tradeOrderTicket}
             </Panel>

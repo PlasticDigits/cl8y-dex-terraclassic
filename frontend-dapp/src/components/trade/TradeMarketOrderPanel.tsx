@@ -1,4 +1,4 @@
-import { useMemo, useState, useId } from 'react'
+import { useMemo, useState, useId, useLayoutEffect } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
@@ -38,9 +38,9 @@ import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
-import { SLIPPAGE_PROTECTION_LABEL, SLIPPAGE_TOLERANCE_PRESETS_PERCENT } from '@/utils/slippageProtectionCopy'
-import { TxResultAlert, Spinner } from '@/components/ui'
-import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
+import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
+import { Spinner } from '@/components/ui'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import {
   assetInfoLabel,
@@ -63,7 +63,8 @@ import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrder
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
-import { TRADE_MONEY_CTA_CLASS, TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
+import { TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
+import { TradeMarketSubmitChrome, type TradeMarketSubmitChromeModel } from '@/components/trade/TradeTicketSubmitFooter'
 
 interface MarketSimData {
   return_amount: string
@@ -102,12 +103,17 @@ export function TradeMarketOrderPanel({
   pairs,
   side,
   isPaused,
+  dockSubmit = false,
+  onSubmitChromeChange,
 }: {
   pairAddr: string
   selectedPair: PairInfo | undefined
   pairs: PairInfo[]
   side: 'bid' | 'ask'
   isPaused: boolean
+  /** When true, money CTA is published to the ticket footer instead of in-flow (GitLab #527). */
+  dockSubmit?: boolean
+  onSubmitChromeChange?: (model: TradeMarketSubmitChromeModel | null) => void
 }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -504,6 +510,63 @@ export function TradeMarketOrderPanel({
     rawInputAmount !== '0' &&
     isSubmitReady
 
+  const submitLabel = !isWalletConnected
+    ? 'Connect Wallet'
+    : terraBroadcastPendingButtonLabel(
+        swapMutation.phase,
+        swapMutation.isPending,
+        priceImpactTooHigh
+          ? 'Hop spread exceeds slippage protection'
+          : liveSplit?.bookExceedsPay
+            ? 'Book leg exceeds pay'
+            : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+        'Submitting…'
+      )
+
+  const swapMutate = swapMutation.mutate
+  const swapPhase = swapMutation.phase
+  const swapPendingTxHash = swapMutation.pendingTxHash
+  const swapIsError = swapMutation.isError
+  const swapErrorMessage = swapMutation.isError ? (swapMutation.error as Error).message : null
+  const swapIsSuccess = swapMutation.isSuccess
+  const swapSuccessTxHash = swapMutation.data
+
+  const submitChromeModel = useMemo<TradeMarketSubmitChromeModel>(
+    () => ({
+      canSubmit,
+      label: submitLabel,
+      onClick: () => {
+        if (!isWalletConnected) openWalletModal()
+        else swapMutate()
+      },
+      phase: swapPhase,
+      pendingTxHash: swapPendingTxHash,
+      isError: swapIsError,
+      errorMessage: swapErrorMessage,
+      isSuccess: swapIsSuccess,
+      successTxHash: swapSuccessTxHash,
+    }),
+    [
+      canSubmit,
+      submitLabel,
+      isWalletConnected,
+      openWalletModal,
+      swapMutate,
+      swapPhase,
+      swapPendingTxHash,
+      swapIsError,
+      swapErrorMessage,
+      swapIsSuccess,
+      swapSuccessTxHash,
+    ]
+  )
+
+  useLayoutEffect(() => {
+    if (!dockSubmit) return
+    onSubmitChromeChange?.(submitChromeModel)
+    return () => onSubmitChromeChange?.(null)
+  }, [dockSubmit, onSubmitChromeChange, submitChromeModel])
+
   if (!selectedPair) return null
 
   return (
@@ -520,23 +583,19 @@ export function TradeMarketOrderPanel({
           Docs
         </a>
       </p>
-      <div className="flex flex-wrap gap-2 text-[10px]">
-        <span style={{ color: 'var(--ink-dim)' }}>{SLIPPAGE_PROTECTION_LABEL}:</span>
-        {SLIPPAGE_TOLERANCE_PRESETS_PERCENT.map((v) => (
-          <button
-            key={v}
-            type="button"
-            className={`${TRADE_SLIPPAGE_PRESET_CLASS} ${slippageTolerance === v ? 'tab-glass-active' : 'tab-glass-inactive'}`}
-            data-testid={`trade-market-slippage-preset-${v}`}
-            onClick={() => {
-              sounds.playButtonPress()
-              setSlippageTolerance(v)
-            }}
-          >
-            {v}%
-          </button>
-        ))}
-      </div>
+      <SlippageProtectionPresets
+        selectedPercent={slippageTolerance}
+        onSelect={(v) => {
+          sounds.playButtonPress()
+          setSlippageTolerance(v)
+        }}
+        chipClassName={TRADE_SLIPPAGE_PRESET_CLASS}
+        groupTestId="trade-market-slippage-presets"
+        presetTestIdPrefix="trade-market-slippage-preset-"
+        labelClassName="text-[10px]"
+        labelStyle={{ color: 'var(--ink-dim)' }}
+        showColon
+      />
       <LimitOrderEscrowAmountField
         compact
         escrowLabel={getTokenDisplaySymbol(fromToken || '—')}
@@ -741,35 +800,8 @@ export function TradeMarketOrderPanel({
         />
       )}
 
-      <button
-        type="button"
-        className={TRADE_MONEY_CTA_CLASS}
-        disabled={!canSubmit}
-        data-testid="trade-market-submit"
-        onClick={() => {
-          if (!isWalletConnected) openWalletModal()
-          else swapMutation.mutate()
-        }}
-      >
-        {!isWalletConnected
-          ? 'Connect Wallet'
-          : terraBroadcastPendingButtonLabel(
-              swapMutation.phase,
-              swapMutation.isPending,
-              priceImpactTooHigh
-                ? 'Hop spread exceeds slippage protection'
-                : liveSplit?.bookExceedsPay
-                  ? 'Book leg exceeds pay'
-                  : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
-              'Submitting…'
-            )}
-      </button>
-      <TerraBroadcastPendingLink phase={swapMutation.phase} txHash={swapMutation.pendingTxHash} />
       <LimitOrderEscrowPlaceGuardMessage gate={inlineGate} data-testid="trade-market-place-guard" />
-      {swapMutation.isError && <TxResultAlert type="error" message={(swapMutation.error as Error).message} />}
-      {swapMutation.isSuccess && (
-        <TxResultAlert type="success" message="Market swap confirmed." txHash={swapMutation.data} />
-      )}
+      {!dockSubmit && <TradeMarketSubmitChrome model={submitChromeModel} />}
     </div>
   )
 }

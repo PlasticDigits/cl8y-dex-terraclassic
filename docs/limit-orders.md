@@ -252,18 +252,18 @@ Invariant **L18** in [contracts-security-audit.md](./contracts-security-audit.md
 
 ### Limit price band (GitLab #467)
 
-**Price** on limit orders is **token1 per token0** (same basis as pool pricing). Placement (`PlaceLimitOrderBatch` / ladder), ladder expansion, and **`UpdateLimitOrderPrice`** enforce:
+**Price** on limit orders is **token1 per token0** (same basis as pool pricing). The stored / matched value is **raw** base units (`fill × price`). Placement (`PlaceLimitOrderBatch` / ladder), ladder expansion, and **`UpdateLimitOrderPrice`** enforce the band on the **human-scale** price `raw × 10^(decimals0 − decimals1)` ([#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529)):
 
 | Constant | Value | Role |
 |----------|-------|------|
-| [`MIN_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs) | **1e-9** | Rejects former attack vector `Decimal::raw(1)` = 1e-18 where `1/price` overflows `Uint128::checked_mul_floor` on realistic taker budgets |
-| [`MAX_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs) | **1e9** | Symmetric upper bound for `fill × price` overflow |
+| [`MIN_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs) | **1e-9** (human) | Rejects former attack vector `Decimal::raw(1)` = 1e-18 on like-decimal pairs where `1/price` overflows `Uint128::checked_mul_floor` on realistic taker budgets |
+| [`MAX_LIMIT_PRICE`](../smartcontracts/packages/dex-common/src/limit_placement.rs) | **1e9** (human) | Symmetric upper bound; a 6-vs-18 pair at ~79 human (raw ~7.9e13) is in-band |
 
 Sub-unity prices inside the band (e.g. **0.1**, **0.4**) remain valid — see zero-cost fill skip (**L18** / #470).
 
 **Match belt-and-suspenders:** if a legacy resting row predates the band, `match_bids` / `match_asks` and **`simulate_match_*`** skip the maker on reciprocal math overflow instead of reverting the whole hybrid swap.
 
-Invariant **L20** in [contracts-security-audit.md](./contracts-security-audit.md); verification: `make verify-issue-467`.
+Invariant **L20** in [contracts-security-audit.md](./contracts-security-audit.md); verification: `make verify-issue-467`, `make verify-issue-529`. Agent playbook: [skills/AGENTS_LIMIT_PRICE_DECIMALS.md](../skills/AGENTS_LIMIT_PRICE_DECIMALS.md).
 
 **Frontend hybrid gas ([GitLab #249](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/249), scan cap [#260](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/260), ceiling [#262](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/262)):** Terra Classic does not refund unused gas — the dApp sizes `Fee.gas` from the route quote’s `max_maker_fills` **plus** conservative book-walk overhead when `book_input > 0`, not a flat **15M** per hop unless the envelope hits the ceiling. Formula (one hop, book leg):
 
@@ -393,7 +393,7 @@ Retail **My open limits** must not show a green `●` with a dead or mute **Canc
 | **F530-2** | LCD / transport / decode **failure is not `Unknown`** (**L21**). Keep Cancel on indexer-active rows; #135 still humanizes a race. |
 | **F530-3** | Successful `Unknown` is classified from indexer evidence only: fill row → **Filled**; cancellation or local post-broadcast id → **Already cancelled**; else **No longer on the book**. Never treat `Unknown` as proof of fill. |
 | **F530-4** | Disabled Cancel states **why** (paused / restricted / filled / already cancelled / gone). No mute `Cancel`. |
-| **F530-5** | `/trade` compact panel sits **above** `trade-limit-submit-sticky` (not a child). Cancel `elementFromPoint` must hit the button, not Place limit. Testids unchanged: `trade-cancel-placement-{id}`, `limits-page-cancel-placement-{id}`, `trade-book-cancel-{bid\|ask}-{id}`, `trade-ticket-placements-anchor`. |
+| **F530-5** | `/trade` compact panel sits **above** `trade-ticket-submit-footer` (not a child). Cancel `elementFromPoint` must hit the button, not Place limit. Testids unchanged: `trade-cancel-placement-{id}`, `limits-page-cancel-placement-{id}`, `trade-book-cancel-{bid\|ask}-{id}`, `trade-ticket-placements-anchor`. |
 | **F530-6** | Owner-only + **L6** pause unchanged. Cancel payload is factory `order_id` on the selected pair — UST1 invert (#524) is display-only. |
 | **F530-7** | After a successful cancel, remember the id locally so indexer lag cannot re-enable Cancel (I9). Mutation also refuses LCD `Unknown` / `ParkedRefund` (A2 / A3). |
 | **F530-8** | Indexer `process_limit_order_fill` still does **not** flip `lifecycle_status`. Default-open listing can include filled-as-`active` until LCD + fills reclassify the row. Do not add a third execute path. |

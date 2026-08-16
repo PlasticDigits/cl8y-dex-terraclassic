@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { formatTokenAmount } from '@/utils/formatAmount'
 import { sounds } from '@/lib/sounds'
 import type { PortfolioLpRow } from '@/hooks/usePortfolioLpBalances'
+import { POOL_LP_HOWTO_HREF, POOL_LP_HOWTO_SUMMARY } from '@/utils/poolLpHowtoCopy'
 
 const LP_DECIMALS = 6
 
@@ -33,6 +34,15 @@ export function PortfolioLpOverviewSection({
         LP token balances. Manage on{' '}
         <Link to="/pool" className="underline" style={{ color: 'var(--accent)' }}>
           Pool
+        </Link>
+        {' · '}
+        <Link
+          to={POOL_LP_HOWTO_HREF}
+          className="underline"
+          style={{ color: 'var(--accent)' }}
+          data-testid="portfolio-lp-howto-link"
+        >
+          {POOL_LP_HOWTO_SUMMARY}
         </Link>
         .
       </p>

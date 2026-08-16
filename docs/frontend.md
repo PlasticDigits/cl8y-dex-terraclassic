@@ -6,7 +6,7 @@ Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
-On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible.
+On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
 
 ## Tech Stack
 
@@ -868,32 +868,39 @@ Retail trade IA for Swap vs Trade vs Limits and calmer first paint on `/trade` (
 |-----------|---------|
 | **First-visit onboarding strip** | [`TradeOnboardingStrip`](../frontend-dapp/src/components/common/TradeOnboardingStrip.tsx) on `/`, `/trade`, and `/limits` until dismissed (`data-testid="trade-onboarding-strip"`). Copy links to **Swap** and explains when to use **Trade** vs **Limits**. Dismiss persists in `localStorage` ([`tradeOnboarding.ts`](../frontend-dapp/src/utils/tradeOnboarding.ts)). Must not block wallet connect or submit buttons. |
 | **Money-action CTA sizing** | Primary trade submits use [`TRADE_MONEY_CTA_CLASS`](../frontend-dapp/src/utils/tradeMoneyCta.ts) (`py-3 text-sm font-semibold` minimum) on **Place limit**, **Market buy/sell**, and ladder place — aligned with Swap `btn-primary btn-cta` weight. `data-testid` hooks unchanged (`trade-limit-submit`, `trade-market-submit`, `ladder-place-submit`). |
-| **Market slippage presets** | Chips in [`TradeMarketOrderPanel`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) use `min-h-11` (~44px touch target); `data-testid="trade-market-slippage-preset-{pct}"`. |
+| **Market slippage presets** | Shared [`SlippageProtectionPresets`](../frontend-dapp/src/components/common/SlippageProtectionPresets.tsx): label above a `role="group"` 3-up grid (`data-testid="trade-market-slippage-presets"`). Chips use `min-h-11` (~44px); `data-testid="trade-market-slippage-preset-{pct}"`. Do not wrap 0.5% onto the label row ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528)). |
 | **Progressive disclosure on `/trade`** | **Recent trades (tape)** and **wallet swap history** default **collapsed** on first visit. Sub-desktop: [`TradeWorkspaceDisclosure`](../frontend-dapp/src/components/trade/TradeWorkspaceDisclosure.tsx) (`trade-sub-lg-tape-disclosure`, `trade-wallet-history-disclosure`). Desktop: collapsible resizable tape panel (`trade-desktop-tape-panel`, `trade-desktop-tape-toggle`). Expansion persists via [`tradeWorkspacePanels.ts`](../frontend-dapp/src/utils/tradeWorkspacePanels.ts). Pause/blacklist banners remain visible when applicable ([#395](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/395), [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)). |
 
 **Verify:** `make test-frontend` — [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), [`TradeOnboardingStrip.test.tsx`](../frontend-dapp/src/components/common/__tests__/TradeOnboardingStrip.test.tsx). Manual: clear `cl8y-dex-trade-onboarding-dismissed`, `cl8y-dex-trade-tape-expanded`, and `cl8y-dex-trade-wallet-history-expanded` in DevTools → reload `/trade` → confirm collapsed tape/history and onboarding strip; mobile bottom nav must remain usable.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](../skills/AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](../skills/AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md), [`skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](../skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (#528 chip group).
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
-### Trade page — limit ticket sticky CTA {#trade-page-limit-ticket-sticky-cta}
+<a id="trade-page-limit-ticket-sticky-cta"></a>
 
-Pinned **Place limit** / **Update price** on the `/trade` order ticket must stay usable without reading as a glitch when the ticket scrollport is not at the bottom ([GitLab **#500**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500); same opacity class as sticky header [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)):
+### Trade page — ticket footer CTA {#trade-page-ticket-footer-cta}
+
+`/trade` order-ticket money CTAs (**Place limit** / **Update price** / **Market buy|sell** / **Connect Wallet**) dock to the **bottom of the ticket card** as a flex `shrink-0` footer — not `position: sticky` inside the scrollport ([GitLab **#527**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527)). Opacity and guards-in-flow from [#500](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500) still apply (same opacity class as sticky header [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)). Visibility without hunting the ticket body is [#348](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/348).
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Sticky CTA kept** | `data-testid="trade-limit-submit-sticky"` remains `position: sticky; bottom: 0` inside the ticket scrollport so the money CTA stays visible (#348). **My open limits** (`trade-ticket-placements-anchor`) renders **above** the sticky chrome ([#530](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/530)) so compact **Cancel** is not a child of Place limit and can scroll clear of the pin. |
-| **Opaque sticky chrome** | `.trade-limit-submit-sticky` uses layered `var(--panel-bg-strong), var(--bg-1)` (+ backdrop blur). Do **not** use missing tokens (e.g. `--card`) or translucent mixes that let ADVANCED / fee rows bleed through the button. |
-| **Guards in document flow** | Price / escrow / gas / crossing banners (`LimitOrderEscrowPlaceGuardMessage`, `trade-limit-inline-guards`) render **above** the sticky footer in normal flow — never inside the sticky chrome where they can cover expiry / date inputs. |
-| **Scroll clearance** | `.trade-order-ticket-scroll` applies `--trade-limit-sticky-clearance` end padding / `scroll-padding-bottom` so expiry chips, datetime, and ADVANCED can scroll clear of the pinned footer. |
-| **Sticky payload** | Sticky chrome holds the CTA, broadcast pending link, and tx result alerts only. |
+| **T527-1 Dock, do not float** | At ticket scroll-top on Chromium, the money CTA **bottom** aligns with `trade-order-ticket-card` **bottom** (≤ 8px). It must not sit between Pay % chips and Expiry, and must not overlap Pay / Receive / Expiry / Advanced. |
+| **T527-2 Shared footer slot** | Limit and Market render into the same `data-testid="trade-ticket-submit-footer"` (`.trade-ticket-submit-footer`). No second in-flow Market CTA mid-form. |
+| **T527-3 #348 visibility** | Desktop ~1280×720: CTA fully visible in the ticket column without scrolling the ticket body. Tablet chart\|ticket row: CTA stays inside `trade-sub-lg-ticket-col`. |
+| **T527-4 #500 opacity + guards** | Footer uses layered `var(--panel-bg-strong), var(--bg-1)` (+ backdrop blur). Do **not** use missing tokens (e.g. `--card`) or translucent mixes. `trade-limit-inline-guards` is **not** a descendant of the footer. |
+| **T527-5 No sticky / fixed / portal** | Prefer `flex` + `shrink-0`. Do **not** use `position: sticky`, `position: fixed`, or a document-body portal footer. CTA remains a descendant of `trade-order-ticket-card` (sibling of `trade-order-ticket-scroll`). |
+| **T527-6 Layout only** | No change to `place_limit_order`, invert convert-on-submit ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)), crossing / pause / blacklist / gas gates. |
+| **T527-7 One ticket mount** | Do not remount a second `TradeOrderTicket` ([#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178)). |
+| **T527-8 z-index** | Footer stays under wallet modal, risk/NFA, clickwrap, toasts, and `#trade-pair-select` ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). Do not raise `z-index` to “win” those surfaces. |
+| **T527-9 Testids** | Keep `trade-limit-submit`, `trade-limit-update-price-submit`, `trade-limit-inline-guards`, `trade-order-ticket-scroll`, `trade-market-submit`. Footer wrapper is `trade-ticket-submit-footer` (replaces `trade-limit-submit-sticky`). |
+| **T527-10 `/limits` out of scope** | Standalone place card stays in-flow. Do not add sticky/fixed chrome there unless a helper is shared. |
+| **Footer payload** | CTA + broadcast pending link + tx result alerts only. |
+| **#530 open limits** | `trade-ticket-placements-anchor` stays in the scroll body **above** the footer (not a child of Place limit). Compact **Cancel** must not sit under `trade-ticket-submit-footer`. |
 
-Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `TradePage.test.tsx` (#500 DOM order) and `e2e/trade-page-responsive.spec.ts` (opaque hit-test + expiry clears footer).
+Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`TradeTicketSubmitFooter.tsx`](../frontend-dapp/src/components/trade/TradeTicketSubmitFooter.tsx), [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) (`dockSubmit`), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `make verify-issue-527` — `TradePage.test.tsx` (DOM order) and `e2e/trade-page-responsive.spec.ts` (bottom alignment + `elementFromPoint`).
 
-**Open follow-up [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527):** On Chrome, `position: sticky; bottom: 0` inside the flex ticket scrollport can float **Place limit** mid-form (over Pay % chips / Receive / Expiry) instead of docking to the ticket bottom. Implementation: replace sticky-inside-scroll with a true ticket footer shared by Limit + Market. Do not use `position: fixed`. Playbook: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md).
-
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) (`#500`); dock follow-up: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`); opacity / guards: [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) (`#500`).
 
 ### Trade page — pair switch latency {#trade-page-pair-switch-latency}
 
@@ -1060,7 +1067,7 @@ Implementation: [`useLimitOrderCancelMutation.ts`](../frontend-dapp/src/hooks/us
 | **LCD first** | `queryOrderStatus` / `useLimitOrderStatuses`. `Active` → Cancel. `ParkedRefund` → Claim. Query failure stays unset — **not** `Unknown` (**L21**). |
 | **Unknown classification** | Fill row → **Filled**. Indexed or local cancel → **Already cancelled**. Else **No longer on the book**. No enabled Cancel. |
 | **Disabled copy** | Paused → `Unavailable (pair paused)`. Blacklist → `Trading restricted`. Gone/filled/cancelled use those labels — never a mute `Cancel`. |
-| **`/trade` reachability** | `trade-ticket-placements-anchor` is a sibling **above** `trade-limit-submit-sticky`. Compact Cancel is not a child of Place limit. |
+| **`/trade` reachability** | `trade-ticket-placements-anchor` stays in `trade-order-ticket-scroll` **above** `trade-ticket-submit-footer`. Compact Cancel is not a child of Place limit. |
 | **Invert-safe** | Cancel execute is `{ cancel_limit_order: { order_id } }` on the selected pair. #524 invert does not add fields. |
 | **Testids** | `trade-cancel-placement-{id}`, `limits-page-cancel-placement-{id}`, `trade-book-cancel-{bid\|ask}-{id}`, `trade-ticket-placements-anchor`. |
 
@@ -1104,10 +1111,11 @@ Retail safety for typed **token1 per token0** limits ([GitLab **#154**](https://
 | **Headline-scaled USD** | `anchorUsdForLimitPrice` scales the chart **tape headline** linearly with typed price vs reference so the line matches the headline when the typed price equals the reference (same `tapeLastPriceUsd` from `resolveTapeLastPriceUsd` / `price_usd` as `PriceChart` — [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)). This is an **anchor estimate**, not a fresh oracle quote per token. When the reference comes from the **pool** (no tape), headline USD may stay **—** until tape returns. |
 | **Submit gate** | **Bid:** `typed price >= reference` → disabled submit + error copy (buy limit must be **below** reference). **Ask:** `typed price <= reference` → disabled submit. When the user typed a **positive** limit and **no** reference can be resolved (no tape, pool empty, unknown decimals, or LCD error while loading pool), submit is **blocked** with explicit copy — never silently skip the guard ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)). While the pool fallback query is **in flight**, submit stays disabled with a **warning** tone. |
 | **Rate label + chips (#488/#489/#495)** | Primary card uses **When 1 {token} is worth** (token0 symbol). **% chips** sit under the rate field with **side-aware signs**: bid → `0%−` / `−1%` / `−5%` / `−10%` (strictly **below** ref); ask → `0%+` / `+1%` / `+5%` / `+10%` (strictly **above** ref). Magnitude `0` maps to ±`LIMIT_PRICE_NEAR_MARKET_DEVIATION_PERCENT` (0.01%) so chips never land on equality (invalid per #154). No on-card instructional essay and no **Place limit ⓘ** tooltip; invalid-direction errors stay inline. |
+| **Human ↔ raw (#529)** | Typed price, refs, gates, and book display stay **human** token1/token0. On-chain / indexer book `price` is **raw** (`× 10^(dec1 − dec0)` vs human). Submit scales via [`limitOrderPriceScale.ts`](../frontend-dapp/src/utils/limitOrderPriceScale.ts); #524 invert applies to the human factory price only. |
 
 Implementation: [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) (`resolveLimitOrderPriceRef`, pool spot helpers, `signedLimitPriceDeviationPercent` / `limitPriceFromRefDeviationChip`), [`useLimitOrderPriceRefBundle.ts`](../frontend-dapp/src/hooks/useLimitOrderPriceRefBundle.ts) (tape + `getPool` wiring for [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) and [`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)), [`limitOrderPricePlaceGate.ts`](../frontend-dapp/src/utils/limitOrderPricePlaceGate.ts), [`LimitOrderPriceField.tsx`](../frontend-dapp/src/components/trade/LimitOrderPriceField.tsx) (`LimitOrderPriceInputWithContext`), plus [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) for pair context. `LimitOrderEscrowPlaceGuardMessage` accepts the price gate result for inline errors.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md), [`skills/AGENTS_LIMIT_PRICE_DECIMALS.md`](../skills/AGENTS_LIMIT_PRICE_DECIMALS.md).
 
 ### Trade page — limit order pre-submit summary (resting semantics, fees) {#trade-page-limit-order-pre-submit-summary}
 
@@ -1252,6 +1260,29 @@ When the **Provide Liquidity** panel is open on `/pool`, a short **impermanent l
 | **Docs link** | `Learn more` → this section (`#pool-lp-risk-disclosure`). |
 
 **Code:** `frontend-dapp/src/pages/PoolPage.tsx` (`POOL_LP_RISK_DOC`).
+
+Retail “how do I add LUNC?” is **not** this section. See [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto) and [`user-lunc-liquidity.md`](./user-lunc-liquidity.md).
+
+### Retail LUNC liquidity how-to {#retail-lunc-liquidity-howto}
+
+In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP without opening GitLab ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)). Primary surface: `/pool#lp-howto`. Human backup: [`user-lunc-liquidity.md`](./user-lunc-liquidity.md). Agent playbook: [`skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md`](../skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **H531-1** | Same-origin how-to on `/pool` names **Pool provide/withdraw** and optional **limit maker**. This file is not the only guide. |
+| **H531-2** | States pools use wrapped LUNC; **Use native LUNC (auto-wrap)** **or** `/wrap` first; bank LUNC still required for **gas**. |
+| **H531-3** | Both assets required; LUNC-only deposit is not a v2 pool action. Off-ratio provide **donates** excess. |
+| **H531-4** | States there is **no** incentive program currently. No APR / points / farm UI. |
+| **H531-5** | Withdraw via `/pool`; LP tokens are the share. |
+| **H531-6** | Limits (if mentioned) are maker escrow, **not** LP shares; in-app `/trade` or `/limits` only. |
+| **H531-7** | No always-on lecture on Swap / Trade / Limits / Wrap. Entry is a dismissible `/pool` hint plus `<details>`. |
+| **H531-8** | How-to lives on `/pool`, so tablet **More** and phone bottom-nav Pool still reach it. |
+| **H531-9** | Does not replace IL, pause, blacklist, gas, ratio warning, clickwrap, or NFA. |
+| **H531-10** | Static React copy (no `innerHTML` of indexer/wallet strings). In-app links only (Pool / Wrap / Trade / Limits / Create Pair). Mentions **Create Pair** LUNC creation fee; creating a pair is not required to LP an existing pool. Unwrap is not free. |
+
+**Code:** [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts), [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx), footer / Portfolio links to `/pool#lp-howto`.
+
+**Verify:** `make verify-issue-531`.
 
 ### Pool page — provide liquidity (UI invariants)
 
@@ -1411,7 +1442,7 @@ All swaps and trades are signed in the connected wallet and broadcast to the **p
 #### MEV and front-running risks
 
 - **Public mempool exposure:** Once a signed transaction enters the public mempool, validators and searchers can observe it before inclusion. Large or predictable swaps may be sandwiched or front-run.
-- **Slippage protection is the on-chain guard:** **Slippage protection** (retail label; on-chain `max_spread` on pair/router messages) is the primary contract-level protection against sandwich and front-running losses. Keep it tight for large trades. Default protection is **5%** for new sessions ([#497](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/497); `DEFAULT_SLIPPAGE_TOLERANCE_PERCENT`). The Swap Settings **retail** panel exposes slippage presets (**0.5 / 1 / 5%**), **transaction deadline** (5/10/20/30m + custom, default 5 min), and a **High slippage protection increases front-running risk** warning when protection is **strictly above** 5% ([#413](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/413)). Agent checklist: [`skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](../skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md). Preset chips **0.5 / 1 / 5%** must stay one aligned group (label is not a `flex-wrap` sibling that can orphan 0.5%) — [#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528); [`skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](../skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md).
+- **Slippage protection is the on-chain guard:** **Slippage protection** (retail label; on-chain `max_spread` on pair/router messages) is the primary contract-level protection against sandwich and front-running losses. Keep it tight for large trades. Default protection is **5%** for new sessions ([#497](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/497); `DEFAULT_SLIPPAGE_TOLERANCE_PERCENT`). The Swap Settings **retail** panel exposes slippage presets (**0.5 / 1 / 5%**), **transaction deadline** (5/10/20/30m + custom, default 5 min), and a **High slippage protection increases front-running risk** warning when protection is **strictly above** 5% ([#413](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/413)). Agent checklist: [`skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](../skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md). Preset chips **0.5 / 1 / 5%** must stay one aligned group (label is not a `flex-wrap` sibling that can orphan 0.5%) — [#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528); [`skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](../skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md). See [§ Slippage protection preset alignment](#slippage-protection-preset-align).
 - **No UI disclosure panel:** Per product decision ([#299](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/299)), MEV posture is **not** surfaced in the Swap or Trade UI — an informational card would imply a user-controllable setting that does not exist.
 
 | Invariant | Meaning |
@@ -1424,6 +1455,27 @@ All swaps and trades are signed in the connected wallet and broadcast to the **p
 Related: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md) (price impact / max spread) · [`docs/limit-orders.md`](./limit-orders.md) (hybrid routing disclosure — GitLab #111).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_MEV_POSTURE.md`](../skills/AGENTS_FRONTEND_MEV_POSTURE.md).
+
+### Slippage protection preset alignment {#slippage-protection-preset-align}
+
+Retail **0.5 / 1 / 5%** chips on `/trade` Market and Swap Settings are one control ([GitLab **#528**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528)). Shared primitive: [`SlippageProtectionPresets.tsx`](../frontend-dapp/src/components/common/SlippageProtectionPresets.tsx). Values stay [`SLIPPAGE_TOLERANCE_PRESETS_PERCENT`](../frontend-dapp/src/utils/slippageProtectionCopy.ts) (`[0.5, 1.0, 5.0]`); default remains **5%** ([#497](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/497)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **S528-1 Label is not a wrap sibling** | Visible **Slippage protection** sits above the chip `role="group"`. Do not put the label in the same `flex-wrap` list as the buttons. |
+| **S528-2 One 3-up group** | Chips live in `grid grid-cols-3` (`data-testid="trade-market-slippage-presets"` / `swap-slippage-presets`). They share a baseline (top/bottom ≤ 2px). If the ticket is narrow they shrink together — never orphan 0.5% on the label row. |
+| **S528-3 Swap Custom outside the group** | Custom input (`swap-slippage-custom`) is a sibling of the group, not a child. It stacks **below** the three chips (`flex-col`); it must not sit between 0.5% and 1%. |
+| **S528-4 Trade touch targets** | Trade chips keep `TRADE_SLIPPAGE_PRESET_CLASS` (`min-h-11`, [#417](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/417)). No Custom on Trade Market. |
+| **S528-5 Mapping unchanged** | `max_spread = (percent / 100).toString()` (`maxSpreadFromSlippagePercent`). Fresh store still defaults to 5 → `"0.05"`. |
+| **S528-6 Chips stay in the ticket body** | Do not move presets into the [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527) money-CTA footer. `elementFromPoint` on a chip must hit that chip. |
+| **S528-7 One group, one store write** | One mounted preset group per surface. Click writes `useDexStore.slippageTolerance` only (plus Swap Custom sanitize). |
+| **S528-8 Pool withdraw out of scope** | Pool **0.5 / 1.0 / 2.0** chips stay on [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx). Do not reuse this helper if it would change those values. |
+| **S528-9 Custom sanitize** | Swap Custom uses `sanitizeSlippageCustomInput` (digits + one `.`). Values `< 0.01` show range error and do not persist; `> 50` clamp to 50. High-warn only when store **> 5**. |
+| **S528-10 A11y** | Group `aria-labelledby` the visible label. No `tabindex` on the label. Tab order 0.5 → 1 → 5. `:focus-visible` on `.tab-glass` unchanged ([#144](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/144)). |
+
+**Verify:** `make verify-issue-528` — RTL selection + Custom sanitize + Playwright P1–P10 (`e2e/slippage-preset-align-528.spec.ts`) when LocalTerra is up.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](../skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md), [`skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](../skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md).
 
 ### Tiers Page
 

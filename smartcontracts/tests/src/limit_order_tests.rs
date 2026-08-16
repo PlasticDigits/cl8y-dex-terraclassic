@@ -1511,6 +1511,87 @@ fn dust_ask_brick_attack_prevented_valid_ask_still_fills() {
     );
 }
 
+/// GitLab #529 — 6-vs-18 raw limit (~79 human USTR/UST1) places and fills.
+#[test]
+fn place_and_fill_limit_on_six_vs_eighteen_pair() {
+    let mut app = App::default();
+    let env = setup_env_with_asset_decimals(&mut app, 6, 18);
+    let taker = Addr::unchecked("taker_529");
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(79_000_000_000_000_000_000),
+    );
+
+    let raw_price = Decimal::from_ratio(79_000_000_000_000u128, 1u128);
+    let ask_escrow = Uint128::new(1_000_000);
+    let order_id = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        ask_escrow,
+        raw_price,
+    );
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(lo.price, raw_price);
+
+    let taker_pay = Uint128::new(10_000_000_000_000_000_000);
+    transfer_tokens(&mut app, &env.token_b, &env.user, &taker, taker_pay);
+    let taker_a_before = query_cw20_balance(&app, &env.token_a, &taker);
+    swap_b_to_a_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_b,
+        taker_pay,
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: taker_pay,
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+    let taker_a_after = query_cw20_balance(&app, &env.token_a, &taker);
+    assert!(
+        taker_a_after > taker_a_before,
+        "taker must receive token0 from the 6/18 ask fill"
+    );
+    let lo_after = query_limit(&app, &env.pair, order_id);
+    assert!(
+        lo_after.remaining < lo.remaining,
+        "ask remaining must decrease after fill"
+    );
+}
+
+/// GitLab #529 — reversed 18-vs-6 raw ~1.27e-14 (human ~0.0127) places.
+#[test]
+fn place_limit_on_eighteen_vs_six_pair() {
+    let mut app = App::default();
+    let env = setup_env_with_asset_decimals(&mut app, 18, 6);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000_000_000_000_000),
+        Uint128::new(1_000_000),
+    );
+    let raw_price = Decimal::from_ratio(127u128, 10_000_000_000_000_000u128);
+    let ask_escrow = Uint128::new(1_000_000_000_000_000_000);
+    let order_id = place_ask(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_a,
+        ask_escrow,
+        raw_price,
+    );
+    let lo = query_limit(&app, &env.pair, order_id);
+    assert_eq!(lo.price, raw_price);
+}
+
 /// GitLab #470 — bid match must not fill when `floor(fill × price)` is zero (price &lt; 1).
 #[test]
 fn match_bids_skips_zero_cost_fill_sub_unity_price() {

@@ -50,11 +50,13 @@ pub fn execute_place_limit_order_ladder(
     ladder: LimitOrderLadderSpec,
 ) -> Result<Response, ContractError> {
     let config = load_limit_order_config(deps.storage)?;
-    let orders = expand_limit_ladder(&ladder, config.max_batch_rungs).map_err(|e| {
-        ContractError::LimitLadderInvalid {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let (decimals0, decimals1) =
+        crate::asset_decimals::query_pair_asset_decimals(deps.as_ref(), &pair_info.asset_infos)?;
+    let orders = expand_limit_ladder(&ladder, config.max_batch_rungs, decimals0, decimals1)
+        .map_err(|e| ContractError::LimitLadderInvalid {
             reason: e.to_string(),
-        }
-    })?;
+        })?;
     execute_place_limit_orders_batch(deps, env, info, owner, send_amount, ladder.side, orders)
 }
 
@@ -115,6 +117,8 @@ pub fn execute_place_limit_orders_batch(
 
     let now = env.block.time.seconds();
     let pair_info = PAIR_INFO.load(deps.storage)?;
+    let (decimals0, decimals1) =
+        crate::asset_decimals::query_pair_asset_decimals(deps.as_ref(), &pair_info.asset_infos)?;
     let fee_config = FEE_CONFIG.load(deps.storage)?;
     let discount_registry = DISCOUNT_REGISTRY.load(deps.storage)?;
     let (_swap_effective_fee_bps, effective_fee_bps, deregister_msgs) =
@@ -180,7 +184,7 @@ pub fn execute_place_limit_orders_batch(
     let mut last_placed_hint: Option<u64> = None;
 
     for plan in &plans {
-        validate_placement_item(&plan.item, now)?;
+        validate_placement_item(&plan.item, now, decimals0, decimals1)?;
         let maker_fee = plan
             .item
             .amount
@@ -314,11 +318,16 @@ pub fn execute_place_limit_orders_batch(
     Ok(resp)
 }
 
-fn validate_placement_item(item: &LimitOrderPlacementItem, now: u64) -> Result<(), ContractError> {
+fn validate_placement_item(
+    item: &LimitOrderPlacementItem,
+    now: u64,
+    decimals0: u8,
+    decimals1: u8,
+) -> Result<(), ContractError> {
     if item.amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
     }
-    validate_limit_order_price(item.price).map_err(|reason| {
+    validate_limit_order_price(item.price, decimals0, decimals1).map_err(|reason| {
         ContractError::InvalidHybridParams {
             reason: reason.into(),
         }

@@ -61,6 +61,7 @@ import { evaluateProvideLiquidityCw20NativeGasGate } from '@/utils/provideLiquid
 import { isLcdConnectivityError, LCD_CONNECTIVITY_OUTAGE_MESSAGE } from '@/utils/lcdConnectivity'
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
+import { PoolLpHowto } from '@/components/pool/PoolLpHowto'
 
 const POOL_SORT_OPTIONS: MenuSelectOption[] = [
   { value: 'symbol', label: 'Name (A–Z)' },
@@ -1249,6 +1250,8 @@ export default function PoolPage() {
           )}
         </div>
       </div>
+
+      <PoolLpHowto />
 
       <div
         className="shell-panel mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"

@@ -1,5 +1,6 @@
 import type { IndexerShallowLimitOrder } from '@/types'
 import { comparePositiveDecimalStrings } from '@/utils/limitOrderNonCrossing'
+import { scaleRawLimitPriceForDisplay, type LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
 
 export interface LimitBookInsertHintContext {
   /** True when indexer pagination has not reached the book tail for this side. */
@@ -17,14 +18,16 @@ export function resolveLimitInsertHintAfter(
   side: 'bid' | 'ask',
   priceHuman: string,
   loadedOrders: IndexerShallowLimitOrder[],
-  context: LimitBookInsertHintContext
+  context: LimitBookInsertHintContext,
+  limitPriceScale?: LimitPriceDecimals | null
 ): number | null {
   if (loadedOrders.length === 0) return null
 
   let prevOrderId: number | null = null
 
   for (const order of loadedOrders) {
-    const cmp = comparePositiveDecimalStrings(priceHuman.trim(), order.price.trim())
+    const bookHuman = scaleRawLimitPriceForDisplay(order.price, limitPriceScale)
+    const cmp = comparePositiveDecimalStrings(priceHuman.trim(), bookHuman)
     if (cmp == null) return null
 
     if (side === 'bid') {

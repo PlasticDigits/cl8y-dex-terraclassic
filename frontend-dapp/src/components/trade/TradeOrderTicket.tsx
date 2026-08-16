@@ -50,9 +50,15 @@ import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { describeLimitCrossingBlocker } from '@/utils/limitOrderNonCrossing'
 import { flattenLimitBookPages, resolveLimitInsertHintAfter } from '@/utils/limitBookInsertHint'
+import { limitPriceDecimalsFromPair } from '@/utils/limitOrderPriceScale'
 import { escrowAmountUsdAnchorNotional, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { limitOrderExpectedReceiveHuman } from '@/utils/limitOrderExpectedReceive'
 import { TradeMarketOrderPanel } from '@/components/trade/TradeMarketOrderPanel'
+import {
+  TradeMarketSubmitChrome,
+  TradeTicketSubmitFooter,
+  type TradeMarketSubmitChromeModel,
+} from '@/components/trade/TradeTicketSubmitFooter'
 import type { LimitBookEditContext, LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
 import {
   buildLimitBookEditContext,
@@ -181,6 +187,7 @@ function TradeOrderTicketContent({
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
   const [orderTab, setOrderTab] = useState<'limit' | 'market'>('limit')
+  const [marketSubmitChrome, setMarketSubmitChrome] = useState<TradeMarketSubmitChromeModel | null>(null)
   const orderTypeTabBaseId = useId()
   const limitOrderTabId = `${orderTypeTabBaseId}-limit-tab`
   const marketOrderTabId = `${orderTypeTabBaseId}-market-tab`
@@ -222,6 +229,7 @@ function TradeOrderTicketContent({
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const factorySide = factorySideFromDisplay(side, displayInverted)
   const factoryPrice = displayPriceToFactoryToken1PerToken0(price, displayInverted) ?? price
+  const limitPriceScale = limitPriceDecimalsFromPair(indexerPair)
   const escrowToken = factorySide === 'bid' ? token1 : token0
   const receiveToken = factorySide === 'bid' ? token0 : token1
   const escrowDecimals = escrowToken ? getDecimals(tokenAssetInfo(escrowToken)) : 6
@@ -329,12 +337,12 @@ function TradeOrderTicketContent({
   })
   const isTradeBlocked = isPaused || tradingBlacklist.blocked
 
-  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr)
+  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr, limitPriceScale)
   const limitBookQuery = useLimitBookInfinite(pairAddr, factorySide)
   const placeInsertHintAfter = useMemo(() => {
     const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
-    return resolveLimitInsertHintAfter(factorySide, factoryPrice, orders, { hasMore })
-  }, [limitBookQuery.data?.pages, factorySide, factoryPrice])
+    return resolveLimitInsertHintAfter(factorySide, factoryPrice, orders, { hasMore }, limitPriceScale)
+  }, [limitBookQuery.data?.pages, factorySide, factoryPrice, limitPriceScale])
 
   const crossingBlocker = useMemo(
     () => describeLimitCrossingBlocker(factorySide, factoryPrice, bestBid, bestAsk),
@@ -514,7 +522,8 @@ function TradeOrderTicketContent({
         factoryPrice,
         maxSteps,
         expiresAt,
-        placeInsertHintAfter
+        placeInsertHintAfter,
+        limitPriceScale
       )
     },
     onSuccess: async () => {
@@ -564,6 +573,7 @@ function TradeOrderTicketContent({
         price: factoryPrice,
         maxAdjustSteps: maxSteps,
         hintAfterOrderId: editHintAfterOrderId,
+        limitPriceScale,
       },
       {
         onSuccess: () => {
@@ -700,9 +710,9 @@ function TradeOrderTicketContent({
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 card-glass !p-0">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden card-glass !p-0" data-testid="trade-order-ticket-card">
       <div
-        className="p-4 border-b border-white/10"
+        className="shrink-0 p-4 border-b border-white/10"
         style={{
           background:
             'radial-gradient(circle at 20% 0%, rgba(251, 146, 60, 0.18), transparent 34%), rgba(255,255,255,0.025)',
@@ -833,6 +843,8 @@ function TradeOrderTicketContent({
                 pairs={pairs}
                 side={factorySide}
                 isPaused={isTradeBlocked}
+                dockSubmit
+                onSubmitChromeChange={setMarketSubmitChrome}
               />
             </TicketSection>
           </div>
@@ -921,8 +933,8 @@ function TradeOrderTicketContent({
               )}
             </TicketSection>
             {/*
-              Validation / place guards stay in normal document flow (GitLab #500).
-              Sticky CTA chrome must not host blocking banners that obscure expiry/date inputs.
+              Validation / place guards stay in normal document flow above the ticket footer
+              (GitLab #500 / #527 T527-4). Footer chrome must not host blocking banners.
             */}
             <div className="trade-limit-inline-guards space-y-2" data-testid="trade-limit-inline-guards">
               {priceOnlyEdit && updatePriceNativeGasGate.userMessage && (
@@ -960,57 +972,10 @@ function TradeOrderTicketContent({
                   lcdStatuses={lcdStatuses}
                   recentlyCancelledOrderIds={recentlyCancelledOrderIds}
                   highlightOrderId={highlightPlacementOrderId}
+                  limitPriceScale={limitPriceScale}
                 />
               </div>
             )}
-            <div className="trade-limit-submit-sticky" data-testid="trade-limit-submit-sticky">
-              <button
-                type="button"
-                data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
-                className={TRADE_MONEY_CTA_CLASS}
-                disabled={
-                  priceOnlyEdit
-                    ? updatePriceMutation.isPending ||
-                      !selectedPair ||
-                      isTradeBlocked ||
-                      (isWalletConnected && !updatePriceCombinedOk)
-                    : placeMutation.isPending ||
-                      !selectedPair ||
-                      isTradeBlocked ||
-                      editNonPriceChanged ||
-                      (isWalletConnected && !placeLimitCombinedOk)
-                }
-                onClick={() => {
-                  if (!isWalletConnected) openWalletModal()
-                  else if (priceOnlyEdit) submitUpdateLimitPrice()
-                  else placeMutation.mutate()
-                }}
-              >
-                {!isWalletConnected
-                  ? 'Connect Wallet'
-                  : priceOnlyEdit
-                    ? updatePriceMutation.isPending
-                      ? 'Updating…'
-                      : 'Update price'
-                    : terraBroadcastPendingButtonLabel(
-                        placeMutation.phase,
-                        placeMutation.isPending,
-                        'Place limit',
-                        'Placing…'
-                      )}
-              </button>
-              <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
-              {updatePriceMutation.isError && (
-                <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
-              )}
-              {updatePriceMutation.isSuccess && (
-                <TxResultAlert type="success" message="Limit order price updated." txHash={updatePriceMutation.data} />
-              )}
-              {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
-              {placeMutation.isSuccess && (
-                <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
-              )}
-            </div>
             {placeMutation.isSuccess && (
               <div className="space-y-2" data-testid="trade-limit-post-place-actions">
                 <div className="flex flex-wrap gap-2">
@@ -1098,6 +1063,62 @@ function TradeOrderTicketContent({
           </div>
         </details>
       </div>
+      <TradeTicketSubmitFooter>
+        {orderTab === 'market' ? (
+          marketSubmitChrome ? (
+            <TradeMarketSubmitChrome model={marketSubmitChrome} />
+          ) : null
+        ) : (
+          <>
+            <button
+              type="button"
+              data-testid={priceOnlyEdit ? 'trade-limit-update-price-submit' : 'trade-limit-submit'}
+              className={TRADE_MONEY_CTA_CLASS}
+              disabled={
+                priceOnlyEdit
+                  ? updatePriceMutation.isPending ||
+                    !selectedPair ||
+                    isTradeBlocked ||
+                    (isWalletConnected && !updatePriceCombinedOk)
+                  : placeMutation.isPending ||
+                    !selectedPair ||
+                    isTradeBlocked ||
+                    editNonPriceChanged ||
+                    (isWalletConnected && !placeLimitCombinedOk)
+              }
+              onClick={() => {
+                if (!isWalletConnected) openWalletModal()
+                else if (priceOnlyEdit) submitUpdateLimitPrice()
+                else placeMutation.mutate()
+              }}
+            >
+              {!isWalletConnected
+                ? 'Connect Wallet'
+                : priceOnlyEdit
+                  ? updatePriceMutation.isPending
+                    ? 'Updating…'
+                    : 'Update price'
+                  : terraBroadcastPendingButtonLabel(
+                      placeMutation.phase,
+                      placeMutation.isPending,
+                      'Place limit',
+                      'Placing…'
+                    )}
+            </button>
+            <TerraBroadcastPendingLink phase={placeMutation.phase} txHash={placeMutation.pendingTxHash} />
+            {updatePriceMutation.isError && (
+              <TxResultAlert type="error" message={(updatePriceMutation.error as Error).message} />
+            )}
+            {updatePriceMutation.isSuccess && (
+              <TxResultAlert type="success" message="Limit order price updated." txHash={updatePriceMutation.data} />
+            )}
+            {placeMutation.isError && <TxResultAlert type="error" message={(placeMutation.error as Error).message} />}
+            {placeMutation.isSuccess && (
+              <TxResultAlert type="success" message="Limit order placed." txHash={placeMutation.data} />
+            )}
+          </>
+        )}
+      </TradeTicketSubmitFooter>
     </div>
   )
 }

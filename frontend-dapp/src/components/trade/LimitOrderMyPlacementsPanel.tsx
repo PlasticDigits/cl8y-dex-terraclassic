@@ -4,6 +4,7 @@ import { useLimitExpiredClaimMutation } from '@/hooks/useLimitExpiredClaimMutati
 import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import { assetInfoLabel, type IndexerLimitCancellation, type IndexerLimitPlacement, type PairInfo } from '@/types'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { scaleRawLimitPriceForDisplay, type LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import {
@@ -58,6 +59,8 @@ export interface LimitOrderMyPlacementsPanelProps {
   recentlyCancelledOrderIds?: number[]
   /** When set, the active row for this `order_id` is visually emphasized (trade ticket "View order" — GitLab #161). */
   highlightOrderId?: number | null
+  /** Human-scale display for mismatched-decimal pairs (GitLab #529). */
+  limitPriceScale?: LimitPriceDecimals | null
 }
 
 function baseSymbolForPair(pair: PairInfo | undefined): string {
@@ -172,6 +175,7 @@ export function LimitOrderMyPlacementsPanel({
   lcdStatuses = {},
   recentlyCancelledOrderIds = [],
   highlightOrderId = null,
+  limitPriceScale = null,
 }: LimitOrderMyPlacementsPanelProps) {
   const { active, parkedExpired } = partitionLimitPlacementsByLifecycle(rows)
   const { expired: expiredParked, dust: dustParked } = partitionParkedPlacementsByKind(parkedExpired)
@@ -318,7 +322,8 @@ export function LimitOrderMyPlacementsPanel({
                         >
                           {marker}
                         </span>
-                        order #{r.order_id} · {sideRowLabel(r.side, baseSymbol)} · {r.price ?? '?'} · placed{' '}
+                        order #{r.order_id} · {sideRowLabel(r.side, baseSymbol)} ·{' '}
+                        {r.price != null ? scaleRawLimitPriceForDisplay(r.price, limitPriceScale) : '?'} · placed{' '}
                         {r.block_timestamp.slice(0, 19)}
                         {statusCopy && <span className="opacity-80"> · {statusCopy}</span>}
                       </div>

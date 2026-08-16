@@ -273,6 +273,20 @@ describe('placeLimitOrderWithAllowance', () => {
       max_adjust_steps: 16,
     })
   })
+
+  it('scales human UST1/USTR price to raw on-chain units (GitLab #529)', async () => {
+    mockedAllowanceThen.mockImplementationOnce(async (_w, _t, _s, _a, run) => run())
+    mockedExecute.mockResolvedValueOnce('txhash_limit_529')
+
+    await placeLimitOrderWithAllowance(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '1000000', 'ask', '78.76', 32, null, null, {
+      decimals0: 6,
+      decimals1: 18,
+    })
+
+    const sendMsg = (mockedExecute.mock.calls[0][2] as { send: { msg: string } }).send
+    const decoded = JSON.parse(atob(sendMsg.msg))
+    expect(decoded.place_limit_order_batch.orders[0].price).toBe('78760000000000')
+  })
 })
 
 describe('updateLimitOrderPrice', () => {

@@ -3,7 +3,7 @@ use cosmwasm_std::{
     Reply, Response, StdError, StdResult, SubMsg, Uint128, Uint256, WasmMsg,
 };
 use cw2::set_contract_version;
-use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, MinterResponse};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
 use crate::blacklist_guard;
 use crate::discount_cache::{
@@ -231,18 +231,12 @@ fn assert_pair_assets_decimals_allow_initial_mint(
     asset_infos: &[AssetInfo; 2],
 ) -> Result<(), ContractError> {
     let max = MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP;
-    let info0: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
-        token_addr(&asset_infos[0]).to_string(),
-        &Cw20QueryMsg::TokenInfo {},
-    )?;
-    let info1: cw20::TokenInfoResponse = deps.querier.query_wasm_smart(
-        token_addr(&asset_infos[1]).to_string(),
-        &Cw20QueryMsg::TokenInfo {},
-    )?;
-    if info0.decimals > max || info1.decimals > max {
+    let (decimals0, decimals1) =
+        crate::asset_decimals::query_pair_asset_decimals(deps, asset_infos)?;
+    if decimals0 > max || decimals1 > max {
         return Err(ContractError::PairAssetDecimalsTooHigh {
-            decimals0: info0.decimals,
-            decimals1: info1.decimals,
+            decimals0,
+            decimals1,
             max,
         });
     }
@@ -1411,8 +1405,13 @@ fn execute_update_limit_order_price(
     hint_after_order_id: Option<u64>,
     max_adjust_steps: u32,
 ) -> Result<Response, ContractError> {
-    validate_limit_order_price(price).map_err(|reason| ContractError::InvalidHybridParams {
-        reason: reason.into(),
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    let (decimals0, decimals1) =
+        crate::asset_decimals::query_pair_asset_decimals(deps.as_ref(), &pair_info.asset_infos)?;
+    validate_limit_order_price(price, decimals0, decimals1).map_err(|reason| {
+        ContractError::InvalidHybridParams {
+            reason: reason.into(),
+        }
     })?;
     let o = crate::state::ORDERS.load(deps.storage, order_id)?;
     if o.owner != info.sender {

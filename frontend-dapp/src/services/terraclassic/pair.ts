@@ -14,6 +14,9 @@ import type {
   PoolResponse,
 } from '@/types'
 import { tokenAssetInfo } from '@/types'
+import { scaleHumanLimitPriceForChain, type LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
+
+export type { LimitPriceDecimals }
 
 /** Optional wallet for CL8Y fee-tier parity on hybrid LCD quotes (GitLab #245). */
 export interface QuoteTraderOptions {
@@ -188,6 +191,24 @@ function encodeLimitBatchHook(side: 'bid' | 'ask', orders: LimitOrderPlacementIt
   )
 }
 
+function scalePlacementItem(
+  item: LimitOrderPlacementItemWire,
+  scale?: LimitPriceDecimals | null
+): LimitOrderPlacementItemWire {
+  return { ...item, price: scaleHumanLimitPriceForChain(item.price, scale) }
+}
+
+function scaleLadderSpec(
+  ladder: LimitOrderLadderSpecWire,
+  scale?: LimitPriceDecimals | null
+): LimitOrderLadderSpecWire {
+  return {
+    ...ladder,
+    start_price: scaleHumanLimitPriceForChain(ladder.start_price, scale),
+    end_price: scaleHumanLimitPriceForChain(ladder.end_price, scale),
+  }
+}
+
 /** Single-rung batch placement (GitLab #206). */
 export async function placeLimitOrderBatch(
   walletAddress: string,
@@ -195,9 +216,13 @@ export async function placeLimitOrderBatch(
   pairAddress: string,
   totalAmount: string,
   side: 'bid' | 'ask',
-  orders: LimitOrderPlacementItemWire[]
+  orders: LimitOrderPlacementItemWire[],
+  limitPriceScale?: LimitPriceDecimals | null
 ): Promise<string> {
-  const msg = encodeLimitBatchHook(side, orders)
+  const msg = encodeLimitBatchHook(
+    side,
+    orders.map((item) => scalePlacementItem(item, limitPriceScale))
+  )
   return executeTerraContract(walletAddress, escrowTokenAddress, {
     send: {
       contract: pairAddress,
@@ -212,9 +237,10 @@ export async function placeLimitOrderLadder(
   escrowTokenAddress: string,
   pairAddress: string,
   totalAmount: string,
-  ladder: LimitOrderLadderSpecWire
+  ladder: LimitOrderLadderSpecWire,
+  limitPriceScale?: LimitPriceDecimals | null
 ): Promise<string> {
-  const msg = btoa(JSON.stringify({ place_limit_order_ladder: { ladder } }))
+  const msg = btoa(JSON.stringify({ place_limit_order_ladder: { ladder: scaleLadderSpec(ladder, limitPriceScale) } }))
   return executeTerraContract(walletAddress, escrowTokenAddress, {
     send: {
       contract: pairAddress,
@@ -233,10 +259,11 @@ export async function placeLimitOrderBatchWithAllowance(
   pairAddress: string,
   totalAmount: string,
   side: 'bid' | 'ask',
-  orders: LimitOrderPlacementItemWire[]
+  orders: LimitOrderPlacementItemWire[],
+  limitPriceScale?: LimitPriceDecimals | null
 ): Promise<string> {
   return executeCw20AllowanceThen(walletAddress, escrowTokenAddress, pairAddress, totalAmount, () =>
-    placeLimitOrderBatch(walletAddress, escrowTokenAddress, pairAddress, totalAmount, side, orders)
+    placeLimitOrderBatch(walletAddress, escrowTokenAddress, pairAddress, totalAmount, side, orders, limitPriceScale)
   )
 }
 
@@ -245,10 +272,11 @@ export async function placeLimitOrderLadderWithAllowance(
   escrowTokenAddress: string,
   pairAddress: string,
   totalAmount: string,
-  ladder: LimitOrderLadderSpecWire
+  ladder: LimitOrderLadderSpecWire,
+  limitPriceScale?: LimitPriceDecimals | null
 ): Promise<string> {
   return executeCw20AllowanceThen(walletAddress, escrowTokenAddress, pairAddress, totalAmount, () =>
-    placeLimitOrderLadder(walletAddress, escrowTokenAddress, pairAddress, totalAmount, ladder)
+    placeLimitOrderLadder(walletAddress, escrowTokenAddress, pairAddress, totalAmount, ladder, limitPriceScale)
   )
 }
 
@@ -262,7 +290,8 @@ export async function placeLimitOrderWithAllowance(
   price: string,
   maxAdjustSteps: number,
   expiresAt?: number | null,
-  hintAfterOrderId?: number | null
+  hintAfterOrderId?: number | null,
+  limitPriceScale?: LimitPriceDecimals | null
 ): Promise<string> {
   const item: LimitOrderPlacementItemWire = {
     price,
@@ -273,7 +302,15 @@ export async function placeLimitOrderWithAllowance(
   if (hintAfterOrderId != null) {
     item.hint_after_order_id = hintAfterOrderId
   }
-  return placeLimitOrderBatchWithAllowance(walletAddress, escrowTokenAddress, pairAddress, amount, side, [item])
+  return placeLimitOrderBatchWithAllowance(
+    walletAddress,
+    escrowTokenAddress,
+    pairAddress,
+    amount,
+    side,
+    [item],
+    limitPriceScale
+  )
 }
 
 export async function cancelLimitOrder(walletAddress: string, pairAddress: string, orderId: number): Promise<string> {
@@ -289,12 +326,13 @@ export async function updateLimitOrderPrice(
   orderId: number,
   price: string,
   maxAdjustSteps: number,
-  hintAfterOrderId?: number | null
+  hintAfterOrderId?: number | null,
+  limitPriceScale?: LimitPriceDecimals | null
 ): Promise<string> {
   return executeTerraContract(walletAddress, pairAddress, {
     update_limit_order_price: {
       order_id: orderId,
-      price,
+      price: scaleHumanLimitPriceForChain(price, limitPriceScale),
       hint_after_order_id: hintAfterOrderId ?? null,
       max_adjust_steps: maxAdjustSteps,
     },

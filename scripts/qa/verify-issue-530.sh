@@ -47,7 +47,7 @@ run_step "frontend: reconcile + lifecycle + cancel mutation + pair OrderStatus" 
     src/hooks/__tests__/useLimitOrderCancelMutation.test.tsx \
     src/services/terraclassic/__tests__/pair.test.ts -t "530"'
 
-run_step "frontend: placements panel + /trade compact above sticky" \
+run_step "frontend: placements panel + /trade compact above footer" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/components/trade/__tests__/LimitOrderMyPlacementsPanel.test.tsx \
     src/pages/TradePage.test.tsx -t "530|GitLab #530"'
@@ -57,15 +57,20 @@ run_step "code: queryOrderStatus + cancel_limit_order.order_id only" \
   grep -qE 'cancel_limit_order: \{ order_id: orderId \}' frontend-dapp/src/services/terraclassic/pair.ts && \
   grep -qE 'parsePairOrderStatus' frontend-dapp/src/services/terraclassic/pair.ts
 
-run_step "code: compact panel above sticky (not a child)" \
+run_step "code: compact panel above ticket footer (not a child)" \
   grep -qE 'trade-ticket-placements-anchor' frontend-dapp/src/components/trade/TradeOrderTicket.tsx && \
   python3 - <<'PY'
 from pathlib import Path
 text = Path("frontend-dapp/src/components/trade/TradeOrderTicket.tsx").read_text()
+footer = Path("frontend-dapp/src/components/trade/TradeTicketSubmitFooter.tsx").read_text()
 a = text.find('data-testid="trade-ticket-placements-anchor"')
-s = text.find('data-testid="trade-limit-submit-sticky"')
+s = text.find("<TradeTicketSubmitFooter")
 if a < 0 or s < 0 or a > s:
-    raise SystemExit("placements anchor must appear before sticky submit in TradeOrderTicket.tsx")
+    raise SystemExit("placements anchor must appear before TradeTicketSubmitFooter in TradeOrderTicket.tsx")
+if "trade-ticket-submit-footer" not in footer:
+    raise SystemExit("TradeTicketSubmitFooter must keep trade-ticket-submit-footer")
+if "trade-limit-submit-sticky" in text:
+    raise SystemExit("do not resurrect trade-limit-submit-sticky after #527")
 PY
 
 run_step "docs: limit-orders.md F530-1–F530-8" \
