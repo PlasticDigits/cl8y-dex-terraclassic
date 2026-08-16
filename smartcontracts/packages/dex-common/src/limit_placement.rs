@@ -15,28 +15,67 @@ pub const DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 10;
 /// Suggested factory default for localnet (governance may change via `UpdateConfig`).
 pub const SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS: u32 = 20;
 
-/// Minimum limit price (token1 per token0) at placement, ladder expansion, and price update.
+/// Minimum **human-scale** limit price (token1 per token0) at placement, ladder expansion,
+/// and price update.
 ///
-/// Rejects dust prices where `1/price` overflows `Uint128::checked_mul_floor` against realistic
-/// swap notionals (GitLab #467). `Decimal::raw(1)` = 1e-18 is the former attack vector; at 1e-9
-/// the mul_floor overflow threshold is ~3.4e29 raw units on the operand.
+/// Applied to `price_raw × 10^(decimals0 − decimals1)` so a 6-vs-18 pair at ~79 human
+/// (raw ~7.9e13) is in-band (GitLab #529). Equal-decimal pairs keep the #467 dust floor:
+/// `Decimal::raw(1)` = 1e-18 is rejected; at human 1e-9 the `1/price` mul_floor overflow
+/// threshold is ~3.4e29 raw units on the operand.
 pub const MIN_LIMIT_PRICE: Decimal = Decimal::raw(1_000_000_000);
 
-/// Maximum limit price — symmetric reciprocal bound for `fill × price` overflow (#467).
+/// Maximum **human-scale** limit price — symmetric reciprocal bound (#467 / #529).
 ///
-/// At 1e9 token1 per token0, bid `max_fill × price` stays within `Uint128` for `remaining` up to
-/// `Uint128::MAX`.
+/// Execution still uses the raw `Decimal` (token1 base units per token0 base unit).
 pub const MAX_LIMIT_PRICE: Decimal = Decimal::raw(1_000_000_000_000_000_000_000_000_000);
 
-/// Placement / price-update gate for limit order prices (GitLab #467).
-pub fn validate_limit_order_price(price: Decimal) -> Result<(), &'static str> {
+/// Human token1-per-token0: `price_raw × 10^(decimals0 − decimals1)` (GitLab #529).
+///
+/// Pair bootstrap caps each asset at 18 decimals, so the scale factor is at most `10^18`.
+pub fn human_scale_limit_price(
+    price: Decimal,
+    decimals0: u8,
+    decimals1: u8,
+) -> Result<Decimal, &'static str> {
+    if decimals0 > 18 || decimals1 > 18 {
+        return Err("asset decimals exceed bootstrap cap");
+    }
+    if decimals0 == decimals1 {
+        return Ok(price);
+    }
+    if decimals0 > decimals1 {
+        let factor = 10u128.pow((decimals0 - decimals1) as u32);
+        price
+            .checked_mul(Decimal::from_ratio(factor, 1u128))
+            .map_err(|_| "limit price human-scale overflow")
+    } else {
+        let factor = 10u128.pow((decimals1 - decimals0) as u32);
+        price
+            .checked_div(Decimal::from_ratio(factor, 1u128))
+            .map_err(|_| "limit price human-scale overflow")
+    }
+}
+
+/// Placement / price-update gate for limit order prices (GitLab #467, decimals-normalized #529).
+///
+/// `price` is the on-chain raw ratio (token1 base units / token0 base units). Bounds apply to
+/// the human-scale value so economically ordinary mismatched-decimal pairs are not rejected.
+pub fn validate_limit_order_price(
+    price: Decimal,
+    decimals0: u8,
+    decimals1: u8,
+) -> Result<(), &'static str> {
     if price.is_zero() {
         return Err("limit price must be positive");
     }
-    if price < MIN_LIMIT_PRICE {
+    let human = human_scale_limit_price(price, decimals0, decimals1)?;
+    if human.is_zero() {
         return Err("limit price below minimum");
     }
-    if price > MAX_LIMIT_PRICE {
+    if human < MIN_LIMIT_PRICE {
+        return Err("limit price below minimum");
+    }
+    if human > MAX_LIMIT_PRICE {
         return Err("limit price above maximum");
     }
     Ok(())
@@ -87,9 +126,13 @@ pub fn clamp_max_batch_rungs(max_rungs: u32) -> u32 {
 }
 
 /// Expand a ladder spec into per-rung placement items.
+///
+/// `decimals0` / `decimals1` are the pair asset CW20 decimals (same as placement validation).
 pub fn expand_limit_ladder(
     spec: &LimitOrderLadderSpec,
     max_rungs: u32,
+    decimals0: u8,
+    decimals1: u8,
 ) -> Result<Vec<LimitOrderPlacementItem>, StdError> {
     if spec.count < 2 {
         return Err(StdError::generic_err("ladder count must be at least 2"));
@@ -103,8 +146,10 @@ pub fn expand_limit_ladder(
     if spec.start_price.is_zero() || spec.end_price.is_zero() {
         return Err(StdError::generic_err("ladder prices must be positive"));
     }
-    validate_limit_order_price(spec.start_price).map_err(StdError::generic_err)?;
-    validate_limit_order_price(spec.end_price).map_err(StdError::generic_err)?;
+    validate_limit_order_price(spec.start_price, decimals0, decimals1)
+        .map_err(StdError::generic_err)?;
+    validate_limit_order_price(spec.end_price, decimals0, decimals1)
+        .map_err(StdError::generic_err)?;
     if spec.total_amount.is_zero() {
         return Err(StdError::generic_err(
             "ladder total_amount must be positive",
@@ -114,7 +159,7 @@ pub fn expand_limit_ladder(
     let count = spec.count;
     let prices = ladder_prices(spec.start_price, spec.end_price, count)?;
     for price in &prices {
-        validate_limit_order_price(*price).map_err(StdError::generic_err)?;
+        validate_limit_order_price(*price, decimals0, decimals1).map_err(StdError::generic_err)?;
     }
     let amounts = ladder_amounts_equal(spec.total_amount, count)?;
     let boundary_idx =
@@ -231,7 +276,7 @@ mod tests {
     #[test]
     fn expand_equal_ladder_sums_amounts() {
         let spec = ladder_spec(5, 1000);
-        let items = expand_limit_ladder(&spec, 20).unwrap();
+        let items = expand_limit_ladder(&spec, 20, 6, 6).unwrap();
         assert_eq!(items.len(), 5);
         let sum: Uint128 = items.iter().map(|i| i.amount).sum();
         assert_eq!(sum, Uint128::new(1000));
@@ -240,17 +285,32 @@ mod tests {
     #[test]
     fn expand_rejects_count_over_max() {
         let spec = ladder_spec(25, 100);
-        assert!(expand_limit_ladder(&spec, 20).is_err());
+        assert!(expand_limit_ladder(&spec, 20, 6, 6).is_err());
     }
 
     #[test]
     fn validate_limit_price_rejects_dust_and_extreme() {
-        assert!(validate_limit_order_price(Decimal::zero()).is_err());
-        assert!(validate_limit_order_price(Decimal::raw(1)).is_err());
-        assert!(validate_limit_order_price(MIN_LIMIT_PRICE).is_ok());
-        assert!(validate_limit_order_price(Decimal::from_ratio(1u128, 10u128)).is_ok());
-        assert!(validate_limit_order_price(MAX_LIMIT_PRICE).is_ok());
-        assert!(validate_limit_order_price(MAX_LIMIT_PRICE + Decimal::raw(1)).is_err());
+        assert!(validate_limit_order_price(Decimal::zero(), 6, 6).is_err());
+        assert!(validate_limit_order_price(Decimal::raw(1), 6, 6).is_err());
+        assert!(validate_limit_order_price(MIN_LIMIT_PRICE, 6, 6).is_ok());
+        assert!(validate_limit_order_price(Decimal::from_ratio(1u128, 10u128), 6, 6).is_ok());
+        assert!(validate_limit_order_price(MAX_LIMIT_PRICE, 6, 6).is_ok());
+        assert!(validate_limit_order_price(MAX_LIMIT_PRICE + Decimal::raw(1), 6, 6).is_err());
+    }
+
+    /// GitLab #529 — UST1 (6) / USTR (18) raw ~7.9e13 is human ~79, inside the band.
+    #[test]
+    fn validate_limit_price_accepts_six_vs_eighteen_raw() {
+        let raw_ust1_ustr = Decimal::from_ratio(78_760_000_000_000u128, 1u128);
+        assert!(validate_limit_order_price(raw_ust1_ustr, 6, 18).is_ok());
+        let human = human_scale_limit_price(raw_ust1_ustr, 6, 18).unwrap();
+        assert!(human > Decimal::from_ratio(78u128, 1u128));
+        assert!(human < Decimal::from_ratio(79u128, 1u128));
+
+        let raw_ustr_ust1 = Decimal::from_ratio(13u128, 1_000_000_000_000_000u128);
+        assert!(validate_limit_order_price(raw_ustr_ust1, 18, 6).is_ok());
+        assert!(validate_limit_order_price(Decimal::raw(1), 6, 18).is_err());
+        assert!(validate_limit_order_price(MAX_LIMIT_PRICE, 6, 18).is_ok());
     }
 
     #[test]
@@ -266,7 +326,24 @@ mod tests {
             expires_at: None,
             hint_after_order_id: None,
         };
-        assert!(expand_limit_ladder(&spec, 20).is_err());
+        assert!(expand_limit_ladder(&spec, 20, 6, 6).is_err());
+    }
+
+    #[test]
+    fn expand_ladder_accepts_six_vs_eighteen_raw_band() {
+        let spec = LimitOrderLadderSpec {
+            side: LimitOrderSide::Ask,
+            start_price: Decimal::from_ratio(70_000_000_000_000u128, 1u128),
+            end_price: Decimal::from_ratio(80_000_000_000_000u128, 1u128),
+            count: 3,
+            total_amount: Uint128::new(300),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let items = expand_limit_ladder(&spec, 20, 6, 18).unwrap();
+        assert_eq!(items.len(), 3);
     }
 
     #[test]
@@ -282,7 +359,7 @@ mod tests {
             expires_at: None,
             hint_after_order_id: Some(42),
         };
-        let items = expand_limit_ladder(&spec, 20).unwrap();
+        let items = expand_limit_ladder(&spec, 20, 6, 6).unwrap();
         assert_eq!(items.len(), 3);
         assert_eq!(items[0].hint_after_order_id, None);
         assert_eq!(items[1].hint_after_order_id, None);

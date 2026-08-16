@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { updateLimitOrderPrice } from '@/services/terraclassic/pair'
+import type { LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
 import { sounds } from '@/lib/sounds'
 
 export type LimitOrderUpdatePriceInput = {
@@ -8,6 +9,7 @@ export type LimitOrderUpdatePriceInput = {
   price: string
   maxAdjustSteps: number
   hintAfterOrderId?: number | null
+  limitPriceScale?: LimitPriceDecimals | null
 }
 
 /**
@@ -18,11 +20,25 @@ export function useLimitOrderUpdatePriceMutation(pairAddr: string, walletAddress
   const toastApi = useOptionalToast()
 
   return useMutation({
-    mutationFn: async ({ orderId, price, maxAdjustSteps, hintAfterOrderId }: LimitOrderUpdatePriceInput) => {
+    mutationFn: async ({
+      orderId,
+      price,
+      maxAdjustSteps,
+      hintAfterOrderId,
+      limitPriceScale,
+    }: LimitOrderUpdatePriceInput) => {
       if (!walletAddress) throw new Error('Connect wallet')
       if (!pairAddr.startsWith('terra1')) throw new Error('Select a pair')
       if (!Number.isFinite(orderId) || orderId < 1) throw new Error('Invalid order id')
-      return updateLimitOrderPrice(walletAddress, pairAddr, orderId, price, maxAdjustSteps, hintAfterOrderId)
+      return updateLimitOrderPrice(
+        walletAddress,
+        pairAddr,
+        orderId,
+        price,
+        maxAdjustSteps,
+        hintAfterOrderId,
+        limitPriceScale
+      )
     },
     onSuccess: () => {
       sounds.playSuccess()

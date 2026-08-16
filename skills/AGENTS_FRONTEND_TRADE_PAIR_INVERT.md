@@ -60,3 +60,4 @@ Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceCha
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — indexer math **unchanged**
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — **U1**
 - [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) — convert-on-submit
+- [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md) — human↔raw decimal scale (#529) is **not** invert; apply raw→human **before** the #524 reciprocal

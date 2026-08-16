@@ -10,10 +10,11 @@ pub use crate::limit_clean::{
     MAX_CLEAN_SCAN_STEPS, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
 };
 pub use crate::limit_placement::{
-    clamp_max_batch_rungs, expand_limit_ladder, validate_limit_order_price,
-    LimitLadderDistribution, LimitOrderConfigResponse, LimitOrderLadderSpec,
-    LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS, MAX_LIMIT_BATCH_RUNGS_HARD_CAP,
-    MAX_LIMIT_PRICE, MIN_LIMIT_PRICE, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+    clamp_max_batch_rungs, expand_limit_ladder, human_scale_limit_price,
+    validate_limit_order_price, LimitLadderDistribution, LimitOrderConfigResponse,
+    LimitOrderLadderSpec, LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+    MAX_LIMIT_BATCH_RUNGS_HARD_CAP, MAX_LIMIT_PRICE, MIN_LIMIT_PRICE,
+    SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
 };
 
 // ---------------------------------------------------------------------------
@@ -186,7 +187,8 @@ pub struct LimitOrderResponse {
     pub order_id: u64,
     pub owner: Addr,
     pub side: LimitOrderSide,
-    /// Token1 per token0 (minimum acceptable when the order executes).
+    /// Token1 per token0 **raw** base units (minimum acceptable when the order executes).
+    /// Human scale is `price × 10^(decimals0 − decimals1)` (GitLab #529).
     pub price: Decimal,
     /// Remaining escrow: token1 for bids, token0 for asks.
     pub remaining: Uint128,

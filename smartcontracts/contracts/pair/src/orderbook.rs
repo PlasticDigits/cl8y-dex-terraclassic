@@ -27,7 +27,8 @@
 //! ## Match-time price math overflow skip (GitLab #467 / L20)
 //!
 //! Dust or extreme resting prices can make `checked_mul_floor` overflow on `1/price` or `fill × price`.
-//! Placement rejects out-of-band prices; legacy rows skip instead of aborting the whole swap.
+//! Placement rejects out-of-band **human-scale** prices (#529); legacy rows skip instead of aborting
+//! the whole swap. Execution still uses raw token1-units/token0-units.
 
 use std::collections::BTreeMap;
 
@@ -47,8 +48,8 @@ use crate::state::{
 };
 
 use dex_common::pair::{
-    validate_limit_order_price, LIMIT_ORDER_DUST_FLUSH_THRESHOLD, MAX_ADJUST_STEPS_HARD_CAP,
-    MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
+    LIMIT_ORDER_DUST_FLUSH_THRESHOLD, MAX_ADJUST_STEPS_HARD_CAP, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS,
 };
 
 fn try_price_inverse(price: Decimal) -> Option<Decimal> {
@@ -1255,9 +1256,7 @@ pub fn relink_limit_order_price(
     hint_after: Option<u64>,
     max_adjust_steps: u32,
 ) -> Result<(), ContractError> {
-    validate_limit_order_price(new_price).map_err(|reason| ContractError::InvalidHybridParams {
-        reason: reason.into(),
-    })?;
+    // Price band is enforced in `execute_update_limit_order_price` with pair decimals (#529).
     let mut order = detach_limit_order_from_book(storage, id)?;
     order.price = new_price;
     match order.side {

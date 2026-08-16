@@ -32,6 +32,7 @@ import { toRawAmount } from '@/utils/formatAmount'
 import { warnIndexerPlacementPollFailed } from '@/utils/warnIndexerPlacementPollFailed'
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
+import type { LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
 
 export interface LimitOrderLadderPanelProps {
   pairAddress: string
@@ -46,6 +47,8 @@ export interface LimitOrderLadderPanelProps {
   /** Tape / pool reference when opposite book head is empty (GitLab #385). */
   refToken1PerToken0?: number | null
   refResolutionLoading?: boolean
+  /** Pair asset decimals for human→raw limit prices (GitLab #529). */
+  limitPriceScale?: LimitPriceDecimals | null
   /** Trade-block only (paused / blacklist). Do not gate on wallet — use Connect Wallet CTA (#494). */
   disabled?: boolean
   onPlaced?: (orderIds: number[]) => void
@@ -62,6 +65,7 @@ export function LimitOrderLadderPanel({
   token1Symbol,
   refToken1PerToken0,
   refResolutionLoading,
+  limitPriceScale,
   disabled,
   onPlaced,
 }: LimitOrderLadderPanelProps) {
@@ -157,7 +161,7 @@ export function LimitOrderLadderPanel({
     rungCount
   )
 
-  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddress)
+  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddress, limitPriceScale)
 
   const { bidLabel, askLabel } = tradeDirectionSideLabels(token0Symbol)
 
@@ -228,7 +232,15 @@ export function LimitOrderLadderPanel({
 
       if (plan?.path === 'deep_batch') {
         const orders = ladderRungsToBatchItems(preview.rungs, plan.hints, maxSteps, exp)
-        return placeLimitOrderBatchWithAllowance(walletAddress, escrowToken, pairAddress, totalRaw, side, orders)
+        return placeLimitOrderBatchWithAllowance(
+          walletAddress,
+          escrowToken,
+          pairAddress,
+          totalRaw,
+          side,
+          orders,
+          limitPriceScale
+        )
       }
 
       const ladderSpec = buildLadderSpecWire({
@@ -260,7 +272,14 @@ export function LimitOrderLadderPanel({
         },
       })
 
-      return placeLimitOrderLadderWithAllowance(walletAddress, escrowToken, pairAddress, totalRaw, ladderSpec)
+      return placeLimitOrderLadderWithAllowance(
+        walletAddress,
+        escrowToken,
+        pairAddress,
+        totalRaw,
+        ladderSpec,
+        limitPriceScale
+      )
     },
     onSuccess: async (txHash) => {
       void queryClient.invalidateQueries({ queryKey: ['limitPlacements', pairAddress] })
