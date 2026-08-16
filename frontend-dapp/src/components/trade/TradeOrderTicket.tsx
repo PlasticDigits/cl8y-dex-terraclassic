@@ -7,6 +7,8 @@ import { useLimitOrderCancelMutation, type LimitOrderCancelInput } from '@/hooks
 import { useLimitOrderUpdatePriceMutation } from '@/hooks/useLimitOrderUpdatePriceMutation'
 import { useWalletStore } from '@/hooks/useWallet'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
+import { useLimitOrderStatuses, useRecentlyCancelledOrderIds } from '@/hooks/useLimitOrderStatuses'
+import { useTraderLimitFills } from '@/hooks/useTraderLimitFills'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
@@ -460,6 +462,10 @@ function TradeOrderTicketContent({
   }, [expiryPastBlocker, crossingBlocker, placePriceGate, placeEscrowGate, placeNativeGasGate])
 
   const myPlacements = useMemo(() => placementsQuery.data ?? [], [placementsQuery.data])
+  const openPlacementOrderIds = useMemo(() => myPlacements.map((r) => r.order_id), [myPlacements])
+  const { byOrderId: lcdStatuses } = useLimitOrderStatuses(pairAddr, openPlacementOrderIds)
+  const fillsQuery = useTraderLimitFills(address ?? undefined, pairAddr)
+  const recentlyCancelledOrderIds = useRecentlyCancelledOrderIds(pairAddr)
 
   const parsedCancelOrderId = parseInt(cancelOrderId, 10)
   const cancelIdIndexedAsCancelled =
@@ -941,18 +947,18 @@ function TradeOrderTicketContent({
                 <LimitOrderEscrowPlaceGuardMessage gate={placeLimitInlineGate} data-testid="trade-limit-place-guard" />
               )}
             </div>
-            {pairAddr && address && (
+            {pairAddr.startsWith('terra1') && (
               <div
                 ref={placementsAnchorRef}
                 data-testid="trade-ticket-placements-anchor"
-                className="scroll-mt-4 outline-none"
+                className="scroll-mt-4 outline-none relative z-0"
                 tabIndex={-1}
               >
                 <LimitOrderMyPlacementsPanel
                   variant="compact"
                   pairAddr={pairAddr}
                   pair={selectedPair}
-                  walletAddress={address}
+                  walletAddress={address ?? ''}
                   rows={myPlacements}
                   isLoading={placementsQuery.isLoading}
                   isWalletConnected={isWalletConnected}
@@ -962,6 +968,9 @@ function TradeOrderTicketContent({
                   openWalletModal={openWalletModal}
                   cancelLimitOrderMutation={cancelMutation}
                   cancellations={cancellationsQuery.data ?? []}
+                  fills={fillsQuery.data ?? []}
+                  lcdStatuses={lcdStatuses}
+                  recentlyCancelledOrderIds={recentlyCancelledOrderIds}
                   highlightOrderId={highlightPlacementOrderId}
                   limitPriceScale={limitPriceScale}
                 />

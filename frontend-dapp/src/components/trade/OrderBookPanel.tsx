@@ -3,6 +3,7 @@ import type { UseMutationResult } from '@tanstack/react-query'
 import { getPairLimitPlacements } from '@/services/indexer/client'
 import { useLimitBookInfinite } from '@/hooks/useLimitBookInfinite'
 import { usePairLimitCancellations } from '@/hooks/usePairLimitCancellations'
+import { useRecentlyCancelledOrderIds } from '@/hooks/useLimitOrderStatuses'
 import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import { Spinner } from '@/components/ui'
 import type { IndexerPair, IndexerShallowLimitOrder, PairInfo } from '@/types'
@@ -187,11 +188,13 @@ function BookRow({
                 className="rounded-md border border-white/15 px-1.5 py-0.5 text-[10px] font-semibold leading-none hover:bg-red-500/15 disabled:opacity-40"
                 style={{ color: 'var(--color-negative)' }}
                 disabled={isPairPaused || alreadyCancelled || pendingThis}
-                title={alreadyCancelled ? 'Already cancelled (indexed)' : 'Cancel this resting order'}
-                aria-label={`Cancel order ${order.order_id}`}
+                title={alreadyCancelled ? 'Already cancelled' : 'Cancel this resting order'}
+                aria-label={
+                  alreadyCancelled ? `Order ${order.order_id} already cancelled` : `Cancel order ${order.order_id}`
+                }
                 onClick={onCancelClick}
               >
-                ×
+                {alreadyCancelled ? '—' : '×'}
               </button>
             </>
           )}
@@ -402,11 +405,13 @@ export function OrderBookPanel({
     staleTime: 10_000,
   })
 
+  const recentlyCancelledOrderIds = useRecentlyCancelledOrderIds(pairAddress)
+
   const myActiveOrderIds = (() => {
     if (!walletAddress || !placementsQuery.data || !factoryPair) return []
     const mine = placementsQuery.data.filter((r) => r.owner === walletAddress)
     const { active } = partitionLimitPlacementsByLifecycle(mine)
-    return active.map((r) => r.order_id)
+    return active.map((r) => r.order_id).filter((id) => !recentlyCancelledOrderIds.includes(id))
   })()
 
   const cancelAllDisabled =

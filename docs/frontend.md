@@ -896,6 +896,7 @@ Retail trade IA for Swap vs Trade vs Limits and calmer first paint on `/trade` (
 | **T527-9 Testids** | Keep `trade-limit-submit`, `trade-limit-update-price-submit`, `trade-limit-inline-guards`, `trade-order-ticket-scroll`, `trade-market-submit`. Footer wrapper is `trade-ticket-submit-footer` (replaces `trade-limit-submit-sticky`). |
 | **T527-10 `/limits` out of scope** | Standalone place card stays in-flow. Do not add sticky/fixed chrome there unless a helper is shared. |
 | **Footer payload** | CTA + broadcast pending link + tx result alerts only. |
+| **#530 open limits** | `trade-ticket-placements-anchor` stays in the scroll body **above** the footer (not a child of Place limit). Compact **Cancel** must not sit under `trade-ticket-submit-footer`. |
 
 Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`TradeTicketSubmitFooter.tsx`](../frontend-dapp/src/components/trade/TradeTicketSubmitFooter.tsx), [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) (`dockSubmit`), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `make verify-issue-527` — `TradePage.test.tsx` (DOM order) and `e2e/trade-page-responsive.spec.ts` (bottom alignment + `elementFromPoint`).
 
@@ -1055,7 +1056,22 @@ CEX-style controls on the **Bids / Asks** depth tables on `/trade` ([GitLab **#1
 
 Implementation: [`useLimitOrderCancelMutation.ts`](../frontend-dapp/src/hooks/useLimitOrderCancelMutation.ts), [`useLimitOrderUpdatePriceMutation.ts`](../frontend-dapp/src/hooks/useLimitOrderUpdatePriceMutation.ts), [`limitOrderPriceEdit.ts`](../frontend-dapp/src/utils/limitOrderPriceEdit.ts), [`OrderBookPanel.tsx`](../frontend-dapp/src/components/trade/OrderBookPanel.tsx), [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx), [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx). Types: [`limitBookTicketDraft.ts`](../frontend-dapp/src/types/limitBookTicketDraft.ts).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](../skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md); trade layout: [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md). Open-row Cancel: [`skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](../skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) (`#530`).
+
+### My open limits — Cancel vs stale ● row {#open-limits-cancel-reconciliation}
+
+**My open limits** on `/trade` (compact) and `/limits` must reconcile indexer `active` with chain before offering Cancel ([GitLab **#530**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/530)). Fills never flip placement lifecycle; a fully filled UST1 ask can still render `●order #1 · Sell UST1 · 82.044…`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **LCD first** | `queryOrderStatus` / `useLimitOrderStatuses`. `Active` → Cancel. `ParkedRefund` → Claim. Query failure stays unset — **not** `Unknown` (**L21**). |
+| **Unknown classification** | Fill row → **Filled**. Indexed or local cancel → **Already cancelled**. Else **No longer on the book**. No enabled Cancel. |
+| **Disabled copy** | Paused → `Unavailable (pair paused)`. Blacklist → `Trading restricted`. Gone/filled/cancelled use those labels — never a mute `Cancel`. |
+| **`/trade` reachability** | `trade-ticket-placements-anchor` stays in `trade-order-ticket-scroll` **above** `trade-ticket-submit-footer`. Compact Cancel is not a child of Place limit. |
+| **Invert-safe** | Cancel execute is `{ cancel_limit_order: { order_id } }` on the selected pair. #524 invert does not add fields. |
+| **Testids** | `trade-cancel-placement-{id}`, `limits-page-cancel-placement-{id}`, `trade-book-cancel-{bid\|ask}-{id}`, `trade-ticket-placements-anchor`. |
+
+Helpers: [`limitPlacementOpenReconcile.ts`](../frontend-dapp/src/utils/limitPlacementOpenReconcile.ts). Product invariants **F530-1–F530-8**: [`docs/limit-orders.md` § Open-row Cancel reconciliation](./limit-orders.md#open-row-cancel-reconciliation-gitlab-530). Verify: `make verify-issue-530`.
 
 ### Limit orders page (`/limits`) — market data outage {#limits-page-market-data-outage}
 

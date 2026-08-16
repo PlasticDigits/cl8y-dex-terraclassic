@@ -44,6 +44,10 @@ describe('normalizedLimitPlacementLifecycle', () => {
       'parked_expired'
     )
   })
+
+  it('parses filled (#530)', () => {
+    expect(normalizedLimitPlacementLifecycle(row({ id: 1, order_id: 1, lifecycle_status: 'filled' }))).toBe('filled')
+  })
 })
 
 describe('partitionLimitPlacementsByLifecycle', () => {
@@ -60,6 +64,14 @@ describe('partitionLimitPlacementsByLifecycle', () => {
   it('drops refunded rows from both buckets (default UI feed excludes them anyway)', () => {
     const { active, parkedExpired } = partitionLimitPlacementsByLifecycle([
       row({ id: 1, order_id: 1, lifecycle_status: 'refunded' }),
+    ])
+    expect(active).toEqual([])
+    expect(parkedExpired).toEqual([])
+  })
+
+  it('drops filled rows from the cancelable open bucket (#530)', () => {
+    const { active, parkedExpired } = partitionLimitPlacementsByLifecycle([
+      row({ id: 1, order_id: 1, lifecycle_status: 'filled' }),
     ])
     expect(active).toEqual([])
     expect(parkedExpired).toEqual([])

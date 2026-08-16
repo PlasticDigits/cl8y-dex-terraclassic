@@ -20,6 +20,15 @@ import {
   partitionLimitPlacementsByLifecycle,
   partitionParkedPlacementsByKind,
 } from '@/utils/limitPlacementLifecycle'
+import type { PairOrderStatusKind } from '@/types'
+import {
+  openLimitCancelButtonLabel,
+  openLimitCancelEnabled,
+  openLimitRowMarker,
+  openLimitRowStatusCopy,
+  orderIdHasIndexedFill,
+  reconcilePlacementRowKind,
+} from '@/utils/limitPlacementOpenReconcile'
 
 export type LimitOrderMyPlacementsVariant = 'page' | 'compact'
 
@@ -42,6 +51,12 @@ export interface LimitOrderMyPlacementsPanelProps {
   cancelLimitOrderMutation?: UseMutationResult<string, Error, LimitOrderCancelInput, unknown>
   /** Indexed cancellations for this pair — disables cancel on already-cancelled ids. */
   cancellations?: IndexerLimitCancellation[]
+  /** Indexed fills — classify LCD `Unknown` as Filled, not a fake ● Cancel (#530 / L21). */
+  fills?: Array<{ order_id: number }>
+  /** Successful LCD `OrderStatus` by order id. Missing / failed stays undefined (not Unknown). */
+  lcdStatuses?: Record<number, PairOrderStatusKind | undefined>
+  /** Optimistic cancel ids after a successful broadcast (indexer lag). */
+  recentlyCancelledOrderIds?: number[]
   /** When set, the active row for this `order_id` is visually emphasized (trade ticket "View order" — GitLab #161). */
   highlightOrderId?: number | null
   /** Human-scale display for mismatched-decimal pairs (GitLab #529). */
@@ -156,6 +171,9 @@ export function LimitOrderMyPlacementsPanel({
   openWalletModal,
   cancelLimitOrderMutation,
   cancellations = [],
+  fills = [],
+  lcdStatuses = {},
+  recentlyCancelledOrderIds = [],
   highlightOrderId = null,
   limitPriceScale = null,
 }: LimitOrderMyPlacementsPanelProps) {
@@ -202,7 +220,17 @@ export function LimitOrderMyPlacementsPanel({
       return
     }
     if (cancelBlocked || !cancelLimitOrderMutation) return
-    if (orderIdHasIndexedCancellation(cancellations, orderId)) return
+    if (orderIdHasIndexedCancellation(cancellations, orderId) || recentlyCancelledOrderIds.includes(orderId)) return
+    const kind = reconcilePlacementRowKind(
+      { lifecycle_status: 'active' },
+      {
+        lcdStatus: lcdStatuses[orderId],
+        hasIndexedCancellation: orderIdHasIndexedCancellation(cancellations, orderId),
+        hasIndexedFill: orderIdHasIndexedFill(fills, orderId),
+        locallyCancelled: recentlyCancelledOrderIds.includes(orderId),
+      }
+    )
+    if (kind !== 'cancelable') return
     const ok = window.confirm(`Cancel order #${orderId}?`)
     if (!ok) return
     cancelLimitOrderMutation.mutate(orderId)
@@ -237,23 +265,45 @@ export function LimitOrderMyPlacementsPanel({
                   Open
                 </div>
               )}
-              <ul className={`space-y-1.5 ${compact ? 'max-h-24 overflow-y-auto' : 'max-h-48 overflow-y-auto'}`}>
+              <ul className={`space-y-1.5 ${compact ? 'max-h-40 overflow-y-auto' : 'max-h-48 overflow-y-auto'}`}>
                 {active.map((r) => {
-                  const alreadyCancelled = orderIdHasIndexedCancellation(cancellations, r.order_id)
+                  const kind = reconcilePlacementRowKind(r, {
+                    lcdStatus: lcdStatuses[r.order_id],
+                    hasIndexedCancellation: orderIdHasIndexedCancellation(cancellations, r.order_id),
+                    hasIndexedFill: orderIdHasIndexedFill(fills, r.order_id),
+                    locallyCancelled: recentlyCancelledOrderIds.includes(r.order_id),
+                  })
                   const pendingCancel =
                     cancelLimitOrderMutation?.isPending &&
                     isOrderIdInCancelVariables(r.order_id, cancelLimitOrderMutation.variables)
-                  const cancelBtnDisabled =
-                    !cancelLimitOrderMutation ||
-                    !isWalletConnected ||
-                    cancelBlocked ||
-                    alreadyCancelled ||
-                    pendingCancel ||
-                    (cancelLimitOrderMutation?.isPending ?? false)
+                  const cancelLabel = openLimitCancelButtonLabel({
+                    kind,
+                    isWalletConnected,
+                    isPairPaused,
+                    tradingRestricted: cancelDisabled,
+                    pending: pendingCancel || (cancelLimitOrderMutation?.isPending ?? false),
+                  })
+                  const cancelBtnEnabled = openLimitCancelEnabled({
+                    kind,
+                    isWalletConnected,
+                    isPairPaused,
+                    tradingRestricted: cancelDisabled,
+                    pending: pendingCancel || (cancelLimitOrderMutation?.isPending ?? false),
+                    hasCancelMutation: !!cancelLimitOrderMutation,
+                  })
+                  const statusCopy = openLimitRowStatusCopy(kind)
+                  const marker = openLimitRowMarker(kind)
+                  const rowError =
+                    cancelLimitOrderMutation?.isError &&
+                    isOrderIdInCancelVariables(r.order_id, cancelLimitOrderMutation.variables)
+                      ? (cancelLimitOrderMutation.error as Error).message
+                      : null
+                  const showClaimInstead = kind === 'claim'
                   return (
                     <li
                       key={r.id}
                       data-testid={`${dtPrefix}-placement-active-${r.order_id}`}
+                      data-open-kind={kind}
                       className={`rounded-md border px-2 py-1.5 space-y-1.5 ${rowClass} transition-shadow duration-300 ${
                         highlightOrderId != null && r.order_id === highlightOrderId
                           ? 'border-amber-400/70 bg-white/[0.05] shadow-[0_0_0_2px_rgba(251,191,36,0.45)]'
@@ -261,34 +311,68 @@ export function LimitOrderMyPlacementsPanel({
                       }`}
                     >
                       <div>
-                        <span className="text-emerald-400/90 mr-1">●</span>
+                        <span
+                          className={
+                            marker === '●'
+                              ? 'text-emerald-400/90 mr-1'
+                              : marker === '◆'
+                                ? 'text-amber-400/95 mr-1'
+                                : 'text-slate-400/90 mr-1'
+                          }
+                        >
+                          {marker}
+                        </span>
                         order #{r.order_id} · {sideRowLabel(r.side, baseSymbol)} ·{' '}
                         {r.price != null ? scaleRawLimitPriceForDisplay(r.price, limitPriceScale) : '?'} · placed{' '}
                         {r.block_timestamp.slice(0, 19)}
+                        {statusCopy && <span className="opacity-80"> · {statusCopy}</span>}
                       </div>
-                      {cancelLimitOrderMutation && (
+                      {showClaimInstead ? (
                         <button
                           type="button"
-                          data-testid={`${dtPrefix}-cancel-placement-${r.order_id}`}
+                          data-testid={`${dtPrefix}-claim-expired-${r.order_id}`}
                           className={
                             compact
-                              ? 'rounded-lg border border-white/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40 w-full'
-                              : 'rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40 w-full'
+                              ? 'btn-primary btn-cta w-full !text-[10px] !py-1'
+                              : 'btn-primary btn-cta w-full !text-xs !py-2'
                           }
-                          style={{ color: 'var(--ink-dim)' }}
-                          disabled={cancelBtnDisabled}
-                          onClick={() => onCancelActive(r.order_id)}
+                          disabled={!isWalletConnected || claimsBlocked || claimMutation.isPending}
+                          onClick={() => {
+                            if (!isWalletConnected) openWalletModal()
+                            else if (!claimsBlocked) claimMutation.mutate(r.order_id)
+                          }}
                         >
                           {!isWalletConnected
-                            ? 'Connect to cancel'
+                            ? 'Connect wallet to claim'
                             : isPairPaused
                               ? 'Unavailable (pair paused)'
-                              : cancelDisabled
+                              : claimsDisabled
                                 ? 'Trading restricted'
-                                : pendingCancel
-                                  ? 'Cancelling…'
-                                  : 'Cancel'}
+                                : 'Claim refund'}
                         </button>
+                      ) : (
+                        cancelLimitOrderMutation &&
+                        cancelLabel && (
+                          <button
+                            type="button"
+                            data-testid={`${dtPrefix}-cancel-placement-${r.order_id}`}
+                            className={
+                              compact
+                                ? 'relative z-[1] rounded-lg border border-white/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40 w-full'
+                                : 'rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide hover:bg-white/5 disabled:opacity-40 w-full'
+                            }
+                            style={{ color: 'var(--ink-dim)' }}
+                            disabled={!cancelBtnEnabled}
+                            onClick={() => onCancelActive(r.order_id)}
+                          >
+                            {cancelLabel}
+                          </button>
+                        )
+                      )}
+                      {rowError && (
+                        <div data-testid={`${dtPrefix}-cancel-row-error-${r.order_id}`}>
+                          <TxResultAlert type="error" message={rowError} />
+                        </div>
                       )}
                     </li>
                   )

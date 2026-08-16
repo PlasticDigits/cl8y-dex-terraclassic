@@ -18,6 +18,14 @@ vi.mock('@/lib/sounds', () => ({
   sounds: { playSuccess: vi.fn(), playError: vi.fn() },
 }))
 
+vi.mock('@/utils/tokenDisplay', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/tokenDisplay')>()
+  return {
+    ...actual,
+    getTokenDisplaySymbol: () => 'UST1',
+  }
+})
+
 const PAIR: PairInfo = {
   contract_addr: 'terra1pair00000000000000000000000000000001',
   liquidity_token: 'terra1lp000000000000000000000000000000001',
@@ -70,7 +78,7 @@ function mockCancelMutation() {
   }
 }
 
-describe('LimitOrderMyPlacementsPanel', () => {
+describe('LimitOrderMyPlacementsPanel (GitLab #530)', () => {
   beforeEach(() => {
     claimExpiredLimitOrder.mockReset()
     claimExpiredLimitOrders.mockReset()
@@ -232,6 +240,123 @@ describe('LimitOrderMyPlacementsPanel', () => {
 
     expect(screen.getByTestId('trade-claim-all-parked')).toBeDisabled()
     expect(screen.getByTestId('trade-claim-all-parked')).toHaveTextContent('Unavailable (pair paused)')
+  })
+
+  it('labels already-indexed cancellation instead of mute Cancel (AC5)', () => {
+    const cancelMutation = mockCancelMutation()
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="page"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[ACTIVE_ROW]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused={false}
+        openWalletModal={vi.fn()}
+        cancelLimitOrderMutation={cancelMutation as never}
+        cancellations={[
+          {
+            id: 1,
+            pair_address: PAIR.contract_addr,
+            block_height: 1,
+            block_timestamp: 't',
+            tx_hash: 'x',
+            order_id: 42,
+          },
+        ]}
+      />
+    )
+    const btn = screen.getByTestId('limits-page-cancel-placement-42')
+    expect(btn).toBeDisabled()
+    expect(btn).toHaveTextContent('Already cancelled')
+    fireEvent.click(btn)
+    expect(cancelMutation.mutate).not.toHaveBeenCalled()
+  })
+
+  it('report class: ●order #1 · Sell UST1 · 82.04… becomes Filled without Cancel (AC1/AC3)', () => {
+    const cancelMutation = mockCancelMutation()
+    const reportRow: IndexerLimitPlacement = {
+      id: 1,
+      pair_address: PAIR.contract_addr,
+      block_height: 1,
+      block_timestamp: '2026-08-15T14:21:43Z',
+      tx_hash: 'ABC',
+      order_id: 1,
+      owner: 'terra1wallet',
+      side: 'ask',
+      price: '82.044004487226',
+      lifecycle_status: 'active',
+    }
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="compact"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[reportRow]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused={false}
+        openWalletModal={vi.fn()}
+        cancelLimitOrderMutation={cancelMutation as never}
+        lcdStatuses={{ 1: 'unknown' }}
+        fills={[{ order_id: 1 }]}
+      />
+    )
+    const li = screen.getByTestId('trade-placement-active-1')
+    expect(li).toHaveAttribute('data-open-kind', 'filled')
+    expect(li.textContent).toMatch(/order #1 · Sell UST1 · 82\.044004487226 · placed 2026-08-15T14:21:43/)
+    expect(li.textContent).toMatch(/Filled/)
+    const btn = screen.getByTestId('trade-cancel-placement-1')
+    expect(btn).toBeDisabled()
+    expect(btn).toHaveTextContent('Filled')
+    fireEvent.click(btn)
+    expect(cancelMutation.mutate).not.toHaveBeenCalled()
+  })
+
+  it('LCD ParkedRefund on an indexer-active row shows Claim, not Cancel (AC4)', () => {
+    const cancelMutation = mockCancelMutation()
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="page"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[ACTIVE_ROW]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused={false}
+        openWalletModal={vi.fn()}
+        cancelLimitOrderMutation={cancelMutation as never}
+        lcdStatuses={{ 42: 'parked_refund' }}
+      />
+    )
+    expect(screen.queryByTestId('limits-page-cancel-placement-42')).not.toBeInTheDocument()
+    expect(screen.getByTestId('limits-page-claim-expired-42')).toHaveTextContent('Claim refund')
+  })
+
+  it('disables Cancel with Trading restricted copy (AC5)', () => {
+    const cancelMutation = mockCancelMutation()
+    renderWithProviders(
+      <LimitOrderMyPlacementsPanel
+        variant="compact"
+        pairAddr={PAIR.contract_addr}
+        pair={PAIR}
+        walletAddress="terra1wallet"
+        rows={[ACTIVE_ROW]}
+        isLoading={false}
+        isWalletConnected
+        isPairPaused={false}
+        cancelDisabled
+        openWalletModal={vi.fn()}
+        cancelLimitOrderMutation={cancelMutation as never}
+        lcdStatuses={{ 42: 'active' }}
+      />
+    )
+    expect(screen.getByTestId('trade-cancel-placement-42')).toBeDisabled()
+    expect(screen.getByTestId('trade-cancel-placement-42')).toHaveTextContent('Trading restricted')
   })
 
   it('disables Claim all parked when wallet disconnected', () => {

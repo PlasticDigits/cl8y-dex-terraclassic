@@ -35,6 +35,7 @@ Use when integrating **on-chain contract consumers** (custody vaults, grid bots,
 
 ## Related playbooks
 
+- Retail **My open limits** Cancel vs stale `●` / fill classification: [`AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](./AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) ([#530](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/530), invariants **F530-1–F530-8**)
 - Parked refund UX / claim paths: [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md)
 - **Why** a row is parked (`Expired` / `DustFilled` / `ForceCleaned` / `Blacklisted`): [`AGENTS_EXPIRED_LIMIT_PARK_REASON.md`](./AGENTS_EXPIRED_LIMIT_PARK_REASON.md) — `OrderStatus::ParkedRefund` tells you *where* funds are; LCD **`ExpiredLimitRefund.reason`** (invariant **L22** / [#504](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/504)) tells you *why*. Do not infer fill vs expiry from `ParkedRefund` alone.
 - Localnet automation that watches parked rows: [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md)

@@ -333,6 +333,22 @@ export interface PairPausedResponse {
   paused: boolean
 }
 
+/**
+ * Pair `OrderStatus` query (GitLab #505 / #530).
+ * `unknown` is a successful decode — never map LCD/transport failures to this bucket (L21).
+ */
+export type PairOrderStatusKind = 'active' | 'parked_refund' | 'unknown'
+
+export interface PairOrderStatusResponse {
+  order_id: number
+  status: PairOrderStatusKind | string
+  owner?: string | null
+  side?: string | null
+  price?: string | null
+  remaining?: string | null
+  expires_at?: number | null
+}
+
 export interface IndexerPairStats {
   volume_base: string
   volume_quote: string

@@ -70,3 +70,4 @@ Issue: [GitLab **#527**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Money CTA sizing: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) (`#417`)
 - Pair invert convert-on-submit: [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) (`#524`)
 - Slippage chips stay in the ticket body (not this footer): [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
+- Open-limits Cancel reachability (panel **above** footer): [`AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](./AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) (`#530`)
