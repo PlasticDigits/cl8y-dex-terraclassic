@@ -26,7 +26,7 @@ const FACTORY_VERSION: &str = "1.6.0";
 const FACTORY_PRIOR_VERSION: &str = "1.5.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.12.0";
+const PAIR_VERSION: &str = "1.13.0";
 const PAIR_PRIOR_VERSION: &str = "1.7.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
