@@ -52,7 +52,9 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 | Router | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` | `SetWrapMapper` live (#502) |
 | DEX governance (wasm admin) | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` | Factory `config.governance` |
 | DEX fee treasury (swaps + pair-creation) | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | Factory `config.treasury` + each pair `GetFeeConfig.treasury` (CMM). Soft launch originally used the multisig — rotate with [`docs/runbooks/rotate-fee-treasury.md`](../../docs/runbooks/rotate-fee-treasury.md) |
-| UST1/vFDUSD or UST1/cUSTC AMM | — | **Path B waiver** until seed inventory — [`../ust1-secondary-pair/PRODUCT_WAIVER.md`](../ust1-secondary-pair/PRODUCT_WAIVER.md) |
+| UST1/cUSTC AMM | `terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f` | Factory pair; LP `UST1-CUST-LP` |
+| UST1/USTR AMM | `terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy` | Factory pair; LP `UST1-USTR-LP` |
+| USTR CW20 | `terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv` | 18 decimals; extra minter includes DEX 2-of-3 |
 
 ---
 
