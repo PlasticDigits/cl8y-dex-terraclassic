@@ -1,28 +1,28 @@
-# Agent playbook: Trade limit ticket sticky CTA
+# Agent playbook: Trade limit ticket CTA opacity / guards
 
-Use when changing the **`/trade` order ticket** sticky **Place limit** / **Update price** chrome, ticket scroll clearance, or inline place/price/gas guard placement relative to that footer ([GitLab **#500**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500)).
+Use when changing the **`/trade` order ticket** money-CTA chrome opacity, or inline place/price/gas guard placement relative to that footer ([GitLab **#500**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500)).
 
-**Open follow-up [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527):** Chrome can float this sticky CTA mid-form. Dock Limit + Market money CTAs to the ticket bottom — [`AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](./AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md). Do not add more `position: sticky` / `fixed` to “fix” the float.
+The CTA itself is a **ticket footer** (flex `shrink-0` sibling of the scrollport), not `position: sticky`. Dock / Chrome mid-form float: [`AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](./AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) ([#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527)). Do not add `position: sticky` / `fixed` to “fix” a float.
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
-| [docs/frontend.md § Trade page — limit ticket sticky CTA](../docs/frontend.md#trade-page-limit-ticket-sticky-cta) | Invariants for opaque sticky CTA, scroll clearance, guards in flow |
-| [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) | Limit tab: form → `trade-limit-inline-guards` → `trade-limit-submit-sticky` → My limits |
-| [`index.css`](../frontend-dapp/src/index.css) | `.trade-order-ticket-scroll`, `.trade-limit-submit-sticky`, `--trade-limit-sticky-clearance` |
+| [docs/frontend.md § Trade page — ticket footer CTA](../docs/frontend.md#trade-page-ticket-footer-cta) | **T527-1–T527-10** plus `#500` opacity / guards-in-flow |
+| [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) | Limit tab: form → `trade-limit-inline-guards` → My limits; CTA in `trade-ticket-submit-footer` |
+| [`TradeTicketSubmitFooter.tsx`](../frontend-dapp/src/components/trade/TradeTicketSubmitFooter.tsx) | Shared footer wrapper |
+| [`index.css`](../frontend-dapp/src/index.css) | `.trade-order-ticket-scroll`, `.trade-ticket-submit-footer` |
 | [`LimitOrderEscrowPlaceGuardMessage.tsx`](../frontend-dapp/src/components/trade/LimitOrderEscrowPlaceGuardMessage.tsx) | Inline blocking / warning copy for place gates |
-| [`trade-page-responsive.spec.ts`](../frontend-dapp/e2e/trade-page-responsive.spec.ts) | Playwright: sticky opacity hit-test, guards outside sticky, expiry clears footer |
-| [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | RTL: guards precede sticky in DOM (#500) |
+| [`trade-page-responsive.spec.ts`](../frontend-dapp/e2e/trade-page-responsive.spec.ts) | Playwright: footer opacity hit-test, guards outside footer, expiry clears footer |
+| [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) | RTL: guards precede footer in DOM (#500 / #527) |
 
 ## Rules of thumb
 
-1. **Keep the sticky CTA** — pinning **Place limit** is intentional (#348 visibility). When the ticket is fully scrolled, the footer should settle in-flow above **My open limits**.
-2. **Opaque sticky chrome** — `.trade-limit-submit-sticky` must use a solid underlay (`var(--bg-1)`) under `var(--panel-bg-strong)` (plus backdrop blur). **Never** use missing tokens like `--card` or a mostly transparent `color-mix` that lets ADVANCED / fee rows bleed through (same class of bug as sticky header opacity [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)).
-3. **Guards in normal document flow** — `LimitOrderEscrowPlaceGuardMessage` (`trade-limit-place-guard`, update-price guard) lives in `trade-limit-inline-guards` **above** the sticky footer, not inside it. Blocking banners must not cover expiry / date inputs.
-4. **Scroll clearance** — ticket body uses `.trade-order-ticket-scroll` with `--trade-limit-sticky-clearance` end padding / `scroll-padding-bottom` so expiry, datetime, and ADVANCED can scroll clear of the pinned CTA. Prefer CSS on that class over Tailwind `p-4` so clearance wins.
-5. **Sticky contents** — CTA button, broadcast pending link, and tx result alerts may stay in the sticky chrome. Do not re-home validation banners there without updating docs + E2E.
-6. **Theme tokens** — use `--bg-1` / `--panel-bg-strong` (overridden in light theme). Do not introduce opaque panels that break light contrast.
+1. **Keep the money CTA visible** — docking to the ticket card bottom satisfies #348. Do not put the CTA back inside `.trade-order-ticket-scroll` with `position: sticky`.
+2. **Opaque footer chrome** — `.trade-ticket-submit-footer` must use a solid underlay (`var(--bg-1)`) under `var(--panel-bg-strong)` (plus backdrop blur). **Never** use missing tokens like `--card` or a mostly transparent `color-mix` that lets ADVANCED / fee rows bleed through (same class of bug as sticky header opacity [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)).
+3. **Guards in normal document flow** — `LimitOrderEscrowPlaceGuardMessage` (`trade-limit-place-guard`, update-price guard) lives in `trade-limit-inline-guards` **above** the footer, not inside it. Blocking banners must not cover expiry / date inputs.
+4. **Footer contents** — CTA button, broadcast pending link, and tx result alerts may stay in the footer. Do not re-home validation banners there without updating docs + E2E.
+5. **Theme tokens** — use `--bg-1` / `--panel-bg-strong` (overridden in light theme). Do not introduce opaque panels that break light contrast.
 
 ## Related
 

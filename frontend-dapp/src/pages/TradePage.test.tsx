@@ -256,21 +256,58 @@ describe('TradePage', () => {
     expect(screen.getByTestId('trade-cancel-submit')).not.toHaveAttribute('disabled')
   })
 
-  it('keeps limit place guards in document flow above sticky CTA (GitLab #500)', async () => {
+  it('keeps limit place guards in document flow above ticket footer (GitLab #500 / #527)', async () => {
     mockTradeDesktopLayout(true)
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
-    const sticky = await screen.findByTestId('trade-limit-submit-sticky')
+    const footer = await screen.findByTestId('trade-ticket-submit-footer')
     const guards = screen.getByTestId('trade-limit-inline-guards')
     const scroll = screen.getByTestId('trade-order-ticket-scroll')
+    const card = screen.getByTestId('trade-order-ticket-card')
+    const submit = screen.getByTestId('trade-limit-submit')
 
     expect(scroll.className).toMatch(/trade-order-ticket-scroll/)
-    expect(sticky.className).toMatch(/trade-limit-submit-sticky/)
+    expect(footer.className).toMatch(/trade-ticket-submit-footer/)
+    expect(card).toContainElement(scroll)
+    expect(card).toContainElement(footer)
     expect(scroll).toContainElement(guards)
-    expect(scroll).toContainElement(sticky)
-    expect(sticky.contains(guards)).toBe(false)
-    // Guards precede sticky in DOM so banners never sit under the pinned CTA chrome.
-    expect(guards.compareDocumentPosition(sticky) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(scroll.contains(footer)).toBe(false)
+    expect(footer.contains(guards)).toBe(false)
+    expect(footer).toContainElement(submit)
+    expect(scroll.contains(submit)).toBe(false)
+    expect(guards.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('docks Market money CTA in the same ticket footer (GitLab #527)', async () => {
+    const user = userEvent.setup()
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    await user.click(await screen.findByTestId('trade-order-tab-market'))
+    const footer = await screen.findByTestId('trade-ticket-submit-footer')
+    const marketSubmit = await screen.findByTestId('trade-market-submit')
+    const scroll = screen.getByTestId('trade-order-ticket-scroll')
+
+    expect(footer).toContainElement(marketSubmit)
+    expect(scroll.contains(marketSubmit)).toBe(false)
+    expect(screen.queryByTestId('trade-limit-submit')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('trade-market-submit')).toHaveLength(1)
+  })
+
+  it('keeps ticket footer after invert toggle and side flip (GitLab #524 / #527)', async () => {
+    const user = userEvent.setup()
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    const footer = await screen.findByTestId('trade-ticket-submit-footer')
+    expect(footer).toContainElement(screen.getByTestId('trade-limit-submit'))
+
+    const invert = screen.queryByTestId('trade-ticket-pair-invert')
+    if (invert) await user.click(invert)
+    await user.click(screen.getByTestId('limit-order-side-flip'))
+
+    expect(screen.getByTestId('trade-ticket-submit-footer')).toContainElement(screen.getByTestId('trade-limit-submit'))
+    expect(screen.getAllByTestId('trade-limit-submit')).toHaveLength(1)
   })
 
   it('book Edit prefills the visible desktop limit ticket (GitLab #178)', async () => {
@@ -293,6 +330,9 @@ describe('TradePage', () => {
     const priceInput = await screen.findByTestId('limit-order-price-input')
     expect(priceInput).toHaveValue('2.5')
     expect(screen.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
+    const footer = screen.getByTestId('trade-ticket-submit-footer')
+    const moneyCta = screen.queryByTestId('trade-limit-update-price-submit') ?? screen.getByTestId('trade-limit-submit')
+    expect(footer).toContainElement(moneyCta)
   })
 
   it('shows accurate indexer outage banner when pair fetch fails (GitLab #164)', async () => {

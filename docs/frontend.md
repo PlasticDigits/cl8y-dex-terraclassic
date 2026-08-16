@@ -877,23 +877,29 @@ Retail trade IA for Swap vs Trade vs Limits and calmer first paint on `/trade` (
 
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
-### Trade page — limit ticket sticky CTA {#trade-page-limit-ticket-sticky-cta}
+<a id="trade-page-limit-ticket-sticky-cta"></a>
 
-Pinned **Place limit** / **Update price** on the `/trade` order ticket must stay usable without reading as a glitch when the ticket scrollport is not at the bottom ([GitLab **#500**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500); same opacity class as sticky header [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)):
+### Trade page — ticket footer CTA {#trade-page-ticket-footer-cta}
+
+`/trade` order-ticket money CTAs (**Place limit** / **Update price** / **Market buy|sell** / **Connect Wallet**) dock to the **bottom of the ticket card** as a flex `shrink-0` footer — not `position: sticky` inside the scrollport ([GitLab **#527**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527)). Opacity and guards-in-flow from [#500](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/500) still apply (same opacity class as sticky header [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482)). Visibility without hunting the ticket body is [#348](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/348).
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Sticky CTA kept** | `data-testid="trade-limit-submit-sticky"` remains `position: sticky; bottom: 0` inside the ticket scrollport so the money CTA stays visible (#348). When fully scrolled, it settles in-flow above **My open limits**. |
-| **Opaque sticky chrome** | `.trade-limit-submit-sticky` uses layered `var(--panel-bg-strong), var(--bg-1)` (+ backdrop blur). Do **not** use missing tokens (e.g. `--card`) or translucent mixes that let ADVANCED / fee rows bleed through the button. |
-| **Guards in document flow** | Price / escrow / gas / crossing banners (`LimitOrderEscrowPlaceGuardMessage`, `trade-limit-inline-guards`) render **above** the sticky footer in normal flow — never inside the sticky chrome where they can cover expiry / date inputs. |
-| **Scroll clearance** | `.trade-order-ticket-scroll` applies `--trade-limit-sticky-clearance` end padding / `scroll-padding-bottom` so expiry chips, datetime, and ADVANCED can scroll clear of the pinned footer. |
-| **Sticky payload** | Sticky chrome holds the CTA, broadcast pending link, and tx result alerts only. |
+| **T527-1 Dock, do not float** | At ticket scroll-top on Chromium, the money CTA **bottom** aligns with `trade-order-ticket-card` **bottom** (≤ 8px). It must not sit between Pay % chips and Expiry, and must not overlap Pay / Receive / Expiry / Advanced. |
+| **T527-2 Shared footer slot** | Limit and Market render into the same `data-testid="trade-ticket-submit-footer"` (`.trade-ticket-submit-footer`). No second in-flow Market CTA mid-form. |
+| **T527-3 #348 visibility** | Desktop ~1280×720: CTA fully visible in the ticket column without scrolling the ticket body. Tablet chart\|ticket row: CTA stays inside `trade-sub-lg-ticket-col`. |
+| **T527-4 #500 opacity + guards** | Footer uses layered `var(--panel-bg-strong), var(--bg-1)` (+ backdrop blur). Do **not** use missing tokens (e.g. `--card`) or translucent mixes. `trade-limit-inline-guards` is **not** a descendant of the footer. |
+| **T527-5 No sticky / fixed / portal** | Prefer `flex` + `shrink-0`. Do **not** use `position: sticky`, `position: fixed`, or a document-body portal footer. CTA remains a descendant of `trade-order-ticket-card` (sibling of `trade-order-ticket-scroll`). |
+| **T527-6 Layout only** | No change to `place_limit_order`, invert convert-on-submit ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)), crossing / pause / blacklist / gas gates. |
+| **T527-7 One ticket mount** | Do not remount a second `TradeOrderTicket` ([#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178)). |
+| **T527-8 z-index** | Footer stays under wallet modal, risk/NFA, clickwrap, toasts, and `#trade-pair-select` ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). Do not raise `z-index` to “win” those surfaces. |
+| **T527-9 Testids** | Keep `trade-limit-submit`, `trade-limit-update-price-submit`, `trade-limit-inline-guards`, `trade-order-ticket-scroll`, `trade-market-submit`. Footer wrapper is `trade-ticket-submit-footer` (replaces `trade-limit-submit-sticky`). |
+| **T527-10 `/limits` out of scope** | Standalone place card stays in-flow. Do not add sticky/fixed chrome there unless a helper is shared. |
+| **Footer payload** | CTA + broadcast pending link + tx result alerts only. |
 
-Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `TradePage.test.tsx` (#500 DOM order) and `e2e/trade-page-responsive.spec.ts` (opaque hit-test + expiry clears footer).
+Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx), [`TradeTicketSubmitFooter.tsx`](../frontend-dapp/src/components/trade/TradeTicketSubmitFooter.tsx), [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) (`dockSubmit`), styles in [`index.css`](../frontend-dapp/src/index.css). Verify: `make verify-issue-527` — `TradePage.test.tsx` (DOM order) and `e2e/trade-page-responsive.spec.ts` (bottom alignment + `elementFromPoint`).
 
-**Open follow-up [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527):** On Chrome, `position: sticky; bottom: 0` inside the flex ticket scrollport can float **Place limit** mid-form (over Pay % chips / Receive / Expiry) instead of docking to the ticket bottom. Implementation: replace sticky-inside-scroll with a true ticket footer shared by Limit + Market. Do not use `position: fixed`. Playbook: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md).
-
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) (`#500`); dock follow-up: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`); opacity / guards: [`skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](../skills/AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) (`#500`).
 
 ### Trade page — pair switch latency {#trade-page-pair-switch-latency}
 

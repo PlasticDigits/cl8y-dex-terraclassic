@@ -54,7 +54,9 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     expect(box!.y + box!.height).toBeLessThanOrEqual(workspaceBox!.y + workspaceBox!.height + 2)
   })
 
-  test('limit sticky CTA is opaque; guards stay in flow; expiry can clear footer (#500)', async ({ page }) => {
+  test('limit ticket footer is opaque; guards stay in flow; expiry can clear footer (#500 / #527)', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
@@ -62,45 +64,48 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     const workspace = page.getByTestId('trade-desktop-workspace')
     await expect(workspace).toBeVisible({ timeout: 90_000 })
 
-    const sticky = page.getByTestId('trade-limit-submit-sticky')
+    const footer = page.getByTestId('trade-ticket-submit-footer')
     const guards = page.getByTestId('trade-limit-inline-guards')
     const scroll = page.getByTestId('trade-order-ticket-scroll')
     const submit = page.getByTestId('trade-limit-submit')
-    await expect(sticky).toBeAttached()
+    await expect(footer).toBeAttached()
     await expect(guards).toBeAttached()
     await expect(scroll).toBeVisible()
     await expect(submit).toBeAttached()
 
     expect(
-      await guards.evaluate((el) => el.closest('[data-testid="trade-limit-submit-sticky"]') == null),
-      'place guards must not live inside the sticky CTA chrome'
+      await guards.evaluate((el) => el.closest('[data-testid="trade-ticket-submit-footer"]') == null),
+      'place guards must not live inside the ticket footer'
     ).toBe(true)
     expect(
-      await submit.evaluate((el) => Boolean(el.closest('[data-testid="trade-limit-submit-sticky"]'))),
-      'Place limit button must live inside sticky CTA chrome'
+      await submit.evaluate((el) => Boolean(el.closest('[data-testid="trade-ticket-submit-footer"]'))),
+      'Place limit button must live inside the ticket footer'
+    ).toBe(true)
+    expect(
+      await footer.evaluate((el) => el.closest('[data-testid="trade-order-ticket-scroll"]') == null),
+      'footer must be a sibling of the ticket scrollport, not inside it'
     ).toBe(true)
 
-    // Bring sticky CTA into the window viewport (ticket column can clip mid-form).
     await submit.scrollIntoViewIfNeeded()
     await page.waitForTimeout(50)
 
-    const bgOpaque = await sticky.evaluate((el) => {
+    const bgOpaque = await footer.evaluate((el) => {
       const s = getComputedStyle(el)
       const hasImage = s.backgroundImage !== 'none' && s.backgroundImage.length > 0
       const color = s.backgroundColor
       const transparent = color === 'rgba(0, 0, 0, 0)' || color === 'transparent'
       return hasImage || !transparent
     })
-    expect(bgOpaque, 'sticky CTA background must not be fully transparent').toBe(true)
+    expect(bgOpaque, 'ticket footer background must not be fully transparent').toBe(true)
 
-    const hitSticky = await submit.evaluate((el) => {
+    const hitFooter = await submit.evaluate((el) => {
       const r = el.getBoundingClientRect()
       const x = Math.min(Math.max(r.left + r.width / 2, 0), window.innerWidth - 1)
       const y = Math.min(Math.max(r.top + r.height / 2, 0), window.innerHeight - 1)
       const hit = document.elementFromPoint(x, y)
-      return Boolean(hit?.closest('[data-testid="trade-limit-submit-sticky"]'))
+      return Boolean(hit?.closest('[data-testid="trade-ticket-submit-footer"]'))
     })
-    expect(hitSticky, 'pointer hit on scrolled-into-view Place limit must land in sticky chrome').toBe(true)
+    expect(hitFooter, 'pointer hit on Place limit must land in the ticket footer').toBe(true)
 
     const expiry = page.locator('#trade-ticket-expiry-dt')
     await expect(expiry).toBeAttached()
@@ -109,13 +114,13 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     })
     await page.waitForTimeout(50)
     const expiryBox = await expiry.boundingBox()
-    const stickyBox = await sticky.boundingBox()
+    const footerBox = await footer.boundingBox()
     expect(expiryBox, 'expiry input box').toBeTruthy()
-    expect(stickyBox, 'sticky CTA box').toBeTruthy()
+    expect(footerBox, 'ticket footer box').toBeTruthy()
     expect(
       expiryBox!.y + expiryBox!.height,
-      'expiry input should sit above the pinned sticky CTA after scroll-into-view'
-    ).toBeLessThanOrEqual(stickyBox!.y + 2)
+      'expiry input should sit above the ticket footer after scroll-into-view'
+    ).toBeLessThanOrEqual(footerBox!.y + 2)
   })
 
   test('phone width stacks order book, ticket, then chart', async ({ page }) => {
@@ -140,5 +145,200 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
 
     expect(bBook!.y).toBeLessThan(bTicket!.y)
     expect(bTicket!.y).toBeLessThan(bChart!.y)
+  })
+})
+
+type Box = { x: number; y: number; width: number; height: number }
+
+function boxesIntersect(a: Box, b: Box): boolean {
+  return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y)
+}
+
+function footerIsOpaque(el: Element): boolean {
+  const s = getComputedStyle(el)
+  const hasImage = s.backgroundImage !== 'none' && s.backgroundImage.length > 0
+  const color = s.backgroundColor
+  const transparent = color === 'rgba(0, 0, 0, 0)' || color === 'transparent'
+  return hasImage || !transparent
+}
+
+test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
+  test('P1 desktop Limit: submit docks to ticket card bottom and misses form controls', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const card = page.getByTestId('trade-order-ticket-card')
+    const submit = page.getByTestId('trade-limit-submit')
+    const footer = page.getByTestId('trade-ticket-submit-footer')
+    await expect(submit).toBeVisible()
+
+    const cardBox = await card.boundingBox()
+    const submitBox = await submit.boundingBox()
+    expect(cardBox, 'ticket card').toBeTruthy()
+    expect(submitBox, 'Place limit').toBeTruthy()
+    expect(Math.abs(submitBox!.y + submitBox!.height - (cardBox!.y + cardBox!.height))).toBeLessThanOrEqual(8)
+
+    const receive = page.getByTestId('limit-order-receive-field')
+    const expiryChip = page.getByRole('button', { name: 'No expiry' }).first()
+    const payChip = page.getByTestId('limit-order-escrow-frac-25')
+    for (const loc of [receive, expiryChip]) {
+      await expect(loc).toBeVisible()
+      const box = await loc.boundingBox()
+      expect(box, 'form control box').toBeTruthy()
+      expect(boxesIntersect(submitBox!, box!), 'Place limit must not overlap Receive/Expiry').toBe(false)
+    }
+    if ((await payChip.count()) > 0) {
+      const box = await payChip.boundingBox()
+      if (box) {
+        expect(boxesIntersect(submitBox!, box), 'Place limit must not overlap Pay % chips').toBe(false)
+      }
+    }
+
+    expect(
+      await submit.evaluate((el) => getComputedStyle(el).position !== 'fixed'),
+      'A5: CTA must not be position:fixed'
+    ).toBe(true)
+    expect(
+      await footer.evaluate((el) => Boolean(el.closest('[data-testid="trade-order-ticket-card"]'))),
+      'A5: footer stays inside the ticket card'
+    ).toBe(true)
+
+    const expiryHit = await expiryChip.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return Boolean(hit?.closest('[data-testid="trade-limit-submit"]'))
+    })
+    expect(expiryHit, 'A1: Expiry chip hit must not land on Place limit').toBe(false)
+  })
+
+  test('P2 desktop: footer stays docked after scrolling the ticket body', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const scroll = page.getByTestId('trade-order-ticket-scroll')
+    const card = page.getByTestId('trade-order-ticket-card')
+    const submit = page.getByTestId('trade-limit-submit')
+    await scroll.evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+    })
+    await page.waitForTimeout(50)
+    const cardBox = await card.boundingBox()
+    const submitBox = await submit.boundingBox()
+    expect(Math.abs(submitBox!.y + submitBox!.height - (cardBox!.y + cardBox!.height))).toBeLessThanOrEqual(8)
+  })
+
+  test('P3 desktop Market: same footer dock; no leftover Place limit', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    await page.getByTestId('trade-order-tab-market').click()
+    const market = page.getByTestId('trade-market-submit')
+    await expect(market).toBeVisible()
+    expect(await page.getByTestId('trade-limit-submit').count()).toBe(0)
+    expect(await market.evaluate((el) => Boolean(el.closest('[data-testid="trade-ticket-submit-footer"]')))).toBe(true)
+
+    const cardBox = await page.getByTestId('trade-order-ticket-card').boundingBox()
+    const submitBox = await market.boundingBox()
+    expect(Math.abs(submitBox!.y + submitBox!.height - (cardBox!.y + cardBox!.height))).toBeLessThanOrEqual(8)
+  })
+
+  test('P4 tablet: CTA docks in trade-sub-lg-ticket-col', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    const ticketCol = page.getByTestId('trade-sub-lg-ticket-col')
+    await expect(ticketCol).toBeVisible({ timeout: 90_000 })
+    const submit = ticketCol.getByTestId('trade-limit-submit')
+    await expect(submit).toBeVisible()
+    const colBox = await ticketCol.boundingBox()
+    const submitBox = await submit.boundingBox()
+    expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(colBox!.y + colBox!.height + 8)
+  })
+
+  test('P5 phone: CTA is not position:fixed and does not overlay expiry', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-sub-lg-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const submit = page.getByTestId('trade-limit-submit')
+    await expect(submit).toBeAttached()
+    expect(await submit.evaluate((el) => getComputedStyle(el).position !== 'fixed')).toBe(true)
+
+    const expiry = page.locator('#trade-ticket-expiry-dt')
+    const expiryBox = await expiry.boundingBox()
+    const submitBox = await submit.boundingBox()
+    if (expiryBox && submitBox) {
+      expect(boxesIntersect(expiryBox, submitBox), 'phone CTA must not overlay expiry').toBe(false)
+    }
+  })
+
+  test('P6 / P7 expiry datetime scrollIntoView stays above footer', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    await page.locator('summary', { hasText: 'Advanced' }).first().click()
+    const expiry = page.locator('#trade-ticket-expiry-dt')
+    await expiry.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
+    await page.waitForTimeout(50)
+    const footer = page.getByTestId('trade-ticket-submit-footer')
+    const expiryBox = await expiry.boundingBox()
+    const footerBox = await footer.boundingBox()
+    expect(expiryBox!.y + expiryBox!.height).toBeLessThanOrEqual(footerBox!.y + 2)
+
+    const hitFooter = await expiry.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return Boolean(hit?.closest('[data-testid="trade-ticket-submit-footer"]'))
+    })
+    expect(hitFooter, 'P6: datetime hit must not land on the footer').toBe(false)
+  })
+
+  test('P10 resize ticket handle: footer stays inside the ticket card', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const handle = page.getByTestId('trade-ticket-resize-handle')
+    const card = page.getByTestId('trade-order-ticket-card')
+    const footer = page.getByTestId('trade-ticket-submit-footer')
+    await expect(handle).toBeVisible()
+    const before = await card.boundingBox()
+    const box = await handle.boundingBox()
+    expect(box).toBeTruthy()
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box!.x + box!.width / 2 - 80, box!.y + box!.height / 2, { steps: 8 })
+    await page.mouse.up()
+    await page.waitForTimeout(50)
+
+    const cardBox = await card.boundingBox()
+    const footerBox = await footer.boundingBox()
+    expect(cardBox!.width).not.toBe(before!.width)
+    expect(footerBox!.x).toBeGreaterThanOrEqual(cardBox!.x - 1)
+    expect(footerBox!.x + footerBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
+  })
+
+  test('P11 dark + light footer remains opaque', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const footer = page.getByTestId('trade-ticket-submit-footer')
+    for (const theme of ['dark', 'light'] as const) {
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)
+      await page.waitForTimeout(30)
+      expect(await footer.evaluate(footerIsOpaque), `${theme} footer must be opaque`).toBe(true)
+    }
   })
 })
