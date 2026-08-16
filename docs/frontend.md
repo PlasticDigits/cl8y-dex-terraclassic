@@ -6,7 +6,7 @@ Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
-On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible.
+On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
 
 ## Tech Stack
 
@@ -1237,6 +1237,29 @@ When the **Provide Liquidity** panel is open on `/pool`, a short **impermanent l
 | **Docs link** | `Learn more` → this section (`#pool-lp-risk-disclosure`). |
 
 **Code:** `frontend-dapp/src/pages/PoolPage.tsx` (`POOL_LP_RISK_DOC`).
+
+Retail “how do I add LUNC?” is **not** this section. See [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto) and [`user-lunc-liquidity.md`](./user-lunc-liquidity.md).
+
+### Retail LUNC liquidity how-to {#retail-lunc-liquidity-howto}
+
+In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP without opening GitLab ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)). Primary surface: `/pool#lp-howto`. Human backup: [`user-lunc-liquidity.md`](./user-lunc-liquidity.md). Agent playbook: [`skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md`](../skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **H531-1** | Same-origin how-to on `/pool` names **Pool provide/withdraw** and optional **limit maker**. This file is not the only guide. |
+| **H531-2** | States pools use wrapped LUNC; **Use native LUNC (auto-wrap)** **or** `/wrap` first; bank LUNC still required for **gas**. |
+| **H531-3** | Both assets required; LUNC-only deposit is not a v2 pool action. Off-ratio provide **donates** excess. |
+| **H531-4** | States there is **no** incentive program currently. No APR / points / farm UI. |
+| **H531-5** | Withdraw via `/pool`; LP tokens are the share. |
+| **H531-6** | Limits (if mentioned) are maker escrow, **not** LP shares; in-app `/trade` or `/limits` only. |
+| **H531-7** | No always-on lecture on Swap / Trade / Limits / Wrap. Entry is a dismissible `/pool` hint plus `<details>`. |
+| **H531-8** | How-to lives on `/pool`, so tablet **More** and phone bottom-nav Pool still reach it. |
+| **H531-9** | Does not replace IL, pause, blacklist, gas, ratio warning, clickwrap, or NFA. |
+| **H531-10** | Static React copy (no `innerHTML` of indexer/wallet strings). In-app links only (Pool / Wrap / Trade / Limits / Create Pair). Mentions **Create Pair** LUNC creation fee; creating a pair is not required to LP an existing pool. Unwrap is not free. |
+
+**Code:** [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts), [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx), footer / Portfolio links to `/pool#lp-howto`.
+
+**Verify:** `make verify-issue-531`.
 
 ### Pool page — provide liquidity (UI invariants)
 

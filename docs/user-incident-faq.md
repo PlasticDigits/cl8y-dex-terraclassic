@@ -4,6 +4,8 @@ Plain-language guide for **traders and liquidity providers** when CL8Y DEX gover
 
 This is **not** financial or legal advice. For operator runbooks and on-chain invariants, see [security-model.md](./security-model.md) and [contracts-security-audit.md](./contracts-security-audit.md).
 
+How to **add or withdraw LUNC LP** on the dApp (not an incident): [user-lunc-liquidity.md](./user-lunc-liquidity.md) and `/pool#lp-howto` ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)).
+
 ## Quick summary
 
 | Control | Who it affects | Are my funds safe? | What to do |

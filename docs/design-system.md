@@ -127,6 +127,9 @@ Retail copy terms used across docs and skills ([#489](https://gitlab.com/Plastic
 | Blue primary | CTA / active tab / select-token (`--blue` / `--mint` alias). |
 | Gold accent | Logo, network chip, hairline borders/text only — not large fills. |
 | Docs link | Optional single-word control for optional depth — never replaces blocking errors. |
+| Pool / Provide / Withdraw | v2 AMM LP on `/pool`. Both tokens required. LP tokens = share. |
+| Use native LUNC (auto-wrap) | Pool checkbox: bank LUNC wraps into cLUNC in the provide tx. |
+| Limit (maker) | Resting escrow on `/trade` or `/limits` — **not** pool LP and **not** a farm. |
 | Bid / Ask (book) | Order-book column titles and on-chain side enums only; not retail place-card button copy. |
 
 ## Verification
