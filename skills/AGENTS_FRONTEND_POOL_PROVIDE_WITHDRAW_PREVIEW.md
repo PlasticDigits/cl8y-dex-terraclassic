@@ -49,3 +49,4 @@ cd frontend-dapp && npm run test:run -- \
 - Native wrap tax: [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md)
 - Pre-sign summary: [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md)
 - Docs: [`docs/frontend.md` § Pool provide liquidity](../docs/frontend.md#pool-page--provide-liquidity-ui-invariants)
+- Retail how-to (#531): [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — do not replace auto-fill / IL / ratio gates with the how-to essay
