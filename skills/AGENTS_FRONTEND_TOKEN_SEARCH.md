@@ -44,3 +44,4 @@ Manual: open Swap at ~390px width → tap pay combobox → confirm logo/padding 
 - Button listbox keyboard (Mint / MenuSelect): [`AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md)
 - Swap route display (unrelated to picker): [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
 - Pair/token empty-browse catalog (economic first, gems last): [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534))
+- Create Pair listed-CW20 catalog (do **not** reuse Swap’s factory universe): [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542))

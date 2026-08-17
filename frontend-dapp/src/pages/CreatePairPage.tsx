@@ -1,4 +1,4 @@
-import { useState, useId } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -8,6 +8,8 @@ import { formatTokenAmount } from '@/utils/formatAmount'
 import { getChainContractInfo } from '@/services/terraclassic/queries'
 import { sounds } from '@/lib/sounds'
 import { TxResultAlert } from '@/components/ui'
+import { CreatePairTokenField } from '@/components/create/CreatePairTokenField'
+import { getCreatePairCw20Addresses, sameCreatePairAddress } from '@/utils/createPairTokenCatalog'
 import { getTerraAddressInputError } from '@/utils/terraAddressValidation'
 import { UST1_CREATE_PAIR_SECONDARY_NOTICE } from '@/utils/ust1SecondaryMarket'
 
@@ -36,10 +38,9 @@ function useCodeIdCheck(tokenAddr: string) {
 export default function CreatePairPage() {
   const address = useWalletStore((s) => s.address)
   const toastApi = useOptionalToast()
-  const tokenAInputId = useId()
-  const tokenBInputId = useId()
   const [tokenA, setTokenA] = useState('')
   const [tokenB, setTokenB] = useState('')
+  const catalog = useMemo(() => getCreatePairCw20Addresses(), [])
 
   const checkA = useCodeIdCheck(tokenA)
   const checkB = useCodeIdCheck(tokenB)
@@ -63,10 +64,10 @@ export default function CreatePairPage() {
     mutationFn: async () => {
       if (!address) throw new Error('Wallet not connected')
       const tokenAError = getTerraAddressInputError(tokenA)
-      if (tokenAError) throw new Error(tokenAError)
+      if (!tokenA || tokenAError) throw new Error(tokenAError ?? 'Token A address required')
       const tokenBError = getTerraAddressInputError(tokenB)
-      if (tokenBError) throw new Error(tokenBError)
-      if (tokenA === tokenB) throw new Error('Token addresses must be different')
+      if (!tokenB || tokenBError) throw new Error(tokenBError ?? 'Token B address required')
+      if (sameCreatePairAddress(tokenA, tokenB)) throw new Error('Token addresses must be different')
       return createPair(address, tokenA, tokenB)
     },
     onSuccess: () => {
@@ -81,7 +82,8 @@ export default function CreatePairPage() {
 
   const tokenAError = getTerraAddressInputError(tokenA)
   const tokenBError = getTerraAddressInputError(tokenB)
-  const isValid = !tokenAError && !tokenBError && tokenA !== tokenB
+  const sameTokens = sameCreatePairAddress(tokenA, tokenB)
+  const isValid = Boolean(tokenA) && Boolean(tokenB) && !tokenAError && !tokenBError && !sameTokens
   const hasWhitelistWarning = (checkA.data && !checkA.data.valid) || (checkB.data && !checkB.data.valid)
 
   return (
@@ -100,57 +102,27 @@ export default function CreatePairPage() {
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label className="label-glass" htmlFor={tokenAInputId}>
-                Token A Contract Address
-              </label>
-              <input
-                id={tokenAInputId}
-                type="text"
-                value={tokenA}
-                onChange={(e) => setTokenA(e.target.value)}
-                placeholder="terra1..."
-                className="input-glass font-mono"
-              />
-              {tokenAError && (
-                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">{tokenAError}</p>
-              )}
-              {checkA.data && !checkA.data.valid && (
-                <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">
-                  {checkA.data.reason}
-                </p>
-              )}
-              {checkA.data?.valid && (
-                <p className="text-green-400 text-xs mt-1 uppercase tracking-wide font-semibold">Code ID whitelisted</p>
-              )}
-            </div>
+            <CreatePairTokenField
+              label="Token A"
+              selectAriaLabel="Select token A"
+              value={tokenA}
+              onChange={setTokenA}
+              catalog={catalog}
+              excludeToken={tokenB}
+              codeIdCheck={checkA.data ?? null}
+            />
 
-            <div>
-              <label className="label-glass" htmlFor={tokenBInputId}>
-                Token B Contract Address
-              </label>
-              <input
-                id={tokenBInputId}
-                type="text"
-                value={tokenB}
-                onChange={(e) => setTokenB(e.target.value)}
-                placeholder="terra1..."
-                className="input-glass font-mono"
-              />
-              {tokenBError && (
-                <p className="text-red-400 text-xs mt-1 uppercase tracking-wide font-semibold">{tokenBError}</p>
-              )}
-              {checkB.data && !checkB.data.valid && (
-                <p className="text-amber-400 text-xs mt-1 uppercase tracking-wide font-semibold">
-                  {checkB.data.reason}
-                </p>
-              )}
-              {checkB.data?.valid && (
-                <p className="text-green-400 text-xs mt-1 uppercase tracking-wide font-semibold">Code ID whitelisted</p>
-              )}
-            </div>
+            <CreatePairTokenField
+              label="Token B"
+              selectAriaLabel="Select token B"
+              value={tokenB}
+              onChange={setTokenB}
+              catalog={catalog}
+              excludeToken={tokenA}
+              codeIdCheck={checkB.data ?? null}
+            />
 
-            {tokenA && tokenB && tokenA === tokenB && (
+            {sameTokens && (
               <p className="text-red-400 text-sm uppercase tracking-wide font-semibold">
                 Token addresses must be different
               </p>

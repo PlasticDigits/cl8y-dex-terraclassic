@@ -25,7 +25,7 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "public/chains/chainlist.json"],
+  "include": ["src", "public/chains/chainlist.json", "../tokenlist/tokenlist.json"],
   "exclude": [
     "src/test",
     "src/**/*.test.ts",

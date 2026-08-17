@@ -2,6 +2,8 @@
 
 Community-maintained token list for the CL8Y DEX on Terra Classic.
 
+Create Pair picker reads this list (**CW20 only** — natives are never selectable). See [`docs/frontend.md` § Create pair listed CW20 picker](../docs/frontend.md#create-pair-token-picker) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)).
+
 **Raw token list URL:**
 ```
 https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/tokenlist.json
