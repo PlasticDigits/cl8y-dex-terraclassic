@@ -147,7 +147,7 @@ These use **consolidated** `swap_events` amounts (same rule as CG/CMC):
 - `token_volume_stats` / `volume_aggregator`
 - Trader `total_volume` (taker swaps)
 
-`volume_usd` is best-effort from oracle pricing on consolidated amounts; hybrid legs do not change the USD formula independently.
+`volume_usd` is best-effort from the P522-Q catalog on consolidated `offer_amount`/`return_amount` (one notional per swap, **L10**); hybrid legs do not change the USD formula independently ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)).
 
 ---
 

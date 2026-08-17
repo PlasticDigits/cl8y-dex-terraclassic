@@ -5,11 +5,13 @@ export interface StatBoxProps {
   value: string
   loading?: boolean
   color?: string
+  'data-testid'?: string
+  title?: string
 }
 
-export function StatBox({ label, value, loading, color }: StatBoxProps) {
+export function StatBox({ label, value, loading, color, 'data-testid': testId, title }: StatBoxProps) {
   return (
-    <div className="card-glass !p-3">
+    <div className="card-glass !p-3" data-testid={testId} title={title}>
       <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
         {label}
       </p>

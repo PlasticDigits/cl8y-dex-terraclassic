@@ -10,7 +10,7 @@ Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md). Agen
 2. On cache miss, [`get_global_stats`](../../indexer/src/db/queries/volume.rs) reads the single row in **`global_stats_24h`** (O(1) primary key fetch).
 3. The rollup is refreshed every **~5 minutes** by [`volume_aggregator.rs`](../../indexer/src/indexer/volume_aggregator.rs) and once at indexer startup in [`poller.rs`](../../indexer/src/indexer/poller.rs).
 
-Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss.
+Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss. **`token_count`** is unique pair-leg assets (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Charts displays **USD-only** 24h volume; `total_volume_24h` remains raw for API clients. After catalog backfill (`20260817120000_backfill_swap_volume_usd_catalog.sql`), refresh this rollup (migration already does).
 
 ### Debug: live aggregate
 

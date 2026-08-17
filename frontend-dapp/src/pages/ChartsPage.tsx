@@ -26,6 +26,11 @@ import {
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
 import { formatNum } from '@/utils/formatAmount'
+import {
+  formatChartsOverviewCount,
+  formatChartsOverviewUstcUsd,
+  formatChartsOverviewVolumeUsd,
+} from '@/utils/chartsOverviewStats'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
@@ -268,44 +273,39 @@ export default function ChartsPage() {
       )}
 
       {(!marketDataDown || overviewQuery.isLoading || overview) && (
-        <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatBox
-            label="24h Volume"
-            value={overview ? formatNum(overview.total_volume_24h) : '—'}
-            loading={overviewQuery.isLoading}
-          />
+        <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatBox
             label="24h Volume (USD)"
+            title="24h volume in USD"
             value={
-              overview?.total_volume_24h_usd != null && overview.total_volume_24h_usd !== ''
-                ? formatNum(overview.total_volume_24h_usd, 2)
-                : '—'
+              overview ? formatChartsOverviewVolumeUsd(overview.total_volume_24h_usd, overview.total_trades_24h) : '—'
             }
             loading={overviewQuery.isLoading}
+            data-testid="charts-overview-volume-usd"
           />
           <StatBox
             label="USTC / USD"
-            value={
-              overview?.ustc_price_usd != null && overview.ustc_price_usd !== ''
-                ? `$${formatNum(overview.ustc_price_usd, 6)}`
-                : '—'
-            }
+            value={overview ? formatChartsOverviewUstcUsd(overview.ustc_price_usd) : '—'}
             loading={overviewQuery.isLoading}
+            data-testid="charts-overview-ustc-usd"
           />
           <StatBox
             label="24h Trades"
-            value={overview ? overview.total_trades_24h.toLocaleString() : '—'}
+            value={overview ? formatChartsOverviewCount(overview.total_trades_24h) : '—'}
             loading={overviewQuery.isLoading}
+            data-testid="charts-overview-trades"
           />
           <StatBox
             label="Pairs"
-            value={overview ? overview.pair_count.toString() : '—'}
+            value={overview ? formatChartsOverviewCount(overview.pair_count) : '—'}
             loading={overviewQuery.isLoading}
+            data-testid="charts-overview-pairs"
           />
           <StatBox
             label="Tokens"
-            value={overview ? overview.token_count.toString() : '—'}
+            value={overview ? formatChartsOverviewCount(overview.token_count) : '—'}
             loading={overviewQuery.isLoading}
+            data-testid="charts-overview-tokens"
           />
         </div>
       )}

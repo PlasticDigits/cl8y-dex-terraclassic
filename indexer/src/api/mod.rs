@@ -19,6 +19,8 @@ mod oracle;
 pub mod hybrid_orderbook_sim;
 pub mod orderbook_sim;
 mod overview;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use overview::reset_overview_cache;
 mod pairs;
 mod route_graph;
 mod route_paths;

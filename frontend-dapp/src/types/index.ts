@@ -374,9 +374,10 @@ export interface IndexerPairStats {
 }
 
 export interface IndexerOverview {
+  /** Raw mixed-decimal `SUM(offer_amount)` for integrators — Charts must not display this (#548). */
   total_volume_24h: string
-  /** Quote-side 24h volume valued in USD (indexer oracle) */
-  total_volume_24h_usd?: string
+  /** Human USD 24h volume. JSON `null` when trades > 0 but unpriced. `"0"` only when idle. */
+  total_volume_24h_usd?: string | null
   total_trades_24h: number
   pair_count: number
   token_count: number
