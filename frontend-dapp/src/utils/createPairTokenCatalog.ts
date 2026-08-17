@@ -96,8 +96,9 @@ export function buildCreatePairCw20Options(input: CreatePairCatalogInput): Creat
 
 /** Live catalog: bundled `tokenlist.json` + Vite env overlays + LocalTerra gems. */
 export function getCreatePairCw20Options(): CreatePairCw20Option[] {
+  const published = publishedTokenlist as { tokens: readonly CreatePairTokenlistRow[] }
   return buildCreatePairCw20Options({
-    tokenlistTokens: publishedTokenlist.tokens,
+    tokenlistTokens: published.tokens,
     overlays: {
       cLUNC: LUNC_C_TOKEN_ADDRESS,
       cUSTC: USTC_C_TOKEN_ADDRESS,

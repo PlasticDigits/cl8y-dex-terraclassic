@@ -34,7 +34,7 @@ export function usePositiveWalletTokens(address: string | null | undefined, cand
       return { tokenIds: candidates, empty: false, loading: false }
     }
     const loading = queries.some((q) => q.isLoading)
-    const tokenIds = candidates.filter((id, i) => {
+    const tokenIds = candidates.filter((_, i) => {
       const raw = queries[i]?.data
       if (!raw || raw === '0') return false
       try {
