@@ -20,7 +20,7 @@ Factory `pairs` (and indexer `sort=volume_24h` when volumes are 0 or raw 18-dec)
 - **Don’t** pass raw 18-dec volume into `formatNum` (compact `T` is not a volume formatter here).
 - **Don’t** change indexer JSON: `volume_quote_24h` stays a **raw** integer. Overlay rank in the dApp.
 - **Don’t** collapse the **Test pairs** divider (optional in the issue; we show it, not collapsed).
-- **Don’t** reorder `/pool` card lists that the user sorted by fee/created/id.
+- **Don’t** secretly re-apply catalog overlay on `/pool` **after** the user sorts by volume/fee/created/name ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)). Default `/pool` **is** catalog-ranked.
 
 ## Canonical code
 
@@ -32,7 +32,7 @@ Factory `pairs` (and indexer `sort=volume_24h` when volumes are 0 or raw 18-dec)
 | `frontend-dapp/src/pages/TradePage.tsx` | Catalog auto-pick |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Catalog rank on pair `MenuSelect` |
 | `frontend-dapp/src/utils/tokenSearchQuery.ts` | Swap token empty browse (**P534-7**) |
-| `frontend-dapp/src/pages/PoolPage.tsx` | Human 24h vol on cards only |
+| `frontend-dapp/src/pages/PoolPage.tsx` | Default catalog table ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)); human 24h vol via `formatQuoteVolume24h` |
 
 ## Rank (empty browse)
 
@@ -51,6 +51,7 @@ Vitest: `pairCatalogRank.test.ts`, `formatAmount.test.ts` (`formatQuoteVolume24h
 
 ## Related
 
+- [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` default catalog + column sorts ([GitLab **#547**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547))
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap token combobox
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — Create Pair listed CW20s (not the factory graph) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542))
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — prices are human; **pair list volume is still raw**

@@ -1,6 +1,6 @@
 import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   getOverview,
   getPairs,
@@ -35,6 +35,7 @@ import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairP
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
+import { chartsPairHref, getInvalidChartsPairRouteParam, isChartsPairRouteParam } from '@/utils/chartsPairRoute'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
@@ -70,7 +71,12 @@ const ORDER_OPTIONS: MenuSelectOption[] = [
 ]
 
 export default function ChartsPage() {
-  const [selectedPairAddr, setSelectedPairAddr] = useState<string>('')
+  const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
+  const navigate = useNavigate()
+  const routeTrimmed = routePair?.trim()
+  const validRoutePair = isChartsPairRouteParam(routeTrimmed) ? routeTrimmed : ''
+  const invalidRoutePair = getInvalidChartsPairRouteParam(routePair)
+  const [selectedPairAddr, setSelectedPairAddr] = useState<string>(validRoutePair)
   const [pairSearch, setPairSearch] = useState('')
   const [pairSort, setPairSort] = useState<IndexerPairSort>('volume_24h')
   const [pairOrder, setPairOrder] = useState<'asc' | 'desc'>('desc')
@@ -110,6 +116,16 @@ export default function ChartsPage() {
   const needsPairFetch =
     !!selectedPairAddr && !(pairItems ?? []).some((p: IndexerPair) => p.pair_address === selectedPairAddr)
 
+  useEffect(() => {
+    if (validRoutePair) setSelectedPairAddr(validRoutePair)
+  }, [validRoutePair])
+
+  const selectPair = (addr: string) => {
+    setSelectedPairAddr(addr)
+    const href = chartsPairHref(addr)
+    if (href) navigate(href, { replace: true })
+  }
+
   const selectedPairQuery = useQuery({
     queryKey: ['indexer-pair-one', selectedPairAddr],
     queryFn: () => getPair(selectedPairAddr),
@@ -118,11 +134,13 @@ export default function ChartsPage() {
     retry: false,
   })
 
+  const unknownDeepLink = !!validRoutePair && selectedPairQuery.isError
+
   useEffect(() => {
-    if (selectedPairQuery.isError) {
-      setSelectedPairAddr('')
-    }
-  }, [selectedPairQuery.isError])
+    if (!selectedPairQuery.isError) return
+    if (validRoutePair && selectedPairAddr === validRoutePair) return
+    setSelectedPairAddr('')
+  }, [selectedPairQuery.isError, validRoutePair, selectedPairAddr])
 
   const pairOptions = useMemo(() => {
     const list = [...(pairItems ?? [])]
@@ -142,24 +160,25 @@ export default function ChartsPage() {
   )
 
   useEffect(() => {
+    if (validRoutePair) return
     if (pairOptions.length === 0) return
     if (!selectedPairAddr) return
     if (pairOptions.some((p) => p.pair_address === selectedPairAddr)) return
     if (needsPairFetch && selectedPairQuery.isLoading) return
     setSelectedPairAddr(pairOptions[0].pair_address)
-  }, [pairOptions, selectedPairAddr, needsPairFetch, selectedPairQuery.isLoading])
+  }, [pairOptions, selectedPairAddr, needsPairFetch, selectedPairQuery.isLoading, validRoutePair])
 
   const statsQuery = useQuery({
     queryKey: ['pair-stats', activePairAddr],
     queryFn: () => getPairStats(activePairAddr),
-    enabled: !!activePairAddr,
+    enabled: !!activePairAddr && !unknownDeepLink,
     refetchInterval: 30_000,
   })
 
   const tradesQuery = useQuery({
     queryKey: ['pair-trades', activePairAddr],
     queryFn: () => getTrades(activePairAddr, 50),
-    enabled: !!activePairAddr,
+    enabled: !!activePairAddr && !unknownDeepLink,
     refetchInterval: 15_000,
   })
 
@@ -210,7 +229,7 @@ export default function ChartsPage() {
   const twapQuery = useQuery({
     queryKey: ['twap-prices', activePairAddr],
     queryFn: () => getTwapPrices(activePairAddr, TWAP_WINDOWS),
-    enabled: !!activePairAddr,
+    enabled: !!activePairAddr && !unknownDeepLink,
     staleTime: 30_000,
     refetchInterval: 60_000,
     retry: false,
@@ -219,7 +238,7 @@ export default function ChartsPage() {
   const oracleInfoQuery = useQuery({
     queryKey: ['oracle-info', activePairAddr],
     queryFn: () => getOracleInfo(activePairAddr),
-    enabled: !!activePairAddr,
+    enabled: !!activePairAddr && !unknownDeepLink,
     staleTime: 60_000,
     retry: false,
   })
@@ -354,9 +373,29 @@ export default function ChartsPage() {
           emptyLabel="No pairs yet"
           onChange={(v) => {
             sounds.playButtonPress()
-            setSelectedPairAddr(v)
+            selectPair(v)
           }}
         />
+        {invalidRoutePair ? (
+          <p
+            className="text-xs mt-2"
+            style={{ color: 'var(--ink-dim)' }}
+            role="status"
+            data-testid="charts-invalid-pair-notice"
+          >
+            This chart link is not a pair address.
+          </p>
+        ) : null}
+        {unknownDeepLink ? (
+          <p
+            className="text-xs mt-2"
+            style={{ color: 'var(--ink-dim)' }}
+            role="status"
+            data-testid="charts-unknown-pair-notice"
+          >
+            Pair not found.
+          </p>
+        ) : null}
         {activePair ? (
           <PairTokenLinks
             pairAddress={activePair.pair_address}

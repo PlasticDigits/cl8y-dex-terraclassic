@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import { Route, Routes } from 'react-router-dom'
 import ChartsPage from './ChartsPage'
 import { renderWithProviders } from '@/test-utils'
 import * as indexerClient from '@/services/indexer/client'
@@ -232,6 +233,46 @@ describe('ChartsPage (component)', () => {
       expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
       expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
       expect(screen.getByTestId('token-identity-pair')).toBeInTheDocument()
+    })
+  })
+
+  describe('pair deep link (GitLab #547)', () => {
+    const DEEP = 'terra1pair0000000000000000000000000000000001'
+
+    function renderCharts(route: string) {
+      return renderWithProviders(
+        <Routes>
+          <Route path="/charts" element={<ChartsPage />} />
+          <Route path="/charts/:pairAddr" element={<ChartsPage />} />
+        </Routes>,
+        { route }
+      )
+    }
+
+    it('H2: valid :pairAddr selects that pair', async () => {
+      const deepPair: IndexerPair = { ...mockPair, pair_address: DEEP }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [mockPair, deepPair],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      })
+      renderCharts(`/charts/${DEEP}`)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(DEEP, expect.any(String)))
+    })
+
+    it('H3: invalid param shows a notice and does not fetch the junk segment', async () => {
+      vi.mocked(indexerClient.getPair).mockClear()
+      renderCharts('/charts/not-a-terra')
+      expect(await screen.findByTestId('charts-invalid-pair-notice')).toBeInTheDocument()
+      expect(indexerClient.getPair).not.toHaveBeenCalledWith('not-a-terra')
+      expect(document.body.innerHTML).not.toMatch(/javascript:/)
+    })
+
+    it('H4: unknown but valid terra1 does not crash', async () => {
+      vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('not found'))
+      renderCharts(`/charts/${DEEP}`)
+      expect(await screen.findByTestId('charts-unknown-pair-notice')).toBeInTheDocument()
     })
   })
 })

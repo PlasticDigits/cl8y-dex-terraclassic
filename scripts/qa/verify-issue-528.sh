@@ -69,8 +69,8 @@ run_step "code: presets + default 5% + max_spread helper unchanged" \
   bash -c '! grep -qE "dangerouslySetInnerHTML|innerHTML" frontend-dapp/src/components/common/SlippageProtectionPresets.tsx frontend-dapp/src/utils/slippageProtectionCopy.ts'
 
 run_step "code: Pool withdraw 0.5/1.0/2.0 set untouched" \
-  grep -qE "\['0.5', '1.0', '2.0'\]" frontend-dapp/src/pages/PoolPage.tsx && \
-  bash -c '! grep -qE "SlippageProtectionPresets" frontend-dapp/src/pages/PoolPage.tsx'
+  grep -qE "\['0.5', '1.0', '2.0'\]" frontend-dapp/src/components/pool/PoolAdvancedManage.tsx && \
+  bash -c '! grep -qE "SlippageProtectionPresets" frontend-dapp/src/components/pool/PoolAdvancedManage.tsx'
 
 run_step "docs: frontend.md S528-1–S528-10 + swap-max-spread invariant 10" \
   grep -qE 'slippage-protection-preset-align' docs/frontend.md && \

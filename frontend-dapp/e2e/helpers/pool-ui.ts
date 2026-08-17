@@ -28,6 +28,13 @@ export function poolCardAdvanced(scope: Locator) {
 }
 
 export async function openPoolCardAdvanced(scope: Locator): Promise<void> {
+  const manage = scope.getByTestId('pool-row-manage').first()
+  if ((await manage.count()) > 0) {
+    const expanded = await manage.getAttribute('aria-expanded')
+    if (expanded !== 'true') {
+      await manage.click()
+    }
+  }
   const details = poolCardAdvanced(scope)
   await details.waitFor({ state: 'visible' })
   if ((await details.getAttribute('open')) == null) {

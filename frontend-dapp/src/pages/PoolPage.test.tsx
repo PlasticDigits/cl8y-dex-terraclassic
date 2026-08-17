@@ -128,6 +128,10 @@ const mockIndexerPair = (pairAddr: string): IndexerPair => ({
 })
 
 async function openPoolCardAdvanced(user: ReturnType<typeof userEvent.setup>) {
+  const manage = await screen.findByTestId('pool-row-manage')
+  if (manage.getAttribute('aria-expanded') !== 'true') {
+    await user.click(manage)
+  }
   const details = await screen.findByTestId('pool-card-advanced')
   if (!(details as HTMLDetailsElement).open) {
     await user.click(details.querySelector('summary') as HTMLElement)
@@ -166,9 +170,9 @@ describe('PoolPage', () => {
     )
   })
 
-  it('renders without crashing', () => {
+  it('renders without crashing', async () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
-    expect(screen.getByText(/liquidity pools/i)).toBeTruthy()
+    expect(await screen.findByTestId('pool-pairs-table')).toBeTruthy()
   })
 
   it('renders one-sided add and withdraw cards (GitLab #533)', () => {
@@ -443,7 +447,7 @@ describe('PoolPage', () => {
     expect(screen.getByRole('button', { name: /Not enough LUNC for gas/i })).toBeDisabled()
   })
 
-  it('explains indexer-sourced list and shows factory vs indexer counts when data loads', async () => {
+  it('strips page lectures and shows a sortable table (GitLab #547)', async () => {
     vi.mocked(getAllPairsPaginated).mockResolvedValue({
       pairs: [
         {
@@ -460,20 +464,17 @@ describe('PoolPage', () => {
       offset: 0,
     })
     renderWithProviders(<PoolPage />, { route: '/pool' })
-    await waitFor(() => expect(screen.getByText(/2 pair\(s\) \(indexer total\)/i)).toBeInTheDocument())
-    expect(screen.getByText(/List source:/i)).toBeInTheDocument()
-    const docsLink = screen.getByText(/Data sources \(docs\)/i).closest('a')
-    expect(docsLink).toHaveAttribute(
-      'href',
-      'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#liquidity-pools-list-indexer-vs-factory'
-    )
-    await waitFor(() => expect(screen.getByText(/1 on-chain \(factory, router graph\)/i)).toBeInTheDocument())
-    expect(
-      await screen.findByText(/indexer reports 2 pair\(s\) while the factory currently lists 1/i)
-    ).toBeInTheDocument()
+    expect(await screen.findByTestId('pool-pairs-table')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Liquidity Pools/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/List source:/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/indexed tokens/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/factory, router graph/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pool-fee-discount-eligibility-note')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Router-known/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Sort$/i)).not.toBeInTheDocument()
   })
 
-  it('shows In router (factory) vs Indexer only badges from the factory set (no per-card verify)', async () => {
+  it('shows compact Factory vs Indexer marks from the factory set (no per-row LCD verify)', async () => {
     vi.mocked(getAllPairsPaginated).mockResolvedValue({
       pairs: [
         {
@@ -490,33 +491,15 @@ describe('PoolPage', () => {
       offset: 0,
     })
     renderWithProviders(<PoolPage />, { route: '/pool' })
-    expect(await screen.findByText('In router (factory)')).toBeInTheDocument()
-    expect(await screen.findByText('Indexer only')).toBeInTheDocument()
+    expect(await screen.findByTestId('pool-row-factory')).toHaveTextContent('Factory')
+    expect(screen.getByTestId('pool-row-indexer-only')).toHaveTextContent('Indexer')
   })
 
-  it('filters the current page to factory pairs when the filter is on', async () => {
-    vi.mocked(getAllPairsPaginated).mockResolvedValue({
-      pairs: [
-        {
-          asset_infos: [{ token: { contract_addr: 't1' } }, { token: { contract_addr: 't2' } }],
-          contract_addr: 'inFactory',
-          liquidity_token: 'lp',
-        },
-      ],
-    })
-    vi.mocked(indexerClient.getPairs).mockResolvedValue({
-      items: [mockIndexerPair('inFactory'), mockIndexerPair('notInFactory')],
-      total: 2,
-      limit: 20,
-      offset: 0,
-    })
-    const user = userEvent.setup()
+  it('does not offer a Router-known filter (GitLab #547 AC7)', async () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
-    await screen.findByText('In router (factory)')
-    const filter = screen.getByRole('checkbox', { name: /Router-known \(factory\) only on this page/i })
-    await user.click(filter)
-    expect(screen.getAllByText('In router (factory)').length).toBe(1)
-    expect(screen.queryByText('Indexer only')).not.toBeInTheDocument()
+    await screen.findByTestId('pool-pairs-table')
+    expect(screen.queryByTestId('pool-filter-router')).not.toBeInTheDocument()
+    expect(document.getElementById('pool-filter-router')).toBeNull()
   })
 
   it('shows retail market-data banner when pair list fails with transport error (GitLab #215)', async () => {
@@ -661,6 +644,110 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await screen.findByTestId('pair-token-links')
       expect(screen.queryByRole('link', { name: /uluna/i })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('sortable table + catalog default (GitLab #547)', () => {
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+    const EMBER = 'terra1ember00000000000000000000000000000001'
+    const CORAL = 'terra1coral00000000000000000000000000000002'
+    const UST1_PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+    const GEM_PAIR = 'terra1gempair0000000000000000000000000000001'
+
+    function catalogPairs(): IndexerPair[] {
+      return [
+        {
+          pair_address: GEM_PAIR,
+          asset_0: { symbol: 'EMBER', contract_addr: EMBER, denom: null, decimals: 6 },
+          asset_1: { symbol: 'CORAL', contract_addr: CORAL, denom: null, decimals: 6 },
+          lp_token: 'lp-gem',
+          fee_bps: 30,
+          is_active: true,
+          volume_quote_24h: '999999',
+        },
+        {
+          pair_address: UST1_PAIR,
+          asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+          asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+          lp_token: 'lp-ust1',
+          fee_bps: 30,
+          is_active: true,
+          volume_quote_24h: '1',
+        },
+      ]
+    }
+
+    it('S1: default catalog ranks UST1 ahead of gems', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const links = await screen.findAllByTestId('pool-row-charts')
+      expect(links[0]).toHaveAttribute('href', `/charts/${UST1_PAIR}`)
+      expect(links[1]).toHaveAttribute('href', `/charts/${GEM_PAIR}`)
+      expect(indexerClient.getPairs).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 500, sort: 'volume_24h', order: 'desc' })
+      )
+    })
+
+    it('S2/S3: Vol header calls indexer volume_24h and toggles order', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      await user.click(screen.getByTestId('pool-sort-vol'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'volume_24h', order: 'desc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'descending')
+      await user.click(screen.getByTestId('pool-sort-vol'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'volume_24h', order: 'asc', limit: 20 })
+        )
+      )
+    })
+
+    it('S4: Pair header sorts by symbol without catalog overlay', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await user.click(await screen.findByTestId('pool-sort-pair'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'symbol', order: 'asc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-pair').closest('th')).toHaveAttribute('aria-sort', 'ascending')
+      expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'none')
+    })
+
+    it('H1: Charts link is same-origin /charts/:pairAddr', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const link = await screen.findAllByTestId('pool-row-charts')
+      expect(link[0]).toHaveAttribute('href', `/charts/${UST1_PAIR}`)
     })
   })
 })

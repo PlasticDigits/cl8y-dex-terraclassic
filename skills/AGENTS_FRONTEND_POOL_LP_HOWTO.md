@@ -14,7 +14,7 @@ Support already told users they can provide/withdraw v2 LP or place limits, and 
 | [`docs/frontend.md` § Retail LUNC liquidity how-to](../docs/frontend.md#retail-lunc-liquidity-howto) | Invariants **H531-1–H531-10** |
 | [`docs/user-lunc-liquidity.md`](../docs/user-lunc-liquidity.md) | Human backup (GitLab); in-app is primary |
 | [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts) | Static retail strings + forbidden-copy check |
-| [`poolLpHowto.ts`](../frontend-dapp/src/utils/poolLpHowto.ts) | Hint dismiss `cl8y-dex-pool-lp-howto-hint-dismissed` |
+| [`poolLpHowto.ts`](../frontend-dapp/src/utils/poolLpHowto.ts) | Section dismiss `cl8y-dex-pool-lp-howto-section-dismissed` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)) |
 | [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx) | Dismissible hint + `<details>` on `/pool` (`#lp-howto`) |
 | [`LegalFooterNotice.tsx`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) | Footer **Add liquidity** → `/pool#lp-howto` |
 | [`PortfolioLpOverviewSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioLpOverviewSection.tsx) | **How to add liquidity** next to Manage on Pool |
@@ -31,7 +31,7 @@ Support already told users they can provide/withdraw v2 LP or place limits, and 
 4. **H531-4** — No incentive program. No APR / points / farm chrome.
 5. **H531-5** — Withdraw on `/pool`; LP tokens are the share.
 6. **H531-6** — Limits are maker escrow, not LP. Link `/trade` or `/limits` only.
-7. **H531-7** — No always-on lecture on Swap/Trade/Limits/Wrap. `/pool` hint is dismissible; `<details>` stays.
+7. **H531-7** — No always-on lecture on Swap/Trade/Limits/Wrap. `/pool` how-to (hint **and** `<details>`) is dismissible (`cl8y-dex-pool-lp-howto-section-dismissed`); `#lp-howto` restores ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)).
 8. **H531-8** — How-to is on `/pool` so More / mobile Pool still find it.
 9. **H531-9** — IL, pause, blacklist, gas, ratio, clickwrap, NFA unchanged.
 10. **H531-10** — Static React (no `innerHTML`). In-app links only. Mention **Create Pair** LUNC creation fee; creating a pair is not required to LP an existing pool. Unwrap is not free.
@@ -60,6 +60,7 @@ Issue: [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 
 ## Related
 
+- [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` table + how-to section dismiss ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547))
 - Copy / no lectures: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) (`#489`)
 - Onboarding strip: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) (`#417`)
 - Provide/withdraw preview: [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md) (`#480`)

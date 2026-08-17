@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -132,8 +133,16 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
     })
   })
 
+  async function openManage() {
+    const user = userEvent.setup()
+    const manage = await screen.findByTestId('pool-row-manage')
+    await user.click(manage)
+    return user
+  }
+
   it('shows strikethrough discounted fee on the pool card when discount_bps > 0', async () => {
     renderWithProviders(<PoolPage />)
+    await openManage()
     const badge = await screen.findByTestId('pool-fee-badge')
     await waitFor(() => {
       expect(badge).toHaveTextContent('1.35%')
@@ -146,6 +155,7 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
     vi.mocked(getPairDiscountRegistry).mockResolvedValue(null)
 
     renderWithProviders(<PoolPage />)
+    await openManage()
     const badge = await screen.findByTestId('pool-fee-badge')
     expect(badge).toHaveTextContent('1.80%')
     expect(badge).not.toHaveTextContent('1.35%')
@@ -163,6 +173,7 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
 
     renderWithProviders(<PoolPage />)
 
+    await openManage()
     const cta = await screen.findByTestId('pool-fee-discount-unregistered-cta')
     expect(cta).toHaveTextContent(FEE_DISCOUNT_UNREGISTERED_CTA_TEXT)
     expect(cta.querySelector('a')?.getAttribute('href')).toBe('/tiers')
@@ -200,19 +211,22 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
 
   it('does not show outage warning when a registered trader has a healthy registry', async () => {
     renderWithProviders(<PoolPage />)
+    await openManage()
     await waitFor(() => expect(screen.getByTestId('pool-fee-badge')).toBeInTheDocument())
     expect(screen.queryByTestId('pool-fee-discount-registry-warning')).not.toBeInTheDocument()
   })
 
-  it('surfaces eligibility copy when fee discount is configured', async () => {
+  it('does not show header eligibility essay; I14 CTA stays on Manage expand (GitLab #547)', async () => {
     renderWithProviders(<PoolPage />)
-    expect(await screen.findByTestId('pool-fee-discount-eligibility-note')).toBeInTheDocument()
+    await screen.findByTestId('pool-pairs-table')
+    expect(screen.queryByTestId('pool-fee-discount-eligibility-note')).not.toBeInTheDocument()
   })
 
   it('shows full pair fee without strikethrough when the pair discount_registry is unset (#537)', async () => {
     vi.mocked(getPairDiscountRegistry).mockResolvedValue(null)
 
     renderWithProviders(<PoolPage />)
+    await openManage()
     const badge = await screen.findByTestId('pool-fee-badge')
     expect(badge).toHaveTextContent('1.80%')
     expect(badge).not.toHaveTextContent('1.35%')
@@ -224,6 +238,7 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
     vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1otherdiscountregistry0000000000000000000001')
 
     renderWithProviders(<PoolPage />)
+    await openManage()
     const badge = await screen.findByTestId('pool-fee-badge')
     expect(badge).toHaveTextContent('1.80%')
     expect(badge.querySelector('.line-through')).toBeNull()

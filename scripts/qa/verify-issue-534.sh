@@ -57,7 +57,7 @@ run_step "code: PairSearchSelect uses catalog sort + formatQuoteVolume24h" \
 run_step "code: Trade auto-pick + Charts catalog rank" \
   grep -qE 'firstCatalogPairAddress' frontend-dapp/src/pages/TradePage.tsx && \
   grep -qE 'sortIndexerPairsByCatalog' frontend-dapp/src/pages/ChartsPage.tsx && \
-  grep -qE 'formatQuoteVolume24h' frontend-dapp/src/pages/PoolPage.tsx
+  grep -qE 'formatQuoteVolume24h' frontend-dapp/src/components/pool/PoolPairsTable.tsx
 
 run_step "code: Swap token empty browse uses compareTokenCatalog" \
   grep -qE 'compareTokenCatalog' frontend-dapp/src/utils/tokenSearchQuery.ts
