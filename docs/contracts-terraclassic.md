@@ -198,6 +198,8 @@ Liquidity-share tokens use CW20 **`decimals = LP_TOKEN_DECIMALS`** (18). `MINIMU
 | `GetHooks`           | —                  | `HooksResponse`              |
 | `GetDiscountRegistry`| —                  | `DiscountRegistryResponse`   |
 
+`GetDiscountRegistry` is documented for integrators but **is not implemented on live pair wasm (1.13.0)** — `QueryMsg` has no variant yet (CreatePair inherit / query follow-up). Read `DISCOUNT_REGISTRY` via LCD raw key `discount_registry` (`/raw/ZGlzY291bnRfcmVnaXN0cnk=`). JSON `null` means the pair is **unwired** and charges full `fee_bps` (GitLab [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537), invariant **I14**). The dApp uses that probe (smart-query fallback when raw is blocked) and must not advertise `VITE_FEE_DISCOUNT_ADDRESS` discounts unless the stored address matches.
+
 ### Event Attributes (swap)
 
 | Attribute           | Description                          |

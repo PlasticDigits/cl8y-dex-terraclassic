@@ -2,7 +2,9 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getTraderDiscount, getRegistration } from '@/services/terraclassic/feeDiscount'
 import { getFeeDiscountHealth } from '@/services/indexer/client'
+import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
 import { FEE_DISCOUNT_CONTRACT_ADDRESS } from '@/utils/constants'
+import { advertisedDiscountBps, pairFeeDiscountApplies } from '@/utils/pairDiscountRegistry'
 import { useWalletStore } from '@/hooks/useWallet'
 import {
   resolveFeeDiscountRegistryStatus,
@@ -12,12 +14,15 @@ import {
 } from '@/utils/feeDiscountRegistryWarning'
 
 /**
- * Shared fee-discount registry queries + status for Swap and Pool (GitLab #374 / #476).
+ * Shared fee-discount registry queries + status for Swap and Pool (GitLab #374 / #476 / #537).
  * React Query keys match prior page-local wiring so caches stay shared across surfaces.
+ *
+ * Pass `pairAddr` to gate advertised `discountBps` on that pair's `DISCOUNT_REGISTRY` (I14).
  */
-export function useFeeDiscountRegistryStatus() {
+export function useFeeDiscountRegistryStatus(pairAddr?: string) {
   const address = useWalletStore((s) => s.address)
   const feeDiscountConfigured = !!FEE_DISCOUNT_CONTRACT_ADDRESS
+  const pairQueryAddr = pairAddr?.startsWith('terra1') ? pairAddr : undefined
 
   const discountQuery = useQuery({
     queryKey: ['traderDiscount', address],
@@ -37,6 +42,14 @@ export function useFeeDiscountRegistryStatus() {
     },
     enabled: !!address && feeDiscountConfigured,
     staleTime: 15_000,
+  })
+
+  const pairRegistryQuery = useQuery({
+    queryKey: ['pairDiscountRegistry', pairQueryAddr],
+    queryFn: () => getPairDiscountRegistry(pairQueryAddr!),
+    enabled: !!pairQueryAddr && feeDiscountConfigured,
+    staleTime: 60_000,
+    retry: false,
   })
 
   const feeDiscountHealthQuery = useQuery({
@@ -75,8 +88,18 @@ export function useFeeDiscountRegistryStatus() {
 
   const showFeeDiscountRegistryWarning = shouldShowFeeDiscountRegistryWarning(feeDiscountRegistryInput)
 
+  const pairRegistry = pairRegistryQuery.isSuccess ? (pairRegistryQuery.data ?? null) : undefined
+  const pairDiscountApplies = pairFeeDiscountApplies(pairRegistry, FEE_DISCOUNT_CONTRACT_ADDRESS)
+  const discountBps = advertisedDiscountBps(
+    discountQuery.data?.discount_bps,
+    pairRegistry,
+    FEE_DISCOUNT_CONTRACT_ADDRESS
+  )
+
   return {
-    discountBps: discountQuery.data?.discount_bps as number | undefined,
+    discountBps,
+    pairDiscountApplies,
+    pairRegistryQuery,
     discountQuery,
     registrationQuery,
     feeDiscountRegistryStatus,
