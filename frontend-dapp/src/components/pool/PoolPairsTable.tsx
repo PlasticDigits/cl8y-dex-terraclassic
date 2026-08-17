@@ -195,7 +195,7 @@ function PoolPairRows({
   ip: IndexerPair
   pair: ReturnType<typeof indexerPairToPairInfo>
   badges: PairListBadges
-  volumeLabel: string
+  volumeLabel: string | null
   chartsHref: string | null
   expanded: boolean
   onToggleManage: (pairAddress: string) => void
