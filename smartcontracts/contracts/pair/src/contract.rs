@@ -45,7 +45,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.13.0";
+const CONTRACT_VERSION: &str = "1.14.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -533,7 +533,11 @@ pub fn instantiate(
     HOOKS.save(deps.storage, &vec![])?;
     TOTAL_LP_SUPPLY.save(deps.storage, &Uint128::zero())?;
     PAUSED.save(deps.storage, &false)?;
-    DISCOUNT_REGISTRY.save(deps.storage, &None)?;
+    let discount_registry = match msg.discount_registry {
+        Some(addr) => Some(deps.api.addr_validate(&addr)?),
+        None => None,
+    };
+    DISCOUNT_REGISTRY.save(deps.storage, &discount_registry)?;
     ORDER_NEXT_ID.save(deps.storage, &1u64)?;
     PENDING_ESCROW_TOKEN0.save(deps.storage, &Uint128::zero())?;
     PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
@@ -2179,6 +2183,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Pool {} => to_json_binary(&query_pool(deps)?),
         QueryMsg::GetFeeConfig {} => to_json_binary(&query_fee_config(deps)?),
         QueryMsg::GetHooks {} => to_json_binary(&query_hooks(deps)?),
+        QueryMsg::GetDiscountRegistry {} => to_json_binary(&query_discount_registry(deps)?),
         QueryMsg::Observe { seconds_ago } => to_json_binary(
             &query_observe(deps, &env, seconds_ago)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
@@ -2688,6 +2693,11 @@ fn query_fee_config(deps: Deps) -> StdResult<FeeConfigResponse> {
 fn query_hooks(deps: Deps) -> StdResult<HooksResponse> {
     let hooks = HOOKS.load(deps.storage)?;
     Ok(HooksResponse { hooks })
+}
+
+fn query_discount_registry(deps: Deps) -> StdResult<dex_common::pair::DiscountRegistryResponse> {
+    let registry = DISCOUNT_REGISTRY.may_load(deps.storage)?.flatten();
+    Ok(dex_common::pair::DiscountRegistryResponse { registry })
 }
 
 fn query_observe(

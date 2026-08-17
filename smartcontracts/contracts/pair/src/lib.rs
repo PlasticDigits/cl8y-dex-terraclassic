@@ -24,6 +24,10 @@
 //!   chars, join `{a}-{b}-LP` (`[a-zA-Z0-9\-]{3,12}`). Requires factory
 //!   `lp_token_code_id` to be digit-allowing `cw20-mintable` (classic Terraswap
 //!   LP code rejects digits). Name/label keep unsanitized symbols. See **F3**.
+//! - **Discount registry snapshot (#536):** `CreatePair` copies factory
+//!   `config.discount_registry` into instantiate. `GetDiscountRegistry` returns
+//!   the stored `Option<Addr>` (`None` = unwired, full pair fee). Existing pairs
+//!   are not retroactively wired — that is GitLab #535. See **F5**.
 //!
 //! ## Limit book and escrow (FIFO hybrid)
 //!

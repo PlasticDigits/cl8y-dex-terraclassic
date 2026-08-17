@@ -182,6 +182,7 @@ fn factory_update_config_lp_code_unblocks_ust1_create_pair() {
             default_limit_batch_max_rungs: None,
             pair_code_id: Some(pair_code),
             lp_token_code_id: Some(mintable_lp),
+            discount_registry: None,
         },
         &[],
     )
@@ -221,6 +222,7 @@ fn update_config_rejects_zero_code_ids() {
                 default_limit_batch_max_rungs: None,
                 pair_code_id: Some(0),
                 lp_token_code_id: None,
+                discount_registry: None,
             },
             &[],
         )
@@ -252,6 +254,7 @@ fn pair_instantiate_none_symbols_uses_cl8y_lp_on_mintable() {
                 token_symbols: None,
                 governance: "governance".to_string(),
                 max_batch_rungs: dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                discount_registry: None,
             },
             &[],
             "pair-none-symbols",

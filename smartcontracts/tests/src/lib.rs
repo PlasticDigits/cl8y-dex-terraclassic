@@ -16,6 +16,8 @@ mod lp_symbol_tests;
 #[cfg(test)]
 mod blacklist_tests;
 #[cfg(test)]
+mod discount_registry_inherit_tests;
+#[cfg(test)]
 mod faucet_tests;
 #[cfg(test)]
 mod limit_order_tests;
@@ -1257,6 +1259,7 @@ mod factory_tests {
                 default_limit_batch_max_rungs: None,
                 pair_code_id: None,
                 lp_token_code_id: None,
+                discount_registry: None,
             },
             &[],
         )
@@ -1883,6 +1886,7 @@ mod factory_tests {
                 default_limit_batch_max_rungs: None,
                 pair_code_id: None,
                 lp_token_code_id: None,
+                discount_registry: None,
             },
             &[],
         )
@@ -4626,6 +4630,7 @@ mod pair_coverage_tests {
                     governance: governance.to_string(),
                     max_batch_rungs:
                         dex_common::pair::SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+                    discount_registry: None,
                 },
                 &[],
                 "pair-bootstrap-decimals-test",
@@ -4701,6 +4706,7 @@ mod factory_coverage_tests {
                     default_limit_batch_max_rungs: None,
                     pair_code_id: None,
                     lp_token_code_id: None,
+                    discount_registry: None,
                 },
                 &[],
             )
@@ -4771,6 +4777,7 @@ mod factory_coverage_tests {
                 default_limit_batch_max_rungs: None,
                 pair_code_id: None,
                 lp_token_code_id: None,
+                discount_registry: None,
             },
             &[],
         )
@@ -10971,6 +10978,7 @@ mod line_coverage_tests {
                     default_limit_batch_max_rungs: None,
                     pair_code_id: None,
                     lp_token_code_id: None,
+                    discount_registry: None,
                 },
                 &[],
             )
@@ -12125,6 +12133,7 @@ mod new_feature_tests {
                 default_limit_batch_max_rungs: None,
                 pair_code_id: None,
                 lp_token_code_id: None,
+                discount_registry: None,
             },
             &[],
         )

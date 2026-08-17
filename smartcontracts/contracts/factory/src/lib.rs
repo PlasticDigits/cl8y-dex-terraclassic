@@ -42,6 +42,16 @@
 //! prefixes (digits `0-9` included) and strips all other characters. New pairs
 //! need `lp_token_code_id` on digit-allowing `cw20-mintable`. Governance sets
 //! `pair_code_id` / `lp_token_code_id` via `UpdateConfig`. See invariant **F3**.
+//!
+//! ## Discount registry snapshot (GitLab #536)
+//!
+//! Factory `Config` stores a canonical `discount_registry`. `CreatePair` copies
+//! it into pair instantiate so new listings are wired without a follow-up sweep.
+//! `SetDiscountRegistryAll` / `SetDiscountRegistryBatch` write (or clear) that
+//! pointer; single-pair `SetDiscountRegistry` does **not**. `UpdateConfig {
+//! discount_registry }` sets the pointer without touching indexed pairs.
+//! Missing field on migrate → `None`. Existing pairs are **not** fixed here
+//! (GitLab #535). See invariant **F5**.
 
 pub mod contract;
 pub mod error;

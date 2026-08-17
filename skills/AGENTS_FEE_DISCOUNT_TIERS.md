@@ -57,17 +57,19 @@ Run **`make check-fee-discount-tier-docs`** (reference job `docs-fee-discount-ti
 
 Run **`make verify-issue-365`** after edits to P5/I10 docs, indexer `GET /api/v1/health/fee-discount`, or [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts).
 
-## Factory registry rollout (GitLab #242)
+## Factory registry rollout (GitLab #242 / #536)
 
 After the fee-discount contract is deployed and tiers are configured:
 
 | `PAIR_COUNT` | Factory message |
 |--------------|-----------------|
-| 1 pair (targeted) | `set_discount_registry` with `pair` |
-| ≤10 pairs | `set_discount_registry_all` (single tx) |
-| >10 pairs | Repeat `set_discount_registry_batch` until response `has_more` is `false` (use `next_start_after` as cursor) |
+| 1 pair (targeted) | `set_discount_registry` with `pair` — does **not** set factory default |
+| ≤10 pairs | `set_discount_registry_all` (single tx) — also writes `config.discount_registry` |
+| >10 pairs | Repeat `set_discount_registry_batch` until response `has_more` is `false` (use `next_start_after` as cursor) — also writes the factory pointer |
 
-Invariants and batch loop example: [docs/contracts-terraclassic.md § Factory discount registry rollout](../docs/contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123). Gas playbook: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md).
+**New listings ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536), F5 / I14):** once All/Batch (or `UpdateConfig { discount_registry }`) has set the factory pointer, `CreatePair` copies it into the pair. Do not rely on a post-create sweep for **new** pairs. Existing pairs are **not** auto-wired (#535). Pair query: `{"get_discount_registry":{}}`. Playbook: [`AGENTS_FACTORY_DISCOUNT_REGISTRY.md`](./AGENTS_FACTORY_DISCOUNT_REGISTRY.md). Verify: `make verify-issue-536`.
+
+Invariants and batch loop example: [docs/contracts-terraclassic.md § Factory discount registry rollout](../docs/contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123). Snapshot: [§ Factory discount registry snapshot](../docs/contracts-terraclassic.md#factory-discount-registry-snapshot-gitlab-536). Gas playbook: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md).
 
 ## Related docs
 
