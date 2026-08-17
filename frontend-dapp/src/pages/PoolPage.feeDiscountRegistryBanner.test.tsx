@@ -71,6 +71,10 @@ vi.mock('@/services/terraclassic/feeDiscount', () => ({
   getRegistration: vi.fn().mockResolvedValue({ registered: true, tier_id: 1, tier: null }),
 }))
 
+vi.mock('@/services/terraclassic/pairDiscountRegistry', () => ({
+  getPairDiscountRegistry: vi.fn().mockResolvedValue('terra1feediscount000000000000000000000000001'),
+}))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: {
     playButtonPress: vi.fn(),
@@ -89,6 +93,7 @@ import { TRADING_BLACKLIST_ALLOWED } from '@/test/tradingBlacklistMocks'
 import * as indexerClient from '@/services/indexer/client'
 import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
+import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
 
 const wallet = 'terra1wallet000000000000000000000000000001'
 
@@ -119,6 +124,7 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
       needs_deregister: false,
       registration_epoch: 1,
     })
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1feediscount000000000000000000000000001')
     vi.mocked(indexerClient.getFeeDiscountHealth).mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -129,10 +135,22 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
   it('shows strikethrough discounted fee on the pool card when discount_bps > 0', async () => {
     renderWithProviders(<PoolPage />)
     const badge = await screen.findByTestId('pool-fee-badge')
-    // 180 bps * (10000-2500)/10000 = 135 bps → 1.35%
+    await waitFor(() => {
+      expect(badge).toHaveTextContent('1.35%')
+      expect(badge.querySelector('.line-through')).toBeTruthy()
+    })
     expect(badge).toHaveTextContent('1.80%')
-    expect(badge).toHaveTextContent('1.35%')
-    expect(badge.querySelector('.line-through')).toBeTruthy()
+  })
+
+  it('shows full fee_bps with no strikethrough when the pair discount_registry is unset (#537)', async () => {
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue(null)
+
+    renderWithProviders(<PoolPage />)
+    const badge = await screen.findByTestId('pool-fee-badge')
+    expect(badge).toHaveTextContent('1.80%')
+    expect(badge).not.toHaveTextContent('1.35%')
+    expect(badge.querySelector('.line-through')).toBeNull()
+    expect(screen.queryByTestId('pool-fee-discount-unregistered-cta')).not.toBeInTheDocument()
   })
 
   it('shows unregistered CTA and not-registered hint when wallet is unregistered', async () => {
@@ -189,5 +207,25 @@ describe('PoolPage fee-discount UX (GitLab #476)', () => {
   it('surfaces eligibility copy when fee discount is configured', async () => {
     renderWithProviders(<PoolPage />)
     expect(await screen.findByTestId('pool-fee-discount-eligibility-note')).toBeInTheDocument()
+  })
+
+  it('shows full pair fee without strikethrough when the pair discount_registry is unset (#537)', async () => {
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue(null)
+
+    renderWithProviders(<PoolPage />)
+    const badge = await screen.findByTestId('pool-fee-badge')
+    expect(badge).toHaveTextContent('1.80%')
+    expect(badge).not.toHaveTextContent('1.35%')
+    expect(badge.querySelector('.line-through')).toBeNull()
+    expect(badge).not.toHaveTextContent(/not registered/i)
+  })
+
+  it('does not advertise a VITE discount when the pair registry is a different contract (#537)', async () => {
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1otherdiscountregistry0000000000000000000001')
+
+    renderWithProviders(<PoolPage />)
+    const badge = await screen.findByTestId('pool-fee-badge')
+    expect(badge).toHaveTextContent('1.80%')
+    expect(badge.querySelector('.line-through')).toBeNull()
   })
 })

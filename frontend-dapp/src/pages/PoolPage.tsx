@@ -137,7 +137,8 @@ const PoolCard = memo(function PoolCard({
     staleTime: 60_000,
   })
 
-  const { discountBps, feeDiscountRegistryStatus, feeDiscountConfigured } = useFeeDiscountRegistryStatus()
+  const { discountBps, pairDiscountApplies, feeDiscountRegistryStatus, feeDiscountConfigured } =
+    useFeeDiscountRegistryStatus(pair.contract_addr)
 
   const lpBalanceQuery = useQuery({
     queryKey: ['lpBalance', address, pair.liquidity_token],
@@ -604,20 +605,23 @@ const PoolCard = memo(function PoolCard({
               style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}
               data-testid="pool-fee-badge"
               title={
-                feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered'
+                feeDiscountConfigured && pairDiscountApplies && feeDiscountRegistryStatus === 'unregistered'
                   ? FEE_DISCOUNT_ELIGIBILITY_NOTE
                   : undefined
               }
             >
               Fee: <FeeDisplay feeBps={feeQuery.data.fee_bps} discountBps={discountBps} />
-              {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
-                <span className="normal-case tracking-normal font-medium ml-1" style={{ color: 'var(--ink-subtle)' }}>
-                  · not registered
-                </span>
-              )}
+              {address &&
+                feeDiscountConfigured &&
+                pairDiscountApplies &&
+                feeDiscountRegistryStatus === 'unregistered' && (
+                  <span className="normal-case tracking-normal font-medium ml-1" style={{ color: 'var(--ink-subtle)' }}>
+                    · not registered
+                  </span>
+                )}
             </span>
           )}
-          {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
+          {address && feeDiscountConfigured && pairDiscountApplies && feeDiscountRegistryStatus === 'unregistered' && (
             <FeeDiscountUnregisteredCta testId="pool-fee-discount-unregistered-cta" />
           )}
         </div>

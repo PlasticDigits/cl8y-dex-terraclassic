@@ -59,6 +59,9 @@ vi.mock('@/services/terraclassic/feeDiscount', () => ({
   }),
   getRegistration: vi.fn().mockResolvedValue({ registered: true, tier_id: 1, tier: null }),
 }))
+vi.mock('@/services/terraclassic/pairDiscountRegistry', () => ({
+  getPairDiscountRegistry: vi.fn().mockResolvedValue('terra1feediscount000000000000000000000000001'),
+}))
 vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
   preflightSwapRouteSpread: vi.fn().mockResolvedValue({
     worstSpreadPercent: '0.50',
@@ -89,7 +92,8 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens } from '@/services/terraclassic/router'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import { simulateSwap } from '@/services/terraclassic/pair'
-import { getRegistration } from '@/services/terraclassic/feeDiscount'
+import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
+import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -128,6 +132,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
     vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
     // Reset registration default each test — vitest mocks persist, so a prior reject would leak.
     vi.mocked(getRegistration).mockResolvedValue({ registered: true, tier_id: 1, tier: null })
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1feediscount000000000000000000000000001')
     // LCD pool sim succeeds; route/solve 400 falls back to LCD without the market-data outage banner (#326).
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('Indexer API error: 400 Bad Request'))
     vi.mocked(simulateSwap).mockResolvedValue({
@@ -204,5 +209,48 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
+  })
+
+  it('strikethroughs the pair fee when the pair registry matches the configured contract (#537)', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
+      configured: true,
+      fee_discount_registry_ok: true,
+      consecutive_lcd_failures: 0,
+    })
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
+    await user.click(screen.getByText(/trade details/i))
+
+    await waitFor(() => expect(document.querySelector('.line-through')).toBeTruthy())
+    expect(screen.getByText('0.30%')).toBeInTheDocument()
+  })
+
+  it('shows full pair fee with no strikethrough when discount_registry is unset (#537)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue(null)
+    vi.mocked(getTraderDiscount).mockResolvedValue({
+      discount_bps: 250,
+      needs_deregister: false,
+      registration_epoch: 1,
+    })
+    vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
+      configured: true,
+      fee_discount_registry_ok: true,
+      consecutive_lcd_failures: 0,
+    })
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
+    await user.click(screen.getByText(/trade details/i))
+
+    await waitFor(() => expect(screen.getByText('0.30%')).toBeInTheDocument())
+    expect(document.querySelector('.line-through')).toBeNull()
+    expect(screen.queryByText(/Hold CL8Y/i)).not.toBeInTheDocument()
   })
 })

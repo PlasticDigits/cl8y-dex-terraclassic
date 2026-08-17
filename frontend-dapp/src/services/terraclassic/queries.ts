@@ -71,6 +71,40 @@ export async function queryContract<T>(contractAddress: string, queryMsg: Record
   return data.data as T
 }
 
+/**
+ * CosmWasm LCD raw state. `keyB64` is standard base64 of the cw-storage-plus Item key bytes
+ * (base64 of the utf-8 Item key, e.g. pair `discount_registry`, GitLab #537).
+ * Response `data` is base64 of the stored JSON, or null when the key is missing.
+ */
+export async function queryContractRaw(contractAddress: string, keyB64: string): Promise<string | null> {
+  const addr = contractAddress.trim()
+  if (!addr) {
+    throw new Error(
+      'Contract address is not configured. For local dev, run `make deploy-local` from the repo root (writes frontend-dapp/.env.local).'
+    )
+  }
+  const url = `${TERRA_LCD_URL}/cosmwasm/wasm/v1/contract/${addr}/raw/${encodeURIComponent(keyB64)}`
+  const response = await lcdFetch(url)
+  if (!response.ok) {
+    if (response.status === 404) return null
+    let errorDetail = `Raw query failed: ${response.status}`
+    try {
+      const errorData = await response.json()
+      if (errorData?.message) {
+        errorDetail = errorData.message
+      } else if (errorData?.error) {
+        errorDetail = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error)
+      }
+    } catch {
+      // use default error detail
+    }
+    throw new Error(errorDetail)
+  }
+  const body = (await response.json()) as { data?: string | null }
+  if (body.data == null || body.data === '') return null
+  return typeof body.data === 'string' ? body.data : null
+}
+
 export async function verifyPairInFactory(
   pairAddress: string,
   factoryAddress: string,
