@@ -17,7 +17,7 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 | **P522-1** | `swap_events.price` is **human** quote-per-base: `raw × 10^(decimals_base − decimals_quote)`. Orientation stays #466 (quote per base). |
 | **P522-2** | `swap_events.price_usd` is **USD of 1 human unit of pair base (`asset_0`)**: `price × USD(1 human quote)`. |
 | **P522-3** | Quote USD catalog: `uusd`/USTC/cUSTC → #515 `ustc`; `uluna`/LUNC/cLUNC → #515 `lunc`; **UST1 = $1**; **USTR = 2.5 × USTC**. Unknown quote → `price_usd` NULL. |
-| **P522-4** | Candles OHLC use `price_usd` when present, else human `price`. Migration backfills + rebuilds candles. |
+| **P522-4** | Candle `open/high/low/close` are factory **USD from `price_usd` only** (no human fallback — [#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)). Additive `*_human` columns are human quote-per-base for per-bar `invertUsd`. Bars with NULL `price_usd` are omitted. |
 | **P522-5** | UI **Price (USD)** (headline, chart, Charts Open/Close, limit USD notional) must use `price_usd` / `*_usd` stats — **never** raw or human `trades[].price`. Trades table **Price** stays human quote-per-base and must not compact-format as `T`. |
 
 ## Do / don’t
@@ -41,5 +41,6 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — headline / Y-axis
 - [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) — escrow USD anchor
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — UST1/cUSTC + UST1/USTR pairs
-- [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — **UI-only** invert of Price (USD) for UST1-as-base pairs ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)). **P522-1–P522-5 indexer math is unchanged.**
+- [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — **UI-only** invert of Price (USD) for UST1-as-base pairs ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)). **P522-1–P522-3 / P522-5 indexer math is unchanged.** Additive candle `*_human` is [#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543).
+- [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — dApp USD candles use `invertUsd`, not `1/x` ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543))
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair picker order + **human** `volume_quote_24h` display ([#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534)). Indexer `volume_quote_24h` stays **raw**; do not treat it like human `price`.

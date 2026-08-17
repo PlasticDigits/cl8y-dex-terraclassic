@@ -29,6 +29,10 @@ function candle(overrides: Partial<IndexerCandle> = {}): IndexerCandle {
     high: '1.1',
     low: '0.9',
     close: '1.05',
+    open_human: '86.48',
+    high_human: '90',
+    low_human: '80',
+    close_human: '86.48',
     volume_base: '100',
     volume_quote: '105',
     trade_count: 3,
@@ -124,7 +128,7 @@ describe('PriceChart', () => {
     vi.mocked(indexerClient.getCandles).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.getByTestId('trade-chart-unavailable')).toBeInTheDocument())
-    expect(screen.getByTestId('trade-chart-unavailable')).toHaveTextContent(/price chart is unavailable/i)
+    expect(screen.getByTestId('trade-chart-unavailable')).toHaveTextContent(/price chart unavailable/i)
     expect(screen.queryByText(/failed to load chart data/i)).not.toBeInTheDocument()
   })
 
@@ -154,7 +158,7 @@ describe('PriceChart', () => {
     vi.mocked(indexerClient.getCandles).mockResolvedValue([])
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({
       ...emptyStats,
-      close_price: '1.234567',
+      close_price_usd: '1.234567',
     })
     renderWithProviders(<PriceChart pairAddress={pairA} />)
     await waitFor(() => expect(screen.getByText(/1\.234567/)).toBeInTheDocument())
@@ -345,6 +349,26 @@ describe('PriceChart', () => {
     await user.click(screen.getByRole('button', { name: '1d candle interval' }))
     await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(pairB, '1d'))
     expect(vi.mocked(createChart)).toHaveBeenCalledTimes(2)
+  })
+
+  it('inverted last-close headline is invertUsd not 1/x (GitLab #543 A1)', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([
+      candle({
+        open: '1.06',
+        high: '1.08',
+        low: '1.04',
+        close: '1.06',
+        open_human: '86.48',
+        high_human: '88',
+        low_human: '84',
+        close_human: '86.48',
+      }),
+    ])
+    renderWithProviders(<PriceChart pairAddress={pairA} displayInverted />)
+    await waitFor(() => expect(screen.getByTestId('trade-chart-headline-price')).toBeInTheDocument())
+    const text = screen.getByTestId('trade-chart-headline-price').textContent ?? ''
+    expect(text).toMatch(/0\.012/)
+    expect(text).not.toMatch(/0\.94|1\.06/)
   })
 
   it('renders pair invert pill and names display token in aria-live (GitLab #524)', async () => {

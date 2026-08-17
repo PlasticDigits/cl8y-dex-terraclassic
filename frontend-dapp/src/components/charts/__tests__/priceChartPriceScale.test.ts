@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LogicalRange } from 'lightweight-charts'
-import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from '../priceChartPriceScale'
+import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange, usdCandlePriceFormat } from '../priceChartPriceScale'
 import type { ChartCandlePoint } from '../priceChartCandles'
 
 const lr = (from: number, to: number): LogicalRange => ({ from, to }) as LogicalRange
@@ -63,5 +63,26 @@ describe('clampUsdPriceChartAutoscale', () => {
   it('floors a negative visible min at 0 (bad data guard)', () => {
     const res = clampUsdPriceChartAutoscale({ priceRange: { minValue: -5, maxValue: 10 } }, -3)
     expect(res?.priceRange?.minValue).toBe(0)
+  })
+})
+
+describe('usdCandlePriceFormat (GitLab #543)', () => {
+  it('uses 2-dp for ~$1 UST1 and finer steps for USTR / cLUNC', () => {
+    const ust1 = usdCandlePriceFormat([1.06])
+    const ustr = usdCandlePriceFormat([0.012258])
+    const clunc = usdCandlePriceFormat([0.000047])
+    expect(ust1.precision).toBe(2)
+    expect(ust1.minMove).toBe(0.01)
+    expect(ustr.precision).toBeGreaterThan(ust1.precision)
+    expect(ustr.minMove).toBeLessThan(ust1.minMove)
+    expect(clunc.precision).toBeGreaterThanOrEqual(6)
+    expect(clunc.minMove).toBeLessThanOrEqual(1e-6)
+    expect(0.000047).not.toBeCloseTo(0, clunc.precision)
+    expect(ustr.minMove).toBeLessThanOrEqual(0.0001)
+  })
+
+  it('defaults to 2-dp when values are empty or non-positive', () => {
+    expect(usdCandlePriceFormat([])).toEqual({ type: 'price', precision: 2, minMove: 0.01 })
+    expect(usdCandlePriceFormat([0, -1, Number.NaN])).toEqual({ type: 'price', precision: 2, minMove: 0.01 })
   })
 })

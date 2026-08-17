@@ -1,6 +1,10 @@
 import { vi } from 'vitest'
 
-type SeriesSpy = { setData: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> }
+type SeriesSpy = {
+  setData: ReturnType<typeof vi.fn>
+  update: ReturnType<typeof vi.fn>
+  applyOptions: ReturnType<typeof vi.fn>
+}
 
 export type LwAddSeriesCall = {
   seriesType: unknown
@@ -78,10 +82,12 @@ const {
         }
         const setData = vi.fn()
         const update = vi.fn()
-        seriesSpies.push({ setData, update })
+        const applyOptions = vi.fn()
+        seriesSpies.push({ setData, update, applyOptions })
         return {
           setData,
           update,
+          applyOptions,
           priceScale: () => ({
             setAutoScale: vi.fn(),
             setVisibleRange: vi.fn(),
