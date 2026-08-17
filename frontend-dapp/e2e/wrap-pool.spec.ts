@@ -7,6 +7,7 @@ import {
   poolWithdrawExpandButton,
   poolWithdrawSubmitButton,
   poolReceiveWrappedCheckbox,
+  openPoolCardAdvanced,
 } from './helpers/pool-ui'
 import { gotoWrapPoolLuncCard } from './helpers/pool-nav'
 
@@ -32,50 +33,44 @@ test.describe('Pool with native token wrapping — UI', () => {
     }).toPass({ timeout: 90_000 })
   })
 
-  test('E7: pool card shows provide and withdraw buttons', async ({ page }) => {
+  test('E7: pool page shows one-sided add/withdraw and Advanced two-sided', async ({ page }) => {
+    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-one-sided-withdraw')).toBeVisible()
     await expect(async () => {
-      await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
+      await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
     }).toPass({ timeout: 90_000 })
   })
 
-  test('E8: provide liquidity form expands with native toggle', async ({ page }) => {
-    await expect(async () => {
-      await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-    }).toPass({ timeout: 90_000 })
-
+  test('E8: Advanced provide still has native toggle', async ({ page }) => {
+    await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible({ timeout: 90_000 })
+    await openPoolCardAdvanced(page)
     await page
       .getByRole('button', { name: /Provide Liquidity/i })
       .first()
       .click()
-
     const assetInput = page.getByPlaceholder('0.00').first()
     await expect(assetInput).toBeVisible()
-
     const nativeCheckbox = page.getByText(/auto-wrap/i)
     const count = await nativeCheckbox.count()
     expect(count).toBeGreaterThanOrEqual(0)
   })
 
-  test('E9: withdraw form shows receive wrapped checkbox for applicable pairs', async ({ page }) => {
-    await expect(async () => {
-      await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-    }).toPass({ timeout: 90_000 })
-
+  test('E9: Advanced withdraw may show receive wrapped checkbox', async ({ page }) => {
+    await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible({ timeout: 90_000 })
+    await openPoolCardAdvanced(page)
     await page
       .getByRole('button', { name: /Withdraw Liquidity/i })
       .first()
       .click()
-
     const lpInput = page.getByPlaceholder('0.00').first()
     await expect(lpInput).toBeVisible()
-
     const receiveWrappedCheckbox = page.getByText(/Receive as wrapped/i)
     const count = await receiveWrappedCheckbox.count()
     expect(count).toBeGreaterThanOrEqual(0)
   })
 
   test('E10: withdraw slippage tolerance options visible', async ({ page }) => {
+    await openPoolCardAdvanced(page)
     await expect(async () => {
       await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
     }).toPass({ timeout: 90_000 })
@@ -106,11 +101,13 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
       const panels = await page.locator('.shell-panel-strong').count()
       expect(panels).toBeGreaterThan(0)
     }).toPass({ timeout: 90_000 })
+    await openPoolCardAdvanced(page)
     await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
   })
 
   test('E7: provide liquidity with native token (auto-wrap)', async ({ page }) => {
     const pairCard = await gotoWrapPoolLuncCard(page)
+    await openPoolCardAdvanced(pairCard)
     await poolProvideExpandButton(pairCard).click()
 
     await requirePoolCardWithNativeWrap(pairCard)
@@ -135,6 +132,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
 
   test('E8: provide liquidity with wrapped CW20 directly', async ({ page }) => {
     const pairCard = await gotoWrapPoolLuncCard(page)
+    await openPoolCardAdvanced(pairCard)
     await poolProvideExpandButton(pairCard).click()
 
     const inputs = pairCard.locator('input[placeholder="0.00"]')
@@ -154,6 +152,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
 
   test('E9: withdraw liquidity with auto-unwrap to native', async ({ page }) => {
     const pairCard = await gotoWrapPoolLuncCard(page)
+    await openPoolCardAdvanced(pairCard)
     await expect(poolWithdrawExpandButton(pairCard)).toBeVisible({ timeout: 90_000 })
     await poolWithdrawExpandButton(pairCard).click()
 
@@ -189,6 +188,7 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
 
   test('E10: withdraw liquidity — receive as wrapped tokens', async ({ page }) => {
     const pairCard = await gotoWrapPoolLuncCard(page)
+    await openPoolCardAdvanced(pairCard)
     await expect(poolWithdrawExpandButton(pairCard)).toBeVisible({ timeout: 90_000 })
     await poolWithdrawExpandButton(pairCard).click()
 

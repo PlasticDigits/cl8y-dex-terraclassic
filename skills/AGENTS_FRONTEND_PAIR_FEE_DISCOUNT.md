@@ -25,6 +25,7 @@ Issue **#537 is implemented**. Do **not** advertise a wallet’s `get_discount` 
 4. **Raw key until query ships (F537-4).** Live pair wasm has no `GetDiscountRegistry`. LCD `/raw/ZGlzY291bnRfcmVnaXN0cnk=` (`discount_registry`). Do not add a pair QueryMsg variant in a frontend-only change.
 5. **CTA (F537-5).** Hide pair-scoped “Hold CL8Y & register” / “not registered” when the pair cannot apply a discount. Keep the global registry-outage banner (#365 / #374).
 6. **Maker place.** `useLimitOrderMakerFeeRates` must use `maker_fee_bps(fee_bps)` (half of full pair fee) on unwired pairs, not half of a discounted effective. **F537-6:** quotes stay execute-aligned; this issue is fee chrome only.
+7. **One-sided pool zap.** `OneSidedAddCard` / `OneSidedWithdrawCard` must pass the selected pair address into `useFeeDiscountRegistryStatus` so zap fee math does not apply a wallet `get_discount` on an unwired pair.
 
 ## Verify
 

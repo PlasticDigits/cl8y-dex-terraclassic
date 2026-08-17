@@ -52,6 +52,8 @@ run_step "code: Swap/Pool/Trade gate on pairDiscountApplies / getPairDiscountReg
   grep -qE 'pairDiscountApplies' frontend-dapp/src/pages/SwapPage.tsx && \
   grep -qE 'useFeeDiscountRegistryStatus\(pair.contract_addr\)' frontend-dapp/src/pages/PoolPage.tsx && \
   grep -qE 'pairDiscountApplies' frontend-dapp/src/pages/PoolPage.tsx && \
+  grep -qE 'useFeeDiscountRegistryStatus\(pairAddr' frontend-dapp/src/components/pool/OneSidedAddCard.tsx && \
+  grep -qE 'useFeeDiscountRegistryStatus\(pair\?\.contract_addr\)' frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx && \
   grep -qE 'getPairDiscountRegistry' frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts && \
   grep -qE 'pairDiscountApplies' frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts
 

@@ -21,7 +21,7 @@ export function poolCardBySymbol(page: Page, symbol: string): Locator {
   const token = escapeRegExp(symbol)
   return page
     .locator(POOL_CARD_SELECTOR)
-    .filter({ has: page.getByRole('button', { name: /^Provide Liquidity$/i }) })
+    .filter({ has: page.getByTestId('pool-card-advanced') })
     .filter({ hasText: new RegExp(`\\b${token}\\b`) })
     .first()
 }
@@ -40,7 +40,7 @@ async function waitForPoolListSettled(page: Page): Promise<void> {
     expect(loading).toBe(0)
     const cards = await page
       .locator(POOL_CARD_SELECTOR)
-      .filter({ has: page.getByRole('button', { name: /^Provide Liquidity$/i }) })
+      .filter({ has: page.getByTestId('pool-card-advanced') })
       .count()
     const empty = await page.getByText(/No liquidity pools match your filters/i).isVisible()
     const routerEmpty = await page.getByText(/No pools on this page are in the factory router set/i).isVisible()

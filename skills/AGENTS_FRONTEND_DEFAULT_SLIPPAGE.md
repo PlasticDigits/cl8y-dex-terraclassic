@@ -47,3 +47,4 @@ Or: `make test-frontend` from repo root (Node 24 on `PATH`). Chip grouping: `mak
 - Pre-sign summary: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md)
 - On-chain `max_spread` math: [`AGENTS_MAX_SPREAD_HYBRID.md`](./AGENTS_MAX_SPREAD_HYBRID.md)
 - Preset chip alignment (Trade + Swap): [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
+- One-sided pool zap uses this Settings default (no on-card chips): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) (`#533` / **Z533-7**)

@@ -134,6 +134,74 @@ export function estimateNativeSwapUlunaFeesTotal(hints: NativeSwapFeeHints): big
   return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx(sendMsg))
 }
 
+function encodedSend(inner: Record<string, unknown>): Record<string, unknown> {
+  return {
+    send: {
+      contract: '',
+      amount: '1',
+      msg: btoa(JSON.stringify(inner)),
+    },
+  }
+}
+
+/**
+ * Wrap + pool-only swap + allowances + provide (GitLab #533 / Z533-9). Combined multi-msg envelope.
+ */
+export function estimateZapInUlunaFeesTotal(opts: { wrapDeposits?: 0 | 1; routeHops?: number } = {}): bigint {
+  const wrapDeposits = opts.wrapDeposits ?? 0
+  const routeHops = Math.max(0, opts.routeHops ?? 0)
+  const msgs: Array<{ msg: Record<string, unknown> }> = []
+  for (let i = 0; i < wrapDeposits; i++) {
+    msgs.push({ msg: { wrap_deposit: {} } })
+  }
+  if (routeHops > 0) {
+    msgs.push({
+      msg: encodedSend({
+        execute_swap_operations: {
+          operations: Array.from({ length: routeHops }, () => ({ terra_swap: {} })),
+          max_spread: '0.05',
+          minimum_receive: '1',
+        },
+      }),
+    })
+  }
+  msgs.push({
+    msg: encodedSend({
+      swap: {
+        max_spread: '0.05',
+        min_return: '1',
+        hybrid: { pool_input: '1', book_input: '0', max_maker_fills: 1 },
+      },
+    }),
+  })
+  msgs.push({ msg: { increase_allowance: { spender: '', amount: '' } } })
+  msgs.push({ msg: { increase_allowance: { spender: '', amount: '' } } })
+  msgs.push({ msg: { provide_liquidity: { slippage_tolerance: '0.05' } } })
+  return estimateFeeUlunaAmountForGasLimit(totalGasLimitForExecuteMsgs(msgs))
+}
+
+/**
+ * Withdraw + pool-only swap of the other side + optional unwrap (GitLab #533 / Z533-9).
+ */
+export function estimateZapOutUlunaFeesTotal(opts: { unwrap?: boolean } = {}): bigint {
+  const msgs: Array<{ msg: Record<string, unknown> }> = [
+    { msg: encodedSend({ withdraw_liquidity: { min_assets: ['1', '1'] } }) },
+    {
+      msg: encodedSend({
+        swap: {
+          max_spread: '0.05',
+          min_return: '1',
+          hybrid: { pool_input: '1', book_input: '0', max_maker_fills: 1 },
+        },
+      }),
+    },
+  ]
+  if (opts.unwrap) {
+    msgs.push({ msg: encodedSend({ unwrap: { recipient: null } }) })
+  }
+  return estimateFeeUlunaAmountForGasLimit(totalGasLimitForExecuteMsgs(msgs))
+}
+
 /**
  * Native wrap + provide liquidity combined tx (`PoolPage` multi-msg path, [GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
  */

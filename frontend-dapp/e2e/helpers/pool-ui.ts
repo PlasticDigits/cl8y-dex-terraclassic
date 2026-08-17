@@ -23,7 +23,14 @@ export function poolWithdrawSubmitButton(pairCard: Locator): Locator {
   return pairCard.getByRole('button', { name: /^Withdraw Liquidity$/i }).last()
 }
 
-/** "Receive as wrapped" toggle on withdraw forms for native-capable pairs. */
-export function poolReceiveWrappedCheckbox(pairCard: Locator): Locator {
-  return pairCard.getByRole('checkbox', { name: /Receive as wrapped/i })
+export function poolCardAdvanced(scope: Locator) {
+  return scope.getByTestId('pool-card-advanced').first()
+}
+
+export async function openPoolCardAdvanced(scope: Locator): Promise<void> {
+  const details = poolCardAdvanced(scope)
+  await details.waitFor({ state: 'visible' })
+  if ((await details.getAttribute('open')) == null) {
+    await details.locator('summary').click()
+  }
 }

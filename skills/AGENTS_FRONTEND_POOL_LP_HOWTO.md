@@ -20,14 +20,14 @@ Support already told users they can provide/withdraw v2 LP or place limits, and 
 | [`PortfolioLpOverviewSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioLpOverviewSection.tsx) | **How to add liquidity** next to Manage on Pool |
 | [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) | Opt-in how-to only — no permanent lectures |
 | [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | First-visit strip stays Swap · Trade · Limits |
-| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Provide / withdraw, native LUNC checkbox, IL |
+| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Retail one-sided cards + Advanced two-sided, IL |
 | [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) | Pool folds into **More** below 1200px |
 
 ## Invariants (H531-1–H531-10)
 
 1. **H531-1** — Same-origin `/pool#lp-howto` names Pool provide/withdraw and optional limit maker.
-2. **H531-2** — Wrapped LUNC; **Use native LUNC (auto-wrap)** or `/wrap`; bank LUNC for gas.
-3. **H531-3** — Both tokens required. Off-ratio extra is donated.
+2. **H531-2** — Wrapped LUNC; pick native LUNC as **Token** on Add to auto-wrap **or** `/wrap`; bank LUNC for gas.
+3. **H531-3** — Retail Add is one token + pair + amount. Two-sided is Advanced (empty pools). Off-ratio Advanced still donates; retail zap does not.
 4. **H531-4** — No incentive program. No APR / points / farm chrome.
 5. **H531-5** — Withdraw on `/pool`; LP tokens are the share.
 6. **H531-6** — Limits are maker escrow, not LP. Link `/trade` or `/limits` only.
@@ -64,4 +64,4 @@ Issue: [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Onboarding strip: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) (`#417`)
 - Provide/withdraw preview: [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md) (`#480`)
 - Wrap enablement: [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) (`#507`)
-- Open-limits Cancel (separate): [`AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](./AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) (`#530`)
+- One-sided default: [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) (`#533`)

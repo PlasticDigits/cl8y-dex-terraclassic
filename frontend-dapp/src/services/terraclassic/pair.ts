@@ -1,6 +1,7 @@
 import { queryContract } from './queries'
 import { poolOnlyHybridParams, poolOnlyHybridTemplate } from './poolOnlyHybrid'
 import { executeCw20AllowanceThen, executeTerraContract, executeTerraContractMulti } from './transactions'
+import { buildProvideAllowanceRollbackMsgs } from '@/utils/oneSidedLiquidityTx'
 import type {
   Asset,
   AssetInfo,
@@ -401,16 +402,10 @@ export async function provideLiquidity(
   } catch (error) {
     try {
       /** Single tx (one prompt / one fee) vs two sequential `decrease_allowance` broadcasts ([GitLab #147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)). */
-      await executeTerraContractMulti(walletAddress, [
-        {
-          contract: tokenA,
-          msg: { decrease_allowance: { spender: pairAddress, amount: amountA } },
-        },
-        {
-          contract: tokenB,
-          msg: { decrease_allowance: { spender: pairAddress, amount: amountB } },
-        },
-      ])
+      await executeTerraContractMulti(
+        walletAddress,
+        buildProvideAllowanceRollbackMsgs(tokenA, tokenB, pairAddress, amountA, amountB)
+      )
     } catch {
       /* best effort cleanup */
     }

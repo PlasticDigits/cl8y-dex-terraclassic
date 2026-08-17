@@ -49,3 +49,4 @@ cd frontend-dapp && npm run test:run -- \
 - Swap pre-sign: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md)
 - Limit pre-sign: [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) ([#461](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/461))
 - Docs: [`docs/frontend.md` § Pool pre-sign summary](../docs/frontend.md#pool-page-pre-sign-summary)
+- One-sided Add/Withdraw (#533): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) — `pool-one-sided-add-pre-submit` / `pool-one-sided-withdraw-pre-submit`

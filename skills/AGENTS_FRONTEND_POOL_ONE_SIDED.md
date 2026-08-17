@@ -2,14 +2,14 @@
 
 Use when changing **retail `/pool` one-sided liquidity**: pick one wallet token + pair to add, or one wallet LP + token to withdraw as. Wrap/unwrap is implied by the token. Spec, AC, path tests, and attack plan live on [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/533).
 
-`#531` how-to (**H531-3**) still says both assets are required — rewrite that copy in the same change. `#489` (no always-on essays), `#366` (IL), `#147` / `#213` (gas + native wrap), `#462` (pre-sign), `#497` (5% slippage) still apply.
+`#531` how-to (**H531-3**) is one-sided retail Add; two-sided lives under **Advanced**. `#489` (no always-on essays), `#366` (IL), `#147` / `#213` (gas + native wrap), `#462` (pre-sign), `#497` (5% slippage) still apply.
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
 | [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/533) | Spec: AC1–AC13, T/U/P paths, A1–A20 |
-| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Today: two-sided provide/withdraw + wrap checkboxes |
+| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Retail one-sided cards + Advanced two-sided |
 | [`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts) | `provideLiquidity` / `withdrawLiquidity` |
 | [`router.ts`](../frontend-dapp/src/services/terraclassic/router.ts) | Wrap-in + swap + `unwrap_output` |
 | [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) | Two-sided auto-fill — **not** a zap solver |
@@ -37,18 +37,20 @@ Use when changing **retail `/pool` one-sided liquidity**: pick one wallet token 
 2. Off-pair input: `GET /route/solve` into a pair leg then zap, or one-sentence “No route”.
 3. Two-sided provide/withdraw stays under Advanced for empty-pool bootstrap and power users.
 4. Do **not** change pair mint/burn math, fee treasury, or wrap-mapper fee bps in this issue.
-5. Prefer one `executeTerraContractMulti` when gas fits; rollback both allowances in one multi-msg on provide failure (#147).
+5. Zap fee math must use `useFeeDiscountRegistryStatus(pairAddr)` (**I14** / [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)). An unwired pair charges full `fee_bps` on-chain — do not apply a wallet `get_discount` to the split.
+6. Prefer one `executeTerraContractMulti` when gas fits; rollback both allowances in one multi-msg on provide failure (#147).
 
 ## Verify
 
 ```bash
-# after implementation:
-# make verify-issue-533
+make verify-issue-533
 make test-frontend
 # scoped:
-#   oneSidedLiquidity + oneSidedLiquidityTx + PoolPage + poolLpHowtoCopy
-# Playwright smoke (5 workers):
+#   oneSidedLiquidity + oneSidedLiquidityTx + oneSidedLiquidityQuote + PoolPage + poolLpHowtoCopy
+# Playwright smoke (5 workers, PLAYWRIGHT_SKIP_CHAIN=1):
 #   frontend-dapp/e2e/pool-one-sided-533.spec.ts
+# LocalTerra tx (1 worker):
+#   frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts
 ```
 
 Issue: [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/533) (AC1–AC13, T1–T10, U1–U12, P1–P10, A1–A20).
