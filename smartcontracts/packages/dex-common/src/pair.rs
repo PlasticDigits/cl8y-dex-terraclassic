@@ -250,6 +250,10 @@ pub struct PairInstantiateMsg {
     pub governance: String,
     /// Max rungs per batch/ladder placement (clamped to [`MAX_LIMIT_BATCH_RUNGS_HARD_CAP`]).
     pub max_batch_rungs: u32,
+    /// Fee-discount registry copied from factory `config.discount_registry` at
+    /// `CreatePair` (GitLab #536). Omitted / `None` → unwired pair (full fee).
+    #[serde(default)]
+    pub discount_registry: Option<String>,
 }
 
 #[cw_serde]
@@ -411,6 +415,9 @@ pub enum QueryMsg {
     GetFeeConfig {},
     #[returns(HooksResponse)]
     GetHooks {},
+    /// Stored fee-discount registry (`None` if unwired). GitLab #536.
+    #[returns(DiscountRegistryResponse)]
+    GetDiscountRegistry {},
 
     // ---- TWAP oracle queries ----
     /// Return cumulative price sums at the requested `seconds_ago` offsets.
@@ -555,6 +562,12 @@ pub struct HooksResponse {
     pub hooks: Vec<Addr>,
 }
 
+/// Pair `GetDiscountRegistry` response (GitLab #536).
+#[cw_serde]
+pub struct DiscountRegistryResponse {
+    pub registry: Option<Addr>,
+}
+
 #[cw_serde]
 pub struct HybridSimulationResponse {
     pub return_amount: Uint128,
@@ -643,5 +656,24 @@ mod expired_limit_park_reason_tests {
         );
         let back: ExpiredLimitRefundResponse = from_json(bin).unwrap();
         assert_eq!(back.reason, Some(ExpiredLimitParkReason::DustFilled));
+    }
+
+    #[test]
+    fn pair_instantiate_omitted_discount_registry_defaults_none() {
+        let json = br#"{
+            "asset_infos": [
+                {"token": {"contract_addr": "terra1a"}},
+                {"token": {"contract_addr": "terra1b"}}
+            ],
+            "fee_bps": 30,
+            "treasury": "terra1tre",
+            "factory": "terra1fac",
+            "lp_token_code_id": 2,
+            "token_symbols": null,
+            "governance": "terra1gov",
+            "max_batch_rungs": 20
+        }"#;
+        let msg: PairInstantiateMsg = from_json(json).unwrap();
+        assert!(msg.discount_registry.is_none());
     }
 }

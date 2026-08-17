@@ -1143,7 +1143,7 @@ Before **Place limit**, the ticket and standalone **`/limits`** form show a **pr
 | **Signing fields (SEC-I05 / #461)** | Labeled rows before the wallet opens: **Action** (`Place Limit Order`), **Pair**, **Side** (Buy/Sell base), **Amount** (escrow), **Chain** (`getNetworkBadgeCopy().fullLabel`) — same anti-phishing anchor as swap/pool pre-sign cards. |
 | **Compact copy (#489)** | No instructional paragraphs on the pre-sign card — labeled rows only, plus optional **Docs** link for resting-limit semantics. Market-style slippage / min-received lines belong on the **Market** tab / Swap card, not here. |
 | **% vs reference** | Same signed deviation as under the price field: \((\text{typed} - \text{ref}) / \text{ref} \times 100\) from [`limitPriceDeviationPercent`](../frontend-dapp/src/utils/limitOrderPriceReference.ts), using the resolved tape or pool reference. |
-| **Maker placement fee** | Retail copy: **small fee at placement** with human **percent** (`bpsToPercentLabel`) plus bps detail — not bps-only ([#419](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/419)). On-chain: **`floor(effective_fee_bps / 2)`** bps of escrow at placement ([`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs)). |
+| **Maker placement fee** | Retail copy: **small fee at placement** with human **percent** (`bpsToPercentLabel`) plus bps detail — not bps-only ([#419](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/419)). On-chain: **`floor(effective_fee_bps / 2)`** bps of escrow at placement ([`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs)). **I14 / [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537):** apply `limit_discount_bps` only when this pair’s `discount_registry` matches `VITE_FEE_DISCOUNT_ADDRESS`; otherwise show full `maker_fee_bps(fee_bps)` (unwired pairs charge 90 bps at 180 pair fee regardless of CL8Y tier). |
 | **Est. network fee** | Minimum **uluna** for **`increase_allowance` + `place_limit_order`** via [`estimateLimitOrderPlaceSequenceUlunaFeesTotal`](../frontend-dapp/src/services/terraclassic/transactions.ts) — informational; wallet extensions may still adjust `gas_wanted`. |
 | **`data-testid`s** | **`trade-limit-pre-submit-summary`** on `/trade`; **`limits-page-pre-submit-summary`** on `/limits`; field rows suffixed `-action`, `-pair`, `-side`, `-amount`, `-chain`. |
 
@@ -1386,12 +1386,29 @@ The `feeDiscount.ts` service in `src/services/` handles all interactions with th
 
 ### Swap Page Integration
 
-The Swap page displays the effective fee after discount. When a connected wallet has a registered tier, the UI shows:
+The Swap page displays the effective fee after discount **only when the selected pair’s `DISCOUNT_REGISTRY` is set and matches `VITE_FEE_DISCOUNT_ADDRESS`** (invariant **I14**, [GitLab #537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)). When a connected wallet has a registered tier **and** that pair is wired, the UI shows:
 - The base pair fee (e.g., 0.30%)
 - The discount percentage from the trader's tier
 - The effective fee after discount (e.g., 0.15% for a 50% discount)
 
-**Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y & register…** CTA instead. Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts) + [`useFeeDiscountRegistryStatus`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
+Unwired pairs (registry `None`, e.g. economic pairs before the #535 factory sweep) show plain `fee_bps` with **no** strikethrough and hide the Hold-CL8Y CTA for that pair — HybridSimulation with `trader` already quotes the full fee. Probe: [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts) + [`getPairDiscountRegistry`](../frontend-dapp/src/services/terraclassic/pairDiscountRegistry.ts). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md).
+
+**Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y & register…** CTA instead **when the pair is wired** (I14). Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts) + [`useFeeDiscountRegistryStatus`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
+
+### Pair fee-tier chrome vs on-chain registry (GitLab [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)) {#pair-fee-tier-chrome}
+
+`getTraderDiscount` always queries `VITE_FEE_DISCOUNT_ADDRESS`. On-chain fees use the **pair’s** `DISCOUNT_REGISTRY`. When that is `None`, execute charges full `fee_bps` (maker place `floor(fee_bps/2)`). The dApp must not strikethrough a phantom discount.
+
+| ID | Rule |
+|----|------|
+| **F537-1** | Advertise CL8Y discount only when pair `DISCOUNT_REGISTRY` is set and equals `VITE_FEE_DISCOUNT_ADDRESS`. |
+| **F537-2** | Unwired pair: show full `fee_bps` / full maker place fee; no strikethrough. |
+| **F537-3** | Do not invent a client-side discount the pair will not apply. |
+| **F537-4** | Probe LCD raw key `discount_registry` until `GetDiscountRegistry` exists on wasm; smart-query fallback if raw is blocked. Probe failure → fail-closed (full fee chrome). |
+| **F537-5** | Hide pair-scoped Hold-CL8Y / “not registered” CTA on unwired pairs. Global registry-outage banner is unchanged. |
+| **F537-6** | HybridSimulation / route-solve with `trader` remains execute-aligned; this issue is fee **chrome**, not quote math. |
+
+Canonical invariant **I14**: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537`.
 
 ### Pool page fee-discount UX (GitLab [#476](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/476)) {#pool-page-fee-discount-ux}
 
@@ -1399,8 +1416,9 @@ Pool cards reuse the same fee-discount status hook as Swap:
 
 | Signal | UI |
 |--------|-----|
-| Connected **unregistered** + healthy registry | Fee badge shows base pair fee + **· not registered**; CTA `data-testid="pool-fee-discount-unregistered-cta"` → `/tiers` |
-| Connected **registered** + `discount_bps > 0` | [`FeeDisplay`](../frontend-dapp/src/components/ui/FeeDisplay.tsx) strikethrough base + effective % (unchanged math) |
+| Connected **unregistered** + healthy registry + **pair wired** (I14) | Fee badge shows base pair fee + **· not registered**; CTA `data-testid="pool-fee-discount-unregistered-cta"` → `/tiers` |
+| Connected **registered** + `discount_bps > 0` + **pair wired** | [`FeeDisplay`](../frontend-dapp/src/components/ui/FeeDisplay.tsx) strikethrough base + effective % (unchanged math) |
+| Pair `DISCOUNT_REGISTRY` unset or ≠ `VITE_FEE_DISCOUNT_ADDRESS` ([#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)) | Full `fee_bps`; **no** strikethrough; hide pair CTA / “not registered” (do not advertise a discount the pair will not apply) |
 | Registered + registry unreachable | Non-blocking amber banner `data-testid="pool-fee-discount-registry-warning"` (same copy as Swap); provide/withdraw stay enabled |
 | `VITE_FEE_DISCOUNT_ADDRESS` empty | No discount queries, no CTA, no outage banner |
 
@@ -1408,7 +1426,7 @@ Pool cards reuse the same fee-discount status hook as Swap:
 
 **CL8Y decimals:** [`tokenRegistry.ts`](../frontend-dapp/src/utils/tokenRegistry.ts) lists CL8Y at **18** decimals so `/tiers` Hold labels match `min_cl8y_balance` wei (LocalTerra TCL8Y is also 18 — [#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)).
 
-**Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10.
+**Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx), [`pairDiscountRegistry.test.ts`](../frontend-dapp/src/utils/__tests__/pairDiscountRegistry.test.ts), [`useLimitOrderMakerFeeRates.test.tsx`](../frontend-dapp/src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10. Regression: `make verify-issue-537`.
 
 **Expected slippage, Expert Mode & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)):** When the indexer returns `slippage_percent` on `route/solve`, the trade summary shows **Expected slippage** — symmetric deviation vs fair cross-rate token prices (`spot_amount_out`). The dApp prefers wallet `return_amount` vs spot when both are present ([`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts)). **Expert Mode** (Settings checkbox, default **off**, persisted in `localStorage`) blocks submit when expected slippage **> 30%** with **Slippage is too high** and an **Enable Expert Mode** affordance that opens a warning modal ([`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx)). **≥ 99%** always shows an extreme-slippage alert, even with Expert Mode enabled. Multihop and indexer quotes also run **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so hop spread is visible as secondary context and submit is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) via [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) and `TxResultAlert`. **Pool-only CW20 swap** gas uses the buffered one-hop router envelope (**830k**), not legacy **600k**, so wallet fee displays (~23 vs ~36 LUNC) stay aligned with on-chain headroom; LocalTerra post-sign guards reject fee/gas rewrites below **95%** of the dApp envelope ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
 

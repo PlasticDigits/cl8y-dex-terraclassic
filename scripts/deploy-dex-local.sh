@@ -656,6 +656,15 @@ TX_HASH=$(terrad_tx wasm execute "$FEE_DISCOUNT_ADDRESS" \
 echo "  Added trusted router: $TX_HASH"
 wait_tx "$TX_HASH"
 
+# GitLab #536: persist factory default so CreatePair copies the registry into new pairs.
+# PAIR_COUNT is still 0 here; All is a no-op fanout and writes config.discount_registry.
+echo ""
+echo "[13b] Factory default discount registry (GitLab #536)..."
+TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
+  "{\"set_discount_registry_all\":{\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
+echo "  Factory discount_registry pointer: $TX_HASH"
+wait_tx "$TX_HASH"
+
 # ── Phase 4: Pairs, Liquidity & Discount Registries ─────────────────────
 
 echo ""
@@ -683,10 +692,10 @@ for p in "${!PAIR_CONFIGS[@]}"; do
     PAIR_ADDRESSES+=("$PAIR_ADDR")
     echo "  Pair Address: $PAIR_ADDR"
 
-    # Set discount registry
+    # Belt-and-suspenders (#536): CreatePair already inherited factory.discount_registry.
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
       "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
-    echo "  Set discount registry: $TX_HASH"
+    echo "  Set discount registry (idempotent): $TX_HASH"
     wait_tx "$TX_HASH"
 
     # Approve tokens for pair
@@ -797,7 +806,7 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
 
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
       "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
-    echo "  Set discount registry: $TX_HASH"
+    echo "  Set discount registry (idempotent): $TX_HASH"
     wait_tx "$TX_HASH"
 
     TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \
@@ -846,7 +855,7 @@ do
 
   TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
     "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
-  echo "  Set discount registry: $TX_HASH"
+  echo "  Set discount registry (idempotent): $TX_HASH"
   wait_tx "$TX_HASH"
 
   TX_HASH=$(terrad_tx wasm execute "$ADDR_A" \

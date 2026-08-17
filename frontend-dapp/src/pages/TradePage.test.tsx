@@ -114,6 +114,10 @@ vi.mock('@/services/terraclassic/settings', () => ({
   getPairFeeConfig: vi.fn().mockResolvedValue({ fee_bps: 30, treasury: 'terra1treasury0000000000000000000001' }),
 }))
 
+vi.mock('@/services/terraclassic/pairDiscountRegistry', () => ({
+  getPairDiscountRegistry: vi.fn().mockResolvedValue(null),
+}))
+
 vi.mock('@/services/terraclassic/wallet', () => ({
   getConnectedWallet: vi.fn(),
 }))
