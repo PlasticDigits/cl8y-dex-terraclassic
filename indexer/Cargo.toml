@@ -12,7 +12,10 @@ tower = { version = "0.5", features = ["limit", "util"] }
 governor = "0.8"
 tower_governor = "0.8"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
-utoipa-swagger-ui = { version = "9", features = ["axum"] }
+# vendored: embed Swagger UI so Coolify/Docker builds do not fetch GitHub zips
+# (utoipa-swagger-ui 9.0.2 otherwise curl-downloads v5.17.14.zip and panics on
+# truncated archives: InvalidArchive("Could not find EOCD")).
+utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
 reqwest = { version = "0.12", features = ["json"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "chrono", "bigdecimal", "migrate"] }
 serde = { version = "1", features = ["derive"] }

@@ -12,7 +12,9 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY indexer/ ./
-# sqlx::migrate!() embeds ./migrations at compile time
+# sqlx::migrate!() embeds ./migrations at compile time.
+# Swagger UI is vendored via utoipa-swagger-ui (feature "vendored") so this
+# step does not download swagger-ui from GitHub at compile time.
 RUN cargo build --release \
   && strip target/release/cl8y-dex-indexer
 
