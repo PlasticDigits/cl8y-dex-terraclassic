@@ -15,6 +15,9 @@ COPY frontend-dapp/package.json frontend-dapp/package-lock.json ./
 RUN npm ci
 
 COPY frontend-dapp/ ./
+# Create Pair catalog (#542) imports ../../../tokenlist/tokenlist.json from src/utils
+# (WORKDIR /app → /tokenlist/tokenlist.json). Coolify does not copy the repo tokenlist otherwise.
+COPY tokenlist/tokenlist.json /tokenlist/tokenlist.json
 
 ARG VITE_NETWORK=mainnet
 ARG VITE_FACTORY_ADDRESS
