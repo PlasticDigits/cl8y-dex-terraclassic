@@ -1491,11 +1491,19 @@ Unwired pairs (registry `None`, e.g. economic pairs before the #535 factory swee
 | **F537-1** | Advertise CL8Y discount only when pair `DISCOUNT_REGISTRY` is set and equals `VITE_FEE_DISCOUNT_ADDRESS`. |
 | **F537-2** | Unwired pair: show full `fee_bps` / full maker place fee; no strikethrough. |
 | **F537-3** | Do not invent a client-side discount the pair will not apply. |
-| **F537-4** | Probe LCD raw key `discount_registry` until `GetDiscountRegistry` exists on wasm; smart-query fallback if raw is blocked. Probe failure → fail-closed (full fee chrome). |
+| **F537-4** | Prefer pair `GetDiscountRegistry` (wasm **1.14.0+**, [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538)); LCD raw key `discount_registry` is fallback for 1.13.x or LCDs that reject the query. Probe failure → fail-closed (full fee chrome). |
 | **F537-5** | Hide pair-scoped Hold-CL8Y / “not registered” CTA on unwired pairs. Global registry-outage banner is unchanged. |
 | **F537-6** | HybridSimulation / route-solve with `trader` remains execute-aligned; this issue is fee **chrome**, not quote math. |
 
-Canonical invariant **I14**: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537`.
+Canonical invariant **I14**: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537`. Post-migrate inherit + smart-query-first: `make verify-issue-538` ([#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538), **F538-1–F538-3**).
+
+### Post-migrate inherit + smart-query-first (GitLab [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538)) {#post-migrate-inherit-538}
+
+| ID | Rule |
+|----|------|
+| **F538-1** | After factory 1.8.0 migrate, `config.discount_registry` is the fee-discount contract (All/Batch or `UpdateConfig`). Columbus-5 ops already set this. |
+| **F538-2** | New LocalTerra `create_pair` `GetDiscountRegistry` matches the factory pointer with **no** follow-up `SetDiscountRegistry`. |
+| **F538-3** | Swap / Pool / Trade `getPairDiscountRegistry` prefers `GetDiscountRegistry`; raw LCD is fallback. Fail-closed chrome (**F537-2**) is unchanged. |
 
 ### Pool page fee-discount UX (GitLab [#476](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/476)) {#pool-page-fee-discount-ux}
 
@@ -1513,7 +1521,7 @@ Pool cards reuse the same fee-discount status hook as Swap:
 
 **CL8Y decimals:** [`tokenRegistry.ts`](../frontend-dapp/src/utils/tokenRegistry.ts) lists CL8Y at **18** decimals so `/tiers` Hold labels match `min_cl8y_balance` wei (LocalTerra TCL8Y is also 18 — [#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)).
 
-**Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx), [`pairDiscountRegistry.test.ts`](../frontend-dapp/src/utils/__tests__/pairDiscountRegistry.test.ts), [`useLimitOrderMakerFeeRates.test.tsx`](../frontend-dapp/src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10. Regression: `make verify-issue-537`.
+**Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx), [`pairDiscountRegistry.test.ts`](../frontend-dapp/src/utils/__tests__/pairDiscountRegistry.test.ts), [`useLimitOrderMakerFeeRates.test.tsx`](../frontend-dapp/src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10. Regression: `make verify-issue-537` / `make verify-issue-538`.
 
 **Expected slippage, Expert Mode & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)):** When the indexer returns `slippage_percent` on `route/solve`, the trade summary shows **Expected slippage** — symmetric deviation vs fair cross-rate token prices (`spot_amount_out`). The dApp prefers wallet `return_amount` vs spot when both are present ([`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts)). **Expert Mode** (Settings checkbox, default **off**, persisted in `localStorage`) blocks submit when expected slippage **> 30%** with **Slippage is too high** and an **Enable Expert Mode** affordance that opens a warning modal ([`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx)). **≥ 99%** always shows an extreme-slippage alert, even with Expert Mode enabled. Multihop and indexer quotes also run **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so hop spread is visible as secondary context and submit is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) via [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) and `TxResultAlert`. **Pool-only CW20 swap** gas uses the buffered one-hop router envelope (**830k**), not legacy **600k**, so wallet fee displays (~23 vs ~36 LUNC) stay aligned with on-chain headroom; LocalTerra post-sign guards reject fee/gas rewrites below **95%** of the dApp envelope ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
 

@@ -158,7 +158,21 @@ Do **not** rely on a post-create `SetDiscountRegistry` sweep for **new** pairs. 
 
 Pair query **`GetDiscountRegistry`** returns `{ "registry": <addr or null> }` (this variant is on `QueryMsg` as of pair **1.14.0** — live 1.13.x wasm returns `unknown variant`). Factory `Config` includes `discount_registry`.
 
-**Existing** listings are not retroactively wired — that is [#535](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/535). Fail-closed registry errors stay **I10**. Invariant **F5**. Regression: `make verify-issue-536`.
+**Existing** listings are not retroactively wired — that is [#535](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/535). Fail-closed registry errors stay **I10**. Invariant **F5**. Regression: `make verify-issue-536`. Live inherit + dApp query: `make verify-issue-538` ([#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538)).
+
+<a id="gitlab-538"></a>
+
+### Post-migrate inherit + dApp `GetDiscountRegistry` (GitLab [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538))
+
+After factory **1.8.0** + pair **1.14.0** migrate:
+
+| ID | Rule |
+|----|------|
+| **F538-1** | Factory `{"config":{}}` → `discount_registry` must be the fee-discount contract (All/Batch or `UpdateConfig { discount_registry }`). Columbus-5 ops: factory `terra1ejpg…chsea` wasm **11585**, pointer `terra1wccz…cfnecz`. |
+| **F538-2** | A new LocalTerra `create_pair` must answer `GetDiscountRegistry` with that pointer **without** a follow-up `SetDiscountRegistry`. `deploy-dex-local.sh` asserts inherit before its idempotent per-pair set. Dedicated check: [`scripts/qa/localterra-create-pair-inherit.sh`](../scripts/qa/localterra-create-pair-inherit.sh). |
+| **F538-3** | dApp `getPairDiscountRegistry` prefers pair `GetDiscountRegistry`; LCD raw `discount_registry` is fallback for 1.13.x wasm or LCDs that reject the query. Probe failure stays fail-closed (**I14** / **F537-2**). |
+
+I10 fail-closed fee behavior is unchanged. Wiring already-listed economic pairs is [#535](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/535).
 
 ### Factory LP admin rotation (invariants, [GitLab #277](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/277))
 
@@ -216,7 +230,7 @@ Liquidity-share tokens use CW20 **`decimals = LP_TOKEN_DECIMALS`** (18). `MINIMU
 | `GetHooks`           | —                  | `HooksResponse`              |
 | `GetDiscountRegistry`| —                  | `DiscountRegistryResponse`   |
 
-`GetDiscountRegistry` is documented for integrators but **is not implemented on live pair wasm (1.13.0)** — `QueryMsg` has no variant yet (CreatePair inherit / query follow-up). Read `DISCOUNT_REGISTRY` via LCD raw key `discount_registry` (`/raw/ZGlzY291bnRfcmVnaXN0cnk=`). JSON `null` means the pair is **unwired** and charges full `fee_bps` (GitLab [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537), invariant **I14**). The dApp uses that probe (smart-query fallback when raw is blocked) and must not advertise `VITE_FEE_DISCOUNT_ADDRESS` discounts unless the stored address matches.
+`GetDiscountRegistry` is implemented on pair **1.14.0** (`{"get_discount_registry":{}}` → `{ "registry": <addr or null> }`). Pre-1.14.0 wasm (1.13.x) returns `unknown variant`. JSON `null` means the pair is **unwired** and charges full `fee_bps` (GitLab [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537) / [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538), invariant **I14**). The dApp prefers the smart query and falls back to LCD raw key `discount_registry` (`/raw/ZGlzY291bnRfcmVnaXN0cnk=`) when the query is missing or blocked. It must not advertise `VITE_FEE_DISCOUNT_ADDRESS` discounts unless the stored address matches.
 
 ### Event Attributes (swap)
 

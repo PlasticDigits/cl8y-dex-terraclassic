@@ -156,7 +156,7 @@ export function zapInSplit(params: {
 
   let lo = 1n
   let hi = maxSwap
-  let best: { s: bigint; sim: PoolNetSim; remaining: bigint; abs: bigint } | null = null
+  const best: { v: { s: bigint; sim: PoolNetSim; remaining: bigint; abs: bigint } | null } = { v: null }
 
   const consider = (s: bigint) => {
     const remaining = amountIn - s
@@ -164,8 +164,9 @@ export function zapInSplit(params: {
     if (!sim || remaining <= 0n) return
     const cmp = remaining * sim.newReserveOut - sim.net * sim.newReserveIn
     const abs = cmp < 0n ? -cmp : cmp
-    if (!best || abs < best.abs || (abs === best.abs && s < best.s)) {
-      best = { s, sim, remaining, abs }
+    const cur = best.v
+    if (!cur || abs < cur.abs || (abs === cur.abs && s < cur.s)) {
+      best.v = { s, sim, remaining, abs }
     }
     return cmp
   }
@@ -182,26 +183,33 @@ export function zapInSplit(params: {
     else hi = s - 1n
   }
 
-  if (best) {
-    const start = best.s > 64n ? best.s - 64n : 1n
-    const end = best.s + 64n > maxSwap ? maxSwap : best.s + 64n
+  const found = best.v
+  if (found) {
+    const start = found.s > 64n ? found.s - 64n : 1n
+    const end = found.s + 64n > maxSwap ? maxSwap : found.s + 64n
     for (let s = start; s <= end; s++) consider(s)
   }
 
-  if (!best) return { status: 'unavailable', reason: 'dust' }
+  const chosen = best.v
+  if (!chosen) return { status: 'unavailable', reason: 'dust' }
 
-  const trimmed = trimProvideToRatio(best.remaining, best.sim.net, best.sim.newReserveIn, best.sim.newReserveOut)
+  const trimmed = trimProvideToRatio(
+    chosen.remaining,
+    chosen.sim.net,
+    chosen.sim.newReserveIn,
+    chosen.sim.newReserveOut
+  )
   if (!trimmed || trimmed.provideIn <= 0n || trimmed.provideOut <= 0n) {
     return { status: 'unavailable', reason: 'dust' }
   }
 
   return {
     status: 'ok',
-    swapIn: best.s,
-    swapOut: best.sim.net,
-    swapGross: best.sim.gross,
-    postReserveIn: best.sim.newReserveIn,
-    postReserveOut: best.sim.newReserveOut,
+    swapIn: chosen.s,
+    swapOut: chosen.sim.net,
+    swapGross: chosen.sim.gross,
+    postReserveIn: chosen.sim.newReserveIn,
+    postReserveOut: chosen.sim.newReserveOut,
     ...trimmed,
   }
 }

@@ -25,7 +25,7 @@ Do **not** duplicate numeric tier tables in [`docs/deployment-guide.md`](../docs
 - **Quotes:** pass optional `trader` (and `sender` if needed) on `HybridSimulation` / router `SimulateSwapOperations` for execute-matching discounted output ([GitLab **#238**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238), [skills/AGENTS_HYBRID_QUOTING.md](./AGENTS_HYBRID_QUOTING.md)). **dApp + indexer** must forward the connected wallet on all quote LCD hops and route-solve calls ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)).
 - **Pair cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** `execute_swap` and limit placement cache registry `GetDiscount` for **300s** per `(trader, sender)`; sim reads cache only. Do not assume quotes re-query registry every block within TTL — document **I9** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Constant: `dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`.
 - **Registry outage observability ([GitLab #365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)):** On-chain **fail-closed** to full pair fee when registry `GetDiscount` errors — do not change without ADR. Off-chain: indexer background LCD `config` probe → `GET /api/v1/health/fee-discount` (`fee_discount_registry_ok`, `consecutive_lcd_failures`; no per-trader errors). dApp **Swap and Pool** show a non-blocking amber warning when LCD registration/discount queries fail or indexer health is down. Utility: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts); shared hook: [`useFeeDiscountRegistryStatus.ts`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Invariant **I10** / **I12** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Integrator decision table: [`docs/integrators.md` § Fee-discount registry outage](../docs/integrators.md#fee-discount-registry-outage). Regression: `make verify-issue-365`.
-- **Pair registry gate ([GitLab #537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537), invariant I14):** dApp Swap / Pool / Trade fee chrome and `useLimitOrderMakerFeeRates` must not apply `getTraderDiscount` unless the pair’s `DISCOUNT_REGISTRY` is set and matches `VITE_FEE_DISCOUNT_ADDRESS`. Unwired pair → full `fee_bps` (no strikethrough). Probe: LCD raw `discount_registry` until `GetDiscountRegistry` ships. Frontend: [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts). Playbook: [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537`. Do **not** invent UI discounts for lookalike tokens **or** unwired pairs.
+- **Pair registry gate ([GitLab #537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537) / [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538), invariant I14):** dApp Swap / Pool / Trade fee chrome and `useLimitOrderMakerFeeRates` must not apply `getTraderDiscount` unless the pair’s `DISCOUNT_REGISTRY` is set and matches `VITE_FEE_DISCOUNT_ADDRESS`. Unwired pair → full `fee_bps` (no strikethrough). Probe: `GetDiscountRegistry` first; LCD raw `discount_registry` fallback for 1.13.x. Frontend: [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts). Playbook: [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537` / `make verify-issue-538`. Do **not** invent UI discounts for lookalike tokens **or** unwired pairs.
 
 ## Indexer tier sync (GitLab #364)
 
@@ -54,6 +54,9 @@ make verify-issue-365
 
 # Pair-scoped fee-tier chrome (#537) — no LocalTerra
 make verify-issue-537
+
+# Post-migrate inherit + smart-query-first (#538) — LocalTerra for live create_pair
+make verify-issue-538
 ```
 
 Run **`make check-fee-discount-tier-docs`** (reference job `docs-fee-discount-tiers`; [docs/testing.md § CI](../docs/testing.md#ci)) when `docs/**`, `scripts/deploy-dex-local.sh`, or `tier_fixtures.rs` change.
@@ -61,6 +64,8 @@ Run **`make check-fee-discount-tier-docs`** (reference job `docs-fee-discount-ti
 Run **`make verify-issue-365`** after edits to P5/I10 docs, indexer `GET /api/v1/health/fee-discount`, or [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts).
 
 Run **`make verify-issue-537`** after edits to Swap/Pool/Trade fee chrome, [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts), or `useLimitOrderMakerFeeRates`.
+
+Run **`make verify-issue-538`** after factory/pair migrate, `getPairDiscountRegistry` probe order, or LocalTerra create-pair inherit scripts.
 
 ## Factory registry rollout (GitLab #242 / #536)
 
@@ -72,7 +77,7 @@ After the fee-discount contract is deployed and tiers are configured:
 | ≤10 pairs | `set_discount_registry_all` (single tx) — also writes `config.discount_registry` |
 | >10 pairs | Repeat `set_discount_registry_batch` until response `has_more` is `false` (use `next_start_after` as cursor) — also writes the factory pointer |
 
-**New listings ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536), F5 / I14):** once All/Batch (or `UpdateConfig { discount_registry }`) has set the factory pointer, `CreatePair` copies it into the pair. Do not rely on a post-create sweep for **new** pairs. Existing pairs are **not** auto-wired (#535). Pair query: `{"get_discount_registry":{}}`. Playbook: [`AGENTS_FACTORY_DISCOUNT_REGISTRY.md`](./AGENTS_FACTORY_DISCOUNT_REGISTRY.md). Verify: `make verify-issue-536`.
+**New listings ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536) / [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538), F5 / I14 / F538):** once All/Batch (or `UpdateConfig { discount_registry }`) has set the factory pointer, `CreatePair` copies it into the pair. Do not rely on a post-create sweep for **new** pairs. Existing pairs are **not** auto-wired (#535). Pair query: `{"get_discount_registry":{}}`. Playbook: [`AGENTS_FACTORY_DISCOUNT_REGISTRY.md`](./AGENTS_FACTORY_DISCOUNT_REGISTRY.md). Verify: `make verify-issue-536` / `make verify-issue-538`.
 
 Invariants and batch loop example: [docs/contracts-terraclassic.md § Factory discount registry rollout](../docs/contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123). Snapshot: [§ Factory discount registry snapshot](../docs/contracts-terraclassic.md#factory-discount-registry-snapshot-gitlab-536). Gas playbook: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md).
 

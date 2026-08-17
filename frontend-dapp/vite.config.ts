@@ -10,9 +10,11 @@ import { DEV_PROXY_INDEXER_PREFIX, DEV_PROXY_LCD_PREFIX, planDevRemoteProxy } fr
 
 let gitSha = 'dev'
 try {
-  gitSha = execSync('git rev-parse --short HEAD').toString().trim()
+  gitSha = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+    .toString()
+    .trim()
 } catch {
-  /* not in git repo yet */
+  /* git missing (Coolify node image) or not a checkout */
 }
 
 function isPrivateIP(addr: string): boolean {

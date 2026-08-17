@@ -314,6 +314,20 @@ factory_create_pair() {
     terrad_tx wasm execute "$FACTORY_ADDRESS" "$CREATE_MSG" "${FEE_ARGS[@]}"
 }
 
+# GitLab #538: CreatePair must have copied factory.discount_registry before any
+# per-pair SetDiscountRegistry (belt-and-suspenders stays below).
+assert_pair_inherited_discount_registry() {
+    local pair="$1"
+    local got
+    got=$(terrad_query wasm contract-state smart "$pair" '{"get_discount_registry":{}}' \
+      | jq -r '.data.registry // empty')
+    if [ "$got" != "$FEE_DISCOUNT_ADDRESS" ]; then
+        echo "ERROR: pair $pair GetDiscountRegistry='${got:-null}' did not inherit factory pointer $FEE_DISCOUNT_ADDRESS (GitLab #538)" >&2
+        exit 1
+    fi
+    echo "  Inherited discount_registry (no Set yet): $got"
+}
+
 # Pre-flight: make sure test1 can cover the fee for every pair we create (Phase 4/4b/4c =
 # PAIR_CONFIGS + 3 unpaired + 2 wrapped-native). The fee returns to treasury (== test1), so this is a
 # generous headroom check; it fails fast with an actionable message instead of dying mid-Phase-4.
@@ -723,6 +737,7 @@ for p in "${!PAIR_CONFIGS[@]}"; do
     PAIR_ADDRESSES+=("$PAIR_ADDR")
     echo "  Pair Address: $PAIR_ADDR"
 
+    assert_pair_inherited_discount_registry "$PAIR_ADDR"
     # Belt-and-suspenders (#536): CreatePair already inherited factory.discount_registry.
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
       "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
@@ -835,6 +850,7 @@ for upc in "${UNPAIRED_PAIR_CONFIGS[@]}"; do
     PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
     echo "  Pair Address: $PAIR_ADDR"
 
+    assert_pair_inherited_discount_registry "$PAIR_ADDR"
     TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
       "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
     echo "  Set discount registry (idempotent): $TX_HASH"
@@ -884,6 +900,7 @@ do
   PAIR_ADDR=$(echo "$PAIR_RESULT" | terrad_jq_contract_address_from_tx_json | head -1)
   echo "  Pair Address: $PAIR_ADDR"
 
+  assert_pair_inherited_discount_registry "$PAIR_ADDR"
   TX_HASH=$(terrad_tx wasm execute "$FACTORY_ADDRESS" \
     "{\"set_discount_registry\":{\"pair\":\"$PAIR_ADDR\",\"registry\":\"$FEE_DISCOUNT_ADDRESS\"}}" | jq -r '.txhash')
   echo "  Set discount registry (idempotent): $TX_HASH"

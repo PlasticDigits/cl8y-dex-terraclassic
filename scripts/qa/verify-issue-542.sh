@@ -48,6 +48,7 @@ run_step "code: catalog is bundled tokenlist, not getAllTokens / fetch" \
   bash -c 'grep -qE "tokenlist/tokenlist.json" frontend-dapp/src/utils/createPairTokenCatalog.ts &&
     grep -qE "getCreatePairCw20Options" frontend-dapp/src/utils/createPairTokenCatalog.ts &&
     grep -qE "SOFT_LAUNCH_MINTABLE_TOKENS" frontend-dapp/src/utils/createPairTokenCatalog.ts &&
+    grep -qE "COPY tokenlist/tokenlist.json /tokenlist/tokenlist.json" docker/frontend/Dockerfile &&
     ! grep -qE "getAllTokens" frontend-dapp/src/utils/createPairTokenCatalog.ts &&
     ! grep -qE "\\bfetch\\s*\\(" frontend-dapp/src/utils/createPairTokenCatalog.ts &&
     ! grep -qE "getAllTokens" frontend-dapp/src/pages/CreatePairPage.tsx &&
