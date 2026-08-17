@@ -45,6 +45,7 @@ export default function App() {
                 <Route path="/create" element={<LazyRoute loader={() => import('./pages/CreatePairPage')} />} />
                 <Route path="/tiers" element={<LazyRoute loader={() => import('./pages/TiersPage')} />} />
                 <Route path="/charts" element={<LazyRoute loader={() => import('./pages/ChartsPage')} />} />
+                <Route path="/charts/:pairAddr" element={<LazyRoute loader={() => import('./pages/ChartsPage')} />} />
                 <Route path="/portfolio" element={<LazyRoute loader={() => import('./pages/PortfolioPage')} />} />
                 <Route path="/my-portfolio" element={<Navigate to="/portfolio" replace />} />
                 <Route path="/trader" element={<TraderRouteShell />} />

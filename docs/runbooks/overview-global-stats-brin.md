@@ -8,10 +8,10 @@ Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md). Agen
 
 1. **60s whole-response cache** in [`overview.rs`](../../indexer/src/api/overview.rs).
 2. On cache miss, [`get_global_stats`](../../indexer/src/db/queries/volume.rs) reads the single row in **`global_stats_24h`** (O(1) primary key fetch), including additive 7d/30d USD, active-pair, and unique-trader columns ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)).
-3. Cheap `COUNT(*)` census: `token_count` from `assets`; `tokens_added_30d` / `pairs_added_30d` from `created_at >= now() - 30 days` (indexer first-seen, not on-chain genesis). Supporting indexes: `idx_assets_created_at`, `idx_pairs_created_at`.
+3. Cheap `COUNT(*)` census: `token_count` is unique pair-leg assets ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**); `tokens_added_30d` / `pairs_added_30d` from `created_at >= now() - 30 days` (indexer first-seen, not on-chain genesis). Supporting indexes: `idx_assets_created_at`, `idx_pairs_created_at`.
 4. The rollup is refreshed every **~5 minutes** by [`volume_aggregator.rs`](../../indexer/src/indexer/volume_aggregator.rs) and once at indexer startup in [`poller.rs`](../../indexer/src/indexer/poller.rs). **Do not** `SUM` / `COUNT(DISTINCT)` 30d `swap_events` on the request path.
 
-Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss.
+Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss. **`token_count`** is unique pair-leg assets (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Charts displays **USD-only** 24h volume; `total_volume_24h` remains raw for API clients. After catalog backfill (`20260817120000_backfill_swap_volume_usd_catalog.sql`), refresh this rollup (migration already does).
 
 ### Actively traded pairs (GitLab #550)
 

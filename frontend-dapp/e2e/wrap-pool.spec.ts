@@ -15,34 +15,24 @@ test.describe('Pool with native token wrapping — UI', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/pool')
     await expect(async () => {
-      await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
+      await expect(page.getByTestId('pool-pairs-table')).toBeVisible()
     }).toPass({ timeout: 90_000 })
   })
 
   test('E6: pool page loads with pairs', async ({ page }) => {
     await expect(async () => {
-      const pairCount = await page
-        .getByText(/pair\(s\)/i)
-        .first()
-        .textContent()
-      expect(pairCount).toMatch(/[\d,]+\s*pair/i)
-      const m = pairCount?.match(/([\d,]+)\s*pair/i)
-      expect(m).toBeTruthy()
-      const n = parseInt(m![1].replace(/,/g, ''), 10)
-      expect(n).toBeGreaterThan(0)
+      await expect(page.getByTestId('pool-pair-row').first()).toBeVisible()
     }).toPass({ timeout: 90_000 })
   })
 
   test('E7: pool page shows one-sided add/withdraw and Advanced two-sided', async ({ page }) => {
     await expect(page.getByTestId('pool-one-sided-add')).toBeVisible({ timeout: 90_000 })
     await expect(page.getByTestId('pool-one-sided-withdraw')).toBeVisible()
-    await expect(async () => {
-      await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
-    }).toPass({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-row-manage').first()).toBeVisible({ timeout: 90_000 })
   })
 
   test('E8: Advanced provide still has native toggle', async ({ page }) => {
-    await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-row-manage').first()).toBeVisible({ timeout: 90_000 })
     await openPoolCardAdvanced(page)
     await page
       .getByRole('button', { name: /Provide Liquidity/i })
@@ -56,7 +46,7 @@ test.describe('Pool with native token wrapping — UI', () => {
   })
 
   test('E9: Advanced withdraw may show receive wrapped checkbox', async ({ page }) => {
-    await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-row-manage').first()).toBeVisible({ timeout: 90_000 })
     await openPoolCardAdvanced(page)
     await page
       .getByRole('button', { name: /Withdraw Liquidity/i })

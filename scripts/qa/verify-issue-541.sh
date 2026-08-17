@@ -59,11 +59,12 @@ run_step "frontend: Pool / Trade / Charts #541 page mounts" \
     -t "541"'
 
 run_step "code: pages use PairTokenLinks (no hand-rolled explorer href)" \
-  grep -qE 'PairTokenLinks' frontend-dapp/src/pages/PoolPage.tsx && \
+  grep -qE 'PairTokenLinks' frontend-dapp/src/components/pool/PoolPairsTable.tsx && \
   grep -qE 'PairTokenLinks' frontend-dapp/src/pages/TradePage.tsx && \
   grep -qE 'PairTokenLinks' frontend-dapp/src/pages/ChartsPage.tsx && \
   bash -c '! grep -nE "finder\\.terraclassic|coingecko|coinmarketcap|/token/" \
     frontend-dapp/src/pages/PoolPage.tsx \
+    frontend-dapp/src/components/pool/PoolPairsTable.tsx \
     frontend-dapp/src/pages/TradePage.tsx \
     frontend-dapp/src/pages/ChartsPage.tsx \
     frontend-dapp/src/components/ui/TokenIdentity.tsx \
@@ -75,7 +76,7 @@ run_step "code: identity not inside pair pickers; no factory/router clone" \
     frontend-dapp/src/components/trade/TokenSearchSelect.tsx' && \
   bash -c '! grep -qE "wallet-menu-address-row|protocol-factory|FACTORY_CONTRACT_ADDRESS" \
     frontend-dapp/src/components/ui/PairTokenLinks.tsx' && \
-  grep -qE 'pool-lp-token-address-row' frontend-dapp/src/pages/PoolPage.tsx && \
+  grep -qE 'pool-lp-token-address-row' frontend-dapp/src/components/pool/PoolAdvancedManage.tsx && \
   grep -qE 'trade-pair-select-panel' frontend-dapp/src/pages/TradePage.tsx
 
 run_step "code: no /token route" \

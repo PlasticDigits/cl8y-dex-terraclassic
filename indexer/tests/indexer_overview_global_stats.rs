@@ -416,7 +416,7 @@ async fn tokens_and_pairs_added_30d_use_created_at() {
 
 #[serial]
 #[tokio::test]
-async fn overview_api_exposes_additive_fields_and_count_star_tokens() {
+async fn overview_api_exposes_additive_fields_and_pair_leg_tokens() {
     let pool = setup_pool().await;
     seed_db(&pool).await;
     volume::refresh_global_stats(&pool).await.expect("refresh");
@@ -428,7 +428,10 @@ async fn overview_api_exposes_additive_fields_and_count_star_tokens() {
     let body: Value = resp.json();
 
     assert!(body["total_volume_24h"].is_string());
-    assert!(body["total_volume_24h_usd"].is_string());
+    assert!(
+        body["total_volume_24h_usd"].is_null() || body["total_volume_24h_usd"].is_string(),
+        "unpriced 24h activity is JSON null (#548 C3); priced/idle is a decimal string"
+    );
     assert!(body["total_trades_24h"].is_i64());
     assert!(body["pair_count"].is_i64());
     assert!(body["token_count"].is_i64());

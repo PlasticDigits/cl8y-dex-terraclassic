@@ -314,7 +314,7 @@ test.describe('Navigation', () => {
 
     await page.getByRole('link', { name: 'Pool' }).click()
     await expect(page).toHaveURL(/\/pool/)
-    await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible()
     await expect(nfa).toBeVisible({ timeout: 3_000 })
 
     await clickDesktopMoreNavItem(page, 'Fee Tiers')
@@ -336,7 +336,7 @@ test.describe('Navigation', () => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Pool' }).click()
     await expect(page).toHaveURL(/\/pool/)
-    await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible()
   })
 
   test('desktop primary tabs change URL without reload (GitLab #182)', async ({ page }) => {

@@ -1,0 +1,62 @@
+# Agent playbook: `/pool` sortable table (GitLab #547)
+
+Audience: third-party agents changing the pool list, default rank, Charts deep links, or `/pool` page chrome.
+
+**Issue:** [GitLab **#547**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)  
+**Invariants:** [`docs/frontend.md` § Liquidity pools list](../docs/frontend.md#liquidity-pools-list-indexer-vs-factory) (**P547-1–P547-10**)  
+**Related:** [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) no lectures, [#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531) how-to dismiss, [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) catalog rank, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541) identity, [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537) I14 fee chrome
+
+## Problem class
+
+`/pool` was a stack of `PoolCard`s with Sort/Order dropdowns, A–Z default (gems interleaved with UST1), no Charts URL, and indexer/factory lectures in the header. Router-known filtered only the current page.
+
+## Do / don’t
+
+- **Do** list pairs in a `<table>` with caret-by-label sortable headers (`PoolPairsTable`).
+- **Do** default empty browse to catalog rank (`sortIndexerPairsByCatalog`) after fetching a large `volume_24h` window (`POOL_CATALOG_FETCH_LIMIT`).
+- **Do** use indexer `sort`/`order` for user column clicks — **no** catalog overlay on Vol/Fee/Pair/Created.
+- **Do** keep typed search on indexer `relevance` / `q` (**P534-6**).
+- **Do** `Link` Charts to `/charts/:pairAddr` only via `chartsPairHref` (valid Terra bech32).
+- **Do** mount `PoolAdvancedManage` only when **Manage** is expanded (A8: no N+1 LCD on default paint).
+- **Don’t** restore stacked cards as the only list, Sort/Order dropdowns, Router-known, or header “List source” / pair-count essays.
+- **Don’t** put LCD `getPool` / `getPairFeeConfig` on every row for first paint.
+- **Don’t** advertise CL8Y discounts from indexer `fee_bps` (I14 stays on Manage expand).
+
+## Canonical code
+
+| File | Role |
+|------|------|
+| `frontend-dapp/src/pages/PoolPage.tsx` | Search + one-sided cards + table; no page title |
+| `frontend-dapp/src/components/pool/PoolPairsTable.tsx` | Sortable table + Charts `Link` + Manage expand |
+| `frontend-dapp/src/components/pool/PoolAdvancedManage.tsx` | Two-sided Advanced; LCD on expand |
+| `frontend-dapp/src/utils/poolListQuery.ts` | Catalog window, column sorts, pagination |
+| `frontend-dapp/src/utils/chartsPairRoute.ts` | `/charts/:pairAddr` validation + href |
+| `frontend-dapp/src/pages/ChartsPage.tsx` | Reads `:pairAddr`; invalid/unknown notices |
+| `frontend-dapp/src/utils/poolLpHowto.ts` | Section dismiss `cl8y-dex-pool-lp-howto-section-dismissed` |
+
+## Invariants (P547-1–P547-10)
+
+1. **P547-1** — Primary list is a table (`role`/`<table>`), not stacked `PoolCard`.
+2. **P547-2** — Sortable headers: label + caret; `aria-sort` on the active column; no Order dropdown.
+3. **P547-3** — Default (no search, no column click) is catalog: UST1 hub first, gems last, human 24h volume (**P534-1–P534-4**). Implementation: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, client-paginate 20.
+4. **P547-4** — Column sort uses indexer keys only (`symbol`, `volume_24h`, `fee`, `created`). Vol format is `formatQuoteVolume24h`. Created cells are `—` until list JSON includes a timestamp.
+5. **P547-5** — Charts href is same-origin `/charts/<pairAddr>`. Invalid bech32 / `javascript:` / HTML → no `Link`.
+6. **P547-6** — No Router-known checkbox or `pool-filter-router`.
+7. **P547-7** — How-to section (hint + details) is dismissible; `#lp-howto` restores (**H531-7**).
+8. **P547-8** — No “Liquidity Pools” `h2`, list-source essay, indexer/factory counts, or header eligibility note. Search + one-sided + outage/registry banners stay.
+9. **P547-9** — Default table paint does not `getPool`/`getPairFeeConfig` per row. I14 fee badge + unregistered CTA on Manage expand.
+10. **P547-10** — `#489`: no always-on architecture lectures. Factory/Indexer is a compact mark, not a filter.
+
+## Verify
+
+```bash
+make verify-issue-547
+```
+
+## Related
+
+- [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — catalog overlay; `/pool` default is in scope
+- [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — whole-section dismiss
+- [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no header lectures
+- [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — identity on the table row
+- [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) — I14 on expand, not header

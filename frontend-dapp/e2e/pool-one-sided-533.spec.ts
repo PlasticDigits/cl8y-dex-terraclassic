@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test.describe('One-sided pool add/withdraw UI (GitLab #533 P1–P3)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/pool')
-    await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible({ timeout: 90_000 })
   })
 
   test('P1 add card: Token, Pair, Amount only — no wrap checkbox or second asset', async ({ page }) => {

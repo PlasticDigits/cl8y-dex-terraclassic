@@ -17,7 +17,7 @@ Audience: third-party agents touching indexer USD reference prices, Protocol ora
 | **X1** | Bare `/api/v1/oracle/price` and `/history` return **catalog** `{ metadata, tickers }` only. |
 | **X2** | Snapshots/history require `/price/{ticker}` or `/history/{ticker}` with `ustc` \| `lunc` \| `vfdusd`. |
 | **X3** | Fetcher symbols must match ticker (USTC≠LUNC≠FDUSD CEX ids). |
-| **X4** | Volume USD / overview `ustc_price_usd` stay on the **USTC** handle. |
+| **X4** | Volume USD uses the **P522-Q catalog** ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Overview `ustc_price_usd` stays the **USTC** handle. Do **not** convert DEX volume with vFDUSD. |
 | **X5** | Advisory reference — never settlement authority. |
 | **X6** | Non-finite f64 → safe BigDecimal before insert. |
 
@@ -41,10 +41,11 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 - **Do** call `/price/ustc`, `/price/lunc`, or `/price/vfdusd` explicitly in new integrators.
 - **Do** keep Protocol UI labeled **USTC / USD** when using the default ticker; LUNC and vFDUSD have their own chips ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)).
 - **Don’t** restore a bare `/price` numeric response.
-- **Don’t** use LUNC or vFDUSD feeds for `volume_usd` conversion.
+- **Don’t** use vFDUSD/FDUSD feeds for `volume_usd` conversion (LUNC-quoted swaps still use the LUNC feed via P522-Q).
 - **Don’t** treat CoinGecko 429 as a hard outage (soft-fail; KuCoin/MEXC usually suffice). KuCoin is skipped for `vfdusd` (unlisted).
 - **Don’t** alias `/price/fdusd` to vFDUSD — unknown ticker stays **400**.
 - **Don’t** hardcode vFDUSD as `$1`.
+- **Don’t** use the LUNC ticker for the Charts/overview **USTC / USD** box.
 
 ## Regression checklist
 
@@ -61,3 +62,4 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md)
 - [`docs/twap-oracle.md`](../docs/twap-oracle.md) — on-chain TWAP (different subsystem)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles convert quote-per-base to USD of 1 human base using these tickers ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522))
+- [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — swap `volume_usd` ingest uses P522-Q; overview USTC box stays this USTC feed ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548))

@@ -419,16 +419,31 @@ async fn process_swap(
         )
     });
 
-    let volume_usd = compute_volume_usd(
-        pool,
-        config,
-        ustc_price,
-        offer_asset_id,
-        ask_asset_id,
-        &swap.offer_amount,
-        &swap.return_amount,
-    )
-    .await;
+    let offer_asset = assets::get_asset_by_id(pool, offer_asset_id)
+        .await
+        .ok()
+        .flatten();
+    let ask_asset = assets::get_asset_by_id(pool, ask_asset_id)
+        .await
+        .ok()
+        .flatten();
+    let volume_usd = match (
+        offer_asset.as_ref(),
+        ask_asset.as_ref(),
+        quote_asset.as_ref(),
+    ) {
+        (Some(offer), Some(ask), Some(quote)) => pair_price_usd::volume_usd_for_swap(
+            offer,
+            ask,
+            &swap.offer_amount,
+            &swap.return_amount,
+            quote,
+            ustc_usd.as_ref(),
+            lunc_usd.as_ref(),
+            config.ustc_denom.as_deref(),
+        ),
+        _ => None,
+    };
 
     let inserted = swap_events::insert_swap(
         pool,
@@ -492,57 +507,6 @@ async fn process_swap(
     .await?;
 
     Ok(())
-}
-
-fn is_ustc_asset(asset: &assets::AssetRow, ustc_denom: Option<&str>) -> bool {
-    if let Some(denom) = &asset.denom {
-        if denom == "uusd" {
-            return true;
-        }
-    }
-    if let Some(configured) = ustc_denom {
-        if let Some(addr) = &asset.contract_address {
-            if addr == configured {
-                return true;
-            }
-        }
-        if let Some(denom) = &asset.denom {
-            if denom == configured {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-async fn compute_volume_usd(
-    pool: &PgPool,
-    config: &Config,
-    ustc_price: &oracle::SharedPrice,
-    offer_asset_id: i32,
-    ask_asset_id: i32,
-    offer_amount: &BigDecimal,
-    return_amount: &BigDecimal,
-) -> Option<BigDecimal> {
-    let price_usd = ustc_price.read().await.clone()?;
-
-    let offer_asset = assets::get_asset_by_id(pool, offer_asset_id).await.ok()??;
-    let ask_asset = assets::get_asset_by_id(pool, ask_asset_id).await.ok()??;
-
-    let ustc_denom = config.ustc_denom.as_deref();
-    let decimals_factor = BigDecimal::from(1_000_000i64);
-
-    if is_ustc_asset(&offer_asset, ustc_denom) {
-        let human_amount = offer_amount / &decimals_factor;
-        return Some(human_amount * &price_usd);
-    }
-
-    if is_ustc_asset(&ask_asset, ustc_denom) {
-        let human_amount = return_amount / &decimals_factor;
-        return Some(human_amount * &price_usd);
-    }
-
-    None
 }
 
 /// Extract swap events from LCD tx logs (`wasm` events with `action=swap`).

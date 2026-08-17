@@ -50,8 +50,8 @@ run_step "frontend unit: pairDiscountRegistry helpers + LCD probe + maker hook +
 run_step "code: Swap/Pool/Trade gate on pairDiscountApplies / getPairDiscountRegistry" \
   grep -qE 'useFeeDiscountRegistryStatus\(directPair' frontend-dapp/src/pages/SwapPage.tsx && \
   grep -qE 'pairDiscountApplies' frontend-dapp/src/pages/SwapPage.tsx && \
-  grep -qE 'useFeeDiscountRegistryStatus\(pair.contract_addr\)' frontend-dapp/src/pages/PoolPage.tsx && \
-  grep -qE 'pairDiscountApplies' frontend-dapp/src/pages/PoolPage.tsx && \
+  grep -qE 'useFeeDiscountRegistryStatus\(pair.contract_addr\)' frontend-dapp/src/components/pool/PoolAdvancedManage.tsx && \
+  grep -qE 'pairDiscountApplies' frontend-dapp/src/components/pool/PoolAdvancedManage.tsx && \
   grep -qE 'useFeeDiscountRegistryStatus\(pairAddr' frontend-dapp/src/components/pool/OneSidedAddCard.tsx && \
   grep -qE 'useFeeDiscountRegistryStatus\(pair\?\.contract_addr\)' frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx && \
   grep -qE 'getPairDiscountRegistry' frontend-dapp/src/hooks/useLimitOrderMakerFeeRates.ts && \

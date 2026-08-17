@@ -113,6 +113,20 @@ pub async fn get_all_assets(pool: &PgPool) -> Result<Vec<AssetRow>, sqlx::Error>
         .await
 }
 
+/// Unique assets that appear as a factory pair leg (`asset_0` or `asset_1`).
+/// Does not count orphan `assets` rows or `pairs.lp_token` (GitLab #548 **C6** / **A9**).
+pub async fn count_pair_leg_assets(pool: &PgPool) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>(
+        r#"SELECT COUNT(*) FROM (
+             SELECT asset_0_id AS id FROM pairs
+             UNION
+             SELECT asset_1_id FROM pairs
+           ) legs"#,
+    )
+    .fetch_one(pool)
+    .await
+}
+
 pub async fn list_assets_paginated(
     pool: &PgPool,
     limit: i64,

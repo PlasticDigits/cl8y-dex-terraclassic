@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
-const POOL_CARD_SELECTOR = '.shell-panel-strong'
+const POOL_CARD_SELECTOR = '[data-testid="pool-pair-group"]'
 const WRAP_POOL_PAIR_SYMBOL = 'cLUNC'
 
 const MISSING_WRAP_PAIR_MSG =
@@ -21,7 +21,7 @@ export function poolCardBySymbol(page: Page, symbol: string): Locator {
   const token = escapeRegExp(symbol)
   return page
     .locator(POOL_CARD_SELECTOR)
-    .filter({ has: page.getByTestId('pool-card-advanced') })
+    .filter({ has: page.getByTestId('pool-pair-row') })
     .filter({ hasText: new RegExp(`\\b${token}\\b`) })
     .first()
 }
@@ -38,20 +38,16 @@ async function waitForPoolListSettled(page: Page): Promise<void> {
     await assertPoolIndexerAvailable(page)
     const loading = await page.locator('[aria-live="polite"] .animate-pulse').count()
     expect(loading).toBe(0)
-    const cards = await page
-      .locator(POOL_CARD_SELECTOR)
-      .filter({ has: page.getByTestId('pool-card-advanced') })
-      .count()
+    const cards = await page.locator(POOL_CARD_SELECTOR).count()
     const empty = await page.getByText(/No liquidity pools match your filters/i).isVisible()
-    const routerEmpty = await page.getByText(/No pools on this page are in the factory router set/i).isVisible()
-    expect(cards > 0 || empty || routerEmpty).toBe(true)
+    expect(cards > 0 || empty).toBe(true)
   }).toPass({ timeout: 30_000 })
 }
 
 async function submitPoolSearch(page: Page, query: string): Promise<void> {
   await page.locator('#pool-search').fill(query)
   await page
-    .getByRole('search', { name: /Filter and sort pools/i })
+    .getByRole('search', { name: /Search pools/i })
     .getByRole('button', { name: /^Search$/i })
     .click()
   await waitForPoolListSettled(page)
@@ -97,7 +93,7 @@ export type GotoPoolCardOptions = {
 export async function gotoPoolCardBySymbol(page: Page, symbol: string, opts?: GotoPoolCardOptions): Promise<Locator> {
   if (opts?.goto) {
     await page.goto('/pool')
-    await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
   }
 
   const searchQuery = opts?.searchQuery ?? symbol

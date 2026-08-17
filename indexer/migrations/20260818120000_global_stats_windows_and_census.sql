@@ -14,9 +14,9 @@ CREATE INDEX IF NOT EXISTS idx_assets_created_at ON assets (created_at);
 CREATE INDEX IF NOT EXISTS idx_pairs_created_at ON pairs (created_at);
 
 COMMENT ON COLUMN global_stats_24h.total_volume_7d_usd IS
-    'SUM(volume_usd) over last 7d; USTC-oracle conversion only (X4). Refreshed ~5 min.';
+    'SUM(volume_usd) over last 7d; P522-Q catalog (X4 / #548). Not vFDUSD. Refreshed ~5 min.';
 COMMENT ON COLUMN global_stats_24h.total_volume_30d_usd IS
-    'SUM(volume_usd) over last 30d; USTC-oracle conversion only (X4). Refreshed ~5 min.';
+    'SUM(volume_usd) over last 30d; P522-Q catalog (X4 / #548). Not vFDUSD. Refreshed ~5 min.';
 COMMENT ON COLUMN global_stats_24h.active_pairs_24h IS
     'Distinct pair_id with >=1 swap_events row in last 24h. Dust swaps count; not unique traders.';
 COMMENT ON COLUMN global_stats_24h.unique_traders_24h IS

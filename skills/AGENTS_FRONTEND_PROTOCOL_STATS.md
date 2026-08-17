@@ -20,11 +20,11 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P550-3** | Snapshot + sources + history live in **one** card. Query keys include ticker. |
 | **P550-4** | Stats headline **USD** (`total_volume_*_usd`). Do **not** present mixed-unit `total_volume_24h` as volume. |
 | **P550-5** | 7d/30d/active-pair/unique-trader figures come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`. |
-| **P550-6** | `token_count` is `SELECT COUNT(*) FROM assets`, not `get_all_assets().len()`. |
+| **P550-6** | `token_count` is unique pair-leg assets (`count_pair_leg_assets`, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**), not `get_all_assets().len()`. New-token census is `tokens_added_30d` on `assets.created_at`. |
 | **P550-7** | “New in 30d” is indexer `created_at` (first-seen). Reindex/rebuild makes everything look new — copy must not say “launched on chain”. |
 | **P550-8** | Active pairs = distinct `pair_id` with ≥1 swap in last **24h** (materialized). Dust swaps count. Not unique traders. Not TVL. |
 | **P550-9** | vFDUSD polls CEX **FDUSD** (`first-digital-usd` / `FDUSDUSDT`). Not `$1`. Not USTC/LUNC ids. No `fdusd` path alias. |
-| **P550-10** | **X4** unchanged: DEX `volume_usd` still USTC-only. Do not convert with LUNC or vFDUSD. |
+| **P550-10** | **X4** is P522-Q catalog (#548): UST1/USTC/LUNC/USTR legs can price `volume_usd`. Do **not** convert DEX volume with vFDUSD/FDUSD. Overview `ustc_price_usd` stays the USTC ticker. |
 | **P550-11** | Feeds labeled **reference**. Not TWAP (Charts), not UST1 window (`/ust1`). |
 | **P550-12** | Factory/router `AddressRow` stay on `/protocol` only (#378). |
 

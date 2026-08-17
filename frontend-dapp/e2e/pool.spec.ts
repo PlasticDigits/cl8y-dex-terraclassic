@@ -3,53 +3,43 @@ import { openPoolCardAdvanced } from './helpers/pool-ui'
 
 async function gotoPoolAndOpenAdvanced(page: Parameters<typeof openPoolCardAdvanced>[0]) {
   await page.goto('/pool')
-  await expect(async () => {
-    await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
-  }).toPass({ timeout: 90_000 })
+  await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
   await openPoolCardAdvanced(page)
 }
 
 test.describe('Pool Page', () => {
   test.describe('Without wallet', () => {
-    test('shows Liquidity Pools heading', async ({ page }) => {
+    test('shows pool table without a Liquidity Pools heading (GitLab #547)', async ({ page }) => {
       await page.goto('/pool')
-      await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
+      await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
+      await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toHaveCount(0)
     })
 
     test('loads and displays at least one pair', async ({ page }) => {
       await page.goto('/pool')
       await expect(async () => {
-        const pairCount = await page.getByText(/pair\(s\) \(indexer total\)/i).textContent()
-        expect(pairCount).toMatch(/[\d,]+\s*pair/i)
-        const m = pairCount?.match(/([\d,]+)\s*pair/i)
-        expect(m).toBeTruthy()
-        const n = parseInt(m![1].replace(/,/g, ''), 10)
-        expect(n).toBeGreaterThan(0)
+        await expect(page.getByTestId('pool-pair-row').first()).toBeVisible()
       }).toPass({ timeout: 90_000 })
     })
 
-    test('shows one-sided add and Advanced on pool cards', async ({ page }) => {
+    test('shows one-sided add and a Manage control on the table', async ({ page }) => {
       await page.goto('/pool')
       await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
-      await expect(async () => {
-        await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await expect(page.getByTestId('pool-row-manage').first()).toBeVisible({ timeout: 90_000 })
     })
 
     test('shows Provide Liquidity and Withdraw Liquidity under Advanced', async ({ page }) => {
       await page.goto('/pool')
-      await expect(async () => {
-        await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
       await openPoolCardAdvanced(page)
       await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
       await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
     })
 
-    test('shows fee info on pool cards', async ({ page }) => {
+    test('shows fee info on pool rows', async ({ page }) => {
       await page.goto('/pool')
       await expect(async () => {
-        await expect(page.getByText(/Fee:/i).first()).toBeVisible()
+        await expect(page.getByTestId('pool-table-fee').first()).toBeVisible()
       }).toPass({ timeout: 90_000 })
     })
 
