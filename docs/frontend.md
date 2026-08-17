@@ -584,18 +584,43 @@ The frontend uses TerraSwap-compatible message names:
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
 
+### Create pair — listed CW20 picker + custom paste {#create-pair-token-picker}
+
+[`CreatePairPage`](../frontend-dapp/src/pages/CreatePairPage.tsx) offers a **listed-CW20 picker** plus a progressive-disclosure **Custom contract** paste field ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)). The catalog is convenience only — factory `CreatePair` (CW20 + code-ID whitelist) remains the security boundary ([#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **C542-1** | Token A / Token B can be chosen from bundled listed CW20s (cLUNC, cUSTC, CL8Y, USTR, UST1, vFDUSD when addresses resolve) without pasting. |
+| **C542-2** | Native LUNC / USTC / `uluna` / `uusd` never appear as selectable create-pair tokens. |
+| **C542-3** | Custom `terra1…` paste remains; #382 format/checksum errors still disable submit. |
+| **C542-4** | Same token on both legs (picker, paste, or mixed case) disables submit with **Token addresses must be different**. |
+| **C542-5** | `VITE_LUNC_C_*` / `VITE_USTC_C_*` / `VITE_UST1_*` / `VITE_VFDUSD_*` / `VITE_CL8Y_*` overlays win over columbus-5 `tokenlist.json` addresses (LocalTerra). |
+| **C542-6** | Code-ID whitelist warning still runs for listed and pasted addresses; listed ≠ skip check. |
+| **C542-7** | Submit calls existing `createPair` with two CW20 `AssetInfo`s. No native encoding. No factory/indexer API change. |
+| **C542-8** | Swap / Mint / Trade pickers stay on their own universes (factory graph / faucet). Do **not** feed this catalog into Swap. |
+| **C542-9** | Logos via `resolveTrustedTokenLogoUrl`; symbols/names text-only; search query capped at 128. |
+| **C542-10** | UST1 AMM ≠ oracle notice stays ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) **U1**). |
+| **C542-11** | Catalog is the bundled repo [`tokenlist/tokenlist.json`](../tokenlist/tokenlist.json) (plus env overlays and optional `VITE_TOKEN_*` gems). **No** runtime HTTP for the list. Do **not** use tokenlist `decimals` for amounts. No `/create?a=&b=` query prefill. |
+
+Helper: [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options` / `buildCreatePairCw20Options`). UI: [`CreatePairTokenField`](../frontend-dapp/src/components/create/CreatePairTokenField.tsx) reuses [`TokenSearchSelect`](../frontend-dapp/src/components/trade/TokenSearchSelect.tsx) **control** with catalog ids — not `getAllTokens(pairs)`.
+
+Sort empty browse economic-first then symbol ([#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) **P534-7**); gems last.
+
+Regression: `make verify-issue-542`. Playbook: [`skills/AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](../skills/AGENTS_FRONTEND_CREATE_PAIR_PICKER.md).
+
 ### Create pair — token address validation {#create-pair-address-validation}
 
-[`CreatePairPage`](../frontend-dapp/src/pages/CreatePairPage.tsx) validates both token contract fields with **`isValidTerraBech32Address`** / **`getTerraAddressInputError`** from [`terraAddressValidation.ts`](../frontend-dapp/src/utils/terraAddressValidation.ts) before enabling **Create Pair** ([GitLab **#382**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382)).
+[`CreatePairPage`](../frontend-dapp/src/pages/CreatePairPage.tsx) validates both token contract fields with **`isValidTerraBech32Address`** / **`getTerraAddressInputError`** from [`terraAddressValidation.ts`](../frontend-dapp/src/utils/terraAddressValidation.ts) before enabling **Create Pair** ([GitLab **#382**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382)). Custom paste and listed picks both go through this gate ([#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542) **C542-3**).
 
 | Invariant | Meaning |
 |-----------|---------|
 | Format gate | Wrong prefix, charset, or length → **Invalid Terra address format** (same regex as **`isValidTerraAddress`**). |
 | Checksum gate | Structurally valid `terra1…` with bad bech32 checksum → **Invalid address: checksum does not match. Please check and re-enter the token address.** Submit stays disabled. |
+| Both legs required | Empty fields do not count as valid; submit stays disabled until both addresses pass the gate and differ (case-insensitive). |
 | Trade deep links unchanged | **`/trade/:pairAddr`** still uses format-only **`isValidTerraAddress`** — no checksum on URL segments ([§ Trade page unknown pair link](#trade-page-unknown-pair-link)). |
 | Tx fallback | If a checksum error still reaches the chain, **`tryHumanizeTerraTxMessage`** maps `addr_validate` / `decoding bech32 failed` to the same retail copy ([§ User-facing errors](#user-facing-errors-humanization)). |
 
-Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__tests__/terraAddressValidation.test.ts), [`CreatePairPage.test.tsx`](../frontend-dapp/src/pages/CreatePairPage.test.tsx).
+Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__tests__/terraAddressValidation.test.ts), [`CreatePairPage.test.tsx`](../frontend-dapp/src/pages/CreatePairPage.test.tsx), [`createPairTokenCatalog.test.ts`](../frontend-dapp/src/utils/__tests__/createPairTokenCatalog.test.ts).
 
 **UST1 secondary AMM notice (GitLab [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508)):** Create Pair lists copy from [`ust1SecondaryMarket.ts`](../frontend-dapp/src/utils/ust1SecondaryMarket.ts) clarifying that a new AMM market is **not** oracle mint/redeem (`/ust1`). Soft-launch `/mint` remains the faucet only. Runbook: [`runbooks/ust1-secondary-amm-pair.md`](./runbooks/ust1-secondary-amm-pair.md) (**U1**).
 

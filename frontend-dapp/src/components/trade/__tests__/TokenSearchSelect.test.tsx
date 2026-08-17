@@ -5,6 +5,13 @@ import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
 import { renderWithProviders } from '@/test-utils'
 import { TOKEN_SEARCH_DEBOUNCE_MS } from '@/utils/tokenSearchQuery'
 
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies() {
+    return null
+  },
+}))
+
 const EMBER_ADDR = 'terra1ember00000000000000000000000000000001'
 const CORAL_ADDR = 'terra1coral00000000000000000000000000000002'
 const JADE_ADDR = 'terra1jade000000000000000000000000000000003'

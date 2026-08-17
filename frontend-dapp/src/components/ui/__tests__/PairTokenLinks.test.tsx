@@ -93,11 +93,7 @@ describe('PairTokenLinks (GitLab #541)', () => {
     expect(screen.queryByTestId('pair-token-links')).not.toBeInTheDocument()
     rerender(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <PairTokenLinks
-          pairAddress="terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-          asset0={UST1}
-          asset1={CUSTC}
-        />
+        <PairTokenLinks pairAddress="terra1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" asset0={UST1} asset1={CUSTC} />
       </QueryClientProvider>
     )
     expect(screen.queryByTestId('pair-token-links')).not.toBeInTheDocument()

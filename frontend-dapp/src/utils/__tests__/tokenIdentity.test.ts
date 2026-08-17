@@ -92,9 +92,7 @@ describe('tokenIdentityTarget (GitLab #541)', () => {
     const asset0: AssetInfo = { token: { contract_addr: MAINNET_UST1_TOKEN_ADDRESS } }
     const asset1: AssetInfo = { token: { contract_addr: MAINNET_CUSTC_TOKEN_ADDRESS } }
     const targets = pairIdentityTargets({ asset0, asset1 })
-    expect(targets.base && targets.base.kind === 'cw20' ? targets.base.address : null).toBe(
-      MAINNET_UST1_TOKEN_ADDRESS
-    )
+    expect(targets.base && targets.base.kind === 'cw20' ? targets.base.address : null).toBe(MAINNET_UST1_TOKEN_ADDRESS)
     expect(targets.quote && targets.quote.kind === 'cw20' ? targets.quote.address : null).toBe(
       MAINNET_CUSTC_TOKEN_ADDRESS
     )

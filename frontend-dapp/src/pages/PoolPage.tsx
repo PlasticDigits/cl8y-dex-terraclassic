@@ -611,11 +611,7 @@ const PoolCard = memo(function PoolCard({
               Indexer only
             </span>
           )}
-          <PairTokenLinks
-            pairAddress={pair.contract_addr}
-            asset0={pair.asset_infos[0]}
-            asset1={pair.asset_infos[1]}
-          />
+          <PairTokenLinks pairAddress={pair.contract_addr} asset0={pair.asset_infos[0]} asset1={pair.asset_infos[1]} />
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
           {feeQuery.data && (

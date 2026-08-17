@@ -55,7 +55,9 @@ test.describe('Token identity Playwright smoke (GitLab #541)', () => {
       timeout: 30_000,
     })
     await skipIfNoIdentityRow(page)
-    const explorer = page.getByTestId('token-identity-base-explorer').or(page.getByTestId('token-identity-pair-explorer'))
+    const explorer = page
+      .getByTestId('token-identity-base-explorer')
+      .or(page.getByTestId('token-identity-pair-explorer'))
     if ((await explorer.count()) === 0) {
       return
     }
