@@ -40,8 +40,8 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
              SELECT
                offer_asset_id AS asset_id,
                $1 AS "window",
-               SUM(offer_amount) AS volume,
-               COALESCE(SUM(volume_usd), 0) AS volume_usd,
+               LEAST(COALESCE(SUM(offer_amount), 0), POWER(10::numeric, 38) - 1) AS volume,
+               LEAST(COALESCE(SUM(volume_usd), 0), POWER(10::numeric, 20) - POWER(10::numeric, -18)) AS volume_usd,
                COUNT(*) AS trade_count,
                COUNT(DISTINCT sender) AS unique_traders,
                NOW() AS updated_at
@@ -71,7 +71,10 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"INSERT INTO pair_volume_24h (pair_id, volume_quote, updated_at)
            SELECT se.pair_id,
-                  SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END),
+                  LEAST(
+                    COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0),
+                    POWER(10::numeric, 38) - 1
+                  ),
                   NOW()
            FROM swap_events se
            INNER JOIN pairs p ON p.id = se.pair_id
@@ -116,12 +119,12 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
                active_pairs_24h, unique_traders_24h
            )
            SELECT 1,
-                  COALESCE(SUM(offer_amount) FILTER (WHERE block_timestamp >= $1), 0),
-                  COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $1), 0),
+                  LEAST(COALESCE(SUM(offer_amount) FILTER (WHERE block_timestamp >= $1), 0), POWER(10::numeric, 38) - 1),
+                  LEAST(COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $1), 0), POWER(10::numeric, 20) - POWER(10::numeric, -18)),
                   COUNT(*) FILTER (WHERE block_timestamp >= $1),
                   NOW(),
-                  COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $2), 0),
-                  COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $3), 0),
+                  LEAST(COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $2), 0), POWER(10::numeric, 20) - POWER(10::numeric, -18)),
+                  LEAST(COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $3), 0), POWER(10::numeric, 20) - POWER(10::numeric, -18)),
                   COUNT(*) FILTER (WHERE block_timestamp >= $2),
                   COUNT(*) FILTER (WHERE block_timestamp >= $3),
                   COUNT(DISTINCT pair_id) FILTER (WHERE block_timestamp >= $1),
@@ -187,27 +190,40 @@ catalog AS (
             ELSE NULL
         END AS usd_per_human
     FROM assets a
+),
+priced AS (
+    SELECT
+        se.id,
+        CASE
+            WHEN q.usd_per_human IS NOT NULL AND q.usd_per_human > 0
+                 AND q.decimals BETWEEN 0 AND 38 THEN
+                CASE
+                    WHEN se.offer_asset_id = p.asset_1_id THEN
+                        se.offer_amount / POWER(10::numeric, q.decimals) * q.usd_per_human
+                    ELSE
+                        se.return_amount / POWER(10::numeric, q.decimals) * q.usd_per_human
+                END
+            WHEN o.usd_per_human IS NOT NULL AND o.usd_per_human > 0
+                 AND o.decimals BETWEEN 0 AND 38 THEN
+                se.offer_amount / POWER(10::numeric, o.decimals) * o.usd_per_human
+            WHEN k.usd_per_human IS NOT NULL AND k.usd_per_human > 0
+                 AND k.decimals BETWEEN 0 AND 38 THEN
+                se.return_amount / POWER(10::numeric, k.decimals) * k.usd_per_human
+            ELSE NULL
+        END AS raw_usd
+    FROM swap_events se
+    JOIN pairs p ON p.id = se.pair_id
+    JOIN catalog q ON q.id = p.asset_1_id
+    JOIN catalog o ON o.id = se.offer_asset_id
+    JOIN catalog k ON k.id = se.ask_asset_id
 )
 UPDATE swap_events se
 SET volume_usd = CASE
-    WHEN q.usd_per_human IS NOT NULL AND q.usd_per_human > 0 THEN
-        CASE
-            WHEN se.offer_asset_id = p.asset_1_id THEN
-                se.offer_amount / POWER(10::numeric, q.decimals) * q.usd_per_human
-            ELSE
-                se.return_amount / POWER(10::numeric, q.decimals) * q.usd_per_human
-        END
-    WHEN o.usd_per_human IS NOT NULL AND o.usd_per_human > 0 THEN
-        se.offer_amount / POWER(10::numeric, o.decimals) * o.usd_per_human
-    WHEN k.usd_per_human IS NOT NULL AND k.usd_per_human > 0 THEN
-        se.return_amount / POWER(10::numeric, k.decimals) * k.usd_per_human
-    ELSE NULL
+    WHEN pr.raw_usd IS NULL OR pr.raw_usd <= 0 OR pr.raw_usd >= POWER(10::numeric, 20) THEN NULL
+    ELSE pr.raw_usd
 END
-FROM pairs p, catalog q, catalog o, catalog k
-WHERE se.pair_id = p.id
-  AND q.id = p.asset_1_id
-  AND o.id = se.offer_asset_id
-  AND k.id = se.ask_asset_id
+FROM priced pr
+WHERE se.id = pr.id
 "#,
     )
     .execute(pool)

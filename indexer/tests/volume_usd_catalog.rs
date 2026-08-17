@@ -298,3 +298,84 @@ async fn i11_ustc_price_usd_from_oracle_cache_never_lunc() {
     let body2: serde_json::Value = server2.get("/api/v1/overview").await.json();
     assert!(body2["ustc_price_usd"].is_null());
 }
+
+/// Coolify crash: raw 18-decimal SUM(offer_amount) into NUMERIC(38,18) overflows at 10^20.
+#[serial]
+#[tokio::test]
+async fn raw_18_decimal_volume_does_not_overflow_global_stats() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let ust1: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ('terra1ust1ovf', true, 'UST1', 'UST1', 6) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let ustr: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ('terra1ustrovf', true, 'USTR', 'USTR', 18) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let pair_id: i32 = sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairovf', $1, $2, 'terra1lpovf', 30) RETURNING id",
+    )
+    .bind(ust1)
+    .bind(ustr)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    insert_oracle(&pool, "ustc", &bd("0.004878")).await;
+
+    // 1000 human USTR = 10^21 raw — overflows NUMERIC(38,18) integer width (10^20).
+    let offer = bd("1000000000000000000000");
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price)
+         VALUES ($1, 5483, $2, 'tx548ovf', 'terra1t', $3, $4, $5, 1000000, 1)",
+    )
+    .bind(pair_id)
+    .bind(Utc::now())
+    .bind(ustr)
+    .bind(ust1)
+    .bind(&offer)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    volume::backfill_swap_volume_usd(&pool)
+        .await
+        .expect("backfill must not numeric-overflow");
+    volume::refresh_global_stats(&pool)
+        .await
+        .expect("rollup must not numeric-overflow");
+    volume::refresh_pair_volumes(&pool)
+        .await
+        .expect("pair rollup must not numeric-overflow");
+
+    let total: BigDecimal =
+        sqlx::query_scalar("SELECT total_volume FROM global_stats_24h WHERE id = 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(total.normalized(), offer.normalized());
+
+    let vol: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT volume_usd FROM swap_events WHERE tx_hash = 'tx548ovf'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let vol = vol.expect("priced USTR");
+    let expected = 1000.0 * 2.5 * 0.004878;
+    assert!(
+        (usd_f(&vol) - expected).abs() < 1e-6,
+        "got {}",
+        usd_f(&vol)
+    );
+}

@@ -184,6 +184,11 @@ fn catalog_usd_per_human(
     }
 }
 
+/// PostgreSQL `NUMERIC(38, 18)` requires `|x| < 10^20`.
+pub fn fits_numeric_38_18(value: &BigDecimal) -> bool {
+    value.abs() < ten_pow_i32(20)
+}
+
 fn notional_usd(
     asset: &AssetRow,
     raw: &BigDecimal,
@@ -191,7 +196,7 @@ fn notional_usd(
 ) -> Option<BigDecimal> {
     let human = humanize_raw_amount(raw, asset.decimals)?;
     let usd = human * usd_per_human;
-    if usd <= BigDecimal::from(0) {
+    if usd <= BigDecimal::from(0) || !fits_numeric_38_18(&usd) {
         None
     } else {
         Some(usd)
@@ -494,5 +499,19 @@ mod tests {
             &ustr, &ust1, &bd("-1"), &bd("1"), &ustr, Some(&ustc), None, None,
         )
         .is_none());
+    }
+
+    #[test]
+    fn volume_usd_that_cannot_fit_numeric_38_18_is_none() {
+        let ust1 = cw20(1, "UST1", 6, "terra1ust1");
+        let ustr = cw20(2, "USTR", 18, "terra1ustr");
+        // 10^26 raw / 10^6 = 10^20 human UST1 × $1 — PostgreSQL NUMERIC(38,18) max is |x| < 10^20.
+        let offer = bd("100000000000000000000000000");
+        assert!(volume_usd_for_swap(
+            &ust1, &ustr, &offer, &bd("1"), &ust1, None, None, None,
+        )
+        .is_none());
+        assert!(fits_numeric_38_18(&bd("99999999999999999999.99")));
+        assert!(!fits_numeric_38_18(&ten_pow_i32(20)));
     }
 }
