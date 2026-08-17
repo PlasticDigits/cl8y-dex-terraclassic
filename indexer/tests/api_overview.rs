@@ -15,6 +15,7 @@ async fn overview_returns_stats() {
 
     let body: Value = resp.json();
     assert!(body["total_volume_24h"].is_string());
+    assert!(body.get("total_volume_24h_usd").is_some());
     assert!(body["total_trades_24h"].is_i64());
     assert!(body["pair_count"].is_i64());
     assert!(body["token_count"].is_i64());

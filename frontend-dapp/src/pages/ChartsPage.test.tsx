@@ -126,6 +126,89 @@ describe('ChartsPage (component)', () => {
     expect(screen.queryByTestId('pair-token-links')).not.toBeInTheDocument()
   })
 
+  describe('overview strip (GitLab #548)', () => {
+    it('F1/F10: one USD volume box, no raw 10,000,000T', async () => {
+      vi.mocked(indexerClient.getOverview).mockResolvedValue({
+        total_volume_24h: '10000000000000000000',
+        total_volume_24h_usd: '1234.56',
+        total_trades_24h: 4,
+        pair_count: 13,
+        token_count: 12,
+        ustc_price_usd: '0.004878',
+      })
+      renderWithProviders(<ChartsPage />)
+      const vol = await screen.findByTestId('charts-overview-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('$1.235K'))
+      expect(vol).toHaveTextContent(/24h Volume \(USD\)/i)
+      expect(screen.queryByTestId('charts-overview-volume-raw')).not.toBeInTheDocument()
+      expect(document.body.textContent).not.toMatch(/10,000,000T/)
+      expect(screen.queryByText('24h Volume')).not.toBeInTheDocument()
+      expect(screen.getByTestId('charts-overview-ustc-usd')).toHaveTextContent('$')
+      expect(screen.getByTestId('charts-overview-ustc-usd').textContent).not.toMatch(/\dT\b/)
+      expect(screen.getByTestId('charts-overview-trades')).toHaveTextContent('4')
+      expect(screen.getByTestId('charts-overview-pairs')).toHaveTextContent('13')
+      expect(screen.getByTestId('charts-overview-tokens')).toHaveTextContent('12')
+    })
+
+    it('F2: unpriced USD with trades shows em dash not 0', async () => {
+      vi.mocked(indexerClient.getOverview).mockResolvedValue({
+        total_volume_24h: '1000',
+        total_volume_24h_usd: '0',
+        total_trades_24h: 4,
+        pair_count: 1,
+        token_count: 2,
+        ustc_price_usd: null,
+      })
+      renderWithProviders(<ChartsPage />)
+      const vol = await screen.findByTestId('charts-overview-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('—'))
+      expect(vol.textContent).not.toMatch(/\$0/)
+    })
+
+    it('F3: idle DEX volume is $0', async () => {
+      vi.mocked(indexerClient.getOverview).mockResolvedValue({
+        total_volume_24h: '0',
+        total_volume_24h_usd: '0',
+        total_trades_24h: 0,
+        pair_count: 1,
+        token_count: 2,
+        ustc_price_usd: null,
+      })
+      renderWithProviders(<ChartsPage />)
+      const vol = await screen.findByTestId('charts-overview-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('$0'))
+    })
+
+    it('F5: missing USTC spot is em dash', async () => {
+      vi.mocked(indexerClient.getOverview).mockResolvedValue({
+        total_volume_24h: '0',
+        total_volume_24h_usd: '0',
+        total_trades_24h: 0,
+        pair_count: 1,
+        token_count: 2,
+        ustc_price_usd: '',
+      })
+      renderWithProviders(<ChartsPage />)
+      const box = await screen.findByTestId('charts-overview-ustc-usd')
+      await waitFor(() => expect(box).toHaveTextContent('—'))
+    })
+
+    it('F9: adversarial USD field does not inject HTML', async () => {
+      vi.mocked(indexerClient.getOverview).mockResolvedValue({
+        total_volume_24h: '1',
+        total_volume_24h_usd: '"><script>alert(1)</script>',
+        total_trades_24h: 1,
+        pair_count: 1,
+        token_count: 2,
+        ustc_price_usd: null,
+      })
+      renderWithProviders(<ChartsPage />)
+      const vol = await screen.findByTestId('charts-overview-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('—'))
+      expect(vol.querySelector('script')).toBeNull()
+    })
+  })
+
   describe('token identity (GitLab #541)', () => {
     const PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
     const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'

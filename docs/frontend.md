@@ -252,6 +252,22 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md).
 
+### Charts overview strip {#charts-overview}
+
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) overview is **USD-only** for 24h volume ([GitLab **#548**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](../skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md).
+
+| Box | Source | Display |
+|-----|--------|---------|
+| **24h Volume (USD)** | `total_volume_24h_usd` | `$` + compact human ([`formatChartsOverviewVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades_24h === 0`) → `$0`. `data-testid="charts-overview-volume-usd"`. |
+| **USTC / USD** | `ustc_price_usd` | `$` + [`formatPairPrice`](../frontend-dapp/src/utils/formatAmount.ts) (never compact `T`). Missing → `—`. `charts-overview-ustc-usd`. |
+| **24h Trades** | `total_trades_24h` | Locale integer (swap rows only, **L10**). `charts-overview-trades`. |
+| **Pairs** | `pair_count` | Indexed factory pairs. `charts-overview-pairs`. |
+| **Tokens** | `token_count` | Unique pair-leg assets. `charts-overview-tokens`. |
+
+`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level `Vol (token)` on the same page is **out of scope** (#540 / #544).
+
+Regression: `make verify-issue-548`.
+
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
 Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184); Galaxy Finder mainnet path corrected in [**#478**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/478). Wallet **View on explorer** menu row consumes `getExplorerAddressUrl` ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [Connected wallet dropdown](#connected-wallet-dropdown)).
