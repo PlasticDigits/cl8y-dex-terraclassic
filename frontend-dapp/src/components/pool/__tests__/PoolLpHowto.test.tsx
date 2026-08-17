@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { PoolLpHowto } from '@/components/pool/PoolLpHowto'
-import { POOL_LP_HOWTO_HINT_DISMISSED_KEY } from '@/utils/poolLpHowto'
+import { POOL_LP_HOWTO_HINT_DISMISSED_KEY, POOL_LP_HOWTO_SECTION_DISMISSED_KEY } from '@/utils/poolLpHowto'
 import {
   POOL_LP_HOWTO_HINT,
   POOL_LP_HOWTO_NO_INCENTIVE,
@@ -19,7 +19,7 @@ function renderHowto(hash = '') {
   )
 }
 
-describe('PoolLpHowto (#531)', () => {
+describe('PoolLpHowto (#531 / #547)', () => {
   beforeEach(() => {
     window.localStorage.clear()
   })
@@ -53,24 +53,28 @@ describe('PoolLpHowto (#531)', () => {
       })
   })
 
-  it('dismisses the hint and keeps the details entry (C2 / AC7)', async () => {
+  it('dismisses the whole how-to section (hint + details) (C3 / AC8)', async () => {
     const user = userEvent.setup()
     renderHowto()
     await user.click(screen.getByTestId('pool-lp-howto-dismiss'))
     expect(screen.queryByTestId('pool-lp-howto-hint')).not.toBeInTheDocument()
-    expect(screen.getByTestId('pool-lp-howto-details')).toBeInTheDocument()
+    expect(screen.queryByTestId('pool-lp-howto-details')).not.toBeInTheDocument()
+    expect(screen.getByTestId('pool-lp-howto-restore')).toBeInTheDocument()
+    expect(window.localStorage.getItem(POOL_LP_HOWTO_SECTION_DISMISSED_KEY)).toBe('1')
     expect(window.localStorage.getItem(POOL_LP_HOWTO_HINT_DISMISSED_KEY)).toBe('1')
   })
 
-  it('stays hint-hidden after dismiss on remount', () => {
-    window.localStorage.setItem(POOL_LP_HOWTO_HINT_DISMISSED_KEY, '1')
+  it('stays hidden after dismiss on remount (C4)', () => {
+    window.localStorage.setItem(POOL_LP_HOWTO_SECTION_DISMISSED_KEY, '1')
     renderHowto()
-    expect(screen.queryByTestId('pool-lp-howto-hint')).not.toBeInTheDocument()
-    expect(screen.getByTestId('pool-lp-howto-details')).toBeInTheDocument()
+    expect(screen.queryByTestId('pool-lp-howto-details')).not.toBeInTheDocument()
+    expect(screen.getByTestId('pool-lp-howto-restore')).toBeInTheDocument()
   })
 
-  it('opens details when landed on #lp-howto', () => {
+  it('opens details when landed on #lp-howto even if previously dismissed (C5)', () => {
+    window.localStorage.setItem(POOL_LP_HOWTO_SECTION_DISMISSED_KEY, '1')
     renderHowto('#lp-howto')
+    expect(screen.getByTestId('pool-lp-howto-details')).toBeInTheDocument()
     expect((screen.getByTestId('pool-lp-howto-details') as HTMLDetailsElement).open).toBe(true)
   })
 

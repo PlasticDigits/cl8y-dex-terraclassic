@@ -83,7 +83,7 @@ test.describe('Critical route accessibility (GitLab #214, #366)', () => {
   test('pool page has no critical/serious axe violations', async ({ page }) => {
     await page.goto('/pool')
     await page.waitForLoadState('networkidle')
-    await waitForRouteShell(page, /Liquidity Pools/i)
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 30_000 })
 
     await assertNoCriticalA11yViolations(page)
   })

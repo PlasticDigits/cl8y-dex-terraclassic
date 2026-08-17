@@ -231,7 +231,7 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 | Surface | Placement |
 |---------|-----------|
-| **`/pool`** | [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) under the pair card header. LP withdraw keeps `pool-lp-token-address-row` ([#188](#addressrow-primitive)). Reserve cards stay symbol-only `TokenDisplay`. |
+| **`/pool`** | [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) on each table row ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)). LP withdraw keeps `pool-lp-token-address-row` on Manage expand. |
 | **`/trade`** | Same row under `trade-pair-select-panel`, **outside** the `PairSearchSelect` listbox. Hidden on [#176](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/176) / [#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175) notices. |
 | **`/charts`** | Same row under the pair `MenuSelect`. Hidden when “No pairs yet”. |
 
@@ -828,7 +828,7 @@ Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not
 | **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
 | **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
 
-`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers. Pool `/pool` card sort stays the user’s indexer sort (not a pair dropdown).
+`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers **and** on the `/pool` table **default** ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) **P547-3**). User-chosen `/pool` column sorts (volume, fee, created, name) use indexer `sort`/`order` and are **not** re-ranked by catalog.
 
 ### Token search combobox (`TokenSearchSelect`) — Swap {#token-search-combobox}
 
@@ -1356,12 +1356,12 @@ In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP wit
 | **H531-4** | States there is **no** incentive program currently. No APR / points / farm UI. |
 | **H531-5** | Withdraw via `/pool`; LP tokens are the share. |
 | **H531-6** | Limits (if mentioned) are maker escrow, **not** LP shares; in-app `/trade` or `/limits` only. |
-| **H531-7** | No always-on lecture on Swap / Trade / Limits / Wrap. Entry is a dismissible `/pool` hint plus `<details>`. |
+| **H531-7** | No always-on lecture on Swap / Trade / Limits / Wrap. `/pool` how-to (hint **and** `<details>`) is dismissible; `#lp-howto` restores ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)). |
 | **H531-8** | How-to lives on `/pool`, so tablet **More** and phone bottom-nav Pool still reach it. |
 | **H531-9** | Does not replace IL, pause, blacklist, gas, ratio warning, clickwrap, or NFA. |
 | **H531-10** | Static React copy (no `innerHTML` of indexer/wallet strings). In-app links only (Pool / Wrap / Trade / Limits / Create Pair). Mentions **Create Pair** LUNC creation fee; creating a pair is not required to LP an existing pool. Unwrap is not free. |
 
-**Code:** [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts), [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx), footer / Portfolio links to `/pool#lp-howto`.
+**Code:** [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts), [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx), [`poolLpHowto.ts`](../frontend-dapp/src/utils/poolLpHowto.ts) (`cl8y-dex-pool-lp-howto-section-dismissed`), footer / Portfolio links to `/pool#lp-howto`.
 
 **Verify:** `make verify-issue-531`. One-sided default: `make verify-issue-533` / [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
 
@@ -1419,7 +1419,7 @@ Before the wallet extension opens on **`/pool`**, provide and withdraw show a **
 | **`data-testid`s** | Provide panel: `pool-provide-pre-submit-summary` with `-action`, `-pair`, `-amount`, `-chain`; withdraw panel: `pool-withdraw-pre-submit-summary` with the same suffixes. |
 | **Compact layout** | Four rows only (no swap-style intro paragraph) — token inputs above already show deposit amounts; the card repeats security anchors. |
 
-Implementation: [`PoolPreSubmitSummary.tsx`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx); wired in [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) when provide has both amounts or withdraw has an LP amount.
+Implementation: [`PoolPreSubmitSummary.tsx`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx); wired in [`OneSidedAddCard`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx) / [`OneSidedWithdrawCard`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx) and in [`PoolAdvancedManage.tsx`](../frontend-dapp/src/components/pool/PoolAdvancedManage.tsx) (two-sided Advanced, opened from the table **Manage** expand — [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](../skills/AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md), [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
 
@@ -1429,29 +1429,37 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 |--------|------|
 | [#109](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/109) | Add-LP balances, Max / 50%, LP estimate, tests |
 | [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147) | CW20/CW20 add LP: native LUNC preflight for three sequential txs (`provideLiquidityNativeGasBalanceGate.ts`) |
-| [#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112) | Pool list: indexer vs factory, router badges, filter |
+| [#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112) | Pool list: indexer vs factory (badges; Router-known filter removed in #547) |
+| [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) | `/pool` sortable table, catalog default, Charts deep links |
 | [#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) | Pre-sign summary card for provide/withdraw (SEC-I05 F-03) |
 | [#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480) | Provide auto-fill + withdraw receive preview |
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
 
-The pool list (`/pool`) is **sourced and sorted** by the [indexer](./indexer-invariants.md) `GET /api/v1/pairs` API. That order is **not** the on-chain factory’s `pairs` cursor order.
+The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + one-sided CTAs + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)).
 
-**Invariants (dApp):**
+**Invariants (dApp, P547-1–P547-10):**
 
-| Invariant | Meaning |
-|-----------|---------|
-| “N pair(s) (indexer total)” | Total from the indexer (pagination + sort params). |
-| “M on-chain (factory, router graph)” | Number of `PairInfo` rows returned by paginating the factory’s `pairs` query (capped; see `FACTORY_PAIRS_MAX_FOR_POOL_LIST` in `pairListBadges.ts`). This is the same set the Swap page loads for `findRoute` / BFS. |
-| Row badge **In router (factory)** | The pair’s `pair_address` is in that factory-derived `Set` — **O(1)** per row; **no** per-card `pair` query to the factory. |
-| Row badge **Indexer only** | Address not in the factory list for this page session (e.g. indexing ahead of factory registration, de-listed pair still in indexer, or address outside the factory fetch cap). |
-| “Indexer only” filter | Restricts the **current page** of indexer results to rows that appear in the factory set. |
+| ID | Meaning |
+|----|---------|
+| **P547-1** | Primary list is a `<table>` (`data-testid="pool-pairs-table"`), not stacked `PoolCard`. |
+| **P547-2** | Sortable headers: label + caret next to the text; `aria-sort` on the active column. No Sort/Order dropdowns. |
+| **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last (**P534-1–P534-4**). |
+| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). |
+| **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
+| **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |
+| **P547-7** | How-to hint **and** `<details>` dismiss together; `#lp-howto` restores (**H531-7**). |
+| **P547-8** | No header eligibility essay (`pool-fee-discount-eligibility-note`). Search, one-sided cards, indexer outage banner, and registry-outage warning stay. |
+| **P547-9** | Default paint does **not** `getPool` / `getPairFeeConfig` per row (A8). Advanced two-sided + I14 LCD fee chrome mount on **Manage** expand (`PoolAdvancedManage`). |
+| **P547-10** | `#489`: no always-on indexer-vs-factory lectures. Engineering notes stay in this file. |
 
-**Drift line:** If indexer total and factory list length differ, the page shows a short **status** note (indexing lag, caps, or allowlist effects).
+**Factory set (still O(1) badges):** One React Query for `getAllPairsPaginated(FACTORY_PAIRS_MAX_FOR_POOL_LIST)` (stale time 60s), query key `factoryPairsForPoolList`. Missing factory membership ≠ “safe to hide.” Cap: `FACTORY_PAIRS_MAX_FOR_POOL_LIST` in `pairListBadges.ts`.
 
-**Query strategy:** One React Query for `getAllPairsPaginated(FACTORY_PAIRS_MAX_FOR_POOL_LIST)` (stale time 60s), shared conceptually with Swap’s on-chain graph but **separate** query key (`factoryPairsForPoolList`) to avoid clashing with Swap’s default `maxPairs` limit.
+**Charts deep link:** `/charts` and `/charts/:pairAddr`. Invalid param: stay on Charts, short notice, no XSS. Unknown valid `terra1`: “Pair not found,” no crash. Helpers: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts).
 
-**Code:** `frontend-dapp/src/utils/pairListBadges.ts`, `frontend-dapp/src/pages/PoolPage.tsx`. Issue: [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
+**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`. Issues: [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
+
+**Verify:** `make verify-issue-547`.
 
 **Agent workflow (optional):** For reviewable follow-up PRs or merge-ready checks in Cursor, use the **split to PRs** and **babysit** skills from your [Cursor skills](https://docs.cursor.com/context/skills) path (e.g. `~/.cursor/skills-cursor/` on a developer machine).
 
@@ -1599,7 +1607,7 @@ Retail **0.5 / 1 / 5%** chips on `/trade` Market and Swap Settings are one contr
 | **S528-5 Mapping unchanged** | `max_spread = (percent / 100).toString()` (`maxSpreadFromSlippagePercent`). Fresh store still defaults to 5 → `"0.05"`. |
 | **S528-6 Chips stay in the ticket body** | Do not move presets into the [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527) money-CTA footer. `elementFromPoint` on a chip must hit that chip. |
 | **S528-7 One group, one store write** | One mounted preset group per surface. Click writes `useDexStore.slippageTolerance` only (plus Swap Custom sanitize). |
-| **S528-8 Pool withdraw out of scope** | Pool **0.5 / 1.0 / 2.0** chips stay on [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx). Do not reuse this helper if it would change those values. |
+| **S528-8 Pool withdraw out of scope** | Pool **0.5 / 1.0 / 2.0** chips stay on [`PoolAdvancedManage.tsx`](../frontend-dapp/src/components/pool/PoolAdvancedManage.tsx). Do not reuse this helper if it would change those values. |
 | **S528-9 Custom sanitize** | Swap Custom uses `sanitizeSlippageCustomInput` (digits + one `.`). Values `< 0.01` show range error and do not persist; `> 50` clamp to 50. High-warn only when store **> 5**. |
 | **S528-10 A11y** | Group `aria-labelledby` the visible label. No `tabindex` on the label. Tab order 0.5 → 1 → 5. `:focus-visible` on `.tab-glass` unchanged ([#144](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/144)). |
 

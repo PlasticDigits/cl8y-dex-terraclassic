@@ -50,7 +50,7 @@ run_step "frontend: zap math + tx + quote + howto + PoolPage" \
 run_step "code: retail cards + Advanced + LP 18 + no null slippage on zap builder" \
   bash -c 'grep -qE "pool-one-sided-add" frontend-dapp/src/components/pool/OneSidedAddCard.tsx &&
     grep -qE "pool-one-sided-withdraw" frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx &&
-    grep -qE "pool-card-advanced" frontend-dapp/src/pages/PoolPage.tsx &&
+    grep -qE "pool-card-advanced" frontend-dapp/src/components/pool/PoolAdvancedManage.tsx &&
     grep -qE "PAIR_LP_CW20_DECIMALS" frontend-dapp/src/utils/oneSidedLiquidity.ts &&
     grep -qE "slippage_tolerance: slippage" frontend-dapp/src/utils/oneSidedLiquidityTx.ts &&
     ! grep -qE "slippage_tolerance: null[,}]" frontend-dapp/src/utils/oneSidedLiquidityTx.ts'

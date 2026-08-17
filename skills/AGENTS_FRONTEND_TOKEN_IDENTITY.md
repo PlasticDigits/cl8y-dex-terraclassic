@@ -45,7 +45,7 @@ Pair **symbols are not identity**. Terra Classic has look-alike CW20s. Pool / Tr
 | `frontend-dapp/src/utils/tokenIdentity.ts` | `tokenIdentityTarget`, invert-stable `pairIdentityTargets` |
 | `frontend-dapp/src/components/ui/TokenIdentity.tsx` | Logo + symbol + copy + optional explorer |
 | `frontend-dapp/src/components/ui/PairTokenLinks.tsx` | One row: legs + pair `AddressRow` |
-| `frontend-dapp/src/pages/PoolPage.tsx` | Under pair card header (LP `AddressRow` unchanged) |
+| `frontend-dapp/src/pages/PoolPage.tsx` / `PoolPairsTable.tsx` | Identity on each table row; LP `AddressRow` on Manage expand ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)) |
 | `frontend-dapp/src/pages/TradePage.tsx` | Under `trade-pair-select-panel`, outside the combobox |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Under the pair `MenuSelect` |
 

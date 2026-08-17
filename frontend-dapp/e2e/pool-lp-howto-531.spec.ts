@@ -3,8 +3,7 @@ import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
 
 async function gotoPool(page: Page) {
   await page.goto('/pool')
-  await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible({ timeout: 90_000 })
-  await expect(page.getByTestId('pool-lp-howto')).toBeVisible()
+  await expect(page.getByTestId('pool-lp-howto')).toBeVisible({ timeout: 90_000 })
 }
 
 function boxesOverlap(
@@ -45,13 +44,13 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
     await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
     await expect(page.getByTestId('pool-il-risk-notice')).toBeVisible()
 
-    const advanced = page.getByTestId('pool-card-advanced').first()
-    const hasPairs = await advanced
+    const manage = page.getByTestId('pool-row-manage').first()
+    const hasPairs = await manage
       .isVisible({ timeout: 20_000 })
       .then(() => true)
       .catch(() => false)
     if (hasPairs) {
-      await advanced.locator('summary').click()
+      await manage.click()
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
         .first()
@@ -95,9 +94,9 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
     await page.getByTestId('pool-lp-howto-summary').click()
     await expect(page.getByTestId('pool-lp-howto-step-withdraw')).toBeVisible()
 
-    const advanced = page.getByTestId('pool-card-advanced').first()
-    if (await advanced.isVisible().catch(() => false)) {
-      await advanced.locator('summary').click()
+    const manage = page.getByTestId('pool-row-manage').first()
+    if (await manage.isVisible().catch(() => false)) {
+      await manage.click()
       const withdraw = page.getByRole('button', { name: /Withdraw Liquidity/i }).first()
       if (await withdraw.isVisible().catch(() => false)) {
         await withdraw.click()

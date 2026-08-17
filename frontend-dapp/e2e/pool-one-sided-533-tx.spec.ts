@@ -104,8 +104,8 @@ test.describe('One-sided pool add/withdraw tx (GitLab #533 P4–P8)', () => {
 
   test('P8 empty pool: one-sided disabled; Advanced two-sided still reachable', async ({ page }) => {
     await expect(page.getByTestId('pool-one-sided-add-submit')).toBeVisible()
-    const advanced = page.getByTestId('pool-card-advanced').first()
-    await expect(advanced).toBeVisible({ timeout: 90_000 })
+    const manage = page.getByTestId('pool-row-manage').first()
+    await expect(manage).toBeVisible({ timeout: 90_000 })
     await openPoolCardAdvanced(page)
     await expect(poolProvideExpandButton(page)).toBeVisible()
     await poolProvideExpandButton(page).click()

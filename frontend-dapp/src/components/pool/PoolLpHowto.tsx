@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { sounds } from '@/lib/sounds'
-import { readPoolLpHowtoHintDismissed, writePoolLpHowtoHintDismissed } from '@/utils/poolLpHowto'
+import {
+  isPoolLpHowtoSectionHidden,
+  writePoolLpHowtoHintDismissed,
+  writePoolLpHowtoSectionDismissed,
+} from '@/utils/poolLpHowto'
 import {
   POOL_LP_HOWTO_ANCHOR,
   POOL_LP_HOWTO_DISMISS_LABEL,
@@ -17,13 +21,15 @@ function hashTargetsHowto(hash: string): boolean {
 }
 
 /**
- * Opt-in retail how-to on /pool (GitLab #531).
+ * Opt-in retail how-to on /pool (GitLab #531 / #547).
  * In-flow only — must not use position:fixed or cover Provide / wallet / clickwrap.
+ * Dismiss hides hint + details (H531-7). `#lp-howto` restores and opens details.
  */
 export function PoolLpHowto() {
   const location = useLocation()
   const detailsRef = useRef<HTMLDetailsElement>(null)
-  const [hintVisible, setHintVisible] = useState(() => !readPoolLpHowtoHintDismissed())
+  const prevHashRef = useRef('')
+  const [sectionHidden, setSectionHidden] = useState(() => isPoolLpHowtoSectionHidden())
 
   const openDetails = () => {
     const el = detailsRef.current
@@ -32,19 +38,51 @@ export function PoolLpHowto() {
   }
 
   useEffect(() => {
-    if (hashTargetsHowto(location.hash)) openDetails()
+    const onHowto = hashTargetsHowto(location.hash)
+    const arrivedOnHash = onHowto && prevHashRef.current !== location.hash
+    prevHashRef.current = location.hash
+    if (!onHowto) return
+    if (!arrivedOnHash) return
+    writePoolLpHowtoSectionDismissed(false)
+    setSectionHidden(false)
   }, [location.hash])
 
-  const dismissHint = () => {
+  useEffect(() => {
+    if (sectionHidden) return
+    if (!hashTargetsHowto(location.hash)) return
+    openDetails()
+  }, [location.hash, sectionHidden])
+
+  const dismissSection = () => {
     sounds.playButtonPress()
     writePoolLpHowtoHintDismissed(true)
-    setHintVisible(false)
+    writePoolLpHowtoSectionDismissed(true)
+    setSectionHidden(true)
   }
 
   const openFromHint = () => {
     sounds.playButtonPress()
     openDetails()
     detailsRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }
+
+  if (sectionHidden) {
+    return (
+      <div id={POOL_LP_HOWTO_ANCHOR} className="relative mb-4" data-testid="pool-lp-howto-restored-slot">
+        <button
+          type="button"
+          className="btn-muted !px-3 !py-2 !text-xs"
+          onClick={() => {
+            sounds.playButtonPress()
+            writePoolLpHowtoSectionDismissed(false)
+            setSectionHidden(false)
+          }}
+          data-testid="pool-lp-howto-restore"
+        >
+          {POOL_LP_HOWTO_OPEN_LABEL}
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -54,36 +92,34 @@ export function PoolLpHowto() {
       data-testid="pool-lp-howto"
       aria-label={POOL_LP_HOWTO_SUMMARY}
     >
-      {hintVisible ? (
-        <div
-          className="rounded-2xl border border-white/10 px-3 py-3 sm:px-4 sm:py-3.5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
-          style={{ background: 'rgba(255, 255, 255, 0.03)' }}
-          data-testid="pool-lp-howto-hint"
-        >
-          <p className="min-w-0 text-sm" style={{ color: 'var(--ink-dim)' }}>
-            {POOL_LP_HOWTO_HINT}
-          </p>
-          <div className="flex shrink-0 gap-2 self-start">
-            <button
-              type="button"
-              className="btn-muted !px-3 !py-2 !text-xs"
-              onClick={openFromHint}
-              data-testid="pool-lp-howto-open"
-            >
-              {POOL_LP_HOWTO_OPEN_LABEL}
-            </button>
-            <button
-              type="button"
-              className="btn-muted !px-3 !py-2 !text-xs"
-              onClick={dismissHint}
-              data-testid="pool-lp-howto-dismiss"
-              aria-label="Dismiss liquidity how-to hint"
-            >
-              {POOL_LP_HOWTO_DISMISS_LABEL}
-            </button>
-          </div>
+      <div
+        className="rounded-2xl border border-white/10 px-3 py-3 sm:px-4 sm:py-3.5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+        style={{ background: 'rgba(255, 255, 255, 0.03)' }}
+        data-testid="pool-lp-howto-hint"
+      >
+        <p className="min-w-0 text-sm" style={{ color: 'var(--ink-dim)' }}>
+          {POOL_LP_HOWTO_HINT}
+        </p>
+        <div className="flex shrink-0 gap-2 self-start">
+          <button
+            type="button"
+            className="btn-muted !px-3 !py-2 !text-xs"
+            onClick={openFromHint}
+            data-testid="pool-lp-howto-open"
+          >
+            {POOL_LP_HOWTO_OPEN_LABEL}
+          </button>
+          <button
+            type="button"
+            className="btn-muted !px-3 !py-2 !text-xs"
+            onClick={dismissSection}
+            data-testid="pool-lp-howto-dismiss"
+            aria-label="Dismiss liquidity how-to"
+          >
+            {POOL_LP_HOWTO_DISMISS_LABEL}
+          </button>
         </div>
-      ) : null}
+      </div>
 
       <details ref={detailsRef} className="card-glass !p-4" data-testid="pool-lp-howto-details">
         <summary
