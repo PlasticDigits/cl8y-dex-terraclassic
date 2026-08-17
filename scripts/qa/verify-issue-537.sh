@@ -69,7 +69,7 @@ run_step "docs: I14 + F537-1–F537-6 + GetDiscountRegistry live-wasm note" \
   grep -qE 'pair-fee-tier-chrome' docs/frontend.md && \
   grep -qE '\*\*F537-1\*\*' docs/frontend.md && \
   grep -qE '\*\*F537-6\*\*' docs/frontend.md && \
-  grep -qE 'not implemented on live pair wasm' docs/contracts-terraclassic.md && \
+  grep -qE 'is implemented on pair \*\*1.14.0\*\*' docs/contracts-terraclassic.md && \
   grep -qE '#537' docs/integrators.md
 
 run_step "skill: AGENTS_FRONTEND_PAIR_FEE_DISCOUNT + fee-tier / limit-price / AGENTS.md crosslinks" \

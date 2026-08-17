@@ -11,7 +11,7 @@
 /** cw-storage-plus Item key (`DISCOUNT_REGISTRY`). LCD `/raw/` uses base64 of these bytes. */
 export const PAIR_DISCOUNT_REGISTRY_STORAGE_KEY = 'discount_registry'
 
-/** LCD raw-state key; live 1.13.0 wasm has no `GetDiscountRegistry` query. */
+/** LCD raw-state key; fallback when `GetDiscountRegistry` is missing (1.13.x). */
 export function pairDiscountRegistryRawKeyB64(): string {
   return btoa(PAIR_DISCOUNT_REGISTRY_STORAGE_KEY)
 }

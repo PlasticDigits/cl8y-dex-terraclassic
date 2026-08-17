@@ -15,33 +15,46 @@ const mockedSmart = vi.mocked(queryContract)
 const PAIR = 'terra1pair00000000000000000000000000000001'
 const REGISTRY = 'terra1wcczsdk7jwj99n3my6wx8wr4ee0hn6yaapgd792lgx5elrdtrn2scfnecz'
 
-describe('getPairDiscountRegistry (GitLab #537)', () => {
+describe('getPairDiscountRegistry (GitLab #538 smart-query-first / #537 raw fallback)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('returns null when raw state is JSON null (unwired pair)', async () => {
-    mockedRaw.mockResolvedValueOnce(btoa('null'))
+  it('returns null from GetDiscountRegistry without hitting raw state', async () => {
+    mockedSmart.mockResolvedValueOnce({ registry: null })
     await expect(getPairDiscountRegistry(PAIR)).resolves.toBeNull()
-    expect(mockedRaw).toHaveBeenCalledWith(PAIR, pairDiscountRegistryRawKeyB64())
-    expect(mockedSmart).not.toHaveBeenCalled()
+    expect(mockedSmart).toHaveBeenCalledWith(PAIR, { get_discount_registry: {} })
+    expect(mockedRaw).not.toHaveBeenCalled()
   })
 
-  it('returns the stored registry address from raw state', async () => {
-    mockedRaw.mockResolvedValueOnce(btoa(JSON.stringify(REGISTRY)))
+  it('returns the stored registry from GetDiscountRegistry', async () => {
+    mockedSmart.mockResolvedValueOnce({ registry: REGISTRY })
     await expect(getPairDiscountRegistry(PAIR)).resolves.toBe(REGISTRY)
+    expect(mockedRaw).not.toHaveBeenCalled()
   })
 
-  it('falls back to get_discount_registry when raw LCD fails', async () => {
-    mockedRaw.mockRejectedValueOnce(new Error('Raw query failed: 403'))
+  it('accepts discount_registry field on the smart-query payload', async () => {
     mockedSmart.mockResolvedValueOnce({ discount_registry: REGISTRY })
     await expect(getPairDiscountRegistry(PAIR)).resolves.toBe(REGISTRY)
-    expect(mockedSmart).toHaveBeenCalledWith(PAIR, { get_discount_registry: {} })
+    expect(mockedRaw).not.toHaveBeenCalled()
   })
 
-  it('rethrows the raw error when smart fallback also fails', async () => {
-    mockedRaw.mockRejectedValueOnce(new Error('Raw query failed: 403'))
+  it('falls back to LCD raw when GetDiscountRegistry is missing (1.13.x wasm)', async () => {
+    mockedSmart.mockRejectedValueOnce(new Error('unknown variant `get_discount_registry`'))
+    mockedRaw.mockResolvedValueOnce(btoa(JSON.stringify(REGISTRY)))
+    await expect(getPairDiscountRegistry(PAIR)).resolves.toBe(REGISTRY)
+    expect(mockedRaw).toHaveBeenCalledWith(PAIR, pairDiscountRegistryRawKeyB64())
+  })
+
+  it('raw fallback returns null for an unwired pair', async () => {
     mockedSmart.mockRejectedValueOnce(new Error('unknown variant'))
-    await expect(getPairDiscountRegistry(PAIR)).rejects.toThrow('Raw query failed: 403')
+    mockedRaw.mockResolvedValueOnce(btoa('null'))
+    await expect(getPairDiscountRegistry(PAIR)).resolves.toBeNull()
+  })
+
+  it('rethrows the smart-query error when raw fallback also fails', async () => {
+    mockedSmart.mockRejectedValueOnce(new Error('unknown variant `get_discount_registry`'))
+    mockedRaw.mockRejectedValueOnce(new Error('Raw query failed: 403'))
+    await expect(getPairDiscountRegistry(PAIR)).rejects.toThrow('unknown variant `get_discount_registry`')
   })
 })

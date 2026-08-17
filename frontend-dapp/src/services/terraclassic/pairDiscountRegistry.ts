@@ -8,9 +8,10 @@ import {
 /**
  * Pair `DISCOUNT_REGISTRY` address, or `null` when unset.
  *
- * Live pair wasm (1.13.0) has no `GetDiscountRegistry` smart query; the storage
- * key `discount_registry` is readable via LCD raw state (#537). Smart query is
- * a fallback for future wasm / LCDs that 403 raw reads.
+ * Pair wasm **1.14.0+** implements `GetDiscountRegistry`. Prefer that smart
+ * query (GitLab #538). LCD raw key `discount_registry` remains the fallback
+ * for 1.13.x wasm or LCDs that reject the query (#537). Probe failure is
+ * fail-closed (callers treat as unwired / full fee chrome).
  */
 export async function getPairDiscountRegistry(pairAddress: string): Promise<string | null> {
   const addr = pairAddress.trim()
@@ -18,14 +19,14 @@ export async function getPairDiscountRegistry(pairAddress: string): Promise<stri
     throw new Error('Pair address is required')
   }
   try {
-    const raw = await queryContractRaw(addr, pairDiscountRegistryRawKeyB64())
-    return decodeCwStoragePlusOptionalAddr(raw)
-  } catch (rawErr) {
+    const resp = await queryContract<unknown>(addr, { get_discount_registry: {} })
+    return parseGetDiscountRegistryResponse(resp)
+  } catch (smartErr) {
     try {
-      const resp = await queryContract<unknown>(addr, { get_discount_registry: {} })
-      return parseGetDiscountRegistryResponse(resp)
+      const raw = await queryContractRaw(addr, pairDiscountRegistryRawKeyB64())
+      return decodeCwStoragePlusOptionalAddr(raw)
     } catch {
-      throw rawErr
+      throw smartErr
     }
   }
 }
