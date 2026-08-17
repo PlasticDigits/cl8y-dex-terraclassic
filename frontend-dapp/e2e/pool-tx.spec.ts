@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert, assertLiquidityCtaNotBlocked } from './helpers/chain'
-import { poolProvideExpandButton, poolProvideSubmitButton } from './helpers/pool-ui'
+import { openPoolCardAdvanced, poolProvideExpandButton, poolProvideSubmitButton } from './helpers/pool-ui'
 
 test.describe('Pool Transactions', () => {
   test('provides liquidity', async ({ page, connectWallet, request }) => {
@@ -13,12 +13,12 @@ test.describe('Pool Transactions', () => {
       const panels = await page.locator('.shell-panel-strong').count()
       expect(panels).toBeGreaterThan(0)
     }).toPass({ timeout: 90_000 })
-    await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible({ timeout: 90_000 })
-
     const pairCard = page
       .locator('.shell-panel-strong')
       .filter({ hasText: /In router \(factory\)/ })
       .first()
+    await openPoolCardAdvanced(pairCard)
+    await expect(poolProvideExpandButton(pairCard)).toBeVisible({ timeout: 90_000 })
     await poolProvideExpandButton(pairCard).click()
 
     // Fill amounts (human decimal strings; leave headroom vs wallet balances after globalSetup mint)

@@ -6,6 +6,7 @@ import {
   estimateNativeSwapUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
   estimateProvideLiquidityNativeWrapUlunaFeesTotal,
+  estimateZapInUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
 import { computeMaxSpendableHumanAmount, maxAmountReserveUlunaForContext } from '@/utils/maxSpendableAmount'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
@@ -169,6 +170,14 @@ describe('maxSpendableAmount (GitLab #213)', () => {
       })
       expect(reserve).toBe(estimateProvideLiquidityNativeWrapUlunaFeesTotal(2))
       expect(reserve).toBeGreaterThan(0n)
+    })
+
+    it('zap_in reserve matches wrap+swap+provide envelope (T9)', () => {
+      const reserve = maxAmountReserveUlunaForContext('zap_in', {
+        zapInHints: { wrapDeposits: 1, routeHops: 0 },
+      })
+      expect(reserve).toBe(estimateZapInUlunaFeesTotal({ wrapDeposits: 1, routeHops: 0 }))
+      expect(reserve).toBeGreaterThan(estimateProvideLiquidityNativeWrapUlunaFeesTotal(1))
     })
   })
 })

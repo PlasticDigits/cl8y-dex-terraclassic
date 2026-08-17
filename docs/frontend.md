@@ -1270,8 +1270,8 @@ In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP wit
 | Invariant | Meaning |
 |-----------|---------|
 | **H531-1** | Same-origin how-to on `/pool` names **Pool provide/withdraw** and optional **limit maker**. This file is not the only guide. |
-| **H531-2** | States pools use wrapped LUNC; **Use native LUNC (auto-wrap)** **or** `/wrap` first; bank LUNC still required for **gas**. |
-| **H531-3** | Both assets required; LUNC-only deposit is not a v2 pool action. Off-ratio provide **donates** excess. |
+| **H531-2** | States pools use wrapped LUNC; pick native LUNC on Add to auto-wrap **or** `/wrap` first; bank LUNC still required for **gas**. |
+| **H531-3** | Retail Add is **one-sided** (token + pair + amount). Two-sided is **Advanced** (empty-pool bootstrap). Off-ratio Advanced provide still **donates** excess; retail zap does not. |
 | **H531-4** | States there is **no** incentive program currently. No APR / points / farm UI. |
 | **H531-5** | Withdraw via `/pool`; LP tokens are the share. |
 | **H531-6** | Limits (if mentioned) are maker escrow, **not** LP shares; in-app `/trade` or `/limits` only. |
@@ -1282,7 +1282,30 @@ In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP wit
 
 **Code:** [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts), [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx), footer / Portfolio links to `/pool#lp-howto`.
 
-**Verify:** `make verify-issue-531`.
+**Verify:** `make verify-issue-531`. One-sided default: `make verify-issue-533` / [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
+
+### One-sided pool add / withdraw (Z533) {#pool-one-sided-liquidity}
+
+Retail `/pool` default is **one-sided** zap add/withdraw ([#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)). Two-sided provide/withdraw stays under **Advanced** (empty-pool first deposit / power users).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Z533-1** | Retail add: Token (wallet `> 0`), Pair (factory), Amount. No wrap checkbox, no second amount, no on-card slippage chips. |
+| **Z533-2** | Retail withdraw: LP (wallet LP `> 0`), token to receive, amount. No “receive wrapped” checkbox. |
+| **Z533-3** | Native `uluna` / `uusd` wrap or unwrap automatically. Pools still hold CW20 only. |
+| **Z533-4** | Zap-in targets the **post-swap** pool ratio. Retail must not `provide_liquidity` off-ratio (no silent donate). |
+| **Z533-5** | Empty pool: one-sided disabled. First deposit stays two-sided Advanced (`MINIMUM_LIQUIDITY`). |
+| **Z533-6** | Factory pairs only. Pool-only zap swap (`poolOnlyHybridParams`). Same quote snapshot on submit as Swap (#356). |
+| **Z533-7** | Slippage on every leg (`min_return` / `slippage_tolerance` / `min_assets`). Do not pass `slippage_tolerance: null`. Default 5% from Settings (#497). |
+| **Z533-8** | Unwrap **only** the zap-out amount. Never unwrap the rest of the wallet’s cLUNC/cUSTC. |
+| **Z533-9** | Gas/Max cover the full wrap + swap + provide (or withdraw + swap + unwrap) sequence. Keep pause, blacklist, mapper pause, treasury match, IL, clickwrap, NFA, Expert Mode, pre-sign. |
+| **Z533-10** | LP amounts use CW20 decimals **18**. No APR / farm chrome. No new pair/router `Zap` execute unless LocalTerra rehearsal proves multi-msg cannot work. |
+
+**Code:** [`oneSidedLiquidity.ts`](../frontend-dapp/src/utils/oneSidedLiquidity.ts), [`oneSidedLiquidityTx.ts`](../frontend-dapp/src/utils/oneSidedLiquidityTx.ts), [`OneSidedAddCard.tsx`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx), [`OneSidedWithdrawCard.tsx`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx).
+
+**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `sg docker -c 'CI=1 make test-e2e'`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
 
 ### Pool page — provide liquidity (UI invariants)
 

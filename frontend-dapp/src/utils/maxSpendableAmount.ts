@@ -4,6 +4,8 @@ import {
   estimateNativeSwapUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
   estimateProvideLiquidityNativeWrapUlunaFeesTotal,
+  estimateZapInUlunaFeesTotal,
+  estimateZapOutUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
 import { fromRawAmount } from '@/utils/formatAmount'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
@@ -16,6 +18,8 @@ export type MaxAmountContext =
   | 'market_swap'
   | 'provide_liquidity_native_side'
   | 'provide_liquidity_cw20'
+  | 'zap_in'
+  | 'zap_out'
   | 'book_leg'
 
 export type NativeSwapMaxHints = {
@@ -35,6 +39,10 @@ export type ComputeMaxSpendableHumanAmountInput = {
   nativeSwapHints?: NativeSwapMaxHints
   /** `provide_liquidity_native_side`: number of `wrap_deposit` msgs in the combined tx (1 or 2). */
   nativeWrapDepositCount?: 1 | 2
+  /** `zap_in`: wrap deposits (0/1) and optional route-in hops. */
+  zapInHints?: { wrapDeposits?: 0 | 1; routeHops?: number }
+  /** `zap_out`: include unwrap mapper send. */
+  zapOutUnwrap?: boolean
   /** `market_swap` / `swap_cw20` hybrid path uses hybrid swap gas envelope. */
   marketUsesHybrid?: boolean
   /** `book_leg`: cap to pay amount (raw micro-units) in addition to balance. */
@@ -68,7 +76,12 @@ export function maxAmountReserveUlunaForContext(
   context: MaxAmountContext,
   options: Pick<
     ComputeMaxSpendableHumanAmountInput,
-    'nativeSwapHints' | 'nativeWrapDepositCount' | 'marketUsesHybrid' | 'limitPlaceRungCount'
+    | 'nativeSwapHints'
+    | 'nativeWrapDepositCount'
+    | 'marketUsesHybrid'
+    | 'limitPlaceRungCount'
+    | 'zapInHints'
+    | 'zapOutUnwrap'
   > = {}
 ): bigint {
   switch (context) {
@@ -78,6 +91,10 @@ export function maxAmountReserveUlunaForContext(
     }
     case 'provide_liquidity_native_side':
       return estimateProvideLiquidityNativeWrapUlunaFeesTotal(options.nativeWrapDepositCount ?? 1)
+    case 'zap_in':
+      return estimateZapInUlunaFeesTotal(options.zapInHints ?? { wrapDeposits: 1, routeHops: 0 })
+    case 'zap_out':
+      return estimateZapOutUlunaFeesTotal({ unwrap: options.zapOutUnwrap === true })
     case 'limit_place':
       return estimateLimitOrderPlaceSequenceUlunaFeesTotal(options.limitPlaceRungCount ?? 1)
     case 'market_swap':

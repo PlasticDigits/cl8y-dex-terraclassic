@@ -37,21 +37,27 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
     await page.getByTestId('pool-lp-howto-open').click()
     await expect(details).toHaveAttribute('open', '')
     await expect(page.getByTestId('pool-lp-howto-step-two-sided')).toBeVisible()
+    await expect(page.getByTestId('pool-lp-howto-step-two-sided')).toContainText(/one token/i)
     await expect(page.getByTestId('pool-lp-howto-step-no-incentive')).toBeVisible()
     await expect(page.getByTestId('pool-lp-howto-step-wrap')).toBeVisible()
     await expect(page.getByTestId('pool-lp-howto-step-withdraw')).toBeVisible()
 
-    const provide = page.getByRole('button', { name: /Provide Liquidity/i }).first()
-    const hasPairs = await provide
+    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
+    await expect(page.getByTestId('pool-il-risk-notice')).toBeVisible()
+
+    const advanced = page.getByTestId('pool-card-advanced').first()
+    const hasPairs = await advanced
       .isVisible({ timeout: 20_000 })
       .then(() => true)
       .catch(() => false)
     if (hasPairs) {
-      await provide.click()
+      await advanced.locator('summary').click()
+      await page
+        .getByRole('button', { name: /Provide Liquidity/i })
+        .first()
+        .click()
       await expect(page.getByText(/Asset A|Amount/i).first()).toBeVisible()
-      await expect(page.getByTestId('pool-il-risk-notice')).toBeVisible()
-    } else {
-      await expect(page.getByRole('heading', { name: /Liquidity Pools/i })).toBeVisible()
+      await expect(page.getByTestId('pool-il-risk-notice-advanced')).toBeVisible()
     }
   })
 
@@ -89,10 +95,14 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
     await page.getByTestId('pool-lp-howto-summary').click()
     await expect(page.getByTestId('pool-lp-howto-step-withdraw')).toBeVisible()
 
-    const withdraw = page.getByRole('button', { name: /Withdraw Liquidity/i }).first()
-    if (await withdraw.isVisible().catch(() => false)) {
-      await withdraw.click()
-      await expect(page.getByPlaceholder('0.00').first()).toBeVisible()
+    const advanced = page.getByTestId('pool-card-advanced').first()
+    if (await advanced.isVisible().catch(() => false)) {
+      await advanced.locator('summary').click()
+      const withdraw = page.getByRole('button', { name: /Withdraw Liquidity/i }).first()
+      if (await withdraw.isVisible().catch(() => false)) {
+        await withdraw.click()
+        await expect(page.getByPlaceholder('0.00').first()).toBeVisible()
+      }
     }
   })
 

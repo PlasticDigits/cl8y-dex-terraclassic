@@ -42,6 +42,8 @@ import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateMarketPairSwapSequenceUlunaFeesTotal,
   estimateNativeSwapUlunaFeesTotal,
+  estimateZapInUlunaFeesTotal,
+  estimateZapOutUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
   estimateProvideLiquidityNativeWrapUlunaFeesTotal,
 } from '../transactions'
@@ -533,6 +535,28 @@ describe('estimateProvideLiquidityNativeWrapUlunaFeesTotal (GitLab #213)', () =>
     const one = estimateProvideLiquidityNativeWrapUlunaFeesTotal(1)
     const two = estimateProvideLiquidityNativeWrapUlunaFeesTotal(2)
     expect(two).toBeGreaterThan(one)
+  })
+})
+
+describe('estimateZapInUlunaFeesTotal (GitLab #533 T9)', () => {
+  it('wrap+swap+provide envelope is larger than wrap-only provide and CW20 three-tx', () => {
+    const zap = estimateZapInUlunaFeesTotal({ wrapDeposits: 1, routeHops: 0 })
+    const wrapOnly = estimateProvideLiquidityNativeWrapUlunaFeesTotal(1)
+    const cw20Three = estimateProvideLiquidityCw20SequenceUlunaFeesTotal()
+    expect(zap).toBeGreaterThan(wrapOnly)
+    expect(zap).toBeGreaterThan(cw20Three)
+  })
+
+  it('route-in hops increase the envelope', () => {
+    expect(estimateZapInUlunaFeesTotal({ wrapDeposits: 0, routeHops: 2 })).toBeGreaterThan(
+      estimateZapInUlunaFeesTotal({ wrapDeposits: 0, routeHops: 0 })
+    )
+  })
+
+  it('zap-out unwrap envelope is larger than withdraw+swap only', () => {
+    expect(estimateZapOutUlunaFeesTotal({ unwrap: true })).toBeGreaterThan(
+      estimateZapOutUlunaFeesTotal({ unwrap: false })
+    )
   })
 })
 

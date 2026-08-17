@@ -1,4 +1,13 @@
 import { test, expect } from './fixtures/dev-wallet'
+import { openPoolCardAdvanced } from './helpers/pool-ui'
+
+async function gotoPoolAndOpenAdvanced(page: Parameters<typeof openPoolCardAdvanced>[0]) {
+  await page.goto('/pool')
+  await expect(async () => {
+    await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
+  }).toPass({ timeout: 90_000 })
+  await openPoolCardAdvanced(page)
+}
 
 test.describe('Pool Page', () => {
   test.describe('Without wallet', () => {
@@ -19,13 +28,22 @@ test.describe('Pool Page', () => {
       }).toPass({ timeout: 90_000 })
     })
 
-    test('shows pool reserves for each pair', async ({ page }) => {
+    test('shows one-sided add and Advanced on pool cards', async ({ page }) => {
+      await page.goto('/pool')
+      await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
+      await expect(async () => {
+        await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
+      }).toPass({ timeout: 90_000 })
+    })
+
+    test('shows Provide Liquidity and Withdraw Liquidity under Advanced', async ({ page }) => {
       await page.goto('/pool')
       await expect(async () => {
-        const provideBtns = page.getByRole('button', { name: /Provide Liquidity/i })
-        const count = await provideBtns.count()
-        expect(count).toBeGreaterThanOrEqual(1)
+        await expect(page.getByTestId('pool-card-advanced').first()).toBeVisible()
       }).toPass({ timeout: 90_000 })
+      await openPoolCardAdvanced(page)
+      await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
+      await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
     })
 
     test('shows fee info on pool cards', async ({ page }) => {
@@ -36,21 +54,15 @@ test.describe('Pool Page', () => {
     })
 
     test('shows Provide Liquidity and Withdraw Liquidity buttons', async ({ page }) => {
-      await page.goto('/pool')
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-        await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
+      await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
+      await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
     })
   })
 
   test.describe('Provide Liquidity form', () => {
     test('opens provide liquidity form on button click', async ({ page }) => {
-      await page.goto('/pool')
-
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -60,11 +72,7 @@ test.describe('Pool Page', () => {
     })
 
     test('has input fields for both assets', async ({ page }) => {
-      await page.goto('/pool')
-
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -76,11 +84,7 @@ test.describe('Pool Page', () => {
     })
 
     test('shows Connect Wallet when not connected', async ({ page }) => {
-      await page.goto('/pool')
-
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -95,11 +99,7 @@ test.describe('Pool Page', () => {
   test.describe('Provide Liquidity (connected)', () => {
     test('shows per-asset Balance row in add-LP panel', async ({ page, connectWallet }) => {
       await connectWallet
-      await page.goto('/pool')
-
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Provide Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
 
       await page
         .getByRole('button', { name: /Provide Liquidity/i })
@@ -114,11 +114,7 @@ test.describe('Pool Page', () => {
 
   test.describe('Withdraw Liquidity form', () => {
     test('opens withdraw form on button click', async ({ page }) => {
-      await page.goto('/pool')
-
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
 
       await page
         .getByRole('button', { name: /Withdraw Liquidity/i })
@@ -130,11 +126,7 @@ test.describe('Pool Page', () => {
     })
 
     test('shows Connect Wallet when not connected', async ({ page }) => {
-      await page.goto('/pool')
-
-      await expect(async () => {
-        await expect(page.getByRole('button', { name: /Withdraw Liquidity/i }).first()).toBeVisible()
-      }).toPass({ timeout: 90_000 })
+      await gotoPoolAndOpenAdvanced(page)
 
       await page
         .getByRole('button', { name: /Withdraw Liquidity/i })
