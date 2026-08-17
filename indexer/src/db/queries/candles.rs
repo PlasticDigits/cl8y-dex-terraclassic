@@ -12,6 +12,10 @@ pub struct CandleRow {
     pub high: BigDecimal,
     pub low: BigDecimal,
     pub close: BigDecimal,
+    pub open_human: Option<BigDecimal>,
+    pub high_human: Option<BigDecimal>,
+    pub low_human: Option<BigDecimal>,
+    pub close_human: Option<BigDecimal>,
     pub volume_base: BigDecimal,
     pub volume_quote: BigDecimal,
     pub trade_count: i32,
@@ -29,17 +33,25 @@ pub async fn upsert_candle(
     high: &BigDecimal,
     low: &BigDecimal,
     close: &BigDecimal,
+    open_human: Option<&BigDecimal>,
+    high_human: Option<&BigDecimal>,
+    low_human: Option<&BigDecimal>,
+    close_human: Option<&BigDecimal>,
     vol_base: &BigDecimal,
     vol_quote: &BigDecimal,
     count: i32,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO candles (pair_id, interval, open_time, open, high, low, close,
+                             open_human, high_human, low_human, close_human,
                              volume_base, volume_quote, trade_count)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          ON CONFLICT (pair_id, interval, open_time)
            DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
-                        close = EXCLUDED.close, volume_base = EXCLUDED.volume_base,
+                        close = EXCLUDED.close,
+                        open_human = EXCLUDED.open_human, high_human = EXCLUDED.high_human,
+                        low_human = EXCLUDED.low_human, close_human = EXCLUDED.close_human,
+                        volume_base = EXCLUDED.volume_base,
                         volume_quote = EXCLUDED.volume_quote, trade_count = EXCLUDED.trade_count,
                         updated_at = NOW()",
     )
@@ -50,6 +62,10 @@ pub async fn upsert_candle(
     .bind(high)
     .bind(low)
     .bind(close)
+    .bind(open_human)
+    .bind(high_human)
+    .bind(low_human)
+    .bind(close_human)
     .bind(vol_base)
     .bind(vol_quote)
     .bind(count)
@@ -103,8 +119,12 @@ pub async fn rebuild_candles_from_swaps(
         }
     };
 
+    // USD OHLC from price_usd only (no human fallback). Human OHLC from se.price.
+    // Buckets with no positive price_usd are omitted so GET /candles never returns
+    // quote-per-base on columns labeled as factory USD (GitLab #543 / P522-5).
     let sql = format!(
         "INSERT INTO candles (pair_id, interval, open_time, open, high, low, close,
+                             open_human, high_human, low_human, close_human,
                              volume_base, volume_quote, trade_count)
          SELECT
            $1 AS pair_id,
@@ -112,20 +132,28 @@ pub async fn rebuild_candles_from_swaps(
            date_trunc('minute', se.block_timestamp) -
              (EXTRACT(MINUTE FROM se.block_timestamp)::int %
               EXTRACT(EPOCH FROM interval '{}')::int / 60) * interval '1 minute' AS open_time,
-           (array_agg(COALESCE(se.price_usd, se.price) ORDER BY se.block_timestamp ASC, se.id ASC))[1] AS open,
-           MAX(COALESCE(se.price_usd, se.price)) AS high,
-           MIN(COALESCE(se.price_usd, se.price)) AS low,
-           (array_agg(COALESCE(se.price_usd, se.price) ORDER BY se.block_timestamp DESC, se.id DESC))[1] AS close,
+           (array_agg(se.price_usd ORDER BY se.block_timestamp ASC, se.id ASC))[1] AS open,
+           MAX(se.price_usd) AS high,
+           MIN(se.price_usd) AS low,
+           (array_agg(se.price_usd ORDER BY se.block_timestamp DESC, se.id DESC))[1] AS close,
+           (array_agg(se.price ORDER BY se.block_timestamp ASC, se.id ASC))[1] AS open_human,
+           MAX(se.price) AS high_human,
+           MIN(se.price) AS low_human,
+           (array_agg(se.price ORDER BY se.block_timestamp DESC, se.id DESC))[1] AS close_human,
            SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.offer_amount ELSE se.return_amount END) AS volume_base,
            SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END) AS volume_quote,
            COUNT(*)::int AS trade_count
          FROM swap_events se
          INNER JOIN pairs p ON p.id = se.pair_id
          WHERE se.pair_id = $1 AND se.block_timestamp >= $3
+           AND se.price_usd IS NOT NULL AND se.price_usd > 0 AND se.price > 0
          GROUP BY open_time
          ON CONFLICT (pair_id, interval, open_time)
            DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
-                        close = EXCLUDED.close, volume_base = EXCLUDED.volume_base,
+                        close = EXCLUDED.close,
+                        open_human = EXCLUDED.open_human, high_human = EXCLUDED.high_human,
+                        low_human = EXCLUDED.low_human, close_human = EXCLUDED.close_human,
+                        volume_base = EXCLUDED.volume_base,
                         volume_quote = EXCLUDED.volume_quote, trade_count = EXCLUDED.trade_count,
                         updated_at = NOW()",
         interval_expr
