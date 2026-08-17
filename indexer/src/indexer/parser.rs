@@ -458,12 +458,12 @@ async fn process_swap(
         return Ok(());
     }
 
-    let candle_price = price_usd.as_ref().unwrap_or(&oriented.price);
     candle_builder::update_candles_for_swap(
         pool,
         pair.id,
         block_time,
-        candle_price,
+        price_usd.as_ref(),
+        &oriented.price,
         &oriented.volume_base,
         &oriented.volume_quote,
     )

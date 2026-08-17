@@ -3,7 +3,11 @@ import type { AutoscaleInfo, HistogramData, IChartApi, ISeriesApi, Time } from '
 import type { ChartCandlePoint } from './priceChartCandles'
 import type { IndicatorLinePoint } from './priceChartIndicators'
 import { rsiPaneHeightPx, volumePaneHeightPx } from './priceChartPaneHeights'
-import { clampUsdPriceChartAutoscale, minLowInVisibleLogicalRange } from './priceChartPriceScale'
+import {
+  clampUsdPriceChartAutoscale,
+  minLowInVisibleLogicalRange,
+  usdCandlePriceFormatFromPoints,
+} from './priceChartPriceScale'
 import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from './priceChartLightweightIndicatorSync'
 import { syncCandleSeriesData, syncHistogramSeriesData, syncLineSeriesData } from './priceChartLightweightSeriesSync'
 import { loadPriceChartLightweightModule } from './priceChartLightweightModule'
@@ -125,6 +129,7 @@ export function PriceChartLightweightCanvas({
           borderUpColor: positive,
           wickDownColor: negative,
           wickUpColor: positive,
+          priceFormat: usdCandlePriceFormatFromPoints(candlePointsRef.current),
           autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
             const raw = original()
             const logical = chart!.timeScale().getVisibleLogicalRange()
@@ -254,6 +259,9 @@ export function PriceChartLightweightCanvas({
 
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return
+    candleSeriesRef.current.applyOptions({
+      priceFormat: usdCandlePriceFormatFromPoints(candlePoints),
+    })
     previousCandlePointsRef.current = syncCandleSeriesData(
       candleSeriesRef.current,
       previousCandlePointsRef.current,

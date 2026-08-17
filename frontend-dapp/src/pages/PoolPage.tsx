@@ -49,6 +49,7 @@ import { sounds } from '@/lib/sounds'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { AddressRow } from '@/components/ui/AddressRow'
+import { PairTokenLinks } from '@/components/ui/PairTokenLinks'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, formatQuoteVolume24h, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
@@ -610,6 +611,7 @@ const PoolCard = memo(function PoolCard({
               Indexer only
             </span>
           )}
+          <PairTokenLinks pairAddress={pair.contract_addr} asset0={pair.asset_infos[0]} asset1={pair.asset_infos[1]} />
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
           {feeQuery.data && (

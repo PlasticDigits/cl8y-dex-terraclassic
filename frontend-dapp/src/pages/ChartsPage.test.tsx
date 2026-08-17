@@ -6,6 +6,13 @@ import * as indexerClient from '@/services/indexer/client'
 import * as oracle from '@/services/terraclassic/oracle'
 import type { IndexerPair } from '@/types'
 
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies() {
+    return null
+  },
+}))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: {
     playButtonPress: vi.fn(),
@@ -116,5 +123,32 @@ describe('ChartsPage (component)', () => {
     })
     renderWithProviders(<ChartsPage />)
     await waitFor(() => expect(screen.getByText(/no pairs yet/i)).toBeInTheDocument())
+    expect(screen.queryByTestId('pair-token-links')).not.toBeInTheDocument()
+  })
+
+  describe('token identity (GitLab #541)', () => {
+    const PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+
+    it('U5: shows identity row for a selected checksummed pair', async () => {
+      const identityPair: IndexerPair = {
+        ...mockPair,
+        pair_address: PAIR,
+        asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+        asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [identityPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      expect(await screen.findByTestId('pair-token-links')).toBeInTheDocument()
+      expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
+      expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
+      expect(screen.getByTestId('token-identity-pair')).toBeInTheDocument()
+    })
   })
 })

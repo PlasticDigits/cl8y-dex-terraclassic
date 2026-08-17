@@ -38,6 +38,7 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) | Opt-in `/pool` LUNC LP how-to (**H531-1–H531-10**, [#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)) — do not paste `frontend.md` pool math onto the page |
 | [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) | Retail `/pool` one-sided add/withdraw (**Z533-1–Z533-10**, [#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)) — option-less Token/Pair/Amount; wrap implied by the token |
 | [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) | `/create` Token A/B + Custom contract; no “verified safe” banner ([#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)) |
+| [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) | Compact copy + explorer on Pool / Trade / Charts (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)) — icon controls, not address essays |
 
 ## Shared copy modules
 

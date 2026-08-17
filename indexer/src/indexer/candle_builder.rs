@@ -32,58 +32,127 @@ pub(crate) fn merge_candle_ohlc(
     (existing_open.clone(), high, low, close)
 }
 
+/// Live candle write (GitLab #543).
+///
+/// `price_usd` is factory USD of 1 `asset_0`. Missing / non-positive USD skips the
+/// update so human quote-per-base never lands in USD columns. `price_human` is
+/// quote-per-base for additive `*_human` OHLC (per-bar `invertUsd` on the dApp).
 pub async fn update_candles_for_swap(
     pool: &PgPool,
     pair_id: i32,
     timestamp: DateTime<Utc>,
-    price: &BigDecimal,
+    price_usd: Option<&BigDecimal>,
+    price_human: &BigDecimal,
     offer_amount: &BigDecimal,
     return_amount: &BigDecimal,
 ) -> Result<(), BoxError> {
     let zero = BigDecimal::from(0);
-    if price <= &zero {
-        tracing::debug!("Skipping candle update for non-positive price");
+    let Some(price) = price_usd.filter(|p| *p > &zero) else {
+        tracing::debug!("Skipping candle update for missing or non-positive price_usd");
         return Ok(());
-    }
+    };
+    let human = if price_human > &zero {
+        Some(price_human)
+    } else {
+        None
+    };
 
     for &interval in INTERVALS {
         let open_time = truncate_to_interval(timestamp, interval);
 
         let existing = get_candle_at(pool, pair_id, interval, open_time).await?;
 
-        let (open, high, low, close, vol_base, vol_quote, count) = match existing {
-            Some(candle) => {
-                let (open, high, low, close) =
-                    merge_candle_ohlc(price, &candle.open, &candle.high, &candle.low);
-                (
-                    open,
-                    high,
-                    low,
-                    close,
-                    candle.volume_base + offer_amount,
-                    candle.volume_quote + return_amount,
-                    candle.trade_count + 1,
-                )
-            }
-            None => (
-                price.clone(),
-                price.clone(),
-                price.clone(),
-                price.clone(),
-                offer_amount.clone(),
-                return_amount.clone(),
-                1,
-            ),
-        };
+        let (open, high, low, close, open_h, high_h, low_h, close_h, vol_base, vol_quote, count) =
+            match existing {
+                Some(candle) => {
+                    let (open, high, low, close) =
+                        merge_candle_ohlc(price, &candle.open, &candle.high, &candle.low);
+                    let (open_h, high_h, low_h, close_h) = merge_human_ohlc(human, &candle);
+                    (
+                        open,
+                        high,
+                        low,
+                        close,
+                        open_h,
+                        high_h,
+                        low_h,
+                        close_h,
+                        candle.volume_base + offer_amount,
+                        candle.volume_quote + return_amount,
+                        candle.trade_count + 1,
+                    )
+                }
+                None => (
+                    price.clone(),
+                    price.clone(),
+                    price.clone(),
+                    price.clone(),
+                    human.cloned(),
+                    human.cloned(),
+                    human.cloned(),
+                    human.cloned(),
+                    offer_amount.clone(),
+                    return_amount.clone(),
+                    1,
+                ),
+            };
 
         candles::upsert_candle(
-            pool, pair_id, interval, open_time, &open, &high, &low, &close, &vol_base, &vol_quote,
+            pool,
+            pair_id,
+            interval,
+            open_time,
+            &open,
+            &high,
+            &low,
+            &close,
+            open_h.as_ref(),
+            high_h.as_ref(),
+            low_h.as_ref(),
+            close_h.as_ref(),
+            &vol_base,
+            &vol_quote,
             count,
         )
         .await?;
     }
 
     Ok(())
+}
+
+fn merge_human_ohlc(
+    price_human: Option<&BigDecimal>,
+    candle: &CandleRow,
+) -> (
+    Option<BigDecimal>,
+    Option<BigDecimal>,
+    Option<BigDecimal>,
+    Option<BigDecimal>,
+) {
+    let Some(price) = price_human else {
+        return (
+            candle.open_human.clone(),
+            candle.high_human.clone(),
+            candle.low_human.clone(),
+            candle.close_human.clone(),
+        );
+    };
+    match (
+        &candle.open_human,
+        &candle.high_human,
+        &candle.low_human,
+    ) {
+        (Some(open), Some(high), Some(low)) => {
+            let (o, h, l, c) = merge_candle_ohlc(price, open, high, low);
+            (Some(o), Some(h), Some(l), Some(c))
+        }
+        _ => (
+            Some(price.clone()),
+            Some(price.clone()),
+            Some(price.clone()),
+            Some(price.clone()),
+        ),
+    }
 }
 
 pub fn interval_seconds(interval: &str) -> i64 {

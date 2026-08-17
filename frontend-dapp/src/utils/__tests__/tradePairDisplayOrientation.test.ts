@@ -15,6 +15,7 @@ import {
   invertFinitePositive,
   invertOhlc,
   invertUsd,
+  invertUsdNumber,
   isUst1Leg,
   pairDisplayInvertAriaLabel,
   pairDisplayPillLabel,
@@ -109,6 +110,22 @@ describe('invertUsd', () => {
     expect(invertUsd('1', '0')).toBeNull()
     expect(invertUsd('NaN', '206')).toBeNull()
     expect(invertUsd('1', 'Infinity')).toBeNull()
+  })
+
+  it('USTR fixture: factory USD 1.06 / human 86.48 → 0.012258… not 1/1.06 (GitLab #543)', () => {
+    const display = invertUsdNumber(1.06, 86.48)
+    expect(display).toBeCloseTo(0.012258, 5)
+    expect(display).not.toBeCloseTo(1 / 1.06, 3)
+    expect(invertOhlc([{ time: 1 as never, open: 1.06, high: 1.06, low: 1.06, close: 1.06 }])[0]?.close).toBeCloseTo(
+      1 / 1.06,
+      8
+    )
+  })
+
+  it('cLUNC fixture: factory USD 0.000047 / human 0.000047 → 1.0 not 21260', () => {
+    const display = invertUsdNumber(0.000047, 0.000047)
+    expect(display).toBeCloseTo(1, 8)
+    expect(display).not.toBeCloseTo(1 / 0.000047, 0)
   })
 })
 
