@@ -49,8 +49,9 @@ make test-frontend
 #   oneSidedLiquidity + oneSidedLiquidityTx + oneSidedLiquidityQuote + PoolPage + poolLpHowtoCopy
 # Playwright smoke (5 workers, PLAYWRIGHT_SKIP_CHAIN=1):
 #   frontend-dapp/e2e/pool-one-sided-533.spec.ts
-# LocalTerra tx (1 worker):
+# LocalTerra tx (1 worker; wrap-mapper split-fee instantiate is #539):
 #   frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts
+#   make verify-issue-539
 ```
 
 Issue: [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/533) (AC1–AC13, T1–T10, U1–U12, P1–P10, A1–A20).

@@ -44,7 +44,8 @@ test.describe('One-sided pool add/withdraw tx (GitLab #533 P4–P8)', () => {
 
   test('P5 one-sided add with native LUNC (wrap + zap)', async ({ page }) => {
     const add = page.getByTestId('pool-one-sided-add')
-    const luncOk = await selectTokenInCombobox(page, 'Token', 'LUNC')
+    // "cLUNC" includes "LUNC" — exclude wrapped so wrapDenom is set (GitLab #539).
+    const luncOk = await selectTokenInCombobox(page, 'Token', 'LUNC', 'cLUNC')
     if (!luncOk) {
       test.skip(true, 'Native LUNC not in retail add picker; wrap env + wallet uluna required.')
     }
@@ -55,7 +56,19 @@ test.describe('One-sided pool add/withdraw tx (GitLab #533 P4–P8)', () => {
     if ((await pairOpts.count()) === 0) {
       test.skip(true, 'No factory pairs for native zap-in.')
     }
-    await pairOpts.first().click()
+    const pairCount = await pairOpts.count()
+    let pickedWrapPair = false
+    for (let i = 0; i < pairCount; i++) {
+      const txt = (await pairOpts.nth(i).innerText()).replace(/\s+/g, ' ')
+      if (/cLUNC/i.test(txt)) {
+        await pairOpts.nth(i).click()
+        pickedWrapPair = true
+        break
+      }
+    }
+    if (!pickedWrapPair) {
+      await pairOpts.first().click()
+    }
     await add.getByTestId('pool-one-sided-add-amount').fill('10')
     const quote = add.getByTestId('pool-one-sided-add-quote')
     await expect(quote).toBeVisible({ timeout: 30_000 })

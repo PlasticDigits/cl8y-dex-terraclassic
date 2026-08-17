@@ -88,6 +88,18 @@ else
     bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-one-sided-533.spec.ts --project=e2e-smoke'
 fi
 
+if [[ "${VERIFY_ISSUE_533_SKIP_E2E:-}" == "1" ]]; then
+  echo ""
+  echo "[playwright P4–P8] skipped (VERIFY_ISSUE_533_SKIP_E2E=1)"
+elif make has-localterra >/dev/null 2>&1 && [ -f frontend-dapp/.env.local ]; then
+  run_step "playwright: P4–P8 one-sided tx (e2e-tx, 1 worker; GitLab #539)" \
+    bash -c 'CI=1 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-one-sided-533-tx.spec.ts --project=e2e-tx'
+else
+  echo ""
+  echo "[playwright P4–P8] skipped — LocalTerra or frontend-dapp/.env.local not ready (GitLab #539)"
+  echo "  Provision: make setup-cloud-localterra"
+fi
+
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo "  Results: ${PASS} passed, ${FAIL} failed"

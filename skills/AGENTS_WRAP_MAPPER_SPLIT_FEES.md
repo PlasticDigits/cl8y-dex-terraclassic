@@ -65,6 +65,16 @@ Ship this frontend **before or in the same window** as wrap-mapper store + migra
 
 DEX router `dex_common::wrap_mapper::ConfigResponse` dual-reads mapper `Config` with the same **W13** rules as the dApp. `unwrap_output` **R3** uses `fee_unwrap_bps` (legacy `fee_bps` only when both split fields are absent). Store + migrate router wasm in the same window as wrap-mapper migrate ([ustr-cmm#13](https://gitlab.com/PlasticDigits2/ustr-cmm/-/work_items/13)). `make verify-issue-523`.
 
+## LocalTerra instantiate (GitLab #539)
+
+`scripts/deploy-dex-local.sh` sends wrap-mapper `InstantiateMsg` as **`fee_wrap_bps` / `fee_unwrap_bps`** (LocalTerra default **50 / 50**, overridable via `WRAP_MAPPER_FEE_BPS`). Older `wrap_mapper.wasm` that still requires `fee_bps` is retried automatically. Rebuild mapper wasm from [ustr-cmm](https://gitlab.com/PlasticDigits2/ustr-cmm) when artifacts are missing. Do not hardcode 200/51.
+
+```bash
+make verify-issue-539
+```
+
+Records `#533` e2e-tx **P4–P8** when LocalTerra is up (`frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts`).
+
 ## Verification
 
 ```bash

@@ -100,6 +100,29 @@ terrad_host_exec() {
   return "$st"
 }
 
+# Prompt once for an encrypted file keyring (generate-only + 2 signer unlocks
+# would otherwise ask 3×). No-op when already set, or when backend is not file.
+terrad_host_ensure_keyring_pass() {
+  terrad_host_resolve_keyring_backend
+  [[ "$TERRAD_HOST_KEYRING_BACKEND" == "file" ]] || return 0
+  if [[ -n "${TERRAD_HOST_KEYRING_PASS:-}" ]]; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    echo "ERROR: file keyring is encrypted and TERRAD_HOST_KEYRING_PASS is unset (stdin is not a TTY)." >&2
+    echo "  Unlock once for this shell, then re-run:" >&2
+    echo "    read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS" >&2
+    return 1
+  fi
+  read -rs -p "terrad keyring passphrase: " TERRAD_HOST_KEYRING_PASS
+  echo >&2
+  export TERRAD_HOST_KEYRING_PASS
+  if [[ -z "$TERRAD_HOST_KEYRING_PASS" ]]; then
+    echo "ERROR: empty passphrase" >&2
+    return 1
+  fi
+}
+
 # Broadcast a tx from TERRAD_HOST_KEY. Prints full JSON to stdout.
 # Retries transient RPC failures (connection reset / EOF / i/o timeout) and
 # account-sequence races (broadcast often succeeded before the reset).

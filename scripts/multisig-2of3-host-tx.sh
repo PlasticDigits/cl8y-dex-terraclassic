@@ -6,6 +6,8 @@
 #
 # Always uses TERRAD_HOST_NODE (public columbus-5 RPC), never localhost:26657.
 #
+# Prompts once for the file-keyring passphrase (or uses TERRAD_HOST_KEYRING_PASS).
+#
 # Usage:
 #   ./scripts/multisig-2of3-host-tx.sh wasm migrate "$FACTORY" 11578 '{}'
 #   ./scripts/multisig-2of3-host-tx.sh wasm execute "$FACTORY" '{"update_config":{"treasury":"terra16j5u6…"}}'
@@ -25,13 +27,23 @@ WORKDIR="${MSIG_TX_DIR:-$(pwd)/.msig-tx}"
   exit 1
 }
 
+if [[ "${1:-}" == "wasm" && ( "${2:-}" == "migrate" || "${2:-}" == "execute" ) ]]; then
+  addr="${3:-}"
+  if [[ -z "$addr" || "$addr" != terra1* ]]; then
+    echo "ERROR: wasm $2 needs a terra1… contract address as the first argument." >&2
+    echo "  got: $*   (empty \$PAIR / \$FACTORY produces this)" >&2
+    exit 1
+  fi
+fi
+
 terrad_host_resolve_keyring_backend
 mkdir -p "$WORKDIR"
 UNSIGNED="$WORKDIR/unsigned.json"
 SIG1="$WORKDIR/sig1.json"
 SIG2="$WORKDIR/sig2.json"
 SIGNED="$WORKDIR/signed.json"
-rm -f "$UNSIGNED" "$SIG1" "$SIG2" "$SIGNED"
+GENERR="$WORKDIR/generate.err"
+rm -f "$UNSIGNED" "$SIG1" "$SIG2" "$SIGNED" "$GENERR"
 
 echo "node:    $TERRAD_HOST_NODE"
 echo "chain:   $TERRAD_HOST_CHAIN_ID"
@@ -40,17 +52,29 @@ echo "from:    $MSIG  (signers $SIGNER1 + $SIGNER2)"
 echo "tx:      $*"
 echo ""
 
+terrad_host_ensure_keyring_pass
+
 # shellcheck disable=SC2046
-terrad_host_exec tx "$@" \
+if ! terrad_host_exec tx "$@" \
   --from "$MSIG" \
   --generate-only \
   $(terrad_host_common_flags) \
   $(terrad_host_gas_flags) \
   $(terrad_host_fee_flags) \
-  --output json >"$UNSIGNED"
+  --output json >"$UNSIGNED" 2>"$GENERR"; then
+  echo "ERROR: generate-only failed. Did generate-only reach RPC?" >&2
+  cat "$GENERR" >&2 || true
+  exit 1
+fi
 
 jq -e '.body.messages | length > 0' "$UNSIGNED" >/dev/null \
-  || { echo "ERROR: unsigned tx is not valid JSON (check $UNSIGNED). Did generate-only reach RPC?" >&2; exit 1; }
+  || {
+    echo "ERROR: unsigned tx is not valid JSON (check $UNSIGNED)." >&2
+    cat "$GENERR" >&2 || true
+    head -c 400 "$UNSIGNED" >&2 || true
+    echo >&2
+    exit 1
+  }
 echo "  unsigned ok ($(wc -c <"$UNSIGNED") bytes)"
 
 # shellcheck disable=SC2046
