@@ -361,8 +361,8 @@ echo "----------------------------------------------"
 
 echo ""
 echo "[9b.1] Uploading treasury.wasm..."
-if [ ! -f "$ARTIFACTS_DIR/treasury.wasm" ]; then
-    echo "  treasury.wasm not found in artifacts — building from source..."
+if [ ! -f "$ARTIFACTS_DIR/treasury.wasm" ] || [ ! -f "$ARTIFACTS_DIR/wrap_mapper.wasm" ]; then
+    echo "  treasury.wasm or wrap_mapper.wasm missing — building from ustr-cmm source..."
     USTR_TMP_DIR=$(mktemp -d)
     git clone --depth 1 https://gitlab.com/PlasticDigits/ustr-cmm.git "$USTR_TMP_DIR" 2>&1 | tail -1
     git -C "$USTR_TMP_DIR" submodule update --init --recursive 2>&1 | tail -1
@@ -405,13 +405,44 @@ echo "  Treasury Address: $TREASURY_ADDRESS"
 
 echo ""
 echo "[9b.4] Instantiating Wrap-Mapper..."
-WRAP_MAPPER_INIT_MSG="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TREASURY_ADDRESS\",\"fee_bps\":50}"
-TX_HASH=$(terrad_tx wasm instantiate "$WRAP_MAPPER_CODE_ID" "$WRAP_MAPPER_INIT_MSG" \
-    --label "ustr-wrap-mapper" \
-    --admin "$TEST_ADDRESS" | jq -r '.txhash')
-echo "  TX: $TX_HASH"
-WRAP_MAPPER_ADDRESS=$(get_contract_address "$TX_HASH")
-echo "  Wrap-Mapper Address: $WRAP_MAPPER_ADDRESS"
+# GitLab #539: post-ustr-cmm#9 InstantiateMsg is fee_wrap_bps / fee_unwrap_bps
+# (fee_bps dropped). Older wrap_mapper.wasm still requires fee_bps.
+WRAP_MAPPER_FEE_BPS="${WRAP_MAPPER_FEE_BPS:-50}"
+WRAP_MAPPER_INIT_SPLIT="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TREASURY_ADDRESS\",\"fee_wrap_bps\":$WRAP_MAPPER_FEE_BPS,\"fee_unwrap_bps\":$WRAP_MAPPER_FEE_BPS}"
+WRAP_MAPPER_INIT_LEGACY="{\"governance\":\"$TEST_ADDRESS\",\"treasury\":\"$TREASURY_ADDRESS\",\"fee_bps\":$WRAP_MAPPER_FEE_BPS}"
+
+instantiate_wrap_mapper() {
+    local init_msg="$1"
+    local flavor="$2"
+    local tx_hash addr
+    tx_hash=$(terrad_tx wasm instantiate "$WRAP_MAPPER_CODE_ID" "$init_msg" \
+        --label "ustr-wrap-mapper" \
+        --admin "$TEST_ADDRESS" | jq -r '.txhash // empty')
+    if [ -z "$tx_hash" ] || [ "$tx_hash" = "null" ]; then
+        echo "  instantiate broadcast failed ($flavor)" >&2
+        return 1
+    fi
+    echo "  TX: $tx_hash ($flavor)"
+    if ! addr=$(get_contract_address "$tx_hash"); then
+        echo "  on-chain instantiate failed ($flavor)" >&2
+        return 1
+    fi
+    if [ -z "$addr" ] || [ "$addr" = "null" ]; then
+        echo "  no contract address ($flavor)" >&2
+        return 1
+    fi
+    WRAP_MAPPER_ADDRESS="$addr"
+    echo "  Wrap-Mapper Address: $WRAP_MAPPER_ADDRESS"
+}
+
+if instantiate_wrap_mapper "$WRAP_MAPPER_INIT_SPLIT" "fee_wrap_bps/fee_unwrap_bps"; then
+    echo "  Instantiated with split fees (GitLab #539)."
+elif instantiate_wrap_mapper "$WRAP_MAPPER_INIT_LEGACY" "legacy fee_bps"; then
+    echo "  Instantiated with legacy fee_bps (older wrap_mapper.wasm)."
+else
+    echo "ERROR: wrap-mapper instantiate failed for split and legacy fee msgs." >&2
+    exit 1
+fi
 
 echo ""
 echo "[9b.5] Creating cLUNC (Wrapped Luna Classic) CW20 token..."

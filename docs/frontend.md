@@ -1384,7 +1384,7 @@ Retail `/pool` default is **one-sided** zap add/withdraw ([#533](https://gitlab.
 
 **Code:** [`oneSidedLiquidity.ts`](../frontend-dapp/src/utils/oneSidedLiquidity.ts), [`oneSidedLiquidityTx.ts`](../frontend-dapp/src/utils/oneSidedLiquidityTx.ts), [`OneSidedAddCard.tsx`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx), [`OneSidedWithdrawCard.tsx`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx).
 
-**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `sg docker -c 'CI=1 make test-e2e'`.
+**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `make verify-issue-539` / `sg docker -c 'CI=1 make test-e2e'` (wrap-mapper split-fee instantiate is [#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
 
