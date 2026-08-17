@@ -66,7 +66,8 @@ describe('buildTokenLocalSearchHaystack / filterTokensByLocalSearch', () => {
     expect(result).toContain(JADE_ADDR)
     expect(result).toContain('uluna')
     expect(result).toHaveLength(3)
-    // Alphabetical by display symbol (cached): CORAL excluded → EMBER, JADE, then uluna
+    // Economic (uluna / LUNC) first, then gems by symbol (GitLab #534)
+    expect(result.indexOf('uluna')).toBeLessThan(result.indexOf(EMBER_ADDR))
     expect(result.indexOf(EMBER_ADDR)).toBeLessThan(result.indexOf(JADE_ADDR))
   })
 

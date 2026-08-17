@@ -21,6 +21,7 @@ import { formatNum } from '@/utils/formatAmount'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
+import { sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
@@ -115,7 +116,7 @@ export default function ChartsPage() {
     if (extra && !list.some((p) => p.pair_address === extra.pair_address)) {
       list.unshift(extra)
     }
-    return list
+    return sortIndexerPairsByCatalog(list)
   }, [pairItems, selectedPairQuery.data])
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''

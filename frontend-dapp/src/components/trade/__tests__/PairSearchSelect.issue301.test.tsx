@@ -96,10 +96,12 @@ describe('PairSearchSelect (GitLab #301)', () => {
     })
 
     const listbox = await screen.findByRole('listbox')
-    const options = within(listbox).getAllByRole('option')
-    expect(options).toHaveLength(2)
-    expect(options[0]).toHaveTextContent(/AAA/i)
-    expect(options[1]).toHaveTextContent(/CCC/i)
+    await waitFor(() => {
+      const options = within(listbox).getAllByRole('option')
+      expect(options).toHaveLength(2)
+      expect(options[0]).toHaveTextContent(/AAA/i)
+      expect(options[1]).toHaveTextContent(/CCC/i)
+    })
   })
 
   it('calls onChange when a different pair is selected', async () => {

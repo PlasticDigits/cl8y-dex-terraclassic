@@ -12,7 +12,14 @@ import {
   isPairSearchQueryReady,
   PAIR_SEARCH_RESULT_LIMIT,
 } from '@/utils/pairSearchQuery'
-import { formatNum } from '@/utils/formatAmount'
+import { formatQuoteVolume24h, getDecimals } from '@/utils/formatAmount'
+import {
+  isTestPair,
+  pairInfoLegIds,
+  pairInfoLegSymbols,
+  sortPairInfosByCatalog,
+  type PairCatalogVolume,
+} from '@/utils/pairCatalogRank'
 
 export interface PairSearchSelectProps {
   id?: string
@@ -36,6 +43,8 @@ type PairSearchOption = {
   value: string
   label: string
   volumeQuote24h?: string
+  quoteDecimals?: number
+  isTestPair?: boolean
 }
 
 function indexerPairToOption(p: IndexerPair, variant: PairMenuLabelVariant): PairSearchOption {
@@ -43,13 +52,25 @@ function indexerPairToOption(p: IndexerPair, variant: PairMenuLabelVariant): Pai
     value: p.pair_address,
     label: indexerPairMenuLabel(p, { variant }),
     volumeQuote24h: p.volume_quote_24h,
+    quoteDecimals: p.asset_1.decimals,
+    isTestPair: isTestPair(
+      p.asset_0.symbol,
+      p.asset_1.symbol,
+      p.asset_0.contract_addr ?? p.asset_0.denom ?? undefined,
+      p.asset_1.contract_addr ?? p.asset_1.denom ?? undefined
+    ),
   }
 }
 
-function factoryPairToOption(p: PairInfo, variant: PairMenuLabelVariant): PairSearchOption {
+function factoryPairToOption(p: PairInfo, variant: PairMenuLabelVariant, volume?: PairCatalogVolume): PairSearchOption {
+  const [id0, id1] = pairInfoLegIds(p)
+  const [sym0, sym1] = pairInfoLegSymbols(p)
   return {
     value: p.contract_addr,
     label: pairInfoMenuLabel(p, { variant }),
+    volumeQuote24h: volume?.raw ?? undefined,
+    quoteDecimals: volume?.quoteDecimals ?? getDecimals(p.asset_infos[1]),
+    isTestPair: isTestPair(sym0, sym1, id0, id1),
   }
 }
 
@@ -108,15 +129,17 @@ export function PairSearchSelect({
   const useIndexerSearch = queryReady && open && !indexerUnavailable
   const inputValue = open ? searchText : selectedLabel
 
+  const emptyQueryLimit = Math.min(100, Math.max(PAIR_SEARCH_RESULT_LIMIT, factoryPairs.length))
+
   const pairsQuery = useQuery({
-    queryKey: ['pair-search', debouncedSearch, open],
+    queryKey: ['pair-search', debouncedSearch, open, emptyQueryLimit],
     queryFn: () => {
       const q = debouncedSearch || undefined
       return getPairs({
         q,
         sort: q ? 'relevance' : 'volume_24h',
         order: 'desc',
-        limit: PAIR_SEARCH_RESULT_LIMIT,
+        limit: q ? PAIR_SEARCH_RESULT_LIMIT : emptyQueryLimit,
       })
     },
     enabled: useIndexerSearch && factoryPairs.length > 0 && !disabled,
@@ -140,12 +163,38 @@ export function PairSearchSelect({
     return filterFactoryPairsByLocalSearch(factoryPairs, localSearchQuery, PAIR_SEARCH_RESULT_LIMIT, variant)
   }, [useLocalFallback, factoryPairs, localSearchQuery, variant])
 
+  const indexerByAddress = useMemo(() => {
+    const map = new Map<string, IndexerPair>()
+    for (const p of pairsQuery.data?.items ?? []) {
+      if (factorySet.has(p.pair_address)) map.set(p.pair_address, p)
+    }
+    return map
+  }, [pairsQuery.data, factorySet])
+
+  const catalogEmptyOptions = useMemo(() => {
+    const volumeByAddress = new Map<string, PairCatalogVolume>()
+    for (const [addr, p] of indexerByAddress) {
+      volumeByAddress.set(addr, { raw: p.volume_quote_24h, quoteDecimals: p.asset_1.decimals })
+    }
+    return sortPairInfosByCatalog(factoryPairs, volumeByAddress)
+      .slice(0, PAIR_SEARCH_RESULT_LIMIT)
+      .map((p) => {
+        const indexed = indexerByAddress.get(p.contract_addr)
+        return indexed
+          ? indexerPairToOption(indexed, variant)
+          : factoryPairToOption(p, variant, volumeByAddress.get(p.contract_addr))
+      })
+  }, [factoryPairs, indexerByAddress, variant])
+
   const options: PairSearchOption[] = useMemo(() => {
     if (factoryPairs.length === 0) return []
 
     let result: PairSearchOption[]
 
-    if (useLocalFallback) {
+    if (!debouncedSearch) {
+      // Browse list: factory universe + catalog rank (economic first). Do not wait on indexer.
+      result = useLocalFallback ? localFallbackPairs.map((p) => factoryPairToOption(p, variant)) : catalogEmptyOptions
+    } else if (useLocalFallback) {
       result = localFallbackPairs.map((p) => factoryPairToOption(p, variant))
     } else if (!pairsQuery.data) {
       result = []
@@ -153,25 +202,33 @@ export function PairSearchSelect({
       const fromIndexer = pairsQuery.data.items
         .filter((p) => factorySet.has(p.pair_address))
         .map((p) => indexerPairToOption(p, variant))
-      if (fromIndexer.length > 0) {
-        result = fromIndexer
-      } else if (debouncedSearch) {
-        result = []
-      } else {
-        result = factoryPairs.slice(0, PAIR_SEARCH_RESULT_LIMIT).map((p) => factoryPairToOption(p, variant))
-      }
+      result = fromIndexer
     }
 
-    // Empty query: keep current pair at index 0 so Enter without typing re-selects it (#350).
+    // Empty query: keep current pair in the list so Enter without typing re-selects it (#350).
     // Typed query: omit prepend so Enter commits the first search hit, not the current pair.
     if (!debouncedSearch && value && factorySet.has(value) && !result.some((o) => o.value === value)) {
-      const factory = factoryPairs.find((p) => p.contract_addr === value)
-      if (factory) {
-        result = [factoryPairToOption(factory, variant), ...result]
+      const indexed = indexerByAddress.get(value)
+      if (indexed) {
+        result = [indexerPairToOption(indexed, variant), ...result]
+      } else {
+        const factory = factoryPairs.find((p) => p.contract_addr === value)
+        if (factory) result = [factoryPairToOption(factory, variant), ...result]
       }
     }
     return result
-  }, [factoryPairs, useLocalFallback, localFallbackPairs, pairsQuery.data, factorySet, variant, debouncedSearch, value])
+  }, [
+    factoryPairs,
+    useLocalFallback,
+    localFallbackPairs,
+    pairsQuery.data,
+    factorySet,
+    variant,
+    debouncedSearch,
+    value,
+    catalogEmptyOptions,
+    indexerByAddress,
+  ])
 
   const canOpen = factoryPairs.length > 0 && !disabled
   const selectedIndex = useMemo(() => options.findIndex((o) => o.value === value), [options, value])
@@ -331,8 +388,20 @@ export function PairSearchSelect({
             {options.map((opt, index) => {
               const isSelected = opt.value === value
               const isActive = index === activeIndex
+              const showTestDivider =
+                !debouncedSearch && opt.isTestPair && (index === 0 || !options[index - 1]?.isTestPair)
+              const volLabel = formatQuoteVolume24h(opt.volumeQuote24h, opt.quoteDecimals ?? 6, 3)
               return (
                 <li key={opt.value} role="none">
+                  {showTestDivider ? (
+                    <div
+                      className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-semibold"
+                      style={{ color: 'var(--ink-dim)' }}
+                      role="presentation"
+                    >
+                      Test pairs
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     id={portalListboxOptionId(listId, index)}
@@ -348,13 +417,13 @@ export function PairSearchSelect({
                     onClick={() => selectIndex(index)}
                   >
                     <span className="truncate text-left">{opt.label}</span>
-                    {opt.volumeQuote24h && Number(opt.volumeQuote24h) > 0 ? (
+                    {volLabel ? (
                       <span
                         className="shrink-0 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded"
                         style={{ color: 'var(--ink-dim)', background: 'var(--surface-muted)' }}
-                        title="24h quote volume (indexed)"
+                        title="24h quote volume (human units of the quote token)"
                       >
-                        vol {formatNum(opt.volumeQuote24h, 3)}
+                        vol {volLabel}
                       </span>
                     ) : null}
                   </button>

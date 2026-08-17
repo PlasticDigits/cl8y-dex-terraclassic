@@ -748,18 +748,35 @@ Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query uses `sort=volume_24h&order=desc` (high-liquidity defaults). |
+| **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query still fetches `sort=volume_24h` for volume badges, then **re-ranks** the factory universe (GitLab **#534**). |
 | **Min query length** | ≥2 chars unless the query looks like a `terra1…` address ([`pairSearchQuery.ts`](../frontend-dapp/src/utils/pairSearchQuery.ts)). |
 | **Factory gate** | Results are filtered to factory-registered pairs (`factoryPairs` prop) so only routable pairs appear. |
-| **Degraded mode** | After the first indexer error in the session, combobox search uses `filterFactoryPairsByLocalSearch` on factory pairs (menu label, display symbols, contract/denom ids, localStorage-cached CW20 symbol/name, registry entries, two-token `XXX YYY` / `XXX/YYY` queries) without further indexer calls. Typed symbol search (e.g. `EMBER`) works without the indexer when token metadata was cached from a prior `token_info` read. Shows a dim **Offline search** hint in the listbox. |
+| **Degraded mode** | After the first indexer error in the session, combobox search uses `filterFactoryPairsByLocalSearch` on factory pairs (menu label, display symbols, contract/denom ids, localStorage-cached CW20 symbol/name, registry entries, two-token `XXX YYY` / `XXX/YYY` queries) without further indexer calls. Empty degraded browse uses the same catalog rank. Typed symbol search (e.g. `EMBER`) works without the indexer when token metadata was cached from a prior `token_info` read. Shows a dim **Offline search** hint in the listbox. |
 | **Accessibility** | Input uses `role="combobox"` + portaled `listbox`; Arrow keys / Enter / Escape match portal listbox keyboard patterns. |
-| **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`. |
+| **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`, formatted with **quote-token decimals** (`formatQuoteVolume24h`) — never `formatNum(raw)` (**P534-4**). |
 
-Charts keeps its separate search + sort + `MenuSelect` layout (unchanged).
+Charts pair `MenuSelect` uses the same catalog rank on the loaded page ([pair catalog rank](#pair-catalog-rank)).
 
-**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); [`PairSearchSelect.issue301.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx); Trade page pair-switch test in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
+**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); [`pairCatalogRank.test.ts`](../frontend-dapp/src/utils/__tests__/pairCatalogRank.test.ts); [`PairSearchSelect.issue301.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx); [`PairSearchSelect.issue534.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue534.test.tsx); Trade page pair-switch test in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
 
 **Product parity:** Trade/Limits search **pairs**; Swap searches **tokens** — see [Token search combobox](#token-search-combobox).
+
+### Pair catalog rank — economic first, gems last {#pair-catalog-rank}
+
+Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not follow factory-creation order or raw `volume_24h` when that buries economic markets under faucet gems ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534)). Shared helper: [`pairCatalogRank.ts`](../frontend-dapp/src/utils/pairCatalogRank.ts). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](../skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md).
+
+| ID | Rule |
+|----|------|
+| **P534-1** | **Economic first.** A pair is economic iff **both** legs are real tokens (cLUNC / LUNC / `uluna`, cUSTC / USTC / `uusd`, UST1, USTR, CL8Y / TCL8Y, vFDUSD, …). Either leg in the gem set (EMBER, CORAL, JADE, ONYX, RUBY, TOPAZ, QUARTZ, PEARL + LocalTerra extras OPAL, COBALT, SLATE, AMBER, IRON) → **test pair**, listed after economic rows under a **Test pairs** divider (not collapsed). |
+| **P534-2** | **Hub grouping.** Among economic pairs, group by the highest-priority hub present: UST1, then cLUNC, cUSTC, USTR, CL8Y, vFDUSD. All UST1 markets (UST1/cUSTC, UST1/USTR, cLUNC/UST1) stay adjacent. |
+| **P534-3** | **Volume within a group** uses **human** quote volume `raw / 10^quoteDecimals` (mixed 6/18-dec safe). Do not sort 18-dec USTR raw against 6-dec cUSTC raw. |
+| **P534-4** | **Vol badge / pool 24h vol** format `volume_quote_24h` with quote decimals (`formatQuoteVolume24h`). Indexer JSON stays a **raw** integer (same class as #522 prices vs this volume field). `formatNum(raw)` on USTR prints `19,297,048T`. |
+| **P534-5** | Bare `/trade` auto-pick uses `firstCatalogPairAddress` (first catalog-ranked factory pair), not `pairs[0]` factory-creation order. Deep links unchanged. |
+| **P534-6** | **Typed search** keeps indexer `relevance` / local haystack order. Catalog rank applies to **empty browse** only. |
+| **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
+| **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
+
+`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers. Pool `/pool` card sort stays the user’s indexer sort (not a pair dropdown).
 
 ### Token search combobox (`TokenSearchSelect`) — Swap {#token-search-combobox}
 
@@ -769,7 +786,7 @@ Swap **YOU PAY** / **YOU RECEIVE** use [`TokenSearchSelect`](../frontend-dapp/sr
 |-----------|---------|
 | **Factory token universe** | Options come only from the `tokens` prop (`getAllTokens(pairs)` + native-wrap enrichment). Do **not** introduce an external/arbitrary token list or derive Swap options from `getPairs(q)`. |
 | **Client-only filter** | Search is entirely client-side via [`tokenSearchQuery.ts`](../frontend-dapp/src/utils/tokenSearchQuery.ts) (works with indexer down). Haystack = id/denom, display symbol, localStorage-cached CW20 symbol/name, registry. No `GET /api/v1/tokens?q=` yet (optional follow-up if factory counts outgrow comfortable client filtering). |
-| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **full** allowed list sorted by display symbol. |
+| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **full** allowed list sorted **economic-first then display symbol** ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534), **P534-7**). |
 | **excludeToken** | Other leg is omitted from options; search tricks cannot select it. `onChange` only emits ids present in the gated options list. |
 | **Query DoS / XSS** | Input `maxLength` / truncate at 128 chars; symbols/names render as **text only** (no `dangerouslySetInnerHTML`); logo URLs still pass [`resolveTrustedTokenLogoUrl`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts). |
 | **Accessibility** | Input `role="combobox"` + `aria-autocomplete="list"` + portaled `listbox`; Arrow / Enter / Escape / Tab. Typed query + Enter commits **first hit** (same #350 rule as pair search). |

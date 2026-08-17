@@ -61,9 +61,9 @@ describe('pairInfoSearchHaystack', () => {
 describe('filterFactoryPairsByLocalSearch', () => {
   const pairs = [emberCoralPair, luncUstcPair]
 
-  it('returns first N pairs when query is empty', () => {
+  it('returns first N pairs when query is empty, economic catalog first (GitLab #534)', () => {
     expect(filterFactoryPairsByLocalSearch(pairs, '', 1).map((p) => p.contract_addr)).toEqual([
-      emberCoralPair.contract_addr,
+      luncUstcPair.contract_addr,
     ])
   })
 

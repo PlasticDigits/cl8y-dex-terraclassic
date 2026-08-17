@@ -42,3 +42,4 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) — escrow USD anchor
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — UST1/cUSTC + UST1/USTR pairs
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — **UI-only** invert of Price (USD) for UST1-as-base pairs ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)). **P522-1–P522-5 indexer math is unchanged.**
+- [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair picker order + **human** `volume_quote_24h` display ([#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534)). Indexer `volume_quote_24h` stays **raw**; do not treat it like human `price`.
