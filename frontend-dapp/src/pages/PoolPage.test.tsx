@@ -612,4 +612,55 @@ describe('PoolPage', () => {
       expect(screen.getByRole('button', { name: 'Trading restricted' })).toBeDisabled()
     })
   })
+
+  describe('token identity (GitLab #541)', () => {
+    const PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+    const LP = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+
+    function mockIdentityPair() {
+      const pair: IndexerPair = {
+        pair_address: PAIR,
+        asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+        asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+        lp_token: LP,
+        fee_bps: 30,
+        is_active: true,
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({ total: 1, items: [pair], limit: 20, offset: 0 })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            asset_infos: [{ token: { contract_addr: UST1 } }, { token: { contract_addr: CUSTC } }],
+            contract_addr: PAIR,
+            liquidity_token: LP,
+          },
+        ],
+      })
+    }
+
+    it('U1: shows both legs + pair chip; LP AddressRow still on withdraw', async () => {
+      const user = userEvent.setup()
+      mockIdentityPair()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      expect(await screen.findByTestId('pair-token-links')).toBeInTheDocument()
+      expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
+      expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
+      expect(screen.getByTestId('token-identity-pair')).toBeInTheDocument()
+      expect(screen.getByTestId('token-identity-base-explorer')).toHaveAttribute('rel', 'noopener noreferrer')
+
+      await openPoolCardAdvanced(user)
+      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
+      await user.click(withdrawTabs[0]!)
+      expect(await screen.findByTestId('pool-lp-token-address-row')).toBeInTheDocument()
+    })
+
+    it('U2: native wrap option label does not get an explorer href', async () => {
+      mockIdentityPair()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pair-token-links')
+      expect(screen.queryByRole('link', { name: /uluna/i })).not.toBeInTheDocument()
+    })
+  })
 })

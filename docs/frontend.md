@@ -159,7 +159,7 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | **Address row** | Connected menu header uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) for full bech32 + inline copy + explorer icon ([#188](#addressrow-primitive)); chip trigger network label: [#186](#connected-wallet-chip-network-mobile). |
 | **Menu dismiss + Escape** | Connected dropdown uses the same semantic backdrop as shell nav: `type="button"` + `aria-label="Close wallet menu"` + class **`app-menu-dismiss`** ([`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)). **`Escape`** closes the wallet menu via a `window` listener while open; [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) still owns More-menu Esc ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
 | **Dropdown menu items** | Labeled rows **Copy address**, **View on explorer**, **Switch wallet** — [#185](#connected-wallet-dropdown). |
-| **Out of scope (#140 B)** | Remaining AddressRow surfaces: pair chips, `TxResultAlert` tx copy — [#188](#addressrow-primitive) (wallet header done). Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). Chip network label + mobile layout: [#186](#connected-wallet-chip-network-mobile) — done. |
+| **Out of scope (#140 B)** | Remaining AddressRow surfaces: `TxResultAlert` tx copy — [#188](#addressrow-primitive) (wallet header done). Pair + token-leg chips on Pool / Trade / Charts: [#541](#token-identity). Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). Chip network label + mobile layout: [#186](#connected-wallet-chip-network-mobile) — done. |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
 
@@ -221,9 +221,36 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 | **Aria** | Pass explicit `copyAriaLabel` / `explorerAriaLabel` per surface (wallet, LP token, trader). |
 | **Regression tests** | [`AddressRow.test.tsx`](../frontend-dapp/src/components/ui/__tests__/AddressRow.test.tsx). |
 
-**First consumers:** wallet menu (`wallet-menu-address-row`), pool LP token line (`pool-lp-token-address-row`), trader profile header (`trader-profile-address-row`).
+**First consumers:** wallet menu (`wallet-menu-address-row`), pool LP token line (`pool-lp-token-address-row`), trader profile header (`trader-profile-address-row`). Pair contract chips on Pool / Trade / Charts use the same primitive via [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) (`token-identity-pair`) — [Token identity](#token-identity) ([#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md).
+
+### Token identity — Pool / Trade / Charts {#token-identity}
+
+Compact copy + explorer for **both pair legs** and the **pair contract** on `/pool`, `/trade`, and `/charts` ([GitLab **#541**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)). One shared row — not a token page, not a Protocol address dump, not an always-on bech32 essay ([#489](#retail-copy-cognitive-load), [#378](#frontend-trust-boundaries)).
+
+| Surface | Placement |
+|---------|-----------|
+| **`/pool`** | [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) under the pair card header. LP withdraw keeps `pool-lp-token-address-row` ([#188](#addressrow-primitive)). Reserve cards stay symbol-only `TokenDisplay`. |
+| **`/trade`** | Same row under `trade-pair-select-panel`, **outside** the `PairSearchSelect` listbox. Hidden on [#176](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/176) / [#175](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/175) notices. |
+| **`/charts`** | Same row under the pair `MenuSelect`. Hidden when “No pairs yet”. |
+
+| Invariant | Meaning |
+|-----------|---------|
+| **T541-1** | Pool, Trade, and Charts each expose copy + (when applicable) explorer for **both pair legs** and the **pair contract** without opening a wallet menu. |
+| **T541-2** | CW20 / pair `href` is only [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts); native denoms (`uluna`, `uusd`) are copy-only — never passed to the helper. |
+| **T541-3** | Symbol / logo never wrap an `<a>`; explorer is a sibling control (`TokenIdentity` composes `TokenDisplay` + `CopyButton` + icon). |
+| **T541-4** | Copy payload is the checksummed contract or the denom, never the display symbol (look-alike tickers stay visible as text). |
+| **T541-5** | [#524](#trade-pair-display-invert) invert may reorder chips / labels; `token-identity-base` stays factory `asset_0` and `token-identity-quote` stays `asset_1`. |
+| **T541-6** | Invalid / missing pair address: omit the row (no `terra1` placeholders, no links on #176 / #175). |
+| **T541-7** | No `/token/:id`, no CoinGecko/CMC/website hosts, no identity icons inside picker options, no factory/router `AddressRow` on these pages. |
+| **T541-8** | No always-on address essay or cross-nav banner. Full bech32 is `title` / `aria-label` only. |
+
+**Helper:** [`tokenIdentityTarget`](../frontend-dapp/src/utils/tokenIdentity.ts) → `{ kind: 'cw20', address, explorerUrl } \| { kind: 'native', denom } \| null`.
+
+**Regression:** `make verify-issue-541` — unit + scoped page tests + Playwright smoke `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md).
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 

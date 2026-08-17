@@ -8,7 +8,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getOraclePrice, getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { PairSearchSelect, RetryError, Skeleton } from '@/components/ui'
+import { PairSearchSelect, PairTokenLinks, RetryError, Skeleton } from '@/components/ui'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import PriceChart from '@/components/charts/PriceChart'
@@ -544,6 +544,14 @@ export default function TradePage() {
             selectedLabelOverride={displayPairMenuLabel}
           />
         </LcdQueryGate>
+        {showTradeWorkspace && factoryPair ? (
+          <PairTokenLinks
+            pairAddress={factoryPair.contract_addr}
+            asset0={factoryPair.asset_infos[0]}
+            asset1={factoryPair.asset_infos[1]}
+            inverted={pairOrientation.inverted}
+          />
+        ) : null}
       </div>
 
       {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}

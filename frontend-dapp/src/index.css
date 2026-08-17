@@ -1163,6 +1163,12 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
+  /* Compact pair/token identity row (GitLab #541) — wraps under the select, never position:fixed. */
+  .pair-token-links {
+    position: relative;
+    margin-top: 0.5rem;
+  }
+
   .wallet-trigger {
     color: var(--btn-primary-fg);
     background: var(--accent-gradient);
