@@ -116,15 +116,29 @@ export function invertFinitePositive(raw: string | number | null | undefined): n
 /**
  * USD of 1 display base when inverted: `factoryUsd / humanQuotePerBase`.
  * Drops non-finite / non-positive inputs (never `Infinity` / `NaN`).
+ *
+ * Use this for **Price (USD)** (headline + candles). {@link invertOhlc} is **only**
+ * for human quote-per-base book/limit prices — never `1/x` a USD-of-asset_0 series.
  */
 export function invertUsd(
   factoryUsd: string | number | null | undefined,
   humanQuotePerBase?: string | number | null
 ): string | null {
+  const n = invertUsdNumber(factoryUsd, humanQuotePerBase)
+  return n == null ? null : formatInvertedDecimal(n)
+}
+
+/** Numeric `invertUsd` for per-bar candle OHLC (GitLab #543). */
+export function invertUsdNumber(
+  factoryUsd: string | number | null | undefined,
+  humanQuotePerBase?: string | number | null
+): number | null {
   const usd = parseFinitePositive(factoryUsd)
   const px = parseFinitePositive(humanQuotePerBase)
   if (usd == null || px == null) return null
-  return formatInvertedDecimal(usd / px)
+  const out = usd / px
+  if (!Number.isFinite(out) || out <= 0) return null
+  return out
 }
 
 /** Reciprocal OHLC with high/low swap. Drops non-finite / non-positive reciprocals. */

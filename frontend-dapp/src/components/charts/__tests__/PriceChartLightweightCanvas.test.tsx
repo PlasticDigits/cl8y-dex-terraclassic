@@ -506,6 +506,60 @@ describe('PriceChartLightweightCanvas createChart contract (stub, GitLab #227)',
     expect(vi.mocked(createChart)).not.toHaveBeenCalled()
   })
 
+  it('updates candlestick priceFormat via applyOptions without createChart (GitLab #543)', async () => {
+    const bundle = chartBundleFromCandles(8)
+    const { rerender } = render(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          candlePoints={bundle.candlePoints}
+          volumePoints={bundle.volumePoints}
+          sma7Points={bundle.sma7Points}
+          sma25Points={bundle.sma25Points}
+          rsiPoints={bundle.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies.length).toBeGreaterThanOrEqual(1))
+    const candleApply = lwChartTestDouble.seriesSpies[0]!.applyOptions
+    vi.mocked(createChart).mockClear()
+
+    const ustrScale = bundle.candlePoints.map((p) => ({
+      ...p,
+      open: 0.012258,
+      high: 0.0124,
+      low: 0.0121,
+      close: 0.012258,
+    }))
+    rerender(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          candlePoints={ustrScale}
+          volumePoints={bundle.volumePoints}
+          sma7Points={bundle.sma7Points}
+          sma25Points={bundle.sma25Points}
+          rsiPoints={bundle.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+
+    await waitFor(() => expect(candleApply).toHaveBeenCalled())
+    const fmtCall = vi.mocked(candleApply).mock.calls.find((c) => {
+      const opts = c[0] as { priceFormat?: { precision?: number; minMove?: number } }
+      return opts?.priceFormat != null
+    })
+    expect(fmtCall).toBeDefined()
+    const fmt = (fmtCall![0] as { priceFormat: { precision: number; minMove: number } }).priceFormat
+    expect(fmt.precision).toBeGreaterThan(2)
+    expect(fmt.minMove).toBeLessThan(0.01)
+    expect(vi.mocked(createChart)).not.toHaveBeenCalled()
+  })
+
   it('reset clears contract spies between tests', () => {
     lwChartTestDouble.applyOptionsCalls.push({ options: { width: 1 } })
     lwChartTestDouble.reset()

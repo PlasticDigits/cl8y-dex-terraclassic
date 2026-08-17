@@ -187,10 +187,16 @@ export function indexerPairToPairInfo(p: IndexerPair): PairInfo {
 
 export interface IndexerCandle {
   open_time: string
+  /** Factory USD of 1 human `asset_0` (never human quote-per-base). GitLab #522 / #543. */
   open: string
   high: string
   low: string
   close: string
+  /** Human quote-per-base OHLC for per-bar `invertUsd`. GitLab #543. */
+  open_human?: string | null
+  high_human?: string | null
+  low_human?: string | null
+  close_human?: string | null
   volume_base: string
   volume_quote: string
   trade_count: number

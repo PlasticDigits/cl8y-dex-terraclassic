@@ -7,7 +7,7 @@ import { PriceChartEmptyState } from './PriceChartEmptyState'
 import { PriceChartLightweightCanvas } from './PriceChartLightweightCanvas'
 import {
   applyChartDisplayInvert,
-  indexerCandlesToChartPoints,
+  indexerCandlesToFactoryPoints,
   indexerCandlesToVolumeHistogramPoints,
 } from './priceChartCandles'
 import { PairDisplayInvertPill } from '@/components/trade/PairDisplayInvertControls'
@@ -85,7 +85,7 @@ export default function PriceChart({
   })
 
   const chartPoints = useMemo(
-    () => applyChartDisplayInvert(indexerCandlesToChartPoints(candlesQuery.data), displayInverted),
+    () => applyChartDisplayInvert(indexerCandlesToFactoryPoints(candlesQuery.data), displayInverted),
     [candlesQuery.data, displayInverted]
   )
 

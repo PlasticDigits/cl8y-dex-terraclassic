@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createChart, CandlestickSeries, HistogramSeries, type IChartApi } from 'lightweight-charts'
-import { applyChartDisplayInvert } from '../priceChartCandles'
+import { applyChartDisplayInvert, type FactoryCandlePoint } from '../priceChartCandles'
+import { usdCandlePriceFormatFromPoints } from '../priceChartPriceScale'
 import { syncPriceChartIndicatorOverlays, type IndicatorSeriesRefs } from '../priceChartLightweightIndicatorSync'
 import { syncCandleSeriesData } from '../priceChartLightweightSeriesSync'
 import { minLowInVisibleLogicalRange } from '../priceChartPriceScale'
@@ -220,24 +221,63 @@ describe('lightweight-charts large candle datasets (#229)', () => {
     const series = chart.addSeries(CandlestickSeries, {})
     const previous = makeChartCandlePoints(4)
     series.setData(previous)
-    const inverted = applyChartDisplayInvert(previous, true)
+    const inverted = applyChartDisplayInvert(factoryFromUsd(previous, 86.48), true)
     expect(inverted[0]).toBeDefined()
     expect(() => series.update(inverted[0]!)).toThrow(/Cannot update oldest data/)
     chart.remove()
   })
 
-  it('pair invert historical rewrite uses setData and does not throw (#524)', () => {
+  it('pair invert historical rewrite uses setData and does not throw (#524 / #543)', () => {
     container = mountChartContainer()
     const chart = createChart(container, baseRealChartOptions(640, 400))
     const series = chart.addSeries(CandlestickSeries, {})
     const previous = makeChartCandlePoints(8)
     series.setData(previous)
-    const inverted = applyChartDisplayInvert(previous, true)
+    const inverted = applyChartDisplayInvert(factoryFromUsd(previous, 86.48), true)
     expect(inverted.length).toBe(previous.length)
+    expect(inverted[inverted.length - 1]!.close).toBeCloseTo(previous[previous.length - 1]!.close / 86.48, 6)
+    expect(inverted[inverted.length - 1]!.close).not.toBeCloseTo(1 / previous[previous.length - 1]!.close, 3)
     expect(() => syncCandleSeriesData(series, previous, inverted)).not.toThrow()
     chart.remove()
   })
+
+  it('inverted USTR-scale last close is ~0.012 not ~1 (GitLab #543 A1)', () => {
+    container = mountChartContainer()
+    const chart = createChart(container, baseRealChartOptions(640, 400))
+    const usd = makeChartCandlePoints(3).map((p) => ({ ...p, open: 1.06, high: 1.08, low: 1.04, close: 1.06 }))
+    const inverted = applyChartDisplayInvert(factoryFromUsd(usd, 86.48), true)
+    const series = chart.addSeries(CandlestickSeries, {
+      priceFormat: usdCandlePriceFormatFromPoints(inverted),
+    })
+    series.setData(inverted)
+    expect(inverted[inverted.length - 1]!.close).toBeCloseTo(0.012258, 5)
+    expect(usdCandlePriceFormatFromPoints(inverted).precision).toBeGreaterThan(2)
+    chart.remove()
+  })
+
+  it('cLUNC-scale last-value format is not 2-dp 0.00 (GitLab #543 A4)', () => {
+    const clunc = makeChartCandlePoints(2).map((p) => ({
+      ...p,
+      open: 0.000047,
+      high: 0.000048,
+      low: 0.000046,
+      close: 0.000047,
+    }))
+    const fmt = usdCandlePriceFormatFromPoints(clunc)
+    expect(fmt.precision).toBeGreaterThanOrEqual(6)
+    expect(fmt.minMove).toBeLessThanOrEqual(1e-6)
+    expect((0.000047).toFixed(2)).toBe('0.00')
+    expect((0.000047).toFixed(fmt.precision)).not.toBe('0.00')
+  })
 })
+
+function factoryFromUsd(points: ReturnType<typeof makeChartCandlePoints>, human: number): FactoryCandlePoint[] {
+  return points.map((p) => ({
+    time: p.time,
+    usd: p,
+    human: { time: p.time, open: human, high: human, low: human, close: human },
+  }))
+}
 
 describe('USD autoscale with real visible logical range (#151, #229)', () => {
   let container: HTMLDivElement | null = null

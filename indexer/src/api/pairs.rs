@@ -294,10 +294,20 @@ pub struct CandleQuery {
 #[derive(Serialize, ToSchema)]
 pub struct CandleResponse {
     pub open_time: String,
+    /// Factory USD of 1 human `asset_0` (`price_usd` only — never human quote-per-base).
     pub open: String,
     pub high: String,
     pub low: String,
     pub close: String,
+    /// Human quote-per-base OHLC for per-bar `invertUsd` (GitLab #543). Absent on pre-upgrade rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub open_human: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub high_human: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub low_human: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub close_human: Option<String>,
     pub volume_base: String,
     pub volume_quote: String,
     pub trade_count: i32,
@@ -370,6 +380,10 @@ pub async fn get_pair_candles(
             high: c.high.to_string(),
             low: c.low.to_string(),
             close: c.close.to_string(),
+            open_human: c.open_human.as_ref().map(|v| v.to_string()),
+            high_human: c.high_human.as_ref().map(|v| v.to_string()),
+            low_human: c.low_human.as_ref().map(|v| v.to_string()),
+            close_human: c.close_human.as_ref().map(|v| v.to_string()),
             volume_base: c.volume_base.to_string(),
             volume_quote: c.volume_quote.to_string(),
             trade_count: c.trade_count,
