@@ -91,6 +91,22 @@ pub async fn get_asset_by_denom(
         .await
 }
 
+pub async fn count_assets(pool: &PgPool) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM assets")
+        .fetch_one(pool)
+        .await
+}
+
+pub async fn count_assets_created_since(
+    pool: &PgPool,
+    since: DateTime<Utc>,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM assets WHERE created_at >= $1")
+        .bind(since)
+        .fetch_one(pool)
+        .await
+}
+
 pub async fn get_all_assets(pool: &PgPool) -> Result<Vec<AssetRow>, sqlx::Error> {
     sqlx::query_as::<_, AssetRow>("SELECT * FROM assets ORDER BY id")
         .fetch_all(pool)

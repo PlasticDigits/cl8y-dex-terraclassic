@@ -168,7 +168,8 @@ export PATH="/usr/local/cargo/bin:$PATH"
 make test-indexer-integration          # full suite, serialized
 make verify-issue-324                    # #324 lib + route_solve_get_cache integration
 make verify-issue-485                    # #485 graph cache + distant TTL + progress poll + frontend helpers
-make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc catalog + routes)
+make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc/vfdusd catalog + routes)
+make verify-issue-550                    # #550 /protocol global USD stats + unified oracle card
 make verify-issue-522                    # #522 pair Price (USD) human scale + oracle conversion
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
@@ -241,7 +242,8 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md](skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) — Trade Market + Swap Settings 0.5/1/5% chips stay one aligned group ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528))
 - [skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md](skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) — sim `refetchInterval` guard + receive Calculating UX for slow multihop quotes (#484); clear/load You Receive on pay amount/token change (#496)
 - [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485)
-- [skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md](skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) — ticker-scoped USTC/LUNC external USD feeds (**X1–X6**, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515)); `make verify-issue-515`
+- [skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md](skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) — ticker-scoped USTC/LUNC/vFDUSD external USD feeds (**X1–X6**, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515) / [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)); `make verify-issue-515`
+- [skills/AGENTS_FRONTEND_PROTOCOL_STATS.md](skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` global USD stats + unified oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)); `make verify-issue-550`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md](skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — `/trade` + `/charts` UI invert for UST1-as-base pairs (other-side Price USD, pill, convert-on-submit) (**T524-1–T524-11**, [#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)); `make verify-issue-524`
 - [skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md](skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — Price (USD) candles must use `invertUsd` (not `1/x`) + adaptive Y-axis (**C543-1–C543-9**, [#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)); `make verify-issue-543`

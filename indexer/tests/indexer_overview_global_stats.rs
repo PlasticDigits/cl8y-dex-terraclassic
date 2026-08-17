@@ -242,3 +242,225 @@ async fn overview_cache_miss_reads_rollup_not_swap_events() {
         "plan must reference global_stats_24h:\n{plan}"
     );
 }
+
+#[serial]
+#[tokio::test]
+async fn overview_cache_miss_window_read_does_not_scan_swap_events() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+
+    let rows: Vec<(String,)> = sqlx::query_as(
+        "EXPLAIN (FORMAT TEXT)
+         SELECT total_volume, total_volume_usd, total_trades,
+                total_volume_7d_usd, total_volume_30d_usd,
+                total_trades_7d, total_trades_30d,
+                active_pairs_24h, unique_traders_24h
+         FROM global_stats_24h WHERE id = 1",
+    )
+    .fetch_all(&pool)
+    .await
+    .expect("explain #550 rollup read");
+
+    let plan: String = rows
+        .into_iter()
+        .map(|(line,)| line)
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    assert!(
+        !plan.contains("swap_events"),
+        "/overview cache-miss must not scan swap_events for 7d/30d:\n{plan}"
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn listing_census_counts_do_not_scan_swap_events() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+
+    for sql in [
+        "EXPLAIN (FORMAT TEXT) SELECT COUNT(*) FROM assets",
+        "EXPLAIN (FORMAT TEXT) SELECT COUNT(*) FROM assets WHERE created_at >= NOW() - INTERVAL '30 days'",
+        "EXPLAIN (FORMAT TEXT) SELECT COUNT(*) FROM pairs WHERE created_at >= NOW() - INTERVAL '30 days'",
+    ] {
+        let rows: Vec<(String,)> = sqlx::query_as(sql).fetch_all(&pool).await.expect(sql);
+        let plan: String = rows.into_iter().map(|(line,)| line).collect::<Vec<_>>().join("\n");
+        assert!(
+            !plan.contains("swap_events"),
+            "census query must not touch swap_events:\n{sql}\n{plan}"
+        );
+    }
+}
+
+#[serial]
+#[tokio::test]
+async fn global_stats_windows_respect_cutoffs() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price, volume_usd)
+         VALUES ($1, 2001, $2, 'tx8d', $3, $4, $5, 100, 90, 0.9, 80)",
+    )
+    .bind(seed.pair_id)
+    .bind(Utc::now() - Duration::days(8))
+    .bind(&seed.trader_address)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .expect("insert 8d swap");
+
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price, volume_usd)
+         VALUES ($1, 2002, $2, 'tx25h', $3, $4, $5, 50, 45, 0.9, 40)",
+    )
+    .bind(seed.pair_id)
+    .bind(Utc::now() - Duration::hours(25))
+    .bind(&seed.trader_address)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .expect("insert 25h swap");
+
+    volume::refresh_global_stats(&pool)
+        .await
+        .expect("refresh");
+
+    let stats = volume::get_global_stats(&pool).await.expect("stats");
+    assert_eq!(stats.total_trades_24h, 5, "25h swap excluded from 24h");
+    assert_eq!(
+        stats.total_trades_7d, 6,
+        "25h swap in 7d; 8d swap not in 7d"
+    );
+    assert_eq!(
+        stats.total_trades_30d, 7,
+        "8d swap in 30d along with 24h+25h"
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn global_stats_active_pairs_excludes_idle() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+
+    let idle_asset: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ('terra1idleasset', true, 'Idle', 'IDLE', 6)
+         RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("idle asset");
+
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1idlepair', $1, $2, 'terra1idlelp', 30)",
+    )
+    .bind(seed.asset_0_id)
+    .bind(idle_asset)
+    .execute(&pool)
+    .await
+    .expect("idle pair");
+
+    volume::refresh_global_stats(&pool)
+        .await
+        .expect("refresh");
+
+    let stats = volume::get_global_stats(&pool).await.expect("stats");
+    assert_eq!(stats.pair_count, 2);
+    assert_eq!(stats.active_pairs_24h, 1, "idle pair has no 24h swaps");
+    assert_eq!(stats.unique_traders_24h, 1);
+}
+
+#[serial]
+#[tokio::test]
+async fn tokens_and_pairs_added_30d_use_created_at() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+
+    sqlx::query("UPDATE assets SET created_at = NOW() - INTERVAL '40 days' WHERE id = $1")
+        .bind(seed.asset_0_id)
+        .execute(&pool)
+        .await
+        .expect("age asset");
+
+    sqlx::query("UPDATE pairs SET created_at = NOW() - INTERVAL '40 days' WHERE id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .expect("age pair");
+
+    let cutoff = Utc::now() - Duration::days(30);
+    let tokens_new = cl8y_dex_indexer::db::queries::assets::count_assets_created_since(&pool, cutoff)
+        .await
+        .expect("tokens 30d");
+    let pairs_new = cl8y_dex_indexer::db::queries::pairs::count_pairs_created_since(&pool, cutoff)
+        .await
+        .expect("pairs 30d");
+    let token_count = cl8y_dex_indexer::db::queries::assets::count_assets(&pool)
+        .await
+        .expect("token count");
+
+    assert_eq!(token_count, 2);
+    assert_eq!(tokens_new, 1, "one asset still inside 30d");
+    assert_eq!(pairs_new, 0, "only pair aged out of 30d");
+}
+
+#[serial]
+#[tokio::test]
+async fn overview_api_exposes_additive_fields_and_count_star_tokens() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    volume::refresh_global_stats(&pool).await.expect("refresh");
+
+    let app = common::build_test_app(pool.clone()).await;
+    let server = TestServer::new(app);
+    let resp = server.get("/api/v1/overview").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+
+    assert!(body["total_volume_24h"].is_string());
+    assert!(body["total_volume_24h_usd"].is_string());
+    assert!(body["total_trades_24h"].is_i64());
+    assert!(body["pair_count"].is_i64());
+    assert!(body["token_count"].is_i64());
+    assert_eq!(body["token_count"].as_i64().unwrap(), 2);
+    assert!(body["total_volume_7d_usd"].is_string());
+    assert!(body["total_volume_30d_usd"].is_string());
+    assert!(body["tokens_added_30d"].as_i64().unwrap() >= 2);
+    assert!(body["pairs_added_30d"].as_i64().unwrap() >= 1);
+    assert_eq!(body["active_pairs_24h"].as_i64().unwrap(), 1);
+}
+
+#[serial]
+#[tokio::test]
+async fn global_stats_empty_db_window_fields_are_zero() {
+    let pool = setup_pool().await;
+    common::clean_db(&pool).await;
+
+    volume::refresh_global_stats(&pool)
+        .await
+        .expect("refresh empty");
+
+    let stats = volume::get_global_stats(&pool).await.expect("stats");
+    assert_eq!(stats.total_trades_7d, 0);
+    assert_eq!(stats.total_trades_30d, 0);
+    assert_eq!(stats.active_pairs_24h, 0);
+    assert_eq!(stats.unique_traders_24h, 0);
+    assert_eq!(
+        stats.total_volume_7d_usd.normalized(),
+        bigdecimal::BigDecimal::from(0).normalized()
+    );
+    assert_eq!(
+        stats.total_volume_30d_usd.normalized(),
+        bigdecimal::BigDecimal::from(0).normalized()
+    );
+}

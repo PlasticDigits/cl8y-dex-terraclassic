@@ -1,7 +1,8 @@
-//! External CEX/USD reference oracle (GitLab #515).
+//! External CEX/USD reference oracle (GitLab #515 / #550).
 //!
-//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD** and **LUNC/USD**.
-//! These feeds are advisory display/reference prices — not on-chain settlement.
+//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD**, **LUNC/USD**, and **vFDUSD/USD**
+//! (CEX FDUSD, labeled vFDUSD in the dApp). These feeds are advisory display/reference
+//! prices — not on-chain settlement. Volume USD conversion stays on the **USTC** handle (X4).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,10 +22,12 @@ pub fn new_shared_price() -> SharedPrice {
 }
 
 /// In-memory handles for each supported external ticker.
+/// vFDUSD writes must not overwrite USTC (volume_usd / overview `ustc_price_usd` stay on `ustc`).
 #[derive(Clone)]
 pub struct OraclePriceHandles {
     pub ustc: SharedPrice,
     pub lunc: SharedPrice,
+    pub vfdusd: SharedPrice,
 }
 
 impl OraclePriceHandles {
@@ -32,6 +35,7 @@ impl OraclePriceHandles {
         Self {
             ustc: new_shared_price(),
             lunc: new_shared_price(),
+            vfdusd: new_shared_price(),
         }
     }
 
@@ -39,6 +43,7 @@ impl OraclePriceHandles {
         match ticker {
             OracleTicker::Ustc => &self.ustc,
             OracleTicker::Lunc => &self.lunc,
+            OracleTicker::Vfdusd => &self.vfdusd,
         }
     }
 }
@@ -54,30 +59,41 @@ impl Default for OraclePriceHandles {
 pub enum OracleTicker {
     Ustc,
     Lunc,
+    /// Wrapped FDUSD on TerraClassic; polls CEX **FDUSD** (not a $1 hardcode). Path `vfdusd`.
+    Vfdusd,
 }
 
 impl OracleTicker {
-    pub const ALL: [OracleTicker; 2] = [OracleTicker::Ustc, OracleTicker::Lunc];
+    pub const ALL: [OracleTicker; 3] = [
+        OracleTicker::Ustc,
+        OracleTicker::Lunc,
+        OracleTicker::Vfdusd,
+    ];
 
     pub fn as_str(self) -> &'static str {
         match self {
             OracleTicker::Ustc => "ustc",
             OracleTicker::Lunc => "lunc",
+            OracleTicker::Vfdusd => "vfdusd",
         }
     }
 
+    /// ASCII case-insensitive allowlist. No `fdusd` alias (I3). Homoglyphs / `../` → None.
     pub fn parse(s: &str) -> Option<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
             "ustc" => Some(OracleTicker::Ustc),
             "lunc" => Some(OracleTicker::Lunc),
+            "vfdusd" => Some(OracleTicker::Vfdusd),
             _ => None,
         }
     }
 
-    fn kucoin_symbol(self) -> &'static str {
+    /// KuCoin spot symbol, if listed. vFDUSD/FDUSD is unlisted — skip that source (soft-fail).
+    fn kucoin_symbol(self) -> Option<&'static str> {
         match self {
-            OracleTicker::Ustc => "USTC-USDT",
-            OracleTicker::Lunc => "LUNC-USDT",
+            OracleTicker::Ustc => Some("USTC-USDT"),
+            OracleTicker::Lunc => Some("LUNC-USDT"),
+            OracleTicker::Vfdusd => None,
         }
     }
 
@@ -85,6 +101,7 @@ impl OracleTicker {
         match self {
             OracleTicker::Ustc => "USTCUSDT",
             OracleTicker::Lunc => "LUNCUSDT",
+            OracleTicker::Vfdusd => "FDUSDUSDT",
         }
     }
 
@@ -92,6 +109,7 @@ impl OracleTicker {
         match self {
             OracleTicker::Ustc => "terrausd",
             OracleTicker::Lunc => "terra-luna",
+            OracleTicker::Vfdusd => "first-digital-usd",
         }
     }
 
@@ -99,6 +117,7 @@ impl OracleTicker {
         match self {
             OracleTicker::Ustc => "USTC/USD",
             OracleTicker::Lunc => "LUNC/USD",
+            OracleTicker::Vfdusd => "vFDUSD/USD",
         }
     }
 }
@@ -211,12 +230,23 @@ async fn fetch_all_sources(
     ticker: OracleTicker,
     include_coingecko: bool,
 ) -> Vec<(&'static str, Result<f64, OracleError>)> {
-    let kucoin = fetch_kucoin(client, ticker);
     let mexc = fetch_mexc(client, ticker);
+    let kucoin_symbol = ticker.kucoin_symbol();
 
-    let (kc_res, mx_res) = tokio::join!(kucoin, mexc);
+    let (kc_res, mx_res) = if kucoin_symbol.is_some() {
+        let kucoin = fetch_kucoin(client, ticker);
+        let (kc, mx) = tokio::join!(kucoin, mexc);
+        (Some(kc), mx)
+    } else {
+        // KuCoin has no FDUSD pair — skip rather than abort the tick (GitLab #550).
+        (None, mexc.await)
+    };
 
-    let mut results = vec![("kucoin", kc_res), ("mexc", mx_res)];
+    let mut results = Vec::with_capacity(3);
+    if let Some(kc) = kc_res {
+        results.push(("kucoin", kc));
+    }
+    results.push(("mexc", mx_res));
 
     if include_coingecko {
         let cg_res = fetch_coingecko(client, ticker).await;
@@ -255,9 +285,15 @@ struct KucoinData {
 }
 
 async fn fetch_kucoin(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
+    let symbol = ticker.kucoin_symbol().ok_or_else(|| {
+        OracleError::Parse(format!(
+            "KuCoin: no listed symbol for {}",
+            ticker.as_str()
+        ))
+    })?;
     let url = format!(
         "https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={}",
-        ticker.kucoin_symbol()
+        symbol
     );
     let resp: KucoinResponse = client.get(&url).send().await?.json().await?;
 
@@ -370,7 +406,13 @@ mod tests {
     fn ticker_parse_accepts_known() {
         assert_eq!(OracleTicker::parse("ustc"), Some(OracleTicker::Ustc));
         assert_eq!(OracleTicker::parse("LUNC"), Some(OracleTicker::Lunc));
+        assert_eq!(OracleTicker::parse("VFDUSD"), Some(OracleTicker::Vfdusd));
         assert_eq!(OracleTicker::parse("unknown"), None);
+        assert_eq!(OracleTicker::parse("fdusd"), None, "no silent fdusd alias");
+        assert_eq!(OracleTicker::parse("btc"), None);
+        assert_eq!(OracleTicker::parse("../ustc"), None);
+        assert_eq!(OracleTicker::parse("javascript:ustc"), None);
+        assert_eq!(OracleTicker::ALL.len(), 3);
     }
 
     #[test]
@@ -387,20 +429,48 @@ mod tests {
             OracleTicker::Ustc.coingecko_id(),
             OracleTicker::Lunc.coingecko_id()
         );
+        assert_ne!(
+            OracleTicker::Vfdusd.mexc_symbol(),
+            OracleTicker::Ustc.mexc_symbol()
+        );
+        assert_ne!(
+            OracleTicker::Vfdusd.mexc_symbol(),
+            OracleTicker::Lunc.mexc_symbol()
+        );
+        assert_ne!(
+            OracleTicker::Vfdusd.coingecko_id(),
+            OracleTicker::Ustc.coingecko_id()
+        );
+        assert_ne!(
+            OracleTicker::Vfdusd.coingecko_id(),
+            OracleTicker::Lunc.coingecko_id()
+        );
     }
 
     #[test]
     fn lunc_symbols_match_cex_convention() {
-        assert_eq!(OracleTicker::Lunc.kucoin_symbol(), "LUNC-USDT");
+        assert_eq!(OracleTicker::Lunc.kucoin_symbol(), Some("LUNC-USDT"));
         assert_eq!(OracleTicker::Lunc.mexc_symbol(), "LUNCUSDT");
         assert_eq!(OracleTicker::Lunc.coingecko_id(), "terra-luna");
     }
 
     #[test]
     fn ustc_symbols_unchanged() {
-        assert_eq!(OracleTicker::Ustc.kucoin_symbol(), "USTC-USDT");
+        assert_eq!(OracleTicker::Ustc.kucoin_symbol(), Some("USTC-USDT"));
         assert_eq!(OracleTicker::Ustc.mexc_symbol(), "USTCUSDT");
         assert_eq!(OracleTicker::Ustc.coingecko_id(), "terrausd");
+    }
+
+    #[test]
+    fn vfdusd_polls_fdusd_not_ustc_or_lunc_and_not_hardcoded_peg() {
+        assert_eq!(OracleTicker::Vfdusd.as_str(), "vfdusd");
+        assert_eq!(OracleTicker::Vfdusd.kucoin_symbol(), None);
+        assert_eq!(OracleTicker::Vfdusd.mexc_symbol(), "FDUSDUSDT");
+        assert_eq!(OracleTicker::Vfdusd.coingecko_id(), "first-digital-usd");
+        assert_ne!(OracleTicker::Vfdusd.mexc_symbol(), "USTCUSDT");
+        assert_ne!(OracleTicker::Vfdusd.mexc_symbol(), "LUNCUSDT");
+        assert_ne!(OracleTicker::Vfdusd.coingecko_id(), "terrausd");
+        assert_ne!(OracleTicker::Vfdusd.coingecko_id(), "terra-luna");
     }
 
     #[test]
@@ -495,5 +565,34 @@ mod tests {
             .await
             .unwrap();
         assert!((price - 0.00005024).abs() < 1e-12);
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_parses_vfdusd_id() {
+        use wiremock::matchers::{method, path, query_param};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(query_param("ids", "first-digital-usd"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{"first-digital-usd":{"usd":0.87}}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        let url = format!(
+            "{}/api/v3/simple/price?ids=first-digital-usd&vs_currencies=usd",
+            server.uri()
+        );
+        let price = fetch_coingecko_url(&client, &url, "first-digital-usd")
+            .await
+            .unwrap();
+        assert!((price - 0.87).abs() < 1e-12, "depeg must display, not $1");
     }
 }

@@ -1,6 +1,6 @@
-# Indexer external USD oracle (GitLab #515)
+# Indexer external USD oracle (GitLab #515 / #550)
 
-Polled CEX/aggregator **reference** prices for TerraClassic **USTC/USD** and **LUNC/USD**. Distinct from on-chain pair **TWAP** ([`docs/twap-oracle.md`](../twap-oracle.md)).
+Polled CEX/aggregator **reference** prices for TerraClassic **USTC/USD**, **LUNC/USD**, and **vFDUSD/USD** (CEX FDUSD). Distinct from on-chain pair **TWAP** ([`docs/twap-oracle.md`](../twap-oracle.md)) and the **UST1 window** rate.
 
 ## Why this exists
 
@@ -12,7 +12,7 @@ v1 now uses **ticker-scoped** paths (breaking change approved while non-economic
 
 | Method | Path | Response |
 |--------|------|----------|
-| `GET` | `/api/v1/oracle/price` | Catalog: `{ metadata, tickers: ["ustc","lunc"] }` |
+| `GET` | `/api/v1/oracle/price` | Catalog: `{ metadata, tickers: ["ustc","lunc","vfdusd"] }` |
 | `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, price_usd, sources[] }` |
 | `GET` | `/api/v1/oracle/history` | Same catalog as price |
 | `GET` | `/api/v1/oracle/history/{ticker}` | `{ ticker, prices[] }` (average samples; `limit` capped 1000) |
@@ -25,6 +25,7 @@ Unknown `{ticker}` → **400**.
 |--------|---------|---------------------|
 | `ustc` | TerraClassic USTC per USD | KuCoin `USTC-USDT`, MEXC `USTCUSDT`, CoinGecko `terrausd` |
 | `lunc` | TerraClassic LUNC per USD | KuCoin `LUNC-USDT`, MEXC `LUNCUSDT`, CoinGecko `terra-luna` |
+| `vfdusd` | Wrapped FDUSD CEX reference (not a $1 peg) | MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`; KuCoin **skipped** (unlisted). Path `fdusd` is **400** (no alias). |
 
 ### Sources
 
@@ -41,8 +42,8 @@ Swap `volume_usd` still uses the **USTC** shared price only.
 | ID | Rule |
 |----|------|
 | **X1** | `GET /api/v1/oracle/price` and `/history` are **catalogs only** — never a numeric price body. |
-| **X2** | Price/history paths require an explicit ticker: `ustc` or `lunc`. Unknown → **400**. |
-| **X3** | `ustc` and `lunc` use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC symbols into USTC storage or vice versa. |
+| **X2** | Price/history paths require an explicit ticker: `ustc`, `lunc`, or `vfdusd`. Unknown → **400**. |
+| **X3** | Tickers use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC/USTC/FDUSD ids. |
 | **X4** | Indexer `volume_usd` / overview `ustc_price_usd` use the **USTC** feed only. |
 | **X5** | Feeds are **advisory** — not settlement; on-chain swaps use `max_spread` / `min_return` / deadlines. |
 | **X6** | Non-finite `f64` → safe `BigDecimal` default before DB insert (existing oracle storage rule). |
@@ -56,11 +57,13 @@ Swap `volume_usd` still uses the **USTC** shared price only.
 | DB queries | [`indexer/src/db/queries/oracle.rs`](../../indexer/src/db/queries/oracle.rs) |
 | Frontend client | [`frontend-dapp/src/services/indexer/client.ts`](../../frontend-dapp/src/services/indexer/client.ts) |
 | Agent playbook | [`skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md`](../../skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) |
+| Protocol UI | [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) (#550) |
 
 ## Regression
 
 ```bash
 make verify-issue-515
+make verify-issue-550
 # or: cd indexer && cargo test --lib oracle -- --quiet
 #     cd indexer && cargo test --test api_oracle -- --test-threads=1
 ```

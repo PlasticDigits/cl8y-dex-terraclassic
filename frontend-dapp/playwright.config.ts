@@ -29,6 +29,10 @@ function playwrightProjectArg(): string | undefined {
 
 const e2eTxProjectOnly = playwrightProjectArg() === 'e2e-tx'
 
+/** Parallel worktrees often already bind :3000. `PLAYWRIGHT_WEB_PORT` starts a dedicated Vite. */
+const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 3000)
+const dedicatedWebPort = Boolean(process.env.PLAYWRIGHT_WEB_PORT)
+
 export default defineConfig({
   testDir: './e2e',
   globalSetup: chainOptional ? undefined : './e2e/global-setup.ts',
@@ -39,15 +43,17 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'html',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${webPort}`,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     viewport: { width: 1280, height: 720 },
   },
   webServer: {
-    command: 'VITE_NETWORK=local VITE_DEV_MODE=true npm run dev',
-    port: 3000,
-    reuseExistingServer: true,
+    command: dedicatedWebPort
+      ? `VITE_NETWORK=local VITE_DEV_MODE=true npm run dev -- --port ${webPort} --strictPort`
+      : 'VITE_NETWORK=local VITE_DEV_MODE=true npm run dev',
+    port: webPort,
+    reuseExistingServer: !dedicatedWebPort,
     timeout: 60_000,
     env: {
       ...process.env,

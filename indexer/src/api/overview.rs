@@ -4,11 +4,12 @@ use std::time::{Duration, Instant};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
+use chrono::Utc;
 use serde::Serialize;
 use utoipa::ToSchema;
 
 use super::{internal_err, AppState};
-use crate::db::queries::{assets, volume};
+use crate::db::queries::{assets, pairs, volume};
 
 // GitLab #281 / #333: /overview reads materialized global_stats_24h on cache miss;
 // cache the whole response for 1 minute so a request burst can't hammer the DB.
@@ -27,6 +28,20 @@ pub struct OverviewResponse {
     pub pair_count: i64,
     pub token_count: i64,
     pub ustc_price_usd: Option<String>,
+    /// SUM(volume_usd) 7d rollup (USTC conversion only; GitLab #550).
+    pub total_volume_7d_usd: String,
+    /// SUM(volume_usd) 30d rollup (USTC conversion only; GitLab #550).
+    pub total_volume_30d_usd: String,
+    pub total_trades_7d: i64,
+    pub total_trades_30d: i64,
+    /// Indexer first-seen `assets.created_at` in last 30d (not on-chain genesis).
+    pub tokens_added_30d: i64,
+    /// Indexer first-seen `pairs.created_at` in last 30d (not on-chain genesis).
+    pub pairs_added_30d: i64,
+    /// Distinct pairs with ≥1 swap in last 24h (materialized). Dust swaps count.
+    pub active_pairs_24h: i64,
+    /// Distinct swap senders in last 24h (materialized).
+    pub unique_traders_24h: i64,
 }
 
 #[utoipa::path(
@@ -53,10 +68,16 @@ pub async fn get_overview(
         .await
         .map_err(internal_err)?;
 
-    let token_count = assets::get_all_assets(&state.pool)
+    let cutoff_30d = Utc::now() - chrono::Duration::days(30);
+    let token_count = assets::count_assets(&state.pool)
         .await
-        .map_err(internal_err)?
-        .len() as i64;
+        .map_err(internal_err)?;
+    let tokens_added_30d = assets::count_assets_created_since(&state.pool, cutoff_30d)
+        .await
+        .map_err(internal_err)?;
+    let pairs_added_30d = pairs::count_pairs_created_since(&state.pool, cutoff_30d)
+        .await
+        .map_err(internal_err)?;
 
     let ustc_price = state.oracle_prices.ustc.read().await.clone();
 
@@ -67,6 +88,14 @@ pub async fn get_overview(
         pair_count: global.pair_count,
         token_count,
         ustc_price_usd: ustc_price.map(|p| p.to_string()),
+        total_volume_7d_usd: global.total_volume_7d_usd.to_string(),
+        total_volume_30d_usd: global.total_volume_30d_usd.to_string(),
+        total_trades_7d: global.total_trades_7d,
+        total_trades_30d: global.total_trades_30d,
+        tokens_added_30d,
+        pairs_added_30d,
+        active_pairs_24h: global.active_pairs_24h,
+        unique_traders_24h: global.unique_traders_24h,
     };
 
     if let Ok(mut guard) = overview_cache().lock() {

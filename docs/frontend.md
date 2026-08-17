@@ -338,7 +338,8 @@ When `VITE_DEV_MODE=true`, the UI can offer a **Simulated Wallet** (no browser e
 | WalletConnect project ID | `vite build --mode production` **requires** `VITE_WC_PROJECT_ID`; `wallet.ts` has no shared default ID in the bundle ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
 | Production CSP | `vite build --mode production` replaces `index.html` CSP with env-scoped `connect-src` (LCD/RPC/indexer + WalletConnect relay + Legal API/portal — [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)) via [`viteCsp.ts`](../frontend-dapp/viteCsp.ts). Dev `vite` keeps broad `https:` in `index.html` for local endpoints. |
 | Protocol audit addresses | Factory and router addresses render on [`/protocol`](../frontend-dapp/src/pages/ProtocolPage.tsx) only (`protocol-contract-addresses`) — not on swap confirmation ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
-| Protocol external oracle | `/protocol` shows **USTC/USD** via `getOraclePrice()` → `GET /api/v1/oracle/price/ustc` (default ticker). Bare `/api/v1/oracle/price` is a ticker catalog only — use `/price/lunc` for LUNC/USD ([#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515); runbook [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md); skill [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](../skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md)). |
+| Protocol global stats + oracle | `/protocol` leads with **Global stats** (`protocol-global-stats`: 24h/7d/30d **USD** volume, tokens, new 30d listings, active pairs 24h, 24h trades) then **one** oracle card (`protocol-oracle`) with USTC / LUNC / vFDUSD tabs. `getOraclePrice(ticker)` / history query keys include ticker. `?ticker=` is allowlisted (`ustc` \| `lunc` \| `vfdusd`). Mixed-unit `total_volume_24h` is not the headline. vFDUSD is CEX FDUSD reference, not `$1` and not the UST1 window ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550); skill [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md)). |
+| Protocol external oracle | Bare `/api/v1/oracle/price` is a ticker catalog only — snapshots use `/price/{ticker}` (`ustc`, `lunc`, `vfdusd`) ([#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515) / [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550); runbook [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md); skill [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](../skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md)). |
 | Token logo allowlist | [`TokenLogo`](../frontend-dapp/src/components/ui/TokenLogo.tsx) accepts `https:` logos only from [`tokenLogoAllowlist.ts`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts); other hosts fall back to blockies. |
 | Expert mode friction | [`ExpertModeModal`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx) requires typing `ENABLE EXPERT MODE` before enable; 30% block / 50% settings cap unchanged ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
 | Address in UI | The connected address comes from the `MnemonicWallet` instance (`devWallet.address`), not a hardcoded constant, so a custom dev mnemonic is reflected correctly. |
@@ -633,6 +634,24 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
 | `/mint`         | Soft-launch faucet Mint page (shown in More nav only when `VITE_FAUCET_ADDRESS` is set — [GitLab **#473**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473); runbook [`soft-launch-faucet.md`](./runbooks/soft-launch-faucet.md)) |
 | `/ust1`         | Always-on **UST1 ↔ vFDUSD** oracle mint/redeem via ust1-window CW20 Send (More nav when window env set — [GitLab **#506**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506); **not** the faucet; runbook [`ust1-window-ui.md`](./runbooks/ust1-window-ui.md); skill [`AGENTS_UST1_WINDOW_UI.md`](../skills/AGENTS_UST1_WINDOW_UI.md)) |
+| `/protocol`     | DEX **USD** global stats + one CEX oracle card (USTC / LUNC / vFDUSD) + factory/router audit + hooks ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) |
+
+### Protocol — global USD stats + unified oracle {#protocol-page}
+
+[`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx) is the DEX census + reference-oracle surface ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)). Page order: title → **Global stats** (`protocol-global-stats`) → **one** oracle card (`protocol-oracle`) → on-chain contracts (audit, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)) → hook events.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **P550-1 Order** | Stats above oracle. Do not merge factory/router into stats. Do not clone `AddressRow` onto Swap confirmation. |
+| **P550-2 Tickers** | Tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
+| **P550-3 One card** | Snapshot, sources, and history share one `shell-panel`. Query keys include ticker. |
+| **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |
+| **P550-9 vFDUSD** | CEX FDUSD (`first-digital-usd` / `FDUSDUSDT`), labeled **vFDUSD / USD**. Not `$1`, not the `/ust1` window rate. |
+| **P550-11 Reference** | Feeds are advisory. Per-pair TWAP stays on Charts. |
+
+`unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).
+
+Regression: `make verify-issue-550`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md).
 
 ### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
 

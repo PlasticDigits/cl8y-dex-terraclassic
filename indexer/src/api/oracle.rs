@@ -14,9 +14,10 @@ pub const ORACLE_CATALOG_METADATA: &str = concat!(
     "Indexer external USD reference prices (not on-chain pair TWAP). ",
     "GET /api/v1/oracle/price/{ticker} for the latest average + per-source snapshot; ",
     "GET /api/v1/oracle/history/{ticker} for average history. ",
-    "Tickers: ustc = TerraClassic USTC/USD; lunc = TerraClassic LUNC/USD. ",
+    "Tickers: ustc = TerraClassic USTC/USD; lunc = TerraClassic LUNC/USD; ",
+    "vfdusd = wrapped FDUSD CEX/USD reference (polls FDUSD, not a $1 peg). ",
     "Sources are polled CEX/aggregator APIs (KuCoin, MEXC, CoinGecko). ",
-    "Advisory only — not used for on-chain settlement."
+    "KuCoin is skipped for vfdusd when unlisted. Advisory only — not used for on-chain settlement."
 );
 
 #[derive(Serialize, ToSchema)]
@@ -36,7 +37,7 @@ pub struct OracleSourcePrice {
 
 #[derive(Serialize, ToSchema)]
 pub struct OraclePriceResponse {
-    /// Path ticker (`ustc` or `lunc`).
+    /// Path ticker (`ustc`, `lunc`, or `vfdusd`).
     pub ticker: String,
     pub price_usd: Option<String>,
     pub sources: Vec<OracleSourcePrice>,
@@ -84,7 +85,7 @@ pub async fn get_oracle_price_catalog() -> Json<OracleTickerCatalogResponse> {
     get,
     path = "/api/v1/oracle/price/{ticker}",
     params(
-        ("ticker" = String, Path, description = "Oracle ticker: ustc or lunc")
+        ("ticker" = String, Path, description = "Oracle ticker: ustc, lunc, or vfdusd")
     ),
     responses(
         (status = 200, description = "Latest ticker/USD oracle price", body = OraclePriceResponse),
@@ -158,7 +159,7 @@ pub async fn get_oracle_history_catalog() -> Json<OracleTickerCatalogResponse> {
     get,
     path = "/api/v1/oracle/history/{ticker}",
     params(
-        ("ticker" = String, Path, description = "Oracle ticker: ustc or lunc"),
+        ("ticker" = String, Path, description = "Oracle ticker: ustc, lunc, or vfdusd"),
         OracleHistoryQuery
     ),
     responses(
