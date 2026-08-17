@@ -23,7 +23,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.7.0";
+const CONTRACT_VERSION: &str = "1.8.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -56,6 +56,7 @@ pub fn instantiate(
             lp_token_code_id: msg.lp_token_code_id,
             default_limit_batch_max_rungs,
             pair_creation_fee_uluna: msg.pair_creation_fee_uluna,
+            discount_registry: None,
         },
     )?;
 
@@ -109,6 +110,7 @@ pub fn execute(
             default_limit_batch_max_rungs,
             pair_code_id,
             lp_token_code_id,
+            discount_registry,
         } => execute_update_config(
             deps,
             info,
@@ -119,6 +121,7 @@ pub fn execute(
                 default_limit_batch_max_rungs,
                 pair_code_id,
                 lp_token_code_id,
+                discount_registry,
             },
         ),
         ExecuteMsg::SetPairLimitBatchMax { pair, max_rungs } => {
@@ -303,6 +306,7 @@ fn execute_create_pair(
         token_symbols: Some([sym_a.clone(), sym_b.clone()]),
         governance: config.governance.to_string(),
         max_batch_rungs: config.default_limit_batch_max_rungs,
+        discount_registry: config.discount_registry.as_ref().map(|a| a.to_string()),
     };
 
     let sub_msg = SubMsg::reply_on_success(
@@ -564,7 +568,24 @@ fn execute_set_pair_hooks(
         .add_attribute("pair", pair_addr))
 }
 
+/// Persist the factory-level default inherited by future `CreatePair` (GitLab #536).
+/// `None` clears the pointer. Does not send pair `SetDiscountRegistry` messages.
+fn persist_factory_discount_registry(
+    deps: &mut DepsMut,
+    registry: Option<&str>,
+) -> Result<Option<cosmwasm_std::Addr>, ContractError> {
+    let validated = match registry {
+        Some(addr) => Some(deps.api.addr_validate(addr)?),
+        None => None,
+    };
+    let mut config = CONFIG.load(deps.storage)?;
+    config.discount_registry = validated.clone();
+    CONFIG.save(deps.storage, &config)?;
+    Ok(validated)
+}
+
 /// Set or clear the fee discount registry on a single pair. Governance only.
+/// Does **not** change factory `config.discount_registry` (GitLab #536).
 fn execute_set_discount_registry(
     deps: DepsMut,
     info: MessageInfo,
@@ -600,11 +621,12 @@ fn execute_set_discount_registry(
 /// bound, returns [`ContractError::DiscountRegistryAllTooManyPairs`] so operators use
 /// [`execute_set_discount_registry_batch`] (GitLab [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)).
 fn execute_set_discount_registry_all(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     registry: Option<String>,
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
+    persist_factory_discount_registry(&mut deps, registry.as_deref())?;
 
     let max_pairs = calc_limit(None);
     let count = PAIR_COUNT.load(deps.storage)?;
@@ -644,13 +666,14 @@ fn execute_set_discount_registry_all(
 /// Governance only. Scans contiguous indices upwards from `(start_after + 1)` (or `0` when
 /// `start_after` is absent) and attaches at most `calc_limit(limit)` Wasm messages.
 fn execute_set_discount_registry_batch(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     registry: Option<String>,
     start_after: Option<u64>,
     limit: Option<u32>,
 ) -> Result<Response, ContractError> {
     ensure_governance(&deps, &info)?;
+    persist_factory_discount_registry(&mut deps, registry.as_deref())?;
 
     let batch_limit = calc_limit(limit);
     let count = PAIR_COUNT.load(deps.storage)?;
@@ -920,6 +943,7 @@ struct UpdateConfigParams {
     default_limit_batch_max_rungs: Option<u32>,
     pair_code_id: Option<u64>,
     lp_token_code_id: Option<u64>,
+    discount_registry: Option<String>,
 }
 
 fn execute_update_config(
@@ -958,6 +982,10 @@ fn execute_update_config(
             return Err(ContractError::InvalidCodeId {});
         }
         config.lp_token_code_id = code_id;
+    }
+    // GitLab #536: set factory default for new CreatePair without touching indexed pairs.
+    if let Some(reg) = params.discount_registry {
+        config.discount_registry = Some(deps.api.addr_validate(&reg)?);
     }
 
     CONFIG.save(deps.storage, &config)?;
@@ -1001,6 +1029,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         pair_code_id: c.pair_code_id,
         lp_token_code_id: c.lp_token_code_id,
         pair_creation_fee_uluna: c.pair_creation_fee_uluna,
+        discount_registry: c.discount_registry,
     })
 }
 
@@ -1456,6 +1485,7 @@ mod pair_addr_registry_tests {
                     lp_token_code_id: 2,
                     default_limit_batch_max_rungs: 8,
                     pair_creation_fee_uluna: Uint128::zero(),
+                    discount_registry: None,
                 },
             )
             .unwrap();

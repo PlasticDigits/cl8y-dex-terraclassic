@@ -89,7 +89,7 @@ terrad query wasm contract-state smart <router> '{"config":{}}' --node <lcd>
 - [ ] **Treasury** on factory matches intended fee recipient (`get_config`).
 - [ ] **Fee-discount tiers** match [`docs/reference/fee-discount-tiers.md`](../reference/fee-discount-tiers.md) (or your approved variant); `make check-fee-discount-tier-docs` passes ([GitLab #198](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/198)).
 - [ ] **Router** registered as **trusted** on fee-discount (`IsTrustedRouter` = true) before relying on `trader` forwarding for discounts.
-- [ ] **Discount registry** set on all pairs that should participate (`GetDiscountRegistry` per pair or factory-driven policy).
+- [ ] **Discount registry** set on all pairs that should participate (`GetDiscountRegistry` per pair). Factory `config.discount_registry` must be set so **new** `CreatePair`s inherit it ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536), **F5**). Existing unwired pairs are a separate sweep ([#535](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/535)).
 
 ```bash
 terrad query wasm contract-state smart <fee_discount> '{"get_tiers":{}}' --node <lcd>

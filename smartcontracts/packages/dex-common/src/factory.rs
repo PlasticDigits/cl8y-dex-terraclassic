@@ -88,6 +88,12 @@ pub enum ExecuteMsg {
         /// Code ID pairs use to instantiate LP CW20 (GitLab #518). `None` leaves current.
         #[serde(default)]
         lp_token_code_id: Option<u64>,
+        /// Canonical discount registry inherited by new `CreatePair` instantiates
+        /// (GitLab #536). `None` leaves the current pointer; `Some(addr)` sets it
+        /// without touching indexed pairs. Clear via `SetDiscountRegistryAll` /
+        /// `SetDiscountRegistryBatch` with `registry: None`.
+        #[serde(default)]
+        discount_registry: Option<String>,
     },
     /// Set max batch/ladder rungs on one pair. Governance only.
     SetPairLimitBatchMax {
@@ -112,6 +118,10 @@ pub enum ExecuteMsg {
     /// [`SetDiscountRegistryBatch`](ExecuteMsg::SetDiscountRegistryBatch)
     /// (GitLab [#123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123),
     /// [#242](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/242)).
+    ///
+    /// Also writes factory `config.discount_registry` so the next `CreatePair` inherits it
+    /// (GitLab #536). `registry: None` clears that pointer. Single-pair
+    /// [`SetDiscountRegistry`](ExecuteMsg::SetDiscountRegistry) does **not**.
     SetDiscountRegistryAll {
         registry: Option<String>,
     },
@@ -123,6 +133,10 @@ pub enum ExecuteMsg {
     ///
     /// **Invariants:** New pairs append at indices `< PAIR_COUNT`. If pairs are registered between
     /// batches, rerun until the response reports no further work (`has_more = false`).
+    ///
+    /// Also writes factory `config.discount_registry` so the next `CreatePair` inherits it
+    /// (GitLab #536). `registry: None` clears that pointer. Single-pair
+    /// [`SetDiscountRegistry`](ExecuteMsg::SetDiscountRegistry) does **not**.
     SetDiscountRegistryBatch {
         registry: Option<String>,
         start_after: Option<u64>,
@@ -218,6 +232,10 @@ pub struct ConfigResponse {
     pub lp_token_code_id: u64,
     /// uluna required to create a pair, forwarded to treasury (GitLab #276).
     pub pair_creation_fee_uluna: Uint128,
+    /// Canonical registry copied into new pairs at `CreatePair` (GitLab #536).
+    /// Missing on pre-1.8.0 factory JSON → `None`.
+    #[serde(default)]
+    pub discount_registry: Option<Addr>,
 }
 
 #[cw_serde]
