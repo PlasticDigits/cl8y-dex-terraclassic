@@ -51,7 +51,7 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { formatTokenAmount, formatNum, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmount, formatQuoteVolume24h, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { isLpBurnExceedsBalance, withdrawMinAssetAmounts, estimateWithdrawAssetAmounts } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -91,10 +91,12 @@ const POOL_LP_RISK_DOC =
 const PoolCard = memo(function PoolCard({
   pair,
   volumeQuote24h,
+  quoteDecimals,
   listBadges,
 }: {
   pair: PairInfo
   volumeQuote24h?: string
+  quoteDecimals?: number
   listBadges: PairListBadges
 }) {
   const address = useWalletStore((s) => s.address)
@@ -126,6 +128,7 @@ const PoolCard = memo(function PoolCard({
 
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
+  const volumeLabel = formatQuoteVolume24h(volumeQuote24h, quoteDecimals ?? getDecimals(pair.asset_infos[1]))
 
   const nativeEquivA = useMemo(() => getNativeEquivalent(tokenA), [tokenA])
   const nativeEquivB = useMemo(() => getNativeEquivalent(tokenB), [tokenB])
@@ -144,7 +147,8 @@ const PoolCard = memo(function PoolCard({
     staleTime: 60_000,
   })
 
-  const { discountBps, feeDiscountRegistryStatus, feeDiscountConfigured } = useFeeDiscountRegistryStatus()
+  const { discountBps, pairDiscountApplies, feeDiscountRegistryStatus, feeDiscountConfigured } =
+    useFeeDiscountRegistryStatus(pair.contract_addr)
 
   const lpBalanceQuery = useQuery({
     queryKey: ['lpBalance', address, pair.liquidity_token],
@@ -576,11 +580,11 @@ const PoolCard = memo(function PoolCard({
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
             {pairInfoMenuLabel(pair, { variant: 'full' })}
           </p>
-          {volumeQuote24h && (
+          {volumeLabel ? (
             <p className="text-xs mt-1 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
-              24h vol (quote, indexed): {formatNum(volumeQuote24h)}
+              24h vol (quote, indexed): {volumeLabel}
             </p>
-          )}
+          ) : null}
           {listBadges.isInFactoryRouterGraph ? (
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-none border"
@@ -614,20 +618,23 @@ const PoolCard = memo(function PoolCard({
               style={{ color: 'var(--ink-dim)', borderColor: 'rgba(255,255,255,0.2)', background: 'var(--surface-0)' }}
               data-testid="pool-fee-badge"
               title={
-                feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered'
+                feeDiscountConfigured && pairDiscountApplies && feeDiscountRegistryStatus === 'unregistered'
                   ? FEE_DISCOUNT_ELIGIBILITY_NOTE
                   : undefined
               }
             >
               Fee: <FeeDisplay feeBps={feeQuery.data.fee_bps} discountBps={discountBps} />
-              {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
-                <span className="normal-case tracking-normal font-medium ml-1" style={{ color: 'var(--ink-subtle)' }}>
-                  · not registered
-                </span>
-              )}
+              {address &&
+                feeDiscountConfigured &&
+                pairDiscountApplies &&
+                feeDiscountRegistryStatus === 'unregistered' && (
+                  <span className="normal-case tracking-normal font-medium ml-1" style={{ color: 'var(--ink-subtle)' }}>
+                    · not registered
+                  </span>
+                )}
             </span>
           )}
-          {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
+          {address && feeDiscountConfigured && pairDiscountApplies && feeDiscountRegistryStatus === 'unregistered' && (
             <FeeDiscountUnregisteredCta testId="pool-fee-discount-unregistered-cta" />
           )}
         </div>
@@ -1403,6 +1410,7 @@ export default function PoolPage() {
             key={ip.pair_address}
             pair={indexerPairToPairInfo(ip)}
             volumeQuote24h={ip.volume_quote_24h}
+            quoteDecimals={ip.asset_1.decimals}
             listBadges={getPairListBadges({ pairAddress: ip.pair_address, factoryPairAddresses })}
           />
         ))}

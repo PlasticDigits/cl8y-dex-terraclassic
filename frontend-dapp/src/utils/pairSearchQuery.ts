@@ -2,6 +2,7 @@ import type { PairInfo } from '@/types'
 import { assetInfoLabel } from '@/types'
 import { getCachedTokenEntry, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { lookupByAssetInfo } from '@/utils/tokenRegistry'
+import { sortPairInfosByCatalog } from '@/utils/pairCatalogRank'
 import { pairInfoMenuLabel, type PairMenuLabelVariant } from '@/utils/pairMenuOptions'
 
 /** Minimum characters before a pair search hits the indexer (unless query looks like a Terra address). */
@@ -113,7 +114,7 @@ export function filterFactoryPairsByLocalSearch(
   variant: PairMenuLabelVariant = 'full'
 ): PairInfo[] {
   const q = query.trim()
-  if (!q) return pairs.slice(0, limit)
+  if (!q) return sortPairInfosByCatalog(pairs).slice(0, limit)
   return pairs.filter((p) => pairMatchesLocalQuery(p, q, variant)).slice(0, limit)
 }
 

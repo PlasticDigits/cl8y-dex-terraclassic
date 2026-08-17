@@ -54,6 +54,29 @@ export function formatPairPrice(val: string | number, sigfigs = 6): string {
 }
 
 /**
+ * Format indexer `volume_quote_24h` (raw quote-side integer) using the quote token's decimals.
+ * Passing the raw 18-dec string to {@link formatNum} prints `19,297,048T` for ordinary USTR flow (GitLab #534).
+ *
+ * Returns null when the raw amount is missing or zero so callers can hide the badge.
+ */
+export function formatQuoteVolume24h(
+  raw: string | undefined | null,
+  quoteDecimals: number,
+  sigfigs = 3
+): string | null {
+  if (!raw || raw === '0') return null
+  let n: bigint
+  try {
+    n = BigInt(raw)
+  } catch {
+    return null
+  }
+  if (n <= 0n) return null
+  const formatted = formatTokenAmount(raw, quoteDecimals, sigfigs)
+  return formatted === '0' ? null : formatted
+}
+
+/**
  * Convert a raw on-chain integer amount to a human-readable number,
  * then format with significant figures and optional abbreviations.
  *

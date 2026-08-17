@@ -189,7 +189,7 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "[DRY_RUN] plan:"
   echo "  1. create_pair UST1+$QUOTE_SYM on $FACTORY (fee ${FEE_ULUNA}uluna) if missing"
   if [[ "$SET_DISCOUNT" == "1" ]]; then
-    echo "  2. set_discount_registry on new pair → $FEE_DISC"
+    echo "  2. set_discount_registry on new pair → $FEE_DISC (idempotent after factory #536 snapshot)"
   fi
   if [[ "$SKIP_LP" != "1" ]]; then
     echo "  3. increase_allowance ×2 + provide_liquidity ($SEED_A / $SEED_B)"

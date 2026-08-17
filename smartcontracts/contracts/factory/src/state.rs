@@ -24,6 +24,10 @@ pub struct Config {
     /// 1.3.x stored configs migrate to the 100-LUNC default on first read.
     #[serde(default = "default_pair_creation_fee_config")]
     pub pair_creation_fee_uluna: Uint128,
+    /// Canonical fee-discount registry inherited by `CreatePair` (GitLab #536).
+    /// `#[serde(default)]` so pre-1.8.0 stored configs load as `None`.
+    #[serde(default)]
+    pub discount_registry: Option<Addr>,
 }
 
 fn default_limit_batch_max_rungs_config() -> u32 {
@@ -71,3 +75,27 @@ pub const BLACKLISTED_WALLETS: Map<&Addr, bool> = Map::new("bl_wallets");
 pub const BLACKLISTED_TOKENS: Map<&Addr, bool> = Map::new("bl_tokens");
 /// Pair contracts blocked from swaps, LP, and limit actions.
 pub const BLACKLISTED_PAIRS: Map<&Addr, bool> = Map::new("bl_pairs");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::from_json;
+
+    #[test]
+    fn config_missing_discount_registry_defaults_none() {
+        let json = br#"{
+            "governance": "terra1gov",
+            "treasury": "terra1tre",
+            "default_fee_bps": 30,
+            "pair_code_id": 1,
+            "lp_token_code_id": 2,
+            "default_limit_batch_max_rungs": 20,
+            "pair_creation_fee_uluna": "0"
+        }"#;
+        let c: Config = from_json(json).unwrap();
+        assert!(
+            c.discount_registry.is_none(),
+            "pre-1.8.0 factory Config JSON must migrate to None"
+        );
+    }
+}

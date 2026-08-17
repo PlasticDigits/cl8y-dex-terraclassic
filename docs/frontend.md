@@ -748,18 +748,35 @@ Trade and Limit Orders use [`PairSearchSelect`](../frontend-dapp/src/components/
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query uses `sort=volume_24h&order=desc` (high-liquidity defaults). |
+| **Indexer search** | Debounced (≥300ms) `GET /api/v1/pairs?q=&sort=relevance&limit=20`; empty query still fetches `sort=volume_24h` for volume badges, then **re-ranks** the factory universe (GitLab **#534**). |
 | **Min query length** | ≥2 chars unless the query looks like a `terra1…` address ([`pairSearchQuery.ts`](../frontend-dapp/src/utils/pairSearchQuery.ts)). |
 | **Factory gate** | Results are filtered to factory-registered pairs (`factoryPairs` prop) so only routable pairs appear. |
-| **Degraded mode** | After the first indexer error in the session, combobox search uses `filterFactoryPairsByLocalSearch` on factory pairs (menu label, display symbols, contract/denom ids, localStorage-cached CW20 symbol/name, registry entries, two-token `XXX YYY` / `XXX/YYY` queries) without further indexer calls. Typed symbol search (e.g. `EMBER`) works without the indexer when token metadata was cached from a prior `token_info` read. Shows a dim **Offline search** hint in the listbox. |
+| **Degraded mode** | After the first indexer error in the session, combobox search uses `filterFactoryPairsByLocalSearch` on factory pairs (menu label, display symbols, contract/denom ids, localStorage-cached CW20 symbol/name, registry entries, two-token `XXX YYY` / `XXX/YYY` queries) without further indexer calls. Empty degraded browse uses the same catalog rank. Typed symbol search (e.g. `EMBER`) works without the indexer when token metadata was cached from a prior `token_info` read. Shows a dim **Offline search** hint in the listbox. |
 | **Accessibility** | Input uses `role="combobox"` + portaled `listbox`; Arrow keys / Enter / Escape match portal listbox keyboard patterns. |
-| **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`. |
+| **Liquidity badge** | Options show indexed 24h quote volume when `volume_quote_24h > 0`, formatted with **quote-token decimals** (`formatQuoteVolume24h`) — never `formatNum(raw)` (**P534-4**). |
 
-Charts keeps its separate search + sort + `MenuSelect` layout (unchanged).
+Charts pair `MenuSelect` uses the same catalog rank on the loaded page ([pair catalog rank](#pair-catalog-rank)).
 
-**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); [`PairSearchSelect.issue301.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx); Trade page pair-switch test in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
+**Regression tests:** [`pairSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/pairSearchQuery.test.ts); [`pairCatalogRank.test.ts`](../frontend-dapp/src/utils/__tests__/pairCatalogRank.test.ts); [`PairSearchSelect.issue301.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx); [`PairSearchSelect.issue534.test.tsx`](../frontend-dapp/src/components/trade/__tests__/PairSearchSelect.issue534.test.tsx); Trade page pair-switch test in [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx); indexer [`list_pairs_relevance_ordering`](../indexer/tests/api_pairs.rs); Trade/Limits page tests mock `getPairs`.
 
 **Product parity:** Trade/Limits search **pairs**; Swap searches **tokens** — see [Token search combobox](#token-search-combobox).
+
+### Pair catalog rank — economic first, gems last {#pair-catalog-rank}
+
+Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not follow factory-creation order or raw `volume_24h` when that buries economic markets under faucet gems ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534)). Shared helper: [`pairCatalogRank.ts`](../frontend-dapp/src/utils/pairCatalogRank.ts). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](../skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md).
+
+| ID | Rule |
+|----|------|
+| **P534-1** | **Economic first.** A pair is economic iff **both** legs are real tokens (cLUNC / LUNC / `uluna`, cUSTC / USTC / `uusd`, UST1, USTR, CL8Y / TCL8Y, vFDUSD, …). Either leg in the gem set (EMBER, CORAL, JADE, ONYX, RUBY, TOPAZ, QUARTZ, PEARL + LocalTerra extras OPAL, COBALT, SLATE, AMBER, IRON) → **test pair**, listed after economic rows under a **Test pairs** divider (not collapsed). |
+| **P534-2** | **Hub grouping.** Among economic pairs, group by the highest-priority hub present: UST1, then cLUNC, cUSTC, USTR, CL8Y, vFDUSD. All UST1 markets (UST1/cUSTC, UST1/USTR, cLUNC/UST1) stay adjacent. |
+| **P534-3** | **Volume within a group** uses **human** quote volume `raw / 10^quoteDecimals` (mixed 6/18-dec safe). Do not sort 18-dec USTR raw against 6-dec cUSTC raw. |
+| **P534-4** | **Vol badge / pool 24h vol** format `volume_quote_24h` with quote decimals (`formatQuoteVolume24h`). Indexer JSON stays a **raw** integer (same class as #522 prices vs this volume field). `formatNum(raw)` on USTR prints `19,297,048T`. |
+| **P534-5** | Bare `/trade` auto-pick uses `firstCatalogPairAddress` (first catalog-ranked factory pair), not `pairs[0]` factory-creation order. Deep links unchanged. |
+| **P534-6** | **Typed search** keeps indexer `relevance` / local haystack order. Catalog rank applies to **empty browse** only. |
+| **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
+| **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
+
+`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers. Pool `/pool` card sort stays the user’s indexer sort (not a pair dropdown).
 
 ### Token search combobox (`TokenSearchSelect`) — Swap {#token-search-combobox}
 
@@ -769,7 +786,7 @@ Swap **YOU PAY** / **YOU RECEIVE** use [`TokenSearchSelect`](../frontend-dapp/sr
 |-----------|---------|
 | **Factory token universe** | Options come only from the `tokens` prop (`getAllTokens(pairs)` + native-wrap enrichment). Do **not** introduce an external/arbitrary token list or derive Swap options from `getPairs(q)`. |
 | **Client-only filter** | Search is entirely client-side via [`tokenSearchQuery.ts`](../frontend-dapp/src/utils/tokenSearchQuery.ts) (works with indexer down). Haystack = id/denom, display symbol, localStorage-cached CW20 symbol/name, registry. No `GET /api/v1/tokens?q=` yet (optional follow-up if factory counts outgrow comfortable client filtering). |
-| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **full** allowed list sorted by display symbol. |
+| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **full** allowed list sorted **economic-first then display symbol** ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534), **P534-7**). |
 | **excludeToken** | Other leg is omitted from options; search tricks cannot select it. `onChange` only emits ids present in the gated options list. |
 | **Query DoS / XSS** | Input `maxLength` / truncate at 128 chars; symbols/names render as **text only** (no `dangerouslySetInnerHTML`); logo URLs still pass [`resolveTrustedTokenLogoUrl`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts). |
 | **Accessibility** | Input `role="combobox"` + `aria-autocomplete="list"` + portaled `listbox`; Arrow / Enter / Escape / Tab. Typed query + Enter commits **first hit** (same #350 rule as pair search). |
@@ -1126,7 +1143,7 @@ Before **Place limit**, the ticket and standalone **`/limits`** form show a **pr
 | **Signing fields (SEC-I05 / #461)** | Labeled rows before the wallet opens: **Action** (`Place Limit Order`), **Pair**, **Side** (Buy/Sell base), **Amount** (escrow), **Chain** (`getNetworkBadgeCopy().fullLabel`) — same anti-phishing anchor as swap/pool pre-sign cards. |
 | **Compact copy (#489)** | No instructional paragraphs on the pre-sign card — labeled rows only, plus optional **Docs** link for resting-limit semantics. Market-style slippage / min-received lines belong on the **Market** tab / Swap card, not here. |
 | **% vs reference** | Same signed deviation as under the price field: \((\text{typed} - \text{ref}) / \text{ref} \times 100\) from [`limitPriceDeviationPercent`](../frontend-dapp/src/utils/limitOrderPriceReference.ts), using the resolved tape or pool reference. |
-| **Maker placement fee** | Retail copy: **small fee at placement** with human **percent** (`bpsToPercentLabel`) plus bps detail — not bps-only ([#419](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/419)). On-chain: **`floor(effective_fee_bps / 2)`** bps of escrow at placement ([`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs)). |
+| **Maker placement fee** | Retail copy: **small fee at placement** with human **percent** (`bpsToPercentLabel`) plus bps detail — not bps-only ([#419](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/419)). On-chain: **`floor(effective_fee_bps / 2)`** bps of escrow at placement ([`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs)). **I14 / [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537):** apply `limit_discount_bps` only when this pair’s `discount_registry` matches `VITE_FEE_DISCOUNT_ADDRESS`; otherwise show full `maker_fee_bps(fee_bps)` (unwired pairs charge 90 bps at 180 pair fee regardless of CL8Y tier). |
 | **Est. network fee** | Minimum **uluna** for **`increase_allowance` + `place_limit_order`** via [`estimateLimitOrderPlaceSequenceUlunaFeesTotal`](../frontend-dapp/src/services/terraclassic/transactions.ts) — informational; wallet extensions may still adjust `gas_wanted`. |
 | **`data-testid`s** | **`trade-limit-pre-submit-summary`** on `/trade`; **`limits-page-pre-submit-summary`** on `/limits`; field rows suffixed `-action`, `-pair`, `-side`, `-amount`, `-chain`. |
 
@@ -1392,12 +1409,29 @@ The `feeDiscount.ts` service in `src/services/` handles all interactions with th
 
 ### Swap Page Integration
 
-The Swap page displays the effective fee after discount. When a connected wallet has a registered tier, the UI shows:
+The Swap page displays the effective fee after discount **only when the selected pair’s `DISCOUNT_REGISTRY` is set and matches `VITE_FEE_DISCOUNT_ADDRESS`** (invariant **I14**, [GitLab #537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)). When a connected wallet has a registered tier **and** that pair is wired, the UI shows:
 - The base pair fee (e.g., 0.30%)
 - The discount percentage from the trader's tier
 - The effective fee after discount (e.g., 0.15% for a 50% discount)
 
-**Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y & register…** CTA instead. Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts) + [`useFeeDiscountRegistryStatus`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
+Unwired pairs (registry `None`, e.g. economic pairs before the #535 factory sweep) show plain `fee_bps` with **no** strikethrough and hide the Hold-CL8Y CTA for that pair — HybridSimulation with `trader` already quotes the full fee. Probe: [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts) + [`getPairDiscountRegistry`](../frontend-dapp/src/services/terraclassic/pairDiscountRegistry.ts). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md).
+
+**Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y & register…** CTA instead **when the pair is wired** (I14). Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts) + [`useFeeDiscountRegistryStatus`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
+
+### Pair fee-tier chrome vs on-chain registry (GitLab [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)) {#pair-fee-tier-chrome}
+
+`getTraderDiscount` always queries `VITE_FEE_DISCOUNT_ADDRESS`. On-chain fees use the **pair’s** `DISCOUNT_REGISTRY`. When that is `None`, execute charges full `fee_bps` (maker place `floor(fee_bps/2)`). The dApp must not strikethrough a phantom discount.
+
+| ID | Rule |
+|----|------|
+| **F537-1** | Advertise CL8Y discount only when pair `DISCOUNT_REGISTRY` is set and equals `VITE_FEE_DISCOUNT_ADDRESS`. |
+| **F537-2** | Unwired pair: show full `fee_bps` / full maker place fee; no strikethrough. |
+| **F537-3** | Do not invent a client-side discount the pair will not apply. |
+| **F537-4** | Probe LCD raw key `discount_registry` until `GetDiscountRegistry` exists on wasm; smart-query fallback if raw is blocked. Probe failure → fail-closed (full fee chrome). |
+| **F537-5** | Hide pair-scoped Hold-CL8Y / “not registered” CTA on unwired pairs. Global registry-outage banner is unchanged. |
+| **F537-6** | HybridSimulation / route-solve with `trader` remains execute-aligned; this issue is fee **chrome**, not quote math. |
+
+Canonical invariant **I14**: [`docs/reference/fee-discount-tiers.md`](reference/fee-discount-tiers.md). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537`.
 
 ### Pool page fee-discount UX (GitLab [#476](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/476)) {#pool-page-fee-discount-ux}
 
@@ -1405,8 +1439,9 @@ Pool cards reuse the same fee-discount status hook as Swap:
 
 | Signal | UI |
 |--------|-----|
-| Connected **unregistered** + healthy registry | Fee badge shows base pair fee + **· not registered**; CTA `data-testid="pool-fee-discount-unregistered-cta"` → `/tiers` |
-| Connected **registered** + `discount_bps > 0` | [`FeeDisplay`](../frontend-dapp/src/components/ui/FeeDisplay.tsx) strikethrough base + effective % (unchanged math) |
+| Connected **unregistered** + healthy registry + **pair wired** (I14) | Fee badge shows base pair fee + **· not registered**; CTA `data-testid="pool-fee-discount-unregistered-cta"` → `/tiers` |
+| Connected **registered** + `discount_bps > 0` + **pair wired** | [`FeeDisplay`](../frontend-dapp/src/components/ui/FeeDisplay.tsx) strikethrough base + effective % (unchanged math) |
+| Pair `DISCOUNT_REGISTRY` unset or ≠ `VITE_FEE_DISCOUNT_ADDRESS` ([#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)) | Full `fee_bps`; **no** strikethrough; hide pair CTA / “not registered” (do not advertise a discount the pair will not apply) |
 | Registered + registry unreachable | Non-blocking amber banner `data-testid="pool-fee-discount-registry-warning"` (same copy as Swap); provide/withdraw stay enabled |
 | `VITE_FEE_DISCOUNT_ADDRESS` empty | No discount queries, no CTA, no outage banner |
 
@@ -1414,7 +1449,7 @@ Pool cards reuse the same fee-discount status hook as Swap:
 
 **CL8Y decimals:** [`tokenRegistry.ts`](../frontend-dapp/src/utils/tokenRegistry.ts) lists CL8Y at **18** decimals so `/tiers` Hold labels match `min_cl8y_balance` wei (LocalTerra TCL8Y is also 18 — [#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)).
 
-**Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10.
+**Tests:** [`PoolPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/PoolPage.feeDiscountRegistryBanner.test.tsx), [`SwapPage.feeDiscountRegistryBanner.test.tsx`](../frontend-dapp/src/pages/SwapPage.feeDiscountRegistryBanner.test.tsx), [`pairDiscountRegistry.test.ts`](../frontend-dapp/src/utils/__tests__/pairDiscountRegistry.test.ts), [`useLimitOrderMakerFeeRates.test.tsx`](../frontend-dapp/src/hooks/__tests__/useLimitOrderMakerFeeRates.test.tsx). QA: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 3.1.6–3.1.10. Regression: `make verify-issue-537`.
 
 **Expected slippage, Expert Mode & max spread (GitLab [#134](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/134), [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)):** When the indexer returns `slippage_percent` on `route/solve`, the trade summary shows **Expected slippage** — symmetric deviation vs fair cross-rate token prices (`spot_amount_out`). The dApp prefers wallet `return_amount` vs spot when both are present ([`swapRouteSlippage.ts`](../frontend-dapp/src/utils/swapRouteSlippage.ts)). **Expert Mode** (Settings checkbox, default **off**, persisted in `localStorage`) blocks submit when expected slippage **> 30%** with **Slippage is too high** and an **Enable Expert Mode** affordance that opens a warning modal ([`ExpertModeModal.tsx`](../frontend-dapp/src/components/swap/ExpertModeModal.tsx)). **≥ 99%** always shows an extreme-slippage alert, even with Expert Mode enabled. Multihop and indexer quotes also run **per-hop pair simulation** preflight (factory resolve + `simulation` / `hybrid_simulation`) so hop spread is visible as secondary context and submit is disabled when any hop would exceed the user’s **Slippage tolerance** (`max_spread`). Failed txs that still surface `Max spread assertion` from the chain are mapped to short retail copy in [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) via [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) and `TxResultAlert`. **Pool-only CW20 swap** gas uses the buffered one-hop router envelope (**830k**), not legacy **600k**, so wallet fee displays (~23 vs ~36 LUNC) stay aligned with on-chain headroom; LocalTerra post-sign guards reject fee/gas rewrites below **95%** of the dApp envelope ([#127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). Full invariants: [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
 

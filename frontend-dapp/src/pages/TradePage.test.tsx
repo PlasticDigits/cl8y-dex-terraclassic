@@ -114,6 +114,10 @@ vi.mock('@/services/terraclassic/settings', () => ({
   getPairFeeConfig: vi.fn().mockResolvedValue({ fee_bps: 30, treasury: 'terra1treasury0000000000000000000001' }),
 }))
 
+vi.mock('@/services/terraclassic/pairDiscountRegistry', () => ({
+  getPairDiscountRegistry: vi.fn().mockResolvedValue(null),
+}))
+
 vi.mock('@/services/terraclassic/wallet', () => ({
   getConnectedWallet: vi.fn(),
 }))
@@ -904,11 +908,13 @@ describe('TradePage', () => {
   describe('UST1 pair display invert (GitLab #524)', () => {
     const UST1_PAIR = 'terra1ust1pair000000000000000000000000000001'
     const OTHER_PAIR = PAIR
+    const UST1_CW20 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC_CW20 = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
     const ust1IndexerPair: IndexerPair = {
       ...mockIndexerPair,
       pair_address: UST1_PAIR,
-      asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1tok000000000000000000000000001', denom: null, decimals: 6 },
-      asset_1: { symbol: 'cUSTC', contract_addr: 'terra1custctok0000000000000000000000002', denom: null, decimals: 6 },
+      asset_0: { symbol: 'UST1', contract_addr: UST1_CW20, denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: CUSTC_CW20, denom: null, decimals: 6 },
     }
 
     function mockUst1AndOtherPairs() {
@@ -917,10 +923,7 @@ describe('TradePage', () => {
           {
             contract_addr: UST1_PAIR,
             liquidity_token: 'terra1lpust1000000000000000000000000001',
-            asset_infos: [
-              { token: { contract_addr: 'terra1ust1tok000000000000000000000000001' } },
-              { token: { contract_addr: 'terra1custctok0000000000000000000000002' } },
-            ],
+            asset_infos: [{ token: { contract_addr: UST1_CW20 } }, { token: { contract_addr: CUSTC_CW20 } }],
           },
           {
             contract_addr: OTHER_PAIR,

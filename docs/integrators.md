@@ -172,9 +172,9 @@ Do **not** assume a registered trader keeps their tier discount during a registr
 | `get_registration.registered = false` (query succeeds) | Trader **not registered** | Show tier ladder / hold-CL8Y UX; full fee is correct. |
 | `get_registration` or `get_discount` **LCD error** | Registry **unreachable** | Warn that discounts may be unavailable; quotes using indexer `traders.tier_id` can diverge from execute. Do **not** publish per-trader registry error strings on a public API ([#365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)). |
 | `fee_discount_registry_ok: false` on indexer health | Background LCD `config` probe failing | Page ops; treat off-chain tier hints as stale until probe recovers. |
-| On-chain swap succeeds with `effective_fee_bps = fee_bps` | Full fee applied (registered or not) | Reconcile with LCD/health above — outage vs genuinely unregistered. |
+| On-chain swap succeeds with `effective_fee_bps = fee_bps` | Full fee applied (registered or not) | Reconcile with LCD/health above — outage vs genuinely unregistered. **Also check pair `discount_registry`:** if raw state is `null`, the pair is unwired and full fee is correct even for a registered tier holder ([#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537), **I14**). |
 
-Canonical tier numbers remain only in [fee-discount-tiers.md](./reference/fee-discount-tiers.md) — do not duplicate the ladder here. Agent playbook: [skills/AGENTS_FEE_DISCOUNT_TIERS.md](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability. Regression: `make verify-issue-365`.
+Canonical tier numbers remain only in [fee-discount-tiers.md](./reference/fee-discount-tiers.md) — do not duplicate the ladder here. Agent playbook: [skills/AGENTS_FEE_DISCOUNT_TIERS.md](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability. dApp fee chrome: [skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Regression: `make verify-issue-365`. Pair-registry UI gate: `make verify-issue-537`.
 
 ## Vyntrex / Terraport hybrid event mapping (GitLab #189)
 

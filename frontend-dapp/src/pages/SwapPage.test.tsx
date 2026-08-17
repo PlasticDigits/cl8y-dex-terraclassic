@@ -62,6 +62,10 @@ vi.mock('@/services/terraclassic/feeDiscount', () => ({
   getRegistration: vi.fn().mockResolvedValue({ registered: false }),
 }))
 
+vi.mock('@/services/terraclassic/pairDiscountRegistry', () => ({
+  getPairDiscountRegistry: vi.fn().mockResolvedValue('terra1feediscount'),
+}))
+
 vi.mock('@/utils/constants', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/constants')>()
   return {
@@ -158,6 +162,7 @@ import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getRegistration, getTraderDiscount } from '@/services/terraclassic/feeDiscount'
+import { getPairDiscountRegistry } from '@/services/terraclassic/pairDiscountRegistry'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { FEE_DISCOUNT_REGISTRY_WARNING_TEXT } from '@/utils/feeDiscountRegistryWarning'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
@@ -223,6 +228,7 @@ describe('SwapPage', () => {
       needs_deregister: false,
       registration_epoch: null,
     })
+    vi.mocked(getPairDiscountRegistry).mockResolvedValue('terra1feediscount')
   })
 
   it('renders without crashing', async () => {
@@ -1295,6 +1301,7 @@ describe('SwapPage', () => {
 
       await renderConnectedDirectSwap()
 
+      await waitFor(() => expect(screen.getByText(/trade details/i)).toBeInTheDocument())
       expect(await screen.findByText(/Hold CL8Y/i)).toBeInTheDocument()
       expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
     })

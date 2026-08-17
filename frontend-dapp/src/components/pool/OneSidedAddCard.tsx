@@ -45,11 +45,11 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
   const queryClient = useQueryClient()
   const slippageTolerance = useDexStore((s) => s.slippageTolerance)
   const expertMode = useDexStore((s) => s.expertMode)
-  const { discountBps } = useFeeDiscountRegistryStatus()
 
   const [tokenId, setTokenId] = useState('')
   const [pairAddr, setPairAddr] = useState('')
   const [amount, setAmount] = useState('')
+  const { discountBps } = useFeeDiscountRegistryStatus(pairAddr || undefined)
 
   const factoryTokens = useMemo(() => getAllTokens(factoryPairs), [factoryPairs])
   const candidates = useMemo(() => retailAddTokenCandidates(factoryTokens), [factoryTokens])

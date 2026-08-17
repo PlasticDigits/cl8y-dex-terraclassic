@@ -304,8 +304,13 @@ export default function SwapPage() {
     enabled: !!directPair,
   })
 
-  const { discountBps, feeDiscountRegistryStatus, showFeeDiscountRegistryWarning, feeDiscountConfigured } =
-    useFeeDiscountRegistryStatus()
+  const {
+    discountBps,
+    pairDiscountApplies,
+    feeDiscountRegistryStatus,
+    showFeeDiscountRegistryWarning,
+    feeDiscountConfigured,
+  } = useFeeDiscountRegistryStatus(directPair?.contract_addr)
 
   const balanceQuery = useQuery({
     queryKey: ['tokenBalance', address, fromToken],
@@ -1590,6 +1595,7 @@ export default function SwapPage() {
                     <div
                       className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
                       style={{ color: 'var(--ink-dim)' }}
+                      data-testid="swap-fee-row"
                     >
                       <span className="uppercase text-xs tracking-wide font-medium">Fee</span>
                       <FeeDisplay
@@ -1603,9 +1609,12 @@ export default function SwapPage() {
                       />
                     </div>
                   )}
-                  {address && feeDiscountConfigured && feeDiscountRegistryStatus === 'unregistered' && (
-                    <FeeDiscountUnregisteredCta testId="swap-fee-discount-unregistered-cta" className="col-span-2" />
-                  )}
+                  {address &&
+                    feeDiscountConfigured &&
+                    pairDiscountApplies &&
+                    feeDiscountRegistryStatus === 'unregistered' && (
+                      <FeeDiscountUnregisteredCta testId="swap-fee-discount-unregistered-cta" className="col-span-2" />
+                    )}
                   {swapRouteLine &&
                     (isWrapOrUnwrap ||
                       nativeRouteInfo ||

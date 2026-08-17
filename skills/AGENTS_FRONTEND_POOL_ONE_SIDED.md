@@ -37,7 +37,8 @@ Use when changing **retail `/pool` one-sided liquidity**: pick one wallet token 
 2. Off-pair input: `GET /route/solve` into a pair leg then zap, or one-sentence “No route”.
 3. Two-sided provide/withdraw stays under Advanced for empty-pool bootstrap and power users.
 4. Do **not** change pair mint/burn math, fee treasury, or wrap-mapper fee bps in this issue.
-5. Prefer one `executeTerraContractMulti` when gas fits; rollback both allowances in one multi-msg on provide failure (#147).
+5. Zap fee math must use `useFeeDiscountRegistryStatus(pairAddr)` (**I14** / [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)). An unwired pair charges full `fee_bps` on-chain — do not apply a wallet `get_discount` to the split.
+6. Prefer one `executeTerraContractMulti` when gas fits; rollback both allowances in one multi-msg on provide failure (#147).
 
 ## Verify
 

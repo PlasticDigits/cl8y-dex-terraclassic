@@ -41,7 +41,6 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const queryClient = useQueryClient()
   const slippageTolerance = useDexStore((s) => s.slippageTolerance)
-  const { discountBps } = useFeeDiscountRegistryStatus()
 
   const [lpToken, setLpToken] = useState('')
   const [asToken, setAsToken] = useState('')
@@ -58,6 +57,7 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
   )
   const selectedRow = lpRows.find((r) => r.lpToken === lpToken) ?? null
   const pair = useMemo(() => factoryPairs.find((p) => p.liquidity_token === lpToken) ?? null, [factoryPairs, lpToken])
+  const { discountBps } = useFeeDiscountRegistryStatus(pair?.contract_addr)
 
   const legs = pair
     ? ([assetInfoLabel(pair.asset_infos[0]), assetInfoLabel(pair.asset_infos[1])] as [string, string])

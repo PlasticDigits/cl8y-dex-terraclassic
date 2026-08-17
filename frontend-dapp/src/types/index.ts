@@ -122,6 +122,8 @@ export interface FactoryConfigResponse {
   lp_token_code_id: number
   /** Uluna attached on `create_pair` when > 0 (GitLab #276, #345). */
   pair_creation_fee_uluna: string
+  /** Canonical registry copied into new pairs at `create_pair` (GitLab #536). */
+  discount_registry?: string | null
 }
 
 /** Hooks response from pair contract */
@@ -150,7 +152,7 @@ export interface IndexerPair {
   lp_token: string | null
   fee_bps: number | null
   is_active: boolean
-  /** 24h quote-side volume from indexed swaps (string integer) */
+  /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
 }
 

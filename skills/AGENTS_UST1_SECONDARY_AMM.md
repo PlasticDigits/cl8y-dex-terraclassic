@@ -22,7 +22,7 @@ Use when creating/seeding **UST1/vFDUSD** or **UST1/cUSTC** on the live CL8Y fac
 4. **No native legs (U3)** — use cUSTC, not `uusd`.
 5. **#518 upgrade must be live** — `create_pair` for UST1 keeps digits in the LP ticker (`UST1-CUST-LP`) and reverts on classic LP CW20 until factory `lp_token_code_id` is digit-allowing `cw20-mintable`. Run [`scripts/upgrade-518-lp-symbol.sh`](../scripts/upgrade-518-lp-symbol.sh). See [`AGENTS_LP_SYMBOL_DIGITS.md`](./AGENTS_LP_SYMBOL_DIGITS.md).
 6. **Seed size honesty (U4)** — default smoke seed is **1.0** raw-unit human (1e6) per side on mainnet script; document any larger size. Empty pools are worse than a waiver. `UST1_SEC_SKIP_LP=1` requires `UST1_SEC_ALLOW_UNSEEDED=1`. Preflight asserts on-chain CW20 **symbols** match expected legs.
-7. **Indexer (U5)** — factory `create_pair` is enough for discovery; foreign pairs fail provenance (**P1**). Indexer **Price (USD)** of 1 UST1 is ~$1 after [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522) — see [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md). The **dApp** defaults `/trade` + `/charts` to the **other token’s** USD via UI invert ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)) — [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md).
+7. **Indexer (U5)** — factory `create_pair` is enough for discovery; foreign pairs fail provenance (**P1**). Indexer **Price (USD)** of 1 UST1 is ~$1 after [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522) — see [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md). The **dApp** defaults `/trade` + `/charts` to the **other token’s** USD via UI invert ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)) — [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md). Pair pickers list UST1 markets together ahead of faucet gems ([#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534)) — [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md).
 8. **Close AC (U7)** — either live seeded pair + txs on #508, or explicit waiver text on #508 **and** #502. Tooling-only PRs do not satisfy Path A.
 9. **Keys** — host terrad via [`terrad-host.sh`](../scripts/lib/terrad-host.sh); never commit `TERRAD_HOST_KEYRING_PASS`. See [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md).
 
@@ -40,7 +40,7 @@ VERIFY508_MAINNET=1 make verify-issue-508     # read-only pair presence
 
 - [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md) — SL1–SL7 boundary; do not fold economic pairs into soft-launch
 - [`AGENTS_FACTORY_ADDRESS_GUARD.md`](./AGENTS_FACTORY_ADDRESS_GUARD.md) — indexer factory provenance
-- [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) — `set_discount_registry` after create
+- [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) — `set_discount_registry` after create is belt-and-suspenders once factory **1.8.0** + pair **1.14.0** snapshot the factory pointer ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536)); see [`AGENTS_FACTORY_DISCOUNT_REGISTRY.md`](./AGENTS_FACTORY_DISCOUNT_REGISTRY.md)
 - [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md) — audit record pattern
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — retail copy; keep secondary-market wording short
 - `/ust1` UI track: [#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)

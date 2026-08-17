@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { formatNum, formatPairPrice, formatTokenAmount, formatTokenAmountAbbrev, getDecimals } from '../formatAmount'
+import {
+  formatNum,
+  formatPairPrice,
+  formatQuoteVolume24h,
+  formatTokenAmount,
+  formatTokenAmountAbbrev,
+  getDecimals,
+} from '../formatAmount'
 
 describe('formatNum', () => {
   it('returns 0 for zero', () => {
@@ -40,6 +47,26 @@ describe('formatNum', () => {
 
   it('handles empty string', () => {
     expect(formatNum('')).toBe('0')
+  })
+})
+
+describe('formatQuoteVolume24h', () => {
+  it('scales 18-dec USTR raw volume instead of compacting as T (GitLab #534)', () => {
+    const raw = '19297048000000000000'
+    expect(formatNum(raw, 3)).toMatch(/T$/)
+    const human = formatQuoteVolume24h(raw, 18, 3)
+    expect(human).toBeTruthy()
+    expect(human).not.toMatch(/T$/)
+    expect(human).toMatch(/^19\.3/)
+  })
+
+  it('returns null for missing or zero raw', () => {
+    expect(formatQuoteVolume24h(undefined, 6)).toBeNull()
+    expect(formatQuoteVolume24h('0', 6)).toBeNull()
+  })
+
+  it('formats 6-dec quote volume in human units', () => {
+    expect(formatQuoteVolume24h('1000000', 6, 3)).toBe('1.00')
   })
 })
 
@@ -126,7 +153,7 @@ describe('getDecimals', () => {
 
   it('returns registry decimals for known CW20 token', () => {
     const info = { token: { contract_addr: 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3' } }
-    expect(getDecimals(info)).toBe(6)
+    expect(getDecimals(info)).toBe(18)
   })
 
   it('returns registry decimals for known native denom', () => {

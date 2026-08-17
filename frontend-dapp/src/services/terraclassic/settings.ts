@@ -18,3 +18,11 @@ export async function getPairHooks(pairAddress: string): Promise<string[]> {
   const resp = await queryContract<HooksResponse>(pairAddress, { get_hooks: {} })
   return resp.hooks
 }
+
+/** Pair `GetDiscountRegistry` — `null` means unwired (full pair fee). GitLab #536. */
+export async function getPairDiscountRegistry(pairAddress: string): Promise<string | null> {
+  const resp = await queryContract<{ registry: string | null }>(pairAddress, {
+    get_discount_registry: {},
+  })
+  return resp.registry
+}
