@@ -383,6 +383,15 @@ export interface IndexerOverview {
   token_count: number
   /** Cached USTC/USD reference from indexer oracle; null if unavailable */
   ustc_price_usd?: string | null
+  /** Additive GitLab #550 fields — optional until indexer ships. */
+  total_volume_7d_usd?: string
+  total_volume_30d_usd?: string
+  total_trades_7d?: number
+  total_trades_30d?: number
+  tokens_added_30d?: number
+  pairs_added_30d?: number
+  active_pairs_24h?: number
+  unique_traders_24h?: number
 }
 
 /** `GET /api/v1/tokens` */
@@ -430,7 +439,7 @@ export interface IndexerHookEvent {
 /** `GET /api/v1/oracle/price` and `GET /api/v1/oracle/history` (catalog) */
 export interface IndexerOracleTickerCatalogResponse {
   metadata: string
-  /** Supported ticker path segments (e.g. `ustc`, `lunc`). */
+  /** Supported ticker path segments (e.g. `ustc`, `lunc`, `vfdusd`). */
   tickers: string[]
 }
 
@@ -442,7 +451,7 @@ export interface IndexerOracleSourcePrice {
 
 /** `GET /api/v1/oracle/price/{ticker}` */
 export interface IndexerOraclePriceResponse {
-  /** Path ticker (`ustc` or `lunc`). */
+  /** Path ticker (`ustc`, `lunc`, or `vfdusd`). */
   ticker: string
   price_usd: string | null
   sources: IndexerOracleSourcePrice[]
@@ -455,7 +464,7 @@ export interface IndexerOracleHistoryEntry {
 }
 
 export interface IndexerOracleHistoryResponse {
-  /** Path ticker (`ustc` or `lunc`). */
+  /** Path ticker (`ustc`, `lunc`, or `vfdusd`). */
   ticker: string
   prices: IndexerOracleHistoryEntry[]
 }

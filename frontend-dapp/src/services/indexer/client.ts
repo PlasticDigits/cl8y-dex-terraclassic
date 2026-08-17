@@ -1,5 +1,6 @@
 import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
 import { normalizeLimitBookPageResponse } from '@/utils/limitBookPagination'
+import { parseProtocolOracleTicker } from '@/utils/protocolOracleTicker'
 import type {
   IndexerPair,
   IndexerPairsListResponse,
@@ -498,21 +499,23 @@ export async function getHookEvents(params?: GetHookEventsParams): Promise<Index
   return fetchJson<IndexerHookEvent[]>(`/api/v1/hooks${qs ? `?${qs}` : ''}`)
 }
 
-/** Available USTC/LUNC oracle tickers and usage metadata (GitLab #515). */
+/** Available USTC/LUNC/vFDUSD oracle tickers and usage metadata (GitLab #515 / #550). */
 export async function getOraclePriceCatalog(): Promise<IndexerOracleTickerCatalogResponse> {
   return fetchJson<IndexerOracleTickerCatalogResponse>('/api/v1/oracle/price')
 }
 
 /**
- * Latest external USD reference for a TerraClassic ticker (indexer-polled CEX/aggregator sources).
- * @param ticker `ustc` (USTC/USD) or `lunc` (LUNC/USD); defaults to `ustc`.
+ * Latest external USD reference for an allowlisted ticker (indexer-polled CEX/aggregator sources).
+ * Unknown / injected ticker values fall back to `ustc` and are never interpolated raw (GitLab #550).
+ * @param ticker `ustc` | `lunc` | `vfdusd`; defaults to `ustc`.
  */
 export async function getOraclePrice(ticker = 'ustc'): Promise<IndexerOraclePriceResponse> {
-  return fetchJson<IndexerOraclePriceResponse>(`/api/v1/oracle/price/${pathSegment(ticker)}`)
+  const safe = parseProtocolOracleTicker(ticker)
+  return fetchJson<IndexerOraclePriceResponse>(`/api/v1/oracle/price/${pathSegment(safe)}`)
 }
 
 export interface GetOracleHistoryParams {
-  /** `ustc` (USTC/USD) or `lunc` (LUNC/USD); defaults to `ustc`. */
+  /** `ustc` | `lunc` | `vfdusd`; defaults to `ustc`. Unknown values → `ustc`. */
   ticker?: string
   from?: string
   to?: string
@@ -520,19 +523,17 @@ export interface GetOracleHistoryParams {
 }
 
 /**
- * External USD reference history for a TerraClassic ticker (defaults to last 24h if `from` omitted).
- * @param params.ticker `ustc` or `lunc`; defaults to `ustc`.
+ * External USD reference history for an allowlisted ticker (defaults to last 24h if `from` omitted).
+ * @param params.ticker `ustc`, `lunc`, or `vfdusd`; defaults to `ustc`.
  */
 export async function getOracleHistory(params?: GetOracleHistoryParams): Promise<IndexerOracleHistoryResponse> {
-  const ticker = params?.ticker ?? 'ustc'
+  const ticker = parseProtocolOracleTicker(params?.ticker ?? 'ustc')
   const sp = new URLSearchParams()
   if (params?.from) sp.set('from', params.from)
   if (params?.to) sp.set('to', params.to)
   if (params?.limit != null) sp.set('limit', String(params.limit))
   const qs = sp.toString()
-  return fetchJson<IndexerOracleHistoryResponse>(
-    `/api/v1/oracle/history/${pathSegment(ticker)}${qs ? `?${qs}` : ''}`
-  )
+  return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history/${pathSegment(ticker)}${qs ? `?${qs}` : ''}`)
 }
 
 export interface GetRouteSolveOptions {

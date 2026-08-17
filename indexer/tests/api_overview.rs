@@ -21,4 +21,12 @@ async fn overview_returns_stats() {
     assert!(body["token_count"].is_i64());
     assert!(body["pair_count"].as_i64().unwrap() >= 1);
     assert!(body["token_count"].as_i64().unwrap() >= 2);
+    assert!(body["total_volume_7d_usd"].is_string());
+    assert!(body["total_volume_30d_usd"].is_string());
+    assert!(body["tokens_added_30d"].is_i64());
+    assert!(body["pairs_added_30d"].is_i64());
+    assert!(body["active_pairs_24h"].is_i64());
+    assert!(body["unique_traders_24h"].is_i64());
+    assert!(body["total_trades_7d"].is_i64());
+    assert!(body["total_trades_30d"].is_i64());
 }

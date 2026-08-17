@@ -1,0 +1,67 @@
+import { type UseQueryResult } from '@tanstack/react-query'
+import { StatBox, RetryError } from '@/components/ui'
+import { formatProtocolCount, formatProtocolUsd } from '@/utils/formatProtocolStats'
+import type { IndexerOverview } from '@/types'
+
+interface ProtocolGlobalStatsProps {
+  overviewQuery: UseQueryResult<IndexerOverview>
+}
+
+const STATS: Array<{
+  testId: string
+  label: string
+  value: (o: IndexerOverview | undefined) => string
+}> = [
+  { testId: 'protocol-stat-volume-24h', label: '24h volume', value: (o) => formatProtocolUsd(o?.total_volume_24h_usd) },
+  { testId: 'protocol-stat-volume-7d', label: '7d volume', value: (o) => formatProtocolUsd(o?.total_volume_7d_usd) },
+  { testId: 'protocol-stat-volume-30d', label: '30d volume', value: (o) => formatProtocolUsd(o?.total_volume_30d_usd) },
+  { testId: 'protocol-stat-tokens', label: 'Tokens', value: (o) => formatProtocolCount(o?.token_count) },
+  {
+    testId: 'protocol-stat-tokens-added',
+    label: 'New tokens (30d)',
+    value: (o) => formatProtocolCount(o?.tokens_added_30d),
+  },
+  {
+    testId: 'protocol-stat-pairs-added',
+    label: 'New pairs (30d)',
+    value: (o) => formatProtocolCount(o?.pairs_added_30d),
+  },
+  {
+    testId: 'protocol-stat-active-pairs',
+    label: 'Active pairs',
+    value: (o) => formatProtocolCount(o?.active_pairs_24h),
+  },
+  {
+    testId: 'protocol-stat-trades-24h',
+    label: '24h trades',
+    value: (o) => formatProtocolCount(o?.total_trades_24h),
+  },
+]
+
+export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps) {
+  const overview = overviewQuery.data
+  const loading = overviewQuery.isLoading
+
+  return (
+    <div className="shell-panel" data-testid="protocol-global-stats">
+      <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
+        Global stats
+      </h2>
+      <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
+        USD volume uses the USTC reference feed. New tokens and pairs are indexer first-seen, not on-chain launch dates.
+      </p>
+      {overviewQuery.isError && (
+        <RetryError message="Failed to load global stats" onRetry={() => void overviewQuery.refetch()} />
+      )}
+      {!overviewQuery.isError && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {STATS.map((stat) => (
+            <div key={stat.testId} data-testid={stat.testId}>
+              <StatBox label={stat.label} value={stat.value(overview)} loading={loading} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

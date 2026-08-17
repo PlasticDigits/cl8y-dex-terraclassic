@@ -13,7 +13,7 @@ export const PORTFOLIO_MARKET_DATA_OUTAGE_LEAD = 'Portfolio data may be limited.
 
 export const POOL_MARKET_DATA_OUTAGE_LEAD = 'Pool listings may be limited.'
 
-export const PROTOCOL_MARKET_DATA_OUTAGE_LEAD = 'Oracle pricing may be limited.'
+export const PROTOCOL_MARKET_DATA_OUTAGE_LEAD = 'Stats and oracle prices may be limited.'
 
 /** Standalone `/limits` route — book, tape, placements ([GitLab #218](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/218)). */
 export const LIMITS_MARKET_DATA_OUTAGE_LEAD = 'Book, tape, and limits may be limited.'

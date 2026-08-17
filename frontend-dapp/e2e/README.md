@@ -43,6 +43,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 | unset (default) | **Strict** — global setup required; tx helpers **fail** on missing preconditions |
 | `PLAYWRIGHT_SKIP_CHAIN=1` | **Optional** — no global setup; helpers may `test.skip` (local UI dev only) |
 | `REQUIRE_LOCALTERRA=0` | Legacy alias for `PLAYWRIGHT_SKIP_CHAIN=1` |
+| `PLAYWRIGHT_WEB_PORT` | Dedicated Vite port (and `PLAYWRIGHT_BASE_URL`) so a worktree does not reuse another checkout on `:3000` |
 
 **Do not** set `PLAYWRIGHT_SKIP_CHAIN=1` in CI.
 

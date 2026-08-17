@@ -19,10 +19,13 @@ async fn oracle_price_catalog_lists_tickers() {
     let body: serde_json::Value = resp.json();
     assert!(body["metadata"].as_str().unwrap().contains("ustc"));
     assert!(body["metadata"].as_str().unwrap().contains("lunc"));
+    assert!(body["metadata"].as_str().unwrap().contains("vfdusd"));
     let tickers = body["tickers"].as_array().unwrap();
-    assert_eq!(tickers.len(), 2);
+    assert_eq!(tickers.len(), 3);
     assert!(tickers.iter().any(|t| t == "ustc"));
     assert!(tickers.iter().any(|t| t == "lunc"));
+    assert!(tickers.iter().any(|t| t == "vfdusd"));
+    assert!(body.get("price_usd").is_none());
 }
 
 #[tokio::test]
@@ -92,6 +95,76 @@ async fn oracle_price_unknown_ticker_is_400() {
 }
 
 #[tokio::test]
+async fn oracle_price_fdusd_without_v_is_400() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/price/fdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn oracle_price_path_injection_is_400_or_not_found() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    for path in [
+        "/api/v1/oracle/price/..%2f",
+        "/api/v1/oracle/price/ustc%00",
+        "/api/v1/oracle/price/ustc%2f..%2f",
+    ] {
+        let resp = server.get(path).await;
+        assert!(
+            resp.status_code() == StatusCode::BAD_REQUEST
+                || resp.status_code() == StatusCode::NOT_FOUND,
+            "{path} => {}",
+            resp.status_code()
+        );
+    }
+}
+
+#[tokio::test]
+async fn oracle_price_vfdusd_returns_none_when_no_data() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/price/vfdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["ticker"], "vfdusd");
+    assert!(body["price_usd"].is_null());
+}
+
+#[tokio::test]
+async fn oracle_price_vfdusd_returns_cached_value_not_hardcoded_peg() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let vfdusd = BigDecimal::from_str("0.87").unwrap();
+    let app = common::build_test_app_with_vfdusd(pool, Some(vfdusd)).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/price/vfdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["ticker"], "vfdusd");
+    let price_str = body["price_usd"].as_str().unwrap();
+    assert!(price_str.starts_with("0.87"), "depeg must display, got {price_str}");
+    assert!(!price_str.starts_with("1.0"));
+}
+
+#[tokio::test]
 async fn oracle_history_catalog_lists_tickers() {
     let pool = common::setup_pool().await;
     common::clean_db(&pool).await;
@@ -106,6 +179,7 @@ async fn oracle_history_catalog_lists_tickers() {
     let tickers = body["tickers"].as_array().unwrap();
     assert!(tickers.iter().any(|t| t == "ustc"));
     assert!(tickers.iter().any(|t| t == "lunc"));
+    assert!(tickers.iter().any(|t| t == "vfdusd"));
 }
 
 #[tokio::test]
@@ -150,6 +224,13 @@ async fn oracle_history_returns_stored_prices_per_ticker() {
     .await
     .unwrap();
 
+    sqlx::query(
+        "INSERT INTO oracle_prices (ticker, price_usd, source, fetched_at) VALUES ('vfdusd', 0.87, 'average', NOW())",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
 
@@ -166,6 +247,16 @@ async fn oracle_history_returns_stored_prices_per_ticker() {
         .as_str()
         .unwrap()
         .starts_with("0.00005"));
+
+    let vfdusd_resp = server.get("/api/v1/oracle/history/vfdusd").await;
+    assert_eq!(vfdusd_resp.status_code(), StatusCode::OK);
+    let vfdusd_body: serde_json::Value = vfdusd_resp.json();
+    assert_eq!(vfdusd_body["ticker"], "vfdusd");
+    assert_eq!(vfdusd_body["prices"].as_array().unwrap().len(), 1);
+    assert!(vfdusd_body["prices"][0]["price_usd"]
+        .as_str()
+        .unwrap()
+        .starts_with("0.87"));
 }
 
 #[tokio::test]

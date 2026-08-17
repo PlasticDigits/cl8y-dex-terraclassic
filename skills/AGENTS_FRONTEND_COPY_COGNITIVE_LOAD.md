@@ -40,6 +40,7 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) | Retail `/pool` one-sided add/withdraw (**Z533-1–Z533-10**, [#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)) — option-less Token/Pair/Amount; wrap implied by the token |
 | [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) | `/create` Token A/B + Custom contract; no “verified safe” banner ([#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)) |
 | [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) | Compact copy + explorer on Pool / Trade / Charts (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)) — icon controls, not address essays |
+| [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) | `/protocol` USD stats + one oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) — short reference labels; no TWAP vs CEX essays |
 
 ## Shared copy modules
 

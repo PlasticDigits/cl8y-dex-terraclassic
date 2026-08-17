@@ -347,7 +347,23 @@ pub async fn get_pair_by_address(
 ) -> Result<Option<PairRow>, sqlx::Error> {
     sqlx::query_as::<_, PairRow>("SELECT * FROM pairs WHERE contract_address = $1")
         .bind(contract_address)
-        .fetch_optional(pool)
+    .fetch_optional(pool)
+    .await
+}
+
+pub async fn count_pairs(pool: &PgPool) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM pairs")
+        .fetch_one(pool)
+        .await
+}
+
+pub async fn count_pairs_created_since(
+    pool: &PgPool,
+    since: DateTime<Utc>,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM pairs WHERE created_at >= $1")
+        .bind(since)
+        .fetch_one(pool)
         .await
 }
 

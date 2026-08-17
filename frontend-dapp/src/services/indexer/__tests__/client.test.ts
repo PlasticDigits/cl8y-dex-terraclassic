@@ -424,3 +424,34 @@ describe('indexer route/solve timeouts and AbortSignal (#484)', () => {
     expect(url).toContain('trader=terra1trader')
   })
 })
+
+describe('oracle ticker allowlist (GitLab #550)', () => {
+  it('getOraclePrice allowlists ticker path segments', async () => {
+    vi.mocked(fetch).mockImplementation(
+      async () => new Response(JSON.stringify({ ticker: 'ustc', price_usd: '0.005', sources: [] }), { status: 200 })
+    )
+    const client = await loadModule()
+    await client.getOraclePrice('lunc')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/price/lunc')
+    await client.getOraclePrice('vfdusd')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/price/vfdusd')
+    await client.getOraclePrice('../ustc')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/price/ustc')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).not.toContain('..')
+    await client.getOraclePrice('javascript:alert(1)')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/price/ustc')
+    await client.getOraclePrice('fdusd')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/price/ustc')
+  })
+
+  it('getOracleHistory allowlists ticker path segments', async () => {
+    vi.mocked(fetch).mockImplementation(
+      async () => new Response(JSON.stringify({ ticker: 'ustc', prices: [] }), { status: 200 })
+    )
+    const client = await loadModule()
+    await client.getOracleHistory({ ticker: 'vfdusd', limit: 48 })
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/history/vfdusd')
+    await client.getOracleHistory({ ticker: '<img src=x>', limit: 48 })
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/history/ustc')
+  })
+})

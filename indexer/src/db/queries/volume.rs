@@ -20,6 +20,12 @@ pub struct GlobalStats {
     pub total_volume_24h_usd: BigDecimal,
     pub total_trades_24h: i64,
     pub pair_count: i64,
+    pub total_volume_7d_usd: BigDecimal,
+    pub total_volume_30d_usd: BigDecimal,
+    pub total_trades_7d: i64,
+    pub total_trades_30d: i64,
+    pub active_pairs_24h: i64,
+    pub unique_traders_24h: i64,
 }
 
 pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
@@ -94,26 +100,49 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// Rebuild rolling 24h global overview stats (materialized single-row table).
+/// Rebuild rolling 24h/7d/30d global overview stats (materialized single-row table).
+/// Aggregates run here (~5 min), never on the /overview request path (GitLab #550 / AC7).
 pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let cutoff = Utc::now() - chrono::Duration::hours(24);
+    let now = Utc::now();
+    let cutoff_24h = now - chrono::Duration::hours(24);
+    let cutoff_7d = now - chrono::Duration::days(7);
+    let cutoff_30d = now - chrono::Duration::days(30);
 
     sqlx::query(
-        r#"INSERT INTO global_stats_24h (id, total_volume, total_volume_usd, total_trades, updated_at)
+        r#"INSERT INTO global_stats_24h (
+               id, total_volume, total_volume_usd, total_trades, updated_at,
+               total_volume_7d_usd, total_volume_30d_usd,
+               total_trades_7d, total_trades_30d,
+               active_pairs_24h, unique_traders_24h
+           )
            SELECT 1,
-                  COALESCE(SUM(offer_amount), 0),
-                  COALESCE(SUM(volume_usd), 0),
-                  COUNT(*),
-                  NOW()
+                  COALESCE(SUM(offer_amount) FILTER (WHERE block_timestamp >= $1), 0),
+                  COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $1), 0),
+                  COUNT(*) FILTER (WHERE block_timestamp >= $1),
+                  NOW(),
+                  COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $2), 0),
+                  COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $3), 0),
+                  COUNT(*) FILTER (WHERE block_timestamp >= $2),
+                  COUNT(*) FILTER (WHERE block_timestamp >= $3),
+                  COUNT(DISTINCT pair_id) FILTER (WHERE block_timestamp >= $1),
+                  COUNT(DISTINCT sender) FILTER (WHERE block_timestamp >= $1)
            FROM swap_events
-           WHERE block_timestamp >= $1
+           WHERE block_timestamp >= $3
            ON CONFLICT (id)
              DO UPDATE SET total_volume = EXCLUDED.total_volume,
                           total_volume_usd = EXCLUDED.total_volume_usd,
                           total_trades = EXCLUDED.total_trades,
-                          updated_at = EXCLUDED.updated_at"#,
+                          updated_at = EXCLUDED.updated_at,
+                          total_volume_7d_usd = EXCLUDED.total_volume_7d_usd,
+                          total_volume_30d_usd = EXCLUDED.total_volume_30d_usd,
+                          total_trades_7d = EXCLUDED.total_trades_7d,
+                          total_trades_30d = EXCLUDED.total_trades_30d,
+                          active_pairs_24h = EXCLUDED.active_pairs_24h,
+                          unique_traders_24h = EXCLUDED.unique_traders_24h"#,
     )
-    .bind(cutoff)
+    .bind(cutoff_24h)
+    .bind(cutoff_7d)
+    .bind(cutoff_30d)
     .execute(pool)
     .await?;
 
@@ -206,22 +235,40 @@ pub async fn get_token_volume(
 
 /// Live aggregate over `swap_events` (debug / parity checks). Set `OVERVIEW_GLOBAL_STATS_LIVE=1`.
 pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::Error> {
-    let cutoff_24h = Utc::now() - chrono::Duration::hours(24);
+    let now = Utc::now();
+    let cutoff_24h = now - chrono::Duration::hours(24);
+    let cutoff_7d = now - chrono::Duration::days(7);
+    let cutoff_30d = now - chrono::Duration::days(30);
 
     #[derive(FromRow)]
     struct AggRow {
         total_volume: Option<BigDecimal>,
         total_volume_usd: Option<BigDecimal>,
         total_trades: Option<i64>,
+        total_volume_7d_usd: Option<BigDecimal>,
+        total_volume_30d_usd: Option<BigDecimal>,
+        total_trades_7d: Option<i64>,
+        total_trades_30d: Option<i64>,
+        active_pairs_24h: Option<i64>,
+        unique_traders_24h: Option<i64>,
     }
 
     let agg = sqlx::query_as::<_, AggRow>(
-        "SELECT SUM(offer_amount) AS total_volume,
-                COALESCE(SUM(volume_usd), 0) AS total_volume_usd,
-                COUNT(*) AS total_trades
-         FROM swap_events WHERE block_timestamp >= $1",
+        "SELECT
+            SUM(offer_amount) FILTER (WHERE block_timestamp >= $1) AS total_volume,
+            COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $1), 0) AS total_volume_usd,
+            COUNT(*) FILTER (WHERE block_timestamp >= $1) AS total_trades,
+            COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $2), 0) AS total_volume_7d_usd,
+            COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $3), 0) AS total_volume_30d_usd,
+            COUNT(*) FILTER (WHERE block_timestamp >= $2) AS total_trades_7d,
+            COUNT(*) FILTER (WHERE block_timestamp >= $3) AS total_trades_30d,
+            COUNT(DISTINCT pair_id) FILTER (WHERE block_timestamp >= $1) AS active_pairs_24h,
+            COUNT(DISTINCT sender) FILTER (WHERE block_timestamp >= $1) AS unique_traders_24h
+         FROM swap_events WHERE block_timestamp >= $3",
     )
     .bind(cutoff_24h)
+    .bind(cutoff_7d)
+    .bind(cutoff_30d)
     .fetch_one(pool)
     .await?;
 
@@ -234,6 +281,12 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
         total_volume_24h_usd: agg.total_volume_usd.unwrap_or_default(),
         total_trades_24h: agg.total_trades.unwrap_or(0),
         pair_count,
+        total_volume_7d_usd: agg.total_volume_7d_usd.unwrap_or_default(),
+        total_volume_30d_usd: agg.total_volume_30d_usd.unwrap_or_default(),
+        total_trades_7d: agg.total_trades_7d.unwrap_or(0),
+        total_trades_30d: agg.total_trades_30d.unwrap_or(0),
+        active_pairs_24h: agg.active_pairs_24h.unwrap_or(0),
+        unique_traders_24h: agg.unique_traders_24h.unwrap_or(0),
     })
 }
 
@@ -247,10 +300,20 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         total_volume: BigDecimal,
         total_volume_usd: BigDecimal,
         total_trades: i64,
+        total_volume_7d_usd: BigDecimal,
+        total_volume_30d_usd: BigDecimal,
+        total_trades_7d: i64,
+        total_trades_30d: i64,
+        active_pairs_24h: i64,
+        unique_traders_24h: i64,
     }
 
     let rollup = sqlx::query_as::<_, RollupRow>(
-        "SELECT total_volume, total_volume_usd, total_trades FROM global_stats_24h WHERE id = 1",
+        "SELECT total_volume, total_volume_usd, total_trades,
+                total_volume_7d_usd, total_volume_30d_usd,
+                total_trades_7d, total_trades_30d,
+                active_pairs_24h, unique_traders_24h
+         FROM global_stats_24h WHERE id = 1",
     )
     .fetch_one(pool)
     .await?;
@@ -280,5 +343,11 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         total_volume_24h_usd: rollup.total_volume_usd,
         total_trades_24h: rollup.total_trades,
         pair_count,
+        total_volume_7d_usd: rollup.total_volume_7d_usd,
+        total_volume_30d_usd: rollup.total_volume_30d_usd,
+        total_trades_7d: rollup.total_trades_7d,
+        total_trades_30d: rollup.total_trades_30d,
+        active_pairs_24h: rollup.active_pairs_24h,
+        unique_traders_24h: rollup.unique_traders_24h,
     })
 }

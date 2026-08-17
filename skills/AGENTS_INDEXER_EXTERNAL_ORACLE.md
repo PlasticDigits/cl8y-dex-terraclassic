@@ -1,10 +1,10 @@
-# Agent playbook: Indexer external USTC/LUNC oracle (GitLab #515)
+# Agent playbook: Indexer external USTC/LUNC/vFDUSD oracle (GitLab #515 / #550)
 
 Audience: third-party agents touching indexer USD reference prices, Protocol oracle UI, or integrator docs that mention `/api/v1/oracle/price`.
 
-**Issue:** [GitLab **#515**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515)  
+**Issue:** [GitLab **#515**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515), [**#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)  
 **Canonical runbook:** [`docs/runbooks/indexer-external-oracle.md`](../docs/runbooks/indexer-external-oracle.md)  
-**Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **External oracle tickers #515**)
+**Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (rows **External oracle tickers #515**, **Protocol global stats #550**)
 
 ## Problem class
 
@@ -15,9 +15,9 @@ Audience: third-party agents touching indexer USD reference prices, Protocol ora
 | ID | Rule |
 |----|------|
 | **X1** | Bare `/api/v1/oracle/price` and `/history` return **catalog** `{ metadata, tickers }` only. |
-| **X2** | Snapshots/history require `/price/{ticker}` or `/history/{ticker}` with `ustc` \| `lunc`. |
-| **X3** | Fetcher symbols must match ticker (USTC≠LUNC CEX ids). |
-| **X4** | Volume USD uses the **P522-Q catalog** ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Overview `ustc_price_usd` stays the **USTC** handle. |
+| **X2** | Snapshots/history require `/price/{ticker}` or `/history/{ticker}` with `ustc` \| `lunc` \| `vfdusd`. |
+| **X3** | Fetcher symbols must match ticker (USTC≠LUNC≠FDUSD CEX ids). |
+| **X4** | Volume USD uses the **P522-Q catalog** ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Overview `ustc_price_usd` stays the **USTC** handle. Do **not** convert DEX volume with vFDUSD. |
 | **X5** | Advisory reference — never settlement authority. |
 | **X6** | Non-finite f64 → safe BigDecimal before insert. |
 
@@ -26,9 +26,10 @@ Do not confuse with on-chain **TWAP** ([`docs/twap-oracle.md`](../docs/twap-orac
 ## API contract (breaking v1)
 
 ```
-GET /api/v1/oracle/price              → { metadata, tickers: ["ustc","lunc"] }
+GET /api/v1/oracle/price              → { metadata, tickers: ["ustc","lunc","vfdusd"] }
 GET /api/v1/oracle/price/ustc         → { ticker, price_usd, sources }
 GET /api/v1/oracle/price/lunc         → { ticker, price_usd, sources }
+GET /api/v1/oracle/price/vfdusd       → { ticker, price_usd, sources }  # CEX FDUSD, labeled vFDUSD
 GET /api/v1/oracle/history            → catalog (same shape)
 GET /api/v1/oracle/history/{ticker}   → { ticker, prices }
 ```
@@ -37,10 +38,13 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 
 ## Do / don’t
 
-- **Do** call `/price/ustc` or `/price/lunc` explicitly in new integrators.
-- **Do** keep Protocol UI labeled **USTC / USD** when using the default ticker.
+- **Do** call `/price/ustc`, `/price/lunc`, or `/price/vfdusd` explicitly in new integrators.
+- **Do** keep Protocol UI labeled **USTC / USD** when using the default ticker; LUNC and vFDUSD have their own chips ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)).
 - **Don’t** restore a bare `/price` numeric response.
-- **Don’t** treat CoinGecko 429 as a hard outage (soft-fail; KuCoin/MEXC usually suffice).
+- **Don’t** use vFDUSD/FDUSD feeds for `volume_usd` conversion (LUNC-quoted swaps still use the LUNC feed via P522-Q).
+- **Don’t** treat CoinGecko 429 as a hard outage (soft-fail; KuCoin/MEXC usually suffice). KuCoin is skipped for `vfdusd` (unlisted).
+- **Don’t** alias `/price/fdusd` to vFDUSD — unknown ticker stays **400**.
+- **Don’t** hardcode vFDUSD as `$1`.
 - **Don’t** use the LUNC ticker for the Charts/overview **USTC / USD** box.
 
 ## Regression checklist
@@ -49,9 +53,11 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 2. `cd indexer && cargo test --test api_oracle -- --test-threads=1`
 3. Frontend mocks/types include `ticker` on price/history responses
 4. `make verify-issue-515`
+5. `make verify-issue-550` when touching Protocol UI or `vfdusd`
 
 ## Related
 
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` USD stats + ticker card ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550))
 - [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres for integration tests
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md)
 - [`docs/twap-oracle.md`](../docs/twap-oracle.md) — on-chain TWAP (different subsystem)

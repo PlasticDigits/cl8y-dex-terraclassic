@@ -873,6 +873,40 @@ pub async fn build_test_app_with_price_and_config(
     build_test_app_with_oracle_prices_and_config(pool, ustc_price, None, config).await
 }
 
+pub async fn build_test_app_with_vfdusd(
+    pool: PgPool,
+    vfdusd_price: Option<bigdecimal::BigDecimal>,
+) -> Router {
+    let lcd = LcdClient::new(
+        test_config().lcd_urls.clone(),
+        test_config().lcd_timeout_ms,
+        test_config().lcd_cooldown_ms,
+    );
+    let config = test_config();
+    let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
+    if let Some(price) = vfdusd_price {
+        *oracle_prices.vfdusd.write().await = Some(price);
+    }
+    let state = AppState {
+        pool,
+        lcd,
+        oracle_prices,
+        ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
+        orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
+        router_address: config.router_address.clone(),
+        factory_address: Some(config.factory_address.clone()),
+        fee_discount_address: config.fee_discount_address.clone(),
+        fee_discount_registry_health:
+            cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(
+                config.fee_discount_address.as_deref(),
+            ),
+        route_solver_db_hybrid: config.route_solver_db_hybrid,
+        book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
+        route_fidelity_drift_bps: config.route_fidelity_drift_bps,
+    };
+    build_router(state, &config)
+}
+
 pub async fn build_test_app_with_oracle_prices_and_config(
     pool: PgPool,
     ustc_price: Option<bigdecimal::BigDecimal>,

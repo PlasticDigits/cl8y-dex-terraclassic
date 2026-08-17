@@ -69,7 +69,7 @@ pub struct TickerMapCache {
 pub struct AppState {
     pub pool: PgPool,
     pub lcd: LcdClient,
-    /// External CEX/USD reference prices (USTC + LUNC). USTC is also used for volume USD.
+    /// External CEX/USD reference prices (USTC, LUNC, vFDUSD). USTC is also used for volume USD.
     pub oracle_prices: OraclePriceHandles,
     pub ticker_map_cache: TickerMapCache,
     pub orderbook_cache: orderbook_sim::OrderbookCache,
