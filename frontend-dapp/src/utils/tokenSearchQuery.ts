@@ -1,3 +1,4 @@
+import { compareTokenCatalog } from '@/utils/pairCatalogRank'
 import { getCachedTokenEntry, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { lookupByTokenId } from '@/utils/tokenRegistry'
 
@@ -51,17 +52,13 @@ function tokenMatchesLocalQuery(tokenId: string, query: string): boolean {
 }
 
 function compareTokenIdsBySymbol(a: string, b: string): number {
-  const sa = getTokenDisplaySymbol(a).toLowerCase()
-  const sb = getTokenDisplaySymbol(b).toLowerCase()
-  const cmp = sa.localeCompare(sb)
-  if (cmp !== 0) return cmp
-  return a.localeCompare(b)
+  return compareTokenCatalog(a, b)
 }
 
 /**
  * Client-side token filter for Swap (`TokenSearchSelect`).
  * Only emits ids from `tokens` (factory gate). Empty query returns the full allowed set
- * sorted by display symbol; typed queries cap at {@link TOKEN_SEARCH_RESULT_LIMIT}.
+ * sorted economic-first then display symbol (GitLab #534); typed queries cap at {@link TOKEN_SEARCH_RESULT_LIMIT}.
  */
 export function filterTokensByLocalSearch(
   tokens: string[],

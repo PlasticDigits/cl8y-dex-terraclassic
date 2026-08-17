@@ -22,6 +22,7 @@ import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
+import { firstCatalogPairAddress } from '@/utils/pairCatalogRank'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
@@ -228,7 +229,7 @@ export default function TradePage() {
     ) {
       return
     }
-    const first = pairs[0]?.contract_addr
+    const first = firstCatalogPairAddress(pairs)
     if (first) {
       setPairAddr(first)
       navigate(`/trade/${first}`, { replace: true })

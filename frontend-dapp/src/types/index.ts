@@ -152,7 +152,7 @@ export interface IndexerPair {
   lp_token: string | null
   fee_bps: number | null
   is_active: boolean
-  /** 24h quote-side volume from indexed swaps (string integer) */
+  /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
 }
 
