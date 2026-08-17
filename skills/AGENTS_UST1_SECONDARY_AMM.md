@@ -40,7 +40,7 @@ VERIFY508_MAINNET=1 make verify-issue-508     # read-only pair presence
 
 - [`AGENTS_MAINNET_SOFT_LAUNCH.md`](./AGENTS_MAINNET_SOFT_LAUNCH.md) — SL1–SL7 boundary; do not fold economic pairs into soft-launch
 - [`AGENTS_FACTORY_ADDRESS_GUARD.md`](./AGENTS_FACTORY_ADDRESS_GUARD.md) — indexer factory provenance
-- [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) — `set_discount_registry` after create
+- [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) — `set_discount_registry` after create is belt-and-suspenders once factory **1.8.0** + pair **1.14.0** snapshot the factory pointer ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536)); see [`AGENTS_FACTORY_DISCOUNT_REGISTRY.md`](./AGENTS_FACTORY_DISCOUNT_REGISTRY.md)
 - [`AGENTS_DEPLOY_TRACE.md`](./AGENTS_DEPLOY_TRACE.md) — audit record pattern
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — retail copy; keep secondary-market wording short
 - `/ust1` UI track: [#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)

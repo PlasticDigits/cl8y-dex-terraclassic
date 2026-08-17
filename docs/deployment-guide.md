@@ -176,7 +176,7 @@ See also: [Pool-only launch runbook § Phase 1 deploy trace](runbooks/launch-che
 - [ ] Verify fee-discount tiers via `GetTiers` query
 - [ ] Register a test wallet for a tier, execute a swap, and confirm reduced fee
 - [ ] Verify Router is a trusted router via `IsTrustedRouter` query
-- [ ] Verify discount registry is set on pairs via pair/factory policy (historically documented as `GetDiscountRegistry`; confirm against your pair schema). For **many pairs**, use factory `set_discount_registry_batch` with pagination (see [Contract Reference — Factory discount registry rollout](./contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123), [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)) instead of a single `set_discount_registry_all`.
+- [ ] Verify discount registry is set on pairs via pair `GetDiscountRegistry` (`{"get_discount_registry":{}}`) and factory `Config.discount_registry` ([#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536)). New `CreatePair`s inherit the factory pointer after All/Batch or `UpdateConfig { discount_registry }`. For **many existing pairs**, use factory `set_discount_registry_batch` with pagination (see [Contract Reference — Factory discount registry rollout](./contracts-terraclassic.md#factory-discount-registry-rollout-invariants-glab-123), [snapshot](./contracts-terraclassic.md#factory-discount-registry-snapshot-gitlab-536), [GitLab #123](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/123)) instead of a single `set_discount_registry_all`.
 - [ ] Frontend loads and connects wallet
 - [ ] Swap and pool flows work end-to-end
 - [ ] Tier registration page works end-to-end

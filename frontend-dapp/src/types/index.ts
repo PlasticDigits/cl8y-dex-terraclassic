@@ -122,6 +122,8 @@ export interface FactoryConfigResponse {
   lp_token_code_id: number
   /** Uluna attached on `create_pair` when > 0 (GitLab #276, #345). */
   pair_creation_fee_uluna: string
+  /** Canonical registry copied into new pairs at `create_pair` (GitLab #536). */
+  discount_registry?: string | null
 }
 
 /** Hooks response from pair contract */
