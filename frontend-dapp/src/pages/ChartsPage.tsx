@@ -14,7 +14,15 @@ import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataSer
 import { CHARTS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import PriceChart from '@/components/charts/PriceChart'
-import { StatBox, TradesTable, RetryError, Skeleton, MenuSelect, type MenuSelectOption } from '@/components/ui'
+import {
+  StatBox,
+  TradesTable,
+  RetryError,
+  Skeleton,
+  MenuSelect,
+  PairTokenLinks,
+  type MenuSelectOption,
+} from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
 import { formatNum } from '@/utils/formatAmount'
@@ -26,6 +34,7 @@ import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
 import type { IndexerPair, IndexerPairSort, IndexerTrader } from '@/types'
+import { assetInfoFromIndexerBrief } from '@/utils/tokenIdentity'
 
 const PAIR_PAGE_SIZE = 50
 
@@ -348,6 +357,14 @@ export default function ChartsPage() {
             setSelectedPairAddr(v)
           }}
         />
+        {activePair ? (
+          <PairTokenLinks
+            pairAddress={activePair.pair_address}
+            asset0={assetInfoFromIndexerBrief(activePair.asset_0)}
+            asset1={assetInfoFromIndexerBrief(activePair.asset_1)}
+            inverted={pairOrientation.inverted}
+          />
+        ) : null}
         {pairTotal > PAIR_PAGE_SIZE && !pairsQuery.isLoading && !pairsQuery.isError && (
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>

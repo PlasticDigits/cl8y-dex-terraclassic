@@ -67,6 +67,13 @@ const mockIndexerPair: IndexerPair = {
   is_active: true,
 }
 
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies() {
+    return null
+  },
+}))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn() },
 }))
@@ -1033,6 +1040,73 @@ describe('TradePage', () => {
         expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy AAA')
       })
       expect(screen.getByTestId('trade-pair-invert-pill')).toHaveTextContent('AAA/BBB')
+    })
+  })
+
+  describe('token identity (GitLab #541)', () => {
+    const ID_PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+
+    function mockIdentityFactoryPair() {
+      const indexerPair: IndexerPair = {
+        ...mockIndexerPair,
+        pair_address: ID_PAIR,
+        asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+        asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+      }
+      vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: ID_PAIR,
+            liquidity_token: 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3',
+            asset_infos: [{ token: { contract_addr: UST1 } }, { token: { contract_addr: CUSTC } }],
+          },
+        ],
+      })
+      vi.mocked(indexerClient.getPair).mockResolvedValue(indexerPair)
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [indexerPair],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      })
+    }
+
+    it('U3: row sits under trade-pair-select-panel; listbox has no explorer buttons', async () => {
+      const user = userEvent.setup()
+      mockIdentityFactoryPair()
+      renderWithProviders(<TradePage />, { route: `/trade/${ID_PAIR}` })
+      const panel = await screen.findByTestId('trade-pair-select-panel')
+      const row = await screen.findByTestId('pair-token-links')
+      expect(panel.contains(row)).toBe(true)
+      expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
+
+      await user.click(screen.getByRole('combobox', { name: 'Trading pair' }))
+      const listbox = await screen.findByRole('listbox')
+      expect(within(listbox).queryByTestId('token-identity-base-explorer')).not.toBeInTheDocument()
+      expect(within(listbox).queryByRole('link', { name: /explorer/i })).not.toBeInTheDocument()
+    })
+
+    it('U4: #176 invalid deep link has no identity row', async () => {
+      renderTradeRoutes(['/trade/lilwayne%20babyyy'])
+      await screen.findByTestId('trade-invalid-pair-link-notice')
+      expect(screen.queryByTestId('pair-token-links')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('token-identity-base')).not.toBeInTheDocument()
+    })
+
+    it('U6 / A7: invert does not swap factory copy/href payloads', async () => {
+      const user = userEvent.setup()
+      mockIdentityFactoryPair()
+      renderWithProviders(<TradePage />, { route: `/trade/${ID_PAIR}` })
+      await screen.findByTestId('pair-token-links')
+      const beforeBase = screen.getByTestId('token-identity-base').getAttribute('data-identity-payload')
+      const beforeQuote = screen.getByTestId('token-identity-quote').getAttribute('data-identity-payload')
+      expect(beforeBase).toBe(UST1)
+      expect(beforeQuote).toBe(CUSTC)
+      await user.click(screen.getByTestId('trade-pair-invert-pill'))
+      expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
+      expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
     })
   })
 })

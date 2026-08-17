@@ -63,3 +63,4 @@ Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceCha
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — **U1**
 - [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) — convert-on-submit
 - [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md) — human↔raw decimal scale (#529) is **not** invert; apply raw→human **before** the #524 reciprocal
+- [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — invert must not swap copy/explorer payloads (**T541-5**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541))

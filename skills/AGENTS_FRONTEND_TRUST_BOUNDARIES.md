@@ -37,7 +37,7 @@ cd frontend-dapp && npx vite build --mode production
 
 1. **Do not** add client-side BFS route fallback or on-chain hop graph cross-check in the browser (RPC/LCD limits; rejected in #378).
 2. **Do not** show factory/router on swap confirmation — `/protocol` only.
-3. **Do not** add more token detail to retail UI; logo allowlist + blockie fallback is sufficient.
+3. **Do not** add more token detail to retail UI beyond the compact [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541) identity row ([`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md)); logo allowlist + blockie fallback is sufficient. Identity ≠ endorsement.
 4. Expert mode: typed confirm on **enable only**; keep **30%** block and **50%** settings max.
 5. Production bundles must not contain dev mnemonic or the shared WC default project ID.
 
