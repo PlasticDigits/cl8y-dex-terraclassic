@@ -530,6 +530,8 @@ export interface IndexerTrader {
   address: string
   total_trades: number
   total_volume: string
+  /** P522-Q USD lifetime volume. Null when trades exist but none are priced (#553). */
+  total_volume_usd?: string | null
   volume_24h: string
   volume_7d: string
   volume_30d: string

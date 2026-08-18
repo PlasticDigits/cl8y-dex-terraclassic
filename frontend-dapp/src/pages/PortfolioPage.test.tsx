@@ -138,7 +138,7 @@ describe('PortfolioPage (component)', () => {
     expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/38\.29 cUSTC/)
     expect(screen.getByTestId('trader-position-net').textContent).not.toMatch(/M/)
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/UST1/)
-    expect(screen.getByTestId('trader-summary-volume')).toHaveTextContent('—')
+    expect(screen.getByTestId('trader-total-volume-usd')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-summary-fees')).toHaveTextContent('—')
   })
 

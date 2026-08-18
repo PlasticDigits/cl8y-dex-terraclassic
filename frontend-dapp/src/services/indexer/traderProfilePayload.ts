@@ -46,6 +46,10 @@ export function parseIndexerTraderPayload(data: unknown): IndexerTrader {
     address,
     total_trades: asFiniteNumber(data.total_trades, 0),
     total_volume: asString(data.total_volume, '0'),
+    total_volume_usd:
+      data.total_volume_usd === null || data.total_volume_usd === undefined || data.total_volume_usd === ''
+        ? null
+        : asNullableString(data.total_volume_usd),
     volume_24h: asString(data.volume_24h, '0'),
     volume_7d: asString(data.volume_7d, '0'),
     volume_30d: asString(data.volume_30d, '0'),

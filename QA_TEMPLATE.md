@@ -55,6 +55,8 @@
 | 1.2.8 | Keplr withdraw liquidity | Withdraw LP → Sign | Success | | |
 | 1.2.9 | Keplr create pair | Create pair → Sign | Success | | |
 | 1.2.10 | Keplr fee tier register | Register → Sign | Success | | |
+| 1.2.11 | Keplr mobile Chrome WalletConnect (#554) | Android Chrome (no extension) → Keplr | Pairing sheet with **Open Keplr** + **Copy pairing link**, not Install-only | | |
+| 1.2.12 | Keplr in-app browser still works (#554 WC-M7) | Open dex.cl8y.com in Keplr browser → Connect | Extension/injected path connects | | |
 
 ### 1.3 Leap Wallet
 
@@ -81,6 +83,7 @@
 |---|-----------|-------|-----------------|--------|-------|
 | 1.5.1 | Connect LuncDash (desktop) | Click wallet → Select LuncDash → Scan QR on a second device | WalletConnect session established, address shown | | |
 | 1.5.1a | Connect LuncDash (same-device mobile, #519) | Phone browser → LuncDash → **Open Lunc Dash** or **Copy pairing link** (not QR-only) | Session established without a second device | | |
+| 1.5.1b | Android Chrome pairing foreground (#554) | Android Chrome → LuncDash | Pairing sheet is on top of Connect; **Open Lunc Dash** tappable; header **Cancel** re-enables Connect | | |
 | 1.5.2 | LuncDash QR timeout | Show QR → Wait without scanning | Timeout handled gracefully | | |
 | 1.5.3 | LuncDash reject connection | Scan QR → Reject on mobile | Error message displayed | | |
 | 1.5.4 | LuncDash disconnect | Connected → Disconnect | Session closed, UI resets | | |
@@ -97,6 +100,8 @@
 |---|-----------|-------|-----------------|--------|-------|
 | 1.6.1 | Connect Galaxy Station (desktop) | Click wallet → Select Galaxy Station → Scan QR | Session established, address shown | | |
 | 1.6.1a | Connect Galaxy Station (same-device mobile, #519) | Phone browser → Galaxy Station → **Open Galaxy Station** or **Copy pairing link** | Session established without a second device | | |
+| 1.6.1b | Android Chrome Galaxy intent (#554) | Android 16 Chrome → Galaxy Station → **Open Galaxy Station** | `intent://` opens the app (not the Hexxagon website); Copy still works | | |
+| 1.6.1c | Connect cancel / timeout (#554) | Start Galaxy/LuncDash connect → Cancel or wait timeout | Spinner clears; Connect Wallet works again | | |
 | 1.6.2 | Galaxy Station QR timeout | Show QR → Wait | Graceful timeout | | |
 | 1.6.3 | Galaxy Station reject | Scan → Reject on mobile | Error message | | |
 | 1.6.4 | Galaxy Station disconnect | Connected → Disconnect | Session closed, UI resets | | |

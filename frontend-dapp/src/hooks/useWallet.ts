@@ -1,13 +1,23 @@
 import { create } from 'zustand'
-import { connectTerraWallet, disconnectTerraWallet, registerConnectedWallet } from '@/services/terraclassic/wallet'
+import {
+  abortPendingTerraWalletConnect,
+  connectTerraWallet,
+  disconnectTerraWallet,
+  registerConnectedWallet,
+} from '@/services/terraclassic/wallet'
 import { createDevTerraWallet } from '@/services/terraclassic/devWallet'
 import { DEV_MODE } from '@/utils/constants'
 import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
+import { isWalletConnectCancelledError, WALLETCONNECT_CONNECT_TIMEOUT_MS } from '@/utils/walletConnectSession'
+import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 
 const WALLET_STORAGE_KEY = 'cl8y_wallet_connection'
 /** Persists simulated dev wallet across full page loads (Playwright `page.goto`, refresh). */
 const DEV_SIM_STORAGE_KEY = 'cl8y_dev_sim'
+
+/** Bumps on cancel so a late WalletConnect session cannot attach (GitLab #554). */
+let connectAttemptId = 0
 
 interface WalletState {
   address: string | null
@@ -21,9 +31,11 @@ interface WalletState {
   connect: (walletName: WalletName, walletType: WalletType) => Promise<void>
   connectDev: () => void
   disconnect: () => Promise<void>
+  /** Clears `isConnecting`, aborts pending WalletConnect, closes pairing (GitLab #554). */
+  cancelConnection: () => void
 }
 
-export const useWalletStore = create<WalletState>((set) => ({
+export const useWalletStore = create<WalletState>((set, get) => ({
   address: null,
   walletType: null,
   isConnecting: false,
@@ -31,11 +43,30 @@ export const useWalletStore = create<WalletState>((set) => ({
   walletModalOpen: false,
   setWalletModalOpen: (open) => set({ walletModalOpen: open }),
   openWalletModal: () => set({ walletModalOpen: true }),
-  closeWalletModal: () => set({ walletModalOpen: false }),
+  closeWalletModal: () => {
+    if (get().isConnecting) {
+      get().cancelConnection()
+      return
+    }
+    set({ walletModalOpen: false })
+  },
   connect: async (walletName, walletType) => {
+    const attempt = ++connectAttemptId
     set({ isConnecting: true, error: null })
     try {
-      const result = await connectTerraWallet(walletName, walletType)
+      const timeoutMs = walletType === WalletType.WALLETCONNECT ? WALLETCONNECT_CONNECT_TIMEOUT_MS : undefined
+      const result =
+        timeoutMs != null
+          ? await connectTerraWallet(walletName, walletType, { timeoutMs })
+          : await connectTerraWallet(walletName, walletType)
+      if (attempt !== connectAttemptId) {
+        try {
+          await disconnectTerraWallet()
+        } catch {
+          /* late session after cancel must not stick */
+        }
+        return
+      }
       try {
         localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ walletName, walletType }))
       } catch {
@@ -43,7 +74,14 @@ export const useWalletStore = create<WalletState>((set) => ({
       }
       set({ address: result.address, walletType: result.walletType, isConnecting: false, walletModalOpen: false })
     } catch (err) {
+      if (attempt !== connectAttemptId || isWalletConnectCancelledError(err)) {
+        if (attempt === connectAttemptId) {
+          set({ isConnecting: false })
+        }
+        return
+      }
       const raw = err instanceof Error ? err.message : 'Connection failed'
+      useWalletConnectPairingStore.getState().close()
       set({ error: humanizeUserFacingError(raw), isConnecting: false })
       throw err
     }
@@ -68,6 +106,12 @@ export const useWalletStore = create<WalletState>((set) => ({
       /* storage unavailable */
     }
     set({ address: null, walletType: null })
+  },
+  cancelConnection: () => {
+    connectAttemptId += 1
+    abortPendingTerraWalletConnect()
+    useWalletConnectPairingStore.getState().close()
+    set({ isConnecting: false, error: null, walletModalOpen: false })
   },
 }))
 

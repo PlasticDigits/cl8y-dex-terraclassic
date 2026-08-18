@@ -25,6 +25,7 @@ vi.mock('@/utils/constants', async (importOriginal) => {
 })
 
 import { useWalletStore } from '@/hooks/useWallet'
+import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import { useWalletExtensionInstallSnapshot } from '@/hooks/useWalletExtensionInstallSnapshot'
 
 const mockUseWalletStore = vi.mocked(useWalletStore)
@@ -46,7 +47,9 @@ describe('WalletModal (GitLab #160 connect modal badges)', () => {
       connectDev: vi.fn(),
       isConnecting: false,
       error: null,
+      cancelConnection: vi.fn(),
     } as ReturnType<typeof useWalletStore>)
+    useWalletConnectPairingStore.setState({ isOpen: false, payload: null })
   })
 
   it('does not render a Not installed pill when an extension is missing (Install link remains)', () => {
@@ -82,8 +85,10 @@ describe('WalletModal circular logos (GitLab #490)', () => {
       connectDev: vi.fn(),
       isConnecting: false,
       error: null,
+      cancelConnection: vi.fn(),
     } as ReturnType<typeof useWalletStore>)
     mockSnapshot.mockReturnValue(extensionSnapshot({}))
+    useWalletConnectPairingStore.setState({ isOpen: false, payload: null })
   })
 
   it('maps every production wallet to a local /wallets/* asset', () => {
@@ -144,5 +149,63 @@ describe('WalletModal circular logos (GitLab #490)', () => {
     const galaxy = screen.getByRole('button', { name: /^Galaxy Station$/i })
     expect(within(galaxy).getByTestId(`wallet-option-icon-${WalletName.GALAXYSTATION}`)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /luncdash|galaxy/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('WalletModal Android Chrome connect (GitLab #554)', () => {
+  const androidChrome =
+    'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseWalletStore.mockReturnValue({
+      connect: vi.fn().mockResolvedValue(undefined),
+      connectDev: vi.fn(),
+      isConnecting: false,
+      error: null,
+      cancelConnection: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+    mockSnapshot.mockReturnValue(extensionSnapshot({}))
+    useWalletConnectPairingStore.setState({ isOpen: false, payload: null })
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value: androidChrome })
+  })
+
+  it('offers Keplr WalletConnect without Install when no window.keplr', () => {
+    render(<WalletModal onClose={() => {}} />)
+    const keplr = screen.getByRole('button', { name: /^Keplr$/i })
+    expect(within(keplr).getByText('WalletConnect')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Keplr, extension not detected/i })).not.toBeInTheDocument()
+    const row = keplr.closest('.wallet-option-row')
+    expect(row).toBeTruthy()
+    expect(within(row as HTMLElement).queryByRole('link', { name: /^install$/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the Connect list while the pairing sheet is open', () => {
+    useWalletConnectPairingStore.setState({
+      isOpen: true,
+      payload: {
+        uri: 'wc:00e46b69-d0cc-4b3e-b6a2-cee442f97188@1?bridge=https%3A%2F%2Fwalletconnect.luncdash.com&key=abc',
+        name: 'LUNC Dash',
+        android: '',
+        ios: '',
+        isStation: true,
+        isLuncDash: true,
+      },
+    })
+    render(<WalletModal onClose={() => {}} />)
+    expect(screen.queryByTestId('wallet-connect-modal-portal')).not.toBeInTheDocument()
+    expect(screen.queryByText('Connect Wallet')).not.toBeInTheDocument()
+  })
+
+  it('shows Cancel while connecting', () => {
+    mockUseWalletStore.mockReturnValue({
+      connect: vi.fn().mockResolvedValue(undefined),
+      connectDev: vi.fn(),
+      isConnecting: true,
+      error: null,
+      cancelConnection: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+    render(<WalletModal onClose={() => {}} />)
+    expect(screen.getByTestId('wallet-connect-cancel')).toHaveTextContent('Cancel')
   })
 })

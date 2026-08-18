@@ -22,6 +22,10 @@ async fn get_trader_profile_returns_trader() {
     assert_eq!(body["address"], seed.trader_address);
     assert!(body["total_trades"].is_i64());
     assert!(body["total_volume"].is_string());
+    assert!(
+        body.get("total_volume_usd").is_some(),
+        "GitLab #553: profile exposes total_volume_usd (string or null)"
+    );
 }
 
 #[serial]
@@ -81,6 +85,7 @@ async fn leaderboard_valid_sort_columns() {
 
     for sort in &[
         "total_volume",
+        "total_volume_usd",
         "volume_24h",
         "volume_7d",
         "volume_30d",

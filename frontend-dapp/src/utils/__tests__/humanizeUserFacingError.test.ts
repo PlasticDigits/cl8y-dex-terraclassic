@@ -124,6 +124,10 @@ describe('humanizeUserFacingError', () => {
     expect(humanizeUserFacingError('signing rejected by user')).toMatch(/declined/)
   })
 
+  it('humanizes WalletConnect timeout (GitLab #554)', () => {
+    expect(humanizeUserFacingError("Wallet didn't respond. Try again.")).toMatch(/didn't respond/)
+  })
+
   it('getErrorMessage coerces unknown', () => {
     expect(getErrorMessage({ message: 'x' })).toBe('[object Object]')
     expect(getErrorMessage(new Error(''))).toBe('Unknown error')

@@ -109,11 +109,11 @@ Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExt
 | Regression tests | [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
 | **Build gate** | QA checklist item 4: **`npm run build`** and **`npx vitest run`** in `frontend-dapp` must pass on `main` before closing [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). See [Production build — Vite source maps § `tsc -b`](#vite-production-sourcemaps). |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos) · [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (same-device WalletConnect, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)).
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos) · [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (same-device WalletConnect, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554)).
 
 ### WalletConnect same-device mobile pairing {#walletconnect-same-device-mobile}
 
-On a phone, the wallet app is on the **same device** as the browser — a QR-only pairing sheet cannot be scanned ([GitLab #519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). Cosmes `QRCodeModal` used to `window.location.href` the deep link from the async WalletConnect callback (not a user gesture) and still painted a QR; that is why community reports needed a second device. Desktop → phone scanning stays the desktop path.
+On a phone, the wallet app is on the **same device** as the browser — a QR-only pairing sheet cannot be scanned ([GitLab #519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519), [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554)). Cosmes `QRCodeModal` used to `window.location.href` the deep link from the async WalletConnect callback (not a user gesture) and still painted a QR; that is why community reports needed a second device. Desktop → phone scanning stays the desktop path. After #519 shipped, Android Chrome still hung because the pairing sheet sat **under** Connect Wallet (`z-[9999]` vs later portal) with no Cancel — #554 fixes stacking, cancel/timeout, Keplr WC, and Galaxy `intent:`.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -124,11 +124,16 @@ On a phone, the wallet app is on the **same device** as the browser — a QR-onl
 | **WC-M5** Allowlist | `isAllowedWalletConnectDeepLink` — `wc:`, `luncdash:`, `keplrwallet:`, `galaxystation:`, `intent:`, Hexxagon / Terra Station hosts only. |
 | **WC-M6** Hook + fallback | Boot installs `globalThis.__CL8Y_WC_PAIRING_MODAL__`. Patched cosmes delegates when the hook handles the URI; vanilla mobile fallback still has Open + Copy if the hook is missing. Requires `patch-package` `postinstall`. |
 | **WC-M7** In-app browser | Opening the dApp inside a wallet’s in-app browser remains a valid alternate connect path (document; not the only fix). |
-| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts). `make verify-issue-519`. |
+| **WC-M8** Pairing foreground | Connect list hides when the pairing hook opens; pairing portal `z-[10001]` above Connect `z-[9999]` so Open / Copy are tappable ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554)). |
+| **WC-M9** Bounded connect | Cancel / close / timeout abort pending `connect()`, clear `isConnecting`, ignore a late WC session. Header **Cancel** is always visible (not spinner-only). |
+| **WC-M10** Mobile Keplr WC | Mobile + no `window.keplr` → Keplr **WalletConnect** row (not Install-only). Injected Keplr stays Extension. |
+| **WC-M11** Android Galaxy intent | `https://…#Intent` templates become `intent://` on Android Chrome. |
+| **WC-M12** Legal next step | After WC without `window.keplr`, hint to open in the Keplr browser. DEX does not implement ADR-036 (**C1**). |
+| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts). `make verify-issue-519`. `make verify-issue-554`. |
 
-Implementation: [`walletConnectPairing.ts`](../frontend-dapp/src/utils/walletConnectPairing.ts), [`walletConnectPairingHook.ts`](../frontend-dapp/src/services/terraclassic/walletConnectPairingHook.ts) (installed from [`main.tsx`](../frontend-dapp/src/main.tsx)), [`WalletConnectPairingModal.tsx`](../frontend-dapp/src/components/wallet/WalletConnectPairingModal.tsx) in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx). Lunc Dash deep link stays `luncdash://wallet_connect?payload=…` (same as cosmes).
+Implementation: [`walletConnectPairing.ts`](../frontend-dapp/src/utils/walletConnectPairing.ts) (`toAndroidIntentUri` for **WC-M11**), [`walletConnectSession.ts`](../frontend-dapp/src/utils/walletConnectSession.ts), [`walletConnectPairingHook.ts`](../frontend-dapp/src/services/terraclassic/walletConnectPairingHook.ts) (installed from [`main.tsx`](../frontend-dapp/src/main.tsx)), [`WalletConnectPairingModal.tsx`](../frontend-dapp/src/components/wallet/WalletConnectPairingModal.tsx) last in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx), [`connectWalletOptions.ts`](../frontend-dapp/src/components/wallet/connectWalletOptions.ts). Lunc Dash deep link stays `luncdash://wallet_connect?payload=…` (same as cosmes).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554)).
 
 ### Connect modal: circular wallet logos {#connect-modal-wallet-logos}
 
@@ -268,6 +273,20 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 Regression: `make verify-issue-548`.
 
+### Charts trader leaderboard {#charts-trader-leaderboard}
+
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Agent playbook: [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md).
+
+| Control | Source | Display |
+|---------|--------|---------|
+| **Volume (USD)** | `total_volume_usd` | `$` + compact human ([`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced → `—`. Idle (`total_trades === 0`) → `$0`. `data-testid="charts-leaderboard-volume"`. |
+| Rank | `GET /api/v1/traders/leaderboard?sort=total_volume_usd` | `DESC NULLS LAST` so unpriced rows do not rank first. Matches the displayed column (**T553-5**). |
+| **Total Volume (USD)** (`/trader`, `/portfolio`) | same field | Same formatter. `data-testid="trader-total-volume-usd"`. |
+
+`GET /api/v1/traders/{addr}` and leaderboard still return **`total_volume`** (raw `SUM(offer_amount)`) for integrators — the dApp **must not** render it as Volume. API default sort remains `total_volume`; Charts explicitly requests `total_volume_usd`. Rolling `volume_24h` / `7d` / `30d` stay raw and are not shown on this table.
+
+Regression: `make verify-issue-553`.
+
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
 Network-aware explorer links for transactions and accounts live in [`terraExplorer.ts`](../frontend-dapp/src/utils/terraExplorer.ts). Both helpers read **`VITE_NETWORK`** / [`DEFAULT_NETWORK`](../frontend-dapp/src/utils/constants.ts) and resolve public Finder bases from [`chainlist.json`](../frontend-dapp/public/chains/chainlist.json) (`explorerUrl` per `chainId`). Implemented for [GitLab **#184**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184); Galaxy Finder mainnet path corrected in [**#478**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/478). Wallet **View on explorer** menu row consumes `getExplorerAddressUrl` ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [Connected wallet dropdown](#connected-wallet-dropdown)).
@@ -325,7 +344,7 @@ Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [
 
 | Invariant | Meaning |
 |-----------|---------|
-| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. |
+| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. After WalletConnect without `window.keplr`, show the Keplr-browser hint ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) **WC-M12**) — portal signing stays in Legal. |
 | **C2** Property | Status + portal use **`dex.cl8y.com`** (`VITE_LEGAL_PROPERTY` override for staging only). |
 | **C3** Network | `TerraClassic` → API `TERRA_CLASSIC` only. |
 | **C4** Sequence | Risk ack (#138) for anonymous browse; clickwrap after wallet connect. |
@@ -679,7 +698,7 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 | **Positions API** | `GET /api/v1/traders/{addr}/positions` — returns `[]` for flat/unknown traders; not on-chain balances. |
 | **Open limits API** | `GET /api/v1/traders/{addr}/limit-placements` — wallet-wide resting limits (`owner`); same cancel omission and **`lifecycle_status`** / **`?status=`** as pair route ([`indexer-invariants.md`](./indexer-invariants.md)); **`limit` ≤ 200**. UI: [`PortfolioOpenLimitsSection`](../frontend-dapp/src/components/portfolio/PortfolioOpenLimitsSection.tsx). |
 | **LP overview** | Indexer `GET /api/v1/pairs` (max **50** pairs) + LCD CW20 **`balance`** per valid `lp_token` (concurrency **5**) via [`usePortfolioLpBalances`](../frontend-dapp/src/hooks/usePortfolioLpBalances.ts); skips invalid bech32 / per-pair LCD errors — **not** merged into positions table. |
-| **Profile API** | `GET /api/v1/traders/{addr}` — **404** when the wallet has no indexed trader row; portfolio still shows positions + activity when present. |
+| **Profile API** | `GET /api/v1/traders/{addr}` — **404** when the wallet has no indexed trader row; portfolio still shows positions + activity when present. **Total Volume (USD)** uses `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)); raw `total_volume` is not displayed. |
 | **LP vs trader** | Open positions are **swap-tracked quote exposure**; LP section is **on-chain LP token balances** — separate sections and copy; pool txs on **`/pool`**. |
 | **P&amp;L semantics** | **Realized** indexer P&amp;L only — **no** unrealized mark-to-market on portfolio ([#217](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217) defers until API/product agree). Per-pair amounts are **human token units** with the token symbol; cross-pair header totals are **USD** or **—** when units differ ([#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551), **P551-1–P551-5**). |
 | **Privacy** | Trader routes are **public**; portfolio does not imply on-chain secrecy. |
@@ -891,6 +910,7 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 | Invariant | Meaning |
 |-----------|---------|
 | Parse or fail | `getTrader` runs `parseIndexerTraderPayload` on raw JSON; invalid shapes throw and become a **React Query error**, not a render-time exception. |
+| **Total Volume (USD) (#553)** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) formats `total_volume_usd` with [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts). Never `formatNum(total_volume)`. Unpriced → `—`. |
 | Route error boundary reset | `/trader` routes use `resetKeys` tied to `useParams().address` so switching between `/trader` and `/trader/:addr` (or between addresses) **clears a prior route error** without a full page reload ([`App.tsx`](../frontend-dapp/src/App.tsx) `TraderRouteShell`). |
 | Deduped React in Vite | [`vite.config.ts`](../frontend-dapp/vite.config.ts) sets `resolve.dedupe` for `react` / `react-dom` to avoid rare **dual-React** dev bundles that surface as `useContext`/`Invalid hook call` when lazy chunks load. |
 

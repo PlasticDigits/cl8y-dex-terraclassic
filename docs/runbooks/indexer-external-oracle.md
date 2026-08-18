@@ -35,7 +35,7 @@ Each poll stores per-source rows plus an `average` row. In-memory cache serves `
 
 Table `oracle_prices(ticker, price_usd, source, fetched_at)` (migration `20260811000000_oracle_prices_multi_ticker.sql`). Replaces legacy `ustc_prices`.
 
-Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544)): UST1=`$1`; USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; USTR = `2.5 ×` USTC. Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only.
+Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544) / [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)): UST1=`$1`; USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; USTR = `2.5 ×` USTC. Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only. Trader `total_volume_usd` is `SUM` of the same column.
 
 ## Invariants (X1–X6)
 

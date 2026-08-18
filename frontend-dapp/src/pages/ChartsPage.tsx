@@ -30,6 +30,7 @@ import {
   formatChartsOverviewCount,
   formatChartsOverviewUstcUsd,
   formatChartsOverviewVolumeUsd,
+  formatIndexedVolumeUsd,
 } from '@/utils/chartsOverviewStats'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
@@ -51,7 +52,7 @@ const TWAP_WINDOWS = [
 ]
 
 const LEADERBOARD_TABS = [
-  { key: 'total_volume', label: 'Volume' },
+  { key: 'total_volume_usd', label: 'Volume (USD)' },
   { key: 'best_trade_pnl', label: 'Best Trade' },
   { key: 'total_realized_pnl', label: 'Most Profit' },
   { key: 'worst_trade_pnl', label: 'Most Loss' },
@@ -81,7 +82,7 @@ export default function ChartsPage() {
   const [pairSort, setPairSort] = useState<IndexerPairSort>('volume_24h')
   const [pairOrder, setPairOrder] = useState<'asc' | 'desc'>('desc')
   const [pairPage, setPairPage] = useState(0)
-  const [leaderboardSort, setLeaderboardSort] = useState<string>('total_volume')
+  const [leaderboardSort, setLeaderboardSort] = useState<string>('total_volume_usd')
   const deferredPairSearch = useDeferredValue(pairSearch.trim())
 
   useEffect(() => {
@@ -650,8 +651,7 @@ export default function ChartsPage() {
               </thead>
               <tbody>
                 {leaderboardQuery.data.map((trader: IndexerTrader, i: number) => {
-                  const metricValue = getLeaderboardMetric(trader, leaderboardSort)
-                  const isPnl = leaderboardSort !== 'total_volume'
+                  const isPnl = leaderboardSort !== 'total_volume_usd'
                   return (
                     <tr key={trader.address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="py-1.5 px-2 font-semibold" style={{ color: 'var(--ink-subtle)' }}>
@@ -674,7 +674,9 @@ export default function ChartsPage() {
                         {isPnl ? (
                           <PnlValue value={getLeaderboardPnlValue(trader, leaderboardSort)} />
                         ) : (
-                          formatNum(metricValue)
+                          <span data-testid="charts-leaderboard-volume">
+                            {formatIndexedVolumeUsd(trader.total_volume_usd, trader.total_trades)}
+                          </span>
                         )}
                       </td>
                       <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
@@ -690,19 +692,6 @@ export default function ChartsPage() {
       </div>
     </div>
   )
-}
-
-function getLeaderboardMetric(trader: IndexerTrader, sort: string): string {
-  switch (sort) {
-    case 'best_trade_pnl':
-      return trader.best_trade_pnl ?? ''
-    case 'total_realized_pnl':
-      return trader.total_realized_pnl
-    case 'worst_trade_pnl':
-      return trader.worst_trade_pnl ?? ''
-    default:
-      return trader.total_volume
-  }
 }
 
 function getLeaderboardPnlValue(trader: IndexerTrader, sort: string): string | null {

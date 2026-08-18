@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { StatBox } from '@/components/ui/StatBox'
 import { getOraclePrice } from '@/services/indexer/client'
+import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
 import { formatDateTime } from '@/utils/formatDate'
 import { formatSignedUsd, sumRealizedPnlUsd, TRADER_PNL_EM_DASH } from '@/utils/traderPositionDisplay'
 import type { IndexerPosition, IndexerTrader } from '@/types'
@@ -20,7 +21,7 @@ function parseOracleUsd(priceUsd: string | undefined): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-/** Indexer trader profile header + aggregate stats (GitLab #212 / #551 shared with `/trader`). */
+/** Indexer trader profile header + aggregate stats (GitLab #212 / #551 / #553 shared with `/trader`). */
 export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRowTestId }: TraderSummaryStatsProps) {
   const ustcQuery = useQuery({
     queryKey: ['oracle-price', 'ustc'],
@@ -69,16 +70,15 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatBox label="Total Trades" value={trader.total_trades.toLocaleString()} />
           <StatBox
-            label="Total Volume"
-            value={TRADER_PNL_EM_DASH}
-            data-testid="trader-summary-volume"
-            title="Not summed — pairs use different tokens"
+            label="Total Volume (USD)"
+            value={formatIndexedVolumeUsd(trader.total_volume_usd, trader.total_trades)}
+            data-testid="trader-total-volume-usd"
           />
           <StatBox label="First Trade" value={formatDateTime(trader.first_trade_at)} />
           <StatBox label="Last Trade" value={formatDateTime(trader.last_trade_at)} />
         </div>
         <p className="text-xs mt-2" style={{ color: 'var(--ink-dim)' }}>
-          Volume and fees are not summed across pairs — each pair uses a different token.
+          Fees are not summed across pairs — each pair uses a different token.
         </p>
       </div>
 

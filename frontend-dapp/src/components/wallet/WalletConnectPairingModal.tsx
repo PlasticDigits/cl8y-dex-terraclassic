@@ -1,18 +1,31 @@
 import { CopyButton } from '@/components/ui/CopyButton'
 import { Modal } from '@/components/ui'
+import { useWalletStore } from '@/hooks/useWallet'
 import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import { sounds } from '@/lib/sounds'
 import { buildWalletConnectDeepLinks, isAllowedWalletConnectDeepLink } from '@/utils/walletConnectPairing'
 
 export default function WalletConnectPairingModal() {
   const { isOpen, payload, close } = useWalletConnectPairingStore()
+  const cancelConnection = useWalletStore((s) => s.cancelConnection)
 
   if (!isOpen || !payload) return null
 
   const links = buildWalletConnectDeepLinks(payload, payload.uri)
 
+  function handleUserDismiss() {
+    close()
+    cancelConnection()
+  }
+
   return (
-    <Modal isOpen={true} onClose={close} title={`Connect ${payload.name}`}>
+    <Modal
+      isOpen={true}
+      onClose={handleUserDismiss}
+      title={`Connect ${payload.name}`}
+      zIndexClassName="z-[10001]"
+      rootTestId="walletconnect-pairing-portal"
+    >
       <div className="walletconnect-pairing px-6 py-4" data-testid="walletconnect-pairing-modal">
         <p className="mb-4 text-sm" style={{ color: 'var(--ink-subtle)' }}>
           Open your wallet, then return here.
@@ -43,6 +56,17 @@ export default function WalletConnectPairingModal() {
             buttonLabel="Copy pairing link"
             data-testid="walletconnect-pairing-copy"
           />
+          <button
+            type="button"
+            className="btn-muted"
+            data-testid="walletconnect-pairing-cancel"
+            onClick={() => {
+              sounds.playButtonPress()
+              handleUserDismiss()
+            }}
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </Modal>

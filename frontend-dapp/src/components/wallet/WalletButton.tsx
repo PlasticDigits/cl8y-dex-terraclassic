@@ -13,7 +13,8 @@ import { WalletLuncBalance } from './WalletLuncBalance'
 import WalletModal from './WalletModal'
 
 export default function WalletButton() {
-  const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen } = useWalletStore()
+  const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen, closeWalletModal, cancelConnection } =
+    useWalletStore()
   const [showDropdown, setShowDropdown] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -178,7 +179,7 @@ export default function WalletButton() {
             </>
           )}
         </div>
-        {walletModalOpen && createPortal(<WalletModal onClose={() => setWalletModalOpen(false)} />, document.body)}
+        {walletModalOpen && createPortal(<WalletModal onClose={closeWalletModal} />, document.body)}
       </>
     )
   }
@@ -189,10 +190,13 @@ export default function WalletButton() {
         type="button"
         onClick={() => {
           sounds.playButtonPress()
+          if (isConnecting) {
+            cancelConnection()
+            return
+          }
           setWalletModalOpen(true)
         }}
-        disabled={isConnecting}
-        aria-label={isConnecting ? 'Connecting wallet' : 'Connect wallet'}
+        aria-label={isConnecting ? 'Cancel connecting' : 'Connect wallet'}
         className="btn-primary !px-3 !py-2 sm:!px-4 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <span className="flex items-center gap-2">
@@ -206,7 +210,7 @@ export default function WalletButton() {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              <span className="hidden sm:inline">Connecting...</span>
+              <span>Cancel</span>
             </>
           ) : (
             <>
@@ -219,7 +223,7 @@ export default function WalletButton() {
           )}
         </span>
       </button>
-      {walletModalOpen && createPortal(<WalletModal onClose={() => setWalletModalOpen(false)} />, document.body)}
+      {walletModalOpen && createPortal(<WalletModal onClose={closeWalletModal} />, document.body)}
     </>
   )
 }
