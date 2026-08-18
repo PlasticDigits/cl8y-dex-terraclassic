@@ -6,6 +6,7 @@ vi.mock('@/services/terraclassic/wallet', () => ({
   connectTerraWallet: vi.fn(),
   disconnectTerraWallet: vi.fn(),
   registerConnectedWallet: vi.fn(),
+  abortPendingTerraWalletConnect: vi.fn(),
 }))
 vi.mock('@/services/terraclassic/devWallet', () => ({
   createDevTerraWallet: vi.fn(() => ({ address: 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v' })),
@@ -134,5 +135,43 @@ describe('useWalletStore', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(localStorage.getItem(WALLET_STORAGE_KEY)).toBeNull()
     expect(connectTerraWallet).not.toHaveBeenCalled()
+  })
+
+  it('cancelConnection clears isConnecting and ignores a late WC session (GitLab #554)', async () => {
+    let resolveConnect!: (value: { address: string; walletType: 'keplr'; connectionType: WalletType }) => void
+    vi.mocked(connectTerraWallet).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveConnect = resolve
+        })
+    )
+
+    const pending = useWalletStore.getState().connect(WalletName.KEPLR, WalletType.WALLETCONNECT)
+    expect(useWalletStore.getState().isConnecting).toBe(true)
+
+    useWalletStore.getState().cancelConnection()
+    expect(useWalletStore.getState().isConnecting).toBe(false)
+    expect(useWalletStore.getState().address).toBeNull()
+
+    resolveConnect({
+      address: 'terra1lateconnect',
+      walletType: 'keplr',
+      connectionType: WalletType.WALLETCONNECT,
+    })
+    await pending
+    expect(useWalletStore.getState().address).toBeNull()
+    expect(useWalletStore.getState().isConnecting).toBe(false)
+    expect(disconnectTerraWallet).toHaveBeenCalled()
+  })
+
+  it('timeout error from connectTerraWallet clears isConnecting and sets a retail error (GitLab #554)', async () => {
+    vi.mocked(connectTerraWallet).mockRejectedValueOnce(new Error("Wallet didn't respond. Try again."))
+
+    await expect(useWalletStore.getState().connect(WalletName.LUNCDASH, WalletType.WALLETCONNECT)).rejects.toThrow(
+      /didn't respond/i
+    )
+    expect(useWalletStore.getState().isConnecting).toBe(false)
+    expect(useWalletStore.getState().error).toMatch(/didn't respond/i)
+    expect(useWalletStore.getState().address).toBeNull()
   })
 })

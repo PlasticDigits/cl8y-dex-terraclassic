@@ -1510,6 +1510,14 @@
     color: var(--ink-dim);
   }
 
+  .app-connected-terms-keplr-hint {
+    max-width: 32rem;
+    margin: 0 auto 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
   .app-connected-terms-gate .cl8y-clickwrap-gate h2 {
     margin: 0 0 0.75rem;
     font-size: 1.15rem;

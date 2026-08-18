@@ -122,7 +122,6 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <RiskAcknowledgementModal />
-      <WalletConnectPairingModal />
       {(isMoreMenuOpen || isMobileMoreOpen) && (
         <button
           type="button"
@@ -301,6 +300,7 @@ export default function Layout() {
           </div>
         </section>
       )}
+      <WalletConnectPairingModal />
     </div>
   )
 }
