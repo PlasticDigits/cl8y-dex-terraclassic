@@ -1,58 +1,40 @@
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
 import { useWalletStore } from '@/hooks/useWallet'
+import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import { useWalletExtensionInstallSnapshot } from '@/hooks/useWalletExtensionInstallSnapshot'
 import { DEV_MODE } from '@/utils/constants'
 import { Modal } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { WALLET_EXTENSION_INSTALL_URL } from '@/services/terraclassic/walletExtensionInstall'
+import { detectWalletInAppBrowser } from '@/utils/detectWalletInAppBrowser'
+import { isWalletConnectMobileClient } from '@/utils/walletConnectPairing'
+import { resolveConnectWalletOptions, type ConnectWalletOption } from './connectWalletOptions'
 import { WalletOptionIcon } from './WalletOptionIcon'
 import { SIMULATED_WALLET_ICON_SRC, walletIconSrc } from './walletIconSrc'
-
-interface WalletOption {
-  name: string
-  walletName: WalletName
-  walletType: WalletType
-  connectionLabel: string
-}
-
-const WALLET_OPTIONS: WalletOption[] = [
-  { name: 'Station', walletName: WalletName.STATION, walletType: WalletType.EXTENSION, connectionLabel: 'Extension' },
-  { name: 'Keplr', walletName: WalletName.KEPLR, walletType: WalletType.EXTENSION, connectionLabel: 'Extension' },
-  {
-    name: 'Cosmostation',
-    walletName: WalletName.COSMOSTATION,
-    walletType: WalletType.EXTENSION,
-    connectionLabel: 'Extension',
-  },
-  {
-    name: 'LuncDash',
-    walletName: WalletName.LUNCDASH,
-    walletType: WalletType.WALLETCONNECT,
-    connectionLabel: 'WalletConnect',
-  },
-  {
-    name: 'Galaxy Station',
-    walletName: WalletName.GALAXYSTATION,
-    walletType: WalletType.WALLETCONNECT,
-    connectionLabel: 'WalletConnect',
-  },
-]
 
 interface WalletModalProps {
   onClose: () => void
 }
 
 export default function WalletModal({ onClose }: WalletModalProps) {
-  const { connect, connectDev, isConnecting, error } = useWalletStore()
+  const { connect, connectDev, isConnecting, error, cancelConnection } = useWalletStore()
+  const pairingOpen = useWalletConnectPairingStore((s) => s.isOpen)
   const extensionInstall = useWalletExtensionInstallSnapshot()
+  const isMobileClient = isWalletConnectMobileClient()
+  const keplrInjected = extensionInstall.get(WalletName.KEPLR) ?? false
+  const options = resolveConnectWalletOptions({ isMobileClient, keplrInjected })
+  const showMobileHint = isMobileClient && !detectWalletInAppBrowser().isInAppBrowser
 
-  async function handleConnect(option: WalletOption) {
+  if (pairingOpen) return null
+
+  async function handleConnect(option: ConnectWalletOption) {
     sounds.playButtonPress()
     await connect(option.walletName, option.walletType)
-    if (!useWalletStore.getState().error) {
+    const state = useWalletStore.getState()
+    if (state.address && !state.error) {
       sounds.playSuccess()
       onClose()
-    } else {
+    } else if (state.error) {
       sounds.playError()
     }
   }
@@ -63,10 +45,24 @@ export default function WalletModal({ onClose }: WalletModalProps) {
     onClose()
   }
 
+  function handleClose() {
+    if (isConnecting) {
+      cancelConnection()
+      return
+    }
+    onClose()
+  }
+
   return (
-    <Modal isOpen={true} onClose={onClose} title="Connect Wallet">
+    <Modal isOpen={true} onClose={handleClose} title="Connect Wallet" rootTestId="wallet-connect-modal-portal">
       <div className="px-6 py-4">
         {error && <div className="alert-error mb-4">{error}</div>}
+
+        {showMobileHint ? (
+          <p className="mb-3 text-sm" style={{ color: 'var(--ink-subtle)' }} data-testid="wallet-modal-mobile-hint">
+            Use Open or Copy next. Wallet browser also works.
+          </p>
+        ) : null}
 
         <div className="space-y-2">
           {DEV_MODE && (
@@ -86,7 +82,7 @@ export default function WalletModal({ onClose }: WalletModalProps) {
             </button>
           )}
 
-          {WALLET_OPTIONS.map((option) => {
+          {options.map((option) => {
             const isExtension = option.walletType === WalletType.EXTENSION
             const installed = !isExtension || (extensionInstall.get(option.walletName) ?? false)
             const installUrl = isExtension ? WALLET_EXTENSION_INSTALL_URL[option.walletName] : undefined
@@ -149,8 +145,21 @@ export default function WalletModal({ onClose }: WalletModalProps) {
         </div>
 
         {isConnecting && (
-          <div className="mt-4 text-center text-sm uppercase tracking-wide" style={{ color: 'var(--ink-subtle)' }}>
-            Connecting...
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="text-center text-sm uppercase tracking-wide" style={{ color: 'var(--ink-subtle)' }}>
+              Connecting...
+            </div>
+            <button
+              type="button"
+              className="btn-muted"
+              data-testid="wallet-connect-cancel"
+              onClick={() => {
+                sounds.playButtonPress()
+                cancelConnection()
+              }}
+            >
+              Cancel
+            </button>
           </div>
         )}
       </div>

@@ -34,4 +34,25 @@ describe('Modal', () => {
     )
     expect(screen.queryByRole('button', { name: /close modal/i })).not.toBeInTheDocument()
   })
+
+  it('applies pairing z-index class above the default Connect Wallet layer (GitLab #554)', () => {
+    render(
+      <>
+        <Modal isOpen onClose={() => undefined} title="Connect" rootTestId="wallet-connect-modal-portal">
+          {null}
+        </Modal>
+        <Modal
+          isOpen
+          onClose={() => undefined}
+          title="Pair"
+          zIndexClassName="z-[10001]"
+          rootTestId="walletconnect-pairing-portal"
+        >
+          {null}
+        </Modal>
+      </>
+    )
+    expect(screen.getByTestId('wallet-connect-modal-portal').className).toContain('z-[9999]')
+    expect(screen.getByTestId('walletconnect-pairing-portal').className).toContain('z-[10001]')
+  })
 })

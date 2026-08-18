@@ -22,6 +22,10 @@ async fn get_trader_profile_returns_trader() {
     assert_eq!(body["address"], seed.trader_address);
     assert!(body["total_trades"].is_i64());
     assert!(body["total_volume"].is_string());
+    assert!(
+        body.get("total_volume_usd").is_some(),
+        "GitLab #553: profile exposes total_volume_usd (string or null)"
+    );
 }
 
 #[serial]
@@ -81,6 +85,7 @@ async fn leaderboard_valid_sort_columns() {
 
     for sort in &[
         "total_volume",
+        "total_volume_usd",
         "volume_24h",
         "volume_7d",
         "volume_30d",
@@ -301,4 +306,10 @@ async fn get_trader_positions_returns_rows() {
     assert_eq!(body.len(), 1);
     assert_eq!(body[0]["pair_address"], seed.pair_address);
     assert!(body[0]["net_position_quote"].is_string());
+    assert_eq!(body[0]["asset_0_decimals"], 6);
+    assert_eq!(body[0]["asset_1_decimals"], 6);
+    assert_eq!(body[0]["asset_0_symbol"], "LUNC");
+    assert_eq!(body[0]["asset_1_symbol"], "USTC");
+    assert_eq!(body[0]["asset_0_denom"], "uluna");
+    assert!(body[0]["asset_1_denom"].is_null() || body[0].get("asset_1_denom").is_none());
 }

@@ -17,7 +17,7 @@ Use when changing **connected-wallet Legal gating**, **`@plasticdigits/cl8y-clic
 
 ## Invariants (C1–C10)
 
-1. **C1 — SDK only:** Use `@plasticdigits/cl8y-clickwrap` (`TermsGate` / `createClient`). **Do not** implement Terra Classic ADR-036 verify or wallet submit in the DEX.
+1. **C1 — SDK only:** Use `@plasticdigits/cl8y-clickwrap` (`TermsGate` / `createClient`). **Do not** implement Terra Classic ADR-036 verify or wallet submit in the DEX. After WalletConnect on mobile Chrome, surface **Open this site in the Keplr browser to accept terms.** ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) **WC-M12**) — do not claim connect is complete if Accept still needs `window.keplr`.
 2. **C2 — Property:** Frontend status + portal sign URLs use property **`dex.cl8y.com`** (override only via `VITE_LEGAL_PROPERTY` for staging). Do not check `cl8y.com` by accident.
 3. **C3 — Network:** Always `network="TerraClassic"` → API `TERRA_CLASSIC`. Never EVM/Solana/Telegram on this dapp.
 4. **C4 — Sequence:** Keep anonymous first-visit [`RiskAcknowledgementModal`](../frontend-dapp/src/components/legal/RiskAcknowledgementModal.tsx) (#138). Clickwrap runs **after connect**, not as a replacement for NFA/footer copy.
@@ -83,3 +83,4 @@ Manual soft-launch: connect unsigned wallet → portal Terra Classic sign → re
 - Risk / NFA first-visit: [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md)
 - Trust / CSP: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Soft-launch: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)
+- WalletConnect same-device mobile pairing / Legal hint: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M12**, [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554))

@@ -51,4 +51,22 @@ describe('WalletConnectPairingModal (GitLab #519)', () => {
     expect(document.querySelector('canvas')).toBeNull()
     expect(screen.queryByText(/scan/i)).not.toBeInTheDocument()
   })
+
+  it('stacks the pairing portal above Connect Wallet (z-[10001])', () => {
+    useWalletConnectPairingStore.setState({
+      isOpen: true,
+      payload: {
+        uri: WC_V1,
+        name: 'LUNC Dash',
+        android: '',
+        ios: '',
+        isStation: true,
+        isLuncDash: true,
+      },
+    })
+    render(<WalletConnectPairingModal />)
+    const portal = screen.getByTestId('walletconnect-pairing-portal')
+    expect(portal.className).toContain('z-[10001]')
+    expect(screen.getByTestId('walletconnect-pairing-cancel')).toHaveTextContent('Cancel')
+  })
 })

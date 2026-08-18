@@ -31,6 +31,8 @@ mod route_solver;
 mod text_csv;
 mod tokens;
 mod traders;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use traders::reset_leaderboard_cache;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;

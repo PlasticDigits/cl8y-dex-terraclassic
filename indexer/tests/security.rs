@@ -250,6 +250,7 @@ async fn leaderboard_all_documented_sort_columns_accepted() {
 
     let sorts = [
         "total_volume",
+        "total_volume_usd",
         "volume_24h",
         "volume_7d",
         "volume_30d",

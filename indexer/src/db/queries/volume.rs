@@ -153,7 +153,9 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
 }
 
 /// Recompute `swap_events.volume_usd` from stored amounts + P522-Q catalog + latest oracles
-/// and `hub_prices` for UST1/USTR (GitLab #556). Idempotent.
+/// and `hub_prices` for UST1/USTR (GitLab #556). Idempotent — a second run does not double USD
+/// (GitLab #548 **I13** / **A13**). Also refreshes `traders.total_volume_usd` from the same column
+/// (GitLab #553). Keep SQL in sync with `indexer/migrations/20260817120000_backfill_swap_volume_usd_catalog.sql`.
 pub async fn backfill_swap_volume_usd(pool: &PgPool) -> Result<u64, sqlx::Error> {
     let res = sqlx::query(
         r#"
@@ -226,6 +228,7 @@ WHERE se.id = pr.id
     )
     .execute(pool)
     .await?;
+    super::traders::refresh_trader_total_volume_usd(pool).await?;
     Ok(res.rows_affected())
 }
 

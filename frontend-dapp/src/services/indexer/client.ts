@@ -460,8 +460,8 @@ export function downloadTextAsFile(filename: string, text: string, mime = 'text/
   URL.revokeObjectURL(url)
 }
 
-/** Get trader leaderboard. */
-export async function getLeaderboard(sort = 'total_volume', limit = 50): Promise<IndexerTrader[]> {
+/** Get trader leaderboard. Charts Volume tab uses `total_volume_usd` (#553). */
+export async function getLeaderboard(sort = 'total_volume_usd', limit = 50): Promise<IndexerTrader[]> {
   const params = new URLSearchParams({ sort, limit: limit.toString() })
   return fetchJson<IndexerTrader[]>(`/api/v1/traders/leaderboard?${params}`)
 }

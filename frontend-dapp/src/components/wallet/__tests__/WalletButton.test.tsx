@@ -192,3 +192,30 @@ describe('WalletButton dropdown affordances (GitLab #185)', () => {
     await vi.waitFor(() => expect(setWalletModalOpen).toHaveBeenCalledWith(true))
   })
 })
+
+describe('WalletButton connecting cancel (GitLab #554)', () => {
+  it('shows Cancel instead of a disabled spinner', async () => {
+    const cancelConnection = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      address: null,
+      isConnecting: true,
+      disconnect: vi.fn(),
+      walletModalOpen: false,
+      setWalletModalOpen: vi.fn(),
+      closeWalletModal: vi.fn(),
+      cancelConnection,
+    } as ReturnType<typeof useWalletStore>)
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    const btn = screen.getByRole('button', { name: /cancel connecting/i })
+    expect(btn).toHaveTextContent('Cancel')
+    expect(btn).not.toBeDisabled()
+    await user.click(btn)
+    expect(cancelConnection).toHaveBeenCalled()
+  })
+})

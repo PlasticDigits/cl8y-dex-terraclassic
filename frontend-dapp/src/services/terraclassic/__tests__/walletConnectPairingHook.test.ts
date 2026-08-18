@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { useWalletStore } from '@/hooks/useWallet'
 import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import { installWalletConnectPairingHook } from '../walletConnectPairingHook'
 import { getWalletConnectPairingHook, WC_PAIRING_HOOK_KEY } from '@/utils/walletConnectPairing'
@@ -83,5 +84,19 @@ describe('installWalletConnectPairingHook (GitLab #519)', () => {
     hook.close()
     expect(useWalletConnectPairingStore.getState().isOpen).toBe(false)
     expect(useWalletConnectPairingStore.getState().payload).toBeNull()
+  })
+
+  it('treats Android 16 Chrome as mobile and hides Connect Wallet on open (GitLab #554)', () => {
+    stubNavigator({
+      userAgent:
+        'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+    })
+    uninstall?.()
+    uninstall = installWalletConnectPairingHook()
+    useWalletStore.setState({ walletModalOpen: true })
+    const handled = getWalletConnectPairingHook()!.open(LUNC_PAYLOAD)
+    expect(handled).toBe(true)
+    expect(useWalletConnectPairingStore.getState().isOpen).toBe(true)
+    expect(useWalletStore.getState().walletModalOpen).toBe(false)
   })
 })

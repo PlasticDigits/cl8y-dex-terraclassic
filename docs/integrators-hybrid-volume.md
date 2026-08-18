@@ -145,7 +145,8 @@ These use **consolidated** `swap_events` amounts (same rule as CG/CMC):
 - Pair 24h stats (`volume_quote`, `volume_base`)
 - Candles (`candle_builder`)
 - `token_volume_stats` / `volume_aggregator`
-- Trader `total_volume` (taker swaps)
+- Trader `total_volume` (taker swaps, raw mixed-unit)
+- Trader `total_volume_usd` (P522-Q `SUM(swap_events.volume_usd)`; retail Charts/profile, [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553))
 
 `volume_usd` is best-effort from the P522-Q catalog on consolidated `offer_amount`/`return_amount` (one notional per swap, **L10**); hybrid legs do not change the USD formula independently ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)).
 

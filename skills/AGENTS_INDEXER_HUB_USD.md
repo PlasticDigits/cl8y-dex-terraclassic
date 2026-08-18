@@ -16,7 +16,7 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 |----|------|
 | **H1** | `usd(cUSTC)` = `usd(uusd)` = #515 USTC CEX oracle. Oracle down → NULL, not `$1`. |
 | **H2** | `usd(UST1)` from the **largest USD-TVL** factory pair whose legs are hub **cUSTC + UST1** (contract/denom), via humanized **reserves** (not last print, not `$1`). |
-| **H3** | `usd(USTR)` from the **largest USD-TVL** factory pair vs already-priced cUSTC or UST1. Not `2.5 ×` USTC. |
+| **H3** | `usd(USTR)` from the **largest USD-TVL** factory pair vs already-priced cUSTC or UST1. **USTR is set by the market, not a fixed peg** — launch `2.5 ×` USTC is ops seed only. |
 | **H4** | Pair `price_usd` / candles USD use hub quote USD. UI invert (#524 / #543) stays frontend `invertUsd`. |
 | **H5** | `/protocol` shows a **DEX hub prices** card (`protocol-dex-hub-prices`) with cUSTC, UST1, USTR. CEX tabs stay `ustc` \| `lunc` \| `vfdusd`. |
 | **H6** | `GET /api/v1/oracle/price/ustr` (and `ust1`, `custc`) remain **400**. Use `GET /api/v1/hub-prices`. |

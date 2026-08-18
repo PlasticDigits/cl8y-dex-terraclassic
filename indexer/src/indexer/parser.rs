@@ -528,6 +528,7 @@ async fn process_swap(
         config.fee_discount_address.as_deref(),
         &swap.sender,
         &swap.offer_amount,
+        volume_usd.as_ref(),
     )
     .await?;
 
