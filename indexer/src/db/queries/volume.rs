@@ -152,9 +152,10 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// Recompute `swap_events.volume_usd` from stored amounts + P522-Q catalog + latest oracles.
-/// Idempotent — a second run does not double USD (GitLab #548 **I13** / **A13**).
-/// Keep SQL in sync with `indexer/migrations/20260817120000_backfill_swap_volume_usd_catalog.sql`.
+/// Recompute `swap_events.volume_usd` from stored amounts + P522-Q catalog + latest oracles
+/// and `hub_prices` for UST1/USTR (GitLab #556). Idempotent — a second run does not double USD
+/// (GitLab #548 **I13** / **A13**). Also refreshes `traders.total_volume_usd` from the same column
+/// (GitLab #553). Keep SQL in sync with `indexer/migrations/20260817120000_backfill_swap_volume_usd_catalog.sql`.
 pub async fn backfill_swap_volume_usd(pool: &PgPool) -> Result<u64, sqlx::Error> {
     let res = sqlx::query(
         r#"
@@ -178,18 +179,17 @@ catalog AS (
             WHEN a.denom = 'uusd' THEN (SELECT price_usd FROM ustc)
             WHEN a.denom = 'uluna' THEN (SELECT price_usd FROM lunc)
             WHEN NOT a.is_cw20 AND a.denom IS NOT NULL AND a.denom NOT IN ('uusd', 'uluna') THEN NULL
-            WHEN UPPER(a.symbol) = 'UST1' AND a.contract_address IS NOT NULL THEN 1::numeric
+            WHEN hp.price_usd IS NOT NULL AND hp.price_usd > 0 THEN hp.price_usd
             WHEN UPPER(a.symbol) IN ('USTC', 'CUSTC')
                  AND (a.denom = 'uusd' OR a.contract_address IS NOT NULL)
                 THEN (SELECT price_usd FROM ustc)
             WHEN UPPER(a.symbol) IN ('LUNC', 'CLUNC')
                  AND (a.denom = 'uluna' OR a.contract_address IS NOT NULL)
                 THEN (SELECT price_usd FROM lunc)
-            WHEN UPPER(a.symbol) = 'USTR' AND a.contract_address IS NOT NULL
-                THEN 2.5::numeric * (SELECT price_usd FROM ustc)
             ELSE NULL
         END AS usd_per_human
     FROM assets a
+    LEFT JOIN hub_prices hp ON hp.asset_id = a.id
 ),
 priced AS (
     SELECT
@@ -228,6 +228,7 @@ WHERE se.id = pr.id
     )
     .execute(pool)
     .await?;
+    super::traders::refresh_trader_total_volume_usd(pool).await?;
     Ok(res.rows_affected())
 }
 

@@ -392,6 +392,10 @@ export interface IndexerOverview {
   pairs_added_30d?: number
   active_pairs_24h?: number
   unique_traders_24h?: number
+  /** DEX hub USD (#556). Additive; null when unresolved. */
+  custc_price_usd?: string | null
+  ust1_price_usd?: string | null
+  ustr_price_usd?: string | null
 }
 
 /** `GET /api/v1/tokens` */
@@ -469,6 +473,22 @@ export interface IndexerOracleHistoryResponse {
   prices: IndexerOracleHistoryEntry[]
 }
 
+export interface IndexerHubPriceEntry {
+  ticker: string
+  asset_id?: number | null
+  price_usd: string | null
+  source_pair?: string | null
+  tvl_usd?: string | null
+  updated_at?: string | null
+}
+
+/** `GET /api/v1/hub-prices` — DEX marks, not CEX (GitLab #556). */
+export interface IndexerHubPricesResponse {
+  metadata: string
+  tickers: string[]
+  prices: IndexerHubPriceEntry[]
+}
+
 /** One hop for `POST /api/v1/route/solve` `hybrid_by_hop` (matches on-chain `HybridSwapParams`). */
 export interface IndexerHybridHopInput {
   pool_input: string
@@ -530,6 +550,8 @@ export interface IndexerTrader {
   address: string
   total_trades: number
   total_volume: string
+  /** P522-Q USD lifetime volume. Null when trades exist but none are priced (#553). */
+  total_volume_usd?: string | null
   volume_24h: string
   volume_7d: string
   volume_30d: string
@@ -548,6 +570,12 @@ export interface IndexerPosition {
   pair_address: string
   asset_0_symbol: string
   asset_1_symbol: string
+  /** Factory `asset_0` decimals — scale cost basis / realized P&L (GitLab #551). */
+  asset_0_decimals?: number
+  /** Factory `asset_1` (quote) decimals — scale net position (GitLab #551). */
+  asset_1_decimals?: number
+  asset_0_denom?: string | null
+  asset_1_denom?: string | null
   net_position_quote: string
   avg_entry_price: string
   total_cost_base: string

@@ -1,3 +1,4 @@
+import { useWalletStore } from '@/hooks/useWallet'
 import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import {
   isWalletConnectMobileClient,
@@ -16,6 +17,7 @@ export function installWalletConnectPairingHook(): () => void {
     open(payload: WalletConnectPairingHookPayload) {
       if (!isWalletConnectPairingUri(payload.uri)) return false
       if (!isWalletConnectMobileClient()) return false
+      useWalletStore.getState().setWalletModalOpen(false)
       useWalletConnectPairingStore.getState().open(payload)
       return true
     },

@@ -16,8 +16,10 @@ v1 now uses **ticker-scoped** paths (breaking change approved while non-economic
 | `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, price_usd, sources[] }` |
 | `GET` | `/api/v1/oracle/history` | Same catalog as price |
 | `GET` | `/api/v1/oracle/history/{ticker}` | `{ ticker, prices[] }` (average samples; `limit` capped 1000) |
+| `GET` | `/api/v1/hub-prices` | DEX hub snapshot `{ metadata, tickers: ["custc","ust1","ustr"], prices[] }` ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)) |
+| `GET` | `/api/v1/hub-prices/{ticker}` | One DEX mark (`custc` \| `ust1` \| `ustr`). Unknown → **400**. |
 
-Unknown `{ticker}` → **400**.
+Unknown CEX `{ticker}` (including `ustr` / `ust1` / `custc`) → **400**. DEX marks are **not** on `/oracle/price`.
 
 ### Tickers
 
@@ -35,7 +37,7 @@ Each poll stores per-source rows plus an `average` row. In-memory cache serves `
 
 Table `oracle_prices(ticker, price_usd, source, fetched_at)` (migration `20260811000000_oracle_prices_multi_ticker.sql`). Replaces legacy `ustc_prices`.
 
-Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544)): UST1=`$1`; USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; USTR = `2.5 ×` USTC. Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only.
+Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544) / [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)): USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; UST1/USTR = **`hub_prices`** (DEX largest-liquidity marks). **USTR is set by the market, not a fixed `2.5 ×` USTC peg.** Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only; hub fields are additive. DEX hub HTTP is `GET /api/v1/hub-prices` — **not** `/oracle/price/ustr` (400). Trader `total_volume_usd` is `SUM` of the same column.
 
 ## Invariants (X1–X6)
 
@@ -44,7 +46,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 | **X1** | `GET /api/v1/oracle/price` and `/history` are **catalogs only** — never a numeric price body. |
 | **X2** | Price/history paths require an explicit ticker: `ustc`, `lunc`, or `vfdusd`. Unknown → **400**. |
 | **X3** | Tickers use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC/USTC/FDUSD ids. |
-| **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (not USTC-leg only). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD. |
+| **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD. |
 | **X5** | Feeds are **advisory** — not settlement; on-chain swaps use `max_spread` / `min_return` / deadlines. |
 | **X6** | Non-finite `f64` → safe `BigDecimal` default before DB insert (existing oracle storage rule). |
 

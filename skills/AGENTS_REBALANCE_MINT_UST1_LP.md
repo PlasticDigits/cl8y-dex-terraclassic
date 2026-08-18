@@ -18,7 +18,7 @@ Use when deepening **UST1/cUSTC** and **UST1/USTR** with oracle-sized LP sent to
 3. **Swap UST1/cUSTC only** (pool-only, no book). Do **not** swap UST1/USTR. Re-query reserves after mint before each swap — stale offers overshoot.
 4. **Gate provide** on UST1/cUSTC within **0.1%** of `1 / USTC_USD` (indexer `/api/v1/oracle/price/ustc`). Minted inventory stays on admin if the gate fails; re-run.
 5. **LP receiver is CMM** `terra16j5u6…`. Script must re-query treasury LP balances and fail if they did not increase.
-6. **USTR = 2.5 × USTC** for sizing only (indexer `USTR_PER_USTC`).
+6. **USTR = 2.5 × USTC** for **LP sizing only** (`USTR_PER_USTC` in the rebalance script). Not a display oracle ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) hub USD).
 7. Prefer `DRY_RUN=1` before a live broadcast. Live needs `UST1_LP_YES=1` when stdin is not a TTY.
 
 ## Quick commands
@@ -33,6 +33,7 @@ UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — pair create/seed (#508)
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC ticker
-- [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — USTR = 2.5 × USTC
+- [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — Protocol/Charts USTR USD is DEX hub, not this 2.5× seed
+- [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — ingest uses hub_prices for UST1/USTR
 - [`AGENTS_ROTATE_FEE_TREASURY.md`](./AGENTS_ROTATE_FEE_TREASURY.md) — CMM fee sink (not LP)
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster

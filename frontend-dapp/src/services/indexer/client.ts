@@ -1,6 +1,7 @@
 import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
 import { normalizeLimitBookPageResponse } from '@/utils/limitBookPagination'
 import { parseProtocolOracleTicker } from '@/utils/protocolOracleTicker'
+import { parseHubPriceTicker } from '@/utils/hubPriceTicker'
 import type {
   IndexerPair,
   IndexerPairsListResponse,
@@ -17,6 +18,8 @@ import type {
   IndexerOraclePriceResponse,
   IndexerOracleTickerCatalogResponse,
   IndexerOracleHistoryResponse,
+  IndexerHubPricesResponse,
+  IndexerHubPriceEntry,
   IndexerHybridHopInput,
   IndexerRouteSolveResponse,
   IndexerRouteSolveProgress,
@@ -457,8 +460,8 @@ export function downloadTextAsFile(filename: string, text: string, mime = 'text/
   URL.revokeObjectURL(url)
 }
 
-/** Get trader leaderboard. */
-export async function getLeaderboard(sort = 'total_volume', limit = 50): Promise<IndexerTrader[]> {
+/** Get trader leaderboard. Charts Volume tab uses `total_volume_usd` (#553). */
+export async function getLeaderboard(sort = 'total_volume_usd', limit = 50): Promise<IndexerTrader[]> {
   const params = new URLSearchParams({ sort, limit: limit.toString() })
   return fetchJson<IndexerTrader[]>(`/api/v1/traders/leaderboard?${params}`)
 }
@@ -534,6 +537,21 @@ export async function getOracleHistory(params?: GetOracleHistoryParams): Promise
   if (params?.limit != null) sp.set('limit', String(params.limit))
   const qs = sp.toString()
   return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history/${pathSegment(ticker)}${qs ? `?${qs}` : ''}`)
+}
+
+/** DEX hub USD snapshot (`custc` / `ust1` / `ustr`). Not CEX; do not call `getOraclePrice('ustr')`. */
+export async function getHubPrices(): Promise<IndexerHubPricesResponse> {
+  return fetchJson<IndexerHubPricesResponse>('/api/v1/hub-prices')
+}
+
+/**
+ * One DEX hub mark. Unknown / injected ticker is ignored (no fetch).
+ * @param ticker `custc` | `ust1` | `ustr`
+ */
+export async function getHubPrice(ticker: string): Promise<IndexerHubPriceEntry | null> {
+  const safe = parseHubPriceTicker(ticker)
+  if (!safe) return null
+  return fetchJson<IndexerHubPriceEntry>(`/api/v1/hub-prices/${pathSegment(safe)}`)
 }
 
 export interface GetRouteSolveOptions {

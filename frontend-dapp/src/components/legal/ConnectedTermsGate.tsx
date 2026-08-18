@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { TermsGate } from '@plasticdigits/cl8y-clickwrap/react'
 import { useWalletStore } from '@/hooks/useWallet'
+import LegalKeplrInAppHint from '@/components/legal/LegalKeplrInAppHint'
 import {
   getLegalClickwrapClient,
   getLegalProperty,
@@ -26,6 +27,7 @@ export default function ConnectedTermsGate({ children }: { children: ReactNode }
 
   return (
     <div data-testid="connected-terms-gate" className="app-connected-terms-gate">
+      <LegalKeplrInAppHint address={address} />
       <TermsGate
         client={getLegalClickwrapClient()}
         property={property}

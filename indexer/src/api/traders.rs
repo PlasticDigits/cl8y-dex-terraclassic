@@ -7,10 +7,12 @@ use axum::extract::{Path, Query, State};
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use utoipa::{IntoParams, ToSchema};
 
+use super::overview::overview_volume_usd_field;
 use super::pairs::{
     limit_placement_response, parse_placement_lifecycle_filter, trade_response_from_swap_row,
     LimitCancellationResponse, LimitFillResponse, LimitPlacementResponse,
@@ -23,6 +25,7 @@ use crate::db::queries::{
 
 pub const VALID_SORTS: &[&str] = &[
     "total_volume",
+    "total_volume_usd",
     "volume_24h",
     "volume_7d",
     "volume_30d",
@@ -69,11 +72,20 @@ fn leaderboard_cache_put(key: String, rows: Vec<TraderResponse>) {
     }
 }
 
+/// Drop the 60s `/traders/leaderboard` cache (tests).
+pub fn reset_leaderboard_cache() {
+    if let Ok(mut guard) = leaderboard_cache().lock() {
+        guard.clear();
+    }
+}
+
 #[derive(Serialize, ToSchema, Clone)]
 pub struct TraderResponse {
     pub address: String,
     pub total_trades: i64,
     pub total_volume: String,
+    /// P522-Q USD lifetime volume. JSON `null` when `total_trades > 0` and priced USD is 0 (#553).
+    pub total_volume_usd: Option<String>,
     pub volume_24h: String,
     pub volume_7d: String,
     pub volume_30d: String,
@@ -94,6 +106,10 @@ impl From<&db_traders::TraderRow> for TraderResponse {
             address: t.address.clone(),
             total_trades: t.total_trades,
             total_volume: t.total_volume.to_string(),
+            total_volume_usd: overview_volume_usd_field(
+                t.total_trades,
+                t.total_volume_usd.as_ref().unwrap_or(&BigDecimal::from(0)),
+            ),
             volume_24h: t.volume_24h.to_string(),
             volume_7d: t.volume_7d.to_string(),
             volume_30d: t.volume_30d.to_string(),
@@ -115,6 +131,14 @@ pub struct PositionResponse {
     pub pair_address: String,
     pub asset_0_symbol: String,
     pub asset_1_symbol: String,
+    /// Factory `asset_0` decimals — scale `total_cost_base` / `realized_pnl` / avg-entry (GitLab #551).
+    pub asset_0_decimals: i16,
+    /// Factory `asset_1` (quote) decimals — scale `net_position_quote` (GitLab #551).
+    pub asset_1_decimals: i16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_0_denom: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_1_denom: Option<String>,
     pub net_position_quote: String,
     pub avg_entry_price: String,
     pub total_cost_base: String,
@@ -422,7 +446,7 @@ pub async fn get_trader_limit_cancellations(
 
 #[derive(Deserialize, IntoParams)]
 pub struct LeaderboardQuery {
-    /// Sort column: total_volume, volume_24h, volume_7d, volume_30d, total_trades
+    /// Sort column: total_volume (raw), total_volume_usd (P522-Q), volume_24h, …
     pub sort: Option<String>,
     /// Max results (capped at 200)
     pub limit: Option<i64>,
@@ -553,18 +577,16 @@ pub async fn get_trader_positions(
         .iter()
         .filter_map(|pos| {
             let pair = pair_map.get(&pos.pair_id)?;
-            let a0_sym = asset_map
-                .get(&pair.asset_0_id)
-                .map(|a| a.symbol.clone())
-                .unwrap_or_default();
-            let a1_sym = asset_map
-                .get(&pair.asset_1_id)
-                .map(|a| a.symbol.clone())
-                .unwrap_or_default();
+            let a0 = asset_map.get(&pair.asset_0_id)?;
+            let a1 = asset_map.get(&pair.asset_1_id)?;
             Some(PositionResponse {
                 pair_address: pair.contract_address.clone(),
-                asset_0_symbol: a0_sym,
-                asset_1_symbol: a1_sym,
+                asset_0_symbol: a0.symbol.clone(),
+                asset_1_symbol: a1.symbol.clone(),
+                asset_0_decimals: a0.decimals,
+                asset_1_decimals: a1.decimals,
+                asset_0_denom: a0.denom.clone(),
+                asset_1_denom: a1.denom.clone(),
                 net_position_quote: pos.net_position_quote.to_string(),
                 avg_entry_price: pos.avg_entry_price.to_string(),
                 total_cost_base: pos.total_cost_base.to_string(),

@@ -14,13 +14,13 @@ function parseFiniteUsd(raw: string | null | undefined): number | null {
 }
 
 /**
- * Charts overview 24h volume: `$` + compact human USD.
+ * Compact USD volume for Charts overview, trader leaderboard, and trader profile.
  *
  * - Unpriced / missing / invalid → `—` (never `$0` when trades > 0).
- * - Idle DEX (`total_trades_24h === 0`) → `$0`.
- * - Does **not** read `total_volume_24h` (raw mixed integers stay API-only).
+ * - Idle (`trades === 0`) → `$0`.
+ * - Does **not** read raw mixed-unit `total_volume` / `total_volume_24h`.
  */
-export function formatChartsOverviewVolumeUsd(usd: string | null | undefined, trades: number): string {
+export function formatIndexedVolumeUsd(usd: string | null | undefined, trades: number): string {
   const n = parseFiniteUsd(usd)
   if (n == null) return '—'
   if (n < 0) return '—'
@@ -29,6 +29,17 @@ export function formatChartsOverviewVolumeUsd(usd: string | null | undefined, tr
   const out = `$${compact}`
   if (out.length > OVERVIEW_DISPLAY_CAP) return '—'
   return out
+}
+
+/**
+ * Charts overview 24h volume: `$` + compact human USD.
+ *
+ * - Unpriced / missing / invalid → `—` (never `$0` when trades > 0).
+ * - Idle DEX (`total_trades_24h === 0`) → `$0`.
+ * - Does **not** read `total_volume_24h` (raw mixed integers stay API-only).
+ */
+export function formatChartsOverviewVolumeUsd(usd: string | null | undefined, trades: number): string {
+  return formatIndexedVolumeUsd(usd, trades)
 }
 
 /** USTC/USD spot from overview — `$` + price formatter, never compact `T` (#548 **C4**). */

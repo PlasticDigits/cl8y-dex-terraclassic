@@ -147,7 +147,7 @@ export default function TraderPage() {
 
       {trader && (
         <>
-          <TraderSummaryStats trader={trader} isOwnProfile={!!isOwnProfile} />
+          <TraderSummaryStats trader={trader} positions={positionsQuery.data} isOwnProfile={!!isOwnProfile} />
 
           <TraderPositionsTable
             positions={positionsQuery.data}

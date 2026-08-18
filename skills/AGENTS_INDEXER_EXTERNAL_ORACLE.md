@@ -17,7 +17,7 @@ Audience: third-party agents touching indexer USD reference prices, Protocol ora
 | **X1** | Bare `/api/v1/oracle/price` and `/history` return **catalog** `{ metadata, tickers }` only. |
 | **X2** | Snapshots/history require `/price/{ticker}` or `/history/{ticker}` with `ustc` \| `lunc` \| `vfdusd`. |
 | **X3** | Fetcher symbols must match ticker (USTC≠LUNC≠FDUSD CEX ids). |
-| **X4** | Volume USD uses the **P522-Q catalog** ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Overview `ustc_price_usd` stays the **USTC** handle. Do **not** convert DEX volume with vFDUSD. |
+| **X4** | Volume USD uses the **P522-Q catalog** ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) hub USD for UST1/USTR). Overview `ustc_price_usd` stays the **USTC** handle. Do **not** convert DEX volume with vFDUSD. |
 | **X5** | Advisory reference — never settlement authority. |
 | **X6** | Non-finite f64 → safe BigDecimal before insert. |
 
@@ -62,4 +62,5 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md)
 - [`docs/twap-oracle.md`](../docs/twap-oracle.md) — on-chain TWAP (different subsystem)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles convert quote-per-base to USD of 1 human base using these tickers ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522))
-- [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — swap `volume_usd` ingest uses P522-Q; overview USTC box stays this USTC feed ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548))
+- [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — swap `volume_usd` ingest uses P522-Q + hub USD; overview USTC box stays this USTC feed ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556))
+- [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub marks; `/oracle/price/ustr` stays 400

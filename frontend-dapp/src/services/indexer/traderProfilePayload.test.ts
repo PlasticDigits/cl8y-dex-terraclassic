@@ -47,6 +47,14 @@ describe('parseIndexerTraderPayload', () => {
     expect(t.total_volume).toBe('99')
   })
 
+  it('maps missing or null total_volume_usd to null (#553)', () => {
+    expect(parseIndexerTraderPayload(minimal).total_volume_usd).toBe(null)
+    const priced = parseIndexerTraderPayload({ ...minimal, total_volume_usd: '711.2' })
+    expect(priced.total_volume_usd).toBe('711.2')
+    const unpriced = parseIndexerTraderPayload({ ...minimal, total_volume_usd: null })
+    expect(unpriced.total_volume_usd).toBe(null)
+  })
+
   it('preserves null best/worst trade pnl (#344)', () => {
     const t = parseIndexerTraderPayload({
       ...minimal,

@@ -60,6 +60,15 @@ async fn i1_ust1_ustr_volume_usd_and_overview_sum() {
     .await
     .unwrap();
 
+    sqlx::query(
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
+         VALUES ('ustr', $1, 0.01, NOW())",
+    )
+    .bind(ustr)
+    .execute(&pool)
+    .await
+    .unwrap();
+
     let ustc = bd("0.004878");
     insert_oracle(&pool, "ustc", &ustc).await;
 
@@ -90,7 +99,7 @@ async fn i1_ust1_ustr_volume_usd_and_overview_sum() {
             .await
             .unwrap();
     let first = first.expect("priced");
-    let expected = 10.0 * 2.5 * 0.004878;
+    let expected = 10.0 * 0.01;
     assert!(
         (usd_f(&first) - expected).abs() < 1e-8,
         "got {}",
@@ -331,6 +340,14 @@ async fn raw_18_decimal_volume_does_not_overflow_global_stats() {
     .unwrap();
 
     insert_oracle(&pool, "ustc", &bd("0.004878")).await;
+    sqlx::query(
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
+         VALUES ('ustr', $1, 0.01, NOW())",
+    )
+    .bind(ustr)
+    .execute(&pool)
+    .await
+    .unwrap();
 
     // 1000 human USTR = 10^21 raw — overflows NUMERIC(38,18) integer width (10^20).
     let offer = bd("1000000000000000000000");
@@ -372,10 +389,6 @@ async fn raw_18_decimal_volume_does_not_overflow_global_stats() {
             .await
             .unwrap();
     let vol = vol.expect("priced USTR");
-    let expected = 1000.0 * 2.5 * 0.004878;
-    assert!(
-        (usd_f(&vol) - expected).abs() < 1e-6,
-        "got {}",
-        usd_f(&vol)
-    );
+    let expected = 1000.0 * 0.01;
+    assert!((usd_f(&vol) - expected).abs() < 1e-6, "got {}", usd_f(&vol));
 }

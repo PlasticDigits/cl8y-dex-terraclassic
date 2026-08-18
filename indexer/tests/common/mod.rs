@@ -66,6 +66,10 @@ pub fn test_config() -> Config {
         block_process_max_retries: 5,
         block_process_retry_backoff_ms: 2000,
         reorg_alert_webhook_url: None,
+        hub_custc_address: cl8y_dex_indexer::config::DEFAULT_HUB_CUSTC_ADDRESS.to_string(),
+        hub_ust1_address: cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
+        hub_ustr_address: cl8y_dex_indexer::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
+        hub_usd_tvl_floor: "100".parse().unwrap(),
     }
 }
 
@@ -121,6 +125,7 @@ async fn clean_db_tables(pool: &PgPool) {
             pair_volume_24h,
             global_stats_24h,
             pair_reserves,
+            hub_prices,
             resting_limit_orders,
             trader_positions,
             traders,
@@ -439,12 +444,11 @@ pub async fn seed_route_solve_with_mirror(pool: &PgPool) -> RouteSolveSeed {
     use std::str::FromStr;
 
     let seed = seed_route_solve(pool).await;
-    let pair_id: i32 = sqlx::query_scalar(
-        "SELECT id FROM pairs WHERE contract_address = 'terra1pairrouteabc'",
-    )
-    .fetch_one(pool)
-    .await
-    .expect("route pair id");
+    let pair_id: i32 =
+        sqlx::query_scalar("SELECT id FROM pairs WHERE contract_address = 'terra1pairrouteabc'")
+            .fetch_one(pool)
+            .await
+            .expect("route pair id");
 
     let bd = |s: &str| BigDecimal::from_str(s).unwrap();
     pair_reserves::upsert_pair_reserves(

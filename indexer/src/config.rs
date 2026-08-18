@@ -1,7 +1,18 @@
 use std::env;
 use std::net::IpAddr;
+use std::str::FromStr;
 
+use bigdecimal::BigDecimal;
 use thiserror::Error;
+
+/// Columbus-5 tokenlist hub CW20s (GitLab #556). Override with `HUB_*_ADDRESS`.
+pub const DEFAULT_HUB_CUSTC_ADDRESS: &str =
+    "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch";
+pub const DEFAULT_HUB_UST1_ADDRESS: &str =
+    "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72";
+pub const DEFAULT_HUB_USTR_ADDRESS: &str =
+    "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv";
+pub const DEFAULT_HUB_USD_TVL_FLOOR: &str = "100";
 
 /// Deployment profile. `RUN_MODE=prod` enforces explicit production configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +97,14 @@ fn bind_is_loopback(bind: &str) -> bool {
     }
 }
 
+fn env_hub_addr(key: &str, default: &str) -> String {
+    env::var(key)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| default.to_string())
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub run_mode: RunMode,
@@ -127,6 +146,14 @@ pub struct Config {
     pub block_process_retry_backoff_ms: u64,
     /// Optional webhook URL for reorg halt alerts (GitLab #362). POST JSON `indexer_reorg_halt` event.
     pub reorg_alert_webhook_url: Option<String>,
+    /// Hub cUSTC CW20 (tokenlist default; GitLab #556). Identity is contract, not symbol.
+    pub hub_custc_address: String,
+    /// Hub UST1 CW20 (tokenlist default; GitLab #556).
+    pub hub_ust1_address: String,
+    /// Hub USTR CW20 (tokenlist default; GitLab #556).
+    pub hub_ustr_address: String,
+    /// Ignore factory pairs below this USD TVL when picking hub sources (default $100).
+    pub hub_usd_tvl_floor: BigDecimal,
 }
 
 impl Config {
@@ -318,6 +345,14 @@ impl Config {
             reorg_alert_webhook_url: env::var("REORG_ALERT_WEBHOOK_URL")
                 .ok()
                 .filter(|s| !s.trim().is_empty()),
+            hub_custc_address: env_hub_addr("HUB_CUSTC_ADDRESS", DEFAULT_HUB_CUSTC_ADDRESS),
+            hub_ust1_address: env_hub_addr("HUB_UST1_ADDRESS", DEFAULT_HUB_UST1_ADDRESS),
+            hub_ustr_address: env_hub_addr("HUB_USTR_ADDRESS", DEFAULT_HUB_USTR_ADDRESS),
+            hub_usd_tvl_floor: env::var("HUB_USD_TVL_FLOOR")
+                .ok()
+                .and_then(|v| BigDecimal::from_str(v.trim()).ok())
+                .filter(|v| *v > BigDecimal::from(0))
+                .unwrap_or_else(|| BigDecimal::from_str(DEFAULT_HUB_USD_TVL_FLOOR).unwrap()),
         })
     }
 

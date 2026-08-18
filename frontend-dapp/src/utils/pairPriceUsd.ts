@@ -2,7 +2,8 @@ import type { IndexerPair, IndexerTrade } from '@/types'
 import { tradeToToken1PerToken0Human } from './limitOrderPriceReference'
 import { invertUsd } from './tradePairDisplayOrientation'
 
-/** USTR is 2.5× USTC on the #508 secondary AMM (matches indexer `USTR_PER_USTC`). */
+/** USTR/UST1 client fallback for **pre-#556** indexers only (legacy 2.5× USTC seed).
+ * New indexer sends `price_usd` from DEX hub marks — prefer that field. */
 export const USTR_PER_USTC = 2.5
 
 export type QuoteUsdKind = 'ustc' | 'lunc' | 'peg1' | 'ustr' | 'unknown'

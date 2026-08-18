@@ -3,6 +3,7 @@ import {
   formatChartsOverviewCount,
   formatChartsOverviewUstcUsd,
   formatChartsOverviewVolumeUsd,
+  formatIndexedVolumeUsd,
 } from '../chartsOverviewStats'
 
 describe('formatChartsOverviewVolumeUsd (GitLab #548)', () => {
@@ -64,5 +65,16 @@ describe('formatChartsOverviewCount', () => {
     expect(formatChartsOverviewCount(12)).toBe('12')
     expect(formatChartsOverviewCount(1000)).toBe('1,000')
     expect(formatChartsOverviewCount(1e12)).not.toMatch(/T/)
+  })
+})
+
+describe('formatIndexedVolumeUsd (GitLab #553)', () => {
+  it('matches Charts overview contract and does not compact raw 18-dec as T', () => {
+    expect(formatIndexedVolumeUsd('711.2', 4)).toBe(formatChartsOverviewVolumeUsd('711.2', 4))
+    expect(formatIndexedVolumeUsd('711.2', 4)).toMatch(/^\$/)
+    expect(formatIndexedVolumeUsd('711.2', 4)).not.toMatch(/T/)
+    expect(formatIndexedVolumeUsd(null, 4)).toBe('—')
+    expect(formatIndexedVolumeUsd('0', 4)).toBe('—')
+    expect(formatIndexedVolumeUsd('0', 0)).toBe('$0')
   })
 })

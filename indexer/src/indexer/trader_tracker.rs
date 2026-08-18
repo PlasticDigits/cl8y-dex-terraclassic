@@ -31,8 +31,9 @@ pub async fn update_trader_on_swap(
     fee_discount_addr: Option<&str>,
     sender: &str,
     trade_volume: &BigDecimal,
+    trade_volume_usd: Option<&BigDecimal>,
 ) -> Result<(), BoxError> {
-    let is_new = traders::upsert_trader(pool, sender, trade_volume).await?;
+    let is_new = traders::upsert_trader(pool, sender, trade_volume, trade_volume_usd).await?;
     if is_new {
         if let Some(addr) = fee_discount_addr.filter(|a| !a.is_empty()) {
             hydrate_trader_tier_from_lcd(pool, lcd, addr, sender).await?;

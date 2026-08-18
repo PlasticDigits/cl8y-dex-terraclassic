@@ -10,7 +10,7 @@ Audience: third-party agents touching `/charts` overview stats, `GET /api/v1/ove
 
 Charts showed a raw mixed-decimal **24h Volume** (`10,000,000T` from `SUM(offer_amount)`) next to **24h Volume (USD) = 0**. Ingest `compute_volume_usd` was USTC-leg only with a hardcoded `1e6` decimals factor, so UST1/USTR (and other P522-Q legs) stored `volume_usd` NULL. Retail must see **one** 24h volume figure, in **USD**.
 
-Pair-search / `/pool` USD badges stay on [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level `Vol (token)` stays on [#540](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/540) / #544. **Share** [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) — do not fork a second USD formula.
+Pair-search / `/pool` USD badges stay on [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level `Vol (token)` stays on [#540](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/540) / #544. Trader leaderboard / profile lifetime volume is [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553). **Share** [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) — do not fork a second USD formula.
 
 ## Invariants (C1–C9)
 
@@ -32,7 +32,7 @@ Prefer catalog-known **pair quote** (`asset_1`): human quote amount × quote USD
 
 Backfill: [`volume::backfill_swap_volume_usd`](../indexer/src/db/queries/volume.rs) + migration `20260817120000_backfill_swap_volume_usd_catalog.sql`. Idempotent. USD is as-of ingest/backfill oracles (advisory, **X5**). Then `refresh_global_stats`.
 
-**X4 (updated):** `volume_usd` uses the **P522-Q catalog** (UST1=`$1`; USTC/cUSTC/`uusd`=#515 USTC; LUNC/cLUNC/`uluna`=#515 LUNC; USTR=`2.5×` USTC). Overview **USTC / USD** box stays the USTC ticker only.
+**X4 (updated):** `volume_usd` uses the **P522-Q catalog** (USTC/cUSTC/`uusd`=#515 USTC; LUNC/cLUNC/`uluna`=#515 LUNC; **UST1/USTR = hub_prices**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview **USTC / USD** box stays the USTC ticker only.
 
 ## Do / don’t
 
@@ -56,5 +56,6 @@ Backfill: [`volume::backfill_swap_volume_usd`](../indexer/src/db/queries/volume.
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC/LUNC feeds
 - [`AGENTS_INDEXER_VOLUME_PAGINATION.md`](./AGENTS_INDEXER_VOLUME_PAGINATION.md) — rollup + 60s cache (**V5**)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair-list volume badges (#534 / #544)
+- [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Charts leaderboard + trader profile USD (#553)
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — #215 banner
 - [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)

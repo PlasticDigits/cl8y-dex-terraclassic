@@ -10,7 +10,8 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use super::{internal_err, AppState};
-use crate::db::queries::{assets, pairs, volume};
+use crate::db::queries::{assets, hub_prices, pairs, volume};
+use crate::indexer::hub_usd::HubTicker;
 
 // GitLab #281 / #333: /overview reads materialized global_stats_24h on cache miss;
 // cache the whole response for 1 minute so a request burst can't hammer the DB.
@@ -32,6 +33,12 @@ pub struct OverviewResponse {
     pub pair_count: i64,
     pub token_count: i64,
     pub ustc_price_usd: Option<String>,
+    /// DEX hub USD of 1 human cUSTC (wrap = USTC oracle). Null when unresolved (#556).
+    pub custc_price_usd: Option<String>,
+    /// DEX hub USD of 1 human UST1 from the deepest cUSTC/UST1 pool. Null when unresolved.
+    pub ust1_price_usd: Option<String>,
+    /// DEX hub USD of 1 human USTR from the deepest vs cUSTC or UST1. Null when unresolved.
+    pub ustr_price_usd: Option<String>,
     /// SUM(volume_usd) 7d rollup (P522-Q catalog; GitLab #550).
     pub total_volume_7d_usd: String,
     /// SUM(volume_usd) 30d rollup (P522-Q catalog; GitLab #550).
@@ -95,6 +102,15 @@ pub async fn get_overview(
         .map_err(internal_err)?;
 
     let ustc_price = state.oracle_prices.ustc.read().await.clone();
+    let hub_rows = hub_prices::get_all_hub_prices(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    let hub_usd = |ticker: HubTicker| {
+        hub_rows
+            .iter()
+            .find(|r| r.ticker == ticker.as_str())
+            .map(|r| r.price_usd.to_string())
+    };
 
     let resp = OverviewResponse {
         total_volume_24h: global.total_volume_24h.to_string(),
@@ -106,6 +122,9 @@ pub async fn get_overview(
         pair_count: global.pair_count,
         token_count,
         ustc_price_usd: ustc_price.map(|p| p.to_string()),
+        custc_price_usd: hub_usd(HubTicker::Custc),
+        ust1_price_usd: hub_usd(HubTicker::Ust1),
+        ustr_price_usd: hub_usd(HubTicker::Ustr),
         total_volume_7d_usd: global.total_volume_7d_usd.to_string(),
         total_volume_30d_usd: global.total_volume_30d_usd.to_string(),
         total_trades_7d: global.total_trades_7d,
@@ -142,8 +161,14 @@ mod tests {
 
     #[test]
     fn idle_dex_sends_zero_usd_string() {
-        assert_eq!(overview_volume_usd_field(0, &bd("0")), Some("0".to_string()));
-        assert_eq!(overview_volume_usd_field(0, &bd("12.5")), Some("0".to_string()));
+        assert_eq!(
+            overview_volume_usd_field(0, &bd("0")),
+            Some("0".to_string())
+        );
+        assert_eq!(
+            overview_volume_usd_field(0, &bd("12.5")),
+            Some("0".to_string())
+        );
     }
 
     #[test]

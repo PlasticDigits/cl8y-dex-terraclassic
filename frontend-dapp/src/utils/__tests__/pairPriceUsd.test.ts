@@ -136,6 +136,21 @@ describe('resolveDisplayTapeLastPriceUsd (#524)', () => {
     })
     expect(usd).toBe('0.004928')
   })
+
+  it('inverts factory USD via human to hub USTR, not $1', () => {
+    const usd = resolveDisplayTapeLastPriceUsd({
+      inverted: true,
+      priceUsd: '0.80',
+      price: '80',
+      quoteSymbol: 'USTR',
+      displayBaseSymbol: 'USTR',
+      ustcUsd: '0.004928',
+    })
+    expect(usd).not.toBeNull()
+    expect(parseFloat(usd!)).toBeCloseTo(0.8 / 80, 8)
+    expect(parseFloat(usd!)).not.toBeCloseTo(1, 2)
+    expect(parseFloat(usd!)).not.toBeCloseTo(2.5 * 0.004928, 4)
+  })
 })
 
 describe('pairStatsUsdField', () => {

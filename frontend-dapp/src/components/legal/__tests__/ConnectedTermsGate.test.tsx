@@ -130,4 +130,38 @@ describe('ConnectedTermsGate', () => {
       expect(screen.getByRole('button', { name: /swap cta/i })).toBeVisible()
     })
   })
+
+  it('shows Keplr in-app hint when unsigned and window.keplr is absent (GitLab #554)', async () => {
+    useWalletStore.setState({ address: 'terra1unsignedexample', walletType: 'luncdash' })
+    getSignatureStatus.mockResolvedValue({
+      property: 'dex.cl8y.com',
+      latest_version: '1.0.0',
+      signed_latest: false,
+      signed_version: null,
+      signed_at: null,
+    })
+    getTermsLatest.mockResolvedValue({
+      property: 'dex.cl8y.com',
+      version_label: '1.0.0',
+      effective_date: '2026-01-01',
+      content_sha256: 'abc',
+      published_at: '2026-01-01T00:00:00Z',
+      sign_urls: {
+        telegram: 'https://terms.cl8y.com/sign/telegram',
+        evm: 'https://terms.cl8y.com/sign/evm',
+        terra_classic: 'https://terms.cl8y.com/sign/terra-classic?property=dex.cl8y.com',
+        solana: 'https://terms.cl8y.com/sign/solana',
+      },
+    })
+
+    render(
+      <ConnectedTermsGate>
+        <button type="button">Swap CTA</button>
+      </ConnectedTermsGate>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('legal-keplr-inapp-hint')).toHaveTextContent(/Keplr browser/i)
+    })
+  })
 })
