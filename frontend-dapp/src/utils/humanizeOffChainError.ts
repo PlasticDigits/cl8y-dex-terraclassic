@@ -32,6 +32,10 @@ export function tryHumanizeWalletLikeMessage(message: string): string | null {
     return 'Wallet action was declined in the extension or mobile wallet. Nothing was submitted on-chain.'
   }
 
+  if (/wallet didn't respond|wallet did not respond|walletconnect timed? ?out/i.test(m)) {
+    return "Wallet didn't respond. Try again."
+  }
+
   if (isWalletWrongNetworkError(m)) {
     const station = /station/i.test(m)
     const keplr = /keplr/i.test(m)

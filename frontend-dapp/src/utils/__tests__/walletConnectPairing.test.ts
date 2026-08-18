@@ -109,4 +109,42 @@ describe('walletConnectPairing (GitLab #519)', () => {
     expect(links[0]?.href.startsWith('https://station.hexxagon.io/wcV2?')).toBe(true)
     expect(isAllowedWalletConnectDeepLink(links[0]!.href)).toBe(true)
   })
+
+  it('detects Android 16 Chrome as a mobile WalletConnect client (GitLab #554)', () => {
+    const ua =
+      'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36'
+    expect(isWalletConnectMobileClient({ userAgent: ua })).toBe(true)
+  })
+
+  it('emits intent:// Galaxy Station href on Android UA, not https+#Intent (GitLab #554)', () => {
+    const links = buildWalletConnectDeepLinks(
+      {
+        name: 'Galaxy Station',
+        android: 'https://station.hexxagon.io/wcV2#Intent;package=io.hexxagon.station;scheme=galaxystation;end;',
+        ios: 'https://station.hexxagon.io/wcV2',
+        isStation: false,
+        isLuncDash: false,
+      },
+      WC_V2,
+      {
+        userAgent:
+          'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+      }
+    )
+    expect(links[0]?.label).toBe('Open Galaxy Station')
+    expect(links[0]?.href.startsWith('intent://')).toBe(true)
+    expect(links[0]?.href).toContain('#Intent;package=io.hexxagon.station')
+    expect(links[0]?.href).toContain(encodeURIComponent(WC_V2))
+    expect(links[0]?.href.startsWith('https:')).toBe(false)
+    expect(isAllowedWalletConnectDeepLink(links[0]!.href)).toBe(true)
+  })
+
+  it('allowlists keplrwallet and intent schemes used by Keplr WC (GitLab #554)', () => {
+    expect(isAllowedWalletConnectDeepLink('keplrwallet://wcV2?x')).toBe(true)
+    expect(
+      isAllowedWalletConnectDeepLink('intent://wcV2?x#Intent;package=com.chainapsis.keplr;scheme=keplrwallet;end;')
+    ).toBe(true)
+    expect(isAllowedWalletConnectDeepLink('javascript:alert(1)')).toBe(false)
+    expect(isAllowedWalletConnectDeepLink('data:text/html,hi')).toBe(false)
+  })
 })
