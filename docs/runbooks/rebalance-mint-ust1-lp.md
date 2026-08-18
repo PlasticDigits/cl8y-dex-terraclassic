@@ -23,6 +23,8 @@ UST1, cUSTC, and USTR list the DEX 2-of-3 as an **extra minter**. Primary minter
 - Target UST1/cUSTC = **cUSTC per UST1** = `1 / USTC_USD`.
 - USTR fair value = **2.5 × USTC** (same as indexer `USTR_PER_USTC`). Used only to size UST1/USTR LP, not to swap that pair.
 - After the cUSTC-pair swap, the script refuses to provide if the pool is still outside **0.1%**.
+- Live run **re-queries** UST1/cUSTC reserves after mint (and before each of up to **3** swaps). A plan computed before the 2-of-3 mint txs will overshoot if the pool already moved toward the peg.
+- If the price gate fails, minted inventory stays on `cl8ydeploy`. Re-run; mint should skip when balances already cover LP.
 
 ## One command
 
@@ -54,3 +56,4 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 | `UST1_LP_USTC_USD` | Skip indexer oracle |
 | `UST1_LP_YES=1` | Skip interactive confirm |
 | `UST1_LP_SWAP_MAX_SPREAD` | Rebalance swap `max_spread` (default `0.20`) |
+| `UST1_LP_SWAP_MAX_ITERS` | Live rebalance swaps after mint (default `3`) |

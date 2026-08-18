@@ -307,6 +307,20 @@ def _self_test() -> None:
     offer = int(plan["offer_amount"])
     assert 1_000_000 < offer < 80_000_000  # ~26 UST1, not a drain
 
+    # Stale offer after an intervening same-direction swap overshoots the band.
+    # (mint txs between plan and execute can race the pool this way.)
+    r0_stale, r1_stale = 2_138_282_553, 380_821_016_835
+    target_stale = target_custc_per_ust1(Decimal("0.004868"))
+    stale = find_rebalance_offer(
+        r0_stale, r1_stale, 6, 6, target_stale, 180, Decimal("0.001")
+    )
+    assert stale["needed"] is True
+    assert stale["offer_token"] == "custc"
+    n_in, n_out, _ = simulate_pool_swap(r1_stale, r0_stale, 2_352_000_000, 180)
+    n_in2, n_out2, _ = simulate_pool_swap(n_in, n_out, int(stale["offer_amount"]), 180)
+    p_overshoot = human_price(n_out2, n_in2, 6, 6)
+    assert not within_tolerance(p_overshoot, target_stale, Decimal("0.001"))
+
     # $1000 LP at peg, 6/6, $1 / $0.005 → 500 + 100_000
     a0, a1 = lp_raw_for_usd(1_000_000, 200_000_000, 6, 6, Decimal(1000), Decimal(1), Decimal("0.005"))
     assert a0 == 500_000_000

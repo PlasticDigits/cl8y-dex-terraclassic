@@ -6,6 +6,7 @@
 #   1. Prompt terrad keyring passphrase once (or use TERRAD_HOST_KEYRING_PASS).
 #   2. 2-of-3 extra-minter mint of UST1 / cUSTC / USTR → admin wallet.
 #   3. Admin pool-only swap on UST1/cUSTC until quote/base is within 0.1% of 1/USTC-USD.
+#      Re-queries reserves immediately before each swap (mint txs can race the pool).
 #      Does not swap UST1/USTR.
 #   4. provide_liquidity on both pairs with receiver = CMM treasury.
 #   5. Re-query price + treasury LP balances and fail if checks do not pass.
@@ -48,6 +49,7 @@ USD_EACH="${UST1_LP_USD_EACH}"
 TOLERANCE="${UST1_LP_PRICE_TOLERANCE}"
 USTR_PER="${UST1_LP_USTR_PER_USTC}"
 SWAP_MAX_SPREAD="${UST1_LP_SWAP_MAX_SPREAD:-0.20}"
+SWAP_MAX_ITERS="${UST1_LP_SWAP_MAX_ITERS:-3}"
 PROVIDE_SLIP="${UST1_LP_PROVIDE_SLIPPAGE:-0.005}"
 BUFFER_BPS="${UST1_LP_MINT_BUFFER_BPS:-50}"
 LCD_TIMEOUT="${UST1_LP_LCD_TIMEOUT:-25}"
@@ -270,6 +272,91 @@ print((Decimal(r1) / (Decimal(10) ** int(d1))) / (Decimal(r0) / (Decimal(10) ** 
 PY
 }
 
+build_plan() {
+  local buffer="${1:-$BUFFER_BPS}"
+  python3 "$MATH_PY" <<EOF
+{
+  "ustc_usd": "$USTC_USD",
+  "ustr_per_ustc": "$USTR_PER",
+  "usd_each": "$USD_EACH",
+  "tolerance": "$TOLERANCE",
+  "fee_bps": $FEE_BPS,
+  "buffer_bps": $buffer,
+  "dec_ust1": $DEC_UST1,
+  "dec_custc": $DEC_CUSTC,
+  "dec_ustr": $DEC_USTR,
+  "custc_r0": "$R0",
+  "custc_r1": "$R1",
+  "ustr_r0": "$U0",
+  "ustr_r1": "$U1",
+  "bal_ust1": "$BAL_UST1",
+  "bal_custc": "$BAL_CUSTC",
+  "bal_ustr": "$BAL_USTR"
+}
+EOF
+}
+
+ensure_swap_inventory() {
+  local token="$1" amount="$2" have need
+  if [[ "$token" == "ust1" ]]; then
+    have="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
+    if python3 -c "import sys; sys.exit(0 if int('$have') < int('$amount') else 1)"; then
+      need="$(python3 -c "print(int('$amount') - int('$have'))")"
+      echo "  topping up UST1 $need for swap (have $have)"
+      mint_if_needed UST1 "$UST1" "$need"
+    fi
+  elif [[ "$token" == "custc" ]]; then
+    have="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
+    if python3 -c "import sys; sys.exit(0 if int('$have') < int('$amount') else 1)"; then
+      need="$(python3 -c "print(int('$amount') - int('$have'))")"
+      echo "  topping up cUSTC $need for swap (have $have)"
+      mint_if_needed cUSTC "$CUSTC" "$need"
+    fi
+  else
+    die "unknown swap token $token"
+  fi
+}
+
+# Re-query the UST1/cUSTC pool before every swap. A plan computed before mint txs
+# will overshoot if the pool already moved toward the peg.
+execute_rebalance_swaps() {
+  local i token amt live
+  SWAP_TX=""
+  for ((i = 1; i <= SWAP_MAX_ITERS; i++)); do
+    POOL_C="$(pool_json "$PAIR_CUSTC")"
+    R0="$(asset_amount_for "$POOL_C" "$UST1")"
+    R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
+    CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
+    if rel_err_ok "$CUR_PX" "$TARGET"; then
+      echo "  within $TOLERANCE of target at $CUR_PX (iter $i, no swap)"
+      return 0
+    fi
+    BAL_UST1="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
+    BAL_CUSTC="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
+    live="$(build_plan 0)"
+    token="$(jq -r '.swap.offer_token // empty' <<<"$live")"
+    amt="$(jq -r '.swap.offer_amount' <<<"$live")"
+    [[ "$(jq -r '.swap.needed' <<<"$live")" == "true" && -n "$token" && "$amt" != "0" ]] \
+      || die "price $CUR_PX off peg but planner found no swap"
+    echo "  iter $i/$SWAP_MAX_ITERS live $R0 / $R1  offer $token $amt"
+    echo "    projected $(jq -r '.swap.projected_price' <<<"$live")  rel $(jq -r '.swap.rel_error' <<<"$live")"
+    ensure_swap_inventory "$token" "$amt"
+    if [[ "$token" == "ust1" ]]; then
+      SWAP_TX="$(cw20_send_swap "$UST1" "$PAIR_CUSTC" "$amt")"
+    elif [[ "$token" == "custc" ]]; then
+      SWAP_TX="$(cw20_send_swap "$CUSTC" "$PAIR_CUSTC" "$amt")"
+    else
+      die "unknown swap token $token"
+    fi
+  done
+  POOL_C="$(pool_json "$PAIR_CUSTC")"
+  R0="$(asset_amount_for "$POOL_C" "$UST1")"
+  R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
+  CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
+  rel_err_ok "$CUR_PX" "$TARGET" \
+    || die "UST1/cUSTC price $CUR_PX not within $TOLERANCE of $TARGET after $SWAP_MAX_ITERS swaps (inventory remains on $ADMIN_ADDR; re-run)"
+}
+
 echo "=============================================="
 echo "Rebalance + mint UST1 LP → CMM"
 echo "=============================================="
@@ -345,27 +432,7 @@ TRE_LP_U0="$(cw20_balance "$LP_USTR" "$TREASURY")"
 echo "  admin balances UST1=$BAL_UST1 cUSTC=$BAL_CUSTC USTR=$BAL_USTR"
 echo "  treasury LP    UST1-CUST=$TRE_LP_C0 UST1-USTR=$TRE_LP_U0"
 
-PLAN="$(python3 "$MATH_PY" <<EOF
-{
-  "ustc_usd": "$USTC_USD",
-  "ustr_per_ustc": "$USTR_PER",
-  "usd_each": "$USD_EACH",
-  "tolerance": "$TOLERANCE",
-  "fee_bps": $FEE_BPS,
-  "buffer_bps": $BUFFER_BPS,
-  "dec_ust1": $DEC_UST1,
-  "dec_custc": $DEC_CUSTC,
-  "dec_ustr": $DEC_USTR,
-  "custc_r0": "$R0",
-  "custc_r1": "$R1",
-  "ustr_r0": "$U0",
-  "ustr_r1": "$U1",
-  "bal_ust1": "$BAL_UST1",
-  "bal_custc": "$BAL_CUSTC",
-  "bal_ustr": "$BAL_USTR"
-}
-EOF
-)"
+PLAN="$(build_plan)"
 
 echo ""
 echo "[plan]"
@@ -385,13 +452,11 @@ TARGET="$(jq -r '.target_custc_per_ust1' <<<"$PLAN")"
 MINT_UST1="$(jq -r '.mint.ust1' <<<"$PLAN")"
 MINT_CUSTC="$(jq -r '.mint.custc' <<<"$PLAN")"
 MINT_USTR="$(jq -r '.mint.ustr' <<<"$PLAN")"
-SWAP_NEEDED="$(jq -r '.swap.needed' <<<"$PLAN")"
-SWAP_TOKEN="$(jq -r '.swap.offer_token // empty' <<<"$PLAN")"
-SWAP_AMT="$(jq -r '.swap.offer_amount' <<<"$PLAN")"
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo ""
-  echo "DRY_RUN complete (no txs). Re-run without DRY_RUN=1 to broadcast."
+  echo "DRY_RUN complete (no txs). Live run re-queries UST1/cUSTC reserves after mint before swapping."
+  echo "Re-run without DRY_RUN=1 to broadcast."
   exit 0
 fi
 
@@ -415,59 +480,43 @@ BAL_USTR="$(cw20_balance "$USTR" "$ADMIN_ADDR")"
 echo "  post-mint admin UST1=$BAL_UST1 cUSTC=$BAL_CUSTC USTR=$BAL_USTR"
 
 echo ""
-echo "[rebalance] UST1/cUSTC only"
-SWAP_TX=""
-if [[ "$SWAP_NEEDED" == "true" ]]; then
-  if [[ "$SWAP_TOKEN" == "ust1" ]]; then
-    [[ "$(python3 -c "print(int('$BAL_UST1') >= int('$SWAP_AMT'))")" == "True" ]] \
-      || die "admin UST1 $BAL_UST1 < swap $SWAP_AMT"
-    SWAP_TX="$(cw20_send_swap "$UST1" "$PAIR_CUSTC" "$SWAP_AMT")"
-  elif [[ "$SWAP_TOKEN" == "custc" ]]; then
-    [[ "$(python3 -c "print(int('$BAL_CUSTC') >= int('$SWAP_AMT'))")" == "True" ]] \
-      || die "admin cUSTC $BAL_CUSTC < swap $SWAP_AMT"
-    SWAP_TX="$(cw20_send_swap "$CUSTC" "$PAIR_CUSTC" "$SWAP_AMT")"
-  else
-    die "unknown swap token $SWAP_TOKEN"
-  fi
-else
-  echo "  already within $TOLERANCE of target; skipping swap"
-fi
-
-POOL_C="$(pool_json "$PAIR_CUSTC")"
-R0="$(asset_amount_for "$POOL_C" "$UST1")"
-R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
-CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
+echo "[rebalance] UST1/cUSTC only (live reserves, up to $SWAP_MAX_ITERS swaps)"
+execute_rebalance_swaps
 echo "  post-swap price $CUR_PX  target $TARGET"
-rel_err_ok "$CUR_PX" "$TARGET" || die "UST1/cUSTC price $CUR_PX not within $TOLERANCE of $TARGET"
 
-# Re-size LP against live reserves + live admin balances.
+# Re-size LP against live reserves. Top up if the live swap used a different
+# offer token than the pre-mint plan (inventory stays on admin either way).
 BAL_UST1="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
 BAL_CUSTC="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
 BAL_USTR="$(cw20_balance "$USTR" "$ADMIN_ADDR")"
 POOL_U="$(pool_json "$PAIR_USTR")"
 U0="$(asset_amount_for "$POOL_U" "$UST1")"
 U1="$(asset_amount_for "$POOL_U" "$USTR")"
-LIVE="$(python3 "$MATH_PY" <<EOF
-{
-  "ustc_usd": "$USTC_USD",
-  "ustr_per_ustc": "$USTR_PER",
-  "usd_each": "$USD_EACH",
-  "tolerance": "$TOLERANCE",
-  "fee_bps": $FEE_BPS,
-  "buffer_bps": 0,
-  "dec_ust1": $DEC_UST1,
-  "dec_custc": $DEC_CUSTC,
-  "dec_ustr": $DEC_USTR,
-  "custc_r0": "$R0",
-  "custc_r1": "$R1",
-  "ustr_r0": "$U0",
-  "ustr_r1": "$U1",
-  "bal_ust1": "$BAL_UST1",
-  "bal_custc": "$BAL_CUSTC",
-  "bal_ustr": "$BAL_USTR"
-}
-EOF
-)"
+LIVE="$(build_plan)"
+echo "[top-up] LP inventory vs live plan"
+mint_if_needed UST1 "$UST1" "$(jq -r '.mint.ust1' <<<"$LIVE")"
+mint_if_needed cUSTC "$CUSTC" "$(jq -r '.mint.custc' <<<"$LIVE")"
+mint_if_needed USTR "$USTR" "$(jq -r '.mint.ustr' <<<"$LIVE")"
+
+POOL_C="$(pool_json "$PAIR_CUSTC")"
+R0="$(asset_amount_for "$POOL_C" "$UST1")"
+R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
+CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
+if ! rel_err_ok "$CUR_PX" "$TARGET"; then
+  echo "  peg drifted during LP top-up; one more rebalance pass"
+  execute_rebalance_swaps
+fi
+
+BAL_UST1="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
+BAL_CUSTC="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
+BAL_USTR="$(cw20_balance "$USTR" "$ADMIN_ADDR")"
+POOL_C="$(pool_json "$PAIR_CUSTC")"
+R0="$(asset_amount_for "$POOL_C" "$UST1")"
+R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
+POOL_U="$(pool_json "$PAIR_USTR")"
+U0="$(asset_amount_for "$POOL_U" "$UST1")"
+U1="$(asset_amount_for "$POOL_U" "$USTR")"
+LIVE="$(build_plan 0)"
 LP_C_UST1="$(jq -r '.lp_custc.ust1' <<<"$LIVE")"
 LP_C_CUSTC="$(jq -r '.lp_custc.custc' <<<"$LIVE")"
 LP_U_UST1="$(jq -r '.lp_ustr.ust1' <<<"$LIVE")"

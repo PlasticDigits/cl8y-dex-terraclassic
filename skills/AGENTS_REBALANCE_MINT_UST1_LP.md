@@ -15,8 +15,8 @@ Use when deepening **UST1/cUSTC** and **UST1/USTR** with oracle-sized LP sent to
 
 1. **Unlock once** — prompt or `TERRAD_HOST_KEYRING_PASS`. Never commit it. File-keyring keys share one passphrase.
 2. **Mint via DEX 2-of-3 extra minter** (`terra1zlmv2…`) to the admin hot wallet (`cl8ydeploy` by default). Do not use wrap-stack governance for this path.
-3. **Swap UST1/cUSTC only** (pool-only, no book). Do **not** swap UST1/USTR.
-4. **Gate provide** on UST1/cUSTC within **0.1%** of `1 / USTC_USD` (indexer `/api/v1/oracle/price/ustc`).
+3. **Swap UST1/cUSTC only** (pool-only, no book). Do **not** swap UST1/USTR. Re-query reserves after mint before each swap — stale offers overshoot.
+4. **Gate provide** on UST1/cUSTC within **0.1%** of `1 / USTC_USD` (indexer `/api/v1/oracle/price/ustc`). Minted inventory stays on admin if the gate fails; re-run.
 5. **LP receiver is CMM** `terra16j5u6…`. Script must re-query treasury LP balances and fail if they did not increase.
 6. **USTR = 2.5 × USTC** for sizing only (indexer `USTR_PER_USTC`).
 7. Prefer `DRY_RUN=1` before a live broadcast. Live needs `UST1_LP_YES=1` when stdin is not a TTY.
