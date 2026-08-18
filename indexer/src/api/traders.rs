@@ -131,6 +131,14 @@ pub struct PositionResponse {
     pub pair_address: String,
     pub asset_0_symbol: String,
     pub asset_1_symbol: String,
+    /// Factory `asset_0` decimals — scale `total_cost_base` / `realized_pnl` / avg-entry (GitLab #551).
+    pub asset_0_decimals: i16,
+    /// Factory `asset_1` (quote) decimals — scale `net_position_quote` (GitLab #551).
+    pub asset_1_decimals: i16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_0_denom: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_1_denom: Option<String>,
     pub net_position_quote: String,
     pub avg_entry_price: String,
     pub total_cost_base: String,
@@ -569,18 +577,16 @@ pub async fn get_trader_positions(
         .iter()
         .filter_map(|pos| {
             let pair = pair_map.get(&pos.pair_id)?;
-            let a0_sym = asset_map
-                .get(&pair.asset_0_id)
-                .map(|a| a.symbol.clone())
-                .unwrap_or_default();
-            let a1_sym = asset_map
-                .get(&pair.asset_1_id)
-                .map(|a| a.symbol.clone())
-                .unwrap_or_default();
+            let a0 = asset_map.get(&pair.asset_0_id)?;
+            let a1 = asset_map.get(&pair.asset_1_id)?;
             Some(PositionResponse {
                 pair_address: pair.contract_address.clone(),
-                asset_0_symbol: a0_sym,
-                asset_1_symbol: a1_sym,
+                asset_0_symbol: a0.symbol.clone(),
+                asset_1_symbol: a1.symbol.clone(),
+                asset_0_decimals: a0.decimals,
+                asset_1_decimals: a1.decimals,
+                asset_0_denom: a0.denom.clone(),
+                asset_1_denom: a1.denom.clone(),
                 net_position_quote: pos.net_position_quote.to_string(),
                 avg_entry_price: pos.avg_entry_price.to_string(),
                 total_cost_base: pos.total_cost_base.to_string(),
