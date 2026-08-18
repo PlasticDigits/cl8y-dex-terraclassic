@@ -24,6 +24,12 @@ import {
   WalletType,
 } from '@goblinhunt/cosmes/wallet'
 import { NETWORKS, DEFAULT_NETWORK } from '@/utils/constants'
+import {
+  isWalletConnectCancelledError,
+  isWalletConnectTimeoutError,
+  raceWithAbortAndTimeout,
+  WALLETCONNECT_CONNECT_TIMEOUT_MS,
+} from '@/utils/walletConnectSession'
 
 async function suggestChainToExtension(walletName: WalletName): Promise<void> {
   const ext = getKeplrLikeExtension(walletName)
@@ -77,6 +83,43 @@ const WALLET_TYPE_STRINGS: Record<string, TerraWalletBackend> = {
 
 const connectedWallets: Map<string, ConnectedWallet> = new Map()
 
+type PendingWalletConnect = {
+  walletName: WalletName
+  abort: AbortController
+}
+
+let pendingWalletConnect: PendingWalletConnect | null = null
+
+function disconnectWalletConnectTransport(controller: WalletController | undefined): void {
+  if (!controller) return
+  try {
+    controller.disconnect([TERRA_CLASSIC_CHAIN_ID])
+  } catch {
+    /* pending WC may not have a session yet */
+  }
+  const wc = (controller as WalletController & { wc?: { disconnect?: () => void } }).wc
+  try {
+    wc?.disconnect?.()
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Abort in-flight WalletConnect `controller.connect()` (GitLab #554). */
+export function abortPendingTerraWalletConnect(): void {
+  const pending = pendingWalletConnect
+  pendingWalletConnect = null
+  pending?.abort.abort()
+  if (pending) {
+    disconnectWalletConnectTransport(CONTROLLERS[pending.walletName])
+  }
+}
+
+export type ConnectTerraWalletOptions = {
+  signal?: AbortSignal
+  timeoutMs?: number
+}
+
 function getChainInfo() {
   return {
     chainId: TERRA_CLASSIC_CHAIN_ID,
@@ -95,7 +138,8 @@ export function isKeplrInstalled(): boolean {
 
 export async function connectTerraWallet(
   walletName: WalletName = WalletName.STATION,
-  walletType: WalletType = WalletType.EXTENSION
+  walletType: WalletType = WalletType.EXTENSION,
+  options?: ConnectTerraWalletOptions
 ): Promise<{
   address: string
   walletType: TerraWalletBackend
@@ -152,14 +196,42 @@ export async function connectTerraWallet(
     }
 
     let wallets: Map<string, ConnectedWallet>
+    const wcTimeoutMs =
+      walletType === WalletType.WALLETCONNECT ? (options?.timeoutMs ?? WALLETCONNECT_CONNECT_TIMEOUT_MS) : undefined
+    const abort = new AbortController()
+    const onExternalAbort = () => abort.abort()
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        abort.abort()
+      } else {
+        options.signal.addEventListener('abort', onExternalAbort, { once: true })
+      }
+    }
+    pendingWalletConnect = { walletName, abort }
     try {
-      wallets = await controller.connect(walletType, [chainInfo])
+      const connectPromise = controller.connect(walletType, [chainInfo])
+      wallets =
+        wcTimeoutMs != null
+          ? await raceWithAbortAndTimeout(connectPromise, {
+              timeoutMs: wcTimeoutMs,
+              signal: abort.signal,
+              onTimeout: () => disconnectWalletConnectTransport(controller),
+            })
+          : await connectPromise
     } catch (connectError: unknown) {
+      if (isWalletConnectCancelledError(connectError) || isWalletConnectTimeoutError(connectError)) {
+        throw connectError
+      }
       console.error(`[Wallet] Controller.connect() threw an error:`, connectError)
       const errorMessage = connectError instanceof Error ? connectError.message : String(connectError)
       const errorStack = connectError instanceof Error ? connectError.stack : undefined
       console.error(`[Wallet] Error details:`, { errorMessage, errorStack })
       throw connectError
+    } finally {
+      options?.signal?.removeEventListener('abort', onExternalAbort)
+      if (pendingWalletConnect?.abort === abort) {
+        pendingWalletConnect = null
+      }
     }
 
     console.log(`[Wallet] Controller returned ${wallets.size} wallet(s)`, {
@@ -368,6 +440,9 @@ export async function connectTerraWallet(
       connectionType: walletType,
     }
   } catch (error: unknown) {
+    if (isWalletConnectCancelledError(error) || isWalletConnectTimeoutError(error)) {
+      throw error
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
     if (isWalletWrongNetworkError(errorMessage)) {

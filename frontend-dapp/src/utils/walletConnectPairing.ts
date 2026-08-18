@@ -75,13 +75,42 @@ export function buildLuncDashDeepLink(uri: string): string {
   return `luncdash://wallet_connect?${encodeURIComponent(`payload=${encodeURIComponent(uri)}`)}`
 }
 
-export function buildAndroidWalletIntent(androidTemplate: string, uri: string): string {
-  const hashIndex = androidTemplate.indexOf('#')
-  if (hashIndex < 0) {
-    const sep = androidTemplate.includes('?') ? '&' : '?'
-    return `${androidTemplate}${sep}${encodeURIComponent(uri)}`
+/**
+ * Cosmes Galaxy Station `android` is `https://host/path#Intent;package=…;scheme=galaxystation;end;`.
+ * Chrome Android treats that as a website (the `#Intent` part is a fragment). Convert to `intent://`
+ * so the installed app opens (GitLab #554).
+ */
+export function toAndroidIntentUri(androidTemplate: string): string {
+  const trimmed = androidTemplate.trim()
+  if (!trimmed) return trimmed
+  if (/^intent:/i.test(trimmed)) return trimmed
+  const hashIndex = trimmed.indexOf('#Intent')
+  if (hashIndex < 0) return trimmed
+  const before = trimmed.slice(0, hashIndex)
+  const intentPart = trimmed.slice(hashIndex)
+  if (!/^https?:\/\//i.test(before)) return trimmed
+  const schemeMatch = intentPart.match(/scheme=([^;]+)/i)
+  const scheme = schemeMatch?.[1]?.trim()
+  try {
+    const url = new URL(before)
+    const path = url.pathname.replace(/^\//, '')
+    if (scheme && scheme !== 'http' && scheme !== 'https') {
+      return `intent://${path}${intentPart}`
+    }
+    return `intent://${url.host}${url.pathname}${url.search}${intentPart}`
+  } catch {
+    return trimmed
   }
-  return `${androidTemplate.slice(0, hashIndex)}?${encodeURIComponent(uri)}${androidTemplate.slice(hashIndex)}`
+}
+
+export function buildAndroidWalletIntent(androidTemplate: string, uri: string): string {
+  const normalized = toAndroidIntentUri(androidTemplate)
+  const hashIndex = normalized.indexOf('#')
+  if (hashIndex < 0) {
+    const sep = normalized.includes('?') ? '&' : '?'
+    return `${normalized}${sep}${encodeURIComponent(uri)}`
+  }
+  return `${normalized.slice(0, hashIndex)}?${encodeURIComponent(uri)}${normalized.slice(hashIndex)}`
 }
 
 export function buildIosWalletIntent(iosTemplate: string, uri: string): string {

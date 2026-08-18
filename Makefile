@@ -344,6 +344,11 @@ verify-issue-519:
 	@chmod +x scripts/qa/verify-issue-519.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-519.sh
 
+# GitLab #554 — Android Chrome Connect Wallet (pairing foreground, cancel, Keplr WC).
+verify-issue-554:
+	@chmod +x scripts/qa/verify-issue-554.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-554.sh
+
 # GitLab #531 — retail LUNC liquidity how-to (v2 LP + maker-limit disambiguation).
 verify-issue-531:
 	@chmod +x scripts/qa/verify-issue-531.sh scripts/with-node.sh
@@ -547,7 +552,7 @@ help:
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | qa-verify-env-addresses | qa-verify-deploy-config | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet | deploy-mainnet-soft-launch"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-503 | verify-issue-504 | verify-issue-514 | verify-issue-518 | verify-issue-533 | verify-issue-539 | verify-issue-534 | verify-issue-542 | verify-issue-536 | verify-issue-537 | verify-issue-538 | verify-issue-541 | verify-issue-547 | verify-issue-485 | verify-issue-515 | verify-issue-550 | verify-issue-522 | verify-issue-524 | verify-issue-543 | verify-issue-548 | verify-issue-527 | verify-issue-528 | verify-issue-529 | verify-issue-530 | verify-issue-517 | verify-issue-519 | verify-issue-531 | verify-issue-501 | verify-issue-512 | verify-issue-516 | verify-issue-523 | verify-issue-508 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-398 | verify-issue-408 | verify-issue-399 | verify-issue-400 | verify-issue-435 | verify-issue-437 | verify-issue-438 | verify-issue-407 | verify-issue-429 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-503 | verify-issue-504 | verify-issue-514 | verify-issue-518 | verify-issue-533 | verify-issue-539 | verify-issue-534 | verify-issue-542 | verify-issue-536 | verify-issue-537 | verify-issue-538 | verify-issue-541 | verify-issue-547 | verify-issue-485 | verify-issue-515 | verify-issue-550 | verify-issue-522 | verify-issue-524 | verify-issue-543 | verify-issue-548 | verify-issue-527 | verify-issue-528 | verify-issue-529 | verify-issue-530 | verify-issue-517 | verify-issue-519 | verify-issue-554 | verify-issue-531 | verify-issue-501 | verify-issue-512 | verify-issue-516 | verify-issue-523 | verify-issue-508 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-398 | verify-issue-408 | verify-issue-399 | verify-issue-400 | verify-issue-435 | verify-issue-437 | verify-issue-438 | verify-issue-407 | verify-issue-429 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
 	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only)"

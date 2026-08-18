@@ -14,9 +14,25 @@ export interface ModalProps {
    * Use for blocking confirmations (e.g. first-visit risk acknowledgement — GitLab #138).
    */
   dismissible?: boolean
+  /**
+   * Portal stacking class. WalletConnect pairing must sit above Connect Wallet (GitLab #554).
+   * Default `z-[9999]`. Pairing sheet uses `z-[10001]`.
+   */
+  zIndexClassName?: string
+  /** Optional test id on the portal root. */
+  rootTestId?: string
 }
 
-export function Modal({ isOpen, onClose, title, children, dismissible = true, panelClassName }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  dismissible = true,
+  panelClassName,
+  zIndexClassName = 'z-[9999]',
+  rootTestId,
+}: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -63,7 +79,10 @@ export function Modal({ isOpen, onClose, title, children, dismissible = true, pa
   if (!isOpen) return null
 
   return createPortal(
-    <div className="app-modal-portal-root fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div
+      className={`app-modal-portal-root fixed inset-0 ${zIndexClassName} flex items-center justify-center p-4`}
+      data-testid={rootTestId}
+    >
       <div
         className="app-modal-backdrop"
         onClick={
