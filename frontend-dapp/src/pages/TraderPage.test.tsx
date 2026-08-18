@@ -21,6 +21,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTrader: vi.fn(),
     getTraderTrades: vi.fn(),
     getTraderPositions: vi.fn(),
+    getOraclePrice: vi.fn(),
   }
 })
 
@@ -44,6 +45,11 @@ describe('TraderPage (component)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getTraderTrades).mockResolvedValue([])
     vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([])
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
+      price_usd: '0.005',
+      sources: [],
+    })
   })
 
   it('shows retail market-data banner on indexer transport failure (GitLab #215)', async () => {

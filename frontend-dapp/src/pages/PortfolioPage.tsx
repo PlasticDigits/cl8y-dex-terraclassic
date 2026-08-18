@@ -157,7 +157,14 @@ export default function PortfolioPage() {
             <RetryError message="Failed to load trader summary" onRetry={() => void traderQuery.refetch()} />
           )}
 
-          {trader && <TraderSummaryStats trader={trader} isOwnProfile addressRowTestId="portfolio-address-row" />}
+          {trader && (
+            <TraderSummaryStats
+              trader={trader}
+              positions={positionsQuery.data}
+              isOwnProfile
+              addressRowTestId="portfolio-address-row"
+            />
+          )}
 
           <TraderPositionsTable
             positions={positionsQuery.data}

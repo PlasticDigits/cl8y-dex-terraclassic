@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { formatNum } from '@/utils/formatAmount'
 import { sounds } from '@/lib/sounds'
 import type { IndexerPosition } from '@/types'
-import { PnlValue } from './PnlValue'
+import { formatScaledPosition } from '@/utils/traderPositionDisplay'
 
 export type TraderPositionsTableProps = {
   positions: IndexerPosition[] | undefined
@@ -15,7 +14,7 @@ export type TraderPositionsTableProps = {
   sectionTestId?: string
 }
 
-/** Open quote positions from `GET /api/v1/traders/{addr}/positions` (GitLab #212). */
+/** Open quote positions from `GET /api/v1/traders/{addr}/positions` (GitLab #212 / #551). */
 export function TraderPositionsTable({
   positions,
   isLoading,
@@ -30,7 +29,7 @@ export function TraderPositionsTable({
         Open positions
       </h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-dim)' }}>
-        Net exposure per pair. LP balances are on{' '}
+        Net quote exposure per pair, in that pair&apos;s tokens. LP balances are on{' '}
         <Link to="/pool" className="underline" style={{ color: 'var(--accent)' }}>
           Pool
         </Link>
@@ -79,35 +78,68 @@ export function TraderPositionsTable({
               </tr>
             </thead>
             <tbody>
-              {positions.map((pos) => (
-                <tr key={pos.pair_address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--ink)' }}>
-                    <Link
-                      to={`/trade/${pos.pair_address}`}
-                      onClick={() => sounds.playButtonPress()}
-                      className="no-underline hover:underline"
-                      style={{ color: 'var(--accent)' }}
+              {positions.map((pos) => {
+                const scaled = formatScaledPosition(pos)
+                return (
+                  <tr key={pos.pair_address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--ink)' }}>
+                      <Link
+                        to={`/trade/${pos.pair_address}`}
+                        onClick={() => sounds.playButtonPress()}
+                        className="no-underline hover:underline"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        {pos.asset_0_symbol}/{pos.asset_1_symbol}
+                      </Link>
+                    </td>
+                    <td
+                      className="py-1.5 px-2 text-right"
+                      style={{ color: 'var(--ink)' }}
+                      data-testid="trader-position-net"
+                      title="Human quote token amount"
                     >
-                      {pos.asset_0_symbol}/{pos.asset_1_symbol}
-                    </Link>
-                  </td>
-                  <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
-                    {formatNum(pos.net_position_quote, 4)}
-                  </td>
-                  <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
-                    {formatNum(pos.avg_entry_price, 6)}
-                  </td>
-                  <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
-                    {formatNum(pos.total_cost_base)}
-                  </td>
-                  <td className="py-1.5 px-2 text-right">
-                    <PnlValue value={pos.realized_pnl} />
-                  </td>
-                  <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
-                    {pos.trade_count}
-                  </td>
-                </tr>
-              ))}
+                      {scaled.netPosition}
+                    </td>
+                    <td
+                      className="py-1.5 px-2 text-right"
+                      style={{ color: 'var(--ink-subtle)' }}
+                      data-testid="trader-position-avg-entry"
+                      title="Human base paid per 1 human quote. Not USD."
+                    >
+                      {scaled.avgEntry}
+                    </td>
+                    <td
+                      className="py-1.5 px-2 text-right"
+                      style={{ color: 'var(--ink-subtle)' }}
+                      data-testid="trader-position-cost"
+                      title="Human base token spent"
+                    >
+                      {scaled.costBasis}
+                    </td>
+                    <td
+                      className="py-1.5 px-2 text-right"
+                      data-testid="trader-position-pnl"
+                      title="Human base token realized P&L"
+                    >
+                      <span
+                        className="font-bold font-heading"
+                        style={{
+                          color: scaled.realizedPnl.startsWith('+')
+                            ? 'var(--color-positive)'
+                            : scaled.realizedPnl.startsWith('-')
+                              ? 'var(--color-negative)'
+                              : 'var(--ink-subtle)',
+                        }}
+                      >
+                        {scaled.realizedPnl}
+                      </span>
+                    </td>
+                    <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
+                      {pos.trade_count}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

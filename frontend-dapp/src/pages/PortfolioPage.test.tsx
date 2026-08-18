@@ -26,6 +26,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTraderPositions: vi.fn(),
     getTraderLimitPlacements: vi.fn(),
     getPairs: vi.fn(),
+    getOraclePrice: vi.fn(),
   }
 })
 
@@ -60,12 +61,14 @@ const mockTrader: IndexerTrader = {
 
 const mockPosition: IndexerPosition = {
   pair_address: 'terra1pair0000000000000000000000000000000',
-  asset_0_symbol: 'LUNC',
-  asset_1_symbol: 'USTC',
-  net_position_quote: '100',
-  avg_entry_price: '0.01',
-  total_cost_base: '1',
-  realized_pnl: '0.25',
+  asset_0_symbol: 'UST1',
+  asset_1_symbol: 'cUSTC',
+  asset_0_decimals: 6,
+  asset_1_decimals: 6,
+  net_position_quote: '38290000',
+  avg_entry_price: '0.00496',
+  total_cost_base: '190000',
+  realized_pnl: '25000000',
   trade_count: 3,
 }
 
@@ -89,6 +92,11 @@ describe('PortfolioPage (component)', () => {
     vi.mocked(indexerClient.getTraderTrades).mockResolvedValue([])
     vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([])
     vi.mocked(indexerClient.getTraderLimitPlacements).mockResolvedValue([])
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
+      price_usd: '0.005',
+      sources: [],
+    })
   })
 
   it('shows connect prompt when wallet disconnected (GitLab #212)', () => {
@@ -122,11 +130,16 @@ describe('PortfolioPage (component)', () => {
     vi.mocked(indexerClient.getTrader).mockResolvedValue(mockTrader)
     vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([mockPosition])
     renderPortfolio()
-    await waitFor(() => expect(screen.getByText(/LUNC\/USTC/i)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/UST1\/cUSTC/i)).toBeInTheDocument())
     expect(screen.getByTestId('portfolio-positions-section')).toBeInTheDocument()
     expect(screen.getByText(/Bronze/i)).toBeInTheDocument()
-    const tradeLink = screen.getByRole('link', { name: /LUNC\/USTC/i })
+    const tradeLink = screen.getByRole('link', { name: /UST1\/cUSTC/i })
     expect(tradeLink).toHaveAttribute('href', `/trade/${mockPosition.pair_address}`)
+    expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/38\.29 cUSTC/)
+    expect(screen.getByTestId('trader-position-net').textContent).not.toMatch(/M/)
+    expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/UST1/)
+    expect(screen.getByTestId('trader-summary-volume')).toHaveTextContent('—')
+    expect(screen.getByTestId('trader-summary-fees')).toHaveTextContent('—')
   })
 
   it('shows market-data outage banner on indexer transport failure', async () => {

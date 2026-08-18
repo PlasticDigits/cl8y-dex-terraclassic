@@ -681,16 +681,16 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 | **LP overview** | Indexer `GET /api/v1/pairs` (max **50** pairs) + LCD CW20 **`balance`** per valid `lp_token` (concurrency **5**) via [`usePortfolioLpBalances`](../frontend-dapp/src/hooks/usePortfolioLpBalances.ts); skips invalid bech32 / per-pair LCD errors — **not** merged into positions table. |
 | **Profile API** | `GET /api/v1/traders/{addr}` — **404** when the wallet has no indexed trader row; portfolio still shows positions + activity when present. |
 | **LP vs trader** | Open positions are **swap-tracked quote exposure**; LP section is **on-chain LP token balances** — separate sections and copy; pool txs on **`/pool`**. |
-| **P&amp;L semantics** | **Realized** indexer P&amp;L only — **no** unrealized mark-to-market on portfolio ([#217](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217) defers until API/product agree). |
+| **P&amp;L semantics** | **Realized** indexer P&amp;L only — **no** unrealized mark-to-market on portfolio ([#217](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217) defers until API/product agree). Per-pair amounts are **human token units** with the token symbol; cross-pair header totals are **USD** or **—** when units differ ([#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551), **P551-1–P551-5**). |
 | **Privacy** | Trader routes are **public**; portfolio does not imply on-chain secrecy. |
 | **Read-only** | No signing on portfolio; limits deep-link to **`/trade/{pairAddr}`** and **`/limits`**. |
 | **Outage UX** | `MarketDataServiceOutageBanner` + `RetryError` parity with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) for indexer-backed sections. |
 | **Nav** | `Portfolio` in `PRIMARY_NAV_ITEMS` ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)); wallet menu **My Portfolio** link. |
 | **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. |
 
-**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs).
+**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md).
 
 ### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
 

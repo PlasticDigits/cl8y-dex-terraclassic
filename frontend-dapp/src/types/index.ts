@@ -548,6 +548,12 @@ export interface IndexerPosition {
   pair_address: string
   asset_0_symbol: string
   asset_1_symbol: string
+  /** Factory `asset_0` decimals — scale cost basis / realized P&L (GitLab #551). */
+  asset_0_decimals?: number
+  /** Factory `asset_1` (quote) decimals — scale net position (GitLab #551). */
+  asset_1_decimals?: number
+  asset_0_denom?: string | null
+  asset_1_denom?: string | null
   net_position_quote: string
   avg_entry_price: string
   total_cost_base: string

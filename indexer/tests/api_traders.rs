@@ -301,4 +301,10 @@ async fn get_trader_positions_returns_rows() {
     assert_eq!(body.len(), 1);
     assert_eq!(body[0]["pair_address"], seed.pair_address);
     assert!(body[0]["net_position_quote"].is_string());
+    assert_eq!(body[0]["asset_0_decimals"], 6);
+    assert_eq!(body[0]["asset_1_decimals"], 6);
+    assert_eq!(body[0]["asset_0_symbol"], "LUNC");
+    assert_eq!(body[0]["asset_1_symbol"], "USTC");
+    assert_eq!(body[0]["asset_0_denom"], "uluna");
+    assert!(body[0]["asset_1_denom"].is_null() || body[0].get("asset_1_denom").is_none());
 }
