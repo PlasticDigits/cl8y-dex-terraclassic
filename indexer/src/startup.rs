@@ -54,9 +54,11 @@ mod tests {
             block_tx_max_pages: 50,
             block_process_max_retries: 5,
             block_process_retry_backoff_ms: 2000,
-            reorg_alert_webhook_url: Some(format!(
-                "https://hooks.example.com/secret/{password}"
-            )),
+            reorg_alert_webhook_url: Some(format!("https://hooks.example.com/secret/{password}")),
+            hub_custc_address: crate::config::DEFAULT_HUB_CUSTC_ADDRESS.to_string(),
+            hub_ust1_address: crate::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
+            hub_ustr_address: crate::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
+            hub_usd_tvl_floor: "100".parse().unwrap(),
         }
     }
 

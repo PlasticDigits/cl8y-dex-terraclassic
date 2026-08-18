@@ -455,3 +455,19 @@ describe('oracle ticker allowlist (GitLab #550)', () => {
     expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/history/ustc')
   })
 })
+
+describe('hub price ticker allowlist (GitLab #556)', () => {
+  it('getHubPrice allowlists ticker path segments and skips injection', async () => {
+    vi.mocked(fetch).mockImplementation(
+      async () => new Response(JSON.stringify({ ticker: 'ustr', price_usd: '0.01' }), { status: 200 })
+    )
+    const client = await loadModule()
+    await client.getHubPrice('ustr')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/hub-prices/ustr')
+    const skipped = await client.getHubPrice('../ustr')
+    expect(skipped).toBeNull()
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).not.toContain('..')
+    const js = await client.getHubPrice('javascript:alert(1)')
+    expect(js).toBeNull()
+  })
+})

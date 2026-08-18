@@ -392,6 +392,10 @@ export interface IndexerOverview {
   pairs_added_30d?: number
   active_pairs_24h?: number
   unique_traders_24h?: number
+  /** DEX hub USD (#556). Additive; null when unresolved. */
+  custc_price_usd?: string | null
+  ust1_price_usd?: string | null
+  ustr_price_usd?: string | null
 }
 
 /** `GET /api/v1/tokens` */
@@ -467,6 +471,22 @@ export interface IndexerOracleHistoryResponse {
   /** Path ticker (`ustc`, `lunc`, or `vfdusd`). */
   ticker: string
   prices: IndexerOracleHistoryEntry[]
+}
+
+export interface IndexerHubPriceEntry {
+  ticker: string
+  asset_id?: number | null
+  price_usd: string | null
+  source_pair?: string | null
+  tvl_usd?: string | null
+  updated_at?: string | null
+}
+
+/** `GET /api/v1/hub-prices` — DEX marks, not CEX (GitLab #556). */
+export interface IndexerHubPricesResponse {
+  metadata: string
+  tickers: string[]
+  prices: IndexerHubPriceEntry[]
 }
 
 /** One hop for `POST /api/v1/route/solve` `hybrid_by_hop` (matches on-chain `HybridSwapParams`). */

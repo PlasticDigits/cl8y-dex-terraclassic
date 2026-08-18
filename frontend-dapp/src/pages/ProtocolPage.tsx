@@ -10,9 +10,11 @@ import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatDateTime } from '@/utils/formatDate'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { ProtocolGlobalStats } from '@/components/protocol/ProtocolGlobalStats'
+import { ProtocolDexHubPrices } from '@/components/protocol/ProtocolDexHubPrices'
 import { ProtocolOracleCard } from '@/components/protocol/ProtocolOracleCard'
 import { useProtocolOracleQueries } from '@/components/protocol/useProtocolOracleQueries'
 import { useProtocolOverviewQuery } from '@/components/protocol/useProtocolOverviewQuery'
+import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
 import { parseProtocolOracleTicker, type ProtocolOracleTicker } from '@/utils/protocolOracleTicker'
 import {
   FACTORY_CONTRACT_ADDRESS,
@@ -46,6 +48,7 @@ export default function ProtocolPage() {
   }
 
   const overviewQuery = useProtocolOverviewQuery()
+  const hubPricesQuery = useProtocolHubPricesQuery()
   const { priceQuery, historyQuery } = useProtocolOracleQueries(ticker)
 
   const hooksQuery = useQuery({
@@ -59,7 +62,7 @@ export default function ProtocolPage() {
     retry: false,
   })
 
-  const marketDataDown = detectMarketDataOutage(overviewQuery, priceQuery, historyQuery)
+  const marketDataDown = detectMarketDataOutage(overviewQuery, hubPricesQuery, priceQuery, historyQuery)
 
   return (
     <div className="space-y-4">
@@ -68,7 +71,7 @@ export default function ProtocolPage() {
           Protocol
         </h1>
         <p className="text-sm mt-1 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-          DEX USD stats and CEX reference prices. Not settlement.
+          DEX USD stats, DEX hub marks, and CEX reference prices. Not settlement.
         </p>
       </div>
 
@@ -79,6 +82,7 @@ export default function ProtocolPage() {
           lead={PROTOCOL_MARKET_DATA_OUTAGE_LEAD}
           onRetry={() => {
             void overviewQuery.refetch()
+            void hubPricesQuery.refetch()
             void priceQuery.refetch()
             void historyQuery.refetch()
           }}
@@ -86,6 +90,7 @@ export default function ProtocolPage() {
       )}
 
       <ProtocolGlobalStats overviewQuery={overviewQuery} />
+      <ProtocolDexHubPrices query={hubPricesQuery} />
       <ProtocolOracleCard
         ticker={ticker}
         onTickerChange={setTicker}

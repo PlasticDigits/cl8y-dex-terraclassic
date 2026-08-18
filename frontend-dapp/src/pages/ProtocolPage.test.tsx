@@ -28,8 +28,19 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getOracleHistory: vi.fn(),
     getHookEvents: vi.fn(),
     getOverview: vi.fn(),
+    getHubPrices: vi.fn(),
   }
 })
+
+const hubPricesOk = {
+  metadata: 'DEX hub USD marks. Not CEX.',
+  tickers: ['custc', 'ust1', 'ustr'],
+  prices: [
+    { ticker: 'custc', price_usd: '0.005', source_pair: null, tvl_usd: null, updated_at: '2026-01-01T00:00:00Z' },
+    { ticker: 'ust1', price_usd: '0.98', source_pair: 'terra1ust1custcpair', tvl_usd: '500', updated_at: '2026-01-01T00:00:00Z' },
+    { ticker: 'ustr', price_usd: '0.012', source_pair: 'terra1ustrust1pair', tvl_usd: '200', updated_at: '2026-01-01T00:00:00Z' },
+  ],
+}
 
 const overviewOk = {
   total_volume_24h: '999999',
@@ -66,6 +77,7 @@ function mockOracle(ticker: string, price: string) {
 describe('ProtocolPage (GitLab #550 / #378)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue(hubPricesOk)
     mockOracle('ustc', '0.00512')
     vi.mocked(indexerClient.getHookEvents).mockResolvedValue([])
   })
@@ -82,8 +94,10 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
   it('renders global stats above a single oracle card and does not headline mixed-unit volume', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const stats = await screen.findByTestId('protocol-global-stats')
+    const hub = await screen.findByTestId('protocol-dex-hub-prices')
     const oracle = await screen.findByTestId('protocol-oracle')
-    expect(stats.compareDocumentPosition(oracle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(stats.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(hub.compareDocumentPosition(oracle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(stats).getByTestId('protocol-stat-volume-24h')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-7d')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-30d')).toBeInTheDocument()
@@ -183,5 +197,35 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     await waitFor(() => expect(vol7d).toHaveTextContent(/—/))
     expect(screen.queryByText('NaN')).not.toBeInTheDocument()
     expect(screen.queryByText('undefined')).not.toBeInTheDocument()
+  })
+
+  it('renders DEX hub card for cUSTC / UST1 / USTR and never queries CEX ustr', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const hub = await screen.findByTestId('protocol-dex-hub-prices')
+    expect(await within(hub).findByTestId('protocol-dex-hub-custc-usd')).toHaveTextContent('$')
+    expect(within(hub).getByTestId('protocol-dex-hub-ust1-usd')).toHaveTextContent('$')
+    expect(within(hub).getByTestId('protocol-dex-hub-ustr-usd')).toHaveTextContent('$')
+    expect(hub).toHaveTextContent(/DEX reference — not CEX, not settlement/i)
+    expect(indexerClient.getHubPrices).toHaveBeenCalled()
+    expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('ustr')
+    expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('ust1')
+    expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('custc')
+    expect(screen.getByTestId('protocol-oracle-tabs').querySelectorAll('[role="tab"]')).toHaveLength(3)
+  })
+
+  it('null hub prices render em-dash, not $0 or $1', async () => {
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub USD marks. Not CEX.',
+      tickers: ['custc', 'ust1', 'ustr'],
+      prices: [
+        { ticker: 'custc', price_usd: null },
+        { ticker: 'ust1', price_usd: null },
+        { ticker: 'ustr', price_usd: null },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    expect(await screen.findByTestId('protocol-dex-hub-ustr-usd')).toHaveTextContent('—')
+    expect(screen.getByTestId('protocol-dex-hub-ust1-usd')).toHaveTextContent('—')
+    expect(screen.queryByTestId('protocol-dex-hub-ustr-usd')?.textContent).not.toMatch(/\$0|\$1|2\.5/)
   })
 })

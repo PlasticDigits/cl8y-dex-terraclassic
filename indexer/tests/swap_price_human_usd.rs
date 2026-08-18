@@ -67,15 +67,20 @@ async fn mixed_decimal_ustr_print_persists_human_and_usd() {
         .await
         .expect("quote row")
         .expect("quote");
+    let hub = pair_price_usd::HubQuoteUsd {
+        ust1: None,
+        ustr: Some(bd("0.01")),
+    };
     let price_usd = pair_price_usd::price_usd_for_human_quote_per_base(
         &quote,
         &oriented.price,
         Some(&ustc),
         None,
+        Some(&hub),
     )
     .expect("usd");
     let usd_f = price_usd.to_string().parse::<f64>().unwrap();
-    assert!((usd_f - 0.983).abs() < 0.03, "got {usd_f}");
+    assert!((usd_f - human * 0.01).abs() < 0.01, "got {usd_f}");
 
     sqlx::query(
         "INSERT INTO swap_events
@@ -155,6 +160,7 @@ async fn same_decimal_custc_print_usd_near_one() {
         &oriented.price,
         Some(&ustc),
         None,
+        None,
     )
     .expect("usd");
     let usd_f = price_usd.to_string().parse::<f64>().unwrap();
@@ -181,7 +187,18 @@ async fn same_decimal_custc_print_usd_near_one() {
     let stats = cl8y_dex_indexer::db::queries::swap_events::get_24h_stats_for_pair(&pool, pair_id)
         .await
         .expect("stats");
-    assert!((stats.close_price.as_ref().unwrap().to_string().parse::<f64>().unwrap() - 206.62).abs() < 0.02);
+    assert!(
+        (stats
+            .close_price
+            .as_ref()
+            .unwrap()
+            .to_string()
+            .parse::<f64>()
+            .unwrap()
+            - 206.62)
+            .abs()
+            < 0.02
+    );
     assert!(
         (stats
             .close_price_usd

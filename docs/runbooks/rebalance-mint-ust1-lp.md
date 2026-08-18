@@ -21,7 +21,7 @@ UST1, cUSTC, and USTR list the DEX 2-of-3 as an **extra minter**. Primary minter
 
 - Oracle: `GET https://indexer.dex.cl8y.com/api/v1/oracle/price/ustc` (override `UST1_LP_USTC_USD`).
 - Target UST1/cUSTC = **cUSTC per UST1** = `1 / USTC_USD`.
-- USTR fair value = **2.5 × USTC** (same as indexer `USTR_PER_USTC`). Used only to size UST1/USTR LP, not to swap that pair.
+- USTR fair value for **LP sizing** = **2.5 × USTC** (`USTR_PER_USTC` in this script only). Not a display oracle — Charts/Protocol USD uses DEX hub marks ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Do not swap UST1/USTR.
 - After the cUSTC-pair swap, the script refuses to provide if the pool is still outside **0.1%**.
 - Live run **re-queries** UST1/cUSTC reserves after mint (and before each of up to **3** swaps). A plan computed before the 2-of-3 mint txs will overshoot if the pool already moved toward the peg.
 - If the price gate fails, minted inventory stays on `cl8ydeploy`. Re-run; mint should skip when balances already cover LP.

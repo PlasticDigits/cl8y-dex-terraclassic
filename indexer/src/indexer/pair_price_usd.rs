@@ -1,25 +1,28 @@
-//! USD of 1 human unit of pair **base** (`asset_0`) at index time (GitLab #522).
+//! USD of 1 human unit of pair **base** (`asset_0`) at index time (GitLab #522 / #556).
 //!
 //! `price_usd = human_quote_per_base * usd_per_human_quote` using the #515 ticker
-//! oracles plus a small quote-token catalog (P522-Q):
+//! oracles plus DEX hub USD for UST1/USTR (P522-Q, GitLab #556):
 //!
 //! | Quote (symbol / denom) | USD handle |
 //! |------------------------|------------|
-//! | UST1 | `$1` |
-//! | USTC, cUSTC / CUSTC, `uusd` | USTC oracle |
+//! | UST1 | `hub_prices.ust1` (largest cUSTC/UST1 TVL) — **not** `$1` |
+//! | USTC, cUSTC / CUSTC, `uusd` | USTC oracle (= hub cUSTC) |
 //! | LUNC, cLUNC / CLUNC, `uluna` | LUNC oracle |
-//! | USTR | `2.5 ×` USTC oracle (seed peg, #508 / #522) |
+//! | USTR | `hub_prices.ustr` (largest vs cUSTC or UST1) — **not** `2.5 ×` USTC |
 //!
 //! Unknown quotes → `None` (do not invent a USD). Advisory only — not settlement.
-
-use std::str::FromStr;
+//! Ops LP seed for UST1/USTR sizing stays in rebalance scripts only — not ingest.
 
 use bigdecimal::BigDecimal;
 
 use crate::db::queries::assets::AssetRow;
 
-/// USTR human units per 1 USTC human unit used for the #508 seed peg (P522-Q).
-pub const USTR_PER_USTC: &str = "2.5";
+/// DEX hub USD for UST1 / USTR quotes at ingest (#556). Missing → do not peg.
+#[derive(Debug, Clone, Default)]
+pub struct HubQuoteUsd {
+    pub ust1: Option<BigDecimal>,
+    pub ustr: Option<BigDecimal>,
+}
 
 /// `10^exp` as [`BigDecimal`] (`exp` may be negative).
 pub fn ten_pow_i32(exp: i32) -> BigDecimal {
@@ -81,15 +84,17 @@ pub fn usd_per_human_quote(
     kind: QuoteUsdKind,
     ustc_usd: Option<&BigDecimal>,
     lunc_usd: Option<&BigDecimal>,
+    hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
     match kind {
-        QuoteUsdKind::Peg1 => Some(BigDecimal::from(1)),
+        QuoteUsdKind::Peg1 => hub
+            .and_then(|h| h.ust1.clone())
+            .filter(|p| *p > BigDecimal::from(0)),
         QuoteUsdKind::Ustc => ustc_usd.cloned(),
         QuoteUsdKind::Lunc => lunc_usd.cloned(),
-        QuoteUsdKind::Ustr => {
-            let ustc = ustc_usd?;
-            Some(ustc * BigDecimal::from_str(USTR_PER_USTC).ok()?)
-        }
+        QuoteUsdKind::Ustr => hub
+            .and_then(|h| h.ustr.clone())
+            .filter(|p| *p > BigDecimal::from(0)),
     }
 }
 
@@ -107,9 +112,10 @@ pub fn price_usd_for_human_quote_per_base(
     human_quote_per_base: &BigDecimal,
     ustc_usd: Option<&BigDecimal>,
     lunc_usd: Option<&BigDecimal>,
+    hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
     let kind = quote_usd_kind(&quote.symbol, quote.denom.as_deref())?;
-    let quote_usd = usd_per_human_quote(kind, ustc_usd, lunc_usd)?;
+    let quote_usd = usd_per_human_quote(kind, ustc_usd, lunc_usd, hub)?;
     if quote_usd <= BigDecimal::from(0) {
         return None;
     }
@@ -174,9 +180,10 @@ fn catalog_usd_per_human(
     ustc_usd: Option<&BigDecimal>,
     lunc_usd: Option<&BigDecimal>,
     configured_ustc_denom: Option<&str>,
+    hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
     let kind = quote_usd_kind_for_asset(asset, configured_ustc_denom)?;
-    let usd = usd_per_human_quote(kind, ustc_usd, lunc_usd)?;
+    let usd = usd_per_human_quote(kind, ustc_usd, lunc_usd, hub)?;
     if usd <= BigDecimal::from(0) {
         None
     } else {
@@ -219,9 +226,11 @@ pub fn volume_usd_for_swap(
     ustc_usd: Option<&BigDecimal>,
     lunc_usd: Option<&BigDecimal>,
     configured_ustc_denom: Option<&str>,
+    hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
     if quote_usd_kind_for_asset(pair_quote, configured_ustc_denom).is_some() {
-        let usd = catalog_usd_per_human(pair_quote, ustc_usd, lunc_usd, configured_ustc_denom)?;
+        let usd =
+            catalog_usd_per_human(pair_quote, ustc_usd, lunc_usd, configured_ustc_denom, hub)?;
         if offer.id == pair_quote.id {
             return notional_usd(offer, offer_amount, &usd);
         }
@@ -230,10 +239,11 @@ pub fn volume_usd_for_swap(
         }
         return None;
     }
-    if let Some(usd) = catalog_usd_per_human(offer, ustc_usd, lunc_usd, configured_ustc_denom) {
+    if let Some(usd) = catalog_usd_per_human(offer, ustc_usd, lunc_usd, configured_ustc_denom, hub)
+    {
         return notional_usd(offer, offer_amount, &usd);
     }
-    if let Some(usd) = catalog_usd_per_human(ask, ustc_usd, lunc_usd, configured_ustc_denom) {
+    if let Some(usd) = catalog_usd_per_human(ask, ustc_usd, lunc_usd, configured_ustc_denom, hub) {
         return notional_usd(ask, return_amount, &usd);
     }
     None
@@ -270,9 +280,15 @@ mod tests {
     #[test]
     fn catalog_maps_wraps_and_denoms() {
         assert_eq!(quote_usd_kind("cUSTC", None), Some(QuoteUsdKind::Ustc));
-        assert_eq!(quote_usd_kind("USTC", Some("uusd")), Some(QuoteUsdKind::Ustc));
+        assert_eq!(
+            quote_usd_kind("USTC", Some("uusd")),
+            Some(QuoteUsdKind::Ustc)
+        );
         assert_eq!(quote_usd_kind("cLUNC", None), Some(QuoteUsdKind::Lunc));
-        assert_eq!(quote_usd_kind("LUNC", Some("uluna")), Some(QuoteUsdKind::Lunc));
+        assert_eq!(
+            quote_usd_kind("LUNC", Some("uluna")),
+            Some(QuoteUsdKind::Lunc)
+        );
         assert_eq!(quote_usd_kind("UST1", None), Some(QuoteUsdKind::Peg1));
         assert_eq!(quote_usd_kind("USTR", None), Some(QuoteUsdKind::Ustr));
         assert_eq!(quote_usd_kind("CL8Y", None), None);
@@ -283,7 +299,8 @@ mod tests {
         let quote = asset("cUSTC", None);
         let human = bd("206.62");
         let ustc = bd("0.004928");
-        let usd = price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None).unwrap();
+        let usd =
+            price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None, None).unwrap();
         let f = {
             use bigdecimal::ToPrimitive;
             usd.to_f64().unwrap()
@@ -292,23 +309,39 @@ mod tests {
     }
 
     #[test]
-    fn ust1_ustr_last_print_is_about_one_dollar() {
+    fn ust1_ustr_last_print_uses_hub_ustr_not_2_5x() {
         let quote = asset("USTR", None);
         let human = bd("79.72");
         let ustc = bd("0.004928");
-        let usd = price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None).unwrap();
+        let hub = HubQuoteUsd {
+            ust1: None,
+            ustr: Some(bd("0.01")),
+        };
+        let usd = price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None, Some(&hub))
+            .unwrap();
         let f = {
             use bigdecimal::ToPrimitive;
             usd.to_f64().unwrap()
         };
-        // 79.72 * 2.5 * 0.004928 ≈ 0.983
-        assert!((f - 0.983).abs() < 0.02, "got {f}");
+        // 79.72 × hub USTR $0.01 = 0.7972 — not 79.72 × 2.5 × 0.004928 ≈ 0.983
+        assert!((f - 0.7972).abs() < 0.001, "got {f}");
+        assert!((f - 0.983).abs() > 0.1);
+        assert!(
+            price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None, None).is_none()
+        );
     }
 
     #[test]
     fn unknown_quote_yields_none() {
         let quote = asset("CL8Y", None);
-        assert!(price_usd_for_human_quote_per_base(&quote, &bd("1"), Some(&bd("0.005")), None).is_none());
+        assert!(price_usd_for_human_quote_per_base(
+            &quote,
+            &bd("1"),
+            Some(&bd("0.005")),
+            None,
+            None
+        )
+        .is_none());
     }
 
     fn cw20(id: i32, symbol: &str, decimals: i16, contract: &str) -> AssetRow {
@@ -352,20 +385,43 @@ mod tests {
         v.to_f64().unwrap()
     }
 
-    /// I1: 10 human USTR offered into UST1/USTR → 10 × 2.5 × USTC.
+    /// I1: 10 human USTR offered into UST1/USTR uses hub USTR, not 2.5× USTC.
     #[test]
-    fn volume_ust1_ustr_uses_human_ustr_times_peg() {
+    fn volume_ust1_ustr_uses_hub_ustr() {
         let ust1 = cw20(1, "UST1", 6, "terra1ust1");
         let ustr = cw20(2, "USTR", 18, "terra1ustr");
         let offer = bd("10000000000000000000"); // 10 human USTR
         let ret = bd("1000000"); // 1 human UST1 (unused when quote=USTR)
         let ustc = bd("0.004878");
+        let hub = HubQuoteUsd {
+            ust1: None,
+            ustr: Some(bd("0.01")),
+        };
         let usd = volume_usd_for_swap(
-            &ustr, &ust1, &offer, &ret, &ustr, Some(&ustc), None, None,
+            &ustr,
+            &ust1,
+            &offer,
+            &ret,
+            &ustr,
+            Some(&ustc),
+            None,
+            None,
+            Some(&hub),
         )
         .unwrap();
-        let expected = 10.0 * 2.5 * 0.004878;
-        assert!((usd_f(&usd) - expected).abs() < 1e-9, "got {}", usd_f(&usd));
+        assert!((usd_f(&usd) - 0.10).abs() < 1e-9, "got {}", usd_f(&usd));
+        assert!(volume_usd_for_swap(
+            &ustr,
+            &ust1,
+            &offer,
+            &ret,
+            &ustr,
+            Some(&ustc),
+            None,
+            None,
+            None,
+        )
+        .is_none());
     }
 
     /// I2: UST1/cUSTC — quote preferred, not sum of both legs.
@@ -377,7 +433,15 @@ mod tests {
         let ret = bd("200000000"); // 200 cUSTC
         let ustc = bd("0.005");
         let usd = volume_usd_for_swap(
-            &ust1, &custc, &offer, &ret, &custc, Some(&ustc), None, None,
+            &ust1,
+            &custc,
+            &offer,
+            &ret,
+            &custc,
+            Some(&ustc),
+            None,
+            None,
+            None,
         )
         .unwrap();
         // Quote = cUSTC → 200 × 0.005 = 1.0, not 1.0 + 200×0.005
@@ -395,7 +459,15 @@ mod tests {
         let ret = bd("200000000");
         let ustc = bd("0.005");
         let usd = volume_usd_for_swap(
-            &lunc, &uusd, &offer, &ret, &uusd, Some(&ustc), None, None,
+            &lunc,
+            &uusd,
+            &offer,
+            &ret,
+            &uusd,
+            Some(&ustc),
+            None,
+            None,
+            None,
         )
         .unwrap();
         assert!((usd_f(&usd) - 1.0).abs() < 1e-9, "got {}", usd_f(&usd));
@@ -411,7 +483,15 @@ mod tests {
         let ustc = bd("0.005");
         let lunc = bd("0.00005");
         let usd = volume_usd_for_swap(
-            &ust1, &clunc, &offer, &ret, &clunc, Some(&ustc), Some(&lunc), None,
+            &ust1,
+            &clunc,
+            &offer,
+            &ret,
+            &clunc,
+            Some(&ustc),
+            Some(&lunc),
+            None,
+            None,
         )
         .unwrap();
         assert!((usd_f(&usd) - 0.0001).abs() < 1e-12, "got {}", usd_f(&usd));
@@ -430,6 +510,7 @@ mod tests {
             &bd("1000000"),
             &other,
             Some(&ustc),
+            None,
             None,
             None,
         )
@@ -452,12 +533,16 @@ mod tests {
             Some(&ustc),
             None,
             None,
+            Some(&HubQuoteUsd {
+                ust1: None,
+                ustr: Some(bd("0.01")),
+            }),
         )
         .is_none());
     }
 
     #[test]
-    fn volume_missing_ustc_oracle_is_none_except_ust1_peg() {
+    fn volume_missing_hub_usd_does_not_peg_ust1() {
         let ust1 = cw20(1, "UST1", 6, "terra1ust1");
         let ustr = cw20(2, "USTR", 18, "terra1ustr");
         assert!(volume_usd_for_swap(
@@ -469,9 +554,26 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .is_none());
         let gem = cw20(3, "GEM", 6, "terra1gem");
+        assert!(volume_usd_for_swap(
+            &ust1,
+            &gem,
+            &bd("2000000"),
+            &bd("1"),
+            &gem,
+            None,
+            None,
+            None,
+            None,
+        )
+        .is_none());
+        let hub = HubQuoteUsd {
+            ust1: Some(bd("1")),
+            ustr: None,
+        };
         let usd = volume_usd_for_swap(
             &ust1,
             &gem,
@@ -481,6 +583,7 @@ mod tests {
             None,
             None,
             None,
+            Some(&hub),
         )
         .unwrap();
         assert!((usd_f(&usd) - 2.0).abs() < 1e-9);
@@ -491,12 +594,32 @@ mod tests {
         let ust1 = cw20(1, "UST1", 6, "terra1ust1");
         let ustr = cw20(2, "USTR", 18, "terra1ustr");
         let ustc = bd("0.005");
+        let hub = HubQuoteUsd {
+            ust1: None,
+            ustr: Some(bd("0.01")),
+        };
         assert!(volume_usd_for_swap(
-            &ustr, &ust1, &bd("0"), &bd("1"), &ustr, Some(&ustc), None, None,
+            &ustr,
+            &ust1,
+            &bd("0"),
+            &bd("1"),
+            &ustr,
+            Some(&ustc),
+            None,
+            None,
+            Some(&hub),
         )
         .is_none());
         assert!(volume_usd_for_swap(
-            &ustr, &ust1, &bd("-1"), &bd("1"), &ustr, Some(&ustc), None, None,
+            &ustr,
+            &ust1,
+            &bd("-1"),
+            &bd("1"),
+            &ustr,
+            Some(&ustc),
+            None,
+            None,
+            Some(&hub),
         )
         .is_none());
     }
@@ -507,8 +630,20 @@ mod tests {
         let ustr = cw20(2, "USTR", 18, "terra1ustr");
         // 10^26 raw / 10^6 = 10^20 human UST1 × $1 — PostgreSQL NUMERIC(38,18) max is |x| < 10^20.
         let offer = bd("100000000000000000000000000");
+        let hub = HubQuoteUsd {
+            ust1: Some(bd("1")),
+            ustr: None,
+        };
         assert!(volume_usd_for_swap(
-            &ust1, &ustr, &offer, &bd("1"), &ust1, None, None, None,
+            &ust1,
+            &ustr,
+            &offer,
+            &bd("1"),
+            &ust1,
+            None,
+            None,
+            None,
+            Some(&hub),
         )
         .is_none());
         assert!(fits_numeric_38_18(&bd("99999999999999999999.99")));

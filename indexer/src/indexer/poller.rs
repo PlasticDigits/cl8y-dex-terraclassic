@@ -45,13 +45,8 @@ pub async fn run_indexer(
     let fee_addr = config.fee_discount_address.clone();
     let tier_reconcile_secs = config.tier_sync_reconcile_interval_secs;
     tokio::spawn(async move {
-        trader_tracker::run_tier_reconcile_loop(
-            tier_pool,
-            tier_lcd,
-            fee_addr,
-            tier_reconcile_secs,
-        )
-        .await;
+        trader_tracker::run_tier_reconcile_loop(tier_pool, tier_lcd, fee_addr, tier_reconcile_secs)
+            .await;
     });
 
     if let Some(fee_addr) = config
@@ -86,6 +81,20 @@ pub async fn run_indexer(
     let snapshot_interval = config.book_snapshot_interval_ms;
     tokio::spawn(async move {
         book_snapshot::run_book_snapshot_loop(snapshot_pool, snapshot_lcd, snapshot_interval).await;
+    });
+
+    let hub_cfg = crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config);
+    let hub_pool = pool.clone();
+    let hub_ustc = oracle_prices.ustc.clone();
+    let hub_interval = std::time::Duration::from_millis(snapshot_interval.max(1_000));
+    tokio::spawn(async move {
+        crate::db::queries::hub_prices::run_hub_usd_refresh_loop(
+            hub_pool,
+            hub_cfg,
+            hub_ustc,
+            hub_interval,
+        )
+        .await;
     });
 
     let mut last_indexed = state::get_last_indexed_height(&pool).await?;
@@ -157,14 +166,8 @@ pub async fn run_indexer(
                 return Err(e.into());
             }
 
-            match block_indexer::index_block_with_retries(
-                &pool,
-                &lcd,
-                &config,
-                height,
-                &ustc_price,
-            )
-            .await
+            match block_indexer::index_block_with_retries(&pool, &lcd, &config, height, &ustc_price)
+                .await
             {
                 Ok(_meta) => {
                     last_indexed = height;
