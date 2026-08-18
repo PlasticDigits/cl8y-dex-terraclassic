@@ -267,8 +267,7 @@ pub async fn process_block_txs(
     for tx in txs {
         if let Some(ref fee_addr) = config.fee_discount_address {
             if !fee_addr.is_empty() {
-                let tier_events =
-                    trader_tracker::parse_fee_discount_registry_events(tx, fee_addr);
+                let tier_events = trader_tracker::parse_fee_discount_registry_events(tx, fee_addr);
                 if !tier_events.is_empty() {
                     trader_tracker::apply_registry_tier_events(pool, &tier_events).await?;
                 }
@@ -286,16 +285,20 @@ pub async fn process_block_txs(
         let liq_events = parse_liquidity_events(tx);
         let factory_addr = config.factory_address.as_str();
         for liq in &liq_events {
-            process_liquidity_event(
-                pool, lcd, factory_addr, liq, height, block_time, &tx.txhash,
-            )
-            .await?;
+            process_liquidity_event(pool, lcd, factory_addr, liq, height, block_time, &tx.txhash)
+                .await?;
         }
 
         let lo_fills = parse_limit_order_fills(tx);
         for fill in &lo_fills {
             process_limit_order_fill(
-                pool, lcd, factory_addr, fill, height, block_time, &tx.txhash,
+                pool,
+                lcd,
+                factory_addr,
+                fill,
+                height,
+                block_time,
+                &tx.txhash,
             )
             .await?;
         }
@@ -303,7 +306,13 @@ pub async fn process_block_txs(
         let placements = parse_limit_order_placements(tx);
         for p in &placements {
             process_limit_order_placement(
-                pool, lcd, factory_addr, p, height, block_time, &tx.txhash,
+                pool,
+                lcd,
+                factory_addr,
+                p,
+                height,
+                block_time,
+                &tx.txhash,
             )
             .await?;
         }
@@ -311,7 +320,13 @@ pub async fn process_block_txs(
         let cancellations = parse_limit_order_cancellations(tx);
         for c in &cancellations {
             process_limit_order_cancellation(
-                pool, lcd, factory_addr, c, height, block_time, &tx.txhash,
+                pool,
+                lcd,
+                factory_addr,
+                c,
+                height,
+                block_time,
+                &tx.txhash,
             )
             .await?;
         }
@@ -319,7 +334,13 @@ pub async fn process_block_txs(
         let parked = parse_limit_order_expired_parked(tx);
         for p in &parked {
             process_limit_order_expired_parked(
-                pool, lcd, factory_addr, p, height, block_time, &tx.txhash,
+                pool,
+                lcd,
+                factory_addr,
+                p,
+                height,
+                block_time,
+                &tx.txhash,
             )
             .await?;
         }
@@ -327,7 +348,13 @@ pub async fn process_block_txs(
         let claims = parse_claim_expired_limit_orders(tx);
         for c in &claims {
             process_claim_expired_limit_order(
-                pool, lcd, factory_addr, c, height, block_time, &tx.txhash,
+                pool,
+                lcd,
+                factory_addr,
+                c,
+                height,
+                block_time,
+                &tx.txhash,
             )
             .await?;
         }
@@ -391,8 +418,14 @@ async fn process_swap(
     let offer_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.offer_asset).await?;
     let ask_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.ask_asset).await?;
 
-    let base_asset = assets::get_asset_by_id(pool, pair.asset_0_id).await.ok().flatten();
-    let quote_asset = assets::get_asset_by_id(pool, pair.asset_1_id).await.ok().flatten();
+    let base_asset = assets::get_asset_by_id(pool, pair.asset_0_id)
+        .await
+        .ok()
+        .flatten();
+    let quote_asset = assets::get_asset_by_id(pool, pair.asset_1_id)
+        .await
+        .ok()
+        .flatten();
     let decimals_base = base_asset.as_ref().map(|a| a.decimals).unwrap_or(6);
     let decimals_quote = quote_asset.as_ref().map(|a| a.decimals).unwrap_or(6);
 
@@ -410,12 +443,16 @@ async fn process_swap(
         .await
         .ok()
         .flatten();
+    let hub = crate::db::queries::hub_prices::load_quote_usd(pool)
+        .await
+        .ok();
     let price_usd = quote_asset.as_ref().and_then(|quote| {
         pair_price_usd::price_usd_for_human_quote_per_base(
             quote,
             &oriented.price,
             ustc_usd.as_ref(),
             lunc_usd.as_ref(),
+            hub.as_ref(),
         )
     });
 
@@ -441,6 +478,7 @@ async fn process_swap(
             ustc_usd.as_ref(),
             lunc_usd.as_ref(),
             config.ustc_denom.as_deref(),
+            hub.as_ref(),
         ),
         _ => None,
     };
@@ -546,9 +584,7 @@ pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
             (contract, sender, offer_amount, return_amount)
         {
             let swap_index = {
-                let c = per_pair_swap_index
-                    .entry(contract.to_string())
-                    .or_insert(0);
+                let c = per_pair_swap_index.entry(contract.to_string()).or_insert(0);
                 let i = *c;
                 *c += 1;
                 i
@@ -596,9 +632,7 @@ fn parse_limit_order_fill_segment(
     let token0_amount = seg.get("token0_amount")?.parse::<BigDecimal>().ok()?;
     let token1_amount = seg.get("token1_amount")?.parse::<BigDecimal>().ok()?;
     let commission_amount = seg.get("commission_amount")?.parse::<BigDecimal>().ok()?;
-    let swap_index_from_chain = seg
-        .get("swap_index")
-        .and_then(|s| s.parse::<i32>().ok());
+    let swap_index_from_chain = seg.get("swap_index").and_then(|s| s.parse::<i32>().ok());
     Some(ParsedLimitOrderFill {
         pair_address: contract.to_string(),
         order_id,
@@ -871,14 +905,8 @@ fn parse_limit_order_placements_columnar(
         out.push(ParsedLimitOrderPlacement {
             pair_address: contract.to_string(),
             order_id: order_ids[i],
-            side: sides
-                .get(i)
-                .cloned()
-                .or_else(|| sides.first().cloned()),
-            owner: owners
-                .get(i)
-                .cloned()
-                .or_else(|| owners.first().cloned()),
+            side: sides.get(i).cloned().or_else(|| sides.first().cloned()),
+            owner: owners.get(i).cloned().or_else(|| owners.first().cloned()),
             price: prices.get(i).cloned(),
             expires_at: expires_at_list.get(i).copied(),
         });
@@ -985,10 +1013,7 @@ fn parse_limit_order_cancellations_columnar(
         out.push(ParsedLimitOrderCancellation {
             pair_address: contract.to_string(),
             order_id: order_ids[i],
-            owner: owners
-                .get(i)
-                .cloned()
-                .or_else(|| owners.first().cloned()),
+            owner: owners.get(i).cloned().or_else(|| owners.first().cloned()),
         });
     }
     Some(out)
@@ -1482,7 +1507,10 @@ mod tests {
         ]);
         let swaps = parse_swaps(&tx);
         assert_eq!(swaps.len(), 3);
-        assert_eq!((swaps[0].pair_address.as_str(), swaps[0].swap_index), ("terra1pairA", 0));
+        assert_eq!(
+            (swaps[0].pair_address.as_str(), swaps[0].swap_index),
+            ("terra1pairA", 0)
+        );
         assert_eq!(
             (swaps[1].pair_address.as_str(), swaps[1].swap_index),
             ("terra1pairA", 1),

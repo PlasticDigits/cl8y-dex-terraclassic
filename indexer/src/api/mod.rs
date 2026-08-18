@@ -2,21 +2,22 @@
 //! Invariants and threat model: see repository `docs/indexer-invariants.md`.
 
 mod aggregator_snapshot;
+mod best_execution;
 mod cg;
-mod compliance;
 mod cmc;
+mod compliance;
+mod consolidated_stats;
+pub mod db_orderbook_sim;
 mod errors;
 mod fee_discount_health;
-mod listing_timestamps;
-mod consolidated_stats;
 pub mod hooks;
-mod best_execution;
-pub mod db_orderbook_sim;
+mod hub_prices;
+pub mod hybrid_orderbook_sim;
 mod hybrid_route_opt;
 pub mod limit_book_lcd;
 pub mod limit_book_price;
+mod listing_timestamps;
 mod oracle;
-pub mod hybrid_orderbook_sim;
 pub mod orderbook_sim;
 mod overview;
 #[allow(unused_imports)] // re-exported for integration tests
@@ -289,6 +290,8 @@ pub async fn find_pair_by_ticker(
         traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
+        hub_prices::get_hub_prices,
+        hub_prices::get_hub_price,
         oracle::get_oracle_price_catalog,
         oracle::get_oracle_price,
         oracle::get_oracle_history_catalog,
@@ -346,6 +349,8 @@ pub async fn find_pair_by_ticker(
         traders::TraderResponse,
         traders::PositionResponse,
         overview::OverviewResponse,
+        hub_prices::HubPricesResponse,
+        hub_prices::HubPriceEntry,
         cg::CgPairResponse,
         cg::CgTickerResponse,
         cg::CgOrderbookResponse,
@@ -369,6 +374,7 @@ pub async fn find_pair_by_ticker(
         (name = "Tokens", description = "Token/asset endpoints"),
         (name = "Traders", description = "Trader profile and leaderboard"),
         (name = "Overview", description = "Global DEX statistics"),
+        (name = "HubPrices", description = "DEX hub USD marks (cUSTC / UST1 / USTR) — not CEX"),
         (name = "Oracle", description = "External USTC/USD and LUNC/USD reference feeds"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
@@ -497,6 +503,11 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
+        .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
+        .route(
+            "/api/v1/hub-prices/{ticker}",
+            get(hub_prices::get_hub_price),
+        )
         .merge(lcd_heavy_router)
         .route(
             "/api/v1/route/solve/progress",
@@ -744,7 +755,13 @@ mod rate_limit_quota_tests {
 
     #[test]
     fn replenish_period_targets_requests_per_second() {
-        assert_eq!(replenish_period_for_rps(10), std::time::Duration::from_millis(100));
-        assert_eq!(replenish_period_for_rps(60), std::time::Duration::from_nanos(16_666_666));
+        assert_eq!(
+            replenish_period_for_rps(10),
+            std::time::Duration::from_millis(100)
+        );
+        assert_eq!(
+            replenish_period_for_rps(60),
+            std::time::Duration::from_nanos(16_666_666)
+        );
     }
 }

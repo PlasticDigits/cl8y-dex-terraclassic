@@ -1,6 +1,7 @@
 import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePayload'
 import { normalizeLimitBookPageResponse } from '@/utils/limitBookPagination'
 import { parseProtocolOracleTicker } from '@/utils/protocolOracleTicker'
+import { parseHubPriceTicker } from '@/utils/hubPriceTicker'
 import type {
   IndexerPair,
   IndexerPairsListResponse,
@@ -17,6 +18,8 @@ import type {
   IndexerOraclePriceResponse,
   IndexerOracleTickerCatalogResponse,
   IndexerOracleHistoryResponse,
+  IndexerHubPricesResponse,
+  IndexerHubPriceEntry,
   IndexerHybridHopInput,
   IndexerRouteSolveResponse,
   IndexerRouteSolveProgress,
@@ -534,6 +537,21 @@ export async function getOracleHistory(params?: GetOracleHistoryParams): Promise
   if (params?.limit != null) sp.set('limit', String(params.limit))
   const qs = sp.toString()
   return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history/${pathSegment(ticker)}${qs ? `?${qs}` : ''}`)
+}
+
+/** DEX hub USD snapshot (`custc` / `ust1` / `ustr`). Not CEX; do not call `getOraclePrice('ustr')`. */
+export async function getHubPrices(): Promise<IndexerHubPricesResponse> {
+  return fetchJson<IndexerHubPricesResponse>('/api/v1/hub-prices')
+}
+
+/**
+ * One DEX hub mark. Unknown / injected ticker is ignored (no fetch).
+ * @param ticker `custc` | `ust1` | `ustr`
+ */
+export async function getHubPrice(ticker: string): Promise<IndexerHubPriceEntry | null> {
+  const safe = parseHubPriceTicker(ticker)
+  if (!safe) return null
+  return fetchJson<IndexerHubPriceEntry>(`/api/v1/hub-prices/${pathSegment(safe)}`)
 }
 
 export interface GetRouteSolveOptions {

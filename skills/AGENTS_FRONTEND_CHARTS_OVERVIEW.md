@@ -32,7 +32,7 @@ Prefer catalog-known **pair quote** (`asset_1`): human quote amount × quote USD
 
 Backfill: [`volume::backfill_swap_volume_usd`](../indexer/src/db/queries/volume.rs) + migration `20260817120000_backfill_swap_volume_usd_catalog.sql`. Idempotent. USD is as-of ingest/backfill oracles (advisory, **X5**). Then `refresh_global_stats`.
 
-**X4 (updated):** `volume_usd` uses the **P522-Q catalog** (UST1=`$1`; USTC/cUSTC/`uusd`=#515 USTC; LUNC/cLUNC/`uluna`=#515 LUNC; USTR=`2.5×` USTC). Overview **USTC / USD** box stays the USTC ticker only.
+**X4 (updated):** `volume_usd` uses the **P522-Q catalog** (USTC/cUSTC/`uusd`=#515 USTC; LUNC/cLUNC/`uluna`=#515 LUNC; **UST1/USTR = hub_prices**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview **USTC / USD** box stays the USTC ticker only.
 
 ## Do / don’t
 
