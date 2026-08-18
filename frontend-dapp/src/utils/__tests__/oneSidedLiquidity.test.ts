@@ -4,6 +4,8 @@ import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import {
   PAIR_LP_CW20_DECIMALS,
   constantProductAmountOut,
+  conservativeZapInProvide,
+  conservativeZapOutExecution,
   effectivePoolFeeBps,
   nativeAfterZapUnwrap,
   resolveZapInputKind,
@@ -172,5 +174,180 @@ describe('resolveZapInputKind', () => {
     const params = { reserveIn: 1_000_000_000n, reserveOut: 1_000_000_000n, feeBps: 30 }
     expect(applyRouteThenZap(null, params).reason).toBe('no_route')
     expect(applyRouteThenZap('50000000', params).status).toBe('ok')
+  })
+})
+
+function cw20CheckedSub(balance: bigint, amount: bigint): bigint {
+  if (amount > balance) {
+    throw new Error(`Overflow: Cannot Sub with ${balance} and ${amount}`)
+  }
+  return balance - amount
+}
+
+describe('oneSidedLiquidity zap floors (GitLab #559 T-Z1–T-Z3 T-Z7 T-Z10 T-Z11)', () => {
+  it('T-Z1 pair-leg 5% / 30 bps: provideAsk ≤ swapMinReturn; leftover offer conserved; ratio-trimmed', () => {
+    const amountIn = 100_000_000n
+    const split = zapInSplit({
+      amountIn,
+      reserveIn: 1_000_000_000n,
+      reserveOut: 1_000_000_000n,
+      feeBps: 30,
+    })
+    expect(split.status).toBe('ok')
+    if (split.status !== 'ok') return
+    const swapMin = BigInt(applySlippagePercentFloor(split.swapOut.toString(), 5)!)
+    const exec = conservativeZapInProvide(split, swapMin)
+    expect(exec).not.toBeNull()
+    if (!exec) return
+    expect(exec.provideOut).toBeLessThanOrEqual(swapMin)
+    expect(exec.provideIn + exec.leftoverIn).toBe(amountIn - split.swapIn)
+    const floorAsk = (exec.provideIn * exec.postReserveOut) / split.postReserveIn
+    const floorOffer = (exec.provideOut * split.postReserveIn) / exec.postReserveOut
+    expect(exec.provideOut === floorAsk || exec.provideIn === floorOffer).toBe(true)
+    expect(exec.postReserveOut).toBe(split.postReserveOut + (split.swapOut - swapMin))
+  })
+
+  it('T-Z2 fill in (min_return, quote) must not Cannot Sub; pre-existing ask is not required', () => {
+    const split = zapInSplit({
+      amountIn: 200_000_000n,
+      reserveIn: 1_000_000_000n,
+      reserveOut: 1_000_000_000n,
+      feeBps: 30,
+    })
+    expect(split.status).toBe('ok')
+    if (split.status !== 'ok') return
+    const swapMin = BigInt(applySlippagePercentFloor(split.swapOut.toString(), 5)!)
+    expect(split.provideOut).toBeGreaterThan(swapMin)
+    const fill = split.provideOut - 1n
+    expect(fill).toBeGreaterThanOrEqual(swapMin)
+    expect(() => cw20CheckedSub(fill, split.provideOut)).toThrow(/Cannot Sub/)
+    const exec = conservativeZapInProvide(split, swapMin)
+    expect(exec).not.toBeNull()
+    if (!exec) return
+    expect(exec.provideOut).toBeLessThanOrEqual(fill)
+    expect(() => cw20CheckedSub(fill, exec.provideOut)).not.toThrow()
+    expect(() => cw20CheckedSub(fill, exec.provideOut)).not.toThrow()
+    const leftoverAsk = fill - exec.provideOut
+    expect(leftoverAsk).toBeGreaterThanOrEqual(0n)
+  })
+
+  it('T-Z2 production-shaped 6-dec fill 525495 vs quote 526916 / min 500571', () => {
+    const quoteOut = 526_916n
+    const minReturn = 500_571n
+    const fill = 525_495n
+    expect(minReturn).toBeLessThan(quoteOut)
+    expect(fill).toBeGreaterThan(minReturn)
+    expect(fill).toBeLessThan(quoteOut)
+    const split = zapInSplit({
+      amountIn: 200_000_000n,
+      reserveIn: 10_000_000_000n,
+      reserveOut: 10_000_000_000n,
+      feeBps: 30,
+    })
+    expect(split.status).toBe('ok')
+    if (split.status !== 'ok') return
+    const synthetic: typeof split = {
+      ...split,
+      swapOut: quoteOut,
+      provideOut: quoteOut < split.provideOut ? quoteOut : split.provideOut,
+    }
+    if (synthetic.status !== 'ok') return
+    const exec = conservativeZapInProvide(synthetic, minReturn)
+    expect(exec).not.toBeNull()
+    if (!exec) return
+    expect(exec.provideOut).toBeLessThanOrEqual(minReturn)
+    expect(() => cw20CheckedSub(fill, exec.provideOut)).not.toThrow()
+    expect(() => cw20CheckedSub(fill, quoteOut)).toThrow(/Cannot Sub/)
+  })
+
+  it('T-Z3 0% slippage: floors collapse to quote; still ratio-trimmed', () => {
+    const split = zapInSplit({
+      amountIn: 100_000_000n,
+      reserveIn: 1_000_000_000n,
+      reserveOut: 1_000_000_000n,
+      feeBps: 30,
+    })
+    expect(split.status).toBe('ok')
+    if (split.status !== 'ok') return
+    const swapMin = BigInt(applySlippagePercentFloor(split.swapOut.toString(), 0)!)
+    expect(swapMin).toBe(split.swapOut)
+    const exec = conservativeZapInProvide(split, swapMin)
+    expect(exec).not.toBeNull()
+    if (!exec) return
+    expect(exec.provideOut).toBe(split.provideOut)
+    expect(exec.provideIn).toBe(split.provideIn)
+    expect(exec.postReserveOut).toBe(split.postReserveOut)
+  })
+
+  it('T-Z7 skewed pool with dust conservative LP is unavailable at the quote layer (see quote tests)', () => {
+    const split = zapInSplit({
+      amountIn: 100n,
+      reserveIn: 10n ** 18n,
+      reserveOut: 50n,
+      feeBps: 30,
+    })
+    if (split.status !== 'ok') {
+      expect(split.reason).toMatch(/dust|empty_pool/)
+      return
+    }
+    const swapMin = BigInt(applySlippagePercentFloor(split.swapOut.toString(), 5) ?? '0')
+    const exec = conservativeZapInProvide(split, swapMin)
+    if (exec) {
+      expect(exec.provideOut).toBeLessThanOrEqual(swapMin)
+    }
+  })
+
+  it('T-Z10 zap-out swapAmount ≤ min_assets[sold]; leftover sold is ok', () => {
+    const out = zapOutSplit({
+      lpRaw: 1_000_000_000_000_000_000n,
+      totalShare: 10_000_000_000_000_000_000n,
+      reserveA: 1_000_000_000n,
+      reserveB: 2_000_000_000n,
+      wantSide: 'a',
+      feeBps: 30,
+    })
+    expect(out.status).toBe('ok')
+    if (out.status !== 'ok') return
+    const minA = (out.withdrawnA * 95n) / 100n
+    const minB = (out.withdrawnB * 95n) / 100n
+    const exec = conservativeZapOutExecution({
+      split: out,
+      wantSide: 'a',
+      minAssets: [minA.toString(), minB.toString()],
+      slippagePercent: 5,
+    })
+    expect(exec).not.toBeNull()
+    if (!exec) return
+    expect(BigInt(exec.swapAmount)).toBeLessThanOrEqual(minB)
+    expect(BigInt(exec.swapAmount)).toBeLessThanOrEqual(out.swapIn)
+    expect(out.swapIn - BigInt(exec.swapAmount)).toBeGreaterThanOrEqual(0n)
+  })
+
+  it('T-Z11 zap-out unwrap ≤ wanted floor + swapMinReturn (never quoted totalWantedCw20 when that exceeds)', () => {
+    const out = zapOutSplit({
+      lpRaw: 1_000_000_000_000_000_000n,
+      totalShare: 10_000_000_000_000_000_000n,
+      reserveA: 1_000_000_000n,
+      reserveB: 2_000_000_000n,
+      wantSide: 'a',
+      feeBps: 30,
+    })
+    expect(out.status).toBe('ok')
+    if (out.status !== 'ok') return
+    const minA = (out.withdrawnA * 95n) / 100n
+    const minB = (out.withdrawnB * 95n) / 100n
+    const exec = conservativeZapOutExecution({
+      split: out,
+      wantSide: 'a',
+      minAssets: [minA.toString(), minB.toString()],
+      slippagePercent: 5,
+    })
+    expect(exec).not.toBeNull()
+    if (!exec) return
+    const wantedFloor = out.withdrawnA < minA ? out.withdrawnA : minA
+    expect(BigInt(exec.unwrapAmount)).toBe(wantedFloor + BigInt(exec.swapMinReturn))
+    expect(BigInt(exec.unwrapAmount)).toBeLessThan(out.totalWantedCw20)
+    expect(() => cw20CheckedSub(wantedFloor + BigInt(exec.swapMinReturn), BigInt(exec.unwrapAmount))).not.toThrow()
+    expect(() => cw20CheckedSub(wantedFloor + BigInt(exec.swapMinReturn), out.totalWantedCw20)).toThrow(/Cannot Sub/)
   })
 })

@@ -42,3 +42,4 @@ make verify-issue-538   # smart-query-first + LocalTerra inherit
 - Registry outage: [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability (`#365`)
 - Hybrid quotes: [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md)
 - `/pool` table: I14 LCD fee badge + unregistered CTA mount on **Manage** expand, not a header essay ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) **P547-9**, [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md))
+- One-sided zap fee math stays behind I14; unwired pair must not inflate `provideAsk`: [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](./AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) (`#559` / **Z559-1**, T-Z9)

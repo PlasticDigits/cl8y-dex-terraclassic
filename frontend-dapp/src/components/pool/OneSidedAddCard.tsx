@@ -29,6 +29,7 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { slippagePercentToDecimalString, buildZapInMessages } from '@/utils/oneSidedLiquidityTx'
 import { PAIR_LP_CW20_DECIMALS } from '@/utils/oneSidedLiquidity'
+import { oneSidedAddPreSignAmountLines } from '@/utils/oneSidedLiquidityCopy'
 import { ONE_SIDED_EMPTY_POOL_ERROR, quoteOneSidedAdd } from '@/utils/oneSidedLiquidityQuote'
 import { SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT } from '@/utils/swapRouteSlippage'
 import { sounds } from '@/lib/sounds'
@@ -343,7 +344,11 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
         <PoolPreSubmitSummary
           actionLabel="Add"
           pairLabel={snapshot.pairLabel}
-          amountLines={[`${amount} in`, `min swap ${snapshot.swapMinReturn}`]}
+          amountLines={oneSidedAddPreSignAmountLines(
+            amount,
+            snapshot.swapMinReturn,
+            getDecimals(tokenAssetInfo(snapshot.askCw20))
+          )}
           data-testid="pool-one-sided-add-pre-submit"
         />
       )}

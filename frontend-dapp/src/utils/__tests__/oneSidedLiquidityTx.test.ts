@@ -157,4 +157,51 @@ describe('oneSidedLiquidityTx (GitLab #533 T7 / T10 / A7 / A12 / A13 / A18)', ()
       ])
     ).toThrow(/slippage_tolerance/)
   })
+
+  it('T-Z2 / AC1 provideAsk > swapMinReturn is rejected (never TransferFrom quoted ask)', () => {
+    expect(() =>
+      buildZapInMessages({
+        pairAddress: PAIR,
+        tokenOffer: OFFER,
+        tokenAsk: ASK,
+        swapAmount: '400',
+        swapMinReturn: '500571',
+        provideOffer: '500',
+        provideAsk: '526916',
+        slippagePercent: 5,
+      })
+    ).toThrow(/provideAsk exceeds swap min_return/)
+  })
+
+  it('T-Z2 fill 525495 covers floor-sized provideAsk; quoted 526916 would Cannot Sub', () => {
+    const fill = 525495n
+    const quoteAsk = 526916n
+    const minReturn = '500571'
+    const msgs = buildZapInMessages({
+      pairAddress: PAIR,
+      tokenOffer: OFFER,
+      tokenAsk: ASK,
+      swapAmount: '400000',
+      swapMinReturn: minReturn,
+      provideOffer: '580000',
+      provideAsk: minReturn,
+      slippagePercent: 5,
+    })
+    const provide = msgs[msgs.length - 1]!.msg.provide_liquidity as {
+      assets: Array<{ amount: string; info: { token: { contract_addr: string } } }>
+    }
+    const askAmt = BigInt(provide.assets.find((a) => a.info.token.contract_addr === ASK)!.amount)
+    expect(askAmt).toBeLessThanOrEqual(BigInt(minReturn))
+    expect(askAmt).toBeLessThanOrEqual(fill)
+    expect(quoteAsk).toBeGreaterThan(fill)
+    const innerSwap = inner(msgs[0]!.msg).swap as { min_return: string; hybrid: { book_input: string } }
+    expect(innerSwap.min_return).toBe(minReturn)
+    expect(innerSwap.hybrid.book_input).toBe('0')
+    expect(msgs.map((m) => Object.keys(m.msg)[0])).toEqual([
+      'send',
+      'increase_allowance',
+      'increase_allowance',
+      'provide_liquidity',
+    ])
+  })
 })

@@ -58,7 +58,7 @@ Split-fee field rules: **W12–W15** in [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./A
 - [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) — W1–W7 + Coolify env (#507)
 - [`AGENTS_ROUTER_MINIMUM_RECEIVE.md`](./AGENTS_ROUTER_MINIMUM_RECEIVE.md) — R3 post-fee floor
 - [`NATIVE_TOKEN_WRAPPING.md`](../NATIVE_TOKEN_WRAPPING.md) — architecture
-- One-sided pool wrap/unwrap is implied by the token (W8 wrap-in / W9 unwrap-out, quoted amount only): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) (`#533` / **Z533-3**, **Z533-8**)
+- One-sided pool wrap/unwrap is implied by the token (W8 wrap-in / W9 unwrap-out, quoted amount only): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) (`#533` / **Z533-3**, **Z533-8**). Unwrap send is the **floor** chain, not optimistic `totalWantedCw20`: [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](./AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) (`#559` / **Z559-3**)
 
 ## Verification
 

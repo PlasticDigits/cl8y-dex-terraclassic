@@ -4,6 +4,7 @@ import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
 import { estimateProvideLiquidityUserLp } from '@/utils/provideLiquidityEstimate'
 import {
   applyRouteThenZap,
+  conservativeZapInProvide,
   effectivePoolFeeBps,
   isEmptyPoolReserves,
   resolveZapInputKind,
@@ -51,6 +52,31 @@ export type OneSidedAddQuote =
 
 function pairLegs(pair: PairInfo): [string, string] {
   return [assetInfoLabel(pair.asset_infos[0]), assetInfoLabel(pair.asset_infos[1])]
+}
+
+function estimateZapInLp(input: {
+  pool: PoolResponse
+  offerCw20: string
+  provideOffer: string
+  provideAsk: string
+  postReserveIn: bigint
+  postReserveOut: bigint
+}): string | null {
+  const leg0 = assetInfoLabel(input.pool.assets[0].info)
+  const offerIs0 = input.offerCw20 === leg0
+  const amountA = offerIs0 ? input.provideOffer : input.provideAsk
+  const amountB = offerIs0 ? input.provideAsk : input.provideOffer
+  const resA = offerIs0 ? input.postReserveIn : input.postReserveOut
+  const resB = offerIs0 ? input.postReserveOut : input.postReserveIn
+  const lp = estimateProvideLiquidityUserLp(amountA, amountB, {
+    assets: [
+      { info: input.pool.assets[0].info, amount: resA.toString() },
+      { info: input.pool.assets[1].info, amount: resB.toString() },
+    ],
+    total_share: input.pool.total_share,
+  })
+  if (lp == null || lp <= 0n) return null
+  return lp.toString()
 }
 
 export async function quoteOneSidedAdd(input: {
@@ -147,6 +173,8 @@ export async function quoteOneSidedAdd(input: {
       minReturn,
       maxSpread: input.maxSpreadStr,
     }
+    // T-Z5 / AC5: route `minimum_receive` floors the zap amountIn.
+    solverIn = minReturn
   }
 
   const split = applyRouteThenZap(solverIn, { reserveIn: offerRes, reserveOut: askRes, feeBps })
@@ -161,6 +189,23 @@ export async function quoteOneSidedAdd(input: {
     return { status: 'unavailable', disableReason: ONE_SIDED_DUST_ERROR }
   }
 
+  const execution = conservativeZapInProvide(split, BigInt(swapMinReturn))
+  if (!execution) {
+    return { status: 'unavailable', disableReason: ONE_SIDED_DUST_ERROR }
+  }
+
+  const estimatedLp = estimateZapInLp({
+    pool: input.pool,
+    offerCw20,
+    provideOffer: execution.provideIn.toString(),
+    provideAsk: execution.provideOut.toString(),
+    postReserveIn: split.postReserveIn,
+    postReserveOut: execution.postReserveOut,
+  })
+  if (!estimatedLp) {
+    return { status: 'unavailable', disableReason: ONE_SIDED_DUST_ERROR }
+  }
+
   const key = [
     input.tokenId,
     input.pair.contract_addr,
@@ -168,6 +213,8 @@ export async function quoteOneSidedAdd(input: {
     solverIn,
     split.swapIn.toString(),
     swapMinReturn,
+    execution.provideIn.toString(),
+    execution.provideOut.toString(),
     String(input.slippagePercent),
   ].join('|')
 
@@ -185,16 +232,9 @@ export async function quoteOneSidedAdd(input: {
       askCw20,
       swapAmount: split.swapIn.toString(),
       swapMinReturn,
-      provideOffer: split.provideIn.toString(),
-      provideAsk: split.provideOut.toString(),
-      estimatedLp:
-        estimateProvideLiquidityUserLp(split.provideIn.toString(), split.provideOut.toString(), {
-          assets: [
-            { info: input.pool.assets[0].info, amount: split.postReserveIn.toString() },
-            { info: input.pool.assets[1].info, amount: split.postReserveOut.toString() },
-          ],
-          total_share: input.pool.total_share,
-        })?.toString() ?? null,
+      provideOffer: execution.provideIn.toString(),
+      provideAsk: execution.provideOut.toString(),
+      estimatedLp,
       slippagePercent: input.slippagePercent,
       priceImpactPercent: zapSwapPriceImpactPercent(split.swapIn, split.swapOut, offerRes, askRes),
       routeIn,
