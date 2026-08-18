@@ -1,14 +1,17 @@
 /**
- * Retail one-sided add/withdraw execute messages (GitLab #533 / Z533).
+ * Retail one-sided add/withdraw execute messages (GitLab #533 / Z533; #559 / Z559).
  *
  * Frontend orchestration on existing pair/router/wrap messages — no new Zap execute (Z533-10).
  *
  * **Add order (A18):** optional `wrap_deposit` → optional router route-in → pair pool-only
  * swap (`min_return`) → `increase_allowance` ×2 → `provide_liquidity` (`slippage_tolerance` set).
  *
+ * **Z559-1:** `provideAsk` must be ≤ swap `min_return` so a fill in `(min_return, quote)`
+ * cannot CW20-underflow TransferFrom. Quotes may be optimistic; execution follows floors.
+ *
  * **Withdraw order (A18):** LP `send` + `withdraw_liquidity` (`min_assets`) → pair pool-only
- * swap of the other side (`min_return`) → optional mapper `unwrap` of **quoted** amount only
- * (Z533-8 / A7 — never `getTokenBalance`).
+ * swap of the other side (`min_return`) → optional mapper `unwrap` of the **floor-sized**
+ * amount only (Z533-8 / Z559-3 / A7 — never `getTokenBalance`).
  */
 
 import type { TerraExecuteContractEntry } from '@/services/terraclassic/terraBroadcast'
@@ -116,6 +119,9 @@ export function buildZapInMessages(input: ZapInTxInput): TerraExecuteContractEnt
   }
   if (!input.swapMinReturn || input.swapMinReturn === '0') {
     throw new RetailZapFloorError('Zap swap min_return is required')
+  }
+  if (BigInt(input.provideAsk) > BigInt(input.swapMinReturn)) {
+    throw new RetailZapFloorError('provideAsk exceeds swap min_return')
   }
 
   const msgs: TerraExecuteContractEntry[] = []
@@ -284,7 +290,7 @@ export function assertRetailZapFloors(msgs: TerraExecuteContractEntry[]): void {
     if ('unwrap' in inner) {
       const send = entry.msg.send as { amount?: string }
       if (!send.amount || send.amount === '0') {
-        throw new RetailZapFloorError('unwrap amount must be the quoted zap-out, not wallet balance')
+        throw new RetailZapFloorError('unwrap amount must be the floor-sized zap-out, not wallet balance')
       }
     }
   }

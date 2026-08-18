@@ -1,5 +1,5 @@
 /**
- * One-sided pool zap math (GitLab #533 / Z533-4, Z533-5, Z533-10).
+ * One-sided pool zap math (GitLab #533 / Z533-4, Z533-5, Z533-10; #559 / Z559).
  *
  * Pair swap adds the **full** offer to the input reserve, takes commission from
  * **gross output**, and sends commission to the treasury (reserves drop by gross).
@@ -8,6 +8,11 @@
  *
  * Retail zap-in swaps a slice so leftover + net ask match the **post-swap**
  * reserve ratio, then trims so leftover stays in the wallet (never donate).
+ *
+ * **Z559-1:** quoted `swapOut` / `provideOut` may be optimistic. Execution
+ * `provideAsk` follows `swapMinReturn` (and zap-out follows withdraw `min_assets`),
+ * then re-trims to the conservative post-swap ratio. Do not TransferFrom a
+ * quoted ask the swap is allowed to miss.
  */
 
 import { applySlippagePercentFloor, estimateWithdrawAssetAmounts } from '@/utils/rawAmountMath'
@@ -109,12 +114,23 @@ export function constantProductAmountOut(offer: bigint, reserveIn: bigint, reser
   return poolNetOutputForInput(offer, reserveIn, reserveOut, feeBps)?.net ?? 0n
 }
 
-function trimProvideToRatio(
+export type TrimmedProvide = {
+  provideIn: bigint
+  provideOut: bigint
+  leftoverIn: bigint
+  leftoverOut: bigint
+}
+
+/**
+ * Ratio-trim leftover offer + received ask to `reserveOutAfter / reserveInAfter`.
+ * Excess stays in the wallet (Z533-4 — never donate).
+ */
+export function trimProvideToRatio(
   remainingIn: bigint,
   swapOut: bigint,
   reserveInAfter: bigint,
   reserveOutAfter: bigint
-): { provideIn: bigint; provideOut: bigint; leftoverIn: bigint; leftoverOut: bigint } | null {
+): TrimmedProvide | null {
   if (remainingIn <= 0n || swapOut <= 0n || reserveInAfter <= 0n || reserveOutAfter <= 0n) return null
   const idealOut = (remainingIn * reserveOutAfter) / reserveInAfter
   if (swapOut > idealOut) {
@@ -211,6 +227,85 @@ export function zapInSplit(params: {
     postReserveIn: chosen.sim.newReserveIn,
     postReserveOut: chosen.sim.newReserveOut,
     ...trimmed,
+  }
+}
+
+export type ConservativeZapInProvide = TrimmedProvide & {
+  /** Ask reserve after a worse-than-quote fill (shortfall stayed in the pool). */
+  postReserveOut: bigint
+}
+
+/**
+ * Z559-1 / Z559-2: size provide to the swap floor, then re-trim to the
+ * conservative post-swap ratio.
+ *
+ * Worst fill the swap may produce is `swapMinReturn`. `provideOut` cannot exceed
+ * that (user may have **zero** pre-existing ask — A-Z2). If less ask left the
+ * pool, `postReserveOut` is higher than the quoted reserve; offer shrinks and
+ * leftover stays in the wallet (Z533-4).
+ */
+export function conservativeZapInProvide(split: ZapInSplitOk, swapMinReturn: bigint): ConservativeZapInProvide | null {
+  const remainingIn = split.provideIn + split.leftoverIn
+  const conservativeOut = swapMinReturn < split.swapOut ? swapMinReturn : split.swapOut
+  if (conservativeOut <= 0n || remainingIn <= 0n) return null
+  const extraAskInPool = split.swapOut - conservativeOut
+  const postReserveOut = split.postReserveOut + extraAskInPool
+  const trimmed = trimProvideToRatio(remainingIn, conservativeOut, split.postReserveIn, postReserveOut)
+  if (!trimmed || trimmed.provideIn <= 0n || trimmed.provideOut <= 0n) return null
+  if (trimmed.provideOut > conservativeOut) return null
+  return { ...trimmed, postReserveOut }
+}
+
+export type ConservativeZapOutExecution = {
+  swapAmount: string
+  swapMinReturn: string
+  unwrapAmount: string
+}
+
+/**
+ * Z559-3: zap-out execution follows withdraw/swap floors, not optimistic quotes.
+ *
+ * - `swapAmount ≤ min_assets[sold]` (may be less than pro-rata `swapIn`)
+ * - unwrap send ≤ `min(withdrawn wanted, min_assets[wanted]) + swapMinReturn`
+ *
+ * Leftover sold or wanted CW20 stays in the wallet (Z533-8).
+ */
+export function conservativeZapOutExecution(input: {
+  split: ZapOutOk
+  wantSide: ZapPairSide
+  minAssets: [string, string]
+  slippagePercent: number
+}): ConservativeZapOutExecution | null {
+  let minA: bigint
+  let minB: bigint
+  try {
+    minA = BigInt(input.minAssets[0])
+    minB = BigInt(input.minAssets[1])
+  } catch {
+    return null
+  }
+  const soldMin = input.wantSide === 'a' ? minB : minA
+  const wantedMin = input.wantSide === 'a' ? minA : minB
+  const withdrawnWanted = input.wantSide === 'a' ? input.split.withdrawnA : input.split.withdrawnB
+  const wantedFloor = withdrawnWanted < wantedMin ? withdrawnWanted : wantedMin
+  if (wantedFloor <= 0n || soldMin <= 0n) return null
+
+  const swapAmount = input.split.swapIn < soldMin ? input.split.swapIn : soldMin
+  if (swapAmount <= 0n) return null
+
+  let swapOutForAmount = input.split.swapOut
+  if (swapAmount < input.split.swapIn && input.split.swapIn > 0n) {
+    swapOutForAmount = (input.split.swapOut * swapAmount) / input.split.swapIn
+  }
+  const swapMin = zapOutSwapMinReturn(swapOutForAmount, input.slippagePercent)
+  if (swapMin == null || swapMin <= 0n) return null
+
+  const unwrapAmount = wantedFloor + swapMin
+  if (unwrapAmount <= 0n) return null
+  return {
+    swapAmount: swapAmount.toString(),
+    swapMinReturn: swapMin.toString(),
+    unwrapAmount: unwrapAmount.toString(),
   }
 }
 

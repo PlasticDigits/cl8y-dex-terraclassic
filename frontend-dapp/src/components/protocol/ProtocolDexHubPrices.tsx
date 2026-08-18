@@ -21,10 +21,7 @@ export function ProtocolDexHubPrices({ query }: ProtocolDexHubPricesProps) {
 
   return (
     <div className="shell-panel" data-testid="protocol-dex-hub-prices">
-      <h2
-        className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
-        style={{ color: 'var(--ink)' }}
-      >
+      <h2 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
         DEX hub prices
       </h2>
       <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>

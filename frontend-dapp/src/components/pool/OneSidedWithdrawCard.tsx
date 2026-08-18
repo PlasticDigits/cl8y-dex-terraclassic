@@ -23,10 +23,10 @@ import { assetInfoLabel, getNativeEquivalent, tokenAssetInfo, type PairInfo } fr
 import { getDecimals, toRawAmount, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 import {
   PAIR_LP_CW20_DECIMALS,
+  conservativeZapOutExecution,
   nativeAfterZapUnwrap,
   resolveZapOutputKind,
   zapOutSplit,
-  zapOutSwapMinReturn,
   effectivePoolFeeBps,
 } from '@/utils/oneSidedLiquidity'
 import { fetchNativeTransferTaxParams } from '@/utils/nativeTransferTax'
@@ -125,7 +125,6 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
       : null
 
   const isQuoteStale = rawLp !== debouncedRaw
-  const swapMin = split?.status === 'ok' ? zapOutSwapMinReturn(split.swapOut, slippageTolerance) : null
   const minAssets =
     poolQuery.data && debouncedRaw !== '0'
       ? withdrawMinAssetAmounts(
@@ -138,7 +137,16 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
       : null
 
   const unwrapNative = kind?.kind === 'pair_leg' && !!kind.wrapFromNative
-  const unwrapAmount = split?.status === 'ok' && unwrapNative ? split.totalWantedCw20.toString() : null
+  const exec =
+    split?.status === 'ok' && minAssets && kind?.kind === 'pair_leg'
+      ? conservativeZapOutExecution({
+          split,
+          wantSide: kind.side,
+          minAssets,
+          slippagePercent: slippageTolerance,
+        })
+      : null
+  const unwrapAmount = exec && unwrapNative ? exec.unwrapAmount : null
   const nativeTaxQuery = useQuery({
     queryKey: ['nativeTransferTax', kind?.kind === 'pair_leg' ? kind.wrapFromNative : null],
     queryFn: () => fetchNativeTransferTaxParams(kind?.kind === 'pair_leg' ? (kind.wrapFromNative ?? 'uluna') : 'uluna'),
@@ -158,7 +166,7 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
         !split ||
         split.status !== 'ok' ||
         !minAssets ||
-        swapMin == null ||
+        !exec ||
         !kind ||
         kind.kind !== 'pair_leg'
       ) {
@@ -172,8 +180,8 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
         lpAmount: rawLp,
         minAssets,
         tokenAsk: otherCw20,
-        swapAmount: split.swapIn.toString(),
-        swapMinReturn: swapMin.toString(),
+        swapAmount: exec.swapAmount,
+        swapMinReturn: exec.swapMinReturn,
         slippagePercent: slippageTolerance,
         unwrap: unwrapAmount ? { cw20: wantedCw20, amount: unwrapAmount } : null,
       })
@@ -204,9 +212,11 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
             ? 'No route'
             : split?.status === 'unavailable'
               ? 'Amount too small'
-              : isQuoteStale
-                ? 'Quote updating…'
-                : null
+              : split?.status === 'ok' && minAssets && !exec
+                ? 'Amount too small'
+                : isQuoteStale
+                  ? 'Quote updating…'
+                  : null
 
   const submitBlocked =
     withdrawMutation.isPending ||
@@ -217,7 +227,7 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
         !split ||
         split.status !== 'ok' ||
         !minAssets ||
-        swapMin == null ||
+        !exec ||
         !!disableReason ||
         wrapBlocked ||
         pairPaused.isPaused ||

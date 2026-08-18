@@ -1439,9 +1439,26 @@ Retail `/pool` default is **one-sided** zap add/withdraw ([#533](https://gitlab.
 
 **Code:** [`oneSidedLiquidity.ts`](../frontend-dapp/src/utils/oneSidedLiquidity.ts), [`oneSidedLiquidityTx.ts`](../frontend-dapp/src/utils/oneSidedLiquidityTx.ts), [`OneSidedAddCard.tsx`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx), [`OneSidedWithdrawCard.tsx`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx).
 
-**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `make verify-issue-539` / `sg docker -c 'CI=1 make test-e2e'` (wrap-mapper split-fee instantiate is [#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)).
+**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `make verify-issue-539` / `sg docker -c 'CI=1 make test-e2e'` (wrap-mapper split-fee instantiate is [#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)). Zap execution floors: `make verify-issue-559` / [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](../skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
+
+### One-sided zap execution floors (Z559) {#pool-one-sided-zap-floors}
+
+Retail zap multi-msg legs are sized to the **previous leg’s floor**, not the optimistic quote ([#559](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/559)). A swap fill in `(min_return, quote)` must succeed provide (or fail `min_return` / `slippage_tolerance`) — never CW20 `Overflow: Cannot Sub`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Z559-1** | Execution amounts follow floors (`min_return` / `min_assets`); quotes may be optimistic. Zap-in `provideAsk ≤ swapMinReturn`. Do not `TransferFrom` the quoted ask. |
+| **Z559-2** | Zap-in provide is ratio-trimmed to conservative post-swap reserves (worse fill → higher ask reserve). Leftover stays in the wallet; no silent pre-existing ask spend (**Z533-4**). |
+| **Z559-3** | Zap-out `swapAmount ≤ min_assets[sold]`. Unwrap send ≤ `min(wanted withdrawn, min_assets[wanted]) + swapMinReturn` (**Z533-8**). |
+| **Z559-4** | Pre-sign min-swap is human token units, not raw uints. Conservative LP dust → `Amount too small`. Empty pool still `Empty pool. Use Advanced.` |
+
+**Code:** [`conservativeZapInProvide`](../frontend-dapp/src/utils/oneSidedLiquidity.ts) / [`conservativeZapOutExecution`](../frontend-dapp/src/utils/oneSidedLiquidity.ts), [`quoteOneSidedAdd`](../frontend-dapp/src/utils/oneSidedLiquidityQuote.ts), [`formatHumanMinSwapLine`](../frontend-dapp/src/utils/oneSidedLiquidityCopy.ts).
+
+**Verify:** `make verify-issue-559`. Units T-Z1–T-Z12. LocalTerra P9: `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts`. `make verify-issue-533` must still pass.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](../skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md).
 
 ### Pool page — provide liquidity (UI invariants)
 

@@ -37,8 +37,20 @@ const hubPricesOk = {
   tickers: ['custc', 'ust1', 'ustr'],
   prices: [
     { ticker: 'custc', price_usd: '0.005', source_pair: null, tvl_usd: null, updated_at: '2026-01-01T00:00:00Z' },
-    { ticker: 'ust1', price_usd: '0.98', source_pair: 'terra1ust1custcpair', tvl_usd: '500', updated_at: '2026-01-01T00:00:00Z' },
-    { ticker: 'ustr', price_usd: '0.012', source_pair: 'terra1ustrust1pair', tvl_usd: '200', updated_at: '2026-01-01T00:00:00Z' },
+    {
+      ticker: 'ust1',
+      price_usd: '0.98',
+      source_pair: 'terra1ust1custcpair',
+      tvl_usd: '500',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      ticker: 'ustr',
+      price_usd: '0.012',
+      source_pair: 'terra1ustrust1pair',
+      tvl_usd: '200',
+      updated_at: '2026-01-01T00:00:00Z',
+    },
   ],
 }
 
