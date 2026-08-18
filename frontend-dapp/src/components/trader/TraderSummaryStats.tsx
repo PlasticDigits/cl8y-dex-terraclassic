@@ -1,6 +1,7 @@
 import { AddressRow } from '@/components/ui/AddressRow'
 import { StatBox } from '@/components/ui/StatBox'
 import { formatNum } from '@/utils/formatAmount'
+import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
 import { formatDateTime } from '@/utils/formatDate'
 import type { IndexerTrader } from '@/types'
 import { PnlValue } from './PnlValue'
@@ -42,7 +43,11 @@ export function TraderSummaryStats({ trader, isOwnProfile, addressRowTestId }: T
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatBox label="Total Trades" value={trader.total_trades.toLocaleString()} />
-          <StatBox label="Total Volume" value={formatNum(trader.total_volume)} />
+          <StatBox
+            label="Total Volume (USD)"
+            value={formatIndexedVolumeUsd(trader.total_volume_usd, trader.total_trades)}
+            data-testid="trader-total-volume-usd"
+          />
           <StatBox label="First Trade" value={formatDateTime(trader.first_trade_at)} />
           <StatBox label="Last Trade" value={formatDateTime(trader.last_trade_at)} />
         </div>

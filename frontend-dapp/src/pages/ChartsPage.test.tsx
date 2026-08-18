@@ -275,4 +275,65 @@ describe('ChartsPage (component)', () => {
       expect(await screen.findByTestId('charts-unknown-pair-notice')).toBeInTheDocument()
     })
   })
+
+  describe('trader leaderboard volume (GitLab #553)', () => {
+    const ADDR = 'terra1abcdefghijklmnopqrstuvwxyz1234567890abcd'
+
+    it('Volume column is USD compact; raw USTR-scale total_volume is not shown as T', async () => {
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([
+        {
+          address: ADDR,
+          total_trades: 4,
+          total_volume: '10000000000000000000',
+          total_volume_usd: '711.2',
+          volume_24h: '0',
+          volume_7d: '0',
+          volume_30d: '0',
+          tier_id: null,
+          tier_name: null,
+          registered: false,
+          first_trade_at: null,
+          last_trade_at: null,
+          total_realized_pnl: '0',
+          best_trade_pnl: null,
+          worst_trade_pnl: null,
+          total_fees_paid: '0',
+        },
+      ])
+      renderWithProviders(<ChartsPage />)
+      await waitFor(() => expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20))
+      const cell = await screen.findByTestId('charts-leaderboard-volume')
+      expect(cell.textContent).toMatch(/\$/)
+      expect(cell.textContent).not.toMatch(/10,000,000T/)
+      expect(cell.textContent).not.toMatch(/\dT\b/)
+      expect(screen.getByRole('tab', { name: /volume \(usd\)/i })).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('unpriced leaderboard volume is an em dash, not $0', async () => {
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([
+        {
+          address: ADDR,
+          total_trades: 2,
+          total_volume: '10000000000000000000',
+          total_volume_usd: null,
+          volume_24h: '0',
+          volume_7d: '0',
+          volume_30d: '0',
+          tier_id: null,
+          tier_name: null,
+          registered: false,
+          first_trade_at: null,
+          last_trade_at: null,
+          total_realized_pnl: '0',
+          best_trade_pnl: null,
+          worst_trade_pnl: null,
+          total_fees_paid: '0',
+        },
+      ])
+      renderWithProviders(<ChartsPage />)
+      const cell = await screen.findByTestId('charts-leaderboard-volume')
+      expect(cell).toHaveTextContent('—')
+      expect(cell.textContent).not.toMatch(/\$0/)
+    })
+  })
 })
