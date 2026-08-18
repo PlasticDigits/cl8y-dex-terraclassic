@@ -15,7 +15,7 @@ export type TraderSummaryStatsProps = {
   addressRowTestId?: string
 }
 
-function parseOracleUsd(priceUsd: string | undefined): number | null {
+function parseOracleUsd(priceUsd: string | null | undefined): number | null {
   if (priceUsd == null || priceUsd === '') return null
   const n = Number(priceUsd)
   return Number.isFinite(n) && n > 0 ? n : null
