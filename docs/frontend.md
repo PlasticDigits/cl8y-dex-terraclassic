@@ -269,31 +269,48 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 | **Pairs** | `pair_count` | Indexed factory pairs. `charts-overview-pairs`. |
 | **Tokens** | `token_count` | Unique pair-leg assets. `charts-overview-tokens`. |
 
-`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level **Vol (token)** / **TWAP** on the same page is [Charts pair 24h Stats](#charts-pair-24h-stats) ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)).
+`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level 24h stats + TWAP on the same page are [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564) (below).
 
 Regression: `make verify-issue-548`.
 
-### Charts pair 24h Stats + TWAP (human scale) {#charts-pair-24h-stats}
+### Charts pair 24h stats {#charts-pair-stats}
 
-[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) pair **24h Stats** and **TWAP Oracle** display **human** token volumes and human quote-per-base TWAP ([GitLab **#564**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)). Indexer `GET /api/v1/pairs/{addr}/stats` keeps **raw** `volume_base` / `volume_quote` integers. Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](../skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md). On-chain oracle: [`docs/twap-oracle.md`](./twap-oracle.md).
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) pair **24h Stats** primary volume is **USD** ([GitLab **#565**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565); leftover from #540 / #544 **AC4**). Secondary **Vol ({symbol})** rows and **TWAP Oracle** use human token / quote-per-base scale ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)). Indexer `GET /api/v1/pairs/{addr}/stats` keeps **raw** `volume_base` / `volume_quote` integers. Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](../skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md). On-chain oracle: [`docs/twap-oracle.md`](./twap-oracle.md).
+
+**Layout (#565):** row 1 — Vol (USD), Trades, Price Change, High/Low/Open/Close (USD); row 2 — Vol (base symbol), Vol (quote symbol). Guard: stats render only when `activePair.pair_address === activePairAddr` (`charts-pair-24h-stats`).
+
+| Box | Source | Display |
+|-----|--------|---------|
+| **Vol (USD)** | `volume_usd` | `$` + compact human ([`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` / invalid with trades) → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. Tooltip `24h volume in USD`. `charts-pair-volume-usd`. |
+| **Vol ({symbol})** (secondary) | raw `volume_base` / `volume_quote` × **that pair’s** `asset_0` / `asset_1` decimals | [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts). Missing / out-of-range decimals → `—`. Never `formatNum(raw)`. Factory order — [#524](#trade-pair-display-invert) invert does not swap legs. `charts-pair-volume-base` / `charts-pair-volume-quote`. |
+| **High/Low/Open/Close (USD)** | factory `*_usd` | [`formatPairStatsUsdOhlc`](../frontend-dapp/src/utils/chartsPairStats.ts). `charts-pair-*-usd`. |
+
+`volume_base` / `volume_quote` stay **raw** in integrator JSON (**P565-6** / **S564-9**). Display `stats.volume_usd` as-is (one notional, **L10**). Do not divide human USD by 1e6. Do not match decimals by symbol.
 
 | ID | Rule |
 |----|------|
-| **S564-1** | **Vol (asset_0)** / **Vol (asset_1)** scale raw sums with **that pair row's** `asset_*.decimals` (`formatPairStatsVolume`). UST1 6-dec screenshot raw is hundreds, not `385.8M`. |
-| **S564-2** | 18-dec quote volume is tens of thousands (`K` OK). Compact `T` only if **human** ≥ 1e12. Never `formatNum(raw)`. |
+| **P565-1** | Pair 24h stats **primary** volume is **Vol (USD)** (`formatIndexedVolumeUsd`). |
+| **P565-2** | Never `formatNum(stats.volume_base)` or `formatNum(stats.volume_quote)`. |
+| **P565-3** | Secondary token vols use `formatChartsPairTokenVolume` with that pair’s leg decimals. |
+| **P565-4** | Unpriced / invalid `volume_usd` with trades → `—`; idle → `$0`. |
+| **P565-5** | [#524](#trade-pair-display-invert) invert does not change USD or swap leg decimals on stats. |
+| **P565-6** | Integrator JSON keeps raw token volumes; `volume_usd` stays human USD. |
+| **P565-7** | Token vols render only for the selected pair that fetched stats. |
+| **S564-1** | Token vols scale raw sums with **that pair row's** `asset_*.decimals`. UST1 6-dec raw is hundreds, not `385.8M`. |
+| **S564-2** | 18-dec quote volume is tens of thousands (`K` OK). Compact `T` only if **human** ≥ 1e12. |
 | **S564-3** | Equal-decimal pairs (UST1/cUSTC 6/6) are not extra-scaled by 1e6 or 1e12. |
-| **S564-4** | **Vol (USD)** is indexer `volume_usd` via `formatIndexedVolumeUsd`. Unpriced + trades > 0 → `—`. Idle 0 trades → `$0`. Do not invent USD in the client. |
-| **S564-5** | TWAP 5m/1h/24h is human factory token1-per-token0: `raw × 10^(d0 − d1)` then `formatPairPrice`. Not USD. Not compact `T`. |
+| **S564-4** | **Vol (USD)** is indexer `volume_usd` via `formatIndexedVolumeUsd`. Do not invent USD in the client. |
+| **S564-5** | TWAP 5m/1h/24h is human factory token1-per-token0: `raw × 10^(d0 − d1)` then `formatPairPrice`. Not USD. |
 | **S564-6** | Same-decimal TWAP is identity in magnitude. |
-| **S564-7** | High/Low/Open/Close (USD) use factory `*_usd` + `formatPairPrice` (never compact `T`). Do not `#524`-invert these boxes. |
+| **S564-7** | High/Low/Open/Close (USD) use factory `*_usd` + `formatPairStatsUsdOhlc` (never compact `T`). |
 | **S564-8** | Candle histogram scales quote volume by quote decimals (else base by base decimals). Invert does not flip volume (**C543-8**). |
 | **S564-9** | Indexer JSON units unchanged. No human-volume field. CG/CMC raw unchanged. |
-| **S564-10** | Missing / out-of-range decimals (`0…18`) or non-numeric volume/TWAP → `—`. Never `getDecimals` default 6. |
+| **S564-10** | Missing / out-of-range decimals (`0…18`) or non-numeric volume/TWAP → `—`. |
 | **S564-11** | Display only — not settlement, limit price, or zap floors. Tape amounts stay [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557). |
 
-`data-testid`s: `charts-pair-vol-base`, `charts-pair-vol-quote`, `charts-pair-vol-usd`, `charts-twap-5m` / `1h` / `24h`.
+`data-testid`s: `charts-pair-volume-usd`, `charts-pair-volume-base`, `charts-pair-volume-quote`, `charts-pair-*-usd`, `charts-twap-5m` / `1h` / `24h`.
 
-Regression: `make verify-issue-564`.
+Regression: `make verify-issue-565` · `make verify-issue-564`.
 
 ### Charts trader leaderboard {#charts-trader-leaderboard}
 

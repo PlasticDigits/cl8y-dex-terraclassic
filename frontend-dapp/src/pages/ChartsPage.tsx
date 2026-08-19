@@ -25,14 +25,13 @@ import {
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
-import { formatPairStatsVolume } from '@/utils/formatAmount'
 import {
   formatChartsOverviewCount,
   formatChartsOverviewUstcUsd,
   formatChartsOverviewVolumeUsd,
   formatIndexedVolumeUsd,
 } from '@/utils/chartsOverviewStats'
-import { formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
+import { formatChartsPairTokenVolume, formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
@@ -470,9 +469,9 @@ export default function ChartsPage() {
         </div>
       )}
 
-      {/* 24h Stats */}
-      {stats && activePair && (
-        <div className="shell-panel">
+      {/* 24h Stats — USD primary; human token vols secondary (GitLab #565). */}
+      {stats && activePair && activePair.pair_address === activePairAddr && (
+        <div className="shell-panel" data-testid="charts-pair-24h-stats">
           <h3
             className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
             style={{ color: 'var(--ink)' }}
@@ -481,22 +480,10 @@ export default function ChartsPage() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox
-              label={`Vol (${activePair.asset_0.symbol})`}
-              title="24h indexed volume in human tokens for this pair."
-              value={formatPairStatsVolume(stats.volume_base, activePair.asset_0.decimals)}
-              data-testid="charts-pair-vol-base"
-            />
-            <StatBox
-              label={`Vol (${activePair.asset_1.symbol})`}
-              title="24h indexed volume in human tokens for this pair."
-              value={formatPairStatsVolume(stats.volume_quote, activePair.asset_1.decimals)}
-              data-testid="charts-pair-vol-quote"
-            />
-            <StatBox
               label="Vol (USD)"
-              title="24h indexed USD volume for this pair, not a quote."
               value={formatIndexedVolumeUsd(stats.volume_usd, stats.trade_count)}
-              data-testid="charts-pair-vol-usd"
+              data-testid="charts-pair-volume-usd"
+              title="24h volume in USD"
             />
             <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox
@@ -537,6 +524,18 @@ export default function ChartsPage() {
               title="24h close factory USD of 1 human base."
               value={formatPairStatsUsdOhlc(closeUsd)}
               data-testid="charts-pair-close-usd"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <StatBox
+              label={`Vol (${activePair.asset_0.symbol})`}
+              value={formatChartsPairTokenVolume(stats.volume_base, activePair.asset_0.decimals)}
+              data-testid="charts-pair-volume-base"
+            />
+            <StatBox
+              label={`Vol (${activePair.asset_1.symbol})`}
+              value={formatChartsPairTokenVolume(stats.volume_quote, activePair.asset_1.decimals)}
+              data-testid="charts-pair-volume-quote"
             />
           </div>
         </div>
