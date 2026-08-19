@@ -346,12 +346,15 @@ describe('ChartsPage (component)', () => {
       asset_1: { symbol: 'cUSTC', contract_addr: 'terra1custc', denom: null, decimals: 6 },
     }
 
-    async function renderPairStats(pair: IndexerPair, stats: {
-      volume_base: string
-      volume_quote: string
-      volume_usd?: string | null
-      trade_count: number
-    }) {
+    async function renderPairStats(
+      pair: IndexerPair,
+      stats: {
+        volume_base: string
+        volume_quote: string
+        volume_usd?: string | null
+        trade_count: number
+      }
+    ) {
       vi.mocked(indexerClient.getPairs).mockResolvedValue({
         items: [pair],
         total: 1,
@@ -496,6 +499,148 @@ describe('ChartsPage (component)', () => {
       expect(screen.getByTestId('charts-pair-volume-quote').textContent).toBe(beforeQuote)
       expect(screen.getByTestId('charts-pair-volume-base')).toHaveTextContent(/Vol \(UST1\)/)
       expect(screen.getByTestId('charts-pair-volume-quote')).toHaveTextContent(/Vol \(cUSTC\)/)
+    })
+  })
+
+  describe('pair 24h stats + TWAP human scale (GitLab #564)', () => {
+    const UST1_USTR: IndexerPair = {
+      ...mockPair,
+      asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1', denom: null, decimals: 6 },
+      asset_1: { symbol: 'USTR', contract_addr: 'terra1ustr', denom: null, decimals: 18 },
+    }
+
+    const EQUAL_DEC: IndexerPair = {
+      ...mockPair,
+      pair_address: 'terra1pair0000000000000000000000000000eq',
+      asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1', denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: 'terra1custc', denom: null, decimals: 6 },
+    }
+
+    it('S1/S2/S4/S5: UST1/USTR vols and TWAP are human, not T/M compact raw', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [UST1_USTR],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '385800000',
+        volume_quote: '36113437940000000000000',
+        volume_usd: '264.2',
+        trade_count: 15,
+        high: '111',
+        low: '90',
+        open_price: '95',
+        close_price: '111',
+        price_change_pct: 16.8,
+        high_usd: '0.97',
+        low_usd: '0.682427',
+        open_price_usd: '0.70',
+        close_price_usd: '0.90',
+      })
+      vi.mocked(oracle.getTwapPrices).mockResolvedValue([
+        { label: '5m', seconds: 300, price: '111009000000000' },
+        { label: '1h', seconds: 3600, price: '111009000000000' },
+        { label: '24h', seconds: 86400, price: '94998200000000' },
+      ])
+      renderWithProviders(<ChartsPage />)
+      const volBase = await screen.findByTestId('charts-pair-volume-base')
+      await waitFor(() => expect(volBase).toHaveTextContent(/385\.8/))
+      expect(volBase.textContent).not.toMatch(/M$/)
+      expect(volBase).toHaveTextContent(/Vol \(UST1\)/)
+      const volQuote = screen.getByTestId('charts-pair-volume-quote')
+      expect(volQuote.textContent).toMatch(/K$/)
+      expect(volQuote.textContent).not.toMatch(/T$/)
+      expect(volQuote).toHaveTextContent(/Vol \(USTR\)/)
+      expect(screen.getByTestId('charts-pair-volume-usd')).toHaveTextContent('$')
+      const twap5m = screen.getByTestId('charts-twap-5m')
+      expect(twap5m).toHaveTextContent(/111/)
+      expect(twap5m.textContent).not.toMatch(/T$/)
+      expect(twap5m).toHaveTextContent(/TWAP 5m/)
+      expect(twap5m.textContent).not.toMatch(/\dT\b/)
+      expect(document.body.textContent).not.toMatch(/36,113,437,940T/)
+      expect(volBase.textContent).not.toMatch(/385\.8M/)
+      expect(screen.getByTestId('charts-pair-low-usd')).toHaveTextContent('$0.682427')
+      expect(screen.getByTestId('charts-pair-low-usd').textContent).not.toMatch(/[TMBK]/)
+    })
+
+    it('S3: 6/6 pair vols stay readable without extra 1e6 scale', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [EQUAL_DEC],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '1000000',
+        volume_quote: '206000000',
+        volume_usd: '206',
+        trade_count: 2,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+        high_usd: '1',
+        low_usd: '1',
+        open_price_usd: '1',
+        close_price_usd: '1',
+      })
+      vi.mocked(oracle.getTwapPrices).mockResolvedValue([
+        { label: '5m', seconds: 300, price: '1.05' },
+        { label: '1h', seconds: 3600, price: '1.05' },
+        { label: '24h', seconds: 86400, price: '1.05' },
+      ])
+      renderWithProviders(<ChartsPage />)
+      const volBase = await screen.findByTestId('charts-pair-volume-base')
+      await waitFor(() => expect(volBase.textContent).toMatch(/1(\.0+)?/))
+      expect(screen.getByTestId('charts-pair-volume-quote').textContent).toMatch(/^[\s\S]*206/)
+      expect(screen.getByTestId('charts-twap-5m')).toHaveTextContent('1.05')
+      expect(screen.getByTestId('charts-twap-5m').textContent).not.toMatch(/T$/)
+    })
+
+    it('S4: unpriced volume_usd with trades is em dash', async () => {
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '1000000',
+        volume_quote: '1000000',
+        volume_usd: null,
+        trade_count: 15,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      const usd = await screen.findByTestId('charts-pair-volume-usd')
+      await waitFor(() => expect(usd).toHaveTextContent('—'))
+      expect(usd.textContent).not.toMatch(/\$0/)
+    })
+
+    it('S4: idle pair 24h USD is $0', async () => {
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '0',
+        volume_quote: '0',
+        volume_usd: '0',
+        trade_count: 0,
+        high: null,
+        low: null,
+        open_price: null,
+        close_price: null,
+        price_change_pct: null,
+      })
+      renderWithProviders(<ChartsPage />)
+      const usd = await screen.findByTestId('charts-pair-volume-usd')
+      await waitFor(() => expect(usd).toHaveTextContent('$0'))
+    })
+
+    it('S11: oracle observe failure shows TWAP em dash and unavailable copy', async () => {
+      vi.mocked(oracle.getTwapPrices).mockRejectedValue(new Error('lcd down'))
+      renderWithProviders(<ChartsPage />)
+      const twap = await screen.findByTestId('charts-twap-5m')
+      await waitFor(() => expect(twap).toHaveTextContent('—'))
+      expect(await screen.findByText(/oracle data unavailable for this pair/i)).toBeInTheDocument()
+      expect(screen.getByTestId('charts-pair-volume-base')).toBeInTheDocument()
     })
   })
 })

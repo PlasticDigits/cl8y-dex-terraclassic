@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
   buildCreatePairCw20Options,
   getCreatePairCw20Options,
@@ -151,5 +151,19 @@ describe('create pair address helpers', () => {
   it('A10: listedCreatePairAddress ignores ids not in the catalog', () => {
     expect(listedCreatePairAddress([CL8Y], USTR)).toBeUndefined()
     expect(listedCreatePairAddress([CL8Y], CL8Y.toUpperCase())).toBe(CL8Y)
+  })
+})
+
+describe('Create Pair gems gated on retailExposeTestTokens (GitLab #562 U7 / A5)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('live catalog does not append mintable gems on a mainnet build', () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    const rows = getCreatePairCw20Options()
+    expect(rows.some((r) => r.symbol === 'EMBER' || r.symbol === 'RUBY')).toBe(false)
+    expect(rows.some((r) => r.address.toLowerCase() === CL8Y_TOKEN_ADDRESS.toLowerCase())).toBe(true)
   })
 })

@@ -33,16 +33,16 @@ JSON **keeps raw strings**. The dApp scales.
 | **P551-2** | **Net position** = human quote `raw ÷ 10^decimals_quote` + **quote symbol**. Never `formatNum(raw)`. |
 | **P551-3** | **Cost basis** and **realized P&L** = human **base** `raw ÷ 10^decimals_base` + **base symbol**. P&L is **not** in quote units. |
 | **P551-4** | **Avg entry** = `raw_avg × 10^(decimals_quote − decimals_base)` (human base per 1 human quote). Display with `formatPairPrice` (no compact `T`) and label `{base} / {quote}`. Inverse of tape human quote-per-base (**P522-1**). |
-| **P551-5** | **Do not** render `traders.total_realized_pnl`, `total_volume`, `total_fees_paid`, `best_trade_pnl`, or `worst_trade_pnl` via `formatNum`. Fees / best / worst → **—** (mixed tokens). **Total Volume (USD)** is [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) (`total_volume_usd`). Header realized P&L = **USD sum** of per-pair P&L using P522-Q on the **base** token. Unpriced pairs are omitted, not `$0`. Empty positions → `$0`. |
-| **P551-6** | Tape Amount in / out / Price is **[#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)**. Profile/leaderboard **volume USD** is **[#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)**. DEX hub USD catalog (replacing UST1=`$1` / USTR=`2.5×` USTC) is **[#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)**. |
+| **P551-5** | **Do not** render `traders.total_realized_pnl`, `total_volume`, `total_fees_paid`, `best_trade_pnl`, or `worst_trade_pnl` via `formatNum`. Fees / best / worst → **—** (mixed tokens). **Total Volume (USD)** is [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) (`total_volume_usd`). Header realized P&L = **USD sum** of per-pair P&L via **hub_prices** on UST1/USTR/cUSTC ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560), **P560-1**). Unpriced pairs are omitted, not `$0`. Empty positions → `$0`. |
+| **P551-6** | Tape Amount in / out / Price is **[#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)**. Profile/leaderboard **volume USD** is **[#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)**. DEX hub USD catalog (replacing UST1=`$1` / USTR=`2.5×` USTC) is **[#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)**. Header P&L USD wiring is **[#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)**. |
 
 ## Do / don’t
 
-- **Do** scale through [`traderPositionDisplay.ts`](../frontend-dapp/src/utils/traderPositionDisplay.ts) (`formatScaledPosition`, `sumRealizedPnlUsd`).
+- **Do** scale through [`traderPositionDisplay.ts`](../frontend-dapp/src/utils/traderPositionDisplay.ts) (`formatScaledPosition`, `sumRealizedPnlUsd`, `traderUsdMarksFromHub`).
 - **Do** label the token on every per-pair amount.
 - **Don’t** add `traders.total_realized_pnl` across pairs and call it a total.
 - **Don’t** treat avg entry as tape `price` or as USD.
-- **Don’t** invent USD for unknown base tokens.
+- **Don’t** invent USD for unknown base tokens (`$1` UST1 / `2.5×` USTR pegs are banned — [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)).
 
 ## Regression checklist
 
@@ -50,10 +50,13 @@ JSON **keeps raw strings**. The dApp scales.
 2. `cd indexer && cargo test --test api_traders get_trader_positions_returns_rows -- --test-threads=1 --quiet`
 3. Frontend: `traderPositionDisplay.test.ts`, `TraderPositionsTable.test.tsx`, `TraderSummaryStats.test.tsx`, `PortfolioPage.test.tsx`
 4. `make verify-issue-551`
+5. Header USD from hub: `make verify-issue-560` ([`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md))
 
 ## Related
 
 - [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md) — portfolio shell / APIs
-- [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for USD totals
+- [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for tape USD
+- [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD from hub_prices (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC / LUNC feeds
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — do not `formatNum` mixed raw volume (#548); leaderboard volume USD is #553
+- [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape amounts vs P&amp;L (#557 vs #551)

@@ -22,7 +22,13 @@ import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
-import { firstCatalogPairAddress } from '@/utils/pairCatalogRank'
+import {
+  firstCatalogPairAddress,
+  isRetailHiddenTestPair,
+  pairInfoLegIds,
+  pairInfoLegSymbols,
+  retailExposeTestTokens,
+} from '@/utils/pairCatalogRank'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
@@ -99,6 +105,8 @@ type TradeChartSlotProps = {
   displayBaseSymbol?: string
   /** When false, chart fills the parent card without an extra wrapper (desktop panel). */
   wrapInCard?: boolean
+  volumeBaseDecimals?: number
+  volumeQuoteDecimals?: number
 }
 
 /** Chart mounts on `pairAddr` immediately; candles load in parallel with `getPair` (GitLab #180). */
@@ -116,6 +124,8 @@ function TradeChartSlot({
   invertAriaLabel,
   displayBaseSymbol,
   wrapInCard = true,
+  volumeBaseDecimals,
+  volumeQuoteDecimals,
 }: TradeChartSlotProps) {
   if (!pairRouteReady) {
     return (
@@ -143,6 +153,8 @@ function TradeChartSlot({
       pairPillLabel={pairPillLabel}
       invertAriaLabel={invertAriaLabel}
       displayBaseSymbol={displayBaseSymbol}
+      volumeBaseDecimals={volumeBaseDecimals}
+      volumeQuoteDecimals={volumeQuoteDecimals}
     />
   )
   if (!wrapInCard) return chart
@@ -316,6 +328,12 @@ export default function TradePage() {
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
 
   const factoryPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
+  const showLegacyGemNotice = useMemo(() => {
+    if (!factoryPair || retailExposeTestTokens()) return false
+    const [id0, id1] = pairInfoLegIds(factoryPair)
+    const [s0, s1] = pairInfoLegSymbols(factoryPair)
+    return isRetailHiddenTestPair(s0, s1, id0, id1)
+  }, [factoryPair])
 
   const [limitBookDraftKey, setLimitBookDraftKey] = useState(0)
   const [limitBookDraft, setLimitBookDraft] = useState<LimitBookTicketDraft | null>(null)
@@ -428,6 +446,8 @@ export default function TradePage() {
     pairPillLabel: pairOrientation.pillLabel,
     invertAriaLabel: pairOrientation.invertAriaLabel,
     displayBaseSymbol: pairOrientation.displayBase,
+    volumeBaseDecimals: activePair?.asset_0.decimals,
+    volumeQuoteDecimals: activePair?.asset_1.decimals,
   }
 
   const tradeOrderTicket = (
@@ -552,6 +572,11 @@ export default function TradePage() {
             inverted={pairOrientation.inverted}
           />
         ) : null}
+        {showTradeWorkspace && showLegacyGemNotice ? (
+          <p className="mt-2 text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="trade-legacy-gem-notice">
+            Legacy noneconomic market.
+          </p>
+        ) : null}
       </div>
 
       {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
@@ -595,6 +620,7 @@ export default function TradePage() {
                 formatTimeFn={formatTime}
                 skeletonHeight="6rem"
                 hideHeading
+                inverted={pairOrientation.inverted}
               />
             </TradeWorkspaceDisclosure>
           </div>
@@ -651,6 +677,7 @@ export default function TradePage() {
                           formatTimeFn={formatTime}
                           skeletonHeight="5rem"
                           hideHeading
+                          inverted={pairOrientation.inverted}
                         />
                       </div>
                     ) : (
@@ -678,7 +705,13 @@ export default function TradePage() {
           testId="trade-wallet-history-disclosure"
           className="mt-3"
         >
-          <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} sections={['swaps']} />
+          <WalletIndexerHistoryPanel
+            walletAddress={address}
+            pairAddress={pairAddr}
+            sections={['swaps']}
+            activePair={activePair}
+            inverted={pairOrientation.inverted}
+          />
         </TradeWorkspaceDisclosure>
       )}
     </div>

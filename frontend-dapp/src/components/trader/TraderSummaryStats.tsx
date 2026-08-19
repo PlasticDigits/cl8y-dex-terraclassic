@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { StatBox } from '@/components/ui/StatBox'
+import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
 import { getOraclePrice } from '@/services/indexer/client'
 import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
 import { formatDateTime } from '@/utils/formatDate'
-import { formatSignedUsd, sumRealizedPnlUsd, TRADER_PNL_EM_DASH } from '@/utils/traderPositionDisplay'
+import {
+  formatSignedUsd,
+  sumRealizedPnlUsd,
+  traderUsdMarksFromHub,
+  TRADER_PNL_EM_DASH,
+} from '@/utils/traderPositionDisplay'
 import type { IndexerPosition, IndexerTrader } from '@/types'
 import { PnlValue } from './PnlValue'
 
@@ -21,8 +27,9 @@ function parseOracleUsd(priceUsd: string | null | undefined): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-/** Indexer trader profile header + aggregate stats (GitLab #212 / #551 / #553 shared with `/trader`). */
+/** Indexer trader profile header + aggregate stats (GitLab #212 / #551 / #553 / #560 shared with `/trader`). */
 export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRowTestId }: TraderSummaryStatsProps) {
+  const hubQuery = useProtocolHubPricesQuery()
   const ustcQuery = useQuery({
     queryKey: ['oracle-price', 'ustc'],
     queryFn: () => getOraclePrice('ustc'),
@@ -34,10 +41,13 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
     staleTime: 60_000,
   })
 
-  const pnlUsd = sumRealizedPnlUsd(positions, {
-    ustcUsd: parseOracleUsd(ustcQuery.data?.price_usd),
-    luncUsd: parseOracleUsd(luncQuery.data?.price_usd),
-  })
+  const pnlUsd = sumRealizedPnlUsd(
+    positions,
+    traderUsdMarksFromHub(hubQuery.data, {
+      ustcUsd: parseOracleUsd(ustcQuery.data?.price_usd),
+      luncUsd: parseOracleUsd(luncQuery.data?.price_usd),
+    })
+  )
   const pnlLabel = pnlUsd.unpricedPairs > 0 && pnlUsd.pricedPairs > 0 ? 'Priced pairs only' : 'USD · realized only'
 
   return (

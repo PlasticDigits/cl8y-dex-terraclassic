@@ -6,6 +6,7 @@ import {
   multiplyNumericByTenPow,
   scaleNumericByDecimals,
   sumRealizedPnlUsd,
+  traderUsdMarksFromHub,
   TRADER_PNL_EM_DASH,
 } from '../traderPositionDisplay'
 
@@ -107,7 +108,19 @@ describe('formatScaledPosition', () => {
     expect(d.avgEntry).toBe(TRADER_PNL_EM_DASH)
   })
 
-  it('converts UST1 P&L to USD via peg1', () => {
+  it('converts UST1 P&L to USD via hub ust1, not $1 (GitLab #560)', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1pair',
+        realized_pnl: '38290000',
+      }),
+      { ust1Usd: 0.976, ustcUsd: 0.005 }
+    )
+    expect(d.realizedPnlUsd).toBeCloseTo(38.29 * 0.976, 6)
+    expect(d.realizedPnlUsd).not.toBeCloseTo(38.29, 6)
+  })
+
+  it('omits UST1 P&L when hub ust1 is missing (not $1)', () => {
     const d = formatScaledPosition(
       pos({
         pair_address: 'terra1pair',
@@ -115,7 +128,21 @@ describe('formatScaledPosition', () => {
       }),
       { ustcUsd: 0.005 }
     )
-    expect(d.realizedPnlUsd).toBeCloseTo(38.29, 6)
+    expect(d.realizedPnlUsd).toBeNull()
+  })
+
+  it('converts USTR P&L via hub ustr, not 2.5× USTC', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1ustr',
+        asset_0_symbol: 'USTR',
+        asset_0_decimals: 18,
+        realized_pnl: '1000000000000000000',
+      }),
+      { ustcUsd: 0.00473, ustrUsd: 0.00879 }
+    )
+    expect(d.realizedPnlUsd).toBeCloseTo(0.00879, 6)
+    expect(d.realizedPnlUsd).not.toBeCloseTo(0.00473 * 2.5, 5)
   })
 })
 
@@ -130,9 +157,9 @@ describe('sumRealizedPnlUsd', () => {
           realized_pnl: '999999999999',
         }),
       ],
-      { ustcUsd: 0.005 }
+      { ust1Usd: 0.976, ustcUsd: 0.005 }
     )
-    expect(summary.usd).toBeCloseTo(1, 6)
+    expect(summary.usd).toBeCloseTo(0.976, 6)
     expect(summary.pricedPairs).toBe(1)
     expect(summary.unpricedPairs).toBe(1)
   })
@@ -143,10 +170,10 @@ describe('sumRealizedPnlUsd', () => {
         pos({ pair_address: 'ustc', asset_0_symbol: 'cUSTC', realized_pnl: '1000000' }),
         pos({ pair_address: 'ust1', asset_0_symbol: 'UST1', realized_pnl: '1000000' }),
       ],
-      { ustcUsd: 0.005 }
+      { ustcUsd: 0.005, ust1Usd: 0.976 }
     )
-    // 1 cUSTC * $0.005 + 1 UST1 * $1 = $1.005 — not 2000000
-    expect(summary.usd).toBeCloseTo(1.005, 6)
+    // 1 cUSTC * $0.005 + 1 UST1 * $0.976 = $0.981 — not 2000000 and not $1.005 peg
+    expect(summary.usd).toBeCloseTo(0.981, 6)
   })
 
   it('empty positions are $0; pending and all-unpriced are null', () => {
@@ -155,6 +182,41 @@ describe('sumRealizedPnlUsd', () => {
     expect(
       sumRealizedPnlUsd([pos({ pair_address: 'g', asset_0_symbol: 'GEMX', realized_pnl: '1000000' })]).usd
     ).toBeNull()
+  })
+})
+
+describe('traderUsdMarksFromHub (GitLab #560)', () => {
+  it('reads ust1/ustr/custc from hub-prices and does not invent pegs', () => {
+    const marks = traderUsdMarksFromHub(
+      {
+        prices: [
+          { ticker: 'custc', price_usd: '0.00473' },
+          { ticker: 'ust1', price_usd: '0.976' },
+          { ticker: 'ustr', price_usd: '0.00879' },
+        ],
+      },
+      { ustcUsd: 0.005, luncUsd: 0.0001 }
+    )
+    expect(marks.ustcUsd).toBeCloseTo(0.00473, 6)
+    expect(marks.ust1Usd).toBeCloseTo(0.976, 6)
+    expect(marks.ustrUsd).toBeCloseTo(0.00879, 6)
+    expect(marks.luncUsd).toBeCloseTo(0.0001, 6)
+  })
+
+  it('omits null hub ticks; CEX ustc fills cUSTC only when hub custc is missing', () => {
+    const marks = traderUsdMarksFromHub(
+      {
+        prices: [
+          { ticker: 'custc', price_usd: null },
+          { ticker: 'ust1', price_usd: null },
+          { ticker: 'ustr', price_usd: '0' },
+        ],
+      },
+      { ustcUsd: 0.005, luncUsd: 0.0001 }
+    )
+    expect(marks.ustcUsd).toBeCloseTo(0.005, 6)
+    expect(marks.ust1Usd).toBeNull()
+    expect(marks.ustrUsd).toBeNull()
   })
 })
 

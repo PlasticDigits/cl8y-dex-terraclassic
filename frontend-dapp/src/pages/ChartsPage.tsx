@@ -25,18 +25,17 @@ import {
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
-import { formatNum } from '@/utils/formatAmount'
 import {
   formatChartsOverviewCount,
   formatChartsOverviewUstcUsd,
   formatChartsOverviewVolumeUsd,
   formatIndexedVolumeUsd,
 } from '@/utils/chartsOverviewStats'
-import { formatChartsPairTokenVolume } from '@/utils/chartsPairStats'
+import { formatChartsPairTokenVolume, formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
-import { sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
+import { filterRetailDiscoveryIndexerPairs, sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
 import { chartsPairHref, getInvalidChartsPairRouteParam, isChartsPairRouteParam } from '@/utils/chartsPairRoute'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
@@ -150,7 +149,11 @@ export default function ChartsPage() {
     if (extra && !list.some((p) => p.pair_address === extra.pair_address)) {
       list.unshift(extra)
     }
-    return sortIndexerPairsByCatalog(list)
+    const filtered = sortIndexerPairsByCatalog(filterRetailDiscoveryIndexerPairs(list))
+    if (extra && !filtered.some((p) => p.pair_address === extra.pair_address)) {
+      return [extra, ...filtered]
+    }
+    return filtered
   }, [pairItems, selectedPairQuery.data])
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
@@ -460,6 +463,8 @@ export default function ChartsPage() {
             pairPillLabel={pairOrientation.pillLabel}
             invertAriaLabel={pairOrientation.invertAriaLabel}
             displayBaseSymbol={pairOrientation.displayBase}
+            volumeBaseDecimals={activePair?.asset_0.decimals}
+            volumeQuoteDecimals={activePair?.asset_1.decimals}
           />
         </div>
       )}
@@ -496,10 +501,30 @@ export default function ChartsPage() {
                   : undefined
               }
             />
-            <StatBox label="High (USD)" value={highUsd ? formatNum(highUsd, 6) : '—'} />
-            <StatBox label="Low (USD)" value={lowUsd ? formatNum(lowUsd, 6) : '—'} />
-            <StatBox label="Open (USD)" value={openUsd ? formatNum(openUsd, 6) : '—'} />
-            <StatBox label="Close (USD)" value={closeUsd ? formatNum(closeUsd, 6) : '—'} />
+            <StatBox
+              label="High (USD)"
+              title="Highest factory USD of 1 human base in the last 24h."
+              value={formatPairStatsUsdOhlc(highUsd)}
+              data-testid="charts-pair-high-usd"
+            />
+            <StatBox
+              label="Low (USD)"
+              title="Lowest factory USD of 1 human base in the last 24h."
+              value={formatPairStatsUsdOhlc(lowUsd)}
+              data-testid="charts-pair-low-usd"
+            />
+            <StatBox
+              label="Open (USD)"
+              title="24h open factory USD of 1 human base."
+              value={formatPairStatsUsdOhlc(openUsd)}
+              data-testid="charts-pair-open-usd"
+            />
+            <StatBox
+              label="Close (USD)"
+              title="24h close factory USD of 1 human base."
+              value={formatPairStatsUsdOhlc(closeUsd)}
+              data-testid="charts-pair-close-usd"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
             <StatBox
@@ -538,8 +563,10 @@ export default function ChartsPage() {
                 <StatBox
                   key={w.label}
                   label={`TWAP ${w.label}`}
-                  value={entry?.price != null ? formatNum(entry.price, 6) : '—'}
+                  title="Pair TWAP in quote per base, not USD."
+                  value={formatTwapHumanPrice(entry?.price, activePair.asset_0.decimals, activePair.asset_1.decimals)}
                   loading={twapQuery.isLoading}
+                  data-testid={`charts-twap-${w.label}`}
                 />
               )
             })}
@@ -602,6 +629,7 @@ export default function ChartsPage() {
             trades={tradesQuery.data}
             formatTimeFn={formatTime}
             activePair={activePair}
+            inverted={pairOrientation.inverted}
             ariaLabel="Recent trades"
           />
         )}

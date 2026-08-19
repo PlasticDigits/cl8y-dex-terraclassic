@@ -10,6 +10,7 @@ import {
 import type { IndexerRouteQuoteKind } from '@/types'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
+import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 
 /**
  * Wallet-authoritative CW20 quote from indexer `GET /route/solve` (global best-execution hybrid).
@@ -55,6 +56,16 @@ export async function quoteCw20ViaRouteSolve(input: {
   const tin = idx.token_in.trim().toLowerCase()
   const tout = idx.token_out.trim().toLowerCase()
   if (tin !== fromToken.trim().toLowerCase() || tout !== toToken.trim().toLowerCase()) {
+    return null
+  }
+
+  const hopTokens = [
+    idx.token_in,
+    idx.token_out,
+    ...(idx.intermediate_tokens ?? []),
+    ...idx.hops.flatMap((h) => [h.offer_token, h.ask_token]),
+  ]
+  if (shouldRejectGemBridgeQuote(fromToken, toToken, hopTokens)) {
     return null
   }
 

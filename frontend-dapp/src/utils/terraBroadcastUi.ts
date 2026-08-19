@@ -1,5 +1,15 @@
 import type { TerraBroadcastPhase } from '@/services/terraclassic/terraBroadcast'
-import { TERRA_TX_POST_SIGN_BROADCAST_UNKNOWN_MESSAGE } from '@/utils/terraTxTimeout'
+import {
+  TERRA_TX_POST_SIGN_BROADCAST_UNKNOWN_MESSAGE,
+  TERRA_TX_SIGNING_HINT_DELAY_MS,
+  TERRA_TX_SIGNING_KEPLR_DELAYED_HINT,
+  TERRA_TX_SIGNING_LEDGER_HINT,
+} from '@/utils/terraTxTimeout'
+
+export type TerraBroadcastStatusMessageOptions = {
+  isNanoLedger?: boolean
+  signingElapsedMs?: number
+}
 
 /** Button copy for an in-flight Terra broadcast mutation (GitLab #305, #359). */
 export function terraBroadcastPendingButtonLabel(
@@ -23,10 +33,21 @@ export function terraBroadcastPendingButtonLabel(
   }
 }
 
-/** In-flight status when post-sign broadcast outcome is unknown (GitLab #359). */
-export function terraBroadcastPendingStatusMessage(phase: TerraBroadcastPhase | null): string | null {
+/** In-flight status: #359 recovery, or Keplr/Ledger signing hints (GitLab #567). */
+export function terraBroadcastPendingStatusMessage(
+  phase: TerraBroadcastPhase | null,
+  options?: TerraBroadcastStatusMessageOptions
+): string | null {
   if (phase === 'recovering') {
     return TERRA_TX_POST_SIGN_BROADCAST_UNKNOWN_MESSAGE
+  }
+  if (phase === 'signing') {
+    if (options?.isNanoLedger) {
+      return TERRA_TX_SIGNING_LEDGER_HINT
+    }
+    if ((options?.signingElapsedMs ?? 0) >= TERRA_TX_SIGNING_HINT_DELAY_MS) {
+      return TERRA_TX_SIGNING_KEPLR_DELAYED_HINT
+    }
   }
   return null
 }

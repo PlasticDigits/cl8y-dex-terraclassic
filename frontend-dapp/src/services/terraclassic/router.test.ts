@@ -111,6 +111,31 @@ describe('findRoute', () => {
   })
 })
 
+describe('findRoute production gem graph (GitLab #562 U9)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('does not bridge economic tokens through a gem hop on mainnet', () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+    const RUBY = 'terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc'
+    const pairs = [mockPair(UST1, RUBY, 'p-gem-a'), mockPair(RUBY, CUSTC, 'p-gem-b')]
+    expect(findRoute(pairs, UST1, CUSTC)).toBeNull()
+  })
+
+  it('still routes gem→gem when an endpoint is a gem (exit hatch)', () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    const RUBY = 'terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc'
+    const PEARL = 'terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs'
+    const pairs = [mockPair(RUBY, PEARL, 'p-gem')]
+    expect(findRoute(pairs, RUBY, PEARL)).toHaveLength(1)
+  })
+})
+
 describe('getAllTokens', () => {
   it('extracts unique tokens from pairs plus configured wrap assets', () => {
     const pairs = [mockPair('tokenA', 'tokenB', 'pair1'), mockPair('tokenB', 'tokenC', 'pair2')]

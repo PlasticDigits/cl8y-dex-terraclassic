@@ -53,6 +53,42 @@ export function formatPairPrice(val: string | number, sigfigs = 6): string {
   return renderSigFigs(n, sigfigs)
 }
 
+/** Pair-leg decimals from the indexer row (GitLab #564). Never fall back to `getDecimals` (defaults to 6). */
+export function isPairLegDecimals(d: unknown): d is number {
+  return typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 18
+}
+
+/** Cap compact token-volume strings so adversarial JSON cannot lock the tab (overview **A4** class). */
+const PAIR_STATS_VOLUME_DISPLAY_CAP = 24
+
+/**
+ * Charts pair 24h **Vol (SYMBOL)** from indexer raw `volume_base` / `volume_quote` (GitLab #564).
+ *
+ * Indexer JSON stays a raw integer. This helper scales with **that pair row's** `asset_*.decimals`
+ * (0…18). Compact `K`/`M`/`B`/`T` is allowed only after humanizing.
+ *
+ * - Zero raw → `0`
+ * - Missing / non-integer / out-of-range decimals, non-numeric, negative, `<>` → `—`
+ */
+export function formatPairStatsVolume(raw: string | null | undefined, decimals: unknown): string {
+  if (!isPairLegDecimals(decimals)) return '—'
+  if (raw == null || raw === '') return '—'
+  if (typeof raw !== 'string') return '—'
+  if (raw.length > 78) return '—'
+  if (/[<>]/.test(raw)) return '—'
+  let n: bigint
+  try {
+    n = BigInt(raw)
+  } catch {
+    return '—'
+  }
+  if (n < 0n) return '—'
+  if (n === 0n) return '0'
+  const formatted = formatTokenAmount(raw, decimals)
+  if (!formatted || formatted.length > PAIR_STATS_VOLUME_DISPLAY_CAP) return '—'
+  return formatted
+}
+
 /**
  * Format indexer `volume_quote_24h` (raw quote-side integer) using the quote token's decimals.
  * Passing the raw 18-dec string to {@link formatNum} prints `19,297,048T` for ordinary USTR flow (GitLab #534).

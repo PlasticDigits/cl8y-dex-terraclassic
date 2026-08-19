@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { IndexerPair } from '@/types'
-import { catalogRankAndPaginate, defaultOrderForPoolSort, isPoolColumnSort } from '@/utils/poolListQuery'
+import {
+  catalogRankAndPaginate,
+  defaultOrderForPoolSort,
+  filterPoolIndexerPairs,
+  isPoolColumnSort,
+} from '@/utils/poolListQuery'
 
 function pair(addr: string, s0: string, s1: string, volume: string): IndexerPair {
   return {
@@ -34,5 +39,21 @@ describe('poolListQuery (GitLab #547)', () => {
     const { pageItems, total } = catalogRankAndPaginate(items, 0, 1)
     expect(total).toBe(2)
     expect(pageItems[0]?.asset_0.symbol).toBe('UST1')
+  })
+})
+
+describe('poolListQuery production hide (GitLab #562 U6)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('catalog and volume-sort pages omit gem pairs on mainnet', () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    const items = [pair('terra1gem', 'EMBER', 'CORAL', '9'), pair('terra1ust', 'UST1', 'cUSTC', '1')]
+    const { pageItems, total } = catalogRankAndPaginate(items, 0, 20)
+    expect(total).toBe(1)
+    expect(pageItems[0]?.asset_0.symbol).toBe('UST1')
+    expect(filterPoolIndexerPairs(items).every((p) => p.asset_0.symbol !== 'EMBER')).toBe(true)
   })
 })

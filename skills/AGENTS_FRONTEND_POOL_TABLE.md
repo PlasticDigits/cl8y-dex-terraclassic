@@ -13,7 +13,7 @@ Audience: third-party agents changing the pool list, default rank, Charts deep l
 ## Do / don’t
 
 - **Do** list pairs in a `<table>` with caret-by-label sortable headers (`PoolPairsTable`).
-- **Do** default empty browse to catalog rank (`sortIndexerPairsByCatalog`) after fetching a large `volume_24h` window (`POOL_CATALOG_FETCH_LIMIT`).
+- **Do** default empty browse to catalog rank (`sortIndexerPairsByCatalog`) after fetching a large `volume_24h` window (`POOL_CATALOG_FETCH_LIMIT`). Production also **omits gems** from catalog and column/search pages ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**).
 - **Do** use indexer `sort`/`order` for user column clicks — **no** catalog overlay on Vol/Fee/Pair/Created.
 - **Do** keep typed search on indexer `relevance` / `q` (**P534-6**).
 - **Do** `Link` Charts to `/charts/:pairAddr` only via `chartsPairHref` (valid Terra bech32).
@@ -56,6 +56,7 @@ make verify-issue-547
 ## Related
 
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — catalog overlay; `/pool` default is in scope
+- [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production omits gems from `/pool` too ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — whole-section dismiss
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no header lectures
 - [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — identity on the table row
