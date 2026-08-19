@@ -105,6 +105,8 @@ type TradeChartSlotProps = {
   displayBaseSymbol?: string
   /** When false, chart fills the parent card without an extra wrapper (desktop panel). */
   wrapInCard?: boolean
+  volumeBaseDecimals?: number
+  volumeQuoteDecimals?: number
 }
 
 /** Chart mounts on `pairAddr` immediately; candles load in parallel with `getPair` (GitLab #180). */
@@ -122,6 +124,8 @@ function TradeChartSlot({
   invertAriaLabel,
   displayBaseSymbol,
   wrapInCard = true,
+  volumeBaseDecimals,
+  volumeQuoteDecimals,
 }: TradeChartSlotProps) {
   if (!pairRouteReady) {
     return (
@@ -149,6 +153,8 @@ function TradeChartSlot({
       pairPillLabel={pairPillLabel}
       invertAriaLabel={invertAriaLabel}
       displayBaseSymbol={displayBaseSymbol}
+      volumeBaseDecimals={volumeBaseDecimals}
+      volumeQuoteDecimals={volumeQuoteDecimals}
     />
   )
   if (!wrapInCard) return chart
@@ -440,6 +446,8 @@ export default function TradePage() {
     pairPillLabel: pairOrientation.pillLabel,
     invertAriaLabel: pairOrientation.invertAriaLabel,
     displayBaseSymbol: pairOrientation.displayBase,
+    volumeBaseDecimals: activePair?.asset_0.decimals,
+    volumeQuoteDecimals: activePair?.asset_1.decimals,
   }
 
   const tradeOrderTicket = (
