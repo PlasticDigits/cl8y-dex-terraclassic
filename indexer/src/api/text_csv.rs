@@ -34,7 +34,7 @@ fn join_row(cells: &[String]) -> String {
 /// `text/csv` body for [`TradeResponse`] rows (UTF-8, header row).
 pub fn trader_swaps_csv(rows: &[TradeResponse]) -> String {
     let mut out = String::from(
-        "id,pair_address,block_height,block_timestamp,tx_hash,sender,offer_asset,ask_asset,offer_amount,return_amount,price,pool_return_amount,book_return_amount,pool_leg_volume,book_leg_volume,limit_book_offer_consumed,effective_fee_bps,commission_amount,spread_amount\n",
+        "id,pair_address,block_height,block_timestamp,tx_hash,sender,offer_asset,ask_asset,offer_amount,return_amount,price,pool_return_amount,book_return_amount,pool_leg_volume,book_leg_volume,limit_book_offer_consumed,effective_fee_bps,commission_amount,spread_amount,offer_decimals,ask_decimals\n",
     );
     for r in rows {
         let row = join_row(&[
@@ -59,6 +59,8 @@ pub fn trader_swaps_csv(rows: &[TradeResponse]) -> String {
                 .unwrap_or_default(),
             r.commission_amount.clone().unwrap_or_default(),
             r.spread_amount.clone().unwrap_or_default(),
+            r.offer_decimals.map(|d| d.to_string()).unwrap_or_default(),
+            r.ask_decimals.map(|d| d.to_string()).unwrap_or_default(),
         ]);
         out.push_str(&row);
         out.push('\n');
@@ -68,7 +70,7 @@ pub fn trader_swaps_csv(rows: &[TradeResponse]) -> String {
 
 pub fn trader_limit_fills_csv(rows: &[LimitFillResponse]) -> String {
     let mut out = String::from(
-        "id,pair_address,swap_event_id,block_height,block_timestamp,tx_hash,order_id,side,maker,price,token0_amount,token1_amount,commission_amount\n",
+        "id,pair_address,swap_event_id,block_height,block_timestamp,tx_hash,order_id,side,maker,price,token0_amount,token1_amount,commission_amount,token0_decimals,token1_decimals\n",
     );
     for r in rows {
         let row = join_row(&[
@@ -85,6 +87,8 @@ pub fn trader_limit_fills_csv(rows: &[LimitFillResponse]) -> String {
             r.token0_amount.clone(),
             r.token1_amount.clone(),
             r.commission_amount.clone(),
+            r.token0_decimals.map(|d| d.to_string()).unwrap_or_default(),
+            r.token1_decimals.map(|d| d.to_string()).unwrap_or_default(),
         ]);
         out.push_str(&row);
         out.push('\n');
@@ -159,6 +163,8 @@ mod tests {
             ask_asset: "uluna".to_string(),
             offer_amount: "1000".to_string(),
             return_amount: "900".to_string(),
+            offer_decimals: Some(6),
+            ask_decimals: Some(6),
             price: "0.9".to_string(),
             price_usd: None,
             pool_return_amount: None,

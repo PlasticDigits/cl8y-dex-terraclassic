@@ -40,6 +40,9 @@
 | 1.1.10 | Station withdraw liquidity signing | Withdraw LP → Sign in Station | Transaction succeeds, LP balance updates | | |
 | 1.1.11 | Station create pair signing | Create pair → Sign in Station | Pair creation tx broadcast, success feedback | | |
 | 1.1.12 | Station fee tier register signing | Register for tier → Sign in Station | Registration tx succeeds | | |
+| 1.1.13 | Station mobile Chrome WalletConnect (#566) | Android Chrome (no Station extension) → Station | Pairing sheet with **Open Station** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
+| 1.1.14 | Station in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Station browser → Connect | Extension/injected path connects (Ready), not WC | | |
+| 1.1.15 | Station desktop stays Extension (#566 WC-M2) | Desktop Chrome without Station → Station | Extension row + Install (not a desktop WC/QR row) | | |
 
 ### 1.2 Keplr Wallet (Extension)
 
@@ -58,9 +61,21 @@
 | 1.2.11 | Keplr mobile Chrome WalletConnect (#554) | Android Chrome (no extension) → Keplr | Pairing sheet with **Open Keplr** + **Copy pairing link**, not Install-only | | |
 | 1.2.12 | Keplr in-app browser still works (#554 WC-M7) | Open dex.cl8y.com in Keplr browser → Connect | Extension/injected path connects | | |
 
+### 1.2a Keplr + Ledger Nano (columbus-5 only — GitLab #567)
+
+> Physical Ledger. **Skip on LocalTerra** ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)). Software Keplr rows above stay P1 without Ledger copy.
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 1.2a.1 | Ledger happy path | Terra Classic (LUNA) app open → Swap (any pair) → approve on device | Tx succeeds; no Cosmos-app requirement | | |
+| 1.2a.2 | Cosmos-app stall | Cosmos app open (or stale HID) → Swap | dApp **Signing…** + LUNA-app hint; not “check your connection” | | |
+| 1.2a.3 | Recover | Switch to LUNA app + refresh Terra Classic in Keplr → retry | Swap succeeds | | |
+| 1.2a.4 | Reject on device | Reject on Ledger | `Transaction rejected by user`; form re-enabled; no broadcast | | |
+| 1.2a.5 | Software Keplr control | Same swap without Ledger | No Ledger copy; no extra click vs today | | |
+
 ### 1.3 Leap Wallet
 
-> **Removed from product (GitLab [#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)):** Leap Wallet was sunset by the vendor; the former install URL returned 404. The dApp no longer lists Leap or offers an **Install** CTA for it. **Skip** all historical Leap-only rows from older QA runs; use **Keplr** or **Cosmostation** for Keplr-compatible extension coverage instead.
+> **Removed from product (GitLab [#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)):** Leap Wallet was sunset by the vendor; the former install URL returned 404. The dApp no longer lists Leap or offers an **Install** CTA for it. **Skip** all historical Leap-only rows from older QA runs; use **Keplr** or **Cosmostation** for Keplr-compatible extension coverage instead. [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566) Station / Cosmostation WalletConnect must **not** re-add Leap.
 
 ### 1.4 Cosmostation Wallet (Extension)
 
@@ -76,6 +91,9 @@
 | 1.4.8 | Cosmostation withdraw liquidity | Withdraw → Sign | Success | | |
 | 1.4.9 | Cosmostation create pair | Create → Sign | Success | | |
 | 1.4.10 | Cosmostation fee tier register | Register → Sign | Success | | |
+| 1.4.11 | Cosmostation mobile Chrome WalletConnect (#566) | Android Chrome (no Cosmostation extension) → Cosmostation | Pairing sheet with **Open Cosmostation** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
+| 1.4.12 | Cosmostation in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Cosmostation browser → Connect | Extension/injected path connects (Ready), not WC | | |
+| 1.4.13 | Cosmostation desktop stays Extension (#566 WC-M2) | Desktop Chrome without Cosmostation → Cosmostation | Extension row + Install (not a desktop WC/QR row) | | |
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 

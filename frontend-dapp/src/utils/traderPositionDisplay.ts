@@ -1,14 +1,24 @@
-import type { IndexerPosition } from '@/types'
+import type { IndexerHubPricesResponse, IndexerPosition } from '@/types'
 import { formatNum, formatPairPrice } from '@/utils/formatAmount'
-import { classifyQuoteSymbol, quoteTokenUsd } from '@/utils/pairPriceUsd'
+import { classifyQuoteSymbol, type QuoteUsdKind } from '@/utils/pairPriceUsd'
 
 /** Missing / unscalable display (GitLab #551). Never show raw mixed units as a total. */
 export const TRADER_PNL_EM_DASH = '—'
 
-export type TraderOracleUsd = {
+/**
+ * USD marks for header realized P&L (GitLab #560).
+ * UST1 / USTR / cUSTC come from `GET /api/v1/hub-prices` — never `$1` or `2.5×` USTC.
+ * LUNC stays CEX `/oracle/price/lunc`. Unpriced hubs are omitted, not `$0`.
+ */
+export type TraderUsdMarks = {
   ustcUsd?: number | null
   luncUsd?: number | null
+  ust1Usd?: number | null
+  ustrUsd?: number | null
 }
+
+/** @deprecated Use {@link TraderUsdMarks}. */
+export type TraderOracleUsd = TraderUsdMarks
 
 /**
  * Multiply a NUMERIC string by `10^exp` (`exp` may be negative).
@@ -62,7 +72,7 @@ export type ScaledPositionDisplay = {
  * - Cost basis / realized P&L: base (`asset_0`) human + symbol
  * - Avg entry: human base per 1 human quote (`raw × 10^(d1 − d0)`), labeled `BASE / QUOTE`
  */
-export function formatScaledPosition(pos: IndexerPosition, oracle?: TraderOracleUsd): ScaledPositionDisplay {
+export function formatScaledPosition(pos: IndexerPosition, oracle?: TraderUsdMarks): ScaledPositionDisplay {
   const d0 = parseAssetDecimals(pos.asset_0_decimals)
   const d1 = parseAssetDecimals(pos.asset_1_decimals)
   const base = pos.asset_0_symbol || 'base'
@@ -89,10 +99,10 @@ export type RealizedPnlUsdSummary = {
   unpricedPairs: number
 }
 
-/** Cross-pair realized P&L in USD via P522-Q on the **base** token. Unpriced rows are omitted, not `$0`. */
+/** Cross-pair realized P&L in USD via hub / CEX catalog on the **base** token. Unpriced rows are omitted, not `$0`. */
 export function sumRealizedPnlUsd(
   positions: IndexerPosition[] | undefined | null,
-  oracle?: TraderOracleUsd
+  oracle?: TraderUsdMarks
 ): RealizedPnlUsdSummary {
   if (positions == null) {
     return { usd: null, pricedPairs: 0, unpricedPairs: 0 }
@@ -162,19 +172,59 @@ function formatAvgEntry(human: string | null, base: string, quote: string): stri
   return `${price} ${base} / ${quote}`
 }
 
+/**
+ * Build P&L USD marks from the Protocol DEX hub snapshot.
+ * Hub `custc` wins over CEX USTC when both exist. UST1/USTR never fall back to pegs.
+ */
+export function traderUsdMarksFromHub(
+  hub: Pick<IndexerHubPricesResponse, 'prices'> | null | undefined,
+  cex?: { ustcUsd?: number | null; luncUsd?: number | null }
+): TraderUsdMarks {
+  const byTicker = new Map((hub?.prices ?? []).map((p) => [p.ticker, p.price_usd]))
+  return {
+    ustcUsd: parsePositiveUsd(byTicker.get('custc')) ?? parsePositiveUsd(cex?.ustcUsd),
+    luncUsd: parsePositiveUsd(cex?.luncUsd),
+    ust1Usd: parsePositiveUsd(byTicker.get('ust1')),
+    ustrUsd: parsePositiveUsd(byTicker.get('ustr')),
+  }
+}
+
 function humanAmountToUsd(
   human: string | null,
   symbol: string,
   denom: string | null | undefined,
-  oracle?: TraderOracleUsd
+  oracle?: TraderUsdMarks
 ): number | null {
   if (human == null) return null
   const n = Number(human)
   if (!Number.isFinite(n) || n === 0) {
     return n === 0 ? 0 : null
   }
-  const per = quoteTokenUsd(classifyQuoteSymbol(symbol, denom), oracle?.ustcUsd, oracle?.luncUsd)
+  const per = catalogUsd(classifyQuoteSymbol(symbol, denom), oracle)
   if (per == null) return null
   const usd = n * per
   return Number.isFinite(usd) ? usd : null
+}
+
+function catalogUsd(kind: QuoteUsdKind, marks?: TraderUsdMarks): number | null {
+  if (marks == null) return null
+  switch (kind) {
+    case 'ustc':
+      return parsePositiveUsd(marks.ustcUsd)
+    case 'lunc':
+      return parsePositiveUsd(marks.luncUsd)
+    case 'peg1':
+      return parsePositiveUsd(marks.ust1Usd)
+    case 'ustr':
+      return parsePositiveUsd(marks.ustrUsd)
+    default:
+      return null
+  }
+}
+
+function parsePositiveUsd(raw: string | number | null | undefined): number | null {
+  if (raw == null || raw === '') return null
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n
 }

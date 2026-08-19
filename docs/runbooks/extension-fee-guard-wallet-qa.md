@@ -51,7 +51,7 @@ This runs:
 
 ## Manual wallet QA — mainnet / testnet (required for production launch)
 
-**Wallet:** **Keplr (extension)** on **columbus-5** (or staging testnet).
+**Wallet:** **Keplr (extension)** on **columbus-5** (or staging testnet). **Keplr + Ledger Nano** signing stalls are a separate path ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567), [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](../../skills/AGENTS_FRONTEND_KEPLR_LEDGER.md)) — this runbook does not cover hardware-wallet HID recovery.
 
 | Step | Action | Expected |
 |------|--------|----------|

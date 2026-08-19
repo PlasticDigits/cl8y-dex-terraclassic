@@ -612,6 +612,7 @@ export default function TradePage() {
                 formatTimeFn={formatTime}
                 skeletonHeight="6rem"
                 hideHeading
+                inverted={pairOrientation.inverted}
               />
             </TradeWorkspaceDisclosure>
           </div>
@@ -668,6 +669,7 @@ export default function TradePage() {
                           formatTimeFn={formatTime}
                           skeletonHeight="5rem"
                           hideHeading
+                          inverted={pairOrientation.inverted}
                         />
                       </div>
                     ) : (
@@ -695,7 +697,13 @@ export default function TradePage() {
           testId="trade-wallet-history-disclosure"
           className="mt-3"
         >
-          <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} sections={['swaps']} />
+          <WalletIndexerHistoryPanel
+            walletAddress={address}
+            pairAddress={pairAddr}
+            sections={['swaps']}
+            activePair={activePair}
+            inverted={pairOrientation.inverted}
+          />
         </TradeWorkspaceDisclosure>
       )}
     </div>

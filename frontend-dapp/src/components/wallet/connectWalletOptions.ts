@@ -10,46 +10,60 @@ export type ConnectWalletOption = {
 export type ConnectWalletOptionEnv = {
   isMobileClient: boolean
   keplrInjected: boolean
+  stationInjected: boolean
+  cosmostationInjected: boolean
 }
 
 /**
- * Connect list rows (GitLab #554).
+ * Connect list rows (GitLab #554 / #566).
  *
- * Mobile Chrome without `window.keplr` offers Keplr via WalletConnect — not an
- * Install-only desktop extension row. Injected Keplr (in-app browser) stays Extension.
+ * Mobile Chrome without the matching extension offers Keplr / Station /
+ * Cosmostation via WalletConnect — not an Install-only desktop extension row.
+ * Injected extensions (in-app browser) stay Extension (**WC-M7** / **WC-M10**).
+ * Leap stays absent ([#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)).
  */
+export function shouldOfferMobileExtensionWalletConnect(isMobileClient: boolean, extensionInjected: boolean): boolean {
+  return isMobileClient && !extensionInjected
+}
+
 export function shouldOfferKeplrWalletConnect(env: ConnectWalletOptionEnv): boolean {
-  return env.isMobileClient && !env.keplrInjected
+  return shouldOfferMobileExtensionWalletConnect(env.isMobileClient, env.keplrInjected)
+}
+
+export function shouldOfferStationWalletConnect(env: ConnectWalletOptionEnv): boolean {
+  return shouldOfferMobileExtensionWalletConnect(env.isMobileClient, env.stationInjected)
+}
+
+export function shouldOfferCosmostationWalletConnect(env: ConnectWalletOptionEnv): boolean {
+  return shouldOfferMobileExtensionWalletConnect(env.isMobileClient, env.cosmostationInjected)
+}
+
+function extensionOrWalletConnect(
+  name: string,
+  walletName: WalletName,
+  offerWalletConnect: boolean
+): ConnectWalletOption {
+  if (offerWalletConnect) {
+    return {
+      name,
+      walletName,
+      walletType: WalletType.WALLETCONNECT,
+      connectionLabel: 'WalletConnect',
+    }
+  }
+  return {
+    name,
+    walletName,
+    walletType: WalletType.EXTENSION,
+    connectionLabel: 'Extension',
+  }
 }
 
 export function resolveConnectWalletOptions(env: ConnectWalletOptionEnv): ConnectWalletOption[] {
-  const keplrWc = shouldOfferKeplrWalletConnect(env)
   return [
-    {
-      name: 'Station',
-      walletName: WalletName.STATION,
-      walletType: WalletType.EXTENSION,
-      connectionLabel: 'Extension',
-    },
-    keplrWc
-      ? {
-          name: 'Keplr',
-          walletName: WalletName.KEPLR,
-          walletType: WalletType.WALLETCONNECT,
-          connectionLabel: 'WalletConnect',
-        }
-      : {
-          name: 'Keplr',
-          walletName: WalletName.KEPLR,
-          walletType: WalletType.EXTENSION,
-          connectionLabel: 'Extension',
-        },
-    {
-      name: 'Cosmostation',
-      walletName: WalletName.COSMOSTATION,
-      walletType: WalletType.EXTENSION,
-      connectionLabel: 'Extension',
-    },
+    extensionOrWalletConnect('Station', WalletName.STATION, shouldOfferStationWalletConnect(env)),
+    extensionOrWalletConnect('Keplr', WalletName.KEPLR, shouldOfferKeplrWalletConnect(env)),
+    extensionOrWalletConnect('Cosmostation', WalletName.COSMOSTATION, shouldOfferCosmostationWalletConnect(env)),
     {
       name: 'LuncDash',
       walletName: WalletName.LUNCDASH,

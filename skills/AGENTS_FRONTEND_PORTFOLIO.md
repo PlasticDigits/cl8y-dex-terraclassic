@@ -62,6 +62,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 
 - [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md) — primary nav / `navItems.ts`
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — human-scale P&amp;L / cost / avg entry (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
+- [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD from hub_prices (**P560**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [`AGENTS_FRONTEND_ORDER_HISTORY.md`](./AGENTS_FRONTEND_ORDER_HISTORY.md) — pair-scoped history on `/limits` and `/trade`
 - [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — lifecycle on limit-placements
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — indexer outage banners

@@ -1,15 +1,24 @@
 import type { IndexerTrade, IndexerPair } from '@/types'
-import { formatNum, formatPairPrice } from '@/utils/formatAmount'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
+import {
+  formatTapeAmount,
+  formatTapePrice,
+  resolveAskDecimals,
+  resolveOfferDecimals,
+  tapePriceTooltip,
+  tapeRowIsBuy,
+} from '@/utils/tradeTapeDisplay'
 
 export interface TradesTableProps {
   trades: IndexerTrade[]
   formatTimeFn: (iso: string) => string
   activePair?: IndexerPair
+  /** Display invert from `/trade` / `/charts` (#524). Trader/Portfolio leave false. */
+  inverted?: boolean
   ariaLabel?: string
 }
 
-export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: TradesTableProps) {
+export function TradesTable({ trades, formatTimeFn, activePair, inverted = false, ariaLabel }: TradesTableProps) {
   if (trades.length === 0) {
     return (
       <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>
@@ -17,6 +26,8 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
       </p>
     )
   }
+
+  const priceTitle = tapePriceTooltip(activePair, inverted)
 
   return (
     <div className="overflow-x-auto">
@@ -47,11 +58,7 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
             >
               Amount out
             </th>
-            <th
-              scope="col"
-              className="text-right py-2 px-2 font-medium uppercase tracking-wider"
-              title="Human quote per base (asset_1 per asset_0). Not USD — see Price (USD) on the chart."
-            >
+            <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider" title={priceTitle}>
               Price
             </th>
             <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
@@ -61,20 +68,18 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
         </thead>
         <tbody>
           {trades.map((t) => {
-            const isBuy = activePair && t.offer_asset === activePair.asset_0.symbol
+            const isBuy = tapeRowIsBuy(t, activePair, inverted)
             const hybrid =
               t.pool_return_amount != null || t.book_return_amount != null || t.limit_book_offer_consumed != null
+            const offerDec = resolveOfferDecimals(t, activePair)
+            const askDec = resolveAskDecimals(t, activePair)
+            const rowColor = isBuy == null ? 'var(--ink)' : isBuy ? 'var(--color-positive)' : 'var(--color-negative)'
             return (
               <tr key={t.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 <td className="py-1.5 px-2" style={{ color: 'var(--ink-subtle)' }}>
                   {formatTimeFn(t.block_timestamp)}
                 </td>
-                <td
-                  className="py-1.5 px-2 font-medium"
-                  style={{
-                    color: activePair ? (isBuy ? 'var(--color-positive)' : 'var(--color-negative)') : 'var(--ink)',
-                  }}
-                >
+                <td className="py-1.5 px-2 font-medium" style={{ color: rowColor }}>
                   {t.offer_asset} → {t.ask_asset}
                   {hybrid ? (
                     <span
@@ -86,13 +91,13 @@ export function TradesTable({ trades, formatTimeFn, activePair, ariaLabel }: Tra
                   ) : null}
                 </td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
-                  {formatNum(t.offer_amount)}
+                  {formatTapeAmount(t.offer_amount, offerDec, t.offer_asset)}
                 </td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
-                  {formatNum(t.return_amount)}
+                  {formatTapeAmount(t.return_amount, askDec, t.ask_asset)}
                 </td>
                 <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
-                  {formatPairPrice(t.price, 6)}
+                  {formatTapePrice(t.price, inverted)}
                 </td>
                 <td className="py-1.5 px-2" style={{ color: 'var(--ink-dim)' }}>
                   {(() => {
