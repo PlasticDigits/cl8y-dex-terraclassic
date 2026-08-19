@@ -24,6 +24,7 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 9. **Limit IA:** rate → % chips → Pay → Receive → Expiry; book/open orders below place card. **Swap IA:** Pay → flip (cool, not brown) → Receive → CTA; collapse verbose trade details.
 10. **OG / social:** `/og-image.png` + `index.html` meta emphasize swaps, limits, Terra Classic — not theme colors.
 11. **`.glass` is deprecated** — prefer `shell-panel` or `card-glass`.
+12. **Logo variants:** `/logo.png` is the **full character-scene** medallion — header (beside **CL8Y DEX** type) and large marketing only. Favicons, PWA/touch icons, and isolated marks **≤ ~64px** use the simplified **C+8** `/logo-simplified-variant.png` (wired as `favicon-16.png` / `favicon-32.png` / `favicon.ico` / `favicon.png`). Never downscale the full scene into a tab icon. See [`docs/design-system.md`](../docs/design-system.md) § Brand assets.
 
 ## Quick matrix
 
@@ -33,7 +34,8 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 | Card / sub-panel | `card-glass` |
 | Primary button | `btn-primary` (blue) |
 | Brand / network accent | `var(--gold)` text/border; `.badge-glass-accent` (cool fill + gold border) |
-| Header brand mark | Circular `/logo.png` medallion, no chrome plate — **no** orange `rgba(249,115,22)` glow |
+| Header brand mark | Circular `/logo.png` **full scene** medallion beside **CL8Y DEX** type, no chrome plate — **no** orange `rgba(249,115,22)` glow |
+| Favicon / small isolated mark | Simplified **C+8** `/logo-simplified-variant.png` (not the full character scene). Wired as `/favicon-16.png`, `/favicon-32.png`, `/favicon.ico`, `/favicon.png`. See [`docs/design-system.md`](../docs/design-system.md) § Brand assets |
 | Text field | `input-glass` + `label-glass` |
 | Segmented control | `tab-glass*` |
 | Buy/Sell side control | `side-control` + `side-buy-*` / `side-sell-*` (#563) |

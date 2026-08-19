@@ -75,13 +75,28 @@ Theme files override the above per `data-theme='dark'` | `'light'`.
 
 ## Brand assets
 
-| Asset | Path |
-|-------|------|
-| Header mark | `/logo.png` (circular teal/cream medallion) |
-| Favicons | `/favicon-16.png`, `/favicon-32.png`, `/favicon.ico` |
-| Open Graph | `/og-image.png` (~1200×630) — product copy (swap / limits / Terra Classic), not palette marketing |
+Two circular medallions. Pick by **rendered size and whether the name is shown in type next to the mark** — not by page.
 
-Canonical same-origin only — do not wire user-controlled OG URLs. Meta: `frontend-dapp/index.html` `og:description` / `twitter:description`.
+| Variant | What it shows | Canonical file |
+|---------|-----------------|----------------|
+| **Full scene** | Classical bust, scales, waves/fish, and **CL8Y DEX** lettering in the coin | `/logo.png` (also `/assets/cl8y-logo.png`, `/assets/cl8y-dex-header-logo.png`) |
+| **Simplified C+8** | Gold **C** wrapping a mint-green **8** on a dark teal field, gold rim — no character scene | `/logo-simplified-variant.png` |
+
+**Use the simplified C+8 mark** when the circle is small or stands alone (no “CL8Y DEX” wordmark beside it). The full scene turns into mud below ~64px; the C and 8 stay readable as a tab icon. That includes:
+
+- Favicons and browser / OS chrome: `/favicon-16.png`, `/favicon-32.png`, `/favicon.ico` (16/32/48), `/favicon.png` (256)
+- Apple touch / PWA / app icons, social avatars, and any mark at **≤ ~64px** without adjacent product type
+- Anywhere a 16–32px “home” glyph is needed
+
+**Use the full scene** when the medallion is large enough to read the figure and lettering, or when it sits beside the product name in chrome:
+
+- Header brand mark (`.app-brand-logo`, 44px / 40px on narrow viewports) — `/logo.png` next to the **CL8Y DEX** title
+- Marketing, splash, about, and print where the coin is shown at **≳ 96px**
+- Open Graph remains the **product** card `/og-image.png` (~1200×630: swaps / limits / Terra Classic), not a logo dump
+
+Do **not** downscale `/logo.png` into a favicon. Source for the simplified family is `/logo-simplified-variant.png` (1024², transparent). `/logo-simplified-variant-lowquality.png` is the original 145² capture only — do not ship it as a favicon or header mark.
+
+Canonical same-origin only — do not wire user-controlled OG URLs. Meta: `frontend-dapp/index.html` `og:description` / `twitter:description`. Favicon `<link>` tags: `favicon-32.png` / `favicon-16.png` (browsers also fetch `/favicon.ico`).
 
 ## Typography
 
