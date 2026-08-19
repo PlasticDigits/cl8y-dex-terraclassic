@@ -27,6 +27,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getTraderLimitPlacements: vi.fn(),
     getPairs: vi.fn(),
     getOraclePrice: vi.fn(),
+    getHubPrices: vi.fn(),
   }
 })
 
@@ -96,6 +97,15 @@ describe('PortfolioPage (component)', () => {
       ticker: 'ustc',
       price_usd: '0.005',
       sources: [],
+    })
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub prices — not CEX',
+      tickers: ['custc', 'ust1', 'ustr'],
+      prices: [
+        { ticker: 'custc', price_usd: '0.00473' },
+        { ticker: 'ust1', price_usd: '0.976' },
+        { ticker: 'ustr', price_usd: '0.00879' },
+      ],
     })
   })
 
