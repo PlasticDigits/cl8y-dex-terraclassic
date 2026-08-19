@@ -69,5 +69,6 @@ Issue: [GitLab **#527**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Money CTA sizing: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) (`#417`)
 - Pair invert convert-on-submit: [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) (`#524`)
+- Ticket heading + no compact wallet chip; Buy/Sell colors: [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (`#563`) — footer **Connect Wallet** remains the disconnected money-path CTA
 - Slippage chips stay in the ticket body (not this footer): [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
 - Open-limits Cancel reachability (panel **above** footer): [`AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](./AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) (`#530`)

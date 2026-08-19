@@ -68,4 +68,17 @@
     ),
     rgba(255, 255, 255, 0.5);
   --btn-primary-fg: #f8fafc;
+  /* Buy/Sell side controls (#563) — darker fg for WCAG on light fills. */
+  --side-buy-fg: #166534;
+  --side-buy-border: color-mix(in srgb, var(--color-positive) 50%, transparent);
+  --side-buy-border-strong: #15803d;
+  --side-buy-fill-idle: color-mix(in srgb, var(--color-positive) 12%, #ffffff);
+  --side-buy-fill-hover: color-mix(in srgb, var(--color-positive) 18%, #ffffff);
+  --side-buy-fill-selected: color-mix(in srgb, var(--color-positive) 24%, #ffffff);
+  --side-sell-fg: #991b1b;
+  --side-sell-border: color-mix(in srgb, var(--color-negative) 50%, transparent);
+  --side-sell-border-strong: #b91c1c;
+  --side-sell-fill-idle: color-mix(in srgb, var(--color-negative) 10%, #ffffff);
+  --side-sell-fill-hover: color-mix(in srgb, var(--color-negative) 16%, #ffffff);
+  --side-sell-fill-selected: color-mix(in srgb, var(--color-negative) 20%, #ffffff);
 }

@@ -1,5 +1,6 @@
 import { useCallback, useId, useRef } from 'react'
 import type { KeyboardEvent } from 'react'
+import { limitSideControlClass } from '@/components/trade/limitSideControlClass'
 
 export type LimitOrderSide = 'bid' | 'ask'
 
@@ -16,6 +17,7 @@ export type LimitOrderBidAskSideSelectorProps = {
 /**
  * Bid / Ask control for limit place: button-based radiogroup (WAI-ARIA) for immediate
  * selection feedback and larger targets vs native radios (GitLab #153).
+ * Buy/Sell fills follow bid=Buy / ask=Sell — not displayed-token color (GitLab #563).
  */
 export function LimitOrderBidAskSideSelector({
   side,
@@ -67,8 +69,6 @@ export function LimitOrderBidAskSideSelector({
     [focusBid, onSideChange]
   )
 
-  const tabNeo = compact ? 'tab-glass px-3 py-1.5 text-xs justify-center' : 'tab-glass px-4 py-2 text-sm'
-
   return (
     <div
       role="radiogroup"
@@ -86,9 +86,7 @@ export function LimitOrderBidAskSideSelector({
         aria-checked={side === 'bid'}
         tabIndex={side === 'bid' ? 0 : -1}
         data-testid={`${idPrefix}-side-bid`}
-        className={`${tabNeo} font-medium uppercase tracking-wide ${
-          side === 'bid' ? 'tab-glass-active' : 'tab-glass-inactive'
-        }`}
+        className={limitSideControlClass({ compact, tone: 'buy', selected: side === 'bid' })}
         onClick={() => onSideChange('bid')}
         onKeyDown={onBidKeyDown}
       >
@@ -101,9 +99,7 @@ export function LimitOrderBidAskSideSelector({
         aria-checked={side === 'ask'}
         tabIndex={side === 'ask' ? 0 : -1}
         data-testid={`${idPrefix}-side-ask`}
-        className={`${tabNeo} font-medium uppercase tracking-wide ${
-          side === 'ask' ? 'tab-glass-active' : 'tab-glass-inactive'
-        }`}
+        className={limitSideControlClass({ compact, tone: 'sell', selected: side === 'ask' })}
         onClick={() => onSideChange('ask')}
         onKeyDown={onAskKeyDown}
       >

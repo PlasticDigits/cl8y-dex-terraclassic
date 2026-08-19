@@ -825,7 +825,7 @@ Interactive controls must expose a **visible keyboard focus indicator** when foc
 | Token alignment | Custom rings use **`var(--focus-ring)`** via `color-mix(in srgb, var(--focus-ring) 28%, transparent)` (same family as `.input-glass:focus-visible` in [`index.css`](../frontend-dapp/src/index.css)). |
 | Inputs / triggers | `.input-glass`, `.select-glass`, `.token-select-trigger` use **`:focus-visible`** so mouse focus does not mimic keyboard emphasis where the UA supports it. |
 | Focus ring footprint | `.token-select-trigger` reserves a **transparent** `0 0 0 2px` ring in the default `box-shadow` stack; `:focus-visible` only changes ring **color**, not size ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). |
-| Shell & CTAs | `.btn-primary` / `.btn-muted` / `.btn-cta`, `.app-nav-link` (and related triggers), `.wallet-trigger` (+ `.wallet-trigger-connected`), `.network-badge`, `.tab-glass` / `.tab-glass-active`, `.wallet-option-card`, and dropdown `.app-menu-link` / `.wallet-menu-item` define explicit `:focus-visible` rings; **active** nav rows compose the active `box-shadow` **plus** the outer ring. |
+| Shell & CTAs | `.btn-primary` / `.btn-muted` / `.btn-cta`, `.app-nav-link` (and related triggers), `.wallet-trigger` (+ `.wallet-trigger-connected`), `.network-badge`, `.tab-glass` / `.tab-glass-active`, `.side-control`, `.wallet-option-card`, and dropdown `.app-menu-link` / `.wallet-menu-item` define explicit `:focus-visible` rings; **active** nav rows compose the active `box-shadow` **plus** the outer ring. Buy/Sell side fills ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)) must keep the `.side-control:focus-visible` ring. |
 | Menu backdrops | **`.app-menu-dismiss`** (shell More menu in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx), connected wallet menu in [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)) is a full-viewport **`type="button"`** with an **`aria-label`**; **`:focus-visible`** uses an inset ring ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
 | Swap amount | The prominent pay amount `<input>` uses class **`swap-io-amount-input`** — do **not** strip focus with `focus:outline-none` without replacing it; ring styles sit beside `.swap-io-stack` in `index.css`. |
 
@@ -1014,6 +1014,25 @@ Retail trade IA for Swap vs Trade vs Limits and calmer first paint on `/trade` (
 **Cursor agents:** When iterating on merge readiness and CI for this area, the **Babysit PR** Cursor skill complements the [Testing](./testing.md) doc (comment triage, conflict resolution, green pipelines).
 
 <a id="trade-page-limit-ticket-sticky-cta"></a>
+
+### Trade page — ticket heading + Buy/Sell side colors {#trade-page-ticket-heading}
+
+`/trade` ticket heading shows the full **Buy {displayBase}** / **Sell {displayBase}** (or **Select a pair**). The compact ticket-header Connect Wallet / address chip is **removed**; shell header + footer money CTA remain ([GitLab **#563**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)). Buy/Sell side controls use semantic green/red fills. Styling only — escrow mapping unchanged.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **T563-1 Full heading** | `trade-ticket-heading` uses wrap (`.trade-ticket-heading`), not CSS `truncate`. Hub symbols (cLUNC, cUSTC, UST1, USTR) render in full — never `Buy c…`. Long symbols wrap; invert stays `shrink-0`. |
+| **T563-2 No header chip** | No compact Connect Wallet / truncated bech32 in `trade-ticket-header` (disconnected or connected). Connected identity stays in the shell [`WalletButton`](../frontend-dapp/src/components/wallet/WalletButton.tsx). |
+| **T563-3 Connect paths** | Disconnected: shell header **and** ticket footer **Connect Wallet** (`TRADE_MONEY_CTA_CLASS`). Do not add a fourth opener. Footer remains when the header is scrolled off. |
+| **T563-4 Invert** | `trade-ticket-pair-invert` stays tappable. Heading + side labels track **displayed** base ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)). Colors follow bid=Buy / ask=Sell, not token0. |
+| **T563-5 Side colors** | Buy = `side-buy-idle` / `side-buy-selected`; Sell = `side-sell-*`. Non-color cues: `aria-checked` + stronger fill / font-weight. Idle Sell ≠ `alert-error`. Contrast on dark and light. `.side-control:focus-visible` rings stay. |
+| **T563-6 Shared + blue CTAs** | Same [`LimitOrderBidAskSideSelector`](../frontend-dapp/src/components/trade/LimitOrderBidAskSideSelector.tsx) on `/trade` and `/limits`. Limit/Market tabs stay `tab-glass*`. Place/Market CTAs stay `btn-primary`. Book Bid/Ask columns unchanged. |
+| **T563-7 Behavior** | Radiogroup + Arrow/Home/End ([#153](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)). Bid still escrows token1; ask token0. Side change still clears / MAX-reapplies ([#155](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/155)). Click Buy still `onSideChange('bid')`. |
+| **T563-8 Docs** | This section + [`design-system.md`](./design-system.md) side-fill exception. Verify: `make verify-issue-563`. |
+
+**Code:** [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx) (`data-testid="trade-ticket-header"`), [`index.css`](../frontend-dapp/src/index.css) (`.trade-ticket-heading`, `.side-control*`), theme `--side-buy*` / `--side-sell*`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md). Footer dock: [`skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`).
 
 ### Trade page — ticket footer CTA {#trade-page-ticket-footer-cta}
 
@@ -1359,15 +1378,15 @@ On-chain semantics are unchanged: **Bid escrows token1; Ask escrows token0** (pa
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Control type** | Limit **side** is a WAI-ARIA **`radiogroup`** with two **`role="radio"`** `<button type="button">` controls (`tab-glass*` styling), not native `<input type="radio">`, so the active side updates in the same React commit as `onSideChange` without browser-native controlled-radio timing quirks ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)). |
+| **Control type** | Limit **side** is a WAI-ARIA **`radiogroup`** with two **`role="radio"`** `<button type="button">` controls (`side-control` + `side-buy-*` / `side-sell-*` semantic fills, [GitLab **#563**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)), not native `<input type="radio">`, so the active side updates in the same React commit as `onSideChange` without browser-native controlled-radio timing quirks ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)). Limit vs Market tabs stay **`tab-glass*`**. |
 | **Roving tabindex** | The selected side has **`tabIndex={0}`**; the other **`tabIndex={-1}`** (one tab stop for the group). **ArrowRight / ArrowDown** move selection and focus toward Ask; **ArrowLeft / ArrowUp** toward Bid; **End** selects Ask; **Home** selects Bid (from the Ask control). |
 | **`data-testid`s** | **`{idPrefix}-side-radiogroup`**, **`{idPrefix}-side-bid`**, **`{idPrefix}-side-ask`**. **`/trade`** uses **`idPrefix="trade-ticket"`** ([`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx)); **`/limits`** uses **`idPrefix="limit-orders"`** ([`LimitOrdersPage.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.tsx)). |
 | **Button copy** | **`/trade`** and **`/limits`** both use **Buy {base}** / **Sell {base}** via [`tradeDirectionSideLabels.ts`](../frontend-dapp/src/utils/tradeDirectionSideLabels.ts) ([#412](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/412), [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). On `/trade`, **base** is the **displayed** base after pair invert ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)); `/limits` stays factory token0. Historical retail copy **Bid (escrow …)** / **Ask (escrow …)** on the place card is retired; **bid**/**ask** remain on-chain enums and order-book column titles only. |
-| **Focus visibility** | Buttons use **`tab-glass*`** classes, which define **`:focus-visible`** rings aligned with [Keyboard focus visibility (WCAG 2.4.7)](#keyboard-focus-visible-wcag-247). |
+| **Focus visibility** | Buttons use **`.side-control`**, which defines **`:focus-visible`** rings aligned with [Keyboard focus visibility (WCAG 2.4.7)](#keyboard-focus-visible-wcag-247). Do not drop the ring when applying green/red fills. |
 
 **Implementation:** [`LimitOrderBidAskSideSelector.tsx`](../frontend-dapp/src/components/trade/LimitOrderBidAskSideSelector.tsx).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](../skills/AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md), [`skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (#563 colors).
 
 ### Limit place — escrow amount (headline USD, side switch) {#limit-place-escrow-amount}
 

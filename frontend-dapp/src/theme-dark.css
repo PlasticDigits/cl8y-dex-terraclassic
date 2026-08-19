@@ -70,4 +70,17 @@
     ),
     rgba(255, 255, 255, 0.03);
   --btn-primary-fg: #f8fafc;
+  /* Buy/Sell side controls (#563) — darker fg would fail contrast on navy. */
+  --side-buy-fg: #4ade80;
+  --side-buy-border: color-mix(in srgb, var(--color-positive) 45%, transparent);
+  --side-buy-border-strong: var(--color-positive);
+  --side-buy-fill-idle: color-mix(in srgb, var(--color-positive) 10%, transparent);
+  --side-buy-fill-hover: color-mix(in srgb, var(--color-positive) 16%, transparent);
+  --side-buy-fill-selected: color-mix(in srgb, var(--color-positive) 24%, transparent);
+  --side-sell-fg: #f87171;
+  --side-sell-border: color-mix(in srgb, var(--color-negative) 45%, transparent);
+  --side-sell-border-strong: var(--color-negative);
+  --side-sell-fill-idle: color-mix(in srgb, var(--color-negative) 10%, transparent);
+  --side-sell-fill-hover: color-mix(in srgb, var(--color-negative) 16%, transparent);
+  --side-sell-fill-selected: color-mix(in srgb, var(--color-negative) 22%, transparent);
 }

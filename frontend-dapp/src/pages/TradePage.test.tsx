@@ -1109,4 +1109,109 @@ describe('TradePage', () => {
       expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
     })
   })
+
+  describe('ticket heading + side chrome (GitLab #563)', () => {
+    it('shows full Buy {base} heading without compact wallet chip when disconnected', async () => {
+      renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+      const heading = await screen.findByTestId('trade-ticket-heading')
+      await waitFor(() => {
+        expect(heading).toHaveTextContent('Buy AAA')
+      })
+      expect(heading).toHaveClass('trade-ticket-heading')
+      expect(heading.className).not.toMatch(/\btruncate\b/)
+      const header = screen.getByTestId('trade-ticket-header')
+      expect(within(header).queryByRole('button', { name: /connect wallet/i })).not.toBeInTheDocument()
+      expect(within(header).queryByText(/Connect wallet/i)).not.toBeInTheDocument()
+      expect(within(header).queryByText(/terra1/i)).not.toBeInTheDocument()
+      const footer = screen.getByTestId('trade-ticket-submit-footer')
+      expect(within(footer).getByTestId('trade-limit-submit')).toHaveTextContent(/Connect Wallet/i)
+    })
+
+    it('does not show truncated address in ticket header when connected', async () => {
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+      renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+      const heading = await screen.findByTestId('trade-ticket-heading')
+      await waitFor(() => {
+        expect(heading).toHaveTextContent('Buy AAA')
+      })
+      const header = screen.getByTestId('trade-ticket-header')
+      expect(within(header).queryByText(MAKER)).not.toBeInTheDocument()
+      expect(within(header).queryByText(/terra1mak/i)).not.toBeInTheDocument()
+      expect(within(header).queryByText(/…/)).not.toBeInTheDocument()
+    })
+
+    it.each(['cLUNC', 'cUSTC', 'USTR'] as const)(
+      'renders full hub heading Buy %s without ellipsis class',
+      async (symbol) => {
+        const hubPair: IndexerPair = {
+          ...mockIndexerPair,
+          asset_0: { ...mockIndexerPair.asset_0, symbol },
+        }
+        vi.mocked(indexerClient.getPair).mockResolvedValue(hubPair)
+        vi.mocked(indexerClient.getPairs).mockResolvedValue({
+          items: [hubPair],
+          total: 1,
+          limit: 20,
+          offset: 0,
+        })
+        renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+        await waitFor(() => {
+          expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent(`Buy ${symbol}`)
+        })
+        const heading = screen.getByTestId('trade-ticket-heading')
+        expect(heading.textContent).not.toMatch(/Buy c…/)
+        expect(heading.className).not.toMatch(/\btruncate\b/)
+      }
+    )
+
+    it('long ticker wraps; invert stays clickable and Limit/Market tabs stay tab-glass', async () => {
+      const long = 'SUPERLONGTOKENSYMBOL24XX'
+      const longPair: IndexerPair = {
+        ...mockIndexerPair,
+        asset_0: { ...mockIndexerPair.asset_0, symbol: long },
+        asset_1: { ...mockIndexerPair.asset_1, symbol: 'UST1' },
+      }
+      vi.mocked(indexerClient.getPair).mockResolvedValue(longPair)
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [longPair],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      })
+      const user = userEvent.setup()
+      renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent(`Buy ${long}`)
+      })
+      const heading = screen.getByTestId('trade-ticket-heading')
+      expect(heading).toHaveClass('trade-ticket-heading')
+      const invert = await screen.findByTestId('trade-ticket-pair-invert')
+      await user.click(invert)
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy UST1')
+      })
+      expect(screen.getByTestId('trade-order-tab-limit')).toHaveClass('tab-glass')
+      expect(screen.getByTestId('trade-order-tab-market')).toHaveClass('tab-glass')
+      expect(screen.getByTestId('trade-limit-submit')).toHaveClass('btn-primary')
+    })
+
+    it('Buy control is green and Sell is red; click updates heading verb', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+      const bid = await screen.findByTestId('trade-ticket-side-bid')
+      const ask = screen.getByTestId('trade-ticket-side-ask')
+      expect(bid).toHaveClass('side-buy-selected')
+      expect(ask).toHaveClass('side-sell-idle')
+      expect(bid).not.toHaveClass('tab-glass-active')
+      await waitFor(() => {
+        expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy AAA')
+      })
+      await user.click(ask)
+      expect(ask).toHaveAttribute('aria-checked', 'true')
+      expect(ask).toHaveClass('side-sell-selected')
+      expect(bid).toHaveClass('side-buy-idle')
+      expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Sell AAA')
+    })
+  })
 })

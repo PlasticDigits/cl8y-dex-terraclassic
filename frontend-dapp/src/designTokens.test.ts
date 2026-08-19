@@ -68,4 +68,19 @@ describe('design token alignment (GitLab #488 blue+gold)', () => {
     expect(css).not.toMatch(/rgba\(\s*249,\s*115,\s*22\b/)
     expect(css).not.toMatch(/\.app-modal-backdrop[\s\S]{0,200}rgba\(\s*7,\s*4,\s*3\b/)
   })
+
+  it('Buy/Sell side controls use semantic fills, not alert-error or tab-glass-active (#563)', () => {
+    const css = readFileSync(join(repoRoot, 'frontend-dapp/src/index.css'), 'utf8')
+    expect(css).toContain('.side-buy-selected')
+    expect(css).toContain('.side-sell-idle')
+    expect(css).toContain('.side-control:focus-visible')
+    expect(css).toContain('.trade-ticket-heading')
+    expect(css).toContain('overflow-wrap: anywhere')
+    const sellIdle = /\.side-sell-idle\s*\{[^}]+\}/.exec(css)?.[0] ?? ''
+    expect(sellIdle).not.toContain('alert-error')
+    expect(sellIdle).toContain('var(--side-sell-fg)')
+    const heading = /\.trade-ticket-heading\s*\{[^}]+\}/.exec(css)?.[0] ?? ''
+    expect(heading).not.toContain('ellipsis')
+    expect(heading).not.toContain('truncate')
+  })
 })
