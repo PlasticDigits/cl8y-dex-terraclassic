@@ -147,4 +147,62 @@ describe('walletConnectPairing (GitLab #519)', () => {
     expect(isAllowedWalletConnectDeepLink('javascript:alert(1)')).toBe(false)
     expect(isAllowedWalletConnectDeepLink('data:text/html,hi')).toBe(false)
   })
+
+  it('emits Terra Station page.link Open href (GitLab #566)', () => {
+    const links = buildWalletConnectDeepLinks(
+      {
+        name: 'Station',
+        android: '',
+        ios: '',
+        isStation: true,
+        isLuncDash: false,
+      },
+      WC_V1
+    )
+    expect(links[0]?.label).toBe('Open Station')
+    expect(links[0]?.href.startsWith('https://terrastation.page.link/')).toBe(true)
+    expect(isAllowedWalletConnectDeepLink(links[0]!.href)).toBe(true)
+    expect(isAllowedWalletConnectDeepLink('https://evil.example/wc')).toBe(false)
+  })
+
+  it('emits Cosmostation iOS cosmostation:// href (GitLab #566)', () => {
+    const links = buildWalletConnectDeepLinks(
+      {
+        name: 'Cosmostation',
+        android: 'intent://wc#Intent;package=wannabit.io.cosmostaion;scheme=cosmostation;end;',
+        ios: 'cosmostation://wc',
+        isStation: false,
+        isLuncDash: false,
+      },
+      WC_V2,
+      { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)' }
+    )
+    expect(links[0]?.label).toBe('Open Cosmostation')
+    expect(links[0]?.href.startsWith('cosmostation://wc?')).toBe(true)
+    expect(links[0]?.href).toContain(encodeURIComponent(WC_V2))
+    expect(isAllowedWalletConnectDeepLink(links[0]!.href)).toBe(true)
+  })
+
+  it('emits Cosmostation Android intent:// href (GitLab #566)', () => {
+    const links = buildWalletConnectDeepLinks(
+      {
+        name: 'Cosmostation',
+        android: 'intent://wc#Intent;package=wannabit.io.cosmostaion;scheme=cosmostation;end;',
+        ios: 'cosmostation://wc',
+        isStation: false,
+        isLuncDash: false,
+      },
+      WC_V2,
+      {
+        userAgent:
+          'Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36',
+      }
+    )
+    expect(links[0]?.label).toBe('Open Cosmostation')
+    expect(links[0]?.href.startsWith('intent://')).toBe(true)
+    expect(links[0]?.href).toContain('#Intent;package=wannabit.io.cosmostaion')
+    expect(links[0]?.href).toContain(encodeURIComponent(WC_V2))
+    expect(isAllowedWalletConnectDeepLink(links[0]!.href)).toBe(true)
+    expect(isAllowedWalletConnectDeepLink('javascript:alert(1)')).toBe(false)
+  })
 })

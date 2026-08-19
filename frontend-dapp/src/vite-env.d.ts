@@ -72,6 +72,12 @@ interface Window {
   keplr?: {
     enable: (chainId: string) => Promise<void>
     experimentalSuggestChain: (chainInfo: Record<string, unknown>) => Promise<void>
+    getKey: (chainId: string) => Promise<{
+      name: string
+      bech32Address: string
+      pubKey: Uint8Array
+      isNanoLedger: boolean
+    }>
     getOfflineSigner: (chainId: string) => unknown
   }
 }

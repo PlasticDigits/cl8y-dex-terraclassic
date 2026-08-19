@@ -180,6 +180,49 @@ describe('WalletModal Android Chrome connect (GitLab #554)', () => {
     expect(within(row as HTMLElement).queryByRole('link', { name: /^install$/i })).not.toBeInTheDocument()
   })
 
+  it('offers Station WalletConnect without Install when station is not injected (GitLab #566)', () => {
+    render(<WalletModal onClose={() => {}} />)
+    const station = screen.getByRole('button', { name: /^Station$/i })
+    expect(within(station).getByText('WalletConnect')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Station, extension not detected/i })).not.toBeInTheDocument()
+    const row = station.closest('.wallet-option-row')
+    expect(row).toBeTruthy()
+    expect(within(row as HTMLElement).queryByRole('link', { name: /^install$/i })).not.toBeInTheDocument()
+  })
+
+  it('offers Cosmostation WalletConnect without Install when Cosmostation is not injected (GitLab #566)', () => {
+    render(<WalletModal onClose={() => {}} />)
+    const cosmo = screen.getByRole('button', { name: /^Cosmostation$/i })
+    expect(within(cosmo).getByText('WalletConnect')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Cosmostation, extension not detected/i })).not.toBeInTheDocument()
+    const row = cosmo.closest('.wallet-option-row')
+    expect(row).toBeTruthy()
+    expect(within(row as HTMLElement).queryByRole('link', { name: /^install$/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps injected Station as Extension + Ready on mobile (WC-M7, GitLab #566)', () => {
+    mockSnapshot.mockReturnValue(extensionSnapshot({ [WalletName.STATION]: true }))
+    render(<WalletModal onClose={() => {}} />)
+    const station = screen.getByRole('button', { name: /Station, extension detected/i })
+    expect(within(station).getByText('Extension')).toBeInTheDocument()
+    expect(within(station).getByText('Ready')).toBeInTheDocument()
+    const keplr = screen.getByRole('button', { name: /^Keplr$/i })
+    expect(within(keplr).getByText('WalletConnect')).toBeInTheDocument()
+  })
+
+  it('keeps injected Cosmostation as Extension + Ready on mobile (WC-M7, GitLab #566)', () => {
+    mockSnapshot.mockReturnValue(extensionSnapshot({ [WalletName.COSMOSTATION]: true }))
+    render(<WalletModal onClose={() => {}} />)
+    const cosmo = screen.getByRole('button', { name: /Cosmostation, extension detected/i })
+    expect(within(cosmo).getByText('Extension')).toBeInTheDocument()
+    expect(within(cosmo).getByText('Ready')).toBeInTheDocument()
+  })
+
+  it('still does not list Leap on mobile WalletConnect (GitLab #159 / #566)', () => {
+    render(<WalletModal onClose={() => {}} />)
+    expect(screen.queryByText(/^leap$/i)).not.toBeInTheDocument()
+  })
+
   it('hides the Connect list while the pairing sheet is open', () => {
     useWalletConnectPairingStore.setState({
       isOpen: true,

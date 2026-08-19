@@ -218,6 +218,29 @@ Operator playbook: [`wrap-mapper-pause.md`](./runbooks/wrap-mapper-pause.md).
 
 ---
 
+## Keplr + Ledger signing stall {#keplr-ledger-signing-stall}
+
+This is a **wallet / device** stall, not a pair pause or blacklist. Funds are not taken. The first report was a USTR swap, but **any** Swap, Trade, limit, pool, wrap, or `/ust1` sign can hit it ([GitLab **#567**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)).
+
+### What you will see
+
+- Keplr shows a Ledger signing screen that does not finish.
+- The dApp button stays **Signing…**. After a short wait, a hint appears: open the **Terra Classic (LUNA)** app on the Ledger — **not Cosmos** — then approve in Keplr. If it stays blank, refresh Terra Classic in Keplr.
+
+### Recovery path
+
+1. Unlock the Ledger.
+2. Open the **Terra Classic (LUNA)** app on the device. Do **not** leave the Cosmos app selected.
+3. In Keplr, refresh / re-select **Terra Classic**.
+4. If the dApp still says signing is taking too long and **no transaction went out**, try the swap again.
+5. If you **already approved** on the device and the dApp says broadcast status is unknown, **wait** — do not click Swap again until it finishes checking.
+
+The dApp never asks for your seed phrase, PIN, or coin-type numbers.
+
+Playbook for agents: [`skills/AGENTS_FRONTEND_KEPLR_LEDGER.md`](../skills/AGENTS_FRONTEND_KEPLR_LEDGER.md).
+
+---
+
 ## How the dApp helps
 
 | Signal | UI behavior |
@@ -239,5 +262,5 @@ For technical integration details, see [integrators.md](./integrators.md) and [l
 | **On-chain invariants** | [contracts-security-audit.md](./contracts-security-audit.md) (e.g. **L6** pause) |
 | **Blacklist design** | [adr/0003-governance-trading-blacklist.md](./adr/0003-governance-trading-blacklist.md) |
 | **Operators** | [runbooks/](./runbooks/), [templates/incident-dex-indexer.md](./templates/incident-dex-indexer.md) (incident tracker + [Communications templates](./templates/incident-dex-indexer.md#appendix-communications-templates-sec-g05), SEC-G05) |
-
-**Agent playbook:** [`skills/AGENTS_USER_INCIDENT_FAQ.md`](../skills/AGENTS_USER_INCIDENT_FAQ.md).
+| **Agent playbook (incidents)** | [`skills/AGENTS_USER_INCIDENT_FAQ.md`](../skills/AGENTS_USER_INCIDENT_FAQ.md) |
+| **Keplr + Ledger stall** | [`skills/AGENTS_FRONTEND_KEPLR_LEDGER.md`](../skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)) |

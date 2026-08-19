@@ -26,6 +26,6 @@ After MR !305, reopen feedback required:
 | `wallet-modal-dark.jpg` / `risk-ack-modal-dark.jpg` | Modal chrome |
 | `og-image.png` (in `frontend-dapp/public/`) | Product-focused social preview |
 
-Promoted brand assets live under `frontend-dapp/public/` (favicon / OG / logo SVG).
+Promoted brand assets live under `frontend-dapp/public/` (favicon / OG / `logo.png`).
 
 Spec: [`docs/design-system.md`](../../design-system.md) · agent playbook: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../../../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · theme: [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../../../skills/AGENTS_FRONTEND_THEME_TOGGLE.md) · limit price: [`skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](../../../skills/AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · copy: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../../../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)).
