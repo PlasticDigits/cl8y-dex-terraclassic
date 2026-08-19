@@ -211,7 +211,7 @@ export async function getTrades(pairAddr: string, limit = 50, before?: number): 
   return fetchJson<IndexerTrade[]>(`/api/v1/pairs/${pathSegment(pairAddr)}/trades?${params}`)
 }
 
-/** Get 24h stats for a pair. */
+/** Get 24h stats for a pair (`volume_usd` is human USD; `volume_base` / `volume_quote` stay raw). */
 export async function getPairStats(pairAddr: string): Promise<IndexerPairStats> {
   return fetchJson<IndexerPairStats>(`/api/v1/pairs/${pathSegment(pairAddr)}/stats`)
 }

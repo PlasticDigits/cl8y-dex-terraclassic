@@ -14,7 +14,7 @@ function parseFiniteUsd(raw: string | null | undefined): number | null {
 }
 
 /**
- * Compact USD volume for Charts overview, trader leaderboard, and trader profile.
+ * Compact USD volume for Charts overview, pair 24h stats, trader leaderboard, and trader profile.
  *
  * - Unpriced / missing / invalid → `—` (never `$0` when trades > 0).
  * - Idle (`trades === 0`) → `$0`.

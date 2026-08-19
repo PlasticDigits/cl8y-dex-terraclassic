@@ -21,10 +21,11 @@ Use when trade or other wallet submits **hang silently** with no error after the
 1. **Do not add per-page timeouts** — keep caps in **`transactions.ts`** so limit place (two txs), cancel, swap, pool, and Mint drip paths behave consistently.
 2. **Mutations recover via `isError`** — **`TxResultAlert`** on trade/limits tickets already shows **`placeMutation.error`**; no extra spinner timeout UI is required when the service layer rejects.
 3. **Post-sign hung RPC ≠ “could not broadcast”** — after the wallet signs, compute the tx hash from signed bytes and poll LCD through the swap **`deadline`** before re-enabling submit ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359)). Pre-sign failures keep **`TERRA_TX_BROADCAST_TIMEOUT_MESSAGE`** (safe to retry).
-4. **Tune poll before broadcast** — mainnet inclusion can exceed 30s; raise **`VITE_TERRA_TX_POLL_TIMEOUT_MS`** before shortening broadcast (traders need to know a hash was sent vs never left the wallet).
-5. **LCD outage is separate** — frozen **queries** use [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md); this playbook is **wallet broadcast / tx poll** only.
-6. **Lazy route chunks are separate** — offline navigation to uncached pages uses [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md) ([GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172)).
-7. **Account sequence mismatch (code 32) is not #359 recovery** — refresh sequence at sign (`getAuthInfo(false)`), auto-retry **once** with the CheckTx-expected sequence, then short copy **`Wallet out of sync. Try again.`** ([GitLab **#499**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)). Helpers: [`terraAccountSequence.ts`](../frontend-dapp/src/utils/terraAccountSequence.ts). Do **not** add Mint-only retry logic.
+4. **Do not apply the 30s broadcast cap to Keplr/Ledger signing** — split-path `signTerraTxRaw` uses **`TERRA_TX_SIGN_TIMEOUT_MS`** (minutes) with distinct stall copy ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567), [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](./AGENTS_FRONTEND_KEPLR_LEDGER.md)). Wrong copy must not say “check your connection”.
+5. **Tune poll before broadcast** — mainnet inclusion can exceed 30s; raise **`VITE_TERRA_TX_POLL_TIMEOUT_MS`** before shortening broadcast (traders need to know a hash was sent vs never left the wallet).
+6. **LCD outage is separate** — frozen **queries** use [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md); this playbook is **wallet broadcast / tx poll** only.
+7. **Lazy route chunks are separate** — offline navigation to uncached pages uses [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md) ([GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172)).
+8. **Account sequence mismatch (code 32) is not #359 recovery** — refresh sequence at sign (`getAuthInfo(false)`), auto-retry **once** with the CheckTx-expected sequence, then short copy **`Wallet out of sync. Try again.`** ([GitLab **#499**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)). Helpers: [`terraAccountSequence.ts`](../frontend-dapp/src/utils/terraAccountSequence.ts). Do **not** add Mint-only retry logic.
 
 ## Post-sign broadcast recovery (GitLab #359 / #368)
 
@@ -69,6 +70,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
 
 ## Related
 
+- Keplr + Ledger Nano sign stall (amino, pre-sign suggest, long sign wait): [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](./AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567))
 - Retail error funnel: [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)
 - Soft-launch Mint / faucet: [`AGENTS_SOFT_LAUNCH_FAUCET.md`](./AGENTS_SOFT_LAUNCH_FAUCET.md) ([#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473), [#499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499))
 - LCD / query spinners: [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md)

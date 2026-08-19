@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd, AppState};
+use super::{
+    build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd, AppState,
+};
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
     candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
@@ -401,8 +403,42 @@ pub struct TradesQuery {
     pub before: Option<i64>,
 }
 
+/// Plain decimal string (no `1e+19`). Tape/CSV amounts are parsed with JS `BigInt` (#557).
+pub(crate) fn bd_plain_string(v: &bigdecimal::BigDecimal) -> String {
+    v.normalized().to_plain_string()
+}
+
 pub(crate) fn opt_bd_string(v: &Option<bigdecimal::BigDecimal>) -> Option<String> {
-    v.as_ref().map(|b| b.normalized().to_string())
+    v.as_ref().map(bd_plain_string)
+}
+
+/// Max CosmWasm/SDK decimal places we will publish on tape JSON (GitLab #557).
+const TAPE_DECIMALS_MAX: i16 = 38;
+
+/// Decimals from indexed `assets.decimals` only — never from wasm events.
+/// Out of range (`< 0` or `> 38`) is omitted so the UI can show `—` (T557-8 / A1 spoof).
+pub fn api_asset_decimals(decimals: i16) -> Option<i16> {
+    if (0..=TAPE_DECIMALS_MAX).contains(&decimals) {
+        Some(decimals)
+    } else {
+        None
+    }
+}
+
+pub fn asset_map_decimals(asset_map: &HashMap<i32, AssetRow>, asset_id: i32) -> Option<i16> {
+    asset_map
+        .get(&asset_id)
+        .and_then(|a| api_asset_decimals(a.decimals))
+}
+
+fn pair_token_decimals(
+    pair: &db_pairs::PairRow,
+    asset_map: &HashMap<i32, AssetRow>,
+) -> (Option<i16>, Option<i16>) {
+    (
+        asset_map_decimals(asset_map, pair.asset_0_id),
+        asset_map_decimals(asset_map, pair.asset_1_id),
+    )
 }
 
 #[derive(Serialize, ToSchema)]
@@ -417,6 +453,12 @@ pub struct TradeResponse {
     pub ask_asset: String,
     pub offer_amount: String,
     pub return_amount: String,
+    /// Offer-asset decimals from indexed `assets` (GitLab #557). Omitted when missing or out of range.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer_decimals: Option<i16>,
+    /// Ask-asset decimals from indexed `assets` (GitLab #557). Omitted when missing or out of range.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ask_decimals: Option<i16>,
     pub price: String,
     /// USD of 1 human unit of pair base (`asset_0`). GitLab #522.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -467,9 +509,11 @@ pub fn trade_response_from_swap_row(
         sender: t.sender.clone(),
         offer_asset: offer_sym,
         ask_asset: ask_sym,
-        offer_amount: t.offer_amount.normalized().to_string(),
-        return_amount: t.return_amount.normalized().to_string(),
-        price: t.price.normalized().to_string(),
+        offer_amount: bd_plain_string(&t.offer_amount),
+        return_amount: bd_plain_string(&t.return_amount),
+        offer_decimals: asset_map_decimals(asset_map, t.offer_asset_id),
+        ask_decimals: asset_map_decimals(asset_map, t.ask_asset_id),
+        price: bd_plain_string(&t.price),
         price_usd: opt_bd_string(&t.price_usd),
         pool_return_amount: opt_bd_string(&t.pool_return_amount),
         book_return_amount: opt_bd_string(&t.book_return_amount),
@@ -497,7 +541,39 @@ pub struct LimitFillResponse {
     pub price: String,
     pub token0_amount: String,
     pub token1_amount: String,
+    /// Pair `asset_0` decimals from indexed `assets` (GitLab #557).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token0_decimals: Option<i16>,
+    /// Pair `asset_1` decimals from indexed `assets` (GitLab #557).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token1_decimals: Option<i16>,
     pub commission_amount: String,
+}
+
+/// Map an indexed limit fill to [`LimitFillResponse`] (pair address + pair-leg decimals).
+pub fn limit_fill_response_from_row(
+    pair_address: &str,
+    r: &limit_order_fills::LimitOrderFillRow,
+    token0_decimals: Option<i16>,
+    token1_decimals: Option<i16>,
+) -> LimitFillResponse {
+    LimitFillResponse {
+        id: r.id,
+        pair_address: pair_address.to_string(),
+        swap_event_id: r.swap_event_id,
+        block_height: r.block_height,
+        block_timestamp: r.block_timestamp.to_rfc3339(),
+        tx_hash: r.tx_hash.clone(),
+        order_id: r.order_id,
+        side: r.side.clone(),
+        maker: r.maker.clone(),
+        price: bd_plain_string(&r.price),
+        token0_amount: bd_plain_string(&r.token0_amount),
+        token1_amount: bd_plain_string(&r.token1_amount),
+        token0_decimals,
+        token1_decimals,
+        commission_amount: bd_plain_string(&r.commission_amount),
+    }
 }
 
 #[utoipa::path(
@@ -839,23 +915,12 @@ pub async fn get_pair_limit_fills(
         .await
         .map_err(internal_err)?;
 
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
+    let (token0_decimals, token1_decimals) = pair_token_decimals(&pair, &asset_map);
+
     let result: Vec<LimitFillResponse> = rows
         .iter()
-        .map(|r| LimitFillResponse {
-            id: r.id,
-            pair_address: addr.clone(),
-            swap_event_id: r.swap_event_id,
-            block_height: r.block_height,
-            block_timestamp: r.block_timestamp.to_rfc3339(),
-            tx_hash: r.tx_hash.clone(),
-            order_id: r.order_id,
-            side: r.side.clone(),
-            maker: r.maker.clone(),
-            price: r.price.to_string(),
-            token0_amount: r.token0_amount.to_string(),
-            token1_amount: r.token1_amount.to_string(),
-            commission_amount: r.commission_amount.to_string(),
-        })
+        .map(|r| limit_fill_response_from_row(&addr, r, token0_decimals, token1_decimals))
         .collect();
 
     Ok(Json(result))
@@ -897,23 +962,12 @@ pub async fn get_pair_order_limit_fills(
         .await
         .map_err(internal_err)?;
 
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
+    let (token0_decimals, token1_decimals) = pair_token_decimals(&pair, &asset_map);
+
     let result: Vec<LimitFillResponse> = rows
         .iter()
-        .map(|r| LimitFillResponse {
-            id: r.id,
-            pair_address: addr.clone(),
-            swap_event_id: r.swap_event_id,
-            block_height: r.block_height,
-            block_timestamp: r.block_timestamp.to_rfc3339(),
-            tx_hash: r.tx_hash.clone(),
-            order_id: r.order_id,
-            side: r.side.clone(),
-            maker: r.maker.clone(),
-            price: r.price.to_string(),
-            token0_amount: r.token0_amount.to_string(),
-            token1_amount: r.token1_amount.to_string(),
-            commission_amount: r.commission_amount.to_string(),
-        })
+        .map(|r| limit_fill_response_from_row(&addr, r, token0_decimals, token1_decimals))
         .collect();
 
     Ok(Json(result))
@@ -1173,14 +1227,9 @@ pub async fn get_pair_limit_book_insert_hints(
         ));
     }
 
-    let result = limit_book_lcd::resolve_limit_insert_hints(
-        &state.lcd,
-        &addr,
-        side_label,
-        &prices,
-    )
-    .await
-    .map_err(limit_book_lcd_err)?;
+    let result = limit_book_lcd::resolve_limit_insert_hints(&state.lcd, &addr, side_label, &prices)
+        .await
+        .map_err(limit_book_lcd_err)?;
 
     Ok(Json(LimitBookInsertHintsResponse {
         side: side_label.to_string(),
@@ -1191,8 +1240,11 @@ pub async fn get_pair_limit_book_insert_hints(
 
 #[derive(Serialize, ToSchema)]
 pub struct PairStatsResponse {
+    /// Raw oriented 24h base volume. Integrator / CG JSON — do not humanize here (GitLab #565).
     pub volume_base: String,
+    /// Raw oriented 24h quote volume. Integrator / CG JSON — do not humanize here (GitLab #565).
     pub volume_quote: String,
+    /// Human USD 24h notional (`SUM(swap_events.volume_usd)`, P522-Q). Retail Charts pair strip (#565).
     pub volume_usd: Option<String>,
     pub trade_count: i64,
     pub high: Option<String>,
@@ -1252,4 +1304,65 @@ pub async fn get_pair_stats(
         open_price_usd: stats.open_price_usd.map(|v| v.to_string()),
         close_price_usd: stats.close_price_usd.map(|v| v.to_string()),
     }))
+}
+
+#[cfg(test)]
+mod tape_decimals_tests {
+    use super::{api_asset_decimals, asset_map_decimals, bd_plain_string};
+    use crate::db::queries::assets::AssetRow;
+    use bigdecimal::BigDecimal;
+    use chrono::Utc;
+    use std::collections::HashMap;
+    use std::str::FromStr;
+
+    fn sample_asset(id: i32, decimals: i16) -> AssetRow {
+        AssetRow {
+            id,
+            contract_address: Some(format!("terra1asset{id}")),
+            denom: None,
+            is_cw20: true,
+            name: "Tok".into(),
+            symbol: "TOK".into(),
+            decimals,
+            logo_url: None,
+            coingecko_id: None,
+            cmc_id: None,
+            first_seen_block: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn api_asset_decimals_accepts_0_through_38() {
+        assert_eq!(api_asset_decimals(0), Some(0));
+        assert_eq!(api_asset_decimals(6), Some(6));
+        assert_eq!(api_asset_decimals(18), Some(18));
+        assert_eq!(api_asset_decimals(38), Some(38));
+    }
+
+    #[test]
+    fn api_asset_decimals_omits_out_of_range() {
+        assert_eq!(api_asset_decimals(-1), None);
+        assert_eq!(api_asset_decimals(39), None);
+        assert_eq!(api_asset_decimals(99), None);
+    }
+
+    #[test]
+    fn bd_plain_string_emits_18_dec_raw_without_scientific_notation() {
+        let v = BigDecimal::from_str("10000000000000000000").expect("parse");
+        let s = bd_plain_string(&v);
+        assert_eq!(s, "10000000000000000000");
+        assert!(!s.contains('e') && !s.contains('E'));
+    }
+
+    #[test]
+    fn asset_map_decimals_reads_indexed_assets_row() {
+        let mut map = HashMap::new();
+        map.insert(1, sample_asset(1, 18));
+        map.insert(2, sample_asset(2, 99));
+        assert_eq!(asset_map_decimals(&map, 1), Some(18));
+        assert_eq!(asset_map_decimals(&map, 2), None);
+        assert_eq!(asset_map_decimals(&map, 3), None);
+    }
 }

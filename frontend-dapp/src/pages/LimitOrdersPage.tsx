@@ -935,7 +935,9 @@ export default function LimitOrdersPage() {
                 </div>
               </details>
 
-              {pairAddr && address && <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} />}
+              {pairAddr && address && (
+                <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} activePair={indexerPair} />
+              )}
             </div>
           </LcdQueryGate>
         </div>

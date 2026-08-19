@@ -1,5 +1,5 @@
 import type { IndexerPair, IndexerPairSort } from '@/types'
-import { sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
+import { filterRetailDiscoveryIndexerPairs, sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
 
 /** Visible page size for `/pool` table pagination (GitLab #547). */
 export const POOL_PAGE_SIZE = 20
@@ -43,6 +43,11 @@ export function catalogRankAndPaginate(
   page: number,
   pageSize = POOL_PAGE_SIZE
 ): { pageItems: IndexerPair[]; total: number } {
-  const ranked = sortIndexerPairsByCatalog([...items])
+  const ranked = sortIndexerPairsByCatalog(filterRetailDiscoveryIndexerPairs(items))
   return { pageItems: paginatePoolPairs(ranked, page, pageSize), total: ranked.length }
+}
+
+/** Drop gems on production after factory/indexer intersection (column + search pages). */
+export function filterPoolIndexerPairs(items: readonly IndexerPair[]): IndexerPair[] {
+  return filterRetailDiscoveryIndexerPairs(items)
 }

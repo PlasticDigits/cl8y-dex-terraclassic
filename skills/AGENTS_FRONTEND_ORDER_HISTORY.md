@@ -6,10 +6,10 @@ Use when changing **trader history**, **CSV export**, **Limit orders** activity 
 
 - Traders need **durable** records of **swaps**, **limit fills** (as maker), and **limit cancellations** (when `owner` is indexed), with **timestamps**, **fees** where available, **size amounts**, and **explorer links**.
 - **Wallet pair history UI** must show:
-  - Swaps: **Amount in** / **Amount out** from `offer_amount` / `return_amount` (same `formatNum(raw)` as public [`TradesTable`](../frontend-dapp/src/components/ui/TradesTable.tsx) — raw chain integers; do not invent a third format).
-  - Limit fills: **Token0** / **Token1** from `token0_amount` / `token1_amount` (base / quote).
+  - Swaps: **Amount in** / **Amount out** from `offer_amount` / `return_amount` via **`formatTapeAmount`** (human units + symbol; GitLab [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)). Do not `formatNum(raw)`.
+  - Limit fills: **Base** / **Quote** from `token0_amount` / `token1_amount` (same helper + pair-leg decimals).
   - Cancellations: **no** amount columns (API has none).
-- **CSV** must match the same filters as JSON (`format=csv`, optional `pair=`). Client export `limit` must be **`TRADER_HISTORY_CSV_MAX_LIMIT` (200)** — the indexer clamp — never advertise a larger export. **Formula injection:** `csv_escape_cell` in [`text_csv.rs`](../indexer/src/api/text_csv.rs) prefixes cells starting with `=`, `+`, `-`, or `@` with `'` before RFC 4180 quoting (SEC-F12 / [#432](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/432)); unit tests `csv_escape_cell_neutralizes_*` and `trader_swaps_csv_neutralizes_formula_in_offer_asset`.
+- **CSV** must match the same filters as JSON (`format=csv`, optional `pair=`). Display is human; the downloaded file stays **raw** `offer_amount` integers (additive `offer_decimals` columns allowed). Client export `limit` must be **`TRADER_HISTORY_CSV_MAX_LIMIT` (200)** — the indexer clamp — never advertise a larger export. **Formula injection:** `csv_escape_cell` in [`text_csv.rs`](../indexer/src/api/text_csv.rs) prefixes cells starting with `=`, `+`, `-`, or `@` with `'` before RFC 4180 quoting (SEC-F12 / [#432](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/432)); unit tests `csv_escape_cell_neutralizes_*` and `trader_swaps_csv_neutralizes_formula_in_offer_asset`.
 - **CSV is HTTP-only** — no Keplr / wallet signature. Failures must surface an **inline error** (`data-testid="wallet-history-csv-error"`); never silent no-op. `fetchTraderHistoryCsv` retries once on network/timeout like `fetchJson`.
 
 ## Indexer (source of truth)
@@ -48,3 +48,4 @@ Invariants and caps (`limit` ≤ 200): [`docs/indexer-invariants.md`](../docs/in
 - [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md) — tx / address explorer URL matrix.
 - [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md) — LocalTerra smoke flows.
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — trade workspace layout; post-place **View order** / **Place another** on `/trade` ([GitLab **#161**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/161)).
+- [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — human Amount in/out/Price (#557); CSV stays raw.

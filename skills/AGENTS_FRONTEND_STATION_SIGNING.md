@@ -30,6 +30,7 @@ Use when Station users see **false “transaction rejected by user”** errors, 
 
 ## Cross-links
 
+- Keplr + Ledger Nano (amino, pre-sign suggest, stall UX): [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](./AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567))
 - Gas limits / fee envelope: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) — LocalTerra wallet matrix ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235))
 - Connect modal / wrong network: [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md), [GitLab #207](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/207)
 - User-facing errors: [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)

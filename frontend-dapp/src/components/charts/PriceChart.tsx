@@ -9,7 +9,9 @@ import {
   applyChartDisplayInvert,
   indexerCandlesToFactoryPoints,
   indexerCandlesToVolumeHistogramPoints,
+  type CandleVolumeScale,
 } from './priceChartCandles'
+import { isPairLegDecimals } from '@/utils/formatAmount'
 import { PairDisplayInvertPill } from '@/components/trade/PairDisplayInvertControls'
 import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 import { chartPointsToRsiLine, chartPointsToSmaLine } from './priceChartIndicators'
@@ -32,6 +34,9 @@ interface PriceChartProps {
   pairPillLabel?: string
   invertAriaLabel?: string
   displayBaseSymbol?: string
+  /** Pair-leg decimals for human candle volume (GitLab #564). */
+  volumeBaseDecimals?: number
+  volumeQuoteDecimals?: number
 }
 
 export default function PriceChart({
@@ -43,6 +48,8 @@ export default function PriceChart({
   pairPillLabel,
   invertAriaLabel,
   displayBaseSymbol,
+  volumeBaseDecimals,
+  volumeQuoteDecimals,
 }: PriceChartProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const chartHeadingId = useId()
@@ -94,15 +101,21 @@ export default function PriceChart({
     [tapeLastPriceUsd, chartPoints]
   )
 
+  const volumeScale = useMemo((): CandleVolumeScale | undefined => {
+    if (!isPairLegDecimals(volumeBaseDecimals) || !isPairLegDecimals(volumeQuoteDecimals)) return undefined
+    return { baseDecimals: volumeBaseDecimals, quoteDecimals: volumeQuoteDecimals }
+  }, [volumeBaseDecimals, volumeQuoteDecimals])
+
   const volumePoints = useMemo(() => {
+    if (!volumeScale) return []
     if (typeof document === 'undefined') {
-      return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, '#22c55e', '#ef4444')
+      return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, '#22c55e', '#ef4444', volumeScale)
     }
     const root = document.documentElement
     const up = getComputedStyle(root).getPropertyValue('--color-positive').trim() || '#22c55e'
     const down = getComputedStyle(root).getPropertyValue('--color-negative').trim() || '#ef4444'
-    return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, up, down)
-  }, [candlesQuery.data])
+    return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, up, down, volumeScale)
+  }, [candlesQuery.data, volumeScale])
 
   const sma7Points = useMemo(() => chartPointsToSmaLine(chartPoints, 7), [chartPoints])
   const sma25Points = useMemo(() => chartPointsToSmaLine(chartPoints, 25), [chartPoints])

@@ -5,6 +5,7 @@ import {
   formatQuoteVolume24h,
   formatTokenAmount,
   formatTokenAmountAbbrev,
+  formatPairStatsVolume,
   getDecimals,
 } from '../formatAmount'
 
@@ -67,6 +68,41 @@ describe('formatQuoteVolume24h', () => {
 
   it('formats 6-dec quote volume in human units', () => {
     expect(formatQuoteVolume24h('1000000', 6, 3)).toBe('1.00')
+  })
+})
+
+describe('formatPairStatsVolume (GitLab #564)', () => {
+  it('humanizes 6-dec UST1 screenshot raw instead of compacting as M', () => {
+    const raw = '385800000'
+    expect(formatNum(raw)).toMatch(/M$/)
+    const human = formatPairStatsVolume(raw, 6)
+    expect(human).not.toMatch(/M$/)
+    expect(human).toMatch(/^385\.8/)
+  })
+
+  it('humanizes 18-dec USTR screenshot raw instead of compacting as T', () => {
+    const raw = '36113437940000000000000'
+    expect(formatNum(raw)).toMatch(/T$/)
+    const human = formatPairStatsVolume(raw, 18)
+    expect(human).not.toMatch(/T$/)
+    expect(human).toMatch(/K$/)
+    expect(human).toMatch(/^36\.1/)
+  })
+
+  it('does not extra-scale equal-decimal 6/6 raw', () => {
+    expect(formatPairStatsVolume('1000000', 6)).toMatch(/^1(\.0+)?$/)
+    expect(formatPairStatsVolume('206000000', 6)).toMatch(/^206/)
+  })
+
+  it('returns 0 for zero and em dash for invalid input', () => {
+    expect(formatPairStatsVolume('0', 6)).toBe('0')
+    expect(formatPairStatsVolume('', 6)).toBe('—')
+    expect(formatPairStatsVolume('abc', 6)).toBe('—')
+    expect(formatPairStatsVolume('-1', 6)).toBe('—')
+    expect(formatPairStatsVolume('1000', undefined)).toBe('—')
+    expect(formatPairStatsVolume('1000', 19)).toBe('—')
+    expect(formatPairStatsVolume('1000', 6.5)).toBe('—')
+    expect(formatPairStatsVolume('<script>', 6)).toBe('—')
   })
 })
 

@@ -939,17 +939,15 @@
     place-items: center;
     width: 44px;
     height: 44px;
-    border-radius: 16px;
-    background: linear-gradient(180deg, rgba(68, 138, 255, 0.14), rgba(68, 138, 255, 0.04)), rgba(255, 255, 255, 0.02);
-    box-shadow:
-      inset 0 1px 0 var(--chrome-highlight),
-      0 12px 28px rgba(37, 99, 235, 0.16);
+    border-radius: 50%;
+    overflow: hidden;
+    background: transparent;
   }
 
   .app-brand-logo {
     display: block;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     object-fit: contain;
   }
 
@@ -2122,8 +2120,8 @@ input[type='number'] {
   }
 
   .app-brand-logo {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
   }
 
   .app-header-controls {

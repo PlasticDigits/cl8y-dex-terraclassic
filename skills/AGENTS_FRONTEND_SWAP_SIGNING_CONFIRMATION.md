@@ -50,9 +50,11 @@ cd frontend-dapp && npm run test:run -- \
 3. Keep **Route** on the separate `swap-route-summary` / `trade-market-route-summary` row ([`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)); the pre-sign panel repeats pair symbols for phishing resistance, not hop token detail.
 4. Limit orders use [`LimitOrderPreSubmitSummary`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) — labeled action/pair/side/amount/chain plus resting fee semantics ([#157](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/157), [#461](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/461) / SEC-I05).
 5. Pool provide/withdraw use [`PoolPreSubmitSummary`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx) — compact four-row card ([#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462)); see [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md).
+6. Ledger / Keplr hardware-wallet help is **not** this panel — signing-phase hint + stall copy live in [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](./AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)). Do not put seed/PIN/coin-type copy in the pre-sign summary.
 
 ## Related
 
+- Keplr + Ledger signing stall: [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](./AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567))
 - Trust boundaries: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Route row: [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
 - Pool pre-sign: [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md)

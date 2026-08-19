@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { PairInfo } from '@/types'
 import {
   buildPairLocalSearchHaystack,
@@ -138,5 +138,29 @@ describe('buildPairSearchHaystacksByAddress', () => {
     expect(filterFactoryPairsByLocalSearch([emberCoralPair], 'EMBER', 10).map((p) => p.contract_addr)).toEqual([
       PAIR_ADDR,
     ])
+  })
+})
+
+describe('filterFactoryPairsByLocalSearch production hide (GitLab #562)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('omits gem pairs from empty browse and typed EMBER on mainnet', () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    const gemPair: PairInfo = {
+      ...emberCoralPair,
+      asset_infos: [
+        { token: { contract_addr: 'terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94' } },
+        { token: { contract_addr: 'terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena' } },
+      ],
+    }
+    const mixed = [gemPair, luncUstcPair]
+    expect(filterFactoryPairsByLocalSearch(mixed, '', 10).map((p) => p.contract_addr)).toEqual([
+      luncUstcPair.contract_addr,
+    ])
+    expect(filterFactoryPairsByLocalSearch(mixed, 'EMBER', 10)).toEqual([])
+    expect(filterFactoryPairsByLocalSearch(mixed, 'RUBY', 10)).toEqual([])
   })
 })

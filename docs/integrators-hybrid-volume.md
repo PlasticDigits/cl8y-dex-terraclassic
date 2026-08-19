@@ -142,7 +142,7 @@ OpenAPI: indexer Swagger UI (`/swagger-ui/`). Listing compliance: [CG_CMC_COMPLI
 
 These use **consolidated** `swap_events` amounts (same rule as CG/CMC):
 
-- Pair 24h stats (`volume_quote`, `volume_base`)
+- Pair 24h stats (`volume_quote`, `volume_base` stay **raw**; retail Charts displays `volume_usd`, [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565))
 - Candles (`candle_builder`)
 - `token_volume_stats` / `volume_aggregator`
 - Trader `total_volume` (taker swaps, raw mixed-unit)

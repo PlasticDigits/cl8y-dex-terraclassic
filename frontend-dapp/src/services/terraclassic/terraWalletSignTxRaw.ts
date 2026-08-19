@@ -16,6 +16,7 @@ import {
   ulunaFromAminoFee,
 } from '@/utils/extensionSignedFeeGuard'
 import { txHashFromTxRaw } from '@/utils/terraTxHash'
+import { walletIsNanoLedger } from '@/services/terraclassic/keplrExtensionConfig'
 
 const EXTENSION_SIGN_OPTIONS = {
   preferNoSetFee: true,
@@ -39,6 +40,7 @@ type KeplrSignExtension = {
 
 type SplittableWallet = ConnectedWallet & {
   useAmino?: boolean
+  isNanoLedger?: boolean
   ext?: KeplrSignExtension
   wc?: KeplrSignExtension
   privateKey?: Uint8Array
@@ -93,12 +95,21 @@ function assertExtensionSignedDirectFeeMeetsExpected(
   }
 }
 
-function walletUsesAmino(wallet: SplittableWallet): boolean {
-  if (wallet.id === WalletName.STATION || wallet.id === WalletName.COSMOSTATION) {
+/**
+ * Split-path amino vs signDirect (GitLab #567).
+ * Station / Cosmostation always amino (#208). Keplr Ledger (`isNanoLedger` / `useAmino`) never signDirect.
+ * Software Keplr stays signDirect unless the wallet object already says amino (K567-1, K567-2).
+ */
+export function walletUsesAmino(wallet: ConnectedWallet): boolean {
+  const w = wallet as SplittableWallet
+  if (w.id === WalletName.STATION || w.id === WalletName.COSMOSTATION) {
     return true
   }
-  if (typeof wallet.useAmino === 'boolean') {
-    return wallet.useAmino
+  if (walletIsNanoLedger(w)) {
+    return true
+  }
+  if (typeof w.useAmino === 'boolean') {
+    return w.useAmino
   }
   return false
 }
