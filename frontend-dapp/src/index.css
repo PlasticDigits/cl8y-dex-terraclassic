@@ -516,6 +516,31 @@
     isolation: isolate;
   }
 
+  /*
+   * Desktop /trade workspace (#561): CSS grid, no drag-resize.
+   * Chart column is minmax(0,1fr) so it absorbs width when book/ticket hide.
+   * Flex chain keeps PriceChart candles from clipping (#151).
+   */
+  .trade-desktop-workspace {
+    display: flex;
+    flex-direction: column;
+    height: min(85vh, 920px);
+    min-height: 440px;
+    gap: 0.5rem;
+  }
+
+  .trade-desktop-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+  }
+
+  .trade-desktop-tape-body {
+    max-height: min(28vh, 16rem);
+  }
+
   /* Swap page: two halves abut; direction button sits on the seam (see SwapPage).
      One gradient + blur on the stack so the fill reads as a single surface. */
   .swap-io-stack {

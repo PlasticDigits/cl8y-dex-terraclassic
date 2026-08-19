@@ -36,4 +36,6 @@ regexes = [
   '''cl8y-dex-risk-ack''',
   # localStorage key for UI sound mute preference (GitLab #487); not a credential.
   '''cl8y-dex-sounds-enabled''',
+  # localStorage keys for /trade workspace panel prefs (GitLab #417 / #561); not credentials.
+  '''cl8y-dex-trade-(tape-expanded|wallet-history-expanded|book-visible|ticket-visible)''',
 ]

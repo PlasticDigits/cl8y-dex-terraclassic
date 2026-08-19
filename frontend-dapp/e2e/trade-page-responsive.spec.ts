@@ -302,30 +302,40 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     expect(hitFooter, 'P6: datetime hit must not land on the footer').toBe(false)
   })
 
-  test('P10 resize ticket handle: footer stays inside the ticket card', async ({ page }) => {
+  test('P10 no resize handles; hiding ticket expands the chart (GitLab #561)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
     await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
 
-    const handle = page.getByTestId('trade-ticket-resize-handle')
-    const card = page.getByTestId('trade-order-ticket-card')
-    const footer = page.getByTestId('trade-ticket-submit-footer')
-    await expect(handle).toBeVisible()
-    const before = await card.boundingBox()
-    const box = await handle.boundingBox()
-    expect(box).toBeTruthy()
-    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box!.x + box!.width / 2 - 80, box!.y + box!.height / 2, { steps: 8 })
-    await page.mouse.up()
-    await page.waitForTimeout(50)
+    await expect(page.getByTestId('trade-ticket-resize-handle')).toHaveCount(0)
+    await expect(page.getByTestId('trade-book-chart-resize-handle')).toHaveCount(0)
+    await expect(page.getByTestId('trade-chart-tape-resize-handle')).toHaveCount(0)
+    expect(await page.locator('[data-panel-resize-handle-id]').count()).toBe(0)
 
-    const cardBox = await card.boundingBox()
-    const footerBox = await footer.boundingBox()
-    expect(cardBox!.width).not.toBe(before!.width)
-    expect(footerBox!.x).toBeGreaterThanOrEqual(cardBox!.x - 1)
-    expect(footerBox!.x + footerBox!.width).toBeLessThanOrEqual(cardBox!.x + cardBox!.width + 1)
+    const chart = page.getByTestId('trade-desktop-chart-col')
+    const ticketCol = page.getByTestId('trade-desktop-ticket-col')
+    await expect(chart).toBeVisible()
+    await expect(ticketCol).toBeVisible()
+    const before = await chart.boundingBox()
+    expect(before).toBeTruthy()
+
+    await page.getByTestId('trade-desktop-ticket-toggle').click()
+    await expect(ticketCol).toBeHidden()
+    await page.waitForTimeout(50)
+    const afterHideTicket = await chart.boundingBox()
+    expect(afterHideTicket!.width).toBeGreaterThan(before!.width + 40)
+
+    const afterTicket = afterHideTicket!.width
+    await page.getByTestId('trade-desktop-book-toggle').click()
+    await expect(page.getByTestId('trade-desktop-book-col')).toBeHidden()
+    await page.waitForTimeout(50)
+    const afterHideBook = await chart.boundingBox()
+    expect(afterHideBook!.width).toBeGreaterThan(afterTicket + 20)
+
+    await expect(page.getByTestId('trade-desktop-ticket-toggle')).toBeVisible()
+    await expect(page.getByTestId('trade-desktop-book-toggle')).toBeVisible()
+    await expect(page.getByTestId('trade-page-heading')).toBeVisible()
   })
 
   test('P11 dark + light footer remains opaque', async ({ page }) => {

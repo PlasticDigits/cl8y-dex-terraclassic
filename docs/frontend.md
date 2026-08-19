@@ -1106,7 +1106,7 @@ Retail trade IA for Swap vs Trade vs Limits and calmer first paint on `/trade` (
 | **First-visit onboarding strip** | [`TradeOnboardingStrip`](../frontend-dapp/src/components/common/TradeOnboardingStrip.tsx) on `/`, `/trade`, and `/limits` until dismissed (`data-testid="trade-onboarding-strip"`). Copy links to **Swap** and explains when to use **Trade** vs **Limits**. Dismiss persists in `localStorage` ([`tradeOnboarding.ts`](../frontend-dapp/src/utils/tradeOnboarding.ts)). Must not block wallet connect or submit buttons. |
 | **Money-action CTA sizing** | Primary trade submits use [`TRADE_MONEY_CTA_CLASS`](../frontend-dapp/src/utils/tradeMoneyCta.ts) (`py-3 text-sm font-semibold` minimum) on **Place limit**, **Market buy/sell**, and ladder place — aligned with Swap `btn-primary btn-cta` weight. `data-testid` hooks unchanged (`trade-limit-submit`, `trade-market-submit`, `ladder-place-submit`). |
 | **Market slippage presets** | Shared [`SlippageProtectionPresets`](../frontend-dapp/src/components/common/SlippageProtectionPresets.tsx): label above a `role="group"` 3-up grid (`data-testid="trade-market-slippage-presets"`). Chips use `min-h-11` (~44px); `data-testid="trade-market-slippage-preset-{pct}"`. Do not wrap 0.5% onto the label row ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528)). |
-| **Progressive disclosure on `/trade`** | **Recent trades (tape)** and **wallet swap history** default **collapsed** on first visit. Sub-desktop: [`TradeWorkspaceDisclosure`](../frontend-dapp/src/components/trade/TradeWorkspaceDisclosure.tsx) (`trade-sub-lg-tape-disclosure`, `trade-wallet-history-disclosure`). Desktop: collapsible resizable tape panel (`trade-desktop-tape-panel`, `trade-desktop-tape-toggle`). Expansion persists via [`tradeWorkspacePanels.ts`](../frontend-dapp/src/utils/tradeWorkspacePanels.ts). Pause/blacklist banners remain visible when applicable ([#395](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/395), [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)). |
+| **Progressive disclosure on `/trade`** | **Recent trades (tape)** and **wallet swap history** default **collapsed** on first visit. Sub-desktop: [`TradeWorkspaceDisclosure`](../frontend-dapp/src/components/trade/TradeWorkspaceDisclosure.tsx) (`trade-sub-lg-tape-disclosure`, `trade-wallet-history-disclosure`). Desktop: independent bottom-row tape panel with Expand/Collapse (`trade-desktop-tape-panel`, `trade-desktop-tape-toggle`) — **not** a splitter inside the chart column ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). Expansion persists via [`tradeWorkspacePanels.ts`](../frontend-dapp/src/utils/tradeWorkspacePanels.ts). Pause/blacklist banners remain visible when applicable ([#395](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/395), [#388](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/388)). |
 
 **Verify:** `make test-frontend` — [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx), [`TradeOnboardingStrip.test.tsx`](../frontend-dapp/src/components/common/__tests__/TradeOnboardingStrip.test.tsx). Manual: clear `cl8y-dex-trade-onboarding-dismissed`, `cl8y-dex-trade-tape-expanded`, and `cl8y-dex-trade-wallet-history-expanded` in DevTools → reload `/trade` → confirm collapsed tape/history and onboarding strip; mobile bottom nav must remain usable.
 
@@ -1388,18 +1388,41 @@ Implementation: [`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/T
 
 ### Trade page — responsive layout (sub-desktop) {#trade-page-responsive-layout}
 
-Below **`lg` (`min-width: 1024px`)**, [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) uses a **CSS Grid** layout instead of the desktop `react-resizable-panels` workspace. Tablet portrait (**`768px`–`1023px`**, Tailwind **`md:`**–**`lg:`**) gets a **two-column top row** (price chart left, limit **order ticket** right) so iPad-class viewports are not forced into a phone-only vertical stack ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)). Header density for the same band is documented above ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); this section is the **trade workspace** counterpart.
+Below **`lg` (`min-width: 1024px`)**, [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) uses a **CSS Grid** layout. Tablet portrait (**`768px`–`1023px`**, Tailwind **`md:`**–**`lg:`**) gets a **two-column top row** (price chart left, limit **order ticket** right) so iPad-class viewports are not forced into a phone-only vertical stack ([GitLab **#146**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)). Desktop (`≥1024px`) is a **non-resizable CSS grid** (book \| chart \| ticket + independent tape row) — see [§ Trade page — desktop workspace](#trade-page-desktop-workspace) ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). Header density for the same band is documented above ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)); this section is the **trade workspace** counterpart.
 
 | Invariant | Meaning |
 |-----------|---------|
 | **`<768px` (default grid)** | Single column, DOM order: **order book** → **order ticket** → **chart** (when pair resolved) → **recent trades**. |
 | **`768px`–`1023px` (`md:` / `<lg:`)** | Two-column grid: **chart** `row-start-1` / `col-start-1`, **order ticket** `row-start-1` / `col-start-2`, **order book** full width `row-start-2`, **recent trades** full width `row-start-3`. |
-| **`≥1024px` (`lg:`)** | Unchanged: horizontal `PanelGroup` (book \| chart+tape \| ticket) with resize handles. |
-| **No `useMediaQuery` on TradePage** | Breakpoints are **Tailwind-only** for this page; keep header `matchMedia` logic in `Layout.tsx` / `navItems.ts` only unless a future interaction requires JS alignment. |
-| **`data-testid="trade-sub-lg-workspace"`** | Marks the sub-desktop grid root so Playwright (and agents) can scope headings — the desktop panel tree also contains an order book + chart and would otherwise duplicate roles. |
-| **Price chart card (flex chain)** | Where `PriceChart` sits inside **`overflow-hidden`** or `Panel` chrome, the immediate wrapper is **`h-full … flex flex-col min-h-0`** (desktop chart cell; sub-lg chart **`card-glass`**). Keeps the candle canvas from being clipped when header + minimum plot height exceed the panel ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). |
+| **`≥1024px` (`lg:`)** | CSS grid: book \| chart \| ticket on the top row; **Recent trades** independent bottom row. **No** drag-resize handles ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). |
+| **`useMediaQuery` on TradePage** | Used only to mount **one** workspace tree (single `TradeOrderTicket`, [#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178)). Not a layout-from-URL API. |
+| **`data-testid="trade-sub-lg-workspace"`** | Marks the sub-desktop grid root so Playwright (and agents) can scope headings — the desktop tree also contains an order book + chart and would otherwise duplicate roles. |
+| **Price chart (flex chain)** | Immediate wrapper around `PriceChart` is **`h-full flex flex-col min-h-0`** with **no** extra `card-glass` (desktop chart cell and sub-lg chart column). Keeps candles from clipping ([GitLab **#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151), **L561-1**). |
 
 Regression coverage: [`frontend-dapp/e2e/trade-page-responsive.spec.ts`](../frontend-dapp/e2e/trade-page-responsive.spec.ts).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
+
+### Trade page — desktop workspace (no drag-resize) {#trade-page-desktop-workspace}
+
+Desktop `/trade` (`lg`, `min-width: 1024px`) is a **CSS grid** with boolean panel toggles — not `react-resizable-panels` ([GitLab **#561**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). Implementation: [`TradeDesktopWorkspace.tsx`](../frontend-dapp/src/components/trade/TradeDesktopWorkspace.tsx), prefs in [`tradeWorkspacePanels.ts`](../frontend-dapp/src/utils/tradeWorkspacePanels.ts).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **L561-1 Single chart surface** | `PriceChart` `shell-panel-strong` is the only chrome on the chart. No wrapping `card-glass`. |
+| **L561-2 One chrome layer** | Design-system principle: do not box-in-box `shell-panel*` / `card-glass` for the same region. Swap / Pool / Limits / Charts audited; Limits extra book wrapper removed. |
+| **L561-3 Independent tape** | Recent trades is a bottom-row panel (`trade-desktop-tape-panel`), not nested in the chart column. Expand/collapse is a button (`trade-desktop-tape-toggle`), not a splitter. |
+| **L561-4 No drag-resize** | No `PanelResizeHandle` in the default layout. P10 asserts handles are absent. |
+| **L561-5 Hide book** | `trade-desktop-book-toggle` hides the book; chart width grows (`3.2fr` vs remaining ticket `1fr`). The ticket must not take the vacated width. Restore control stays visible. |
+| **L561-6 Hide ticket** | `trade-desktop-ticket-toggle` hides the ticket (`hidden` + `inert` + `interactive={false}`). Chart width grows; the book stays `1fr`. No focus/submit from the hidden tree. |
+| **L561-7 Both hidden** | Chart uses the remaining workspace width (`1fr` only). Default (both visible: `1fr` / `2.2fr` / `1fr`) keeps the chart the largest region. |
+| **L561-8 Persistence** | Tape: `cl8y-dex-trade-tape-expanded`. Book: `cl8y-dex-trade-book-visible`. Ticket: `cl8y-dex-trade-ticket-visible`. Values `'1'` / `'0'` only; anything else → default (sides visible, tape collapsed). |
+| **L561-9 Sub-lg + one ticket** | Sub-`lg` grid unchanged in structure ([#146](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)). Exactly one `TradeOrderTicket` ([#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178)). |
+| **L561-10 Footer / candles / portal** | Visible ticket keeps `trade-ticket-submit-footer` dock ([#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527)). Chart flex chain ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). Pair selector portal does not shift layout ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). |
+| **L561-11 Book Edit** | Edit while ticket hidden re-shows the ticket and applies the draft. Hide uses `inert` (not unmount) so fields persist; pair switch still binds `pairAddr`. |
+| **L561-12 Verify** | `make verify-issue-561`. |
+
+**Hide vs unmount:** ticket/book stay mounted. **No** `?layout=` query flags (A5). Pause / blacklist / indexer banners stay above the workspace (A4).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md).
 
