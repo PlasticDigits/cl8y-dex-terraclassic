@@ -1,6 +1,7 @@
 import type { HistogramData, Time } from 'lightweight-charts'
 import type { IndexerCandle } from '@/types'
 import { invertUsdNumber } from '@/utils/tradePairDisplayOrientation'
+import { fromRawAmount, isPairLegDecimals } from '@/utils/formatAmount'
 
 /** OHLC row passed to lightweight-charts CandlestickSeries (TradingView lightweight-charts, not the hosted widget). */
 export interface ChartCandlePoint {
@@ -140,23 +141,70 @@ export function applyChartDisplayInvert(points: FactoryCandlePoint[], inverted: 
 /**
  * Quote-side volume per candle, colored by bar direction (same times as factory USD series).
  * Uses **quote** volume when non-zero; otherwise **base** volume so local / thin markets still show bars.
- * Volume is not inverted as price (GitLab #543).
+ * Volume is not inverted as price (GitLab #543 **C543-8**).
+ *
+ * When `scale` is set, raw indexer integers are divided by `10^decimals` (GitLab #564).
+ * Missing / out-of-range decimals, non-integer raw, or non-finite human values drop that bar.
+ * Omit `scale` only in fixtures that already use human-sized integers.
  */
+export type CandleVolumeScale = {
+  quoteDecimals: number
+  baseDecimals: number
+}
+
+function scaleRawCandleVolume(raw: string | undefined, decimals: number): number | null {
+  if (!isPairLegDecimals(decimals)) return null
+  if (raw == null || raw === '') return 0
+  if (typeof raw !== 'string' || raw.length > 78 || /[<>]/.test(raw)) return null
+  let n: bigint
+  try {
+    n = BigInt(raw)
+  } catch {
+    return null
+  }
+  if (n < 0n) return null
+  if (n === 0n) return 0
+  const human = fromRawAmount(raw, decimals)
+  const v = Number(human)
+  if (!Number.isFinite(v) || v < 0) return null
+  return v
+}
+
 export function indexerCandlesToVolumeHistogramPoints(
   data: IndexerCandle[] | undefined,
   upColor: string,
-  downColor: string
+  downColor: string,
+  scale?: CandleVolumeScale
 ): HistogramData<Time>[] {
-  return sortedValidUsdCandles(data).map((c) => {
+  const out: HistogramData<Time>[] = []
+  for (const c of sortedValidUsdCandles(data)) {
     const open = parseChartFinitePositive(c.open)!
     const close = parseChartFinitePositive(c.close)!
-    const vq = Math.max(0, parseChartFiniteNumber(c.volume_quote) ?? 0)
-    const vb = Math.max(0, parseChartFiniteNumber(c.volume_base) ?? 0)
-    const value = vq > 0 ? vq : vb
-    return {
+    let value: number
+    if (scale) {
+      const quoteRaw = c.volume_quote
+      const quoteIsZero = quoteRaw == null || quoteRaw === '' || quoteRaw === '0'
+      if (!quoteIsZero) {
+        const vq = scaleRawCandleVolume(quoteRaw, scale.quoteDecimals)
+        if (vq == null) continue
+        value = vq
+      } else {
+        const vb = scaleRawCandleVolume(c.volume_base, scale.baseDecimals)
+        if (vb == null) continue
+        value = vb
+      }
+      if (!Number.isFinite(value)) continue
+    } else {
+      const vq = Math.max(0, parseChartFiniteNumber(c.volume_quote) ?? 0)
+      const vb = Math.max(0, parseChartFiniteNumber(c.volume_base) ?? 0)
+      value = vq > 0 ? vq : vb
+      if (!Number.isFinite(value)) continue
+    }
+    out.push({
       time: candleOpenTimeSeconds(c.open_time)! as Time,
       value,
       color: close >= open ? upColor : downColor,
-    }
-  })
+    })
+  }
+  return out
 }

@@ -839,7 +839,7 @@ export default function LimitOrdersPage() {
               </div>
 
               {selectedPair && (
-                <div className="card-glass !p-3 min-h-[12rem] flex flex-col" data-testid="limits-order-book-panel">
+                <div className="min-h-[12rem] flex flex-col min-h-0" data-testid="limits-order-book-panel">
                   <OrderBookPanel
                     pairAddress={pairAddr}
                     pair={indexerPair}
@@ -935,7 +935,9 @@ export default function LimitOrdersPage() {
                 </div>
               </details>
 
-              {pairAddr && address && <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} />}
+              {pairAddr && address && (
+                <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} activePair={indexerPair} />
+              )}
             </div>
           </LcdQueryGate>
         </div>

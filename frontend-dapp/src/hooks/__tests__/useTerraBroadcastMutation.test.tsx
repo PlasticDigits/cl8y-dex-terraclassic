@@ -14,6 +14,7 @@ vi.mock('@/services/terraclassic/wallet', () => ({
     address: 'terra1sender',
     broadcastTx: mockBroadcastTx,
     pollTx: mockPollTx,
+    getAuthInfo: vi.fn().mockResolvedValue({ accountNumber: 1n, sequence: 1n }),
   }),
 }))
 

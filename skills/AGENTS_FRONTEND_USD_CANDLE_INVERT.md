@@ -16,7 +16,7 @@ After #524, **Last** used `invertUsd(price_usd, human)` (USD of the displayed ba
 - **Do** give the client both series: factory USD in `open/high/low/close`, human quote-per-base in `*_human`.
 - **Do** drop bars with missing / `≤ 0` / non-finite USD (no human-on-USD-axis fallback).
 - **Do** set adaptive `priceFormat` via series `applyOptions` (do not recreate the chart — #148).
-- **Do** run SMA/RSI on the **display USD** series after invert. Volume stays quote/base volume.
+- **Do** run SMA/RSI on the **display USD** series after invert. Volume stays quote/base volume, **human-scaled by pair-leg decimals** ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)).
 - **Don’t** call `invertOhlc` / `1/x` on a USD-of-`asset_0` series. `invertOhlc` is **human** book/limit only.
 - **Don’t** scale every historical bar by the *latest* tape human price.
 - **Don’t** change indexer `swap_events.price` / `price_usd`, CG/CMC `last_price`, or on-chain convert-on-submit (**T524-1**, **T524-2**).
@@ -50,5 +50,6 @@ Indexer: `candle_human_usd.rs`, `candle_skip_zero_price.rs`.
 ## Related
 
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — pill / ticket / convert-on-submit (#524)
+- [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h Stats + TWAP human scale; histogram decimals (#564)
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — canvas / Y-axis / setData
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — factory `price_usd` meaning unchanged

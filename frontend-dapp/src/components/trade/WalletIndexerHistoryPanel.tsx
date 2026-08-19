@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { IndexerLimitCancellation, IndexerLimitFill, IndexerTrade } from '@/types'
+import type { IndexerLimitCancellation, IndexerLimitFill, IndexerPair, IndexerTrade } from '@/types'
 import {
   downloadTextAsFile,
   fetchTraderHistoryCsv,
@@ -10,7 +10,15 @@ import {
   TRADER_HISTORY_CSV_MAX_LIMIT,
   type TraderHistoryCsvResource,
 } from '@/services/indexer/client'
-import { formatNum, formatPairPrice } from '@/utils/formatAmount'
+import {
+  formatTapeAmount,
+  formatTapePrice,
+  resolveAskDecimals,
+  resolveOfferDecimals,
+  resolveToken0Decimals,
+  resolveToken1Decimals,
+  tapePriceTooltip,
+} from '@/utils/tradeTapeDisplay'
 import { formatDateTime } from '@/utils/formatDate'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 import { RetryError, Skeleton } from '@/components/ui'
@@ -23,18 +31,16 @@ export interface WalletIndexerHistoryPanelProps {
   pairAddress: string
   /** Defaults to all three (limits page). Trade page typically passes `['swaps']` only. */
   sections?: WalletIndexerHistorySection[]
+  /** Pair metadata for decimal fallback when trade JSON omits decimals (#557). */
+  activePair?: IndexerPair
+  /** Display invert from `/trade` only. `/limits` stays factory-oriented. */
+  inverted?: boolean
 }
 
 /**
- * Amount display for wallet pair history — same `formatNum(raw)` as public
- * [`TradesTable`](../ui/TradesTable.tsx) (offer/return and fill token0/token1 are
- * raw chain integers). Prefer this over inventing a third format; decimal-aware
- * `formatTokenAmount` can land later when pair decimals are threaded in (#479).
+ * Amount display for wallet pair history — same helpers as public [`TradesTable`]
+ * (`formatTapeAmount` / `formatTapePrice`). CSV download stays raw indexer integers.
  */
-function formatHistoryAmount(raw: string | undefined): string {
-  if (raw == null || raw === '') return '—'
-  return formatNum(raw)
-}
 
 function txCell(txHash: string) {
   const url = getExplorerTxUrl(txHash)
@@ -143,6 +149,8 @@ export function WalletIndexerHistoryPanel({
   walletAddress,
   pairAddress,
   sections = ['swaps', 'fills', 'cancels'],
+  activePair,
+  inverted = false,
 }: WalletIndexerHistoryPanelProps) {
   const enabled = walletAddress.length > 0 && pairAddress.startsWith('terra1')
   const slug = walletAddress.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) || 'wallet'
@@ -207,7 +215,9 @@ export function WalletIndexerHistoryPanel({
                     >
                       Amount out
                     </th>
-                    <th className="py-1.5 pr-2 font-medium">Price</th>
+                    <th className="py-1.5 pr-2 font-medium" title={tapePriceTooltip(activePair, inverted)}>
+                      Price
+                    </th>
                     <th className="py-1.5 pr-2 font-medium">Fee</th>
                     <th className="py-1.5 font-medium">Tx</th>
                   </tr>
@@ -219,9 +229,13 @@ export function WalletIndexerHistoryPanel({
                       <td className="py-1.5 pr-2">
                         {t.offer_asset} → {t.ask_asset}
                       </td>
-                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(t.offer_amount)}</td>
-                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(t.return_amount)}</td>
-                      <td className="py-1.5 pr-2">{formatPairPrice(t.price, 6)}</td>
+                      <td className="py-1.5 pr-2 text-right">
+                        {formatTapeAmount(t.offer_amount, resolveOfferDecimals(t, activePair), t.offer_asset)}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right">
+                        {formatTapeAmount(t.return_amount, resolveAskDecimals(t, activePair), t.ask_asset)}
+                      </td>
+                      <td className="py-1.5 pr-2">{formatTapePrice(t.price, inverted)}</td>
                       <td className="py-1.5 pr-2">{swapFeeLabel(t)}</td>
                       <td className="py-1.5">{txCell(t.tx_hash)}</td>
                     </tr>
@@ -249,12 +263,14 @@ export function WalletIndexerHistoryPanel({
                     <th className="py-1.5 pr-2 font-medium">Order</th>
                     <th className="py-1.5 pr-2 font-medium">Side</th>
                     <th className="py-1.5 pr-2 font-medium text-right" title="Base token fill size">
-                      Base
+                      {activePair?.asset_0.symbol ?? 'Base'}
                     </th>
                     <th className="py-1.5 pr-2 font-medium text-right" title="Quote token fill size">
-                      Quote
+                      {activePair?.asset_1.symbol ?? 'Quote'}
                     </th>
-                    <th className="py-1.5 pr-2 font-medium">Price</th>
+                    <th className="py-1.5 pr-2 font-medium" title={tapePriceTooltip(activePair, inverted)}>
+                      Price
+                    </th>
                     <th className="py-1.5 pr-2 font-medium">Commission</th>
                     <th className="py-1.5 font-medium">Tx</th>
                   </tr>
@@ -265,9 +281,21 @@ export function WalletIndexerHistoryPanel({
                       <td className="py-1.5 pr-2 whitespace-nowrap">{formatDateTime(r.block_timestamp)}</td>
                       <td className="py-1.5 pr-2">#{r.order_id}</td>
                       <td className="py-1.5 pr-2">{r.side === 'bid' ? 'Buy' : r.side === 'ask' ? 'Sell' : r.side}</td>
-                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(r.token0_amount)}</td>
-                      <td className="py-1.5 pr-2 text-right">{formatHistoryAmount(r.token1_amount)}</td>
-                      <td className="py-1.5 pr-2">{r.price}</td>
+                      <td className="py-1.5 pr-2 text-right">
+                        {formatTapeAmount(
+                          r.token0_amount,
+                          resolveToken0Decimals(r, activePair),
+                          activePair?.asset_0.symbol
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right">
+                        {formatTapeAmount(
+                          r.token1_amount,
+                          resolveToken1Decimals(r, activePair),
+                          activePair?.asset_1.symbol
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-2">{formatTapePrice(r.price, inverted)}</td>
                       <td className="py-1.5 pr-2">{r.commission_amount}</td>
                       <td className="py-1.5">{txCell(r.tx_hash)}</td>
                     </tr>

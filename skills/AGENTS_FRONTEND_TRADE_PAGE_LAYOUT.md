@@ -22,15 +22,40 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 | [docs/frontend.md § Limit place — Bid / Ask side control](../docs/frontend.md#limit-place-bid-ask-side) | Order ticket **Buy/Sell** control: radiogroup buttons, semantic fills (**#563**), test ids, keyboard model ([GitLab **#153**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/153)); agents: [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md), [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) |
 | [docs/frontend.md § Trade page — ticket heading](../docs/frontend.md#trade-page-ticket-heading) | Full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)) |
 | [docs/frontend.md § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation) | Same viewport bands for **header** density (`Layout.tsx`, `HEADER_FULL_NAV_MIN_WIDTH_PX` — [GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)) |
-| `frontend-dapp/src/pages/TradePage.tsx` | `lg:hidden` grid vs `hidden lg:block` resizable `PanelGroup` |
+| `frontend-dapp/src/pages/TradePage.tsx` | `lg:hidden` grid vs `hidden lg:flex` CSS-grid desktop workspace ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)) |
 
 ## Rules of thumb
 
-1. **Keep desktop (`lg:`+) on `react-resizable-panels`** unless there is a product decision to replace it; tablet/phone behavior lives in the **`lg:hidden`** grid only.
+1. **Desktop (`lg:`+) is a CSS grid**, not `react-resizable-panels`. Product decision: [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561). Do **not** add `PanelResizeHandle` chrome to the default `/trade` layout. Hide book/ticket with toggles so the **chart** takes the vacated width. Tablet/phone behavior lives in the **`lg:hidden`** grid only.
 2. **Prefer CSS grid placement** (`md:col-start-*`, `md:row-start-*`) over duplicating chart/ticket markup — one source of truth for queries and loading states.
 3. If you add a **fourth** layout tier or JS-driven breakpoints, update **`docs/frontend.md`** invariants and extend **`trade-page-responsive.spec.ts`** so iPad portrait (`~820×1180`) and a narrow phone width stay covered.
-4. **Playwright** must scope layout assertions under **`[data-testid="trade-sub-lg-workspace"]`** — the `hidden lg:block` desktop workspace duplicates chart/order-book headings in the DOM.
-5. **`PriceChart` embeds:** Chart card wrappers on **`TradePage`** must stay **`flex flex-col min-h-0`** (and **`h-full`** in the desktop chart `Panel`) so the candle pane is not clipped by **`overflow-hidden`** when the panel is shorter than header + old fixed chart height ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)).
+4. **Playwright** must scope sub-desktop layout assertions under **`[data-testid="trade-sub-lg-workspace"]`** — the desktop workspace also contains an order book + chart and would otherwise duplicate roles.
+5. **`PriceChart` embeds:** Wrappers around `PriceChart` on **`TradePage`** must stay **`flex flex-col min-h-0`** (and **`h-full`** in the desktop chart cell) so the candle pane is not clipped by **`overflow-hidden`** ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). Do **not** wrap `PriceChart` (`shell-panel-strong`) in `card-glass` (**L561-1**).
+6. **Panel prefs** persist as `'1'` / `'0'` only in [`tradeWorkspacePanels.ts`](../frontend-dapp/src/utils/tradeWorkspacePanels.ts). Corrupt strings fall back to defaults (book+ticket visible; tape collapsed). No query-param layout.
+7. **One `TradeOrderTicket` mount** ([#178](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/178)). Hide with CSS + `inert` + `interactive={false}`; do not remount. Book **Edit** must re-show the ticket then apply the draft (**L561-11**).
+
+## Invariants (GitLab #561)
+
+| Id | Rule |
+|----|------|
+| **L561-1** | Desktop chart is a single `PriceChart` `shell-panel-strong` surface — no wrapping `card-glass`. |
+| **L561-2** | Design-system + this skill: one chrome layer per region. Swap / Pool / Limits / Charts audited. |
+| **L561-3** | Desktop Recent trades is an independent bottom-row panel, not inside the chart stack. No chart↔tape splitter. |
+| **L561-4** | No `PanelResizeHandle` (or equivalent drag chrome) in the default `/trade` layout. P10 asserts absence. |
+| **L561-5** | Hide Order book → chart expands (`3.2fr`); remaining ticket stays `1fr`. Restore control stays visible. |
+| **L561-6** | Hide Order ticket → chart expands; remaining book stays `1fr`. Hidden ticket is inert (no focus, no submit). Restore control stays visible. |
+| **L561-7** | Hiding both side panels gives the chart the full workspace width. Default (both visible: `1fr` / `2.2fr` / `1fr`) keeps the chart the largest region. |
+| **L561-8** | Tape expand/collapse persists. Book/ticket visibility persists. Corrupt `localStorage` → defaults. |
+| **L561-9** | Sub-`lg` grid structure unchanged ([#146](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)); chart double-wrap flattened. Exactly one ticket mount. |
+| **L561-10** | Visible ticket keeps footer CTA dock ([#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527)). Candles not clipped ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). Pair selector portal does not shift layout ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). |
+| **L561-11** | Book **Edit** while ticket hidden re-shows the ticket and applies the draft. |
+| **L561-12** | Docs/skills match this layout. `make verify-issue-561` covers unit + targeted e2e. |
+
+**Hide vs unmount:** desktop book/ticket stay mounted (`hidden` + `inert`). Form fields persist across hide/show. Pair switch still updates `pairAddr` on the mounted ticket (**A9**).
+
+**Chrome audit (#561 L2):** Swap nests `card-glass` IO cards inside a page `shell-panel-strong` (allowed distinct blocks). Pool uses `shell-panel*` without wrapping `PriceChart`. Charts mounts `PriceChart` without extra `card-glass`. Limits extra `card-glass` around `OrderBookPanel` was removed.
+
+Verify: `make verify-issue-561`.
 
 ## Related
 

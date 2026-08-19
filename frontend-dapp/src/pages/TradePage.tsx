@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getOraclePrice, getPair, getTrades } from '@/services/indexer/client'
 import { getPairPaused } from '@/services/terraclassic/pair'
@@ -22,7 +21,13 @@ import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
-import { firstCatalogPairAddress } from '@/utils/pairCatalogRank'
+import {
+  firstCatalogPairAddress,
+  isRetailHiddenTestPair,
+  pairInfoLegIds,
+  pairInfoLegSymbols,
+  retailExposeTestTokens,
+} from '@/utils/pairCatalogRank'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
@@ -55,34 +60,19 @@ import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { TRADE_DESKTOP_LAYOUT_MEDIA_QUERY } from '@/utils/tradePageLayout'
 import { TradeOnboardingStrip } from '@/components/common/TradeOnboardingStrip'
 import { TradeWorkspaceDisclosure } from '@/components/trade/TradeWorkspaceDisclosure'
+import { TradeDesktopWorkspace } from '@/components/trade/TradeDesktopWorkspace'
 import {
-  TRADE_DESKTOP_TAPE_COLLAPSED_SIZE,
-  TRADE_DESKTOP_TAPE_EXPANDED_SIZE,
+  TRADE_BOOK_VISIBLE_KEY,
   TRADE_TAPE_EXPANDED_KEY,
+  TRADE_TICKET_VISIBLE_KEY,
   TRADE_WALLET_HISTORY_EXPANDED_KEY,
   readTradePanelExpanded,
+  readTradePanelVisible,
   writeTradePanelExpanded,
+  writeTradePanelVisible,
 } from '@/utils/tradeWorkspacePanels'
 
 const TRADE_PAIR_SELECT_ID = 'trade-pair-select'
-
-function TradeResizeHandleVertical({ testId }: { testId?: string }) {
-  return (
-    <PanelResizeHandle
-      className="w-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
-      data-testid={testId}
-    />
-  )
-}
-
-function TradeResizeHandleHorizontal({ testId }: { testId?: string }) {
-  return (
-    <PanelResizeHandle
-      className="h-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors shrink-0"
-      data-testid={testId}
-    />
-  )
-}
 
 type TradeChartSlotProps = {
   pairRouteReady: boolean
@@ -97,8 +87,8 @@ type TradeChartSlotProps = {
   pairPillLabel?: string
   invertAriaLabel?: string
   displayBaseSymbol?: string
-  /** When false, chart fills the parent card without an extra wrapper (desktop panel). */
-  wrapInCard?: boolean
+  volumeBaseDecimals?: number
+  volumeQuoteDecimals?: number
 }
 
 /** Chart mounts on `pairAddr` immediately; candles load in parallel with `getPair` (GitLab #180). */
@@ -115,7 +105,8 @@ function TradeChartSlot({
   pairPillLabel,
   invertAriaLabel,
   displayBaseSymbol,
-  wrapInCard = true,
+  volumeBaseDecimals,
+  volumeQuoteDecimals,
 }: TradeChartSlotProps) {
   if (!pairRouteReady) {
     return (
@@ -143,10 +134,11 @@ function TradeChartSlot({
       pairPillLabel={pairPillLabel}
       invertAriaLabel={invertAriaLabel}
       displayBaseSymbol={displayBaseSymbol}
+      volumeBaseDecimals={volumeBaseDecimals}
+      volumeQuoteDecimals={volumeQuoteDecimals}
     />
   )
-  if (!wrapInCard) return chart
-  return <div className="card-glass !p-2 flex-1 min-h-0 flex flex-col">{chart}</div>
+  return <div className="flex-1 min-h-0 h-full flex flex-col">{chart}</div>
 }
 
 export default function TradePage() {
@@ -316,54 +308,49 @@ export default function TradePage() {
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
 
   const factoryPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
+  const showLegacyGemNotice = useMemo(() => {
+    if (!factoryPair || retailExposeTestTokens()) return false
+    const [id0, id1] = pairInfoLegIds(factoryPair)
+    const [s0, s1] = pairInfoLegSymbols(factoryPair)
+    return isRetailHiddenTestPair(s0, s1, id0, id1)
+  }, [factoryPair])
 
   const [limitBookDraftKey, setLimitBookDraftKey] = useState(0)
   const [limitBookDraft, setLimitBookDraft] = useState<LimitBookTicketDraft | null>(null)
+  const [bookVisible, setBookVisible] = useState(() => readTradePanelVisible(TRADE_BOOK_VISIBLE_KEY, true))
+  const [ticketVisible, setTicketVisible] = useState(() => readTradePanelVisible(TRADE_TICKET_VISIBLE_KEY, true))
+  const [desktopTapeExpanded, setDesktopTapeExpanded] = useState(() =>
+    readTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
+  )
 
-  const pushLimitBookDraft = useCallback((draft: LimitBookTicketDraft) => {
-    setLimitBookDraft(draft)
-    setLimitBookDraftKey((k) => k + 1)
+  const persistBookVisible = useCallback((visible: boolean) => {
+    setBookVisible(visible)
+    writeTradePanelVisible(TRADE_BOOK_VISIBLE_KEY, visible)
   }, [])
+
+  const persistTicketVisible = useCallback((visible: boolean) => {
+    setTicketVisible(visible)
+    writeTradePanelVisible(TRADE_TICKET_VISIBLE_KEY, visible)
+  }, [])
+
+  const persistTapeExpanded = useCallback((expanded: boolean) => {
+    setDesktopTapeExpanded(expanded)
+    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, expanded)
+  }, [])
+
+  const pushLimitBookDraft = useCallback(
+    (draft: LimitBookTicketDraft) => {
+      persistTicketVisible(true)
+      setLimitBookDraft(draft)
+      setLimitBookDraftKey((k) => k + 1)
+    },
+    [persistTicketVisible]
+  )
 
   const onLimitBookDraftConsumed = useCallback(() => setLimitBookDraft(null), [])
 
   const isTradeDesktopLayout = useMediaQuery(TRADE_DESKTOP_LAYOUT_MEDIA_QUERY)
   const showWorkspaceSkeleton = pairsQuery.isLoading
-  const tapePanelRef = useRef<ImperativePanelHandle>(null)
-  const [desktopTapeExpanded, setDesktopTapeExpanded] = useState(() =>
-    readTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
-  )
-
-  const expandDesktopTape = useCallback(() => {
-    tapePanelRef.current?.expand?.()
-    setDesktopTapeExpanded(true)
-    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, true)
-  }, [])
-
-  const collapseDesktopTape = useCallback(() => {
-    tapePanelRef.current?.collapse?.()
-    setDesktopTapeExpanded(false)
-    writeTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)
-  }, [])
-
-  // react-resizable-panels may fire onExpand during initial layout; keep first visit collapsed (GitLab #417).
-  useEffect(() => {
-    if (readTradePanelExpanded(TRADE_TAPE_EXPANDED_KEY, false)) return
-    let cancelled = false
-    const id = requestAnimationFrame(() => {
-      if (cancelled) return
-      try {
-        tapePanelRef.current?.collapse?.()
-      } catch {
-        // PanelGroup may not be registered yet in unit tests (GitLab #417).
-      }
-      setDesktopTapeExpanded(false)
-    })
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(id)
-    }
-  }, [])
 
   const factoryToken0 = factoryPair ? assetInfoLabel(factoryPair.asset_infos[0]) : ''
   const factoryToken1 = factoryPair ? assetInfoLabel(factoryPair.asset_infos[1]) : ''
@@ -428,6 +415,8 @@ export default function TradePage() {
     pairPillLabel: pairOrientation.pillLabel,
     invertAriaLabel: pairOrientation.invertAriaLabel,
     displayBaseSymbol: pairOrientation.displayBase,
+    volumeBaseDecimals: activePair?.asset_0.decimals,
+    volumeQuoteDecimals: activePair?.asset_1.decimals,
   }
 
   const tradeOrderTicket = (
@@ -446,6 +435,7 @@ export default function TradePage() {
       limitBookDraftKey={limitBookDraftKey}
       limitBookDraft={limitBookDraft}
       onLimitBookDraftConsumed={onLimitBookDraftConsumed}
+      interactive={!isTradeDesktopLayout || ticketVisible}
     />
   )
 
@@ -552,6 +542,11 @@ export default function TradePage() {
             inverted={pairOrientation.inverted}
           />
         ) : null}
+        {showTradeWorkspace && showLegacyGemNotice ? (
+          <p className="mt-2 text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="trade-legacy-gem-notice">
+            Legacy noneconomic market.
+          </p>
+        ) : null}
       </div>
 
       {showWorkspaceSkeleton ? <TradePageWorkspaceSkeleton /> : null}
@@ -595,6 +590,7 @@ export default function TradePage() {
                 formatTimeFn={formatTime}
                 skeletonHeight="6rem"
                 hideHeading
+                inverted={pairOrientation.inverted}
               />
             </TradeWorkspaceDisclosure>
           </div>
@@ -602,72 +598,28 @@ export default function TradePage() {
       )}
 
       {!showWorkspaceSkeleton && showTradeWorkspace && isTradeDesktopLayout && (
-        <div className="hidden lg:block h-[min(85vh,920px)] min-h-[440px]" data-testid="trade-desktop-workspace">
-          <PanelGroup direction="horizontal" className="h-full gap-0">
-            <Panel defaultSize={24} minSize={18} className="min-w-0">
-              <OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />
-            </Panel>
-            <TradeResizeHandleVertical testId="trade-book-chart-resize-handle" />
-            <Panel defaultSize={52} minSize={35} className="min-w-0 flex flex-col">
-              <PanelGroup direction="vertical" className="h-full flex-1 min-h-0">
-                <Panel defaultSize={58} minSize={30} className="min-h-0">
-                  <div className="h-full min-h-[200px] card-glass !p-2 overflow-hidden flex flex-col min-h-0">
-                    <TradeChartSlot {...chartSlotProps} wrapInCard={false} />
-                  </div>
-                </Panel>
-                <TradeResizeHandleHorizontal testId="trade-chart-tape-resize-handle" />
-                <Panel
-                  ref={tapePanelRef}
-                  defaultSize={
-                    desktopTapeExpanded ? TRADE_DESKTOP_TAPE_EXPANDED_SIZE : TRADE_DESKTOP_TAPE_COLLAPSED_SIZE
-                  }
-                  minSize={TRADE_DESKTOP_TAPE_COLLAPSED_SIZE}
-                  collapsedSize={TRADE_DESKTOP_TAPE_COLLAPSED_SIZE}
-                  collapsible
-                  className="min-h-0"
-                  onExpand={() => setDesktopTapeExpanded(true)}
-                  onCollapse={() => setDesktopTapeExpanded(false)}
-                >
-                  <div className="h-full flex flex-col min-h-0 card-glass !p-3" data-testid="trade-desktop-tape-panel">
-                    <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-                      <h2 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
-                        Recent trades
-                      </h2>
-                      <button
-                        type="button"
-                        className="btn-muted !text-[10px] !px-2 !py-1"
-                        data-testid="trade-desktop-tape-toggle"
-                        onClick={() => (desktopTapeExpanded ? collapseDesktopTape() : expandDesktopTape())}
-                      >
-                        {desktopTapeExpanded ? 'Collapse' : 'Expand'}
-                      </button>
-                    </div>
-                    {desktopTapeExpanded ? (
-                      <div className="flex-1 min-h-0 overflow-y-auto">
-                        <TradeRecentTradesSection
-                          pairRouteReady={pairRouteReady}
-                          tradesQuery={tradesQuery}
-                          activePair={activePair}
-                          formatTimeFn={formatTime}
-                          skeletonHeight="5rem"
-                          hideHeading
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
-                        Expand for live trades.
-                      </p>
-                    )}
-                  </div>
-                </Panel>
-              </PanelGroup>
-            </Panel>
-            <TradeResizeHandleVertical testId="trade-ticket-resize-handle" />
-            <Panel defaultSize={24} minSize={18} className="min-w-0 min-h-0">
-              {tradeOrderTicket}
-            </Panel>
-          </PanelGroup>
-        </div>
+        <TradeDesktopWorkspace
+          bookVisible={bookVisible}
+          ticketVisible={ticketVisible}
+          tapeExpanded={desktopTapeExpanded}
+          onBookVisibleChange={persistBookVisible}
+          onTicketVisibleChange={persistTicketVisible}
+          onTapeExpandedChange={persistTapeExpanded}
+          book={<OrderBookPanel pairAddress={pairAddr} pair={activePair} {...orderBookPanelProps} />}
+          chart={<TradeChartSlot {...chartSlotProps} />}
+          ticket={tradeOrderTicket}
+          tape={
+            <TradeRecentTradesSection
+              pairRouteReady={pairRouteReady}
+              tradesQuery={tradesQuery}
+              activePair={activePair}
+              formatTimeFn={formatTime}
+              skeletonHeight="5rem"
+              hideHeading
+              inverted={pairOrientation.inverted}
+            />
+          }
+        />
       )}
 
       {address && showTradeWorkspace && (
@@ -678,7 +630,13 @@ export default function TradePage() {
           testId="trade-wallet-history-disclosure"
           className="mt-3"
         >
-          <WalletIndexerHistoryPanel walletAddress={address} pairAddress={pairAddr} sections={['swaps']} />
+          <WalletIndexerHistoryPanel
+            walletAddress={address}
+            pairAddress={pairAddr}
+            sections={['swaps']}
+            activePair={activePair}
+            inverted={pairOrientation.inverted}
+          />
         </TradeWorkspaceDisclosure>
       )}
     </div>

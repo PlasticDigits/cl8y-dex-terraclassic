@@ -20,6 +20,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
   return {
     ...actual,
     getOraclePrice: vi.fn(),
+    getHubPrices: vi.fn(),
   }
 })
 
@@ -73,13 +74,22 @@ function renderSummary(row: IndexerTrader = trader(), pos: IndexerPosition[] = p
   )
 }
 
-describe('TraderSummaryStats (#551)', () => {
+describe('TraderSummaryStats (#551 / #560)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOraclePrice).mockImplementation(async (t = 'ustc') => ({
       ticker: t,
       price_usd: t === 'lunc' ? '0.0001' : '0.005',
       sources: [],
     }))
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub prices — not CEX',
+      tickers: ['custc', 'ust1', 'ustr'],
+      prices: [
+        { ticker: 'custc', price_usd: '0.00473' },
+        { ticker: 'ust1', price_usd: '0.976' },
+        { ticker: 'ustr', price_usd: '0.00879' },
+      ],
+    })
   })
 
   it('does not formatNum raw mixed volume / fees / pnl totals', async () => {
@@ -92,6 +102,39 @@ describe('TraderSummaryStats (#551)', () => {
     await waitFor(() => expect(screen.getByTestId('trader-summary-realized-pnl')).toHaveTextContent(/\$/))
     expect(screen.getByTestId('trader-summary-realized-pnl').textContent).not.toMatch(/999/)
   })
+
+  it('uses hub UST1 mark for realized P&L, not $1 (GitLab #560)', async () => {
+    renderSummary()
+    await waitFor(() => expect(screen.getByTestId('trader-summary-realized-pnl')).toHaveTextContent(/\$/))
+    const text = screen.getByTestId('trader-summary-realized-pnl').textContent ?? ''
+    expect(text).toMatch(/\$0\.98/)
+    expect(text).not.toMatch(/\$1\.00/)
+    expect(indexerClient.getHubPrices).toHaveBeenCalled()
+    expect(vi.mocked(indexerClient.getOraclePrice).mock.calls.map((c) => c[0])).not.toContain('ustr')
+  })
+
+  it('Best / Worst header is an em dash, not N/A (P551-5 / #560)', () => {
+    renderSummary()
+    expect(screen.getByTestId('trader-summary-best-trade')).toHaveTextContent('—')
+    expect(screen.getByTestId('trader-summary-worst-trade')).toHaveTextContent('—')
+    expect(screen.getByTestId('trader-summary-best-trade').textContent).not.toMatch(/N\/A/)
+    expect(screen.getByTestId('trader-summary-worst-trade').textContent).not.toMatch(/N\/A/)
+  })
+
+  it('omits unpriced hub UST1 instead of $0', async () => {
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub prices — not CEX',
+      tickers: ['custc', 'ust1', 'ustr'],
+      prices: [
+        { ticker: 'custc', price_usd: '0.00473' },
+        { ticker: 'ust1', price_usd: null },
+        { ticker: 'ustr', price_usd: '0.00879' },
+      ],
+    })
+    renderSummary()
+    await waitFor(() => expect(screen.getByTestId('trader-summary-realized-pnl')).toHaveTextContent('—'))
+    expect(screen.getByTestId('trader-summary-realized-pnl').textContent).not.toMatch(/\$0/)
+  })
 })
 
 describe('TraderSummaryStats Total Volume (GitLab #553)', () => {
@@ -101,6 +144,11 @@ describe('TraderSummaryStats Total Volume (GitLab #553)', () => {
       price_usd: t === 'lunc' ? '0.0001' : '0.005',
       sources: [],
     }))
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub prices — not CEX',
+      tickers: ['custc', 'ust1', 'ustr'],
+      prices: [{ ticker: 'ust1', price_usd: '0.976' }],
+    })
   })
 
   it('formats USD compact and does not print raw USTR-scale T', () => {

@@ -1,6 +1,6 @@
 import '@/test/lightweightChartsJsdomMock'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, within, act } from '@testing-library/react'
+import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, Outlet, RouterProvider, useLocation } from 'react-router-dom'
@@ -139,7 +139,12 @@ import {
   walletBlacklistedResponse,
 } from '@/test/tradingBlacklistMocks'
 import { describeTradingBlacklistBlock } from '@/services/terraclassic/blacklist'
-import { TRADE_TAPE_EXPANDED_KEY, TRADE_WALLET_HISTORY_EXPANDED_KEY } from '@/utils/tradeWorkspacePanels'
+import {
+  TRADE_BOOK_VISIBLE_KEY,
+  TRADE_TAPE_EXPANDED_KEY,
+  TRADE_TICKET_VISIBLE_KEY,
+  TRADE_WALLET_HISTORY_EXPANDED_KEY,
+} from '@/utils/tradeWorkspacePanels'
 
 vi.mock('@/services/terraclassic/queries', () => ({
   queryContract: vi.fn().mockResolvedValue({}),
@@ -233,6 +238,95 @@ describe('TradePage', () => {
     expect(screen.getByTestId('trade-desktop-tape-toggle')).toHaveTextContent('Expand')
     expect(screen.queryByRole('table', { name: /recent trades/i })).not.toBeInTheDocument()
     expect(window.localStorage.getItem(TRADE_TAPE_EXPANDED_KEY)).toBeNull()
+  })
+
+  it('desktop workspace has no resize handles and a single chart surface (GitLab #561)', async () => {
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    const workspace = await screen.findByTestId('trade-desktop-workspace')
+    expect(screen.queryByTestId('trade-book-chart-resize-handle')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-chart-tape-resize-handle')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-ticket-resize-handle')).not.toBeInTheDocument()
+    expect(workspace.querySelector('[data-panel-resize-handle-id]')).toBeNull()
+    const chartCol = screen.getByTestId('trade-desktop-chart-col')
+    expect(chartCol.className).not.toMatch(/card-glass/)
+    expect(chartCol.querySelector('.card-glass')).toBeNull()
+    const tape = screen.getByTestId('trade-desktop-tape-panel')
+    expect(chartCol.contains(tape)).toBe(false)
+    expect(screen.getAllByTestId('trade-order-ticket-card')).toHaveLength(1)
+  })
+
+  it('hides book and ticket with restore controls; hidden ticket is inert (GitLab #561)', async () => {
+    const user = userEvent.setup()
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await screen.findByTestId('trade-desktop-workspace')
+
+    const bookToggle = screen.getByTestId('trade-desktop-book-toggle')
+    const ticketToggle = screen.getByTestId('trade-desktop-ticket-toggle')
+    expect(bookToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(ticketToggle).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(bookToggle)
+    expect(bookToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('trade-desktop-book-col')).toHaveClass('hidden')
+    expect(window.localStorage.getItem(TRADE_BOOK_VISIBLE_KEY)).toBe('0')
+
+    await user.click(ticketToggle)
+    expect(ticketToggle).toHaveAttribute('aria-pressed', 'false')
+    const ticketCol = screen.getByTestId('trade-desktop-ticket-col')
+    expect(ticketCol).toHaveClass('hidden')
+    expect(ticketCol).toHaveAttribute('inert')
+    expect(window.localStorage.getItem(TRADE_TICKET_VISIBLE_KEY)).toBe('0')
+
+    useWalletStore.setState({ walletModalOpen: false })
+    fireEvent.click(screen.getByTestId('trade-limit-submit'))
+    expect(useWalletStore.getState().walletModalOpen).toBe(false)
+
+    expect(bookToggle).toBeVisible()
+    expect(ticketToggle).toBeVisible()
+  })
+
+  it('book Edit while ticket hidden re-shows the ticket and applies the draft (GitLab #561)', async () => {
+    const user = userEvent.setup()
+    mockTradeDesktopLayout(true)
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders: side === 'bid' ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000' }] : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await screen.findByTestId('trade-desktop-workspace')
+    await user.click(screen.getByTestId('trade-desktop-ticket-toggle'))
+    expect(screen.getByTestId('trade-desktop-ticket-col')).toHaveClass('hidden')
+
+    await user.click(await screen.findByTestId('trade-book-edit-bid-7'))
+    expect(screen.getByTestId('trade-desktop-ticket-col')).not.toHaveClass('hidden')
+    expect(await screen.findByTestId('limit-order-price-input')).toHaveValue('2.5')
+    expect(screen.getAllByTestId('trade-order-ticket-card')).toHaveLength(1)
+  })
+
+  it('restores hidden ticket from localStorage on desktop reload (GitLab #561)', async () => {
+    window.localStorage.setItem(TRADE_TICKET_VISIBLE_KEY, '0')
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await screen.findByTestId('trade-desktop-workspace')
+    expect(screen.getByTestId('trade-desktop-ticket-toggle')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('trade-desktop-ticket-col')).toHaveClass('hidden')
+  })
+
+  it('does not hide panels from ?layout= query (GitLab #561 A5)', async () => {
+    mockTradeDesktopLayout(true)
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}?layout=hidden` })
+    await screen.findByTestId('trade-desktop-workspace')
+    expect(screen.getByTestId('trade-desktop-ticket-toggle')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('trade-desktop-book-toggle')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('trade-desktop-ticket-col')).not.toHaveClass('hidden')
+    expect(screen.getByTestId('trade-desktop-book-col')).not.toHaveClass('hidden')
   })
 
   it('persists tape disclosure expansion in localStorage (GitLab #417)', async () => {

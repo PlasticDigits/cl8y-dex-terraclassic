@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TerraBroadcastPendingLink } from '../TerraBroadcastPendingLink'
 
@@ -30,6 +30,29 @@ describe('TerraBroadcastPendingLink (GitLab #305 / #330)', () => {
 
     rerender(<TerraBroadcastPendingLink phase={null} txHash={null} />)
     expect(screen.queryByTestId('terra-broadcast-pending-tx')).toBeNull()
+  })
+
+  it('shows Ledger signing hint immediately (GitLab #567)', () => {
+    render(<TerraBroadcastPendingLink phase="signing" txHash={null} isNanoLedger />)
+    expect(screen.getByTestId('terra-broadcast-signing-hint')).toHaveTextContent(/LUNA/)
+    expect(screen.getByTestId('terra-broadcast-signing-hint')).toHaveTextContent(/not Cosmos/)
+    expect(screen.queryByTestId('terra-broadcast-recovery-status')).toBeNull()
+  })
+
+  it('does not show Ledger hint for software Keplr at t=0 (GitLab #567)', () => {
+    render(<TerraBroadcastPendingLink phase="signing" txHash={null} isNanoLedger={false} />)
+    expect(screen.queryByTestId('terra-broadcast-signing-hint')).toBeNull()
+  })
+
+  it('shows delayed Keplr hint after the delay window (GitLab #567)', () => {
+    vi.useFakeTimers()
+    render(<TerraBroadcastPendingLink phase="signing" txHash={null} isNanoLedger={false} />)
+    expect(screen.queryByTestId('terra-broadcast-signing-hint')).toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(12_000)
+    })
+    expect(screen.getByTestId('terra-broadcast-signing-hint')).toHaveTextContent(/Approve in Keplr/)
+    vi.useRealTimers()
   })
 
   describe('explorer link safety (#430 / SEC-E10)', () => {

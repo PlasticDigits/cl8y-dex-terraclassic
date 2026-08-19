@@ -21,4 +21,20 @@ describe('withPromiseTimeout', () => {
     await assertion
     vi.useRealTimers()
   })
+
+  it('ignores a late resolve after timeout (GitLab #567)', async () => {
+    vi.useFakeTimers()
+    let resolveLate!: (value: number) => void
+    const pending = new Promise<number>((resolve) => {
+      resolveLate = resolve
+    })
+    const wrapped = withPromiseTimeout(pending, 1_000, 'timed out')
+    const assertion = expect(wrapped).rejects.toThrow('timed out')
+    await vi.advanceTimersByTimeAsync(1_000)
+    await assertion
+    resolveLate(99)
+    await Promise.resolve()
+    await expect(wrapped).rejects.toThrow('timed out')
+    vi.useRealTimers()
+  })
 })

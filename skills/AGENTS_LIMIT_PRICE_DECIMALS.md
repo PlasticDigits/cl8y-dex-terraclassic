@@ -56,4 +56,5 @@ cd frontend-dapp && npm test -- --run limitOrderPriceScale pair.test
 - [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — ladder expand still human in the preview; scale at submit
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert is not decimal scale
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — swap tape human scale (#522); limit book prices stay raw
+- [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — Charts TWAP uses the same `10^(d0−d1)` human scale (#564)
 - [`AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](./AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) — cancel does not use the price band

@@ -1,3 +1,4 @@
+import { rememberKeplrNanoLedgerFlag, setSessionNanoLedger } from '@/services/terraclassic/keplrExtensionConfig'
 import { applyStationKeplrShimSignDefaults } from '@/services/terraclassic/stationExtensionConfig'
 import { getTerraChainSuggestion } from '@/services/terraclassic/terraChainSuggestion'
 import {
@@ -402,6 +403,10 @@ export async function connectTerraWallet(
 
     connectedWallets.set(TERRA_CLASSIC_CHAIN_ID, wallet)
 
+    if (walletName === WalletName.KEPLR && walletType === WalletType.EXTENSION) {
+      await rememberKeplrNanoLedgerFlag(wallet)
+    }
+
     // Second suggest / network refresh after enable + wallet init (GitLab #127, #208).
     if (isStationExtension) {
       if (isStationLocalExtension && shouldUseStationNativeLocalNetwork()) {
@@ -486,6 +491,7 @@ export async function disconnectTerraWallet(): Promise<void> {
       controller.disconnect([TERRA_CLASSIC_CHAIN_ID])
     }
     connectedWallets.delete(TERRA_CLASSIC_CHAIN_ID)
+    setSessionNanoLedger(false)
   }
 }
 

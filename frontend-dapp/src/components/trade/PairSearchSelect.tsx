@@ -14,6 +14,8 @@ import {
 } from '@/utils/pairSearchQuery'
 import { formatQuoteVolume24h, getDecimals } from '@/utils/formatAmount'
 import {
+  filterRetailDiscoveryIndexerPairs,
+  filterRetailDiscoveryPairInfos,
   isTestPair,
   pairInfoLegIds,
   pairInfoLegSymbols,
@@ -176,7 +178,7 @@ export function PairSearchSelect({
     for (const [addr, p] of indexerByAddress) {
       volumeByAddress.set(addr, { raw: p.volume_quote_24h, quoteDecimals: p.asset_1.decimals })
     }
-    return sortPairInfosByCatalog(factoryPairs, volumeByAddress)
+    return sortPairInfosByCatalog(filterRetailDiscoveryPairInfos(factoryPairs), volumeByAddress)
       .slice(0, PAIR_SEARCH_RESULT_LIMIT)
       .map((p) => {
         const indexed = indexerByAddress.get(p.contract_addr)
@@ -199,9 +201,9 @@ export function PairSearchSelect({
     } else if (!pairsQuery.data) {
       result = []
     } else {
-      const fromIndexer = pairsQuery.data.items
-        .filter((p) => factorySet.has(p.pair_address))
-        .map((p) => indexerPairToOption(p, variant))
+      const fromIndexer = filterRetailDiscoveryIndexerPairs(
+        pairsQuery.data.items.filter((p) => factorySet.has(p.pair_address))
+      ).map((p) => indexerPairToOption(p, variant))
       result = fromIndexer
     }
 

@@ -66,7 +66,7 @@ Issue: [GitLab **#527**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 ## Related
 
 - Sticky opacity / guards: [`AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md`](./AGENTS_FRONTEND_TRADE_LIMIT_STICKY_CTA.md) (`#500`)
-- Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
+- Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) — hide ticket with `inert`; footer docks only while the ticket is visible)
 - Money CTA sizing: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) (`#417`)
 - Pair invert convert-on-submit: [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) (`#524`)
 - Ticket heading + no compact wallet chip; Buy/Sell colors: [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (`#563`) — footer **Connect Wallet** remains the disconnected money-path CTA

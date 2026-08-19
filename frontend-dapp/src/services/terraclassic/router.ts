@@ -10,6 +10,13 @@ import {
 import type { AssetInfo, HybridSwapParams, PairInfo } from '@/types'
 import { tokenAssetInfo, assetInfoLabel, isNativeDenom, getWrappedEquivalent } from '@/types'
 import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
+import {
+  isGemTokenId,
+  isTestPair,
+  pairInfoLegIds,
+  pairInfoLegSymbols,
+  retailExposeTestTokens,
+} from '@/utils/pairCatalogRank'
 import { netAfterWrapMapperFee, queryWrapMapperFeeBps } from './wrapMapper'
 
 /** Result of `simulateNativeSwap` (direct wrap/unwrap + native-routed swaps). */
@@ -125,12 +132,22 @@ export async function executeMultiHopSwap(
  * path (BFS) between two tokens. Returns the route as SwapOperation[].
  * Max 4 hops.
  */
+function routingGraphPairs(pairs: PairInfo[], fromToken: string, toToken: string): PairInfo[] {
+  if (retailExposeTestTokens()) return pairs
+  if (isGemTokenId(fromToken) || isGemTokenId(toToken)) return pairs
+  return pairs.filter((pair) => {
+    const [id0, id1] = pairInfoLegIds(pair)
+    const [s0, s1] = pairInfoLegSymbols(pair)
+    return !isTestPair(s0, s1, id0, id1)
+  })
+}
+
 export function findRoute(pairs: PairInfo[], fromToken: string, toToken: string): SwapOperation[] | null {
   if (fromToken === toToken) return null
 
   const graph = new Map<string, { token: string; pair: PairInfo }[]>()
 
-  for (const pair of pairs) {
+  for (const pair of routingGraphPairs(pairs, fromToken, toToken)) {
     const tokenA = assetInfoLabel(pair.asset_infos[0])
     const tokenB = assetInfoLabel(pair.asset_infos[1])
 

@@ -12,7 +12,7 @@ Audience: third-party agents touching `/create`, token pickers, or `tokenlist.js
 
 ## Do / don’t
 
-- **Do** build options with [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options`). Bundle `tokenlist/tokenlist.json`; overlay `VITE_*` wrap / UST1 / CL8Y addresses; append `SOFT_LAUNCH_MINTABLE_TOKENS` only when those env addresses are set.
+- **Do** build options with [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options`). Bundle `tokenlist/tokenlist.json`; overlay `VITE_*` wrap / UST1 / CL8Y addresses; append `SOFT_LAUNCH_MINTABLE_TOKENS` only when `retailExposeTestTokens()` **and** those env addresses are set ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-5**).
 - **Do** keep a **Custom contract** paste path. Paste still runs #382 format + checksum before submit.
 - **Do** keep `useCodeIdCheck` on both listed and pasted addresses. Listed ≠ skip whitelist.
 - **Do** compare A/B case-insensitively (`sameCreatePairAddress`).
@@ -47,6 +47,7 @@ Playwright (when `make has-localterra`): `e2e/create-pair-picker-542.spec.ts`, `
 
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap combobox; factory gate only
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — economic-first sort (**P534-7**)
+- [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production does not append gems (**P562-5**, [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — Create Pair notice (**U1**)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — short labels (#489)
 - [`AGENTS_FRONTEND_A11Y_FORM_LABELS.md`](./AGENTS_FRONTEND_A11Y_FORM_LABELS.md) — `useId` / `htmlFor` / `aria-label` (#143)

@@ -21,8 +21,12 @@ export default function WalletModal({ onClose }: WalletModalProps) {
   const pairingOpen = useWalletConnectPairingStore((s) => s.isOpen)
   const extensionInstall = useWalletExtensionInstallSnapshot()
   const isMobileClient = isWalletConnectMobileClient()
-  const keplrInjected = extensionInstall.get(WalletName.KEPLR) ?? false
-  const options = resolveConnectWalletOptions({ isMobileClient, keplrInjected })
+  const options = resolveConnectWalletOptions({
+    isMobileClient,
+    keplrInjected: extensionInstall.get(WalletName.KEPLR) ?? false,
+    stationInjected: extensionInstall.get(WalletName.STATION) ?? false,
+    cosmostationInjected: extensionInstall.get(WalletName.COSMOSTATION) ?? false,
+  })
   const showMobileHint = isMobileClient && !detectWalletInAppBrowser().isInAppBrowser
 
   if (pairingOpen) return null

@@ -1,11 +1,12 @@
 import { formatNum } from '@/utils/formatAmount'
+import { TRADER_PNL_EM_DASH } from '@/utils/traderPositionDisplay'
 
-/** Realized P&amp;L display with sign and color (shared by trader profile and portfolio). */
+/** Realized P&L display with sign and color (shared by trader profile and portfolio). */
 export function PnlValue({ value }: { value: string | null }) {
   if (value == null || value === '') {
     return (
       <span style={{ color: 'var(--ink-subtle)' }} className="font-bold font-heading">
-        N/A
+        {TRADER_PNL_EM_DASH}
       </span>
     )
   }
