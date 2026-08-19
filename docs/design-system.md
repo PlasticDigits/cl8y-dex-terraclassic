@@ -76,7 +76,7 @@ Theme files override the above per `data-theme='dark'` | `'light'`.
 
 | Asset | Path |
 |-------|------|
-| Header mark | `/assets/cl8y-dex-glass-logo.svg` (blue disc + gold “8”) |
+| Header mark | `/logo.png` (circular teal/cream medallion) |
 | Favicons | `/favicon-16.png`, `/favicon-32.png`, `/favicon.ico` |
 | Open Graph | `/og-image.png` (~1200×630) — product copy (swap / limits / Terra Classic), not palette marketing |
 
