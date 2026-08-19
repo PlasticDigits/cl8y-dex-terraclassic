@@ -10,7 +10,7 @@ You are changing **`indexer/src/indexer/poller.rs`**, **`block_indexer.rs`**, **
 |----|-----------|-------------|
 | **C1** | `last_indexed_height` advances **only** after successful block ingest | [`block_indexer::index_block`](../../indexer/src/indexer/block_indexer.rs); `process_block_txs` propagates errors |
 | **C2** | All txs in a block ingested via LCD pagination | `LcdClient::get_block_txs` loops until `pagination.total` met |
-| **C3** | Reorg at tip detected via **block hash** mismatch | `verify_checkpoint_unchanged` before each new height |
+| **C3** | Reorg at tip detected via **block hash** mismatch at the **DB** checkpoint height; overlapping pollers resync instead of halt | `verify_checkpoint_unchanged` + poller advisory lock |
 
 Parent gap analysis: [`gaps/GAP_1780200149.md`](../../gaps/GAP_1780200149.md). Human doc: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md). Operator runbook: [`docs/runbooks/indexer-reorg-replay-dedup.md`](../docs/runbooks/indexer-reorg-replay-dedup.md).
 

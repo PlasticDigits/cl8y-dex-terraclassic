@@ -17,7 +17,9 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum BlockIndexError {
-    #[error("chain reorg detected at height {height}: stored hash {stored} != canonical {canonical}")]
+    #[error(
+        "chain reorg detected at height {height}: stored hash {stored} != canonical {canonical}"
+    )]
     ReorgDetected {
         height: i64,
         stored: String,
@@ -47,35 +49,55 @@ pub enum BlockIndexError {
     MaxRetriesExceeded { height: i64, attempts: u32 },
 }
 
+/// Result of the C3 hash guard. `Resync` is **not** a chain reorg — the DB cursor moved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckpointVerify {
+    Unchanged,
+    /// In-memory poller height does not match `last_indexed_height` (overlapping writer or rewind).
+    Resync {
+        db_height: i64,
+    },
+}
+
 /// Verify the stored checkpoint hash still matches canonical chain (reorg guard).
+///
+/// Compares LCD(hash at **DB** height) to the hash stored with that height. If the in-memory
+/// `height` is stale (another poller already committed H+1), returns [`CheckpointVerify::Resync`]
+/// instead of treating hash(H+1) vs LCD(H) as a reorg.
 pub async fn verify_checkpoint_unchanged(
     lcd: &LcdClient,
     pool: &PgPool,
     height: i64,
-) -> Result<(), BlockIndexError> {
+) -> Result<CheckpointVerify, BlockIndexError> {
     if height <= 0 {
-        return Ok(());
+        return Ok(CheckpointVerify::Unchanged);
     }
 
-    let stored = state::get_last_indexed_block_hash(pool)
+    let (db_height, stored) = state::get_indexer_checkpoint(pool)
         .await
-        .map_err(|e| BlockIndexError::State {
-            height,
-            source: e,
-        })?;
+        .map_err(|e| BlockIndexError::State { height, source: e })?;
+
+    if db_height != height {
+        tracing::warn!(
+            poller_height = height,
+            db_height,
+            "Indexer checkpoint height differs from poller cursor; resyncing (not a reorg)"
+        );
+        return Ok(CheckpointVerify::Resync { db_height });
+    }
 
     let Some(stored_hash) = stored.filter(|h| !h.is_empty()) else {
         tracing::warn!(
             height,
             "No last_indexed_block_hash stored; skipping reorg check (legacy cursor or post-recovery)"
         );
-        return Ok(());
+        return Ok(CheckpointVerify::Unchanged);
     };
 
-    let canonical = lcd.get_block_hash(height).await.map_err(|e| BlockIndexError::Lcd {
-        height,
-        source: e,
-    })?;
+    let canonical = lcd
+        .get_block_hash(height)
+        .await
+        .map_err(|e| BlockIndexError::Lcd { height, source: e })?;
 
     if stored_hash != canonical {
         return Err(BlockIndexError::ReorgDetected {
@@ -85,7 +107,7 @@ pub async fn verify_checkpoint_unchanged(
         });
     }
 
-    Ok(())
+    Ok(CheckpointVerify::Unchanged)
 }
 
 #[derive(Debug)]
@@ -102,10 +124,10 @@ pub async fn index_block(
     height: i64,
     ustc_price: &oracle::SharedPrice,
 ) -> Result<IndexedBlockMeta, BlockIndexError> {
-    let block_hash = lcd.get_block_hash(height).await.map_err(|e| BlockIndexError::Lcd {
-        height,
-        source: e,
-    })?;
+    let block_hash = lcd
+        .get_block_hash(height)
+        .await
+        .map_err(|e| BlockIndexError::Lcd { height, source: e })?;
 
     let BlockTxsResult { txs, page_count } = lcd
         .get_block_txs(
@@ -114,10 +136,7 @@ pub async fn index_block(
             config.block_tx_max_pages,
         )
         .await
-        .map_err(|e| BlockIndexError::Lcd {
-            height,
-            source: e,
-        })?;
+        .map_err(|e| BlockIndexError::Lcd { height, source: e })?;
 
     let tx_count = txs.len();
 
@@ -126,25 +145,16 @@ pub async fn index_block(
 
         parser::process_block_txs(pool, lcd, config, &txs, height, block_time, ustc_price)
             .await
-            .map_err(|e| BlockIndexError::ProcessingFailed {
-                height,
-                source: e,
-            })?;
+            .map_err(|e| BlockIndexError::ProcessingFailed { height, source: e })?;
     }
 
     state::set_indexer_checkpoint(pool, height, &block_hash)
         .await
-        .map_err(|e| BlockIndexError::State {
-            height,
-            source: e,
-        })?;
+        .map_err(|e| BlockIndexError::State { height, source: e })?;
 
     state::clear_failed_block(pool, height)
         .await
-        .map_err(|e| BlockIndexError::State {
-            height,
-            source: e,
-        })?;
+        .map_err(|e| BlockIndexError::State { height, source: e })?;
 
     tracing::info!(
         height,
@@ -202,7 +212,9 @@ pub async fn index_block_with_retries(
                     });
                 }
 
-                let backoff_ms = config.block_process_retry_backoff_ms.saturating_mul(attempt as u64);
+                let backoff_ms = config
+                    .block_process_retry_backoff_ms
+                    .saturating_mul(attempt as u64);
                 tracing::warn!(
                     height,
                     attempt,
@@ -239,10 +251,10 @@ async fn resolve_block_time(
         );
     }
 
-    let block = lcd.get_block_at_height(height).await.map_err(|e| BlockIndexError::Lcd {
-        height,
-        source: e,
-    })?;
+    let block = lcd
+        .get_block_at_height(height)
+        .await
+        .map_err(|e| BlockIndexError::Lcd { height, source: e })?;
 
     match DateTime::parse_from_rfc3339(&block.block.header.time) {
         Ok(dt) => Ok(dt.with_timezone(&Utc)),

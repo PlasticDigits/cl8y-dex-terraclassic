@@ -39,8 +39,13 @@ Example recovery command in the payload:
 ### Automatic detection
 
 1. Indexer stores `(height, block_hash)` on each successful block ([`block_indexer::index_block`](../../indexer/src/indexer/block_indexer.rs)).
-2. Before indexing `height + 1`, LCD block hash at `height` is compared to `last_indexed_block_hash`.
+2. Before indexing `height + 1`, LCD block hash at the **database** checkpoint height is compared to the hash stored with that height.
 3. On mismatch: structured alert + process exit — **no further blocks indexed**.
+4. If `last_indexed_height` already moved (second indexer during a Coolify rebuild), the poller **resyncs** instead of halting. Only one poller ingests per database (Postgres advisory lock).
+
+### False halt: overlapping rebuild (not a chain fork)
+
+Logs like `stored_hash` = canonical hash of **H+1** and `canonical_hash` = hash of **H**, with the process restarting every few seconds, mean two pollers overlapped. Do **not** run `indexer-reorg-recover.sh` for that pattern. Confirm LCD `/blocks/H` matches `canonical_hash`; if the indexer later indexed newer blocks, the cursor is consistent. Redeploy with a single replica (or this lock) so the new container waits instead of crash-looping.
 
 ### Shallow reorg recovery (1–few blocks)
 

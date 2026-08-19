@@ -3,16 +3,16 @@
 
 mod common;
 
-use cl8y_dex_indexer::config::Config;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
+use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::db::queries::{state, swap_events};
-use std::str::FromStr;
 use cl8y_dex_indexer::indexer::block_indexer;
 use cl8y_dex_indexer::indexer::oracle;
 use cl8y_dex_indexer::lcd::LcdClient;
 use common::{clean_db, setup_pool, test_config};
 use serde_json::json;
+use std::str::FromStr;
 use wiremock::matchers::{method, path, path_regex, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -181,13 +181,12 @@ async fn cursor_does_not_advance_on_parser_failure() {
     let cursor = state::get_last_indexed_height(&pool).await.unwrap();
     assert_eq!(cursor, height - 1, "cursor must not advance on failure");
 
-    let failed: i64 = sqlx::query_scalar(
-        "SELECT height FROM indexer_failed_blocks WHERE height = $1",
-    )
-    .bind(height)
-    .fetch_one(&pool)
-    .await
-    .expect("failed_blocks row");
+    let failed: i64 =
+        sqlx::query_scalar("SELECT height FROM indexer_failed_blocks WHERE height = $1")
+            .bind(height)
+            .fetch_one(&pool)
+            .await
+            .expect("failed_blocks row");
     assert_eq!(failed, height);
 }
 
@@ -211,10 +210,7 @@ async fn cursor_advances_on_empty_block_success() {
         .await
         .expect("index empty block");
 
-    assert_eq!(
-        state::get_last_indexed_height(&pool).await.unwrap(),
-        height
-    );
+    assert_eq!(state::get_last_indexed_height(&pool).await.unwrap(), height);
     assert_eq!(
         state::get_last_indexed_block_hash(&pool)
             .await
@@ -248,18 +244,75 @@ async fn reorg_detection_halts_on_hash_mismatch() {
 }
 
 #[tokio::test]
+async fn stale_poller_height_is_resync_not_reorg() {
+    let pool = setup_pool().await;
+    clean_db(&pool).await;
+
+    let server = MockServer::start().await;
+    let lcd = lcd_client(&server);
+
+    state::set_indexer_checkpoint(&pool, 800, "HASH800")
+        .await
+        .expect("seed H");
+    state::set_indexer_checkpoint(&pool, 801, "HASH801")
+        .await
+        .expect("other writer advanced to H+1");
+
+    let result = block_indexer::verify_checkpoint_unchanged(&lcd, &pool, 800)
+        .await
+        .expect("overlapping poller's stale height is not a reorg");
+    assert_eq!(
+        result,
+        block_indexer::CheckpointVerify::Resync { db_height: 801 }
+    );
+}
+
+#[tokio::test]
+async fn poller_advisory_lock_is_exclusive() {
+    use sqlx::Connection;
+
+    let _pool = setup_pool().await;
+    let url = test_config().database_url;
+
+    let mut first = sqlx::PgConnection::connect(&url).await.expect("first conn");
+    let mut second = sqlx::PgConnection::connect(&url)
+        .await
+        .expect("second conn");
+
+    assert!(
+        state::try_acquire_poller_lock(&mut first)
+            .await
+            .expect("first lock"),
+        "first session must take the poller lock"
+    );
+    assert!(
+        !state::try_acquire_poller_lock(&mut second)
+            .await
+            .expect("second try"),
+        "second session must not take a held poller lock"
+    );
+
+    drop(first);
+    assert!(
+        state::try_acquire_poller_lock(&mut second)
+            .await
+            .expect("lock after drop"),
+        "lock must release when the holding session closes"
+    );
+}
+
+#[tokio::test]
 async fn swap_replay_is_idempotent_on_conflict() {
     let pool = setup_pool().await;
     clean_db(&pool).await;
     seed_minimal_pair(&pool, "terra1pair362").await;
 
-    let pair_row: (i32, i32, i32) = sqlx::query_as(
-        "SELECT id, asset_0_id, asset_1_id FROM pairs WHERE contract_address = $1",
-    )
-    .bind("terra1pair362")
-    .fetch_one(&pool)
-    .await
-    .expect("pair");
+    let pair_row: (i32, i32, i32) =
+        sqlx::query_as("SELECT id, asset_0_id, asset_1_id FROM pairs WHERE contract_address = $1")
+            .bind("terra1pair362")
+            .fetch_one(&pool)
+            .await
+            .expect("pair");
 
     let (pair_id, asset_0_id, asset_1_id) = pair_row;
     let amt = BigDecimal::from_str("1000").unwrap();
@@ -370,10 +423,7 @@ async fn reorg_recovery_rewind_allows_catch_up() {
         .await
         .expect("re-index after recovery");
 
-    assert_eq!(
-        state::get_last_indexed_height(&pool).await.unwrap(),
-        height
-    );
+    assert_eq!(state::get_last_indexed_height(&pool).await.unwrap(), height);
     assert_eq!(
         state::get_last_indexed_block_hash(&pool)
             .await
@@ -452,10 +502,7 @@ async fn missing_tx_timestamp_uses_block_header_time() {
         .await
         .expect("index block with header fallback");
 
-    assert_eq!(
-        state::get_last_indexed_height(&pool).await.unwrap(),
-        height
-    );
+    assert_eq!(state::get_last_indexed_height(&pool).await.unwrap(), height);
 }
 
 #[tokio::test]
@@ -582,5 +629,8 @@ async fn swap_replay_does_not_duplicate_rows() {
     .await
     .expect("count");
 
-    assert_eq!(count, 1, "ON CONFLICT DO NOTHING must dedupe replayed swaps");
+    assert_eq!(
+        count, 1,
+        "ON CONFLICT DO NOTHING must dedupe replayed swaps"
+    );
 }

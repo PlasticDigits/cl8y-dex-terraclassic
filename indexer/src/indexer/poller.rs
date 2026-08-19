@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use sqlx::PgPool;
+use sqlx::{Connection, PgPool};
 
 use crate::config::Config;
 use crate::db::queries::{state, volume};
@@ -22,6 +22,34 @@ pub async fn run_indexer(
     oracle_prices: oracle::OraclePriceHandles,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), BoxError> {
+    // Dedicated session (not a pool checkout): advisory locks survive `PoolConnection` return.
+    let mut lock_conn = sqlx::PgConnection::connect(&config.database_url).await?;
+    let mut last_wait_log = std::time::Instant::now()
+        .checked_sub(Duration::from_secs(10))
+        .unwrap_or_else(std::time::Instant::now);
+    loop {
+        if cancel.is_cancelled() {
+            tracing::info!("Indexer shutting down before acquiring poller lock");
+            return Ok(());
+        }
+        if state::try_acquire_poller_lock(&mut lock_conn).await? {
+            tracing::info!("Acquired indexer poller advisory lock");
+            break;
+        }
+        if last_wait_log.elapsed() >= Duration::from_secs(10) {
+            tracing::warn!("Another indexer holds the poller lock; waiting (overlapping deploy?)");
+            last_wait_log = std::time::Instant::now();
+        }
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_millis(500)) => {}
+            _ = cancel.cancelled() => {
+                tracing::info!("Indexer shutting down before acquiring poller lock");
+                return Ok(());
+            }
+        }
+    }
+    let _poller_lock = lock_conn;
+
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
         tracing::error!("Initial pair sync failed: {}", e);
@@ -147,23 +175,33 @@ pub async fn run_indexer(
                 return Ok(());
             }
 
-            if let Err(e) =
-                block_indexer::verify_checkpoint_unchanged(&lcd, &pool, last_indexed).await
-            {
-                if let block_indexer::BlockIndexError::ReorgDetected {
-                    height,
-                    stored,
-                    canonical,
-                } = &e
-                {
-                    reorg_alert::emit_reorg_halt(&reorg_alert::ReorgHaltDetails::new(
-                        *height,
-                        stored.clone(),
-                        canonical.clone(),
-                    ))
-                    .await;
+            match block_indexer::verify_checkpoint_unchanged(&lcd, &pool, last_indexed).await {
+                Ok(block_indexer::CheckpointVerify::Unchanged) => {}
+                Ok(block_indexer::CheckpointVerify::Resync { db_height }) => {
+                    tracing::warn!(
+                        last_indexed,
+                        db_height,
+                        "Adopting database checkpoint and restarting catch-up"
+                    );
+                    last_indexed = db_height;
+                    break;
                 }
-                return Err(e.into());
+                Err(e) => {
+                    if let block_indexer::BlockIndexError::ReorgDetected {
+                        height,
+                        stored,
+                        canonical,
+                    } = &e
+                    {
+                        reorg_alert::emit_reorg_halt(&reorg_alert::ReorgHaltDetails::new(
+                            *height,
+                            stored.clone(),
+                            canonical.clone(),
+                        ))
+                        .await;
+                    }
+                    return Err(e.into());
+                }
             }
 
             match block_indexer::index_block_with_retries(&pool, &lcd, &config, height, &ustc_price)

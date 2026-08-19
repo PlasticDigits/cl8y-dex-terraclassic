@@ -3,6 +3,18 @@ use sqlx::PgPool;
 pub const KEY_LAST_INDEXED_HEIGHT: &str = "last_indexed_height";
 pub const KEY_LAST_INDEXED_BLOCK_HASH: &str = "last_indexed_block_hash";
 
+/// Session advisory-lock key so only one poller writes checkpoints per database.
+/// Held on a dedicated `PgConnection` (not a pool checkout) until that session closes.
+pub const POLLER_ADVISORY_LOCK_KEY: i64 = 0x434C_3859_4944_5801;
+
+/// Try to take the poller lock on this session. Exclusive: a second indexer must not ingest.
+pub async fn try_acquire_poller_lock(conn: &mut sqlx::PgConnection) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock($1)")
+        .bind(POLLER_ADVISORY_LOCK_KEY)
+        .fetch_one(&mut *conn)
+        .await
+}
+
 pub async fn get_state(pool: &PgPool, key: &str) -> Result<Option<String>, sqlx::Error> {
     let row = sqlx::query_scalar::<_, String>("SELECT value FROM indexer_state WHERE key = $1")
         .bind(key)
@@ -30,6 +42,28 @@ pub async fn get_last_indexed_height(pool: &PgPool) -> Result<i64, sqlx::Error> 
 
 pub async fn get_last_indexed_block_hash(pool: &PgPool) -> Result<Option<String>, sqlx::Error> {
     get_state(pool, KEY_LAST_INDEXED_BLOCK_HASH).await
+}
+
+/// Read height + hash in one statement so the reorg guard cannot compare hash(H+1) to LCD(H)
+/// when another poller advanced the cursor (Coolify rolling rebuild overlap).
+pub async fn get_indexer_checkpoint(pool: &PgPool) -> Result<(i64, Option<String>), sqlx::Error> {
+    let rows: Vec<(String, String)> =
+        sqlx::query_as("SELECT key, value FROM indexer_state WHERE key IN ($1, $2)")
+            .bind(KEY_LAST_INDEXED_HEIGHT)
+            .bind(KEY_LAST_INDEXED_BLOCK_HASH)
+            .fetch_all(pool)
+            .await?;
+
+    let mut height = 0i64;
+    let mut hash = None;
+    for (key, value) in rows {
+        if key == KEY_LAST_INDEXED_HEIGHT {
+            height = value.parse().unwrap_or(0);
+        } else if key == KEY_LAST_INDEXED_BLOCK_HASH {
+            hash = Some(value).filter(|h| !h.is_empty());
+        }
+    }
+    Ok((height, hash))
 }
 
 pub async fn set_last_indexed_height(pool: &PgPool, height: i64) -> Result<(), sqlx::Error> {
