@@ -39,6 +39,13 @@ import {
   executeNativeSwap,
   netCw20AfterNativeWrap,
 } from '@/services/terraclassic/router'
+import {
+  compareTokenCatalog,
+  defaultRetailSwapTokenPair,
+  filterRetailDiscoveryTokens,
+  isRetailHiddenTestToken,
+  shouldRejectGemBridgeQuote,
+} from '@/utils/pairCatalogRank'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import {
@@ -198,18 +205,23 @@ export default function SwapPage() {
 
   const pairs = useMemo(() => pairsQuery.data?.pairs ?? [], [pairsQuery.data])
 
-  useEffect(() => {
-    if (!fromToken) {
-      const tokens = getAllTokens(pairs)
-      if (tokens.length >= 2) {
-        setFromToken(tokens[0])
-        setToToken(tokens[1])
-      }
-    }
-  }, [pairs, fromToken])
-
-  /** Includes wrap natives/CW20s whenever wrap env is set — even with no wrap factory pairs. */
+  /** Full factory + wrap universe (exit-hatch metadata). Picker uses discoveryTokens (#562). */
   const allTokens = useMemo(() => getAllTokens(pairs), [pairs])
+  const discoveryTokens = useMemo(
+    () => [...filterRetailDiscoveryTokens(allTokens)].sort(compareTokenCatalog),
+    [allTokens]
+  )
+
+  useEffect(() => {
+    const pair = defaultRetailSwapTokenPair(allTokens)
+    if (!pair) return
+    const [econFrom, econTo] = pair
+    const fromHidden = !fromToken || isRetailHiddenTestToken(fromToken)
+    const toHidden = !toToken || isRetailHiddenTestToken(toToken)
+    if (!fromHidden && !toHidden) return
+    if (fromHidden) setFromToken(econFrom)
+    if (toHidden) setToToken(fromHidden ? econTo : fromToken === econTo ? econFrom : econTo)
+  }, [allTokens, fromToken, toToken])
 
   useEffect(() => {
     const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))
@@ -263,6 +275,16 @@ export default function SwapPage() {
     setIndexerRouteLoading(true)
     try {
       const res = await getRouteSolve(fromToken, toToken)
+      const hopTokens = [
+        res.token_in,
+        res.token_out,
+        ...(res.intermediate_tokens ?? []),
+        ...res.hops.flatMap((h) => [h.offer_token, h.ask_token]),
+      ]
+      if (shouldRejectGemBridgeQuote(fromToken, toToken, hopTokens)) {
+        setIndexerRouteResult(null)
+        return
+      }
       setIndexerRouteResult(res)
     } catch (e) {
       setIndexerRouteError(humanizeUserFacingErrorFromUnknown(e))
@@ -1360,7 +1382,7 @@ export default function SwapPage() {
                 </label>
                 <TokenSearchSelect
                   value={fromToken}
-                  tokens={allTokens}
+                  tokens={discoveryTokens}
                   excludeToken={toToken}
                   onChange={(tokenId) => {
                     sounds.playButtonPress()
@@ -1435,7 +1457,7 @@ export default function SwapPage() {
                 <span className="label-glass !mb-0 sm:pt-1">You Receive</span>
                 <TokenSearchSelect
                   value={toToken}
-                  tokens={allTokens}
+                  tokens={discoveryTokens}
                   excludeToken={fromToken}
                   onChange={(tokenId) => {
                     sounds.playButtonPress()

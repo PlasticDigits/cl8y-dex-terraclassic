@@ -112,4 +112,33 @@ describe('quoteCw20ViaRouteSolve (#501)', () => {
     expect(quoted).toBeNull()
     expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
   })
+
+  it('returns null when a production economic quote hops a gem (GitLab #562 A10)', async () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    const ruby = 'terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc'
+    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+      token_in: from,
+      token_out: to,
+      hops: [
+        { pair, offer_token: from, ask_token: ruby },
+        { pair: 'terra1pair2', offer_token: ruby, ask_token: to },
+      ],
+      router_operations: [],
+      intermediate_tokens: [from, ruby, to],
+    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
+
+    const quoted = await quoteCw20ViaRouteSolve({
+      fromToken: from,
+      toToken: to,
+      simRaw: '1000000',
+      maxMakerFills: 8,
+      slippageTolerancePercent: 5,
+      maxSpreadStr: '0.05',
+    })
+
+    expect(quoted).toBeNull()
+    expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
+    vi.unstubAllEnvs()
+  })
 })

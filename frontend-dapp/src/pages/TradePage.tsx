@@ -22,7 +22,13 @@ import { useLimitOrderCancelMutation } from '@/hooks/useLimitOrderCancelMutation
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { sounds } from '@/lib/sounds'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
-import { firstCatalogPairAddress } from '@/utils/pairCatalogRank'
+import {
+  firstCatalogPairAddress,
+  isRetailHiddenTestPair,
+  pairInfoLegIds,
+  pairInfoLegSymbols,
+  retailExposeTestTokens,
+} from '@/utils/pairCatalogRank'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTime } from '@/utils/formatDate'
 import { isIndexerPairNotFoundError } from '@/utils/indexerErrors'
@@ -316,6 +322,12 @@ export default function TradePage() {
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
 
   const factoryPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
+  const showLegacyGemNotice = useMemo(() => {
+    if (!factoryPair || retailExposeTestTokens()) return false
+    const [id0, id1] = pairInfoLegIds(factoryPair)
+    const [s0, s1] = pairInfoLegSymbols(factoryPair)
+    return isRetailHiddenTestPair(s0, s1, id0, id1)
+  }, [factoryPair])
 
   const [limitBookDraftKey, setLimitBookDraftKey] = useState(0)
   const [limitBookDraft, setLimitBookDraft] = useState<LimitBookTicketDraft | null>(null)
@@ -551,6 +563,11 @@ export default function TradePage() {
             asset1={factoryPair.asset_infos[1]}
             inverted={pairOrientation.inverted}
           />
+        ) : null}
+        {showTradeWorkspace && showLegacyGemNotice ? (
+          <p className="mt-2 text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="trade-legacy-gem-notice">
+            Legacy noneconomic market.
+          </p>
         ) : null}
       </div>
 

@@ -24,6 +24,8 @@ interface ImportMetaEnv {
   readonly VITE_TOKEN_ONYX_ADDRESS?: string
   readonly VITE_TOKEN_RUBY_ADDRESS?: string
   readonly VITE_TOKEN_TOPAZ_ADDRESS?: string
+  /** QA-only: show gem browse on a `VITE_NETWORK=mainnet` build (GitLab #562). Never a query param. */
+  readonly VITE_SHOW_TEST_TOKENS?: string
   /** UST1 oracle window (GitLab #506) — columbus-5 addresses on prod Coolify. */
   readonly VITE_UST1_WINDOW_ADDRESS?: string
   readonly VITE_UST1_TOKEN_ADDRESS?: string

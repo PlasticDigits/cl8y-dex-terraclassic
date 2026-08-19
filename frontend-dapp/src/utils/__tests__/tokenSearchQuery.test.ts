@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   buildTokenLocalSearchHaystack,
   filterTokensByLocalSearch,
@@ -110,5 +110,35 @@ describe('buildTokenLocalSearchHaystack / filterTokensByLocalSearch', () => {
     )
     const result = filterTokensByLocalSearch(many, 'aa')
     expect(result.length).toBeLessThanOrEqual(TOKEN_SEARCH_RESULT_LIMIT)
+  })
+})
+
+describe('filterTokensByLocalSearch production hide (GitLab #562 U3)', () => {
+  const RUBY = 'terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc'
+  const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    localStorage.removeItem(TOKEN_CACHE_KEY)
+  })
+
+  it('empty browse and typed RUBY omit gems on mainnet', () => {
+    vi.stubEnv('VITE_NETWORK', 'mainnet')
+    vi.stubEnv('VITE_SHOW_TEST_TOKENS', '')
+    localStorage.setItem(
+      TOKEN_CACHE_KEY,
+      JSON.stringify({
+        [RUBY.toLowerCase()]: { symbol: 'RUBY', name: 'Ruby' },
+        [UST1.toLowerCase()]: { symbol: 'UST1', name: 'UST1' },
+      })
+    )
+    const tokens = [RUBY, UST1, 'uluna']
+    const empty = filterTokensByLocalSearch(tokens, '')
+    expect(empty).not.toContain(RUBY)
+    expect(empty).toContain(UST1)
+    expect(empty).toContain('uluna')
+    expect(filterTokensByLocalSearch(tokens, 'RUBY')).toEqual([])
+    expect(filterTokensByLocalSearch(tokens, 'ruby')).toEqual([])
+    expect(filterTokensByLocalSearch(tokens, RUBY.slice(0, 20))).toEqual([])
   })
 })

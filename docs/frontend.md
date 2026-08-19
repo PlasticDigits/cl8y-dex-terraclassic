@@ -655,7 +655,7 @@ The frontend uses TerraSwap-compatible message names:
 | **C542-8** | Swap / Mint / Trade pickers stay on their own universes (factory graph / faucet). Do **not** feed this catalog into Swap. |
 | **C542-9** | Logos via `resolveTrustedTokenLogoUrl`; symbols/names text-only; search query capped at 128. |
 | **C542-10** | UST1 AMM ≠ oracle notice stays ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) **U1**). |
-| **C542-11** | Catalog is the bundled repo [`tokenlist/tokenlist.json`](../tokenlist/tokenlist.json) (plus env overlays and optional `VITE_TOKEN_*` gems). **No** runtime HTTP for the list. Do **not** use tokenlist `decimals` for amounts. No `/create?a=&b=` query prefill. |
+| **C542-11** | Catalog is the bundled repo [`tokenlist/tokenlist.json`](../tokenlist/tokenlist.json) (plus env overlays). Soft-launch `VITE_TOKEN_*` gems append **only** when `retailExposeTestTokens()` ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-5**). **No** runtime HTTP for the list. Do **not** use tokenlist `decimals` for amounts. No `/create?a=&b=` query prefill. |
 
 Helper: [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options` / `buildCreatePairCw20Options`). UI: [`CreatePairTokenField`](../frontend-dapp/src/components/create/CreatePairTokenField.tsx) reuses [`TokenSearchSelect`](../frontend-dapp/src/components/trade/TokenSearchSelect.tsx) **control** with catalog ids — not `getAllTokens(pairs)`.
 
@@ -901,7 +901,28 @@ Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not
 | **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
 | **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
 
-`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers **and** on the `/pool` table **default** ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) **P547-3**). User-chosen `/pool` column sorts (volume, fee, created, name) use indexer `sort`/`order` and are **not** re-ranked by catalog.
+`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers **and** on the `/pool` table **default** ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) **P547-3**). User-chosen `/pool` column sorts (volume, fee, created, name) use indexer `sort`/`order` and are **not** re-ranked by catalog. On production those pages still **omit gems** ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**).
+
+On **production** (`VITE_NETWORK=mainnet`, `VITE_SHOW_TEST_TOKENS` unset) gems are **omitted** from retail discovery rather than ranked last — see [Production hide of test tokens](#production-hide-test-tokens) ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)). LocalTerra still uses P534-1–P534-8 as written.
+
+### Production hide of test tokens {#production-hide-test-tokens}
+
+Soft-launch gemstone CW20s stay on columbus-5. The production dApp (`https://dex.cl8y.com`) must not list them in Swap / Trade / Pool / Charts / Create browse or typeahead, and must not advertise gem hops on economic quotes ([GitLab **#562**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)). Shared helpers: [`pairCatalogRank.ts`](../frontend-dapp/src/utils/pairCatalogRank.ts) (`retailExposeTestTokens`, `COLUMBUS5_GEM_ADDRESSES`, `filterRetailDiscovery*`). Agent playbook: [`skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](../skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md).
+
+| ID | Rule |
+|----|------|
+| **P562-1** | **Expose flag.** `retailExposeTestTokens()` is true iff `VITE_NETWORK !== 'mainnet'` **or** build-arg `VITE_SHOW_TEST_TOKENS=true`. Not a runtime query (`?showGems=1` forbidden). Default production image leaves the override unset. |
+| **P562-2** | **Identity.** Hide by hardcoded columbus-5 gem **addresses** (all eight, including QUARTZ/PEARL) **and** `GEM_SYMBOLS`. Unsetting Coolify `VITE_TOKEN_*` must not re-list gems. A gem contract spoofing `symbol=UST1` stays hidden; a listed hub/tokenlist token is never a gem even if someone names it RUBY (**X1**). UST1 / cLUNC / cUSTC / USTR / CL8Y / vFDUSD are never gems (**U6** / **P534-8**). |
+| **P562-3** | **Discovery.** Production empty browse and typed search omit gems from Swap `TokenSearchSelect`, Trade/Limits `PairSearchSelect`, Charts pair menu, and `/pool` (catalog **and** user column sorts). **Test pairs** divider is absent when nothing remains to group. LocalTerra still lists gems last under **Test pairs** (**P534-1**). |
+| **P562-4** | **Defaults.** Swap pay/receive and bare `/trade` auto-pick use economic tokens (`defaultRetailSwapTokenPair` / `firstCatalogPairAddress` after the hide filter), never `tokens[0]` gem. A leftover gem selection is reset to the economic default (**X10**). |
+| **P562-5** | **Create Pair.** Listed catalog does not append `SOFT_LAUNCH_MINTABLE_TOKENS` when `!retailExposeTestTokens()`. Custom paste of a gem CW20 still uses checksum + code-id check — no client-only “blocked token” toast. |
+| **P562-6** | **Quotes.** When both legs are economic, `findRoute` drops test pairs from the BFS graph and `quoteCw20ViaRouteSolve` returns `null` if any hop token is a gem (fail closed; displayed hops = executed hops). Gem↔gem remains allowed as an exit hatch. |
+| **P562-7** | **Balances / exit.** `/portfolio`, `/trader`, history, and LP rows still render gem symbols and amounts. Deep link `/trade/<gem-pair-addr>` may resolve; optional static copy: **Legacy noneconomic market.** Do not put hidden gems back in global browse. Factory token universe remains the Swap gate (#481) — filter gems *inside* that set. |
+| **P562-8** | **Mint / faucet.** Production Coolify **unsets** `VITE_FAUCET_ADDRESS` so Mint nav stays hidden (**F11**). Operator should **Pause** the faucet (and optionally `RemoveMinter`) per **F9** — UI hide is not the only control. No KYC. Do not fold UST1 mint into `/mint`. No always-on “test tokens removed” banner. |
+
+`GET /api/v1/pairs` and `route/solve` JSON may still include gem rows for integrators. The dApp overlays the hide.
+
+**Regression:** `make verify-issue-562`. LocalTerra rank/picker tests stay on `VITE_NETWORK=local` (`make verify-issue-534` / `#542` / `#547` / `#481`).
 
 ### Token search combobox (`TokenSearchSelect`) — Swap {#token-search-combobox}
 
@@ -911,7 +932,7 @@ Swap **YOU PAY** / **YOU RECEIVE** use [`TokenSearchSelect`](../frontend-dapp/sr
 |-----------|---------|
 | **Factory token universe** | Options come only from the `tokens` prop (`getAllTokens(pairs)` + native-wrap enrichment). Do **not** introduce an external/arbitrary token list or derive Swap options from `getPairs(q)`. |
 | **Client-only filter** | Search is entirely client-side via [`tokenSearchQuery.ts`](../frontend-dapp/src/utils/tokenSearchQuery.ts) (works with indexer down). Haystack = id/denom, display symbol, localStorage-cached CW20 symbol/name, registry. No `GET /api/v1/tokens?q=` yet (optional follow-up if factory counts outgrow comfortable client filtering). |
-| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **full** allowed list sorted **economic-first then display symbol** ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534), **P534-7**). |
+| **Debounce / min chars / cap** | Debounce **300ms**; filter starts at ≥2 chars (or `terra1…` address ≥20); typed hits capped at **20**. Empty / too-short query browses the **allowed** list sorted **economic-first then display symbol** ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534), **P534-7**). Production omits gems from that list ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). |
 | **excludeToken** | Other leg is omitted from options; search tricks cannot select it. `onChange` only emits ids present in the gated options list. |
 | **Query DoS / XSS** | Input `maxLength` / truncate at 128 chars; symbols/names render as **text only** (no `dangerouslySetInnerHTML`); logo URLs still pass [`resolveTrustedTokenLogoUrl`](../frontend-dapp/src/utils/tokenLogoAllowlist.ts). |
 | **Accessibility** | Input `role="combobox"` + `aria-autocomplete="list"` + portaled `listbox`; Arrow / Enter / Escape / Tab. Typed query + Enter commits **first hit** (same #350 rule as pair search). |
@@ -1557,7 +1578,7 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 |----|---------|
 | **P547-1** | Primary list is a `<table>` (`data-testid="pool-pairs-table"`), not stacked `PoolCard`. |
 | **P547-2** | Sortable headers: label + caret next to the text; `aria-sort` on the active column. No Sort/Order dropdowns. |
-| **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last (**P534-1–P534-4**). |
+| **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last on LocalTerra (**P534-1–P534-4**). Production omits gems entirely ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). |
 | **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). |
 | **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
 | **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |

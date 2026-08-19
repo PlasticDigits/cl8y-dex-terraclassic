@@ -1,4 +1,4 @@
-import { compareTokenCatalog } from '@/utils/pairCatalogRank'
+import { compareTokenCatalog, filterRetailDiscoveryTokens } from '@/utils/pairCatalogRank'
 import { getCachedTokenEntry, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { lookupByTokenId } from '@/utils/tokenRegistry'
 
@@ -57,8 +57,9 @@ function compareTokenIdsBySymbol(a: string, b: string): number {
 
 /**
  * Client-side token filter for Swap (`TokenSearchSelect`).
- * Only emits ids from `tokens` (factory gate). Empty query returns the full allowed set
- * sorted economic-first then display symbol (GitLab #534); typed queries cap at {@link TOKEN_SEARCH_RESULT_LIMIT}.
+ * Only emits ids from `tokens` (factory gate). Empty query returns the allowed set
+ * sorted economic-first then display symbol (GitLab #534); production omits gems (#562).
+ * Typed queries cap at {@link TOKEN_SEARCH_RESULT_LIMIT}.
  */
 export function filterTokensByLocalSearch(
   tokens: string[],
@@ -66,7 +67,7 @@ export function filterTokensByLocalSearch(
   options?: { excludeToken?: string; limit?: number }
 ): string[] {
   const exclude = options?.excludeToken
-  const allowed = tokens.filter((t) => t !== exclude)
+  const allowed = filterRetailDiscoveryTokens(tokens).filter((t) => t !== exclude)
   const q = normalizeTokenSearchQuery(query)
 
   // Empty or too-short query: browse the full allowed list (sorted). Filtering starts at min chars.

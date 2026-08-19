@@ -1,11 +1,19 @@
 import type { IndexerPair, PairInfo } from '@/types'
 import { assetInfoLabel } from '@/types'
-import { SOFT_LAUNCH_MINTABLE_TOKENS } from '@/utils/constants'
+import {
+  CL8Y_TOKEN_ADDRESS,
+  LUNC_C_TOKEN_ADDRESS,
+  SOFT_LAUNCH_MINTABLE_TOKENS,
+  UST1_TOKEN_ADDRESS,
+  USTC_C_TOKEN_ADDRESS,
+  VFDUSD_TOKEN_ADDRESS,
+} from '@/utils/constants'
 import { getDecimals } from '@/utils/formatAmount'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { lookupByTokenId } from '@/utils/tokenRegistry'
 
 /**
- * Soft-launch + LocalTerra faucet/test tickers (GitLab #534).
+ * Soft-launch + LocalTerra faucet/test tickers (GitLab #534 / #562).
  * Economic = both legs resolve outside this set (cLUNC, cUSTC, UST1, USTR, CL8Y, …).
  */
 export const GEM_SYMBOLS = new Set([
@@ -23,6 +31,23 @@ export const GEM_SYMBOLS = new Set([
   'AMBER',
   'IRON',
 ])
+
+/**
+ * Hardcoded columbus-5 gem CW20s (GitLab #562). Hide-by-address must work even when
+ * Coolify drops `VITE_TOKEN_*` (QUARTZ/PEARL were never in that env list).
+ */
+export const COLUMBUS5_GEM_ADDRESSES = new Set(
+  [
+    'terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94', // EMBER
+    'terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena', // CORAL
+    'terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr', // JADE
+    'terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9', // ONYX
+    'terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc', // RUBY
+    'terra12k67cvfs7y7g8lca3qr4g4py6s6j69fu24gze5pjfamfpckv8mps7cymme', // TOPAZ
+    'terra17dpnjlpgsnm8muu4msfjra4f2hrptnjp2jdpkka4p0e3px42ayxq0pmc2z', // QUARTZ
+    'terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs', // PEARL
+  ].map((addr) => addr.toLowerCase())
+)
 
 /** Lower rank = listed earlier. UST1 is the launch hub so its markets sit together. */
 const HUB_RANK: Record<string, number> = {
@@ -68,13 +93,52 @@ export function isGemSymbol(symbol: string): boolean {
   return GEM_SYMBOLS.has(canonicalPairSymbol(symbol))
 }
 
-/** True when the id/symbol is a faucet gem (symbol set, cache/registry, or mintable env address). */
+/**
+ * Production retail discovery shows gems iff LocalTerra/testnet **or** the
+ * Coolify build-arg `VITE_SHOW_TEST_TOKENS=true` (QA). Not a runtime query param (X8).
+ * **P562-1**
+ */
+export function retailExposeTestTokens(): boolean {
+  if (import.meta.env.VITE_SHOW_TEST_TOKENS === 'true') return true
+  const network = import.meta.env.VITE_NETWORK || 'local'
+  return network !== 'mainnet'
+}
+
+function isKnownGemAddress(tokenId: string): boolean {
+  const lower = tokenId.trim().toLowerCase()
+  if (!lower) return false
+  if (COLUMBUS5_GEM_ADDRESSES.has(lower)) return true
+  return SOFT_LAUNCH_MINTABLE_TOKENS.some((t) => t.address.toLowerCase() === lower)
+}
+
+const ECONOMIC_ENV_ADDRESSES = new Set(
+  [CL8Y_TOKEN_ADDRESS, LUNC_C_TOKEN_ADDRESS, UST1_TOKEN_ADDRESS, USTC_C_TOKEN_ADDRESS, VFDUSD_TOKEN_ADDRESS]
+    .filter(Boolean)
+    .map((addr) => addr.toLowerCase())
+)
+
+/**
+ * Listed economic / wrap / hub ids must never be classified as gems (**U6** / **P534-8** / **X1**).
+ * Address in the gem set still wins even if `token_info.symbol` is spoofed as UST1.
+ */
+export function isEconomicHubTokenId(tokenId: string): boolean {
+  if (!tokenId?.trim()) return false
+  const lower = tokenId.trim().toLowerCase()
+  if (lower === 'uluna' || lower === 'uusd') return true
+  if (ECONOMIC_ENV_ADDRESSES.has(lower)) return true
+  if (HUB_RANK[canonicalPairSymbol(tokenId)] != null) return true
+  if (HUB_RANK[canonicalPairSymbol(getTokenDisplaySymbol(tokenId))] != null) return true
+  return lookupByTokenId(tokenId) != null
+}
+
+/** True when the id/symbol is a faucet gem (hardcoded columbus-5 addrs, env mintables, or gem ticker). */
 export function isGemTokenId(tokenId: string): boolean {
   if (!tokenId?.trim()) return false
+  if (isKnownGemAddress(tokenId)) return true
+  if (isEconomicHubTokenId(tokenId)) return false
   if (isGemSymbol(tokenId)) return true
   if (isGemSymbol(getTokenDisplaySymbol(tokenId))) return true
-  const lower = tokenId.toLowerCase()
-  return SOFT_LAUNCH_MINTABLE_TOKENS.some((t) => t.address.toLowerCase() === lower)
+  return false
 }
 
 /**
@@ -87,6 +151,51 @@ export function isTestPair(symbol0: string, symbol1: string, tokenId0?: string, 
     (!!tokenId0 && isGemTokenId(tokenId0)) ||
     (!!tokenId1 && isGemTokenId(tokenId1))
   )
+}
+
+export function isRetailHiddenTestToken(tokenId: string): boolean {
+  return !retailExposeTestTokens() && isGemTokenId(tokenId)
+}
+
+export function isRetailHiddenTestPair(
+  symbol0: string,
+  symbol1: string,
+  tokenId0?: string,
+  tokenId1?: string
+): boolean {
+  return !retailExposeTestTokens() && isTestPair(symbol0, symbol1, tokenId0, tokenId1)
+}
+
+/** Omit gems from production browse. LocalTerra / `VITE_SHOW_TEST_TOKENS=true` is a no-op. */
+export function filterRetailDiscoveryTokens(tokens: readonly string[]): string[] {
+  if (retailExposeTestTokens()) return [...tokens]
+  return tokens.filter((t) => !isGemTokenId(t))
+}
+
+export function filterRetailDiscoveryPairInfos(pairs: readonly PairInfo[]): PairInfo[] {
+  if (retailExposeTestTokens()) return [...pairs]
+  return pairs.filter((pair) => {
+    const legs = pairInfoToCatalogLegs(pair)
+    return !isTestPair(legs.symbol0, legs.symbol1, legs.tokenId0, legs.tokenId1)
+  })
+}
+
+export function filterRetailDiscoveryIndexerPairs(pairs: readonly IndexerPair[]): IndexerPair[] {
+  if (retailExposeTestTokens()) return [...pairs]
+  return pairs.filter((pair) => {
+    const legs = indexerPairToCatalogLegs(pair)
+    return !isTestPair(legs.symbol0, legs.symbol1, legs.tokenId0, legs.tokenId1)
+  })
+}
+
+/**
+ * Production BFS / hybrid quote must not bridge economic tokens through gems (**P562-6**).
+ * Exit hatch: if either endpoint is a gem, gem hops stay allowed.
+ */
+export function shouldRejectGemBridgeQuote(fromToken: string, toToken: string, hopTokens: readonly string[]): boolean {
+  if (retailExposeTestTokens()) return false
+  if (isGemTokenId(fromToken) || isGemTokenId(toToken)) return false
+  return hopTokens.some((t) => isGemTokenId(t))
 }
 
 function hubRankForLeg(symbol: string): number | undefined {
@@ -220,9 +329,9 @@ export function sortIndexerPairsByCatalog(pairs: IndexerPair[]): IndexerPair[] {
   return [...pairs].sort((a, b) => comparePairCatalog(indexerPairToCatalogLegs(a), indexerPairToCatalogLegs(b)))
 }
 
-/** First factory pair for bare `/trade` auto-pick (P534-5). */
+/** First factory pair for bare `/trade` auto-pick (P534-5 / P562-4). */
 export function firstCatalogPairAddress(pairs: PairInfo[]): string | undefined {
-  return sortPairInfosByCatalog(pairs)[0]?.contract_addr
+  return sortPairInfosByCatalog(filterRetailDiscoveryPairInfos(pairs))[0]?.contract_addr
 }
 
 export function compareTokenCatalog(tokenIdA: string, tokenIdB: string): number {
@@ -236,4 +345,11 @@ export function compareTokenCatalog(tokenIdA: string, tokenIdB: string): number 
   const cmp = sa.toLowerCase().localeCompare(sb.toLowerCase())
   if (cmp !== 0) return cmp
   return tokenIdA.localeCompare(tokenIdB)
+}
+
+/** Production Swap pay/receive defaults: first two non-gem ids in factory/wrap order (P562-4). */
+export function defaultRetailSwapTokenPair(tokenIds: readonly string[]): [string, string] | undefined {
+  const tokens = filterRetailDiscoveryTokens(tokenIds)
+  if (tokens.length < 2) return undefined
+  return [tokens[0], tokens[1]]
 }
