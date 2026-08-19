@@ -57,3 +57,4 @@ JSON **keeps raw strings**. The dApp scales.
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for USD totals
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC / LUNC feeds
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — do not `formatNum` mixed raw volume (#548); leaderboard volume USD is #553
+- [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape amounts vs P&amp;L (#557 vs #551)

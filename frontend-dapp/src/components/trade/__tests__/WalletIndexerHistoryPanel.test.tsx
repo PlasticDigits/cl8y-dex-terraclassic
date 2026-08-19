@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import { WalletIndexerHistoryPanel } from '@/components/trade/WalletIndexerHistoryPanel'
 import { renderWithProviders } from '@/test-utils'
 import * as indexerClient from '@/services/indexer/client'
-import { formatNum } from '@/utils/formatAmount'
 
 const WALLET = 'terra1wallet000000000000000000000000000001'
 const PAIR = 'terra1pair0000000000000000000000000000000001'
@@ -31,6 +30,8 @@ describe('WalletIndexerHistoryPanel (GitLab #352 / #479)', () => {
         ask_asset: 'CORAL',
         offer_amount: '1000000',
         return_amount: '2000000',
+        offer_decimals: 6,
+        ask_decimals: 6,
         price: '1.2',
         commission_amount: '10',
         tx_hash: 'ABC123',
@@ -46,6 +47,8 @@ describe('WalletIndexerHistoryPanel (GitLab #352 / #479)', () => {
         price: '1.1',
         token0_amount: '3000000',
         token1_amount: '4000000',
+        token0_decimals: 6,
+        token1_decimals: 6,
         commission_amount: '5',
         tx_hash: 'DEF456',
         block_timestamp: '2026-01-02T00:00:00Z',
@@ -63,22 +66,24 @@ describe('WalletIndexerHistoryPanel (GitLab #352 / #479)', () => {
     expect(screen.getByRole('columnheader', { name: 'Tx' })).toBeInTheDocument()
   })
 
-  it('renders Amount in / Amount out for swap rows (#479)', async () => {
+  it('renders Amount in / Amount out for swap rows (#479 / #557)', async () => {
     renderWithProviders(<WalletIndexerHistoryPanel walletAddress={WALLET} pairAddress={PAIR} sections={['swaps']} />)
 
     expect(await screen.findByRole('columnheader', { name: 'Amount in' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Amount out' })).toBeInTheDocument()
-    expect(screen.getByText(formatNum('1000000'))).toBeInTheDocument()
-    expect(screen.getByText(formatNum('2000000'))).toBeInTheDocument()
+    expect(screen.getByText(/1(\.0+)? EMBER/)).toBeInTheDocument()
+    expect(screen.getByText(/2(\.0+)? CORAL/)).toBeInTheDocument()
+    expect(screen.queryByText('1.000M')).not.toBeInTheDocument()
   })
 
-  it('renders Token0 / Token1 amounts for limit fills (#479)', async () => {
+  it('renders Base / Quote amounts for limit fills (#479 / #557)', async () => {
     renderWithProviders(<WalletIndexerHistoryPanel walletAddress={WALLET} pairAddress={PAIR} sections={['fills']} />)
 
-    expect(await screen.findByRole('columnheader', { name: 'Token0' })).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: 'Token1' })).toBeInTheDocument()
-    expect(screen.getByText(formatNum('3000000'))).toBeInTheDocument()
-    expect(screen.getByText(formatNum('4000000'))).toBeInTheDocument()
+    expect(await screen.findByRole('columnheader', { name: 'Base' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Quote' })).toBeInTheDocument()
+    expect(screen.getByText('3.000')).toBeInTheDocument()
+    expect(screen.getByText('4.000')).toBeInTheDocument()
+    expect(screen.queryByText('3.000M')).not.toBeInTheDocument()
   })
 
   it('does not invent amount columns for cancellations', async () => {

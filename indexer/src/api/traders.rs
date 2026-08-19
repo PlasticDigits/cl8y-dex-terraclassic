@@ -14,8 +14,9 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::overview::overview_volume_usd_field;
 use super::pairs::{
-    limit_placement_response, parse_placement_lifecycle_filter, trade_response_from_swap_row,
-    LimitCancellationResponse, LimitFillResponse, LimitPlacementResponse,
+    asset_map_decimals, limit_fill_response_from_row, limit_placement_response,
+    parse_placement_lifecycle_filter, trade_response_from_swap_row, LimitCancellationResponse,
+    LimitFillResponse, LimitPlacementResponse,
 };
 use super::{build_asset_map, internal_err, text_csv, AppState};
 use crate::db::queries::{
@@ -343,30 +344,30 @@ pub async fn get_trader_limit_fills(
             .await
             .map_err(internal_err)?;
 
+    let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
     let all_pairs = db_pairs::get_all_pairs(&state.pool)
         .await
         .map_err(internal_err)?;
-    let pair_map: HashMap<i32, String> = all_pairs
+    let pair_meta: HashMap<i32, (String, Option<i16>, Option<i16>)> = all_pairs
         .into_iter()
-        .map(|p| (p.id, p.contract_address))
+        .map(|p| {
+            (
+                p.id,
+                (
+                    p.contract_address,
+                    asset_map_decimals(&asset_map, p.asset_0_id),
+                    asset_map_decimals(&asset_map, p.asset_1_id),
+                ),
+            )
+        })
         .collect();
 
     let result: Vec<LimitFillResponse> = rows
         .iter()
-        .map(|r| LimitFillResponse {
-            id: r.id,
-            pair_address: pair_map.get(&r.pair_id).cloned().unwrap_or_default(),
-            swap_event_id: r.swap_event_id,
-            block_height: r.block_height,
-            block_timestamp: r.block_timestamp.to_rfc3339(),
-            tx_hash: r.tx_hash.clone(),
-            order_id: r.order_id,
-            side: r.side.clone(),
-            maker: r.maker.clone(),
-            price: r.price.to_string(),
-            token0_amount: r.token0_amount.to_string(),
-            token1_amount: r.token1_amount.to_string(),
-            commission_amount: r.commission_amount.to_string(),
+        .map(|r| {
+            let (pair_addr, token0_decimals, token1_decimals) =
+                pair_meta.get(&r.pair_id).cloned().unwrap_or_default();
+            limit_fill_response_from_row(&pair_addr, r, token0_decimals, token1_decimals)
         })
         .collect();
 

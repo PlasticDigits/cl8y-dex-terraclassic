@@ -721,14 +721,14 @@ When a wallet is connected, **`/limits`** shows indexed **limit fills** (maker),
 | Limit fills (maker) | **Token0** / **Token1** (base / quote) | `token0_amount` / `token1_amount` |
 | Limit cancellations | _(none)_ | API has no amount fields |
 
-Amount cells use the same **`formatNum(raw)`** display as public [`TradesTable`](../frontend-dapp/src/components/ui/TradesTable.tsx) (raw chain integers — parity, not a third format). Mobile keeps horizontal scroll (`data-testid="wallet-history-table-scroll"`, [#352](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/352)).
+Amount cells use **`formatTapeAmount`** (human units + symbol; GitLab [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)). Indexer JSON/CSV stay **plain integer** strings (`offer_amount` / `return_amount`, no scientific notation) with additive `offer_decimals` / `ask_decimals`. Mobile keeps horizontal scroll (`data-testid="wallet-history-table-scroll"`, [#352](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/352)).
 
 **CSV export** uses `GET .../trades?format=csv`, `.../limit-fills?format=csv`, and `.../limit-cancellations?format=csv` on the **`/api/v1/traders/{addr}/...`** paths (same `pair=` filter as the table). Client `limit` is capped at **`TRADER_HISTORY_CSV_MAX_LIMIT` (200)** to match the indexer clamp — see [`docs/indexer-invariants.md`](./indexer-invariants.md). Export is **HTTP-only** (no wallet signature). Failures show an inline alert (`wallet-history-csv-error`); `fetchTraderHistoryCsv` retries once on network/timeout. Formula-injection escaping (#432) stays server-side.
 
 | Invariant | Meaning |
 |-----------|---------|
 | **Pair scope** | History + CSV stay filtered to the selected pair; do not expand to global wallet history here. |
-| **Amount parity** | Swaps reuse TradesTable amount semantics; fills expose token0/token1; cancellations stay Time / Order / Tx. |
+| **Amount parity** | Swaps reuse TradesTable **human** amount semantics (#557); fills expose token0/token1 humanized with pair-leg decimals; cancellations stay Time / Order / Tx. CSV remains raw. |
 | **CSV cap** | Never request or advertise export above indexer max **200**. |
 | **CSV errors visible** | Download failures must not be silent; button re-enables after error. |
 | **No signing for CSV** | Keplr only supplies the address in the URL path. |
@@ -988,13 +988,35 @@ Readability for traders used to centralized exchanges ([GitLab **#149**](https:/
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Recent trades columns** | Headers **Pair** (pay → receive), **Amount in** / **Amount out** (offer / ask token amounts), plus **Price** (human quote-per-base, **not** USD — [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)), **Tx**. Column `<th>` elements carry `title` tooltips for the offer/ask semantics. Component: [`TradesTable.tsx`](../frontend-dapp/src/components/ui/TradesTable.tsx). |
+| **Recent trades columns** | Headers **Pair** (pay → receive), **Amount in** / **Amount out** (human offer / ask token amounts — [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)), plus **Price** (human quote-per-base, **not** USD — [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522); inverted pages use the reciprocal of that human price — [#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)), **Tx**. Column `<th>` elements carry `title` tooltips for the offer/ask semantics. Component: [`TradesTable.tsx`](../frontend-dapp/src/components/ui/TradesTable.tsx). See [§ Tape amounts (human scale)](#tape-amounts-human-scale). |
 | **`hybrid` badge** | Uppercase styling on the badge text; native **`title`** explains hybrid **AMM + limit order** execution and points integrators to **`docs/integrators.md`** for fee attribution across events. |
 | **Order ticket — type tabs** | **Limit** vs **Market** tabs on `/trade` (`TradeOrderTicket`). Market uses global slippage (`useDexStore`); **default** quotes via indexer **`GET /route/solve`** (solver-optimized pool/book split, same as Swap — [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501)); Advanced manual book leg uses `POST`; hybrid off = pool-only. Shows expected receive + min after slippage with retail disclosure ([GitLab **#152**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152), [#414](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/414)). |
 | **Order ticket — post-only limit preflight** | Before `place_limit_order`, the UI compares the typed price to the **book head** from `GET .../limit-book?limit=1` (best bid / best ask). Bids with price **≥ best ask** and asks with price **≤ best bid** are blocked with inline copy — pure client guard; the pair still inserts by book walk on-chain. Helpers: [`limitOrderNonCrossing.ts`](../frontend-dapp/src/utils/limitOrderNonCrossing.ts), hook [`useTradeBestBookPrices.ts`](../frontend-dapp/src/hooks/useTradeBestBookPrices.ts). The **`/limits` ladder panel** applies the same guard **per rung** via `describeLimitCrossingBlockerWithRef` (book head first; when the opposite side is empty, falls back to indexed tape / AMM pool reference like the retail ticket) and shows **`N of M rungs will cross the market…`** when any rung crosses ([#297](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/297), [#385](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/385)). Complements the **tape-reference** gate in [§ Trade page — limit order price field](#trade-page-limit-order-price) ([GitLab **#154**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/154)). |
 | **Market quote — route preview (#302)** | When a market amount is quoted, [`TradeMarketOrderPanel`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) shows a single **Route** row (`data-testid="trade-market-route-summary"`) inside `trade-market-quote`, using the same `computeSwapRouteDisplay` helper and indexer-op precedence as Swap ([#158](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/158)). Row renders only when `marketRouteLine` is truthy; multihop paths appear when hybrid quoting returns indexer `router_operations`. Agent checklist: [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling), [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) (swap + trade market route row).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](../skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) (layout + this section for labeling), [`skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) (swap + trade market route row), [`skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md`](../skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) (human Amount in/out/Price — [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)).
+
+### Tape amounts (human scale) {#tape-amounts-human-scale}
+
+Public tape (`TradesTable` on `/charts`, `/trade`, `/trader`, `/portfolio`) and pair wallet history must show **human** token amounts, not raw chain integers ([GitLab **#557**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)). Integrator JSON/CSV keep **plain integer digit strings** for `offer_amount` / `return_amount` (never `1e+19`); additive `offer_decimals` / `ask_decimals` (fills: `token0_decimals` / `token1_decimals`) come from indexed `assets.decimals` (asset id), never from wasm events or symbol matching.
+
+| ID | Rule |
+|----|------|
+| **T557-1** | Amount in / out = `formatTokenAmount(raw, decimals)` then compact. Never `formatNum(raw)`. |
+| **T557-2** | 18-dec amounts compact as `T` only when the **human** size is ≥ 1e12. |
+| **T557-3** | Charts and Trade share `TradesTable`. |
+| **T557-4** | Mixed-pair Trader/Portfolio rows use **per-trade** API decimals. |
+| **T557-5** | Wallet pair history uses the same helpers; CSV download stays raw. |
+| **T557-6** | Tape **Price** is human quote-per-base (`formatPairPrice`). Never USD. Never compact `T` from raw 18/6. |
+| **T557-7** | Invert (#524) reciprocates **human** Price only. Amount in/out stay offer → ask. |
+| **T557-8** | JSON/CSV raw amount columns stay **plain integer digit strings** (no scientific notation). Decimals are additive. |
+| **T557-9** | Missing / out-of-range decimals (`<0` or `>38`) → `—`. Zero with known decimals → `0`. No `NaN` / `Infinity`. |
+| **T557-10** | Amount cells include the pay/receive symbol after humanizing. |
+| **T557-11** | Buy/sell color follows display-base (paying display-quote is a buy). Amounts stay offer → ask. |
+
+Helpers: [`tradeTapeDisplay.ts`](../frontend-dapp/src/utils/tradeTapeDisplay.ts). Regression: `make verify-issue-557`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md`](../skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md).
 
 ### Trade route — onboarding IA, CTA hierarchy, progressive disclosure {#trade-route-onboarding-ia}
 

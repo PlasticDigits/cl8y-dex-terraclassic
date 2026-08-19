@@ -585,6 +585,7 @@ export default function ChartsPage() {
             trades={tradesQuery.data}
             formatTimeFn={formatTime}
             activePair={activePair}
+            inverted={pairOrientation.inverted}
             ariaLabel="Recent trades"
           />
         )}
