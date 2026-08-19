@@ -1,9 +1,17 @@
 import { WalletName } from '@goblinhunt/cosmes/wallet'
 
-/** Keplr-compatible `experimentalSuggestChain` surface (Station shim + Keplr family). */
+/** Keplr-compatible `experimentalSuggestChain` / `getKey` surface (Station shim + Keplr family). */
+export type KeplrKeyAccount = {
+  name: string
+  bech32Address: string
+  pubKey: Uint8Array
+  isNanoLedger: boolean
+}
+
 export type KeplrExperimentalSuggest = {
   experimentalSuggestChain?: (chainInfo: Record<string, unknown>) => Promise<void>
   defaultOptions?: { sign?: { preferNoSetFee?: boolean; preferNoSetMemo?: boolean } }
+  getKey?: (chainId: string) => Promise<KeplrKeyAccount>
 }
 
 /**

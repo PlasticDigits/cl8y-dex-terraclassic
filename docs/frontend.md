@@ -474,7 +474,7 @@ Wallet **`broadcastTx`** and LCD **`pollTx`** must not hang indefinitely when th
 
 Implementation: [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`withPromiseTimeout.ts`](../frontend-dapp/src/utils/withPromiseTimeout.ts), [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts) (canonical sign/broadcast/poll + post-sign recovery + #499 sequence retry), [`terraWalletSignTxRaw.ts`](../frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts), [`terraAccountSequence.ts`](../frontend-dapp/src/utils/terraAccountSequence.ts), [`terraTxRecoveryPoll.ts`](../frontend-dapp/src/services/terraclassic/terraTxRecoveryPoll.ts), [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) (gas + `Fee` build), [`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts) (public `executeTerraContract*` wrappers).
 
-Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases), [`terraBroadcastRecovery.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/terraBroadcastRecovery.test.ts) ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359), [#499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)), [`terraAccountSequence.test.ts`](../frontend-dapp/src/utils/__tests__/terraAccountSequence.test.ts).
+Regression: [`withPromiseTimeout.test.ts`](../frontend-dapp/src/utils/__tests__/withPromiseTimeout.test.ts), [`transactions.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/transactions.test.ts) (broadcast / poll timeout cases), [`terraBroadcastRecovery.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/terraBroadcastRecovery.test.ts) ([#359](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/359), [#499](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/499)), [`terraAccountSequence.test.ts`](../frontend-dapp/src/utils/__tests__/terraAccountSequence.test.ts). **Keplr + Ledger sign wait is a separate, longer bound** — see [§ Keplr + Ledger signing](#keplr-ledger-signing) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); do not apply **`TERRA_TX_BROADCAST_TIMEOUT_MS`** to `signTerraTxRaw`.
 
 ### Broadcast phase UI (signing → confirming) {#broadcast-phase-ui}
 
@@ -490,6 +490,25 @@ Retail submit buttons distinguish wallet signing from on-chain confirmation ([Gi
 **Invariants:** `broadcastTerraExecuteContracts` accepts optional `onPhaseChange`; failed **pre-sign** broadcast never enters `confirming`; post-sign hung RPC enters **`recovering`** before retry is offered. Failed poll does not re-fire `signing`. React mutations use [`useTerraBroadcastMutation`](../frontend-dapp/src/hooks/useTerraBroadcastMutation.ts) + [`terraBroadcastScope`](../frontend-dapp/src/services/terraclassic/terraBroadcastScope.ts) so service layers stay unchanged. **`isPending`** remains the disable guard.
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md`](../skills/AGENTS_FRONTEND_TX_BROADCAST_TIMEOUT.md).
+
+### Keplr + Ledger signing {#keplr-ledger-signing}
+
+Keplr connected to a **Ledger Nano** can stall on the Keplr–Ledger UI until the user opens the **Terra Classic (LUNA)** app (not Cosmos) and refreshes Terra Classic in Keplr ([GitLab **#567**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)). This is **wallet transport**, not a pair/token bug. The same stack signs Swap, Trade market, limits, pool, wrap, and `/ust1`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **K567-1** Software Keplr | Split path uses **`signDirect`** unless `useAmino` / `isNanoLedger`. Pre-sign `experimentalSuggestChain` is best-effort (warn, don’t fail). No new wallet brand / Leap. |
+| **K567-2** Ledger amino | `getKey().isNanoLedger` or Keplr `useAmino` → **`signAmino`** + `preferNoSetFee`. **Never** `signDirect` for Ledger. |
+| **K567-3** Pre-sign suggest | [`prepareKeplrExtensionForTerraClassicSign`](../frontend-dapp/src/services/terraclassic/keplrExtensionConfig.ts) before Keplr extension sign — only [`getTerraChainSuggestion()`](../frontend-dapp/src/services/terraclassic/terraChainSuggestion.ts) (coin type 330 in metadata, **not** in UI). |
+| **K567-4** Signing hint | Ledger: immediate LUNA-app copy during `signing`. Software Keplr: no Ledger-only text at t=0; delayed generic Keplr hint after **`TERRA_TX_SIGNING_HINT_DELAY_MS`** (~12s). No seed/PIN. Button may stay **Signing…**. |
+| **K567-5** Sign-stall timeout | **`TERRA_TX_SIGN_TIMEOUT_MS`** (default **4 min**, `VITE_TERRA_TX_SIGN_TIMEOUT_MS`) on Keplr extension sign only. **Not** the 30s **`TERRA_TX_BROADCAST_TIMEOUT_MS`**. Stall copy must not say “check your connection”. Retry allowed only when **no signed bytes** exist. |
+| **K567-6** Post-sign #359 | After a signature exists, recover — no immediate retry. Late `signAmino` after UI timeout must **not** broadcast ([`withPromiseTimeout`](../frontend-dapp/src/utils/withPromiseTimeout.ts) ignores late settle). |
+| **K567-7** Guardrails | Mainnet fee guard stays **off** ([#429](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/429)). No second `signAmino` after approval ([#208](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/208)). |
+| **K567-8** Docs + verify | This subsection, QA matrix Keplr+Ledger Nano columbus-5, FAQ recovery, [`AGENTS_FRONTEND_KEPLR_LEDGER.md`](../skills/AGENTS_FRONTEND_KEPLR_LEDGER.md). Verify: `make verify-issue-567`. |
+
+**LocalTerra / Playwright** cannot drive a physical Ledger ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)). Automated coverage is Vitest mocks + copy. Manual acceptance: **columbus-5 Keplr + Nano**.
+
+Implementation: [`keplrExtensionConfig.ts`](../frontend-dapp/src/services/terraclassic/keplrExtensionConfig.ts), [`terraWalletSignTxRaw.ts`](../frontend-dapp/src/services/terraclassic/terraWalletSignTxRaw.ts) (`walletUsesAmino`), [`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts), [`terraTxTimeout.ts`](../frontend-dapp/src/utils/terraTxTimeout.ts), [`TerraBroadcastPendingLink.tsx`](../frontend-dapp/src/components/ui/TerraBroadcastPendingLink.tsx).
 
 
 ### User-facing errors (wallet, fetch, indexer, tx) {#user-facing-errors-humanization}
