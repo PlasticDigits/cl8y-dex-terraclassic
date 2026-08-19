@@ -19,8 +19,8 @@ use super::pairs::{
 };
 use super::{build_asset_map, internal_err, text_csv, AppState};
 use crate::db::queries::{
-    limit_order_fills, limit_order_lifecycle, pairs as db_pairs, positions as db_positions,
-    swap_events, traders as db_traders,
+    assets as db_assets, limit_order_fills, limit_order_lifecycle, pairs as db_pairs,
+    positions as db_positions, swap_events, traders as db_traders,
 };
 
 pub const VALID_SORTS: &[&str] = &[
@@ -132,9 +132,12 @@ pub struct PositionResponse {
     pub asset_0_symbol: String,
     pub asset_1_symbol: String,
     /// Factory `asset_0` decimals — scale `total_cost_base` / `realized_pnl` / avg-entry (GitLab #551).
-    pub asset_0_decimals: i16,
+    /// `null` when the asset row is missing — dApp shows **—**, never assumes 6 (GitLab #560).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_0_decimals: Option<i16>,
     /// Factory `asset_1` (quote) decimals — scale `net_position_quote` (GitLab #551).
-    pub asset_1_decimals: i16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_1_decimals: Option<i16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub asset_0_denom: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -577,24 +580,164 @@ pub async fn get_trader_positions(
         .iter()
         .filter_map(|pos| {
             let pair = pair_map.get(&pos.pair_id)?;
-            let a0 = asset_map.get(&pair.asset_0_id)?;
-            let a1 = asset_map.get(&pair.asset_1_id)?;
-            Some(PositionResponse {
-                pair_address: pair.contract_address.clone(),
-                asset_0_symbol: a0.symbol.clone(),
-                asset_1_symbol: a1.symbol.clone(),
-                asset_0_decimals: a0.decimals,
-                asset_1_decimals: a1.decimals,
-                asset_0_denom: a0.denom.clone(),
-                asset_1_denom: a1.denom.clone(),
-                net_position_quote: pos.net_position_quote.to_string(),
-                avg_entry_price: pos.avg_entry_price.to_string(),
-                total_cost_base: pos.total_cost_base.to_string(),
-                realized_pnl: pos.realized_pnl.to_string(),
-                trade_count: pos.trade_count,
-            })
+            Some(map_trader_position(
+                &pair.contract_address,
+                asset_map.get(&pair.asset_0_id),
+                asset_map.get(&pair.asset_1_id),
+                pos,
+            ))
         })
         .collect();
 
     Ok(Json(result))
+}
+
+struct AssetLeg {
+    symbol: String,
+    decimals: i16,
+    denom: Option<String>,
+}
+
+impl From<&db_assets::AssetRow> for AssetLeg {
+    fn from(a: &db_assets::AssetRow) -> Self {
+        Self {
+            symbol: a.symbol.clone(),
+            decimals: a.decimals,
+            denom: a.denom.clone(),
+        }
+    }
+}
+
+fn missing_asset_symbol() -> String {
+    "—".to_string()
+}
+
+/// Keep the position row when a pair exists even if an asset row is missing (GitLab #560).
+/// UI scales with decimals or shows **—**; do not drop the trade history.
+fn map_trader_position(
+    pair_address: &str,
+    a0: Option<&db_assets::AssetRow>,
+    a1: Option<&db_assets::AssetRow>,
+    pos: &db_positions::PositionRow,
+) -> PositionResponse {
+    let a0_leg = a0.map(AssetLeg::from);
+    let a1_leg = a1.map(AssetLeg::from);
+    map_trader_position_legs(
+        pair_address,
+        a0_leg.as_ref(),
+        a1_leg.as_ref(),
+        &pos.net_position_quote.to_string(),
+        &pos.avg_entry_price.to_string(),
+        &pos.total_cost_base.to_string(),
+        &pos.realized_pnl.to_string(),
+        pos.trade_count,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn map_trader_position_legs(
+    pair_address: &str,
+    a0: Option<&AssetLeg>,
+    a1: Option<&AssetLeg>,
+    net_position_quote: &str,
+    avg_entry_price: &str,
+    total_cost_base: &str,
+    realized_pnl: &str,
+    trade_count: i32,
+) -> PositionResponse {
+    let (s0, d0, n0) = match a0 {
+        Some(a) => (
+            if a.symbol.is_empty() {
+                missing_asset_symbol()
+            } else {
+                a.symbol.clone()
+            },
+            Some(a.decimals),
+            a.denom.clone(),
+        ),
+        None => (missing_asset_symbol(), None, None),
+    };
+    let (s1, d1, n1) = match a1 {
+        Some(a) => (
+            if a.symbol.is_empty() {
+                missing_asset_symbol()
+            } else {
+                a.symbol.clone()
+            },
+            Some(a.decimals),
+            a.denom.clone(),
+        ),
+        None => (missing_asset_symbol(), None, None),
+    };
+    PositionResponse {
+        pair_address: pair_address.to_string(),
+        asset_0_symbol: s0,
+        asset_1_symbol: s1,
+        asset_0_decimals: d0,
+        asset_1_decimals: d1,
+        asset_0_denom: n0,
+        asset_1_denom: n1,
+        net_position_quote: net_position_quote.to_string(),
+        avg_entry_price: avg_entry_price.to_string(),
+        total_cost_base: total_cost_base.to_string(),
+        realized_pnl: realized_pnl.to_string(),
+        trade_count,
+    }
+}
+
+#[cfg(test)]
+mod position_map_tests {
+    use super::*;
+
+    #[test]
+    fn missing_asset_row_keeps_position_with_null_decimals() {
+        let row = map_trader_position_legs(
+            "terra1pair",
+            None,
+            Some(&AssetLeg {
+                symbol: "cUSTC".into(),
+                decimals: 6,
+                denom: None,
+            }),
+            "100",
+            "0.5",
+            "50",
+            "0",
+            1,
+        );
+        assert_eq!(row.pair_address, "terra1pair");
+        assert_eq!(row.asset_0_symbol, "—");
+        assert_eq!(row.asset_1_symbol, "cUSTC");
+        assert_eq!(row.asset_0_decimals, None);
+        assert_eq!(row.asset_1_decimals, Some(6));
+        assert_eq!(row.net_position_quote, "100");
+        let json = serde_json::to_value(&row).expect("json");
+        assert!(json.get("asset_0_decimals").is_none());
+        assert_eq!(json["asset_1_decimals"], 6);
+    }
+
+    #[test]
+    fn both_assets_present_keep_decimals() {
+        let row = map_trader_position_legs(
+            "terra1pair",
+            Some(&AssetLeg {
+                symbol: "UST1".into(),
+                decimals: 6,
+                denom: None,
+            }),
+            Some(&AssetLeg {
+                symbol: "USTR".into(),
+                decimals: 18,
+                denom: None,
+            }),
+            "1",
+            "1",
+            "1",
+            "1",
+            2,
+        );
+        assert_eq!(row.asset_0_decimals, Some(6));
+        assert_eq!(row.asset_1_decimals, Some(18));
+        assert_eq!(row.trade_count, 2);
+    }
 }
