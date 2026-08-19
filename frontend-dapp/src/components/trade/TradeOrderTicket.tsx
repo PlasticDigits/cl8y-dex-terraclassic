@@ -149,6 +149,11 @@ export type TradeOrderTicketProps = {
   limitBookDraftKey?: number
   limitBookDraft?: LimitBookTicketDraft | null
   onLimitBookDraftConsumed?: () => void
+  /**
+   * When false (desktop ticket column hidden), ignore submit / wallet-open from this tree (GitLab #561 A2).
+   * Ticket stays mounted so form state survives hide/show.
+   */
+  interactive?: boolean
 }
 
 type TradeOrderTicketContentProps = TradeOrderTicketProps & {
@@ -174,9 +179,14 @@ function TradeOrderTicketContent({
   limitBookDraftKey = 0,
   limitBookDraft,
   onLimitBookDraftConsumed,
+  interactive = true,
 }: TradeOrderTicketContentProps) {
   const address = useWalletStore((s) => s.address)
-  const openWalletModal = useWalletStore((s) => s.openWalletModal)
+  const openWalletModalStore = useWalletStore((s) => s.openWalletModal)
+  const openWalletModal = () => {
+    if (!interactive) return
+    openWalletModalStore()
+  }
   const wallet = getConnectedWallet()
   const isWalletConnected = !!address && !!wallet
   const queryClient = useQueryClient()
@@ -557,6 +567,7 @@ function TradeOrderTicketContent({
   })
 
   const submitUpdateLimitPrice = () => {
+    if (!interactive) return
     if (!isWalletConnected) {
       openWalletModal()
       return
@@ -844,6 +855,7 @@ function TradeOrderTicketContent({
                 side={factorySide}
                 isPaused={isTradeBlocked}
                 dockSubmit
+                interactive={interactive}
                 onSubmitChromeChange={setMarketSubmitChrome}
               />
             </TicketSection>
@@ -1045,6 +1057,7 @@ function TradeOrderTicketContent({
                 (isWalletConnected && cancelIdIndexedAsCancelled)
               }
               onClick={() => {
+                if (!interactive) return
                 if (!isWalletConnected) openWalletModal()
                 else submitCancelFromForm()
               }}
@@ -1087,6 +1100,7 @@ function TradeOrderTicketContent({
                     (isWalletConnected && !placeLimitCombinedOk)
               }
               onClick={() => {
+                if (!interactive) return
                 if (!isWalletConnected) openWalletModal()
                 else if (priceOnlyEdit) submitUpdateLimitPrice()
                 else placeMutation.mutate()

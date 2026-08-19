@@ -104,6 +104,7 @@ export function TradeMarketOrderPanel({
   side,
   isPaused,
   dockSubmit = false,
+  interactive = true,
   onSubmitChromeChange,
 }: {
   pairAddr: string
@@ -113,6 +114,8 @@ export function TradeMarketOrderPanel({
   isPaused: boolean
   /** When true, money CTA is published to the ticket footer instead of in-flow (GitLab #527). */
   dockSubmit?: boolean
+  /** When false, ignore submit / wallet-open (hidden desktop ticket, GitLab #561). */
+  interactive?: boolean
   onSubmitChromeChange?: (model: TradeMarketSubmitChromeModel | null) => void
 }) {
   const address = useWalletStore((s) => s.address)
@@ -536,6 +539,7 @@ export function TradeMarketOrderPanel({
       canSubmit,
       label: submitLabel,
       onClick: () => {
+        if (!interactive) return
         if (!isWalletConnected) openWalletModal()
         else swapMutate()
       },
@@ -549,6 +553,7 @@ export function TradeMarketOrderPanel({
     [
       canSubmit,
       submitLabel,
+      interactive,
       isWalletConnected,
       openWalletModal,
       swapMutate,

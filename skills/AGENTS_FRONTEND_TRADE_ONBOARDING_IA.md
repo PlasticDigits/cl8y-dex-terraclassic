@@ -11,7 +11,7 @@ Use when changing first-visit trade guidance, money-action button sizing on trad
 | [`tradeOnboarding.ts`](../frontend-dapp/src/utils/tradeOnboarding.ts) | `cl8y-dex-trade-onboarding-dismissed` |
 | [`tradeWorkspacePanels.ts`](../frontend-dapp/src/utils/tradeWorkspacePanels.ts) | Tape + wallet-history expansion keys |
 | [`tradeMoneyCta.ts`](../frontend-dapp/src/utils/tradeMoneyCta.ts) | `TRADE_MONEY_CTA_CLASS`, `TRADE_SLIPPAGE_PRESET_CLASS` |
-| [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) | Desktop collapsible tape panel + disclosures |
+| [`TradePage.tsx`](../frontend-dapp/src/pages/TradePage.tsx) | Desktop CSS-grid workspace + disclosures ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)) |
 | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Swap CTA reference (`py-3.5 text-base`) |
 
 ## Rules of thumb
@@ -19,7 +19,7 @@ Use when changing first-visit trade guidance, money-action button sizing on trad
 1. **Do not shrink primary money CTAs** below `TRADE_MONEY_CTA_CLASS` on limit place, market submit, or ladder place — secondary actions (View order, book row cancel) may stay compact.
 2. **Onboarding dismiss must not block** wallet connect, swap submit, or pause/blacklist banners.
 3. **Progressive disclosure is opt-in** — first visit collapses tape and wallet history only; chart, book, and order ticket stay visible.
-4. **Persist panel prefs** in `localStorage` via `readTradePanelExpanded` / `writeTradePanelExpanded` (button handlers on desktop tape); do not write from `Panel` `onExpand` on mount — `react-resizable-panels` can spuriously expand during layout (GitLab #417 `TradePage` rAF re-collapse).
+4. **Persist panel prefs** in `localStorage` via `readTradePanelExpanded` / `writeTradePanelExpanded` (and book/ticket visibility via `readTradePanelVisible`). Values are `'1'` / `'0'` only. Do **not** write from a resize-panel `onExpand` on mount — desktop tape is a button, not `react-resizable-panels` ([GitLab #561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) / #417).
 5. **Mobile bottom nav** (`MOBILE_BOTTOM_NAV_ITEMS` in [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)) must remain reachable — onboarding strip is in-page, not fixed over the tab bar.
 6. **Do not add Pool to this strip** for LUNC LP discovery ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)). Retail LP how-to is dismissible + `<details>` on `/pool` only — see [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md).
 

@@ -15,7 +15,7 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 
 1. **No `*-neo` classes** — renamed to `*-glass` in [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415). Grep `frontend-dapp/src` for `-neo` before merging.
 2. **Buttons:** `btn-primary` (blue CTA), `btn-muted` (secondary/toggle-off).
-3. **Panels:** `shell-panel` / `shell-panel-strong` for page sections; `card-glass` for nested blocks.
+3. **Panels:** `shell-panel` / `shell-panel-strong` for page sections; `card-glass` for nested blocks. **One chrome layer per region** — do not wrap `shell-panel*` / `card-glass` in another of the same family for the same visual region ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). Nested `card-glass` inside a page `shell-panel` is OK for distinct inner blocks.
 4. **Tabs/segments:** `tab-glass`, `tab-glass-active`, `tab-glass-inactive`.
 5. **Tokens:** Use `var(--ink)`, `var(--line)`, `var(--blue)`, `var(--gold)`. Legacy `--mint` / `--accent` **alias blue** — do **not** restore warm amber page fades or a hard-coded Tailwind `primary`/`dex` hex scale.
 6. **Gold vs blue:** CTAs/tabs/focus = blue; brand mark, network chip text, and **hairline gold borders** = gold. Do **not** paint large `--gold-surface` / brown fills on nav, warnings, or page backgrounds — active nav uses `--accent-surface` + gold bottom border ([#488] reopen).
