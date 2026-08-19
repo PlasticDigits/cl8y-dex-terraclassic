@@ -48,10 +48,11 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
 run_step "code: Charts does not formatNum raw volume or TWAP" \
   bash -c '
     set -euo pipefail
-    grep -q "formatPairStatsVolume" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "formatChartsPairTokenVolume" frontend-dapp/src/pages/ChartsPage.tsx
     grep -q "formatTwapHumanPrice" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "charts-pair-vol-base" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "charts-pair-vol-usd" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "formatPairStatsUsdOhlc" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "charts-pair-volume-base" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "charts-pair-volume-usd" frontend-dapp/src/pages/ChartsPage.tsx
     grep -q "volume_usd" frontend-dapp/src/types/index.ts
     ! grep -qE "formatNum\(stats\.volume_base" frontend-dapp/src/pages/ChartsPage.tsx
     ! grep -qE "formatNum\(stats\.volume_quote" frontend-dapp/src/pages/ChartsPage.tsx

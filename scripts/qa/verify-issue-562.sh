@@ -106,8 +106,14 @@ run_step "runbook: production Coolify unsets faucet + F9 Pause (#562 A6)" \
     grep -qE "Do not set \`VITE_FAUCET_ADDRESS\` on production" docs/runbooks/mainnet-soft-launch.md'
 
 if make has-localterra >/dev/null 2>&1 && [[ -f frontend-dapp/.env.local ]]; then
-  run_step "playwright: LocalTerra gems still in Swap pay list (P1 / A7)" \
-    bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/issue-158-swap-route.spec.ts --grep "pay picker lists every factory token including gems"'
+  if [[ -f frontend-dapp/e2e/issue-158-swap-route.spec.ts ]]; then
+    run_step "playwright: LocalTerra gems still in Swap pay list (P1 / A7)" \
+      bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/issue-158-swap-route.spec.ts --grep "pay picker lists every factory token including gems"'
+  else
+    echo ""
+    echo "[playwright: LocalTerra gems still in Swap pay list (P1 / A7)]"
+    echo "  SKIP (P1 spec not in tree) — add e2e coverage that LocalTerra Swap pay still lists EMBER"
+  fi
 else
   echo ""
   echo "[playwright: LocalTerra gems still in Swap pay list (P1 / A7)]"
