@@ -15,6 +15,19 @@
   --color-positive: #22c55e;
   --color-negative: #ef4444;
   --color-warning: #e8b84a;
+  /* Buy/Sell side controls only (#563) — chart tokens remain the hue source. */
+  --side-buy-fg: #4ade80;
+  --side-buy-border: color-mix(in srgb, var(--color-positive) 45%, transparent);
+  --side-buy-border-strong: var(--color-positive);
+  --side-buy-fill-idle: color-mix(in srgb, var(--color-positive) 10%, transparent);
+  --side-buy-fill-hover: color-mix(in srgb, var(--color-positive) 16%, transparent);
+  --side-buy-fill-selected: color-mix(in srgb, var(--color-positive) 24%, transparent);
+  --side-sell-fg: #f87171;
+  --side-sell-border: color-mix(in srgb, var(--color-negative) 45%, transparent);
+  --side-sell-border-strong: var(--color-negative);
+  --side-sell-fill-idle: color-mix(in srgb, var(--color-negative) 10%, transparent);
+  --side-sell-fill-hover: color-mix(in srgb, var(--color-negative) 16%, transparent);
+  --side-sell-fill-selected: color-mix(in srgb, var(--color-negative) 22%, transparent);
   --header-logo-bg: rgba(26, 32, 48, 0.92);
   --bg-0: #0d111c;
   --bg-1: #121722;
@@ -652,6 +665,87 @@
       inset 0 1px 0 var(--chrome-highlight),
       0 12px 26px rgba(8, 12, 24, 0.2),
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  /* Buy/Sell side controls (#563): semantic fills; not tab-glass blue; not btn-primary. */
+  .side-control {
+    @apply inline-flex items-center font-medium uppercase tracking-wide transition-colors;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .side-control-compact {
+    @apply justify-center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .side-buy-idle {
+    color: var(--side-buy-fg);
+    border-color: var(--side-buy-border);
+    background: var(--side-buy-fill-idle);
+  }
+
+  .side-buy-idle:hover {
+    background: var(--side-buy-fill-hover);
+    border-color: var(--side-buy-border-strong);
+  }
+
+  .side-buy-selected {
+    color: var(--side-buy-fg);
+    border-color: var(--side-buy-border-strong);
+    background: var(--side-buy-fill-selected);
+    font-weight: 700;
+    box-shadow:
+      inset 0 1px 0 var(--chrome-highlight),
+      0 0 0 1px color-mix(in srgb, var(--side-buy-border-strong) 40%, transparent);
+  }
+
+  .side-sell-idle {
+    color: var(--side-sell-fg);
+    border-color: var(--side-sell-border);
+    background: var(--side-sell-fill-idle);
+  }
+
+  .side-sell-idle:hover {
+    background: var(--side-sell-fill-hover);
+    border-color: var(--side-sell-border-strong);
+  }
+
+  .side-sell-selected {
+    color: var(--side-sell-fg);
+    border-color: var(--side-sell-border-strong);
+    background: var(--side-sell-fill-selected);
+    font-weight: 700;
+    box-shadow:
+      inset 0 1px 0 var(--chrome-highlight),
+      0 0 0 1px color-mix(in srgb, var(--side-sell-border-strong) 40%, transparent);
+  }
+
+  .side-control:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .side-control.side-buy-selected:focus-visible,
+  .side-control.side-sell-selected:focus-visible {
+    box-shadow:
+      inset 0 1px 0 var(--chrome-highlight),
+      0 0 0 1px color-mix(in srgb, var(--focus-ring) 20%, transparent),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .trade-ticket-heading {
+    min-width: 0;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+    text-overflow: clip;
   }
 
   .badge-glass {

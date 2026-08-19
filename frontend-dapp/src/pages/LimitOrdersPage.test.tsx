@@ -424,4 +424,18 @@ describe('LimitOrdersPage', () => {
       expect(screen.getByRole('button', { name: /Cancel limit/i })).toBeDisabled()
     })
   })
+
+  it('Buy/Sell side control uses the same semantic classes as /trade (GitLab #563 T6)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+    const bid = await screen.findByTestId('limit-orders-side-bid')
+    const ask = screen.getByTestId('limit-orders-side-ask')
+    expect(bid).toHaveClass('side-buy-selected', 'side-control-compact')
+    expect(ask).toHaveClass('side-sell-idle', 'side-control-compact')
+    expect(bid).not.toHaveClass('tab-glass-active')
+    await user.click(ask)
+    expect(ask).toHaveAttribute('aria-checked', 'true')
+    expect(ask).toHaveClass('side-sell-selected')
+  })
 })

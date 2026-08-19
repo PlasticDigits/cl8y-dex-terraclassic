@@ -706,7 +706,6 @@ function TradeOrderTicketContent({
     side === 'bid'
       ? { verb: 'Buy', receive: displayBase, pay: displayQuote, tone: 'bid' as const }
       : { verb: 'Sell', receive: displayQuote, pay: displayBase, tone: 'ask' as const }
-  const walletLabel = isWalletConnected && address ? `${address.slice(0, 8)}…${address.slice(-6)}` : 'Connect wallet'
   const formatBookHead = (raw: string | null | undefined) => {
     if (bestBookLoading) return '…'
     if (raw == null) return '—'
@@ -728,39 +727,22 @@ function TradeOrderTicketContent({
           background:
             'radial-gradient(circle at 20% 0%, rgba(251, 146, 60, 0.18), transparent 34%), rgba(255,255,255,0.025)',
         }}
+        data-testid="trade-ticket-header"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <h3
-                className="text-base font-semibold font-heading truncate"
-                style={{ color: 'var(--ink)' }}
-                data-testid="trade-ticket-heading"
-              >
-                {selectedPair ? `${sideAction.verb} ${displayBase}` : 'Select a pair'}
-              </h3>
-              {selectedPair && onToggleDisplayInvert && (
-                <PairDisplayInvertIconButton
-                  ariaLabel={invertAriaLabel ?? `Show ${displayQuote} / ${displayBase} pricing`}
-                  onToggle={handleToggleDisplayInvert}
-                />
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (!isWalletConnected) openWalletModal()
-            }}
-            className="shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wide"
-            style={{
-              color: isWalletConnected ? 'var(--color-positive)' : 'var(--ink-subtle)',
-              borderColor: isWalletConnected ? 'rgba(34,197,94,0.35)' : 'var(--line)',
-            }}
-            title={isWalletConnected ? `Connected wallet ${address}` : 'Wallet is not connected'}
+        <div className="flex items-start gap-2 min-w-0">
+          <h3
+            className="trade-ticket-heading min-w-0 flex-1 text-base font-semibold font-heading"
+            style={{ color: 'var(--ink)' }}
+            data-testid="trade-ticket-heading"
           >
-            {walletLabel}
-          </button>
+            {selectedPair ? `${sideAction.verb} ${displayBase}` : 'Select a pair'}
+          </h3>
+          {selectedPair && onToggleDisplayInvert && (
+            <PairDisplayInvertIconButton
+              ariaLabel={invertAriaLabel ?? `Show ${displayQuote} / ${displayBase} pricing`}
+              onToggle={handleToggleDisplayInvert}
+            />
+          )}
         </div>
       </div>
 
