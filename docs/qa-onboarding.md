@@ -187,6 +187,7 @@ The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bu
 | Keplr (ext)         | Chrome   | P0              |
 | Dev / simulated     | Chrome   | P0 (when enabled) |
 | Station (ext)       | —        | **N/A** — use columbus-5 for Station P0 ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
+| Keplr + Ledger Nano | —        | **N/A** — physical Ledger QA is columbus-5 P1 ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567), [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
 
 ### columbus-5 (mainnet / staging)
 
@@ -196,6 +197,7 @@ The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bu
 | Station (ext)   | Firefox     | P1       |
 | Station (mobile)| iOS/Android | P1       |
 | Keplr (ext)     | Chrome      | P1       |
+| Keplr + Ledger Nano (ext) | Chrome + Nano X / S Plus | **P1** — columbus-5 only ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); not LocalTerra ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
 
 ## CLI Workflow
 
