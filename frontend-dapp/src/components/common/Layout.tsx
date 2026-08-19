@@ -145,7 +145,7 @@ export default function Layout() {
               }}
             >
               <span className="app-brand-mark">
-                <img src="/assets/cl8y-dex-glass-logo.svg" alt="CL8Y DEX" className="app-brand-logo" />
+                <img src="/logo.png" alt="CL8Y DEX" className="app-brand-logo" />
               </span>
               <span className="app-brand-copy">
                 <strong className="app-brand-title">CL8Y DEX</strong>
