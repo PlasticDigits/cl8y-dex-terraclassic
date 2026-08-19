@@ -15,7 +15,7 @@ import {
   USTC_C_TOKEN_ADDRESS,
   VFDUSD_TOKEN_ADDRESS,
 } from '@/utils/constants'
-import { compareTokenCatalog } from '@/utils/pairCatalogRank'
+import { compareTokenCatalog, retailExposeTestTokens } from '@/utils/pairCatalogRank'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 
 export type CreatePairCw20Option = {
@@ -94,7 +94,7 @@ export function buildCreatePairCw20Options(input: CreatePairCatalogInput): Creat
   return deduped.sort((a, b) => compareTokenCatalog(a.address, b.address))
 }
 
-/** Live catalog: bundled `tokenlist.json` + Vite env overlays + LocalTerra gems. */
+/** Live catalog: bundled `tokenlist.json` + Vite env overlays + gems when `retailExposeTestTokens()`. */
 export function getCreatePairCw20Options(): CreatePairCw20Option[] {
   const published = publishedTokenlist as { tokens: readonly CreatePairTokenlistRow[] }
   return buildCreatePairCw20Options({
@@ -106,11 +106,13 @@ export function getCreatePairCw20Options(): CreatePairCw20Option[] {
       vFDUSD: VFDUSD_TOKEN_ADDRESS,
       CL8Y: CL8Y_TOKEN_ADDRESS,
     },
-    gems: SOFT_LAUNCH_MINTABLE_TOKENS.map((t) => ({
-      symbol: t.symbol,
-      address: t.address,
-      name: t.symbol,
-    })),
+    gems: retailExposeTestTokens()
+      ? SOFT_LAUNCH_MINTABLE_TOKENS.map((t) => ({
+          symbol: t.symbol,
+          address: t.address,
+          name: t.symbol,
+        }))
+      : [],
   })
 }
 

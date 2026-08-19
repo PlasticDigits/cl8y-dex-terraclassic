@@ -102,12 +102,16 @@ terrad query wasm contract-state smart "$TOKEN_EMBER_ADDRESS" '{"minter":{}}' \
 # Smoke: gas-funded wallet Drip once; immediate second Drip fails cooldown
 ```
 
-Frontend Coolify: bake `VITE_FAUCET_ADDRESS` + six `VITE_TOKEN_*_ADDRESS` from `frontend.env.example`. Open `/mint` — Mint under More; QUARTZ/PEARL absent.
+Frontend Coolify: **production `dex.cl8y.com` must leave `VITE_FAUCET_ADDRESS` unset** so Mint nav stays hidden (**F11**, [GitLab **#562**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)). Gem pickers are also hidden in that build; **do not** treat UI hide as the only faucet control — run faucet `Pause` (below) or document explicit risk acceptance if the contract is left running. Optional `RemoveMinter` per mintable. LocalTerra and a QA `VITE_SHOW_TEST_TOKENS=true` mainnet-network build may still bake faucet env.
 
-## LocalTerra
-
-`scripts/deploy-dex-local.sh` stores/instantiates the faucet when `cl8y_dex_faucet.wasm` is present, allowlists the first six local tokens (EMBER…TOPAZ), runs `AddMinter`, and writes `VITE_FAUCET_ADDRESS` / `VITE_TOKEN_*` into `frontend-dapp/.env.local`.
+Operator template in git: [`frontend-dapp/.env.example`](../../frontend-dapp/.env.example) (faucet unset). The Coolify dump `deployments/mainnet-soft-launch/frontend.env.example` is gitignored — operators must still leave `VITE_FAUCET_ADDRESS` empty on `dex.cl8y.com`.
 
 ## Residual risk (documented)
 
 Cooldown is **per address only** — sybil wallets can drip in parallel. Acceptable for noneconomic demo tokens; do not add KYC for this path.
+
+If Mint is hidden but the faucet is **unpaused**, anyone can still `Drip` via LCD (**X9** / #562 **A6**). Pause does not clear cooldowns (**F9**).
+
+## LocalTerra
+
+`scripts/deploy-dex-local.sh` stores/instantiates the faucet when `cl8y_dex_faucet.wasm` is present, allowlists the first six local tokens (EMBER…TOPAZ), runs `AddMinter`, and writes `VITE_FAUCET_ADDRESS` / `VITE_TOKEN_*` into `frontend-dapp/.env.local`.

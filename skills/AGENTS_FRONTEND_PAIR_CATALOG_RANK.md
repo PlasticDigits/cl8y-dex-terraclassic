@@ -19,7 +19,7 @@ Factory `pairs` (and indexer `sort=volume_24h` when volumes are 0 or raw 18-dec)
 - **Don’t** treat UST1 / CL8Y / wrap tokens as gems (**U6** / **P534-8**).
 - **Don’t** pass raw 18-dec volume into `formatNum` (compact `T` is not a volume formatter here).
 - **Don’t** change indexer JSON: `volume_quote_24h` stays a **raw** integer. Overlay rank in the dApp.
-- **Don’t** collapse the **Test pairs** divider (optional in the issue; we show it, not collapsed).
+- **Don’t** collapse the **Test pairs** divider on LocalTerra (optional in #534; we show it, not collapsed). Production hides gems so the divider is absent ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)).
 - **Don’t** secretly re-apply catalog overlay on `/pool` **after** the user sorts by volume/fee/created/name ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)). Default `/pool` **is** catalog-ranked.
 
 ## Canonical code
@@ -54,6 +54,7 @@ Vitest: `pairCatalogRank.test.ts`, `formatAmount.test.ts` (`formatQuoteVolume24h
 - [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` default catalog + column sorts ([GitLab **#547**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547))
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap token combobox
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — Create Pair listed CW20s (not the factory graph) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542))
+- [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production hide of gems ([GitLab **#562**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)); LocalTerra still ranks per **P534**
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — prices are human; **pair list volume is still raw**
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — **U6** do not fold UST1 into gems
 - [`AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md`](./AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md) — pair switch latency unchanged
