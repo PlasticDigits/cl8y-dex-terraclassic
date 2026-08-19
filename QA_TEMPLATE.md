@@ -40,6 +40,9 @@
 | 1.1.10 | Station withdraw liquidity signing | Withdraw LP → Sign in Station | Transaction succeeds, LP balance updates | | |
 | 1.1.11 | Station create pair signing | Create pair → Sign in Station | Pair creation tx broadcast, success feedback | | |
 | 1.1.12 | Station fee tier register signing | Register for tier → Sign in Station | Registration tx succeeds | | |
+| 1.1.13 | Station mobile Chrome WalletConnect (#566) | Android Chrome (no Station extension) → Station | Pairing sheet with **Open Station** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
+| 1.1.14 | Station in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Station browser → Connect | Extension/injected path connects (Ready), not WC | | |
+| 1.1.15 | Station desktop stays Extension (#566 WC-M2) | Desktop Chrome without Station → Station | Extension row + Install (not a desktop WC/QR row) | | |
 
 ### 1.2 Keplr Wallet (Extension)
 
@@ -60,7 +63,7 @@
 
 ### 1.3 Leap Wallet
 
-> **Removed from product (GitLab [#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)):** Leap Wallet was sunset by the vendor; the former install URL returned 404. The dApp no longer lists Leap or offers an **Install** CTA for it. **Skip** all historical Leap-only rows from older QA runs; use **Keplr** or **Cosmostation** for Keplr-compatible extension coverage instead.
+> **Removed from product (GitLab [#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)):** Leap Wallet was sunset by the vendor; the former install URL returned 404. The dApp no longer lists Leap or offers an **Install** CTA for it. **Skip** all historical Leap-only rows from older QA runs; use **Keplr** or **Cosmostation** for Keplr-compatible extension coverage instead. [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566) Station / Cosmostation WalletConnect must **not** re-add Leap.
 
 ### 1.4 Cosmostation Wallet (Extension)
 
@@ -76,6 +79,9 @@
 | 1.4.8 | Cosmostation withdraw liquidity | Withdraw → Sign | Success | | |
 | 1.4.9 | Cosmostation create pair | Create → Sign | Success | | |
 | 1.4.10 | Cosmostation fee tier register | Register → Sign | Success | | |
+| 1.4.11 | Cosmostation mobile Chrome WalletConnect (#566) | Android Chrome (no Cosmostation extension) → Cosmostation | Pairing sheet with **Open Cosmostation** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
+| 1.4.12 | Cosmostation in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Cosmostation browser → Connect | Extension/injected path connects (Ready), not WC | | |
+| 1.4.13 | Cosmostation desktop stays Extension (#566 WC-M2) | Desktop Chrome without Cosmostation → Cosmostation | Extension row + Install (not a desktop WC/QR row) | | |
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 

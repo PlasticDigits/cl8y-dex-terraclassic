@@ -126,9 +126,13 @@ export function isAndroidUserAgent(userAgent?: string): boolean {
 /**
  * Allowlisted schemes/hosts only — pairing hrefs are opened from the dApp chrome.
  * Do not pass through arbitrary URLs from the WalletConnect payload.
+ *
+ * Cosmostation mobile (cosmes `CosmostationController`): Android already ships
+ * `intent://…scheme=cosmostation` (**WC-M5** `intent:`); iOS is `cosmostation://wc`
+ * and must be listed here ([#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)).
  */
 export function isAllowedWalletConnectDeepLink(href: string): boolean {
-  return /^(wc:|luncdash:|keplrwallet:|galaxystation:|intent:|https:\/\/station\.hexxagon\.io\/|https:\/\/terrastation\.page\.link\/)/i.test(
+  return /^(wc:|luncdash:|keplrwallet:|galaxystation:|cosmostation:|intent:|https:\/\/station\.hexxagon\.io\/|https:\/\/terrastation\.page\.link\/)/i.test(
     href
   )
 }

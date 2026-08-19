@@ -10,6 +10,7 @@ import { getKeplrLikeExtension } from '@/services/terraclassic/keplrLikeExtensio
  * - **Keplr:** `window.keplr` truthy.
  * - **Cosmostation:** same object `getKeplrLikeExtension` reads (`window.cosmostation?.providers?.keplr`).
  * - **WalletConnect-only names** (e.g. LuncDash, Galaxy Station): returns `true` so the modal does not treat them as missing extensions.
+ * - **Station / Cosmostation WalletConnect** on mobile Chrome ([#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)): the Connect list uses `WalletType.WALLETCONNECT`, so this detector is not consulted for those rows.
  * - **Leap:** not offered in the UI ([GitLab #159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)); do not add an install URL or modal row while the vendor page is sunset.
  */
 export function isBrowserWalletExtensionDetected(walletName: WalletName): boolean {
