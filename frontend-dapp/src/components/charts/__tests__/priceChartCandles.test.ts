@@ -269,4 +269,54 @@ describe('indexerCandlesToVolumeHistogramPoints', () => {
     )
     expect(pts).toHaveLength(1)
   })
+
+  it('scales 18-dec quote volume to human (GitLab #564)', () => {
+    const pts = indexerCandlesToVolumeHistogramPoints(
+      [row({ volume_quote: '10000000000000000000', volume_base: '0' })],
+      '#00ff00',
+      '#ff0000',
+      { quoteDecimals: 18, baseDecimals: 6 }
+    )
+    expect(pts[0]?.value).toBe(10)
+    expect(pts[0]?.value).not.toBe(1e19)
+  })
+
+  it('falls back to base volume scaled by base decimals when quote is zero', () => {
+    const pts = indexerCandlesToVolumeHistogramPoints(
+      [row({ volume_quote: '0', volume_base: '1000000' })],
+      '#00ff00',
+      '#ff0000',
+      { quoteDecimals: 18, baseDecimals: 6 }
+    )
+    expect(pts[0]?.value).toBe(1)
+  })
+
+  it('drops bars when scale overflows to non-finite', () => {
+    const huge = `1${'0'.repeat(400)}`
+    const pts = indexerCandlesToVolumeHistogramPoints(
+      [row({ volume_quote: huge, volume_base: '0' })],
+      '#00ff00',
+      '#ff0000',
+      { quoteDecimals: 18, baseDecimals: 6 }
+    )
+    expect(pts).toHaveLength(0)
+  })
+
+  it('does not invert volume as price when scale is applied (C543-8)', () => {
+    const a = indexerCandlesToVolumeHistogramPoints(
+      [row({ volume_quote: '2000000', volume_base: '0' })],
+      '#00ff00',
+      '#ff0000',
+      { quoteDecimals: 6, baseDecimals: 6 }
+    )
+    const b = indexerCandlesToVolumeHistogramPoints(
+      [row({ volume_quote: '4000000', volume_base: '0' })],
+      '#00ff00',
+      '#ff0000',
+      { quoteDecimals: 6, baseDecimals: 6 }
+    )
+    expect(a[0]?.value).toBe(2)
+    expect(b[0]?.value).toBe(4)
+    expect((b[0]?.value ?? 0) / (a[0]?.value ?? 1)).toBe(2)
+  })
 })

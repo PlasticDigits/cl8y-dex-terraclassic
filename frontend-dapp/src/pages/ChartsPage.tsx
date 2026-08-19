@@ -25,13 +25,14 @@ import {
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
-import { formatNum } from '@/utils/formatAmount'
+import { formatPairStatsVolume } from '@/utils/formatAmount'
 import {
   formatChartsOverviewCount,
   formatChartsOverviewUstcUsd,
   formatChartsOverviewVolumeUsd,
   formatIndexedVolumeUsd,
 } from '@/utils/chartsOverviewStats'
+import { formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
@@ -459,6 +460,8 @@ export default function ChartsPage() {
             pairPillLabel={pairOrientation.pillLabel}
             invertAriaLabel={pairOrientation.invertAriaLabel}
             displayBaseSymbol={pairOrientation.displayBase}
+            volumeBaseDecimals={activePair?.asset_0.decimals}
+            volumeQuoteDecimals={activePair?.asset_1.decimals}
           />
         </div>
       )}
@@ -473,8 +476,24 @@ export default function ChartsPage() {
             24h Stats — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatBox label={`Vol (${activePair.asset_0.symbol})`} value={formatNum(stats.volume_base)} />
-            <StatBox label={`Vol (${activePair.asset_1.symbol})`} value={formatNum(stats.volume_quote)} />
+            <StatBox
+              label={`Vol (${activePair.asset_0.symbol})`}
+              title="24h indexed volume in human tokens for this pair."
+              value={formatPairStatsVolume(stats.volume_base, activePair.asset_0.decimals)}
+              data-testid="charts-pair-vol-base"
+            />
+            <StatBox
+              label={`Vol (${activePair.asset_1.symbol})`}
+              title="24h indexed volume in human tokens for this pair."
+              value={formatPairStatsVolume(stats.volume_quote, activePair.asset_1.decimals)}
+              data-testid="charts-pair-vol-quote"
+            />
+            <StatBox
+              label="Vol (USD)"
+              title="24h indexed USD volume for this pair, not a quote."
+              value={formatIndexedVolumeUsd(stats.volume_usd, stats.trade_count)}
+              data-testid="charts-pair-vol-usd"
+            />
             <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox
               label="Price Change"
@@ -491,10 +510,30 @@ export default function ChartsPage() {
                   : undefined
               }
             />
-            <StatBox label="High (USD)" value={highUsd ? formatNum(highUsd, 6) : '—'} />
-            <StatBox label="Low (USD)" value={lowUsd ? formatNum(lowUsd, 6) : '—'} />
-            <StatBox label="Open (USD)" value={openUsd ? formatNum(openUsd, 6) : '—'} />
-            <StatBox label="Close (USD)" value={closeUsd ? formatNum(closeUsd, 6) : '—'} />
+            <StatBox
+              label="High (USD)"
+              title="Highest factory USD of 1 human base in the last 24h."
+              value={formatPairStatsUsdOhlc(highUsd)}
+              data-testid="charts-pair-high-usd"
+            />
+            <StatBox
+              label="Low (USD)"
+              title="Lowest factory USD of 1 human base in the last 24h."
+              value={formatPairStatsUsdOhlc(lowUsd)}
+              data-testid="charts-pair-low-usd"
+            />
+            <StatBox
+              label="Open (USD)"
+              title="24h open factory USD of 1 human base."
+              value={formatPairStatsUsdOhlc(openUsd)}
+              data-testid="charts-pair-open-usd"
+            />
+            <StatBox
+              label="Close (USD)"
+              title="24h close factory USD of 1 human base."
+              value={formatPairStatsUsdOhlc(closeUsd)}
+              data-testid="charts-pair-close-usd"
+            />
           </div>
         </div>
       )}
@@ -521,8 +560,10 @@ export default function ChartsPage() {
                 <StatBox
                   key={w.label}
                   label={`TWAP ${w.label}`}
-                  value={entry?.price != null ? formatNum(entry.price, 6) : '—'}
+                  title="Pair TWAP in quote per base, not USD."
+                  value={formatTwapHumanPrice(entry?.price, activePair.asset_0.decimals, activePair.asset_1.decimals)}
                   loading={twapQuery.isLoading}
+                  data-testid={`charts-twap-${w.label}`}
                 />
               )
             })}

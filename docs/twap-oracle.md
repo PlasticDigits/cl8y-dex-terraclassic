@@ -1,6 +1,8 @@
 # TWAP Oracle
 
-Geometric-mean Time-Weighted Average Price oracle built into every CL8Y DEX pair contract.
+Arithmetic-mean Time-Weighted Average Price oracle built into every CL8Y DEX pair contract.
+
+The live pair stores **cumulative Decimal** of `reserve_b / reserve_a` (token1 **base units** per token0 **base unit**), not a geometric tick accumulator. Older copies of this page that described `log₂` ticks were stale ([GitLab **#564**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)). Canonical math: [`smartcontracts/packages/dex-common/src/oracle.rs`](../smartcontracts/packages/dex-common/src/oracle.rs). Charts display: [`docs/frontend.md` § Charts pair 24h Stats](./frontend.md#charts-pair-24h-stats).
 
 ## How It Works
 
@@ -9,23 +11,28 @@ state-changing action (swap, provide liquidity, withdraw liquidity), the
 contract records a snapshot *before* mutating reserves:
 
 ```
-tick = log₂(reserve_b / reserve_a)          (Q64.64 fixed-point)
-tick_cumulative += tick × (block_time − last_observation_time)
+price          = reserve_b / reserve_a          (CosmWasm Decimal, 18 digits)
+price_a_cum   += price × dt                     (∫ token1_base / token0_base dt)
+price_b_cum   += (reserve_a / reserve_b) × dt
 ```
 
-The cumulative tick is the discrete integral of log₂(price) over time.
-Consumers query two cumulative tick values separated by a time window and
-derive the geometric-mean TWAP:
+Consumers query two cumulative values separated by a time window and
+derive the **arithmetic-mean** TWAP:
 
 ```
-avg_tick = (tick_cumulative_end − tick_cumulative_start) / time_elapsed
-price    = 2^(avg_tick / 2^64)
+twap_raw = (cum_end − cum_start) / time_elapsed
 ```
 
-The geometric mean is used instead of the arithmetic mean because it is
-**strictly harder to manipulate** — an attacker cannot spike the price in a
-single block and disproportionately skew the average the way they can with
-an arithmetic mean.
+`twap_raw` is still **raw** token1 base units per token0 base unit — the same
+units as on-chain limit `price` ([#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529) **L529-1**). Human quote-per-base is:
+
+```
+twap_human = twap_raw × 10^(decimals0 − decimals1)
+```
+
+The dApp uses [`rawLimitPriceToHuman`](../frontend-dapp/src/utils/limitOrderPriceScale.ts) then `formatPairPrice`. Do **not** compact-format the raw Decimal as `T` ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)). TWAP is **not** USD; Charts **Price (USD)** stays factory `price_usd` / `invertUsd` ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)).
+
+On-chain accumulation stays raw. Do not change CosmWasm units to “fix” the Charts display.
 
 ## Contract Interface
 
@@ -49,7 +56,7 @@ blocks). The maximum is **65 535** (~109 hours).
 
 #### `Observe`
 
-Returns cumulative tick values at the requested `seconds_ago` offsets
+Returns cumulative **price** values at the requested `seconds_ago` offsets
 (relative to the current block time). Pass at least two points to compute
 a TWAP.
 
@@ -65,17 +72,20 @@ Response:
 
 ```json
 {
-  "tick_cumulatives": [<i128>, <i128>]
+  "price_a_cumulatives": ["<uint128>", "<uint128>"],
+  "price_b_cumulatives": ["<uint128>", "<uint128>"]
 }
 ```
 
 To compute the TWAP price from the response, use the
-`dex_common::oracle::compute_twap_price` helper (Rust) or perform the
-calculation off-chain:
+`dex_common::oracle::compute_twap_price` helper (Rust) or
+[`computeTwapPriceDecimalString`](../frontend-dapp/src/services/terraclassic/oracle.ts)
+off-chain:
 
 ```python
-avg_tick = (tick_cumulatives[0] - tick_cumulatives[1]) / (1800 - 0)
-price = 2 ** (avg_tick / 2**64)
+# price_a_cumulatives[0] is "now"; [1] is seconds_ago[1]
+twap_raw = (price_a_cumulatives[0] - price_a_cumulatives[1]) / 1800 / 1e18
+twap_human = twap_raw * 10 ** (decimals0 - decimals1)
 ```
 
 #### `OracleInfo`
@@ -133,9 +143,11 @@ pool's liquidity depth.
    block using the current reserves, but the accuracy degrades. High-value
    consumers should run a **keeper** that pokes the pair periodically.
 
-4. **Geometric-mean bias.** The geometric mean is always ≤ the arithmetic
-   mean. For volatile pairs this underestimate can be material. This is a
-   feature for manipulation resistance but consumers should be aware of it.
+4. **Arithmetic-mean sensitivity.** This oracle is an **arithmetic** mean of
+   raw `reserve_b / reserve_a`. A short spike still weights by time, but it
+   is **not** the geometric-mean (Uniswap v3-style tick) construction. Short
+   windows remain easier to skew than a geometric TWAP would be. Charts must
+   not present the raw Decimal as a compact `T` figure ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)).
 
 5. **Single-source dependency.** This oracle derives from the pair's own
    reserves. If the pair is itself subject to an exploit (e.g. a bug in
@@ -231,7 +243,9 @@ fn get_safe_price(pair: Addr, window: u32, band_feed: Addr) -> Result<Decimal> {
 
 | File | Purpose |
 |------|---------|
-| `packages/dex-common/src/oracle.rs` | Core math (`log2_ratio_q64`, `exp2_tick_to_decimal`, `compute_twap_price`), observation types, response types |
+| `packages/dex-common/src/oracle.rs` | Arithmetic cumulative Decimal (`price_times_dt`, `compute_twap_price`), observation types, response types |
 | `contracts/pair/src/state.rs` | `OracleState`, `OBSERVATIONS` ring buffer storage |
 | `contracts/pair/src/contract.rs` | `oracle_update` (hot path), `oracle_observe_single` (query), `IncreaseObservationCardinality` execute |
 | `packages/dex-common/src/pair.rs` | `Observe` and `OracleInfo` query message definitions |
+| `frontend-dapp/src/services/terraclassic/oracle.ts` | LCD `observe` → raw Decimal string |
+| `frontend-dapp/src/utils/chartsPairStats.ts` | Human TWAP display (`formatTwapHumanPrice`) |

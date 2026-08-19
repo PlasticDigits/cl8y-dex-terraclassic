@@ -360,6 +360,8 @@ export interface PairOrderStatusResponse {
 export interface IndexerPairStats {
   volume_base: string
   volume_quote: string
+  /** Human USD 24h volume (P522-Q). JSON `null` when trades > 0 but unpriced. */
+  volume_usd?: string | null
   trade_count: number
   high: string | null
   low: string | null
