@@ -14,6 +14,8 @@ type TradeRecentTradesSectionProps = {
   skeletonHeight: string
   /** When parent renders its own section title (desktop collapsible tape). */
   hideHeading?: boolean
+  /** #524 display invert — tape Price + buy color only. */
+  inverted?: boolean
 }
 
 export function TradeRecentTradesSection({
@@ -23,6 +25,7 @@ export function TradeRecentTradesSection({
   formatTimeFn,
   skeletonHeight,
   hideHeading = false,
+  inverted = false,
 }: TradeRecentTradesSectionProps) {
   const tapeIndexerOutage = tradesQuery.isError && isIndexerUnavailableError(tradesQuery.error)
 
@@ -45,6 +48,7 @@ export function TradeRecentTradesSection({
           trades={tradesQuery.data}
           formatTimeFn={formatTimeFn}
           activePair={activePair}
+          inverted={inverted}
           ariaLabel="Recent trades"
         />
       )}

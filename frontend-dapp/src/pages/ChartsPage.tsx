@@ -36,7 +36,7 @@ import { formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPair
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
-import { sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
+import { filterRetailDiscoveryIndexerPairs, sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
 import { chartsPairHref, getInvalidChartsPairRouteParam, isChartsPairRouteParam } from '@/utils/chartsPairRoute'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
@@ -150,7 +150,11 @@ export default function ChartsPage() {
     if (extra && !list.some((p) => p.pair_address === extra.pair_address)) {
       list.unshift(extra)
     }
-    return sortIndexerPairsByCatalog(list)
+    const filtered = sortIndexerPairsByCatalog(filterRetailDiscoveryIndexerPairs(list))
+    if (extra && !filtered.some((p) => p.pair_address === extra.pair_address)) {
+      return [extra, ...filtered]
+    }
+    return filtered
   }, [pairItems, selectedPairQuery.data])
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
@@ -626,6 +630,7 @@ export default function ChartsPage() {
             trades={tradesQuery.data}
             formatTimeFn={formatTime}
             activePair={activePair}
+            inverted={pairOrientation.inverted}
             ariaLabel="Recent trades"
           />
         )}

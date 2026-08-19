@@ -60,4 +60,25 @@ describe('TraderPositionsTable (#551)', () => {
     expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/80(\.00)? USTR/)
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/UST1/)
   })
+
+  it('keeps a row with missing decimals as em dash (GitLab #560)', () => {
+    renderTable([
+      {
+        pair_address: 'terra1orphan',
+        asset_0_symbol: '—',
+        asset_1_symbol: 'cUSTC',
+        asset_0_decimals: undefined,
+        asset_1_decimals: 6,
+        net_position_quote: '1000000',
+        avg_entry_price: '1',
+        total_cost_base: '1',
+        realized_pnl: '1',
+        trade_count: 1,
+      },
+    ])
+    expect(screen.getByRole('link', { name: /—\/cUSTC/ })).toBeInTheDocument()
+    expect(screen.getByTestId('trader-position-cost')).toHaveTextContent('—')
+    expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent('—')
+    expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/cUSTC/)
+  })
 })

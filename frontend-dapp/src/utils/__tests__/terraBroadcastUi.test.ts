@@ -25,3 +25,27 @@ describe('terraBroadcastPendingStatusMessage (GitLab #359)', () => {
     expect(terraBroadcastPendingStatusMessage(null)).toBeNull()
   })
 })
+
+describe('terraBroadcastPendingStatusMessage signing hints (GitLab #567)', () => {
+  it('shows Ledger hint immediately during signing', () => {
+    expect(terraBroadcastPendingStatusMessage('signing', { isNanoLedger: true })).toMatch(/LUNA/)
+    expect(terraBroadcastPendingStatusMessage('signing', { isNanoLedger: true })).toMatch(/not Cosmos/)
+    expect(terraBroadcastPendingStatusMessage('signing', { isNanoLedger: true })).not.toMatch(/330|118/)
+  })
+
+  it('does not show Ledger-only text for software Keplr at t=0', () => {
+    expect(terraBroadcastPendingStatusMessage('signing', { isNanoLedger: false, signingElapsedMs: 0 })).toBeNull()
+  })
+
+  it('shows delayed Keplr hint after the delay window', () => {
+    const msg = terraBroadcastPendingStatusMessage('signing', { isNanoLedger: false, signingElapsedMs: 12_000 })
+    expect(msg).toMatch(/Approve in Keplr/)
+    expect(msg).toMatch(/LUNA/)
+  })
+
+  it('keeps recovering copy unchanged', () => {
+    expect(terraBroadcastPendingStatusMessage('recovering', { isNanoLedger: true })).toContain(
+      'Broadcast status unknown'
+    )
+  })
+})

@@ -86,6 +86,8 @@ Browser wallet checks over an SSH tunnel follow the same matrix as [`docs/qa-onb
 | **LocalTerra** (tunnel to QA server) | **Keplr (extension)**, **dev/simulated wallet** | **N/A** — Station’s built-in `localterra` gas step cannot match node ante minimum; dApp overrides do not fix it |
 | **columbus-5** | **Station (extension)** | P0 for swap, limits, bids, wrap/unwrap |
 
+**Keplr + Ledger Nano** is columbus-5 **P1** (not LocalTerra): [`docs/qa-onboarding.md`](../../docs/qa-onboarding.md) § Wallet Matrix, [`skills/AGENTS_FRONTEND_KEPLR_LEDGER.md`](../../skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)).
+
 Canonical root cause: [`docs/frontend.md` § Station extension signing](../../docs/frontend.md#station-extension-signing). Agent playbooks: [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../skills/AGENTS_FRONTEND_STATION_SIGNING.md), [`skills/AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md).
 
 ### Pair search — token name relevance (LocalTerra)

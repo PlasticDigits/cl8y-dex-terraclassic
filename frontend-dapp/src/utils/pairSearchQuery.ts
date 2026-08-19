@@ -2,7 +2,7 @@ import type { PairInfo } from '@/types'
 import { assetInfoLabel } from '@/types'
 import { getCachedTokenEntry, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { lookupByAssetInfo } from '@/utils/tokenRegistry'
-import { sortPairInfosByCatalog } from '@/utils/pairCatalogRank'
+import { filterRetailDiscoveryPairInfos, sortPairInfosByCatalog } from '@/utils/pairCatalogRank'
 import { pairInfoMenuLabel, type PairMenuLabelVariant } from '@/utils/pairMenuOptions'
 
 /** Minimum characters before a pair search hits the indexer (unless query looks like a Terra address). */
@@ -113,9 +113,10 @@ export function filterFactoryPairsByLocalSearch(
   limit = PAIR_SEARCH_RESULT_LIMIT,
   variant: PairMenuLabelVariant = 'full'
 ): PairInfo[] {
+  const discovered = filterRetailDiscoveryPairInfos(pairs)
   const q = query.trim()
-  if (!q) return sortPairInfosByCatalog(pairs).slice(0, limit)
-  return pairs.filter((p) => pairMatchesLocalQuery(p, q, variant)).slice(0, limit)
+  if (!q) return sortPairInfosByCatalog(discovered).slice(0, limit)
+  return discovered.filter((p) => pairMatchesLocalQuery(p, q, variant)).slice(0, limit)
 }
 
 /** Filter factory pairs by pre-built haystack map (degraded combobox path). */

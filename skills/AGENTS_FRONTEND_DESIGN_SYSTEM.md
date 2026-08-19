@@ -33,7 +33,7 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 | Card / sub-panel | `card-glass` |
 | Primary button | `btn-primary` (blue) |
 | Brand / network accent | `var(--gold)` text/border; `.badge-glass-accent` (cool fill + gold border) |
-| Header brand mark | Cool blue plate + cool shadow — **no** orange `rgba(249,115,22)` glow |
+| Header brand mark | Circular `/logo.png` medallion, no chrome plate — **no** orange `rgba(249,115,22)` glow |
 | Text field | `input-glass` + `label-glass` |
 | Segmented control | `tab-glass*` |
 | Warning surface | cool `--alert-warning-bg` + `--alert-warning-border` (not brown wash) |

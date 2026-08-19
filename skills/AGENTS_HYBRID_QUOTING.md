@@ -77,4 +77,5 @@ make verify-issue-238   # on-chain: deployed pair/router accept `trader`; sim==e
 - [`AGENTS_E2E_HYBRID_SWAP.md`](./AGENTS_E2E_HYBRID_SWAP.md) — Playwright hybrid tx path without conditional skips ([#193](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/193))
 - [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — route spread preflight uses per-hop `hybrid_simulation` only; Trade market GET default (#501)
 - [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) — GET `/route/solve` global solver contract
+- [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production rejects gem-bridge hops on economic quotes (**P562-6**, [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)); displayed hops must match execute
 - Product invariants: [`docs/limit-orders.md` § Swap page: hybrid vs pool-only](../docs/limit-orders.md#swap-ui-hybrid-vs-pool-only-estimates)

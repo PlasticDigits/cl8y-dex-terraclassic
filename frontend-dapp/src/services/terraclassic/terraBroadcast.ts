@@ -2,6 +2,11 @@ import { MsgExecuteContract, RpcClient } from '@goblinhunt/cosmes/client'
 import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
+import {
+  prepareKeplrExtensionForTerraClassicSign,
+  shouldApplyKeplrSignStallTimeout,
+  walletIsNanoLedger,
+} from '@/services/terraclassic/keplrExtensionConfig'
 import { prepareStationExtensionForTerraClassicSign } from '@/services/terraclassic/stationExtensionConfig'
 import { estimateTerraClassicFeeForEntries } from '@/services/terraclassic/terraClassicFeeEstimate'
 import { pollTxUntilRecoveryDeadline } from '@/services/terraclassic/terraTxRecoveryPoll'
@@ -21,6 +26,8 @@ import {
   TERRA_TX_BROADCAST_TIMEOUT_MS,
   TERRA_TX_POLL_TIMEOUT_MESSAGE,
   TERRA_TX_POLL_TIMEOUT_MS,
+  TERRA_TX_SIGN_TIMEOUT_MS,
+  terraTxSignStallMessage,
 } from '@/utils/terraTxTimeout'
 import { withPromiseTimeout } from '@/utils/withPromiseTimeout'
 import { buildTerraClassicFee } from './terraGas'
@@ -144,8 +151,11 @@ async function broadcastSignedSplitPathAttempt(
 ): Promise<string> {
   onPhaseChange?.('signing')
 
+  const signFn = () => signTerraTxRaw(wallet, unsignedTx, fee, signOptions)
   const { txRaw, txHash, sequence } = await withTerraWalletSignLock(() =>
-    signTerraTxRaw(wallet, unsignedTx, fee, signOptions)
+    shouldApplyKeplrSignStallTimeout(wallet)
+      ? withPromiseTimeout(signFn(), TERRA_TX_SIGN_TIMEOUT_MS, terraTxSignStallMessage(walletIsNanoLedger(wallet)))
+      : signFn()
   )
 
   onPhaseChange?.('broadcasting')
@@ -290,6 +300,9 @@ export async function broadcastTerraExecuteContracts(
 
   if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {
     await prepareStationExtensionForTerraClassicSign(wallet)
+  }
+  if (wallet.id === WalletName.KEPLR && wallet.type === WalletType.EXTENSION) {
+    await prepareKeplrExtensionForTerraClassicSign(wallet)
   }
 
   const useSplitPath = walletSupportsSplitSignBroadcast(wallet) && !isAtomicWalletConnectPost(wallet)

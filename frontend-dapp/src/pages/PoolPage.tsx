@@ -20,6 +20,7 @@ import {
   POOL_PAGE_SIZE,
   catalogRankAndPaginate,
   defaultOrderForPoolSort,
+  filterPoolIndexerPairs,
   type PoolColumnSort,
   type PoolListMode,
 } from '@/utils/poolListQuery'
@@ -79,7 +80,7 @@ export default function PoolPage() {
     staleTime: 30_000,
   })
 
-  const indexerPairs = useMemo(() => pairsQuery.data?.items ?? [], [pairsQuery.data?.items])
+  const indexerPairs = useMemo(() => filterPoolIndexerPairs(pairsQuery.data?.items ?? []), [pairsQuery.data?.items])
 
   const { visiblePairs, total } = useMemo(() => {
     if (listMode === 'catalog') {
