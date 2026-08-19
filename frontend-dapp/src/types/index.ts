@@ -213,6 +213,10 @@ export interface IndexerTrade {
   ask_asset: string
   offer_amount: string
   return_amount: string
+  /** Offer-asset decimals from indexed `assets` (GitLab #557). */
+  offer_decimals?: number | null
+  /** Ask-asset decimals from indexed `assets` (GitLab #557). */
+  ask_decimals?: number | null
   price: string
   /** USD of 1 human unit of pair base (`asset_0`). GitLab #522. */
   price_usd?: string | null
@@ -240,6 +244,10 @@ export interface IndexerLimitFill {
   price: string
   token0_amount: string
   token1_amount: string
+  /** Pair `asset_0` decimals from indexed `assets` (GitLab #557). */
+  token0_decimals?: number | null
+  /** Pair `asset_1` decimals from indexed `assets` (GitLab #557). */
+  token1_decimals?: number | null
   commission_amount: string
 }
 
