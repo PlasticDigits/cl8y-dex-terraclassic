@@ -269,9 +269,22 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 | **Pairs** | `pair_count` | Indexed factory pairs. `charts-overview-pairs`. |
 | **Tokens** | `token_count` | Unique pair-leg assets. `charts-overview-tokens`. |
 
-`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level `Vol (token)` on the same page is **out of scope** (#540 / #544).
+`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level 24h stats on the same page are [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) (below).
 
 Regression: `make verify-issue-548`.
+
+### Charts pair 24h stats {#charts-pair-stats}
+
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) pair **24h Stats** primary volume is **USD** ([GitLab **#565**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565); leftover from #540 / #544 **AC4**). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](../skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md).
+
+| Box | Source | Display |
+|-----|--------|---------|
+| **Vol (USD)** | `GET /api/v1/pairs/{addr}/stats` `volume_usd` | `$` + compact human ([`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` / invalid with trades) → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. Tooltip `24h volume in USD`. `data-testid="charts-pair-volume-usd"`. |
+| **Vol ({symbol})** (secondary) | raw `volume_base` / `volume_quote` × **that pair’s** `asset_0` / `asset_1` decimals | [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts). Missing / out-of-range decimals → `—`. Never `formatNum(raw)`. Factory order — [#524](#trade-pair-display-invert) invert does not swap legs. `charts-pair-volume-base` / `charts-pair-volume-quote`. |
+
+`volume_base` / `volume_quote` stay **raw** in integrator JSON (**P565-6**). Display `stats.volume_usd` as-is (one notional, **L10**). Do not divide human USD by 1e6. Do not match decimals by symbol.
+
+Regression: `make verify-issue-565`.
 
 ### Charts trader leaderboard {#charts-trader-leaderboard}
 

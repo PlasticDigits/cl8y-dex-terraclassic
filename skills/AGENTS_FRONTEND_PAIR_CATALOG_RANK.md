@@ -55,5 +55,6 @@ Vitest: `pairCatalogRank.test.ts`, `formatAmount.test.ts` (`formatQuoteVolume24h
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap token combobox
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — Create Pair listed CW20s (not the factory graph) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542))
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — prices are human; **pair list volume is still raw**
+- [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — Charts pair-detail 24h Vol (USD), not picker badges ([#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565))
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — **U6** do not fold UST1 into gems
 - [`AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md`](./AGENTS_FRONTEND_TRADE_PAIR_SWITCH.md) — pair switch latency unchanged

@@ -358,8 +358,12 @@ export interface PairOrderStatusResponse {
 }
 
 export interface IndexerPairStats {
+  /** Raw oriented 24h base volume (integrator JSON). Scale in the UI with asset_0.decimals. */
   volume_base: string
+  /** Raw oriented 24h quote volume (integrator JSON). Scale in the UI with asset_1.decimals. */
   volume_quote: string
+  /** Human USD 24h notional from `SUM(swap_events.volume_usd)` (P522-Q). GitLab #565. */
+  volume_usd?: string | null
   trade_count: number
   high: string | null
   low: string | null

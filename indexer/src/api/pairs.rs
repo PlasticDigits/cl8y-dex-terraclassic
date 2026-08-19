@@ -1191,8 +1191,11 @@ pub async fn get_pair_limit_book_insert_hints(
 
 #[derive(Serialize, ToSchema)]
 pub struct PairStatsResponse {
+    /// Raw oriented 24h base volume. Integrator / CG JSON — do not humanize here (GitLab #565).
     pub volume_base: String,
+    /// Raw oriented 24h quote volume. Integrator / CG JSON — do not humanize here (GitLab #565).
     pub volume_quote: String,
+    /// Human USD 24h notional (`SUM(swap_events.volume_usd)`, P522-Q). Retail Charts pair strip (#565).
     pub volume_usd: Option<String>,
     pub trade_count: i64,
     pub high: Option<String>,

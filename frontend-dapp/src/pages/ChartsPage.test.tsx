@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import ChartsPage from './ChartsPage'
 import { renderWithProviders } from '@/test-utils'
@@ -81,6 +82,7 @@ describe('ChartsPage (component)', () => {
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({
       volume_base: '1',
       volume_quote: '1',
+      volume_usd: '1',
       trade_count: 1,
       high: '1',
       low: '1',
@@ -334,6 +336,166 @@ describe('ChartsPage (component)', () => {
       const cell = await screen.findByTestId('charts-leaderboard-volume')
       expect(cell).toHaveTextContent('—')
       expect(cell.textContent).not.toMatch(/\$0/)
+    })
+  })
+
+  describe('pair 24h stats volume (GitLab #565)', () => {
+    const ust1Custc: IndexerPair = {
+      ...mockPair,
+      asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1', denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: 'terra1custc', denom: null, decimals: 6 },
+    }
+
+    async function renderPairStats(pair: IndexerPair, stats: {
+      volume_base: string
+      volume_quote: string
+      volume_usd?: string | null
+      trade_count: number
+    }) {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [pair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: stats.volume_base,
+        volume_quote: stats.volume_quote,
+        volume_usd: stats.volume_usd,
+        trade_count: stats.trade_count,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      return screen.findByTestId('charts-pair-volume-usd')
+    }
+
+    it('V1: UST1/cUSTC primary vol is USD compact, not formatNum(raw)', async () => {
+      const usd = await renderPairStats(ust1Custc, {
+        volume_base: '847004054',
+        volume_quote: '157465643310',
+        volume_usd: '763.35',
+        trade_count: 41,
+      })
+      await waitFor(() => expect(usd).toHaveTextContent(/\$/))
+      expect(usd).toHaveTextContent(/Vol \(USD\)/i)
+      expect(usd).toHaveAttribute('title', '24h volume in USD')
+      const strip = screen.getByTestId('charts-pair-24h-stats')
+      expect(strip.textContent).not.toMatch(/847\.0M|157\.5B/)
+      expect(screen.getByTestId('charts-pair-volume-base')).toHaveTextContent(/Vol \(UST1\)/)
+      expect(screen.getByTestId('charts-pair-volume-quote')).toHaveTextContent(/Vol \(cUSTC\)/)
+      expect(screen.getByTestId('charts-pair-volume-base').textContent).toMatch(/847/)
+      expect(screen.getByTestId('charts-pair-volume-quote').textContent).toMatch(/157/)
+    })
+
+    it('V2: UST1/USTR 18-dec quote never compact-formats as T', async () => {
+      const ustrPair: IndexerPair = {
+        ...mockPair,
+        asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1', denom: null, decimals: 6 },
+        asset_1: { symbol: 'USTR', contract_addr: 'terra1ustr', denom: null, decimals: 18 },
+      }
+      const usd = await renderPairStats(ustrPair, {
+        volume_base: '1000000',
+        volume_quote: '19300000000000000000',
+        volume_usd: '19.30',
+        trade_count: 2,
+      })
+      await waitFor(() => expect(usd).toHaveTextContent(/\$/))
+      const strip = screen.getByTestId('charts-pair-24h-stats')
+      expect(strip.textContent).not.toMatch(/\dT\b/)
+      expect(screen.getByTestId('charts-pair-volume-quote').textContent).not.toMatch(/T$/)
+    })
+
+    it.each([null, '0', ''] as const)(
+      'V4: unpriced USD %j with trades is em dash, not $0 and not raw fallback',
+      async (volume_usd) => {
+        const usd = await renderPairStats(ust1Custc, {
+          volume_base: '847004054',
+          volume_quote: '157465643310',
+          volume_usd,
+          trade_count: 41,
+        })
+        await waitFor(() => expect(usd).toHaveTextContent('—'))
+        expect(usd.textContent).not.toMatch(/\$0/)
+        expect(usd.textContent).not.toMatch(/847\.0M/)
+      }
+    )
+
+    it('idle pair with USD 0 is $0', async () => {
+      const usd = await renderPairStats(ust1Custc, {
+        volume_base: '0',
+        volume_quote: '0',
+        volume_usd: '0',
+        trade_count: 0,
+      })
+      await waitFor(() => expect(usd).toHaveTextContent('$0'))
+    })
+
+    it.each(['NaN', '"><script>alert(1)</script>', '1e309', `x${'9'.repeat(200)}`, '-12'] as const)(
+      'invalid USD %j is em dash without HTML inject',
+      async (volume_usd) => {
+        const usd = await renderPairStats(ust1Custc, {
+          volume_base: '1',
+          volume_quote: '1',
+          volume_usd,
+          trade_count: 3,
+        })
+        await waitFor(() => expect(usd).toHaveTextContent('—'))
+        expect(usd.querySelector('script')).toBeNull()
+      }
+    )
+
+    it('V3: missing decimals on a token vol box is em dash', async () => {
+      const noDec: IndexerPair = {
+        ...ust1Custc,
+        asset_0: { ...ust1Custc.asset_0, decimals: Number.NaN },
+        asset_1: { ...ust1Custc.asset_1, decimals: 999 },
+      }
+      await renderPairStats(noDec, {
+        volume_base: '1000000',
+        volume_quote: '1000000',
+        volume_usd: '1',
+        trade_count: 1,
+      })
+      const base = await screen.findByTestId('charts-pair-volume-base')
+      const quote = screen.getByTestId('charts-pair-volume-quote')
+      expect(base).toHaveTextContent('—')
+      expect(quote).toHaveTextContent('—')
+    })
+
+    it('V5: invert pill does not change Vol (USD) or swap base/quote decimals', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getCandles).mockResolvedValue([
+        {
+          open_time: '2024-01-01T12:00:00.000Z',
+          open: '1',
+          high: '1.1',
+          low: '0.9',
+          close: '1.05',
+          volume_base: '100',
+          volume_quote: '105',
+          trade_count: 3,
+        },
+      ])
+      const usd = await renderPairStats(ust1Custc, {
+        volume_base: '847004054',
+        volume_quote: '157465643310',
+        volume_usd: '763.35',
+        trade_count: 41,
+      })
+      await waitFor(() => expect(usd).toHaveTextContent(/\$/))
+      const beforeUsd = usd.textContent
+      const beforeBase = screen.getByTestId('charts-pair-volume-base').textContent
+      const beforeQuote = screen.getByTestId('charts-pair-volume-quote').textContent
+      await user.click(await screen.findByTestId('trade-pair-invert-pill'))
+      expect(screen.getByTestId('charts-pair-volume-usd').textContent).toBe(beforeUsd)
+      expect(screen.getByTestId('charts-pair-volume-base').textContent).toBe(beforeBase)
+      expect(screen.getByTestId('charts-pair-volume-quote').textContent).toBe(beforeQuote)
+      expect(screen.getByTestId('charts-pair-volume-base')).toHaveTextContent(/Vol \(UST1\)/)
+      expect(screen.getByTestId('charts-pair-volume-quote')).toHaveTextContent(/Vol \(cUSTC\)/)
     })
   })
 })

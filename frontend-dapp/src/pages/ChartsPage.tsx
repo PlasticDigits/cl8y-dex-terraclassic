@@ -32,6 +32,7 @@ import {
   formatChartsOverviewVolumeUsd,
   formatIndexedVolumeUsd,
 } from '@/utils/chartsOverviewStats'
+import { formatChartsPairTokenVolume } from '@/utils/chartsPairStats'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
@@ -463,9 +464,9 @@ export default function ChartsPage() {
         </div>
       )}
 
-      {/* 24h Stats */}
-      {stats && activePair && (
-        <div className="shell-panel">
+      {/* 24h Stats — USD primary; human token vols secondary (GitLab #565). */}
+      {stats && activePair && activePair.pair_address === activePairAddr && (
+        <div className="shell-panel" data-testid="charts-pair-24h-stats">
           <h3
             className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
             style={{ color: 'var(--ink)' }}
@@ -473,8 +474,12 @@ export default function ChartsPage() {
             24h Stats — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatBox label={`Vol (${activePair.asset_0.symbol})`} value={formatNum(stats.volume_base)} />
-            <StatBox label={`Vol (${activePair.asset_1.symbol})`} value={formatNum(stats.volume_quote)} />
+            <StatBox
+              label="Vol (USD)"
+              value={formatIndexedVolumeUsd(stats.volume_usd, stats.trade_count)}
+              data-testid="charts-pair-volume-usd"
+              title="24h volume in USD"
+            />
             <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox
               label="Price Change"
@@ -495,6 +500,18 @@ export default function ChartsPage() {
             <StatBox label="Low (USD)" value={lowUsd ? formatNum(lowUsd, 6) : '—'} />
             <StatBox label="Open (USD)" value={openUsd ? formatNum(openUsd, 6) : '—'} />
             <StatBox label="Close (USD)" value={closeUsd ? formatNum(closeUsd, 6) : '—'} />
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <StatBox
+              label={`Vol (${activePair.asset_0.symbol})`}
+              value={formatChartsPairTokenVolume(stats.volume_base, activePair.asset_0.decimals)}
+              data-testid="charts-pair-volume-base"
+            />
+            <StatBox
+              label={`Vol (${activePair.asset_1.symbol})`}
+              value={formatChartsPairTokenVolume(stats.volume_quote, activePair.asset_1.decimals)}
+              data-testid="charts-pair-volume-quote"
+            />
           </div>
         </div>
       )}
