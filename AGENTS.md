@@ -171,6 +171,7 @@ make verify-issue-485                    # #485 graph cache + distant TTL + prog
 make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc/vfdusd catalog + routes)
 make verify-issue-579                    # #579 CoinGecko User-Agent (403 vs 429; no live CoinGecko)
 make verify-issue-550                    # #550 /protocol global USD stats + unified oracle card
+make verify-issue-569                    # #569 /protocol total USD pair liquidity + 24h/30d % change
 make verify-issue-577                    # #577 token/trader/pair/global 24h rollup decay + stale overview
 make verify-issue-522                    # #522 pair Price (USD) human scale + oracle conversion
 make verify-issue-551                    # #551 portfolio/trader P&L human scale + USD totals
@@ -254,7 +255,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md](skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) — sim `refetchInterval` guard + receive Calculating UX for slow multihop quotes (#484); clear/load You Receive on pay amount/token change (#496)
 - [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485)
 - [skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md](skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) — ticker-scoped USTC/LUNC/vFDUSD external USD feeds (**X1–X7**, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515) / [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579) CoinGecko User-Agent); `make verify-issue-515` · `make verify-issue-579`
-- [skills/AGENTS_FRONTEND_PROTOCOL_STATS.md](skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` global USD stats + unified oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)); `make verify-issue-550`
+- [skills/AGENTS_FRONTEND_PROTOCOL_STATS.md](skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` global USD stats + unified oracle card + pool TVL (**P550-1–P550-12**, **P569-1–P569-8**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#569](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569)); `make verify-issue-550` · `make verify-issue-569`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
 - [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`

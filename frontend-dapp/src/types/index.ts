@@ -408,6 +408,16 @@ export interface IndexerOverview {
   custc_price_usd?: string | null
   ust1_price_usd?: string | null
   ustr_price_usd?: string | null
+  /** Humanized factory pool TVL in USD (GitLab #569). `"0"` when idle. Optional until indexer ships. */
+  total_liquidity_usd?: string | null
+  /** Signed percent vs ~24h snapshot. JSON `null` / missing → em-dash. */
+  liquidity_change_24h_pct?: string | number | null
+  /** Signed percent vs ~30d snapshot. JSON `null` / missing → em-dash. */
+  liquidity_change_30d_pct?: string | number | null
+  priced_pair_count?: number
+  unpriced_pair_count?: number
+  total_liquidity_usd_24h_ago?: string | null
+  total_liquidity_usd_30d_ago?: string | null
 }
 
 /** `GET /api/v1/tokens` */

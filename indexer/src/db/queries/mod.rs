@@ -5,6 +5,7 @@ pub mod hub_prices;
 pub mod limit_order_fills;
 pub mod limit_order_lifecycle;
 pub mod liquidity;
+pub mod liquidity_snapshots;
 pub mod oracle;
 pub mod pair_reserves;
 pub mod pairs;

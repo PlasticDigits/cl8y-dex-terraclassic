@@ -59,7 +59,7 @@ fn asset_ref(
     }
 }
 
-async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx::Error> {
+pub async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx::Error> {
     let rows: Vec<PairReserveJoinRow> = sqlx::query_as(
         "SELECT
             p.id AS pair_id,
@@ -259,6 +259,9 @@ pub async fn run_hub_usd_refresh_loop(
         let lunc = lunc_price.read().await.clone();
         if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await {
             tracing::warn!("Hub USD refresh failed: {}", e);
+        } else if let Err(e) = crate::indexer::protocol_tvl::refresh_protocol_liquidity(&pool).await
+        {
+            tracing::warn!("Protocol liquidity refresh after hub USD failed: {}", e);
         }
         tokio::time::sleep(interval).await;
     }
