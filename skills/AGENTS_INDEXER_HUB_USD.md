@@ -17,7 +17,7 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 | **H1** | `usd(cUSTC)` = `usd(uusd)` = #515 USTC CEX oracle. Oracle down → NULL, not `$1`. |
 | **H2** | `usd(UST1)` from the **largest USD-TVL** factory pair whose legs are hub **cUSTC + UST1** (contract/denom), via humanized **reserves** (not last print, not `$1`). |
 | **H3** | `usd(USTR)` from the **largest USD-TVL** factory pair vs already-priced cUSTC or UST1. **USTR is set by the market, not a fixed peg** — launch `2.5 ×` USTC is ops seed only. |
-| **H4** | Pair `price_usd` / candles USD use hub quote USD. UI invert (#524 / #543) stays frontend `invertUsd`. |
+| **H4** | Pair `price_usd` / candles USD use hub quote USD **as-of ingest or current-bucket marks**. Do **not** rewrite historical tape from the live snapshot ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)). UI invert (#524 / #543) stays frontend `invertUsd`. |
 | **H5** | `/protocol` shows a **DEX hub prices** card (`protocol-dex-hub-prices`) with cUSTC, UST1, USTR. CEX tabs stay `ustc` \| `lunc` \| `vfdusd`. |
 | **H6** | `GET /api/v1/oracle/price/ustr` (and `ust1`, `custc`) remain **400**. Use `GET /api/v1/hub-prices`. |
 | **H7** | `volume_usd` ingest uses hub USD for UST1/USTR quotes. Still **not** vFDUSD. |
@@ -39,6 +39,7 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 - **Don’t** add `ustr` to `OracleTicker::ALL`.
 - **Don’t** mix vFDUSD into hub USD or `volume_usd`.
 - **Don’t** scan `swap_events` on GET.
+- **Don’t** rewrite historical `swap_events.price_usd` or candle USD from the live hub snapshot ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568) **C568-1**). Idle charts use current-bucket mark bars (`trade_count = 0`).
 - **Don’t** treat hub USD as settlement, TWAP, or the `/ust1` window rate.
 - **Don’t** use hub USD for limit `validate_limit_order_price`.
 
@@ -61,3 +62,4 @@ LocalTerra: set hub addresses to the deployed CW20s in `indexer/.env`.
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — 2.5× seed is **not** a display oracle
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert still UI-only
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from hub_prices ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))
+- [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark bars ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568))

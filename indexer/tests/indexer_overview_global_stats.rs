@@ -468,3 +468,38 @@ async fn global_stats_empty_db_window_fields_are_zero() {
         bigdecimal::BigDecimal::from(0).normalized()
     );
 }
+
+/// GitLab #577 **D4**: aging previously counted 24h swaps must decrease the rollup.
+#[serial]
+#[tokio::test]
+async fn global_stats_decreases_when_seed_swaps_age_past_24h() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+
+    volume::refresh_global_stats(&pool)
+        .await
+        .expect("refresh");
+    let before = volume::get_global_stats(&pool).await.expect("before");
+    assert_eq!(before.total_trades_24h, 5);
+
+    sqlx::query("UPDATE swap_events SET block_timestamp = $1 WHERE pair_id = $2")
+        .bind(Utc::now() - Duration::hours(25))
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .expect("age previously counted swaps");
+
+    volume::refresh_global_stats(&pool)
+        .await
+        .expect("refresh after age");
+    let after = volume::get_global_stats(&pool).await.expect("after");
+    assert!(
+        after.total_trades_24h < before.total_trades_24h,
+        "D4: 24h trades must fall when counted swaps leave the window"
+    );
+    assert_eq!(after.total_trades_24h, 0);
+    assert_eq!(
+        after.total_volume_24h.normalized(),
+        bigdecimal::BigDecimal::from(0).normalized()
+    );
+}

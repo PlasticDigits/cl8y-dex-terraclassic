@@ -96,6 +96,11 @@ pub async fn setup_pool() -> PgPool {
 }
 
 /// Cross-process lock for shared `dex_indexer_test` (parallel `cargo test` / agents).
+/// Hold the returned file for the whole mutation window — `clean_db` only locks during TRUNCATE.
+pub fn lock_shared_test_db() -> std::fs::File {
+    acquire_shared_test_db_lock()
+}
+
 fn acquire_shared_test_db_lock() -> std::fs::File {
     let path = env::var("TEST_DB_LOCK_FILE")
         .unwrap_or_else(|_| "/tmp/cl8y-dex-indexer-test.seed.lock".into());
@@ -142,6 +147,11 @@ async fn clean_db_tables(pool: &PgPool) {
 
 pub async fn clean_db(pool: &PgPool) {
     let _lock = acquire_shared_test_db_lock();
+    clean_db_tables(pool).await;
+}
+
+/// Truncate while the caller already holds [`lock_shared_test_db`] (do not nest `flock`).
+pub async fn clean_db_holding(pool: &PgPool) {
     clean_db_tables(pool).await;
 }
 

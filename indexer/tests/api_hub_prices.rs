@@ -140,7 +140,7 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
     let mut cfg = common::test_config();
     cfg.book_snapshot_interval_ms = 10_000;
     let hub_cfg = HubUsdConfig::from_indexer_config(&cfg);
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")))
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
         .expect("refresh");
     cl8y_dex_indexer::db::queries::volume::refresh_global_stats(&pool)
@@ -191,7 +191,7 @@ async fn hub_refresh_oracle_down_clears_marks() {
         .await
         .unwrap();
     let hub_cfg = HubUsdConfig::from_indexer_config(&common::test_config());
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None)
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None, None)
         .await
         .expect("refresh");
     let rows = hub_prices::get_all_hub_prices(&pool).await.unwrap();

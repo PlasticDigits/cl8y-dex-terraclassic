@@ -53,6 +53,8 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 - **Don’t** clone Protocol audit rows onto Swap confirmation.
 - **Don’t** backfill 30d Δ% from zeros or `liquidity_events` after `--fresh`.
 
+Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). Do not add a lecture to the Global stats lead.
+
 ## Regression
 
 ```bash
@@ -69,3 +71,4 @@ make verify-issue-515   # catalog still catalogs; X1–X6
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for TVL legs
 - [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — different oracle
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays
+- [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576)

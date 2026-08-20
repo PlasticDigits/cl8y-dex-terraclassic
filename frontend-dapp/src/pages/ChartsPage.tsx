@@ -32,6 +32,14 @@ import {
   formatIndexedVolumeUsd,
 } from '@/utils/chartsOverviewStats'
 import { formatChartsPairTokenVolume, formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
+import {
+  CHARTS_PAIR_SORT_VOLUME_LABEL,
+  TRAILING_24H_TRADES_LABEL,
+  TRAILING_24H_TRADES_TITLE,
+  TRAILING_24H_VOLUME_LABEL,
+  TRAILING_24H_VOLUME_TITLE,
+  TRAILING_PAIR_VOL_USD_LABEL,
+} from '@/utils/trailingWindowCopy'
 import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
@@ -59,7 +67,7 @@ const LEADERBOARD_TABS = [
 ] as const
 
 const CHARTS_PAIR_SORT_OPTIONS: MenuSelectOption[] = [
-  { value: 'volume_24h', label: '24h volume' },
+  { value: 'volume_24h', label: CHARTS_PAIR_SORT_VOLUME_LABEL },
   { value: 'symbol', label: 'Name (A–Z)' },
   { value: 'fee', label: 'Fee' },
   { value: 'created', label: 'Created' },
@@ -280,8 +288,8 @@ export default function ChartsPage() {
       {(!marketDataDown || overviewQuery.isLoading || overview) && (
         <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatBox
-            label="24h Volume (USD)"
-            title="24h volume in USD"
+            label={TRAILING_24H_VOLUME_LABEL}
+            title={TRAILING_24H_VOLUME_TITLE}
             value={
               overview ? formatChartsOverviewVolumeUsd(overview.total_volume_24h_usd, overview.total_trades_24h) : '—'
             }
@@ -295,7 +303,8 @@ export default function ChartsPage() {
             data-testid="charts-overview-ustc-usd"
           />
           <StatBox
-            label="24h Trades"
+            label={TRAILING_24H_TRADES_LABEL}
+            title={TRAILING_24H_TRADES_TITLE}
             value={overview ? formatChartsOverviewCount(overview.total_trades_24h) : '—'}
             loading={overviewQuery.isLoading}
             data-testid="charts-overview-trades"
@@ -480,10 +489,10 @@ export default function ChartsPage() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox
-              label="Vol (USD)"
+              label={TRAILING_PAIR_VOL_USD_LABEL}
               value={formatIndexedVolumeUsd(stats.volume_usd, stats.trade_count)}
               data-testid="charts-pair-volume-usd"
-              title="24h volume in USD"
+              title={TRAILING_24H_VOLUME_TITLE}
             />
             <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox

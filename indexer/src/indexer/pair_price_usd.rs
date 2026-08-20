@@ -106,6 +106,45 @@ pub fn usd_of_one_human_base(
     human_quote_per_base * quote_usd
 }
 
+/// Factory USD of 1 human base for an idle mark-to-market tick (GitLab #568).
+///
+/// Skip non-positive human, non-positive quote USD, or `NUMERIC(38,18)` overflow.
+/// Does not invent `$1` / `2.5×` when quote USD is missing.
+pub fn mark_price_usd(
+    human_quote_per_base: &BigDecimal,
+    quote_usd: &BigDecimal,
+) -> Option<BigDecimal> {
+    if human_quote_per_base <= &BigDecimal::from(0) || quote_usd <= &BigDecimal::from(0) {
+        return None;
+    }
+    let usd = usd_of_one_human_base(human_quote_per_base, quote_usd);
+    if usd <= BigDecimal::from(0) || !fits_numeric_38_18(&usd) {
+        None
+    } else {
+        Some(usd)
+    }
+}
+
+/// Human quote-per-base from current CPAMM reserves (seeded idle pools, GitLab #568).
+pub fn human_quote_per_base_from_reserves(
+    reserve_0: &BigDecimal,
+    reserve_1: &BigDecimal,
+    decimals_0: i16,
+    decimals_1: i16,
+) -> Option<BigDecimal> {
+    let h0 = humanize_raw_amount(reserve_0, decimals_0)?;
+    let h1 = humanize_raw_amount(reserve_1, decimals_1)?;
+    if h0 <= BigDecimal::from(0) {
+        return None;
+    }
+    let human = h1 / h0;
+    if human <= BigDecimal::from(0) || !fits_numeric_38_18(&human) {
+        None
+    } else {
+        Some(human)
+    }
+}
+
 /// Resolve `price_usd` for an oriented (human) quote-per-base print.
 pub fn price_usd_for_human_quote_per_base(
     quote: &AssetRow,
@@ -375,6 +414,29 @@ mod tests {
         assert!(
             price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None, None).is_none()
         );
+    }
+
+    #[test]
+    fn mark_price_usd_skips_non_positive_and_overflow() {
+        let usd = mark_price_usd(&bd("200"), &bd("0.005")).unwrap();
+        let f = {
+            use bigdecimal::ToPrimitive;
+            usd.to_f64().unwrap()
+        };
+        assert!((f - 1.0).abs() < 1e-12);
+        assert!(mark_price_usd(&bd("0"), &bd("0.005")).is_none());
+        assert!(mark_price_usd(&bd("-1"), &bd("0.005")).is_none());
+        assert!(mark_price_usd(&bd("200"), &bd("0")).is_none());
+        assert!(mark_price_usd(&ten_pow_i32(20), &bd("2")).is_none());
+    }
+
+    #[test]
+    fn human_from_reserves_matches_scale() {
+        // 250 UST1 (6d) / 50_000 cUSTC (6d) → 200 cUSTC per UST1
+        let human =
+            human_quote_per_base_from_reserves(&bd("250000000"), &bd("50000000000"), 6, 6).unwrap();
+        assert_eq!(human, bd("200"));
+        assert!(human_quote_per_base_from_reserves(&bd("0"), &bd("1"), 6, 6).is_none());
     }
 
     #[test]
