@@ -727,7 +727,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | `/tiers`        | View fee discount tiers, register/deregister for a tier |
 | `/mint`         | Soft-launch faucet Mint page (shown in More nav only when `VITE_FAUCET_ADDRESS` is set — [GitLab **#473**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473); runbook [`soft-launch-faucet.md`](./runbooks/soft-launch-faucet.md)) |
 | `/ust1`         | Always-on **UST1 ↔ vFDUSD** oracle mint/redeem via ust1-window CW20 Send (More nav when window env set — [GitLab **#506**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506); **not** the faucet; runbook [`ust1-window-ui.md`](./runbooks/ust1-window-ui.md); skill [`AGENTS_UST1_WINDOW_UI.md`](../skills/AGENTS_UST1_WINDOW_UI.md)) |
-| `/protocol`     | DEX **USD** global stats + one CEX oracle card (USTC / LUNC / vFDUSD) + factory/router audit + hooks ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) |
+| `/protocol`     | DEX **USD** global stats + **DEX hub prices** (cUSTC / UST1 / USTR from `GET /api/v1/hub-prices`) + one CEX oracle card (USTC / LUNC / vFDUSD) + factory/router audit + hooks ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [**#556**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Header realized P&amp;L on `/portfolio` + `/trader` uses the same hub snapshot ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)). |
 
 ### Protocol — global USD stats + unified oracle {#protocol-page}
 
