@@ -67,6 +67,9 @@ const overviewOk = {
   active_pairs_24h: 5,
   unique_traders_24h: 9,
   ustc_price_usd: '0.005',
+  total_liquidity_usd: '8900.25',
+  liquidity_change_24h_pct: '-3.5',
+  liquidity_change_30d_pct: '12.5',
 }
 
 function mockOracle(ticker: string, price: string) {
@@ -86,7 +89,7 @@ function mockOracle(ticker: string, price: string) {
   }))
 }
 
-describe('ProtocolPage (GitLab #550 / #378)', () => {
+describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
     vi.mocked(indexerClient.getHubPrices).mockResolvedValue(hubPricesOk)
@@ -110,6 +113,10 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     const oracle = await screen.findByTestId('protocol-oracle')
     expect(stats.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(hub.compareDocumentPosition(oracle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(stats).getByTestId('protocol-stat-liquidity')).toHaveTextContent('$')
+    expect(within(stats).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('%')
+    expect(within(stats).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('-')
+    expect(within(stats).getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent('+')
     expect(within(stats).getByTestId('protocol-stat-volume-24h')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-7d')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-30d')).toBeInTheDocument()
@@ -209,6 +216,28 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     await waitFor(() => expect(vol7d).toHaveTextContent(/—/))
     expect(screen.queryByText('NaN')).not.toBeInTheDocument()
     expect(screen.queryByText('undefined')).not.toBeInTheDocument()
+    expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent(/—/)
+    expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
+    expect(screen.getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent(/—/)
+  })
+
+  it('idle TVL $0 with null Δ% is not 0% or Infinity', async () => {
+    vi.mocked(indexerClient.getOverview).mockResolvedValue({
+      total_volume_24h: '1',
+      total_trades_24h: 0,
+      pair_count: 0,
+      token_count: 0,
+      total_liquidity_usd: '0',
+      liquidity_change_24h_pct: null,
+      liquidity_change_30d_pct: null,
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const liq = await screen.findByTestId('protocol-stat-liquidity')
+    await waitFor(() => expect(liq).toHaveTextContent(/\$0/))
+    expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
+    expect(screen.getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent(/—/)
+    expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
+    expect(screen.queryByText('0%')).not.toBeInTheDocument()
   })
 
   it('renders DEX hub card for cUSTC / UST1 / USTR and never queries CEX ustr', async () => {

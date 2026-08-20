@@ -130,7 +130,24 @@ pub fn quote_usd_kind_for_asset(
     asset: &AssetRow,
     configured_ustc_denom: Option<&str>,
 ) -> Option<QuoteUsdKind> {
-    if let Some(d) = asset.denom.as_deref() {
+    quote_usd_kind_for_identity(
+        &asset.symbol,
+        asset.denom.as_deref(),
+        asset.is_cw20,
+        asset.contract_address.as_deref(),
+        configured_ustc_denom,
+    )
+}
+
+/// Same A1 / P522-Q identity rules as [`quote_usd_kind_for_asset`] without an `AssetRow`.
+pub fn quote_usd_kind_for_identity(
+    symbol: &str,
+    denom: Option<&str>,
+    is_cw20: bool,
+    contract_address: Option<&str>,
+    configured_ustc_denom: Option<&str>,
+) -> Option<QuoteUsdKind> {
+    if let Some(d) = denom {
         if d == "uusd" {
             return Some(QuoteUsdKind::Ustc);
         }
@@ -142,21 +159,21 @@ pub fn quote_usd_kind_for_asset(
                 return Some(QuoteUsdKind::Ustc);
             }
         }
-        if !asset.is_cw20 {
+        if !is_cw20 {
             return None;
         }
     }
     if let Some(cfg) = configured_ustc_denom {
-        if let Some(addr) = asset.contract_address.as_deref() {
+        if let Some(addr) = contract_address {
             if addr == cfg {
                 return Some(QuoteUsdKind::Ustc);
             }
         }
     }
-    if asset.is_cw20 && asset.contract_address.as_deref().unwrap_or("").is_empty() {
+    if is_cw20 && contract_address.unwrap_or("").is_empty() {
         return None;
     }
-    quote_usd_kind(&asset.symbol, asset.denom.as_deref())
+    quote_usd_kind(symbol, denom)
 }
 
 /// Raw integer amount → human units using the asset's decimals. `None` if non-positive.
@@ -182,7 +199,36 @@ fn catalog_usd_per_human(
     configured_ustc_denom: Option<&str>,
     hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
-    let kind = quote_usd_kind_for_asset(asset, configured_ustc_denom)?;
+    catalog_usd_per_human_identity(
+        &asset.symbol,
+        asset.denom.as_deref(),
+        asset.is_cw20,
+        asset.contract_address.as_deref(),
+        ustc_usd,
+        lunc_usd,
+        configured_ustc_denom,
+        hub,
+    )
+}
+
+/// USD per 1 human unit from the P522-Q catalog + hub marks. Missing oracle / spoof → `None`.
+pub fn catalog_usd_per_human_identity(
+    symbol: &str,
+    denom: Option<&str>,
+    is_cw20: bool,
+    contract_address: Option<&str>,
+    ustc_usd: Option<&BigDecimal>,
+    lunc_usd: Option<&BigDecimal>,
+    configured_ustc_denom: Option<&str>,
+    hub: Option<&HubQuoteUsd>,
+) -> Option<BigDecimal> {
+    let kind = quote_usd_kind_for_identity(
+        symbol,
+        denom,
+        is_cw20,
+        contract_address,
+        configured_ustc_denom,
+    )?;
     let usd = usd_per_human_quote(kind, ustc_usd, lunc_usd, hub)?;
     if usd <= BigDecimal::from(0) {
         None

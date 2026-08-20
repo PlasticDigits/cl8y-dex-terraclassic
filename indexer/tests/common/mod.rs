@@ -87,6 +87,7 @@ pub async fn setup_pool() -> PgPool {
         });
 
     sqlx::migrate!()
+        .set_ignore_missing(true) // shared dex_indexer_test may have other worktree versions
         .run(&pool)
         .await
         .expect("Failed to run migrations");
@@ -126,6 +127,7 @@ async fn clean_db_tables(pool: &PgPool) {
             global_stats_24h,
             pair_reserves,
             hub_prices,
+            global_liquidity_snapshots,
             resting_limit_orders,
             trader_positions,
             traders,

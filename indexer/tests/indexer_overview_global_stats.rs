@@ -63,9 +63,7 @@ async fn global_stats_rollup_matches_live_query() {
         .await
         .expect("refresh global stats");
 
-    let rollup = volume::get_global_stats(&pool)
-        .await
-        .expect("rollup stats");
+    let rollup = volume::get_global_stats(&pool).await.expect("rollup stats");
     let live = volume::get_global_stats_live(&pool)
         .await
         .expect("live stats");
@@ -80,7 +78,10 @@ async fn global_stats_rollup_matches_live_query() {
     );
     assert_eq!(rollup.total_trades_24h, live.total_trades_24h);
     assert_eq!(rollup.pair_count, live.pair_count);
-    assert_eq!(rollup.total_trades_24h, 5, "seed inserts 5 swaps within 24h");
+    assert_eq!(
+        rollup.total_trades_24h, 5,
+        "seed inserts 5 swaps within 24h"
+    );
     assert_eq!(rollup.pair_count, 1);
     assert!(seed.pair_id >= 1);
 }
@@ -110,9 +111,7 @@ async fn global_stats_rollup_excludes_swaps_older_than_24h() {
         .await
         .expect("refresh global stats");
 
-    let rollup = volume::get_global_stats(&pool)
-        .await
-        .expect("rollup stats");
+    let rollup = volume::get_global_stats(&pool).await.expect("rollup stats");
     let live = volume::get_global_stats_live(&pool)
         .await
         .expect("live stats");
@@ -169,13 +168,14 @@ async fn global_stats_empty_db_returns_zeros() {
         .await
         .expect("refresh global stats on empty db");
 
-    let stats = volume::get_global_stats(&pool)
-        .await
-        .expect("rollup stats");
+    let stats = volume::get_global_stats(&pool).await.expect("rollup stats");
 
     assert_eq!(stats.total_trades_24h, 0);
     assert_eq!(stats.pair_count, 0);
-    assert_eq!(stats.total_volume_24h.normalized(), bigdecimal::BigDecimal::from(0).normalized());
+    assert_eq!(
+        stats.total_volume_24h.normalized(),
+        bigdecimal::BigDecimal::from(0).normalized()
+    );
     assert_eq!(
         stats.total_volume_24h_usd.normalized(),
         bigdecimal::BigDecimal::from(0).normalized()
@@ -254,7 +254,9 @@ async fn overview_cache_miss_window_read_does_not_scan_swap_events() {
          SELECT total_volume, total_volume_usd, total_trades,
                 total_volume_7d_usd, total_volume_30d_usd,
                 total_trades_7d, total_trades_30d,
-                active_pairs_24h, unique_traders_24h
+                active_pairs_24h, unique_traders_24h,
+                total_liquidity_usd, liquidity_change_24h_pct, liquidity_change_30d_pct,
+                priced_pair_count, unpriced_pair_count
          FROM global_stats_24h WHERE id = 1",
     )
     .fetch_all(&pool)
@@ -329,9 +331,7 @@ async fn global_stats_windows_respect_cutoffs() {
     .await
     .expect("insert 25h swap");
 
-    volume::refresh_global_stats(&pool)
-        .await
-        .expect("refresh");
+    volume::refresh_global_stats(&pool).await.expect("refresh");
 
     let stats = volume::get_global_stats(&pool).await.expect("stats");
     assert_eq!(stats.total_trades_24h, 5, "25h swap excluded from 24h");
@@ -370,9 +370,7 @@ async fn global_stats_active_pairs_excludes_idle() {
     .await
     .expect("idle pair");
 
-    volume::refresh_global_stats(&pool)
-        .await
-        .expect("refresh");
+    volume::refresh_global_stats(&pool).await.expect("refresh");
 
     let stats = volume::get_global_stats(&pool).await.expect("stats");
     assert_eq!(stats.pair_count, 2);
@@ -399,9 +397,10 @@ async fn tokens_and_pairs_added_30d_use_created_at() {
         .expect("age pair");
 
     let cutoff = Utc::now() - Duration::days(30);
-    let tokens_new = cl8y_dex_indexer::db::queries::assets::count_assets_created_since(&pool, cutoff)
-        .await
-        .expect("tokens 30d");
+    let tokens_new =
+        cl8y_dex_indexer::db::queries::assets::count_assets_created_since(&pool, cutoff)
+            .await
+            .expect("tokens 30d");
     let pairs_new = cl8y_dex_indexer::db::queries::pairs::count_pairs_created_since(&pool, cutoff)
         .await
         .expect("pairs 30d");
@@ -441,6 +440,8 @@ async fn overview_api_exposes_additive_fields_and_pair_leg_tokens() {
     assert!(body["tokens_added_30d"].as_i64().unwrap() >= 2);
     assert!(body["pairs_added_30d"].as_i64().unwrap() >= 1);
     assert_eq!(body["active_pairs_24h"].as_i64().unwrap(), 1);
+    assert!(body["total_liquidity_usd"].is_string());
+    assert!(body.get("liquidity_change_24h_pct").is_some());
 }
 
 #[serial]

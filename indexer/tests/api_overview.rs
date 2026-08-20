@@ -29,4 +29,7 @@ async fn overview_returns_stats() {
     assert!(body["unique_traders_24h"].is_i64());
     assert!(body["total_trades_7d"].is_i64());
     assert!(body["total_trades_30d"].is_i64());
+    assert!(body["total_liquidity_usd"].is_string());
+    assert!(body.get("liquidity_change_24h_pct").is_some());
+    assert!(body.get("liquidity_change_30d_pct").is_some());
 }
