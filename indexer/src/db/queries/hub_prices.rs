@@ -212,65 +212,38 @@ async fn insert_mark(
     Ok(())
 }
 
-/// Advisory as-of-now rewrite of stored `price_usd` / candle USD from human × hub quote.
-async fn backfill_usd_from_hub(tx: &mut Transaction<'_, Postgres>) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        r#"
-UPDATE swap_events se
-SET price_usd = CASE
-    WHEN se.price > 0 AND hp.price_usd > 0
-         AND se.price * hp.price_usd < POWER(10::numeric, 20)
-    THEN se.price * hp.price_usd
-    ELSE se.price_usd
-END
-FROM pairs p
-JOIN hub_prices hp ON hp.asset_id = p.asset_1_id
-WHERE se.pair_id = p.id
-  AND hp.asset_id IS NOT NULL
-"#,
-    )
-    .execute(&mut **tx)
-    .await?;
-
-    sqlx::query(
-        r#"
-UPDATE candles c
-SET open = c.open_human * hp.price_usd,
-    high = c.high_human * hp.price_usd,
-    low = c.low_human * hp.price_usd,
-    close = c.close_human * hp.price_usd
-FROM pairs p
-JOIN hub_prices hp ON hp.asset_id = p.asset_1_id
-WHERE c.pair_id = p.id
-  AND hp.asset_id IS NOT NULL
-  AND hp.price_usd > 0
-  AND c.open_human IS NOT NULL
-  AND c.high_human IS NOT NULL
-  AND c.low_human IS NOT NULL
-  AND c.close_human IS NOT NULL
-  AND c.high_human * hp.price_usd < POWER(10::numeric, 20)
-  AND c.high_human * hp.price_usd > 0
-"#,
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
-}
-
 /// Recompute hub USD from indexed `pairs` + `pair_reserves` + USTC oracle (no LCD, no swap scan).
+///
+/// Does **not** rewrite historical `swap_events.price_usd` or candle USD (GitLab #568).
+/// After the snapshot commit, idle mark-to-market upserts only the **current** candle buckets.
 pub async fn refresh_hub_prices(
     pool: &PgPool,
     cfg: &HubUsdConfig,
     ustc_oracle: Option<&BigDecimal>,
+    lunc_oracle: Option<&BigDecimal>,
 ) -> Result<HubUsdSnapshot, sqlx::Error> {
     let pairs = list_reserve_pairs(pool).await?;
     let custc_id = lookup_custc_asset_id(pool, cfg).await?;
-    let snap = resolve_hub_usd(Utc::now(), cfg, ustc_oracle, &pairs, custc_id);
+    let now = Utc::now();
+    let snap = resolve_hub_usd(now, cfg, ustc_oracle, &pairs, custc_id);
 
     let mut tx = pool.begin().await?;
     replace_snapshot(&mut tx, &snap).await?;
-    backfill_usd_from_hub(&mut tx).await?;
     tx.commit().await?;
+
+    let hub = load_quote_usd(pool).await.unwrap_or_default();
+    if let Err(e) = crate::indexer::candle_mark::apply_idle_usd_marks(
+        pool,
+        cfg,
+        now,
+        ustc_oracle,
+        lunc_oracle,
+        &hub,
+    )
+    .await
+    {
+        tracing::warn!("Idle USD candle marks failed: {}", e);
+    }
     Ok(snap)
 }
 
@@ -278,11 +251,13 @@ pub async fn run_hub_usd_refresh_loop(
     pool: PgPool,
     cfg: HubUsdConfig,
     ustc_price: crate::indexer::oracle::SharedPrice,
+    lunc_price: crate::indexer::oracle::SharedPrice,
     interval: std::time::Duration,
 ) {
     loop {
         let ustc = ustc_price.read().await.clone();
-        if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref()).await {
+        let lunc = lunc_price.read().await.clone();
+        if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await {
             tracing::warn!("Hub USD refresh failed: {}", e);
         }
         tokio::time::sleep(interval).await;

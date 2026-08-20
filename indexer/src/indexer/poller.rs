@@ -109,12 +109,14 @@ pub async fn run_indexer(
     let hub_cfg = crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config);
     let hub_pool = pool.clone();
     let hub_ustc = oracle_prices.ustc.clone();
+    let hub_lunc = oracle_prices.lunc.clone();
     let hub_interval = std::time::Duration::from_millis(snapshot_interval.max(1_000));
     tokio::spawn(async move {
         crate::db::queries::hub_prices::run_hub_usd_refresh_loop(
             hub_pool,
             hub_cfg,
             hub_ustc,
+            hub_lunc,
             hub_interval,
         )
         .await;
