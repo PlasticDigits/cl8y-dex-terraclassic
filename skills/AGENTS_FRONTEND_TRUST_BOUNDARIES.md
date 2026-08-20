@@ -48,3 +48,4 @@ cd frontend-dapp && npx vite build --mode production
 - Swap route display: [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
 - Swap signing confirmation: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md) (#409 / SEC-D11)
 - Legal clickwrap CSP hosts (#517): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — add Legal API/portal to `connect-src`, never blanket `https:`
+- Open Graph origin bake (#578): [`AGENTS_FRONTEND_OPENGRAPH.md`](./AGENTS_FRONTEND_OPENGRAPH.md) — do not copy the request host header into `og:image`
