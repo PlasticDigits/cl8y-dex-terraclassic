@@ -113,6 +113,18 @@ Trading tokens (EMBER, CORAL, …) use **6** decimals. Fee-discount `min_cl8y_ba
 | `make verify-issue-475` | Retail execute-msg gas inventory / `BASE_GAS_LIMIT` guardrail; faucet `drip` (#474); optional live drip `gas_used` |
 | `/tiers` + Keplr or Simulated Wallet | Register tier 1 succeeds when wallet holds ≥ 1 TCL8Y (requires #384 gas limits) |
 
+### Post-merge stack !368–!377 (GitLab #573)
+
+After stacking logo / WC / Charts stats / hub P&amp;L / tape / gem hide / trade layout / ticket heading / Ledger copy, run the umbrella verify then Coolify+indexer together:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-573` | Child verifies **557, 560, 561, 562, 563, 564, 565, 566, 567** plus C+8 favicon and Coolify env docs (**M573-1–M573-8**) |
+| Coolify frontend rebuild | `VITE_NETWORK=mainnet`, `VITE_SHOW_TEST_TOKENS` unset, `VITE_FAUCET_ADDRESS` unset |
+| Indexer restart | Additive #557 decimals; confirm #553 / #556 migrations if not live |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_STACK.md`](../../skills/AGENTS_POST_MERGE_STACK.md). QA invariant **Q6**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-stack-573).
+
 ---
 
 ## Makefile reference

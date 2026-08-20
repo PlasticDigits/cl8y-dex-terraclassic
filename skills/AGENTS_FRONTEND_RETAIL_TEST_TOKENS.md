@@ -47,7 +47,7 @@ columbus-5 still has eight noneconomic CW20s (EMBER…PEARL) and ten gem pairs. 
 make verify-issue-562
 ```
 
-Vitest: `pairCatalogRank.issue562.test.ts`, token/pair search filters, PairSearchSelect production RTL, Create Pair catalog, `findRoute` / `quoteCw20ViaRouteSolve` gem-bridge reject, plus Swap/Pool/Trade page RTL. Local regression: `make verify-issue-534` (and #542 / #547 / #481) still use `VITE_NETWORK=local`. Playwright P1 (LocalTerra gems still in Swap) runs when `make has-localterra` and `frontend-dapp/.env.local` exist.
+Vitest: `pairCatalogRank.issue562.test.ts`, token/pair search filters, PairSearchSelect production RTL, Create Pair catalog, `findRoute` / `quoteCw20ViaRouteSolve` gem-bridge reject, plus Swap/Pool/Trade page RTL. Local regression: `make verify-issue-534` (and #542 / #547 / #481) still use `VITE_NETWORK=local`. Playwright P1 (`e2e/retail-test-tokens-562.spec.ts`, Swap pay still lists EMBER) runs when `make has-localterra` and `frontend-dapp/.env.local` exist. Stacked post-merge: `make verify-issue-573` ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573)).
 
 ## Related
 
@@ -58,3 +58,4 @@ Vitest: `pairCatalogRank.issue562.test.ts`, token/pair search filters, PairSearc
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — displayed hops = executed hops
 - [`AGENTS_SOFT_LAUNCH_FAUCET.md`](./AGENTS_SOFT_LAUNCH_FAUCET.md) — Mint nav **F11** + Pause **F9**
 - [`docs/runbooks/soft-launch-faucet.md`](../docs/runbooks/soft-launch-faucet.md) — operator Pause
+- [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) — Coolify+indexer cut with !368–!377 ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
