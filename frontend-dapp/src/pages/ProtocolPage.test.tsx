@@ -158,7 +158,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(vol24).getByText(PROTOCOL_VOLUME_24H_LABEL)).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
     expect(within(vol7d).getByText(PROTOCOL_VOLUME_7D_LABEL)).toHaveAttribute('title', TRAILING_7D_VOLUME_TITLE)
     expect(within(vol30d).getByText(PROTOCOL_VOLUME_30D_LABEL)).toHaveAttribute('title', TRAILING_30D_VOLUME_TITLE)
-    expect(stats).toHaveTextContent(/USD volume uses the USTC reference feed/i)
+    expect(stats).toHaveTextContent(/USD volume and pool TVL use the same USTC \/ LUNC \/ hub reference catalog/i)
     expect(stats.textContent).not.toMatch(/resets at 00:00|calendar-day volume|always-on/i)
     expect(stats.textContent).not.toMatch(/VITE_INDEXER_URL|https?:\/\//i)
   })

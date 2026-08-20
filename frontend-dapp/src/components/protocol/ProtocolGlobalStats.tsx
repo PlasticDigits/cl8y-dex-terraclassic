@@ -97,15 +97,13 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
       {overviewQuery.isError && (
         <RetryError message="Failed to load global stats" onRetry={() => void overviewQuery.refetch()} />
       )}
-      {!overviewQuery.isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {STATS.map((stat) => (
-            <div key={stat.testId} data-testid={stat.testId}>
-              <StatBox label={stat.label} title={stat.title} value={stat.value(overview)} loading={loading} />
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {STATS.map((stat) => (
+          <div key={stat.testId} data-testid={stat.testId}>
+            <StatBox label={stat.label} title={stat.title} value={stat.value(overview)} loading={loading} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
