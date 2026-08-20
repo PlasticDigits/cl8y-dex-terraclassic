@@ -3,7 +3,7 @@ use std::time::Duration;
 use sqlx::{Connection, PgPool};
 
 use crate::config::Config;
-use crate::db::queries::{state, volume};
+use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
 use super::{
@@ -55,13 +55,8 @@ pub async fn run_indexer(
         tracing::error!("Initial pair sync failed: {}", e);
     }
 
-    if let Err(e) = volume::refresh_pair_volumes(&pool).await {
-        tracing::warn!("Initial pair 24h volume refresh failed: {}", e);
-    }
-
-    if let Err(e) = volume::refresh_global_stats(&pool).await {
-        tracing::warn!("Initial global 24h stats refresh failed: {}", e);
-    }
+    // Token + trader windows too — do not wait for the 5 min loop (GitLab #577 **D5**).
+    volume_aggregator::refresh_all_volume_windows(&pool, true).await;
 
     let vol_pool = pool.clone();
     tokio::spawn(async move {

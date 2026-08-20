@@ -7,6 +7,7 @@ import { formatQuoteVolume24h } from '@/utils/formatAmount'
 import { chartsPairHref } from '@/utils/chartsPairRoute'
 import type { PoolColumnSort } from '@/utils/poolListQuery'
 import { getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
+import { POOL_VOL_HEADER_LABEL, POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
 import { PoolAdvancedManage } from '@/components/pool/PoolAdvancedManage'
 
 export type PoolPairsTableProps = {
@@ -33,6 +34,7 @@ function SortHeader({
   onSort,
   testId,
   align = 'left',
+  title,
 }: {
   label: string
   sortKey: PoolColumnSort
@@ -41,6 +43,7 @@ function SortHeader({
   onSort: (sort: PoolColumnSort) => void
   testId: string
   align?: 'left' | 'right'
+  title?: string
 }) {
   const active = activeSort === sortKey
   const caret = !active ? '↕' : order === 'asc' ? '↑' : '↓'
@@ -56,6 +59,7 @@ function SortHeader({
         type="button"
         className="inline-flex items-center gap-1 hover:opacity-80"
         style={{ color: 'inherit' }}
+        title={title}
         onClick={() => {
           sounds.playButtonPress()
           onSort(sortKey)
@@ -122,7 +126,8 @@ export function PoolPairsTable({
               testId="pool-sort-pair"
             />
             <SortHeader
-              label="Vol"
+              label={POOL_VOL_HEADER_LABEL}
+              title={POOL_VOL_HEADER_TITLE}
               sortKey="volume_24h"
               activeSort={activeSort}
               order={order}

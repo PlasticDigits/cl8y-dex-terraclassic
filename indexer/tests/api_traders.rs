@@ -313,3 +313,54 @@ async fn get_trader_positions_returns_rows() {
     assert_eq!(body[0]["asset_0_denom"], "uluna");
     assert!(body[0]["asset_1_denom"].is_null() || body[0].get("asset_1_denom").is_none());
 }
+
+/// GitLab #577 **D2**: trader rolling windows zero after last swap ages past 30d; lifetime intact.
+#[serial]
+#[tokio::test]
+async fn trader_profile_rolling_volume_zeros_after_31d_idle() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    let lifetime_before: String =
+        sqlx::query_scalar("SELECT total_volume::text FROM traders WHERE address = $1")
+            .bind(&seed.trader_address)
+            .fetch_one(&pool)
+            .await
+            .expect("lifetime");
+
+    sqlx::query(
+        "UPDATE swap_events SET block_timestamp = NOW() - INTERVAL '31 days' WHERE pair_id = $1",
+    )
+    .bind(seed.pair_id)
+    .execute(&pool)
+    .await
+    .expect("age swaps");
+
+    cl8y_dex_indexer::db::queries::traders::refresh_rolling_volumes(&pool)
+        .await
+        .expect("refresh rolling");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let resp = server
+        .get(&format!("/api/v1/traders/{}", seed.trader_address))
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(
+        body["volume_24h"].as_str().unwrap().parse::<f64>().unwrap(),
+        0.0
+    );
+    assert_eq!(
+        body["volume_7d"].as_str().unwrap().parse::<f64>().unwrap(),
+        0.0
+    );
+    assert_eq!(
+        body["volume_30d"].as_str().unwrap().parse::<f64>().unwrap(),
+        0.0
+    );
+    let lifetime_api: f64 = body["total_volume"].as_str().unwrap().parse().unwrap();
+    let lifetime_db: f64 = lifetime_before.parse().unwrap();
+    assert!((lifetime_api - lifetime_db).abs() < 0.001);
+    assert!(lifetime_api > 0.0);
+}
