@@ -1,8 +1,9 @@
 //! External CEX/USD reference oracle (GitLab #515 / #550).
 //!
-//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD**, **LUNC/USD**, and **vFDUSD/USD**
-//! (CEX FDUSD, labeled vFDUSD in the dApp). These feeds are advisory display/reference
-//! prices — not on-chain settlement. Volume USD conversion stays on the **USTC** handle (X4).
+//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD**, **LUNC/USD**, and CEX **FDUSD/USD**
+//! (Protocol labels the FDUSD snapshot **FDUSD reference price** on the vFDUSD tab; GitLab #571).
+//! These feeds are advisory display/reference prices — not on-chain settlement.
+//! Venus `exchangeRateStored` is a separate poller (`venus_vfdusd.rs`). Volume USD stays on the **USTC** handle (X4).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -64,11 +65,8 @@ pub enum OracleTicker {
 }
 
 impl OracleTicker {
-    pub const ALL: [OracleTicker; 3] = [
-        OracleTicker::Ustc,
-        OracleTicker::Lunc,
-        OracleTicker::Vfdusd,
-    ];
+    pub const ALL: [OracleTicker; 3] =
+        [OracleTicker::Ustc, OracleTicker::Lunc, OracleTicker::Vfdusd];
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -117,7 +115,7 @@ impl OracleTicker {
         match self {
             OracleTicker::Ustc => "USTC/USD",
             OracleTicker::Lunc => "LUNC/USD",
-            OracleTicker::Vfdusd => "vFDUSD/USD",
+            OracleTicker::Vfdusd => "FDUSD/USD (CEX reference)",
         }
     }
 }
@@ -286,10 +284,7 @@ struct KucoinData {
 
 async fn fetch_kucoin(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
     let symbol = ticker.kucoin_symbol().ok_or_else(|| {
-        OracleError::Parse(format!(
-            "KuCoin: no listed symbol for {}",
-            ticker.as_str()
-        ))
+        OracleError::Parse(format!("KuCoin: no listed symbol for {}", ticker.as_str()))
     })?;
     let url = format!(
         "https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={}",
@@ -352,9 +347,7 @@ struct CoinGeckoStatus {
 
 async fn fetch_coingecko(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
     let id = ticker.coingecko_id();
-    let url = format!(
-        "https://api.coingecko.com/api/v3/simple/price?ids={id}&vs_currencies=usd"
-    );
+    let url = format!("https://api.coingecko.com/api/v3/simple/price?ids={id}&vs_currencies=usd");
     fetch_coingecko_url(client, &url, id).await
 }
 
@@ -385,9 +378,7 @@ async fn fetch_coingecko_url(
         .get(coin_id)
         .and_then(|v| serde_json::from_value::<CoinGeckoUsd>(v.clone()).ok())
         .and_then(|t| t.usd)
-        .ok_or_else(|| {
-            OracleError::Parse(format!("CoinGecko: missing {coin_id}.usd field"))
-        })
+        .ok_or_else(|| OracleError::Parse(format!("CoinGecko: missing {coin_id}.usd field")))
 }
 
 fn coingecko_body_is_rate_limited(body: &str) -> bool {
@@ -505,9 +496,12 @@ mod tests {
 
     #[test]
     fn coingecko_rate_limit_body_detected() {
-        let body = r#"{"status":{"error_code":429,"error_message":"You've exceeded the Rate Limit."}}"#;
+        let body =
+            r#"{"status":{"error_code":429,"error_message":"You've exceeded the Rate Limit."}}"#;
         assert!(coingecko_body_is_rate_limited(body));
-        assert!(!coingecko_body_is_rate_limited(r#"{"terrausd":{"usd":0.005}}"#));
+        assert!(!coingecko_body_is_rate_limited(
+            r#"{"terrausd":{"usd":0.005}}"#
+        ));
     }
 
     #[tokio::test]
@@ -518,9 +512,11 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/api/v3/simple/price"))
-            .respond_with(ResponseTemplate::new(429).set_body_string(
-                r#"{"status":{"error_code":429,"error_message":"rate limit"}}"#,
-            ))
+            .respond_with(
+                ResponseTemplate::new(429).set_body_string(
+                    r#"{"status":{"error_code":429,"error_message":"rate limit"}}"#,
+                ),
+            )
             .mount(&server)
             .await;
 
@@ -547,9 +543,9 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/api/v3/simple/price"))
             .and(query_param("ids", "terra-luna"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                r#"{"terra-luna":{"usd":0.00005024}}"#,
-            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"terra-luna":{"usd":0.00005024}}"#),
+            )
             .mount(&server)
             .await;
 
@@ -576,9 +572,9 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/api/v3/simple/price"))
             .and(query_param("ids", "first-digital-usd"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                r#"{"first-digital-usd":{"usd":0.87}}"#,
-            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"first-digital-usd":{"usd":0.87}}"#),
+            )
             .mount(&server)
             .await;
 

@@ -29,6 +29,7 @@ async fn build_app_with_health(
         pool,
         lcd,
         oracle_prices,
+        venus_vfdusd: cl8y_dex_indexer::indexer::venus_vfdusd::new_shared_venus(),
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
@@ -88,7 +89,11 @@ async fn lcd_failure_increments_counter_without_leaking_upstream_text() {
 
     let pool = common::setup_pool().await;
     let health = FeeDiscountRegistryHealth::configured();
-    let lcd = LcdClient::new(cfg.lcd_urls.clone(), cfg.lcd_timeout_ms, cfg.lcd_cooldown_ms);
+    let lcd = LcdClient::new(
+        cfg.lcd_urls.clone(),
+        cfg.lcd_timeout_ms,
+        cfg.lcd_cooldown_ms,
+    );
 
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
@@ -142,7 +147,11 @@ async fn configured_successful_probe_reports_ok() {
 
     let pool = common::setup_pool().await;
     let health = FeeDiscountRegistryHealth::configured();
-    let lcd = LcdClient::new(cfg.lcd_urls.clone(), cfg.lcd_timeout_ms, cfg.lcd_cooldown_ms);
+    let lcd = LcdClient::new(
+        cfg.lcd_urls.clone(),
+        cfg.lcd_timeout_ms,
+        cfg.lcd_cooldown_ms,
+    );
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
 
     let app = build_app_with_health(pool, cfg, health).await;

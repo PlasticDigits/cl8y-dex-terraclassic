@@ -26,6 +26,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     ...actual,
     getOraclePrice: vi.fn(),
     getOracleHistory: vi.fn(),
+    getOracleVenusVfdusd: vi.fn(),
     getHookEvents: vi.fn(),
     getOverview: vi.fn(),
     getHubPrices: vi.fn(),
@@ -84,6 +85,12 @@ function mockOracle(ticker: string, price: string) {
           ? [{ price_usd: '0.87', fetched_at: '2026-01-01T00:00:00Z' }]
           : [{ price_usd: '0.005', fetched_at: '2026-01-01T00:00:00Z' }],
   }))
+  vi.mocked(indexerClient.getOracleVenusVfdusd).mockResolvedValue({
+    fdusd_per_vfdusd: '0.023',
+    source: 'venus_bsc',
+    fetched_at: '2026-01-01T00:00:00Z',
+    vtoken: '0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba',
+  })
 }
 
 describe('ProtocolPage (GitLab #550 / #378)', () => {
@@ -129,6 +136,9 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
     expect(indexerClient.getOracleHistory).toHaveBeenCalledWith({ ticker: 'ustc', limit: 48 })
     expect(screen.getByTestId('protocol-oracle-tab-ustc')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Reference price')).toBeInTheDocument()
+    expect(screen.queryByTestId('protocol-oracle-vfdusd-venus')).not.toBeInTheDocument()
+    expect(indexerClient.getOracleVenusVfdusd).not.toHaveBeenCalled()
   })
 
   it('clicking LUNC refetches that ticker and updates the heading', async () => {
@@ -139,16 +149,90 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     expect(await screen.findByRole('heading', { name: /LUNC \/ USD/i })).toBeInTheDocument()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('lunc')
     expect(indexerClient.getOracleHistory).toHaveBeenCalledWith({ ticker: 'lunc', limit: 48 })
+    expect(screen.getByText('Reference price')).toBeInTheDocument()
+    expect(screen.queryByTestId('protocol-oracle-vfdusd-venus')).not.toBeInTheDocument()
   })
 
-  it('clicking vFDUSD uses vfdusd queries and ~1-scale mock, not USTC', async () => {
+  it('clicking vFDUSD uses vfdusd queries and shows FDUSD reference + Venus section', async () => {
     const user = userEvent.setup()
+    vi.mocked(indexerClient.getOraclePrice).mockImplementation(async (t = 'ustc') => ({
+      ticker: t,
+      price_usd: t === 'vfdusd' ? '0.87' : '0.00512',
+      sources: [{ source: 'test', price_usd: t === 'vfdusd' ? '0.87' : '0.00512', fetched_at: '2026-01-01T00:00:00Z' }],
+    }))
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     await screen.findByRole('heading', { name: /USTC \/ USD/i })
     await user.click(screen.getByTestId('protocol-oracle-tab-vfdusd'))
-    expect(await screen.findByRole('heading', { name: /vFDUSD \/ USD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /^vFDUSD$/i })).toBeInTheDocument()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('vfdusd')
     expect(indexerClient.getOracleHistory).toHaveBeenCalledWith({ ticker: 'vfdusd', limit: 48 })
+    expect(await screen.findByText('FDUSD reference price')).toBeInTheDocument()
+    expect(screen.queryByText('Reference price')).not.toBeInTheDocument()
+    const venus = await screen.findByTestId('protocol-oracle-vfdusd-venus')
+    expect(within(venus).getByRole('heading', { name: /1 vFDUSD Price/i })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-oracle-vfdusd-venus-value')).toHaveTextContent(/0\.023/)
+    })
+    expect(screen.getByTestId('protocol-oracle-vfdusd-venus-value')).toHaveTextContent(/FDUSD/)
+    expect(indexerClient.getOracleVenusVfdusd).toHaveBeenCalled()
+  })
+
+  it('deep-links ?ticker=vfdusd without extra click', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=vfdusd' })
+    expect(await screen.findByText('FDUSD reference price')).toBeInTheDocument()
+    expect(await screen.findByTestId('protocol-oracle-vfdusd-venus')).toBeInTheDocument()
+    expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('vfdusd')
+  })
+
+  it('rejects fdusd / XSS / path tickers and does not show Venus', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=fdusd' })
+    expect(await screen.findByRole('heading', { name: /USTC \/ USD/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('protocol-oracle-vfdusd-venus')).not.toBeInTheDocument()
+
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=<img src=x onerror=alert(1)>' })
+    expect(await screen.findAllByRole('heading', { name: /USTC \/ USD/i })).toBeTruthy()
+
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=javascript:alert(1)' })
+    expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
+    expect(screen.queryByText('<img')).not.toBeInTheDocument()
+  })
+
+  it('CEX error keeps Venus row; Venus error keeps CEX row', async () => {
+    vi.mocked(indexerClient.getOraclePrice).mockRejectedValue(new Error('Indexer API error: 502'))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=vfdusd' })
+    expect(await screen.findByText(/Failed to load oracle price/i)).toBeInTheDocument()
+    expect(await screen.findByTestId('protocol-oracle-vfdusd-venus')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-oracle-vfdusd-venus-value')).toHaveTextContent(/0\.023/)
+    })
+
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'vfdusd',
+      price_usd: '0.87',
+      sources: [{ source: 'test', price_usd: '0.87', fetched_at: '2026-01-01T00:00:00Z' }],
+    })
+    vi.mocked(indexerClient.getOracleVenusVfdusd).mockRejectedValue(new Error('Indexer API error: 502'))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=vfdusd' })
+    expect(await screen.findByText('FDUSD reference price')).toBeInTheDocument()
+    expect(await screen.findByText(/Failed to load Venus rate/i)).toBeInTheDocument()
+    expect(screen.getByText('FDUSD reference price').closest('div')?.parentElement).toHaveTextContent(/0\.87|\$/)
+  })
+
+  it('Venus zero/NaN/overflow render em-dash, not Infinity or 1.0', async () => {
+    vi.mocked(indexerClient.getOracleVenusVfdusd).mockResolvedValue({
+      fdusd_per_vfdusd: 'Infinity',
+      source: '<script>alert(1)</script>',
+      fetched_at: null,
+      vtoken: '0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba',
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=vfdusd' })
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-oracle-vfdusd-venus-value')).toHaveTextContent(/—/)
+    })
+    expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
+    expect(screen.queryByText('1.0 FDUSD')).not.toBeInTheDocument()
+    expect(screen.getByText('Venus')).toBeInTheDocument()
+    expect(screen.queryByText('<script>')).not.toBeInTheDocument()
   })
 
   it('oracle tabs are keyboard accessible', async () => {
@@ -159,6 +243,9 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     ustc.focus()
     await user.keyboard('{ArrowRight}')
     expect(await screen.findByRole('heading', { name: /LUNC \/ USD/i })).toBeInTheDocument()
+    await user.keyboard('{ArrowRight}')
+    expect(await screen.findByRole('heading', { name: /^vFDUSD$/i })).toBeInTheDocument()
+    expect(await screen.findByTestId('protocol-oracle-vfdusd-venus')).toBeInTheDocument()
   })
 
   it('empty history stays inside the oracle card', async () => {

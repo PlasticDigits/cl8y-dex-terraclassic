@@ -14,4 +14,5 @@ pub mod reorg_alert;
 pub mod seed_qa;
 pub mod swap_orientation;
 pub mod trader_tracker;
+pub mod venus_vfdusd;
 pub mod volume_aggregator;

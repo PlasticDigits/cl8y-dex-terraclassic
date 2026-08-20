@@ -18,6 +18,7 @@ import type {
   IndexerOraclePriceResponse,
   IndexerOracleTickerCatalogResponse,
   IndexerOracleHistoryResponse,
+  IndexerOracleVenusVfdusd,
   IndexerHubPricesResponse,
   IndexerHubPriceEntry,
   IndexerHybridHopInput,
@@ -515,6 +516,14 @@ export async function getOraclePriceCatalog(): Promise<IndexerOracleTickerCatalo
 export async function getOraclePrice(ticker = 'ustc'): Promise<IndexerOraclePriceResponse> {
   const safe = parseProtocolOracleTicker(ticker)
   return fetchJson<IndexerOraclePriceResponse>(`/api/v1/oracle/price/${pathSegment(safe)}`)
+}
+
+/**
+ * Venus Core Pool redeem snapshot (FDUSD per 1 vFDUSD). Hardcoded `vfdusd` path —
+ * never interpolates `?ticker=` (GitLab #571). Browser must not call BSC.
+ */
+export async function getOracleVenusVfdusd(): Promise<IndexerOracleVenusVfdusd> {
+  return fetchJson<IndexerOracleVenusVfdusd>(`/api/v1/oracle/price/${pathSegment('vfdusd')}/venus`)
 }
 
 export interface GetOracleHistoryParams {

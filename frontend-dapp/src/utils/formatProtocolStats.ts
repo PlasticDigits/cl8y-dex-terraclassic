@@ -25,3 +25,11 @@ export function formatProtocolOracleUsd(raw: string | number | null | undefined,
   if (!Number.isFinite(n)) return EM_DASH
   return `$${formatNum(raw, digits)}`
 }
+
+/** Human FDUSD per 1 vFDUSD: missing / non-finite / ≤0 → em-dash (never Infinity, never a fake 1.0). */
+export function formatProtocolFdusdOut(raw: string | number | null | undefined, digits = 6): string {
+  if (raw == null || raw === '') return EM_DASH
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return EM_DASH
+  return formatNum(raw, digits)
+}

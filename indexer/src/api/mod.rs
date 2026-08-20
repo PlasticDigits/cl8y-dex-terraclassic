@@ -57,6 +57,7 @@ use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 use crate::indexer::oracle::OraclePriceHandles;
+use crate::indexer::venus_vfdusd::SharedVenusVfdusd;
 use crate::lcd::LcdClient;
 
 const TICKER_MAP_TTL: Duration = Duration::from_secs(30);
@@ -74,6 +75,8 @@ pub struct AppState {
     pub lcd: LcdClient,
     /// External CEX/USD reference prices (USTC, LUNC, vFDUSD). USTC is also used for volume USD.
     pub oracle_prices: OraclePriceHandles,
+    /// Venus Core Pool vFDUSD redeem snapshot (GitLab #571). Independent of CEX `oracle_prices`.
+    pub venus_vfdusd: SharedVenusVfdusd,
     pub ticker_map_cache: TickerMapCache,
     pub orderbook_cache: orderbook_sim::OrderbookCache,
     /// Set when `ROUTER_ADDRESS` is configured (LCD simulation in route solver).
@@ -294,6 +297,7 @@ pub async fn find_pair_by_ticker(
         hub_prices::get_hub_price,
         oracle::get_oracle_price_catalog,
         oracle::get_oracle_price,
+        oracle::get_oracle_venus_vfdusd,
         oracle::get_oracle_history_catalog,
         oracle::get_oracle_history,
         cg::cg_pairs,
@@ -365,6 +369,7 @@ pub async fn find_pair_by_ticker(
         oracle::OracleTickerCatalogResponse,
         oracle::OraclePriceResponse,
         oracle::OracleSourcePrice,
+        oracle::VenusVfdusdResponse,
         oracle::OracleHistoryEntry,
         oracle::OracleHistoryResponse,
     )),
@@ -518,6 +523,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             get(oracle::get_oracle_price_catalog),
         )
         .route(
+            "/api/v1/oracle/price/{ticker}/venus",
+            get(oracle::get_oracle_venus_vfdusd),
+        )
+        .route(
             "/api/v1/oracle/price/{ticker}",
             get(oracle::get_oracle_price),
         )
@@ -593,6 +602,7 @@ pub async fn serve(
     lcd: LcdClient,
     config: Config,
     oracle_prices: OraclePriceHandles,
+    venus_vfdusd: SharedVenusVfdusd,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let router_address = config.router_address.clone();
@@ -601,6 +611,7 @@ pub async fn serve(
         pool,
         lcd,
         oracle_prices,
+        venus_vfdusd,
         ticker_map_cache: TickerMapCache::default(),
         orderbook_cache: orderbook_sim::OrderbookCache::default(),
         router_address,

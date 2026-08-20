@@ -8,7 +8,7 @@ use crate::lcd::LcdClient;
 
 use super::{
     block_indexer, book_snapshot, fee_discount_registry_health, oracle, pair_discovery,
-    reorg_alert, trader_tracker, volume_aggregator,
+    reorg_alert, trader_tracker, venus_vfdusd, volume_aggregator,
 };
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 
@@ -20,6 +20,7 @@ pub async fn run_indexer(
     config: Config,
     cancel: tokio_util::sync::CancellationToken,
     oracle_prices: oracle::OraclePriceHandles,
+    venus_vfdusd: venus_vfdusd::SharedVenusVfdusd,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), BoxError> {
     // Dedicated session (not a pool checkout): advisory locks survive `PoolConnection` return.
@@ -101,6 +102,13 @@ pub async fn run_indexer(
     let oracle_handles = oracle_prices.clone();
     tokio::spawn(async move {
         oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_handles).await;
+    });
+
+    let venus_pool = pool.clone();
+    let venus_cfg = venus_vfdusd::VenusPollerConfig::from_indexer_config(&config);
+    let venus_handle = venus_vfdusd.clone();
+    tokio::spawn(async move {
+        venus_vfdusd::run_venus_vfdusd_loop(venus_pool, venus_cfg, venus_handle).await;
     });
     let ustc_price = oracle_prices.ustc.clone();
 

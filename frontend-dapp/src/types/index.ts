@@ -471,6 +471,16 @@ export interface IndexerOraclePriceResponse {
   ticker: string
   price_usd: string | null
   sources: IndexerOracleSourcePrice[]
+  /** Venus redeem snapshot on `vfdusd` only (GitLab #571). Null on USTC/LUNC. */
+  venus?: IndexerOracleVenusVfdusd | null
+}
+
+/** Venus Core Pool vFDUSD redeem: human FDUSD per 1 human vFDUSD (not USD). */
+export interface IndexerOracleVenusVfdusd {
+  fdusd_per_vfdusd: string | null
+  source: string
+  fetched_at: string | null
+  vtoken: string
 }
 
 /** `GET /api/v1/oracle/history/{ticker}` */

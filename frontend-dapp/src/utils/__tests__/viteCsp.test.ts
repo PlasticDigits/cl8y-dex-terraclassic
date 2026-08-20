@@ -35,6 +35,15 @@ describe('viteCsp production policy', () => {
     expect(csp).not.toMatch(/connect-src[^;]*\shttps:\s/)
   })
 
+  it('does not add BSC hosts for Venus (#571)', () => {
+    const csp = buildProductionCspMetaContent({
+      VITE_TERRA_LCD_URL: 'https://terra-classic-lcd.example.com',
+      VITE_TERRA_RPC_URL: 'https://terra-classic-rpc.example.com:443',
+      VITE_INDEXER_URL: 'https://indexer.example.com',
+    })
+    expect(csp).not.toMatch(/bscscan|bsc-dataseed|bsc\.publicnode|binance\.org/i)
+  })
+
   it('allows Legal API override hosts without widening to https: (#517)', () => {
     const csp = buildProductionCspMetaContent({
       VITE_LEGAL_API_BASE_URL: 'https://legal-api.staging.example',

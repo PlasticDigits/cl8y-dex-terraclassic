@@ -124,6 +124,7 @@ async fn run_server() -> anyhow::Result<()> {
 
     let cancel = CancellationToken::new();
     let oracle_prices = indexer::oracle::OraclePriceHandles::new();
+    let venus_vfdusd = indexer::venus_vfdusd::new_shared_venus();
     let fee_discount_registry_health =
         indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(
             config.fee_discount_address.as_deref(),
@@ -134,6 +135,7 @@ async fn run_server() -> anyhow::Result<()> {
     let indexer_config = config.clone();
     let indexer_cancel = cancel.clone();
     let indexer_oracle = oracle_prices.clone();
+    let indexer_venus = venus_vfdusd.clone();
     let indexer_fee_discount_health = fee_discount_registry_health.clone();
     let indexer_handle = tokio::spawn(async move {
         if let Err(e) = indexer::poller::run_indexer(
@@ -142,6 +144,7 @@ async fn run_server() -> anyhow::Result<()> {
             indexer_config,
             indexer_cancel,
             indexer_oracle,
+            indexer_venus,
             indexer_fee_discount_health,
         )
         .await
@@ -154,6 +157,7 @@ async fn run_server() -> anyhow::Result<()> {
     let api_lcd = lcd_client.clone();
     let api_config = config.clone();
     let api_oracle = oracle_prices.clone();
+    let api_venus = venus_vfdusd.clone();
     let api_fee_discount_health = fee_discount_registry_health.clone();
     let api_handle = tokio::spawn(async move {
         if let Err(e) = api::serve(
@@ -161,6 +165,7 @@ async fn run_server() -> anyhow::Result<()> {
             api_lcd,
             api_config,
             api_oracle,
+            api_venus,
             api_fee_discount_health,
         )
         .await

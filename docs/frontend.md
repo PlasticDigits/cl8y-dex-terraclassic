@@ -740,12 +740,13 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | **P550-2 Tickers** | Tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3 One card** | Snapshot, sources, and history share one `shell-panel`. Query keys include ticker. |
 | **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |
-| **P550-9 vFDUSD** | CEX FDUSD (`first-digital-usd` / `FDUSDUSDT`), labeled **vFDUSD / USD**. Not `$1`, not the `/ust1` window rate. |
+| **P550-9 vFDUSD** | CEX FDUSD (`first-digital-usd` / `FDUSDUSDT`), labeled **FDUSD reference price**. Not `$1`, not the `/ust1` window rate. Venus **1 vFDUSD Price** is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571). |
+| **V571-1–V571-10** | vFDUSD tab: CEX vs Venus split; indexer `eth_call` only; pin `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`. |
 | **P550-11 Reference** | Feeds are advisory. Per-pair TWAP stays on Charts. |
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).
 
-Regression: `make verify-issue-550`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md).
+Regression: `make verify-issue-550`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md). Venus redeem: [`skills/AGENTS_INDEXER_VENUS_VFDUSD.md`](../skills/AGENTS_INDEXER_VENUS_VFDUSD.md) (`make verify-issue-571`).
 
 ### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
 

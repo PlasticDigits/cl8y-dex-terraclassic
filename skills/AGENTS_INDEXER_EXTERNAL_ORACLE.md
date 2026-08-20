@@ -29,17 +29,18 @@ Do not confuse with on-chain **TWAP** ([`docs/twap-oracle.md`](../docs/twap-orac
 GET /api/v1/oracle/price              → { metadata, tickers: ["ustc","lunc","vfdusd"] }
 GET /api/v1/oracle/price/ustc         → { ticker, price_usd, sources }
 GET /api/v1/oracle/price/lunc         → { ticker, price_usd, sources }
-GET /api/v1/oracle/price/vfdusd       → { ticker, price_usd, sources }  # CEX FDUSD, labeled vFDUSD
+GET /api/v1/oracle/price/vfdusd       → { ticker, price_usd, sources, venus }  # CEX FDUSD + Venus additive
+GET /api/v1/oracle/price/vfdusd/venus → { fdusd_per_vfdusd, source, fetched_at, vtoken }
 GET /api/v1/oracle/history            → catalog (same shape)
 GET /api/v1/oracle/history/{ticker}   → { ticker, prices }
 ```
 
-Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default `ustc`), `getOracleHistory({ ticker?, ... })`.
+Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default `ustc`), `getOracleHistory({ ticker?, ... })`, `getOracleVenusVfdusd()`.
 
 ## Do / don’t
 
 - **Do** call `/price/ustc`, `/price/lunc`, or `/price/vfdusd` explicitly in new integrators.
-- **Do** keep Protocol UI labeled **USTC / USD** when using the default ticker; LUNC and vFDUSD have their own chips ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)).
+- **Do** keep Protocol UI labeled **USTC / USD** when using the default ticker; LUNC keeps `/ USD`; the vFDUSD tab uses **FDUSD reference price** + **1 vFDUSD Price** ([#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)).
 - **Don’t** restore a bare `/price` numeric response.
 - **Don’t** use vFDUSD/FDUSD feeds for `volume_usd` conversion (LUNC-quoted swaps still use the LUNC feed via P522-Q).
 - **Don’t** treat CoinGecko 429 as a hard outage (soft-fail; KuCoin/MEXC usually suffice). KuCoin is skipped for `vfdusd` (unlisted).
@@ -54,10 +55,12 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 3. Frontend mocks/types include `ticker` on price/history responses
 4. `make verify-issue-515`
 5. `make verify-issue-550` when touching Protocol UI or `vfdusd`
+6. `make verify-issue-571` when touching Venus redeem or vFDUSD tab copy
 
 ## Related
 
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` USD stats + ticker card ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550))
+- [`AGENTS_INDEXER_VENUS_VFDUSD.md`](./AGENTS_INDEXER_VENUS_VFDUSD.md) — Venus `exchangeRateStored` (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`
 - [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres for integration tests
 - [`docs/indexer-invariants.md`](../docs/indexer-invariants.md)
 - [`docs/twap-oracle.md`](../docs/twap-oracle.md) — on-chain TWAP (different subsystem)

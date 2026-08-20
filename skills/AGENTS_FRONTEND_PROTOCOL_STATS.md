@@ -23,7 +23,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P550-6** | `token_count` is unique pair-leg assets (`count_pair_leg_assets`, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**), not `get_all_assets().len()`. New-token census is `tokens_added_30d` on `assets.created_at`. |
 | **P550-7** | “New in 30d” is indexer `created_at` (first-seen). Reindex/rebuild makes everything look new — copy must not say “launched on chain”. |
 | **P550-8** | Active pairs = distinct `pair_id` with ≥1 swap in last **24h** (materialized). Dust swaps count. Not unique traders. Not TVL. |
-| **P550-9** | vFDUSD polls CEX **FDUSD** (`first-digital-usd` / `FDUSDUSDT`). Not `$1`. Not USTC/LUNC ids. No `fdusd` path alias. |
+| **P550-9** | vFDUSD **CEX** feed polls **FDUSD** (`first-digital-usd` / `FDUSDUSDT`). Protocol label is **FDUSD reference price**, not **vFDUSD / USD**. Not `$1`. Not USTC/LUNC ids. No `fdusd` path alias. Venus redeem is **#571** (`1 vFDUSD Price`). |
 | **P550-10** | **X4** is P522-Q catalog (#548 / #556): USTC/LUNC oracles plus hub USD for UST1/USTR. Do **not** convert DEX volume with vFDUSD/FDUSD. Overview `ustc_price_usd` stays the USTC ticker; hub fields are additive. |
 | **P550-11** | Feeds labeled **reference**. Not TWAP (Charts), not UST1 window (`/ust1`). |
 | **P550-12** | Factory/router `AddressRow` stay on `/protocol` only (#378). |
@@ -36,17 +36,20 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 - **Don’t** live-scan `swap_events` on `GET /overview`.
 - **Don’t** hardcode vFDUSD `$1`.
 - **Don’t** clone Protocol audit rows onto Swap confirmation.
+- **Don’t** title the CEX snapshot **vFDUSD / USD** (that is FDUSD/USD — [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)).
 
 ## Regression
 
 ```bash
 make verify-issue-550
 make verify-issue-515   # catalog still catalogs; X1–X6
+make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 ```
 
 ## Related
 
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md)
+- [`AGENTS_INDEXER_VENUS_VFDUSD.md`](./AGENTS_INDEXER_VENUS_VFDUSD.md) — Venus `exchangeRateStored` on the vFDUSD tab ([#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571))
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub card + `GET /api/v1/hub-prices` (#556)
 - [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — different oracle
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays

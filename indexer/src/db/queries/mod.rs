@@ -13,4 +13,5 @@ pub mod resting_orders;
 pub mod state;
 pub mod swap_events;
 pub mod traders;
+pub mod venus_vfdusd;
 pub mod volume;

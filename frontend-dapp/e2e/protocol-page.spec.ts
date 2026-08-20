@@ -28,7 +28,9 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
 
   test('P2 ticker chips update heading', async ({ page }) => {
     await page.goto('/protocol')
-    await expect(page.getByTestId('protocol-oracle-tab-ustc')).toBeVisible({ timeout: 15_000 })
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('protocol-oracle-tab-ustc')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle-tab-lunc')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle-tab-vfdusd')).toBeVisible()
     await page.getByTestId('protocol-oracle-tab-lunc').click()
@@ -37,7 +39,9 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
 
   test('P3 one history table — no duplicate Recent USTC heading', async ({ page }) => {
     await page.goto('/protocol')
-    await expect(page.getByTestId('protocol-oracle')).toBeVisible({ timeout: 15_000 })
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('protocol-oracle')).toBeVisible()
     await expect(page.getByRole('heading', { name: /Recent USTC\/USD history/i })).toHaveCount(0)
     await expect(page.getByTestId('protocol-oracle')).toHaveCount(1)
   })
@@ -45,16 +49,25 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
   test('P4 tablet 820×1180 cards stack; tabs usable', async ({ page }) => {
     await page.setViewportSize({ width: 820, height: 1180 })
     await page.goto('/protocol')
-    await expect(page.getByTestId('protocol-global-stats')).toBeVisible({ timeout: 15_000 })
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle-tabs')).toBeVisible()
     await page.getByTestId('protocol-oracle-tab-vfdusd').click()
-    await expect(page.getByRole('heading', { name: /vFDUSD \/ USD/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^vFDUSD$/i })).toBeVisible()
+    await expect(page.getByTestId('protocol-oracle-vfdusd-venus')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /1 vFDUSD Price/i })).toBeVisible()
+    await expect(
+      page.getByText('FDUSD reference price').or(page.getByText(/Failed to load oracle price/i))
+    ).toBeVisible()
   })
 
   test('P5 phone 390×844 Protocol nav still works', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/protocol')
-    await expect(page.getByTestId('protocol-global-stats')).toBeVisible({ timeout: 15_000 })
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle')).toBeVisible()
     await expect(page.getByTestId('protocol-contract-addresses')).toBeVisible()

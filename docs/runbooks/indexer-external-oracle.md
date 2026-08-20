@@ -13,7 +13,8 @@ v1 now uses **ticker-scoped** paths (breaking change approved while non-economic
 | Method | Path | Response |
 |--------|------|----------|
 | `GET` | `/api/v1/oracle/price` | Catalog: `{ metadata, tickers: ["ustc","lunc","vfdusd"] }` |
-| `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, price_usd, sources[] }` |
+| `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, price_usd, sources[] }` plus additive `venus` on **`vfdusd` only** ([#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)) |
+| `GET` | `/api/v1/oracle/price/{ticker}/venus` | Venus snapshot `{ fdusd_per_vfdusd, source, fetched_at, vtoken }`. Ticker must be `vfdusd` else **400**. |
 | `GET` | `/api/v1/oracle/history` | Same catalog as price |
 | `GET` | `/api/v1/oracle/history/{ticker}` | `{ ticker, prices[] }` (average samples; `limit` capped 1000) |
 | `GET` | `/api/v1/hub-prices` | DEX hub snapshot `{ metadata, tickers: ["custc","ust1","ustr"], prices[] }` ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)) |
@@ -27,7 +28,9 @@ Unknown CEX `{ticker}` (including `ustr` / `ust1` / `custc`) → **400**. DEX ma
 |--------|---------|---------------------|
 | `ustc` | TerraClassic USTC per USD | KuCoin `USTC-USDT`, MEXC `USTCUSDT`, CoinGecko `terrausd` |
 | `lunc` | TerraClassic LUNC per USD | KuCoin `LUNC-USDT`, MEXC `LUNCUSDT`, CoinGecko `terra-luna` |
-| `vfdusd` | Wrapped FDUSD CEX reference (not a $1 peg) | MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`; KuCoin **skipped** (unlisted). Path `fdusd` is **400** (no alias). |
+| `vfdusd` | Wrapped FDUSD **CEX** reference (not a $1 peg). Protocol label: **FDUSD reference price**. | MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`; KuCoin **skipped** (unlisted). Path `fdusd` is **400** (no alias). |
+
+Venus **1 vFDUSD → FDUSD** is **not** this CEX feed. Indexer poller: [`indexer/src/indexer/venus_vfdusd.rs`](../../indexer/src/indexer/venus_vfdusd.rs) (`exchangeRateStored` on Core Pool `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`). Stored in `venus_vfdusd_rates`, never mixed into `oracle_prices` USD. Skill: [`AGENTS_INDEXER_VENUS_VFDUSD.md`](../../skills/AGENTS_INDEXER_VENUS_VFDUSD.md).
 
 ### Sources
 
@@ -46,7 +49,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 | **X1** | `GET /api/v1/oracle/price` and `/history` are **catalogs only** — never a numeric price body. |
 | **X2** | Price/history paths require an explicit ticker: `ustc`, `lunc`, or `vfdusd`. Unknown → **400**. |
 | **X3** | Tickers use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC/USTC/FDUSD ids. |
-| **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD. |
+| **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD or Venus. |
 | **X5** | Feeds are **advisory** — not settlement; on-chain swaps use `max_spread` / `min_return` / deadlines. |
 | **X6** | Non-finite `f64` → safe `BigDecimal` default before DB insert (existing oracle storage rule). |
 
@@ -55,6 +58,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 | Concern | Location |
 |---------|----------|
 | Poll loop + symbols | [`indexer/src/indexer/oracle.rs`](../../indexer/src/indexer/oracle.rs) |
+| Venus vFDUSD redeem | [`indexer/src/indexer/venus_vfdusd.rs`](../../indexer/src/indexer/venus_vfdusd.rs) (#571) |
 | HTTP handlers | [`indexer/src/api/oracle.rs`](../../indexer/src/api/oracle.rs) |
 | DB queries | [`indexer/src/db/queries/oracle.rs`](../../indexer/src/db/queries/oracle.rs) |
 | Frontend client | [`frontend-dapp/src/services/indexer/client.ts`](../../frontend-dapp/src/services/indexer/client.ts) |
@@ -66,6 +70,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 ```bash
 make verify-issue-515
 make verify-issue-550
+make verify-issue-571
 # or: cd indexer && cargo test --lib oracle -- --quiet
 #     cd indexer && cargo test --test api_oracle -- --test-threads=1
 ```
