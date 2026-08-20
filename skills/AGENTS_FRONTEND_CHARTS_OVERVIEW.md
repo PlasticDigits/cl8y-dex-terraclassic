@@ -55,6 +55,7 @@ Backfill: [`volume::backfill_swap_volume_usd`](../indexer/src/db/queries/volume.
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC/LUNC feeds
 - [`AGENTS_INDEXER_VOLUME_PAGINATION.md`](./AGENTS_INDEXER_VOLUME_PAGINATION.md) — rollup + 60s cache (**V5**)
+- [`AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](./AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md) — token/trader/pair/global windows **zero** when swaps leave the cutoff; stale `updated_at` log-only (**D1–D7**, [#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577))
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair-detail 24h Vol (USD) (#565)
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — trailing 24h copy, not midnight reset (#576)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair-list volume badges (#534 / #544)

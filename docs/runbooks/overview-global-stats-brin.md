@@ -13,6 +13,29 @@ Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md). Agen
 
 Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss. **`token_count`** is unique pair-leg assets (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Charts displays **USD-only** 24h volume; `total_volume_24h` remains raw for API clients (`global_stats_24h.total_volume` is `NUMERIC(38, 0)` so 18-decimal CW20 sums fit; `NUMERIC(38, 18)` overflows at `10^20`). After catalog backfill (`20260817120000_backfill_swap_volume_usd_catalog.sql`), refresh this rollup (migration already does).
 
+### Rollup freshness (GitLab #577 **D6**)
+
+`get_global_stats` reads `global_stats_24h.updated_at`. If it is **older than 15 minutes** (three missed ~5 min aggregator cycles), the indexer emits:
+
+```
+global_stats_24h.updated_at is stale; serving last rollup (no live 30d swap_events scan)
+```
+
+It **keeps serving the last rollup**. Do **not** fall back to a live 30d `SUM(swap_events)` on the request path — that is a DoS vector ([#281](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/281) / [#333](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/333) **V5**). There is no Prometheus `/metrics` endpoint ([#200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)); the warning is the operator signal.
+
+Check freshness on a running indexer:
+
+```sql
+SELECT id, total_trades, total_volume_usd, updated_at,
+       NOW() - updated_at AS age
+FROM global_stats_24h
+WHERE id = 1;
+```
+
+`updated_at` should advance about every **5 minutes** (and immediately on indexer restart — token + trader windows too, **D5**). If `age` exceeds 15 minutes, the aggregator loop is stuck or the process is down; restart the indexer. A successful refresh **can** drop 24h volume/trades to 0 when `swap_events` leave the trailing cutoff ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577)).
+
+Token `token_volume_stats` and trader `volume_24h` / `7d` / `30d` use the same trailing cutoffs and **zero idle rows** on refresh. Lifetime `traders.total_volume*` is unchanged. Skill: [`AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).
+
 ### Actively traded pairs (GitLab #550)
 
 `active_pairs_24h` is the count of distinct `pair_id` with ≥1 `swap_events` row in the last 24h, materialized on the rollup. Dust swaps count; there is no USD floor. This is **not** unique traders (`unique_traders_24h` is a separate rollup column) and **not** TVL.
@@ -110,6 +133,6 @@ Re-run `EXPLAIN (ANALYZE, BUFFERS)` on the live aggregate periodically if you re
 |-------|---------|
 | `global_stats_24h` | Cross-pair 24h `offer_amount` / `volume_usd` / trade count plus 7d/30d USD, `active_pairs_24h`, `unique_traders_24h` for `/overview` ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) |
 | `pair_volume_24h` | Per-pair quote volume for `GET /pairs?sort=volume_24h` |
-| `token_volume_stats` | Per-asset rolling windows for token endpoints |
+| `token_volume_stats` | Per-asset rolling windows for token endpoints; idle windows **zeroed** on refresh ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) **D1**, offer-side only) |
 
-Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md) (**Protocol global stats #550**). Agent playbooks: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md).
+Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md) (**Protocol global stats #550**, **Trailing window decay #577**). Agent playbooks: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md), [`skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).

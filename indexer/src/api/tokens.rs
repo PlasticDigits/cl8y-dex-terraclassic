@@ -132,7 +132,7 @@ pub async fn get_token(
             volume: v.volume.to_string(),
             volume_usd: v.volume_usd.to_string(),
             trade_count: v.trade_count,
-            unique_traders: v.unique_traders,
+            unique_traders: i64::from(v.unique_traders),
         })
         .collect();
 
