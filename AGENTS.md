@@ -175,6 +175,7 @@ make verify-issue-551                    # #551 portfolio/trader P&L human scale
 make verify-issue-557                    # #557 human tape / wallet Amount in/out/Price
 make verify-issue-556                    # #556 DEX hub USD (cUSTC/UST1/USTR) + Protocol DEX card
 make verify-issue-560                    # #560 portfolio/trader realized P&L USD from hub prices
+make verify-issue-573                    # #573 post-merge stack !368–!377 (children 557–567)
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
 
@@ -257,6 +258,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_HUB_PNL.md](skills/AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from `GET /api/v1/hub-prices` (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md](skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape + wallet Amount in/out/Price human scale (**T557-1–T557-11**, [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)); `make verify-issue-557`
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — `/charts` overview 24h volume USD-only + catalog `volume_usd` ingest (**C1–C9**, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)); `make verify-issue-548`
+- [skills/AGENTS_FRONTEND_TRAILING_WINDOW.md](skills/AGENTS_FRONTEND_TRAILING_WINDOW.md) — Charts/Protocol/Pool **24h volume** is a trailing window, not a midnight reset (**W1–W5**, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)); `make verify-issue-576`
 - [skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md](skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — `/charts` pair 24h Stats **Vol (USD)** + human token remainder + TWAP/histogram human scale (**P565-1–P565-7**, **S564-1–S564-11**, [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)); `make verify-issue-565` · `make verify-issue-564`
 - [skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md](skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — `/charts` trader leaderboard + profile **Total Volume (USD)** from `total_volume_usd` (**T553-1–T553-6**, [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)); `make verify-issue-553`
 - [skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md](skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — `/trade` + `/charts` UI invert for UST1-as-base pairs (other-side Price USD, pill, convert-on-submit) (**T524-1–T524-11**, [#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)); `make verify-issue-524`
@@ -273,6 +275,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md](skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) — zap-in/out execution follows floors, not optimistic quotes (**Z559-1–Z559-4**, [#559](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/559)); `make verify-issue-559`
 - [skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md](skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair/token pickers list economic markets first, gems last; human quote volume badges (**P534-1–P534-8**, [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534)); `make verify-issue-534`
 - [skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md](skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production hides soft-launch gems from Swap/Trade/Pool/Charts/Create + rejects gem-bridge quotes (**P562-1–P562-8**, [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)); `make verify-issue-562`
+- [skills/AGENTS_POST_MERGE_STACK.md](skills/AGENTS_POST_MERGE_STACK.md) — post-merge Coolify + indexer stack for !368–!377 (**M573-1–M573-8**, [#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573)); `make verify-issue-573`
 - [skills/AGENTS_FRONTEND_CREATE_PAIR_PICKER.md](skills/AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — `/create` listed-CW20 picker + custom paste; not Swap’s factory universe (**C542-1–C542-11**, [#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)); `make verify-issue-542`
 - [skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md](skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — batch/ladder place UI + gas gates; Ladder create must render when disconnected (#494)
 - [skills/AGENTS_UST1_SECONDARY_AMM.md](skills/AGENTS_UST1_SECONDARY_AMM.md) — UST1 secondary AMM create/seed or Path B waiver ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508), invariants **U1–U7**); `make verify-issue-508`

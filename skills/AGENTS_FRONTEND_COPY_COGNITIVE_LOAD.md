@@ -42,7 +42,8 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) | `/create` Token A/B + Custom contract; no “verified safe” banner ([#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)) |
 | [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) | Compact copy + explorer on Pool / Trade / Charts (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)) — icon controls, not address essays |
 | [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) | `/protocol` USD stats + one oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) — short reference labels; no TWAP vs CEX essays |
+| [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) | Charts/Protocol/Pool **24h volume** is trailing `now − 24h`, not midnight reset (**W1–W5**, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)) |
 
 ## Shared copy modules
 
-Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`).
+Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`), `trailingWindowCopy.ts` (Charts/Protocol/Pool 24h window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)).

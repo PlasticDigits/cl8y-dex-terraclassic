@@ -49,3 +49,4 @@ Tape Amount in/out/Price is **[#557](https://gitlab.com/PlasticDigits/cl8y-dex-t
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — hub ingest + Protocol card
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — header volume USD (#553)
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — CEX catalog stays 3 tickers
+- [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) — Coolify frontend rebuild so production matches hub marks ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))

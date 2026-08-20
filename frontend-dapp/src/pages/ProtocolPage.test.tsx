@@ -4,6 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import ProtocolPage from './ProtocolPage'
 import * as indexerClient from '@/services/indexer/client'
+import {
+  PROTOCOL_TRADES_24H_LABEL,
+  PROTOCOL_VOLUME_24H_LABEL,
+  PROTOCOL_VOLUME_7D_LABEL,
+  PROTOCOL_VOLUME_30D_LABEL,
+  TRAILING_24H_VOLUME_TITLE,
+  TRAILING_7D_VOLUME_TITLE,
+  TRAILING_30D_VOLUME_TITLE,
+} from '@/utils/trailingWindowCopy'
 
 vi.mock('@/utils/constants', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/constants')>()
@@ -121,6 +130,30 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     expect(screen.queryByText('999999')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Recent USTC\/USD history/i })).not.toBeInTheDocument()
     expect(screen.getAllByTestId('protocol-oracle')).toHaveLength(1)
+  })
+
+  it('discloses trailing 24h/7d/30d volume without a lecture banner (GitLab #576)', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const stats = await screen.findByTestId('protocol-global-stats')
+    const vol24 = within(stats).getByTestId('protocol-stat-volume-24h')
+    const vol7d = within(stats).getByTestId('protocol-stat-volume-7d')
+    const vol30d = within(stats).getByTestId('protocol-stat-volume-30d')
+    const trades = within(stats).getByTestId('protocol-stat-trades-24h')
+    expect(vol24).toHaveTextContent(PROTOCOL_VOLUME_24H_LABEL)
+    expect(vol7d).toHaveTextContent(PROTOCOL_VOLUME_7D_LABEL)
+    expect(vol30d).toHaveTextContent(PROTOCOL_VOLUME_30D_LABEL)
+    expect(trades).toHaveTextContent(PROTOCOL_TRADES_24H_LABEL)
+    await waitFor(() => {
+      expect(within(vol24).getByLabelText(/last 24 hours, not a midnight reset/i)).toBeInTheDocument()
+    })
+    expect(within(vol7d).getByLabelText(/last 7 days, not a calendar-week reset/i)).toBeInTheDocument()
+    expect(within(vol30d).getByLabelText(/last 30 days, not a calendar-month reset/i)).toBeInTheDocument()
+    expect(within(vol24).getByText(PROTOCOL_VOLUME_24H_LABEL)).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
+    expect(within(vol7d).getByText(PROTOCOL_VOLUME_7D_LABEL)).toHaveAttribute('title', TRAILING_7D_VOLUME_TITLE)
+    expect(within(vol30d).getByText(PROTOCOL_VOLUME_30D_LABEL)).toHaveAttribute('title', TRAILING_30D_VOLUME_TITLE)
+    expect(stats).toHaveTextContent(/USD volume uses the USTC reference feed/i)
+    expect(stats.textContent).not.toMatch(/resets at 00:00|calendar-day volume|always-on/i)
+    expect(stats.textContent).not.toMatch(/VITE_INDEXER_URL|https?:\/\//i)
   })
 
   it('defaults to USTC and loads price plus history for that ticker', async () => {
