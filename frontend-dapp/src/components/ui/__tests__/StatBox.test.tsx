@@ -21,4 +21,21 @@ describe('StatBox', () => {
     const valueEl = screen.getByText('+5%')
     expect(valueEl).toHaveStyle({ color: 'var(--color-positive)' })
   })
+
+  it('puts title on the card and label and aria-label on the value (GitLab #576)', () => {
+    render(
+      <StatBox
+        label="Last 24h Vol (USD)"
+        value="$1.2K"
+        title="Priced swaps in the last 24 hours, not a midnight reset."
+      />
+    )
+    const card = screen.getByText('Last 24h Vol (USD)').closest('[title]')
+    expect(card).toHaveAttribute('title', 'Priced swaps in the last 24 hours, not a midnight reset.')
+    expect(screen.getByText('Last 24h Vol (USD)')).toHaveAttribute(
+      'title',
+      'Priced swaps in the last 24 hours, not a midnight reset.'
+    )
+    expect(screen.getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('$1.2K')
+  })
 })

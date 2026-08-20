@@ -3,7 +3,7 @@ use std::time::Duration;
 use sqlx::{Connection, PgPool};
 
 use crate::config::Config;
-use crate::db::queries::{state, volume};
+use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
 use super::{
@@ -55,13 +55,8 @@ pub async fn run_indexer(
         tracing::error!("Initial pair sync failed: {}", e);
     }
 
-    if let Err(e) = volume::refresh_pair_volumes(&pool).await {
-        tracing::warn!("Initial pair 24h volume refresh failed: {}", e);
-    }
-
-    if let Err(e) = volume::refresh_global_stats(&pool).await {
-        tracing::warn!("Initial global 24h stats refresh failed: {}", e);
-    }
+    // Token + trader windows too — do not wait for the 5 min loop (GitLab #577 **D5**).
+    volume_aggregator::refresh_all_volume_windows(&pool, true).await;
 
     let vol_pool = pool.clone();
     tokio::spawn(async move {
@@ -114,12 +109,14 @@ pub async fn run_indexer(
     let hub_cfg = crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config);
     let hub_pool = pool.clone();
     let hub_ustc = oracle_prices.ustc.clone();
+    let hub_lunc = oracle_prices.lunc.clone();
     let hub_interval = std::time::Duration::from_millis(snapshot_interval.max(1_000));
     tokio::spawn(async move {
         crate::db::queries::hub_prices::run_hub_usd_refresh_loop(
             hub_pool,
             hub_cfg,
             hub_ustc,
+            hub_lunc,
             hub_interval,
         )
         .await;

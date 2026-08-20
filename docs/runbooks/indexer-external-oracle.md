@@ -1,4 +1,4 @@
-# Indexer external USD oracle (GitLab #515 / #550 / #580)
+# Indexer external USD oracle (GitLab #515 / #550 / #579 / #580)
 
 Polled CEX/aggregator **reference** prices for TerraClassic **USTC/USD**, **LUNC/USD**, and CEX **FDUSD/USD** (HTTP/DB path `vfdusd`). Distinct from on-chain pair **TWAP** ([`docs/twap-oracle.md`](../twap-oracle.md)) and the **UST1 window** rate.
 
@@ -35,13 +35,23 @@ Unknown CEX `{ticker}` (including `ustr` / `ust1` / `custc`) → **400**. DEX ma
 
 Each poll stores per-source rows plus an `average` row. In-memory cache serves `price_usd` on the ticker price endpoint. CoinGecko is polled on alternate ticks (rate-limit soft-fail).
 
+The oracle HTTP client sends a **stable descriptive User-Agent** (`cl8y-dex-indexer/<version> (+https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)`) on every KuCoin / MEXC / CoinGecko request ([#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579)). CoinGecko’s free API returns **HTTP 403** (`Please add a descriptive User-Agent`) if this header is missing or empty — that is a **client misconfiguration**, not quota. Distinguish:
+
+| Status | Meaning | Log / error |
+|--------|---------|-------------|
+| **429** (or JSON `error_code: 429`) | Rate limited | `RateLimited` — debug; skip this tick |
+| **403** body asks for User-Agent | Missing descriptive UA | `MissingUserAgent` — error once, then debug; **not** 429 |
+| **403** other (ban / key) | Soft-fail | Parse/HTTP warn; truncated body (~120 chars) |
+
+Do **not** impersonate browsers, rotate User-Agents, or drop the CoinGecko source to “fix” 403. KuCoin/MEXC still average when CoinGecko is down (vFDUSD has no KuCoin pair).
+
 ## Storage
 
 Table `oracle_prices(ticker, price_usd, source, fetched_at)` (migration `20260811000000_oracle_prices_multi_ticker.sql`). Replaces legacy `ustc_prices`.
 
 Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544) / [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)): USTC/cUSTC/`uusd` = this USTC feed; LUNC/cLUNC/`uluna` = the LUNC feed; UST1/USTR = **`hub_prices`** (DEX largest-liquidity marks). **USTR is set by the market, not a fixed `2.5 ×` USTC peg.** Unknown quotes stay NULL. Overview **`ustc_price_usd`** remains the USTC ticker only; hub fields are additive. DEX hub HTTP is `GET /api/v1/hub-prices` — **not** `/oracle/price/ustr` (400). Trader `total_volume_usd` is `SUM` of the same column. `/portfolio` + `/trader` header realized P&amp;L USD uses the same hub snapshot (**P560-1**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)) — never `$1` / `2.5×`.
 
-## Invariants (X1–X6)
+## Invariants (X1–X7)
 
 | ID | Rule |
 |----|------|
@@ -51,6 +61,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 | **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD. Never use `OracleTicker::Vfdusd` as `usd_per_human` for symbol `VFDUSD`. |
 | **X5** | Feeds are **advisory** — not settlement; on-chain swaps use `max_spread` / `min_return` / deadlines. |
 | **X6** | Non-finite `f64` → safe `BigDecimal` default before DB insert (existing oracle storage rule). |
+| **X7** | Oracle HTTP client sends a stable, non-browser User-Agent identifying this indexer + repo ([#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579)). CoinGecko 403 User-Agent-missing is **not** `RateLimited`. Soft-fail: one source down still averages the rest. |
 
 ## Code map
 
@@ -66,6 +77,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 ## Regression
 
 ```bash
+make verify-issue-579   # User-Agent + 403 vs 429 (no live CoinGecko; --lib oracle)
 make verify-issue-515
 make verify-issue-550
 make verify-issue-580

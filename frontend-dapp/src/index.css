@@ -531,8 +531,8 @@
 
   /*
    * Desktop /trade workspace (#561): CSS grid, no drag-resize.
-   * Chart column is minmax(0,1fr) so it absorbs width when book/ticket hide.
-   * Flex chain keeps PriceChart candles from clipping (#151).
+   * Column tracks come from tradeDesktopGridTemplateColumns (2.2fr chart;
+   * 3.2fr when a side hides). Flex chain keeps PriceChart candles from clipping (#151).
    */
   .trade-desktop-workspace {
     display: flex;

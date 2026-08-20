@@ -1,4 +1,4 @@
-//! External CEX/USD reference oracle (GitLab #515 / #550 / #580).
+//! External CEX/USD reference oracle (GitLab #515 / #550 / #579 / #580).
 //!
 //! Polls KuCoin / MEXC / CoinGecko for **USTC/USD**, **LUNC/USD**, and **FDUSD/USD**
 //! (CEX First Digital USD). The HTTP/DB ticker path remains `vfdusd` (no silent `fdusd`
@@ -7,7 +7,11 @@
 //! advisory display/reference prices — not on-chain settlement. Volume USD conversion
 //! stays on the **USTC** handle / P522-Q catalog (X4); do not multiply CEX FDUSD into
 //! vFDUSD `volume_usd` / `price_usd`.
+//!
+//! CoinGecko’s free API requires a descriptive `User-Agent` (**X7** / #579). The oracle
+//! client identifies this crate and repo; it must not impersonate browsers or rotate UAs.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,6 +24,29 @@ use tokio::sync::RwLock;
 use crate::db::queries::oracle as db_oracle;
 
 pub type SharedPrice = Arc<RwLock<Option<BigDecimal>>>;
+
+/// Stable descriptive User-Agent for CEX / CoinGecko polls (GitLab #579).
+/// Compile-time crate version only — no env, tokens, emails, or hostnames.
+pub const ORACLE_USER_AGENT: &str = concat!(
+    "cl8y-dex-indexer/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)"
+);
+
+/// Log CoinGecko “User-Agent required” at error once, then debug (avoid warn spam).
+static COINGECKO_MISSING_UA_LOGGED: AtomicBool = AtomicBool::new(false);
+
+fn build_oracle_http_client() -> Client {
+    Client::builder()
+        .user_agent(ORACLE_USER_AGENT)
+        .timeout(Duration::from_secs(10))
+        .build()
+        .expect("failed to build oracle HTTP client")
+}
+
+fn include_coingecko_on_tick(tick_count: u64) -> bool {
+    tick_count % 2 == 0
+}
 
 pub fn new_shared_price() -> SharedPrice {
     Arc::new(RwLock::new(None))
@@ -71,11 +98,8 @@ pub enum OracleTicker {
 }
 
 impl OracleTicker {
-    pub const ALL: [OracleTicker; 3] = [
-        OracleTicker::Ustc,
-        OracleTicker::Lunc,
-        OracleTicker::Vfdusd,
-    ];
+    pub const ALL: [OracleTicker; 3] =
+        [OracleTicker::Ustc, OracleTicker::Lunc, OracleTicker::Vfdusd];
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -140,10 +164,7 @@ impl OracleTicker {
 }
 
 pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: OraclePriceHandles) {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .expect("failed to build oracle HTTP client");
+    let client = build_oracle_http_client();
 
     for ticker in OracleTicker::ALL {
         if let Ok(Some(price)) = db_oracle::get_latest_average_price(&pool, ticker).await {
@@ -161,7 +182,7 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: Oracle
 
     loop {
         tick_count += 1;
-        let fetch_coingecko = tick_count % 2 == 0;
+        let fetch_coingecko = include_coingecko_on_tick(tick_count);
 
         for ticker in OracleTicker::ALL {
             poll_ticker(&client, &pool, &prices, ticker, fetch_coingecko).await;
@@ -205,6 +226,19 @@ async fn poll_ticker(
             Err(e) => match e {
                 OracleError::RateLimited => {
                     tracing::debug!("Oracle: {} {} rate limited", ticker.as_str(), source);
+                }
+                OracleError::MissingUserAgent => {
+                    if COINGECKO_MISSING_UA_LOGGED.swap(true, Ordering::Relaxed) {
+                        tracing::debug!(
+                            "Oracle: {} {} CoinGecko HTTP 403: User-Agent required",
+                            ticker.as_str(),
+                            source
+                        );
+                    } else {
+                        tracing::error!(
+                            "Oracle: CoinGecko HTTP 403: User-Agent required — set a descriptive User-Agent on the oracle HTTP client (GitLab #579). Further misses at debug."
+                        );
+                    }
                 }
                 _ => {
                     tracing::warn!("Oracle: {} {} failed: {}", ticker.as_str(), source, e);
@@ -284,6 +318,10 @@ pub enum OracleError {
     Http(#[from] reqwest::Error),
     #[error("rate limited")]
     RateLimited,
+    /// CoinGecko HTTP 403 whose body asks for a descriptive User-Agent (#579).
+    /// Not a rate-limit; do not treat as success or insert a price.
+    #[error("CoinGecko HTTP 403: User-Agent required")]
+    MissingUserAgent,
     #[error("Parse error: {0}")]
     Parse(String),
 }
@@ -303,10 +341,7 @@ struct KucoinData {
 
 async fn fetch_kucoin(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
     let symbol = ticker.kucoin_symbol().ok_or_else(|| {
-        OracleError::Parse(format!(
-            "KuCoin: no listed symbol for {}",
-            ticker.as_str()
-        ))
+        OracleError::Parse(format!("KuCoin: no listed symbol for {}", ticker.as_str()))
     })?;
     let url = format!(
         "https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={}",
@@ -369,9 +404,7 @@ struct CoinGeckoStatus {
 
 async fn fetch_coingecko(client: &Client, ticker: OracleTicker) -> Result<f64, OracleError> {
     let id = ticker.coingecko_id();
-    let url = format!(
-        "https://api.coingecko.com/api/v3/simple/price?ids={id}&vs_currencies=usd"
-    );
+    let url = format!("https://api.coingecko.com/api/v3/simple/price?ids={id}&vs_currencies=usd");
     fetch_coingecko_url(client, &url, id).await
 }
 
@@ -388,6 +421,9 @@ async fn fetch_coingecko_url(
     if status.as_u16() == 429 || coingecko_body_is_rate_limited(&body) {
         return Err(OracleError::RateLimited);
     }
+    if status.as_u16() == 403 && coingecko_body_asks_for_user_agent(&body) {
+        return Err(OracleError::MissingUserAgent);
+    }
     if !status.is_success() {
         return Err(OracleError::Parse(format!(
             "CoinGecko HTTP {status}: {}",
@@ -402,9 +438,7 @@ async fn fetch_coingecko_url(
         .get(coin_id)
         .and_then(|v| serde_json::from_value::<CoinGeckoUsd>(v.clone()).ok())
         .and_then(|t| t.usd)
-        .ok_or_else(|| {
-            OracleError::Parse(format!("CoinGecko: missing {coin_id}.usd field"))
-        })
+        .ok_or_else(|| OracleError::Parse(format!("CoinGecko: missing {coin_id}.usd field")))
 }
 
 fn coingecko_body_is_rate_limited(body: &str) -> bool {
@@ -413,6 +447,10 @@ fn coingecko_body_is_rate_limited(body: &str) -> bool {
         .and_then(|b| b.status)
         .and_then(|s| s.error_code)
         == Some(429)
+}
+
+fn coingecko_body_asks_for_user_agent(body: &str) -> bool {
+    body.to_ascii_lowercase().contains("user-agent")
 }
 
 #[cfg(test)]
@@ -538,63 +576,258 @@ mod tests {
 
     #[test]
     fn coingecko_rate_limit_body_detected() {
-        let body = r#"{"status":{"error_code":429,"error_message":"You've exceeded the Rate Limit."}}"#;
+        let body =
+            r#"{"status":{"error_code":429,"error_message":"You've exceeded the Rate Limit."}}"#;
         assert!(coingecko_body_is_rate_limited(body));
-        assert!(!coingecko_body_is_rate_limited(r#"{"terrausd":{"usd":0.005}}"#));
+        assert!(!coingecko_body_is_rate_limited(
+            r#"{"terrausd":{"usd":0.005}}"#
+        ));
+        assert!(!coingecko_body_is_rate_limited(
+            r#"{"status":{"error_code":403,"error_message":"Please add a descriptive User-Agent"}}"#
+        ));
+    }
+
+    #[test]
+    fn coingecko_user_agent_body_detected() {
+        let ua_body = r#"{"status":{"error_code":403,"error_message":"Please add a descriptive User-Agent to your request."}}"#;
+        assert!(coingecko_body_asks_for_user_agent(ua_body));
+        assert!(!coingecko_body_is_rate_limited(ua_body));
+        assert!(!coingecko_body_asks_for_user_agent(
+            r#"{"status":{"error_code":403,"error_message":"IP banned"}}"#
+        ));
+        assert!(!coingecko_body_asks_for_user_agent(
+            r#"{"terrausd":{"usd":0.005}}"#
+        ));
+    }
+
+    #[test]
+    fn oracle_user_agent_is_descriptive_not_browser() {
+        let ua = ORACLE_USER_AGENT;
+        assert!(ua.starts_with("cl8y-dex-indexer/"), "{ua}");
+        assert!(ua.contains(env!("CARGO_PKG_VERSION")), "{ua}");
+        assert!(
+            ua.contains("https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic"),
+            "{ua}"
+        );
+        let lower = ua.to_ascii_lowercase();
+        assert!(!lower.contains("mozilla"), "{ua}");
+        assert!(!lower.contains("chrome"), "{ua}");
+        assert!(!lower.contains("firefox"), "{ua}");
+        assert!(!lower.contains("keplr"), "{ua}");
+        assert!(!ua.contains('@'), "no emails in UA: {ua}");
+        assert!(!ua.contains("GITLAB_TOKEN"), "{ua}");
+        if let Ok(token) = std::env::var("GITLAB_TOKEN") {
+            if !token.is_empty() {
+                assert!(!ua.contains(&token), "secret must not appear in UA");
+            }
+        }
+    }
+
+    #[test]
+    fn coingecko_polls_on_alternate_ticks_only() {
+        assert!(!include_coingecko_on_tick(1));
+        assert!(include_coingecko_on_tick(2));
+        assert!(!include_coingecko_on_tick(3));
+        assert!(include_coingecko_on_tick(4));
     }
 
     #[tokio::test]
-    async fn fetch_coingecko_maps_429_to_rate_limited() {
-        use wiremock::matchers::{method, path};
+    async fn fetch_coingecko_sends_descriptive_user_agent() {
+        use wiremock::matchers::{header, method, path, query_param};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/api/v3/simple/price"))
-            .respond_with(ResponseTemplate::new(429).set_body_string(
-                r#"{"status":{"error_code":429,"error_message":"rate limit"}}"#,
-            ))
+            .and(query_param("ids", "terrausd"))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"terrausd":{"usd":0.00512}}"#),
+            )
+            .expect(1)
             .mount(&server)
             .await;
 
-        let client = Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap();
         let url = format!(
             "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
             server.uri()
         );
-        let err = fetch_coingecko_url(&client, &url, "terrausd")
+        let price = fetch_coingecko_url(&build_oracle_http_client(), &url, "terrausd")
+            .await
+            .unwrap();
+        assert!((price - 0.00512).abs() < 1e-12);
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_maps_429_to_rate_limited() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(
+                ResponseTemplate::new(429).set_body_string(
+                    r#"{"status":{"error_code":429,"error_message":"rate limit"}}"#,
+                ),
+            )
+            .mount(&server)
+            .await;
+
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+            server.uri()
+        );
+        let err = fetch_coingecko_url(&build_oracle_http_client(), &url, "terrausd")
             .await
             .unwrap_err();
         assert!(matches!(err, OracleError::RateLimited), "unexpected: {err}");
+        assert!(!matches!(err, OracleError::MissingUserAgent));
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_maps_403_user_agent_not_rate_limited() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(ResponseTemplate::new(403).set_body_string(
+                r#"{"status":{"error_code":403,"error_message":"Please add a descriptive User-Agent to your request. For higher rate limits"},"terrausd":{"usd":1.0}}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+            server.uri()
+        );
+        let err = fetch_coingecko_url(&build_oracle_http_client(), &url, "terrausd")
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, OracleError::MissingUserAgent),
+            "unexpected: {err}"
+        );
+        assert!(!matches!(err, OracleError::RateLimited));
+        assert_eq!(err.to_string(), "CoinGecko HTTP 403: User-Agent required");
+        assert!(!err.to_string().contains("usd"));
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_403_other_is_parse_not_rate_limited() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let pad = "x".repeat(400);
+        let body =
+            format!(r#"{{"status":{{"error_code":403,"error_message":"IP banned {pad}"}}}}"#);
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(ResponseTemplate::new(403).set_body_string(&body))
+            .mount(&server)
+            .await;
+
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+            server.uri()
+        );
+        let err = fetch_coingecko_url(&build_oracle_http_client(), &url, "terrausd")
+            .await
+            .unwrap_err();
+        match err {
+            OracleError::Parse(msg) => {
+                assert!(msg.contains("403"), "{msg}");
+                assert!(msg.len() < body.len(), "body must be truncated: {msg}");
+                assert!(!msg.contains(&"x".repeat(200)), "truncated: {msg}");
+            }
+            other => panic!("expected Parse, got {other}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_500_is_parse_not_success() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(ResponseTemplate::new(500).set_body_string("internal"))
+            .mount(&server)
+            .await;
+
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+            server.uri()
+        );
+        let err = fetch_coingecko_url(&build_oracle_http_client(), &url, "terrausd")
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, OracleError::Parse(ref s) if s.contains("500")),
+            "unexpected: {err}"
+        );
+        assert!(!matches!(
+            err,
+            OracleError::RateLimited | OracleError::MissingUserAgent
+        ));
+    }
+
+    #[tokio::test]
+    async fn fetch_coingecko_missing_usd_is_parse() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v3/simple/price"))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"terrausd":{}}"#))
+            .mount(&server)
+            .await;
+
+        let url = format!(
+            "{}/api/v3/simple/price?ids=terrausd&vs_currencies=usd",
+            server.uri()
+        );
+        let err = fetch_coingecko_url(&build_oracle_http_client(), &url, "terrausd")
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, OracleError::Parse(ref s) if s.contains("usd")),
+            "unexpected: {err}"
+        );
     }
 
     #[tokio::test]
     async fn fetch_coingecko_parses_lunc_id() {
-        use wiremock::matchers::{method, path, query_param};
+        use wiremock::matchers::{header, method, path, query_param};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/api/v3/simple/price"))
             .and(query_param("ids", "terra-luna"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                r#"{"terra-luna":{"usd":0.00005024}}"#,
-            ))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"terra-luna":{"usd":0.00005024}}"#),
+            )
             .mount(&server)
             .await;
 
-        let client = Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap();
         let url = format!(
             "{}/api/v3/simple/price?ids=terra-luna&vs_currencies=usd",
             server.uri()
         );
-        let price = fetch_coingecko_url(&client, &url, "terra-luna")
+        let price = fetch_coingecko_url(&build_oracle_http_client(), &url, "terra-luna")
             .await
             .unwrap();
         assert!((price - 0.00005024).abs() < 1e-12);
@@ -602,28 +835,25 @@ mod tests {
 
     #[tokio::test]
     async fn fetch_coingecko_parses_vfdusd_id() {
-        use wiremock::matchers::{method, path, query_param};
+        use wiremock::matchers::{header, method, path, query_param};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/api/v3/simple/price"))
             .and(query_param("ids", "first-digital-usd"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                r#"{"first-digital-usd":{"usd":0.87}}"#,
-            ))
+            .and(header("user-agent", ORACLE_USER_AGENT))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"first-digital-usd":{"usd":0.87}}"#),
+            )
             .mount(&server)
             .await;
 
-        let client = Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap();
         let url = format!(
             "{}/api/v3/simple/price?ids=first-digital-usd&vs_currencies=usd",
             server.uri()
         );
-        let price = fetch_coingecko_url(&client, &url, "first-digital-usd")
+        let price = fetch_coingecko_url(&build_oracle_http_client(), &url, "first-digital-usd")
             .await
             .unwrap();
         assert!((price - 0.87).abs() < 1e-12, "depeg must display, not $1");

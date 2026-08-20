@@ -319,7 +319,15 @@ describe('LimitOrdersPage', () => {
     await user.click(updateBtn)
 
     await waitFor(() => {
-      expect(updateLimitOrderPrice).toHaveBeenCalledWith(MAKER, PAIR, 7, '2', expect.any(Number), null)
+      expect(updateLimitOrderPrice).toHaveBeenCalledWith(
+        MAKER,
+        PAIR,
+        7,
+        '2',
+        expect.any(Number),
+        null,
+        expect.objectContaining({ decimals0: expect.any(Number), decimals1: expect.any(Number) })
+      )
     })
   })
 

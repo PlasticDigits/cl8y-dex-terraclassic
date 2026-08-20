@@ -53,6 +53,18 @@ pub struct OverviewResponse {
     pub active_pairs_24h: i64,
     /// Distinct swap senders in last 24h (materialized).
     pub unique_traders_24h: i64,
+    /// Humanized USD TVL of priced factory `pair_reserves` (GitLab #569). `"0"` when idle.
+    /// Not volume, not CG `liquidity_in_usd`, not book escrow.
+    pub total_liquidity_usd: String,
+    /// Signed percent vs ~24h snapshot. JSON `null` if no baseline / then=0 / overflow.
+    pub liquidity_change_24h_pct: Option<String>,
+    /// Signed percent vs ~30d snapshot. JSON `null` if no baseline / then=0 / overflow.
+    pub liquidity_change_30d_pct: Option<String>,
+    /// Pairs included in `total_liquidity_usd` this refresh (operator; not a Protocol headline).
+    pub priced_pair_count: i64,
+    pub unpriced_pair_count: i64,
+    pub total_liquidity_usd_24h_ago: Option<String>,
+    pub total_liquidity_usd_30d_ago: Option<String>,
 }
 
 /// Map rollup USD + trade count to the overview JSON contract (#548).
@@ -133,6 +145,13 @@ pub async fn get_overview(
         pairs_added_30d,
         active_pairs_24h: global.active_pairs_24h,
         unique_traders_24h: global.unique_traders_24h,
+        total_liquidity_usd: global.total_liquidity_usd.to_string(),
+        liquidity_change_24h_pct: global.liquidity_change_24h_pct.map(|p| p.to_string()),
+        liquidity_change_30d_pct: global.liquidity_change_30d_pct.map(|p| p.to_string()),
+        priced_pair_count: i64::from(global.priced_pair_count),
+        unpriced_pair_count: i64::from(global.unpriced_pair_count),
+        total_liquidity_usd_24h_ago: global.total_liquidity_usd_24h_ago.map(|v| v.to_string()),
+        total_liquidity_usd_30d_ago: global.total_liquidity_usd_30d_ago.map(|v| v.to_string()),
     };
 
     if let Ok(mut guard) = overview_cache().lock() {

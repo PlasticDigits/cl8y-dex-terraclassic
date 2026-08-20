@@ -103,6 +103,8 @@ pub struct CgTickerResponse {
     pub high: String,
     pub low: String,
     pub pool_id: String,
+    /// Mislabeled 24h `volume_usd` (legacy aggregator field). Protocol pool TVL is
+    /// `GET /api/v1/overview` `total_liquidity_usd` (GitLab #569) — do not treat this as TVL.
     pub liquidity_in_usd: String,
     /// CL8Y consolidated hybrid + pool-only attribution (GitLab #189); safe for aggregators to ignore.
     pub cl8y_extensions: consolidated_stats::Cl8yConsolidatedExtensions,
@@ -161,7 +163,7 @@ pub async fn cg_tickers(
             .volume_usd
             .as_ref()
             .map(|v| v.to_string())
-            .unwrap_or_else(|| "0".to_string());
+            .unwrap_or_else(|| "0".to_string()); // not pool TVL; see OverviewResponse.total_liquidity_usd (#569)
 
         result.push(CgTickerResponse {
             ticker_id: format!("{}_{}", a0.symbol, a1.symbol),
