@@ -7,6 +7,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPairPaused } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
+import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -704,6 +705,8 @@ describe('PoolPage', () => {
       })
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await screen.findByTestId('pool-pairs-table')
+      expect(screen.getByTestId('pool-sort-vol')).toHaveAttribute('title', POOL_VOL_HEADER_TITLE)
+      expect(screen.getByTestId('pool-sort-vol')).toHaveTextContent(/Vol/)
       await user.click(screen.getByTestId('pool-sort-vol'))
       await waitFor(() =>
         expect(indexerClient.getPairs).toHaveBeenCalledWith(

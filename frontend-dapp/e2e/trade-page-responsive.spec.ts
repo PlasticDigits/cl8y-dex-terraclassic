@@ -130,17 +130,17 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
 
     const workspace = page.getByTestId('trade-sub-lg-workspace')
     const orderBookHeading = workspace.getByRole('heading', { name: 'Order book' })
-    const placeLimitHeading = workspace.getByRole('heading', { name: 'Place limit' })
+    const ticketHeading = workspace.getByTestId('trade-ticket-heading')
     const priceHeading = workspace.getByRole('heading', { name: 'Price (USD)' })
 
     await expect(async () => {
       await expect(orderBookHeading).toBeVisible()
-      await expect(placeLimitHeading).toBeVisible()
+      await expect(ticketHeading).toBeVisible()
       await expect(priceHeading).toBeVisible()
     }).toPass({ timeout: 90_000 })
 
     const bBook = await orderBookHeading.boundingBox()
-    const bTicket = await placeLimitHeading.boundingBox()
+    const bTicket = await ticketHeading.boundingBox()
     const bChart = await priceHeading.boundingBox()
 
     expect(bBook!.y).toBeLessThan(bTicket!.y)
@@ -336,6 +336,59 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await expect(page.getByTestId('trade-desktop-ticket-toggle')).toBeVisible()
     await expect(page.getByTestId('trade-desktop-book-toggle')).toBeVisible()
     await expect(page.getByTestId('trade-page-heading')).toBeVisible()
+  })
+
+  test('P12 tape is a bottom-row sibling of the chart; hide book expands chart (GitLab #561)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.goto('/trade')
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+
+    const chart = page.getByTestId('trade-desktop-chart-col')
+    const tape = page.getByTestId('trade-desktop-tape-panel')
+    const bookCol = page.getByTestId('trade-desktop-book-col')
+    await expect(chart).toBeVisible()
+    await expect(tape).toBeVisible()
+    const chartBox = await chart.boundingBox()
+    const tapeBox = await tape.boundingBox()
+    expect(chartBox, 'chart box').toBeTruthy()
+    expect(tapeBox, 'tape box').toBeTruthy()
+    expect(tapeBox!.y, 'tape sits below the chart row').toBeGreaterThan(chartBox!.y + chartBox!.height - 8)
+    expect(
+      await chart.evaluate((el) => el.contains(document.querySelector('[data-testid="trade-desktop-tape-panel"]')))
+    ).toBe(false)
+
+    const before = chartBox!.width
+    const ticketBefore = (await page.getByTestId('trade-desktop-ticket-col').boundingBox())!.width
+    await page.getByTestId('trade-desktop-book-toggle').click()
+    await expect(bookCol).toBeHidden()
+    await page.waitForTimeout(50)
+    const afterHideBook = await chart.boundingBox()
+    expect(afterHideBook!.width).toBeGreaterThan(before + 40)
+    const ticketAfter = await page.getByTestId('trade-desktop-ticket-col').boundingBox()
+    expect(Math.abs(ticketAfter!.width - ticketBefore), 'ticket must not take the vacated book track').toBeLessThan(48)
+    await expect(page.getByTestId('trade-desktop-book-toggle')).toBeVisible()
+  })
+
+  test('P13 1440 desktop has no resize handles; phone/tablet have none (GitLab #561)', async ({ page }) => {
+    for (const size of [
+      { width: 1440, height: 900 },
+      { width: 820, height: 1180 },
+      { width: 390, height: 844 },
+    ] as const) {
+      await page.setViewportSize(size)
+      await page.goto('/trade')
+      await page.waitForLoadState('networkidle')
+      if (size.width >= 1024) {
+        await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+      } else {
+        await expect(page.getByTestId('trade-sub-lg-workspace')).toBeVisible({ timeout: 90_000 })
+      }
+      await expect(page.getByTestId('trade-ticket-resize-handle')).toHaveCount(0)
+      await expect(page.getByTestId('trade-book-chart-resize-handle')).toHaveCount(0)
+      await expect(page.getByTestId('trade-chart-tape-resize-handle')).toHaveCount(0)
+      expect(await page.locator('[data-panel-resize-handle-id]').count()).toBe(0)
+    }
   })
 
   test('P11 dark + light footer remains opaque', async ({ page }) => {

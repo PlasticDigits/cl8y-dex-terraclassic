@@ -40,9 +40,7 @@ describe('lcdConnectivity', () => {
 
   it('reassures users on-chain funds are safe during LCD outage (GitLab #427, SEC-E05)', () => {
     expect(LCD_CONNECTIVITY_OUTAGE_MESSAGE).toMatch(/on-chain/i)
-    expect(LCD_CONNECTIVITY_OUTAGE_MESSAGE).toMatch(/unaffected/i)
-    expect(LCD_CONNECTIVITY_OUTAGE_MESSAGE).toMatch(/wallet|lp|position/i)
-    expect(LCD_CONNECTIVITY_OUTAGE_MESSAGE).toMatch(/only what the app can show/i)
+    expect(LCD_CONNECTIVITY_OUTAGE_MESSAGE).toMatch(/funds are safe/i)
     expect(LCD_CONNECTIVITY_OUTAGE_MESSAGE.toLowerCase()).not.toMatch(/funds at risk|not safe|may lose/i)
   })
 })

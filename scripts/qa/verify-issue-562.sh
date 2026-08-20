@@ -86,7 +86,8 @@ run_step "docs: frontend.md P562-1–P562-8" \
 run_step "skill: AGENTS_FRONTEND_RETAIL_TEST_TOKENS + verify-issue-562" \
   bash -c 'grep -qE "\\*\\*P562-1" skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md &&
     grep -qE "make verify-issue-562" skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md &&
-    grep -qE "retailExposeTestTokens" skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md'
+    grep -qE "retailExposeTestTokens" skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md &&
+    grep -qE "retail-test-tokens-562" skills/AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md'
 
 run_step "crosslinks: catalog rank + token search + create pair + pool + faucet + AGENTS.md" \
   bash -c 'grep -qE "AGENTS_FRONTEND_RETAIL_TEST_TOKENS|#562" skills/AGENTS_FRONTEND_PAIR_CATALOG_RANK.md &&
@@ -106,18 +107,16 @@ run_step "runbook: production Coolify unsets faucet + F9 Pause (#562 A6)" \
     grep -qE "Do not set \`VITE_FAUCET_ADDRESS\` on production" docs/runbooks/mainnet-soft-launch.md'
 
 if make has-localterra >/dev/null 2>&1 && [[ -f frontend-dapp/.env.local ]]; then
-  if [[ -f frontend-dapp/e2e/issue-158-swap-route.spec.ts ]]; then
-    run_step "playwright: LocalTerra gems still in Swap pay list (P1 / A7)" \
-      bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/issue-158-swap-route.spec.ts --grep "pay picker lists every factory token including gems"'
-  else
-    echo ""
-    echo "[playwright: LocalTerra gems still in Swap pay list (P1 / A7)]"
-    echo "  SKIP (P1 spec not in tree) — add e2e coverage that LocalTerra Swap pay still lists EMBER"
-  fi
+  run_step "playwright: LocalTerra gems still in Swap pay list (P1 / A7)" \
+    bash -c 'export PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}"
+      bash scripts/with-node.sh --cwd frontend-dapp -- \
+      ./node_modules/.bin/playwright test e2e/retail-test-tokens-562.spec.ts \
+      --project=e2e-smoke --retries=0 -g "pay picker lists every factory token including gems"'
 else
   echo ""
   echo "[playwright: LocalTerra gems still in Swap pay list (P1 / A7)]"
   echo "  SKIP (no LocalTerra deploy env) — P1 needs a running chain and frontend-dapp/.env.local"
+  RESULTS+=("SKIP  playwright P1 (no LocalTerra / .env.local)")
 fi
 
 echo ""

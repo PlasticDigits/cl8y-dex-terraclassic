@@ -70,7 +70,13 @@ body {
 }
 @media (min-width: 1024px) {
   .trade-bootstrap-grid {
-    grid-template-columns: 24% 52% 24%;
+    /* Match live desktop tracks (#561): book | chart | ticket + tape row. */
+    grid-template-columns: minmax(13rem, 1fr) minmax(0, 2.2fr) minmax(13rem, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .trade-bootstrap-block-tape {
+    grid-column: 1 / -1;
+    min-height: 72px;
   }
 }
 .trade-bootstrap-block {

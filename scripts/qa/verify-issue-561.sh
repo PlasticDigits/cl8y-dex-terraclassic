@@ -42,7 +42,8 @@ echo "════════════════════════�
 run_step "frontend: TradePage + workspace panel unit tests" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/pages/TradePage.test.tsx \
-    src/utils/__tests__/tradeWorkspacePanels.test.ts'
+    src/utils/__tests__/tradeWorkspacePanels.test.ts \
+    src/components/trade/__tests__/TradePageWorkspaceSkeleton.test.tsx'
 
 run_step "code: no react-resizable-panels / PanelResizeHandle on TradePage" \
   bash -c '! grep -qE "react-resizable-panels|PanelResizeHandle|PanelGroup" frontend-dapp/src/pages/TradePage.tsx frontend-dapp/src/components/trade/TradeDesktopWorkspace.tsx'
@@ -63,6 +64,13 @@ run_step "code: visibility keys + inert ticket hide" \
 run_step "code: TradeChartSlot does not wrap PriceChart in card-glass" \
   bash -c '! awk "/function TradeChartSlot/,/^export default function TradePage/" frontend-dapp/src/pages/TradePage.tsx | grep -q "card-glass"'
 
+run_step "code: desktop skeleton + HTML bootstrap match live tape row" \
+  bash -c 'grep -qE "trade-workspace-skeleton-desktop-tape" frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx && \
+  ! grep -qE "24% 52% 24%" frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx && \
+  grep -qE "trade-bootstrap-block-tape" frontend-dapp/public/bootstrap/trade-bootstrap.css && \
+  grep -qE "trade-bootstrap-block-tape" frontend-dapp/public/bootstrap/trade-shell.js && \
+  ! grep -qE "24% 52% 24%" frontend-dapp/public/bootstrap/trade-bootstrap.css'
+
 run_step "docs: frontend.md L561-1–L561-12" \
   bash -c 'grep -qE "trade-page-desktop-workspace" docs/frontend.md && \
   grep -qE "\*\*L561-1" docs/frontend.md && \
@@ -70,6 +78,11 @@ run_step "docs: frontend.md L561-1–L561-12" \
 
 run_step "docs: design-system one chrome layer" \
   bash -c 'grep -qE "One chrome layer per region" docs/design-system.md && grep -qE "#561" docs/design-system.md'
+
+run_step "docs: testing.md + initial-load skill crosslinks #561" \
+  bash -c 'grep -qE "verify-issue-561" docs/testing.md && \
+  grep -qE "#561" skills/AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md && \
+  grep -qE "#561" skills/AGENTS_E2E_STRICT_CHAIN.md'
 
 run_step "skill: AGENTS_FRONTEND_TRADE_PAGE_LAYOUT L561 + verify" \
   bash -c 'grep -qE "\*\*L561-1" skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md && \

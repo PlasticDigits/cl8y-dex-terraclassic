@@ -23,6 +23,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 | [docs/frontend.md § Trade page — ticket heading](../docs/frontend.md#trade-page-ticket-heading) | Full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)) |
 | [docs/frontend.md § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation) | Same viewport bands for **header** density (`Layout.tsx`, `HEADER_FULL_NAV_MIN_WIDTH_PX` — [GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)) |
 | `frontend-dapp/src/pages/TradePage.tsx` | `lg:hidden` grid vs `hidden lg:flex` CSS-grid desktop workspace ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)) |
+| [`TradePageWorkspaceSkeleton.tsx`](../frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx) / [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) | Loading chrome must match the live desktop grid (tape as bottom row; no 24/52/24 nested chart/tape) |
 
 ## Rules of thumb
 
@@ -48,7 +49,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 | **L561-8** | Tape expand/collapse persists. Book/ticket visibility persists. Corrupt `localStorage` → defaults. |
 | **L561-9** | Sub-`lg` grid structure unchanged ([#146](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/146)); chart double-wrap flattened. Exactly one ticket mount. |
 | **L561-10** | Visible ticket keeps footer CTA dock ([#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/527)). Candles not clipped ([#151](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151)). Pair selector portal does not shift layout ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). |
-| **L561-11** | Book **Edit** while ticket hidden re-shows the ticket and applies the draft. |
+| **L561-11** | Book **Edit** while ticket hidden re-shows the ticket and applies the draft. Pair URL change remounts via Layout keyed Outlet so a hidden ticket still binds the current `pairAddr` (A9). |
 | **L561-12** | Docs/skills match this layout. `make verify-issue-561` covers unit + targeted e2e. |
 
 **Hide vs unmount:** desktop book/ticket stay mounted (`hidden` + `inert`). Form fields persist across hide/show. Pair switch still updates `pairAddr` on the mounted ticket (**A9**).
@@ -60,11 +61,12 @@ Verify: `make verify-issue-561`.
 ## Related
 
 - Anti-cognitive-overload retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
-- **Hard reload / LCP / workspace skeleton:** [GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179), [`AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md`](./AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md).
+- Hard reload / LCP / workspace skeleton: [GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179), [`AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md`](./AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md) (desktop skeleton + HTML bootstrap follow this layout).
 - **Chart `getPair` Retry after indexer 404:** [GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177), [docs/frontend.md § Trade page — chart pair fetch retry](../docs/frontend.md#trade-page-chart-retry), [`AGENTS_FRONTEND_QUERY_RETRY.md`](./AGENTS_FRONTEND_QUERY_RETRY.md).
 
 - Limit **Bid / Ask** side control (order ticket): [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md)
 - Ticket heading + Buy/Sell colors (no compact wallet chip): [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563))
+- Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
 - User-facing error strings (`getErrorMessage`, `RetryError`): [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md); trade outage banner copy: [`../frontend-dapp/src/utils/indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts) ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164), [**#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174))
 - Responsive header / nav: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
 - Price chart (lightweight-charts overlays, USD scale, volume): [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md); [`docs/frontend.md`](../docs/frontend.md) § *Trade page — price chart invariants* ([GitLab **#113**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/113), [**#150**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/150), [**#151**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/151))
