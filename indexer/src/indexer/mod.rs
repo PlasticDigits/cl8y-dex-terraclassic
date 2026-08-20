@@ -2,6 +2,7 @@ pub mod asset_resolver;
 pub mod block_indexer;
 pub mod book_snapshot;
 pub mod candle_builder;
+pub mod candle_mark;
 pub mod fee_discount_registry_health;
 pub mod hub_usd;
 pub mod oracle;

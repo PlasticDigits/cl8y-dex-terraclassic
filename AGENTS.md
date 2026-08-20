@@ -174,6 +174,7 @@ make verify-issue-522                    # #522 pair Price (USD) human scale + o
 make verify-issue-551                    # #551 portfolio/trader P&L human scale + USD totals
 make verify-issue-557                    # #557 human tape / wallet Amount in/out/Price
 make verify-issue-556                    # #556 DEX hub USD (cUSTC/UST1/USTR) + Protocol DEX card
+make verify-issue-568                    # #568 time-stamped candle USD + idle mark-to-market
 make verify-issue-560                    # #560 portfolio/trader realized P&L USD from hub prices
 make verify-issue-573                    # #573 post-merge stack !368–!377 (children 557–567)
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
@@ -253,6 +254,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PROTOCOL_STATS.md](skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` global USD stats + unified oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)); `make verify-issue-550`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
+- [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md](skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md) — `/portfolio` + `/trader` human-scale P&amp;L / cost / avg entry; mixed totals omitted or USD (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
 - [skills/AGENTS_FRONTEND_HUB_PNL.md](skills/AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from `GET /api/v1/hub-prices` (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md](skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape + wallet Amount in/out/Price human scale (**T557-1–T557-11**, [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)); `make verify-issue-557`

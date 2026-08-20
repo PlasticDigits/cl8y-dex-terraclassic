@@ -8,7 +8,7 @@ use crate::db::queries::candles::{self, CandleRow};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
-const INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
+pub(crate) const INTERVALS: &[&str] = &["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 /// Merge one trade price into an existing candle OHLC. **Invariant:** `high >= low`, `close == price`,
 /// `open` unchanged, `high >= close`, `low <= close`.
@@ -120,7 +120,104 @@ pub async fn update_candles_for_swap(
     Ok(())
 }
 
-fn merge_human_ohlc(
+/// Idle mark-to-market candle write (GitLab #568).
+///
+/// Merges factory USD (and, on `trade_count = 0` bars, human) into the **current**
+/// bucket. Does **not** increment `trade_count` or `volume_*`. Swap bars keep DEX
+/// human OHLC. `open` stays the first print/mark in the bucket.
+pub async fn update_candles_for_mark(
+    pool: &PgPool,
+    pair_id: i32,
+    timestamp: DateTime<Utc>,
+    price_usd: &BigDecimal,
+    price_human: &BigDecimal,
+) -> Result<(), sqlx::Error> {
+    let zero = BigDecimal::from(0);
+    if price_usd <= &zero || price_human <= &zero {
+        return Ok(());
+    }
+
+    for &interval in INTERVALS {
+        let open_time = truncate_to_interval(timestamp, interval);
+        let existing = get_candle_at(pool, pair_id, interval, open_time).await?;
+
+        let (open, high, low, close, open_h, high_h, low_h, close_h, vol_base, vol_quote, count) =
+            match existing {
+                Some(candle) if candle.trade_count > 0 => {
+                    let (open, high, low, close) =
+                        merge_candle_ohlc(price_usd, &candle.open, &candle.high, &candle.low);
+                    (
+                        open,
+                        high,
+                        low,
+                        close,
+                        candle.open_human,
+                        candle.high_human,
+                        candle.low_human,
+                        candle.close_human,
+                        candle.volume_base,
+                        candle.volume_quote,
+                        candle.trade_count,
+                    )
+                }
+                Some(candle) => {
+                    let (open, high, low, close) =
+                        merge_candle_ohlc(price_usd, &candle.open, &candle.high, &candle.low);
+                    let (open_h, high_h, low_h, close_h) =
+                        merge_human_ohlc(Some(price_human), &candle);
+                    (
+                        open,
+                        high,
+                        low,
+                        close,
+                        open_h,
+                        high_h,
+                        low_h,
+                        close_h,
+                        candle.volume_base,
+                        candle.volume_quote,
+                        candle.trade_count,
+                    )
+                }
+                None => (
+                    price_usd.clone(),
+                    price_usd.clone(),
+                    price_usd.clone(),
+                    price_usd.clone(),
+                    Some(price_human.clone()),
+                    Some(price_human.clone()),
+                    Some(price_human.clone()),
+                    Some(price_human.clone()),
+                    zero.clone(),
+                    zero.clone(),
+                    0,
+                ),
+            };
+
+        candles::upsert_candle(
+            pool,
+            pair_id,
+            interval,
+            open_time,
+            &open,
+            &high,
+            &low,
+            &close,
+            open_h.as_ref(),
+            high_h.as_ref(),
+            low_h.as_ref(),
+            close_h.as_ref(),
+            &vol_base,
+            &vol_quote,
+            count,
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn merge_human_ohlc(
     price_human: Option<&BigDecimal>,
     candle: &CandleRow,
 ) -> (
@@ -137,11 +234,7 @@ fn merge_human_ohlc(
             candle.close_human.clone(),
         );
     };
-    match (
-        &candle.open_human,
-        &candle.high_human,
-        &candle.low_human,
-    ) {
+    match (&candle.open_human, &candle.high_human, &candle.low_human) {
         (Some(open), Some(high), Some(low)) => {
             let (o, h, l, c) = merge_candle_ohlc(price, open, high, low);
             (Some(o), Some(h), Some(l), Some(c))
@@ -221,7 +314,7 @@ pub fn truncate_to_interval(ts: DateTime<Utc>, interval: &str) -> DateTime<Utc> 
     }
 }
 
-async fn get_candle_at(
+pub(crate) async fn get_candle_at(
     pool: &PgPool,
     pair_id: i32,
     interval: &str,
