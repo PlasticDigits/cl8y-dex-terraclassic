@@ -38,4 +38,6 @@ regexes = [
   '''cl8y-dex-sounds-enabled''',
   # localStorage keys for /trade workspace panel prefs (GitLab #417 / #561); not credentials.
   '''cl8y-dex-trade-(tape-expanded|wallet-history-expanded|book-visible|ticket-visible)''',
+  # Venus Core Pool vFDUSD (BSC) public contract pin (GitLab #571); not a credential.
+  '''0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba''',
 ]
