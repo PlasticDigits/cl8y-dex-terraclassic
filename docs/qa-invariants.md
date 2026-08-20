@@ -95,6 +95,25 @@ Compose project name is fixed (`name: cl8y-dex-terraclassic` in `docker-compose.
 
 Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AGENTS_QA_DEPLOY_VERIFY.md`](../skills/AGENTS_QA_DEPLOY_VERIFY.md).
 
+## Post-merge Coolify + indexer stack (invariant Q6) {#post-merge-stack-573}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q6** Stacked frontend/indexer MRs (!368–!377) are locally verified together and Coolify/indexer env rules are documented | **`make verify-issue-573`** → child verifies **557, 560, 561, 562, 563, 564, 565, 566, 567** plus logo + Coolify env docs (**M573-1–M573-8**) | Non-zero exit; fix the failing child or docs; do not treat local pass as columbus-5 hardware/production smoke |
+
+**M573** (GitLab **#573** — [`skills/AGENTS_POST_MERGE_STACK.md`](../skills/AGENTS_POST_MERGE_STACK.md)):
+
+| ID | Rule |
+|----|------|
+| **M573-1** | `make verify-issue-573` runs the child `make verify-issue-*` list. Unit/docs FAILs fail the stack. Optional Playwright SKIP is allowed only when LocalTerra / `.env.local` is absent. |
+| **M573-2** | Coolify frontend rebuild ships the stack together. Production: `VITE_NETWORK=mainnet`, **`VITE_SHOW_TEST_TOKENS` unset**, **`VITE_FAUCET_ADDRESS` unset**. |
+| **M573-3** | Indexer restart for additive #557 trade/fill decimals (optional #560 position decimals). JSON amounts stay raw. Confirm #553 / #556 migrations if not live. |
+| **M573-4** | LocalTerra Swap pay still lists **EMBER** (`e2e/retail-test-tokens-562.spec.ts`). Gems hide only on mainnet (**P562-3**). |
+| **M573-5** | Favicons use simplified C+8 (`favicon-16.png` / `favicon-32.png`); never `/logo.png` as a tab icon. |
+| **M573-6** | Android Station/Cosmostation WC (#566) and Keplr+Ledger Nano (#567) stay operator hardware AC. |
+| **M573-7** | Production smoke after Coolify: tape vs LCD, Charts Vol (USD), `/trade` layout + **Buy {base}** heading, hub P&amp;L header, no gemstone tickers + faucet Pause. |
+| **M573-8** | Playbook + this Q6 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -104,3 +123,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md) — post-deploy config assertions ([#441](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/441))
 - [`skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](../skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md) — env/chain address cross-check ([#442](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/442))
 - [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — dev `make reset` (non-QA compose)
+- [`skills/AGENTS_POST_MERGE_STACK.md`](../skills/AGENTS_POST_MERGE_STACK.md) — post-merge Coolify + indexer stack !368–!377 ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573), **Q6**)

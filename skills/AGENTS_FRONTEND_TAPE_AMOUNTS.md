@@ -59,3 +59,4 @@ make verify-issue-557
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert is display-only; tape amounts stay offer→ask
 - [`AGENTS_FRONTEND_ORDER_HISTORY.md`](./AGENTS_FRONTEND_ORDER_HISTORY.md) — wallet history columns; display human, CSV raw
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — P&amp;L scale is #551, not this issue
+- [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) — Coolify frontend + indexer restart with this cut ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
