@@ -94,3 +94,4 @@ Vitest: `chartsPairStats.test.ts`, `ChartsPage.test.tsx` (#565 + #564 blocks), `
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert does not reassign stats (#524)
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — histogram wiring
 - [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md) — same `10^(d0−d1)` scale as TWAP (#529)
+- [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) — Charts stats ship with the !370/!371 Coolify cut ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))

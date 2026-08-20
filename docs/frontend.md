@@ -962,7 +962,7 @@ Soft-launch gemstone CW20s stay on columbus-5. The production dApp (`https://dex
 
 `GET /api/v1/pairs` and `route/solve` JSON may still include gem rows for integrators. The dApp overlays the hide.
 
-**Regression:** `make verify-issue-562`. LocalTerra rank/picker tests stay on `VITE_NETWORK=local` (`make verify-issue-534` / `#542` / `#547` / `#481`).
+**Regression:** `make verify-issue-562`. LocalTerra rank/picker tests stay on `VITE_NETWORK=local` (`make verify-issue-534` / `#542` / `#547` / `#481`). LocalTerra P1: [`e2e/retail-test-tokens-562.spec.ts`](../frontend-dapp/e2e/retail-test-tokens-562.spec.ts) (Swap pay still lists EMBER). Stacked post-merge: `make verify-issue-573` ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573) **M573-4**).
 
 ### Token search combobox (`TokenSearchSelect`) — Swap {#token-search-combobox}
 
@@ -979,7 +979,7 @@ Swap **YOU PAY** / **YOU RECEIVE** use [`TokenSearchSelect`](../frontend-dapp/sr
 | **Mobile layout stability (#498)** | Leading logo stays mounted while open; trigger uses **`.token-select-trigger--with-leading-logo`**. Selected label remains until the user edits (`queryDraft`); focus selects the label. See [Portal listboxes — layout stability](#portal-listbox-layout-stability). |
 | **Quote path unchanged** | Selection still updates the same token id string; routing/simulation/execution are untouched. |
 
-**Regression tests:** [`tokenSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/tokenSearchQuery.test.ts); [`TokenSearchSelect.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TokenSearchSelect.test.tsx); E2E helpers [`e2e/helpers/token-select.ts`](../frontend-dapp/e2e/helpers/token-select.ts) target `combobox` (not `button`); mobile CLS [`e2e/swap-token-select-cls.spec.ts`](../frontend-dapp/e2e/swap-token-select-cls.spec.ts) (**#498**).
+**Regression tests:** [`tokenSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/tokenSearchQuery.test.ts); [`TokenSearchSelect.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TokenSearchSelect.test.tsx); E2E helpers [`e2e/helpers/token-select.ts`](../frontend-dapp/e2e/helpers/token-select.ts) target `combobox` (not `button`); mobile CLS [`e2e/swap-token-select-cls.spec.ts`](../frontend-dapp/e2e/swap-token-select-cls.spec.ts) (**#498**); LocalTerra gems-still-listed P1 [`e2e/retail-test-tokens-562.spec.ts`](../frontend-dapp/e2e/retail-test-tokens-562.spec.ts) (**#562** / **#573**).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_SEARCH.md`](../skills/AGENTS_FRONTEND_TOKEN_SEARCH.md); CLS: [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); keyboard notes in [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md).
 

@@ -53,3 +53,4 @@ Manual columbus-5: Terra Classic (LUNA) app open → swap confirms; Cosmos app o
 - Extension fee guard LocalTerra-only: [`AGENTS_EXTENSION_FEE_GUARD.md`](./AGENTS_EXTENSION_FEE_GUARD.md) ([#429](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/429))
 - Pre-sign swap summary: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md) ([#409](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/409))
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489))
+- Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
