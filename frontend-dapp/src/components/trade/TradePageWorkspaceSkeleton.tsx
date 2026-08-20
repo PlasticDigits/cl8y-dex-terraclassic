@@ -7,6 +7,7 @@ export type TradePageWorkspaceSkeletonProps = {
 
 /**
  * Placeholder for chart / book / ticket while trade data or the route chunk loads (GitLab #179).
+ * Desktop skeleton matches the live CSS grid: book | chart | ticket + independent tape row (#561).
  * Sized so main content paints before the legal footer for LCP.
  */
 export function TradePageWorkspaceSkeleton({ includePageChrome = false }: TradePageWorkspaceSkeletonProps) {
@@ -50,27 +51,32 @@ export function TradePageWorkspaceSkeleton({ includePageChrome = false }: TradeP
       </div>
 
       <div
-        className="hidden lg:grid gap-3 min-h-[min(72vh,640px)] h-[min(85vh,920px)]"
-        style={{ gridTemplateColumns: '24% 52% 24%' }}
+        className="hidden lg:flex flex-col gap-2 min-h-[min(72vh,640px)] h-[min(85vh,920px)]"
         data-testid="trade-workspace-skeleton-desktop"
       >
-        <div className="card-glass !p-3 flex flex-col gap-2 min-h-0">
-          <Skeleton height="0.75rem" width="5rem" />
-          <Skeleton height="100%" className="flex-1 min-h-[320px]" />
-        </div>
-        <div className="flex flex-col gap-3 min-h-0">
-          <div className="card-glass !p-2 flex flex-col gap-2 flex-[1.4] min-h-[240px]">
+        <div
+          className="flex-1 min-h-0 grid gap-3"
+          style={{ gridTemplateColumns: 'minmax(13rem, 1fr) minmax(0, 2.2fr) minmax(13rem, 1fr)' }}
+        >
+          <div className="card-glass !p-3 flex flex-col gap-2 min-h-0">
             <Skeleton height="0.75rem" width="5rem" />
-            <Skeleton height="100%" className="flex-1" />
+            <Skeleton height="100%" className="flex-1 min-h-[240px]" />
           </div>
-          <div className="card-glass !p-3 flex flex-col gap-2 flex-1 min-h-[140px]">
+          <div className="shell-panel-strong !p-2 flex flex-col gap-2 min-h-0">
+            <Skeleton height="0.75rem" width="5rem" />
+            <Skeleton height="100%" className="flex-1 min-h-[240px]" />
+          </div>
+          <div className="card-glass !p-3 flex flex-col gap-2 min-h-0">
             <Skeleton height="0.75rem" width="6rem" />
-            <Skeleton height="100%" className="flex-1" />
+            <Skeleton height="100%" className="flex-1 min-h-[240px]" />
           </div>
         </div>
-        <div className="card-glass !p-3 flex flex-col gap-2 min-h-0">
+        <div
+          className="card-glass !p-3 flex flex-col gap-2 shrink-0"
+          data-testid="trade-workspace-skeleton-desktop-tape"
+        >
           <Skeleton height="0.75rem" width="6rem" />
-          <Skeleton height="100%" className="flex-1 min-h-[320px]" />
+          <Skeleton height="2.5rem" width="100%" />
         </div>
       </div>
     </div>

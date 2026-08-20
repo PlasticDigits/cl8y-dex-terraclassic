@@ -329,6 +329,61 @@ describe('TradePage', () => {
     expect(screen.getByTestId('trade-desktop-book-col')).not.toHaveClass('hidden')
   })
 
+  it('pair switch while ticket hidden binds the new pairAddr (GitLab #561 A9)', async () => {
+    const PAIR2 = 'terra1pair0000000000000000000000000000000002'
+    const pair2: IndexerPair = {
+      ...mockIndexerPair,
+      pair_address: PAIR2,
+      asset_0: { ...mockIndexerPair.asset_0, symbol: 'CCC', contract_addr: 'terra1ccc0000000000000000000000000000003' },
+    }
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [
+            { token: { contract_addr: 'terra1aaa0000000000000000000000000000001' } },
+            { token: { contract_addr: 'terra1bbb0000000000000000000000000000002' } },
+          ],
+        },
+        {
+          contract_addr: PAIR2,
+          liquidity_token: 'terra1lp000000000000000000000000000000002',
+          asset_infos: [
+            { token: { contract_addr: 'terra1ccc0000000000000000000000000000003' } },
+            { token: { contract_addr: 'terra1bbb0000000000000000000000000000002' } },
+          ],
+        },
+      ],
+    })
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [mockIndexerPair, pair2],
+      total: 2,
+      limit: 20,
+      offset: 0,
+    })
+    vi.mocked(indexerClient.getPair).mockImplementation(async (addr: string) =>
+      addr === PAIR2 ? pair2 : mockIndexerPair
+    )
+
+    const user = userEvent.setup()
+    mockTradeDesktopLayout(true)
+    const router = renderTradeRoutes([`/trade/${PAIR}`], { layoutParity: true })
+    await screen.findByTestId('trade-desktop-workspace')
+    await user.click(screen.getByTestId('trade-desktop-ticket-toggle'))
+    expect(screen.getByTestId('trade-desktop-ticket-col')).toHaveClass('hidden')
+
+    await act(async () => {
+      await router.navigate(`/trade/${PAIR2}`)
+    })
+    await screen.findByTestId('trade-desktop-workspace')
+    expect(screen.getByTestId('trade-desktop-ticket-col')).toHaveClass('hidden')
+    await user.click(screen.getByTestId('trade-desktop-ticket-toggle'))
+    expect(screen.getByTestId('trade-desktop-ticket-col')).not.toHaveClass('hidden')
+    expect(await screen.findByTestId('trade-ticket-heading')).toHaveTextContent(/CCC/)
+    expect(screen.getAllByTestId('trade-order-ticket-card')).toHaveLength(1)
+  })
+
   it('persists tape disclosure expansion in localStorage (GitLab #417)', async () => {
     const user = userEvent.setup()
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })

@@ -18,4 +18,15 @@ describe('TradePageWorkspaceSkeleton', () => {
     expect(screen.getByTestId('trade-workspace-skeleton-sub-lg')).toBeInTheDocument()
     expect(screen.getByTestId('trade-workspace-skeleton-desktop')).toBeInTheDocument()
   })
+
+  it('desktop skeleton keeps tape as an independent bottom row (GitLab #561)', () => {
+    render(<TradePageWorkspaceSkeleton />)
+    const desktop = screen.getByTestId('trade-workspace-skeleton-desktop')
+    const tape = screen.getByTestId('trade-workspace-skeleton-desktop-tape')
+    expect(desktop.contains(tape)).toBe(true)
+    expect(desktop.style.gridTemplateColumns).toBe('')
+    const chartish = desktop.querySelector('.shell-panel-strong')
+    expect(chartish).toBeTruthy()
+    expect(chartish?.contains(tape)).toBe(false)
+  })
 })

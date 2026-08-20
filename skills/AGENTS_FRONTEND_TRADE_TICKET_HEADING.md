@@ -60,3 +60,4 @@ Issue: [GitLab **#563**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) (#489) — labels stay **Buy {base}** / **Sell {base}**
 - Design tokens: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md)
 - Focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
+- Trade desktop workspace (hide ticket / one mount): [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561))

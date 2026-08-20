@@ -9,7 +9,7 @@ Use when fixing **blank white flash** on hard reload of `/trade`, **missing load
 | [docs/frontend.md § Trade page — initial load / LCP](../docs/frontend.md#trade-page-initial-load) | Invariant table, manual Lighthouse checklist |
 | [`index.html`](../frontend-dapp/index.html) | Pre-React `#trade-bootstrap-shell` for `/trade` paths |
 | [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) | Critical-path skeleton tokens — must match `theme-dark.css` / `theme-light.css` `--bg-0` ([#416](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/416)) |
-| [`TradePageWorkspaceSkeleton.tsx`](../frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx) | Shared skeleton (`data-testid="trade-workspace-skeleton"`) |
+| [`TradePageWorkspaceSkeleton.tsx`](../frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx) | Shared skeleton (`data-testid="trade-workspace-skeleton"`). Desktop region matches the live **#561** grid (book \| chart \| ticket + independent tape). |
 | [`TradePageRouteFallback.tsx`](../frontend-dapp/src/components/trade/TradePageRouteFallback.tsx) | `/trade` Suspense fallback wired in [`App.tsx`](../frontend-dapp/src/App.tsx) |
 | [`RouteContentReadyContext.tsx`](../frontend-dapp/src/contexts/RouteContentReadyContext.tsx) | Pathname-scoped ready gate — defers legal footer in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) ([GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138) nav race) |
 | [`LazyRoute.tsx`](../frontend-dapp/src/components/common/LazyRoute.tsx) | Optional `fallback` prop + `RouteContentReadyMarker` |
@@ -24,6 +24,6 @@ Use when fixing **blank white flash** on hard reload of `/trade`, **missing load
 
 ## Related
 
-- Trade responsive layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
+- Trade responsive layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) — desktop skeleton + HTML bootstrap must not revive nested chart/tape or 24/52/24 splitters)
 - Lazy chunk failures: [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md)
 - LCD outage (infinite skeleton guard): [`AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](./AGENTS_FRONTEND_LCD_CONNECTIVITY.md)
