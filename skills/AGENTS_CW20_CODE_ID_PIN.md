@@ -14,9 +14,11 @@ Use when migrating factory/pair wasm, adding a CW20 code id to the factory white
 
 **Severity:** **High** for permissionless 6036+migrate. Residual risk on protocol-admin 10184/6036 is our-key upgrade risk (still fail-closed until Refresh).
 
-**#581 / 8266:** listing allowed **only if** factory **1.9.0** + pair **1.15.0** (this control) are live on that factory, **or** SpaceUSD wasm admin is cleared, **or** wrap-to-10184. Do not `AddWhitelistedCodeId 8266` while #582 is open without that statement.
+**#581 / 8266:** listing allowed **only after** factory **1.9.0** + pair **1.15.0** (this control) are **migrated live** on that factory, **or** SpaceUSD wasm admin is cleared, **or** wrap-to-10184. Merging this MR is not enough — operators must migrate wasm first.
 
 Do **not** add pair balance-delta / FoT swap math (H-01).
+
+Factory/pair **F6** (this pin) is not faucet **F6** (deploy key remains primary CW20 minter).
 
 ## Invariant F6
 

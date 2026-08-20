@@ -55,6 +55,7 @@ The script queries `CodeInfo` for each ID and fails on checksum mismatch or quer
 - [ ] Every whitelisted code ID listed in factory config was verified with the script or manual `CodeInfo` query.
 - [ ] No fee-on-transfer or experimental tax-token wasm in the whitelist.
 - [ ] Pair creation on staging uses only tokens from verified code IDs.
+- [ ] Factory **1.9.0** + pair **1.15.0** migrated so listing-time pin + write-path re-check (**F6** / [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582)) is live.
 
 ```bash
 terrad query wasm contract-state smart <factory> '{"get_config":{}}' --node <lcd>

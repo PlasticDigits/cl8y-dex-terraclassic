@@ -224,6 +224,23 @@ fn honest_create_pair_then_migrate_to_fot_swap_must_fail() {
         err.contains("Asset CW20 code_id drifted"),
         "expected pin drift, got {err}"
     );
+
+    let refresh_err = app
+        .execute_contract(
+            governance,
+            factory,
+            &dex_common::factory::ExecuteMsg::RefreshPairAssetCodeIds {
+                pair: env.pair.to_string(),
+            },
+            &[],
+        )
+        .unwrap_err()
+        .root_cause()
+        .to_string();
+    assert!(
+        refresh_err.contains("is not factory-whitelisted"),
+        "refresh must refuse unlisted FoT live id, got {refresh_err}"
+    );
 }
 
 #[test]
