@@ -6,7 +6,7 @@ Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
-On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
+On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary) (including **24h volume** = trailing window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
 
 ## Tech Stack
 
@@ -259,19 +259,19 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 ### Charts overview strip {#charts-overview}
 
-[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) overview is **USD-only** for 24h volume ([GitLab **#548**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](../skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md).
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) overview is **USD-only** for 24h volume ([GitLab **#548**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](../skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md). The window is **trailing** `now − 24h`, not a UTC midnight reset ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576); [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts); [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md)). `$0` is an idle window, not a daily close.
 
 | Box | Source | Display |
 |-----|--------|---------|
-| **24h Volume (USD)** | `total_volume_24h_usd` | `$` + compact human ([`formatChartsOverviewVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades_24h === 0`) → `$0`. `data-testid="charts-overview-volume-usd"`. |
+| **Last 24h Vol (USD)** | `total_volume_24h_usd` | `$` + compact human ([`formatChartsOverviewVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades_24h === 0`) → `$0`. Visible **Last 24h** + static `title` / value `aria-label` (`TRAILING_24H_VOLUME_TITLE`). `data-testid="charts-overview-volume-usd"`. |
 | **USTC / USD** | `ustc_price_usd` | `$` + [`formatPairPrice`](../frontend-dapp/src/utils/formatAmount.ts) (never compact `T`). Missing → `—`. `charts-overview-ustc-usd`. |
-| **24h Trades** | `total_trades_24h` | Locale integer (swap rows only, **L10**). `charts-overview-trades`. |
+| **Last 24h Trades** | `total_trades_24h` | Locale integer (swap rows only, **L10**). Trailing window copy as volume. `charts-overview-trades`. |
 | **Pairs** | `pair_count` | Indexed factory pairs. `charts-overview-pairs`. |
 | **Tokens** | `token_count` | Unique pair-leg assets. `charts-overview-tokens`. |
 
-`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level 24h stats + TWAP on the same page are [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564) (below).
+`GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level 24h stats + TWAP on the same page are [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564) (below). Do **not** change the cutoff to calendar days to make the figure hit `$0`.
 
-Regression: `make verify-issue-548`.
+Regression: `make verify-issue-548`, `make verify-issue-576`.
 
 ### Charts pair 24h stats {#charts-pair-stats}
 
@@ -281,7 +281,7 @@ Regression: `make verify-issue-548`.
 
 | Box | Source | Display |
 |-----|--------|---------|
-| **Vol (USD)** | `volume_usd` | `$` + compact human ([`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` / invalid with trades) → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. Tooltip `24h volume in USD`. `charts-pair-volume-usd`. |
+| **Last 24h Vol (USD)** | `volume_usd` | `$` + compact human ([`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` / invalid with trades) → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. Trailing-window `title` / `aria-label` (`TRAILING_24H_VOLUME_TITLE`, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). `charts-pair-volume-usd`. |
 | **Vol ({symbol})** (secondary) | raw `volume_base` / `volume_quote` × **that pair’s** `asset_0` / `asset_1` decimals | [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts). Missing / out-of-range decimals → `—`. Never `formatNum(raw)`. Factory order — [#524](#trade-pair-display-invert) invert does not swap legs. `charts-pair-volume-base` / `charts-pair-volume-quote`. |
 | **High/Low/Open/Close (USD)** | factory `*_usd` | [`formatPairStatsUsdOhlc`](../frontend-dapp/src/utils/chartsPairStats.ts). `charts-pair-*-usd`. |
 
@@ -745,7 +745,9 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).
 
-Regression: `make verify-issue-550`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md).
+Volume boxes use **Last 24h / 7d / 30d vol** plus static trailing-window `title` / `aria-label` — not calendar buckets and not a lecture in the lead paragraph ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts)).
+
+Regression: `make verify-issue-550`, `make verify-issue-576`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md).
 
 ### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
 
@@ -1661,7 +1663,7 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 | **P547-1** | Primary list is a `<table>` (`data-testid="pool-pairs-table"`), not stacked `PoolCard`. |
 | **P547-2** | Sortable headers: label + caret next to the text; `aria-sort` on the active column. No Sort/Order dropdowns. |
 | **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last on LocalTerra (**P534-1–P534-4**). Production omits gems entirely ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). |
-| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). |
+| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). |
 | **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
 | **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |
 | **P547-7** | How-to hint **and** `<details>` dismiss together; `#lp-howto` restores (**H531-7**). |
