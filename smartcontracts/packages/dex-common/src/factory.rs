@@ -193,6 +193,18 @@ pub enum ExecuteMsg {
     UnblacklistPair {
         pair: String,
     },
+    /// Snapshot live asset `code_id`s onto one registered pair (GitLab #582).
+    /// Pair requires each live id to still be factory-whitelisted. Factory-only
+    /// on the pair; honest token upgrades freeze trading until this runs.
+    RefreshPairAssetCodeIds {
+        pair: String,
+    },
+    /// Paginated live `code_id` pin refresh across indexed pairs (`PAIR_INDEX`).
+    /// Rerun with `next_start_after` until `has_more=false` (GitLab #582).
+    RefreshPairAssetCodeIdsBatch {
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    },
 }
 
 #[cw_serde]
@@ -220,6 +232,9 @@ pub enum QueryMsg {
     /// Combined probe used by pair/router guards and off-chain UX (GitLab #308).
     #[returns(BlacklistCheckResponse)]
     BlacklistCheck(BlacklistCheck),
+    /// O(1) whitelist membership for pair write-path re-checks (GitLab #582).
+    #[returns(CodeIdWhitelistedResponse)]
+    IsCodeIdWhitelisted { code_id: u64 },
 }
 
 #[cw_serde]
@@ -258,4 +273,11 @@ pub struct CodeIdsResponse {
 #[cw_serde]
 pub struct PairCountResponse {
     pub count: u64,
+}
+
+/// Factory `IsCodeIdWhitelisted` response (GitLab #582).
+#[cw_serde]
+pub struct CodeIdWhitelistedResponse {
+    pub code_id: u64,
+    pub whitelisted: bool,
 }

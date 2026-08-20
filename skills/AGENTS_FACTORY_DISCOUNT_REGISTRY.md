@@ -32,8 +32,8 @@ Parent ops for **already listed** economic pairs: [#535](https://gitlab.com/Plas
 
 | Contract | cw2 |
 |----------|-----|
-| Factory | **1.8.0** |
-| Pair | **1.14.0** |
+| Factory | **1.9.0** |
+| Pair | **1.15.0** |
 
 Migrate factory then pair. After migrate, run All (≤10 pairs) or Batch until `has_more=false` **once** so the factory pointer is set; new `CreatePair`s inherit. Pre-migrate listings stay unwired until All/Batch or per-pair `SetDiscountRegistry`.
 

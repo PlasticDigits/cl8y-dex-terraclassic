@@ -7,8 +7,8 @@ use cw_storage_plus::Bound;
 
 use crate::error::ContractError;
 use crate::msg::{
-    CodeIdsResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, PairCountResponse, PairResponse,
-    PairsResponse, QueryMsg,
+    CodeIdWhitelistedResponse, CodeIdsResponse, ConfigResponse, ExecuteMsg, InstantiateMsg,
+    PairCountResponse, PairResponse, PairsResponse, QueryMsg,
 };
 use crate::state::{
     Config, BLACKLISTED_PAIRS, BLACKLISTED_TOKENS, BLACKLISTED_WALLETS, CONFIG, PAIRS,
@@ -23,7 +23,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.8.0";
+const CONTRACT_VERSION: &str = "1.9.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -171,6 +171,12 @@ pub fn execute(
         ExecuteMsg::UnblacklistToken { token } => execute_unblacklist_token(deps, info, token),
         ExecuteMsg::BlacklistPair { pair } => execute_blacklist_pair(deps, info, pair),
         ExecuteMsg::UnblacklistPair { pair } => execute_unblacklist_pair(deps, info, pair),
+        ExecuteMsg::RefreshPairAssetCodeIds { pair } => {
+            execute_refresh_pair_asset_code_ids(deps, info, pair)
+        }
+        ExecuteMsg::RefreshPairAssetCodeIdsBatch { start_after, limit } => {
+            execute_refresh_pair_asset_code_ids_batch(deps, info, start_after, limit)
+        }
     }
 }
 
@@ -882,6 +888,83 @@ fn execute_sweep_pair(
         .add_attribute("recipient", recipient))
 }
 
+/// Re-pin live asset CW20 `code_id`s on one registered pair. Governance only
+/// (GitLab #582). Honest token upgrades freeze trading until this runs.
+fn execute_refresh_pair_asset_code_ids(
+    deps: DepsMut,
+    info: MessageInfo,
+    pair: String,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let pair_addr = deps.api.addr_validate(&pair)?;
+    assert_pair_in_registry(&deps, &pair_addr)?;
+
+    let wasm_msg = WasmMsg::Execute {
+        contract_addr: pair_addr.to_string(),
+        msg: to_json_binary(&dex_common::pair::ExecuteMsg::RefreshAssetCodeIds {})?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(wasm_msg)
+        .add_attribute("action", "refresh_pair_asset_code_ids")
+        .add_attribute("pair", pair_addr))
+}
+
+/// Paginated live `code_id` pin refresh across indexed pairs (`PAIR_INDEX`).
+/// Governance only. Rerun with `next_start_after` until `has_more=false`.
+fn execute_refresh_pair_asset_code_ids_batch(
+    deps: DepsMut,
+    info: MessageInfo,
+    start_after: Option<u64>,
+    limit: Option<u32>,
+) -> Result<Response, ContractError> {
+    ensure_governance(&deps, &info)?;
+
+    let batch_limit = calc_limit(limit);
+    let count = PAIR_COUNT.load(deps.storage)?;
+    let start_idx = start_after.map_or(0u64, |s| s.saturating_add(1));
+
+    if start_idx >= count {
+        return Ok(Response::new()
+            .add_attribute("action", "refresh_pair_asset_code_ids_batch")
+            .add_attribute("pairs_updated", "0")
+            .add_attribute("has_more", "false"));
+    }
+
+    let mut idx = start_idx;
+    let mut messages = Vec::new();
+    while idx < count && messages.len() < batch_limit {
+        if let Ok(pair_info) = PAIR_INDEX.load(deps.storage, idx) {
+            messages.push(WasmMsg::Execute {
+                contract_addr: pair_info.contract_addr.to_string(),
+                msg: to_json_binary(&dex_common::pair::ExecuteMsg::RefreshAssetCodeIds {})?,
+                funds: vec![],
+            });
+        }
+        idx += 1;
+    }
+
+    let has_more = idx < count;
+    let next_start_after = has_more.then_some(idx.saturating_sub(1));
+    let last_scanned = idx.saturating_sub(1);
+    let pairs_updated = messages.len();
+
+    let mut resp = Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "refresh_pair_asset_code_ids_batch")
+        .add_attribute("pairs_updated", pairs_updated.to_string())
+        .add_attribute("has_more", has_more.to_string())
+        .add_attribute("scanned_through_index", last_scanned.to_string());
+
+    if let Some(n) = next_start_after {
+        resp = resp.add_attribute("next_start_after", n.to_string());
+    }
+
+    Ok(resp)
+}
+
 /// Set the limit-order batch-max config on a specific pair. Governance only.
 /// Delegates to the pair's `UpdateLimitOrderConfig` execute message.
 fn execute_set_pair_limit_batch_max(
@@ -1016,6 +1099,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetPairCount {} => to_json_binary(&query_pair_count(deps)?),
         QueryMsg::BlacklistCheck(check) => to_json_binary(&query_blacklist_check(deps, check)?),
+        QueryMsg::IsCodeIdWhitelisted { code_id } => {
+            to_json_binary(&query_is_code_id_whitelisted(deps, code_id)?)
+        }
     }
 }
 
@@ -1097,6 +1183,13 @@ fn query_whitelisted_code_ids(
 fn query_pair_count(deps: Deps) -> StdResult<PairCountResponse> {
     let count = PAIR_COUNT.load(deps.storage)?;
     Ok(PairCountResponse { count })
+}
+
+fn query_is_code_id_whitelisted(deps: Deps, code_id: u64) -> StdResult<CodeIdWhitelistedResponse> {
+    Ok(CodeIdWhitelistedResponse {
+        code_id,
+        whitelisted: WHITELISTED_CODE_IDS.has(deps.storage, code_id),
+    })
 }
 
 fn query_blacklist_check(deps: Deps, check: BlacklistCheck) -> StdResult<BlacklistCheckResponse> {

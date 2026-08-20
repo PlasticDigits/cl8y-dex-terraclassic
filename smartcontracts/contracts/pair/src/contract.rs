@@ -5,6 +5,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, MinterResponse};
 
+use crate::asset_code_id_guard;
 use crate::blacklist_guard;
 use crate::discount_cache::{
     invalidate_discount_cache, lookup_effective_fee_bps_cached, lookup_effective_fee_bps_readonly,
@@ -24,10 +25,10 @@ use crate::msg::{
 };
 use crate::orderbook;
 use crate::state::{
-    LimitOrderConfig, OracleState, PairInfoState, DISCOUNT_REGISTRY, EXPIRED_LIMIT_CLAIMS,
-    FEE_CONFIG, HOOKS, LIMIT_CLEAN_CONFIG, LIMIT_ORDER_CONFIG, OBSERVATIONS, ORACLE_STATE,
-    ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1, RESERVES,
-    TOTAL_LP_SUPPLY,
+    LimitOrderConfig, OracleState, PairInfoState, ASSET_CODE_IDS, DISCOUNT_REGISTRY,
+    EXPIRED_LIMIT_CLAIMS, FEE_CONFIG, HOOKS, LIMIT_CLEAN_CONFIG, LIMIT_ORDER_CONFIG, OBSERVATIONS,
+    ORACLE_STATE, ORDER_NEXT_ID, PAIR_INFO, PAUSED, PENDING_ESCROW_TOKEN0, PENDING_ESCROW_TOKEN1,
+    RESERVES, TOTAL_LP_SUPPLY,
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
@@ -45,7 +46,7 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.14.0";
+const CONTRACT_VERSION: &str = "1.15.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -284,6 +285,10 @@ fn gate_trading_blacklist(
         &wallet_refs,
         extra_tokens,
     )
+}
+
+fn gate_asset_code_ids(deps: Deps) -> Result<(), ContractError> {
+    asset_code_id_guard::assert_asset_code_ids(deps)
 }
 
 // ---------------------------------------------------------------------------
@@ -538,6 +543,8 @@ pub fn instantiate(
         None => None,
     };
     DISCOUNT_REGISTRY.save(deps.storage, &discount_registry)?;
+    let pinned = asset_code_id_guard::snapshot_asset_code_ids(&deps.querier, &pair_info)?;
+    ASSET_CODE_IDS.save(deps.storage, &pinned)?;
     ORDER_NEXT_ID.save(deps.storage, &1u64)?;
     PENDING_ESCROW_TOKEN0.save(deps.storage, &Uint128::zero())?;
     PENDING_ESCROW_TOKEN1.save(deps.storage, &Uint128::zero())?;
@@ -639,6 +646,7 @@ pub fn execute(
                 std::slice::from_ref(&info.sender),
                 &[],
             )?;
+            gate_asset_code_ids(deps.as_ref())?;
             execute_provide_liquidity(deps, env, info, assets, slippage_tolerance, receiver)
         }
         ExecuteMsg::Swap {
@@ -666,6 +674,7 @@ pub fn execute(
         ExecuteMsg::SetDiscountRegistry { registry } => {
             execute_set_discount_registry(deps, info, registry)
         }
+        ExecuteMsg::RefreshAssetCodeIds {} => execute_refresh_asset_code_ids(deps, info),
         ExecuteMsg::SetPaused { paused } => execute_set_paused(deps, info, paused),
         ExecuteMsg::Sweep { token, recipient } => execute_sweep(deps, env, info, token, recipient),
         ExecuteMsg::SetLpAdmin { admin } => execute_set_lp_admin(deps, info, admin),
@@ -677,6 +686,7 @@ pub fn execute(
                 std::slice::from_ref(&info.sender),
                 &[],
             )?;
+            gate_asset_code_ids(deps.as_ref())?;
             execute_cancel_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::CancelLimitOrders { order_ids } => {
@@ -687,6 +697,7 @@ pub fn execute(
                 std::slice::from_ref(&info.sender),
                 &[],
             )?;
+            gate_asset_code_ids(deps.as_ref())?;
             execute_cancel_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::ClaimExpiredLimitOrder { order_id } => {
@@ -697,6 +708,7 @@ pub fn execute(
                 std::slice::from_ref(&info.sender),
                 &[],
             )?;
+            gate_asset_code_ids(deps.as_ref())?;
             execute_claim_expired_limit_order(deps, env, info, order_id)
         }
         ExecuteMsg::ClaimExpiredLimitOrders { order_ids } => {
@@ -707,6 +719,7 @@ pub fn execute(
                 std::slice::from_ref(&info.sender),
                 &[],
             )?;
+            gate_asset_code_ids(deps.as_ref())?;
             execute_claim_expired_limit_orders(deps, env, info, order_ids)
         }
         ExecuteMsg::UpdateLimitOrderPrice {
@@ -778,6 +791,7 @@ fn execute_receive(
         &wallets,
         std::slice::from_ref(&info.sender),
     )?;
+    gate_asset_code_ids(deps.as_ref())?;
 
     match hook_msg {
         Cw20HookMsg::Swap {
@@ -2041,6 +2055,26 @@ fn execute_set_discount_registry(
         .add_attribute("registry", registry_str))
 }
 
+/// Re-pin both asset CW20 `code_id`s from live `ContractInfo`. Factory only.
+/// Each live id must still be factory-whitelisted (GitLab #582).
+fn execute_refresh_asset_code_ids(
+    deps: DepsMut,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let pair_info = PAIR_INFO.load(deps.storage)?;
+    if info.sender != pair_info.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let code_ids = asset_code_id_guard::refresh_asset_code_ids(deps.as_ref())?;
+    ASSET_CODE_IDS.save(deps.storage, &code_ids)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "refresh_asset_code_ids")
+        .add_attribute("code_id_0", code_ids[0].to_string())
+        .add_attribute("code_id_1", code_ids[1].to_string()))
+}
+
 /// Emergency pause/unpause. Factory (governance) only.
 /// When paused, all CW20 Receive messages (swaps, **limit placement**, LP
 /// withdrawals via Send) and ProvideLiquidity are blocked; **`CancelLimitOrder`
@@ -2184,6 +2218,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetFeeConfig {} => to_json_binary(&query_fee_config(deps)?),
         QueryMsg::GetHooks {} => to_json_binary(&query_hooks(deps)?),
         QueryMsg::GetDiscountRegistry {} => to_json_binary(&query_discount_registry(deps)?),
+        QueryMsg::GetAssetCodeIds {} => to_json_binary(&query_asset_code_ids(deps)?),
         QueryMsg::Observe { seconds_ago } => to_json_binary(
             &query_observe(deps, &env, seconds_ago)
                 .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
@@ -2700,6 +2735,11 @@ fn query_discount_registry(deps: Deps) -> StdResult<dex_common::pair::DiscountRe
     Ok(dex_common::pair::DiscountRegistryResponse { registry })
 }
 
+fn query_asset_code_ids(deps: Deps) -> StdResult<dex_common::pair::AssetCodeIdsResponse> {
+    let code_ids = ASSET_CODE_IDS.load(deps.storage)?;
+    Ok(dex_common::pair::AssetCodeIdsResponse { code_ids })
+}
+
 fn query_observe(
     deps: Deps,
     env: &Env,
@@ -2819,6 +2859,12 @@ pub fn migrate(
     }
     if LIMIT_CLEAN_CONFIG.may_load(deps.storage)?.is_none() {
         save_limit_clean_config(deps.storage, Uint128::zero(), Uint128::zero())?;
+    }
+    if ASSET_CODE_IDS.may_load(deps.storage)?.is_none() {
+        if let Some(pair_info) = PAIR_INFO.may_load(deps.storage)? {
+            let pins = asset_code_id_guard::snapshot_asset_code_ids(&deps.querier, &pair_info)?;
+            ASSET_CODE_IDS.save(deps.storage, &pins)?;
+        }
     }
 
     Ok(Response::new()

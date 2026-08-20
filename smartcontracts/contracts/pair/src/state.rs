@@ -42,6 +42,9 @@ pub struct OracleState {
 }
 
 pub const PAIR_INFO: Item<PairInfoState> = Item::new("pair_info");
+/// Asset CW20 `code_id`s snapshotted at instantiate (or last factory refresh).
+/// Order matches [`PairInfoState::asset_infos`] (GitLab #582).
+pub const ASSET_CODE_IDS: Item<[u64; 2]> = Item::new("asset_code_ids");
 pub const RESERVES: Item<(Uint128, Uint128)> = Item::new("reserves");
 pub const FEE_CONFIG: Item<FeeConfig> = Item::new("fee_config");
 pub const HOOKS: Item<Vec<Addr>> = Item::new("hooks");

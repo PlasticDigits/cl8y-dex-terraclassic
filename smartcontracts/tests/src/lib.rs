@@ -14,6 +14,8 @@ mod mock_split_fee_wrap_mapper;
 mod lp_symbol_tests;
 
 #[cfg(test)]
+mod asset_code_id_pin_tests;
+#[cfg(test)]
 mod blacklist_tests;
 #[cfg(test)]
 mod discount_registry_inherit_tests;

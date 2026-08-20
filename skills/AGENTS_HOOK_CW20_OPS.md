@@ -34,5 +34,5 @@ make test-contracts
 ## Do not
 
 - Add `reply_on_error` on pair hook dispatch without product approval.
-- Implement balance-delta reconciliation for fee-on-transfer tokens (document prohibition only).
+- Implement balance-delta reconciliation for fee-on-transfer tokens (document prohibition only). Post-listing migrate is handled by **code_id pin + whitelist re-check** ([#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582), [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md)) — not FoT math.
 - Add non-pair addresses to hook `UpdateAllowedPairs`.

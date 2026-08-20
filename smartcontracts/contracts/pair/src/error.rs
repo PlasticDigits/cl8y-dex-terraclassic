@@ -157,4 +157,20 @@ pub enum ContractError {
         decimals1: u8,
         max: u8,
     },
+
+    #[error("Asset CW20 code_id drifted: token {token} pinned {pinned}, live {live}")]
+    AssetCodeIdDrift {
+        token: String,
+        pinned: u64,
+        live: u64,
+    },
+
+    #[error("Asset CW20 code_id {code_id} is not factory-whitelisted (token {token})")]
+    AssetCodeIdNotWhitelisted { token: String, code_id: u64 },
+
+    #[error("Asset code_id guard unavailable: ContractInfo or factory whitelist query failed")]
+    AssetCodeIdGuardUnavailable {},
+
+    #[error("Asset CW20 code_id pins are missing; migrate the pair contract")]
+    AssetCodeIdUnpinned {},
 }

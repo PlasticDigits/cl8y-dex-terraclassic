@@ -159,9 +159,9 @@ The maker fee is taken at placement time (limit_placement.rs lines 183-287): mak
 
 The maker fee being taken immediately reduces the escrowed amount correctly, but does not close the gap. The shortfall equals exactly the CW20 fee-on-transfer amount per order.
 
-The CW20 code ID whitelist (factory/src/contract.rs lines 200-212) gates on code_id at pair creation only. A fee-on-transfer implementation behind a whitelisted code_id, or a token whose code is later upgraded to add a fee, passes the whitelist check. Not currently documented as an explicit constraint in security-model.md or as an audit requirement for whitelist candidates.
+The CW20 code ID whitelist (factory/src/contract.rs CreatePair) gates on `code_id` at pair creation. GitLab [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) closes the post-listing `MsgMigrateContract` hole: pair instantiate pins live ids; write paths re-check pin + factory `IsCodeIdWhitelisted` (invariant **F6**). A fee-on-transfer implementation **behind a still-whitelisted and still-pinned** code_id remains an ops/audit gap — do not whitelist FoT templates. Balance-delta escrow assertion is **not** implemented (H-01).
 
-**Action required for I02:** Document that whitelisted code IDs must be explicitly audited to confirm absence of fee-on-transfer and rebase mechanics. Consider adding balance-delta assertion in escrow funding to detect discrepancy at placement time.
+**Action required for I02:** Document that whitelisted code IDs must be explicitly audited to confirm absence of fee-on-transfer and rebase mechanics. Post-listing `MsgMigrateContract` is mitigated on-chain by pin + whitelist re-check ([#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582)). Do **not** add balance-delta escrow math.
 
 ---
 
@@ -373,7 +373,7 @@ Items requiring follow-up action:
 
 | ID | Action |
 |---|---|
-| H05 | Document whitelist code ID audit requirement: no fee-on-transfer, no rebase. Consider balance-delta assertion in escrow funding. |
+| H05 | Document whitelist code ID audit requirement: no fee-on-transfer, no rebase. Post-listing migrate is on-chain pin+recheck ([#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582), **F6**). Do not add FoT balance-delta math. |
 | H07 | File issue: signing modal should display pair contract address alongside token symbols. |
 | H09 | File issue (may combine with H07): route intermediate token addresses should be cross-validated between display path and submitted router_operations. |
 | H14 | Add FACTORY_ADDRESS non-empty assertion to post-deploy verification or launch-checklist, independent of RUN_MODE. |

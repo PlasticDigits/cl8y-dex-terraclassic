@@ -28,6 +28,12 @@
 //!   `config.discount_registry` into instantiate. `GetDiscountRegistry` returns
 //!   the stored `Option<Addr>` (`None` = unwired, full pair fee). Existing pairs
 //!   are not retroactively wired — that is GitLab #535. See **F5**.
+//! - **Asset CW20 `code_id` pin (#582):** instantiate snapshots each asset's
+//!   live `ContractInfo.code_id`. Swap / provide / withdraw / limit place+fill
+//!   (and cancel/claim CW20 refunds) abort unless live id **equals the pin**
+//!   **and** remains factory-whitelisted. Honest token upgrades freeze the pair
+//!   until factory `RefreshPairAssetCodeIds`. Do **not** add FoT balance-delta
+//!   math. See **F6**.
 //!
 //! ## Limit book and escrow (FIFO hybrid)
 //!
@@ -62,8 +68,9 @@
 //! | Swap              | Any CW20 holder (via Send) |
 //! | ProvideLiquidity   | Anyone                   |
 //! | WithdrawLiquidity  | LP token holder (via Send) |
-//! | UpdateFee / UpdateTreasury / Hooks / Pause / Sweep / DiscountRegistry | Factory only |
+//! | UpdateFee / UpdateTreasury / Hooks / Pause / Sweep / DiscountRegistry / RefreshAssetCodeIds | Factory only |
 
+pub mod asset_code_id_guard;
 pub mod asset_decimals;
 pub mod blacklist_guard;
 pub mod contract;

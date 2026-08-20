@@ -4,7 +4,8 @@
 //!
 //! - Instantiates new Pair contracts (with LP tokens) via `CreatePair`.
 //! - Maintains a whitelist of allowed CW20 code IDs to prevent malicious
-//!   token contracts from being used in pairs.
+//!   token contracts from being used in pairs. After listing, pairs **re-check**
+//!   live `code_id` against that whitelist and a per-pair pin (GitLab #582).
 //! - Provides governance-gated admin operations: fee updates, pair treasury
 //!   rotation, hook registration, discount registry configuration, pause, and sweep.
 //! - Stores a sequential pair index for paginated enumeration (discovery).
@@ -52,6 +53,15 @@
 //! discount_registry }` sets the pointer without touching indexed pairs.
 //! Missing field on migrate → `None`. Existing pairs are **not** fixed here
 //! (GitLab #535). See invariant **F5**.
+//!
+//! ## Asset CW20 `code_id` pin (GitLab #582)
+//!
+//! `CreatePair` still gates listing on factory `WHITELISTED_CODE_IDS`. The pair
+//! then snapshots each asset's live `code_id` at instantiate. Write paths
+//! re-query `ContractInfo` and abort unless the live id **equals the pin**
+//! **and** `IsCodeIdWhitelisted` is still true. Honest token upgrades freeze
+//! those pairs until governance `RefreshPairAssetCodeIds` /
+//! `RefreshPairAssetCodeIdsBatch`. Query errors fail closed. See **F6**.
 
 pub mod contract;
 pub mod error;
