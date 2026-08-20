@@ -739,7 +739,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | **P550-2 Tickers** | Tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3 One card** | Snapshot, sources, and history share one `shell-panel`. Query keys include ticker. |
 | **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |
-| **P550-9 vFDUSD** | CEX FDUSD (`first-digital-usd` / `FDUSDUSDT`), labeled **vFDUSD / USD**. Not `$1`, not the `/ust1` window rate. |
+| **P550-9 vFDUSD** | Path `vfdusd` returns CEX **FDUSD/USD** (`first-digital-usd` / `FDUSDUSDT`; JSON `quote_asset=FDUSD`). Not Terra CW20 vFDUSD, not `$1`, not the `/ust1` window rate. Protocol Venus heading is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571) ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). |
 | **P550-11 Reference** | Feeds are advisory. Per-pair TWAP stays on Charts. |
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).

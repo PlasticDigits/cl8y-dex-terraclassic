@@ -433,6 +433,7 @@ mod tests {
         assert!(HubTicker::parse("ustc").is_none());
         assert!(HubTicker::parse("ustr_").is_none());
         assert!(HubTicker::parse("fdusd").is_none());
+        assert!(HubTicker::parse("vfdusd").is_none());
     }
 
     #[test]

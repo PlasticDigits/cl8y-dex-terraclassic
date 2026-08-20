@@ -17,9 +17,23 @@ async fn oracle_price_catalog_lists_tickers() {
     assert_eq!(resp.status_code(), StatusCode::OK);
 
     let body: serde_json::Value = resp.json();
-    assert!(body["metadata"].as_str().unwrap().contains("ustc"));
-    assert!(body["metadata"].as_str().unwrap().contains("lunc"));
-    assert!(body["metadata"].as_str().unwrap().contains("vfdusd"));
+    let meta = body["metadata"].as_str().unwrap();
+    assert!(meta.contains("ustc"));
+    assert!(meta.contains("lunc"));
+    assert!(meta.contains("vfdusd"));
+    assert!(meta.contains("FDUSD"), "catalog must identify CEX FDUSD: {meta}");
+    assert!(
+        meta.contains("CEX") || meta.contains("MEXC"),
+        "catalog must say the vfdusd snapshot is CEX FDUSD: {meta}"
+    );
+    assert!(
+        !meta.contains("vFDUSD/USD"),
+        "catalog must not claim the print is vFDUSD/USD: {meta}"
+    );
+    assert!(
+        meta.contains("not") && (meta.contains("vFDUSD") || meta.contains("CW20")),
+        "catalog must deny Terra vFDUSD identity: {meta}"
+    );
     let tickers = body["tickers"].as_array().unwrap();
     assert_eq!(tickers.len(), 3);
     assert!(tickers.iter().any(|t| t == "ustc"));
@@ -41,6 +55,8 @@ async fn oracle_price_ustc_returns_none_when_no_data() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "ustc");
+    assert_eq!(body["quote_asset"], "USTC");
+    assert_eq!(body["display_name"], "USTC/USD");
     assert!(body["price_usd"].is_null());
     assert!(body["sources"].as_array().unwrap().is_empty());
 }
@@ -142,6 +158,8 @@ async fn oracle_price_vfdusd_returns_none_when_no_data() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "vfdusd");
+    assert_eq!(body["quote_asset"], "FDUSD");
+    assert_eq!(body["display_name"], "FDUSD/USD");
     assert!(body["price_usd"].is_null());
 }
 
@@ -159,6 +177,8 @@ async fn oracle_price_vfdusd_returns_cached_value_not_hardcoded_peg() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "vfdusd");
+    assert_eq!(body["quote_asset"], "FDUSD");
+    assert_eq!(body["display_name"], "FDUSD/USD");
     let price_str = body["price_usd"].as_str().unwrap();
     assert!(price_str.starts_with("0.87"), "depeg must display, got {price_str}");
     assert!(!price_str.starts_with("1.0"));
@@ -195,6 +215,26 @@ async fn oracle_history_ustc_returns_empty_when_no_data() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "ustc");
+    assert_eq!(body["quote_asset"], "USTC");
+    assert_eq!(body["display_name"], "USTC/USD");
+    assert!(body["prices"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn oracle_history_vfdusd_identity_is_cex_fdusd() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/history/vfdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["ticker"], "vfdusd");
+    assert_eq!(body["quote_asset"], "FDUSD");
+    assert_eq!(body["display_name"], "FDUSD/USD");
     assert!(body["prices"].as_array().unwrap().is_empty());
 }
 
@@ -252,6 +292,8 @@ async fn oracle_history_returns_stored_prices_per_ticker() {
     assert_eq!(vfdusd_resp.status_code(), StatusCode::OK);
     let vfdusd_body: serde_json::Value = vfdusd_resp.json();
     assert_eq!(vfdusd_body["ticker"], "vfdusd");
+    assert_eq!(vfdusd_body["quote_asset"], "FDUSD");
+    assert_eq!(vfdusd_body["display_name"], "FDUSD/USD");
     assert_eq!(vfdusd_body["prices"].as_array().unwrap().len(), 1);
     assert!(vfdusd_body["prices"][0]["price_usd"]
         .as_str()

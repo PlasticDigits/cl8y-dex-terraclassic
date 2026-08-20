@@ -9,13 +9,15 @@ use super::{internal_err, AppState};
 use crate::db::queries::oracle as db_oracle;
 use crate::indexer::oracle::OracleTicker;
 
-/// Catalog metadata for `GET /api/v1/oracle/price` and `/history` (GitLab #515).
+/// Catalog metadata for `GET /api/v1/oracle/price` and `/history` (GitLab #515 / #580).
 pub const ORACLE_CATALOG_METADATA: &str = concat!(
     "Indexer external USD reference prices (not on-chain pair TWAP). ",
     "GET /api/v1/oracle/price/{ticker} for the latest average + per-source snapshot; ",
     "GET /api/v1/oracle/history/{ticker} for average history. ",
     "Tickers: ustc = TerraClassic USTC/USD; lunc = TerraClassic LUNC/USD; ",
-    "vfdusd = wrapped FDUSD CEX/USD reference (polls FDUSD, not a $1 peg). ",
+    "vfdusd path stores CEX FDUSD/USD (MEXC FDUSDUSDT, CoinGecko first-digital-usd); ",
+    "it is not USD of Terra CW20 vFDUSD (Venus bridged). Protocol Venus UI is GitLab #571. ",
+    "Path fdusd is 400 (no alias). ",
     "Sources are polled CEX/aggregator APIs (KuCoin, MEXC, CoinGecko). ",
     "KuCoin is skipped for vfdusd when unlisted. Advisory only — not used for on-chain settlement."
 );
@@ -39,6 +41,10 @@ pub struct OracleSourcePrice {
 pub struct OraclePriceResponse {
     /// Path ticker (`ustc`, `lunc`, or `vfdusd`).
     pub ticker: String,
+    /// CEX quote-asset identity. Path `vfdusd` → `FDUSD` (not Terra CW20 vFDUSD).
+    pub quote_asset: String,
+    /// Operator/integrator display pair (`USTC/USD`, `LUNC/USD`, `FDUSD/USD`).
+    pub display_name: String,
     pub price_usd: Option<String>,
     pub sources: Vec<OracleSourcePrice>,
 }
@@ -116,6 +122,8 @@ pub async fn get_oracle_price(
 
     Ok(Json(OraclePriceResponse {
         ticker: ticker.as_str().to_string(),
+        quote_asset: ticker.quote_asset().to_string(),
+        display_name: ticker.display_name().to_string(),
         price_usd: current.map(|p| p.to_string()),
         sources,
     }))
@@ -140,6 +148,10 @@ pub struct OracleHistoryEntry {
 #[derive(Serialize, ToSchema)]
 pub struct OracleHistoryResponse {
     pub ticker: String,
+    /// CEX quote-asset identity. Path `vfdusd` → `FDUSD` (not Terra CW20 vFDUSD).
+    pub quote_asset: String,
+    /// Operator/integrator display pair (`USTC/USD`, `LUNC/USD`, `FDUSD/USD`).
+    pub display_name: String,
     pub prices: Vec<OracleHistoryEntry>,
 }
 
@@ -207,6 +219,8 @@ pub async fn get_oracle_history(
 
     Ok(Json(OracleHistoryResponse {
         ticker: ticker.as_str().to_string(),
+        quote_asset: ticker.quote_asset().to_string(),
+        display_name: ticker.display_name().to_string(),
         prices,
     }))
 }
