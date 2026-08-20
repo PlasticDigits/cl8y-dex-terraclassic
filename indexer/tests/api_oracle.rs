@@ -17,9 +17,23 @@ async fn oracle_price_catalog_lists_tickers() {
     assert_eq!(resp.status_code(), StatusCode::OK);
 
     let body: serde_json::Value = resp.json();
-    assert!(body["metadata"].as_str().unwrap().contains("ustc"));
-    assert!(body["metadata"].as_str().unwrap().contains("lunc"));
-    assert!(body["metadata"].as_str().unwrap().contains("vfdusd"));
+    let meta = body["metadata"].as_str().unwrap();
+    assert!(meta.contains("ustc"));
+    assert!(meta.contains("lunc"));
+    assert!(meta.contains("vfdusd"));
+    assert!(meta.contains("FDUSD"), "catalog must identify CEX FDUSD: {meta}");
+    assert!(
+        meta.contains("CEX") || meta.contains("MEXC"),
+        "catalog must say the vfdusd snapshot is CEX FDUSD: {meta}"
+    );
+    assert!(
+        !meta.contains("vFDUSD/USD"),
+        "catalog must not claim the print is vFDUSD/USD: {meta}"
+    );
+    assert!(
+        meta.contains("not") && (meta.contains("vFDUSD") || meta.contains("CW20")),
+        "catalog must deny Terra vFDUSD identity: {meta}"
+    );
     let tickers = body["tickers"].as_array().unwrap();
     assert_eq!(tickers.len(), 3);
     assert!(tickers.iter().any(|t| t == "ustc"));
@@ -41,6 +55,8 @@ async fn oracle_price_ustc_returns_none_when_no_data() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "ustc");
+    assert_eq!(body["quote_asset"], "USTC");
+    assert_eq!(body["display_name"], "USTC/USD");
     assert!(body["price_usd"].is_null());
     assert!(body["sources"].as_array().unwrap().is_empty());
 }
@@ -142,6 +158,8 @@ async fn oracle_price_vfdusd_returns_none_when_no_data() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "vfdusd");
+    assert_eq!(body["quote_asset"], "FDUSD");
+    assert_eq!(body["display_name"], "FDUSD/USD");
     assert!(body["price_usd"].is_null());
 }
 
@@ -159,8 +177,13 @@ async fn oracle_price_vfdusd_returns_cached_value_not_hardcoded_peg() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "vfdusd");
+    assert_eq!(body["quote_asset"], "FDUSD");
+    assert_eq!(body["display_name"], "FDUSD/USD");
     let price_str = body["price_usd"].as_str().unwrap();
-    assert!(price_str.starts_with("0.87"), "depeg must display, got {price_str}");
+    assert!(
+        price_str.starts_with("0.87"),
+        "depeg must display, got {price_str}"
+    );
     assert!(!price_str.starts_with("1.0"));
 }
 
@@ -195,6 +218,26 @@ async fn oracle_history_ustc_returns_empty_when_no_data() {
 
     let body: serde_json::Value = resp.json();
     assert_eq!(body["ticker"], "ustc");
+    assert_eq!(body["quote_asset"], "USTC");
+    assert_eq!(body["display_name"], "USTC/USD");
+    assert!(body["prices"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn oracle_history_vfdusd_identity_is_cex_fdusd() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/history/vfdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["ticker"], "vfdusd");
+    assert_eq!(body["quote_asset"], "FDUSD");
+    assert_eq!(body["display_name"], "FDUSD/USD");
     assert!(body["prices"].as_array().unwrap().is_empty());
 }
 
@@ -252,11 +295,92 @@ async fn oracle_history_returns_stored_prices_per_ticker() {
     assert_eq!(vfdusd_resp.status_code(), StatusCode::OK);
     let vfdusd_body: serde_json::Value = vfdusd_resp.json();
     assert_eq!(vfdusd_body["ticker"], "vfdusd");
+    assert_eq!(vfdusd_body["quote_asset"], "FDUSD");
+    assert_eq!(vfdusd_body["display_name"], "FDUSD/USD");
     assert_eq!(vfdusd_body["prices"].as_array().unwrap().len(), 1);
     assert!(vfdusd_body["prices"][0]["price_usd"]
         .as_str()
         .unwrap()
         .starts_with("0.87"));
+}
+
+#[tokio::test]
+async fn oracle_price_ustc_omits_venus() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/price/ustc").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+    let body: serde_json::Value = resp.json();
+    assert!(body["venus"].is_null());
+}
+
+#[tokio::test]
+async fn oracle_price_vfdusd_includes_independent_venus_snapshot() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let cex = BigDecimal::from_str("0.87").unwrap();
+    let venus = cl8y_dex_indexer::indexer::venus_vfdusd::VenusVfdusdSnapshot::new_now(
+        BigDecimal::from_str("0.023").unwrap(),
+    );
+    let app = common::build_test_app_with_venus(pool, Some(cex), Some(venus)).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/price/vfdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+    let body: serde_json::Value = resp.json();
+    assert!(body["price_usd"].as_str().unwrap().starts_with("0.87"));
+    assert!(body["venus"]["fdusd_per_vfdusd"]
+        .as_str()
+        .unwrap()
+        .starts_with("0.023"));
+    assert_eq!(body["venus"]["source"], "venus_bsc");
+    assert!(!body["venus"]["vtoken"].as_str().unwrap().contains("http"));
+}
+
+#[tokio::test]
+async fn oracle_venus_route_requires_vfdusd_ticker() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let ok = server.get("/api/v1/oracle/price/vfdusd/venus").await;
+    assert_eq!(ok.status_code(), StatusCode::OK);
+    let body: serde_json::Value = ok.json();
+    assert!(body["fdusd_per_vfdusd"].is_null());
+    assert_eq!(body["source"], "venus_bsc");
+
+    for path in [
+        "/api/v1/oracle/price/ustc/venus",
+        "/api/v1/oracle/price/lunc/venus",
+        "/api/v1/oracle/price/fdusd/venus",
+        "/api/v1/oracle/price/btc/venus",
+    ] {
+        let resp = server.get(path).await;
+        assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST, "{path}");
+    }
+}
+
+#[tokio::test]
+async fn oracle_venus_outage_does_not_hide_cex() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+
+    let cex = BigDecimal::from_str("0.87").unwrap();
+    let app = common::build_test_app_with_venus(pool, Some(cex), None).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/oracle/price/vfdusd").await;
+    assert_eq!(resp.status_code(), StatusCode::OK);
+    let body: serde_json::Value = resp.json();
+    assert!(body["price_usd"].as_str().unwrap().starts_with("0.87"));
+    assert!(body["venus"]["fdusd_per_vfdusd"].is_null());
 }
 
 #[tokio::test]
@@ -283,6 +407,7 @@ async fn overview_includes_usd_fields() {
 #[tokio::test]
 async fn pair_stats_includes_volume_usd() {
     let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
     let seed = common::seed_db(&pool).await;
 
     let app = common::build_test_app(pool).await;

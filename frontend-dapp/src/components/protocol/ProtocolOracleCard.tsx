@@ -2,28 +2,43 @@ import type { KeyboardEvent } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError, Skeleton } from '@/components/ui'
 import { formatDateTime } from '@/utils/formatDate'
-import { formatProtocolOracleUsd } from '@/utils/formatProtocolStats'
+import { formatProtocolFdusdOut, formatProtocolOracleUsd } from '@/utils/formatProtocolStats'
 import {
   PROTOCOL_ORACLE_TICKER_LABEL,
   PROTOCOL_ORACLE_TICKERS,
   type ProtocolOracleTicker,
 } from '@/utils/protocolOracleTicker'
 import { sounds } from '@/lib/sounds'
-import type { IndexerOracleHistoryResponse, IndexerOraclePriceResponse } from '@/types'
+import type { IndexerOracleHistoryResponse, IndexerOraclePriceResponse, IndexerOracleVenusVfdusd } from '@/types'
 
 interface ProtocolOracleCardProps {
   ticker: ProtocolOracleTicker
   onTickerChange: (ticker: ProtocolOracleTicker) => void
   priceQuery: UseQueryResult<IndexerOraclePriceResponse>
   historyQuery: UseQueryResult<IndexerOracleHistoryResponse>
+  venusQuery: UseQueryResult<IndexerOracleVenusVfdusd>
 }
 
-export function ProtocolOracleCard({ ticker, onTickerChange, priceQuery, historyQuery }: ProtocolOracleCardProps) {
+function venusFdusdDisplay(raw: string | number | null | undefined): string {
+  const formatted = formatProtocolFdusdOut(raw)
+  return formatted === '—' ? '—' : `${formatted} FDUSD`
+}
+
+export function ProtocolOracleCard({
+  ticker,
+  onTickerChange,
+  priceQuery,
+  historyQuery,
+  venusQuery,
+}: ProtocolOracleCardProps) {
   const label = PROTOCOL_ORACLE_TICKER_LABEL[ticker]
-  const heading = `${label} / USD`
+  const isVfdusd = ticker === 'vfdusd'
+  const heading = isVfdusd ? label : `${label} / USD`
+  const cexLabel = isVfdusd ? 'FDUSD reference price' : 'Reference price'
 
   const oracle = priceQuery.data
   const history = historyQuery.data?.prices ?? []
+  const venus = venusQuery.data
 
   function selectTicker(next: ProtocolOracleTicker) {
     if (next === ticker) return
@@ -58,7 +73,9 @@ export function ProtocolOracleCard({ ticker, onTickerChange, priceQuery, history
         {heading}
       </h2>
       <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-        Indexer CEX/aggregator reference — not swap settlement, TWAP, or the UST1 window rate.
+        {isVfdusd
+          ? 'CEX FDUSD reference and Venus redeem rate — not settlement.'
+          : 'Indexer CEX/aggregator reference — not swap settlement, TWAP, or the UST1 window rate.'}
       </p>
 
       <div
@@ -105,7 +122,7 @@ export function ProtocolOracleCard({ ticker, onTickerChange, priceQuery, history
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <StatBox
-              label="Reference price"
+              label={cexLabel}
               value={formatProtocolOracleUsd(oracle?.price_usd)}
               loading={priceQuery.isLoading}
             />
@@ -141,6 +158,36 @@ export function ProtocolOracleCard({ ticker, onTickerChange, priceQuery, history
             </div>
           )}
         </>
+      )}
+
+      {isVfdusd && (
+        <div className="mb-4" data-testid="protocol-oracle-vfdusd-venus">
+          <h3
+            className="text-xs font-semibold uppercase tracking-wide mb-2 font-heading"
+            style={{ color: 'var(--ink-dim)' }}
+          >
+            1 vFDUSD Price
+          </h3>
+          {venusQuery.isError && (
+            <RetryError message="Failed to load Venus rate" onRetry={() => void venusQuery.refetch()} />
+          )}
+          {!venusQuery.isError && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <StatBox
+                label="1 vFDUSD Price"
+                value={venusFdusdDisplay(venus?.fdusd_per_vfdusd)}
+                loading={venusQuery.isLoading}
+                data-testid="protocol-oracle-vfdusd-venus-value"
+              />
+              <StatBox label="Source" value="Venus" />
+              <StatBox
+                label="Fetched"
+                value={venus?.fetched_at ? formatDateTime(venus.fetched_at) : '—'}
+                loading={venusQuery.isLoading}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       <h3

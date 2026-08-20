@@ -22,6 +22,7 @@ After #524, **Last** used `invertUsd(price_usd, human)` (USD of the displayed ba
 - **Don’t** change indexer `swap_events.price` / `price_usd`, CG/CMC `last_price`, or on-chain convert-on-submit (**T524-1**, **T524-2**).
 - **Don’t** change default invert rules (**T524-3**). Do not substring-match `cUSTC`.
 - **Don’t** describe invert as mint/redeem (**U1**).
+- **Don’t** overlay CoinGecko or `GET /oracle/history` onto pair **Price (USD)** charts ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)). Indexer candles already carry as-of quote USD.
 
 ## Canonical code
 
@@ -53,3 +54,4 @@ Indexer: `candle_human_usd.rs`, `candle_skip_zero_price.rs`.
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h Stats + TWAP human scale; histogram decimals (#564)
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — canvas / Y-axis / setData
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — factory `price_usd` meaning unchanged
+- [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — indexer candle USD is time-stamped; idle oracle/hub ticks write `trade_count=0` bars; do not stitch CoinGecko on the client ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568))

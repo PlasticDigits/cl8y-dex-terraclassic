@@ -90,7 +90,7 @@ run_step "indexer lib: oracle ticker symbols + vfdusd" \
   bash -c 'cd indexer && cargo test --lib oracle -- --quiet'
 
 run_step "indexer integration: api_oracle + api_overview + global stats" \
-  bash -c 'cd indexer && cargo test --test api_oracle --test api_overview --test indexer_overview_global_stats -- --test-threads=1 --quiet'
+  bash -c 'cd indexer && cargo test --jobs 1 --test api_oracle --test api_overview --test indexer_overview_global_stats -- --test-threads=1 --quiet'
 
 run_step "frontend: Protocol RTL + ticker allowlist + client" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run src/pages/ProtocolPage.test.tsx src/utils/__tests__/protocolOracleTicker.test.ts src/utils/__tests__/formatProtocolStats.test.ts src/services/indexer/__tests__/client.test.ts -t "allowlists ticker|ProtocolPage|parseProtocolOracleTicker|formatProtocolUsd|formatProtocolCount|formatProtocolOracleUsd"'

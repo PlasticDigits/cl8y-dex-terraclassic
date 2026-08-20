@@ -27,6 +27,7 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - **Don’t** wire `trades[0].price` into any control labeled USD.
 - **Don’t** treat `formatNum` compact `T` as a price formatter — use `formatPairPrice`.
 - **Don’t** double-scale: after this migration, `price` is already human. Client fallback scales `price` as **raw** only when `price_usd` is missing (pre-upgrade indexer).
+- **Don’t** map `VFDUSD` / `FDUSD` in `quote_usd_kind` or multiply CEX FDUSD (`OracleTicker::Vfdusd`) into pair `price_usd` / `volume_usd` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)).
 
 ## Regression checklist
 
@@ -46,6 +47,8 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — Charts 24h volume USD uses [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) (P522-Q / hub USD, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Pair-list USD badges stay [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-detail 24h stats strip is [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564).
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — Charts pair Stats **Vol (USD)** uses `stats.volume_usd`; token vols use `formatChartsPairTokenVolume`; TWAP/OHLC human scale ([#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564))
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub marks replace `$1` / `2.5×` ingest ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — Protocol pool TVL (#569) prices pair legs with this catalog + hub marks; `make verify-issue-569`
+- [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — do not rewrite historical `price_usd` / candle USD from live hub; idle mark-to-market ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — portfolio/trader P&amp;L human scale + USD totals ([#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)). Do not `formatNum` mixed trader totals.
 - [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape Amount in/out human scale; Price stays human quote-per-base ([#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)). Do not `formatNum` raw `offer_amount`.
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Charts leaderboard + trader profile lifetime volume USD (`traders.total_volume_usd`, [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)).

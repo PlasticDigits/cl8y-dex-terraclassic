@@ -444,6 +444,27 @@ describe('oracle ticker allowlist (GitLab #550)', () => {
     expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/oracle/price/ustc')
   })
 
+  it('getOracleVenusVfdusd uses hardcoded vfdusd path', async () => {
+    vi.mocked(fetch).mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            fdusd_per_vfdusd: '0.023',
+            source: 'venus_bsc',
+            fetched_at: '2026-01-01T00:00:00Z',
+            vtoken: '0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba',
+          }),
+          { status: 200 }
+        )
+    )
+    const client = await loadModule()
+    await client.getOracleVenusVfdusd()
+    const url = String(vi.mocked(fetch).mock.calls.at(-1)?.[0])
+    expect(url).toContain('/oracle/price/vfdusd/venus')
+    expect(url).not.toContain('/price/fdusd/venus')
+    expect(url).not.toContain('..')
+  })
+
   it('getOracleHistory allowlists ticker path segments', async () => {
     vi.mocked(fetch).mockImplementation(
       async () => new Response(JSON.stringify({ ticker: 'ustc', prices: [] }), { status: 200 })

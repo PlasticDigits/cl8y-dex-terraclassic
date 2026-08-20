@@ -3,12 +3,12 @@ use std::time::Duration;
 use sqlx::{Connection, PgPool};
 
 use crate::config::Config;
-use crate::db::queries::{state, volume};
+use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
 use super::{
     block_indexer, book_snapshot, fee_discount_registry_health, oracle, pair_discovery,
-    reorg_alert, trader_tracker, volume_aggregator,
+    reorg_alert, trader_tracker, venus_vfdusd, volume_aggregator,
 };
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 
@@ -20,6 +20,7 @@ pub async fn run_indexer(
     config: Config,
     cancel: tokio_util::sync::CancellationToken,
     oracle_prices: oracle::OraclePriceHandles,
+    venus_vfdusd: venus_vfdusd::SharedVenusVfdusd,
     fee_discount_registry_health: FeeDiscountRegistryHealth,
 ) -> Result<(), BoxError> {
     // Dedicated session (not a pool checkout): advisory locks survive `PoolConnection` return.
@@ -55,13 +56,8 @@ pub async fn run_indexer(
         tracing::error!("Initial pair sync failed: {}", e);
     }
 
-    if let Err(e) = volume::refresh_pair_volumes(&pool).await {
-        tracing::warn!("Initial pair 24h volume refresh failed: {}", e);
-    }
-
-    if let Err(e) = volume::refresh_global_stats(&pool).await {
-        tracing::warn!("Initial global 24h stats refresh failed: {}", e);
-    }
+    // Token + trader windows too — do not wait for the 5 min loop (GitLab #577 **D5**).
+    volume_aggregator::refresh_all_volume_windows(&pool, true).await;
 
     let vol_pool = pool.clone();
     tokio::spawn(async move {
@@ -101,6 +97,13 @@ pub async fn run_indexer(
     let oracle_handles = oracle_prices.clone();
     tokio::spawn(async move {
         oracle::run_oracle_loop(oracle_pool, oracle_interval, oracle_handles).await;
+    });
+
+    let venus_pool = pool.clone();
+    let venus_cfg = venus_vfdusd::VenusPollerConfig::from_indexer_config(&config);
+    let venus_handle = venus_vfdusd.clone();
+    tokio::spawn(async move {
+        venus_vfdusd::run_venus_vfdusd_loop(venus_pool, venus_cfg, venus_handle).await;
     });
     let ustc_price = oracle_prices.ustc.clone();
 

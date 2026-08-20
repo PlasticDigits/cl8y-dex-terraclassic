@@ -15,6 +15,14 @@ pub fn log_startup_config(config: &Config) {
         config.rate_limit_rps,
         config.rate_limit_lcd_heavy_rps
     );
+    tracing::info!(
+        "Venus vFDUSD poller: {}",
+        if config.bsc_rpc_urls.is_empty() {
+            "disabled (BSC_RPC_URLS unset)"
+        } else {
+            "enabled"
+        }
+    );
 }
 
 #[cfg(test)]
@@ -60,6 +68,8 @@ mod tests {
             hub_ust1_address: crate::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
             hub_ustr_address: crate::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
             hub_usd_tvl_floor: "100".parse().unwrap(),
+            bsc_rpc_urls: vec![],
+            venus_vfdusd_poll_interval_ms: 30_000,
         }
     }
 

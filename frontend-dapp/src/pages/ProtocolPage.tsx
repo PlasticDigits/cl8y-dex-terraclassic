@@ -49,7 +49,7 @@ export default function ProtocolPage() {
 
   const overviewQuery = useProtocolOverviewQuery()
   const hubPricesQuery = useProtocolHubPricesQuery()
-  const { priceQuery, historyQuery } = useProtocolOracleQueries(ticker)
+  const { priceQuery, historyQuery, venusQuery } = useProtocolOracleQueries(ticker)
 
   const hooksQuery = useQuery({
     queryKey: ['indexer-hooks', deferredHookFilter || 'all'],
@@ -62,7 +62,13 @@ export default function ProtocolPage() {
     retry: false,
   })
 
-  const marketDataDown = detectMarketDataOutage(overviewQuery, hubPricesQuery, priceQuery, historyQuery)
+  const marketDataDown = detectMarketDataOutage(
+    overviewQuery,
+    hubPricesQuery,
+    priceQuery,
+    historyQuery,
+    ...(ticker === 'vfdusd' ? [venusQuery] : [])
+  )
 
   return (
     <div className="space-y-4">
@@ -85,6 +91,7 @@ export default function ProtocolPage() {
             void hubPricesQuery.refetch()
             void priceQuery.refetch()
             void historyQuery.refetch()
+            if (ticker === 'vfdusd') void venusQuery.refetch()
           }}
         />
       )}
@@ -96,6 +103,7 @@ export default function ProtocolPage() {
         onTickerChange={setTicker}
         priceQuery={priceQuery}
         historyQuery={historyQuery}
+        venusQuery={venusQuery}
       />
 
       <div className="shell-panel" data-testid="protocol-contract-addresses">

@@ -16,7 +16,10 @@ static ENV: Once = Once::new();
 
 fn load_test_env() {
     ENV.call_once(|| {
-        dotenvy::dotenv().ok();
+        // Worktree `indexer/.env` must win over a parent-shell TEST_DATABASE_URL that
+        // still points at a sibling worktree's shared `dex_indexer_test`.
+        let _ = dotenvy::from_filename_override(".env");
+        let _ = dotenvy::from_filename_override("../indexer/.env");
     });
 }
 
@@ -71,12 +74,15 @@ pub fn test_config() -> Config {
         hub_ust1_address: cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
         hub_ustr_address: cl8y_dex_indexer::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
         hub_usd_tvl_floor: "100".parse().unwrap(),
+        bsc_rpc_urls: vec![],
+        venus_vfdusd_poll_interval_ms: 30_000,
     }
 }
 
 pub async fn setup_pool() -> PgPool {
     init_tracing();
     let config = test_config();
+    hold_test_db_lock_for_process();
     let pool = PgPool::connect(&config.database_url)
         .await
         .unwrap_or_else(|e| {
@@ -88,6 +94,7 @@ pub async fn setup_pool() -> PgPool {
         });
 
     sqlx::migrate!()
+        .set_ignore_missing(true) // shared dex_indexer_test may have other worktree versions
         .run(&pool)
         .await
         .expect("Failed to run migrations");
@@ -96,6 +103,19 @@ pub async fn setup_pool() -> PgPool {
 }
 
 /// Cross-process lock for shared `dex_indexer_test` (parallel `cargo test` / agents).
+/// Hold the returned file for the whole mutation window — `clean_db` only locks during TRUNCATE.
+pub fn lock_shared_test_db() -> std::fs::File {
+    acquire_shared_test_db_lock()
+}
+
+/// Cross-process lock for the test DB (parallel `cargo test` / agents).
+/// Held for the whole test process so rust-analyzer cannot TRUNCATE between insert and GET.
+fn hold_test_db_lock_for_process() {
+    use std::sync::OnceLock;
+    static LOCK: OnceLock<std::fs::File> = OnceLock::new();
+    LOCK.get_or_init(acquire_shared_test_db_lock);
+}
+
 fn acquire_shared_test_db_lock() -> std::fs::File {
     let path = env::var("TEST_DB_LOCK_FILE")
         .unwrap_or_else(|_| "/tmp/cl8y-dex-indexer-test.seed.lock".into());
@@ -114,6 +134,7 @@ async fn clean_db_tables(pool: &PgPool) {
     // TRUNCATE CASCADE avoids flaky DELETE .ok() when FK rows remain.
     sqlx::query(
         "TRUNCATE TABLE
+            venus_vfdusd_rates,
             oracle_prices,
             hook_events,
             limit_order_cancellations,
@@ -127,6 +148,7 @@ async fn clean_db_tables(pool: &PgPool) {
             global_stats_24h,
             pair_reserves,
             hub_prices,
+            global_liquidity_snapshots,
             resting_limit_orders,
             trader_positions,
             traders,
@@ -140,7 +162,12 @@ async fn clean_db_tables(pool: &PgPool) {
 }
 
 pub async fn clean_db(pool: &PgPool) {
-    let _lock = acquire_shared_test_db_lock();
+    hold_test_db_lock_for_process();
+    clean_db_tables(pool).await;
+}
+
+/// Truncate while the caller already holds [`lock_shared_test_db`] (do not nest `flock`).
+pub async fn clean_db_holding(pool: &PgPool) {
     clean_db_tables(pool).await;
 }
 
@@ -153,7 +180,7 @@ pub struct SeedData {
 }
 
 pub async fn seed_db(pool: &PgPool) -> SeedData {
-    let _lock = acquire_shared_test_db_lock();
+    hold_test_db_lock_for_process();
     clean_db_tables(pool).await;
 
     let pair_address = "terra1paircontractabc".to_string();
@@ -896,6 +923,47 @@ pub async fn build_test_app_with_vfdusd(
         pool,
         lcd,
         oracle_prices,
+        venus_vfdusd: cl8y_dex_indexer::indexer::venus_vfdusd::new_shared_venus(),
+        ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
+        orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
+        router_address: config.router_address.clone(),
+        factory_address: Some(config.factory_address.clone()),
+        fee_discount_address: config.fee_discount_address.clone(),
+        fee_discount_registry_health:
+            cl8y_dex_indexer::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth::from_config(
+                config.fee_discount_address.as_deref(),
+            ),
+        route_solver_db_hybrid: config.route_solver_db_hybrid,
+        book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
+        route_fidelity_drift_bps: config.route_fidelity_drift_bps,
+    };
+    build_router(state, &config)
+}
+
+pub async fn build_test_app_with_venus(
+    pool: PgPool,
+    vfdusd_cex: Option<bigdecimal::BigDecimal>,
+    venus: Option<cl8y_dex_indexer::indexer::venus_vfdusd::VenusVfdusdSnapshot>,
+) -> Router {
+    let lcd = LcdClient::new(
+        test_config().lcd_urls.clone(),
+        test_config().lcd_timeout_ms,
+        test_config().lcd_cooldown_ms,
+    );
+    let config = test_config();
+    let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
+    if let Some(price) = vfdusd_cex {
+        *oracle_prices.vfdusd.write().await = Some(price);
+    }
+    let venus_vfdusd = cl8y_dex_indexer::indexer::venus_vfdusd::new_shared_venus();
+    if let Some(snap) = venus {
+        *venus_vfdusd.write().await = Some(snap);
+    }
+    let state = AppState {
+        pool,
+        lcd,
+        oracle_prices,
+        venus_vfdusd,
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),
@@ -935,6 +1003,7 @@ pub async fn build_test_app_with_oracle_prices_and_config(
         pool,
         lcd,
         oracle_prices,
+        venus_vfdusd: cl8y_dex_indexer::indexer::venus_vfdusd::new_shared_venus(),
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),

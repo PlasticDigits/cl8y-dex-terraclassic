@@ -22,7 +22,7 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 7. **Trade bootstrap:** [`trade-bootstrap.css`](../frontend-dapp/public/bootstrap/trade-bootstrap.css) must mirror theme `--bg-0` (cool navy / cool light) — no warm-brown FOUC.
 8. **Copy (anti-cognitive-overload):** Write for humans, not agents. Labels ≤ ~5 words; blocking errors ≤ 1 short sentence; optional single-word **Docs** link. Never show `token0` / `token1` / raw `bid`/`ask` in retail UI — use symbols and **Buy** / **Sell**. Keep blocking errors, risk acknowledgement, and chain anchors. **No** always-on educational / cross-nav / gas-trivia paragraphs ([`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) **§9**). Agents read docs/skills; users should not drown in disclosure.
 9. **Limit IA:** rate → % chips → Pay → Receive → Expiry; book/open orders below place card. **Swap IA:** Pay → flip (cool, not brown) → Receive → CTA; collapse verbose trade details.
-10. **OG / social:** `/og-image.png` + `index.html` meta emphasize swaps, limits, Terra Classic — not theme colors.
+10. **OG / social:** `/og-image.png` is the **community medallion** 1200×630 card ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)). Production `og:image` / `twitter:image` are absolute `https://dex.cl8y.com/og-image.png`. Meta text still emphasizes swaps, limits, Terra Classic. Do not restore the #488 product-copy card or relative image URLs in production. Playbook: [`AGENTS_FRONTEND_OPENGRAPH.md`](./AGENTS_FRONTEND_OPENGRAPH.md).
 11. **`.glass` is deprecated** — prefer `shell-panel` or `card-glass`.
 12. **Logo variants:** `/logo.png` is the **full character-scene** medallion — header (beside **CL8Y DEX** type) and large marketing only. Favicons, PWA/touch icons, and isolated marks **≤ ~64px** use the simplified **C+8** `/logo-simplified-variant.png` (wired as `favicon-16.png` / `favicon-32.png` / `favicon.ico` / `favicon.png`). Never downscale the full scene into a tab icon. See [`docs/design-system.md`](../docs/design-system.md) § Brand assets.
 
@@ -47,6 +47,7 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 rg '-neo' frontend-dapp/src
 python3 scripts/check_design_tokens.py
 make lint-frontend
+make verify-issue-578
 ```
 
-Cross-links: [`docs/design-system.md`](../docs/design-system.md) · [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md) · [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) · [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (#563 side-fill exception) · QA shots [`docs/qa/issue-488/`](../docs/qa/issue-488/).
+Cross-links: [`docs/design-system.md`](../docs/design-system.md) · [`AGENTS_FRONTEND_OPENGRAPH.md`](./AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md) · [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) · [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (#563 side-fill exception) · QA shots [`docs/qa/issue-488/`](../docs/qa/issue-488/).

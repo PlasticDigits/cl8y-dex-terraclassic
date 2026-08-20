@@ -8,14 +8,19 @@ use utoipa::{IntoParams, ToSchema};
 use super::{internal_err, AppState};
 use crate::db::queries::oracle as db_oracle;
 use crate::indexer::oracle::OracleTicker;
+use crate::indexer::venus_vfdusd::{VenusVfdusdSnapshot, VENUS_SOURCE, VENUS_VFDUSD_VTOKEN};
 
-/// Catalog metadata for `GET /api/v1/oracle/price` and `/history` (GitLab #515).
+/// Catalog metadata for `GET /api/v1/oracle/price` and `/history` (GitLab #515 / #580).
 pub const ORACLE_CATALOG_METADATA: &str = concat!(
     "Indexer external USD reference prices (not on-chain pair TWAP). ",
     "GET /api/v1/oracle/price/{ticker} for the latest average + per-source snapshot; ",
     "GET /api/v1/oracle/history/{ticker} for average history. ",
     "Tickers: ustc = TerraClassic USTC/USD; lunc = TerraClassic LUNC/USD; ",
-    "vfdusd = wrapped FDUSD CEX/USD reference (polls FDUSD, not a $1 peg). ",
+    "vfdusd path stores CEX FDUSD/USD (MEXC FDUSDUSDT, CoinGecko first-digital-usd); ",
+    "it is not USD of Terra CW20 vFDUSD (Venus bridged). ",
+    "GET /api/v1/oracle/price/vfdusd also includes additive venus { fdusd_per_vfdusd } ",
+    "(Venus Core Pool exchangeRateStored; not USD, not the UST1 window). ",
+    "Path fdusd is 400 (no alias). ",
     "Sources are polled CEX/aggregator APIs (KuCoin, MEXC, CoinGecko). ",
     "KuCoin is skipped for vfdusd when unlisted. Advisory only — not used for on-chain settlement."
 );
@@ -36,11 +41,28 @@ pub struct OracleSourcePrice {
 }
 
 #[derive(Serialize, ToSchema)]
+pub struct VenusVfdusdResponse {
+    /// Human FDUSD redeemed for 1 human vFDUSD (`exchangeRateStored`). Null when missing.
+    pub fdusd_per_vfdusd: Option<String>,
+    /// Allowlisted source label (`venus_bsc`). Never an RPC URL.
+    pub source: String,
+    pub fetched_at: Option<String>,
+    /// Pinned Core Pool vToken.
+    pub vtoken: String,
+}
+
+#[derive(Serialize, ToSchema)]
 pub struct OraclePriceResponse {
     /// Path ticker (`ustc`, `lunc`, or `vfdusd`).
     pub ticker: String,
+    /// CEX quote-asset identity. Path `vfdusd` → `FDUSD` (not Terra CW20 vFDUSD).
+    pub quote_asset: String,
+    /// Operator/integrator display pair (`USTC/USD`, `LUNC/USD`, `FDUSD/USD`).
+    pub display_name: String,
     pub price_usd: Option<String>,
     pub sources: Vec<OracleSourcePrice>,
+    /// Venus redeem snapshot. Present for `vfdusd` (null fields when uncached); `null` on USTC/LUNC.
+    pub venus: Option<VenusVfdusdResponse>,
 }
 
 fn catalog_response() -> OracleTickerCatalogResponse {
@@ -107,6 +129,7 @@ pub async fn get_oracle_price(
 
     let sources: Vec<OracleSourcePrice> = source_rows
         .into_iter()
+        .filter(|r| r.source != VENUS_SOURCE)
         .map(|r| OracleSourcePrice {
             source: r.source,
             price_usd: r.price_usd.to_string(),
@@ -114,11 +137,69 @@ pub async fn get_oracle_price(
         })
         .collect();
 
+    let venus = if ticker == OracleTicker::Vfdusd {
+        Some(venus_response(state.venus_vfdusd.read().await.clone()))
+    } else {
+        None
+    };
+
     Ok(Json(OraclePriceResponse {
         ticker: ticker.as_str().to_string(),
+        quote_asset: ticker.quote_asset().to_string(),
+        display_name: ticker.display_name().to_string(),
         price_usd: current.map(|p| p.to_string()),
         sources,
+        venus,
     }))
+}
+
+fn venus_response(snap: Option<VenusVfdusdSnapshot>) -> VenusVfdusdResponse {
+    match snap {
+        Some(s) => VenusVfdusdResponse {
+            fdusd_per_vfdusd: Some(s.fdusd_per_vfdusd.to_string()),
+            source: s.source.to_string(),
+            fetched_at: Some(s.fetched_at.to_rfc3339()),
+            vtoken: s.vtoken,
+        },
+        None => VenusVfdusdResponse {
+            fdusd_per_vfdusd: None,
+            source: VENUS_SOURCE.to_string(),
+            fetched_at: None,
+            vtoken: VENUS_VFDUSD_VTOKEN.to_string(),
+        },
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/oracle/price/{ticker}/venus",
+    params(
+        ("ticker" = String, Path, description = "Must be vfdusd")
+    ),
+    responses(
+        (status = 200, description = "Venus vFDUSD redeem snapshot (FDUSD per 1 vFDUSD)", body = VenusVfdusdResponse),
+        (status = 400, description = "Unknown ticker or not vfdusd"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "Oracle"
+)]
+pub async fn get_oracle_venus_vfdusd(
+    State(state): State<AppState>,
+    Path(ticker_raw): Path<String>,
+) -> Result<Json<VenusVfdusdResponse>, (StatusCode, String)> {
+    let ticker = parse_ticker_path(&ticker_raw)?;
+    if ticker != OracleTicker::Vfdusd {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Venus snapshot is only available for ticker 'vfdusd', not '{}'",
+                ticker.as_str()
+            ),
+        ));
+    }
+    Ok(Json(venus_response(
+        state.venus_vfdusd.read().await.clone(),
+    )))
 }
 
 #[derive(Deserialize, IntoParams)]
@@ -140,6 +221,10 @@ pub struct OracleHistoryEntry {
 #[derive(Serialize, ToSchema)]
 pub struct OracleHistoryResponse {
     pub ticker: String,
+    /// CEX quote-asset identity. Path `vfdusd` → `FDUSD` (not Terra CW20 vFDUSD).
+    pub quote_asset: String,
+    /// Operator/integrator display pair (`USTC/USD`, `LUNC/USD`, `FDUSD/USD`).
+    pub display_name: String,
     pub prices: Vec<OracleHistoryEntry>,
 }
 
@@ -207,6 +292,8 @@ pub async fn get_oracle_history(
 
     Ok(Json(OracleHistoryResponse {
         ticker: ticker.as_str().to_string(),
+        quote_asset: ticker.quote_asset().to_string(),
+        display_name: ticker.display_name().to_string(),
         prices,
     }))
 }

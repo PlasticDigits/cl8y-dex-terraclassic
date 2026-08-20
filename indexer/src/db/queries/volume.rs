@@ -2,6 +2,18 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
 
+/// Operator-visible freshness bound for `global_stats_24h.updated_at` (GitLab #577 **D6**).
+/// Aggregator period is ~5 min; three missed cycles trip a tracing warning. `/overview` still
+/// serves the last rollup — never a live 30d `swap_events` scan on GET (#281 / #333 **V5**).
+pub fn global_stats_stale_after() -> chrono::Duration {
+    chrono::Duration::minutes(15)
+}
+
+/// True when `updated_at` is strictly older than [`global_stats_stale_after`] relative to `now`.
+pub fn is_global_stats_stale(updated_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    now.signed_duration_since(updated_at) > global_stats_stale_after()
+}
+
 #[derive(Debug, Clone, FromRow)]
 pub struct TokenVolumeRow {
     pub id: i64,
@@ -10,7 +22,7 @@ pub struct TokenVolumeRow {
     pub volume: BigDecimal,
     pub volume_usd: BigDecimal,
     pub trade_count: i64,
-    pub unique_traders: i64,
+    pub unique_traders: i32,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -26,14 +38,25 @@ pub struct GlobalStats {
     pub total_trades_30d: i64,
     pub active_pairs_24h: i64,
     pub unique_traders_24h: i64,
+    /// Humanized AMM pool TVL (GitLab #569). `"0"` when nothing priced.
+    pub total_liquidity_usd: BigDecimal,
+    pub liquidity_change_24h_pct: Option<BigDecimal>,
+    pub liquidity_change_30d_pct: Option<BigDecimal>,
+    pub priced_pair_count: i32,
+    pub unpriced_pair_count: i32,
+    pub total_liquidity_usd_24h_ago: Option<BigDecimal>,
+    pub total_liquidity_usd_30d_ago: Option<BigDecimal>,
 }
 
+/// Rebuild token rolling windows from offer-side `swap_events`, then zero idle rows.
+/// Offer-side only (`GROUP BY offer_asset_id`) — do not sum both legs (GitLab #577 **D1**).
 pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let now = Utc::now();
     let cutoff_24h = now - chrono::Duration::hours(24);
     let cutoff_7d = now - chrono::Duration::days(7);
     let cutoff_30d = now - chrono::Duration::days(30);
 
+    let mut tx = pool.begin().await?;
     for (window, cutoff) in [("24h", cutoff_24h), ("7d", cutoff_7d), ("30d", cutoff_30d)] {
         sqlx::query(
             r#"INSERT INTO token_volume_stats (asset_id, "window", volume, volume_usd, trade_count, unique_traders, updated_at)
@@ -57,9 +80,25 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
         )
         .bind(window)
         .bind(cutoff)
-        .execute(pool)
+        .execute(&mut *tx)
+        .await?;
+
+        // Idle offer assets: INSERT emits no row, so zero the leftover window (pair_volume_24h pattern).
+        sqlx::query(
+            r#"UPDATE token_volume_stats tvs
+               SET volume = 0, volume_usd = 0, trade_count = 0, unique_traders = 0, updated_at = NOW()
+               WHERE tvs."window" = $1
+                 AND NOT EXISTS (
+                   SELECT 1 FROM swap_events se
+                   WHERE se.offer_asset_id = tvs.asset_id AND se.block_timestamp >= $2
+                 )"#,
+        )
+        .bind(window)
+        .bind(cutoff)
+        .execute(&mut *tx)
         .await?;
     }
+    tx.commit().await?;
 
     Ok(())
 }
@@ -68,6 +107,7 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let cutoff = Utc::now() - chrono::Duration::hours(24);
 
+    let mut tx = pool.begin().await?;
     sqlx::query(
         r#"INSERT INTO pair_volume_24h (pair_id, volume_quote, updated_at)
            SELECT se.pair_id,
@@ -85,7 +125,7 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
                           updated_at = EXCLUDED.updated_at"#,
     )
     .bind(cutoff)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
 
     sqlx::query(
@@ -97,8 +137,9 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
            )"#,
     )
     .bind(cutoff)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
 
     Ok(())
 }
@@ -148,6 +189,10 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
     .bind(cutoff_30d)
     .execute(pool)
     .await?;
+
+    // Liquidity columns are a separate upsert so a 24h-only volume INSERT cannot
+    // leave TVL / Δ% stale (#569 H7 / A20). GET still reads the rollup row only.
+    crate::indexer::protocol_tvl::refresh_protocol_liquidity(pool).await?;
 
     Ok(())
 }
@@ -293,6 +338,7 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
         .fetch_one(pool)
         .await?;
 
+    let liq = super::liquidity_snapshots::get_liquidity_rollup(pool).await?;
     Ok(GlobalStats {
         total_volume_24h: agg.total_volume.unwrap_or_default(),
         total_volume_24h_usd: agg.total_volume_usd.unwrap_or_default(),
@@ -304,6 +350,13 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
         total_trades_30d: agg.total_trades_30d.unwrap_or(0),
         active_pairs_24h: agg.active_pairs_24h.unwrap_or(0),
         unique_traders_24h: agg.unique_traders_24h.unwrap_or(0),
+        total_liquidity_usd: liq.total_liquidity_usd,
+        liquidity_change_24h_pct: liq.liquidity_change_24h_pct,
+        liquidity_change_30d_pct: liq.liquidity_change_30d_pct,
+        priced_pair_count: liq.priced_pair_count,
+        unpriced_pair_count: liq.unpriced_pair_count,
+        total_liquidity_usd_24h_ago: liq.total_liquidity_usd_24h_ago,
+        total_liquidity_usd_30d_ago: liq.total_liquidity_usd_30d_ago,
     })
 }
 
@@ -323,17 +376,40 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         total_trades_30d: i64,
         active_pairs_24h: i64,
         unique_traders_24h: i64,
+        total_liquidity_usd: BigDecimal,
+        liquidity_change_24h_pct: Option<BigDecimal>,
+        liquidity_change_30d_pct: Option<BigDecimal>,
+        priced_pair_count: i32,
+        unpriced_pair_count: i32,
+        total_liquidity_usd_24h_ago: Option<BigDecimal>,
+        total_liquidity_usd_30d_ago: Option<BigDecimal>,
+        updated_at: DateTime<Utc>,
     }
 
     let rollup = sqlx::query_as::<_, RollupRow>(
         "SELECT total_volume, total_volume_usd, total_trades,
                 total_volume_7d_usd, total_volume_30d_usd,
                 total_trades_7d, total_trades_30d,
-                active_pairs_24h, unique_traders_24h
+                active_pairs_24h, unique_traders_24h,
+                total_liquidity_usd, liquidity_change_24h_pct, liquidity_change_30d_pct,
+                priced_pair_count, unpriced_pair_count,
+                total_liquidity_usd_24h_ago, total_liquidity_usd_30d_ago,
+                updated_at
          FROM global_stats_24h WHERE id = 1",
     )
     .fetch_one(pool)
     .await?;
+
+    if is_global_stats_stale(rollup.updated_at, Utc::now()) {
+        tracing::warn!(
+            updated_at = %rollup.updated_at,
+            age_secs = Utc::now()
+                .signed_duration_since(rollup.updated_at)
+                .num_seconds(),
+            stale_after_secs = global_stats_stale_after().num_seconds(),
+            "global_stats_24h.updated_at is stale; serving last rollup (no live 30d swap_events scan)"
+        );
+    }
 
     // Migration seeds id=1 with zeros; refresh runs after pair sync. Fall back to a live
     // aggregate when the rollup is still uninitialized but swap_events has 24h data.
@@ -366,5 +442,46 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         total_trades_30d: rollup.total_trades_30d,
         active_pairs_24h: rollup.active_pairs_24h,
         unique_traders_24h: rollup.unique_traders_24h,
+        total_liquidity_usd: rollup.total_liquidity_usd,
+        liquidity_change_24h_pct: rollup.liquidity_change_24h_pct,
+        liquidity_change_30d_pct: rollup.liquidity_change_30d_pct,
+        priced_pair_count: rollup.priced_pair_count,
+        unpriced_pair_count: rollup.unpriced_pair_count,
+        total_liquidity_usd_24h_ago: rollup.total_liquidity_usd_24h_ago,
+        total_liquidity_usd_30d_ago: rollup.total_liquidity_usd_30d_ago,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn global_stats_stale_after_is_15_minutes() {
+        assert_eq!(global_stats_stale_after(), chrono::Duration::minutes(15));
+    }
+
+    #[test]
+    fn global_stats_not_stale_within_bound() {
+        let now = Utc::now();
+        assert!(!is_global_stats_stale(now, now));
+        assert!(!is_global_stats_stale(
+            now - chrono::Duration::minutes(15),
+            now
+        ));
+        assert!(!is_global_stats_stale(
+            now + chrono::Duration::hours(1),
+            now
+        ));
+    }
+
+    #[test]
+    fn global_stats_stale_when_older_than_15_min() {
+        let now = Utc::now();
+        assert!(is_global_stats_stale(
+            now - chrono::Duration::minutes(15) - chrono::Duration::seconds(1),
+            now
+        ));
+        assert!(is_global_stats_stale(now - chrono::Duration::hours(2), now));
+    }
 }

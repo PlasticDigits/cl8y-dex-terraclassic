@@ -158,6 +158,10 @@ pub struct Config {
     pub hub_ustr_address: String,
     /// Ignore factory pairs below this USD TVL when picking hub sources (default $100).
     pub hub_usd_tvl_floor: BigDecimal,
+    /// Comma-separated BSC JSON-RPC URLs for Venus `eth_call` (GitLab #571). Empty = do not poll.
+    pub bsc_rpc_urls: Vec<String>,
+    /// Venus vFDUSD poll cadence (default 30s). Bounded; API reads cache only.
+    pub venus_vfdusd_poll_interval_ms: u64,
 }
 
 impl Config {
@@ -358,6 +362,20 @@ impl Config {
                 .and_then(|v| BigDecimal::from_str(v.trim()).ok())
                 .filter(|v| *v > BigDecimal::from(0))
                 .unwrap_or_else(|| BigDecimal::from_str(DEFAULT_HUB_USD_TVL_FLOOR).unwrap()),
+            bsc_rpc_urls: env::var("BSC_RPC_URLS")
+                .ok()
+                .map(|s| {
+                    s.split(',')
+                        .map(|p| p.trim().to_string())
+                        .filter(|p| !p.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            venus_vfdusd_poll_interval_ms: env::var("VENUS_VFDUSD_POLL_INTERVAL_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30_000)
+                .max(5_000),
         })
     }
 

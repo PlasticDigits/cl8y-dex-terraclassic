@@ -29,6 +29,7 @@ async fn build_app_with_health(
         pool,
         lcd,
         oracle_prices,
+        venus_vfdusd: cl8y_dex_indexer::indexer::venus_vfdusd::new_shared_venus(),
         ticker_map_cache: cl8y_dex_indexer::api::TickerMapCache::default(),
         orderbook_cache: cl8y_dex_indexer::api::orderbook_sim::OrderbookCache::default(),
         router_address: config.router_address.clone(),

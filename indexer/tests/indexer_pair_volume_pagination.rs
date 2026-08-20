@@ -17,13 +17,12 @@ async fn pair_volume_rollup_matches_swap_events() {
         .await
         .expect("refresh pair volumes");
 
-    let rolled: bigdecimal::BigDecimal = sqlx::query_scalar(
-        "SELECT volume_quote FROM pair_volume_24h WHERE pair_id = $1",
-    )
-    .bind(seed.pair_id)
-    .fetch_one(&pool)
-    .await
-    .expect("rollup row");
+    let rolled: bigdecimal::BigDecimal =
+        sqlx::query_scalar("SELECT volume_quote FROM pair_volume_24h WHERE pair_id = $1")
+            .bind(seed.pair_id)
+            .fetch_one(&pool)
+            .await
+            .expect("rollup row");
 
     let live: bigdecimal::BigDecimal = sqlx::query_scalar(
         "SELECT COALESCE(SUM(return_amount), 0) FROM swap_events
@@ -35,6 +34,39 @@ async fn pair_volume_rollup_matches_swap_events() {
     .expect("live sum");
 
     assert_eq!(rolled.normalized(), live.normalized());
+}
+
+/// GitLab #577 **D3**: idle pairs with only 48h-old swaps zero after refresh.
+#[serial]
+#[tokio::test]
+async fn pair_volume_idle_48h_swaps_zero_after_refresh() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+
+    sqlx::query(
+        "UPDATE swap_events SET block_timestamp = NOW() - INTERVAL '48 hours' WHERE pair_id = $1",
+    )
+    .bind(seed.pair_id)
+    .execute(&pool)
+    .await
+    .expect("age swaps");
+
+    volume::refresh_pair_volumes(&pool)
+        .await
+        .expect("refresh pair volumes");
+
+    let rolled: bigdecimal::BigDecimal =
+        sqlx::query_scalar("SELECT volume_quote FROM pair_volume_24h WHERE pair_id = $1")
+            .bind(seed.pair_id)
+            .fetch_one(&pool)
+            .await
+            .expect("rollup row");
+
+    assert_eq!(
+        rolled.normalized(),
+        bigdecimal::BigDecimal::from(0).normalized(),
+        "pair with only 48h-old swaps must zero pair_volume_24h (#577 D3)"
+    );
 }
 
 #[serial]
@@ -69,7 +101,11 @@ async fn pair_list_volume_sort_plan_does_not_touch_swap_events() {
     .await
     .expect("explain pair list volume sort");
 
-    let plan: String = rows.into_iter().map(|(line,)| line).collect::<Vec<_>>().join("\n");
+    let plan: String = rows
+        .into_iter()
+        .map(|(line,)| line)
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(
         !plan.contains("swap_events"),
         "pair list volume sort must use pair_volume_24h rollup, not scan swap_events:\n{plan}"
