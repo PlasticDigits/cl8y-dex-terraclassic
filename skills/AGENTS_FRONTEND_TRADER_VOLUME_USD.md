@@ -21,7 +21,7 @@ Share [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) / `swap_
 | **T553-3** | JSON keeps `total_volume` (raw `SUM(offer_amount)`) for integrators. `total_volume_usd` is a decimal string when priced; JSON `null` when `total_trades > 0` and priced USD is 0 (same contract as overview **C3**). |
 | **T553-4** | Ingest: `upsert_trader` adds `swap_events.volume_usd` when present. Backfill / catalog re-run: [`refresh_trader_total_volume_usd`](../indexer/src/db/queries/traders.rs) `SUM`s the same column (capped for `NUMERIC(38,18)`). |
 | **T553-5** | Charts Volume tab **sorts by `total_volume_usd DESC NULLS LAST`** so the displayed column matches the rank. API still accepts `sort=total_volume` (raw) for integrators; default API sort stays `total_volume`. |
-| **T553-6** | Rolling `volume_24h` / `7d` / `30d` stay **raw** API-only. Charts does not show those columns. Realized PnL / fees formatting is out of scope. |
+| **T553-6** | Rolling `volume_24h` / `7d` / `30d` stay **raw** API-only. Charts does not show those columns. Header **realized P&L USD** is **[#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)** (`GET /api/v1/hub-prices`, not `$1` / `2.5×`). Fees stay **—**. |
 
 ## Do / don’t
 
@@ -42,5 +42,6 @@ Share [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) / `swap_
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview 24h USD (#548)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog
 - [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md) — shared `TraderSummaryStats`
+- [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD from hub_prices (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair-detail 24h Vol (USD) (#565)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair-list volume is still raw quote
