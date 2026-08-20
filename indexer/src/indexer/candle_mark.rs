@@ -164,6 +164,7 @@ mod tests {
     fn cfg() -> HubUsdConfig {
         HubUsdConfig {
             custc_address: "terra1custc".into(),
+            clunc_address: "terra1clunc".into(),
             ust1_address: "terra1ust1".into(),
             ustr_address: "terra1ustr".into(),
             tvl_floor: BigDecimal::from(100),
