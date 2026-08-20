@@ -71,7 +71,9 @@ CreatePair-only whitelist is **not** enough: instance wasm admin can `MsgMigrate
 
 **Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** listing is allowed only after factory **1.9.0** + pair **1.15.0** (this control) are live on the target factory, **or** SpaceUSD wasm admin is cleared, **or** wrap-to-10184. Do not treat (E) as the 8266 decision.
 
-**Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md).
+**Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`; `make verify-issue-584`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md). Rollout script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)).
+
+**Exit-path policy (keep):** maximal freeze. Cancel / claim / withdraw stay gated with swap/provide/place. Opening exits is a separate contract change. Unfreeze is pause-through-refresh + private rebalance — [cw20-code-id-ops.md](./cw20-code-id-ops.md). Do not Refresh onto FoT. Do not de-whitelist **10184** by default.
 
 ### Listed-asset wasm admin inventory (2026-08-20)
 

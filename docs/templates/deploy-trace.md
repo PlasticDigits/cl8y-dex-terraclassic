@@ -93,3 +93,24 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 **Runbook gates:** [launch checklist Phase 1](../runbooks/launch-checklist.md#deploy-trace-audit-record--required-before-leaving-phase-1) · [wasm admin migration Pre-flight](../runbooks/wasm-admin-migration.md#pre-flight) · [deployment guide](../deployment-guide.md#deploy-trace-audit-record)
 
 **Agent playbook:** [`skills/AGENTS_DEPLOY_TRACE.md`](../../skills/AGENTS_DEPLOY_TRACE.md) · [`skills/AGENTS_DEPLOY_CONFIG_VERIFY.md`](../../skills/AGENTS_DEPLOY_CONFIG_VERIFY.md) · [`skills/AGENTS_TEST_EVIDENCE_GATE.md`](../../skills/AGENTS_TEST_EVIDENCE_GATE.md) · [`skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md`](../../skills/AGENTS_DEPLOY_ENV_ADDRESSES_VERIFY.md)
+
+---
+
+## F6 / #584 code-id pin migrate (columbus-5)
+
+Copy onto [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) and [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391) when running [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). Launch **BLOCK** until this run completes — merge is not enough.
+
+| Field | Value |
+|-------|-------|
+| **LCD URL** | |
+| **ContractInfo probe** | paste `./scripts/qa/probe-columbus5-contract-info.sh` output (factory + every listed asset `code_id`) |
+| **Factory cw2 before** | |
+| **Factory cw2 after** | must be **1.9.0** |
+| **GetPairCount** | |
+| **Pair migrates** | count must equal GetPairCount; list tx hashes |
+| **Smoke table** | every pair `GetAssetCodeIds` pin0/pin1 + HybridSimulation (quote ≠ tradable) |
+
+```
+<paste probe + smoke table>
+```
+

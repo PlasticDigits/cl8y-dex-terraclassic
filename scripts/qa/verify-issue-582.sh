@@ -5,6 +5,8 @@
 #       docs/contracts-security-audit.md (F6)
 #       docs/runbooks/cw20-whitelist-policy.md
 #       skills/AGENTS_CW20_CODE_ID_PIN.md
+#       scripts/upgrade-582-code-id-pin.sh
+#       scripts/qa/verify-issue-584.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -54,16 +56,24 @@ run_docs() {
   rg -q "Listed-asset wasm admin inventory" docs/runbooks/cw20-whitelist-policy.md
   rg -q "582" docs/security-model.md
   rg -q "F6" docs/exploit-replay-matrix.md
+  test -f scripts/upgrade-582-code-id-pin.sh
+  rg -q "upgrade-582-code-id-pin" skills/AGENTS_CW20_CODE_ID_PIN.md
+}
+
+run_ops() {
+  ./scripts/qa/verify-issue-584.sh
 }
 
 echo ""
 echo "── first pass ──"
 run_step "integration: pin + FoT migrate + whitelist freeze + refresh" run_pin_tests
 run_step "docs: F6 + skill + versions + cross-links" run_docs
+run_step "ops: upgrade-582 script + runbook (#584)" run_ops
 
 echo ""
 echo "── retest ──"
 run_step "retest integration: pin + FoT migrate + whitelist freeze + refresh" run_pin_tests
+run_step "retest ops: upgrade-582 script + runbook (#584)" run_ops
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
