@@ -558,6 +558,7 @@
 | 10.2.12 | Limit place card IA | Open `/limits` or `/trade` Limit tab | Rate → % chips → Pay → Receive → Expiry; no instructional paragraphs ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)/[#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)) | | |
 | 10.2.13 | On-card copy length | Inspect Swap/Limit place cards | Labels ≤ ~5 words; blocking errors ≤ 1 short sentence; optional **Docs** link ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)) | | |
 | 10.2.14 | Gold hairline only | View nav + warnings (both themes) | Gold = hairline borders/text only — no dirty brown/gold fills ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)) | | |
+| 10.2.15 | Open Graph / Twitter card | `curl -sL` `/` `/trade` `/pool` (no JS) | Same absolute `https://dex.cl8y.com/og-image.png` + `summary_large_image`; `/og-image.png` is 1200×630 community medallion ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) | | |
 
 ### 10.3 Sound Effects
 

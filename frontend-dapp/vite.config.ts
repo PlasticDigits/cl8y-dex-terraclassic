@@ -6,6 +6,7 @@ import fs from 'fs'
 import { execSync } from 'child_process'
 import { networkInterfaces } from 'os'
 import { buildProductionCspMetaContent } from './viteCsp'
+import { bakeProductionOgHtml, resolvePublicOrigin } from './viteOg'
 import { DEV_PROXY_INDEXER_PREFIX, DEV_PROXY_LCD_PREFIX, planDevRemoteProxy } from './src/dev/viteDevProxy'
 
 let gitSha = 'dev'
@@ -91,6 +92,21 @@ function cspProductionPolicy(mode: string, env: Record<string, string>): Plugin 
   }
 }
 
+/** Bake absolute OG/Twitter image URLs in production HTML (GitLab #578). Dev keeps relative paths. */
+function ogAbsoluteMeta(mode: string, env: Record<string, string>): Plugin {
+  return {
+    name: 'og-absolute-meta',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        if (mode !== 'production') return html
+        const origin = resolvePublicOrigin(env.VITE_PUBLIC_ORIGIN)
+        return bakeProductionOgHtml(html, origin)
+      },
+    },
+  }
+}
+
 function buildDevRemoteProxy(
   env: Record<string, string>,
   command: string
@@ -153,7 +169,7 @@ export default defineConfig(({ mode, command }) => {
   }
 
   return {
-    plugins: [react(), cspDevHosts(), cspProductionPolicy(mode, env)],
+    plugins: [react(), cspDevHosts(), cspProductionPolicy(mode, env), ogAbsoluteMeta(mode, env)],
     resolve: {
       dedupe: ['react', 'react-dom'],
       alias: {

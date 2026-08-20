@@ -2,7 +2,7 @@
 
 Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)). Implementation lives in [`frontend-dapp/src/index.css`](../frontend-dapp/src/index.css) with theme tokens in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) and [`theme-light.css`](../frontend-dapp/src/theme-light.css). Dual theme is toggled via `data-theme` on `<html>`.
 
-**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
+**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · Open Graph: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
 
 > **Supersedes** the warm amber “Cyberminimalist Glass” identity and the #416 “no blue primary” guardrail. Class names like `*-glass` / `shell-panel` remain; colors are cool navy + blue CTAs + gold brand.
 
@@ -45,7 +45,7 @@ Theme files override the above per `data-theme='dark'` | `'light'`.
 4. Do not reintroduce Tailwind `primary` / `dex` hard-coded hex palettes; alias via CSS variables.
 5. Safety gates and required legal/risk copy stay visible — copy minimization must not hide blockers.
 6. Gold accents are border/text only; warning surfaces use cool slate + amber border (`--alert-warning-border`), not brown washes.
-7. Open Graph `/og-image.png` and `index.html` meta describe **product** (swaps, limits, Terra Classic) — not theme jargon.
+7. Open Graph `/og-image.png` is the **community medallion** card (1200×630). Meta title/description still describe **product** (swaps, limits, Terra Classic) — not theme jargon. Production image URLs are absolute `https://dex.cl8y.com/og-image.png` ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)).
 
 ## Tailwind color aliases
 
@@ -92,11 +92,11 @@ Two circular medallions. Pick by **rendered size and whether the name is shown i
 
 - Header brand mark (`.app-brand-logo`, 44px / 40px on narrow viewports) — `/logo.png` next to the **CL8Y DEX** title
 - Marketing, splash, about, and print where the coin is shown at **≳ 96px**
-- Open Graph remains the **product** card `/og-image.png` (~1200×630: swaps / limits / Terra Classic), not a logo dump
+- Open Graph is the **community medallion** landscape card `/og-image.png` (1200×630, [#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) — not a favicon dump and not the old #488 product-copy card. Production crawlers must fetch `https://dex.cl8y.com/og-image.png`. Square source: [`frontend-dapp/brand/community-opengraph-concept.png`](../frontend-dapp/brand/community-opengraph-concept.png) (do not serve as `og:image`).
 
 Do **not** downscale `/logo.png` into a favicon. Source for the simplified family is `/logo-simplified-variant.png` (1024², transparent). `/logo-simplified-variant-lowquality.png` is the original 145² capture only — do not ship it as a favicon or header mark.
 
-Canonical same-origin only — do not wire user-controlled OG URLs. Meta: `frontend-dapp/index.html` `og:description` / `twitter:description`. Favicon `<link>` tags: `favicon-32.png` / `favicon-16.png` (browsers also fetch `/favicon.ico`).
+Canonical same-origin only — do not wire user-controlled OG URLs, and do not build `og:image` from the request host header or the browser location object. Meta: `frontend-dapp/index.html` `og:description` / `twitter:description`; production bake: [`viteOg.ts`](../frontend-dapp/viteOg.ts). Favicon `<link>` tags: `favicon-32.png` / `favicon-16.png` (browsers also fetch `/favicon.ico`). Agent playbook: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) (invariants **OG-1–OG-8**).
 
 ## Typography
 
@@ -161,6 +161,9 @@ python3 scripts/check_design_tokens.py
 # Frontend lint + unit tests
 make lint-frontend
 make test-frontend
+
+# Open Graph / Twitter cards (#578)
+make verify-issue-578
 ```
 
 Manual matrix (both themes): Swap, Limit, Trade, Pool, Portfolio, Connect Wallet modal — cool navy/slate surfaces, blue CTAs, gold network/brand accents. Connect Wallet rows include circular brand logos ([#490](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/490); [docs/frontend.md § logos](./frontend.md#connect-modal-wallet-logos)).
