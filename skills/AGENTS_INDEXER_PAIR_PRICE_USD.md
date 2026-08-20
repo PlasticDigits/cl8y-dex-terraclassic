@@ -27,6 +27,7 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - **Don’t** wire `trades[0].price` into any control labeled USD.
 - **Don’t** treat `formatNum` compact `T` as a price formatter — use `formatPairPrice`.
 - **Don’t** double-scale: after this migration, `price` is already human. Client fallback scales `price` as **raw** only when `price_usd` is missing (pre-upgrade indexer).
+- **Don’t** map `VFDUSD` / `FDUSD` in `quote_usd_kind` or multiply CEX FDUSD (`OracleTicker::Vfdusd`) into pair `price_usd` / `volume_usd` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)).
 
 ## Regression checklist
 

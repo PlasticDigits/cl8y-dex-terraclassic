@@ -1,6 +1,8 @@
-# Indexer external USD oracle (GitLab #515 / #550 / #579)
+# Indexer external USD oracle (GitLab #515 / #550 / #579 / #580)
 
-Polled CEX/aggregator **reference** prices for TerraClassic **USTC/USD**, **LUNC/USD**, and **vFDUSD/USD** (CEX FDUSD). Distinct from on-chain pair **TWAP** ([`docs/twap-oracle.md`](../twap-oracle.md)) and the **UST1 window** rate.
+Polled CEX/aggregator **reference** prices for TerraClassic **USTC/USD**, **LUNC/USD**, and CEX **FDUSD/USD** (HTTP/DB path `vfdusd`). Distinct from on-chain pair **TWAP** ([`docs/twap-oracle.md`](../twap-oracle.md)) and the **UST1 window** rate.
+
+**Identity (#580):** path `vfdusd` stores **CEX FDUSD/USD** (MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`). It is **not** USD of Terra CW20 **vFDUSD** (Venus bridged). Operator logs use `display_name` **FDUSD/USD**, never `vFDUSD/USD`. Additive JSON `quote_asset=FDUSD` / `display_name=FDUSD/USD`. Path `fdusd` stays **400**. Protocol Venus “1 vFDUSD Price” is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571) — not this feed.
 
 ## Why this exists
 
@@ -13,9 +15,9 @@ v1 now uses **ticker-scoped** paths (breaking change approved while non-economic
 | Method | Path | Response |
 |--------|------|----------|
 | `GET` | `/api/v1/oracle/price` | Catalog: `{ metadata, tickers: ["ustc","lunc","vfdusd"] }` |
-| `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, price_usd, sources[] }` |
+| `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, quote_asset, display_name, price_usd, sources[] }` |
 | `GET` | `/api/v1/oracle/history` | Same catalog as price |
-| `GET` | `/api/v1/oracle/history/{ticker}` | `{ ticker, prices[] }` (average samples; `limit` capped 1000) |
+| `GET` | `/api/v1/oracle/history/{ticker}` | `{ ticker, quote_asset, display_name, prices[] }` (average samples; `limit` capped 1000) |
 | `GET` | `/api/v1/hub-prices` | DEX hub snapshot `{ metadata, tickers: ["custc","ust1","ustr"], prices[] }` ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)) |
 | `GET` | `/api/v1/hub-prices/{ticker}` | One DEX mark (`custc` \| `ust1` \| `ustr`). Unknown → **400**. |
 
@@ -27,7 +29,7 @@ Unknown CEX `{ticker}` (including `ustr` / `ust1` / `custc`) → **400**. DEX ma
 |--------|---------|---------------------|
 | `ustc` | TerraClassic USTC per USD | KuCoin `USTC-USDT`, MEXC `USTCUSDT`, CoinGecko `terrausd` |
 | `lunc` | TerraClassic LUNC per USD | KuCoin `LUNC-USDT`, MEXC `LUNCUSDT`, CoinGecko `terra-luna` |
-| `vfdusd` | Wrapped FDUSD CEX reference (not a $1 peg) | MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`; KuCoin **skipped** (unlisted). Path `fdusd` is **400** (no alias). |
+| `vfdusd` | CEX FDUSD/USD reference stored under path `vfdusd` — **not** Terra CW20 vFDUSD | MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`; KuCoin **skipped** (unlisted). Path `fdusd` is **400** (no alias). JSON `quote_asset=FDUSD`, `display_name=FDUSD/USD`. |
 
 ### Sources
 
@@ -55,8 +57,8 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 |----|------|
 | **X1** | `GET /api/v1/oracle/price` and `/history` are **catalogs only** — never a numeric price body. |
 | **X2** | Price/history paths require an explicit ticker: `ustc`, `lunc`, or `vfdusd`. Unknown → **400**. |
-| **X3** | Tickers use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC/USTC/FDUSD ids. |
-| **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD. |
+| **X3** | Tickers use **distinct** CEX/CoinGecko symbols; never cross-wire LUNC/USTC/FDUSD ids. Path `vfdusd` polls CEX FDUSD; logs/`display_name` are **FDUSD/USD**, not `vFDUSD/USD` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). |
+| **X4** | Indexer `volume_usd` uses the **P522-Q catalog** (USTC/LUNC oracles + hub USD for UST1/USTR, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Overview `ustc_price_usd` stays the **USTC** feed. Do **not** convert DEX volume with vFDUSD/FDUSD. Never use `OracleTicker::Vfdusd` as `usd_per_human` for symbol `VFDUSD`. |
 | **X5** | Feeds are **advisory** — not settlement; on-chain swaps use `max_spread` / `min_return` / deadlines. |
 | **X6** | Non-finite `f64` → safe `BigDecimal` default before DB insert (existing oracle storage rule). |
 | **X7** | Oracle HTTP client sends a stable, non-browser User-Agent identifying this indexer + repo ([#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579)). CoinGecko 403 User-Agent-missing is **not** `RateLimited`. Soft-fail: one source down still averages the rest. |
@@ -78,6 +80,7 @@ Swap `volume_usd` uses the **P522-Q catalog** (GitLab [#548](https://gitlab.com/
 make verify-issue-579   # User-Agent + 403 vs 429 (no live CoinGecko; --lib oracle)
 make verify-issue-515
 make verify-issue-550
+make verify-issue-580
 # or: cd indexer && cargo test --lib oracle -- --quiet
 #     cd indexer && cargo test --test api_oracle -- --test-threads=1
 ```

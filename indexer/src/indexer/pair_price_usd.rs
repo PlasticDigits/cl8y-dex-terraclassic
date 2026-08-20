@@ -58,6 +58,9 @@ pub enum QuoteUsdKind {
 }
 
 /// Classify a quote (or base) asset for USD conversion.
+///
+/// Never map `VFDUSD` / `FDUSD` here — CEX FDUSD under path ticker `vfdusd` is not
+/// USD of Terra CW20 vFDUSD (GitLab #580). Unknown quotes stay `None`.
 pub fn quote_usd_kind(symbol: &str, denom: Option<&str>) -> Option<QuoteUsdKind> {
     if let Some(d) = denom {
         match d {
@@ -377,6 +380,32 @@ mod tests {
         assert_eq!(quote_usd_kind("UST1", None), Some(QuoteUsdKind::Peg1));
         assert_eq!(quote_usd_kind("USTR", None), Some(QuoteUsdKind::Ustr));
         assert_eq!(quote_usd_kind("CL8Y", None), None);
+        // GitLab #580: CEX FDUSD under path vfdusd is not USD of Terra CW20 vFDUSD.
+        assert_eq!(quote_usd_kind("VFDUSD", None), None);
+        assert_eq!(quote_usd_kind("vFDUSD", None), None);
+        assert_eq!(quote_usd_kind("FDUSD", None), None);
+    }
+
+    #[test]
+    fn vfdusd_quote_is_not_priced_from_cex_fdusd_oracle() {
+        let quote = asset("VFDUSD", None);
+        assert!(price_usd_for_human_quote_per_base(
+            &quote,
+            &bd("1"),
+            Some(&bd("0.998")),
+            None,
+            None
+        )
+        .is_none());
+        let fdusd = asset("FDUSD", None);
+        assert!(price_usd_for_human_quote_per_base(
+            &fdusd,
+            &bd("1"),
+            Some(&bd("0.998")),
+            None,
+            None
+        )
+        .is_none());
     }
 
     #[test]
@@ -756,5 +785,23 @@ mod tests {
         .is_none());
         assert!(fits_numeric_38_18(&bd("99999999999999999999.99")));
         assert!(!fits_numeric_38_18(&ten_pow_i32(20)));
+    }
+
+    #[test]
+    fn volume_vfdusd_quote_is_not_priced_from_cex_fdusd() {
+        let vfdusd = cw20(1, "VFDUSD", 6, "terra1vfdusd");
+        let gem = cw20(3, "GEM", 6, "terra1gem");
+        assert!(volume_usd_for_swap(
+            &gem,
+            &vfdusd,
+            &bd("1000000"),
+            &bd("1000000"),
+            &vfdusd,
+            Some(&bd("0.998")),
+            None,
+            None,
+            None,
+        )
+        .is_none());
     }
 }

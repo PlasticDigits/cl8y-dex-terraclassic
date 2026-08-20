@@ -38,6 +38,7 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 - **Do** keep ops LP seed `USTR_PER_USTC` in [`scripts/rebalance-mint-ust1-lp.sh`](../scripts/rebalance-mint-ust1-lp.sh) — sizing only.
 - **Don’t** add `ustr` to `OracleTicker::ALL`.
 - **Don’t** mix vFDUSD into hub USD or `volume_usd`.
+- **Don’t** use CEX FDUSD (`OracleTicker::Vfdusd`) as `usd_per_human` for symbol `VFDUSD` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)).
 - **Don’t** scan `swap_events` on GET.
 - **Don’t** rewrite historical `swap_events.price_usd` or candle USD from the live hub snapshot ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568) **C568-1**). Idle charts use current-bucket mark bars (`trade_count = 0`).
 - **Don’t** treat hub USD as settlement, TWAP, or the `/ust1` window rate.

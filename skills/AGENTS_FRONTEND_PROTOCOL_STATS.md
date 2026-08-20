@@ -23,7 +23,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P550-6** | `token_count` is unique pair-leg assets (`count_pair_leg_assets`, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**), not `get_all_assets().len()`. New-token census is `tokens_added_30d` on `assets.created_at`. |
 | **P550-7** | “New in 30d” is indexer `created_at` (first-seen). Reindex/rebuild makes everything look new — copy must not say “launched on chain”. |
 | **P550-8** | Active pairs = distinct `pair_id` with ≥1 swap in last **24h** (materialized). Dust swaps count. Not unique traders. Not TVL. |
-| **P550-9** | vFDUSD polls CEX **FDUSD** (`first-digital-usd` / `FDUSDUSDT`). Not `$1`. Not USTC/LUNC ids. No `fdusd` path alias. |
+| **P550-9** | Path `vfdusd` polls CEX **FDUSD** (`first-digital-usd` / `FDUSDUSDT`). Indexer logs/API `display_name` is **FDUSD/USD**, not `vFDUSD/USD` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). Protocol UI chip stays **vFDUSD / USD** ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)). Not `$1`. Not USTC/LUNC ids. No `fdusd` path alias. Protocol Venus 1 vFDUSD Price is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571). |
 | **P550-10** | **X4** is P522-Q catalog (#548 / #556): USTC/LUNC oracles plus hub USD for UST1/USTR. Do **not** convert DEX volume **or TVL** with vFDUSD/FDUSD. Overview `ustc_price_usd` stays the USTC ticker; hub fields are additive. |
 | **P550-11** | Feeds labeled **reference**. Not TWAP (Charts), not UST1 window (`/ust1`). |
 | **P550-12** | Factory/router `AddressRow` stay on `/protocol` only (#378). |

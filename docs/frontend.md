@@ -761,7 +761,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |
 | **P569-1 Pool TVL** | **Total liquidity** is humanized AMM `pair_reserves` USD (`total_liquidity_usd`), not volume, not CG `liquidity_in_usd`, not book escrow. Testids: `protocol-stat-liquidity`, `protocol-stat-liquidity-24h`, `protocol-stat-liquidity-30d`. |
 | **P569-2 Δ%** | 24h/30d liquidity is vs indexer snapshots. Missing / `null` / non-finite → em-dash (`formatProtocolPct`), never `0%` / `Infinity`. |
-| **P550-9 vFDUSD** | CEX FDUSD (`first-digital-usd` / `FDUSDUSDT`), labeled **vFDUSD / USD**. Not `$1`, not the `/ust1` window rate. |
+| **P550-9 vFDUSD** | Path `vfdusd` returns CEX **FDUSD/USD** (`first-digital-usd` / `FDUSDUSDT`; JSON `quote_asset=FDUSD`). Protocol UI chip stays **vFDUSD / USD** ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)). Not Terra CW20 vFDUSD, not `$1`, not the `/ust1` window rate. Protocol Venus heading is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571) ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). |
 | **P550-11 Reference** | Feeds are advisory. Per-pair TWAP stays on Charts. |
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).

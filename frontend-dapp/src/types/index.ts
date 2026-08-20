@@ -479,6 +479,10 @@ export interface IndexerOracleSourcePrice {
 export interface IndexerOraclePriceResponse {
   /** Path ticker (`ustc`, `lunc`, or `vfdusd`). */
   ticker: string
+  /** CEX quote asset. Path `vfdusd` is FDUSD, not Terra CW20 vFDUSD (#580). */
+  quote_asset?: string
+  /** Display pair (`USTC/USD`, `LUNC/USD`, `FDUSD/USD`). */
+  display_name?: string
   price_usd: string | null
   sources: IndexerOracleSourcePrice[]
 }
@@ -492,6 +496,9 @@ export interface IndexerOracleHistoryEntry {
 export interface IndexerOracleHistoryResponse {
   /** Path ticker (`ustc`, `lunc`, or `vfdusd`). */
   ticker: string
+  /** CEX quote asset. Path `vfdusd` is FDUSD, not Terra CW20 vFDUSD (#580). */
+  quote_asset?: string
+  display_name?: string
   prices: IndexerOracleHistoryEntry[]
 }
 

@@ -1,8 +1,12 @@
-//! External CEX/USD reference oracle (GitLab #515 / #550 / #579).
+//! External CEX/USD reference oracle (GitLab #515 / #550 / #579 / #580).
 //!
-//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD**, **LUNC/USD**, and **vFDUSD/USD**
-//! (CEX FDUSD, labeled vFDUSD in the dApp). These feeds are advisory display/reference
-//! prices — not on-chain settlement. Volume USD conversion stays on the **USTC** handle (X4).
+//! Polls KuCoin / MEXC / CoinGecko for **USTC/USD**, **LUNC/USD**, and **FDUSD/USD**
+//! (CEX First Digital USD). The HTTP/DB ticker path remains `vfdusd` (no silent `fdusd`
+//! alias). Logs and additive JSON must say **FDUSD/USD**, never **vFDUSD/USD** — Terra
+//! CW20 vFDUSD is Venus-bridged and is not this CEX print (#580). These feeds are
+//! advisory display/reference prices — not on-chain settlement. Volume USD conversion
+//! stays on the **USTC** handle / P522-Q catalog (X4); do not multiply CEX FDUSD into
+//! vFDUSD `volume_usd` / `price_usd`.
 //!
 //! CoinGecko’s free API requires a descriptive `User-Agent` (**X7** / #579). The oracle
 //! client identifies this crate and repo; it must not impersonate browsers or rotate UAs.
@@ -49,7 +53,8 @@ pub fn new_shared_price() -> SharedPrice {
 }
 
 /// In-memory handles for each supported external ticker.
-/// vFDUSD writes must not overwrite USTC (volume_usd / overview `ustc_price_usd` stay on `ustc`).
+/// `vfdusd` (CEX FDUSD) writes must not overwrite USTC (volume_usd / overview
+/// `ustc_price_usd` stay on `ustc`).
 #[derive(Clone)]
 pub struct OraclePriceHandles {
     pub ustc: SharedPrice,
@@ -86,7 +91,9 @@ impl Default for OraclePriceHandles {
 pub enum OracleTicker {
     Ustc,
     Lunc,
-    /// Wrapped FDUSD on TerraClassic; polls CEX **FDUSD** (not a $1 hardcode). Path `vfdusd`.
+    /// Path `vfdusd` stores CEX **FDUSD/USD** (MEXC `FDUSDUSDT`, CoinGecko
+    /// `first-digital-usd`) — not USD of Terra CW20 vFDUSD (GitLab #580).
+    /// Not a $1 hardcode. No `fdusd` path alias.
     Vfdusd,
 }
 
@@ -112,7 +119,7 @@ impl OracleTicker {
         }
     }
 
-    /// KuCoin spot symbol, if listed. vFDUSD/FDUSD is unlisted — skip that source (soft-fail).
+    /// KuCoin spot symbol, if listed. CEX FDUSD is unlisted — skip that source (soft-fail).
     fn kucoin_symbol(self) -> Option<&'static str> {
         match self {
             OracleTicker::Ustc => Some("USTC-USDT"),
@@ -137,11 +144,21 @@ impl OracleTicker {
         }
     }
 
-    fn display_name(self) -> &'static str {
+    /// Operator log / API display pair. Path ticker `vfdusd` still stores CEX **FDUSD**.
+    pub fn display_name(self) -> &'static str {
         match self {
             OracleTicker::Ustc => "USTC/USD",
             OracleTicker::Lunc => "LUNC/USD",
-            OracleTicker::Vfdusd => "vFDUSD/USD",
+            OracleTicker::Vfdusd => "FDUSD/USD",
+        }
+    }
+
+    /// CEX quote-asset identity (not the URL path). Path `vfdusd` → `FDUSD`.
+    pub fn quote_asset(self) -> &'static str {
+        match self {
+            OracleTicker::Ustc => "USTC",
+            OracleTicker::Lunc => "LUNC",
+            OracleTicker::Vfdusd => "FDUSD",
         }
     }
 }
@@ -509,6 +526,22 @@ mod tests {
         assert_ne!(OracleTicker::Vfdusd.mexc_symbol(), "LUNCUSDT");
         assert_ne!(OracleTicker::Vfdusd.coingecko_id(), "terrausd");
         assert_ne!(OracleTicker::Vfdusd.coingecko_id(), "terra-luna");
+    }
+
+    #[test]
+    fn vfdusd_display_name_is_cex_fdusd_not_terra_vfdusd() {
+        let name = OracleTicker::Vfdusd.display_name();
+        assert!(name.contains("FDUSD"), "{name}");
+        assert_ne!(name, "vFDUSD/USD");
+        assert_eq!(name, "FDUSD/USD");
+        assert_eq!(OracleTicker::Vfdusd.quote_asset(), "FDUSD");
+        assert_eq!(OracleTicker::Ustc.display_name(), "USTC/USD");
+        assert_eq!(OracleTicker::Lunc.display_name(), "LUNC/USD");
+        assert_eq!(OracleTicker::Ustc.quote_asset(), "USTC");
+        assert_eq!(OracleTicker::Lunc.quote_asset(), "LUNC");
+        assert_eq!(OracleTicker::parse("fdusd"), None, "no silent fdusd alias");
+        assert_eq!(OracleTicker::parse("../vfdusd"), None);
+        assert_eq!(OracleTicker::parse("javascript:vfdusd"), None);
     }
 
     #[test]

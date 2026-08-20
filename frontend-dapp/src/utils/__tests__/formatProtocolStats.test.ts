@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { formatProtocolCount, formatProtocolOracleUsd, formatProtocolPct, formatProtocolUsd } from '../formatProtocolStats'
+import {
+  formatProtocolCount,
+  formatProtocolOracleUsd,
+  formatProtocolPct,
+  formatProtocolUsd,
+} from '../formatProtocolStats'
 
 describe('formatProtocolUsd', () => {
   it('formats finite USD with a dollar prefix', () => {
