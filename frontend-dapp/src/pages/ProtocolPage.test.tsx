@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import ProtocolPage from './ProtocolPage'
 import * as indexerClient from '@/services/indexer/client'
+import { copyToClipboard } from '@/utils/copyToClipboard'
+
+const CUSTC_WRAP = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+const CLUNC_WRAP = 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg'
 
 vi.mock('@/utils/constants', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/constants')>()
@@ -13,11 +17,17 @@ vi.mock('@/utils/constants', async (importOriginal) => {
     ROUTER_CONTRACT_ADDRESS: 'terra1router00000000000000000000000000001',
     TERRA_LCD_URL: 'http://localhost:1317',
     TERRA_RPC_URL: 'http://localhost:26657',
+    USTC_C_TOKEN_ADDRESS: 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch',
+    LUNC_C_TOKEN_ADDRESS: 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg',
   }
 })
 
 vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn() },
+}))
+
+vi.mock('@/utils/copyToClipboard', () => ({
+  copyToClipboard: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 vi.mock('@/services/indexer/client', async (importOriginal) => {
@@ -34,9 +44,24 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
 
 const hubPricesOk = {
   metadata: 'DEX hub USD marks. Not CEX.',
-  tickers: ['custc', 'ust1', 'ustr'],
+  tickers: ['custc', 'lunc', 'ust1', 'ustr'],
   prices: [
-    { ticker: 'custc', price_usd: '0.005', source_pair: null, tvl_usd: null, updated_at: '2026-01-01T00:00:00Z' },
+    {
+      ticker: 'custc',
+      price_usd: '0.005',
+      source_pair: null,
+      asset_address: CUSTC_WRAP,
+      tvl_usd: null,
+      updated_at: '2026-01-01T00:00:00Z',
+    },
+    {
+      ticker: 'lunc',
+      price_usd: '0.00008',
+      source_pair: null,
+      asset_address: CLUNC_WRAP,
+      tvl_usd: null,
+      updated_at: '2026-01-01T00:00:00Z',
+    },
     {
       ticker: 'ust1',
       price_usd: '0.98',
@@ -211,13 +236,32 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
     expect(screen.queryByText('undefined')).not.toBeInTheDocument()
   })
 
-  it('renders DEX hub card for cUSTC / UST1 / USTR and never queries CEX ustr', async () => {
+  it('renders DEX hub card for cUSTC / LUNC / UST1 / USTR and never queries CEX ustr', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const hub = await screen.findByTestId('protocol-dex-hub-prices')
-    expect(await within(hub).findByTestId('protocol-dex-hub-custc-usd')).toHaveTextContent('$')
+    await waitFor(() => expect(within(hub).getByTestId('protocol-dex-hub-custc-usd')).toHaveTextContent('$'))
+    expect(within(hub).getByTestId('protocol-dex-hub-lunc-usd')).toHaveTextContent('$')
+    expect(within(hub).getByTestId('protocol-dex-hub-lunc-usd').textContent).not.toMatch(/T$/)
     expect(within(hub).getByTestId('protocol-dex-hub-ust1-usd')).toHaveTextContent('$')
     expect(within(hub).getByTestId('protocol-dex-hub-ustr-usd')).toHaveTextContent('$')
     expect(hub).toHaveTextContent(/DEX reference — not CEX, not settlement/i)
+    expect(within(hub).getByTestId('protocol-dex-hub-custc-token')).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-lunc-token')).toBeInTheDocument()
+    expect(within(hub).queryByTestId('protocol-dex-hub-custc-source')).not.toBeInTheDocument()
+    expect(within(hub).queryByTestId('protocol-dex-hub-lunc-source')).not.toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-ust1-source')).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-ustr-source')).toBeInTheDocument()
+    expect(within(hub).getByLabelText('Copy UST1 source pair')).toBeInTheDocument()
+    expect(within(hub).getByLabelText('Copy cUSTC token contract')).toBeInTheDocument()
+    expect(within(hub).getByLabelText('Copy cLUNC wrap contract')).toBeInTheDocument()
+    await user.click(within(hub).getByLabelText('Copy cUSTC token contract'))
+    expect(copyToClipboard).toHaveBeenCalledWith(CUSTC_WRAP)
+    await user.click(within(hub).getByLabelText('Copy cLUNC wrap contract'))
+    expect(copyToClipboard).toHaveBeenCalledWith(CLUNC_WRAP)
+    const custcExplorer = within(hub).getByTestId('protocol-dex-hub-custc-token-explorer')
+    expect(custcExplorer).toHaveAttribute('rel', expect.stringContaining('noopener'))
+    expect(custcExplorer.getAttribute('href')).not.toMatch(/javascript:|data:/)
     expect(indexerClient.getHubPrices).toHaveBeenCalled()
     expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('ustr')
     expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('ust1')
@@ -228,16 +272,39 @@ describe('ProtocolPage (GitLab #550 / #378)', () => {
   it('null hub prices render em-dash, not $0 or $1', async () => {
     vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
       metadata: 'DEX hub USD marks. Not CEX.',
-      tickers: ['custc', 'ust1', 'ustr'],
+      tickers: ['custc', 'lunc', 'ust1', 'ustr'],
       prices: [
         { ticker: 'custc', price_usd: null },
+        { ticker: 'lunc', price_usd: null },
         { ticker: 'ust1', price_usd: null },
         { ticker: 'ustr', price_usd: null },
       ],
     })
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
-    expect(await screen.findByTestId('protocol-dex-hub-ustr-usd')).toHaveTextContent('—')
+    await waitFor(() => expect(screen.getByTestId('protocol-dex-hub-ustr-usd')).toHaveTextContent('—'))
     expect(screen.getByTestId('protocol-dex-hub-ust1-usd')).toHaveTextContent('—')
+    expect(screen.getByTestId('protocol-dex-hub-lunc-usd')).toHaveTextContent('—')
+    expect(screen.getByTestId('protocol-dex-hub-custc-usd')).toHaveTextContent('—')
     expect(screen.queryByTestId('protocol-dex-hub-ustr-usd')?.textContent).not.toMatch(/\$0|\$1|2\.5/)
+    expect(screen.getByTestId('protocol-dex-hub-lunc-usd').textContent).not.toMatch(/\$0|\$1/)
+  })
+
+  it('hub 502 shows outage banner without host:port leak', async () => {
+    vi.mocked(indexerClient.getHubPrices).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const banner = await screen.findByTestId('protocol-market-data-outage-banner')
+    expect(banner).toHaveTextContent(/market data service unavailable/i)
+    expect(banner.textContent).not.toMatch(/VITE_INDEXER_URL|127\.0\.0\.1|:3001/i)
+    const hub = await screen.findByTestId('protocol-dex-hub-prices')
+    expect(hub).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-custc')).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-lunc')).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-ust1')).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-ustr')).toBeInTheDocument()
+    await waitFor(() => expect(within(hub).getByTestId('protocol-dex-hub-lunc-usd')).toHaveTextContent('—'))
+    expect(within(hub).getByTestId('protocol-dex-hub-custc-usd')).toHaveTextContent('—')
+    expect(within(hub).getByTestId('protocol-dex-hub-custc-token')).toBeInTheDocument()
+    expect(within(hub).getByTestId('protocol-dex-hub-lunc-token')).toBeInTheDocument()
+    expect(within(hub).queryByTestId('protocol-dex-hub-ust1-source')).not.toBeInTheDocument()
   })
 })

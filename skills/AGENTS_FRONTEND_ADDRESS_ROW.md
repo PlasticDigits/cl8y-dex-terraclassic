@@ -30,6 +30,7 @@ Use when surfacing **bech32 / contract addresses** with copy and explorer afford
 ## Follow-ups (still #188 / #140)
 
 - Pair + token-leg chips on Pool / Trade / Charts — **done in [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)** ([`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md))
+- Protocol DEX hub wrap CW20 rows (cUSTC / cLUNC) — **done in [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)** ([`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md))
 - Limit-order pair chips (if still desired beyond #541 page chrome)
 - `TxResultAlert` tx hash copy (explorer already present)
 - Wallet chip trigger shortening stays separate ([#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186))

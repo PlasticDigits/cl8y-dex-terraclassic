@@ -1,10 +1,11 @@
-//! DEX hub USD marks from largest-liquidity factory pools (GitLab #556).
+//! DEX hub USD marks from largest-liquidity factory pools (GitLab #556 / #570).
 //!
 //! Bootstrap (no circular quotes):
-//! 1. `usd(cUSTC)` = `usd(uusd)` = #515 USTC CEX oracle (wrap 1:1). Oracle down → no hub USD.
-//! 2. `usd(UST1)` from the max USD-TVL factory pair whose legs are hub cUSTC + hub UST1,
+//! 1. `usd(cUSTC)` = `usd(uusd)` = #515 USTC CEX oracle (wrap 1:1). Oracle down → no cUSTC/UST1/USTR.
+//! 2. `usd(LUNC)` = `usd(uluna)` = #515 LUNC CEX oracle (wrap 1:1). Independent of USTC. Not a pool mark.
+//! 3. `usd(UST1)` from the max USD-TVL factory pair whose legs are hub cUSTC + hub UST1,
 //!    using the constant-product **reserve** spot (not last swap print).
-//! 3. `usd(USTR)` from the max USD-TVL factory pair vs already-priced cUSTC or UST1.
+//! 4. `usd(USTR)` from the max USD-TVL factory pair vs already-priced cUSTC or UST1.
 //!
 //! Ranking is **humanized USD TVL** (sum of both legs), not raw reserve integers.
 //! Ties: highest TVL, then lexicographic pair contract address.
@@ -20,11 +21,13 @@ use super::pair_price_usd::{fits_numeric_38_18, humanize_raw_amount};
 use crate::config::Config;
 
 /// Allowlisted hub-price path tickers (`GET /api/v1/hub-prices/{ticker}`).
-pub const HUB_TICKERS: [&str; 3] = ["custc", "ust1", "ustr"];
+/// Order: oracle-anchored wraps first, then DEX-derived hubs (GitLab #570).
+pub const HUB_TICKERS: [&str; 4] = ["custc", "lunc", "ust1", "ustr"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HubTicker {
     Custc,
+    Lunc,
     Ust1,
     Ustr,
 }
@@ -33,15 +36,18 @@ impl HubTicker {
     pub fn as_str(self) -> &'static str {
         match self {
             HubTicker::Custc => "custc",
+            HubTicker::Lunc => "lunc",
             HubTicker::Ust1 => "ust1",
             HubTicker::Ustr => "ustr",
         }
     }
 
     /// ASCII case-insensitive allowlist. Homoglyphs / `../` / extra underscores → None.
+    /// No `clunc` path alias (column label is LUNC; wrap identity is cLUNC CW20).
     pub fn parse(s: &str) -> Option<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
             "custc" => Some(HubTicker::Custc),
+            "lunc" => Some(HubTicker::Lunc),
             "ust1" => Some(HubTicker::Ust1),
             "ustr" => Some(HubTicker::Ustr),
             _ => None,
@@ -52,6 +58,7 @@ impl HubTicker {
 #[derive(Debug, Clone)]
 pub struct HubUsdConfig {
     pub custc_address: String,
+    pub clunc_address: String,
     pub ust1_address: String,
     pub ustr_address: String,
     pub tvl_floor: BigDecimal,
@@ -62,12 +69,42 @@ impl HubUsdConfig {
     pub fn from_indexer_config(config: &Config) -> Self {
         Self {
             custc_address: config.hub_custc_address.clone(),
+            clunc_address: config.hub_clunc_address.clone(),
             ust1_address: config.hub_ust1_address.clone(),
             ustr_address: config.hub_ustr_address.clone(),
             tvl_floor: config.hub_usd_tvl_floor.clone(),
             max_staleness: Duration::from_millis(config.book_snapshot_max_staleness_ms()),
         }
     }
+}
+
+/// Configured wrap CW20 for a hub ticker. Rejects `javascript:`, HTML, `../`, wrong HRP.
+pub fn hub_wrap_asset_address(ticker: HubTicker, cfg: &HubUsdConfig) -> Option<String> {
+    let raw = match ticker {
+        HubTicker::Custc => cfg.custc_address.as_str(),
+        HubTicker::Lunc => cfg.clunc_address.as_str(),
+        HubTicker::Ust1 => cfg.ust1_address.as_str(),
+        HubTicker::Ustr => cfg.ustr_address.as_str(),
+    };
+    sanitize_hub_wrap_address(raw)
+}
+
+/// Allowlisted `terra1…` CW20 only. Never emit native denoms (`uluna`) as explorer targets.
+pub fn sanitize_hub_wrap_address(raw: &str) -> Option<String> {
+    let t = raw.trim();
+    if t.len() < 44 || t.len() > 90 {
+        return None;
+    }
+    if !t.starts_with("terra1") {
+        return None;
+    }
+    if !t
+        .bytes()
+        .all(|b| b.is_ascii_lowercase() || (b.is_ascii_digit()))
+    {
+        return None;
+    }
+    Some(t.to_string())
 }
 
 #[derive(Debug, Clone)]
@@ -105,6 +142,7 @@ pub struct HubMark {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HubUsdSnapshot {
     pub custc: Option<HubMark>,
+    pub lunc: Option<HubMark>,
     pub ust1: Option<HubMark>,
     pub ustr: Option<HubMark>,
 }
@@ -302,7 +340,24 @@ fn resolve_token_vs_priced_hub(
     })
 }
 
+/// LUNC hub mark from #515 LUNC CEX (wrap 1:1). Independent of USTC. Never a DEX pool.
+pub fn resolve_lunc_hub_mark(
+    lunc_oracle: Option<&BigDecimal>,
+    clunc_asset_id: Option<i32>,
+) -> Option<HubMark> {
+    let price = lunc_oracle.filter(|p| **p > BigDecimal::from(0) && fits_numeric_38_18(p))?;
+    Some(HubMark {
+        ticker: HubTicker::Lunc,
+        asset_id: clunc_asset_id,
+        price_usd: price.clone(),
+        source_pair_id: None,
+        source_pair_address: None,
+        tvl_usd: None,
+    })
+}
+
 /// Resolve cUSTC → UST1 → USTR from indexed factory pairs + reserves (H1–H3, H8).
+/// LUNC is filled separately via [`resolve_lunc_hub_mark`] so a USTC outage cannot zero LUNC.
 pub fn resolve_hub_usd(
     now: DateTime<Utc>,
     cfg: &HubUsdConfig,
@@ -370,6 +425,7 @@ mod tests {
     fn cfg() -> HubUsdConfig {
         HubUsdConfig {
             custc_address: "terra1custc".into(),
+            clunc_address: "terra1clunc".into(),
             ust1_address: "terra1ust1".into(),
             ustr_address: "terra1ustr".into(),
             tvl_floor: bd("100"),
@@ -428,11 +484,41 @@ mod tests {
     fn ticker_allowlist_rejects_injection() {
         assert_eq!(HubTicker::parse("ustr"), Some(HubTicker::Ustr));
         assert_eq!(HubTicker::parse("UST1"), Some(HubTicker::Ust1));
+        assert_eq!(HubTicker::parse("lunc"), Some(HubTicker::Lunc));
+        assert_eq!(HubTicker::parse("LUNC"), Some(HubTicker::Lunc));
         assert!(HubTicker::parse("javascript:alert(1)").is_none());
         assert!(HubTicker::parse("../ustr").is_none());
+        assert!(HubTicker::parse("../lunc").is_none());
         assert!(HubTicker::parse("ustc").is_none());
+        assert!(HubTicker::parse("clunc").is_none());
         assert!(HubTicker::parse("ustr_").is_none());
+        assert!(HubTicker::parse("lunc_").is_none());
         assert!(HubTicker::parse("fdusd").is_none());
+        assert!(HubTicker::parse("lunc\u{200b}").is_none());
+    }
+
+    #[test]
+    fn wrap_asset_address_rejects_injection() {
+        let mut c = cfg();
+        assert!(hub_wrap_asset_address(HubTicker::Custc, &c).is_none()); // short fixture addr
+        c.custc_address = crate::config::DEFAULT_HUB_CUSTC_ADDRESS.to_string();
+        c.clunc_address = crate::config::DEFAULT_HUB_CLUNC_ADDRESS.to_string();
+        assert_eq!(
+            hub_wrap_asset_address(HubTicker::Custc, &c).as_deref(),
+            Some(crate::config::DEFAULT_HUB_CUSTC_ADDRESS)
+        );
+        assert_eq!(
+            hub_wrap_asset_address(HubTicker::Lunc, &c).as_deref(),
+            Some(crate::config::DEFAULT_HUB_CLUNC_ADDRESS)
+        );
+        c.custc_address = "javascript:alert(1)".into();
+        assert!(hub_wrap_asset_address(HubTicker::Custc, &c).is_none());
+        c.custc_address = "https://evil.example/".into();
+        assert!(hub_wrap_asset_address(HubTicker::Custc, &c).is_none());
+        c.clunc_address = "uluna".into();
+        assert!(hub_wrap_asset_address(HubTicker::Lunc, &c).is_none());
+        c.clunc_address = "terra1".to_string() + &"<img>".repeat(10);
+        assert!(hub_wrap_asset_address(HubTicker::Lunc, &c).is_none());
     }
 
     #[test]
@@ -443,11 +529,27 @@ mod tests {
         assert!(empty.custc.is_none());
         assert!(empty.ust1.is_none());
         assert!(empty.ustr.is_none());
+        // LUNC is independent — resolve_hub_usd does not zero it (filled by caller).
+        assert!(empty.lunc.is_none());
 
         let snap = resolve_hub_usd(now, &c, Some(&bd("0.005")), &[], Some(2));
         assert_eq!(snap.custc.as_ref().unwrap().price_usd, bd("0.005"));
         assert_eq!(snap.custc.as_ref().unwrap().asset_id, Some(2));
+        assert!(snap.custc.as_ref().unwrap().source_pair_address.is_none());
         assert!(snap.ust1.is_none());
+    }
+
+    #[test]
+    fn h12_lunc_tracks_lunc_oracle_independent_of_ustc() {
+        let mark = resolve_lunc_hub_mark(Some(&bd("0.00008")), Some(7));
+        let m = mark.expect("lunc");
+        assert_eq!(m.ticker, HubTicker::Lunc);
+        assert_eq!(m.price_usd, bd("0.00008"));
+        assert_eq!(m.asset_id, Some(7));
+        assert!(m.source_pair_address.is_none());
+        assert!(resolve_lunc_hub_mark(None, Some(7)).is_none());
+        assert!(resolve_lunc_hub_mark(Some(&bd("0")), Some(7)).is_none());
+        assert!(resolve_lunc_hub_mark(Some(&bd("-1")), Some(7)).is_none());
     }
 
     #[test]

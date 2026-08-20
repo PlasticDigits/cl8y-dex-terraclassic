@@ -60,6 +60,7 @@ Vitest: `tokenIdentity.test.ts`, `TokenIdentity.test.tsx`, `TokenIdentity.explor
 ## Related
 
 - [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md) — pair chips leftover closed by #541
+- [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap identity is #570, not a Pool/Trade/Charts clone
 - [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md) — href helper only
 - [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md)
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert must not swap identity payloads

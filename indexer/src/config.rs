@@ -5,9 +5,11 @@ use std::str::FromStr;
 use bigdecimal::BigDecimal;
 use thiserror::Error;
 
-/// Columbus-5 tokenlist hub CW20s (GitLab #556). Override with `HUB_*_ADDRESS`.
+/// Columbus-5 tokenlist hub CW20s (GitLab #556 / #570). Override with `HUB_*_ADDRESS`.
 pub const DEFAULT_HUB_CUSTC_ADDRESS: &str =
     "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch";
+pub const DEFAULT_HUB_CLUNC_ADDRESS: &str =
+    "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg";
 pub const DEFAULT_HUB_UST1_ADDRESS: &str =
     "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72";
 pub const DEFAULT_HUB_USTR_ADDRESS: &str =
@@ -148,6 +150,8 @@ pub struct Config {
     pub reorg_alert_webhook_url: Option<String>,
     /// Hub cUSTC CW20 (tokenlist default; GitLab #556). Identity is contract, not symbol.
     pub hub_custc_address: String,
+    /// Hub cLUNC wrap CW20 (tokenlist default; GitLab #570). Identity is contract, not `uluna`.
+    pub hub_clunc_address: String,
     /// Hub UST1 CW20 (tokenlist default; GitLab #556).
     pub hub_ust1_address: String,
     /// Hub USTR CW20 (tokenlist default; GitLab #556).
@@ -346,6 +350,7 @@ impl Config {
                 .ok()
                 .filter(|s| !s.trim().is_empty()),
             hub_custc_address: env_hub_addr("HUB_CUSTC_ADDRESS", DEFAULT_HUB_CUSTC_ADDRESS),
+            hub_clunc_address: env_hub_addr("HUB_CLUNC_ADDRESS", DEFAULT_HUB_CLUNC_ADDRESS),
             hub_ust1_address: env_hub_addr("HUB_UST1_ADDRESS", DEFAULT_HUB_UST1_ADDRESS),
             hub_ustr_address: env_hub_addr("HUB_USTR_ADDRESS", DEFAULT_HUB_USTR_ADDRESS),
             hub_usd_tvl_floor: env::var("HUB_USD_TVL_FLOOR")

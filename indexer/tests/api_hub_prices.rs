@@ -31,12 +31,37 @@ async fn hub_prices_catalog_is_dex_not_cex() {
     assert!(meta.contains("not CEX"));
     assert!(meta.contains("not settlement"));
     let tickers = body["tickers"].as_array().unwrap();
-    assert_eq!(tickers.len(), 3);
+    assert_eq!(tickers.len(), 4);
     assert_eq!(tickers[0], "custc");
-    assert_eq!(body["prices"].as_array().unwrap().len(), 3);
+    assert_eq!(tickers[1], "lunc");
+    assert_eq!(tickers[2], "ust1");
+    assert_eq!(tickers[3], "ustr");
+    assert_eq!(body["prices"].as_array().unwrap().len(), 4);
     for p in body["prices"].as_array().unwrap() {
         assert!(p["price_usd"].is_null());
     }
+    let custc_p = body["prices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["ticker"] == "custc")
+        .unwrap();
+    assert_eq!(
+        custc_p["asset_address"].as_str().unwrap(),
+        DEFAULT_HUB_CUSTC_ADDRESS
+    );
+    assert!(custc_p["source_pair"].is_null());
+    let lunc_p = body["prices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["ticker"] == "lunc")
+        .unwrap();
+    assert_eq!(
+        lunc_p["asset_address"].as_str().unwrap(),
+        cl8y_dex_indexer::config::DEFAULT_HUB_CLUNC_ADDRESS
+    );
+    assert!(lunc_p["source_pair"].is_null());
 }
 
 #[tokio::test]
@@ -51,6 +76,7 @@ async fn hub_prices_unknown_ticker_is_400() {
         "/api/v1/hub-prices/ustr_",
         "/api/v1/hub-prices/javascript:alert(1)",
         "/api/v1/hub-prices/vfdusd",
+        "/api/v1/hub-prices/clunc",
     ] {
         let resp = server.get(path).await;
         assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST, "{path}");
@@ -140,7 +166,7 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
     let mut cfg = common::test_config();
     cfg.book_snapshot_interval_ms = 10_000;
     let hub_cfg = HubUsdConfig::from_indexer_config(&cfg);
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")))
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
         .expect("refresh");
     cl8y_dex_indexer::db::queries::volume::refresh_global_stats(&pool)
@@ -160,6 +186,14 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
         .parse::<f64>()
         .unwrap();
     assert!((custc_usd - 0.005).abs() < 1e-9, "custc usd {custc_usd}");
+    assert_eq!(
+        custc_p["asset_address"].as_str().unwrap(),
+        DEFAULT_HUB_CUSTC_ADDRESS
+    );
+    assert!(custc_p["source_pair"].is_null());
+    let lunc_p = prices.iter().find(|p| p["ticker"] == "lunc").unwrap();
+    assert!(lunc_p["price_usd"].is_null(), "lunc oracle was not passed");
+    assert!(lunc_p["source_pair"].is_null());
     let ust1_p = prices.iter().find(|p| p["ticker"] == "ust1").unwrap();
     let u = ust1_p["price_usd"]
         .as_str()
@@ -191,9 +225,66 @@ async fn hub_refresh_oracle_down_clears_marks() {
         .await
         .unwrap();
     let hub_cfg = HubUsdConfig::from_indexer_config(&common::test_config());
-    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None)
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None, None)
         .await
         .expect("refresh");
     let rows = hub_prices::get_all_hub_prices(&pool).await.unwrap();
     assert!(rows.is_empty(), "must not freeze last peg");
+}
+
+#[serial]
+#[tokio::test]
+async fn hub_lunc_survives_ustc_outage_and_does_not_use_ustc_price() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    sqlx::query("INSERT INTO hub_prices (ticker, price_usd, updated_at) VALUES ('ust1', 1, NOW())")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let hub_cfg = HubUsdConfig::from_indexer_config(&common::test_config());
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None, Some(&bd("0.00008")))
+        .await
+        .expect("refresh");
+
+    let app = common::build_test_app(pool.clone()).await;
+    let server = TestServer::new(app);
+    let body: serde_json::Value = server.get("/api/v1/hub-prices").await.json();
+    let prices = body["prices"].as_array().unwrap();
+    let lunc = prices.iter().find(|p| p["ticker"] == "lunc").unwrap();
+    let lunc_usd = lunc["price_usd"].as_str().unwrap().parse::<f64>().unwrap();
+    assert!((lunc_usd - 0.00008).abs() < 1e-12);
+    assert!(lunc["source_pair"].is_null());
+    assert_eq!(
+        lunc["asset_address"].as_str().unwrap(),
+        cl8y_dex_indexer::config::DEFAULT_HUB_CLUNC_ADDRESS
+    );
+    assert!(prices.iter().find(|p| p["ticker"] == "custc").unwrap()["price_usd"].is_null());
+    assert!(prices.iter().find(|p| p["ticker"] == "ust1").unwrap()["price_usd"].is_null());
+
+    let one: serde_json::Value = server.get("/api/v1/hub-prices/lunc").await.json();
+    assert_eq!(one["ticker"], "lunc");
+    assert!(one["price_usd"].as_str().unwrap().starts_with("0.00008"));
+
+    let cex = server.get("/api/v1/oracle/price/lunc").await;
+    assert_eq!(cex.status_code(), StatusCode::OK);
+}
+
+#[serial]
+#[tokio::test]
+async fn hub_lunc_oracle_down_does_not_zero_custc() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    let hub_cfg = HubUsdConfig::from_indexer_config(&common::test_config());
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+        .await
+        .expect("refresh");
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let body: serde_json::Value = server.get("/api/v1/hub-prices").await.json();
+    let prices = body["prices"].as_array().unwrap();
+    assert!(prices.iter().find(|p| p["ticker"] == "lunc").unwrap()["price_usd"].is_null());
+    let custc = prices.iter().find(|p| p["ticker"] == "custc").unwrap();
+    let usd = custc["price_usd"].as_str().unwrap().parse::<f64>().unwrap();
+    assert!((usd - 0.005).abs() < 1e-9);
+    assert!(custc["source_pair"].is_null());
 }

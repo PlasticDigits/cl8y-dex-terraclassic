@@ -9,6 +9,10 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
+    await expect(page.getByTestId('protocol-dex-hub-custc')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('protocol-dex-hub-lunc')).toBeVisible()
+    await expect(page.getByTestId('protocol-dex-hub-ust1')).toBeVisible()
+    await expect(page.getByTestId('protocol-dex-hub-ustr')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle')).toBeVisible()
     await expect(page.getByTestId('protocol-contract-addresses')).toBeVisible()
 
@@ -56,6 +60,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await page.goto('/protocol')
     await expect(page.getByTestId('protocol-global-stats')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
+    await expect(page.getByTestId('protocol-dex-hub-lunc')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-oracle')).toBeVisible()
     await expect(page.getByTestId('protocol-contract-addresses')).toBeVisible()
   })

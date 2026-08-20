@@ -56,6 +56,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
+use crate::indexer::hub_usd::HubUsdConfig;
 use crate::indexer::oracle::OraclePriceHandles;
 use crate::lcd::LcdClient;
 
@@ -88,6 +89,8 @@ pub struct AppState {
     pub route_solver_db_hybrid: bool,
     pub book_snapshot_max_staleness_ms: u64,
     pub route_fidelity_drift_bps: u32,
+    /// Configured hub wrap CW20s for `asset_address` on `GET /hub-prices` (GitLab #570).
+    pub hub_usd: HubUsdConfig,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -374,7 +377,7 @@ pub async fn find_pair_by_ticker(
         (name = "Tokens", description = "Token/asset endpoints"),
         (name = "Traders", description = "Trader profile and leaderboard"),
         (name = "Overview", description = "Global DEX statistics"),
-        (name = "HubPrices", description = "DEX hub USD marks (cUSTC / UST1 / USTR) — not CEX"),
+        (name = "HubPrices", description = "DEX hub USD marks (cUSTC / LUNC / UST1 / USTR) — not CEX"),
         (name = "Oracle", description = "External USTC/USD and LUNC/USD reference feeds"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
@@ -610,6 +613,7 @@ pub async fn serve(
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
+        hub_usd: crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
     };
     let app = build_router(state, &config);
 

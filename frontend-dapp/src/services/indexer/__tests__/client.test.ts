@@ -464,6 +464,8 @@ describe('hub price ticker allowlist (GitLab #556)', () => {
     const client = await loadModule()
     await client.getHubPrice('ustr')
     expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/hub-prices/ustr')
+    await client.getHubPrice('lunc')
+    expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toContain('/hub-prices/lunc')
     const skipped = await client.getHubPrice('../ustr')
     expect(skipped).toBeNull()
     expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).not.toContain('..')

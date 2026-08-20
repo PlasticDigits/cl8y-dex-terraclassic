@@ -28,7 +28,7 @@ test.describe('Token identity Playwright smoke (GitLab #541)', () => {
 
   test('P1: /pool selected pair shows token-identity chips when a factory pair exists', async ({ page }) => {
     await page.goto('/pool', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText(/liquidity pools/i)).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('search', { name: /search pools/i })).toBeVisible({ timeout: 30_000 })
     await skipIfNoIdentityRow(page)
     await expect(page.getByTestId('token-identity-base').first()).toBeVisible()
     await expect(page.getByTestId('token-identity-quote').first()).toBeVisible()

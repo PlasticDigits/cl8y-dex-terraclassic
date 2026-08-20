@@ -490,11 +490,13 @@ export interface IndexerHubPriceEntry {
   asset_id?: number | null
   price_usd: string | null
   source_pair?: string | null
+  /** Configured hub wrap CW20. Frontend still runs `getExplorerAddressUrl`. */
+  asset_address?: string | null
   tvl_usd?: string | null
   updated_at?: string | null
 }
 
-/** `GET /api/v1/hub-prices` — DEX marks, not CEX (GitLab #556). */
+/** `GET /api/v1/hub-prices` — DEX marks, not CEX (GitLab #556 / #570). */
 export interface IndexerHubPricesResponse {
   metadata: string
   tickers: string[]

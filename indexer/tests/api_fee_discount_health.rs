@@ -38,6 +38,7 @@ async fn build_app_with_health(
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
+        hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
     };
     build_router(state, &config)
 }
@@ -88,7 +89,11 @@ async fn lcd_failure_increments_counter_without_leaking_upstream_text() {
 
     let pool = common::setup_pool().await;
     let health = FeeDiscountRegistryHealth::configured();
-    let lcd = LcdClient::new(cfg.lcd_urls.clone(), cfg.lcd_timeout_ms, cfg.lcd_cooldown_ms);
+    let lcd = LcdClient::new(
+        cfg.lcd_urls.clone(),
+        cfg.lcd_timeout_ms,
+        cfg.lcd_cooldown_ms,
+    );
 
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
@@ -142,7 +147,11 @@ async fn configured_successful_probe_reports_ok() {
 
     let pool = common::setup_pool().await;
     let health = FeeDiscountRegistryHealth::configured();
-    let lcd = LcdClient::new(cfg.lcd_urls.clone(), cfg.lcd_timeout_ms, cfg.lcd_cooldown_ms);
+    let lcd = LcdClient::new(
+        cfg.lcd_urls.clone(),
+        cfg.lcd_timeout_ms,
+        cfg.lcd_cooldown_ms,
+    );
     probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
 
     let app = build_app_with_health(pool, cfg, health).await;

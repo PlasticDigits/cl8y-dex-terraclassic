@@ -5,7 +5,8 @@ use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 use crate::indexer::hub_usd::{
-    resolve_hub_usd, AssetRef, HubMark, HubTicker, HubUsdConfig, HubUsdSnapshot, ReservePair,
+    resolve_hub_usd, resolve_lunc_hub_mark, AssetRef, HubMark, HubTicker, HubUsdConfig,
+    HubUsdSnapshot, ReservePair,
 };
 use crate::indexer::pair_price_usd::{fits_numeric_38_18, HubQuoteUsd};
 
@@ -117,6 +118,21 @@ async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx::Err
         .collect())
 }
 
+async fn lookup_clunc_asset_id(
+    pool: &PgPool,
+    cfg: &HubUsdConfig,
+) -> Result<Option<i32>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT id FROM assets
+         WHERE is_cw20 AND contract_address = $1
+         ORDER BY id ASC
+         LIMIT 1",
+    )
+    .bind(&cfg.clunc_address)
+    .fetch_optional(pool)
+    .await
+}
+
 async fn lookup_custc_asset_id(
     pool: &PgPool,
     cfg: &HubUsdConfig,
@@ -183,7 +199,10 @@ async fn replace_snapshot(
     sqlx::query("DELETE FROM hub_prices")
         .execute(&mut **tx)
         .await?;
-    for mark in [&snap.custc, &snap.ust1, &snap.ustr].into_iter().flatten() {
+    for mark in [&snap.custc, &snap.lunc, &snap.ust1, &snap.ustr]
+        .into_iter()
+        .flatten()
+    {
         insert_mark(tx, mark).await?;
     }
     Ok(())
@@ -257,15 +276,18 @@ WHERE c.pair_id = p.id
     Ok(())
 }
 
-/// Recompute hub USD from indexed `pairs` + `pair_reserves` + USTC oracle (no LCD, no swap scan).
+/// Recompute hub USD from indexed `pairs` + `pair_reserves` + USTC/LUNC oracles (no LCD, no swap scan).
 pub async fn refresh_hub_prices(
     pool: &PgPool,
     cfg: &HubUsdConfig,
     ustc_oracle: Option<&BigDecimal>,
+    lunc_oracle: Option<&BigDecimal>,
 ) -> Result<HubUsdSnapshot, sqlx::Error> {
     let pairs = list_reserve_pairs(pool).await?;
     let custc_id = lookup_custc_asset_id(pool, cfg).await?;
-    let snap = resolve_hub_usd(Utc::now(), cfg, ustc_oracle, &pairs, custc_id);
+    let clunc_id = lookup_clunc_asset_id(pool, cfg).await?;
+    let mut snap = resolve_hub_usd(Utc::now(), cfg, ustc_oracle, &pairs, custc_id);
+    snap.lunc = resolve_lunc_hub_mark(lunc_oracle, clunc_id);
 
     let mut tx = pool.begin().await?;
     replace_snapshot(&mut tx, &snap).await?;
@@ -278,11 +300,13 @@ pub async fn run_hub_usd_refresh_loop(
     pool: PgPool,
     cfg: HubUsdConfig,
     ustc_price: crate::indexer::oracle::SharedPrice,
+    lunc_price: crate::indexer::oracle::SharedPrice,
     interval: std::time::Duration,
 ) {
     loop {
         let ustc = ustc_price.read().await.clone();
-        if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref()).await {
+        let lunc = lunc_price.read().await.clone();
+        if let Err(e) = refresh_hub_prices(&pool, &cfg, ustc.as_ref(), lunc.as_ref()).await {
             tracing::warn!("Hub USD refresh failed: {}", e);
         }
         tokio::time::sleep(interval).await;

@@ -539,14 +539,14 @@ export async function getOracleHistory(params?: GetOracleHistoryParams): Promise
   return fetchJson<IndexerOracleHistoryResponse>(`/api/v1/oracle/history/${pathSegment(ticker)}${qs ? `?${qs}` : ''}`)
 }
 
-/** DEX hub USD snapshot (`custc` / `ust1` / `ustr`). Not CEX; do not call `getOraclePrice('ustr')`. */
+/** DEX hub USD snapshot (`custc` / `lunc` / `ust1` / `ustr`). Not CEX; do not call `getOraclePrice('ustr')`. */
 export async function getHubPrices(): Promise<IndexerHubPricesResponse> {
   return fetchJson<IndexerHubPricesResponse>('/api/v1/hub-prices')
 }
 
 /**
  * One DEX hub mark. Unknown / injected ticker is ignored (no fetch).
- * @param ticker `custc` | `ust1` | `ustr`
+ * @param ticker `custc` | `lunc` | `ust1` | `ustr`
  */
 export async function getHubPrice(ticker: string): Promise<IndexerHubPriceEntry | null> {
   const safe = parseHubPriceTicker(ticker)

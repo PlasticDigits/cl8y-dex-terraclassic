@@ -16,8 +16,8 @@ v1 now uses **ticker-scoped** paths (breaking change approved while non-economic
 | `GET` | `/api/v1/oracle/price/{ticker}` | `{ ticker, price_usd, sources[] }` |
 | `GET` | `/api/v1/oracle/history` | Same catalog as price |
 | `GET` | `/api/v1/oracle/history/{ticker}` | `{ ticker, prices[] }` (average samples; `limit` capped 1000) |
-| `GET` | `/api/v1/hub-prices` | DEX hub snapshot `{ metadata, tickers: ["custc","ust1","ustr"], prices[] }` ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)) |
-| `GET` | `/api/v1/hub-prices/{ticker}` | One DEX mark (`custc` \| `ust1` \| `ustr`). Unknown → **400**. |
+| `GET` | `/api/v1/hub-prices` | DEX hub snapshot `{ metadata, tickers: ["custc","lunc","ust1","ustr"], prices[] }` ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)). Each price may include `asset_address` (configured wrap CW20). |
+| `GET` | `/api/v1/hub-prices/{ticker}` | One DEX mark (`custc` \| `lunc` \| `ust1` \| `ustr`). Unknown / `clunc` → **400**. `lunc` here is the Protocol hub snapshot, not CEX history. |
 
 Unknown CEX `{ticker}` (including `ustr` / `ust1` / `custc`) → **400**. DEX marks are **not** on `/oracle/price`.
 

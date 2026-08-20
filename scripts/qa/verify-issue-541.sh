@@ -118,8 +118,8 @@ run_step "AGENTS.md playbook link #541" \
   grep -qE 'verify-issue-541' AGENTS.md
 
 run_step "Playwright smoke P1–P4 (5 workers, no e2e-tx / no globalSetup seed)" \
-  bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 bash scripts/with-node.sh --cwd frontend-dapp -- \
-    ./node_modules/.bin/playwright test --project=e2e-smoke \
+  bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30541 PLAYWRIGHT_BASE_URL=http://127.0.0.1:30541 bash scripts/with-node.sh --cwd frontend-dapp -- \
+    ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 \
     e2e/token-identity-541.spec.ts'
 
 echo ""

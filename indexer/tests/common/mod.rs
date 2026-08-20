@@ -67,6 +67,7 @@ pub fn test_config() -> Config {
         block_process_retry_backoff_ms: 2000,
         reorg_alert_webhook_url: None,
         hub_custc_address: cl8y_dex_indexer::config::DEFAULT_HUB_CUSTC_ADDRESS.to_string(),
+        hub_clunc_address: cl8y_dex_indexer::config::DEFAULT_HUB_CLUNC_ADDRESS.to_string(),
         hub_ust1_address: cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
         hub_ustr_address: cl8y_dex_indexer::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
         hub_usd_tvl_floor: "100".parse().unwrap(),
@@ -907,6 +908,7 @@ pub async fn build_test_app_with_vfdusd(
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
+        hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
     };
     build_router(state, &config)
 }
@@ -945,6 +947,7 @@ pub async fn build_test_app_with_oracle_prices_and_config(
         route_solver_db_hybrid: config.route_solver_db_hybrid,
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
+        hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
     };
     build_router(state, &config)
 }
