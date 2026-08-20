@@ -1,0 +1,13 @@
+---
+description: Never run cargo as root against host indexer/target (Docker bind-mount lock files)
+globs:
+alwaysApply: true
+---
+
+# Indexer `target/` ownership
+
+**Never** `docker run -v …/indexer:/work rust:… cargo …` (or bind-mount the repo) as root. Cargo writes `indexer/target/debug/.cargo-build-lock` as uid 0; host `cargo test`, rust-analyzer, and `make verify-issue-*` then fail with permission denied.
+
+Compile on the host: `make setup-indexer-postgres` then `make test-indexer-integration` (or `cd indexer && cargo test --lib`). Host Postgres/LCD TCP hang is **not** a reason to move cargo into Docker — use `scripts/lib/postgres-psql.sh` / `localterra-host-curl.sh`.
+
+If cargo in Docker is unavoidable: `--user $(id -u):$(id -g)` and `CARGO_HOME=/tmp/cargo` + `CARGO_TARGET_DIR=/tmp/target` (or a named volume). See `AGENTS.md` § Rust / Docker gotchas and `scripts/lib/docker-indexer-bind-mount.sh`.

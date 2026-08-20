@@ -72,6 +72,9 @@ _require_indexer() {
   fi
 }
 
+# shellcheck source=scripts/lib/docker-indexer-bind-mount.sh
+source "$REPO_ROOT/scripts/lib/docker-indexer-bind-mount.sh"
+
 _run_migrations_docker() {
   local cid net db_url
   _require_cmd docker "docker not found. Install Docker or run migrations manually: cd indexer && sqlx migrate run"
@@ -82,14 +85,8 @@ _run_migrations_docker() {
   net="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$cid")"
   db_url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${CHARTS_DB}"
   echo "[test-charts-integration] running migrations via docker network (${db_url})"
-  docker run --rm \
-    --network "$net" \
-    -v "$REPO_ROOT/indexer:/indexer" \
-    -v "$(command -v sqlx):/usr/local/bin/sqlx:ro" \
-    -w /indexer \
-    -e DATABASE_URL="$db_url" \
-    ubuntu:24.04 \
-    bash -c 'apt-get update -qq && apt-get install -y -qq libssl3 ca-certificates >/dev/null && sqlx migrate run'
+  # Mount migrations only — never bind-mount indexer/ (root cargo/sqlx would own target/).
+  docker_sqlx_migrate_on_compose_network "$net" "$db_url" "$REPO_ROOT/indexer/migrations"
 }
 
 _run_migrations() {

@@ -60,6 +60,8 @@ cargo test --lib          # fast, no Postgres
 cargo test --tests        # needs Postgres + migrations
 ```
 
+Run those on the **host** (after `make setup-indexer-postgres` when needed). Do **not** `docker run -v indexer:/work rust:… cargo test` to reach compose Postgres — that leaves **root-owned** `indexer/target` lock files (`target/debug/.cargo-build-lock`) and breaks later host cargo / rust-analyzer. See [AGENTS.md § Rust / Docker gotchas](../AGENTS.md) and [`scripts/lib/docker-indexer-bind-mount.sh`](../scripts/lib/docker-indexer-bind-mount.sh).
+
 #### Local Postgres setup (agents)
 
 **Agent playbook:** [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — default user `cl8y_legal`, superuser bootstrap via `setup-postgres-dev-databases.sh`, `make reset` when an old Docker volume still has `postgres:postgres`, and what `deploy-dex-local` writes to `indexer/.env`.
@@ -167,7 +169,7 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
 make test-charts-integration
 ```
 
-This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integration.sh): ensures the target database exists, applies `sqlx migrate run`, seeds fixtures idempotently, verifies indexer `/health`, then `npm run test:integration` via `scripts/with-node.sh`. Limit-order pool ref tests ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) also need LocalTerra LCD reachable (defaults `http://localhost:1317`; override `VITE_TERRA_LCD_URL` / `VITE_TERRA_RPC_URL` — same as [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)).
+This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integration.sh): ensures the target database exists, applies `sqlx migrate run`, seeds fixtures idempotently, verifies indexer `/health`, then `npm run test:integration` via `scripts/with-node.sh`. If host `sqlx migrate` times out, the script retries on the compose Postgres network by mounting **`indexer/migrations` only** (not `indexer/`), so Docker cannot create root-owned `indexer/target` lock files. Limit-order pool ref tests ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) also need LocalTerra LCD reachable (defaults `http://localhost:1317`; override `VITE_TERRA_LCD_URL` / `VITE_TERRA_RPC_URL` — same as [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)).
 
 **Fixture invariants**
 
@@ -505,7 +507,7 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 | `npm-audit-frontend` | `make audit-frontend` |
 | `test-contracts` | `make test-contracts` (`cd smartcontracts && cargo test`) |
 | `test-indexer-lib` | `cd indexer && cargo test --lib` |
-| `test-indexer-integration` | `make test-indexer-integration` (`cd indexer && cargo test --tests -j1 -- --test-threads=1`; a `postgres:16` service replaces `setup-indexer-postgres` — the suite migrates the empty DB itself) |
+| `test-indexer-integration` | `make test-indexer-integration` (`cd indexer && cargo test --tests -j1 -- --test-threads=1`; a `postgres:16` service replaces `setup-indexer-postgres` — the suite migrates the empty DB itself). Host cargo only — do not bind-mount `indexer/` into Docker (`make test-indexer-target-ownership`) |
 | `test-frontend` | `make lint-frontend` + `make test-frontend` (`npm run lint` + `npm run test:run`) |
 | `test-frontend-build` | `make build-frontend` (`npm run build` — tsc -b + vite; the build gate that catches tsc-only breaks lint/vitest miss) |
 | `qa-wasm-artifacts` | `make build-optimized` (needs Docker; DinD TLS in CI) |

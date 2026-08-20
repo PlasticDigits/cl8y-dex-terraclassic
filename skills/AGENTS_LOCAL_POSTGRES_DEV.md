@@ -110,6 +110,8 @@ cd indexer && cargo test --tests -j 1 -- --test-threads=1
 
 Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 
+**Never bind-mount `indexer/` into Docker to run `cargo test`.** Host `:5432` hang is the compose-exec / `setup-indexer-postgres` path above — not `docker run -v indexer:/work rust:… cargo`. Root cargo owns `indexer/target/debug/.cargo-build-lock` and host compiles fail. Details: [`AGENTS.md`](../AGENTS.md) § Rust / Docker gotchas; helper [`scripts/lib/docker-indexer-bind-mount.sh`](../scripts/lib/docker-indexer-bind-mount.sh).
+
 ## Makefile / automation hooks
 
 | Command | Postgres behavior |
@@ -132,6 +134,7 @@ Library tests need **no** Postgres: `cd indexer && cargo test --lib`.
 | `database "dex_indexer_test" does not exist` | Skipped setup | `./scripts/setup-postgres-dev-databases.sh` |
 | Duplicate-key / FK flakes in tests | Parallel tests on one DB | Always use `-j 1 -- --test-threads=1` |
 | Tests pass locally but env unset on another host | Reference `indexer` job sets `TEST_DATABASE_URL` | Export `TEST_DATABASE_URL` per [docs/testing.md § CI](../docs/testing.md#ci); spec in [`.github/workflows/test.yml`](../.github/workflows/test.yml) (reference only) |
+| `Permission denied (os error 13)` on `indexer/target/debug/.cargo-build-lock` (or mixed root `deps/`) | `cargo` ran as root via `docker run -v indexer:/…` | Compile on the host (`make test-indexer-integration`). Cleanup: `sudo chown -R $(whoami) indexer/target`. Do not `sudo cargo`. See [`AGENTS.md`](../AGENTS.md) § Rust / Docker gotchas |
 
 ## Cross-links
 

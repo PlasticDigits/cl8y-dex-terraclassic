@@ -195,7 +195,8 @@ Convenience: `make dev-full` starts infra → deploy → indexer + frontend (ind
 
 ### Rust / Docker gotchas
 
-- **`make build-optimized`** runs the CosmWasm optimizer in Docker and may create `smartcontracts/target` owned by root. If `make test-contracts` fails with permission denied: `sudo chown -R $(whoami) smartcontracts/target`.
+- **`make build-optimized`** runs the CosmWasm optimizer in Docker and may create `smartcontracts/target` owned by root. If `make test-contracts` fails with permission denied: `sudo chown -R $(whoami) smartcontracts/target`. The optimizer overlays `/code/target` with a named volume (`smartcontracts/scripts/optimize.sh`); do not drop that overlay.
+- **Never bind-mount `indexer/` (or the repo) into a root Docker container and run `cargo`.** Default uid is 0, so Cargo writes `indexer/target/debug/.cargo-build-lock` (and `deps/`) as root. Host `cargo test`, rust-analyzer, and `make verify-issue-*` then fail with permission denied. This is the usual cause of “root-owned indexer/target lock files” — not `docker/indexer/Dockerfile` (that `COPY`s; it does not write back). Host Postgres/LCD TCP hang (userland-proxy, VPN) is **not** a reason to move cargo into Docker; use `make setup-indexer-postgres`, [`scripts/lib/postgres-psql.sh`](scripts/lib/postgres-psql.sh), or [`scripts/lib/localterra-host-curl.sh`](scripts/lib/localterra-host-curl.sh). If cargo in Docker is unavoidable: `--user $(id -u):$(id -g)` and `CARGO_HOME=/tmp/cargo` + `CARGO_TARGET_DIR=/tmp/target` (or a named volume). See [`scripts/lib/docker-indexer-bind-mount.sh`](scripts/lib/docker-indexer-bind-mount.sh). One-time cleanup: `sudo chown -R $(whoami) indexer/target`. Static check: `make test-indexer-target-ownership`.
 - **Indexer tmux sessions** must use `export PATH="/usr/local/cargo/bin:$PATH"` so Cargo 1.96+ is used (older system Cargo cannot parse edition-2024 deps).
 
 ### Lint and test (no chain required)
@@ -231,7 +232,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 
 ### Related playbooks
 
-- [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests
+- [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests; never bind-mount `indexer/` for cargo (`make test-indexer-target-ownership`)
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E
 - [skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md](skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) — QuickSwap-inspired blue + gold tokens/primitives (#488); spec [`docs/design-system.md`](docs/design-system.md)
 - [skills/AGENTS_FRONTEND_THEME_TOGGLE.md](skills/AGENTS_FRONTEND_THEME_TOGGLE.md) — dark/light header toggle + bootstrap FOUC notes (#488)
