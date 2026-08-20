@@ -69,7 +69,7 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 ## Related
 
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md)
-- [`AGENTS_INDEXER_VENUS_VFDUSD.md`](./AGENTS_INDEXER_VENUS_VFDUSD.md) — Venus `exchangeRateStored` on the vFDUSD tab ([#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571))
+- [`AGENTS_INDEXER_VENUS_VFDUSD.md`](./AGENTS_INDEXER_VENUS_VFDUSD.md) — Venus `eth_call` of `exchangeRateCurrent` on the vFDUSD tab ([#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571))
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub card + `GET /api/v1/hub-prices` (#556)
 - [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — cUSTC/cLUNC wrap `AddressRow` + LUNC column (#570)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for TVL legs

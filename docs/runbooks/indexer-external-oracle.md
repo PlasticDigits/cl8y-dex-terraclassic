@@ -32,7 +32,7 @@ Unknown CEX `{ticker}` (including `ustr` / `ust1` / `custc`) → **400**. DEX ma
 | `lunc` | TerraClassic LUNC per USD | KuCoin `LUNC-USDT`, MEXC `LUNCUSDT`, CoinGecko `terra-luna` |
 | `vfdusd` | CEX FDUSD/USD reference stored under path `vfdusd` — **not** Terra CW20 vFDUSD. Protocol tab heading **vFDUSD**; CEX StatBox **FDUSD reference price**. | MEXC `FDUSDUSDT`, CoinGecko `first-digital-usd`; KuCoin **skipped** (unlisted). Path `fdusd` is **400** (no alias). JSON `quote_asset=FDUSD`, `display_name=FDUSD/USD`. |
 
-Venus **1 vFDUSD → FDUSD** is **not** this CEX feed. Indexer poller: [`indexer/src/indexer/venus_vfdusd.rs`](../../indexer/src/indexer/venus_vfdusd.rs) (`exchangeRateStored` on Core Pool `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`). Stored in `venus_vfdusd_rates`, never mixed into `oracle_prices` USD. Skill: [`AGENTS_INDEXER_VENUS_VFDUSD.md`](../../skills/AGENTS_INDEXER_VENUS_VFDUSD.md).
+Venus **1 vFDUSD → FDUSD** is **not** this CEX feed. Indexer poller: [`indexer/src/indexer/venus_vfdusd.rs`](../../indexer/src/indexer/venus_vfdusd.rs) (`eth_call` of `exchangeRateCurrent` on Core Pool `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`; live `exchangeRateStored` reverts). Stored in `venus_vfdusd_rates`, never mixed into `oracle_prices` USD. Skill: [`AGENTS_INDEXER_VENUS_VFDUSD.md`](../../skills/AGENTS_INDEXER_VENUS_VFDUSD.md).
 
 ### Sources
 

@@ -72,13 +72,19 @@ run_step "docs: V571 invariants + skills + AGENTS crosslinks" \
     grep -q "venus_vfdusd.rs" docs/runbooks/indexer-external-oracle.md
     grep -q "AGENTS_INDEXER_VENUS_VFDUSD" AGENTS.md
     grep -q "verify-issue-571" AGENTS.md
+    grep -q "0xbd6d894d" indexer/src/indexer/venus_vfdusd.rs
     grep -q "0x182df0cd" indexer/src/indexer/venus_vfdusd.rs
-    if grep -n "0xbd6d894d" indexer/src/indexer/venus_vfdusd.rs | grep -v "assert_ne\|unused\|not"; then
-      echo "exchangeRateCurrent selector must not be used for eth_call" >&2
+    grep -q "SELECTOR_EXCHANGE_RATE_CURRENT" indexer/src/indexer/venus_vfdusd.rs
+    grep -q "eth_call" indexer/src/indexer/venus_vfdusd.rs
+    if grep -nE "eth_send(Transaction|RawTransaction)" indexer/src/indexer/venus_vfdusd.rs | grep -v "Never\|never\|not"; then
+      echo "Venus poller must not send a BSC transaction" >&2
+      exit 1
+    fi
+    if grep -n "eth_call_failover(client, rpc_urls, vtoken, SELECTOR_EXCHANGE_RATE_STORED" indexer/src/indexer/venus_vfdusd.rs; then
+      echo "live Core Pool vFDUSD no longer dispatches exchangeRateStored" >&2
       exit 1
     fi
     grep -q "exchangeRateCurrent" indexer/src/indexer/venus_vfdusd.rs
-    ! grep -q "exchangeRateCurrent()" indexer/src/indexer/venus_vfdusd.rs
     grep -q "protocol-oracle-vfdusd-venus" frontend-dapp/src/components/protocol/ProtocolOracleCard.tsx
     grep -q "FDUSD reference price" frontend-dapp/src/components/protocol/ProtocolOracleCard.tsx
     grep -q "getOracleVenusVfdusd" frontend-dapp/src/services/indexer/client.ts

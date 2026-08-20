@@ -1,11 +1,13 @@
-//! Venus Core Pool vFDUSD redeem rate (GitLab #571).
+//! Venus Core Pool vFDUSD redeem rate (GitLab #571 / #583).
 //!
-//! Polls BSC JSON-RPC `eth_call` for **`exchangeRateStored()`** on the pinned vFDUSD
-//! market. Converts to **human FDUSD per 1 human vFDUSD**. Advisory only — not
-//! CEX FDUSD/USD, not the UST1 window rate, not DEX `volume_usd` (X4 / P550-9).
+//! Polls BSC JSON-RPC `eth_call` for **`exchangeRateCurrent`** on the pinned vFDUSD
+//! market (simulated view — never `eth_sendTransaction`). Converts to **human FDUSD
+//! per 1 human vFDUSD**. Advisory only — not CEX FDUSD/USD, not the UST1 window
+//! rate, not DEX `volume_usd` (X4 / P550-9).
 //!
-//! Prefer the view `exchangeRateStored`. Do **not** send exchangeRateCurrent
-//! as a transaction (selector `0xbd6d894d` is unused).
+//! Live Core Pool vFDUSD no longer dispatches `exchangeRateStored` (`0x182df0cd`);
+//! that selector reverts. Accrue-then-read via `eth_call` of `exchangeRateCurrent`
+//! (`0xbd6d894d`) is the working view.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,8 +33,11 @@ pub const VENUS_SOURCE: &str = SOURCE_VENUS_BSC;
 /// API pin for the Core Pool vToken (checksummed).
 pub const VENUS_VFDUSD_VTOKEN: &str = DEFAULT_VENUS_VFDUSD_MARKET;
 
-/// `exchangeRateStored()` — view. Never send as a state-changing tx.
-const SELECTOR_EXCHANGE_RATE_STORED: &str = "0x182df0cd";
+/// `exchangeRateCurrent` via `eth_call` (view simulation). Never send as a tx.
+const SELECTOR_EXCHANGE_RATE_CURRENT: &str = "0xbd6d894d";
+/// Removed dispatcher selector on live Core Pool vFDUSD — `eth_call` reverts.
+#[cfg(test)]
+const SELECTOR_EXCHANGE_RATE_STORED_REMOVED: &str = "0x182df0cd";
 const SELECTOR_DECIMALS: &str = "0x313ce567";
 const SELECTOR_UNDERLYING: &str = "0x6f307dc3";
 
@@ -95,7 +100,7 @@ pub enum VenusError {
 
 /// Human FDUSD redeemed for **1 human vFDUSD**.
 ///
-/// Compound/Venus: `underlying_raw = vtoken_raw * exchangeRateStored / 1e18`.
+/// Compound/Venus: `underlying_raw = vtoken_raw * exchangeRate / 1e18`.
 /// For one human vToken (`vtoken_raw = 10^vtoken_decimals`):
 /// `human = rate / 10^(18 + underlying_decimals - vtoken_decimals)`.
 pub fn fdusd_per_human_vfdusd(
@@ -210,7 +215,7 @@ async fn poll_once(
     decimals_cache: &mut Option<(u8, u8)>,
 ) -> Result<BigDecimal, VenusError> {
     let rate_hex =
-        eth_call_failover(client, rpc_urls, vtoken, SELECTOR_EXCHANGE_RATE_STORED).await?;
+        eth_call_failover(client, rpc_urls, vtoken, SELECTOR_EXCHANGE_RATE_CURRENT).await?;
     let rate = decode_uint256(&rate_hex)?;
 
     let (v_dec, u_dec) = match *decimals_cache {
@@ -272,7 +277,7 @@ async fn eth_call(
     to: &str,
     data: &str,
 ) -> Result<String, VenusError> {
-    // Read-only view. `to` and `data` are pinned selectors / allowlisted addresses.
+    // Read-only view simulation. Never eth_sendTransaction / eth_sendRawTransaction.
     let body = serde_json::json!({
         "jsonrpc": "2.0",
         "id": 1,
@@ -370,8 +375,12 @@ mod tests {
             normalize_evm_address(DEFAULT_VENUS_FDUSD_UNDERLYING).unwrap(),
             "0xc5f0f7b66764f6ec8c8dff7ba683102295e16409"
         );
-        assert_eq!(SELECTOR_EXCHANGE_RATE_STORED, "0x182df0cd");
-        assert_ne!(SELECTOR_EXCHANGE_RATE_STORED, "0xbd6d894d");
+        assert_eq!(SELECTOR_EXCHANGE_RATE_CURRENT, "0xbd6d894d");
+        assert_eq!(SELECTOR_EXCHANGE_RATE_STORED_REMOVED, "0x182df0cd");
+        assert_ne!(
+            SELECTOR_EXCHANGE_RATE_CURRENT,
+            SELECTOR_EXCHANGE_RATE_STORED_REMOVED
+        );
     }
 
     #[test]
@@ -440,7 +449,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn eth_call_reads_exchange_rate_stored_not_current() {
+    async fn eth_call_reads_exchange_rate_current_not_as_tx() {
         use wiremock::matchers::{body_partial_json, method};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -450,7 +459,7 @@ mod tests {
                 "method": "eth_call",
                 "params": [{
                     "to": "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
-                    "data": "0x182df0cd"
+                    "data": "0xbd6d894d"
                 }, "latest"]
             })))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -469,7 +478,7 @@ mod tests {
             &client,
             &server.uri(),
             "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
-            SELECTOR_EXCHANGE_RATE_STORED,
+            SELECTOR_EXCHANGE_RATE_CURRENT,
         )
         .await
         .unwrap();
@@ -503,7 +512,7 @@ mod tests {
             &client,
             &server.uri(),
             "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
-            SELECTOR_EXCHANGE_RATE_STORED,
+            SELECTOR_EXCHANGE_RATE_CURRENT,
         )
         .await
         .unwrap_err();

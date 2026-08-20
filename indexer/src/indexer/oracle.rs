@@ -6,7 +6,7 @@
 //! CW20 vFDUSD is Venus-bridged and is not this CEX print (#580). Protocol labels the FDUSD
 //! snapshot **FDUSD reference price** on the vFDUSD tab (#571). These feeds are
 //! advisory display/reference prices — not on-chain settlement.
-//! Venus `exchangeRateStored` is a separate poller (`venus_vfdusd.rs`). Volume USD conversion
+//! Venus `eth_call` of `exchangeRateCurrent` is a separate poller (`venus_vfdusd.rs`). Volume USD conversion
 //! stays on the **USTC** handle / P522-Q catalog (X4); do not multiply CEX FDUSD into
 //! vFDUSD `volume_usd` / `price_usd`.
 //!

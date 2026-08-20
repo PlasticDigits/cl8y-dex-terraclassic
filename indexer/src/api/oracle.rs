@@ -19,7 +19,7 @@ pub const ORACLE_CATALOG_METADATA: &str = concat!(
     "vfdusd path stores CEX FDUSD/USD (MEXC FDUSDUSDT, CoinGecko first-digital-usd); ",
     "it is not USD of Terra CW20 vFDUSD (Venus bridged). ",
     "GET /api/v1/oracle/price/vfdusd also includes additive venus { fdusd_per_vfdusd } ",
-    "(Venus Core Pool exchangeRateStored; not USD, not the UST1 window). ",
+    "(Venus Core Pool eth_call of exchangeRateCurrent; not USD, not the UST1 window). ",
     "Path fdusd is 400 (no alias). ",
     "Sources are polled CEX/aggregator APIs (KuCoin, MEXC, CoinGecko). ",
     "KuCoin is skipped for vfdusd when unlisted. Advisory only — not used for on-chain settlement."
@@ -42,7 +42,7 @@ pub struct OracleSourcePrice {
 
 #[derive(Serialize, ToSchema)]
 pub struct VenusVfdusdResponse {
-    /// Human FDUSD redeemed for 1 human vFDUSD (`exchangeRateStored`). Null when missing.
+    /// Human FDUSD redeemed for 1 human vFDUSD (`eth_call` of `exchangeRateCurrent`). Null when missing.
     pub fdusd_per_vfdusd: Option<String>,
     /// Allowlisted source label (`venus_bsc`). Never an RPC URL.
     pub source: String,

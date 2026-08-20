@@ -14,11 +14,11 @@ The vFDUSD tab titled CEX **FDUSD/USD** as **vFDUSD / USD**. Bridged vFDUSD is a
 | ID | Rule |
 |----|------|
 | **V571-1** | vFDUSD tab CEX StatBox label is **FDUSD reference price**. Value = indexer CEX FDUSD/USD. Not `$1`, not Venus. |
-| **V571-2** | Section **1 vFDUSD Price** (`protocol-oracle-vfdusd-venus`) shows human **FDUSD per 1 vFDUSD** from Venus `exchangeRateStored`. Source label **Venus**. Missing → `—`. |
+| **V571-2** | Section **1 vFDUSD Price** (`protocol-oracle-vfdusd-venus`) shows human **FDUSD per 1 vFDUSD** from Venus `eth_call` of `exchangeRateCurrent`. Source label **Venus**. Missing → `—`. |
 | **V571-3** | Venus block only when `ticker === 'vfdusd'`. USTC/LUNC keep **Reference price**; no Venus fetch. |
 | **V571-4** | CEX outage must not hide a healthy Venus row; Venus outage must not hide a healthy CEX row. |
 | **V571-5** | Indexer owns BSC I/O (`eth_call` view). Browser / Vite CSP must **not** add BSC hosts. No `VITE_*` RPC URLs. |
-| **V571-6** | Pin Core Pool vFDUSD `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`. Prefer `exchangeRateStored` (`0x182df0cd`). Do **not** send `exchangeRateCurrent` as a tx. |
+| **V571-6** | Pin Core Pool vFDUSD `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`. Live implementation no longer dispatches `exchangeRateStored` (`0x182df0cd` reverts). Read via `eth_call` of `exchangeRateCurrent` (`0xbd6d894d`). Never `eth_sendTransaction`. |
 | **V571-7** | Convert with on-chain vToken + underlying decimals. Display **1 human vFDUSD**, never raw-unit identity. Non-finite / zero / overflow → `—`. |
 | **V571-8** | Do not substitute UST1 `effective_swap.oracle.rate` or CEX FDUSD/USD × Venus as either headline. Do not convert `volume_usd` with FDUSD/Venus (**X4**). No `/price/fdusd` alias. |
 | **V571-9** | Persist Venus samples in `venus_vfdusd_rates`, **not** `oracle_prices` (wrong unit). History table stays CEX USD. |
@@ -38,6 +38,7 @@ GET /api/v1/oracle/price/{ticker}/venus → Venus snapshot; ticker must be vfdus
 - **Do** keep tab chip **vFDUSD**. Heading on that tab is **vFDUSD** (no `/ USD`).
 - **Do** mock BSC in tests (`wiremock`); do not require live BSC for `make verify-issue-571`.
 - **Don’t** hardcode 1 vFDUSD = 1 FDUSD or `$1`.
+- **Don’t** send `exchangeRateCurrent` as a transaction (`eth_call` only).
 - **Don’t** open BscScan / publicnode BSC from the dApp.
 
 ## Regression
