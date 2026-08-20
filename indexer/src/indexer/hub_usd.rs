@@ -143,15 +143,15 @@ pub fn is_hub_ustr(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
             .is_some_and(|a| addr_eq(a, &cfg.ustr_address))
 }
 
-fn same_asset(a: &AssetRef, b: &AssetRef) -> bool {
+pub fn same_asset(a: &AssetRef, b: &AssetRef) -> bool {
     a.id == b.id
 }
 
-fn reserves_usable(pair: &ReservePair) -> bool {
+pub fn reserves_usable(pair: &ReservePair) -> bool {
     pair.reserve_0 > BigDecimal::from(0) && pair.reserve_1 > BigDecimal::from(0)
 }
 
-fn is_stale(now: DateTime<Utc>, snapshot_at: DateTime<Utc>, max: Duration) -> bool {
+pub fn is_stale(now: DateTime<Utc>, snapshot_at: DateTime<Utc>, max: Duration) -> bool {
     let age = now.signed_duration_since(snapshot_at);
     age.num_milliseconds() > max.as_millis() as i64
 }
@@ -177,7 +177,7 @@ pub fn usd_from_reserves(
     }
 }
 
-fn pair_tvl(pair: &ReservePair, usd_0: &BigDecimal, usd_1: &BigDecimal) -> Option<BigDecimal> {
+pub fn pair_tvl(pair: &ReservePair, usd_0: &BigDecimal, usd_1: &BigDecimal) -> Option<BigDecimal> {
     let h0 = humanize_raw_amount(&pair.reserve_0, pair.asset_0.decimals)?;
     let h1 = humanize_raw_amount(&pair.reserve_1, pair.asset_1.decimals)?;
     let tvl = h0 * usd_0 + h1 * usd_1;
@@ -433,6 +433,7 @@ mod tests {
         assert!(HubTicker::parse("ustc").is_none());
         assert!(HubTicker::parse("ustr_").is_none());
         assert!(HubTicker::parse("fdusd").is_none());
+        assert!(HubTicker::parse("vfdusd").is_none());
     }
 
     #[test]

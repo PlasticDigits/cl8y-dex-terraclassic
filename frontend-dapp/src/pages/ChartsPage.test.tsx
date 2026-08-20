@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import ChartsPage from './ChartsPage'
@@ -7,6 +7,13 @@ import { renderWithProviders } from '@/test-utils'
 import * as indexerClient from '@/services/indexer/client'
 import * as oracle from '@/services/terraclassic/oracle'
 import type { IndexerPair } from '@/types'
+import {
+  CHARTS_PAIR_SORT_VOLUME_LABEL,
+  TRAILING_24H_TRADES_LABEL,
+  TRAILING_24H_TRADES_TITLE,
+  TRAILING_24H_VOLUME_LABEL,
+  TRAILING_24H_VOLUME_TITLE,
+} from '@/utils/trailingWindowCopy'
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -142,13 +149,19 @@ describe('ChartsPage (component)', () => {
       renderWithProviders(<ChartsPage />)
       const vol = await screen.findByTestId('charts-overview-volume-usd')
       await waitFor(() => expect(vol).toHaveTextContent('$1.235K'))
-      expect(vol).toHaveTextContent(/24h Volume \(USD\)/i)
+      expect(vol).toHaveTextContent(TRAILING_24H_VOLUME_LABEL)
+      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
+      expect(within(vol).getByText(TRAILING_24H_VOLUME_LABEL)).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
+      expect(within(vol).getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('$1.235K')
       expect(screen.queryByTestId('charts-overview-volume-raw')).not.toBeInTheDocument()
       expect(document.body.textContent).not.toMatch(/10,000,000T/)
       expect(screen.queryByText('24h Volume')).not.toBeInTheDocument()
       expect(screen.getByTestId('charts-overview-ustc-usd')).toHaveTextContent('$')
       expect(screen.getByTestId('charts-overview-ustc-usd').textContent).not.toMatch(/\dT\b/)
-      expect(screen.getByTestId('charts-overview-trades')).toHaveTextContent('4')
+      const trades = screen.getByTestId('charts-overview-trades')
+      expect(trades).toHaveTextContent(TRAILING_24H_TRADES_LABEL)
+      expect(trades).toHaveAttribute('title', TRAILING_24H_TRADES_TITLE)
+      expect(within(trades).getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('4')
       expect(screen.getByTestId('charts-overview-pairs')).toHaveTextContent('13')
       expect(screen.getByTestId('charts-overview-tokens')).toHaveTextContent('12')
     })
@@ -166,6 +179,7 @@ describe('ChartsPage (component)', () => {
       const vol = await screen.findByTestId('charts-overview-volume-usd')
       await waitFor(() => expect(vol).toHaveTextContent('—'))
       expect(vol.textContent).not.toMatch(/\$0/)
+      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
     })
 
     it('F3: idle DEX volume is $0', async () => {
@@ -180,6 +194,8 @@ describe('ChartsPage (component)', () => {
       renderWithProviders(<ChartsPage />)
       const vol = await screen.findByTestId('charts-overview-volume-usd')
       await waitFor(() => expect(vol).toHaveTextContent('$0'))
+      expect(vol).toHaveTextContent(TRAILING_24H_VOLUME_LABEL)
+      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
     })
 
     it('F5: missing USTC spot is em dash', async () => {
@@ -209,6 +225,14 @@ describe('ChartsPage (component)', () => {
       const vol = await screen.findByTestId('charts-overview-volume-usd')
       await waitFor(() => expect(vol).toHaveTextContent('—'))
       expect(vol.querySelector('script')).toBeNull()
+      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
+      expect(vol.getAttribute('title')).not.toMatch(/script|alert/i)
+    })
+
+    it('U7: pair SORT default is Last 24h volume (volume_24h)', async () => {
+      renderWithProviders(<ChartsPage />)
+      await screen.findByTestId('charts-overview-volume-usd')
+      expect(screen.getByText(CHARTS_PAIR_SORT_VOLUME_LABEL)).toBeInTheDocument()
     })
   })
 
@@ -385,7 +409,9 @@ describe('ChartsPage (component)', () => {
       })
       await waitFor(() => expect(usd).toHaveTextContent(/\$/))
       expect(usd).toHaveTextContent(/Vol \(USD\)/i)
-      expect(usd).toHaveAttribute('title', '24h volume in USD')
+      expect(usd).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
+      expect(within(usd).getByText(TRAILING_24H_VOLUME_LABEL)).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
+      expect(within(usd).getByLabelText(/last 24 hours, not a midnight reset/i)).toBeInTheDocument()
       const strip = screen.getByTestId('charts-pair-24h-stats')
       expect(strip.textContent).not.toMatch(/847\.0M|157\.5B/)
       expect(screen.getByTestId('charts-pair-volume-base')).toHaveTextContent(/Vol \(UST1\)/)

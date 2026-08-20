@@ -3,6 +3,7 @@ import {
   formatProtocolCount,
   formatProtocolFdusdOut,
   formatProtocolOracleUsd,
+  formatProtocolPct,
   formatProtocolUsd,
 } from '../formatProtocolStats'
 
@@ -49,5 +50,24 @@ describe('formatProtocolFdusdOut', () => {
     expect(formatProtocolFdusdOut(Number.POSITIVE_INFINITY)).toBe('—')
     expect(formatProtocolFdusdOut(Number.NaN)).toBe('—')
     expect(formatProtocolFdusdOut('1e309')).toBe('—')
+  })
+})
+
+describe('formatProtocolPct', () => {
+  it('renders signed compact percents', () => {
+    expect(formatProtocolPct('12.5')).toMatch(/^\+.*%$/)
+    expect(formatProtocolPct('-3')).toMatch(/^-.*%$/)
+    expect(formatProtocolPct(0)).toBe('0%')
+  })
+
+  it('uses em-dash for missing, non-finite, or XSS-like strings', () => {
+    expect(formatProtocolPct(undefined)).toBe('—')
+    expect(formatProtocolPct(null)).toBe('—')
+    expect(formatProtocolPct('')).toBe('—')
+    expect(formatProtocolPct(Number.POSITIVE_INFINITY)).toBe('—')
+    expect(formatProtocolPct(Number.NEGATIVE_INFINITY)).toBe('—')
+    expect(formatProtocolPct(Number.NaN)).toBe('—')
+    expect(formatProtocolPct('<script>')).toBe('—')
+    expect(formatProtocolPct('javascript:alert(1)')).toBe('—')
   })
 })

@@ -7,15 +7,50 @@ Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md). Agen
 ## Steady-state read path
 
 1. **60s whole-response cache** in [`overview.rs`](../../indexer/src/api/overview.rs).
-2. On cache miss, [`get_global_stats`](../../indexer/src/db/queries/volume.rs) reads the single row in **`global_stats_24h`** (O(1) primary key fetch), including additive 7d/30d USD, active-pair, and unique-trader columns ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)).
+2. On cache miss, [`get_global_stats`](../../indexer/src/db/queries/volume.rs) reads the single row in **`global_stats_24h`** (O(1) primary key fetch), including additive 7d/30d USD, active-pair, unique-trader, and **pool TVL / Δ%** columns ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#569](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569)).
 3. Cheap `COUNT(*)` census: `token_count` is unique pair-leg assets ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**); `tokens_added_30d` / `pairs_added_30d` from `created_at >= now() - 30 days` (indexer first-seen, not on-chain genesis). Supporting indexes: `idx_assets_created_at`, `idx_pairs_created_at`.
-4. The rollup is refreshed every **~5 minutes** by [`volume_aggregator.rs`](../../indexer/src/indexer/volume_aggregator.rs) and once at indexer startup in [`poller.rs`](../../indexer/src/indexer/poller.rs). **Do not** `SUM` / `COUNT(DISTINCT)` 30d `swap_events` on the request path.
+4. The rollup is refreshed every **~5 minutes** by [`volume_aggregator.rs`](../../indexer/src/indexer/volume_aggregator.rs) (volume SQL **then** protocol TVL) and once at indexer startup in [`poller.rs`](../../indexer/src/indexer/poller.rs). Hub USD refresh also recomputes TVL so UST1/USTR marks exist. **Do not** `SUM` / `COUNT(DISTINCT)` 30d `swap_events` on the request path. **Do not** join `pair_reserves` or walk `global_liquidity_snapshots` on GET.
 
 Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss. **`token_count`** is unique pair-leg assets (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Charts displays **USD-only** 24h volume; `total_volume_24h` remains raw for API clients (`global_stats_24h.total_volume` is `NUMERIC(38, 0)` so 18-decimal CW20 sums fit; `NUMERIC(38, 18)` overflows at `10^20`). After catalog backfill (`20260817120000_backfill_swap_volume_usd_catalog.sql`), refresh this rollup (migration already does).
+
+### Rollup freshness (GitLab #577 **D6**)
+
+`get_global_stats` reads `global_stats_24h.updated_at`. If it is **older than 15 minutes** (three missed ~5 min aggregator cycles), the indexer emits:
+
+```
+global_stats_24h.updated_at is stale; serving last rollup (no live 30d swap_events scan)
+```
+
+It **keeps serving the last rollup**. Do **not** fall back to a live 30d `SUM(swap_events)` on the request path — that is a DoS vector ([#281](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/281) / [#333](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/333) **V5**). There is no Prometheus `/metrics` endpoint ([#200](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/200)); the warning is the operator signal.
+
+Check freshness on a running indexer:
+
+```sql
+SELECT id, total_trades, total_volume_usd, updated_at,
+       NOW() - updated_at AS age
+FROM global_stats_24h
+WHERE id = 1;
+```
+
+`updated_at` should advance about every **5 minutes** (and immediately on indexer restart — token + trader windows too, **D5**). If `age` exceeds 15 minutes, the aggregator loop is stuck or the process is down; restart the indexer. A successful refresh **can** drop 24h volume/trades to 0 when `swap_events` leave the trailing cutoff ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577)).
+
+Token `token_volume_stats` and trader `volume_24h` / `7d` / `30d` use the same trailing cutoffs and **zero idle rows** on refresh. Lifetime `traders.total_volume*` is unchanged. Skill: [`AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).
 
 ### Actively traded pairs (GitLab #550)
 
 `active_pairs_24h` is the count of distinct `pair_id` with ≥1 `swap_events` row in the last 24h, materialized on the rollup. Dust swaps count; there is no USD floor. This is **not** unique traders (`unique_traders_24h` is a separate rollup column) and **not** TVL.
+
+### Protocol pool TVL (GitLab #569)
+
+`total_liquidity_usd` is humanized USD of **priced factory `pair_reserves`** (constant-product legs), using the same catalog as volume (P522-Q + hub USD). It is **not** CoinGecko `liquidity_in_usd` (that field is still mislabeled 24h volume), not `total_volume_*`, not LP supply, and not resting limit-order escrow.
+
+Refresh lives in [`protocol_tvl.rs`](../../indexer/src/indexer/protocol_tvl.rs) and is invoked from `refresh_global_stats` (so a 24h-only volume `INSERT` cannot leave TVL stale) and after hub USD refresh (UST1/USTR marks). History is `global_liquidity_snapshots` (retain ≥ 35 days; prune older). Δ% looks up the snapshot **nearest** to `now()-24h` / `now()-30d` within ±30 minutes. No snapshot, `then = 0`, or overflow → JSON `null` (UI em-dash). After `--fresh` / a young indexer, Δ% stays empty until real snapshots accrue — do not backfill from `liquidity_events` or zeros.
+
+Flash LP that is added and withdrawn inside one snapshot interval can move **current** TVL; Δ% uses snapshots, not mempool. v1 does not add an extra anti-flash filter.
+
+`OVERVIEW_GLOBAL_STATS_LIVE=1` still live-aggregates **volume** over `swap_events`. Liquidity stays O(1) from the rollup columns (live mode must not walk 30d snapshots either).
+
+Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity is a follow-on upsert of the same row.
 
 ### New tokens / pairs (30d)
 
@@ -34,7 +69,7 @@ Rollup refresh recomputes from `swap_events WHERE block_timestamp >= now() - 24h
 
 After a deep reorg recovery that deletes or rewinds swap rows, run a manual refresh or wait for the next aggregator cycle:
 
-Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d).
+Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity is a follow-on upsert of the same `global_stats_24h` row.
 
 ## BRIN index tuning (production safety net)
 
@@ -110,6 +145,6 @@ Re-run `EXPLAIN (ANALYZE, BUFFERS)` on the live aggregate periodically if you re
 |-------|---------|
 | `global_stats_24h` | Cross-pair 24h `offer_amount` / `volume_usd` / trade count plus 7d/30d USD, `active_pairs_24h`, `unique_traders_24h` for `/overview` ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) |
 | `pair_volume_24h` | Per-pair quote volume for `GET /pairs?sort=volume_24h` |
-| `token_volume_stats` | Per-asset rolling windows for token endpoints |
+| `token_volume_stats` | Per-asset rolling windows for token endpoints; idle windows **zeroed** on refresh ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) **D1**, offer-side only) |
 
-Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md) (**Protocol global stats #550**). Agent playbooks: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md).
+Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md) (**Protocol global stats #550**, **Trailing window decay #577**). Agent playbooks: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md), [`skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).

@@ -58,6 +58,9 @@ pub enum QuoteUsdKind {
 }
 
 /// Classify a quote (or base) asset for USD conversion.
+///
+/// Never map `VFDUSD` / `FDUSD` here — CEX FDUSD under path ticker `vfdusd` is not
+/// USD of Terra CW20 vFDUSD (GitLab #580). Unknown quotes stay `None`.
 pub fn quote_usd_kind(symbol: &str, denom: Option<&str>) -> Option<QuoteUsdKind> {
     if let Some(d) = denom {
         match d {
@@ -106,6 +109,45 @@ pub fn usd_of_one_human_base(
     human_quote_per_base * quote_usd
 }
 
+/// Factory USD of 1 human base for an idle mark-to-market tick (GitLab #568).
+///
+/// Skip non-positive human, non-positive quote USD, or `NUMERIC(38,18)` overflow.
+/// Does not invent `$1` / `2.5×` when quote USD is missing.
+pub fn mark_price_usd(
+    human_quote_per_base: &BigDecimal,
+    quote_usd: &BigDecimal,
+) -> Option<BigDecimal> {
+    if human_quote_per_base <= &BigDecimal::from(0) || quote_usd <= &BigDecimal::from(0) {
+        return None;
+    }
+    let usd = usd_of_one_human_base(human_quote_per_base, quote_usd);
+    if usd <= BigDecimal::from(0) || !fits_numeric_38_18(&usd) {
+        None
+    } else {
+        Some(usd)
+    }
+}
+
+/// Human quote-per-base from current CPAMM reserves (seeded idle pools, GitLab #568).
+pub fn human_quote_per_base_from_reserves(
+    reserve_0: &BigDecimal,
+    reserve_1: &BigDecimal,
+    decimals_0: i16,
+    decimals_1: i16,
+) -> Option<BigDecimal> {
+    let h0 = humanize_raw_amount(reserve_0, decimals_0)?;
+    let h1 = humanize_raw_amount(reserve_1, decimals_1)?;
+    if h0 <= BigDecimal::from(0) {
+        return None;
+    }
+    let human = h1 / h0;
+    if human <= BigDecimal::from(0) || !fits_numeric_38_18(&human) {
+        None
+    } else {
+        Some(human)
+    }
+}
+
 /// Resolve `price_usd` for an oriented (human) quote-per-base print.
 pub fn price_usd_for_human_quote_per_base(
     quote: &AssetRow,
@@ -130,7 +172,24 @@ pub fn quote_usd_kind_for_asset(
     asset: &AssetRow,
     configured_ustc_denom: Option<&str>,
 ) -> Option<QuoteUsdKind> {
-    if let Some(d) = asset.denom.as_deref() {
+    quote_usd_kind_for_identity(
+        &asset.symbol,
+        asset.denom.as_deref(),
+        asset.is_cw20,
+        asset.contract_address.as_deref(),
+        configured_ustc_denom,
+    )
+}
+
+/// Same A1 / P522-Q identity rules as [`quote_usd_kind_for_asset`] without an `AssetRow`.
+pub fn quote_usd_kind_for_identity(
+    symbol: &str,
+    denom: Option<&str>,
+    is_cw20: bool,
+    contract_address: Option<&str>,
+    configured_ustc_denom: Option<&str>,
+) -> Option<QuoteUsdKind> {
+    if let Some(d) = denom {
         if d == "uusd" {
             return Some(QuoteUsdKind::Ustc);
         }
@@ -142,21 +201,21 @@ pub fn quote_usd_kind_for_asset(
                 return Some(QuoteUsdKind::Ustc);
             }
         }
-        if !asset.is_cw20 {
+        if !is_cw20 {
             return None;
         }
     }
     if let Some(cfg) = configured_ustc_denom {
-        if let Some(addr) = asset.contract_address.as_deref() {
+        if let Some(addr) = contract_address {
             if addr == cfg {
                 return Some(QuoteUsdKind::Ustc);
             }
         }
     }
-    if asset.is_cw20 && asset.contract_address.as_deref().unwrap_or("").is_empty() {
+    if is_cw20 && contract_address.unwrap_or("").is_empty() {
         return None;
     }
-    quote_usd_kind(&asset.symbol, asset.denom.as_deref())
+    quote_usd_kind(symbol, denom)
 }
 
 /// Raw integer amount → human units using the asset's decimals. `None` if non-positive.
@@ -182,7 +241,36 @@ fn catalog_usd_per_human(
     configured_ustc_denom: Option<&str>,
     hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
-    let kind = quote_usd_kind_for_asset(asset, configured_ustc_denom)?;
+    catalog_usd_per_human_identity(
+        &asset.symbol,
+        asset.denom.as_deref(),
+        asset.is_cw20,
+        asset.contract_address.as_deref(),
+        ustc_usd,
+        lunc_usd,
+        configured_ustc_denom,
+        hub,
+    )
+}
+
+/// USD per 1 human unit from the P522-Q catalog + hub marks. Missing oracle / spoof → `None`.
+pub fn catalog_usd_per_human_identity(
+    symbol: &str,
+    denom: Option<&str>,
+    is_cw20: bool,
+    contract_address: Option<&str>,
+    ustc_usd: Option<&BigDecimal>,
+    lunc_usd: Option<&BigDecimal>,
+    configured_ustc_denom: Option<&str>,
+    hub: Option<&HubQuoteUsd>,
+) -> Option<BigDecimal> {
+    let kind = quote_usd_kind_for_identity(
+        symbol,
+        denom,
+        is_cw20,
+        contract_address,
+        configured_ustc_denom,
+    )?;
     let usd = usd_per_human_quote(kind, ustc_usd, lunc_usd, hub)?;
     if usd <= BigDecimal::from(0) {
         None
@@ -292,6 +380,32 @@ mod tests {
         assert_eq!(quote_usd_kind("UST1", None), Some(QuoteUsdKind::Peg1));
         assert_eq!(quote_usd_kind("USTR", None), Some(QuoteUsdKind::Ustr));
         assert_eq!(quote_usd_kind("CL8Y", None), None);
+        // GitLab #580: CEX FDUSD under path vfdusd is not USD of Terra CW20 vFDUSD.
+        assert_eq!(quote_usd_kind("VFDUSD", None), None);
+        assert_eq!(quote_usd_kind("vFDUSD", None), None);
+        assert_eq!(quote_usd_kind("FDUSD", None), None);
+    }
+
+    #[test]
+    fn vfdusd_quote_is_not_priced_from_cex_fdusd_oracle() {
+        let quote = asset("VFDUSD", None);
+        assert!(price_usd_for_human_quote_per_base(
+            &quote,
+            &bd("1"),
+            Some(&bd("0.998")),
+            None,
+            None
+        )
+        .is_none());
+        let fdusd = asset("FDUSD", None);
+        assert!(price_usd_for_human_quote_per_base(
+            &fdusd,
+            &bd("1"),
+            Some(&bd("0.998")),
+            None,
+            None
+        )
+        .is_none());
     }
 
     #[test]
@@ -329,6 +443,29 @@ mod tests {
         assert!(
             price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None, None).is_none()
         );
+    }
+
+    #[test]
+    fn mark_price_usd_skips_non_positive_and_overflow() {
+        let usd = mark_price_usd(&bd("200"), &bd("0.005")).unwrap();
+        let f = {
+            use bigdecimal::ToPrimitive;
+            usd.to_f64().unwrap()
+        };
+        assert!((f - 1.0).abs() < 1e-12);
+        assert!(mark_price_usd(&bd("0"), &bd("0.005")).is_none());
+        assert!(mark_price_usd(&bd("-1"), &bd("0.005")).is_none());
+        assert!(mark_price_usd(&bd("200"), &bd("0")).is_none());
+        assert!(mark_price_usd(&ten_pow_i32(20), &bd("2")).is_none());
+    }
+
+    #[test]
+    fn human_from_reserves_matches_scale() {
+        // 250 UST1 (6d) / 50_000 cUSTC (6d) → 200 cUSTC per UST1
+        let human =
+            human_quote_per_base_from_reserves(&bd("250000000"), &bd("50000000000"), 6, 6).unwrap();
+        assert_eq!(human, bd("200"));
+        assert!(human_quote_per_base_from_reserves(&bd("0"), &bd("1"), 6, 6).is_none());
     }
 
     #[test]
@@ -648,5 +785,23 @@ mod tests {
         .is_none());
         assert!(fits_numeric_38_18(&bd("99999999999999999999.99")));
         assert!(!fits_numeric_38_18(&ten_pow_i32(20)));
+    }
+
+    #[test]
+    fn volume_vfdusd_quote_is_not_priced_from_cex_fdusd() {
+        let vfdusd = cw20(1, "VFDUSD", 6, "terra1vfdusd");
+        let gem = cw20(3, "GEM", 6, "terra1gem");
+        assert!(volume_usd_for_swap(
+            &gem,
+            &vfdusd,
+            &bd("1000000"),
+            &bd("1000000"),
+            &vfdusd,
+            Some(&bd("0.998")),
+            None,
+            None,
+            None,
+        )
+        .is_none());
     }
 }

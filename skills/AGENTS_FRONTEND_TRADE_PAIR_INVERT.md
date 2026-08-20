@@ -57,6 +57,7 @@ Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceCha
 ## Related
 
 - [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — USD candles must use `invertUsd`, not `1/x` ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543))
+- [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — indexer USD is time-stamped; no client CoinGecko stitch ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568))
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md)
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) — heading wrap + Buy/Sell colors after invert (#563); invert still uses displayed base

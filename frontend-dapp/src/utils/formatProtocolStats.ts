@@ -33,3 +33,13 @@ export function formatProtocolFdusdOut(raw: string | number | null | undefined, 
   if (!Number.isFinite(n) || n <= 0) return EM_DASH
   return formatNum(raw, digits)
 }
+
+/** Signed compact percent for Protocol liquidity Δ%. Missing / non-finite → em-dash; never Infinity. */
+export function formatProtocolPct(raw: string | number | null | undefined): string {
+  if (raw == null || raw === '') return EM_DASH
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n)) return EM_DASH
+  if (n === 0) return '0%'
+  const compact = formatNum(n, 4)
+  return n > 0 ? `+${compact}%` : `${compact}%`
+}

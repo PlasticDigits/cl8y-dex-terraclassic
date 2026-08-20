@@ -261,6 +261,91 @@ describe('indexerCandlesToVolumeHistogramPoints', () => {
     expect(close).not.toBeCloseTo(1 / factoryUsd, 3)
   })
 
+  it('keeps per-bar invertUsd when as-of quote USD varies (GitLab #568)', () => {
+    const bars = indexerCandlesToFactoryPoints([
+      row({
+        open_time: '2024-01-01T00:00:00.000Z',
+        open: '1.0',
+        high: '1.0',
+        low: '1.0',
+        close: '1.0',
+        open_human: '200',
+        high_human: '200',
+        low_human: '200',
+        close_human: '200',
+        trade_count: 1,
+      }),
+      row({
+        open_time: '2024-01-02T00:00:00.000Z',
+        open: '0.8',
+        high: '0.8',
+        low: '0.8',
+        close: '0.8',
+        open_human: '200',
+        high_human: '200',
+        low_human: '200',
+        close_human: '200',
+        trade_count: 0,
+        volume_base: '0',
+        volume_quote: '0',
+      }),
+    ])
+    const inv = applyChartDisplayInvert(bars, true)
+    expect(inv).toHaveLength(2)
+    expect(inv[0].close).toBeCloseTo(0.005, 8)
+    expect(inv[1].close).toBeCloseTo(0.004, 8)
+    expect(new Set(inv.map((p) => p.close)).size).toBe(2)
+  })
+
+  it('does not scale history by the latest tape human (GitLab #543 / #568)', () => {
+    const bars = indexerCandlesToFactoryPoints([
+      row({
+        open_time: '2024-01-01T00:00:00.000Z',
+        open: '1.06',
+        high: '1.06',
+        low: '1.06',
+        close: '1.06',
+        open_human: '86.48',
+        high_human: '86.48',
+        low_human: '86.48',
+        close_human: '86.48',
+      }),
+      row({
+        open_time: '2024-01-02T00:00:00.000Z',
+        open: '1.10',
+        high: '1.10',
+        low: '1.10',
+        close: '1.10',
+        open_human: '90',
+        high_human: '90',
+        low_human: '90',
+        close_human: '90',
+      }),
+    ])
+    const inv = applyChartDisplayInvert(bars, true)
+    expect(inv[0].close).toBeCloseTo(1.06 / 86.48, 8)
+    expect(inv[1].close).toBeCloseTo(1.1 / 90, 8)
+    expect(inv[0].close).not.toBeCloseTo(1.06 / 90, 5)
+  })
+
+  it('mark-only bars plot price and keep volume at zero (GitLab #568 AC5)', () => {
+    const mark = row({
+      trade_count: 0,
+      volume_base: '0',
+      volume_quote: '0',
+      open: '0.9',
+      high: '0.9',
+      low: '0.9',
+      close: '0.9',
+    })
+    const pts = indexerCandlesToChartPoints([mark])
+    expect(pts).toHaveLength(1)
+    expect(pts[0].close).toBe(0.9)
+    const vol = indexerCandlesToVolumeHistogramPoints([mark], '#0f0', '#f00')
+    expect(vol).toHaveLength(1)
+    expect(vol[0].value).toBe(0)
+  })
+
   it('omits volume for rows that fail OHLC validation', () => {
     const pts = indexerCandlesToVolumeHistogramPoints(
       [row({ open: '', close: '' }), row({ open: '1', close: '1.1' })],
