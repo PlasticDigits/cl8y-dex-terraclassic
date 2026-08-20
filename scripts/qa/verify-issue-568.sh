@@ -78,7 +78,7 @@ run_step "source: no as-of-now hub rewrite; marks are current-bucket only" \
   '
 
 run_step "indexer lib: mark_price_usd + mark_quote_kind" \
-  bash -c 'cd indexer && cargo test --lib --quiet pair_price && cargo test --lib --quiet candle_mark'
+  bash -c 'cd indexer && cargo test --lib --quiet pair_price && cargo test --lib --quiet candle_mark:: && cargo test --lib --quiet merge_ohlc'
 
 run_step "indexer integration: no rewrite + idle marks + as-of repair" \
   bash -c 'cd indexer && cargo test --test candle_usd_mark --test api_hub_prices --test candle_human_usd --test candle_skip_zero_price -- --test-threads=1 --quiet'
