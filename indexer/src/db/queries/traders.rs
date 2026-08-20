@@ -140,6 +140,7 @@ pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let cutoff_7d = now - chrono::Duration::days(7);
     let cutoff_30d = now - chrono::Duration::days(30);
 
+    let mut tx = pool.begin().await?;
     sqlx::query(
         "UPDATE traders t SET
            volume_24h = COALESCE(sub.vol_24h, 0),
@@ -149,9 +150,9 @@ pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
          FROM (
            SELECT
              sender,
-             SUM(CASE WHEN block_timestamp >= $1 THEN offer_amount ELSE 0 END) AS vol_24h,
-             SUM(CASE WHEN block_timestamp >= $2 THEN offer_amount ELSE 0 END) AS vol_7d,
-             SUM(CASE WHEN block_timestamp >= $3 THEN offer_amount ELSE 0 END) AS vol_30d
+             LEAST(SUM(CASE WHEN block_timestamp >= $1 THEN offer_amount ELSE 0 END), POWER(10::numeric, 38) - 1) AS vol_24h,
+             LEAST(SUM(CASE WHEN block_timestamp >= $2 THEN offer_amount ELSE 0 END), POWER(10::numeric, 38) - 1) AS vol_7d,
+             LEAST(SUM(CASE WHEN block_timestamp >= $3 THEN offer_amount ELSE 0 END), POWER(10::numeric, 38) - 1) AS vol_30d
            FROM swap_events
            WHERE block_timestamp >= $3
            GROUP BY sender
@@ -161,8 +162,26 @@ pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     .bind(cutoff_24h)
     .bind(cutoff_7d)
     .bind(cutoff_30d)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+
+    // Traders with no swap in the 30d window are absent from the subquery; zero rolling
+    // columns only (never total_volume / total_volume_usd / total_trades — GitLab #577 **D2**).
+    sqlx::query(
+        "UPDATE traders t SET
+           volume_24h = 0,
+           volume_7d = 0,
+           volume_30d = 0,
+           updated_at = NOW()
+         WHERE NOT EXISTS (
+           SELECT 1 FROM swap_events se
+           WHERE se.sender = t.address AND se.block_timestamp >= $1
+         )",
+    )
+    .bind(cutoff_30d)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
     Ok(())
 }
 

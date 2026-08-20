@@ -263,7 +263,7 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 | Box | Source | Display |
 |-----|--------|---------|
-| **24h Volume (USD)** | `total_volume_24h_usd` | `$` + compact human ([`formatChartsOverviewVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades_24h === 0`) → `$0`. `data-testid="charts-overview-volume-usd"`. |
+| **24h Volume (USD)** | `total_volume_24h_usd` | `$` + compact human ([`formatChartsOverviewVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades_24h === 0`) → `$0`. `data-testid="charts-overview-volume-usd"`. Trailing 24h from `global_stats_24h` (not calendar-day; windows **decay** when swaps leave the cutoff — [#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577)). |
 | **USTC / USD** | `ustc_price_usd` | `$` + [`formatPairPrice`](../frontend-dapp/src/utils/formatAmount.ts) (never compact `T`). Missing → `—`. `charts-overview-ustc-usd`. |
 | **24h Trades** | `total_trades_24h` | Locale integer (swap rows only, **L10**). `charts-overview-trades`. |
 | **Pairs** | `pair_count` | Indexed factory pairs. `charts-overview-pairs`. |
@@ -271,7 +271,7 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 `GET /api/v1/overview` still returns **`total_volume_24h`** (raw `SUM(offer_amount)`) for integrators — Charts **must not** render it. Indexer ingest for `volume_usd` is P522-Q ([`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs)), shared with [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-level 24h stats + TWAP on the same page are [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564) (below).
 
-Regression: `make verify-issue-548`.
+Regression: `make verify-issue-548`. Trailing-window decay / stale rollup: `make verify-issue-577`, [`skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).
 
 ### Charts pair 24h stats {#charts-pair-stats}
 
