@@ -2,7 +2,7 @@
 
 ## Design system
 
-Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
+Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
@@ -436,6 +436,25 @@ Off-chain hardening for [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terracl
 | Footer security link | Public posture doc linked from every page footer (SEC-A01, [#387](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/387)) | [`LegalFooterNotice.tsx`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx), [`security-posture.md`](./security-posture.md) |
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](../skills/AGENTS_FRONTEND_TRUST_BOUNDARIES.md).
+
+### Open Graph / social cards (GitLab #578) {#open-graph-social-cards}
+
+Every public dApp path is rewritten to the same [`index.html`](../frontend-dapp/index.html) shell ([`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf)). Crawlers do not execute React, so Open Graph and Twitter tags are **static** and identical on `/`, `/trade`, `/pool`, `/charts/:pairAddr`, `/trader/:address`, and the other SPA routes. [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) shipped the first product card; **#578** replaces that product-copy artwork with the community medallion and bakes **absolute** `https://` image URLs so X/Twitter can render `summary_large_image`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **OG-1** Absolute image | Production `og:image` / `twitter:image` are `https://dex.cl8y.com/og-image.png` (or another origin from [`PUBLIC_ORIGIN_ALLOWLIST`](../frontend-dapp/viteOg.ts)). Relative `/og-image.png` is local Vite only. |
+| **OG-2** Large card | `twitter:card` is `summary_large_image`. Do not invent `twitter:site`. Title/description stay swaps / limits / Terra Classic. |
+| **OG-3** Community composition | Shipped [`public/og-image.png`](../frontend-dapp/public/og-image.png) is **1200×630**, community-medallion art (not a stretched square). Source: [`brand/community-opengraph-concept.png`](../frontend-dapp/brand/community-opengraph-concept.png). Regenerate: `python3 scripts/compose-og-image.py`. |
+| **OG-4** File budget | PNG or JPEG, under 5 MB (target under 1 MB). No SVG. Do not serve the square concept as `og:image`. |
+| **OG-5** One shell | No `react-helmet`, prerender, or per-route crawler titles. nginx `/og-image.png` is a real image (`try_files $uri =404`). |
+| **OG-6** No request origin | OG URLs are never taken from the request host header, `X-Forwarded-Host`, the browser location object, query, hash, pair, or wallet. `VITE_PUBLIC_ORIGIN` must be https and allowlisted or the production build fails. |
+| **OG-7** Dimensions + alt | `og:image:width` / `height` match the file; alt text describes the medallion (no user data). |
+| **OG-8** Docs + verify | [`design-system.md`](./design-system.md), this subsection, [`AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md), [#488 QA note](./qa/issue-488/README.md). Verify: `make verify-issue-578`. |
+
+Production bake lives in [`viteOg.ts`](../frontend-dapp/viteOg.ts) (`og-absolute-meta` in [`vite.config.ts`](../frontend-dapp/vite.config.ts)). Coolify passes `VITE_PUBLIC_ORIGIN` (default `https://dex.cl8y.com`) as a Docker build-arg. After deploy, reset the X/Twitter card cache if the previous relative URL was cached.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md).
 
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
