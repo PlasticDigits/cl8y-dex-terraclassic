@@ -31,7 +31,7 @@ Render only when `stats && activePair && activePair.pair_address === activePairA
 
 | ID | Rule |
 |----|------|
-| **P565-1** | Pair 24h stats **primary** volume is **Vol (USD)** = [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)`(stats.volume_usd, stats.trade_count)`. `$` + compact. `charts-pair-volume-usd`. Tooltip: `24h volume in USD`. |
+| **P565-1** | Pair 24h stats **primary** volume is **Last 24h Vol (USD)** = [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)`(stats.volume_usd, stats.trade_count)`. `$` + compact. `charts-pair-volume-usd`. Trailing-window `title` / `aria-label` (`TRAILING_24H_VOLUME_TITLE`, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). |
 | **P565-2** | Never `formatNum(stats.volume_base)` or `formatNum(stats.volume_quote)`. |
 | **P565-3** | Secondary **Vol ({symbol})** uses [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts) with **that pair’s** `asset_0` / `asset_1` decimals. `charts-pair-volume-base` / `charts-pair-volume-quote`. |
 | **P565-4** | Unpriced / invalid `volume_usd` with `trade_count > 0` → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. |
@@ -87,6 +87,7 @@ Vitest: `chartsPairStats.test.ts`, `ChartsPage.test.tsx` (#565 + #564 blocks), `
 ## Related
 
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview 24h USD (#548)
+- [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — trailing 24h copy (#576)
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — leaderboard / profile USD (#553)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — picker/pool badges ≠ pair Stats (#534 / #544)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog + factory `*_usd` OHLC (#522)
