@@ -49,9 +49,13 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     grep -q "verify-issue-560" AGENTS.md
     grep -q "hub-prices" docs/frontend.md
     grep -q "P560" docs/frontend.md
+    grep -qE "/protocol.*DEX hub prices" docs/frontend.md
     grep -q "traderUsdMarksFromHub" skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md
     grep -q "AGENTS_FRONTEND_HUB_PNL" skills/AGENTS_INDEXER_HUB_USD.md
     grep -q "P560-1" docs/runbooks/indexer-external-oracle.md
+    grep -q "AGENTS_FRONTEND_HUB_PNL" skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md
+    grep -q "AGENTS_FRONTEND_HUB_PNL" skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md
+    grep -q "AGENTS_FRONTEND_HUB_PNL" skills/AGENTS_FRONTEND_PORTFOLIO.md
   '
 
 run_step "source: trader P&L does not use quoteTokenUsd pegs; CEX ustr unused" \
