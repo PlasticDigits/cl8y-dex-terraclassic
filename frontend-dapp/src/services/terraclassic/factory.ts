@@ -66,6 +66,17 @@ export async function getWhitelistedCodeIds(startAfter?: number, limit?: number)
   })
 }
 
+export interface CodeIdWhitelistedResponse {
+  code_id: number
+  whitelisted: boolean
+}
+
+export async function isCodeIdWhitelisted(codeId: number): Promise<CodeIdWhitelistedResponse> {
+  return queryContract<CodeIdWhitelistedResponse>(requireFactoryAddress(), {
+    is_code_id_whitelisted: { code_id: codeId },
+  })
+}
+
 export async function createPair(walletAddress: string, tokenA: string, tokenB: string): Promise<string> {
   const config = await getFactoryConfig()
   const feeRaw = config.pair_creation_fee_uluna?.trim() ?? '0'

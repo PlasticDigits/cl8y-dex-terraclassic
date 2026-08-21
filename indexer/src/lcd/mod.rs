@@ -267,6 +267,15 @@ impl LcdClient {
             .map_err(|e| LcdError::Deserialize(format!("Failed to parse contract response: {}", e)))
     }
 
+    /// Live wasm `code_id` for a contract instance (GitLab #585 F6 freeze probe).
+    pub async fn get_contract_code_id(&self, contract_addr: &str) -> Result<u64, LcdError> {
+        let path = format!("/cosmwasm/wasm/v1/contract/{}", contract_addr);
+        let env: WasmContractInfoEnvelope = self.get(&path).await?;
+        env.contract_info.code_id_u64().ok_or_else(|| {
+            LcdError::Deserialize("contract_info.code_id missing or not a u64".to_string())
+        })
+    }
+
     pub async fn get_latest_block_height(&self) -> Result<i64, LcdError> {
         let resp: BlockResponse = self
             .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
@@ -692,5 +701,19 @@ mod tests {
             .expect("502 should fail over");
         assert_eq!(val, json!({ "ok": true }));
         assert_eq!(hits_b.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn get_contract_code_id_parses_string_and_number() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cosmwasm/wasm/v1/contract/terra1token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "contract_info": { "code_id": "10184", "creator": "terra1x", "admin": "", "label": "t" }
+            })))
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        assert_eq!(lcd.get_contract_code_id("terra1token").await.unwrap(), 10184);
     }
 }

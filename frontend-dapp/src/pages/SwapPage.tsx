@@ -112,6 +112,9 @@ import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStat
 import { useQueryManualRetry } from '@/hooks/useQueryManualRetry'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
+import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
+import { CODE_ID_FROZEN_CTA } from '@/utils/assetCodeIdFreeze'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { ExpertModeModal } from '@/components/swap/ExpertModeModal'
 import { SwapAdvancedSettings } from '@/components/swap/SwapAdvancedSettings'
@@ -836,6 +839,12 @@ export default function SwapPage() {
     enabled: swapBlacklistProbe.pairAddresses.length > 0,
   })
   const isPairPaused = pairPaused.isPaused
+  const pairCodeIdFreeze = usePairCodeIdFreeze({
+    pairAddress: swapBlacklistProbe.pairAddresses.length === 1 ? swapBlacklistProbe.pairAddresses[0] : null,
+    pairAddresses: swapBlacklistProbe.pairAddresses.length > 1 ? swapBlacklistProbe.pairAddresses : null,
+    enabled: swapBlacklistProbe.pairAddresses.length > 0,
+  })
+  const isPairCodeIdFrozen = pairCodeIdFreeze.isFrozen
 
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Swap submitted.',
@@ -1069,6 +1078,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (isPairPaused) {
     buttonText = 'Pair is paused'
+    buttonDisabled = true
+  } else if (isPairCodeIdFrozen) {
+    buttonText = CODE_ID_FROZEN_CTA
     buttonDisabled = true
   } else if (tradingBlacklist.blocked) {
     buttonText = 'Trading restricted'
@@ -1832,6 +1844,7 @@ export default function SwapPage() {
               </p>
             </div>
           )}
+          {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="swap-pair-code-id-frozen-banner" />}
           {tradingBlacklist.blocked && tradingBlacklist.message && (
             <div className="alert-error mb-3 text-xs" role="alert">
               <p>{tradingBlacklist.message}</p>

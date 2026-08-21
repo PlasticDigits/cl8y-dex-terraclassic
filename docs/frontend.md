@@ -1274,6 +1274,33 @@ On `/`, **wrap-mapper pause** (SEC-A02) is evaluated **before** pair pause in th
 
 **Regression tests:** [`SwapPage.test.tsx`](../frontend-dapp/src/pages/SwapPage.test.tsx) and [`PoolPage.test.tsx`](../frontend-dapp/src/pages/PoolPage.test.tsx) (`SEC-B05` / GitLab **#395**); trade/limit path: [`TradePage.test.tsx`](../frontend-dapp/src/pages/TradePage.test.tsx) (GitLab **#87** / **#199**). Retail FAQ: [user-incident-faq.md § Pair pause](./user-incident-faq.md#pair-pause).
 
+### Code-id freeze (GitLab #585) {#code-id-freeze-gitlab-585}
+
+Listed-CW20 **F6** write paths fail closed when live `ContractInfo.code_id` ≠ the listing pin or the live id is not factory-whitelisted ([#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582)). Queries (`Simulation` / `HybridSimulation`) stay ungated, so a quote can still appear while execute is blocked. The dApp and indexer **surface** that freeze; they do **not** replace on-chain gating.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **F585-1** | Indexer `route/solve` skips frozen hops at path enumeration (`find_path` + `build_adjacency`). |
+| **F585-2** | Pair list/detail expose `code_id_frozen`; frozen pairs stay listed for charts. |
+| **F585-3** | LCD / `GetAssetCodeIds` failures are **fail-open** for routing and UI (keep last known; unknown ≠ frozen). Pre-1.15.0 pairs are not frozen. On-chain execute still fail-closes. |
+| **F585-4** | Freeze LCD probe is off the `route/solve` request path (60s background cache). |
+| **F585-5** | Execute errors (`AssetCodeIdDrift`, not factory-whitelisted, guard unavailable, unpinned) are humanized — not a generic failed tx. |
+| **F585-6** | Swap / Trade / Pool / Charts / Limits show freeze state; banner says quotes can still appear; CTA **Market frozen**. |
+| **F585-7** | Does **not** un-gate on-chain cancel / claim / withdraw. |
+| **F585-8** | Does **not** add FoT / balance-delta swap math (**H-01**). |
+
+| Page | Signal | Submit label | Banner `data-testid` |
+|------|--------|--------------|----------------------|
+| `/` ([`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx)) | LCD probe on route hops | **Market frozen** | `swap-pair-code-id-frozen-banner` |
+| `/trade` ([`TradeOrderTicket.tsx`](../frontend-dapp/src/components/trade/TradeOrderTicket.tsx)) | LCD + optional indexer hint | disabled place/cancel | `trade-pair-code-id-frozen-banner` |
+| `/pool` | LCD probe; table **Frozen** badge from `code_id_frozen` | **Market frozen** | `pool-pair-code-id-frozen-banner` / `pool-row-code-id-frozen` |
+| `/charts` | indexer `code_id_frozen` **or** LCD | — | `charts-pair-code-id-frozen-banner` |
+| `/limits` | LCD probe | disabled book edit (same as pause) | `limits-pair-code-id-frozen-banner` |
+
+Hook: [`usePairCodeIdFreeze`](../frontend-dapp/src/hooks/usePairCodeIdFreeze.ts) (`indexerHintFrozen` **OR** LCD `probePairCodeIdFreeze`). Copy: [`assetCodeIdFreeze.ts`](../frontend-dapp/src/utils/assetCodeIdFreeze.ts). Indexer: [`asset_code_id_freeze.rs`](../indexer/src/indexer/asset_code_id_freeze.rs).
+
+**Regression:** `make verify-issue-585`. Playbook: [`skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md`](../skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md). Retail FAQ: [user-incident-faq.md § Code-id freeze](./user-incident-faq.md#code-id-freeze). On-chain: [`AGENTS_CW20_CODE_ID_PIN.md`](../skills/AGENTS_CW20_CODE_ID_PIN.md).
+
 ### Trading blacklist disabled CTAs (SEC-E01) {#trading-blacklist-disabled-ctas-sec-e01}
 
 Factory trading blacklist ([ADR 0003](./adr/0003-governance-trading-blacklist.md), [security model § Trading blacklist](../security-model.md#trading-blacklist-compliance--incident-response)) gates user write actions in the dApp via [`useTradingBlacklist`](../frontend-dapp/src/hooks/useTradingBlacklist.ts) and [`describeTradingBlacklistBlock`](../frontend-dapp/src/services/terraclassic/blacklist.ts).

@@ -137,6 +137,8 @@ These are **execution** semantics; all quoting uses `HybridSimulation` / `Hybrid
 
 The indexer exposes multi-hop routing under `/api/v1/route/solve` (see [indexer-invariants.md](./indexer-invariants.md) for full HTTP semantics and [route-solver.md](./route-solver.md) for the in-depth solver guide).
 
+**F6 freeze ([#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)):** hops whose listed CW20 `code_id` drifted off the pin or is not factory-whitelisted are **not executable**. The solver **excludes** those pair addresses from path enumeration. Pair JSON may still include the pair with `code_id_frozen: true`. LCD `Simulation` / `HybridSimulation` stay ungated — a quote is not “pair is tradable”. Pair list/detail: [`GET /api/v1/pairs`](./indexer-invariants.md) `code_id_frozen`. Playbook: [`skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md`](../skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md).
+
 | Method | Role |
 |--------|------|
 | **`GET`** | Without `amount_in`: **first** BFS path discovery (**max 4 hops**). With `amount_in`: **global best execution** ([GitLab **#209**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [ADR 0002](./adr/0002-global-best-execution-route-solver.md)) — up to 5 simple paths, joint per-hop hybrid splits, highest `estimated_amount_out` wins (**max 4 hops**). Response includes `solver_version`, `paths_considered`, `optimality_scope`, `lcd_hybrid_queries`, `intermediate_tokens`, `quote_kind`, `hybrid_notes`. Legacy **`pool_only=true`** → pool-only ops (**max 4 hops**). See [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191), [**#323**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/323). |

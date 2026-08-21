@@ -5,6 +5,11 @@
  */
 
 import {
+  CODE_ID_FROZEN_TX_MESSAGE,
+  CODE_ID_GUARD_UNAVAILABLE_TX_MESSAGE,
+  CODE_ID_UNPINNED_TX_MESSAGE,
+} from './assetCodeIdFreeze'
+import {
   EXTENSION_SIGNED_FEE_UNDERSHOOT_PREFIX,
   EXTENSION_SIGNED_FEE_UNDERSHOOT_USER_MESSAGE,
 } from './extensionSignedFeeGuard'
@@ -59,6 +64,18 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   }
   if (/assert_not_paused|contract is paused/i.test(inner)) {
     return 'This pool is currently paused by the operator. Try again later or pick a different pair.'
+  }
+  if (/Asset CW20 code_id drifted|AssetCodeIdDrift/i.test(inner)) {
+    return CODE_ID_FROZEN_TX_MESSAGE
+  }
+  if (/not factory-whitelisted|AssetCodeIdNotWhitelisted/i.test(inner)) {
+    return CODE_ID_FROZEN_TX_MESSAGE
+  }
+  if (/Asset code_id guard unavailable|AssetCodeIdGuardUnavailable/i.test(inner)) {
+    return CODE_ID_GUARD_UNAVAILABLE_TX_MESSAGE
+  }
+  if (/code_id pins are missing|AssetCodeIdUnpinned/i.test(inner)) {
+    return CODE_ID_UNPINNED_TX_MESSAGE
   }
   if (/Trading blacklist/i.test(inner)) {
     return (

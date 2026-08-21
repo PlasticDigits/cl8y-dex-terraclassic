@@ -44,6 +44,8 @@ import { useLimitEscrowMaxReapply } from '@/hooks/useLimitEscrowMaxReapply'
 import { useLimitOrderEscrowBalance } from '@/hooks/useLimitOrderEscrowBalance'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
+import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAdvancedLimitSettings'
 import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
@@ -262,6 +264,11 @@ export default function LimitOrdersPage() {
   })
 
   const isPaused = pausedQuery.data?.paused === true
+  const pairCodeIdFreeze = usePairCodeIdFreeze({
+    pairAddress: pairAddr,
+    enabled: pairAddr.startsWith('terra1'),
+  })
+  const isPairCodeIdFrozen = pairCodeIdFreeze.isFrozen
 
   const token0Addr =
     selectedPair && 'token' in selectedPair.asset_infos[0] ? selectedPair.asset_infos[0].token.contract_addr : null
@@ -274,7 +281,7 @@ export default function LimitOrdersPage() {
     pairAddress: pairAddr || null,
     enabled: !!address && pairAddr.startsWith('terra1'),
   })
-  const isTradeBlocked = isPaused || tradingBlacklist.blocked
+  const isTradeBlocked = isPaused || isPairCodeIdFrozen || tradingBlacklist.blocked
 
   const limitCancelMutation = useLimitOrderCancelMutation(pairAddr, address ?? undefined)
   const updatePriceMutation = useLimitOrderUpdatePriceMutation(pairAddr, address ?? undefined)
@@ -611,6 +618,9 @@ export default function LimitOrdersPage() {
                   </p>
                 </div>
               )}
+              {selectedPair && isPairCodeIdFrozen && (
+                <PairCodeIdFrozenBanner testId="limits-pair-code-id-frozen-banner" />
+              )}
 
               {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
                 <div className="alert-error text-sm" role="alert">
@@ -864,7 +874,7 @@ export default function LimitOrdersPage() {
                     rows={myPlacements}
                     isLoading={placementsQuery.isLoading}
                     isWalletConnected={isWalletConnected}
-                    isPairPaused={isPaused}
+                    isPairPaused={isPaused || isPairCodeIdFrozen}
                     claimsDisabled={tradingBlacklist.blocked}
                     cancelDisabled={tradingBlacklist.blocked}
                     openWalletModal={openWalletModal}

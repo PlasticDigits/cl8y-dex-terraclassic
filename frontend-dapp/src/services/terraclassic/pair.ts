@@ -12,6 +12,7 @@ import type {
   PairOrderStatusKind,
   PairOrderStatusResponse,
   PairPausedResponse,
+  AssetCodeIdsResponse,
   PoolResponse,
 } from '@/types'
 import { tokenAssetInfo } from '@/types'
@@ -35,6 +36,11 @@ export async function getPool(pairAddress: string): Promise<PoolResponse> {
 
 export async function getPairPaused(pairAddress: string): Promise<PairPausedResponse> {
   return queryContract<PairPausedResponse>(pairAddress, { is_paused: {} })
+}
+
+/** Pair `GetAssetCodeIds` (GitLab #582 / #585). Hard-errors on pre-1.15.0 pairs. */
+export async function getAssetCodeIds(pairAddress: string): Promise<AssetCodeIdsResponse> {
+  return queryContract<AssetCodeIdsResponse>(pairAddress, { get_asset_code_ids: {} })
 }
 
 /** Parse a successful LCD `OrderStatus` decode. Failures must stay errors — never coerce to `unknown` (L21). */

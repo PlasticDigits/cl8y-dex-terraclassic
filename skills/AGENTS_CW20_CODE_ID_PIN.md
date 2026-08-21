@@ -70,7 +70,7 @@ The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every l
 - Skip `UpdateConfig { pair_code_id }` after factory migrate — new `CreatePair` would instantiate the old pair wasm.
 - Treat a smoke `pin1=…/null` as an unlisted pin without retrying `IsCodeIdWhitelisted` (LCD flake).
 - Treat existing protocol-admin pairs as third-party issuer risk; still pin them.
-- Implement (D) indexer watch as a substitute for (A).
+- Implement (D) indexer watch as a substitute for on-chain **A**. GitLab [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585) is **UX / routing visibility** only (`code_id_frozen`, `route/solve` hop exclude, humanized execute errors) — it does not replace write-path fail-closed. Playbook: [`AGENTS_FRONTEND_CODE_ID_FREEZE.md`](./AGENTS_FRONTEND_CODE_ID_FREEZE.md); `make verify-issue-585`.
 - Treat `make verify-issue-582` pin tests as “columbus-5 migrate ran”.
 - De-whitelist 10184 as the default incident response.
 
@@ -79,6 +79,7 @@ The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every l
 ```bash
 make verify-issue-584   # script bash -n, DRY_RUN factory-assert, pagination mock, runbook greps
 make verify-issue-582   # pin tests + #584 ops (fails if upgrade script is deleted)
+make verify-issue-585   # dApp banners + indexer route/solve freeze (Postgres; no LocalTerra)
 ```
 
 No LocalTerra required for those targets. Live rehearsal: `UPGRADE582_LOCAL=1` after `make deploy-local`. Columbus-5 read-only probe: `./scripts/qa/probe-columbus5-contract-info.sh`.
@@ -95,4 +96,4 @@ Tests: `asset_code_id_pin_tests::*` (honest CreatePair → FoT migrate → swap 
 - [`docs/runbooks/launch-checklist.md`](../docs/runbooks/launch-checklist.md) — **BLOCK** until columbus-5 migrate has **run**
 - [`docs/contracts-terraclassic.md` § Asset CW20 code_id pin](../docs/contracts-terraclassic.md#asset-cw20-code-id-pin-gitlab-582)
 - Invariant **F6** — [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md)
-- Parent ops [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558); gate on [#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581); rollout [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)
+- [`AGENTS_FRONTEND_CODE_ID_FREEZE.md`](./AGENTS_FRONTEND_CODE_ID_FREEZE.md) — dApp banners + indexer `route/solve` exclude (**F585**, [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)); not a substitute for on-chain **A**

@@ -10,6 +10,9 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
+import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
+import { CODE_ID_FROZEN_CTA } from '@/utils/assetCodeIdFreeze'
 import { getPool, provideLiquidity, withdrawLiquidity } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -97,6 +100,9 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   })
   const pairPaused = usePairPaused({ pairAddress: pair.contract_addr })
   const isPairPaused = pairPaused.isPaused
+  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair.contract_addr })
+  const isPairCodeIdFrozen = pairCodeIdFreeze.isFrozen
+  const isLpBlocked = isPairPaused || isPairCodeIdFrozen
 
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
@@ -713,6 +719,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 </a>
               </div>
             )}
+            {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="pool-pair-code-id-frozen-banner" />}
             {tradingBlacklist.blocked && tradingBlacklist.message && (
               <p className="alert-error text-xs" role="alert">
                 {tradingBlacklist.message}
@@ -878,7 +885,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 wrapProvideBlocked ||
                 !provideLiquidityNativeGasGate.canAddLiquidity ||
                 tradingBlacklist.blocked ||
-                isPairPaused
+                isLpBlocked
               }
               className={`w-full py-2.5 font-semibold text-sm ${
                 !address ||
@@ -889,7 +896,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 wrapProvideBlocked ||
                 !provideLiquidityNativeGasGate.canAddLiquidity ||
                 tradingBlacklist.blocked ||
-                isPairPaused
+                isLpBlocked
                   ? 'btn-disabled !w-full'
                   : 'btn-primary !w-full'
               }`}
@@ -898,25 +905,27 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 ? 'Connect Wallet'
                 : isPairPaused
                   ? 'Pair is paused'
-                  : tradingBlacklist.blocked
-                    ? 'Trading restricted'
-                    : wrapProvideBlocked
-                      ? wrapMapperConfig == null
-                        ? 'Wrap config unavailable'
-                        : 'Wrap treasury misconfigured'
-                      : insufficientAdd
-                        ? 'Insufficient balance'
-                        : !provideLiquidityNativeGasGate.canAddLiquidity &&
-                            provideLiquidityNativeGasGate.tone === 'warning'
-                          ? 'Checking gas balance…'
-                          : !provideLiquidityNativeGasGate.canAddLiquidity
-                            ? 'Not enough LUNC for gas'
-                            : terraBroadcastPendingButtonLabel(
-                                addMutation.phase,
-                                addMutation.isPending,
-                                'Provide Liquidity',
-                                'Providing Liquidity…'
-                              )}
+                  : isPairCodeIdFrozen
+                    ? CODE_ID_FROZEN_CTA
+                    : tradingBlacklist.blocked
+                      ? 'Trading restricted'
+                      : wrapProvideBlocked
+                        ? wrapMapperConfig == null
+                          ? 'Wrap config unavailable'
+                          : 'Wrap treasury misconfigured'
+                        : insufficientAdd
+                          ? 'Insufficient balance'
+                          : !provideLiquidityNativeGasGate.canAddLiquidity &&
+                              provideLiquidityNativeGasGate.tone === 'warning'
+                            ? 'Checking gas balance…'
+                            : !provideLiquidityNativeGasGate.canAddLiquidity
+                              ? 'Not enough LUNC for gas'
+                              : terraBroadcastPendingButtonLabel(
+                                  addMutation.phase,
+                                  addMutation.isPending,
+                                  'Provide Liquidity',
+                                  'Providing Liquidity…'
+                                )}
             </button>
             <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
             {addMutation.isError && (
@@ -946,6 +955,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 </a>
               </div>
             )}
+            {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="pool-pair-code-id-frozen-banner" />}
             {tradingBlacklist.blocked && tradingBlacklist.message && (
               <p className="alert-error text-xs" role="alert">
                 {tradingBlacklist.message}
@@ -1072,7 +1082,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 insufficientLp ||
                 removeMutation.isPending ||
                 tradingBlacklist.blocked ||
-                isPairPaused
+                isLpBlocked
               }
               className={`w-full py-2.5 font-semibold text-sm ${
                 !address ||
@@ -1080,7 +1090,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 insufficientLp ||
                 removeMutation.isPending ||
                 tradingBlacklist.blocked ||
-                isPairPaused
+                isLpBlocked
                   ? 'btn-disabled !w-full'
                   : 'btn-primary !w-full'
               }`}
@@ -1089,16 +1099,18 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 ? 'Connect Wallet'
                 : isPairPaused
                   ? 'Pair is paused'
-                  : tradingBlacklist.blocked
-                    ? 'Trading restricted'
-                    : insufficientLp
-                      ? 'Insufficient LP Balance'
-                      : terraBroadcastPendingButtonLabel(
-                          removeMutation.phase,
-                          removeMutation.isPending,
-                          'Withdraw Liquidity',
-                          'Withdrawing…'
-                        )}
+                  : isPairCodeIdFrozen
+                    ? CODE_ID_FROZEN_CTA
+                    : tradingBlacklist.blocked
+                      ? 'Trading restricted'
+                      : insufficientLp
+                        ? 'Insufficient LP Balance'
+                        : terraBroadcastPendingButtonLabel(
+                            removeMutation.phase,
+                            removeMutation.isPending,
+                            'Withdraw Liquidity',
+                            'Withdrawing…'
+                          )}
             </button>
             <TerraBroadcastPendingLink phase={removeMutation.phase} txHash={removeMutation.pendingTxHash} />
             {removeMutation.isError && (

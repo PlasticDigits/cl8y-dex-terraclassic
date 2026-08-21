@@ -11,6 +11,8 @@ import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { useTokenBalance } from '@/hooks/useTokenBalance'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
+import { CODE_ID_FROZEN_CTA } from '@/utils/assetCodeIdFreeze'
 import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStatus'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -72,6 +74,7 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
     enabled: !!address && !!pair,
   })
   const pairPaused = usePairPaused({ pairAddress: pair?.contract_addr ?? '' })
+  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair?.contract_addr ?? '' })
 
   const decimals = tokenId ? getDecimals(tokenAssetInfo(tokenId)) : 6
   const rawAmount = amount ? toRawAmount(amount, decimals) : '0'
@@ -219,21 +222,23 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
         : 'Wrap treasury misconfigured'
       : pairPaused.isPaused
         ? 'Pair is paused'
-        : tradingBlacklist.blocked
-          ? 'Trading restricted'
-          : emptyPool
-            ? ONE_SIDED_EMPTY_POOL_ERROR
-            : insufficient
-              ? 'Insufficient balance'
-              : !gasGate.canAddLiquidity
-                ? gasGate.userMessage
-                : quoteDisable
-                  ? quoteDisable
-                  : impactBlocked
-                    ? `Enable Expert Mode`
-                    : isQuoteStale
-                      ? 'Quote updating…'
-                      : null
+        : pairCodeIdFreeze.isFrozen
+          ? CODE_ID_FROZEN_CTA
+          : tradingBlacklist.blocked
+            ? 'Trading restricted'
+            : emptyPool
+              ? ONE_SIDED_EMPTY_POOL_ERROR
+              : insufficient
+                ? 'Insufficient balance'
+                : !gasGate.canAddLiquidity
+                  ? gasGate.userMessage
+                  : quoteDisable
+                    ? quoteDisable
+                    : impactBlocked
+                      ? `Enable Expert Mode`
+                      : isQuoteStale
+                        ? 'Quote updating…'
+                        : null
 
   const submitBlocked =
     addMutation.isPending ||
@@ -245,6 +250,7 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
         !!disableReason ||
         wrapBlocked ||
         pairPaused.isPaused ||
+        pairCodeIdFreeze.isFrozen ||
         tradingBlacklist.blocked ||
         insufficient ||
         !gasGate.canAddLiquidity ||

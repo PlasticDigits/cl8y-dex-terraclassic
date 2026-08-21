@@ -134,3 +134,40 @@ pub struct HooksResponse {
 pub struct PairCountResponse {
     pub count: u64,
 }
+
+/// LCD `GET /cosmwasm/wasm/v1/contract/{addr}` envelope (GitLab #585).
+#[derive(Debug, Clone, Deserialize)]
+pub struct WasmContractInfoEnvelope {
+    pub contract_info: WasmContractInfo,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct WasmContractInfo {
+    /// LCD may emit a JSON number or a decimal string.
+    pub code_id: serde_json::Value,
+}
+
+impl WasmContractInfo {
+    pub fn code_id_u64(&self) -> Option<u64> {
+        match &self.code_id {
+            serde_json::Value::Number(n) => n.as_u64(),
+            serde_json::Value::String(s) => s.parse().ok(),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn code_id_parses_string_or_number() {
+        let n: WasmContractInfo =
+            serde_json::from_value(serde_json::json!({ "code_id": 10184 })).unwrap();
+        assert_eq!(n.code_id_u64(), Some(10184));
+        let s: WasmContractInfo =
+            serde_json::from_value(serde_json::json!({ "code_id": "6036" })).unwrap();
+        assert_eq!(s.code_id_u64(), Some(6036));
+    }
+}

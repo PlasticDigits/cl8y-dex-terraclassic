@@ -234,6 +234,16 @@ function PoolPairRows({
         </td>
         <td className="py-2 px-2 align-top">
           <FactoryMark badges={badges} />
+          {ip.code_id_frozen ? (
+            <span
+              className="ml-2 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--danger, #f87171)' }}
+              title="Listed token code changed. Quotes can still appear; execute is blocked."
+              data-testid="pool-row-code-id-frozen"
+            >
+              Frozen
+            </span>
+          ) : null}
         </td>
         <td className="py-2 px-2 text-right align-top whitespace-nowrap">
           {chartsHref ? (

@@ -66,6 +66,38 @@ If a transaction still fails, check [wallet](#wallet-blacklist) or [token/pair b
 
 ---
 
+## Code-id freeze {#code-id-freeze}
+
+A listed token’s **contract code** can change after the pair was created (`MsgMigrateContract`). The pair then **freezes execute** until operators restore the listing-time template (invariant **F6**). This is different from [pair pause](#pair-pause).
+
+### What you will see
+
+- The dApp shows a **Market frozen** banner on Swap, Trade, Pool, Charts, and Limit Orders.
+- Quotes (price estimates) **can still appear**. Swaps, adding/removing liquidity, and new limit actions are **blocked**.
+- A failed transaction may say the market is frozen because a listed token’s code changed — not a generic “transaction failed”.
+
+### What is blocked
+
+On-chain (same as the freeze, until operators refresh pins):
+
+- **Swaps**, **provide / withdraw liquidity**, **place / fill / cancel / claim** limits
+
+Queries used for quotes stay allowed. The indexer will not **route** through a frozen hop (`route/solve` skips it).
+
+### What happens to your assets
+
+Same as [pair pause](#pair-pause): wallet balances, LP shares, and limit escrow stay in the contracts. Operators restore the market with a pin refresh (not something you can do from the dApp).
+
+### Recovery path
+
+1. Wait for operators to restore the market (honest upgrade + pin refresh, or pause-through-refresh after an incident).
+2. Refresh the dApp — the freeze banner should clear.
+3. Retry the action.
+
+Retail details: [frontend.md § Code-id freeze](./frontend.md#code-id-freeze-gitlab-585). Ops: [cw20-code-id-ops.md](./runbooks/cw20-code-id-ops.md).
+
+---
+
 ## Wallet blacklist
 
 Governance can add a **wallet address** to the factory trading blacklist for compliance or incident response ([ADR 0003](./adr/0003-governance-trading-blacklist.md)).
@@ -246,8 +278,9 @@ Playbook for agents: [`skills/AGENTS_FRONTEND_KEPLR_LEDGER.md`](../skills/AGENTS
 | Signal | UI behavior |
 |--------|-------------|
 | **Pause** | `IsPaused` query drives banners on Trade, Limit Orders, Swap, and Pool. |
+| **Code-id freeze** | Listed token code changed — **Market frozen** banner; quotes can still appear; execute blocked. |
 | **Blacklist** | Factory `BlacklistCheck` (and indexer `GET /api/v1/compliance/blacklist-check`) disables actions before you sign. |
-| **Errors** | Failed transactions are humanized where possible (paused / blacklist messages). |
+| **Errors** | Failed transactions are humanized where possible (paused / freeze / blacklist messages). |
 
 For technical integration details, see [integrators.md](./integrators.md) and [limit-orders.md](./limit-orders.md) (pause section).
 

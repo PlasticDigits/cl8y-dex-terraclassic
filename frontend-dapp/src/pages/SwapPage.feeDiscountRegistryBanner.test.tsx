@@ -48,6 +48,9 @@ vi.mock('@/services/terraclassic/pair', () => ({
     total_share: '1000000',
   }),
 }))
+vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
+  probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
+}))
 vi.mock('@/services/terraclassic/settings', () => ({
   getPairFeeConfig: vi.fn().mockResolvedValue({ fee_bps: 30, treasury: '' }),
 }))

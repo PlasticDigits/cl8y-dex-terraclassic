@@ -20,6 +20,7 @@ import {
   getPairInfo,
   getPool,
   getPairPaused,
+  getAssetCodeIds,
   simulateSwap,
   reverseSimulateSwap,
   simulateHybridSwap,
@@ -82,6 +83,17 @@ describe('getPairPaused', () => {
 
     expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, { is_paused: {} })
     expect(result).toEqual(body)
+  })
+})
+
+describe('getAssetCodeIds', () => {
+  it('queries get_asset_code_ids on the pair contract', async () => {
+    mockedQuery.mockResolvedValueOnce({ code_ids: [10184, 6036] })
+
+    const result = await getAssetCodeIds(PAIR_ADDR)
+
+    expect(mockedQuery).toHaveBeenCalledWith(PAIR_ADDR, { get_asset_code_ids: {} })
+    expect(result).toEqual({ code_ids: [10184, 6036] })
   })
 })
 

@@ -10,6 +10,8 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { usePortfolioLpBalances } from '@/hooks/usePortfolioLpBalances'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
+import { CODE_ID_FROZEN_CTA } from '@/utils/assetCodeIdFreeze'
 import { useFeeDiscountRegistryStatus } from '@/hooks/useFeeDiscountRegistryStatus'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -82,6 +84,7 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
     enabled: !!address && !!pair,
   })
   const pairPaused = usePairPaused({ pairAddress: pair?.contract_addr ?? '' })
+  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair?.contract_addr ?? '' })
 
   const rawLp = amount ? toRawAmount(amount, PAIR_LP_CW20_DECIMALS) : '0'
   const debouncedRaw = useDebouncedValue(rawLp, SIM_QUOTE_DEBOUNCE_MS)
@@ -204,19 +207,21 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
       : 'Wrap treasury misconfigured'
     : pairPaused.isPaused
       ? 'Pair is paused'
-      : tradingBlacklist.blocked
-        ? 'Trading restricted'
-        : insufficient
-          ? 'Insufficient LP balance'
-          : noRoute
-            ? 'No route'
-            : split?.status === 'unavailable'
-              ? 'Amount too small'
-              : split?.status === 'ok' && minAssets && !exec
+      : pairCodeIdFreeze.isFrozen
+        ? CODE_ID_FROZEN_CTA
+        : tradingBlacklist.blocked
+          ? 'Trading restricted'
+          : insufficient
+            ? 'Insufficient LP balance'
+            : noRoute
+              ? 'No route'
+              : split?.status === 'unavailable'
                 ? 'Amount too small'
-                : isQuoteStale
-                  ? 'Quote updating…'
-                  : null
+                : split?.status === 'ok' && minAssets && !exec
+                  ? 'Amount too small'
+                  : isQuoteStale
+                    ? 'Quote updating…'
+                    : null
 
   const submitBlocked =
     withdrawMutation.isPending ||
@@ -231,6 +236,7 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
         !!disableReason ||
         wrapBlocked ||
         pairPaused.isPaused ||
+        pairCodeIdFreeze.isFrozen ||
         tradingBlacklist.blocked ||
         insufficient ||
         isQuoteStale))

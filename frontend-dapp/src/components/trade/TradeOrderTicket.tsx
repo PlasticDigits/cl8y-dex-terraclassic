@@ -12,6 +12,8 @@ import { useTraderLimitFills } from '@/hooks/useTraderLimitFills'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { placeLimitOrderWithAllowance, getPairPaused } from '@/services/terraclassic/pair'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
+import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import {
   estimateLimitOrderPlaceSequenceUlunaFeesTotal,
   estimateUpdateLimitOrderPriceUlunaFeesTotal,
@@ -333,6 +335,11 @@ function TradeOrderTicketContent({
   })
 
   const isPaused = pausedQuery.data?.paused === true
+  const pairCodeIdFreeze = usePairCodeIdFreeze({
+    pairAddress: pairAddr,
+    enabled: pairAddr.startsWith('terra1'),
+  })
+  const isPairCodeIdFrozen = pairCodeIdFreeze.isFrozen
 
   const token0Addr =
     selectedPair && 'token' in selectedPair.asset_infos[0] ? selectedPair.asset_infos[0].token.contract_addr : null
@@ -345,7 +352,7 @@ function TradeOrderTicketContent({
     pairAddress: pairAddr,
     enabled: pairAddr.startsWith('terra1'),
   })
-  const isTradeBlocked = isPaused || tradingBlacklist.blocked
+  const isTradeBlocked = isPaused || isPairCodeIdFrozen || tradingBlacklist.blocked
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr, limitPriceScale)
   const limitBookQuery = useLimitBookInfinite(pairAddr, factorySide)
@@ -763,6 +770,7 @@ function TradeOrderTicketContent({
             </a>
           </div>
         )}
+        {selectedPair && isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="trade-pair-code-id-frozen-banner" />}
 
         {selectedPair && tradingBlacklist.blocked && tradingBlacklist.message && (
           <div className="alert-error text-xs" role="alert">
@@ -956,7 +964,7 @@ function TradeOrderTicketContent({
                   rows={myPlacements}
                   isLoading={placementsQuery.isLoading}
                   isWalletConnected={isWalletConnected}
-                  isPairPaused={isPaused}
+                  isPairPaused={isPaused || isPairCodeIdFrozen}
                   claimsDisabled={tradingBlacklist.blocked}
                   cancelDisabled={tradingBlacklist.blocked}
                   openWalletModal={openWalletModal}
