@@ -152,6 +152,8 @@ export interface IndexerPair {
   lp_token: string | null
   fee_bps: number | null
   is_active: boolean
+  /** F6 freeze: live CW20 code_id ≠ pin or not factory-whitelisted (GitLab #585). */
+  code_id_frozen?: boolean
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
 }
@@ -347,6 +349,11 @@ export interface IndexerLimitBookInsertHintsResponse {
 /** Pair `is_paused` CosmWasm query */
 export interface PairPausedResponse {
   paused: boolean
+}
+
+/** Pair `GetAssetCodeIds` (GitLab #582 / #585). Order matches `asset_infos`. */
+export interface AssetCodeIdsResponse {
+  code_ids: [number, number]
 }
 
 /**

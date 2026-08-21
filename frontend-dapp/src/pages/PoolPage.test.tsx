@@ -5,6 +5,7 @@ import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getPairPaused } from '@/services/terraclassic/pair'
+import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
@@ -66,6 +67,10 @@ vi.mock('@/services/terraclassic/pair', () => ({
   getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   provideLiquidity: vi.fn().mockResolvedValue('txhash123'),
   withdrawLiquidity: vi.fn().mockResolvedValue('txhash123'),
+}))
+
+vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
+  probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
 }))
 
 vi.mock('@/services/terraclassic/settings', () => ({
@@ -145,6 +150,7 @@ describe('PoolPage', () => {
     walletSnapshot.address = addr
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
     vi.mocked(indexerClient.getTokens).mockResolvedValue([])
     vi.mocked(indexerClient.getPairs).mockResolvedValue(mockGetPairs)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({
@@ -546,6 +552,53 @@ describe('PoolPage', () => {
       await user.type(lpInput, '1')
 
       expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
+    })
+  })
+
+  describe('code-id freeze disabled LP CTAs (GitLab #585)', () => {
+    it('shows Frozen badge when indexer flags code_id_frozen', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        ...mockGetPairs,
+        items: [{ ...mockPair, code_id_frozen: true }],
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      expect(await screen.findByTestId('pool-row-code-id-frozen')).toHaveTextContent(/Frozen/i)
+    })
+
+    it('disables provide liquidity submit when pair is code-id frozen', async () => {
+      vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+      await openPoolCardAdvanced(user)
+      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+      await user.click(provide[0]!)
+
+      expect(await screen.findByTestId('pool-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
+      const aInput = await screen.findByLabelText('Asset A amount')
+      const bInput = screen.getByLabelText('Asset B amount')
+      await user.type(aInput, '1')
+      await user.type(bInput, '2')
+
+      expect(screen.getByRole('button', { name: 'Market frozen' })).toBeDisabled()
+    })
+
+    it('disables withdraw liquidity submit when pair is code-id frozen', async () => {
+      vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+
+      await openPoolCardAdvanced(user)
+      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
+      await user.click(withdrawTabs[0]!)
+
+      expect(await screen.findByTestId('pool-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
+      const lpInput = screen.getByLabelText('LP Token Amount')
+      await user.type(lpInput, '1')
+
+      expect(screen.getByRole('button', { name: 'Market frozen' })).toBeDisabled()
     })
   })
 

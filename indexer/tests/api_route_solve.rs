@@ -797,3 +797,28 @@ async fn route_solve_progress_requires_amount_in() {
     );
     server.get(&url).await.assert_status_bad_request();
 }
+
+#[serial]
+#[tokio::test]
+async fn route_solve_excludes_code_id_frozen_pair() {
+    use std::collections::HashSet;
+    use cl8y_dex_indexer::indexer::asset_code_id_freeze::{
+        replace_frozen_pair_addresses, snapshot_frozen_pair_addresses,
+    };
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let prev = snapshot_frozen_pair_addresses();
+    replace_frozen_pair_addresses(HashSet::from(["terra1pairrouteabc".to_string()]));
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}",
+        seed.token_a, seed.token_b
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_not_found();
+
+    replace_frozen_pair_addresses(prev);
+}

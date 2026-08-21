@@ -115,7 +115,12 @@ vi.mock('@/services/terraclassic/pair', () => ({
   },
 }))
 
+vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
+  probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
+}))
+
 import { getPairPaused } from '@/services/terraclassic/pair'
+import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
 
 vi.mock('@/services/terraclassic/settings', () => ({
   getPairFeeConfig: vi.fn().mockResolvedValue({ fee_bps: 30, treasury: 'terra1treasury0000000000000000000001' }),
@@ -204,6 +209,7 @@ describe('TradePage', () => {
     vi.mocked(indexerClient.getPairStats).mockResolvedValue({ ...emptyStats })
     vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({ ticker: 'ustc', price_usd: '0.02', sources: [] })
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
   })
 
   afterEach(() => {
@@ -971,6 +977,19 @@ describe('TradePage', () => {
 
     const banner = await screen.findByText(/Pair paused/i)
     expect(banner).toBeInTheDocument()
+
+    const placeBtns = screen.getAllByTestId('trade-limit-submit')
+    expect(placeBtns.length).toBeGreaterThan(0)
+    for (const btn of placeBtns) {
+      expect(btn).toBeDisabled()
+    }
+  })
+
+  it('shows freeze banner and disables limit actions when pair is code-id frozen (GitLab #585)', async () => {
+    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+
+    expect(await screen.findByTestId('trade-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
 
     const placeBtns = screen.getAllByTestId('trade-limit-submit')
     expect(placeBtns.length).toBeGreaterThan(0)

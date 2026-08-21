@@ -55,6 +55,10 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
   }
 })
 
+vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
+  probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
+}))
+
 const mockPair: IndexerPair = {
   pair_address: 'terra1pair0000000000000000000000000000ab',
   asset_0: { symbol: 'AAA', contract_addr: 'terra1aaa', denom: null, decimals: 6 },
@@ -122,6 +126,17 @@ describe('ChartsPage (component)', () => {
       expect(indexerClient.getCandles).toHaveBeenCalledWith(mockPair.pair_address, expect.any(String))
     )
     expect(container.innerHTML).toContain('h-[min(70vh,720px)]')
+  })
+
+  it('shows freeze banner when indexer flags code_id_frozen (GitLab #585)', async () => {
+    vi.mocked(indexerClient.getPairs).mockResolvedValue({
+      items: [{ ...mockPair, code_id_frozen: true }],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    })
+    renderWithProviders(<ChartsPage />)
+    expect(await screen.findByTestId('charts-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
   })
 
   it('shows empty pairs copy when indexer returns no pairs', async () => {

@@ -177,6 +177,9 @@ pub async fn get_token_pairs(
                 lp_token: p.lp_token.clone(),
                 fee_bps: p.fee_bps,
                 is_active: true,
+                code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
+                    &p.contract_address,
+                ),
                 volume_quote_24h: None,
             });
         }

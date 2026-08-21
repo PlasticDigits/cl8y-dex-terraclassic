@@ -11,6 +11,8 @@ import {
   getOraclePrice,
 } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
+import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
+import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
 import { CHARTS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import PriceChart from '@/components/charts/PriceChart'
@@ -166,6 +168,11 @@ export default function ChartsPage() {
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
+  const pairCodeIdFreeze = usePairCodeIdFreeze({
+    pairAddress: activePairAddr,
+    indexerHintFrozen: activePair?.code_id_frozen === true,
+    enabled: !!activePairAddr,
+  })
 
   const pairMenuOptions = useMemo(
     () => indexerPairsToMenuSelectOptions(pairOptions, { variant: 'compact' }),
@@ -418,6 +425,7 @@ export default function ChartsPage() {
             inverted={pairOrientation.inverted}
           />
         ) : null}
+        {pairCodeIdFreeze.isFrozen && <PairCodeIdFrozenBanner testId="charts-pair-code-id-frozen-banner" />}
         {pairTotal > PAIR_PAGE_SIZE && !pairsQuery.isLoading && !pairsQuery.isError && (
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
             <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>

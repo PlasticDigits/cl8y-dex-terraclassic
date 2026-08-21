@@ -21,7 +21,14 @@ vi.mock('@/utils/constants', () => ({
 import { queryContract } from '@/services/terraclassic/queries'
 import { executeTerraContract } from '@/services/terraclassic/transactions'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
-import { getAllPairs, getAllPairsPaginated, getPair, getWhitelistedCodeIds, createPair } from '../factory'
+import {
+  getAllPairs,
+  getAllPairsPaginated,
+  getPair,
+  getWhitelistedCodeIds,
+  isCodeIdWhitelisted,
+  createPair,
+} from '../factory'
 import type { AssetInfo, PairInfo } from '@/types'
 
 const mockedQuery = vi.mocked(queryContract)
@@ -185,6 +192,19 @@ describe('getWhitelistedCodeIds', () => {
       get_whitelisted_code_ids: { start_after: 3, limit: 2 },
     })
     expect(result).toEqual(expected)
+  })
+})
+
+describe('isCodeIdWhitelisted', () => {
+  it('queries is_code_id_whitelisted on the factory', async () => {
+    mockedQuery.mockResolvedValueOnce({ code_id: 10184, whitelisted: true })
+
+    const result = await isCodeIdWhitelisted(10184)
+
+    expect(mockedQuery).toHaveBeenCalledWith(FACTORY, {
+      is_code_id_whitelisted: { code_id: 10184 },
+    })
+    expect(result).toEqual({ code_id: 10184, whitelisted: true })
   })
 })
 

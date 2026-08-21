@@ -85,6 +85,8 @@ After factory 1.9.0 migrate, **`UpdateConfig { pair_code_id }`** to the new pair
 
 Post-migrate smoke: every pair `GetAssetCodeIds` (hard-error on pre-1.15.0 — not “empty pins ok”) + `IsCodeIdWhitelisted` for both pins + one `HybridSimulation`. **Simulation succeeding is not “pair is tradable”** — execute paths stay gated; queries are ungated by design.
 
+dApp + indexer visibility ([#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)): quotes can still appear; `route/solve` excludes frozen hops; pair APIs flag `code_id_frozen`. This does **not** replace on-chain write-path fail-closed. Playbook: [`AGENTS_FRONTEND_CODE_ID_FREEZE.md`](../../skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md); `make verify-issue-585`.
+
 Paste onto [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391) / [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584): LCD ContractInfo probe output, factory cw2 before/after, pair count, migrate tx hashes, smoke table. Template: [deploy-trace.md](../templates/deploy-trace.md).
 
 ---

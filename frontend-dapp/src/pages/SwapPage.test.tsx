@@ -152,12 +152,17 @@ vi.mock('@/hooks/useTradingBlacklist', () => ({
   useTradingBlacklist: vi.fn(),
 }))
 
+vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
+  probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
+}))
+
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens, isDirectWrapUnwrap, simulateMultiHopSwap } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded, queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
 import { WRAP_CONFIG_UNAVAILABLE_CTA, WRAP_TREASURY_MISCONFIGURED_CTA } from '@/utils/marketDataServiceCopy'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import { simulateSwap, simulateHybridSwap, getPairPaused } from '@/services/terraclassic/pair'
+import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
@@ -214,6 +219,7 @@ describe('SwapPage', () => {
       fee_unwrap_bps: 100,
     })
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
@@ -1463,6 +1469,14 @@ describe('SwapPage', () => {
 
       expect(await screen.findByTestId('swap-pair-paused-banner')).toHaveTextContent(/Pair paused/i)
       expect(screen.getByRole('button', { name: 'Pair is paused' })).toBeDisabled()
+    })
+
+    it('shows freeze banner and disables swap submit when route pair is code-id frozen (GitLab #585)', async () => {
+      vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
+      await renderConnectedDirectSwap()
+
+      expect(await screen.findByTestId('swap-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
+      expect(screen.getByRole('button', { name: 'Market frozen' })).toBeDisabled()
     })
   })
 

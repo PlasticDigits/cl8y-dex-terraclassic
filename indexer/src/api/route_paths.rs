@@ -26,6 +26,9 @@ type Adjacency = HashMap<i32, Vec<(i32, String)>>;
 fn build_adjacency(pair_rows: &[db_pairs::PairRow]) -> Adjacency {
     let mut adj: Adjacency = HashMap::with_capacity(pair_rows.len().saturating_mul(2));
     for p in pair_rows {
+        if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&p.contract_address) {
+            continue;
+        }
         let a0 = p.asset_0_id;
         let a1 = p.asset_1_id;
         adj.entry(a0)

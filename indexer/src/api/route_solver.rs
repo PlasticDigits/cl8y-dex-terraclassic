@@ -166,6 +166,9 @@ fn find_path(
 
     let mut adj: HashMap<i32, Vec<(i32, String)>> = HashMap::new();
     for p in pair_rows {
+        if crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(&p.contract_address) {
+            continue;
+        }
         let a0 = p.asset_0_id;
         let a1 = p.asset_1_id;
         adj.entry(a0)

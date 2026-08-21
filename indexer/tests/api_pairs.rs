@@ -27,6 +27,7 @@ async fn list_pairs_returns_200() {
     assert!(pair["asset_0"]["symbol"].is_string());
     assert!(pair["asset_1"]["symbol"].is_string());
     assert!(pair["is_active"].as_bool().unwrap());
+    assert_eq!(pair["code_id_frozen"].as_bool().unwrap(), false);
     assert!(pair["volume_quote_24h"].is_string());
 
     // Pagination, sort, search (same server / DB to avoid parallel seed conflicts)
@@ -496,4 +497,38 @@ async fn list_pairs_relevance_ordering() {
     let body: Value = resp.json();
     let items = body["items"].as_array().unwrap();
     assert_eq!(items[0]["pair_address"], seed.pair_address);
+}
+
+#[serial]
+#[tokio::test]
+async fn pair_api_flags_code_id_frozen() {
+    use std::collections::HashSet;
+    use cl8y_dex_indexer::indexer::asset_code_id_freeze::{
+        replace_frozen_pair_addresses, snapshot_frozen_pair_addresses,
+    };
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let prev = snapshot_frozen_pair_addresses();
+    replace_frozen_pair_addresses(HashSet::from([seed.pair_address.clone()]));
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let list: Value = server.get("/api/v1/pairs").await.json();
+    let flagged = list["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["pair_address"] == seed.pair_address)
+        .expect("seed pair");
+    assert_eq!(flagged["code_id_frozen"].as_bool().unwrap(), true);
+
+    let one: Value = server
+        .get(&format!("/api/v1/pairs/{}", seed.pair_address))
+        .await
+        .json();
+    assert_eq!(one["code_id_frozen"].as_bool().unwrap(), true);
+
+    replace_frozen_pair_addresses(prev);
 }

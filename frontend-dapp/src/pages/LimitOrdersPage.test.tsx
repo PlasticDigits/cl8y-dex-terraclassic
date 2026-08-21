@@ -8,6 +8,7 @@ import * as factory from '@/services/terraclassic/factory'
 import * as indexerClient from '@/services/indexer/client'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getPairPaused, updateLimitOrderPrice } from '@/services/terraclassic/pair'
+import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
 import type { IndexerPair } from '@/types'
 
 const PAIR = 'terra1pair0000000000000000000000000000000001'
@@ -52,6 +53,10 @@ vi.mock('@/services/terraclassic/pair', () => ({
   cancelLimitOrder: vi.fn(),
   updateLimitOrderPrice: vi.fn().mockResolvedValue('tx-update-price'),
   getPool: vi.fn().mockResolvedValue({ assets: [{ amount: '1000000' }, { amount: '3000000' }] }),
+}))
+
+vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
+  probePairCodeIdFreeze: vi.fn().mockResolvedValue({ frozen: false, verdict: 'tradable' }),
 }))
 
 vi.mock('@/services/terraclassic/wallet', () => ({
@@ -113,6 +118,7 @@ describe('LimitOrdersPage', () => {
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
     vi.mocked(updateLimitOrderPrice).mockClear()
     useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
@@ -377,6 +383,28 @@ describe('LimitOrdersPage', () => {
 
     expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeDisabled()
     expect(await screen.findByText(/Pair paused/i)).toBeInTheDocument()
+  })
+
+  it('shows freeze banner and disables book Edit when pair is code-id frozen (GitLab #585)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
+    useWalletStore.setState({ address: MAKER, walletType: 'station', error: null })
+    vi.mocked(indexerClient.getPairLimitBookPage).mockImplementation(async (_pair, side) => ({
+      side,
+      orders:
+        side === 'bid'
+          ? [{ order_id: 7, owner: MAKER, side, price: '2.5', remaining: '1000000', expires_at: null }]
+          : [],
+      has_more: false,
+      next_after_order_id: null,
+    }))
+
+    renderWithProviders(<LimitOrdersPage />, { route: '/limits' })
+    await selectLimitsPair(user)
+
+    expect(await screen.findByTestId('limits-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
+    expect(await screen.findByTestId('trade-book-edit-bid-7')).toBeDisabled()
   })
 
   it('renders place card before order book (#488 layout)', async () => {

@@ -68,6 +68,10 @@ pub struct PairResponse {
     pub lp_token: Option<String>,
     pub fee_bps: Option<i16>,
     pub is_active: bool,
+    /// F6 code-id freeze: live CW20 `code_id` ≠ pin or not factory-whitelisted (GitLab #585).
+    /// Pair remains listed (quotes/charts ok); `route/solve` excludes it as an executable hop.
+    #[serde(default)]
+    pub code_id_frozen: bool,
     /// Sum of quote-side amounts in swaps over the last 24h (from indexer). Omitted when unknown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volume_quote_24h: Option<String>,
@@ -223,6 +227,9 @@ pub async fn list_pairs(
             lp_token: p.lp_token.clone(),
             fee_bps: p.fee_bps,
             is_active: true,
+            code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
+                &p.contract_address,
+            ),
             volume_quote_24h,
         });
     }
@@ -267,12 +274,15 @@ pub async fn get_pair(
         .ok_or_else(|| internal_err("Asset 1 not found"))?;
 
     Ok(Json(PairResponse {
-        pair_address: pair.contract_address,
+        pair_address: pair.contract_address.clone(),
         asset_0: AssetBrief::from(a0),
         asset_1: AssetBrief::from(a1),
         lp_token: pair.lp_token,
         fee_bps: pair.fee_bps,
         is_active: true,
+        code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
+            &pair.contract_address,
+        ),
         volume_quote_24h: None,
     }))
 }

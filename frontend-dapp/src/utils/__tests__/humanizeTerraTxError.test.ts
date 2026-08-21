@@ -54,6 +54,34 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
     })
   })
 
+  describe('F6 code-id freeze (GitLab #585)', () => {
+    it('humanizes AssetCodeIdDrift', () => {
+      const raw =
+        'failed to execute message; message index: 0: Asset CW20 code_id drifted: token terra1x pinned 10184, live 9999: execute wasm contract failed'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).toContain('frozen')
+      expect(out).not.toMatch(/pinned 10184/)
+    })
+
+    it('humanizes AssetCodeIdNotWhitelisted', () => {
+      const raw = 'Asset CW20 code_id 8266 is not factory-whitelisted (token terra1x): execute wasm contract failed'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).toContain('frozen')
+    })
+
+    it('humanizes AssetCodeIdGuardUnavailable', () => {
+      const raw = 'Asset code_id guard unavailable: ContractInfo or factory whitelist query failed'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).toContain('could not verify token code')
+    })
+
+    it('humanizes AssetCodeIdUnpinned', () => {
+      const raw = 'Asset CW20 code_id pins are missing; migrate the pair contract'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).toContain('not yet upgraded')
+    })
+  })
+
   describe('Unauthorized', () => {
     it('matches admin-gated entrypoint Unauthorized rejection', () => {
       const raw = 'failed to execute message; message index: 0: Unauthorized: execute wasm contract failed'
