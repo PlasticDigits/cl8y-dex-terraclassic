@@ -291,7 +291,8 @@ verify-issue-582:
 # GitLab #584 — F6 factory-first upgrade script, ContractInfo probe, freeze runbook.
 verify-issue-584:
 	@chmod +x scripts/qa/verify-issue-584.sh scripts/upgrade-582-code-id-pin.sh \
-		scripts/qa/probe-columbus5-contract-info.sh scripts/qa/test-upgrade-582-pagination.sh
+		scripts/qa/probe-columbus5-contract-info.sh scripts/qa/test-upgrade-582-pagination.sh \
+		scripts/qa/test-upgrade-582-refresh-events.sh
 	./scripts/qa/verify-issue-584.sh
 
 verify-issue-485:

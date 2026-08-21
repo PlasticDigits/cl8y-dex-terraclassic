@@ -211,3 +211,21 @@ Phase 3 ustr-cmm wrap stack (columbus-5). Router address unchanged from soft lau
 | Router | `terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw` |
 
 Wrap-mapper `fee_bps`: **100** (1%). Coolify enablement: [`wrap-enablement.env.example`](./wrap-enablement.env.example); playbook [`skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md`](../../skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md).
+
+### F6 / #584 code-id pin migrate (columbus-5, 2026-08-21)
+
+Factory-first order. Evidence: [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) close comment. **#581 / 8266** still no-go.
+
+| Field | Value |
+|-------|-------|
+| **LCD** | `https://terra-classic-lcd.publicnode.com` |
+| **Factory** | `terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea` |
+| **Factory store** | code **11602**, tx `9ABEF0B2207646188BEFD6F702ED23ADE3795A592227B2A9263F2E6BAA82BF54` height 30039700 |
+| **Pair store** | code **11601**, tx `6C44832EBE2E81B5FA0158F5203E9618332C3FD1C4ABCC32B3B3212DCE0F66F9` height 30039698 |
+| **Factory migrate** | cw2 **1.8.0 → 1.9.0**, tx `794AAB9E3AEBF32E7D0050F260EC907722CEC8CA955B00CAA1608B235D0600DB` |
+| **`UpdateConfig { pair_code_id: 11601 }`** | tx `F8F97C113758DB50B180BEA76E994CA8D1AB567A5969273161B3FAA7EE8E1787` height 30039822 |
+| **GetPairCount** | 14 / 14 pairs on **11601** / 1.15.0 |
+| **Listed assets** | **10184** (hub/CL8Y/gems) + **6036** (PEARL/QUARTZ) |
+
+Partial run left three pairs on 11586 after publicnode RST mid `tx sign`; retry completed. Smoke `pin1=…/null` on a later LCD read was a dropped `IsCodeIdWhitelisted`, not an unlisted pin — independent re-query was 10184/10184. Upgrade script now retries those reads, skips already-migrated pairs, and `UpdateConfig`s `pair_code_id` before pair migrate.
+

@@ -14,7 +14,7 @@ Use when migrating factory/pair wasm, adding a CW20 code id to the factory white
 
 **Severity:** **High** for permissionless 6036+migrate. Residual risk on protocol-admin 10184/6036 is our-key upgrade risk (still fail-closed until Refresh).
 
-**#581 / 8266:** listing allowed **only after** factory **1.9.0** + pair **1.15.0** (this control) are **migrated live** on that factory, **or** SpaceUSD wasm admin is cleared, **or** wrap-to-10184. Merging the contract MR / this playbook is not enough — operators must run [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh) on columbus-5 ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)). Launch checklist **BLOCK** remains until that run’s smoke table is on [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391).
+**#581 / 8266:** listing allowed **only after** factory **1.9.0** + pair **1.15.0** (this control) are **migrated live** on that factory, **or** SpaceUSD wasm admin is cleared, **or** wrap-to-10184. Merging the contract MR / this playbook is not enough. Columbus-5 F6 migrate **ran 2026-08-21** (factory **11602** / 1.9.0, pairs **11601** / 1.15.0, `config.pair_code_id` **11601** — [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)). That does **not** unblock 8266. Future F6 wasm upgrades still use [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh). Launch checklist **BLOCK** for 8266 remains until source review.
 
 Do **not** add pair balance-delta / FoT swap math (H-01).
 
@@ -26,7 +26,7 @@ Factory/pair **F6** (this pin) is not faucet **F6** (deploy key remains primary 
 2. **Write-path re-check** — swap / provide / withdraw / limit place+fill / cancel / claim abort unless live id **equals the pin** **and** factory `IsCodeIdWhitelisted` is true.
 3. **Fail closed** — `ContractInfo` or factory query errors → `AssetCodeIdGuardUnavailable` (same posture as blacklist guard).
 4. **Refresh** — factory-only `RefreshAssetCodeIds` re-pins live ids **only if both are still whitelisted**. Governance: `RefreshPairAssetCodeIds` / `RefreshPairAssetCodeIdsBatch`.
-5. **Migrate** — factory **1.9.0** first (adds `IsCodeIdWhitelisted`), then pair **1.15.0** (pins + re-check). Pair migrate backfills missing pins from live `ContractInfo`. **Enforced by** [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh): the script aborts before any pair 1.15.0 migrate unless factory cw2 ≥ 1.9.0 **and** `IsCodeIdWhitelisted` succeeds. Do **not** copy the #514 pairs-first order.
+5. **Migrate** — factory **1.9.0** first (adds `IsCodeIdWhitelisted`), then pair **1.15.0** (pins + re-check). Pair migrate backfills missing pins from live `ContractInfo`. **Enforced by** [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh): the script aborts before any pair 1.15.0 migrate unless factory cw2 ≥ 1.9.0 **and** `IsCodeIdWhitelisted` succeeds. After factory migrate it **`UpdateConfig { pair_code_id }`** to the new pair wasm so new listings instantiate 1.15.0 (columbus-5 2026-08-21 had to do this as a follow-up when the first script omitted it). Do **not** copy the #514 pairs-first order.
 6. **No FoT math** — migrated taxed/rebase wasm must fail closed, not “work”.
 7. **Exit-path policy (keep)** — cancel / claim / withdraw stay gated. Documented tradeoff + unfreeze (pause-through-refresh) live in [`docs/runbooks/cw20-code-id-ops.md`](../docs/runbooks/cw20-code-id-ops.md). Opening exits is a **follow-up contract issue**, not an ops-script change.
 
@@ -50,7 +50,7 @@ UPGRADE582_LOCAL=1 ./scripts/upgrade-582-code-id-pin.sh
 ./scripts/upgrade-582-code-id-pin.sh
 ```
 
-The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every listed asset → stores wasm → migrates **factory 1.9.0** → asserts cw2 + `IsCodeIdWhitelisted` → paginates `pairs` at `limit: 30` with `start_after` = last `asset_infos` → reconciles `GetPairCount` → smoke `GetAssetCodeIds` + `HybridSimulation` (queries are **ungated**; a quote is not “pair is tradable”).
+The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every listed asset → stores wasm → migrates **factory 1.9.0** → asserts cw2 + `IsCodeIdWhitelisted` (parseable boolean; LCD flakes are retried, not treated as empty pins) → **`UpdateConfig { pair_code_id }`** so new `CreatePair` instantiates pair 1.15.0 → paginates `pairs` at `limit: 30` with `start_after` = last `asset_infos` → migrates each pair (skips addrs already on the target code id — retry-safe after RPC RST) → reconciles `GetPairCount` → smoke `GetAssetCodeIds` + `HybridSimulation` (queries are **ungated**; a quote is not “pair is tradable”). Optional `UPGRADE582_REFRESH=1` loops `RefreshPairAssetCodeIdsBatch` until wasm `has_more=false`.
 
 ## Operator sequence (honest token upgrade)
 
@@ -67,6 +67,8 @@ The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every l
 
 - Refresh pins onto an unlisted live id (the pair rejects it).
 - Skip factory 1.9.0 migrate — pair write paths fail closed without `IsCodeIdWhitelisted`.
+- Skip `UpdateConfig { pair_code_id }` after factory migrate — new `CreatePair` would instantiate the old pair wasm.
+- Treat a smoke `pin1=…/null` as an unlisted pin without retrying `IsCodeIdWhitelisted` (LCD flake).
 - Treat existing protocol-admin pairs as third-party issuer risk; still pin them.
 - Implement (D) indexer watch as a substitute for (A).
 - Treat `make verify-issue-582` pin tests as “columbus-5 migrate ran”.

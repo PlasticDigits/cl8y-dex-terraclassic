@@ -98,17 +98,18 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 
 ## F6 / #584 code-id pin migrate (columbus-5)
 
-Copy onto [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) and [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391) when running [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). Launch **BLOCK** until this run completes — merge is not enough.
+Copy onto [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) and [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391) when running [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). First columbus-5 F6 migrate **RAN 2026-08-21** (see [`deployments/mainnet-soft-launch/deploy-trace.md`](../../deployments/mainnet-soft-launch/deploy-trace.md)). Use this table for the **next** F6 wasm upgrade. **#581 / 8266** stays BLOCK until source review.
 
 | Field | Value |
 |-------|-------|
 | **LCD URL** | |
 | **ContractInfo probe** | paste `./scripts/qa/probe-columbus5-contract-info.sh` output (factory + every listed asset `code_id`) |
 | **Factory cw2 before** | |
-| **Factory cw2 after** | must be **1.9.0** |
+| **Factory cw2 after** | must be **1.9.0** (or the new factory cw2) |
 | **GetPairCount** | |
-| **Pair migrates** | count must equal GetPairCount; list tx hashes |
-| **Smoke table** | every pair `GetAssetCodeIds` pin0/pin1 + HybridSimulation (quote ≠ tradable) |
+| **`config.pair_code_id`** | must equal stored pair wasm (new `CreatePair` instantiates the pin build) |
+| **Pair migrates** | count must equal GetPairCount; list tx hashes; already-on-target skips are retry-safe |
+| **Smoke table** | every pair `GetAssetCodeIds` pin0/pin1 + HybridSimulation (quote ≠ tradable). Empty `wl` after retries is LCD flake, not a missing pin. |
 
 ```
 <paste probe + smoke table>
