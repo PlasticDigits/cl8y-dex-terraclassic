@@ -12,6 +12,7 @@ pub mod pair_price_usd;
 pub mod parser;
 pub mod poller;
 pub mod position_tracker;
+pub mod protocol_fees;
 pub mod protocol_tvl;
 pub mod reorg_alert;
 pub mod seed_qa;

@@ -425,6 +425,41 @@ export interface IndexerOverview {
   unpriced_pair_count?: number
   total_liquidity_usd_24h_ago?: string | null
   total_liquidity_usd_30d_ago?: string | null
+  /** Trailing treasury fees USD (GitLab #586). `"0"` idle; `null` activity+unpriced. */
+  total_fees_24h_usd?: string | null
+  total_fees_7d_usd?: string | null
+  total_fees_30d_usd?: string | null
+  fees_change_24h_pct?: string | number | null
+  fees_change_7d_pct?: string | number | null
+  fees_change_30d_pct?: string | number | null
+}
+
+/** Allowlisted fee source keys from `GET /api/v1/protocol/fees` (GitLab #586). */
+export type ProtocolFeeSourceKey = 'swap_amm' | 'book_take' | 'limit_place' | 'wrap' | 'unwrap'
+
+export interface ProtocolFeeSourceRow {
+  source: ProtocolFeeSourceKey | string
+  amount_usd: string | null
+  share_pct?: string | null
+  event_count?: number
+}
+
+export interface ProtocolFeeTokenRow {
+  asset_id?: number | null
+  symbol: string
+  contract_or_denom?: string | null
+  amount_human?: string | null
+  amount_usd: string | null
+  share_pct?: string | null
+  is_other?: boolean
+}
+
+/** `GET /api/v1/protocol/fees` */
+export interface ProtocolFeesResponse {
+  window: '24h' | '7d' | '30d' | string
+  wrap_mapper_configured: boolean
+  by_source: ProtocolFeeSourceRow[]
+  by_token: ProtocolFeeTokenRow[]
 }
 
 /** `GET /api/v1/tokens` */

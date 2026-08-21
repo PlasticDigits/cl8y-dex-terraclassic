@@ -49,6 +49,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getHookEvents: vi.fn(),
     getOverview: vi.fn(),
     getHubPrices: vi.fn(),
+    getProtocolFees: vi.fn(),
   }
 })
 
@@ -105,6 +106,28 @@ const overviewOk = {
   total_liquidity_usd: '8900.25',
   liquidity_change_24h_pct: '-3.5',
   liquidity_change_30d_pct: '12.5',
+  total_fees_24h_usd: '12.5',
+  total_fees_7d_usd: '40',
+  total_fees_30d_usd: '100',
+  fees_change_24h_pct: '50',
+  fees_change_7d_pct: '0',
+  fees_change_30d_pct: null,
+}
+
+const feesOk = {
+  window: '24h' as const,
+  wrap_mapper_configured: true,
+  by_source: [
+    { source: 'swap_amm', amount_usd: '8', share_pct: '64', event_count: 2 },
+    { source: 'book_take', amount_usd: '2', share_pct: '16', event_count: 1 },
+    { source: 'limit_place', amount_usd: '1.5', share_pct: '12', event_count: 1 },
+    { source: 'wrap', amount_usd: '1', share_pct: '8', event_count: 1 },
+    { source: 'unwrap', amount_usd: '0', share_pct: null, event_count: 0 },
+  ],
+  by_token: [
+    { asset_id: 1, symbol: 'UST1', amount_human: '10', amount_usd: '9.8', is_other: false },
+    { asset_id: 2, symbol: 'cUSTC', amount_human: '400', amount_usd: '2.7', is_other: false },
+  ],
 }
 
 function mockOracle(ticker: string, price: string) {
@@ -133,6 +156,7 @@ function mockOracle(ticker: string, price: string) {
 describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
+    vi.mocked(indexerClient.getProtocolFees).mockResolvedValue(feesOk)
     vi.mocked(indexerClient.getHubPrices).mockResolvedValue(hubPricesOk)
     mockOracle('ustc', '0.00512')
     vi.mocked(indexerClient.getHookEvents).mockResolvedValue([])
@@ -150,9 +174,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   it('renders global stats above a single oracle card and does not headline mixed-unit volume', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const stats = await screen.findByTestId('protocol-global-stats')
+    const fees = await screen.findByTestId('protocol-fee-stats')
     const hub = await screen.findByTestId('protocol-dex-hub-prices')
     const oracle = await screen.findByTestId('protocol-oracle')
-    expect(stats.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(stats.compareDocumentPosition(fees) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(fees.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(hub.compareDocumentPosition(oracle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(stats).getByTestId('protocol-stat-liquidity')).toHaveTextContent('$')
     expect(within(stats).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('%')
@@ -355,6 +381,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       pair_count: 0,
       token_count: 0,
     })
+    vi.mocked(indexerClient.getProtocolFees).mockRejectedValue(new Error('Indexer API error: 404'))
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     await screen.findByTestId('protocol-global-stats')
     const vol7d = await screen.findByTestId('protocol-stat-volume-7d')
@@ -364,6 +391,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent(/—/)
     expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
     expect(screen.getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent(/—/)
+    expect(screen.queryByTestId('protocol-fee-stats')).not.toBeInTheDocument()
   })
 
   it('idle TVL $0 with null Δ% is not 0% or Infinity', async () => {
@@ -455,5 +483,69 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(hub).getByTestId('protocol-dex-hub-custc-token')).toBeInTheDocument()
     expect(within(hub).getByTestId('protocol-dex-hub-lunc-token')).toBeInTheDocument()
     expect(within(hub).queryByTestId('protocol-dex-hub-ust1-source')).not.toBeInTheDocument()
+  })
+
+  it('renders fee panel after global stats with source and token tables (GitLab #586)', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const fees = await screen.findByTestId('protocol-fee-stats')
+    expect(within(fees).getByTestId('protocol-stat-fees-24h')).toHaveTextContent('$')
+    expect(within(fees).getByTestId('protocol-stat-fees-24h-chg')).toHaveTextContent('+')
+    expect(within(fees).getByTestId('protocol-stat-fees-7d')).toHaveTextContent('$')
+    expect(within(fees).getByTestId('protocol-stat-fees-7d-chg')).toHaveTextContent('0%')
+    expect(within(fees).getByTestId('protocol-stat-fees-30d')).toHaveTextContent('$')
+    expect(within(fees).getByTestId('protocol-stat-fees-30d-chg')).toHaveTextContent(/—/)
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('AMM swap')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Book take')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Limit place')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Wrap')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('unwrap')
+    expect(within(fees).getByTestId('protocol-fees-by-token')).toHaveTextContent('UST1')
+    expect(within(fees).getByTestId('protocol-fees-by-token')).toHaveTextContent('cUSTC')
+    expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
+    expect(indexerClient.getProtocolFees).toHaveBeenCalled()
+  })
+
+  it('null fee USD and Δ% are em-dash; idle $0 is $0 (GitLab #586)', async () => {
+    vi.mocked(indexerClient.getOverview).mockResolvedValue({
+      ...overviewOk,
+      total_fees_24h_usd: '0',
+      total_fees_7d_usd: null,
+      total_fees_30d_usd: null,
+      fees_change_24h_pct: null,
+      fees_change_7d_pct: null,
+      fees_change_30d_pct: null,
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const fees = await screen.findByTestId('protocol-fee-stats')
+    expect(within(fees).getByTestId('protocol-stat-fees-24h')).toHaveTextContent(/\$0/)
+    expect(within(fees).getByTestId('protocol-stat-fees-7d')).toHaveTextContent(/—/)
+    expect(within(fees).getByTestId('protocol-stat-fees-24h-chg')).toHaveTextContent(/—/)
+    expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
+  })
+
+  it('renders XSS symbol as text, not HTML (GitLab #586)', async () => {
+    vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
+      ...feesOk,
+      by_token: [
+        {
+          asset_id: 9,
+          symbol: '<img onerror>',
+          amount_human: '1',
+          amount_usd: null,
+          is_other: false,
+        },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const tokens = await screen.findByTestId('protocol-fees-by-token')
+    expect(tokens).toHaveTextContent('<img onerror>')
+    expect(tokens.querySelector('img')).toBeNull()
+  })
+
+  it('fee panel ignores ?ticker= (GitLab #586 / P550-2)', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=javascript:alert(1)' })
+    await screen.findByTestId('protocol-fee-stats')
+    expect(indexerClient.getProtocolFees).toHaveBeenCalled()
+    expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
   })
 })

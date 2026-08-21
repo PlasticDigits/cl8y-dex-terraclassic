@@ -10,10 +10,12 @@ import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatDateTime } from '@/utils/formatDate'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { ProtocolGlobalStats } from '@/components/protocol/ProtocolGlobalStats'
+import { ProtocolFeeStats } from '@/components/protocol/ProtocolFeeStats'
 import { ProtocolDexHubPrices } from '@/components/protocol/ProtocolDexHubPrices'
 import { ProtocolOracleCard } from '@/components/protocol/ProtocolOracleCard'
 import { useProtocolOracleQueries } from '@/components/protocol/useProtocolOracleQueries'
 import { useProtocolOverviewQuery } from '@/components/protocol/useProtocolOverviewQuery'
+import { useProtocolFeesQuery } from '@/components/protocol/useProtocolFeesQuery'
 import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
 import { parseProtocolOracleTicker, type ProtocolOracleTicker } from '@/utils/protocolOracleTicker'
 import {
@@ -48,6 +50,7 @@ export default function ProtocolPage() {
   }
 
   const overviewQuery = useProtocolOverviewQuery()
+  const feesQuery = useProtocolFeesQuery()
   const hubPricesQuery = useProtocolHubPricesQuery()
   const { priceQuery, historyQuery, venusQuery } = useProtocolOracleQueries(ticker)
 
@@ -64,6 +67,7 @@ export default function ProtocolPage() {
 
   const marketDataDown = detectMarketDataOutage(
     overviewQuery,
+    feesQuery,
     hubPricesQuery,
     priceQuery,
     historyQuery,
@@ -88,6 +92,7 @@ export default function ProtocolPage() {
           lead={PROTOCOL_MARKET_DATA_OUTAGE_LEAD}
           onRetry={() => {
             void overviewQuery.refetch()
+            void feesQuery.refetch()
             void hubPricesQuery.refetch()
             void priceQuery.refetch()
             void historyQuery.refetch()
@@ -97,6 +102,7 @@ export default function ProtocolPage() {
       )}
 
       <ProtocolGlobalStats overviewQuery={overviewQuery} />
+      <ProtocolFeeStats overviewQuery={overviewQuery} feesQuery={feesQuery} />
       <ProtocolDexHubPrices query={hubPricesQuery} />
       <ProtocolOracleCard
         ticker={ticker}

@@ -10,6 +10,7 @@ import type {
   IndexerTrade,
   IndexerPairStats,
   IndexerOverview,
+  ProtocolFeesResponse,
   IndexerTrader,
   IndexerPosition,
   IndexerToken,
@@ -351,6 +352,16 @@ export async function getPairLimitBookInsertHints(
 /** Get global DEX overview stats. */
 export async function getOverview(): Promise<IndexerOverview> {
   return fetchJson<IndexerOverview>('/api/v1/overview')
+}
+
+const PROTOCOL_FEE_WINDOWS = new Set(['24h', '7d', '30d'])
+
+/** Protocol treasury fee breakdown. `window` allowlisted — never pass `?ticker=`. */
+export async function getProtocolFees(window: '24h' | '7d' | '30d' = '24h'): Promise<ProtocolFeesResponse> {
+  if (!PROTOCOL_FEE_WINDOWS.has(window)) {
+    throw new Error('Invalid protocol fee window')
+  }
+  return fetchJson<ProtocolFeesResponse>(`/api/v1/protocol/fees?window=${window}`)
 }
 
 /** Cached fee-discount registry LCD probe (GitLab #365). */
