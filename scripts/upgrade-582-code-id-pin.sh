@@ -14,8 +14,10 @@
 #   UPGRADE582_SKIP_STORE=1 + UPGRADE582_FACTORY_CODE_ID / UPGRADE582_PAIR_CODE_ID
 #   UPGRADE582_SKIP_PAIR_MIGRATE=1   factory-only retry (smoke still runs; unmigrated fails)
 #   UPGRADE582_SKIP_FACTORY_MIGRATE=1  factory already on 1.9.0 (still asserts)
-#   UPGRADE582_REFRESH=1             paginated RefreshPairAssetCodeIdsBatch (default off)
+#   UPGRADE582_REFRESH=1             paginated RefreshPairAssetCodeIdsBatch (parses wasm has_more)
+#   UPGRADE582_SKIP_UPDATE_CONFIG=1  factory pair_code_id already on new pair wasm
 #   UPGRADE582_FORCE_FACTORY_VERSION  test hook (verify-issue-584 negative path)
+#   UPGRADE582_FORCE_WHITELIST_JSON   test hook (must be parseable {whitelisted:bool})
 #   UPGRADE582_SKIP_CONTRACT_INFO_PROBE=1  DRY_RUN dummy factory only
 #
 # Does NOT AddWhitelistedCodeId / RemoveWhitelistedCodeId.
@@ -131,14 +133,10 @@ assert_factory_ready() {
   fi
 
   local wl
-  if [[ "${DRY_RUN:-0}" == "1" && -z "${UPGRADE582_DRY_QUERY:-}" ]]; then
-    echo "  DRY_RUN: treating IsCodeIdWhitelisted as live (factory version already ≥ ${UPGRADE582_MIN_FACTORY_VERSION})"
-    return 0
-  fi
-  wl="$(upgrade582_is_code_id_whitelisted_json "$UPGRADE582_WHITELIST_PROBE_CODE_ID" 2>/dev/null || true)"
-  printf '%s' "$wl" | jq -e '.whitelisted == true or .whitelisted == false' >/dev/null 2>&1 \
-    || upgrade582_die "IsCodeIdWhitelisted smart-query failed (factory < 1.9.0 or LCD error). Refusing pair migrate. body=$(printf '%s' "$wl" | tr '\n' ' ')"
-  echo "  IsCodeIdWhitelisted code_id=${UPGRADE582_WHITELIST_PROBE_CODE_ID} → $(printf '%s' "$wl" | jq -c .)"
+  wl="$(upgrade582_whitelist_bool "$UPGRADE582_WHITELIST_PROBE_CODE_ID" 2>/dev/null || true)"
+  [[ "$wl" == "true" || "$wl" == "false" ]] \
+    || upgrade582_die "IsCodeIdWhitelisted smart-query failed (factory < 1.9.0, LCD flake, or unparseable stub). Refusing pair migrate."
+  echo "  IsCodeIdWhitelisted code_id=${UPGRADE582_WHITELIST_PROBE_CODE_ID} → ${wl}"
 }
 
 collect_pairs_and_assets() {
@@ -239,6 +237,28 @@ echo "[4] assert factory cw2 ≥ ${UPGRADE582_MIN_FACTORY_VERSION} and IsCodeIdW
 assert_factory_ready
 
 echo ""
+echo "[4b] UpdateConfig pair_code_id=$PAIR_CODE (new CreatePair must instantiate ${UPGRADE582_PAIR_VERSION})"
+if [[ "${UPGRADE582_SKIP_UPDATE_CONFIG:-0}" == "1" ]]; then
+  echo "  skipped (UPGRADE582_SKIP_UPDATE_CONFIG=1)"
+else
+  echo "  UPDATE_CONFIG_BEGIN pair_code_id=$PAIR_CODE"
+  current_pair_code="$(upgrade582_factory_pair_code_id || true)"
+  echo "  current config.pair_code_id=${current_pair_code:-<unreadable>}"
+  if [[ "$current_pair_code" == "$PAIR_CODE" ]]; then
+    echo "  already pair_code_id=$PAIR_CODE"
+  else
+    update_msg="$(jq -nc --argjson id "$PAIR_CODE" '{update_config:{pair_code_id:$id}}')"
+    broadcast_and_wait "UpdateConfig pair_code_id" wasm execute "$FACTORY" "$update_msg" >/dev/null
+    if [[ "${DRY_RUN:-0}" != "1" || -n "${UPGRADE582_DRY_QUERY:-}" ]]; then
+      after_pair_code="$(upgrade582_factory_pair_code_id || true)"
+      [[ "$after_pair_code" == "$PAIR_CODE" ]] \
+        || upgrade582_die "config.pair_code_id after UpdateConfig is ${after_pair_code:-<unreadable>} want $PAIR_CODE"
+      echo "  pair_code_id: ${current_pair_code:-?} → $after_pair_code"
+    fi
+  fi
+fi
+
+echo ""
 echo "[5] paginated pair migrate → $PAIR_CODE (cw2 ${UPGRADE582_PAIR_VERSION})"
 if [[ "${UPGRADE582_SKIP_PAIR_MIGRATE:-0}" == "1" ]]; then
   echo "  SKIP_PAIR_MIGRATE=1 — not broadcasting pair migrates; smoke will still hard-fail unmigrated pairs"
@@ -248,6 +268,13 @@ else
   for pair in "${PAIR_ADDRS[@]+"${PAIR_ADDRS[@]}"}"; do
     pair_i=$((pair_i + 1))
     echo "  pair ${pair_i}/${#PAIR_ADDRS[@]} $pair"
+    if [[ "${DRY_RUN:-0}" != "1" || -n "${UPGRADE582_DRY_QUERY:-}" ]]; then
+      live_code="$(upgrade582_contract_info_code_id "$pair" || true)"
+      if [[ -n "$PAIR_CODE" && "$live_code" == "$PAIR_CODE" ]]; then
+        echo "    skip: already code_id=$PAIR_CODE (retry-safe after RPC RST)"
+        continue
+      fi
+    fi
     if ! broadcast_and_wait "migrate $pair" wasm migrate "$pair" "$PAIR_CODE" '{}' >/dev/null; then
       upgrade582_die "pair migrate failed at $pair — stopping (do not claim success; retry is safe)"
     fi
@@ -263,28 +290,49 @@ fi
 echo ""
 echo "[6] optional RefreshPairAssetCodeIdsBatch (default off — migrate backfills pins)"
 if [[ "${UPGRADE582_REFRESH:-0}" == "1" ]]; then
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    echo "  DRY_RUN refresh skipped"
-    upgrade582_print_batch_refresh_skip
-  else
-    refresh_start=""
-    refresh_has_more="true"
-    while [[ "$refresh_has_more" == "true" ]]; do
-      if [[ -z "$refresh_start" ]]; then
-        refresh_msg='{"refresh_pair_asset_code_ids_batch":{"start_after":null,"limit":30}}'
-      else
-        refresh_msg="$(jq -nc --argjson s "$refresh_start" '{"refresh_pair_asset_code_ids_batch":{"start_after":$s,"limit":30}}')"
-      fi
-      echo "  refresh batch start_after=${refresh_start:-null}"
-      if ! broadcast_and_wait "RefreshPairAssetCodeIdsBatch" wasm execute "$FACTORY" "$refresh_msg" >/dev/null; then
+  refresh_start=""
+  refresh_batch=0
+  while true; do
+    refresh_batch=$((refresh_batch + 1))
+    [[ "$refresh_batch" -le "$UPGRADE582_REFRESH_MAX_BATCHES" ]] \
+      || upgrade582_die "RefreshPairAssetCodeIdsBatch exceeded ${UPGRADE582_REFRESH_MAX_BATCHES} pages (has_more loop)"
+    if [[ -z "$refresh_start" ]]; then
+      refresh_msg='{"refresh_pair_asset_code_ids_batch":{"start_after":null,"limit":30}}'
+    else
+      refresh_msg="$(jq -nc --argjson s "$refresh_start" '{"refresh_pair_asset_code_ids_batch":{"start_after":$s,"limit":30}}')"
+    fi
+    echo "  refresh batch ${refresh_batch} start_after=${refresh_start:-null}"
+    if [[ "${DRY_RUN:-0}" == "1" && -z "${UPGRADE582_FORCE_REFRESH_TX_JSON:-}" ]]; then
+      refresh_tx_json='{"events":[{"type":"wasm","attributes":[{"key":"has_more","value":"false"}]}]}'
+      echo "    DRY_RUN: parsing fixture has_more=false (set UPGRADE582_FORCE_REFRESH_TX_JSON to inject events)"
+    else
+      refresh_tx=""
+      if ! refresh_tx="$(broadcast_and_wait "RefreshPairAssetCodeIdsBatch" wasm execute "$FACTORY" "$refresh_msg")"; then
         echo "ERROR: batch refresh reverted (likely one unlisted live id)." >&2
         upgrade582_print_batch_refresh_skip
         exit 1
       fi
-      refresh_has_more="false"
-      refresh_start=""
-    done
-  fi
+      if [[ -n "${UPGRADE582_FORCE_REFRESH_TX_JSON:-}" ]]; then
+        refresh_tx_json="$UPGRADE582_FORCE_REFRESH_TX_JSON"
+      else
+        refresh_tx_json="$(terrad_host_wait_tx_query "$refresh_tx")"
+      fi
+    fi
+    refresh_cursor="$(upgrade582_refresh_batch_cursor "$refresh_tx_json" || true)"
+    if [[ -z "$refresh_cursor" ]]; then
+      upgrade582_print_batch_refresh_skip
+      upgrade582_die "RefreshPairAssetCodeIdsBatch tx missing parseable wasm has_more (do not assume a single page)"
+    fi
+    refresh_has_more="${refresh_cursor%%$'\t'*}"
+    refresh_next="${refresh_cursor#*$'\t'}"
+    echo "    has_more=${refresh_has_more} next_start_after=${refresh_next:-<none>}"
+    if [[ "$refresh_has_more" != "true" ]]; then
+      break
+    fi
+    [[ -n "$refresh_next" ]] \
+      || upgrade582_die "has_more=true but next_start_after missing — refusing to loop from start_after=null"
+    refresh_start="$refresh_next"
+  done
 else
   echo "  skipped (UPGRADE582_REFRESH=0). Pins come from pair migrate ContractInfo backfill."
 fi
@@ -306,10 +354,10 @@ else
     if [[ ! "$pin0" =~ ^[0-9]+$ || ! "$pin1" =~ ^[0-9]+$ ]]; then
       upgrade582_die "GetAssetCodeIds failed or empty pins for $pair (pre-1.15.0 hard-errors; not 'empty ok'). body=$(printf '%s' "$pins" | tr '\n' ' ')"
     fi
-    wl0="$(upgrade582_is_code_id_whitelisted_json "$pin0" | jq -r '.whitelisted')"
-    wl1="$(upgrade582_is_code_id_whitelisted_json "$pin1" | jq -r '.whitelisted')"
+    wl0="$(upgrade582_whitelist_bool "$pin0" || true)"
+    wl1="$(upgrade582_whitelist_bool "$pin1" || true)"
     [[ "$wl0" == "true" && "$wl1" == "true" ]] \
-      || upgrade582_die "pin not factory-whitelisted for $pair pin0=$pin0/$wl0 pin1=$pin1/$wl1"
+      || upgrade582_die "pin not factory-whitelisted for $pair pin0=$pin0 wl0=${wl0:-empty} pin1=$pin1 wl1=${wl1:-empty} (empty wl is an LCD flake, not a missing pin)"
     asset0="$(printf '%s\n' "$PAIR_JSON_LINES" | jq -r --arg p "$pair" 'select(.contract_addr==$p) | .asset_infos[0].token.contract_addr // empty')"
     sim_ok="fail"
     if [[ -n "$asset0" ]]; then
@@ -327,5 +375,5 @@ fi
 echo ""
 echo "Done. Factory ${UPGRADE582_MIN_FACTORY_VERSION} then pairs ${UPGRADE582_PAIR_VERSION}."
 echo "Record LCD probe, cw2 before/after, GetPairCount, migrate tx hashes, and the smoke table on #584 / #391."
-echo "Launch BLOCK remains until this script has RUN on columbus-5 — merge is not enough."
+echo "Future F6 wasm upgrades still use this script (factory first, UpdateConfig pair_code_id, LCD retries)."
 echo "OK"

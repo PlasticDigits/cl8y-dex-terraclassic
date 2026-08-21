@@ -8,6 +8,10 @@ UPGRADE582_MIN_FACTORY_VERSION="${UPGRADE582_MIN_FACTORY_VERSION:-1.9.0}"
 UPGRADE582_PAIR_VERSION="${UPGRADE582_PAIR_VERSION:-1.15.0}"
 # Probe sample code id when the factory has no listed assets yet (LocalTerra empty).
 UPGRADE582_WHITELIST_PROBE_CODE_ID="${UPGRADE582_WHITELIST_PROBE_CODE_ID:-10184}"
+UPGRADE582_LCD_RETRIES="${UPGRADE582_LCD_RETRIES:-5}"
+UPGRADE582_LCD_RETRY_DELAY_SEC="${UPGRADE582_LCD_RETRY_DELAY_SEC:-2}"
+# Safety cap for RefreshPairAssetCodeIdsBatch has_more loops (30 pairs/page).
+UPGRADE582_REFRESH_MAX_BATCHES="${UPGRADE582_REFRESH_MAX_BATCHES:-64}"
 
 upgrade582_die() {
   echo "ERROR: $*" >&2
@@ -67,7 +71,21 @@ upgrade582_require_contract_info_code_id() {
 upgrade582_query_smart() {
   local contract="$1"
   local msg="$2"
-  lcd_decode_smart_data "$(lcd_smart_query_raw "$(upgrade582_lcd_base)" "$contract" "$msg")"
+  local attempts="${UPGRADE582_LCD_RETRIES:-5}"
+  local delay="${UPGRADE582_LCD_RETRY_DELAY_SEC:-2}"
+  local i raw decoded
+  for i in $(seq 1 "$attempts"); do
+    raw="$(lcd_smart_query_raw "$(upgrade582_lcd_base)" "$contract" "$msg" 2>/dev/null || true)"
+    decoded="$(lcd_decode_smart_data "$raw" 2>/dev/null || true)"
+    if [[ -n "$decoded" && "$decoded" != "null" ]]; then
+      printf '%s' "$decoded"
+      return 0
+    fi
+    echo "  LCD smart-query retry $i/$attempts $contract" >&2
+    sleep "$delay"
+    delay=$((delay + 1))
+  done
+  return 1
 }
 
 # cw2 version from LCD raw `contract_info` key, or UPGRADE582_FORCE_FACTORY_VERSION for tests.
@@ -146,8 +164,79 @@ upgrade582_get_pair_count() {
 upgrade582_is_code_id_whitelisted_json() {
   local code_id="$1"
   local msg
+  if [[ -n "${UPGRADE582_FORCE_WHITELIST_JSON:-}" ]]; then
+    printf '%s' "$UPGRADE582_FORCE_WHITELIST_JSON"
+    return 0
+  fi
+  # DRY_RUN without live LCD still exercises the jq boolean parse (issue notes:
+  # skipping this query when cw2 ≥1.9.0 left the gate untested).
+  if [[ "${DRY_RUN:-0}" == "1" && -z "${UPGRADE582_DRY_QUERY:-}" ]]; then
+    printf '%s' '{"whitelisted":true}'
+    return 0
+  fi
   msg="$(jq -nc --argjson id "$code_id" '{is_code_id_whitelisted:{code_id:$id}}')"
   upgrade582_query_smart "$FACTORY" "$msg"
+}
+
+# Boolean `true`/`false` from IsCodeIdWhitelisted. Retries LCD flakes that
+# drop `.whitelisted` (columbus-5 smoke aborted as pin1=10184/null — the pin
+# was fine; the second whitelist read returned empty). FORCE_WHITELIST_JSON
+# is single-shot so verify can refuse without sleeping.
+upgrade582_whitelist_bool() {
+  local code_id="$1"
+  local attempts="${UPGRADE582_LCD_RETRIES:-5}"
+  local delay="${UPGRADE582_LCD_RETRY_DELAY_SEC:-2}"
+  local i json val
+  if [[ -n "${UPGRADE582_FORCE_WHITELIST_JSON:-}" ]]; then
+    attempts=1
+  fi
+  for i in $(seq 1 "$attempts"); do
+    json="$(upgrade582_is_code_id_whitelisted_json "$code_id" 2>/dev/null || true)"
+    val="$(printf '%s' "$json" | jq -r 'if .whitelisted==true or .whitelisted==false then (.whitelisted|tostring) else empty end' 2>/dev/null || true)"
+    if [[ "$val" == "true" || "$val" == "false" ]]; then
+      printf '%s' "$val"
+      return 0
+    fi
+    echo "  IsCodeIdWhitelisted retry $i/$attempts code_id=$code_id (not a boolean; LCD flake ≠ empty pin)" >&2
+    [[ "$i" -lt "$attempts" ]] && sleep "$delay"
+  done
+  return 1
+}
+
+upgrade582_factory_config_json() {
+  if [[ -n "${UPGRADE582_FORCE_CONFIG_JSON:-}" ]]; then
+    printf '%s' "$UPGRADE582_FORCE_CONFIG_JSON"
+    return 0
+  fi
+  if [[ "${DRY_RUN:-0}" == "1" && -z "${UPGRADE582_DRY_QUERY:-}" ]]; then
+    printf '%s' '{"pair_code_id":0}'
+    return 0
+  fi
+  upgrade582_query_smart "$FACTORY" '{"config":{}}'
+}
+
+upgrade582_factory_pair_code_id() {
+  local json
+  json="$(upgrade582_factory_config_json)"
+  printf '%s' "$json" | jq -r '.pair_code_id // empty'
+}
+
+# Last wasm attribute value from terrad query-tx JSON (SDK 0.53 .events or legacy .logs).
+upgrade582_tx_wasm_attr() {
+  local tx_json="$1"
+  local key="$2"
+  printf '%s' "$tx_json" | jq -r --arg k "$key" \
+    '[(.events // .logs[]?.events // [])[] | select((.type // "") | test("wasm")) | .attributes[]? | select(.key == $k) | .value] | last // empty'
+}
+
+# Prints "<has_more>\t<next_start_after-or-empty>". Fails unless has_more is true/false.
+upgrade582_refresh_batch_cursor() {
+  local tx_json="$1"
+  local has next
+  has="$(upgrade582_tx_wasm_attr "$tx_json" has_more)"
+  next="$(upgrade582_tx_wasm_attr "$tx_json" next_start_after)"
+  [[ "$has" == "true" || "$has" == "false" ]] || return 1
+  printf '%s\t%s\n' "$has" "$next"
 }
 
 # Unique CW20 addrs from pair asset_infos (token.contract_addr only).

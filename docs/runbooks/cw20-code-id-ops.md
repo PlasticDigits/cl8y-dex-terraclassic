@@ -55,7 +55,7 @@ The script queries `CodeInfo` for each ID and fails on checksum mismatch or quer
 - [ ] Every whitelisted code ID listed in factory config was verified with the script or manual `CodeInfo` query.
 - [ ] No fee-on-transfer or experimental tax-token wasm in the whitelist.
 - [ ] Pair creation on staging uses only tokens from verified code IDs.
-- [ ] Factory **1.9.0** + pair **1.15.0** migrated **on chain** via [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) so listing-time pin + write-path re-check (**F6** / [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) / [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)) is live. Merge of the contract MR is **not** enough.
+- [ ] Factory **1.9.0** + pair **1.15.0** migrated **on chain** via [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) so listing-time pin + write-path re-check (**F6** / [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) / [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)) is live, including `config.pair_code_id` on the new pair wasm. Columbus-5 **RAN 2026-08-21** (11602 / 11601). Merge of the contract MR is **not** enough.
 
 ```bash
 terrad query wasm contract-state smart <factory> '{"get_config":{}}' --node <lcd>
@@ -78,6 +78,10 @@ UPGRADE582_LOCAL=1 ./scripts/upgrade-582-code-id-pin.sh
 ```
 
 Pagination: `pairs` at **`limit: 30`** with `start_after` = last page `asset_infos`. After the loop, enumerated count **must equal** `GetPairCount`. If a pair is created between page 1 and page 2, the script **fails closed** — re-run (do not ignore the mismatch). Pre-flight `GET /cosmwasm/wasm/v1/contract/{addr}` must return a numeric `ContractInfo.code_id` for the factory and every listed asset.
+
+After factory 1.9.0 migrate, **`UpdateConfig { pair_code_id }`** to the new pair wasm. Migrating existing pairs does **not** change what `CreatePair` instantiates. Columbus-5 2026-08-21 left `pair_code_id` on 11586 (1.14.0) until a follow-up tx — the script now does this before pair migrate. Retry after RPC RST is safe: pairs already on the target code id are skipped.
+
+`IsCodeIdWhitelisted` / `GetAssetCodeIds` LCD reads are retried. A dropped second whitelist read is an **LCD flake**, not `pin1=null` (publicnode aborted smoke that way on 2026-08-21). Optional `UPGRADE582_REFRESH=1` parses wasm `has_more` / `next_start_after` and loops until `has_more=false` (do not assume one page).
 
 Post-migrate smoke: every pair `GetAssetCodeIds` (hard-error on pre-1.15.0 — not “empty pins ok”) + `IsCodeIdWhitelisted` for both pins + one `HybridSimulation`. **Simulation succeeding is not “pair is tradable”** — execute paths stay gated; queries are ungated by design.
 
