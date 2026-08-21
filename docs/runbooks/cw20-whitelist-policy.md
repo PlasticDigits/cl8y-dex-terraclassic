@@ -69,7 +69,7 @@ CreatePair-only whitelist is **not** enough: instance wasm admin can `MsgMigrate
 
 **Honest token upgrade:** `AddWhitelistedCodeId` (new template) → migrate instances → governance `RefreshPairAssetCodeIds` (or Batch) → optional `RemoveWhitelistedCodeId` (old template). Refresh **refuses** to pin an unlisted live id.
 
-**Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** listing is allowed only after factory **1.9.0** + pair **1.15.0** (this control) are live on the target factory, **or** SpaceUSD wasm admin is cleared, **or** wrap-to-10184. Do not treat (E) as the 8266 decision.
+**Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** F6 is live on columbus-5. Dump crate is in the LCD wasm (strings/types/serde); remaining gate is an optimizer rebuild whose SHA-256 equals LCD `data_hash` `953AD60C…` ([`audits/CW20-8266-581.md`](../../audits/CW20-8266-581.md), [`audits/CW20-8266-581-hash-repro.md`](../../audits/CW20-8266-581-hash-repro.md), [`audits/CW20-8266-581-classic-terraswap.md`](../../audits/CW20-8266-581-classic-terraswap.md)). CertiK file hashes are not required. Whitelisting 8266 admits all instantiations of that template — accepted (LUNC CreatePair fee). Do not treat (E) as the 8266 decision.
 
 **Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`; `make verify-issue-584`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md). Rollout script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)).
 
@@ -86,4 +86,4 @@ Snapshot from [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/is
 | PEARL, QUARTZ | 6036 | DEX 2-of-3 `terra1zlmv2…` |
 | SpaceUSD (not listed) | 8266 | issuer `terra133n0pv8…` |
 
-Re-query LCD `ContractInfo` (code_id + admin) before any 8266 go. This table is not a live probe.
+Re-query LCD `ContractInfo` (code_id + admin) before any 8266 go. This table is not a live probe. F6 is live; do not `AddWhitelistedCodeId 8266` until the hash-repro plan matches LCD wasm.
