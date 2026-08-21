@@ -143,6 +143,8 @@ Stops swaps, liquidity changes, limit placement/cancel/claim, and book clean on 
 > - In incident comms, state that open limit orders are locked (funds are safe but not withdrawable) until unpause — see the [user incident FAQ](../user-incident-faq.md).
 > - There is currently no governed per-user escrow refund. If the team decides a governance-callable emergency force-refund is warranted, open a separate implementation issue and link it here.
 
+**F6 code-id freeze (pause-through-refresh):** if listed-asset `ContractInfo.code_id` drifted off the pin / whitelist, keep `SetPairPaused` **on** through `RefreshPairAssetCodeIds`, privately rebalance, then unpause. Do **not** de-whitelist 10184. Full incident + batch `start_after` skip: [`cw20-code-id-ops.md`](./cw20-code-id-ops.md). Script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md).
+
 ```bash
 terrad tx wasm execute "$FACTORY_ADDR" "$(jq -nc \
   --arg pair "$PAIR_ADDR" \
