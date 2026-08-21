@@ -10,6 +10,7 @@ import {
   UNWRAP_GAS_LIMIT,
   UST1_WINDOW_SEND_GAS_LIMIT,
   WRAP_GAS_LIMIT,
+  WRAP_ROUTER_COMBO_OVERHEAD_GAS,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
 import { HYBRID_SWAP_GAS_LIMIT, gasLimitForHybridParams, hybridSwapParamsFromRecord } from './hybridSwapGas'
@@ -29,6 +30,22 @@ export type BaseGasLimitAllowlistKey = (typeof BASE_GAS_LIMIT_ALLOWLIST)[number]
 
 export function isBaseGasLimitAllowlisted(key: string | undefined): boolean {
   return key != null && (BASE_GAS_LIMIT_ALLOWLIST as readonly string[]).includes(key)
+}
+
+/**
+ * Thrown when a CW20 `send.msg` hook cannot be decoded for gas estimation
+ * ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
+ * Callers must not fall through to {@link SWAP_GAS_LIMIT} (600k) — wrap+2hop
+ * would then grant 400k+600k = 1.0M and OOG deterministically.
+ */
+export class SendHookGasDecodeError extends Error {
+  constructor(cause?: unknown) {
+    super('Cannot decode CW20 send hook for gas estimation; refusing undersized fallback')
+    this.name = 'SendHookGasDecodeError'
+    if (cause !== undefined) {
+      this.cause = cause
+    }
+  }
 }
 
 /** CosmWasm execute payloads use a single top-level variant key. */
@@ -245,8 +262,9 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         if ('execute_swap_operations' in inner) {
           return gasLimitForSwapOperationsMsg(inner)
         }
-      } catch {
-        // fall through to send default
+      } catch (err) {
+        if (err instanceof SendHookGasDecodeError) throw err
+        throw new SendHookGasDecodeError(err)
       }
     }
     return SWAP_GAS_LIMIT
@@ -259,6 +277,40 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   return BASE_GAS_LIMIT
 }
 
+function decodeSendHookInner(msg: Record<string, unknown>): Record<string, unknown> | null {
+  if (!('send' in msg)) return null
+  const sendMsg = msg.send as { msg?: string } | undefined
+  if (!sendMsg?.msg) return null
+  try {
+    return JSON.parse(atob(sendMsg.msg)) as Record<string, unknown>
+  } catch (err) {
+    throw new SendHookGasDecodeError(err)
+  }
+}
+
+function routerHopCountFromExecuteMsg(msg: Record<string, unknown>): number {
+  if ('execute_swap_operations' in msg) {
+    return countSwapHops(msg)
+  }
+  const inner = decodeSendHookInner(msg)
+  if (inner && 'execute_swap_operations' in inner) {
+    return countSwapHops(inner)
+  }
+  return 0
+}
+
+/**
+ * Multi-msg wrap + router send (N≥2 hops) adds {@link WRAP_ROUTER_COMBO_OVERHEAD_GAS}
+ * so the combined envelope exceeds gem-calibrated wrap+2hop 2.31M ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
+ */
+export function wrapRouterComboOverheadGas(messages: Array<{ msg: Record<string, unknown> }>): number {
+  const hasWrap = messages.some((m) => 'wrap_deposit' in m.msg)
+  if (!hasWrap) return 0
+  const hops = messages.reduce((max, m) => Math.max(max, routerHopCountFromExecuteMsg(m.msg)), 0)
+  return hops >= 2 ? WRAP_ROUTER_COMBO_OVERHEAD_GAS : 0
+}
+
 export function totalGasLimitForExecuteMsgs(messages: Array<{ msg: Record<string, unknown> }>): number {
-  return messages.reduce((sum, m) => sum + getGasLimitForTx(m.msg), 0)
+  const perMsg = messages.reduce((sum, m) => sum + getGasLimitForTx(m.msg), 0)
+  return perMsg + wrapRouterComboOverheadGas(messages)
 }

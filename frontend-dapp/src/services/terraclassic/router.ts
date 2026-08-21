@@ -375,9 +375,16 @@ export async function executeNativeSwap(
     cw20SendAmount = (await netCw20AfterNativeWrap(BigInt(amount), fromToken)).toString()
   }
 
+  // Pool-only hops from client BFS `findRoute` — never copy hybrid / book_input (#587).
   const swapHookMsg = {
     execute_swap_operations: {
-      operations: routeInfo.operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
+      operations: routeInfo.operations.map((op) => ({
+        terra_swap: serializeTerraSwap({
+          offer_asset_info: op.terra_swap.offer_asset_info,
+          ask_asset_info: op.terra_swap.ask_asset_info,
+          min_return: op.terra_swap.min_return,
+        }),
+      })),
       max_spread: maxSpread,
       minimum_receive: minimumReceive,
       to: undefined,

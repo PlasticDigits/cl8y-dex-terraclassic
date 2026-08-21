@@ -18,6 +18,8 @@ flowchart LR
     end
 ```
 
+Gas for the combined wrap + router multi-msg tx is **not** wrap-alone + hop-alone. Wrap+≥2hop adds `WRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k) so LUNC→USTR does not OOG ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)). See [`docs/frontend.md` § Terra Classic gas limits](./docs/frontend.md#terra-classic-gas-limits) and [`skills/AGENTS_TERRACLASSIC_GAS.md`](./skills/AGENTS_TERRACLASSIC_GAS.md).
+
 The router does NOT accept native token input directly. Instead, the frontend builds multi-message transactions:
 - **Input wrapping**: Msg 1 = `treasury.WrapDeposit()` (native funds go directly to treasury = 1 tax event), Msg 2 = CW20 send to router.
 - **Output unwrapping**: Router sends CW20 to wrap-mapper with `Unwrap { recipient }` (wrap-mapper calls `treasury.InstantWithdraw`, treasury sends native to user = 1 tax event).

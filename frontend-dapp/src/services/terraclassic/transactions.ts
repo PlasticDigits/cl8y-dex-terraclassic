@@ -102,12 +102,13 @@ export type NativeSwapFeeHints = {
 }
 
 /**
- * Minimum native fee (uluna) for native-input swap paths in `executeNativeSwap` ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
- * Single-tx wrap uses one envelope; wrap + router send uses summed gas like `executeTerraContractMulti`.
+ * Execute msgs matching `executeNativeSwap` so Max / Network fee / broadcast share one envelope
+ * ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213),
+ * [#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
  */
-export function estimateNativeSwapUlunaFeesTotal(hints: NativeSwapFeeHints): bigint {
+export function nativeSwapFeeExecuteMsgs(hints: NativeSwapFeeHints): Array<{ msg: Record<string, unknown> }> {
   if (hints.isDirectWrap) {
-    return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ wrap_deposit: {} }))
+    return [{ msg: { wrap_deposit: {} } }]
   }
 
   const hopCount = Math.max(1, hints.hopCount ?? 1)
@@ -127,11 +128,20 @@ export function estimateNativeSwapUlunaFeesTotal(hints: NativeSwapFeeHints): big
   }
 
   if (hints.needsWrapInput) {
-    const msgs = [{ msg: { wrap_deposit: {} } }, { msg: sendMsg }]
-    return estimateFeeUlunaAmountForGasLimit(totalGasLimitForExecuteMsgs(msgs))
+    return [{ msg: { wrap_deposit: {} } }, { msg: sendMsg }]
   }
 
-  return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx(sendMsg))
+  return [{ msg: sendMsg }]
+}
+
+/**
+ * Minimum native fee (uluna) for native-input swap paths in `executeNativeSwap` ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
+ * Single-tx wrap uses one envelope; wrap + router send uses summed gas like `executeTerraContractMulti`
+ * (includes wrap+≥2hop combo overhead, [#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
+ */
+export function estimateNativeSwapUlunaFeesTotal(hints: NativeSwapFeeHints): bigint {
+  const msgs = nativeSwapFeeExecuteMsgs(hints)
+  return estimateFeeUlunaAmountForGasLimit(totalGasLimitForExecuteMsgs(msgs))
 }
 
 function encodedSend(inner: Record<string, unknown>): Record<string, unknown> {

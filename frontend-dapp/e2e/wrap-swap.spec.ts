@@ -18,6 +18,7 @@ import {
   expectAtLeastTwoPayTokenOptions,
   expectPayTokenListPopulated,
   payTokenTrigger,
+  selectTokenInCombobox,
   waitForPayTokenTriggerEnabled,
 } from './helpers/token-select'
 
@@ -88,6 +89,25 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await expectAtLeastTwoPayTokenOptions(page)
   })
 
+  /**
+   * Hub LUNC↔USTR is wrap + 2 router hops. LocalTerra may lack USTR — JADE/RUBY
+   * are documented ≥2-hop stand-ins (cLUNC→EMBER→JADE). GitLab #587.
+   */
+  async function requireHubOrTwoHopReceive(page: import('@playwright/test').Page): Promise<string> {
+    for (const sym of ['USTR', 'JADE', 'RUBY']) {
+      const ok = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, sym)
+      if (ok) return sym
+    }
+    await requireTokenInCombobox(
+      page,
+      ARIA_SELECT_TOKEN_RECEIVE,
+      'JADE',
+      undefined,
+      'No USTR/JADE/RUBY receive token for wrap+≥2hop E2E (#587)'
+    )
+    return 'JADE'
+  }
+
   test('E1: swap native input — LUNC to CW20', async ({ page }) => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'EMBER')
@@ -107,6 +127,78 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await clickSwapSubmit(page)
 
     await assertTxResultAlert(page)
+  })
+
+  test('E7: wrap+≥2hop LUNC → USTR (or JADE/RUBY stand-in) one submit (#587)', async ({ page }) => {
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
+    const dest = await requireHubOrTwoHopReceive(page)
+
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
+
+    const receiveField = swapYouReceiveAmountDisplay(page)
+    await expect(async () => {
+      const text = await receiveField.textContent()
+      expect(text).not.toBe('0.00')
+      expect(text).not.toContain('Calculating')
+    }).toPass({ timeout: 20000 })
+
+    const feeHint = page.getByTestId('swap-network-fee')
+    await expect(feeHint).toBeVisible()
+    await expect(feeHint).toContainText('LUNC')
+    await expect(feeHint).not.toContainText('USTC')
+
+    const route = page.getByTestId('swap-route-summary')
+    if ((await route.count()) > 0) {
+      const routeText = await route.innerText()
+      expect(routeText.toLowerCase()).toContain(dest.toLowerCase())
+      if (dest === 'USTR') {
+        expect(routeText).not.toMatch(/EMBER|RUBY|JADE/i)
+      }
+    }
+
+    await openSwapSettingsAndSetSlippage(page, 15)
+    await clickSwapSubmit(page)
+    await assertTxResultAlert(page)
+    await expect(page.getByText(/needed more gas than estimated/i)).toHaveCount(0)
+  })
+
+  test('E8: ≥2hop CW20 → LUNC unwrap one submit (#587)', async ({ page }) => {
+    let paySym = ''
+    for (const sym of ['USTR', 'JADE', 'RUBY']) {
+      const ok = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, sym)
+      if (ok) {
+        paySym = sym
+        break
+      }
+    }
+    if (!paySym) {
+      await requireTokenInCombobox(
+        page,
+        ARIA_SELECT_TOKEN_PAY,
+        'JADE',
+        undefined,
+        'No USTR/JADE/RUBY pay token for unwrap+≥2hop E2E (#587)'
+      )
+    }
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'LUNC', 'cLUNC')
+
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
+
+    const receiveField = swapYouReceiveAmountDisplay(page)
+    await expect(async () => {
+      const text = await receiveField.textContent()
+      expect(text).not.toBe('0.00')
+      expect(text).not.toContain('Calculating')
+    }).toPass({ timeout: 20000 })
+
+    await expect(page.getByTestId('swap-network-fee')).toContainText('LUNC')
+
+    await openSwapSettingsAndSetSlippage(page, 15)
+    await clickSwapSubmit(page)
+    await assertTxResultAlert(page)
+    await expect(page.getByText(/needed more gas than estimated/i)).toHaveCount(0)
   })
 
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {
