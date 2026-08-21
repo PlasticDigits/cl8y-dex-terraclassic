@@ -1,6 +1,6 @@
 pub use dex_common::factory::{
-    CodeIdsResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, PairCountResponse, PairResponse,
-    PairsResponse, QueryMsg,
+    CodeIdWhitelistedResponse, CodeIdsResponse, ConfigResponse, ExecuteMsg, InstantiateMsg,
+    PairCountResponse, PairResponse, PairsResponse, QueryMsg,
 };
 
 use cosmwasm_schema::cw_serde;

@@ -18,7 +18,7 @@ Use when creating/seeding **UST1/vFDUSD** or **UST1/cUSTC** on the live CL8Y fac
 
 1. **Window first (U1)** — mint/redeem is `/ust1` → ust1-window, never router/AMM. Secondary-market CTA language: “secondary market” / “Trade or Swap”, not “mint”.
 2. **Do not edit soft-launch gemstone catalogs (U6)** — never add UST1 to `mainnet-soft-launch-defaults.sh` `MAINNET_SOFT_LAUNCH_PAIRS`.
-3. **Whitelist (U2)** — UST1/vFDUSD/cUSTC are code **10184** on columbus-5; still verify before create. New code IDs need governance + [`cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md).
+3. **Whitelist (U2)** — UST1/vFDUSD/cUSTC are code **10184** on columbus-5; still verify before create. New code IDs need governance + [`cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md). Post-listing pin: [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) (**F6** / [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582)).
 4. **No native legs (U3)** — use cUSTC, not `uusd`.
 5. **#518 upgrade must be live** — `create_pair` for UST1 keeps digits in the LP ticker (`UST1-CUST-LP`) and reverts on classic LP CW20 until factory `lp_token_code_id` is digit-allowing `cw20-mintable`. Run [`scripts/upgrade-518-lp-symbol.sh`](../scripts/upgrade-518-lp-symbol.sh). See [`AGENTS_LP_SYMBOL_DIGITS.md`](./AGENTS_LP_SYMBOL_DIGITS.md).
 6. **Seed size honesty (U4)** — default smoke seed is **1.0** raw-unit human (1e6) per side on mainnet script; document any larger size. Empty pools are worse than a waiver. `UST1_SEC_SKIP_LP=1` requires `UST1_SEC_ALLOW_UNSEEDED=1`. Preflight asserts on-chain CW20 **symbols** match expected legs.

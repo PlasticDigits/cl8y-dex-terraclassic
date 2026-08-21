@@ -32,10 +32,10 @@ Parent ops for **already listed** economic pairs: [#535](https://gitlab.com/Plas
 
 | Contract | cw2 |
 |----------|-----|
-| Factory | **1.8.0** |
-| Pair | **1.14.0** |
+| Factory | **1.9.0** (1.8.0 introduced `discount_registry`; 1.9.0 adds #582 `IsCodeIdWhitelisted`) |
+| Pair | **1.15.0** (1.14.0 instantiate copy; 1.15.0 pins asset `code_id`s) |
 
-Migrate factory then pair. After migrate, run All (≤10 pairs) or Batch until `has_more=false` **once** so the factory pointer is set; new `CreatePair`s inherit. Pre-migrate listings stay unwired until All/Batch or per-pair `SetDiscountRegistry`.
+Migrate factory then pair. Pin playbook: [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md). After migrate, run All (≤10 pairs) or Batch until `has_more=false` **once** so the factory pointer is set; new `CreatePair`s inherit. Pre-migrate listings stay unwired until All/Batch or per-pair `SetDiscountRegistry`.
 
 ## Operator sequence (new listing)
 
@@ -78,4 +78,5 @@ Columbus-5 factory pointer (**F538-1**) is ops, already set on wasm **11585** �
 - [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) — I14 chrome + **F538-3** smart-query-first
 - [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) — All cap / Batch pagination
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md)
+- [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) — factory **1.9.0** / pair **1.15.0** pin + whitelist re-check (**F6**, [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582))
 - [`AGENTS_WASM_MIGRATION_ROLLBACK.md`](./AGENTS_WASM_MIGRATION_ROLLBACK.md)

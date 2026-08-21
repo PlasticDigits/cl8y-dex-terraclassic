@@ -369,6 +369,10 @@ pub enum ExecuteMsg {
         min_remaining_token0: Uint128,
         min_remaining_token1: Uint128,
     },
+    /// Re-pin both asset CW20 `code_id`s from live `ContractInfo` (factory only).
+    /// Each live id must still be factory-whitelisted (GitLab #582). Honest
+    /// token wasm upgrades freeze the pair until this runs.
+    RefreshAssetCodeIds {},
 }
 
 /// TerraSwap-compatible hook messages sent inside CW20 Send.
@@ -418,6 +422,9 @@ pub enum QueryMsg {
     /// Stored fee-discount registry (`None` if unwired). GitLab #536.
     #[returns(DiscountRegistryResponse)]
     GetDiscountRegistry {},
+    /// Listing-time (or last refreshed) asset CW20 `code_id` pins (GitLab #582).
+    #[returns(AssetCodeIdsResponse)]
+    GetAssetCodeIds {},
 
     // ---- TWAP oracle queries ----
     /// Return cumulative price sums at the requested `seconds_ago` offsets.
@@ -566,6 +573,12 @@ pub struct HooksResponse {
 #[cw_serde]
 pub struct DiscountRegistryResponse {
     pub registry: Option<Addr>,
+}
+
+/// Pair `GetAssetCodeIds` response (GitLab #582). Order matches `asset_infos`.
+#[cw_serde]
+pub struct AssetCodeIdsResponse {
+    pub code_ids: [u64; 2],
 }
 
 #[cw_serde]

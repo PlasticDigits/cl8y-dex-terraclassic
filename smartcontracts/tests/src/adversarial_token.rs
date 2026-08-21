@@ -299,6 +299,40 @@ pub fn adversarial_cw20_contract() -> Box<dyn cw_multi_test::Contract<Empty>> {
     Box::new(c)
 }
 
+/// Same as [`adversarial_cw20_contract`] but with a no-op `migrate` so tests can
+/// `MsgMigrateContract` onto another code id of the same layout (GitLab #582).
+pub fn adversarial_migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> StdResult<Response> {
+    Ok(Response::new())
+}
+
+pub fn adversarial_migrate_to_fot(deps: DepsMut, _env: Env, _msg: Empty) -> StdResult<Response> {
+    MODE.save(
+        deps.storage,
+        &AdversarialMode::FeeOnTransfer { fee_bps: 100 },
+    )?;
+    Ok(Response::new())
+}
+
+pub fn adversarial_cw20_contract_with_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
+    let c = cw_multi_test::ContractWrapper::new(
+        adversarial_execute,
+        adversarial_instantiate,
+        adversarial_query,
+    )
+    .with_migrate(adversarial_migrate);
+    Box::new(c)
+}
+
+pub fn adversarial_cw20_contract_with_fot_migrate() -> Box<dyn cw_multi_test::Contract<Empty>> {
+    let c = cw_multi_test::ContractWrapper::new(
+        adversarial_execute,
+        adversarial_instantiate,
+        adversarial_query,
+    )
+    .with_migrate(adversarial_migrate_to_fot);
+    Box::new(c)
+}
+
 // ---------------------------------------------------------------------------
 // Hook spoofer (calls lp-burn-hook with arbitrary `pair` payload)
 // ---------------------------------------------------------------------------

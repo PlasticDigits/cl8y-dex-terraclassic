@@ -55,8 +55,8 @@ run_docs() {
   rg -q "536" skills/AGENTS_FEE_DISCOUNT_TIERS.md
   rg -q "536" skills/AGENTS_UST1_SECONDARY_AMM.md
   test -f skills/AGENTS_FACTORY_DISCOUNT_REGISTRY.md
-  rg -q 'const CONTRACT_VERSION: &str = "1.8.0"' smartcontracts/contracts/factory/src/contract.rs
-  rg -q 'const CONTRACT_VERSION: &str = "1.14.0"' smartcontracts/contracts/pair/src/contract.rs
+  rg -q 'const CONTRACT_VERSION: &str = "1.9.0"' smartcontracts/contracts/factory/src/contract.rs
+  rg -q 'const CONTRACT_VERSION: &str = "1.15.0"' smartcontracts/contracts/pair/src/contract.rs
   rg -q "getPairDiscountRegistry" frontend-dapp/src/services/terraclassic/settings.ts
   rg -q "set_discount_registry_all" scripts/deploy-dex-local.sh
 }
