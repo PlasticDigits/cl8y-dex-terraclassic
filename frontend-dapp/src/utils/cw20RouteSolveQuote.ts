@@ -14,7 +14,7 @@ import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 
 /**
  * Wallet-authoritative CW20 quote from indexer `GET /route/solve` (global best-execution hybrid).
- * Shared by Swap default and Trade market default (GitLab #501).
+ * Shared by Swap and Trade market (GitLab #501 / always-on #596).
  *
  * Invariants:
  * - Receive amount comes from wallet `simulate_swap_operations` (or single-hop equivalent), not indexer `estimated_amount_out`.

@@ -197,7 +197,6 @@ export default function SwapPage() {
   const [indexerRouteResult, setIndexerRouteResult] = useState<IndexerRouteSolveResponse | null>(null)
   const [indexerRouteError, setIndexerRouteError] = useState<string | null>(null)
   const [indexerRouteLoading, setIndexerRouteLoading] = useState(false)
-  const [useHybridBook, setUseHybridBook] = useState(true)
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
   const debouncedBookInputHuman = useDebouncedValue(bookInputHuman, SIM_QUOTE_DEBOUNCE_MS)
@@ -249,11 +248,11 @@ export default function SwapPage() {
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
   const showHybridBookSubmitWarning = useMemo(() => {
-    if (!isDirect || !useHybridBook || !fromToken.startsWith('terra1')) return false
+    if (!isDirect || !fromToken.startsWith('terra1')) return false
     const t = bookInputHuman.trim()
     if (!t) return false
     return isPositiveDecimalAmount(t)
-  }, [isDirect, useHybridBook, fromToken, bookInputHuman])
+  }, [isDirect, fromToken, bookInputHuman])
 
   /** CW20-only paths may be solvable via indexer hybrid graph even when the local pair list BFS misses (e.g. hop cap). */
   const indexerCw20Eligible =
@@ -513,7 +512,6 @@ export default function SwapPage() {
         JSON.stringify(route),
         wrapUnwrapType,
         JSON.stringify(nativeRouteInfo),
-        useHybridBook,
         debouncedBookInputHuman,
         debouncedHybridMaxMakers,
         slippageTolerance,
@@ -529,7 +527,6 @@ export default function SwapPage() {
       route,
       wrapUnwrapType,
       nativeRouteInfo,
-      useHybridBook,
       debouncedBookInputHuman,
       debouncedHybridMaxMakers,
       slippageTolerance,
@@ -595,10 +592,9 @@ export default function SwapPage() {
       }
 
       // Advanced: manual limit-book split on a direct pair (overrides indexer hybrid for this quote).
-      if (isDirect && directPair && useHybridBook && fromToken.startsWith('terra1')) {
+      if (isDirect && directPair && fromToken.startsWith('terra1')) {
         const hybridSplit = getDirectHybridBookSplit({
           isDirect: true,
-          useHybridBook,
           fromToken,
           bookInputHuman: debouncedBookInputHuman,
           rawInputAmount: simRaw,
@@ -631,7 +627,7 @@ export default function SwapPage() {
         }
       }
 
-      // Default CW20↔CW20: indexer GET hybrid optimization + wallet sim (shared with Trade #501).
+      // Default CW20↔CW20: indexer GET hybrid (always-on best execution, #501 / #596) + wallet sim.
       if (fromToken.startsWith('terra1') && toToken.startsWith('terra1') && simRaw !== '0') {
         try {
           const quoted = await quoteCw20ViaRouteSolve({
@@ -668,7 +664,6 @@ export default function SwapPage() {
       if (isDirect && directPair) {
         const hybridSplit = getDirectHybridBookSplit({
           isDirect: true,
-          useHybridBook,
           fromToken,
           bookInputHuman: debouncedBookInputHuman,
           rawInputAmount: simRaw,
@@ -781,7 +776,6 @@ export default function SwapPage() {
   const submitDirectHybrid = useMemo(() => {
     const split = getDirectHybridBookSplit({
       isDirect,
-      useHybridBook,
       fromToken,
       bookInputHuman: debouncedBookInputHuman,
       rawInputAmount: debouncedRawInputAmount,
@@ -794,7 +788,7 @@ export default function SwapPage() {
       max_maker_fills: debouncedHybridMaxMakers,
       book_start_hint: null,
     } satisfies HybridSwapParams
-  }, [isDirect, useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers])
+  }, [isDirect, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers])
 
   const {
     submitPayRaw,
@@ -807,13 +801,11 @@ export default function SwapPage() {
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
-    hybrid: useHybridBook
-      ? {
-          enabled: true,
-          live: hybridStaleLive,
-          snapshotted: hybridSubmitSnapshot,
-        }
-      : undefined,
+    hybrid: {
+      enabled: true,
+      live: hybridStaleLive,
+      snapshotted: hybridSubmitSnapshot,
+    },
   })
 
   const swapBlacklistProbe = useMemo(() => {
@@ -1007,13 +999,12 @@ export default function SwapPage() {
     () =>
       getDirectHybridBookSplit({
         isDirect,
-        useHybridBook,
         fromToken,
         bookInputHuman: debouncedBookInputHuman,
         rawInputAmount: debouncedRawInputAmount,
         hybridMaxMakers: debouncedHybridMaxMakers,
       }),
-    [isDirect, useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
+    [isDirect, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
   )
 
   const indexerHybridExec = useMemo(
@@ -1081,7 +1072,7 @@ export default function SwapPage() {
       needsUnwrapOutput: nativeNeedsUnwrapOutput,
       hopCount: nativeRouteInfo?.operations?.length ?? (isWrapOrUnwrap ? 1 : nativeSwapHopCount || cw20HopCount),
       cw20DirectPair: !!isDirect && !nativeRouteInfo && !isWrapOrUnwrap,
-      cw20Hybrid: !!isDirect && useHybridBook && isPositiveDecimalAmount(bookInputHuman.trim()),
+      cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
     })
   }, [
     wrapUnwrapType,
@@ -1091,7 +1082,6 @@ export default function SwapPage() {
     nativeSwapHopCount,
     isWrapOrUnwrap,
     isDirect,
-    useHybridBook,
     bookInputHuman,
     simData?.indexerOperations?.length,
     route?.length,
@@ -1421,8 +1411,6 @@ export default function SwapPage() {
                 directPair={directPair}
                 fromToken={fromToken}
                 toToken={toToken}
-                useHybridBook={useHybridBook}
-                onUseHybridBookChange={setUseHybridBook}
                 bookInputHuman={bookInputHuman}
                 onBookInputHumanChange={setBookInputHuman}
                 hybridMaxMakers={hybridMaxMakers}

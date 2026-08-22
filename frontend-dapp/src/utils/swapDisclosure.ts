@@ -2,7 +2,7 @@ import { tokenAssetInfo, type IndexerRouteQuoteKind } from '@/types'
 import { isDecimalAmountDraft, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { fromRawAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
 
-/** Same pool/book split as `SwapPage` / `swap` mutation for direct CW20 + Settings “limit book leg”. */
+/** Same pool/book split as `SwapPage` / `swap` mutation for a direct CW20 **manual** book-leg override. */
 export type DirectHybridBookSplit = {
   totalRaw: string
   poolRaw: string
@@ -16,18 +16,19 @@ export type DirectHybridBookSplit = {
 }
 
 /**
- * Pure helper: pool vs book input split for direct CW20 swaps when the limit-book leg is enabled in Settings.
- * Returns `null` when the hybrid book UI does not apply (non-direct, feature off, or non-CW20 pay token).
+ * Pure helper: pool vs book input split for direct CW20 swaps when the user types a manual book-leg override.
+ * Returns `null` when the override UI does not apply (non-direct or non-CW20 pay token).
+ * Empty book → `willSubmitHybrid: false` (GET `/route/solve` still considers the book — GitLab #501 / #596).
+ * There is no retail `useHybridBook` opt-out; pool-only is integrator `pool_only=true` or a custom frontend.
  */
 export function getDirectHybridBookSplit(input: {
   isDirect: boolean
-  useHybridBook: boolean
   fromToken: string
   bookInputHuman: string
   rawInputAmount: string
   hybridMaxMakers: number
 }): DirectHybridBookSplit | null {
-  if (!input.isDirect || !input.useHybridBook || !input.fromToken.startsWith('terra1')) {
+  if (!input.isDirect || !input.fromToken.startsWith('terra1')) {
     return null
   }
   const pay = tokenAssetInfo(input.fromToken)
@@ -123,7 +124,7 @@ export function getDirectHybridSettingsExecutionSummary(
       line: 'Set max distinct makers to at least 1.',
     }
   }
-  // Hybrid on, empty manual book → pool-only path; no Execution notice (#492).
+  // Empty manual book → GET solver path; no Execution notice (#492 / #596).
   return { show: false }
 }
 

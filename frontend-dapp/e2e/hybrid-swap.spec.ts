@@ -63,8 +63,7 @@ async function enableExpertModeForSwap(page: import('@playwright/test').Page) {
 async function enableHybridBookLeg(page: import('@playwright/test').Page): Promise<void> {
   await openSwapAdvancedSettings(page)
   await requireHybridControlsVisible(page)
-  await page.getByRole('checkbox', { name: /Route part of input through the limit book/i }).check()
-  await page.locator('.card-glass').filter({ hasText: 'Book leg amount' }).getByPlaceholder('0.0').fill('0.01')
+  await page.locator('.card-glass').filter({ hasText: 'Book leg' }).getByPlaceholder('0.0').fill('0.01')
   await closeSwapSettingsIfOpen(page)
 }
 

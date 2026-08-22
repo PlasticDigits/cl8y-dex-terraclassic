@@ -356,7 +356,10 @@ describe('SwapPage', () => {
       await user.click(screen.getByRole('button', { name: 'Settings' }))
       await expandSwapAdvancedSettings(user)
 
-      expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeInTheDocument()
+      expect(
+        screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
+      ).not.toBeInTheDocument()
+      expect(screen.getByTestId('swap-hybrid-book-settings')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /Compare indexer route/i })).toBeInTheDocument()
     })
 
@@ -469,7 +472,9 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
     await openSwapSettingsWithAdvanced(user)
-    expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeChecked()
+    expect(
+      screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
+    ).not.toBeInTheDocument()
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
     await user.type(screen.getByPlaceholderText('0.00'), '1')
 
@@ -516,7 +521,9 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
     await openSwapSettingsWithAdvanced(user)
-    expect(screen.getByRole('checkbox', { name: /Route part of input through the limit book/i })).toBeChecked()
+    expect(
+      screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
+    ).not.toBeInTheDocument()
     // Leave book leg amount empty (Swap empty = book_input 0).
     await user.type(screen.getByPlaceholderText('0.00'), '1')
     await waitFor(() => expect(simulateSwap).toHaveBeenCalled())

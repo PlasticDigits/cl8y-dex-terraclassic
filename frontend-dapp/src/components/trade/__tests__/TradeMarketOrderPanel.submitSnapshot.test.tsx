@@ -125,7 +125,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
     vi.useRealTimers()
   })
 
-  it('defaults to GET /route/solve (not POST) when hybrid on and book leg empty (#501)', async () => {
+  it('defaults to GET /route/solve (not POST) when book leg empty (#501 / #596)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
 
     renderWithProviders(
@@ -146,7 +146,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
     expect(await screen.findByTestId('trade-market-quote')).toHaveTextContent(/limit book \+ pool/i)
   })
 
-  it('hybrid off skips GET/POST route/solve and uses pool-only simulateSwap (#501)', async () => {
+  it('has no hybrid opt-out toggle; Advanced still quotes via GET (#596)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
 
     renderWithProviders(
@@ -160,16 +160,14 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
     )
 
     await openAdvanced(user)
-    await user.click(screen.getByTestId('trade-market-hybrid-toggle'))
+    expect(screen.queryByTestId('trade-market-hybrid-toggle')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /best execution/i })).not.toBeInTheDocument()
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
 
-    await waitFor(() => expect(pair.simulateSwap).toHaveBeenCalled())
-    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
-    const quoteCard = await screen.findByTestId('trade-market-quote')
-    expect(quoteCard).toHaveTextContent(/pool/i)
-    expect(quoteCard).not.toHaveTextContent(/limit book \+ pool/i)
+    expect(await screen.findByTestId('trade-market-quote')).toHaveTextContent(/limit book \+ pool/i)
   })
 
   it('submits GET solver hybrid with max_maker_fills submit cap (#501 / #249)', async () => {
@@ -322,7 +320,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
     expect(quoteCard).not.toHaveTextContent(/Pattern C|hybrid_simulation|GitLab #/i)
   })
 
-  it('surfaces hybrid min return copy in Advanced when hybrid is on (#419 / #501)', async () => {
+  it('surfaces hybrid min return copy in Advanced (#419 / #501 / #596)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
 
     renderWithProviders(
