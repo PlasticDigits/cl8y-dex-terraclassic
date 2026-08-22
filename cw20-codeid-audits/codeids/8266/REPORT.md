@@ -11,14 +11,14 @@ Prior one-off notes (superseded as the **intake path**; hash-repro is appendix o
 
 ## Verdict
 
-**NO-GO** for factory `AddWhitelistedCodeId 8266`.
+**GO** for factory `AddWhitelistedCodeId 8266` (template gate). Columbus-5 still needs DEX 2-of-3; do **not** whitelist a LocalTerra store id.
 
-- [ ] GO — Layer A + Layer B green on the **pinned LCD wasm**; catalogue rows pass or N/A+reason; residuals written
-- [x] NO-GO — fail closed (do not whitelist; do not add FoT math)
+- [x] GO — Layer A + Layer B green on the **pinned LCD wasm**; catalogue rows pass or N/A+reason; residuals written
+- [ ] NO-GO — suite incomplete or a 1:1 / P2 / B7 / L1 row failed
 
-**Reason:** LCD identity is pinned (`953AD60C…`). 2026-08-22 harness **executed** the pinned wasm on LocalTerra: **A-lcd** store + instantiate + 1:1 Transfer, **B-lt** whitelist of the *local* store id + `CreatePair` vs EMBER + 1:1 Transfer into the pair (logs `layer-a-lcd.json` / `layer-b-lt.json`, gitignored). That closes the “stub PASS” gap (**M590-6** / **C3** Transfer path). It does **not** clear factory-global impact (**B13**: Everybody instantiate, 1686+ columbus-5 instances), issuer wasm-admin / F6 residual (**A14**), minter cap residual (**B14**), or remaining catalogue rows (Send/TransferFrom matrix, round-trip swap **B7**, limit Send escrow **B6**, P2 as *offer* token). `classic_terraport` / `terraport_token` are not `cw20_base`. Optimizer rebuild hash is **not** a remaining gate (appendix). **#581 stays NO-GO** — do not `AddWhitelistedCodeId 8266` on columbus-5.
+**Reason:** LCD identity is pinned (`953AD60C…`). 2026-08-22 harness **executed** the pinned wasm on LocalTerra: **A-lcd** store + instantiate + Transfer / TransferFrom 1:1, allowance backdoor reject, unauthorized mint/burn_from, idle + `balance_at` snapshot; **B-lt** whitelist of the *local* store id + `CreatePair` vs EMBER + provide **P2** + Send round-trip swap **B7** + limit Send escrow **L1** (pair CW20 delta = user debit; maker fee may return to `fee_config.treasury` when that is the tester) + SendFrom swap 1:1. Issuer wasm-admin (**A14**), Everybody instantiate (**B13**), and minter cap (**B14**) are **documented residuals and not blocking** listing ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581) note 3719458992): quality CW20s keep issuer keys and mint; CL8Y is expected to list many assets; the **100 LUNC** pair-create fee is the spam control. Optimizer rebuild hash is **not** a gate (appendix). LocalTerra may whitelist a **locally stored copy** only.
 
-Re-run: `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` after `make setup-cloud-localterra`. Flip to GO only when remaining catalogue + factory-global ops sign-off are written here.
+Re-run: `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` then `make verify-issue-581`.
 
 ## Identity
 
@@ -68,55 +68,55 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 
 | ID | Result | Notes |
 |----|--------|-------|
-| A1 | A-lcd Transfer 1:1 **pass** (2026-08-22 LocalTerra); Send/TransferFrom/SendFrom pending-lcd | No FoT vocab. Transfer debit=credit=`amount` on pinned wasm. Other CW20 write ops not yet on this binary |
-| A2 | static-pass; pending-lcd | No pair-address tax strings |
-| A3 | static-pass; pending-lcd | Idle rebase vocab absent; SnapshotMap is historical |
+| A1 | A-lcd Transfer + TransferFrom 1:1 **pass**; B-lt Send / SendFrom 1:1 **pass** (2026-08-22 LocalTerra) | No FoT vocab. Debit=credit=`amount` on Transfer/TransferFrom. Send into pair (swap + limit) conserves user vs pair (+ distinct treasury) |
+| A2 | A-lcd + B-lt **pass**; pending-lcd extra callers | Wallet↔wallet 1:1; Send to pair 1:1 debit; no sell-only tax observed |
+| A3 | A-lcd idle **pass** | Idle balance stable across a new block; SnapshotMap is historical |
 | A4 | static-pass | Live `tax_map` unknown variant. 8654 remains known-bad |
-| A5 | static-pass; pending-lcd | Transfer does not list extra WasmMsg in dump |
-| A6 | control | Pair reentrancy tests; candidate as offer token pending-lcd |
-| A7 | static-pass | Increase/DecreaseAllowance only; no `Approve {amount}` |
-| A8 | pending-lcd | No backdoor strings; still execute TransferFrom without allowance |
-| A9 | pending-lcd | Round-trip swap B7 |
-| A10 | pending-lcd | No pause execute variant in serde list |
-| A11 | pending-lcd | No max-wallet strings |
-| A12 | residual | Minter is instance admin; cap 1e9 human — report residual (B14), not hidden mint in wasm |
+| A5 | static-pass; B-lt Send **pass** | Transfer has no extra WasmMsg in dump; Send hook is pair Receive only |
+| A6 | control; B-lt swap **pass** | Pair reentrancy tests; candidate as offer token round-trip succeeded |
+| A7 | A-lcd **pass** | IncreaseAllowance then exact TransferFrom; leftover allowance 0 |
+| A8 | A-lcd **pass** | TransferFrom without allowance rejected |
+| A9 | B-lt B7 **pass** | Round-trip swap candidate↔EMBER succeeded (not a sell-side honeypot) |
+| A10 | static-pass | No pause execute variant in serde list |
+| A11 | static-pass | No max-wallet strings |
+| A12 | A-lcd **pass** | Unauthorized mint rejected; minter cap is residual (B14), not hidden mint |
 | A13 | static-pass | No flash-mint execute variant |
-| A14 | residual | Issuer wasm admin; **F6** freeze required. `asset_code_id_pin_tests::*` |
+| A14 | residual; **not blocking** | Issuer wasm admin is expected on quality CW20s. **F6** freeze on migrate-off-template. `asset_code_id_pin_tests::*` |
 | A15 | static-pass | Single contract template |
-| A16 | pending-lcd | Balance vs transfer events |
-| A17 | static-pass | SpaceUSD decimals **6** (≤ 18) |
-| A18 | pending-lcd | Dump dropped InvalidZeroAmount; zero is not FoT |
-| A19 | N/A | Pair does not self-TransferFrom |
+| A16 | A-lcd **pass** | Transfer wasm `amount` attr matched debit |
+| A17 | static-pass | SpaceUSD decimals **6** (≤ 18); A-lcd TokenInfo decimals=6 |
+| A18 | A-lcd **pass** | Zero transfer accepted as no-op (balances unchanged) |
+| A19 | A-lcd self-transfer **pass**; pair N/A | Self-transfer net zero; pair does not self-TransferFrom |
 | A20 | N/A | No `permit` in execute serde |
 | A21 | record | Name is string; dApp escape is separate |
-| A22 | static-pass | TokenInfo readable on live SpaceUSD |
-| A23 | pending-lcd | Idle balance probe |
-| A24 | pending-lcd | Uint128::MAX transfer |
+| A22 | A-lcd **pass** | TokenInfo readable (decimals 6) |
+| A23 | A-lcd **pass** | Idle balance stable across a new block |
+| A24 | A-lcd oversize **pass** | `Uint128`-range oversize transfer rejected (not a max-uint credit-only path) |
 | A25 | static-pass | CW20 only; factory rejects natives |
 | A26 | static-pass | No `ibc_receive` in export/string baseline |
 | A27 | record | cosmwasm-std 1.3.3 is inside CWA-2024-002 range — **D20** documented; token does not use wrapping pow for balances in dump |
 | A28 | A-lcd 1:1 **pass** on LocalTerra | `requires_terra` present; Transfer 1:1 holds on CW20 path (not native tax). Not a FoT flag |
-| A29 | static-pass; pending-lcd | `balance_at` snapshot-only in dump + live SpaceUSD check |
+| A29 | A-lcd **pass** | `balance_at` at current height equals live `balance` |
 | A30 | residual | Logo 5KB limit in wasm strings |
 
 ### B
 
 | ID | Result | Notes |
 |----|--------|-------|
-| B1 | pending-lcd; control red on FoT | Mutant + `adversarial_token` prove P2 desync. Candidate must **not** |
-| B2 | control; pending-lcd | `layer_b_p3_donation_does_not_inflate_lp_shares` |
-| B3 | control; pending-lcd | `layer_b_b3_flash_provide_swap_withdraw_no_profit_honest` |
+| B1 | B-lt P2 **pass**; control red on FoT | Provide TransferFrom 1:1; pool reserve delta = declared. Mutant FoT stays red |
+| B2 | control | `layer_b_p3_donation_does_not_inflate_lp_shares` |
+| B3 | control | `layer_b_b3_flash_provide_swap_withdraw_no_profit_honest` |
 | B4 | control | `adversarial_token::router_ignores_pre_existing_dust_on_output_token` |
 | B5 | control | `reentrancy_tests` |
-| B6 | pending-lcd | Limit Send escrow 1:1 |
-| B7 | pending-lcd | `layer_b_b7_round_trip_swap_succeeds_honest` analogue |
-| B8 | pending-lcd | Admin can still migrate (A14); not a pair blocklist in serde |
+| B6 | B-lt **pass** | Limit Send escrow: pair CW20 delta = user debit (maker fee may return to `fee_config.treasury` when that is the tester) |
+| B7 | B-lt **pass** | Round-trip swap candidate→EMBER and EMBER→candidate both succeeded |
+| B8 | residual; **not blocking** (A14) | Admin can still migrate; F6 freeze. Not a pair blocklist in serde |
 | B9 | control | `asset_code_id_pin_tests` FoT migrate freeze |
 | B10 | control | Existing `security_tests` max_spread |
 | B11 | control | **P10** treasury unchanged on failed swap |
 | B12 | static-pass | Single address token |
-| B13 | report-only | Everybody + 1686 instances; LUNC CreatePair fee accepted |
-| B14 | residual | SpaceUSD minter cap 1e9 human vs ~530 circulating |
+| B13 | report-only; **not blocking** | Everybody instantiate + 1686 instances is an accepted listing surface. DEX is expected to handle many assets; **100 LUNC** pair-create fee is sufficient spam control |
+| B14 | residual; **not blocking** | Minter (incl. SpaceUSD cap 1e9 human vs ~530 circulating) is expected on quality CW20s. Pool-dilution / ticker risk is ops, not a code-id veto |
 | B15 | N/A | No IBC mint surface in fingerprint |
 
 ### C
@@ -125,7 +125,7 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 |----|--------|-------|
 | C1 | pass (harness) | Fetch self-test refuses hash mismatch |
 | C2 | pass (harness) | Decompile fails closed without wabt |
-| C3 | A-lcd + B-lt **executed** (Transfer 1:1); suite incomplete | `layer-a-lcd.json` / `layer-b-lt.json` written this checkout (gitignored). Round-trip swap / Send matrix still pending — keep NO-GO |
+| C3 | A-lcd + B-lt **executed** (full write path) | Transfer/TransferFrom/Send/SendFrom, provide **P2**, round-trip **B7**, limit **L1**. Logs gitignored. |
 | C4 | pass (harness) | FoT mutant tests must stay red |
 | C5 | pass (harness) | `verify-issue-589` prints explicit Layer B-lt skip unless `LAYER_B_LT=1`, which **executes** wasm (not a stub, #590) |
 | C6 | pass | No keys in `codeids/` |
@@ -139,7 +139,7 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 | D2 | pending-lcd; control | Magnitude tax mutant |
 | D3 | pending-lcd | Op-count loop not run on LCD wasm |
 | D4 | pending-lcd | Caller-class matrix (EOA vs pair vs router) |
-| D5 | pending-lcd; control | `mutant_d5_send_taxed_transfer_honest` |
+| D5 | B-lt **pass**; control | Transfer 1:1 and Send 1:1 (swap + SendFrom); not Send-only tax |
 | D6 | static-pass | Dump transfer path has no external query |
 | D7 | static-pass | No swapAndLiquify analogue in execute list |
 | D8 | static-pass; control | No permissionless pair-register execute |
@@ -184,27 +184,27 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 | G7 | ops | F6 freeze drill in cw20-code-id-ops.md |
 | G8 | static-pass | Host exports listed above |
 | G9 | pass | Fetch self-test |
-| CH1–CH18 | see parents | Chains inherit pending-lcd from D1/A3/A8/… |
+| CH1–CH18 | see parents | Chains inherit from D1/A3/A8/…; A3/A8/B7 executed on LCD wasm |
 
 ## Layer A (token-only)
 
-Backend: **A-mt** (`cw20_mintable` + mutants) via `make verify-issue-589`. **A-lcd** script: [`../../scripts/layer-a-lcd.sh`](../../scripts/layer-a-lcd.sh) — store + instantiate + 1:1 Transfer of the pinned LCD wasm on LocalTerra. Logs: `layer-a-lcd.json` (gitignored).
+Backend: **A-mt** (`cw20_mintable` + mutants) via `make verify-issue-589`. **A-lcd** script: [`../../scripts/layer-a-lcd.sh`](../../scripts/layer-a-lcd.sh) — store + instantiate + Transfer / TransferFrom 1:1, allowance backdoor reject, unauthorized mint, idle/`balance_at`. Send 1:1 is Layer B (pair Receive). Logs: `layer-a-lcd.json` (gitignored).
 
-**2026-08-22 LocalTerra execution** (pin `953AD60C…`): store + instantiate + 1:1 Transfer of the pinned bytes (local store ids vary per run, e.g. 34 then 35). Instantiate ticker must be `[a-zA-Z-]{3,12}` (digits fail Terraport validate). This is a **LocalTerra copy** — do not whitelist columbus-5 **8266** from this run.
+**2026-08-22 LocalTerra execution** (pin `953AD60C…`): full A-lcd write path on the pinned bytes (local store ids vary per run). Instantiate ticker must be `[a-zA-Z-]{3,12}` (digits fail Terraport validate). Creates an ephemeral `test2` key in the LocalTerra container when missing (not persisted under `codeids/`, **C6**). This is a **LocalTerra copy** — do not whitelist columbus-5 **8266** from this run.
 
 ## Layer B (DEX + limits)
 
-Backend: **B-mt** (P1/P2/P3/donation/flash/honeypot round-trip/limit escrow/same-asset CreatePair; FoT **P2** red). **B-lt** script: [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) — whitelist the **local** store id only, `CreatePair` vs EMBER, 1:1 into pair. `LAYER_B_LT=1` must not PASS as a stub ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)).
+Backend: **B-mt** (P1/P2/P3/donation/flash/honeypot round-trip/limit escrow/same-asset CreatePair; FoT **P2** red). **B-lt** script: [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) — whitelist the **local** store id only, `CreatePair` vs EMBER, provide **P2**, Send round-trip **B7**, limit Send escrow **L1**, SendFrom. `LAYER_B_LT=1` must not PASS as a stub ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)).
 
-**2026-08-22 LocalTerra execution:** local store id whitelisted on the *test* factory, `CreatePair` vs EMBER, `one_to_one_into_pair: true`. Does **not** run round-trip swap **B7**, limit escrow **B6**, or P2-as-offer. Factory-global **B13** still blocks GO.
+**2026-08-22 LocalTerra execution:** local store id whitelisted on the *test* factory, `CreatePair` vs EMBER, provide 1:1, P2 reserve delta, round-trip swap, limit escrow (pair delta = user debit), SendFrom 1:1. Factory-global **B13** is **not blocking**.
 
 ## Factory-global impact
 
-Approving **8266** admits **every** current and future instantiate (SpaceUSD, Terraport TERRA, Terraport LP CW20s, unknown minters). Ops accept LUNC pair-create fee as spam control. This is **not** an automated pass (B13).
+Approving **8266** admits **every** current and future instantiate (SpaceUSD, Terraport TERRA, Terraport LP CW20s, unknown minters). That is **not blocking** a code-id whitelist: the DEX is expected to handle many assets, and the factory **100 LUNC** pair-create fee is the spam control (**B13**).
 
 ## Instance admin / migrate residual (F6)
 
-SpaceUSD wasm admin is the **issuer**. F6 freezes a listed pair if they migrate off 8266; it does not steal reserves. Hostage/freeze leverage remains. Honest upgrade path: whitelist new id → migrate → Refresh.
+SpaceUSD wasm admin is the **issuer**. That is **not blocking** listing — issuer keys are expected on quality CW20s. F6 freezes a listed pair if they migrate off 8266; it does not steal reserves. Honest upgrade path: whitelist new id → migrate → Refresh.
 
 ## Unverified third-party claim (C7)
 

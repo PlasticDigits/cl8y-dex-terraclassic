@@ -33,6 +33,7 @@ Harness: [`cw20-codeid-audits/harness/README.md`](../cw20-codeid-audits/harness/
 make verify-issue-589                                  # A-mt + B-mt + docs
 CODE_ID=<id> make verify-issue-589                     # LCD fetch + decomp
 CODE_ID=<id> LAYER_B_LT=1 make verify-issue-589        # after make has-localterra — executes token.wasm
+make verify-issue-581                                  # #581 8266 full suite + listing residuals
 ```
 
 Copy [`report-template.md`](../cw20-codeid-audits/report-template.md) → `codeids/<id>/REPORT.md`. Fill **every** catalogue row. Explicit **GO / NO-GO**.
@@ -45,6 +46,7 @@ Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_5
 
 - Treat a non-matching rebuild as the binary audit.
 - `AddWhitelistedCodeId 8266` while `codeids/8266/REPORT.md` is **NO-GO**.
+- Treat issuer wasm-admin, Everybody instantiate, or a minter cap as a template veto — those are documented residuals ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581)).
 - Bind-mount `indexer/` into root Docker to run cargo.
 - Store secrets under `codeids/`.
 - Split catalogue + harness into a parallel issue (work stays in #589).

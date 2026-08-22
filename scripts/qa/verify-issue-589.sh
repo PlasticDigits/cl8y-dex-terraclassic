@@ -141,7 +141,9 @@ run_pin_8266() {
   pin="$(tr -d '[:space:]' < "$AUDIT/codeids/8266/wasm.sha256" | tr '[:lower:]' '[:upper:]')"
   [[ "$pin" == "953AD60CF6D8C9631B99ADC84C3ABF4083815743F86FF81B2A422FDFDF5F95C0" ]]
   rg -q "953AD60C" "$AUDIT/codeids/8266/REPORT.md"
-  rg -q "NO-GO" "$AUDIT/codeids/8266/REPORT.md"
+  # Explicit GO or NO-GO (M590-7). Issuer keys / Everybody / minter are residuals, not veto.
+  rg -qF "**GO**" "$AUDIT/codeids/8266/REPORT.md" || rg -qF "**NO-GO**" "$AUDIT/codeids/8266/REPORT.md"
+  rg -q "not blocking" "$AUDIT/codeids/8266/REPORT.md"
 }
 
 run_layer_b_lt() {
@@ -168,9 +170,15 @@ run_layer_b_lt() {
     "$AUDIT/scripts/layer-b-lt.sh" "$id"
     test -f "$AUDIT/codeids/$id/layer-a-lcd.json"
     test -f "$AUDIT/codeids/$id/layer-b-lt.json"
-    jq -e '.executed == true and .one_to_one == true' "$AUDIT/codeids/$id/layer-a-lcd.json" >/dev/null
-    jq -e '.executed == true and .one_to_one_into_pair == true' "$AUDIT/codeids/$id/layer-b-lt.json" >/dev/null
-    echo "Layer A-lcd + B-lt executed pinned LCD wasm $id (see layer-*-*.json)."
+    jq -e '.executed == true and .one_to_one == true and .transfer_from_one_to_one == true
+      and .transfer_from_no_allowance_rejected == true and .unauthorized_mint_rejected == true
+      and .idle_balance_stable == true and .snapshot_matches_live == true' \
+      "$AUDIT/codeids/$id/layer-a-lcd.json" >/dev/null
+    jq -e '.executed == true and .one_to_one_into_pair == true and .provide_liquidity == true
+      and .p2_reserves_match == true and .round_trip_swap == true
+      and .limit_escrow_one_to_one == true and .send_from_one_to_one == true' \
+      "$AUDIT/codeids/$id/layer-b-lt.json" >/dev/null
+    echo "Layer A-lcd + B-lt executed pinned LCD wasm $id (Transfer/TransferFrom/Send/swap/limit)."
     return 0
   fi
   if [[ "$has" -eq 0 ]]; then

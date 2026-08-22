@@ -169,6 +169,7 @@ make test-indexer-integration          # full suite, serialized
 make verify-issue-324                    # #324 lib + route_solve_get_cache integration
 make verify-issue-485                    # #485 graph cache + distant TTL + progress poll + frontend helpers
 make verify-issue-589                    # #589 CW20 code-id audit harness (decomp + suite; gates #581)
+make verify-issue-581                    # #581 8266 full A-lcd/B-lt suite + listing residuals
 make verify-issue-590                    # #590 post-merge !394–!396 (fees + wrap gas + 8266 A-lcd/B-lt)
 make verify-issue-585                    # #585 F6 freeze: route/solve exclude + dApp banners (Postgres)
 make verify-issue-587                    # #587 wrap+≥2hop LUNC↔USTR gas + Swap Network fee (Vitest)

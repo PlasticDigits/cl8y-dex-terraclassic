@@ -84,7 +84,8 @@ run_step "source: A-lcd/B-lt scripts execute wasm; 589 is not a stub" \
       exit 1
     fi
     grep -q "never columbus-5" cw20-codeid-audits/scripts/lib-layer-lt.sh
-    grep -q "NO-GO" cw20-codeid-audits/codeids/8266/REPORT.md
+    rg -qF "**GO**" cw20-codeid-audits/codeids/8266/REPORT.md || rg -qF "**NO-GO**" cw20-codeid-audits/codeids/8266/REPORT.md
+    rg -q "not blocking" cw20-codeid-audits/codeids/8266/REPORT.md
   '
 
 run_step "L7 / PFee-5: hybrid book counted once; unwrap not burn tax" \
