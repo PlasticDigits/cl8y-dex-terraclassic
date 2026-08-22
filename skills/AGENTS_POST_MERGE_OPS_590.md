@@ -1,6 +1,6 @@
 # Agent playbook: post-merge !394–!396 ops (GitLab #590)
 
-Audience: third-party agents verifying the stacked **indexer fees / Swap gas / CW20 audit** merge after GitLab CI was skipped, or shipping Coolify + LocalTerra QA so protocol fees, wrap+≥2hop gas, and 8266 NO-GO land as one cut.
+Audience: third-party agents verifying the stacked **indexer fees / Swap gas / CW20 audit** merge after GitLab CI was skipped, or shipping Coolify + LocalTerra QA so protocol fees, wrap+≥2hop gas, and 8266 listing status land as one cut.
 
 **Issue:** [GitLab **#590**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)  
 **Invariants:** [`docs/qa-invariants.md`](../docs/qa-invariants.md) **Q7** (**M590-1–M590-8**)  
@@ -18,7 +18,7 @@ Stacked MRs on `main`: **!394** (#586), **!395** (#587), **!396** (#589). Do not
 | **M590-4** | Limit place → `limit_place` from `maker_fee_amount`. Unwrap → wrap-mapper `fee_amount` only. InstantWithdraw burn tax / `tax_amount` are **not** protocol fees. |
 | **M590-5** | `CI=1` Playwright `e2e/wrap-swap.spec.ts --project=e2e-tx` **E7** LUNC→USTR (or JADE/RUBY stand-in) and **E8** reverse; `gas_used < gas_wanted` (no OOG). **1 worker** (shared LocalTerra account). 0 USTC still allows a LUNC-funded swap; AMM Fee row stays pool bps. |
 | **M590-6** | `LAYER_B_LT=1` **must not PASS as a stub**. It runs [`layer-a-lcd.sh`](../cw20-codeid-audits/scripts/layer-a-lcd.sh) (store + instantiate + Transfer/TransferFrom 1:1 of pinned `token.wasm`) then [`layer-b-lt.sh`](../cw20-codeid-audits/scripts/layer-b-lt.sh) (whitelist **local** store id, `CreatePair` vs EMBER, provide, round-trip Send swap, limit escrow). Columbus-5 templates need LocalTerra (`requires_terra`). |
-| **M590-7** | **#581 / 8266 stays NO-GO** until [`codeids/8266/REPORT.md`](../cw20-codeid-audits/codeids/8266/REPORT.md) is **GO**. No `AddWhitelistedCodeId 8266` on columbus-5. LocalTerra may whitelist a **locally stored copy** of the LCD bytes for the harness only. |
+| **M590-7** | **#581 / 8266 REPORT is GO**. Columbus-5 `AddWhitelistedCodeId 8266` **RAN 2026-08-22** (height **30060600**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558). |
 | **M590-8** | This playbook + **Q7** + child skills stay crosslinked. Do not wait for GitHub Actions; GitLab CI may be quota-blocked — local `make verify-issue-*` is the gate. |
 
 ## Do / don’t

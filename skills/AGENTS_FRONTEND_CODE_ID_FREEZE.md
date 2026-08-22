@@ -4,7 +4,7 @@ Use when changing Swap / Trade / Pool / Charts freeze banners, `route/solve` hop
 
 On-chain F6 (pin + write-path re-check) is **[#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582)** / **[#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)**. This issue is **visibility**: indexer must not treat frozen hops as executable; the dApp must not show a generic failed tx. **Do not** treat this indexer watch as a substitute for on-chain **A** (write-path re-check). See [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) — option **(D)** remains rejected for security.
 
-Issue **#585 is implemented**. Gate for **#581 / 8266** is still live F6 on chain, not this UX MR.
+Issue **#585 is implemented**. On-chain F6 pin stays live regardless of 8266 listing. This UX MR does not replace write-path fail-closed.
 
 ## Canonical references
 

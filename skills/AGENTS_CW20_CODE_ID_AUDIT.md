@@ -45,7 +45,7 @@ Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_5
 ## Do not
 
 - Treat a non-matching rebuild as the binary audit.
-- `AddWhitelistedCodeId 8266` while `codeids/8266/REPORT.md` is **NO-GO**.
+- `AddWhitelistedCodeId` while that id’s `REPORT.md` is **NO-GO**. 8266 is **GO** and listed on columbus-5; still do **not** whitelist a LocalTerra store id or ALPHA **8654**.
 - Treat issuer wasm-admin, Everybody instantiate, or a minter cap as a template veto — those are documented residuals ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581)).
 - Bind-mount `indexer/` into root Docker to run cargo.
 - Store secrets under `codeids/`.

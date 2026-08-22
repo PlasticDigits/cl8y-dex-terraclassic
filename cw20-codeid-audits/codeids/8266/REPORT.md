@@ -11,7 +11,7 @@ Prior one-off notes (superseded as the **intake path**; hash-repro is appendix o
 
 ## Verdict
 
-**GO** for factory `AddWhitelistedCodeId 8266` (template gate). Columbus-5 still needs DEX 2-of-3; do **not** whitelist a LocalTerra store id.
+**GO** for factory `AddWhitelistedCodeId 8266` (template gate). Columbus-5 listed **8266** 2026-08-22 (height **30060600**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558).
 
 - [x] GO — Layer A + Layer B green on the **pinned LCD wasm**; catalogue rows pass or N/A+reason; residuals written
 - [ ] NO-GO — suite incomplete or a 1:1 / P2 / B7 / L1 row failed

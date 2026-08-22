@@ -71,7 +71,7 @@ CreatePair-only whitelist is **not** enough: instance wasm admin can `MsgMigrate
 
 **Honest token upgrade:** `AddWhitelistedCodeId` (new template) → migrate instances → governance `RefreshPairAssetCodeIds` (or Batch) → optional `RemoveWhitelistedCodeId` (old template). Refresh **refuses** to pin an unlisted live id.
 
-**Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** F6 is live on columbus-5. Dump crate is in the LCD wasm (strings/types/serde). **Go/no-go is [`cw20-codeid-audits/codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md)** under [#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589) — LCD pin + decomp + catalogue + Layer A/B. An optimizer rebuild matching `953AD60C…` is an **optional appendix** only ([`audits/CW20-8266-581-hash-repro.md`](../../audits/CW20-8266-581-hash-repro.md)). CertiK file hashes are not `data_hash`.
+**Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** F6 is live on columbus-5. Template **GO** is [`cw20-codeid-audits/codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md) under [#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589) — LCD pin + decomp + catalogue + Layer A/B. DEX 2-of-3 listed **8266** 2026-08-22 (height **30060600**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. An optimizer rebuild matching `953AD60C…` is an **optional appendix** only ([`audits/CW20-8266-581-hash-repro.md`](../../audits/CW20-8266-581-hash-repro.md)). CertiK file hashes are not `data_hash`.
 
 **Listing residuals that are not a code-id veto** (ops [#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581) note 3719458992):
 
@@ -79,7 +79,7 @@ CreatePair-only whitelist is **not** enough: instance wasm admin can `MsgMigrate
 - **Everybody instantiate** — the DEX is expected to handle many assets; the factory **100 LUNC** pair-create fee is sufficient spam control.
 - **Minter** — expected on quality CW20s; pool-dilution / ticker risk is an ops residual, not a template veto.
 
-The remaining 8266 gate is the **full automated suite** on the pinned LCD wasm (`CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589`, `make verify-issue-581`). Do not `AddWhitelistedCodeId 8266` while that report is **NO-GO**. LocalTerra may whitelist a locally stored copy of the bytes for the harness only.
+Template **GO** is recorded. Columbus-5 listed **8266** 2026-08-22. Re-run the suite with `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` then `make verify-issue-581` when changing the harness. LocalTerra may whitelist a locally stored copy of the bytes for the harness only.
 
 **Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`; `make verify-issue-584`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md). Rollout script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)).
 
@@ -87,13 +87,13 @@ The remaining 8266 gate is the **full automated suite** on the pinned LCD wasm (
 
 ### Listed-asset wasm admin inventory (2026-08-20)
 
-Snapshot from [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) (live factory: **14** pairs, **13** unique assets). **None** of the currently listed assets have a third-party wasm admin — existing TVL is protocol-key upgrade risk, not an outside issuer. That does **not** close permissionless 6036 `CreatePair` → migrate, and it does **not** make SpaceUSD safe to list before **F6** is live.
+Snapshot from [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) (live factory: **14** pairs, **13** unique assets). **None** of the currently listed pair assets have a third-party wasm admin — existing TVL is protocol-key upgrade risk, not an outside issuer. That does **not** close permissionless 6036 `CreatePair` → migrate. SpaceUSD (8266) is now factory-whitelisted; its issuer remains wasm admin (F6 freezes migrate-off-template).
 
 | Token | code_id | wasm admin |
 |-------|---------|------------|
 | UST1, USTR, cLUNC, cUSTC | 10184 | wrap-stack CMM gov `terra1xsecn4…` |
 | CL8Y + soft gems (EMBER/CORAL/…) | 10184 | DEX 2-of-3 `terra1zlmv2…` |
 | PEARL, QUARTZ | 6036 | DEX 2-of-3 `terra1zlmv2…` |
-| SpaceUSD (not listed) | 8266 | issuer `terra133n0pv8…` |
+| SpaceUSD (code **8266** listed 2026-08-22; pair not created) | 8266 | issuer `terra133n0pv8…` |
 
-Re-query LCD `ContractInfo` (code_id + admin) before any 8266 go. This table is not a live probe. F6 is live; do not `AddWhitelistedCodeId 8266` until [`codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md) is **GO** (`make verify-issue-589`).
+This table is a 2026-08-20 snapshot of **pair assets**, not a live probe. Re-query LCD `ContractInfo` (code_id + admin) before Refresh. F6 is live. Factory whitelist 2026-08-22 is **`[6036, 8266, 10184]`**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558).

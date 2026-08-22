@@ -45,7 +45,7 @@ Do **not** dump decomp into `smartcontracts/` or `frontend-dapp/`. Do **not** st
 |----|------|----------|
 | **10184** | Protocol mintable (in-process analogue: `cw20-mintable`) | Honest Layer A/B **green** |
 | **6036** | Listed TerraSwap token | Green or documented exceptions |
-| **8266** | First candidate (#581) | Report must exist; listing still needs #581 go |
+| **8266** | First candidate (#581) | REPORT **GO**; columbus-5 listed 2026-08-22. Do **not** whitelist a LocalTerra store id |
 | **8654** / FoT mutant | Known-bad ALPHA tax / fee-on-transfer | 1:1 and **P2** **red** |
 
 ## Related

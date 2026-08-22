@@ -214,7 +214,7 @@ Wrap-mapper `fee_bps`: **100** (1%). Coolify enablement: [`wrap-enablement.env.e
 
 ### F6 / #584 code-id pin migrate (columbus-5, 2026-08-21)
 
-Factory-first order. Evidence: [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) close comment. **#581 / 8266** still no-go.
+Factory-first order. Evidence: [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) close comment. **#581 / 8266** REPORT is **GO**; factory listed **8266** 2026-08-22 (see below). ALPHA **8654** stays off.
 
 | Field | Value |
 |-------|-------|
@@ -228,4 +228,17 @@ Factory-first order. Evidence: [#584](https://gitlab.com/PlasticDigits/cl8y-dex-
 | **Listed assets** | **10184** (hub/CL8Y/gems) + **6036** (PEARL/QUARTZ) |
 
 Partial run left three pairs on 11586 after publicnode RST mid `tx sign`; retry completed. Smoke `pin1=…/null` on a later LCD read was a dropped `IsCodeIdWhitelisted`, not an unlisted pin — independent re-query was 10184/10184. Upgrade script now retries those reads, skips already-migrated pairs, and `UpdateConfig`s `pair_code_id` before pair migrate.
+
+### 8266 whitelist (columbus-5, 2026-08-22)
+
+Template **GO**: [`cw20-codeid-audits/codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md) ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581)). DEX 2-of-3 `AddWhitelistedCodeId 8266`. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**.
+
+| Field | Value |
+|-------|-------|
+| **Factory** | `terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea` |
+| **Execute** | `AddWhitelistedCodeId { code_id: 8266 }` |
+| **Tx** | [`BA7C9FD05D0FC0BC14713A53325E1F42AAAECF3A11E4EC3BC91368013D8FC5D1`](https://finder.terraclassic.community/columbus-5/tx/BA7C9FD05D0FC0BC14713A53325E1F42AAAECF3A11E4EC3BC91368013D8FC5D1) |
+| **Height** | **30060600** (2026-08-22T10:53:20Z) |
+| **Signer** | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` |
+| **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184]`** |
 

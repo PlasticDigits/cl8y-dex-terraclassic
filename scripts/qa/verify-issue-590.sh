@@ -5,7 +5,7 @@
 #   1. Q7 / M590-1–M590-8 documented and crosslinked.
 #   2. Child make verify-issue-{586,587,589}.
 #   3. Hybrid L7 ingest ignores book_commission_amount; unwrap ignores InstantWithdraw tax.
-#   4. 8266 stays NO-GO; LAYER_B_LT=1 is not a stub.
+#   4. 8266 REPORT GO + columbus-5 listed; LAYER_B_LT=1 is not a stub.
 #   5. Optional: CODE_ID=8266 LAYER_B_LT=1 when LocalTerra is up (or VERIFY590_REQUIRE_CHAIN=1).
 #   6. Optional: Playwright wrap-swap E7/E8 e2e-tx (1 worker).
 #

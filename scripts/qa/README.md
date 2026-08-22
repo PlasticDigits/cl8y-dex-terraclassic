@@ -134,7 +134,7 @@ After stacking protocol fees, wrap+≥2hop gas, and the CW20 audit harness:
 | `make verify-issue-590` | Children **586, 587, 589** plus L7/unwrap classification (**M590-1–M590-8**) |
 | `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` | A-lcd/B-lt **execute** pinned wasm (not a stub) |
 | Coolify indexer + dApp | Fee migration + `WRAP_MAPPER_ADDRESS`; `/protocol` fees + Swap Network fee |
-| 8266 | Stay **NO-GO** until `codeids/8266/REPORT.md` is **GO** |
+| 8266 | REPORT **GO**; columbus-5 listed 2026-08-22 (`[6036, 8266, 10184]`). Do **not** whitelist a LocalTerra store id. ALPHA **8654** stays off. |
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_590.md`](../../skills/AGENTS_POST_MERGE_OPS_590.md). QA invariant **Q7**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-590).
 

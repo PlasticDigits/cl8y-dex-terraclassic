@@ -118,7 +118,7 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 
 | Invariant | Check | On failure |
 | --------- | ----- | ---------- |
-| **Q7** Stacked indexer-fees + Swap gas + CW20 audit MRs (!394–!396) are locally verified together; Coolify migrate and 8266 NO-GO are documented | **`make verify-issue-590`** → child verifies **586, 587, 589** plus L7/unwrap classification and optional A-lcd/B-lt + wrap-swap E7/E8 (**M590-1–M590-8**) | Non-zero exit; fix the failing child or harness stub; do not treat multi-test #589 as 8266 clearance |
+| **Q7** Stacked indexer-fees + Swap gas + CW20 audit MRs (!394–!396) are locally verified together; Coolify migrate and 8266 listing status are documented | **`make verify-issue-590`** → child verifies **586, 587, 589** plus L7/unwrap classification and optional A-lcd/B-lt + wrap-swap E7/E8 (**M590-1–M590-8**) | Non-zero exit; fix the failing child or harness stub; do not treat multi-test #589 as 8266 execution |
 
 **M590** (GitLab **#590** — [`skills/AGENTS_POST_MERGE_OPS_590.md`](../skills/AGENTS_POST_MERGE_OPS_590.md)):
 
@@ -130,7 +130,7 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M590-4** | `limit_place` from `maker_fee_amount`; unwrap from wrap-mapper `fee_amount` only (not InstantWithdraw burn tax). |
 | **M590-5** | Playwright `e2e/wrap-swap.spec.ts` **E7/E8** `--project=e2e-tx` (1 worker): success, no OOG. 0 USTC still allows LUNC-funded swap. |
 | **M590-6** | `LAYER_B_LT=1` executes pinned LCD wasm (`layer-a-lcd.sh` + `layer-b-lt.sh`). Stub PASS is a harness bug. |
-| **M590-7** | 8266 stays **NO-GO** until `codeids/8266/REPORT.md` is **GO**. No columbus-5 `AddWhitelistedCodeId 8266`. LocalTerra may whitelist a locally stored copy only. |
+| **M590-7** | 8266 `codeids/8266/REPORT.md` is **GO**. Columbus-5 `AddWhitelistedCodeId 8266` **RAN 2026-08-22** (height **30060600**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558). |
 | **M590-8** | Playbook + this Q7 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
 ## Related docs
