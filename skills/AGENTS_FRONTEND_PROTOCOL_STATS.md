@@ -1,8 +1,8 @@
-# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569)
+# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586)
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -15,11 +15,11 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 
 | ID | Rule |
 |----|------|
-| **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+LUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. |
+| **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+LUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. |
 | **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3** | Snapshot + sources + history live in **one** card. Query keys include ticker. |
 | **P550-4** | Stats headline **USD** (`total_volume_*_usd`). Do **not** present mixed-unit `total_volume_24h` as volume. |
-| **P550-5** | 7d/30d/active-pair/unique-trader **and** pool TVL / Δ% figures come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, or walk `global_liquidity_snapshots`. |
+| **P550-5** | 7d/30d/active-pair/unique-trader **and** pool TVL / Δ% **and** fee totals come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
 | **P550-6** | `token_count` is unique pair-leg assets (`count_pair_leg_assets`, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**), not `get_all_assets().len()`. New-token census is `tokens_added_30d` on `assets.created_at`. |
 | **P550-7** | “New in 30d” is indexer `created_at` (first-seen). Reindex/rebuild makes everything look new — copy must not say “launched on chain”. |
 | **P550-8** | Active pairs = distinct `pair_id` with ≥1 swap in last **24h** (materialized). Dust swaps count. Not unique traders. Not TVL. |
@@ -54,15 +54,33 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 - **Don't** title the CEX snapshot **vFDUSD / USD** (tab heading is **vFDUSD**; CEX box is **FDUSD reference price** — [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)).
 - **Don't** backfill 30d Δ% from zeros or `liquidity_events` after `--fresh`.
 
+## Invariants (PFee — GitLab #586)
+
+| ID | Rule |
+|----|------|
+| **PFee-1** | Fee panel `protocol-fee-stats` sits **after** Global stats and **before** DEX hub. Do not merge factory/router into fees. Do not headline `traders.total_fees_paid` (lifetime mixed-unit, includes spread). |
+| **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD + flow Δ% vs the prior equal window. Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. |
+| **PFee-3** | Source table uses retail labels (wrap / unwrap / AMM swap / book take / limit place), not wasm action strings. Unconfigured wrap mapper **omits** wrap/unwrap (not fake idle `$0`). Hide idle `$0` sources. |
+| **PFee-4** | Token table is human units + USD, cap 8 + `other`. Unpriced token shows human + USD `—`. XSS/`javascript:` symbols render as **text**. |
+| **PFee-5** | Hybrid fee = pool `commission_amount` (`swap_amm`) + `limit_order_fills.commission_amount` (`book_take`) — **not both** fill commission and swap `book_commission_amount`. Placement `maker_fee_amount` is `limit_place`. |
+| **PFee-6** | Wrap/unwrap only from pinned `WRAP_MAPPER_ADDRESS` (exact `terra1` bech32). Fail closed on missing `fee_amount` / token identity. Burn tax / `tax_amount` / `hook_fee_amount` / spread are **not** protocol fees. |
+| **PFee-7** | Same P522-Q / hub catalog as volume/TVL. Never vFDUSD. Never `$1` UST1 or `2.5×` USTR. Stamp `fee_usd` at ingest — do not rewrite from the live hub (#568). |
+| **PFee-8** | GET `/overview` and GET `/protocol/fees` are O(1) rollup / 60s cache. Do **not** `SUM` `protocol_fee_events` / `swap_events` / fills on GET. `window=` allowlist `24h` \| `7d` \| `30d` → else **400**. `OVERVIEW_GLOBAL_STATS_LIVE=1` still must not 60d-SUM fees. |
+| **PFee-9** | Windows decay when events age out (#577). `--fresh` / young indexer → Δ% empty until 2×W fills. Copy must not claim chain genesis fees. Dust swaps **do** count (same as volume). |
+| **PFee-10** | Additive overview JSON. Missing fee fields (old indexer) → hide the fee panel, do not invent `$0`. Fee query is in `detectMarketDataOutage` / retry. `?ticker=` stay allowlisted; fee panel ignores ticker. |
+| **PFee-11** | Breakdown cardinality is bounded (fixed source enum; top 8 tokens + `other`). No CSV in v1. |
+| **PFee-12** | Verify: `make verify-issue-586`. Related: `make verify-issue-550` `569` `576` `577`. |
+
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). Do not add a lecture to the Global stats lead.
 
 ## Regression
 
 ```bash
+make verify-issue-586
 make verify-issue-569
 make verify-issue-550
-make verify-issue-556   # hub card still after stats
-make verify-issue-515   # catalog still catalogs; X1–X6
+make verify-issue-556   # hub card still after fees
+make verify-issue-515   # catalog still catalogs; X4
 make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 ```
 

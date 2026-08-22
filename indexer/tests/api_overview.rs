@@ -32,4 +32,8 @@ async fn overview_returns_stats() {
     assert!(body["total_liquidity_usd"].is_string());
     assert!(body.get("liquidity_change_24h_pct").is_some());
     assert!(body.get("liquidity_change_30d_pct").is_some());
+    assert!(body.get("total_fees_24h_usd").is_some());
+    assert!(body.get("total_fees_7d_usd").is_some());
+    assert!(body.get("total_fees_30d_usd").is_some());
+    assert!(body.get("fees_change_24h_pct").is_some());
 }

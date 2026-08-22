@@ -70,6 +70,7 @@ mod tests {
             hub_usd_tvl_floor: "100".parse().unwrap(),
             bsc_rpc_urls: vec![],
             venus_vfdusd_poll_interval_ms: 30_000,
+            wrap_mapper_address: None,
         }
     }
 

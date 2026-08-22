@@ -7,9 +7,9 @@ Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md). Agen
 ## Steady-state read path
 
 1. **60s whole-response cache** in [`overview.rs`](../../indexer/src/api/overview.rs).
-2. On cache miss, [`get_global_stats`](../../indexer/src/db/queries/volume.rs) reads the single row in **`global_stats_24h`** (O(1) primary key fetch), including additive 7d/30d USD, active-pair, unique-trader, and **pool TVL / Δ%** columns ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#569](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569)).
+2. On cache miss, [`get_global_stats`](../../indexer/src/db/queries/volume.rs) reads the single row in **`global_stats_24h`** (O(1) primary key fetch), including additive 7d/30d USD, active-pair, unique-trader, **pool TVL / Δ%**, and **treasury fee** columns ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#569](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)).
 3. Cheap `COUNT(*)` census: `token_count` is unique pair-leg assets ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) **C6**); `tokens_added_30d` / `pairs_added_30d` from `created_at >= now() - 30 days` (indexer first-seen, not on-chain genesis). Supporting indexes: `idx_assets_created_at`, `idx_pairs_created_at`.
-4. The rollup is refreshed every **~5 minutes** by [`volume_aggregator.rs`](../../indexer/src/indexer/volume_aggregator.rs) (volume SQL **then** protocol TVL) and once at indexer startup in [`poller.rs`](../../indexer/src/indexer/poller.rs). Hub USD refresh also recomputes TVL so UST1/USTR marks exist. **Do not** `SUM` / `COUNT(DISTINCT)` 30d `swap_events` on the request path. **Do not** join `pair_reserves` or walk `global_liquidity_snapshots` on GET.
+4. The rollup is refreshed every **~5 minutes** by [`volume_aggregator.rs`](../../indexer/src/indexer/volume_aggregator.rs) (volume SQL **then** protocol TVL **then** protocol fees) and once at indexer startup in [`poller.rs`](../../indexer/src/indexer/poller.rs). Hub USD refresh also recomputes TVL so UST1/USTR marks exist. **Do not** `SUM` / `COUNT(DISTINCT)` 30d `swap_events` on the request path. **Do not** join `pair_reserves` or walk `global_liquidity_snapshots` on GET. **Do not** `SUM` `protocol_fee_events` / fills / wrap events on GET — fee totals and `GET /api/v1/protocol/fees` read rollup / child tables only.
 
 Expect up to one refresh interval of lag vs a live `swap_events` aggregate. Pair count still comes from `SELECT COUNT(*) FROM pairs` on each cache miss. **`token_count`** is unique pair-leg assets (GitLab [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Charts displays **USD-only** 24h volume; `total_volume_24h` remains raw for API clients (`global_stats_24h.total_volume` is `NUMERIC(38, 0)` so 18-decimal CW20 sums fit; `NUMERIC(38, 18)` overflows at `10^20`). After catalog backfill (`20260817120000_backfill_swap_volume_usd_catalog.sql`), refresh this rollup (migration already does).
 
@@ -48,9 +48,15 @@ Refresh lives in [`protocol_tvl.rs`](../../indexer/src/indexer/protocol_tvl.rs) 
 
 Flash LP that is added and withdrawn inside one snapshot interval can move **current** TVL; Δ% uses snapshots, not mempool. v1 does not add an extra anti-flash filter.
 
-`OVERVIEW_GLOBAL_STATS_LIVE=1` still live-aggregates **volume** over `swap_events`. Liquidity stays O(1) from the rollup columns (live mode must not walk 30d snapshots either).
+`OVERVIEW_GLOBAL_STATS_LIVE=1` still live-aggregates **volume** over `swap_events`. Liquidity **and fee** columns stay O(1) from the rollup (live mode must not walk 30d snapshots or `SUM` `protocol_fee_events` either).
 
-Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity is a follow-on upsert of the same row.
+### Protocol fees (GitLab #586)
+
+`total_fees_{24h,7d,30d}_usd` and the matching `fees_change_*_pct` / `*_event_count` columns are **UPDATE-only** on the existing `global_stats_24h` id=1 row (`refresh_protocol_fee_stats`). A volume-zero INSERT must not create a fee-only stub. Source / token mix lives in `protocol_fee_stats_by_source` and `protocol_fee_stats_by_token` (top 8 + `other`). Idle windows store `"0"` with `event_count=0`; activity with all unpriced fees stores `NULL` (UI `—`). Δ% vs the prior equal window is `NULL` when `then ≤ 0`.
+
+`GET /api/v1/protocol/fees?window=` is allowlisted (`24h` \| `7d` \| `30d`) and 60s-cached. A 15-minute stale rollup still **serves** last fee columns — do not fall back to a live 60d event scan.
+
+Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** / **fee** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity and fees are follow-on updates of the same row.
 
 ### New tokens / pairs (30d)
 
@@ -69,7 +75,7 @@ Rollup refresh recomputes from `swap_events WHERE block_timestamp >= now() - 24h
 
 After a deep reorg recovery that deletes or rewinds swap rows, run a manual refresh or wait for the next aggregator cycle:
 
-Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity is a follow-on upsert of the same `global_stats_24h` row.
+Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** / **fee** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity and fees are follow-on updates of the same `global_stats_24h` row.
 
 ## BRIN index tuning (production safety net)
 

@@ -10,6 +10,7 @@ pub mod oracle;
 pub mod pair_reserves;
 pub mod pairs;
 pub mod positions;
+pub mod protocol_fees;
 pub mod resting_orders;
 pub mod state;
 pub mod swap_events;

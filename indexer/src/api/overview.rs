@@ -11,6 +11,7 @@ use utoipa::ToSchema;
 
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, hub_prices, pairs, volume};
+use crate::indexer::protocol_fees::overview_fee_usd_field;
 use crate::indexer::hub_usd::HubTicker;
 
 // GitLab #281 / #333: /overview reads materialized global_stats_24h on cache miss;
@@ -65,6 +66,14 @@ pub struct OverviewResponse {
     pub unpriced_pair_count: i64,
     pub total_liquidity_usd_24h_ago: Option<String>,
     pub total_liquidity_usd_30d_ago: Option<String>,
+    /// Trailing 24h treasury fees USD (GitLab #586). `"0"` idle; `null` activity+unpriced.
+    pub total_fees_24h_usd: Option<String>,
+    pub total_fees_7d_usd: Option<String>,
+    pub total_fees_30d_usd: Option<String>,
+    /// Flow Δ% vs prior equal window. `null` if no baseline / then≤0.
+    pub fees_change_24h_pct: Option<String>,
+    pub fees_change_7d_pct: Option<String>,
+    pub fees_change_30d_pct: Option<String>,
 }
 
 /// Map rollup USD + trade count to the overview JSON contract (#548).
@@ -152,6 +161,21 @@ pub async fn get_overview(
         unpriced_pair_count: i64::from(global.unpriced_pair_count),
         total_liquidity_usd_24h_ago: global.total_liquidity_usd_24h_ago.map(|v| v.to_string()),
         total_liquidity_usd_30d_ago: global.total_liquidity_usd_30d_ago.map(|v| v.to_string()),
+        total_fees_24h_usd: overview_fee_usd_field(
+            global.fee_event_count_24h,
+            global.total_fees_24h_usd.as_ref(),
+        ),
+        total_fees_7d_usd: overview_fee_usd_field(
+            global.fee_event_count_7d,
+            global.total_fees_7d_usd.as_ref(),
+        ),
+        total_fees_30d_usd: overview_fee_usd_field(
+            global.fee_event_count_30d,
+            global.total_fees_30d_usd.as_ref(),
+        ),
+        fees_change_24h_pct: global.fees_change_24h_pct.map(|p| p.to_string()),
+        fees_change_7d_pct: global.fees_change_7d_pct.map(|p| p.to_string()),
+        fees_change_30d_pct: global.fees_change_30d_pct.map(|p| p.to_string()),
     };
 
     if let Ok(mut guard) = overview_cache().lock() {
