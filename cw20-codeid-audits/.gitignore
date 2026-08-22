@@ -1,0 +1,15 @@
+# Downloaded LCD wasm (prefer pin files in git). Root .gitignore also has *.wasm.
+codeids/*/token.wasm
+codeids/*/token.wasm.tmp
+codeids/*/code.json
+codeids/*/code.json
+
+# Generated decomp (wat / c / objdump can be large). Fingerprint JSON is committed when present.
+codeids/*/decomp/*
+!codeids/*/decomp/.gitkeep
+!codeids/*/decomp/README.md
+!codeids/*/decomp/fingerprint.json
+
+# Suite logs
+codeids/*/logs/
+*.junit.xml

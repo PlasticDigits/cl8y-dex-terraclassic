@@ -1,5 +1,7 @@
 # Plan: prove dump `d854a219` compiled to LCD wasm 8266
 
+**Appendix only ([#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589)).** A byte-identical optimizer rebuild is **not** a go/no-go input. Listing evidence is [`cw20-codeid-audits/codeids/8266/REPORT.md`](../cw20-codeid-audits/codeids/8266/REPORT.md) (LCD pin + decomp + catalogue + Layer A/B). Keep this file for operators who still want a reconstruct.
+
 **Goal:** `sha256(optimized wasm) == 953AD60CF6D8C9631B99ADC84C3ABF4083815743F86FF81B2A422FDFDF5F95C0`
 
 CertiK is not part of this proof. A CosmWasm optimizer rebuild is.

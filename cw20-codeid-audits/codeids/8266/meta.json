@@ -1,0 +1,11 @@
+{
+  "code_id": 8266,
+  "data_hash": "953AD60CF6D8C9631B99ADC84C3ABF4083815743F86FF81B2A422FDFDF5F95C0",
+  "creator": "terra1yq3d4h9g4ncale3mcwuhcfdge8hzjx666umlhg",
+  "instantiate_permission": "Everybody",
+  "lcd": "https://terra-classic-lcd.publicnode.com",
+  "lcd_code_id": "8266",
+  "store_tx": "5829A7EA57F177B17DA509FB1AE6221A016BACB15C4CC8ECC1C61E281B0D2BAC",
+  "wasm_bytes": 327509,
+  "note": "LCD wasm SHA-256 equals CodeInfo.data_hash. Not an optimizer rebuild. Re-fetch with scripts/fetch-lcd-wasm.sh 8266."
+}

@@ -1,0 +1,31 @@
+{
+  "bytes": 327509,
+  "wasm_magic": true,
+  "hits": {
+    "tax_map": false,
+    "cw20_taxed": false,
+    "fee_on_transfer": false,
+    "rebase": false,
+    "reflection": false,
+    "transfer": true,
+    "send": true,
+    "transfer_from": true,
+    "send_from": true,
+    "burn": true,
+    "mint": true,
+    "balance_at": true,
+    "total_supply_at": true,
+    "ibc_receive": false,
+    "ibc_packet": false,
+    "requires_terra": true,
+    "requires_stargate": true,
+    "requires_iterator": true,
+    "UpdateTaxMap": false,
+    "permit": false,
+    "flash_mint": false,
+    "terraport_token": true,
+    "cw20_base": false,
+    "classic_terraport": true
+  },
+  "note": "String presence is not FoT proof (A28). Absence of tax_map is necessary, not sufficient."
+}

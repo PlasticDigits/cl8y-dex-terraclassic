@@ -2,7 +2,7 @@
 
 Factory `CreatePair` accepts only CW20 tokens whose on-chain **code ID** is whitelisted. This blocks unknown wasm templates but **does not** prove token logic is safe ([#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) H-01).
 
-**Related:** [security model § Code ID whitelist](../security-model.md), [launch checklist](./launch-checklist.md), adversarial test `fee_on_transfer_creates_reserve_imbalance`.
+**Related:** [security model § Code ID whitelist](../security-model.md), [launch checklist](./launch-checklist.md), adversarial test `fee_on_transfer_creates_reserve_imbalance`. **Adding** a code ID uses the #589 harness ([`cw20-codeid-audits/PROCEDURE.md`](../../cw20-codeid-audits/PROCEDURE.md), `make verify-issue-589`) — this runbook is post-listing freeze / refresh.
 
 ---
 
