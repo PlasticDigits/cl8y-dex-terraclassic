@@ -1740,6 +1740,28 @@ mod tests {
     }
 
     #[test]
+    fn parse_swaps_pool_commission_ignores_book_commission_amount_l7() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+            ("offer_asset", "uluna"),
+            ("ask_asset", "uusd"),
+            ("commission_amount", "3"),
+            ("book_commission_amount", "7"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 1);
+        assert_eq!(
+            swaps[0].commission_amount.as_ref().unwrap().to_string(),
+            "3",
+            "L7 / PFee-5: swap_amm uses pool commission_amount only; never book_commission_amount"
+        );
+    }
+
+    #[test]
     fn parse_limit_order_fills_extracts_events() {
         let tx = wasm_tx_multi(vec![
             vec![

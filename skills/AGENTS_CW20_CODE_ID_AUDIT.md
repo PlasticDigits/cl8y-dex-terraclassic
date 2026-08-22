@@ -14,7 +14,7 @@ This playbook is the **intake** process. Listing-time pin **F6** is [`AGENTS_CW2
 | **C589-4** | Approving an ID admits **every** instantiate of that wasm. Write that on every `REPORT.md`. |
 | **C589-5** | Known-bad **8654** / FoT mutants must fail 1:1 and **P2**. Green known-bad is a harness bug (**C4**). |
 | **C589-6** | 10184 analogue (`cw20-mintable`) must stay green on honest rows. Failures are harness bugs. |
-| **C589-7** | Layer B-lt is never a **silent** skip (**C5**). `make verify-issue-589` prints `SKIP Layer B-lt` or requires `LAYER_B_LT=1`. |
+| **C589-7** | Layer B-lt is never a **silent** skip (**C5**). `make verify-issue-589` prints `SKIP Layer B-lt` or, with `LAYER_B_LT=1`, **executes** pinned wasm via `layer-a-lcd.sh` + `layer-b-lt.sh`. Stub PASS is a harness bug ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590) **M590-6**). |
 | **C589-8** | No mnemonics / admin keys in `cw20-codeid-audits/codeids/` (**C6**). CertiK file hashes are not `data_hash` (**C7**). |
 | **C589-9** | Do not whitelist on “decomp looks like cw20-base” alone. **#581 go** comes from [`cw20-codeid-audits/codeids/8266/REPORT.md`](../cw20-codeid-audits/codeids/8266/REPORT.md). |
 
@@ -32,12 +32,14 @@ Harness: [`cw20-codeid-audits/harness/README.md`](../cw20-codeid-audits/harness/
 ./cw20-codeid-audits/scripts/decompile-wasm.sh <id>   # needs wabt
 make verify-issue-589                                  # A-mt + B-mt + docs
 CODE_ID=<id> make verify-issue-589                     # LCD fetch + decomp
-CODE_ID=<id> LAYER_B_LT=1 make verify-issue-589        # after make has-localterra
+CODE_ID=<id> LAYER_B_LT=1 make verify-issue-589        # after make has-localterra — executes token.wasm
 ```
 
 Copy [`report-template.md`](../cw20-codeid-audits/report-template.md) → `codeids/<id>/REPORT.md`. Fill **every** catalogue row. Explicit **GO / NO-GO**.
 
 8266 pin: `953AD60CF6D8C9631B99ADC84C3ABF4083815743F86FF81B2A422FDFDF5F95C0`.
+
+Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_590.md) (`make verify-issue-590`).
 
 ## Do not
 
@@ -51,6 +53,7 @@ Copy [`report-template.md`](../cw20-codeid-audits/report-template.md) → `codei
 
 - [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) — F6
 - [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) — H-01
+- [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_590.md) — #590 stacked verify
 - [`docs/runbooks/cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md)
 - [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) **P2**
 - [`docs/exploit-replay-matrix.md`](../docs/exploit-replay-matrix.md) **SEC-D06**

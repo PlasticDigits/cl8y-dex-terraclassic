@@ -252,6 +252,11 @@ export function TokenSearchSelect({
               inputRef.current?.select()
             })
           }}
+          onClick={() => {
+            if (!canOpen) return
+            // Click on an already-focused closed combobox does not fire onFocus (Playwright E7/E8).
+            setOpen(true)
+          }}
           onKeyDown={handleInputKeyDown}
           onBlur={() => {
             window.setTimeout(() => {

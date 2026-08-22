@@ -83,6 +83,8 @@ run_policy_docs() {
   rg -q "optional appendix" docs/runbooks/cw20-whitelist-policy.md
   rg -q "AGENTS_CW20_CODE_ID_AUDIT" AGENTS.md
   rg -q "verify-issue-589" AGENTS.md
+  rg -q "verify-issue-590" AGENTS.md
+  rg -q "layer-a-lcd.sh" "$AUDIT/harness/README.md"
   rg -q "cw20-codeid-audits" docs/runbooks/cw20-code-id-ops.md
   rg -q "codeids/8266/REPORT.md" skills/AGENTS_CW20_CODE_ID_PIN.md
   rg -q "cw20-codeid-audits" audits/CW20-8266-581.md
@@ -148,14 +150,28 @@ run_layer_b_lt() {
   if timeout 20 make -s has-localterra >/dev/null 2>&1; then
     has=0
   fi
+  chmod +x "$AUDIT/scripts/layer-a-lcd.sh" "$AUDIT/scripts/layer-b-lt.sh"
   if [[ "${LAYER_B_LT:-}" == "1" ]]; then
-    if [[ "$has" -eq 0 ]]; then
-      echo "LocalTerra up — store/instantiate of LCD wasm is operator-run (see PROCEDURE.md)."
-      echo "Harness B-mt already covered DEX invariants with mintable + FoT mutant."
-      return 0
+    if [[ "$has" -ne 0 ]]; then
+      echo "FAIL: LAYER_B_LT=1 but make has-localterra failed. Provision: make setup-cloud-localterra" >&2
+      return 1
     fi
-    echo "FAIL: LAYER_B_LT=1 but make has-localterra failed. Provision: make setup-cloud-localterra" >&2
-    return 1
+    local id="${CODE_ID:-}"
+    if [[ -z "$id" ]]; then
+      echo "FAIL: LAYER_B_LT=1 requires CODE_ID so pinned token.wasm is executed (not a stub)" >&2
+      return 1
+    fi
+    if [[ ! -f "$AUDIT/codeids/$id/token.wasm" ]]; then
+      "$AUDIT/scripts/fetch-lcd-wasm.sh" "$id"
+    fi
+    "$AUDIT/scripts/layer-a-lcd.sh" "$id"
+    "$AUDIT/scripts/layer-b-lt.sh" "$id"
+    test -f "$AUDIT/codeids/$id/layer-a-lcd.json"
+    test -f "$AUDIT/codeids/$id/layer-b-lt.json"
+    jq -e '.executed == true and .one_to_one == true' "$AUDIT/codeids/$id/layer-a-lcd.json" >/dev/null
+    jq -e '.executed == true and .one_to_one_into_pair == true' "$AUDIT/codeids/$id/layer-b-lt.json" >/dev/null
+    echo "Layer A-lcd + B-lt executed pinned LCD wasm $id (see layer-*-*.json)."
+    return 0
   fi
   if [[ "$has" -eq 0 ]]; then
     echo "LocalTerra is up; B-mt still used for this target. Set LAYER_B_LT=1 CODE_ID=… to store LCD wasm."

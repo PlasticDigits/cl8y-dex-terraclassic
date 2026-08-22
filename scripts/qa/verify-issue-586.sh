@@ -65,6 +65,9 @@ run_step "source: overview additive fees; GET does not scan events; no traders.t
     grep -q protocol-fee-stats frontend-dapp/src/components/protocol/ProtocolFeeStats.tsx
     grep -q getProtocolFees frontend-dapp/src/services/indexer/client.ts
     grep -q WRAP_MAPPER_ADDRESS indexer/src/config.rs
+    grep -q parse_unwrap_uses_fee_amount_not_tax_amount indexer/src/indexer/protocol_fees.rs
+    grep -q parse_swaps_pool_commission_ignores_book_commission_amount_l7 indexer/src/indexer/parser.rs
+    grep -q hybrid_counts_amm_and_book_once indexer/tests/indexer_protocol_fees.rs
     if grep -nF "total_fees_paid" frontend-dapp/src/components/protocol/ProtocolFeeStats.tsx \
          frontend-dapp/src/pages/ProtocolPage.tsx 2>/dev/null; then
       echo "Protocol fee UI must not headline traders.total_fees_paid" >&2

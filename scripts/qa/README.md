@@ -125,6 +125,19 @@ After stacking logo / WC / Charts stats / hub P&amp;L / tape / gem hide / trade 
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_STACK.md`](../../skills/AGENTS_POST_MERGE_STACK.md). QA invariant **Q6**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-stack-573).
 
+### Post-merge !394–!396 (GitLab #590)
+
+After stacking protocol fees, wrap+≥2hop gas, and the CW20 audit harness:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-590` | Children **586, 587, 589** plus L7/unwrap classification (**M590-1–M590-8**) |
+| `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` | A-lcd/B-lt **execute** pinned wasm (not a stub) |
+| Coolify indexer + dApp | Fee migration + `WRAP_MAPPER_ADDRESS`; `/protocol` fees + Swap Network fee |
+| 8266 | Stay **NO-GO** until `codeids/8266/REPORT.md` is **GO** |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_590.md`](../../skills/AGENTS_POST_MERGE_OPS_590.md). QA invariant **Q7**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-590).
+
 ---
 
 ## Makefile reference

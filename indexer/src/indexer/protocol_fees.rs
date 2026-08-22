@@ -387,6 +387,35 @@ mod tests {
     }
 
     #[test]
+    fn parse_unwrap_uses_fee_amount_not_tax_amount() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", pin),
+            attr("action", "unwrap"),
+            attr("fee_amount", "1000"),
+            attr("tax_amount", "50000"),
+            attr("denom", "uluna"),
+        ]);
+        let fees = parse_wrap_fees(&tx, pin);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Unwrap);
+        assert_eq!(fees[0].amount_raw, bd("1000"));
+    }
+
+    #[test]
+    fn parse_wrap_ignores_instant_withdraw_burn_tax() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", pin),
+            attr("action", "instant_withdraw"),
+            attr("tax_amount", "50000"),
+            attr("fee_amount", "1"),
+            attr("denom", "uluna"),
+        ]);
+        assert!(parse_wrap_fees(&tx, pin).is_empty());
+    }
+
+    #[test]
     fn parse_wrap_fees_zero_amount_skipped() {
         let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
         let tx = tx_with_wasm(vec![

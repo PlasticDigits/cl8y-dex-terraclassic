@@ -109,8 +109,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   }
 
   test('E1: swap native input — LUNC to CW20', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'EMBER')
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
@@ -130,8 +130,9 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
   })
 
   test('E7: wrap+≥2hop LUNC → USTR (or JADE/RUBY stand-in) one submit (#587)', async ({ page }) => {
-    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
+    // Default receive is often native LUNC, which excludes LUNC from the pay list.
     const dest = await requireHubOrTwoHopReceive(page)
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
 
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
@@ -147,6 +148,11 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await expect(feeHint).toBeVisible()
     await expect(feeHint).toContainText('LUNC')
     await expect(feeHint).not.toContainText('USTC')
+    const ammFee = page.getByTestId('swap-fee-row')
+    if ((await ammFee.count()) > 0) {
+      await expect(ammFee).toHaveText(/^Fee/)
+      await expect(ammFee).not.toContainText(/Network fee/i)
+    }
 
     const route = page.getByTestId('swap-route-summary')
     if ((await route.count()) > 0) {
@@ -159,8 +165,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
 
     await openSwapSettingsAndSetSlippage(page, 15)
     await clickSwapSubmit(page)
-    await assertTxResultAlert(page)
-    await expect(page.getByText(/needed more gas than estimated/i)).toHaveCount(0)
+    await expect(page.locator('.alert-success').first()).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
   })
 
   test('E8: ≥2hop CW20 → LUNC unwrap one submit (#587)', async ({ page }) => {
@@ -197,8 +203,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
 
     await openSwapSettingsAndSetSlippage(page, 15)
     await clickSwapSubmit(page)
-    await assertTxResultAlert(page)
-    await expect(page.getByText(/needed more gas than estimated/i)).toHaveCount(0)
+    await expect(page.locator('.alert-success').first()).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
   })
 
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {

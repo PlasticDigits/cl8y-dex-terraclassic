@@ -54,31 +54,49 @@ export async function selectTokenInCombobox(
 ): Promise<boolean> {
   const trigger = page.getByRole('combobox', { name: ariaLabel })
   await expect(trigger).toBeEnabled({ timeout: 25_000 })
+  // Escape after a prior open can leave the combobox focused; click then would not fire onFocus.
+  await page.keyboard.press('Escape')
+  await trigger.blur()
   await trigger.click()
   const list = page.getByRole('listbox', { name: ariaLabel })
-  await expect(list).toBeVisible()
-
-  // Type a short filter when the include token looks like a symbol (not an address).
-  const filterHint = mustInclude.trim()
-  if (filterHint.length >= 2 && !filterHint.toLowerCase().startsWith('terra1')) {
-    await trigger.fill('')
-    await trigger.type(filterHint.slice(0, Math.min(filterHint.length, 8)), { delay: 20 })
-    await page.waitForTimeout(350)
+  if (!(await list.isVisible().catch(() => false))) {
+    await trigger.click()
   }
+  await expect(list).toBeVisible({ timeout: 10_000 })
 
   const opts = list.getByRole('option')
   await expect(async () => {
     expect(await opts.count()).toBeGreaterThan(0)
   }).toPass({ timeout: 10_000 })
 
-  const n = await opts.count()
-  for (let i = 0; i < n; i++) {
-    const txt = (await opts.nth(i).innerText()).replace(/\s+/g, ' ')
-    if (!txt.includes(mustInclude)) continue
-    if (mustNotInclude && txt.includes(mustNotInclude)) continue
-    await opts.nth(i).click()
-    return true
+  const tryPick = async (): Promise<boolean> => {
+    const n = await opts.count()
+    for (let i = 0; i < n; i++) {
+      const txt = (await opts.nth(i).innerText()).replace(/\s+/g, ' ')
+      if (!txt.includes(mustInclude)) continue
+      if (mustNotInclude && txt.includes(mustNotInclude)) continue
+      await opts.nth(i).click()
+      return true
+    }
+    return false
   }
+
+  // Filter only after the unfiltered list is populated. Empty filter (USTR missing)
+  // must return false so callers can try JADE/RUBY — do not hang on 0 options.
+  const filterHint = mustInclude.trim()
+  if (filterHint.length >= 2 && !filterHint.toLowerCase().startsWith('terra1')) {
+    await trigger.fill('')
+    await trigger.type(filterHint.slice(0, Math.min(filterHint.length, 8)), { delay: 20 })
+    await page.waitForTimeout(400)
+    if (await tryPick()) return true
+    await trigger.fill('')
+    await page.waitForTimeout(400)
+    await expect(async () => {
+      expect(await opts.count()).toBeGreaterThan(0)
+    }).toPass({ timeout: 10_000 })
+  }
+
+  if (await tryPick()) return true
   await page.keyboard.press('Escape')
   return false
 }

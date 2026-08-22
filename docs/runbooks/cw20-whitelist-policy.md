@@ -27,10 +27,10 @@ Before governance adds a code ID, follow the **#589 harness** ([`cw20-codeid-aud
 1. **Fetch LCD wasm** — `cw20-codeid-audits/scripts/fetch-lcd-wasm.sh <id>`. SHA-256 **must** equal `CodeInfo.data_hash`. Fail closed on mismatch. No third-party mirror without that check.
 2. **Decompile** that binary (`decompile-wasm.sh`; `wabt`). Do not skip decomp.
 3. **Human audit** against [`cw20-codeid-audits/CATALOG.md`](../../cw20-codeid-audits/CATALOG.md) (every A–CH row).
-4. **Automated suite** on **that wasm** — Layer A (token 1:1 / CW20 surface) + Layer B (DEX invariants **P1–P4**, **P10**, **R1–R4**, **L1–L3**, …). Known-bad **8654** / FoT mutants must **fail** 1:1 and **P2**.
+4. **Automated suite** on **that wasm** — Layer A (token 1:1 / CW20 surface) + Layer B (DEX invariants **P1–P4**, **P10**, **R1–R4**, **L1–L3**, …). Known-bad **8654** / FoT mutants must **fail** 1:1 and **P2**. `LAYER_B_LT=1` must run [`layer-a-lcd.sh`](../../cw20-codeid-audits/scripts/layer-a-lcd.sh) + [`layer-b-lt.sh`](../../cw20-codeid-audits/scripts/layer-b-lt.sh) — not a stub ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)).
 5. **Fill `codeids/<id>/REPORT.md`** from the report template. Explicit **go / no-go**. Approving the ID admits **every** instantiate of that wasm.
 
-Do **not** whitelist on checksum match alone, on decomp “looks like cw20-base” alone, or on CertiK / Skynet **file** hashes. Staging 1:1 probes belong **inside** Layer A/B, not as a substitute. `make verify-issue-589`.
+Do **not** whitelist on checksum match alone, on decomp “looks like cw20-base” alone, or on CertiK / Skynet **file** hashes. Staging 1:1 probes belong **inside** Layer A/B, not as a substitute. `make verify-issue-589`. Stacked post-merge: `make verify-issue-590`.
 
 ### GDEX / TerraPort production code IDs
 

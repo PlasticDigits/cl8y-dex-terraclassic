@@ -5,7 +5,5 @@
   "instantiate_permission": "Everybody",
   "lcd": "https://terra-classic-lcd.publicnode.com",
   "lcd_code_id": "8266",
-  "store_tx": "5829A7EA57F177B17DA509FB1AE6221A016BACB15C4CC8ECC1C61E281B0D2BAC",
-  "wasm_bytes": 327509,
-  "note": "LCD wasm SHA-256 equals CodeInfo.data_hash. Not an optimizer rebuild. Re-fetch with scripts/fetch-lcd-wasm.sh 8266."
+  "note": "SHA-256 of LCD wasm bytes; not an optimizer rebuild. Do not overwrite REPORT.md."
 }

@@ -31,7 +31,7 @@ Then copy [`report-template.md`](report-template.md) to `codeids/<id>/REPORT.md`
 | [`PROCEDURE.md`](PROCEDURE.md) | Standard steps (identity → fetch → decomp → suite → go/no-go) |
 | [`CATALOG.md`](CATALOG.md) | Exploit / weird-token rows A–CH + citations |
 | [`report-template.md`](report-template.md) | Required `REPORT.md` sections |
-| `scripts/` | LCD fetch (fail-closed pin), decompile (`wabt`), fingerprint |
+| `scripts/` | LCD fetch (fail-closed pin), decompile (`wabt`), fingerprint, **A-lcd / B-lt** LocalTerra execution |
 | [`harness/README.md`](harness/README.md) | Layer A vs B backends |
 | `fixtures/` | Known-good / known-bad control notes |
 | `codeids/<id>/` | `meta.json`, `wasm.sha256`, `decomp/`, `REPORT.md` |

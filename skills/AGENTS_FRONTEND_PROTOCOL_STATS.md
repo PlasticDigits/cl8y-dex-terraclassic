@@ -69,7 +69,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **PFee-9** | Windows decay when events age out (#577). `--fresh` / young indexer → Δ% empty until 2×W fills. Copy must not claim chain genesis fees. Dust swaps **do** count (same as volume). |
 | **PFee-10** | Additive overview JSON. Missing fee fields (old indexer) → hide the fee panel, do not invent `$0`. Fee query is in `detectMarketDataOutage` / retry. `?ticker=` stay allowlisted; fee panel ignores ticker. |
 | **PFee-11** | Breakdown cardinality is bounded (fixed source enum; top 8 tokens + `other`). No CSV in v1. |
-| **PFee-12** | Verify: `make verify-issue-586`. Related: `make verify-issue-550` `569` `576` `577`. |
+| **PFee-12** | Verify: `make verify-issue-586`. Related: `make verify-issue-550` `569` `576` `577`. Post-merge stack: `make verify-issue-590` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). |
 
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). Do not add a lecture to the Global stats lead.
 

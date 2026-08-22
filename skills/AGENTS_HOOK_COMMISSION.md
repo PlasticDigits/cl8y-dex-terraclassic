@@ -21,7 +21,7 @@ Before GitLab #196, hybrid swaps passed **pool-leg-only** `commission_amount` to
 - **Hooks:** total `commission_amount` (see above).
 - **Swap tx attrs (Terraport baseline):** `commission_amount` = pool leg only; `book_commission_amount` present when book leg > 0.
 - **Per fill:** `limit_order_fill` events still carry per-maker `commission_amount`.
-- **Protocol fee ingest (#586):** `swap_amm` uses pool `commission_amount`; `book_take` uses `limit_order_fills.commission_amount` **only** — do **not** also add swap `book_commission_amount`. Skill: [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **PFee-5**.
+- **Protocol fee ingest (#586 / #590):** `swap_amm` uses pool `commission_amount`; `book_take` uses `limit_order_fills.commission_amount` **only** — do **not** also add swap `book_commission_amount`. Skill: [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **PFee-5**. Stacked verify: `make verify-issue-590`.
 
 ## Tests to run
 

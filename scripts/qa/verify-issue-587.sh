@@ -65,6 +65,7 @@ run_docs() {
   rg -q 'AGENTS_TERRACLASSIC_GAS' AGENTS.md
   rg -q 'verify-issue-587' AGENTS.md
   rg -q 'verify-issue-587' docs/testing.md
+  rg -q '#590' skills/AGENTS_TERRACLASSIC_GAS.md
   rg -q '#587' NATIVE_TOKEN_WRAPPING.md
   rg -q 'paid in \*\*LUNC\*\*' docs/user-incident-faq.md
   rg -q 'estimateSwapNetworkFee' frontend-dapp/src/services/terraclassic/swapNetworkFee.ts

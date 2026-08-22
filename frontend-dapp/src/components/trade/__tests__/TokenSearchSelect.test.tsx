@@ -144,6 +144,9 @@ describe('TokenSearchSelect (GitLab #481)', () => {
 
     expect(onChange).not.toHaveBeenCalled()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+    await user.click(input)
+    expect(await screen.findByRole('listbox', { name: 'Select token you pay' })).toBeInTheDocument()
   })
 
   it('disabled / empty tokens shows disabled combobox', () => {

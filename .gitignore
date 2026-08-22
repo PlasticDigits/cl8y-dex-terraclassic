@@ -54,4 +54,15 @@ scripts/bots/run/
 __pycache__/
 screenshots/
 
+# Git worktrees (local agent checkouts)
+.worktrees/
+
+# Generated LCD wasm decomp / layer logs (keep fingerprint.json + README)
+cw20-codeid-audits/codeids/*/decomp/token.wat
+cw20-codeid-audits/codeids/*/decomp/token.decompiled.c
+cw20-codeid-audits/codeids/*/decomp/objdump-*.txt
+cw20-codeid-audits/codeids/*/decomp/strings.txt
+cw20-codeid-audits/codeids/*/layer-a-lcd.json
+cw20-codeid-audits/codeids/*/layer-b-lt.json
+
 # help

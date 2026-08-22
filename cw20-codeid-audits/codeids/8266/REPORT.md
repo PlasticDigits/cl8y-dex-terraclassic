@@ -16,9 +16,9 @@ Prior one-off notes (superseded as the **intake path**; hash-repro is appendix o
 - [ ] GO — Layer A + Layer B green on the **pinned LCD wasm**; catalogue rows pass or N/A+reason; residuals written
 - [x] NO-GO — fail closed (do not whitelist; do not add FoT math)
 
-**Reason:** #589 procedure is in-repo. LCD identity is pinned (`953AD60C…`). Static strings / serde surface show **no** `tax_map` / FoT / rebase vocabulary, and snapshot queries are historical-only in the public dump. **Layer A-lcd and Layer B-lt have not yet executed this pinned wasm** in this folder (C3: tests on the candidate binary are required). Optimizer rebuild hash is **not** a remaining gate (appendix). #581 stays open until this report is **GO**.
+**Reason:** LCD identity is pinned (`953AD60C…`). 2026-08-22 harness **executed** the pinned wasm on LocalTerra: **A-lcd** store + instantiate + 1:1 Transfer, **B-lt** whitelist of the *local* store id + `CreatePair` vs EMBER + 1:1 Transfer into the pair (logs `layer-a-lcd.json` / `layer-b-lt.json`, gitignored). That closes the “stub PASS” gap (**M590-6** / **C3** Transfer path). It does **not** clear factory-global impact (**B13**: Everybody instantiate, 1686+ columbus-5 instances), issuer wasm-admin / F6 residual (**A14**), minter cap residual (**B14**), or remaining catalogue rows (Send/TransferFrom matrix, round-trip swap **B7**, limit Send escrow **B6**, P2 as *offer* token). `classic_terraport` / `terraport_token` are not `cw20_base`. Optimizer rebuild hash is **not** a remaining gate (appendix). **#581 stays NO-GO** — do not `AddWhitelistedCodeId 8266` on columbus-5.
 
-Re-run: `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` after `make setup-cloud-localterra`, then flip the verdict if 1:1 + P2 hold.
+Re-run: `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` after `make setup-cloud-localterra`. Flip to GO only when remaining catalogue + factory-global ops sign-off are written here.
 
 ## Identity
 
@@ -58,7 +58,7 @@ Execute serde: `transfer`, `burn`, `send`, `increase_allowance`, `decrease_allow
 
 ## Decompile
 
-`decomp/` is generated (`decompile-wasm.sh 8266`). Until wabt is run in this checkout, static review uses #581 wasm strings + dump `execute_transfer` (debit/credit same `amount`; `Send` hook amount matches). Unreadable regions: stripped names; CFG not proven byte-identical to the later public dump.
+`decomp/` is generated (`decompile-wasm.sh 8266`, wabt 1.0.36). 2026-08-22 LCD re-fetch: `fingerprint.json` committed; wat/c/objdump gitignored. Static strings match the table above. Unreadable regions: stripped names; CFG not proven byte-identical to the later public dump.
 
 ## Catalogue
 
@@ -68,7 +68,7 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 
 | ID | Result | Notes |
 |----|--------|-------|
-| A1 | static-pass; pending-lcd | No FoT vocab; dump 1:1. Must probe Transfer/Send/TransferFrom/SendFrom on LCD wasm |
+| A1 | A-lcd Transfer 1:1 **pass** (2026-08-22 LocalTerra); Send/TransferFrom/SendFrom pending-lcd | No FoT vocab. Transfer debit=credit=`amount` on pinned wasm. Other CW20 write ops not yet on this binary |
 | A2 | static-pass; pending-lcd | No pair-address tax strings |
 | A3 | static-pass; pending-lcd | Idle rebase vocab absent; SnapshotMap is historical |
 | A4 | static-pass | Live `tax_map` unknown variant. 8654 remains known-bad |
@@ -95,7 +95,7 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 | A25 | static-pass | CW20 only; factory rejects natives |
 | A26 | static-pass | No `ibc_receive` in export/string baseline |
 | A27 | record | cosmwasm-std 1.3.3 is inside CWA-2024-002 range — **D20** documented; token does not use wrapping pow for balances in dump |
-| A28 | pending-lcd | `requires_terra` present; prove 1:1 on CW20 path (not native tax) |
+| A28 | A-lcd 1:1 **pass** on LocalTerra | `requires_terra` present; Transfer 1:1 holds on CW20 path (not native tax). Not a FoT flag |
 | A29 | static-pass; pending-lcd | `balance_at` snapshot-only in dump + live SpaceUSD check |
 | A30 | residual | Logo 5KB limit in wasm strings |
 
@@ -125,9 +125,9 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 |----|--------|-------|
 | C1 | pass (harness) | Fetch self-test refuses hash mismatch |
 | C2 | pass (harness) | Decompile fails closed without wabt |
-| C3 | **open** | This report is NO-GO until LCD wasm suite logs exist here |
+| C3 | A-lcd + B-lt **executed** (Transfer 1:1); suite incomplete | `layer-a-lcd.json` / `layer-b-lt.json` written this checkout (gitignored). Round-trip swap / Send matrix still pending — keep NO-GO |
 | C4 | pass (harness) | FoT mutant tests must stay red |
-| C5 | pass (harness) | `verify-issue-589` prints explicit Layer B-lt skip |
+| C5 | pass (harness) | `verify-issue-589` prints explicit Layer B-lt skip unless `LAYER_B_LT=1`, which **executes** wasm (not a stub, #590) |
 | C6 | pass | No keys in `codeids/` |
 | C7 | pass | CertiK/Skynet file hashes **not** used as `data_hash` |
 
@@ -188,11 +188,15 @@ Legend: **static-pass** = LCD strings/dump; **pending-lcd** = must re-run on sto
 
 ## Layer A (token-only)
 
-Backend this MR: **A-mt** (`cw20_mintable` + mutants) via `make verify-issue-589`. **A-lcd** (store 8266 on LocalTerra, Everybody instantiate, 1:1 matrix): **not recorded in this folder**.
+Backend: **A-mt** (`cw20_mintable` + mutants) via `make verify-issue-589`. **A-lcd** script: [`../../scripts/layer-a-lcd.sh`](../../scripts/layer-a-lcd.sh) — store + instantiate + 1:1 Transfer of the pinned LCD wasm on LocalTerra. Logs: `layer-a-lcd.json` (gitignored).
+
+**2026-08-22 LocalTerra execution** (pin `953AD60C…`): store + instantiate + 1:1 Transfer of the pinned bytes (local store ids vary per run, e.g. 34 then 35). Instantiate ticker must be `[a-zA-Z-]{3,12}` (digits fail Terraport validate). This is a **LocalTerra copy** — do not whitelist columbus-5 **8266** from this run.
 
 ## Layer B (DEX + limits)
 
-Backend this MR: **B-mt** (P1/P2/P3/donation/flash/honeypot round-trip/limit escrow/same-asset CreatePair; FoT **P2** red). **B-lt** skip unless `LAYER_B_LT=1` and `make has-localterra`.
+Backend: **B-mt** (P1/P2/P3/donation/flash/honeypot round-trip/limit escrow/same-asset CreatePair; FoT **P2** red). **B-lt** script: [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) — whitelist the **local** store id only, `CreatePair` vs EMBER, 1:1 into pair. `LAYER_B_LT=1` must not PASS as a stub ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)).
+
+**2026-08-22 LocalTerra execution:** local store id whitelisted on the *test* factory, `CreatePair` vs EMBER, `one_to_one_into_pair: true`. Does **not** run round-trip swap **B7**, limit escrow **B6**, or P2-as-offer. Factory-global **B13** still blocks GO.
 
 ## Factory-global impact
 
