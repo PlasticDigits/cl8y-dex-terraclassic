@@ -20,6 +20,7 @@ CODE_ID=8266 make verify-issue-589
 
 # Layer B on LocalTerra with the pinned wasm (needs make has-localterra):
 CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589
+make verify-issue-581
 ```
 
 Then copy [`report-template.md`](report-template.md) to `codeids/<id>/REPORT.md` and fill every catalogue row. Approving the ID admits **every** instantiate of that wasm.

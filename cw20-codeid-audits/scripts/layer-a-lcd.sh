@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Layer A-lcd: store + instantiate + 1:1 Transfer of pinned LCD wasm on LocalTerra.
-# GitLab #589 / #590. Fail closed — never a silent skip.
+# Layer A-lcd: store + instantiate + CW20 write-path suite on pinned LCD wasm (LocalTerra).
+# GitLab #589 / #581 / #590. Fail closed — never a silent skip.
+#
+# Covers Transfer / TransferFrom 1:1, allowance, unauthorized mint, idle/snapshot,
+# self/oversize/zero. Send 1:1 to a Receive hook is Layer B-lt (pair Swap + limit).
 #
 # Usage: layer-a-lcd.sh <code_id>
 # Requires: make has-localterra, codeids/<id>/token.wasm (fetch-lcd-wasm.sh first).
@@ -62,6 +65,19 @@ terrad_tx() {
   e2e_terrad_tx "$CONTAINER" "$@"
 }
 
+exec_ok() {
+  local out tx
+  out="$(terrad_tx "$@")"
+  tx="$(layer_txhash "$out")"
+  [[ -n "$tx" ]] || {
+    echo "FAIL: no txhash for: $*" >&2
+    printf '%s\n' "$out" >&2
+    exit 1
+  }
+  layer_wait_tx "$tx"
+  printf '%s' "$tx"
+}
+
 echo "A-lcd: storing LCD wasm code_id=$ID pin=${got_pin:0:16}…"
 layer_docker_cp "$WASM" "${CONTAINER}:${DEST_WASM}"
 STORE_OUT="$(terrad_tx wasm store "$DEST_WASM")"
@@ -108,52 +124,197 @@ TOKEN_ADDR="$(echo "$(terrad_wait_tx_query "$CONTAINER" "$INST_TX" "$TERRAD_NODE
 }
 echo "A-lcd: instantiated $TOKEN_ADDR"
 
-RECIPIENT="$(localterra_docker_exec "$CONTAINER" terrad keys show test2 -a --keyring-backend test 2>/dev/null || true)"
-if [[ "$RECIPIENT" != terra1* ]]; then
-  RECIPIENT="${VITE_FACTORY_ADDRESS:-}"
-fi
+RECIPIENT="$(layer_ensure_test2)"
 [[ "$RECIPIENT" == terra1* ]] || {
-  echo "FAIL: no transfer recipient (test2 / factory)." >&2
+  echo "FAIL: no transfer recipient (test2)." >&2
   exit 1
 }
+echo "A-lcd: spender/recipient test2=$RECIPIENT"
 
+# --- A1 Transfer 1:1 ---
 BAL_BEFORE_SENDER="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
 BAL_BEFORE_RECV="$(layer_cw20_balance "$TOKEN_ADDR" "$RECIPIENT")"
-
 XFER="$(jq -nc --arg r "$RECIPIENT" --arg amt "$TRANSFER_RAW" '{transfer:{recipient:$r,amount:$amt}}')"
-XFER_OUT="$(terrad_tx wasm execute "$TOKEN_ADDR" "$XFER")"
-XFER_TX="$(layer_txhash "$XFER_OUT")"
-[[ -n "$XFER_TX" ]] || {
-  echo "FAIL: transfer produced no txhash:" >&2
-  printf '%s\n' "$XFER_OUT" >&2
-  exit 1
-}
-layer_wait_tx "$XFER_TX"
-
+XFER_TX="$(exec_ok wasm execute "$TOKEN_ADDR" "$XFER")"
 BAL_AFTER_SENDER="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
 BAL_AFTER_RECV="$(layer_cw20_balance "$TOKEN_ADDR" "$RECIPIENT")"
+layer_assert_one_to_one "A-lcd Transfer" "$BAL_BEFORE_SENDER" "$BAL_AFTER_SENDER" \
+  "$BAL_BEFORE_RECV" "$BAL_AFTER_RECV" "$TRANSFER_RAW"
 
-python3 - "$BAL_BEFORE_SENDER" "$BAL_AFTER_SENDER" "$BAL_BEFORE_RECV" "$BAL_AFTER_RECV" "$TRANSFER_RAW" <<'PY'
+# --- A16 events vs debit (wasm amount attr, if present, must not exceed debit) ---
+XFER_JSON="$(terrad_wait_tx_query "$CONTAINER" "$XFER_TX" "$TERRAD_NODE")"
+EVENT_AMT="$(echo "$XFER_JSON" | jq -r '[.tx_response.events // .events // [] | .[] | select(.type=="wasm") | .attributes[]? | select(.key=="amount") | .value] | first // empty')"
+if [[ -n "$EVENT_AMT" && "$EVENT_AMT" =~ ^[0-9]+$ ]]; then
+  python3 -c '
 import sys
-bs, as_, br, ar, amt = (int(x) for x in sys.argv[1:])
-if bs - as_ != amt:
-    sys.stderr.write(f"FAIL: sender debit {bs}->{as_} != {amt}\n")
+ev, debit = int(sys.argv[1]), int(sys.argv[2])
+if ev != debit:
+    sys.stderr.write(f"FAIL: transfer event amount {ev} != debit {debit}\n")
     sys.exit(1)
-if ar - br != amt:
-    sys.stderr.write(f"FAIL: recipient credit {br}->{ar} != {amt} (FoT / tax)\n")
-    sys.exit(1)
-print("A-lcd: 1:1 Transfer holds")
-PY
+print("A-lcd: transfer event matches debit")
+' "$EVENT_AMT" "$TRANSFER_RAW"
+else
+  echo "A-lcd: no numeric wasm amount attr (record; debit already 1:1)"
+fi
 
+# --- A8 TransferFrom without allowance must fail ---
+NOALLOW="$(jq -nc --arg o "$TEST_ADDRESS" --arg r "$RECIPIENT" --arg amt "$TRANSFER_RAW" \
+  '{transfer_from:{owner:$o,recipient:$r,amount:$amt}}')"
+set +e
+NOALLOW_OUT="$(layer_terrad_tx_from test2 wasm execute "$TOKEN_ADDR" "$NOALLOW" 2>&1)"
+NOALLOW_ST=$?
+set -e
+if [[ "$NOALLOW_ST" -eq 0 ]] && ! layer_execute_rejected "$NOALLOW_OUT"; then
+  echo "FAIL: TransferFrom without allowance succeeded (A8 backdoor)" >&2
+  printf '%s\n' "$NOALLOW_OUT" >&2
+  exit 1
+fi
+echo "A-lcd: TransferFrom without allowance rejected"
+
+# --- A1 / A7 TransferFrom 1:1 with allowance ---
 ALLOW="$(jq -nc --arg s "$RECIPIENT" --arg amt "$TRANSFER_RAW" \
   '{increase_allowance:{spender:$s,amount:$amt}}')"
-ALLOW_OUT="$(terrad_tx wasm execute "$TOKEN_ADDR" "$ALLOW")"
-ALLOW_TX="$(layer_txhash "$ALLOW_OUT")"
-[[ -n "$ALLOW_TX" ]] || {
-  echo "FAIL: increase_allowance produced no txhash" >&2
+ALLOW_TX="$(exec_ok wasm execute "$TOKEN_ADDR" "$ALLOW")"
+TF_BEFORE_S="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+TF_BEFORE_R="$(layer_cw20_balance "$TOKEN_ADDR" "$RECIPIENT")"
+TF_MSG="$(jq -nc --arg o "$TEST_ADDRESS" --arg r "$RECIPIENT" --arg amt "$TRANSFER_RAW" \
+  '{transfer_from:{owner:$o,recipient:$r,amount:$amt}}')"
+TF_OUT="$(layer_terrad_tx_from test2 wasm execute "$TOKEN_ADDR" "$TF_MSG")" || {
+  echo "FAIL: TransferFrom with allowance failed:" >&2
+  printf '%s\n' "$TF_OUT" >&2
   exit 1
 }
-layer_wait_tx "$ALLOW_TX"
+TF_TX="$(layer_txhash "$TF_OUT")"
+[[ -n "$TF_TX" ]] || {
+  echo "FAIL: TransferFrom with allowance produced no txhash" >&2
+  printf '%s\n' "$TF_OUT" >&2
+  exit 1
+}
+layer_wait_tx "$TF_TX"
+TF_AFTER_S="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+TF_AFTER_R="$(layer_cw20_balance "$TOKEN_ADDR" "$RECIPIENT")"
+layer_assert_one_to_one "A-lcd TransferFrom" "$TF_BEFORE_S" "$TF_AFTER_S" \
+  "$TF_BEFORE_R" "$TF_AFTER_R" "$TRANSFER_RAW"
+
+# --- A7 leftover allowance should be 0 after exact spend ---
+LEFT="$(layer_cw20_allowance "$TOKEN_ADDR" "$TEST_ADDRESS" "$RECIPIENT")"
+[[ "$LEFT" == "0" ]] || {
+  echo "FAIL: allowance leftover $LEFT after exact TransferFrom" >&2
+  exit 1
+}
+
+# --- A12 unauthorized mint from test2 ---
+MINT_BAD="$(jq -nc --arg r "$RECIPIENT" '{mint:{recipient:$r,amount:"1"}}')"
+set +e
+MINT_OUT="$(layer_terrad_tx_from test2 wasm execute "$TOKEN_ADDR" "$MINT_BAD" 2>&1)"
+MINT_ST=$?
+set -e
+if [[ "$MINT_ST" -eq 0 ]] && ! layer_execute_rejected "$MINT_OUT"; then
+  echo "FAIL: unauthorized mint succeeded (A12)" >&2
+  exit 1
+fi
+echo "A-lcd: unauthorized mint rejected"
+
+# --- burn_from without allowance ---
+BURN_BAD="$(jq -nc --arg o "$TEST_ADDRESS" '{burn_from:{owner:$o,amount:"1"}}')"
+set +e
+BURN_OUT="$(layer_terrad_tx_from test2 wasm execute "$TOKEN_ADDR" "$BURN_BAD" 2>&1)"
+BURN_ST=$?
+set -e
+if [[ "$BURN_ST" -eq 0 ]] && ! layer_execute_rejected "$BURN_OUT"; then
+  echo "FAIL: unauthorized burn_from succeeded" >&2
+  exit 1
+fi
+echo "A-lcd: unauthorized burn_from rejected"
+
+# --- A19 self-transfer net zero ---
+SELF_BEFORE="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+SELF_MSG="$(jq -nc --arg r "$TEST_ADDRESS" --arg amt "$TRANSFER_RAW" '{transfer:{recipient:$r,amount:$amt}}')"
+SELF_TX="$(exec_ok wasm execute "$TOKEN_ADDR" "$SELF_MSG")"
+SELF_AFTER="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+[[ "$SELF_BEFORE" == "$SELF_AFTER" ]] || {
+  echo "FAIL: self-transfer mutated balance $SELF_BEFORE -> $SELF_AFTER" >&2
+  exit 1
+}
+echo "A-lcd: self-transfer net zero"
+
+# --- oversize rejected ---
+OVER_MSG="$(jq -nc --arg r "$RECIPIENT" '{transfer:{recipient:$r,amount:"999999999999999999999999"}}')"
+set +e
+OVER_OUT="$(terrad_tx wasm execute "$TOKEN_ADDR" "$OVER_MSG" 2>&1)"
+OVER_ST=$?
+set -e
+if [[ "$OVER_ST" -eq 0 ]] && ! layer_execute_rejected "$OVER_OUT"; then
+  echo "FAIL: oversize transfer succeeded" >&2
+  exit 1
+fi
+echo "A-lcd: oversize transfer rejected"
+
+# --- A18 zero amount: reject or 0-delta ---
+ZERO_BEFORE_S="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+ZERO_BEFORE_R="$(layer_cw20_balance "$TOKEN_ADDR" "$RECIPIENT")"
+ZERO_MSG="$(jq -nc --arg r "$RECIPIENT" '{transfer:{recipient:$r,amount:"0"}}')"
+ZERO_REJECTED=false
+set +e
+ZERO_OUT="$(terrad_tx wasm execute "$TOKEN_ADDR" "$ZERO_MSG" 2>&1)"
+ZERO_ST=$?
+set -e
+if [[ "$ZERO_ST" -eq 0 ]] && ! layer_execute_rejected "$ZERO_OUT"; then
+  ZERO_TX="$(layer_txhash "$ZERO_OUT")"
+  layer_wait_tx "$ZERO_TX"
+  ZERO_AFTER_S="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+  ZERO_AFTER_R="$(layer_cw20_balance "$TOKEN_ADDR" "$RECIPIENT")"
+  [[ "$ZERO_BEFORE_S" == "$ZERO_AFTER_S" && "$ZERO_BEFORE_R" == "$ZERO_AFTER_R" ]] || {
+    echo "FAIL: zero transfer mutated balances" >&2
+    exit 1
+  }
+  echo "A-lcd: zero transfer no-op (accepted)"
+else
+  ZERO_REJECTED=true
+  echo "A-lcd: zero transfer rejected (deterministic)"
+fi
+
+# --- A22 TokenInfo ---
+INFO="$(layer_cw20_token_info "$TOKEN_ADDR")"
+DECIMALS="$(echo "$INFO" | jq -r '.decimals // empty')"
+[[ "$DECIMALS" == "6" ]] || {
+  echo "FAIL: TokenInfo decimals=$DECIMALS (expected 6)" >&2
+  echo "$INFO" >&2
+  exit 1
+}
+echo "A-lcd: TokenInfo decimals=6"
+
+# --- A23 / A29 idle + snapshot ---
+IDLE_BEFORE="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+H1="$(layer_block_height)"
+# Nudge a block with a no-op bank send of 1 uluna to test2 if needed: wait for next height.
+for _ in $(seq 1 15); do
+  H2="$(layer_block_height)"
+  if [[ -n "$H2" && "$H2" != "$H1" ]]; then
+    break
+  fi
+  sleep 1
+done
+IDLE_AFTER="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+[[ "$IDLE_BEFORE" == "$IDLE_AFTER" ]] || {
+  echo "FAIL: idle balance changed $IDLE_BEFORE -> $IDLE_AFTER (rebase A3/A23)" >&2
+  exit 1
+}
+echo "A-lcd: idle balance stable"
+
+SNAP_H="$(layer_block_height)"
+if [[ "$SNAP_H" =~ ^[0-9]+$ ]]; then
+  SNAP="$(layer_cw20_balance_at "$TOKEN_ADDR" "$TEST_ADDRESS" "$SNAP_H")"
+  LIVE="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+  [[ "$SNAP" == "$LIVE" ]] || {
+    echo "FAIL: balance_at@$SNAP_H=$SNAP != live $LIVE (A29)" >&2
+    exit 1
+  }
+  echo "A-lcd: balance_at snapshot matches live"
+else
+  echo "FAIL: could not read block height for balance_at" >&2
+  exit 1
+fi
 
 mkdir -p "$(dirname "$OUT_JSON")"
 jq -nc \
@@ -165,10 +326,25 @@ jq -nc \
   --arg inst "$INST_TX" \
   --arg xfer "$XFER_TX" \
   --arg recv "$RECIPIENT" \
+  --arg tf "$TF_TX" \
+  --argjson zero_rejected "$ZERO_REJECTED" \
   --argjson one true \
   '{
     executed: true,
     one_to_one: $one,
+    transfer_one_to_one: true,
+    transfer_from_one_to_one: true,
+    transfer_from_no_allowance_rejected: true,
+    unauthorized_mint_rejected: true,
+    unauthorized_burn_from_rejected: true,
+    self_transfer_net_zero: true,
+    oversize_rejected: true,
+    zero_amount_deterministic: true,
+    zero_rejected: $zero_rejected,
+    token_info_ok: true,
+    idle_balance_stable: true,
+    snapshot_matches_live: true,
+    send_hook: "layer-b-lt (pair Receive)",
     columbus5_code_id: $id,
     local_code_id: $local,
     token: $token,
@@ -176,6 +352,7 @@ jq -nc \
     store_tx: $store,
     instantiate_tx: $inst,
     transfer_tx: $xfer,
+    transfer_from_tx: $tf,
     recipient: $recv,
     note: "LocalTerra copy of LCD wasm. Do not AddWhitelistedCodeId this columbus-5 id on mainnet from this run."
   }' > "$OUT_JSON"
