@@ -16,8 +16,6 @@ type Props = {
   directPair: PairInfo | null | undefined
   fromToken: string
   toToken: string
-  useHybridBook: boolean
-  onUseHybridBookChange: (enabled: boolean) => void
   bookInputHuman: string
   onBookInputHumanChange: (value: string) => void
   hybridMaxMakers: number
@@ -47,8 +45,6 @@ export function SwapAdvancedSettings({
   directPair,
   fromToken,
   toToken,
-  useHybridBook,
-  onUseHybridBookChange,
   bookInputHuman,
   onBookInputHumanChange,
   hybridMaxMakers,
@@ -93,63 +89,53 @@ export function SwapAdvancedSettings({
                   {pairInfoMenuLabel(directPair, { variant: 'full' })}
                 </p>
                 <p className="text-[10px] mb-3 leading-relaxed" style={{ color: 'var(--ink-dim)' }}>
-                  For single-hop CW20 swaps only. Route part of your payment through resting limit orders; quotes use
-                  the same hybrid simulation as submit.
+                  Resting limit orders are always considered. Type a book amount only to override the solver split.
+                  Quotes use the same hybrid simulation as submit.
                 </p>
-                <label className="flex items-center gap-2 text-xs mb-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={useHybridBook}
-                    onChange={(e) => onUseHybridBookChange(e.target.checked)}
-                  />
-                  Route part of input through the limit book
-                </label>
-                {useHybridBook && (
-                  <div className="space-y-2">
-                    <div>
-                      <label className="label-glass text-[10px]" htmlFor={bookLegAmountInputId}>
-                        Book leg amount ({getTokenDisplaySymbol(fromToken)})
-                      </label>
-                      <input
-                        id={bookLegAmountInputId}
-                        type="text"
-                        inputMode="decimal"
-                        className="input-glass !text-xs w-full"
-                        value={bookInputHuman}
-                        onChange={(e) => {
-                          const v = e.target.value
-                          if (isDecimalAmountDraft(v)) onBookInputHumanChange(v)
-                        }}
-                        placeholder="0.0"
+                <div className="space-y-2">
+                  <div>
+                    <label className="label-glass text-[10px]" htmlFor={bookLegAmountInputId}>
+                      Book leg override ({getTokenDisplaySymbol(fromToken)})
+                    </label>
+                    <input
+                      id={bookLegAmountInputId}
+                      type="text"
+                      inputMode="decimal"
+                      className="input-glass !text-xs w-full"
+                      value={bookInputHuman}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        if (isDecimalAmountDraft(v)) onBookInputHumanChange(v)
+                      }}
+                      placeholder="0.0"
+                    />
+                    {isWalletConnected && fromToken.startsWith('terra1') && (
+                      <AmountBalanceActions
+                        balanceQuery={balanceQuery}
+                        decimals={offerDecimals}
+                        walletConnected={isWalletConnected}
+                        compact
+                        spendableRaw={bookLegMaxResult.spendableRaw}
+                        onMax={() => onBookInputHumanChange(bookLegMaxResult.human)}
+                        testIdMax="swap-book-leg-max"
                       />
-                      {isWalletConnected && fromToken.startsWith('terra1') && (
-                        <AmountBalanceActions
-                          balanceQuery={balanceQuery}
-                          decimals={offerDecimals}
-                          walletConnected={isWalletConnected}
-                          compact
-                          spendableRaw={bookLegMaxResult.spendableRaw}
-                          onMax={() => onBookInputHumanChange(bookLegMaxResult.human)}
-                          testIdMax="swap-book-leg-max"
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <label className="label-glass text-[10px]" htmlFor={hybridMaxMakersInputId}>
-                        Max distinct makers
-                      </label>
-                      <input
-                        id={hybridMaxMakersInputId}
-                        type="number"
-                        className="input-glass !text-xs w-full"
-                        min={1}
-                        max={256}
-                        value={hybridMaxMakers}
-                        onChange={(e) => onHybridMaxMakersChange(Number(e.target.value) || 8)}
-                      />
-                    </div>
+                    )}
                   </div>
-                )}
+                  <div>
+                    <label className="label-glass text-[10px]" htmlFor={hybridMaxMakersInputId}>
+                      Max distinct makers
+                    </label>
+                    <input
+                      id={hybridMaxMakersInputId}
+                      type="number"
+                      className="input-glass !text-xs w-full"
+                      min={1}
+                      max={256}
+                      value={hybridMaxMakers}
+                      onChange={(e) => onHybridMaxMakersChange(Number(e.target.value) || 8)}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 

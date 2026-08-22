@@ -15,12 +15,7 @@ import {
   txJsonWasmSwapHops,
 } from './helpers/lcd'
 import { assertDisplayedRouteMatchesTxHops, parseDisplayedRouteSymbols } from './helpers/route-alignment-e2e'
-import {
-  clickSwapSubmit,
-  openSwapAdvancedSettings,
-  openSwapSettingsAndSetSlippage,
-  swapActionPanel,
-} from './helpers/swap-ui'
+import { clickSwapSubmit, openSwapSettingsAndSetSlippage, swapActionPanel } from './helpers/swap-ui'
 import { ARIA_SELECT_TOKEN_RECEIVE } from './helpers/token-select'
 
 const DIRECT_AMOUNT = '0.001'
@@ -94,11 +89,6 @@ async function submitSwapAndCaptureHops(
 
 async function forceClientDirectPoolQuote(page: import('@playwright/test').Page): Promise<void> {
   await page.route('**/api/v1/route/solve**', (route) => route.abort('failed'))
-  await openSwapAdvancedSettings(page)
-  const hybrid = page.getByRole('checkbox', { name: /Route part of input through the limit book/i })
-  if (await hybrid.isChecked().catch(() => false)) {
-    await hybrid.uncheck()
-  }
   const settings = page.locator('#swap-slippage-settings')
   if (await settings.isVisible().catch(() => false)) {
     await swapActionPanel(page).getByRole('button', { name: 'Settings' }).click()

@@ -4,7 +4,7 @@
 # Proves (unit + docs; optional chain steps when LocalTerra + indexer are up):
 #   1. Shared quoteCw20ViaRouteSolve uses GET /route/solve + wallet sim.
 #   2. TradeMarketOrderPanel: default GET (no POST); Advanced typed book → POST;
-#      hybrid off → pool-only simulateSwap; submit uses solver hybrid + submit cap.
+#      submit uses solver hybrid + submit cap. No hybrid opt-out (#596).
 #   3. Empty manual book is not 100% book (getDirectHybridBookSplit).
 #   4. Docs/skills/ADR crosslinks for #501 remain present.
 #
@@ -73,8 +73,8 @@ run_step "code: Trade submit applies hybridParamsWithSubmitCap on GET hybrid" \
   grep -qE 'hybridParamsWithSubmitCap\(hopHybrid\)' \
     frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx
 
-run_step "e2e helper: fee-discount #245 opens Advanced hybrid toggle (#501 UI)" \
-  grep -q 'trade-market-hybrid-toggle' frontend-dapp/e2e/fee-discount-quote-245.spec.ts
+run_step "e2e: fee-discount-quote-245.spec.ts present" \
+  test -f frontend-dapp/e2e/fee-discount-quote-245.spec.ts
 
 run_step "e2e: trade-market-route-solve-501-tx.spec.ts present" \
   test -f frontend-dapp/e2e/trade-market-route-solve-501-tx.spec.ts

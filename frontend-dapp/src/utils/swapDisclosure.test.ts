@@ -8,11 +8,10 @@ import {
 const CW = 'terra1from00000000000000000000000000000001'
 
 describe('getDirectHybridBookSplit', () => {
-  it('returns null when not direct or feature off or not CW20', () => {
+  it('returns null when not direct or not CW20', () => {
     expect(
       getDirectHybridBookSplit({
         isDirect: false,
-        useHybridBook: true,
         fromToken: CW,
         bookInputHuman: '1',
         rawInputAmount: '1000000',
@@ -22,17 +21,6 @@ describe('getDirectHybridBookSplit', () => {
     expect(
       getDirectHybridBookSplit({
         isDirect: true,
-        useHybridBook: false,
-        fromToken: CW,
-        bookInputHuman: '1',
-        rawInputAmount: '1000000',
-        hybridMaxMakers: 8,
-      })
-    ).toBeNull()
-    expect(
-      getDirectHybridBookSplit({
-        isDirect: true,
-        useHybridBook: true,
         fromToken: 'uluna',
         bookInputHuman: '1',
         rawInputAmount: '1000000',
@@ -44,7 +32,6 @@ describe('getDirectHybridBookSplit', () => {
   it('splits pay into pool and book (6 decimals) and sets willSubmitHybrid', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,
-      useHybridBook: true,
       fromToken: CW,
       bookInputHuman: '0.4',
       rawInputAmount: '1000000',
@@ -61,7 +48,6 @@ describe('getDirectHybridBookSplit', () => {
     expect(
       getDirectHybridBookSplit({
         isDirect: true,
-        useHybridBook: true,
         fromToken: CW,
         bookInputHuman: '4^0',
         rawInputAmount: '1000000',
@@ -73,7 +59,6 @@ describe('getDirectHybridBookSplit', () => {
   it('marks bookExceedsPay when book > total', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,
-      useHybridBook: true,
       fromToken: CW,
       bookInputHuman: '2',
       rawInputAmount: '1000000',
@@ -93,7 +78,6 @@ describe('getDirectHybridSettingsExecutionSummary (#492)', () => {
   it('hides when hybrid on and manual book leg empty (no add-a-book-leg copy)', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,
-      useHybridBook: true,
       fromToken: CW,
       bookInputHuman: '',
       rawInputAmount: '1000000',
@@ -110,7 +94,6 @@ describe('getDirectHybridSettingsExecutionSummary (#492)', () => {
   it('shows hybrid_manual_split when book leg > 0', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,
-      useHybridBook: true,
       fromToken: CW,
       bookInputHuman: '0.4',
       rawInputAmount: '1000000',
@@ -128,7 +111,6 @@ describe('getDirectHybridSettingsExecutionSummary (#492)', () => {
   it('shows book_exceeds_pay when book > pay', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,
-      useHybridBook: true,
       fromToken: CW,
       bookInputHuman: '2',
       rawInputAmount: '1000000',
@@ -146,7 +128,6 @@ describe('getDirectHybridSettingsExecutionSummary (#492)', () => {
   it('shows max_makers_blocked when book > 0 but makers < 1', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,
-      useHybridBook: true,
       fromToken: CW,
       bookInputHuman: '0.4',
       rawInputAmount: '1000000',

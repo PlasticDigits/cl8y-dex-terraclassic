@@ -129,8 +129,7 @@ export function TradeMarketOrderPanel({
   const maxMakersInputId = useId()
 
   const [marketAmountHuman, setMarketAmountHuman] = useState('')
-  /** When on (default): GET solver; typed book leg overrides via POST. When off: pool-only. */
-  const [useHybridBook, setUseHybridBook] = useState(true)
+  /** Always-on best execution (#596). Typed book leg overrides via POST. */
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -156,13 +155,12 @@ export function TradeMarketOrderPanel({
     () =>
       getDirectHybridBookSplit({
         isDirect: true,
-        useHybridBook,
         fromToken,
         bookInputHuman,
         rawInputAmount,
         hybridMaxMakers,
       }),
-    [useHybridBook, fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
+    [fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
   )
   const liveHybrid = hybridParamsFromBookSplit(liveSplit, hybridMaxMakers)
 
@@ -170,13 +168,12 @@ export function TradeMarketOrderPanel({
     () =>
       getDirectHybridBookSplit({
         isDirect: true,
-        useHybridBook,
         fromToken,
         bookInputHuman: debouncedBookInputHuman,
         rawInputAmount: debouncedRawInputAmount,
         hybridMaxMakers: debouncedHybridMaxMakers,
       }),
-    [useHybridBook, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
+    [fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
   )
   const debouncedHybrid = hybridParamsFromBookSplit(debouncedSplit, debouncedHybridMaxMakers)
   const debouncedWillSubmitHybrid = !!debouncedSplit?.willSubmitHybrid
@@ -219,7 +216,6 @@ export function TradeMarketOrderPanel({
       pairAddr,
       side,
       debouncedRawInputAmount,
-      useHybridBook,
       debouncedBookInputHuman,
       debouncedHybridMaxMakers,
       slippageTolerance,
@@ -233,7 +229,7 @@ export function TradeMarketOrderPanel({
       const askInfo = tokenAssetInfo(toToken)
 
       // Advanced: manual book leg overrides indexer GET (same semantics as Swap).
-      if (useHybridBook && debouncedHybrid && debouncedWillSubmitHybrid) {
+      if (debouncedHybrid && debouncedWillSubmitHybrid) {
         if (debouncedSplit?.bookExceedsPay) throw new Error('Book leg cannot exceed pay amount')
         const quoted = await quoteDirectHybridSwap({
           pairAddress: selectedPair.contract_addr,
@@ -258,8 +254,8 @@ export function TradeMarketOrderPanel({
         }
       }
 
-      // Default (hybrid on, empty manual book): GET /route/solve best-execution split (#501).
-      if (useHybridBook && fromToken.startsWith('terra1') && toToken.startsWith('terra1')) {
+      // Default (empty manual book): GET /route/solve best-execution split (#501 / #596).
+      if (fromToken.startsWith('terra1') && toToken.startsWith('terra1')) {
         try {
           const quoted = await quoteCw20ViaRouteSolve({
             fromToken,
@@ -308,10 +304,10 @@ export function TradeMarketOrderPanel({
     [simQuery.data?.indexerOperations]
   )
 
-  // Hybrid on (GET or Advanced) reserves hybrid gas; prefer settled solver / manual split params.
+  // Hybrid (GET or Advanced override) reserves hybrid gas; prefer settled solver / manual split params.
   const marketGasMin = useMemo(
-    () => estimateMarketPairSwapSequenceUlunaFeesTotal(useHybridBook, liveHybrid ?? solverHybridForGas ?? undefined),
-    [useHybridBook, liveHybrid, solverHybridForGas]
+    () => estimateMarketPairSwapSequenceUlunaFeesTotal(true, liveHybrid ?? solverHybridForGas ?? undefined),
+    [liveHybrid, solverHybridForGas]
   )
 
   const placeNativeGasGate = useMemo(
@@ -325,7 +321,7 @@ export function TradeMarketOrderPanel({
           isError: nativeUlunaQuery.isError,
         },
         marketGasMin,
-        useHybridBook ? 'hybrid swap' : 'swap'
+        'hybrid swap'
       ),
     [
       marketAmountHuman,
@@ -334,7 +330,6 @@ export function TradeMarketOrderPanel({
       nativeUlunaQuery.isLoading,
       nativeUlunaQuery.isError,
       marketGasMin,
-      useHybridBook,
     ]
   )
 
@@ -357,13 +352,11 @@ export function TradeMarketOrderPanel({
     simQuery,
     slippageTolerance,
     extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay,
-    hybrid: useHybridBook
-      ? {
-          enabled: true,
-          live: { bookInputHuman, hybridMaxMakers },
-          snapshotted: hybridSubmitSnapshot,
-        }
-      : undefined,
+    hybrid: {
+      enabled: true,
+      live: { bookInputHuman, hybridMaxMakers },
+      snapshotted: hybridSubmitSnapshot,
+    },
   })
 
   const swapMutation = useTerraBroadcastMutation({
@@ -389,7 +382,7 @@ export function TradeMarketOrderPanel({
         offerDecimals,
         nativeUlunaQuery,
         marketGasMin,
-        useHybridBook ? 'hybrid swap' : 'swap'
+        'hybrid swap'
       )
       if (!nativeGate.canPlaceLimit) {
         if (!nativeGate.userMessage) throw new Error('Insufficient LUNC for gas')
@@ -612,7 +605,7 @@ export function TradeMarketOrderPanel({
         walletConnected={isWalletConnected}
         maxContext="market_swap"
         assetIsNativeUluna={fromToken === 'uluna'}
-        marketUsesHybrid={useHybridBook}
+        marketUsesHybrid={true}
       />
 
       <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
@@ -628,77 +621,66 @@ export function TradeMarketOrderPanel({
         </button>
         {advancedOpen && (
           <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
-            <label className="flex items-center gap-2 text-[11px] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useHybridBook}
-                onChange={(e) => setUseHybridBook(e.target.checked)}
-                data-testid="trade-market-hybrid-toggle"
-              />
-              Best execution (pool + limit book)
-            </label>
-            {useHybridBook && (
-              <div className="space-y-2">
-                <p
-                  className="text-[10px] leading-snug"
-                  style={{ color: 'var(--ink-dim)' }}
-                  data-testid="trade-market-hybrid-min-return-notice"
-                >
-                  Default quotes use the indexer solver for a price-optimal split. Type a book leg only to override. Min
-                  return applies to the combined payout.
-                </p>
-                <div>
-                  <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
-                    Book leg override ({getTokenDisplaySymbol(fromToken)})
-                  </label>
-                  <input
-                    id={bookLegInputId}
-                    type="text"
-                    inputMode="decimal"
-                    className="input-glass !text-xs w-full font-mono"
-                    value={bookInputHuman}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      if (isDecimalAmountDraft(v)) setBookInputHuman(v)
-                    }}
-                    placeholder="0.0"
-                    data-testid="trade-market-book-leg-input"
+            <div className="space-y-2">
+              <p
+                className="text-[10px] leading-snug"
+                style={{ color: 'var(--ink-dim)' }}
+                data-testid="trade-market-hybrid-min-return-notice"
+              >
+                Quotes always use the indexer solver for a price-optimal split. Type a book leg only to override. Min
+                return applies to the combined payout.
+              </p>
+              <div>
+                <label className="label-glass text-[10px]" htmlFor={bookLegInputId}>
+                  Book leg override ({getTokenDisplaySymbol(fromToken)})
+                </label>
+                <input
+                  id={bookLegInputId}
+                  type="text"
+                  inputMode="decimal"
+                  className="input-glass !text-xs w-full font-mono"
+                  value={bookInputHuman}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (isDecimalAmountDraft(v)) setBookInputHuman(v)
+                  }}
+                  placeholder="0.0"
+                  data-testid="trade-market-book-leg-input"
+                />
+                {isWalletConnected && fromToken.startsWith('terra1') && (
+                  <AmountBalanceActions
+                    balanceQuery={escrowBalanceQuery}
+                    decimals={offerDecimals}
+                    walletConnected={isWalletConnected}
+                    compact
+                    spendableRaw={bookLegMaxResult.spendableRaw}
+                    onMax={() => setBookInputHuman(bookLegMaxResult.human)}
+                    testIdMax="trade-market-book-leg-max"
                   />
-                  {isWalletConnected && fromToken.startsWith('terra1') && (
-                    <AmountBalanceActions
-                      balanceQuery={escrowBalanceQuery}
-                      decimals={offerDecimals}
-                      walletConnected={isWalletConnected}
-                      compact
-                      spendableRaw={bookLegMaxResult.spendableRaw}
-                      onMax={() => setBookInputHuman(bookLegMaxResult.human)}
-                      testIdMax="trade-market-book-leg-max"
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
-                    Max makers
-                    <span
-                      className="ml-1 cursor-help opacity-70"
-                      title="Caps resting limits one swap can fill; remainder goes to the pool."
-                    >
-                      ⓘ
-                    </span>
-                  </label>
-                  <input
-                    id={maxMakersInputId}
-                    type="number"
-                    className="input-glass !text-xs w-full"
-                    min={1}
-                    max={256}
-                    value={hybridMaxMakers}
-                    onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
-                    data-testid="trade-market-max-makers"
-                  />
-                </div>
+                )}
               </div>
-            )}
+              <div>
+                <label className="label-glass text-[10px]" htmlFor={maxMakersInputId}>
+                  Max makers
+                  <span
+                    className="ml-1 cursor-help opacity-70"
+                    title="Caps resting limits one swap can fill; remainder goes to the pool."
+                  >
+                    ⓘ
+                  </span>
+                </label>
+                <input
+                  id={maxMakersInputId}
+                  type="number"
+                  className="input-glass !text-xs w-full"
+                  min={1}
+                  max={256}
+                  value={hybridMaxMakers}
+                  onChange={(e) => setHybridMaxMakers(Number(e.target.value) || 8)}
+                  data-testid="trade-market-max-makers"
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

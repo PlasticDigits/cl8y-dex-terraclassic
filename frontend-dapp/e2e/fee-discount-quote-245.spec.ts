@@ -1,11 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable } from './helpers/chain'
-import {
-  E2E_DEV_WALLET,
-  captureHybridSimulationQuote,
-  captureRouterSimulateQuote,
-  submitTxButtonWithRetry,
-} from './helpers/fee-discount-quote-e2e'
+import { E2E_DEV_WALLET, captureRouterSimulateQuote, submitTxButtonWithRetry } from './helpers/fee-discount-quote-e2e'
 import { requireDualCwPair } from './helpers/hybrid-e2e'
 import {
   assetInfoLabel,
@@ -18,22 +13,16 @@ import {
 /** Small pay amount — enough fee-discount delta without draining E2E balances. */
 const POOL_ONLY_AMOUNT_HUMAN = '0.01'
 
-async function openTradeMarketPoolOnly(page: import('@playwright/test').Page, pairAddr: string) {
+async function openTradeMarket(page: import('@playwright/test').Page, pairAddr: string) {
   await page.goto(`/trade/${pairAddr}`)
   await page.waitForLoadState('networkidle')
   await page.getByTestId('trade-order-tab-market').click()
-  // Hybrid toggle lives under Advanced after #501 (default = GET /route/solve best execution).
-  await page.getByTestId('trade-market-advanced-toggle').click()
-  const hybridBook = page.getByTestId('trade-market-hybrid-toggle')
-  if (await hybridBook.isChecked()) {
-    await hybridBook.uncheck()
-  }
 }
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('CL8Y fee-discount quote parity (GitLab #245)', () => {
-  test('Trade market: hybrid_simulation sends trader; executed return matches quote', async ({
+  test('Trade market: GET /route/solve + router sim send trader; executed return matches quote', async ({
     page,
     connectWallet,
     request,
@@ -44,9 +33,9 @@ test.describe('CL8Y fee-discount quote parity (GitLab #245)', () => {
 
     const pairs = await gotoAndCaptureFactoryPairsPage(page, '/')
     const { pair } = requireDualCwPair(pairs)
-    await openTradeMarketPoolOnly(page, pair.contract_addr)
+    await openTradeMarket(page, pair.contract_addr)
 
-    const quotePromise = captureHybridSimulationQuote(page, { requireTrader: E2E_DEV_WALLET })
+    const quotePromise = captureRouterSimulateQuote(page, { requireTrader: E2E_DEV_WALLET })
     await page.getByTestId('limit-order-escrow-amount-input').fill(POOL_ONLY_AMOUNT_HUMAN)
     const quoted = await quotePromise
 

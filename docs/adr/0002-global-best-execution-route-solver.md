@@ -27,6 +27,7 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 
 - **#323** (2026): Raised default hybrid GET hop cap from **3 → 4** (`GET_DEFAULT_MAX_HOPS`) after #319 (DB mirror pricing). Matches `GET_POOL_ONLY_MAX_HOPS`, POST BFS, and on-chain `MAX_HOPS`. `LCD_HYBRID_SIM_BUDGET` re-derived to **1700** (`5×4×85`). See [route-solver.md](../route-solver.md).
 - **#501** (2026): Retail `/trade` Market ticket defaults to the same **GET** best-execution path as Swap (no client-side split search; Pattern C remains caller-declared on-chain with solver-filled params). Advanced manual book leg keeps **POST** `hybrid_by_hop`. Shared helper: [`cw20RouteSolveQuote.ts`](../../frontend-dapp/src/utils/cw20RouteSolveQuote.ts). Docs: [`limit-orders.md`](../limit-orders.md#swap-ui-hybrid-vs-pool-only-estimates), [`skills/AGENTS_HYBRID_QUOTING.md`](../../skills/AGENTS_HYBRID_QUOTING.md).
+- **#596** (2026): Official dApp **always** uses that GET path — no retail hybrid opt-in/opt-out. Pool-only remains indexer `pool_only=true` for integrators / custom frontends. Skill: [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](../../skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md).
 
 ## Links
 
@@ -34,5 +35,6 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 - [route-solver.md](../route-solver.md) — in-depth pipeline, glossary, optimization theory, and shipped constants (GitLab [#310](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/310))
 - [indexer-invariants.md](../indexer-invariants.md) — route GET hybrid / best execution rows
 - [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md)
-- [skills/AGENTS_HYBRID_QUOTING.md](../../skills/AGENTS_HYBRID_QUOTING.md) — Swap + Trade GET default (#501)
+- [skills/AGENTS_HYBRID_QUOTING.md](../../skills/AGENTS_HYBRID_QUOTING.md) — Swap + Trade GET default (#501); always-on hybrid (#596)
+- [skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md](../../skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — no retail pool-only opt-out (#596)
 - [gaps/GAP_1780023683.md](../../gaps/GAP_1780023683.md)
