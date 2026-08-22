@@ -25,7 +25,11 @@ const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50_000
 const EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP = 661_000
 /** Keep in sync with `ROUTER_SINGLE_HOP_GAS_LIMIT` in `frontend-dapp/src/utils/constants.ts` (#353). */
 const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
-/** Keep in sync with `ROUTER_SWAP_OPS_MIN_GAS_PER_HOP` (#353). */
+/**
+ * Keep in sync with `ROUTER_SWAP_OPS_MIN_GAS_PER_HOP` (#353 / #587 docs: 950k, not 900k).
+ * Wrap+≥2hop combo overhead is dApp-only (`WRAP_ROUTER_COMBO_OVERHEAD_GAS` in
+ * `totalGasLimitForExecuteMsgs`) — swarm does not compose wrap+router multi-msg.
+ */
 const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 /** Keep in sync with `SWAP_GAS_SAFETY_MARGIN` in `frontend-dapp/src/utils/constants.ts`. */
 const SWAP_GAS_SAFETY_MARGIN = 10_000

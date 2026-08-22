@@ -46,8 +46,10 @@ import {
   estimateZapOutUlunaFeesTotal,
   estimateProvideLiquidityCw20SequenceUlunaFeesTotal,
   estimateProvideLiquidityNativeWrapUlunaFeesTotal,
+  nativeSwapFeeExecuteMsgs,
 } from '../transactions'
 import { estimateFeeUlunaAmountForGasLimit, getGasLimitForTx } from '../terraGas'
+import { estimateTerraClassicFeeForEntries } from '../terraClassicFeeEstimate'
 
 const mockedGetWallet = vi.mocked(getConnectedWallet)
 
@@ -329,9 +331,8 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(600000))
   })
 
-  it('uses SWAP_GAS_LIMIT for send with invalid base64 msg', async () => {
-    const fee = await getFeeForMsg({ send: { msg: '!!!invalid!!!' } })
-    expect(fee.gasLimit).toBe(BigInt(600000))
+  it('refuses send with invalid base64 msg instead of 600k fallback (#587)', async () => {
+    await expect(getFeeForMsg({ send: { msg: '!!!invalid!!!' } })).rejects.toThrow(/Cannot decode CW20 send hook/)
   })
 
   it('uses WRAP_GAS_LIMIT for wrap_deposit messages (#353)', async () => {
@@ -518,7 +519,7 @@ describe('estimateProvideLiquidityCw20SequenceUlunaFeesTotal', () => {
   })
 })
 
-describe('estimateNativeSwapUlunaFeesTotal (GitLab #213)', () => {
+describe('estimateNativeSwapUlunaFeesTotal (GitLab #213 / #587)', () => {
   it('uses wrap_deposit gas for direct wrap', () => {
     const total = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: true, needsWrapInput: false })
     expect(total).toBe(estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ wrap_deposit: {} })))
@@ -527,6 +528,37 @@ describe('estimateNativeSwapUlunaFeesTotal (GitLab #213)', () => {
   it('sums wrap + router send gas for native input swap', () => {
     const total = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: false, needsWrapInput: true, hopCount: 1 })
     expect(total).toBeGreaterThan(estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ wrap_deposit: {} })))
+  })
+
+  it('wrap+2hop matches estimateTerraClassicFeeForEntries of the executeNativeSwap msg pair', () => {
+    const hints = { isDirectWrap: false, needsWrapInput: true, hopCount: 2 }
+    const msgs = nativeSwapFeeExecuteMsgs(hints)
+    const entries = msgs.map((m) => ({ contract: 'terra1x', msg: m.msg }))
+    expect(estimateNativeSwapUlunaFeesTotal(hints)).toBe(estimateTerraClassicFeeForEntries(entries).feeUluna)
+    expect(estimateTerraClassicFeeForEntries(entries).gasLimit).toBeGreaterThan(2_310_000)
+  })
+
+  it('unwrap_output 2-hop matches send-only envelope; wrap+2hop+unwrap is larger', () => {
+    const unwrap2 = estimateNativeSwapUlunaFeesTotal({
+      isDirectWrap: false,
+      needsWrapInput: false,
+      needsUnwrapOutput: true,
+      hopCount: 2,
+    })
+    const wrap2 = estimateNativeSwapUlunaFeesTotal({
+      isDirectWrap: false,
+      needsWrapInput: true,
+      hopCount: 2,
+    })
+    const wrap2unwrap = estimateNativeSwapUlunaFeesTotal({
+      isDirectWrap: false,
+      needsWrapInput: true,
+      needsUnwrapOutput: true,
+      hopCount: 2,
+    })
+    expect(unwrap2).toBeGreaterThan(0n)
+    expect(wrap2unwrap).toBeGreaterThan(wrap2)
+    expect(wrap2unwrap).toBeGreaterThan(unwrap2)
   })
 })
 

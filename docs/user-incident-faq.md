@@ -6,6 +6,8 @@ This is **not** financial or legal advice. For operator runbooks and on-chain in
 
 How to **add or withdraw LUNC LP** on the dApp (not an incident): [user-lunc-liquidity.md](./user-lunc-liquidity.md) and `/pool#lp-howto` ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)).
 
+Terra Classic network fees on this dApp are paid in **LUNC** (`uluna`). USTC is not used for gas. Swap shows **Network fee (est.) ~X LUNC** on the quote card ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
+
 ## Quick summary
 
 | Control | Who it affects | Are my funds safe? | What to do |
