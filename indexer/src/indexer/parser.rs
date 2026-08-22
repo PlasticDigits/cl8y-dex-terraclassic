@@ -16,13 +16,14 @@ use std::str::FromStr;
 
 use crate::config::Config;
 use crate::db::queries::{
-    assets, limit_order_fills, limit_order_lifecycle, liquidity, oracle as db_oracle, swap_events,
+    assets, limit_order_fills, limit_order_lifecycle, liquidity, oracle as db_oracle,
+    protocol_fees as fee_events, swap_events,
 };
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
     asset_resolver, candle_builder, oracle, pair_discovery, pair_price_usd, position_tracker,
-    swap_orientation, trader_tracker,
+    protocol_fees, swap_orientation, trader_tracker,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -233,6 +234,7 @@ struct ParsedLimitOrderPlacement {
     side: Option<String>,
     price: Option<BigDecimal>,
     expires_at: Option<i64>,
+    maker_fee_amount: Option<BigDecimal>,
 }
 
 #[derive(Debug, Clone)]
@@ -294,11 +296,13 @@ pub async fn process_block_txs(
             process_limit_order_fill(
                 pool,
                 lcd,
+                config,
                 factory_addr,
                 fill,
                 height,
                 block_time,
                 &tx.txhash,
+                ustc_price,
             )
             .await?;
         }
@@ -308,11 +312,13 @@ pub async fn process_block_txs(
             process_limit_order_placement(
                 pool,
                 lcd,
+                config,
                 factory_addr,
                 p,
                 height,
                 block_time,
                 &tx.txhash,
+                ustc_price,
             )
             .await?;
         }
@@ -385,6 +391,15 @@ pub async fn process_block_txs(
                 block_time,
             )
             .await?;
+        }
+
+        if let Some(ref mapper) = config.wrap_mapper_address {
+            for fee in protocol_fees::parse_wrap_fees(tx, mapper) {
+                process_wrap_fee(
+                    pool, lcd, config, &fee, height, block_time, &tx.txhash, ustc_price,
+                )
+                .await?;
+            }
         }
     }
     Ok(())
@@ -511,6 +526,25 @@ async fn process_swap(
         return Ok(());
     }
 
+    if let Some(commission) = swap.commission_amount.as_ref() {
+        if *commission > BigDecimal::from(0) {
+            ingest_protocol_fee(
+                pool,
+                lcd,
+                config,
+                protocol_fees::FeeSource::SwapAmm,
+                i64::from(swap.swap_index),
+                ask_asset_id,
+                commission,
+                height,
+                block_time,
+                tx_hash,
+                ustc_price,
+            )
+            .await?;
+        }
+    }
+
     candle_builder::update_candles_for_swap(
         pool,
         pair.id,
@@ -546,6 +580,83 @@ async fn process_swap(
     .await?;
 
     Ok(())
+}
+
+async fn ingest_protocol_fee(
+    pool: &PgPool,
+    _lcd: &LcdClient,
+    config: &Config,
+    source: protocol_fees::FeeSource,
+    ordinal: i64,
+    asset_id: i32,
+    amount_raw: &BigDecimal,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+    ustc_price: &oracle::SharedPrice,
+) -> Result<(), BoxError> {
+    if *amount_raw <= BigDecimal::from(0) {
+        return Ok(());
+    }
+    let Some(asset) = assets::get_asset_by_id(pool, asset_id).await.ok().flatten() else {
+        return Ok(());
+    };
+    let ustc_usd = ustc_price.read().await.clone();
+    let lunc_usd = db_oracle::get_latest_average_price(pool, oracle::OracleTicker::Lunc)
+        .await
+        .ok()
+        .flatten();
+    let hub = crate::db::queries::hub_prices::load_quote_usd(pool)
+        .await
+        .ok();
+    let fee_usd = protocol_fees::fee_usd_for_raw(
+        &asset,
+        amount_raw,
+        ustc_usd.as_ref(),
+        lunc_usd.as_ref(),
+        config.ustc_denom.as_deref(),
+        hub.as_ref(),
+    );
+    let draft = protocol_fees::FeeEventDraft {
+        block_height: height,
+        block_timestamp: block_time,
+        tx_hash: tx_hash.to_string(),
+        source,
+        ordinal,
+        asset_id,
+        amount_raw: amount_raw.clone(),
+        decimals: asset.decimals,
+        fee_usd,
+    };
+    fee_events::insert_fee_event(pool, &draft).await?;
+    Ok(())
+}
+
+async fn process_wrap_fee(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    config: &Config,
+    fee: &protocol_fees::ParsedWrapFee,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+    ustc_price: &oracle::SharedPrice,
+) -> Result<(), BoxError> {
+    let asset_id = asset_resolver::resolve_asset_str(pool, lcd, &fee.token).await?;
+    ingest_protocol_fee(
+        pool,
+        lcd,
+        config,
+        fee.source,
+        fee.ordinal,
+        asset_id,
+        &fee.amount_raw,
+        height,
+        block_time,
+        tx_hash,
+        ustc_price,
+    )
+    .await
 }
 
 /// Extract swap events from LCD tx logs (`wasm` events with `action=swap`).
@@ -800,11 +911,13 @@ fn parse_limit_order_fills(tx: &TxResponse) -> Vec<ParsedLimitOrderFill> {
 async fn process_limit_order_fill(
     pool: &PgPool,
     lcd: &LcdClient,
+    config: &Config,
     factory_addr: &str,
     fill: &ParsedLimitOrderFill,
     height: i64,
     block_time: DateTime<Utc>,
     tx_hash: &str,
+    ustc_price: &oracle::SharedPrice,
 ) -> Result<(), BoxError> {
     let Some(pair) =
         pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &fill.pair_address).await?
@@ -836,6 +949,27 @@ async fn process_limit_order_fill(
         &fill.commission_amount,
     )
     .await?;
+
+    if fill.commission_amount > BigDecimal::from(0) {
+        if let Some(asset_id) =
+            protocol_fees::offer_asset_id_for_side(&fill.side, pair.asset_0_id, pair.asset_1_id)
+        {
+            ingest_protocol_fee(
+                pool,
+                lcd,
+                config,
+                protocol_fees::FeeSource::BookTake,
+                fill.order_id,
+                asset_id,
+                &fill.commission_amount,
+                height,
+                block_time,
+                tx_hash,
+                ustc_price,
+            )
+            .await?;
+        }
+    }
 
     Ok(())
 }
@@ -898,6 +1032,10 @@ fn parse_limit_order_placements_columnar(
         .iter()
         .filter_map(|s| s.parse().ok())
         .collect();
+    let maker_fees: Vec<BigDecimal> = wasm_attr_values(attrs, "maker_fee_amount")
+        .iter()
+        .filter_map(|s| BigDecimal::from_str(s).ok())
+        .collect();
 
     let n = order_ids.len();
     let mut out = Vec::with_capacity(n);
@@ -909,6 +1047,7 @@ fn parse_limit_order_placements_columnar(
             owner: owners.get(i).cloned().or_else(|| owners.first().cloned()),
             price: prices.get(i).cloned(),
             expires_at: expires_at_list.get(i).copied(),
+            maker_fee_amount: maker_fees.get(i).cloned(),
         });
     }
     Some(out)
@@ -944,6 +1083,9 @@ fn parse_limit_order_placements_from_wasm_attrs(
         let side = seg.get("side").map(|x| x.to_string());
         let price = seg.get("price").and_then(|x| BigDecimal::from_str(x).ok());
         let expires_at = seg.get("expires_at").and_then(|x| x.parse::<i64>().ok());
+        let maker_fee_amount = seg
+            .get("maker_fee_amount")
+            .and_then(|x| BigDecimal::from_str(x).ok());
         out.push(ParsedLimitOrderPlacement {
             pair_address: contract.to_string(),
             order_id,
@@ -951,6 +1093,7 @@ fn parse_limit_order_placements_from_wasm_attrs(
             side,
             price,
             expires_at,
+            maker_fee_amount,
         });
     }
     out
@@ -1075,11 +1218,13 @@ fn parse_limit_order_cancellations(tx: &TxResponse) -> Vec<ParsedLimitOrderCance
 async fn process_limit_order_placement(
     pool: &PgPool,
     lcd: &LcdClient,
+    config: &Config,
     factory_addr: &str,
     p: &ParsedLimitOrderPlacement,
     height: i64,
     block_time: DateTime<Utc>,
     tx_hash: &str,
+    ustc_price: &oracle::SharedPrice,
 ) -> Result<(), BoxError> {
     let Some(pair) =
         pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &p.pair_address).await?
@@ -1100,6 +1245,41 @@ async fn process_limit_order_placement(
         p.expires_at,
     )
     .await?;
+
+    if let Some(fee) = p.maker_fee_amount.as_ref() {
+        if *fee > BigDecimal::from(0) {
+            if let Some(side) = p.side.as_deref() {
+                if let Some(asset_id) =
+                    protocol_fees::offer_asset_id_for_side(side, pair.asset_0_id, pair.asset_1_id)
+                {
+                    let _ = sqlx::query(
+                        "UPDATE limit_order_placements SET maker_fee_amount = $1 \
+                         WHERE tx_hash = $2 AND pair_id = $3 AND order_id = $4",
+                    )
+                    .bind(fee)
+                    .bind(tx_hash)
+                    .bind(pair.id)
+                    .bind(p.order_id)
+                    .execute(pool)
+                    .await;
+                    ingest_protocol_fee(
+                        pool,
+                        lcd,
+                        config,
+                        protocol_fees::FeeSource::LimitPlace,
+                        p.order_id,
+                        asset_id,
+                        fee,
+                        height,
+                        block_time,
+                        tx_hash,
+                        ustc_price,
+                    )
+                    .await?;
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1932,6 +2112,7 @@ mod tests {
                 ("price", "1.5"),
                 ("owner", "terra1maker"),
                 ("expires_at", "2000000000"),
+                ("maker_fee_amount", "2500"),
             ],
             vec![
                 ("_contract_address", "terra1pair"),
@@ -1945,6 +2126,10 @@ mod tests {
         assert_eq!(p[0].order_id, 99);
         assert_eq!(p[0].side.as_deref(), Some("bid"));
         assert_eq!(p[0].owner.as_deref(), Some("terra1maker"));
+        assert_eq!(
+            p[0].maker_fee_amount.as_ref().map(|x| x.to_string()).as_deref(),
+            Some("2500")
+        );
         assert_eq!(
             p[0].price.as_ref().map(|x| x.to_string()),
             Some("1.5".into())

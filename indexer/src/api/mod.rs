@@ -20,8 +20,11 @@ mod listing_timestamps;
 mod oracle;
 pub mod orderbook_sim;
 mod overview;
+mod protocol_fees;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use overview::reset_overview_cache;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_fees::reset_protocol_fees_cache;
 mod pairs;
 mod route_graph;
 mod route_paths;
@@ -297,6 +300,7 @@ pub async fn find_pair_by_ticker(
         traders::get_trader_positions,
         traders::leaderboard,
         overview::get_overview,
+        protocol_fees::get_protocol_fees,
         hub_prices::get_hub_prices,
         hub_prices::get_hub_price,
         oracle::get_oracle_price_catalog,
@@ -357,6 +361,9 @@ pub async fn find_pair_by_ticker(
         traders::TraderResponse,
         traders::PositionResponse,
         overview::OverviewResponse,
+        protocol_fees::ProtocolFeesResponse,
+        protocol_fees::ProtocolFeeSourceRow,
+        protocol_fees::ProtocolFeeTokenRow,
         hub_prices::HubPricesResponse,
         hub_prices::HubPriceEntry,
         cg::CgPairResponse,
@@ -512,6 +519,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
+        .route("/api/v1/protocol/fees", get(protocol_fees::get_protocol_fees))
         .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
         .route(
             "/api/v1/hub-prices/{ticker}",
