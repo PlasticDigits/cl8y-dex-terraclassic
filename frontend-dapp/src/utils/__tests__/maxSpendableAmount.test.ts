@@ -55,6 +55,32 @@ describe('maxSpendableAmount (GitLab #213)', () => {
     expect(result.spendableRaw).toBe(10_000_000_000n - reserve)
   })
 
+  it('native wrap+2hop Max reserve is larger than wrap+1hop (#587)', () => {
+    const hop1 = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: false, needsWrapInput: true, hopCount: 1 })
+    const hop2 = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: false, needsWrapInput: true, hopCount: 2 })
+    expect(hop2).toBeGreaterThan(hop1)
+    const result = computeMaxSpendableHumanAmount({
+      balanceRaw: balance,
+      decimals: 6,
+      assetIsNativeUluna: true,
+      context: 'swap_native',
+      nativeSwapHints: { isDirectWrap: false, needsWrapInput: true, hopCount: 2 },
+    })
+    expect(result.reserveUluna).toBe(hop2)
+    expect(result.spendableRaw).toBe(10_000_000_000n - hop2)
+  })
+
+  it('CW20 Max is unchanged when wrap+2hop reserve rises', () => {
+    const result = computeMaxSpendableHumanAmount({
+      balanceRaw: balance,
+      decimals: 6,
+      assetIsNativeUluna: false,
+      context: 'swap_cw20',
+    })
+    expect(result.spendableRaw).toBe(10_000_000_000n)
+    expect(result.reserveUluna).toBe(0n)
+  })
+
   it('limit place CW20 Max stays full balance', () => {
     const result = computeMaxSpendableHumanAmount({
       balanceRaw: '5000000',

@@ -162,6 +162,9 @@ pub struct Config {
     pub bsc_rpc_urls: Vec<String>,
     /// Venus vFDUSD poll cadence (default 30s). Bounded; API reads cache only.
     pub venus_vfdusd_poll_interval_ms: u64,
+    /// Pinned wrap-mapper bech32 for wrap/unwrap treasury fees (GitLab #586).
+    /// Invalid / empty → wrap sources omitted (not fake idle `$0`).
+    pub wrap_mapper_address: Option<String>,
 }
 
 impl Config {
@@ -376,6 +379,9 @@ impl Config {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(30_000)
                 .max(5_000),
+            wrap_mapper_address: env::var("WRAP_MAPPER_ADDRESS")
+                .ok()
+                .and_then(|s| crate::indexer::protocol_fees::parse_wrap_mapper_address(&s)),
         })
     }
 

@@ -11,14 +11,14 @@ Audience: third-party agents changing Charts overview, pair 24h Stats, Protocol 
 
 Retail reads **24h Volume (USD)** as a calendar-day counter that should hit `$0` at midnight. The indexer figure is `Utc::now() − 24h` over `swap_events`. On a live DEX the number stays above `$0` and can trend up for days. That is intended. This issue is **copy + progressive disclosure**, not a window change.
 
-Related (do **not** treat as done here): [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) USD-only overview; [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) Protocol 24h/7d/30d math; [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) pair Vol (USD); [#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) rollup decay.
+Related (do **not** treat as done here): [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) USD-only overview; [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) Protocol 24h/7d/30d math; [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) pair Vol (USD); [#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) rollup decay; [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) Protocol fee titles (`TRAILING_*_FEES_*`) reuse the same trailing-window wording.
 
 ## Invariants (W1–W5)
 
 | ID | Rule |
 |----|------|
 | **W1** | Charts overview **Last 24h Vol (USD)** and **Last 24h Trades** disclose a trailing window (visible **Last 24h** + `title` / `aria-label`). No hover required. |
-| **W2** | Pair **Vol (USD)** and Protocol **24h / 7d / 30d** volume use the same trailing wording (7d/30d = last N days). |
+| **W2** | Pair **Vol (USD)** and Protocol **24h / 7d / 30d** volume **and fees** use the same trailing wording (7d/30d = last N days). |
 | **W3** | Visible labels ≤ ~5 words. No always-on educational banner on `/charts` or `/protocol`. No raw `total_volume_24h`. |
 | **W4** | Idle DEX still `$0`; unpriced + trades still `—`; USD compact format unchanged (**C1–C3**). `$0` means idle window, not daily close. |
 | **W5** | Copy is static constants in [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts). Never interpolate overview JSON into `title`. No `VITE_INDEXER_URL` / hostnames. No “guaranteed USD” / settlement (**X5**). |

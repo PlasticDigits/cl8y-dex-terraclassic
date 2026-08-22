@@ -8,6 +8,20 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
 
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
+    const feePanel = page.getByTestId('protocol-fee-stats')
+    if (await feePanel.count()) {
+      const statsBox = page.getByTestId('protocol-global-stats')
+      const hubBox = page.getByTestId('protocol-dex-hub-prices')
+      const statsPos = await statsBox.boundingBox()
+      const feePos = await feePanel.boundingBox()
+      const hubPos = await hubBox.boundingBox()
+      expect(statsPos && feePos && statsPos.y < feePos.y).toBeTruthy()
+      expect(feePos && hubPos && feePos.y < hubPos.y).toBeTruthy()
+      await expect(page.getByTestId('protocol-stat-fees-24h')).toBeVisible()
+      await expect(page.getByTestId('protocol-stat-fees-7d')).toBeVisible()
+      await expect(page.getByTestId('protocol-stat-fees-30d')).toBeVisible()
+      await expect(page.getByTestId('protocol-stat-fees-24h-chg')).toBeVisible()
+    }
     await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toBeVisible()
@@ -79,6 +93,13 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible()
     await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toBeVisible()
+    const phoneFees = page.getByTestId('protocol-fee-stats')
+    if (await phoneFees.count()) {
+      await expect(phoneFees).toBeVisible()
+      const feeBox = await phoneFees.boundingBox()
+      const hubBox = await page.getByTestId('protocol-dex-hub-prices').boundingBox()
+      expect(feeBox && hubBox && feeBox.y + feeBox.height <= hubBox.y + 8).toBeTruthy()
+    }
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-lunc')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-oracle')).toBeVisible()

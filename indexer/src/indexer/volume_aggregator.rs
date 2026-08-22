@@ -4,11 +4,27 @@ use sqlx::PgPool;
 
 use crate::db::queries::{traders, volume};
 
-/// Refresh token, pair, global, and trader rolling windows.
+/// Refresh token, pair, global, trader, and protocol-fee rolling windows.
 ///
 /// `startup = true` logs failures at warn (same as historical pair/global poller init).
 /// The 5-minute loop uses `startup = false` (error). GitLab #577 **D5**.
 pub async fn refresh_all_volume_windows(pool: &PgPool, startup: bool) {
+    refresh_all_volume_windows_with_wrap(pool, startup, wrap_mapper_configured_from_env()).await;
+}
+
+fn wrap_mapper_configured_from_env() -> bool {
+    std::env::var("WRAP_MAPPER_ADDRESS")
+        .ok()
+        .and_then(|s| crate::indexer::protocol_fees::parse_wrap_mapper_address(&s))
+        .is_some()
+}
+
+/// Same as [`refresh_all_volume_windows`] with an explicit wrap-mapper pin (tests).
+pub async fn refresh_all_volume_windows_with_wrap(
+    pool: &PgPool,
+    startup: bool,
+    wrap_mapper_configured: bool,
+) {
     let fail = |label: &str, e: sqlx::Error| {
         if startup {
             tracing::warn!("Initial {label} refresh failed: {e}");
@@ -25,6 +41,9 @@ pub async fn refresh_all_volume_windows(pool: &PgPool, startup: bool) {
     }
     if let Err(e) = volume::refresh_global_stats(pool).await {
         fail("global 24h stats", e);
+    }
+    if let Err(e) = volume::refresh_protocol_fee_stats(pool, wrap_mapper_configured).await {
+        fail("protocol fee stats", e);
     }
     if let Err(e) = traders::refresh_rolling_volumes(pool).await {
         fail("rolling trader volumes", e);

@@ -76,6 +76,7 @@ pub fn test_config() -> Config {
         hub_usd_tvl_floor: "100".parse().unwrap(),
         bsc_rpc_urls: vec![],
         venus_vfdusd_poll_interval_ms: 30_000,
+        wrap_mapper_address: None,
     }
 }
 
@@ -146,6 +147,9 @@ async fn clean_db_tables(pool: &PgPool) {
             token_volume_stats,
             pair_volume_24h,
             global_stats_24h,
+            protocol_fee_events,
+            protocol_fee_stats_by_source,
+            protocol_fee_stats_by_token,
             pair_reserves,
             hub_prices,
             global_liquidity_snapshots,

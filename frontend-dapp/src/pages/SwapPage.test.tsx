@@ -137,6 +137,7 @@ vi.mock('@/services/terraclassic/router', () => ({
   findRouteWithNativeSupport: vi.fn().mockReturnValue(null),
   simulateNativeSwap: vi.fn().mockResolvedValue({ amount: '1' }),
   executeNativeSwap: vi.fn().mockResolvedValue('tx'),
+  netCw20AfterNativeWrap: vi.fn().mockResolvedValue(1n),
 }))
 
 vi.mock('@/lib/sounds', () => ({
@@ -157,7 +158,14 @@ vi.mock('@/services/terraclassic/assetCodeIdFreeze', () => ({
 }))
 
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { findRoute, getAllTokens, isDirectWrapUnwrap, simulateMultiHopSwap } from '@/services/terraclassic/router'
+import {
+  findRoute,
+  findRouteWithNativeSupport,
+  getAllTokens,
+  isDirectWrapUnwrap,
+  simulateMultiHopSwap,
+  simulateNativeSwap,
+} from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded, queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
 import { WRAP_CONFIG_UNAVAILABLE_CTA, WRAP_TREASURY_MISCONFIGURED_CTA } from '@/utils/marketDataServiceCopy'
 import type { SwapOperation } from '@/services/terraclassic/router'
@@ -207,6 +215,7 @@ describe('SwapPage', () => {
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
     vi.mocked(getAllTokens).mockReturnValue([])
     vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
     vi.mocked(queryPausedState).mockResolvedValue(false)
@@ -1425,6 +1434,74 @@ describe('SwapPage', () => {
       const note = await screen.findByTestId('swap-wrap-fee-note')
       expect(note).toHaveTextContent(/1\.00% fee/i)
       expect(note).not.toHaveTextContent(/1:1/)
+    })
+  })
+
+  describe('network fee disclosure (GitLab #587)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    const mockUstr = 'terra1ustr_mock_address_for_testing_xxxx'
+
+    it('shows Network fee ~X LUNC on LUNC→USTR quote, not USTC; AMM Fee row stays Fee', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
+      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
+        operations: [
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
+              ask_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
+            },
+          },
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
+              ask_asset_info: { token: { contract_addr: mockUstr } },
+            },
+          },
+        ],
+        needsWrapInput: true,
+        needsUnwrapOutput: false,
+      })
+      vi.mocked(simulateNativeSwap).mockResolvedValue({
+        amount: '990000',
+        isDirectWrapUnwrap: false,
+        routerMinReceiveBase: '990000',
+      })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair_clunc_ust1',
+            liquidity_token: 'terra1lp1',
+            asset_infos: [{ token: { contract_addr: MOCK_LUNC_C } }, { token: { contract_addr: 'terra1ust1_mock' } }],
+          },
+          {
+            contract_addr: 'terra1pair_ust1_ustr',
+            liquidity_token: 'terra1lp2',
+            asset_infos: [{ token: { contract_addr: 'terra1ust1_mock' } }, { token: { contract_addr: mockUstr } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uluna', mockUstr])
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+      const feeHint = await screen.findByTestId('swap-network-fee')
+      expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
+      expect(feeHint).toHaveTextContent('LUNC')
+      expect(feeHint).not.toHaveTextContent('USTC')
+      expect(feeHint).not.toHaveTextContent('uluna')
+      expect(feeHint.textContent?.split(/\s+/).length ?? 99).toBeLessThan(12)
+
+      const ammFee = screen.queryByTestId('swap-fee-row')
+      if (ammFee) {
+        expect(ammFee).toHaveTextContent(/^Fee/)
+        expect(ammFee).not.toHaveTextContent(/Network fee/i)
+      }
     })
   })
 

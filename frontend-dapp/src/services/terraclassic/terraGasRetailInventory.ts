@@ -15,10 +15,17 @@
  *
  * When adding a retail execute: named constant + `getGasLimitForTx` branch (+ send-inner if
  * CW20 hook) + fixture here + docs row in `docs/frontend.md` § Terra Classic gas limits.
+ * Combined wrap+router multi-msg envelopes live in {@link RETAIL_COMBINED_ENVELOPE_FIXTURES}
+ * ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
  * Playbook: `skills/AGENTS_TERRACLASSIC_GAS.md`.
  */
 
-import { UNWRAP_GAS_LIMIT, UST1_WINDOW_SEND_GAS_LIMIT, WRAP_GAS_LIMIT } from '@/utils/constants'
+import {
+  UNWRAP_GAS_LIMIT,
+  UST1_WINDOW_SEND_GAS_LIMIT,
+  WRAP_GAS_LIMIT,
+  WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+} from '@/utils/constants'
 import {
   ADD_LIQUIDITY_GAS_LIMIT,
   BASE_GAS_LIMIT,
@@ -242,5 +249,57 @@ export const RETAIL_GAS_SHAPE_FIXTURES: readonly RetailGasShapeFixture[] = [
       },
     },
     expectedGas: gasLimitForLimitOrderBatch(4),
+  },
+]
+
+export type RetailCombinedEnvelopeFixture = {
+  id: string
+  note: string
+  msgs: Array<{ msg: Record<string, unknown> }>
+  expectedGas: number
+}
+
+function routerSendMsg(hops: number, unwrap = false): Record<string, unknown> {
+  return {
+    send: {
+      msg: b64({
+        execute_swap_operations: {
+          operations: Array.from({ length: hops }, () => ({ terra_swap: {} })),
+          ...(unwrap ? { unwrap_output: true } : {}),
+        },
+      }),
+    },
+  }
+}
+
+/**
+ * Combined multi-msg envelopes for wrap + router (#587).
+ * `expectedGas` is {@link totalGasLimitForExecuteMsgs} (includes combo overhead when hops ≥ 2).
+ */
+export const RETAIL_COMBINED_ENVELOPE_FIXTURES: readonly RetailCombinedEnvelopeFixture[] = [
+  {
+    id: 'wrap_plus_send_1hop',
+    note: 'LUNC→EMBER wrap + router 1-hop (#353) — no combo overhead',
+    msgs: [{ msg: { wrap_deposit: {} } }, { msg: routerSendMsg(1) }],
+    expectedGas: WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(1),
+  },
+  {
+    id: 'wrap_plus_send_2hop',
+    note: 'LUNC→USTR wrap + router 2-hop (#587)',
+    msgs: [{ msg: { wrap_deposit: {} } }, { msg: routerSendMsg(2) }],
+    expectedGas: WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(2) + WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  },
+  {
+    id: 'wrap_plus_send_2hop_unwrap',
+    note: 'native↔native wrap + 2-hop + unwrap_output (#587)',
+    msgs: [{ msg: { wrap_deposit: {} } }, { msg: routerSendMsg(2, true) }],
+    expectedGas:
+      WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT + WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  },
+  {
+    id: 'send_2hop_unwrap',
+    note: 'USTR→LUNC router 2-hop + unwrap_output (no wrap msg)',
+    msgs: [{ msg: routerSendMsg(2, true) }],
+    expectedGas: gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT,
   },
 ]

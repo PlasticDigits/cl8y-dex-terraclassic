@@ -46,6 +46,16 @@ pub struct GlobalStats {
     pub unpriced_pair_count: i32,
     pub total_liquidity_usd_24h_ago: Option<BigDecimal>,
     pub total_liquidity_usd_30d_ago: Option<BigDecimal>,
+    /// Treasury fee rollup (GitLab #586). Always from `global_stats_24h` — never live-SUM.
+    pub total_fees_24h_usd: Option<BigDecimal>,
+    pub total_fees_7d_usd: Option<BigDecimal>,
+    pub total_fees_30d_usd: Option<BigDecimal>,
+    pub fees_change_24h_pct: Option<BigDecimal>,
+    pub fees_change_7d_pct: Option<BigDecimal>,
+    pub fees_change_30d_pct: Option<BigDecimal>,
+    pub fee_event_count_24h: i64,
+    pub fee_event_count_7d: i64,
+    pub fee_event_count_30d: i64,
 }
 
 /// Rebuild token rolling windows from offer-side `swap_events`, then zero idle rows.
@@ -193,8 +203,15 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
     // Liquidity columns are a separate upsert so a 24h-only volume INSERT cannot
     // leave TVL / Δ% stale (#569 H7 / A20). GET still reads the rollup row only.
     crate::indexer::protocol_tvl::refresh_protocol_liquidity(pool).await?;
-
     Ok(())
+}
+
+/// Refresh protocol fee scalars + breakdown after volume/TVL (GitLab #586).
+pub async fn refresh_protocol_fee_stats(
+    pool: &PgPool,
+    wrap_mapper_configured: bool,
+) -> Result<(), sqlx::Error> {
+    super::protocol_fees::refresh_protocol_fees(pool, wrap_mapper_configured).await
 }
 
 /// Recompute `swap_events.volume_usd` from stored amounts + P522-Q catalog + latest oracles
@@ -339,6 +356,7 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
         .await?;
 
     let liq = super::liquidity_snapshots::get_liquidity_rollup(pool).await?;
+    let fees = super::protocol_fees::get_fee_rollup(pool).await?;
     Ok(GlobalStats {
         total_volume_24h: agg.total_volume.unwrap_or_default(),
         total_volume_24h_usd: agg.total_volume_usd.unwrap_or_default(),
@@ -357,6 +375,15 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
         unpriced_pair_count: liq.unpriced_pair_count,
         total_liquidity_usd_24h_ago: liq.total_liquidity_usd_24h_ago,
         total_liquidity_usd_30d_ago: liq.total_liquidity_usd_30d_ago,
+        total_fees_24h_usd: fees.total_fees_24h_usd,
+        total_fees_7d_usd: fees.total_fees_7d_usd,
+        total_fees_30d_usd: fees.total_fees_30d_usd,
+        fees_change_24h_pct: fees.fees_change_24h_pct,
+        fees_change_7d_pct: fees.fees_change_7d_pct,
+        fees_change_30d_pct: fees.fees_change_30d_pct,
+        fee_event_count_24h: fees.fee_event_count_24h,
+        fee_event_count_7d: fees.fee_event_count_7d,
+        fee_event_count_30d: fees.fee_event_count_30d,
     })
 }
 
@@ -383,6 +410,15 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         unpriced_pair_count: i32,
         total_liquidity_usd_24h_ago: Option<BigDecimal>,
         total_liquidity_usd_30d_ago: Option<BigDecimal>,
+        total_fees_24h_usd: Option<BigDecimal>,
+        total_fees_7d_usd: Option<BigDecimal>,
+        total_fees_30d_usd: Option<BigDecimal>,
+        fees_change_24h_pct: Option<BigDecimal>,
+        fees_change_7d_pct: Option<BigDecimal>,
+        fees_change_30d_pct: Option<BigDecimal>,
+        fee_event_count_24h: i64,
+        fee_event_count_7d: i64,
+        fee_event_count_30d: i64,
         updated_at: DateTime<Utc>,
     }
 
@@ -394,6 +430,9 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
                 total_liquidity_usd, liquidity_change_24h_pct, liquidity_change_30d_pct,
                 priced_pair_count, unpriced_pair_count,
                 total_liquidity_usd_24h_ago, total_liquidity_usd_30d_ago,
+                total_fees_24h_usd, total_fees_7d_usd, total_fees_30d_usd,
+                fees_change_24h_pct, fees_change_7d_pct, fees_change_30d_pct,
+                fee_event_count_24h, fee_event_count_7d, fee_event_count_30d,
                 updated_at
          FROM global_stats_24h WHERE id = 1",
     )
@@ -449,6 +488,15 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         unpriced_pair_count: rollup.unpriced_pair_count,
         total_liquidity_usd_24h_ago: rollup.total_liquidity_usd_24h_ago,
         total_liquidity_usd_30d_ago: rollup.total_liquidity_usd_30d_ago,
+        total_fees_24h_usd: rollup.total_fees_24h_usd,
+        total_fees_7d_usd: rollup.total_fees_7d_usd,
+        total_fees_30d_usd: rollup.total_fees_30d_usd,
+        fees_change_24h_pct: rollup.fees_change_24h_pct,
+        fees_change_7d_pct: rollup.fees_change_7d_pct,
+        fees_change_30d_pct: rollup.fees_change_30d_pct,
+        fee_event_count_24h: rollup.fee_event_count_24h,
+        fee_event_count_7d: rollup.fee_event_count_7d,
+        fee_event_count_30d: rollup.fee_event_count_30d,
     })
 }
 

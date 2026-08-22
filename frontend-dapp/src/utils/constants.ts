@@ -110,6 +110,20 @@ export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
  */
 export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 /**
+ * Extra gas when `wrap_deposit` and router `send`→`execute_swap_operations` (N≥2)
+ * share one multi-msg tx ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
+ *
+ * Wrap+2hop on economic hub pairs (discount registry, larger wasm state) can exceed
+ * `WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(N)` because ante/wasm
+ * multi-msg overhead is not in either per-msg constant. Gem-calibrated 2.31M sat
+ * too close (same class as #353's 1,810,000 ceiling).
+ *
+ * 400k ≈ one extra wrap-class envelope — wrap+2hop stays in the tens-of-LUNC
+ * fee class (~76.76 LUNC at 28.325), not hybrid 15M. Applied only for N≥2 so
+ * wrap+1hop (#353) stays 1.8M.
+ */
+export const WRAP_ROUTER_COMBO_OVERHEAD_GAS = 400_000
+/**
  * CW20 `send` → wrap-mapper `{ unwrap }` (and router `unwrap_output` add-on).
  *
  * Mainnet columbus-5 LCD `/cosmos/tx/v1beta1/simulate` (signer terra1xsecn…, cLUNC→mapper):

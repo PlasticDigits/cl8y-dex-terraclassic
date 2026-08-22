@@ -72,12 +72,15 @@ import { FeeDisplay, TxResultAlert, TokenSearchSelect, Spinner, RetryError } fro
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { LcdQueryGate } from '@/components/common/LcdQueryGate'
+import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
+import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve } from '@/services/indexer/client'
 import {
@@ -347,6 +350,16 @@ export default function SwapPage() {
     refetchInterval: 15_000,
   })
 
+  const ulunaBalanceQuery = useQuery({
+    queryKey: ['tokenBalance', address, 'uluna'],
+    queryFn: () => {
+      if (!address) throw new Error('Missing params')
+      return getTokenBalance(address, { native_token: { denom: 'uluna' } })
+    },
+    enabled: !!address,
+    refetchInterval: 15_000,
+  })
+
   const offerDecimals = offerAssetInfo ? getDecimals(offerAssetInfo) : 6
   const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
   const debouncedInputAmount = useDebouncedValue(inputAmount, SIM_QUOTE_DEBOUNCE_MS)
@@ -374,6 +387,13 @@ export default function SwapPage() {
   }, [wrapDenom, wrapUnwrapType, toToken, fromToken, nativeRouteInfo?.needsWrapInput])
 
   const payIsNativeUluna = isNativeDenom(fromToken)
+  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max to 1-hop (#587). */
+  const nativeSwapHopCount =
+    nativeRouteInfo?.operations?.length ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap' ? 2 : 1)
+  const nativeNeedsWrapInput = nativeRouteInfo?.needsWrapInput ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap')
+  const nativeNeedsUnwrapOutput =
+    nativeRouteInfo?.needsUnwrapOutput ??
+    (!!toToken && isNativeDenom(toToken) && wrapUnwrapType !== 'wrap' && wrapUnwrapType !== 'unwrap')
   const payMaxResult = useMemo(() => {
     if (!balanceQuery.data) {
       return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
@@ -386,9 +406,9 @@ export default function SwapPage() {
       nativeSwapHints: payIsNativeUluna
         ? {
             isDirectWrap: wrapUnwrapType === 'wrap',
-            needsWrapInput: nativeRouteInfo?.needsWrapInput ?? false,
-            needsUnwrapOutput: nativeRouteInfo?.needsUnwrapOutput ?? false,
-            hopCount: nativeRouteInfo?.operations?.length,
+            needsWrapInput: nativeNeedsWrapInput,
+            needsUnwrapOutput: nativeNeedsUnwrapOutput,
+            hopCount: nativeSwapHopCount,
           }
         : undefined,
     })
@@ -397,9 +417,9 @@ export default function SwapPage() {
     offerDecimals,
     payIsNativeUluna,
     wrapUnwrapType,
-    nativeRouteInfo?.needsWrapInput,
-    nativeRouteInfo?.needsUnwrapOutput,
-    nativeRouteInfo?.operations?.length,
+    nativeNeedsWrapInput,
+    nativeNeedsUnwrapOutput,
+    nativeSwapHopCount,
   ])
 
   const bookLegMaxResult = useMemo(() => {
@@ -1052,6 +1072,40 @@ export default function SwapPage() {
   const showRouteIntermediateReconciledLabel = !!simData?.indexerRouteIntermediateReconciled
   const showDirectHybridAmountReconciledLabel = !!simData?.indexerAmountReconciled
 
+  const swapNetworkFeeEstimate = useMemo(() => {
+    const cw20HopCount = simData?.indexerOperations?.length ?? route?.length ?? 1
+    return estimateSwapNetworkFee({
+      isDirectWrap: wrapUnwrapType === 'wrap',
+      isDirectUnwrap: wrapUnwrapType === 'unwrap',
+      needsWrapInput: nativeNeedsWrapInput,
+      needsUnwrapOutput: nativeNeedsUnwrapOutput,
+      hopCount: nativeRouteInfo?.operations?.length ?? (isWrapOrUnwrap ? 1 : nativeSwapHopCount || cw20HopCount),
+      cw20DirectPair: !!isDirect && !nativeRouteInfo && !isWrapOrUnwrap,
+      cw20Hybrid: !!isDirect && useHybridBook && isPositiveDecimalAmount(bookInputHuman.trim()),
+    })
+  }, [
+    wrapUnwrapType,
+    nativeNeedsWrapInput,
+    nativeNeedsUnwrapOutput,
+    nativeRouteInfo,
+    nativeSwapHopCount,
+    isWrapOrUnwrap,
+    isDirect,
+    useHybridBook,
+    bookInputHuman,
+    simData?.indexerOperations?.length,
+    route?.length,
+  ])
+
+  const swapGasGate = evaluateSwapNativeGasGate(
+    inputAmount,
+    offerDecimals,
+    payIsNativeUluna,
+    rawInputAmount,
+    payIsNativeUluna ? balanceQuery : ulunaBalanceQuery,
+    swapNetworkFeeEstimate.feeUluna
+  )
+
   const insufficientBalance =
     hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
 
@@ -1093,6 +1147,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (insufficientBalance) {
     buttonText = 'Insufficient Balance'
+    buttonDisabled = true
+  } else if (hasPositiveInputAmount && !swapGasGate.canSubmit) {
+    buttonText = swapGasGate.userMessage ?? 'Need LUNC for network fee'
     buttonDisabled = true
   } else if (simQuoteUnavailable) {
     buttonText = 'Quote unavailable'
@@ -1586,6 +1643,17 @@ export default function SwapPage() {
                   </span>
                 </div>
               )}
+              <div
+                className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <TerraClassicTxFeeHint
+                  estimate={swapNetworkFeeEstimate}
+                  compact
+                  data-testid="swap-network-fee"
+                  className="m-0"
+                />
+              </div>
               {priceImpact !== null && (
                 <>
                   {(parseSlippagePercent(priceImpact) ?? 0) > 5 && (
@@ -1643,6 +1711,13 @@ export default function SwapPage() {
                       />
                     </div>
                   )}
+                  <TerraClassicTxFeeHint
+                    estimate={swapNetworkFeeEstimate}
+                    compact
+                    showInternals
+                    data-testid="swap-network-fee-details"
+                    className="m-0 col-span-2"
+                  />
                   {address &&
                     feeDiscountConfigured &&
                     pairDiscountApplies &&
