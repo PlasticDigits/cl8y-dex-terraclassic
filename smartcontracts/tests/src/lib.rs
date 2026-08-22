@@ -2,6 +2,11 @@
 mod adversarial_token;
 
 #[cfg(test)]
+mod cw20_codeid_harness;
+#[cfg(test)]
+mod cw20_mutants;
+
+#[cfg(test)]
 mod classic_lp_cw20;
 
 #[cfg(test)]

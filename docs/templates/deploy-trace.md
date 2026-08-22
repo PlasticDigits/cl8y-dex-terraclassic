@@ -98,7 +98,7 @@ PAIR_ADDR=<pair> TERRA_LCD_URL=<lcd> ./scripts/smoke-pool-swap.sh
 
 ## F6 / #584 code-id pin migrate (columbus-5)
 
-Copy onto [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) and [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391) when running [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). First columbus-5 F6 migrate **RAN 2026-08-21** (see [`deployments/mainnet-soft-launch/deploy-trace.md`](../../deployments/mainnet-soft-launch/deploy-trace.md)). Use this table for the **next** F6 wasm upgrade. **#581 / 8266** stays BLOCK until optimizer rebuild SHA-256 equals LCD `data_hash` `953AD60C…`.
+Copy onto [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584) and [#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391) when running [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). First columbus-5 F6 migrate **RAN 2026-08-21** (see [`deployments/mainnet-soft-launch/deploy-trace.md`](../../deployments/mainnet-soft-launch/deploy-trace.md)). Use this table for the **next** F6 wasm upgrade. **#581 / 8266** stays BLOCK until [`cw20-codeid-audits/codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md) is **GO** ([#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589)). Optimizer rebuild SHA-256 is an optional appendix, not the gate.
 
 | Field | Value |
 |-------|-------|

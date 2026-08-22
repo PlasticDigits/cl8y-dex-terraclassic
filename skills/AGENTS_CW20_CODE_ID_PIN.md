@@ -14,7 +14,7 @@ Use when migrating factory/pair wasm, adding a CW20 code id to the factory white
 
 **Severity:** **High** for permissionless 6036+migrate. Residual risk on protocol-admin 10184/6036 is our-key upgrade risk (still fail-closed until Refresh).
 
-**#581 / 8266:** F6 is live on columbus-5 (factory **11602** / 1.9.0, pairs **11601** / 1.15.0, `config.pair_code_id` **11601** — [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)). That does **not** unblock 8266. Dump crate is in the LCD wasm (strings/types/serde). Remaining gate: optimizer rebuild SHA-256 equals LCD `data_hash` `953AD60C…` ([`audits/CW20-8266-581.md`](../audits/CW20-8266-581.md), [`audits/CW20-8266-581-hash-repro.md`](../audits/CW20-8266-581-hash-repro.md), [`audits/CW20-8266-581-classic-terraswap.md`](../audits/CW20-8266-581-classic-terraswap.md)). CertiK match is not required; listing all 8266 instantiations is accepted (LUNC fee). Future F6 wasm upgrades still use [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh). Launch checklist **BLOCK** for 8266 remains until that hash matches.
+**#581 / 8266:** F6 is live on columbus-5 (factory **11602** / 1.9.0, pairs **11601** / 1.15.0, `config.pair_code_id` **11601** — [#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)). That does **not** unblock 8266. Dump crate is in the LCD wasm (strings/types/serde). **Go/no-go is [`cw20-codeid-audits/codeids/8266/REPORT.md`](../cw20-codeid-audits/codeids/8266/REPORT.md)** ([#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589) harness: LCD pin + decomp + catalogue + Layer A/B). A byte-identical optimizer rebuild is an **optional appendix** ([`audits/CW20-8266-581-hash-repro.md`](../audits/CW20-8266-581-hash-repro.md)), not the remaining gate. CertiK match is not required; listing all 8266 instantiations is accepted (LUNC fee). Future F6 wasm upgrades still use [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh). Launch checklist **BLOCK** for 8266 remains until that **REPORT** is **GO**. Playbook: [`AGENTS_CW20_CODE_ID_AUDIT.md`](./AGENTS_CW20_CODE_ID_AUDIT.md); `make verify-issue-589`.
 
 Do **not** add pair balance-delta / FoT swap math (H-01).
 
@@ -77,6 +77,7 @@ The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every l
 ## Verification
 
 ```bash
+make verify-issue-589   # #589 CW20 code-id intake (LCD pin + decomp + Layer A/B multi-test)
 make verify-issue-584   # script bash -n, DRY_RUN factory-assert, pagination mock, runbook greps
 make verify-issue-582   # pin tests + #584 ops (fails if upgrade script is deleted)
 make verify-issue-585   # dApp banners + indexer route/solve freeze (Postgres; no LocalTerra)
@@ -89,6 +90,7 @@ Tests: `asset_code_id_pin_tests::*` (honest CreatePair → FoT migrate → swap 
 ## Related
 
 - [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) — H-01 FoT prohibition (no balance-delta math)
+- [`AGENTS_CW20_CODE_ID_AUDIT.md`](./AGENTS_CW20_CODE_ID_AUDIT.md) — #589 intake harness; 8266 `REPORT.md`
 - [`docs/runbooks/cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md)
 - [`docs/runbooks/cw20-code-id-ops.md`](../docs/runbooks/cw20-code-id-ops.md) — exit-path **keep**, unfreeze, batch skip
 - [`docs/runbooks/emergency-commands.md`](../docs/runbooks/emergency-commands.md) — `SetPairPaused` through refresh

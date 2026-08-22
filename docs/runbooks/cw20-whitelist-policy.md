@@ -22,13 +22,15 @@ Both desync the pair's internal accounting. The pair (and limit-order escrow) cr
 
 ## Pre-whitelist verification
 
-Before governance adds a code ID:
+Before governance adds a code ID, follow the **#589 harness** ([`cw20-codeid-audits/PROCEDURE.md`](../../cw20-codeid-audits/PROCEDURE.md), playbook [`skills/AGENTS_CW20_CODE_ID_AUDIT.md`](../../skills/AGENTS_CW20_CODE_ID_AUDIT.md)). A byte-identical optimizer rebuild is **not** required and is **not** a go/no-go input (optional appendix only).
 
-1. **Obtain the canonical wasm** from the token issuer (not a third-party mirror).
-2. **LCD `CodeInfo`** — confirm `code_id`, checksum, and uploader match expectations.
-3. **Instantiate probe** on staging — `Transfer` / `Send` amount must equal recipient balance delta (no fee skimming).
-4. **Source review** — confirm the template implements no fee-on-transfer, transfer tax, rebase / elastic supply, reflection, or any mechanic that mutates a holder's balance outside an explicit transfer. A balance held flat across a block (no transfer) must not change.
-5. **Attach audit evidence** — record the source review or third-party audit reference alongside the approved code ID in the deployment record; do not whitelist on checksum match alone.
+1. **Fetch LCD wasm** — `cw20-codeid-audits/scripts/fetch-lcd-wasm.sh <id>`. SHA-256 **must** equal `CodeInfo.data_hash`. Fail closed on mismatch. No third-party mirror without that check.
+2. **Decompile** that binary (`decompile-wasm.sh`; `wabt`). Do not skip decomp.
+3. **Human audit** against [`cw20-codeid-audits/CATALOG.md`](../../cw20-codeid-audits/CATALOG.md) (every A–CH row).
+4. **Automated suite** on **that wasm** — Layer A (token 1:1 / CW20 surface) + Layer B (DEX invariants **P1–P4**, **P10**, **R1–R4**, **L1–L3**, …). Known-bad **8654** / FoT mutants must **fail** 1:1 and **P2**.
+5. **Fill `codeids/<id>/REPORT.md`** from the report template. Explicit **go / no-go**. Approving the ID admits **every** instantiate of that wasm.
+
+Do **not** whitelist on checksum match alone, on decomp “looks like cw20-base” alone, or on CertiK / Skynet **file** hashes. Staging 1:1 probes belong **inside** Layer A/B, not as a substitute. `make verify-issue-589`.
 
 ### GDEX / TerraPort production code IDs
 
@@ -69,7 +71,7 @@ CreatePair-only whitelist is **not** enough: instance wasm admin can `MsgMigrate
 
 **Honest token upgrade:** `AddWhitelistedCodeId` (new template) → migrate instances → governance `RefreshPairAssetCodeIds` (or Batch) → optional `RemoveWhitelistedCodeId` (old template). Refresh **refuses** to pin an unlisted live id.
 
-**Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** F6 is live on columbus-5. Dump crate is in the LCD wasm (strings/types/serde); remaining gate is an optimizer rebuild whose SHA-256 equals LCD `data_hash` `953AD60C…` ([`audits/CW20-8266-581.md`](../../audits/CW20-8266-581.md), [`audits/CW20-8266-581-hash-repro.md`](../../audits/CW20-8266-581-hash-repro.md), [`audits/CW20-8266-581-classic-terraswap.md`](../../audits/CW20-8266-581-classic-terraswap.md)). CertiK file hashes are not required. Whitelisting 8266 admits all instantiations of that template — accepted (LUNC CreatePair fee). Do not treat (E) as the 8266 decision.
+**Severity:** **High** for permissionless 6036+migrate (any issuer with wasm admin). Residual risk on protocol-admin 10184/6036 is **our-key / our-upgrade** — still fail-closed until Refresh. **#581 / 8266:** F6 is live on columbus-5. Dump crate is in the LCD wasm (strings/types/serde). **Go/no-go is [`cw20-codeid-audits/codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md)** under [#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589) — LCD pin + decomp + catalogue + Layer A/B. An optimizer rebuild matching `953AD60C…` is an **optional appendix** only ([`audits/CW20-8266-581-hash-repro.md`](../../audits/CW20-8266-581-hash-repro.md)). CertiK file hashes are not `data_hash`. Whitelisting 8266 admits all instantiations of that template — accepted (LUNC CreatePair fee). Do not treat (E) as the 8266 decision. Do not `AddWhitelistedCodeId 8266` while that report is **NO-GO**.
 
 **Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`; `make verify-issue-584`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md). Rollout script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)).
 
@@ -86,4 +88,4 @@ Snapshot from [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/is
 | PEARL, QUARTZ | 6036 | DEX 2-of-3 `terra1zlmv2…` |
 | SpaceUSD (not listed) | 8266 | issuer `terra133n0pv8…` |
 
-Re-query LCD `ContractInfo` (code_id + admin) before any 8266 go. This table is not a live probe. F6 is live; do not `AddWhitelistedCodeId 8266` until the hash-repro plan matches LCD wasm.
+Re-query LCD `ContractInfo` (code_id + admin) before any 8266 go. This table is not a live probe. F6 is live; do not `AddWhitelistedCodeId 8266` until [`codeids/8266/REPORT.md`](../../cw20-codeid-audits/codeids/8266/REPORT.md) is **GO** (`make verify-issue-589`).
