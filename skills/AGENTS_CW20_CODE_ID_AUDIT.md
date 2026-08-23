@@ -47,7 +47,7 @@ Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_5
 - Treat a non-matching rebuild as the binary audit.
 - `AddWhitelistedCodeId` while that id’s `REPORT.md` is **NO-GO**. 8266 is **GO** and listed on columbus-5; still do **not** whitelist a LocalTerra store id or ALPHA **8654**.
 - Treat issuer wasm-admin, Everybody instantiate, or a minter cap as a template veto — those are documented residuals ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581)).
-- Whitelist a community-tax **LocalTerra** store id, or ALPHA **8654**. Columbus-5 **11611** REPORT is **GO** ([`codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). The stub [`codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) stays a **NO-GO** placeholder. See [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md).
+- Whitelist a community-tax **LocalTerra** store id, or ALPHA **8654**. Columbus-5 **11611** REPORT is **GO** ([`codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). The stub [`codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) stays a **NO-GO** placeholder. See [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) (**O601-1–O601-7**). `make verify-issue-601` runs A-lcd/B-lt on pinned 11611 plus LocalTerra tax smoke.
 - Bind-mount `indexer/` into root Docker to run cargo.
 - Store secrets under `codeids/`.
 - Split catalogue + harness into a parallel issue (work stays in #589).

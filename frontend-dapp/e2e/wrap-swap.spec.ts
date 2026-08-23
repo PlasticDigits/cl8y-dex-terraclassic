@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { skipIfLcdUnreachable, assertTxResultAlert } from './helpers/chain'
+import { skipIfLcdUnreachable, assertTxResultAlert, assertSuccessTxGasUsedLtWanted } from './helpers/chain'
 import {
   clickSwapSubmit,
   openSwapSettingsAndSetSlippage,
@@ -129,7 +129,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await assertTxResultAlert(page)
   })
 
-  test('E7: wrap+≥2hop LUNC → USTR (or JADE/RUBY stand-in) one submit (#587)', async ({ page }) => {
+  test('E7: wrap+≥2hop LUNC → USTR (or JADE/RUBY stand-in) one submit (#587)', async ({ page, request }) => {
     // Default receive is often native LUNC, which excludes LUNC from the pay list.
     const dest = await requireHubOrTwoHopReceive(page)
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'LUNC', 'cLUNC')
@@ -167,6 +167,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await clickSwapSubmit(page)
     await expect(page.locator('.alert-success').first()).toBeVisible({ timeout: 90_000 })
     await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
+    await assertSuccessTxGasUsedLtWanted(page, request)
   })
 
   test('E8: ≥2hop CW20 → LUNC unwrap one submit (#587)', async ({ page }) => {
@@ -211,7 +212,7 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
    * Hub USTR→USTC is 2 hops + `unwrap_output` into taxed `uusd`. LocalTerra may
    * lack USTR — JADE/RUBY → USTC is the documented ≥2-hop stand-in (#599).
    */
-  test('E9: ≥2hop CW20 → USTC unwrap one submit (#599)', async ({ page }) => {
+  test('E9: ≥2hop CW20 → USTC unwrap one submit (#599)', async ({ page, request }) => {
     let paySym = ''
     for (const sym of ['USTR', 'JADE', 'RUBY']) {
       const ok = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, sym)
@@ -256,6 +257,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await clickSwapSubmit(page)
     await expect(page.locator('.alert-success').first()).toBeVisible({ timeout: 90_000 })
     await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
+    // P599-1 / #600: LCD gas_used < gas_wanted (not toast-only).
+    await assertSuccessTxGasUsedLtWanted(page, request)
   })
 
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {

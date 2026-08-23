@@ -112,6 +112,7 @@ Trading tokens (EMBER, CORAL, …) use **6** decimals. Fee-discount `min_cl8y_ba
 | `make verify-issue-384` | `getGasLimitForTx` register/deregister limits; optional live `gas_used` check |
 | `make verify-issue-475` | Retail execute-msg gas inventory / `BASE_GAS_LIMIT` guardrail; faucet `drip` (#474); optional live drip `gas_used` |
 | `make verify-issue-599` | Unwrap+≥2hop USTR→USTC gas combo (`UNWRAP_ROUTER_COMBO_OVERHEAD_GAS`); inventory `send_2hop_unwrap_ustc`; E9 needs LocalTerra |
+| `make verify-issue-600` | Post-merge !400 LocalTerra E9 + columbus-5 unwrap gas (`Q8` / **M600-1–M600-8**); children 599 + 587 |
 | `/tiers` + Keplr or Simulated Wallet | Register tier 1 succeeds when wallet holds ≥ 1 TCL8Y (requires #384 gas limits) |
 
 ### Post-merge stack !368–!377 (GitLab #573)
@@ -136,9 +137,21 @@ After stacking protocol fees, wrap+≥2hop gas, and the CW20 audit harness:
 | `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` | A-lcd/B-lt **execute** pinned wasm (not a stub) |
 | Coolify indexer + dApp | Fee migration + `WRAP_MAPPER_ADDRESS`; `/protocol` fees + Swap Network fee |
 | 8266 | REPORT **GO**; columbus-5 listed 2026-08-22. Do **not** whitelist a LocalTerra store id. ALPHA **8654** stays off. |
-| 11611 | Community tax (#601) REPORT **GO**; listed 2026-08-23. Live whitelist **`[6036, 8266, 10184, 11611]`**. Launcher `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. Do **not** whitelist 11612/11613. |
+| 11611 | Community tax (#601) REPORT **GO**; listed 2026-08-23. Live whitelist **`[6036, 8266, 10184, 11611]`**. Launcher `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. Do **not** whitelist 11612/11613. Gate: `make verify-issue-601` (A-lcd/B-lt + LocalTerra smoke). |
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_590.md`](../../skills/AGENTS_POST_MERGE_OPS_590.md). QA invariant **Q7**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-590).
+
+### Post-merge !400 unwrap gas (GitLab #600)
+
+After !400 landed unit/docs for `UNWRAP_ROUTER_COMBO_OVERHEAD_GAS` without chain QA:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-600` | Children **599, 587** plus Q8 / **M600-1–M600-8** |
+| `VERIFY600_REQUIRE_CHAIN=1 make verify-issue-600` | Playwright **E9** (and **E7**) e2e-tx; `gas_used < gas_wanted` |
+| `VERIFY600_COLUMBUS_TX=<hash> make verify-issue-600` | Columbus-5 LCD `gasUsed < gasWanted` and used < 3.11M |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_600.md`](../../skills/AGENTS_POST_MERGE_OPS_600.md). QA invariant **Q8**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-600).
 
 ---
 

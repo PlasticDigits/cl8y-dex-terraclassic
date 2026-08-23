@@ -54,20 +54,21 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Receive(cw20) => execute_receive(deps, env, info, cw20),
-        ExecuteMsg::CreateToken(args) => {
-            if !args.features.is_empty() {
-                return Err(ContractError::InvoiceAmount {
-                    required: Uint128::new(INVOICE_UST1)
-                        .checked_mul(Uint128::new(args.features.len() as u128))
-                        .map_err(|e| ContractError::Std(e.into()))?
-                        .to_string(),
-                    got: "0".to_string(),
-                });
-            }
-            let cfg = CONFIG.load(deps.storage)?;
-            create_token(deps, env, cfg, Uint128::zero(), *args)
-        }
+        ExecuteMsg::CreateToken(args) => execute_create_free(deps, env, *args),
     }
+}
+
+/// **O601-3** — `features == []` cannot be paid via CW20 `Send(0)`.
+fn execute_create_free(
+    deps: DepsMut,
+    env: Env,
+    args: CreateTokenMsg,
+) -> Result<Response, ContractError> {
+    if !args.features.is_empty() {
+        return Err(ContractError::FreeProfileOnly {});
+    }
+    let cfg = CONFIG.load(deps.storage)?;
+    create_token(deps, env, cfg, Uint128::zero(), args)
 }
 
 fn execute_receive(

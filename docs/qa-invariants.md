@@ -133,6 +133,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M590-7** | 8266 `codeids/8266/REPORT.md` is **GO**. Columbus-5 `AddWhitelistedCodeId 8266` **RAN 2026-08-22** (height **30060600**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558). |
 | **M590-8** | Playbook + this Q7 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge unwrap+≥2hop chain QA (invariant Q8) {#post-merge-ops-600}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q8** Post-merge !400 unwrap+≥2hop envelope is live-checked (LocalTerra E9 + optional columbus-5 hash); unit/docs already landed with #599 | **`make verify-issue-600`** → children **599, 587** plus wrap-swap E9/E7 and optional `VERIFY600_COLUMBUS_TX` (**M600-1–M600-8**) | Non-zero exit; fix the failing child or E9 OOG; do not treat green `verify-issue-599` as E9/columbus-5 clearance |
+
+**M600** (GitLab **#600** — [`skills/AGENTS_POST_MERGE_OPS_600.md`](../skills/AGENTS_POST_MERGE_OPS_600.md)):
+
+| ID | Rule |
+|----|------|
+| **M600-1** | `make verify-issue-600` runs children **599** and **587**. Unit/docs FAILs fail the stack. E9 SKIP only when LocalTerra is absent (unless `VERIFY600_REQUIRE_CHAIN=1`). |
+| **M600-2** | Playwright `e2e/wrap-swap.spec.ts` **E9** `--project=e2e-tx` (1 worker): USTR or JADE/RUBY → USTC, one submit, no OOG, LCD `gas_used < gas_wanted`. |
+| **M600-3** | LUNC→USTR and USTC→USTR stay wrap+combo one-tx (#587). E7 when chain is up. |
+| **M600-4** | Direct mapper unwrap stays **800k**. Do not raise `UNWRAP_GAS_LIMIT` for the hub InstantWithdraw path. |
+| **M600-5** | Envelope is **3,110,000** (~88 LUNC class). If captured columbus-5 `gasUsed` ≥ 3.11M, open a new ticket — do not silently bump `UNWRAP_GAS_LIMIT`. |
+| **M600-6** | Columbus-5 `/` USTR→USTC is operator-run. Record hash + gas via `VERIFY600_COLUMBUS_TX`. No hybrid / `book_input` (**H596-7**). |
+| **M600-7** | Do **not** reopen #599 unless 3.11M still OOGs. File a new envelope ticket if the named combo must rise. |
+| **M600-8** | Playbook + this Q8 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -144,3 +163,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — dev `make reset` (non-QA compose)
 - [`skills/AGENTS_POST_MERGE_STACK.md`](../skills/AGENTS_POST_MERGE_STACK.md) — post-merge Coolify + indexer stack !368–!377 ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573), **Q6**)
 - [`skills/AGENTS_POST_MERGE_OPS_590.md`](../skills/AGENTS_POST_MERGE_OPS_590.md) — post-merge !394–!396 fees / wrap gas / 8266 A-lcd ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590), **Q7**)
+- [`skills/AGENTS_POST_MERGE_OPS_600.md`](../skills/AGENTS_POST_MERGE_OPS_600.md) — post-merge !400 LocalTerra E9 + columbus-5 USTR→USTC unwrap gas ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600), **Q8**)

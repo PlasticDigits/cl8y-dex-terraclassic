@@ -12,7 +12,7 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 |------------|---------|
 | [GitLab **#592**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) | On-chain design |
 | [`docs/contracts-terraclassic.md` § Community tax CW20](../docs/contracts-terraclassic.md#community-tax-cw20-gitlab-592) | Message shapes + classification |
-| [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) | Invariants **T592-1–T592-12** |
+| [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) | Invariants **T592-1–T592-12** + **O601-1–O601-7** |
 | [`docs/runbooks/cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md) | Narrow whitelist exception |
 | [`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md) | #589 intake (**GO**; columbus-5 listed). Stub: [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) |
 | [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) | **H-01** / do not add FoT math |
@@ -32,6 +32,18 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 
 `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` = 11611. `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = launcher. Unset → dApp page unavailable / indexer `configured: false`.
 
+## Ops / LocalTerra invariants **O601-1–O601-7** ([#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601))
+
+1. **O601-1 — pinned A-lcd / B-lt.** `CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589` executes the LCD wasm (not mintable analogue). A-lcd retries community-tax `InstantiateMsg` when cw20-base init fails. `balance_at` is A29 N/A.
+2. **O601-2 — whitelist after GO only.** Factory lists **11611**. Do **not** whitelist launcher **11612**, AutoLP **11613**, a LocalTerra store id, or ALPHA **8654**.
+3. **O601-3 — free-profile launcher create.** `features == []` uses `ExecuteMsg::CreateToken` (CW20 cannot `Send` 0). Paid SKUs stay on UST1 `Send`. Stamps `admin: cmm_governance` and `GetLauncherOrigin`. Columbus-5 **11612** predates this execute — LocalTerra stores in-repo launcher wasm; mainnet re-store is a residual.
+4. **O601-4 — catalog filter.** Rogue `--admin` instantiate has `GetLauncherOrigin.launcher == null`. dApp (#593) / indexer (#594) must require CMM admin + origin.
+5. **O601-5 — listed-pair tax.** After `RegisterListedPair`, sell extra-debit + buy outbound split match `TaxPreview` (max-button). Provide `TransferFrom` stays 1:1. Layer B-lt does **not** register the pair (1:1 harness).
+6. **O601-6 — invoices on chain.** SKU unlock and settings batch are each exactly 50 UST1. MintControl `RevokeMint` is one-way.
+7. **O601-7 — DEX residuals stay out.** Hybrid / router multi-hop / live zap / AutoLP `SkimToLp` vs a live router are **not** close gates (issue body §5).
+
+Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra-community-tax-smoke.sh). Gate: `make verify-issue-601`.
+
 ## Invariants **T592-1–T592-12**
 
 1. **T592-1 — inbound 1:1.** Transfers **to** pair, router, this token, AutoLP, or other protocol-exempt addresses credit exactly `amount`. Classic inbound FoT still fails `fee_on_transfer_creates_reserve_imbalance`.
@@ -49,11 +61,12 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 
 ## Launcher UST1 hook
 
-`community-token-launcher` `Receive` accepts UST1 only. Exact invoice: `50 UST1 × SKU count` on create; `50 UST1` on later `EnableFeature`.
+`community-token-launcher` `Receive` accepts UST1 only. Exact invoice: `50 UST1 × SKU count` on create; `50 UST1` on later `EnableFeature`. **O601-3:** zero-SKU free profile is `ExecuteMsg::CreateToken` (no UST1).
 
-| Hook | JSON |
+| Path | JSON |
 |------|------|
-| `create_token` | Newtype `CreateTokenMsg` — `{"create_token":{name,symbol,decimals,initial_balances,manager,treasury,buy_bps,sell_bps,max_*,features,…}}` |
+| Execute `create_token` (0 SKUs) | `{"create_token":{name,symbol,…,features:[]}}` |
+| UST1 hook `create_token` | Newtype `CreateTokenMsg` — `{"create_token":{name,symbol,decimals,initial_balances,manager,treasury,buy_bps,sell_bps,max_*,features,…}}` |
 | `enable_feature` | `{"enable_feature":{"token":"terra1…","sku":"transfer_tax"}}` |
 
 Do not send a settings batch to the launcher. AutoLP instantiate+bind in the same create tx is **out of v1** (pay SKU, then bind).
@@ -66,6 +79,8 @@ Token-only extra-debit sell + outbound buy. `SetPairHooks` stays governance-only
 
 ```bash
 make verify-issue-592
+make verify-issue-601
+CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp
 ```
 

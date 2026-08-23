@@ -30,6 +30,7 @@ Stacked MRs on `main`: **!394** (#586), **!395** (#587), **!396** (#589). Do not
 - **Don’t** `AddWhitelistedCodeId 8266` on mainnet from a LocalTerra store code id.
 - **Don’t** count InstantWithdraw burn tax or swap `book_commission_amount` as treasury fees.
 - **Don’t** close #590 while **M590-5** / **M590-6** remain unexecuted if the issue still has those checkboxes open — run with `VERIFY590_REQUIRE_CHAIN=1`.
+- Unwrap+≥2hop USTR→USTC E9 / columbus-5 live hash is **#600** (`make verify-issue-600`), not this stack.
 
 ## Regression
 

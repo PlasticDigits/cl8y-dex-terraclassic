@@ -46,7 +46,7 @@ Do **not** dump decomp into `smartcontracts/` or `frontend-dapp/`. Do **not** st
 | **10184** | Protocol mintable (in-process analogue: `cw20-mintable`) | Honest Layer A/B **green** |
 | **6036** | Listed TerraSwap token | Green or documented exceptions |
 | **8266** | First candidate (#581) | REPORT **GO**; columbus-5 listed 2026-08-22. Do **not** whitelist a LocalTerra store id |
-| **11611** | Community tax CW20 (#592 / #601) | REPORT **GO** (named T592 exception); columbus-5 listed 2026-08-23. Layer B-lt residual. Do **not** whitelist 11612/11613 or ALPHA **8654** |
+| **11611** | Community tax CW20 (#592 / #601) | REPORT **GO** (named T592 exception); columbus-5 listed 2026-08-23. A-lcd/B-lt executed. Do **not** whitelist 11612/11613 or ALPHA **8654** |
 | **8654** / FoT mutant | Known-bad ALPHA tax / fee-on-transfer | 1:1 and **P2** **red** |
 
 ## Related

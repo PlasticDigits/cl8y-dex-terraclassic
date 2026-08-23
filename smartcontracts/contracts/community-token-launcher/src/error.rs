@@ -17,4 +17,8 @@ pub enum ContractError {
 
     #[error("AutoLP code id is not configured")]
     AutolpCodeNotSet {},
+
+    /// Paid SKUs must go through UST1 `Send` so the invoice is collected.
+    #[error("CreateToken execute is free-profile only (empty features); paid SKUs use UST1 Send")]
+    FreeProfileOnly {},
 }
