@@ -49,6 +49,15 @@ source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
 source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 
 terrad_tx() {
+  # Re-resolve each call — another agent may recreate the shared compose stack
+  # mid-provision (stale cid → "No such container").
+  local cid
+  cid="$(localterra_container_id "$REPO_ROOT")"
+  if [[ -z "$cid" ]]; then
+    echo "e2e-provision: localterra container not running; start it with docker compose up -d localterra." >&2
+    return 1
+  fi
+  CONTAINER="$cid"
   e2e_terrad_tx "$CONTAINER" "$@"
 }
 
