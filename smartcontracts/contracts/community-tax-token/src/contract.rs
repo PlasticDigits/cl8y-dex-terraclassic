@@ -50,6 +50,7 @@ pub fn instantiate(
         )));
     }
     reject_sku_payload_without_feature(&features, &msg)?;
+    reject_headroom_without_variable_rates(&features, &msg)?;
 
     let mint = msg.mint.as_ref().map(|m| cw20::MinterResponse {
         minter: m.minter.clone(),
@@ -313,6 +314,30 @@ fn reject_sku_payload_without_feature(
             field: "autolp".into(),
             sku: Sku::AutoV2Lp.as_str().to_string(),
         });
+    }
+    Ok(())
+}
+
+/// #605 M-1: without VariableRates, max_* must equal the current rate (no CLI headroom).
+fn reject_headroom_without_variable_rates(
+    features: &Features,
+    msg: &InstantiateMsg,
+) -> Result<(), ContractError> {
+    if features.variable_rates {
+        return Ok(());
+    }
+    let transfer = msg.transfer_bps.unwrap_or(0);
+    for (field, max, current) in [
+        ("max_buy_bps", msg.max_buy_bps, msg.buy_bps),
+        ("max_sell_bps", msg.max_sell_bps, msg.sell_bps),
+        ("max_transfer_bps", msg.max_transfer_bps, transfer),
+    ] {
+        if max != current {
+            return Err(ContractError::SkuPayloadWithoutFeature {
+                field: field.into(),
+                sku: Sku::VariableRates.as_str().to_string(),
+            });
+        }
     }
     Ok(())
 }

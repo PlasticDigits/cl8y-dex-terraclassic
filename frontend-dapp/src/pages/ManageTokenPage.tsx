@@ -103,8 +103,8 @@ export default function ManageTokenPage() {
   const decimals = infoTokQuery.data?.decimals ?? 6
 
   const settings: SettingsBatchFields = {}
-  if (cfg && buy.ok && buy.bps !== cfg.buy_bps) settings.buy_bps = buy.bps
-  if (cfg && sell.ok && sell.bps !== cfg.sell_bps) settings.sell_bps = sell.bps
+  if (feats?.variable_rates && cfg && buy.ok && buy.bps !== cfg.buy_bps) settings.buy_bps = buy.bps
+  if (feats?.variable_rates && cfg && sell.ok && sell.bps !== cfg.sell_bps) settings.sell_bps = sell.bps
   if (cfg && treasuryDraft && treasuryDraft !== cfg.treasury && !treasuryErr) settings.treasury = treasuryDraft
   if (feats?.transfer_tax && cfg && transfer.ok && transfer.bps !== cfg.transfer_bps) {
     settings.transfer_bps = transfer.bps
@@ -278,9 +278,11 @@ export default function ManageTokenPage() {
             <span className="label-glass">Buy tax (%)</span>
             <input
               className="input-glass w-full"
-              disabled={!isManager}
+              disabled={!isManager || !feats?.variable_rates}
               value={buyPct}
-              placeholder={cfg ? formatBpsAsPercent(cfg.buy_bps) : ''}
+              placeholder={
+                feats?.variable_rates ? formatBpsAsPercent(cfg?.buy_bps ?? 0) : 'Locked — unlock Change rates later'
+              }
               onChange={(e) => setBuyPct(e.target.value)}
               data-testid="manage-buy-pct"
             />
@@ -289,9 +291,11 @@ export default function ManageTokenPage() {
             <span className="label-glass">Sell tax (%)</span>
             <input
               className="input-glass w-full"
-              disabled={!isManager}
+              disabled={!isManager || !feats?.variable_rates}
               value={sellPct}
-              placeholder={cfg ? formatBpsAsPercent(cfg.sell_bps) : ''}
+              placeholder={
+                feats?.variable_rates ? formatBpsAsPercent(cfg?.sell_bps ?? 0) : 'Locked — unlock Change rates later'
+              }
               onChange={(e) => setSellPct(e.target.value)}
               data-testid="manage-sell-pct"
             />

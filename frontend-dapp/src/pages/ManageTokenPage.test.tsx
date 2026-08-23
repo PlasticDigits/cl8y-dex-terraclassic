@@ -128,6 +128,26 @@ describe('ManageTokenPage (#593)', () => {
     expect(screen.getByTestId('manage-unlock-sku').textContent).not.toMatch(/Minting/)
   })
 
+  it('M-1: buy/sell stay locked without variable_rates', async () => {
+    const { queryCommunityTaxFeatures } = await import('@/services/terraclassic/communityTaxToken')
+    vi.mocked(queryCommunityTaxFeatures).mockResolvedValueOnce({
+      mint_control: false,
+      transfer_tax: false,
+      split_router: false,
+      auto_v2_lp: false,
+      exemption_directory: false,
+      variable_rates: false,
+      launch_guards: false,
+    })
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-buy-pct')).toBeDisabled()
+    expect(screen.getByTestId('manage-sell-pct')).toBeDisabled()
+    expect(screen.getByTestId('manage-buy-pct')).toHaveAttribute(
+      'placeholder',
+      expect.stringMatching(/Change rates later/)
+    )
+  })
+
   it('P19: tax placeholders are percent not bps', async () => {
     renderManage(MANAGER)
     expect(await screen.findByTestId('manage-save-copy')).toBeInTheDocument()

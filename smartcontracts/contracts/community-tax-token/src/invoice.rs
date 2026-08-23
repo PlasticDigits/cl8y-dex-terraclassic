@@ -113,7 +113,7 @@ fn update_settings(
     let mut changed = false;
 
     if let Some(bps) = batch.buy_bps {
-        require_variable_or_free_profile(&features, true)?;
+        require_variable_rates(&features)?;
         if bps != cfg.buy_bps {
             validate_bps(bps, cfg.max_buy_bps)?;
             cfg.buy_bps = bps;
@@ -121,7 +121,7 @@ fn update_settings(
         }
     }
     if let Some(bps) = batch.sell_bps {
-        require_variable_or_free_profile(&features, true)?;
+        require_variable_rates(&features)?;
         if bps != cfg.sell_bps {
             validate_bps(bps, cfg.max_sell_bps)?;
             cfg.sell_bps = bps;
@@ -263,14 +263,12 @@ fn update_settings(
     Ok(resp)
 }
 
-fn require_variable_or_free_profile(
-    features: &Features,
-    _free_profile_ok: bool,
-) -> Result<(), ContractError> {
-    // Free-profile buy/sell/treasury may change in a batch after instantiate
-    // (50 UST1). VariableRates is only required to *raise* above instantiate
-    // values — we already cap via max_*_bps. Always allowed here.
-    let _ = features;
+fn require_variable_rates(features: &Features) -> Result<(), ContractError> {
+    if !features.variable_rates {
+        return Err(ContractError::SkuNotUnlocked {
+            sku: Sku::VariableRates.as_str().to_string(),
+        });
+    }
     Ok(())
 }
 

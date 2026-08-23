@@ -35,7 +35,7 @@ if [[ -e "$REPO_ROOT/smartcontracts/target" && ! -w "$REPO_ROOT/smartcontracts/t
 fi
 
 run_crates() {
-  (cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp --offline -- --test-threads=1 instantiate_requires_explicit instantiate_launch_guards instantiate_rejects_transfer create_token_autolp create_token_instantiates)
+  (cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp --offline -- --test-threads=1 instantiate_requires_explicit instantiate_launch_guards instantiate_rejects_transfer instantiate_rejects_headroom settings_buy_sell_require create_token_autolp create_token_instantiates)
 }
 
 run_frontend() {
@@ -49,15 +49,19 @@ run_frontend() {
 
 run_docs() {
   rg -q "C605-1" docs/frontend.md
+  rg -q "C605-4" docs/frontend.md
   rg -q "parseTaxPercent" frontend-dapp/src/utils/communityTaxSku.ts
   rg -q "BindAutolp" smartcontracts/contracts/community-tax-token/src/msg.rs
   rg -q "initial_exempt" smartcontracts/contracts/community-tax-token/src/msg.rs
+  rg -q "require_variable_rates" smartcontracts/contracts/community-tax-token/src/invoice.rs
   rg -q "C605-1" skills/AGENTS_FRONTEND_CREATE_TOKEN.md
+  rg -q "C605-4" skills/AGENTS_FRONTEND_CREATE_TOKEN.md
   rg -q "AutoLP instantiate+bind" skills/AGENTS_COMMUNITY_TAX_CW20.md
   rg -q "verify-issue-605" docs/testing.md
   rg -q "verify-issue-605" AGENTS.md
   ! rg -q "Buy tax \\(bps\\)" frontend-dapp/src/pages/CreateTokenPage.tsx
   ! rg -q "Buy bps" frontend-dapp/src/pages/ManageTokenPage.tsx
+  ! rg -q "fn require_variable_or_free_profile" smartcontracts/contracts/community-tax-token/src/invoice.rs
 }
 
 echo ""

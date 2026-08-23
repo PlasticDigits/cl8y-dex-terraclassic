@@ -44,7 +44,7 @@ export const COMMUNITY_TAX_SKUS: readonly CommunityTaxSkuDef[] = [
   {
     id: 'variable_rates',
     label: 'Change rates later',
-    hint: 'Adjust buy/sell after launch (still capped).',
+    hint: 'Required to change buy/sell after create, and to set max rates above current at create.',
     createOnly: false,
   },
   { id: 'launch_guards', label: 'Launch guards', hint: 'Max wallet, cooldown, trading on/off.', createOnly: false },

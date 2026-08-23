@@ -217,6 +217,12 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
     } else {
         None
     };
+    let variable = features.iter().any(|s| matches!(s, Sku::VariableRates));
+    let transfer_init = if features.iter().any(|s| matches!(s, Sku::TransferTax)) {
+        200
+    } else {
+        0
+    };
     let token = app
         .instantiate_contract(
             token_code,
@@ -240,16 +246,20 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
                 treasury: treasury.to_string(),
                 buy_bps: 500,
                 sell_bps: 500,
-                max_buy_bps: 1000,
-                max_sell_bps: 1000,
-                max_transfer_bps: 500,
+                max_buy_bps: if variable { 1000 } else { 500 },
+                max_sell_bps: if variable { 1000 } else { 500 },
+                max_transfer_bps: if variable { 500 } else { transfer_init },
                 factory: factory.to_string(),
                 router: Some("router".into()),
                 ust1: ust1.to_string(),
                 cmm_treasury: cmm.to_string(),
                 features,
                 mint,
-                transfer_bps: None,
+                transfer_bps: if transfer_init > 0 {
+                    Some(transfer_init)
+                } else {
+                    None
+                },
                 sinks: None,
                 autolp: None,
                 launcher: Some("launcher".into()),
@@ -529,26 +539,8 @@ fn transfer_tax_off_is_one_to_one() {
 #[test]
 fn transfer_tax_sku_taxes_wallet() {
     let mut e = clean(vec![Sku::TransferTax], None);
-    // enable transfer bps via settings batch
-    e.app
-        .execute_contract(
-            e.manager.clone(),
-            e.ust1.clone(),
-            &Cw20ExecuteMsg::Send {
-                contract: e.token.to_string(),
-                amount: Uint128::new(INVOICE_UST1),
-                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
-                    settings: SettingsBatch {
-                        transfer_bps: Some(200),
-                        ..Default::default()
-                    },
-                })
-                .unwrap(),
-            },
-            &[],
-        )
-        .unwrap();
     let other = Addr::unchecked("alice");
+    let treas_before = balance(&e.app, &e.token, e.treasury.as_str());
     e.app
         .execute_contract(
             e.user.clone(),
@@ -562,7 +554,10 @@ fn transfer_tax_sku_taxes_wallet() {
         .unwrap();
     let tax = 10_000u128 * 200 / 10_000;
     assert_eq!(balance(&e.app, &e.token, other.as_str()), 10_000 - tax);
-    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), tax);
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treas_before + tax
+    );
 }
 
 #[test]
@@ -1179,7 +1174,7 @@ fn instantiate_rejects_combined_cap() {
                 router: None,
                 ust1: manager.to_string(),
                 cmm_treasury: manager.to_string(),
-                features: vec![],
+                features: vec![Sku::VariableRates],
                 mint: None,
                 transfer_bps: None,
                 sinks: None,
@@ -1315,6 +1310,47 @@ fn instantiate_launch_guards_and_initial_exempt() {
         )
         .unwrap();
     assert!(ex.manager.iter().any(|a| a == &user));
+}
+
+#[test]
+fn instantiate_rejects_headroom_without_variable_rates() {
+    let mut msg = base_init("Demo", "DEMO", 6);
+    msg.max_sell_bps = 500;
+    let err = instantiate_raw(msg).unwrap_err();
+    assert!(
+        err.contains("variable_rates") || err.contains("max_sell") || err.contains("feature"),
+        "{err}"
+    );
+}
+
+#[test]
+fn settings_buy_sell_require_variable_rates() {
+    let mut e = clean(vec![], None);
+    let err = e
+        .app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
+                    settings: SettingsBatch {
+                        sell_bps: Some(0),
+                        ..Default::default()
+                    },
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("variable_rates")
+            || err.root_cause().to_string().contains("not unlocked"),
+        "{err:?}"
+    );
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
 }
 
 #[test]

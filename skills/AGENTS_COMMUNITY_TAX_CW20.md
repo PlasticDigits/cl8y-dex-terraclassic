@@ -69,7 +69,7 @@ Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra
 | UST1 hook `create_token` | Newtype `CreateTokenMsg` — `{"create_token":{name,symbol,decimals,initial_balances,manager,treasury,buy_bps,sell_bps,max_*,features,…}}` |
 | `enable_feature` | `{"enable_feature":{"token":"terra1…","sku":"transfer_tax"}}` |
 
-Do not send a settings batch to the launcher. **#605:** AutoLP instantiate+bind **is** wired on create (and on Enable Feature) when `autolp_code_id` is set. Unset → `AutolpCodeNotSet`, invoice not kept. Token `BindAutolp` is launcher-only. Columbus-5 **11611** does not gain #604 identity / #605 `initial_exempt` until `token_code_id` rotates after #589 GO.
+Do not send a settings batch to the launcher. **#605 H-1:** AutoLP instantiate+bind **is** wired on create (and on Enable Feature) when `autolp_code_id` is set. Unset → `AutolpCodeNotSet`, invoice not kept. Token `BindAutolp` is launcher-only. **#605 M-1:** `variable_rates` is a real gate — instantiate `max_*` cannot exceed current rates without the SKU; settings `buy_bps` / `sell_bps` require it. Columbus-5 **11611** does not gain #604 identity / #605 `initial_exempt` / this gate until `token_code_id` rotates after #589 GO.
 
 ## Option A (v1)
 

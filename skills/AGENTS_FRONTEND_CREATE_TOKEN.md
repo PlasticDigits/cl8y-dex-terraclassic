@@ -9,7 +9,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | Doc / code | Purpose |
 |------------|---------|
 | [GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) | dApp create/manage |
-| [`docs/frontend.md` § Create Token](../docs/frontend.md#create-token-community-tax) | Invariants **C593-1–C593-13**, **C604-1–C604-3**, **C605-1–C605-3** |
+| [`docs/frontend.md` § Create Token](../docs/frontend.md#create-token-community-tax) | Invariants **C593-1–C593-13**, **C604-1–C604-3**, **C605-1–C605-4** |
 | [`communityTaxIdentity.ts`](../frontend-dapp/src/utils/communityTaxIdentity.ts) | Name/symbol/decimals + connected-wallet helpers (#604) |
 | [`communityTaxCreateForm.ts`](../frontend-dapp/src/utils/communityTaxCreateForm.ts) | Shared form → hook args (#604 / #605) |
 | [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard |
@@ -41,11 +41,12 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 2. **C604-2 — connected wallet.** Empty treasury/manager autofill the connected address. Helper copy is exactly `connected wallet` / `not connected wallet` (bech32-normalized). Connecting does not overwrite a typed different address. Disconnect → helper `not connected wallet`; create CTA stays gated (**C593**). Ignore `?manager=` / `?treasury=` / `?payee=`.
 3. **C604-3 — 11611 gap.** Columbus-5 listed wasm **11611** does not enforce identity until launcher `token_code_id` rotates after #589 REPORT **GO** + factory `AddWhitelistedCodeId`. Keep 11611 listed (**F6**). Do not whitelist launcher / AutoLP (**O601-2**). Frontend may ship first as a client gate.
 
-## Invariants **C605-1–C605-3** ([#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605))
+## Invariants **C605-1–C605-4** ([#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605))
 
 1. **C605-1 — percent.** Retail tax fields are percent with exactly 2 decimal places (`2.50` → **250** bps). Empty → 0. Reject `2.501`, `1e2`, trailing junk. Combined cap 25.00%. Manage placeholders show `1.00` for `buy_bps: 100`, never raw bps. No hidden bps mode.
 2. **C605-2 — SKU init.** Checkbox reveals init fields; uncheck hides and drops those keys from the hook. Wallet-to-wallet → `transfer_bps`. Split treasury → 1–4 sinks summing 100.00%. Extra exemptions → `initial_exempt` (≤20, no protocol addrs). Change rates later → explicit `max_*` ≥ current, combined ≤ 25.00%, immutable copy. Launch guards → explicit `trading_enabled` (UI default **off**). Mint cap is human-scale. Free create still cannot include paid payloads (**C593-12**).
-3. **C605-3 — AutoLP.** Create with Auto liquidity instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → block the SKU (do not take 50 UST1). Manage bind is settings batch + sister `UpdateConfig` after bind. `SkimToLp` is never called from token transfer (**T592-10**). No pair/router FoT math.
+3. **C605-3 — AutoLP.** Create with Auto liquidity instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → block the SKU (do not take 50 UST1). Manage bind is settings batch + sister `UpdateConfig` after bind. `SkimToLp` is never called from token transfer (**T592-10**). No pair/router FoT math. Audit **H-1**: do not charge for a discarded sister.
+4. **C605-4 — VariableRates gate (audit M-1).** Keep the paid SKU. Without it, instantiate `max_*` equals current rates (no CLI headroom). Settings `buy_bps` / `sell_bps` require the SKU. Do not leave `require_variable_or_free_profile` as `Ok(())`. Manage buy/sell stay locked until unlock.
 
 ## Verify
 
