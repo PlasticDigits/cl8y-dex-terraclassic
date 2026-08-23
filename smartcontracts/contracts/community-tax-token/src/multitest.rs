@@ -299,6 +299,17 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
     )
     .unwrap();
 
+    // List before seed so TransferTax SKU (#605) does not tax the pair fund (Honest inbound).
+    app.execute_contract(
+        user.clone(),
+        token.clone(),
+        &ExecuteMsg::RegisterListedPair {
+            pair: pair.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+
     app.execute_contract(
         manager.clone(),
         token.clone(),
@@ -1803,13 +1814,7 @@ fn add_exempt_pair_cannot_be_removed_as_protocol() {
     let mut e = clean(vec![Sku::ExemptionDirectory], None);
     register_listed_pair(&mut e);
     let pair_s = e.pair.to_string();
-    settings_batch(
-        &mut e,
-        SettingsBatch {
-            add_exempt: Some(vec![pair_s]),
-            ..Default::default()
-        },
-    );
+    // #605: listed pair is protocol-exempt and cannot join the manager directory.
     let err = e
         .app
         .execute_contract(
@@ -1820,7 +1825,7 @@ fn add_exempt_pair_cannot_be_removed_as_protocol() {
                 amount: Uint128::new(INVOICE_UST1),
                 msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
                     settings: SettingsBatch {
-                        remove_exempt: Some(vec![e.pair.to_string()]),
+                        add_exempt: Some(vec![pair_s]),
                         ..Default::default()
                     },
                 })
