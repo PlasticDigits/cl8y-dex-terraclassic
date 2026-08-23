@@ -291,7 +291,7 @@ export default function ManageTokenPage() {
             Save settings
           </button>
         )}
-        {saveHash && <TxResultAlert variant="success" txHash={saveHash} />}
+        {saveHash && <TxResultAlert type="success" message="Settings saved." txHash={saveHash} />}
       </section>
 
       <section className="shell-panel-strong space-y-3">

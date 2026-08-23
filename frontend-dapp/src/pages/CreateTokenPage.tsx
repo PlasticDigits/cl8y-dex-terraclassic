@@ -268,7 +268,7 @@ export default function CreateTokenPage() {
           Review: wasm admin will be CMM governance, not you. This is not a faucet mint and not Create Pair.
         </p>
 
-        {createdHash && <TxResultAlert variant="success" txHash={createdHash} />}
+        {createdHash && <TxResultAlert type="success" message="Token created." txHash={createdHash} />}
 
         {!address ? (
           <p className="text-sm" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-connect">
@@ -282,7 +282,7 @@ export default function CreateTokenPage() {
             data-testid="create-token-free-cta"
             onClick={() => freeCreate.mutate()}
           >
-            {terraBroadcastPendingButtonLabel(freeCreate.isPending, 'Create Token')}
+            {terraBroadcastPendingButtonLabel(freeCreate.phase, freeCreate.isPending, 'Create Token', 'Creating…')}
           </button>
         ) : invoice && formOk ? (
           <div data-testid="create-token-pay">
