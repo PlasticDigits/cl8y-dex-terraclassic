@@ -612,9 +612,10 @@ fn poc_autov2lp_paid_but_never_bound() {
 }
 
 // ============================================================================
-// PoC 4 (C-2): protocol-exempt `from`/`to` skips Sell/Buy classification.
-// This uses an address named "router" (PROTOCOL_EXEMPT), not router wasm
-// `execute_swap_operations`. Official single-hop pair Send still pays tax.
+// T592-13 / #607 option 1 (was audit C-2): protocol-exempt `from`/`to` is Honest.
+// Documented property — not a defect to invert. Address named "router"
+// (PROTOCOL_EXEMPT), not router wasm `execute_swap_operations`.
+// Official single-hop pair Send still pays tax (pair-direct).
 // ============================================================================
 #[test]
 fn poc_router_exemption_full_tax_bypass() {

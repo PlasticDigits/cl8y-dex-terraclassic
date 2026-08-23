@@ -299,6 +299,17 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
     )
     .unwrap();
 
+    // List before seed so TransferTax SKU (#605) does not tax the pair fund (Honest inbound).
+    app.execute_contract(
+        user.clone(),
+        token.clone(),
+        &ExecuteMsg::RegisterListedPair {
+            pair: pair.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+
     app.execute_contract(
         manager.clone(),
         token.clone(),
@@ -347,6 +358,55 @@ fn swap_hook() -> Binary {
         hybrid: None,
     })
     .unwrap()
+}
+
+fn register_listed_pair(e: &mut EnvTok) {
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::RegisterListedPair {
+                pair: e.pair.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+fn settings_batch(e: &mut EnvTok, settings: SettingsBatch) {
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings { settings }).unwrap(),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+fn preview(
+    e: &EnvTok,
+    from: &Addr,
+    to: &Addr,
+    amount: u128,
+    send_msg: Option<Binary>,
+) -> TaxPreviewResponse {
+    e.app
+        .wrap()
+        .query_wasm_smart(
+            &e.token,
+            &QueryMsg::TaxPreview {
+                from: from.to_string(),
+                to: to.to_string(),
+                amount: Uint128::new(amount),
+                send_msg,
+            },
+        )
+        .unwrap()
 }
 
 #[test]
@@ -1164,19 +1224,6 @@ fn enable_feature_non_manager_non_launcher_unauthorized() {
     assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
 }
 
-fn register_listed_pair(e: &mut EnvTok) {
-    e.app
-        .execute_contract(
-            e.user.clone(),
-            e.token.clone(),
-            &ExecuteMsg::RegisterListedPair {
-                pair: e.pair.to_string(),
-            },
-            &[],
-        )
-        .unwrap();
-}
-
 fn sell_to_pair(e: &mut EnvTok, who: &str, amount: u128) {
     e.app
         .execute_contract(
@@ -1572,6 +1619,508 @@ fn instantiate_rejects_combined_cap() {
         err.root_cause().to_string().contains("Combined")
             || err.root_cause().to_string().contains("cap")
     );
+}
+
+// --- #609 / M-5: manager directory skips buy, sell, and transfer tax ---
+
+#[test]
+fn exemption_sku_off_rejects_add_exempt() {
+    let mut e = clean(vec![], None);
+    let user_s = e.user.to_string();
+    let err = e
+        .app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
+                    settings: SettingsBatch {
+                        add_exempt: Some(vec![user_s]),
+                        ..Default::default()
+                    },
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("SKU")
+            || err.root_cause().to_string().contains("unlocked")
+    );
+}
+
+#[test]
+fn manager_exempt_sell_is_honest_pair_credited_amount() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let amount = 1_000_000u128;
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    let treas_before = balance(&e.app, &e.token, e.treasury.as_str());
+    let p = preview(&e, &e.user, &e.pair, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Honest);
+    assert_eq!(p.debit, Uint128::new(amount));
+    assert_eq!(p.credit, Uint128::new(amount));
+    assert_eq!(p.tax, Uint128::zero());
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), treas_before);
+}
+
+#[test]
+fn manager_exempt_buy_is_honest_user_credited_amount() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let amount = 1_000_000u128;
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    let p = preview(&e, &e.pair, &e.user, amount, None);
+    assert_eq!(p.kind, TaxKind::Honest);
+    assert_eq!(p.debit, Uint128::new(amount));
+    assert_eq!(p.credit, Uint128::new(amount));
+    e.app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.user.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before - amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before + amount
+    );
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), 0);
+}
+
+#[test]
+fn manager_exempt_either_side_skips_transfer_tax() {
+    let mut e = clean(vec![Sku::ExemptionDirectory, Sku::TransferTax], None);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            transfer_bps: Some(200),
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let alice = Addr::unchecked("alice");
+    let amount = 10_000u128;
+    // from exempt
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: alice.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, alice.as_str()), amount);
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), 0);
+
+    // to exempt (alice not exempt; user is)
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.user.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), 0);
+
+    // both exempt
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![alice.to_string()]),
+            ..Default::default()
+        },
+    );
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: alice.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, alice.as_str()), amount * 2);
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), 0);
+}
+
+#[test]
+fn remove_exempt_restores_buy_sell_transfer_tax() {
+    let mut e = clean(vec![Sku::ExemptionDirectory, Sku::TransferTax], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            transfer_bps: Some(200),
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let user_rm = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            remove_exempt: Some(vec![user_rm]),
+            ..Default::default()
+        },
+    );
+    let amount = 1_000_000u128;
+    let sell_tax = amount * 500 / 10_000;
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount - sell_tax
+    );
+
+    let buy_tax = amount * 500 / 10_000;
+    let user_mid = balance(&e.app, &e.token, e.user.as_str());
+    e.app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.user.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_mid + amount - buy_tax
+    );
+
+    let other = Addr::unchecked("bob");
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: other.to_string(),
+                amount: Uint128::new(10_000),
+            },
+            &[],
+        )
+        .unwrap();
+    let xfer_tax = 10_000u128 * 200 / 10_000;
+    assert_eq!(balance(&e.app, &e.token, other.as_str()), 10_000 - xfer_tax);
+}
+
+#[test]
+fn exempt_sell_to_listed_pair_stays_one_to_one_inbound() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(2_000_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + 2_000_000
+    );
+}
+
+#[test]
+fn add_exempt_pair_cannot_be_removed_as_protocol() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    let pair_s = e.pair.to_string();
+    // #605: listed pair is protocol-exempt and cannot join the manager directory.
+    let err = e
+        .app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
+                    settings: SettingsBatch {
+                        add_exempt: Some(vec![pair_s]),
+                        ..Default::default()
+                    },
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("protocol"));
+}
+
+#[test]
+fn manager_exempt_does_not_bypass_trading_disabled() {
+    let mut e = clean(vec![Sku::ExemptionDirectory, Sku::LaunchGuards], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            launch_guards: Some(LaunchGuardsConfig {
+                max_wallet: None,
+                cooldown_blocks: 0,
+                trading_enabled: false,
+            }),
+            ..Default::default()
+        },
+    );
+    let sell_err = e
+        .app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(sell_err.root_cause().to_string().contains("Trading"));
+    let buy_err = e
+        .app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.user.to_string(),
+                amount: Uint128::new(1_000),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(buy_err.root_cause().to_string().contains("Trading"));
+}
+
+#[test]
+fn manager_exempt_sell_still_bypasses_max_wallet() {
+    let mut e = clean(vec![Sku::ExemptionDirectory, Sku::LaunchGuards], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            launch_guards: Some(LaunchGuardsConfig {
+                max_wallet: Some(Uint128::new(1)),
+                cooldown_blocks: 0,
+                trading_enabled: true,
+            }),
+            ..Default::default()
+        },
+    );
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+#[test]
+fn manager_exempt_buy_still_enforces_max_wallet() {
+    let mut e = clean(vec![Sku::ExemptionDirectory, Sku::LaunchGuards], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            launch_guards: Some(LaunchGuardsConfig {
+                max_wallet: Some(Uint128::new(1)),
+                cooldown_blocks: 0,
+                trading_enabled: true,
+            }),
+            ..Default::default()
+        },
+    );
+    let err = e
+        .app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.user.to_string(),
+                amount: Uint128::new(1_000),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("MaxWallet")
+            || err.root_cause().to_string().contains("wallet")
+    );
+}
+
+#[test]
+fn manager_exempt_still_enforces_cooldown() {
+    let mut e = clean(vec![Sku::ExemptionDirectory, Sku::LaunchGuards], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            launch_guards: Some(LaunchGuardsConfig {
+                max_wallet: None,
+                cooldown_blocks: 10,
+                trading_enabled: true,
+            }),
+            ..Default::default()
+        },
+    );
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+    let err = e
+        .app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err
+        .root_cause()
+        .to_string()
+        .to_lowercase()
+        .contains("cooldown"));
+}
+
+#[test]
+fn manager_exempt_is_queryable() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let r: IsExemptResponse = e
+        .app
+        .wrap()
+        .query_wasm_smart(
+            &e.token,
+            &QueryMsg::IsProtocolExempt {
+                address: e.user.to_string(),
+            },
+        )
+        .unwrap();
+    assert!(r.manager);
+    assert!(!r.protocol);
 }
 
 fn instantiate_raw(msg: InstantiateMsg) -> Result<Addr, String> {

@@ -687,11 +687,12 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
 | **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |
 | **C593-8** Template | Manage requires `code_id == 11611` (env). |
-| **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax. |
+| **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax **on pair-direct execute only** (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |
 | **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 **11614**. |
 | **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
+| **C593-14** Pair-direct tax copy | Create/Manage: buy/sell is pair-direct only. Swap/Trade: `Sell tax extra` vs `Route skips buy/sell tax`. [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) / [`AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). |
 | **C604-1** Identity | Name/symbol `^[A-Za-z0-9]+$`, name 3–50, symbol 3–12 (submitted uppercase; name case preserved). Decimals integer **6–18**. Shared parsers in `communityTaxIdentity.ts` used by the page **and** hook builders. |
 | **C604-2** Wallet helpers | Treasury/manager autofill the **connected** wallet when empty; never clobber a typed address; never `?manager=` / `?treasury=`. Helper copy is exactly `connected wallet` / `not connected wallet` (bech32-normalized). |
 | **C604-3** Columbus-5 gap | Listed token **11611** does **not** gain instantiate identity checks until launcher `token_code_id` rotates after #589 GO + `AddWhitelistedCodeId`. Keep 11611 listed (**F6**). Frontend ships as a client gate first. |

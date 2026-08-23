@@ -33,6 +33,8 @@ Issue **#596 is implemented**. Indexer `GET /api/v1/route/solve?pool_only=true` 
 7. **H596-7 — wrap / native unchanged.** Direct wrap/unwrap and native denom routes are not CW20 Pattern C hybrid. Do not force a book leg there. USTR→USTC gas is the unwrap+≥2hop combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)), not hybrid 15M — see [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md). Post-merge E9 / columbus-5: [#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600) / `make verify-issue-600`.
 8. **H596-8 — gas assumes hybrid.** Trade market `estimateMarketPairSwapSequenceUlunaFeesTotal(true, …)` / `marketUsesHybrid={true}`. Do not reserve pool-only gas for the retail market ticket.
 
+Community tax **11611** buy/sell does **not** apply on router hops (**T592-13** / [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) option 1). Do **not** turn hybrid off or force pair-only execute to “make tax apply.” Disclose — [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md).
+
 ## Rules of thumb
 
 - Do **not** restore `useHybridBook` state or a “Best execution” checkbox.

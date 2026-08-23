@@ -136,6 +136,8 @@ Teaching the router to size extra-debit violates H-01 / “do not add pair/route
 
 There is no clean fix that keeps both “inbound 1:1 + unchanged router wasm” and “router hops pay tax.” This is the product’s central contradiction.
 
+**Status (2026-08-23):** [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) chose **option 1** (disclose). Written as **T592-13**. Contract follow-up **waived**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). `poc_router_exemption_full_tax_bypass` stays as a documented property.
+
 ---
 
 ### H-1 — Residual / #605: AutoV2Lp SKU is paid and never bound
@@ -266,6 +268,8 @@ Wasm admin is CMM (T592-5) — manager cannot migrate. That is the right split. 
 `is_manager_exempt` is consulted only in the Transfer branch (`is_transfer_exempt`). Buy and Sell ignore it. Retail hint: “Manager-chosen wallets skip tax.”
 
 **Approved direction:** a manager-directory exempt address skips **transfer, buy, and sell** tax (not transfer-only). Protocol-exempt / listed-pair rules stay as they are. Do not let exemption disable launch-guard `trading_enabled` / cooldown / max_wallet unless a later spec says so. New issue (not a copy-only fix).
+
+**Fix:** [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) — `classify` → Honest for those three kinds; launch guards use `classify_trade`. Playbook [`skills/AGENTS_COMMUNITY_TAX_EXEMPT.md`](../skills/AGENTS_COMMUNITY_TAX_EXEMPT.md). Columbus-5 **11611** needs CMM migrate before live instances skip buy/sell.
 
 ---
 

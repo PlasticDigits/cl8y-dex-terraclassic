@@ -367,19 +367,21 @@ Any contract implementing this interface can be registered as a post-swap hook v
 
 ## Community tax CW20 (GitLab #592)
 
-In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-token-launcher` + `cl8y-community-tax-autolp`. Pair/router swap math is **unchanged**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../skills/AGENTS_COMMUNITY_TAX_CW20.md). Invariants **T592-1–T592-12**. LaunchGuards liveness (**H608-1–H608-8**, [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608)): [`skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](../skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md).
+In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-token-launcher` + `cl8y-community-tax-autolp`. Pair/router swap math is **unchanged**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../skills/AGENTS_COMMUNITY_TAX_CW20.md). Router hops Honest: [`skills/AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md) (**T592-13** / [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) option 1). Invariants **T592-1–T592-13**. LaunchGuards liveness (**H608-1–H608-8**, [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608)): [`skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](../skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md).
 
 ### Classification (T592-7)
 
 | Path | Tax |
 |------|-----|
-| `Send` to a `RegisterListedPair` pair with `Cw20HookMsg::Swap` | **Sell** extra-debit (`debit = amount + tax`, pair credit = `amount`) |
+| `Send` to a `RegisterListedPair` pair with `Cw20HookMsg::Swap` from a **non-exempt** address | **Sell** extra-debit (`debit = amount + tax`, pair credit = `amount`) |
 | `Transfer` / `Send` **from** a listed pair to a non-protocol-exempt address | **Buy** outbound split (pair debit = `amount`) — also withdraw / limit refund |
+| Router hop (`from` or `to` is `PROTOCOL_EXEMPT`, including official router) | **Honest** 1:1 — **T592-13** / [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) option 1. Official multi-hop, hybrid-on-router, 1-op `execute_swap_operations`, invoice wrap-routes |
 | `TransferFrom` to a pair (provide) | **Honest** 1:1 |
 | `Send` + `PlaceLimitOrder*` | **Honest** 1:1 |
 | Wallet↔wallet with TransferTax SKU | Transfer tax (never on protocol addresses) |
+| Manager-directory (`MANAGER_EXEMPT`) on either side of Sell / Buy / Transfer ([#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609)) | **Honest** 0 bps. Launch guards still apply (**T592-11**). Protocol list stays unremovable (**T592-9**). |
 
-`TaxPreview { from, to, amount, send_msg }` matches execute. dApp max-sell must size extra-debit.
+`TaxPreview { from, to, amount, send_msg }` matches execute. dApp max-sell must size extra-debit (`effectiveExtraDebitSellBps` is 0 when the connected wallet is manager-exempt). Playbook: [`skills/AGENTS_COMMUNITY_TAX_EXEMPT.md`](../skills/AGENTS_COMMUNITY_TAX_EXEMPT.md).
 
 ### Invoices
 

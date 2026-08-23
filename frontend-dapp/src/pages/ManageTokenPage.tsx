@@ -38,6 +38,7 @@ import {
   type SettingsBatchFields,
 } from '@/utils/communityTaxInvoice'
 import { isManagerWallet } from '@/utils/communityTaxManager'
+import { COMMUNITY_TAX_PAIR_DIRECT_COPY } from '@/utils/taxPreviewMaxSpend'
 import { getTerraAddressInputError, isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
@@ -252,7 +253,7 @@ export default function ManageTokenPage() {
           {addr}
         </p>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Not a faucet. Wasm upgrades are CMM-only.
+          Not a faucet. Wasm upgrades are CMM-only. {COMMUNITY_TAX_PAIR_DIRECT_COPY}
         </p>
       </div>
 
@@ -270,8 +271,8 @@ export default function ManageTokenPage() {
 
       <section className="shell-panel-strong space-y-3">
         <h3 className="font-heading uppercase text-sm">Taxes</h3>
-        <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-          Up to 25.00% combined.
+        <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="manage-token-tax-scope">
+          {COMMUNITY_TAX_PAIR_DIRECT_COPY} Up to 25.00% combined.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <label>
@@ -331,6 +332,9 @@ export default function ManageTokenPage() {
               value={exemptAdd}
               onChange={(e) => setExemptAdd(e.target.value)}
             />
+            <span className="mt-1 block text-xs text-[var(--text-muted)]">
+              Skips buy, sell, and transfer tax. Launch guards still apply.
+            </span>
           </label>
         )}
         {feats?.split_router && (

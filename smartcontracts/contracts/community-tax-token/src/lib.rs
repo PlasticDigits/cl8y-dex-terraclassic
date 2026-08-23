@@ -19,10 +19,13 @@
 //! - **T592-6** — MintControl is instantiate-only; `RevokeMint` is one-way.
 //! - **T592-7** — Classification: see `tax.rs`. Provide (`TransferFrom`) and limit
 //!   `PlaceLimitOrder*` stay 1:1. Pair→EOA `Transfer` (swap receive / withdraw /
-//!   limit refund) uses buy tax — same primitive, documented.
+//!   limit refund) uses buy tax — same primitive, documented. Manager-directory
+//!   wallets skip **buy, sell, and transfer** tax (**#609** / **E609-1**); launch
+//!   guards still use the economic kind (**T592-11**).
 //! - **T592-8** — No reflection, rebase, pause, or blacklist manager APIs.
 //! - **T592-9** — Protocol exemptions cannot be removed. `RegisterListedPair` requires
-//!   factory `Pair` lookup.
+//!   factory `Pair` lookup. Manager directory is a full tax skip for those three
+//!   kinds, not a transfer-only list, and does not grant listed-pair status.
 //! - **T592-10** — AutoLP is never invoked from `Transfer`/`Send`/`AfterSwap`.
 //! - **T592-11** — Sell to a listed pair bypasses `max_wallet`. `trading_enabled=false`
 //!   blocks both buy and sell.
