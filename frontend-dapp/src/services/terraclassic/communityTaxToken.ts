@@ -91,6 +91,19 @@ export async function queryCommunityTaxExemptions(addr: string): Promise<{
   return queryContract(requireCommunityTaxTokenAddr(addr), { get_exemptions: {} })
 }
 
+export type CommunityTaxIsExemptResponse = {
+  address: string
+  protocol: boolean
+  manager: boolean
+}
+
+/** `IsProtocolExempt` also returns the manager-directory flag (#609). */
+export async function queryCommunityTaxIsExempt(token: string, address: string): Promise<CommunityTaxIsExemptResponse> {
+  return queryContract<CommunityTaxIsExemptResponse>(requireCommunityTaxTokenAddr(token), {
+    is_protocol_exempt: { address },
+  })
+}
+
 export async function queryLauncherOrigin(addr: string): Promise<LauncherOriginResponse> {
   return queryContract<LauncherOriginResponse>(requireCommunityTaxTokenAddr(addr), {
     get_launcher_origin: {},

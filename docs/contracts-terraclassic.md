@@ -378,8 +378,9 @@ In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-toke
 | `TransferFrom` to a pair (provide) | **Honest** 1:1 |
 | `Send` + `PlaceLimitOrder*` | **Honest** 1:1 |
 | Wallet↔wallet with TransferTax SKU | Transfer tax (never on protocol addresses) |
+| Manager-directory (`MANAGER_EXEMPT`) on either side of Sell / Buy / Transfer ([#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609)) | **Honest** 0 bps. Launch guards still apply (**T592-11**). Protocol list stays unremovable (**T592-9**). |
 
-`TaxPreview { from, to, amount, send_msg }` matches execute. dApp max-sell must size extra-debit.
+`TaxPreview { from, to, amount, send_msg }` matches execute. dApp max-sell must size extra-debit (`effectiveExtraDebitSellBps` is 0 when the connected wallet is manager-exempt). Playbook: [`skills/AGENTS_COMMUNITY_TAX_EXEMPT.md`](../skills/AGENTS_COMMUNITY_TAX_EXEMPT.md).
 
 ### Invoices
 

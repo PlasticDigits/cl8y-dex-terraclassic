@@ -50,6 +50,12 @@ pub fn is_transfer_exempt(storage: &dyn Storage, self_addr: &Addr, addr: &Addr) 
     is_protocol_exempt(storage, self_addr, addr) || is_manager_exempt(storage, addr)
 }
 
+/// **#609 / T592-7:** manager-directory wallets skip Transfer, Buy, and Sell tax.
+/// Either side exempt is enough (same as the existing transfer rule).
+pub fn is_manager_directory_tax_skip(storage: &dyn Storage, from: &Addr, to: &Addr) -> bool {
+    is_manager_exempt(storage, from) || is_manager_exempt(storage, to)
+}
+
 /// Cooldown subjects are user wallets only (H608-1 / #608).
 /// Do not check or record listed pairs, router, factory, this token, or AutoLP —
 /// those are protocol-exempt. Manager-exempt wallets stay subjects (anti-snipe).
@@ -64,7 +70,10 @@ pub fn is_swap_send_hook(msg: &Binary) -> bool {
     )
 }
 
-/// **T592-7** classification (Option A, no pair wasm change):
+/// Economic kind **before** the manager-directory tax skip (**T592-7**, **#609**).
+///
+/// Launch guards (`trading_enabled`, cooldown, `max_wallet`) use this so exemption
+/// is tax-only and does not disable **T592-11**.
 ///
 /// - **Sell** — `Send` to a registered listed pair whose hook is `Cw20HookMsg::Swap`.
 ///   Extra-debit: pair is credited exactly `amount` (inbound 1:1 / **P2**).
@@ -72,9 +81,9 @@ pub fn is_swap_send_hook(msg: &Binary) -> bool {
 ///   recipient. Pair is debited exactly `amount`. Pair→EOA `Transfer` is also how withdraw
 ///   and limit refunds are paid; those paths therefore take buy tax (same primitive).
 ///   Provide (`TransferFrom`) and limit `PlaceLimitOrder*` `Send` stay 1:1.
-/// - **Transfer** — TransferTax SKU, neither side protocol-exempt.
+/// - **Transfer** — TransferTax SKU, neither side protocol- or manager-exempt.
 /// - **Honest** — everything else (protocol inbound, wallet 1:1, TransferFrom to pair).
-pub fn classify(
+pub fn classify_trade(
     storage: &dyn Storage,
     self_addr: &Addr,
     from: &Addr,
@@ -108,6 +117,35 @@ pub fn classify(
     }
 
     (TaxKind::Honest, 0)
+}
+
+/// Tax kind after **#609** manager-directory skip (Buy / Sell / Transfer → Honest).
+pub fn classify(
+    storage: &dyn Storage,
+    self_addr: &Addr,
+    from: &Addr,
+    to: &Addr,
+    send_msg: Option<&Binary>,
+    features: &Features,
+    config: &Config,
+) -> (TaxKind, u16) {
+    let (kind, bps) = classify_trade(storage, self_addr, from, to, send_msg, features, config);
+    apply_manager_directory_tax_skip(storage, from, to, kind, bps)
+}
+
+fn apply_manager_directory_tax_skip(
+    storage: &dyn Storage,
+    from: &Addr,
+    to: &Addr,
+    kind: TaxKind,
+    bps: u16,
+) -> (TaxKind, u16) {
+    if matches!(kind, TaxKind::Sell | TaxKind::Buy | TaxKind::Transfer)
+        && is_manager_directory_tax_skip(storage, from, to)
+    {
+        return (TaxKind::Honest, 0);
+    }
+    (kind, bps)
 }
 
 pub fn preview(
@@ -327,7 +365,8 @@ pub fn apply_transfer(
 ) -> Result<(Uint128, Uint128, TaxKind, Response), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let features = FEATURES.load(deps.storage)?;
-    let (kind, bps) = classify(
+    // Guards use economic kind so #609 tax skip cannot disable T592-11.
+    let (trade_kind, trade_bps) = classify_trade(
         deps.storage,
         self_addr,
         from,
@@ -336,6 +375,8 @@ pub fn apply_transfer(
         &features,
         &config,
     );
+    let (kind, bps) =
+        apply_manager_directory_tax_skip(deps.storage, from, to, trade_kind.clone(), trade_bps);
     let tax = tax_amount(amount, bps);
     let (debit, credit) = match kind {
         TaxKind::Sell => {
@@ -363,7 +404,7 @@ pub fn apply_transfer(
         self_addr,
         from,
         to,
-        &kind,
+        &trade_kind,
         credit,
         to_bal_after,
     )?;
@@ -386,7 +427,15 @@ pub fn apply_transfer(
         TOKEN_INFO.save(deps.storage, &info)?;
     }
 
-    record_trade_blocks(deps.storage, &features, env, &kind, self_addr, from, to)?;
+    record_trade_blocks(
+        deps.storage,
+        &features,
+        env,
+        &trade_kind,
+        self_addr,
+        from,
+        to,
+    )?;
 
     let mut resp = Response::new()
         .add_attribute("action", "transfer")

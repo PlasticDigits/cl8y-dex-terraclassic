@@ -23,6 +23,20 @@ export function applyExtraDebitSellCap(spendableRaw: bigint, sellBps: number | n
   return capped < spendableRaw ? capped : spendableRaw
 }
 
+/**
+ * Extra-debit Max for a connected wallet (#609 / C593-9).
+ * Manager-directory exempt → 0 extra-debit (TaxPreview Honest).
+ * Unknown exempt (`null`/`undefined`) keeps `sellBps` — fail closed, never unlock 100% early.
+ */
+export function effectiveExtraDebitSellBps(
+  sellBps: number | null | undefined,
+  managerExempt: boolean | null | undefined
+): number | null {
+  if (sellBps == null) return null
+  if (managerExempt === true) return 0
+  return sellBps
+}
+
 export function extraDebitSellHuman(balanceRaw: string, decimals: number, sellBps: number): string {
   let balance = 0n
   try {

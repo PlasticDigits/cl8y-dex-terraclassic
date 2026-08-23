@@ -267,6 +267,8 @@ Wasm admin is CMM (T592-5) — manager cannot migrate. That is the right split. 
 
 **Approved direction:** a manager-directory exempt address skips **transfer, buy, and sell** tax (not transfer-only). Protocol-exempt / listed-pair rules stay as they are. Do not let exemption disable launch-guard `trading_enabled` / cooldown / max_wallet unless a later spec says so. New issue (not a copy-only fix).
 
+**Fix:** [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) — `classify` → Honest for those three kinds; launch guards use `classify_trade`. Playbook [`skills/AGENTS_COMMUNITY_TAX_EXEMPT.md`](../skills/AGENTS_COMMUNITY_TAX_EXEMPT.md). Columbus-5 **11611** needs CMM migrate before live instances skip buy/sell.
+
 ---
 
 ### L-1 — Low: QA smoke hides C-1 (bundle with C-1)

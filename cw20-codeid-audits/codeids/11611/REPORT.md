@@ -218,6 +218,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 ## Layer A (token-only)
 
 - **Crate:** `cd smartcontracts && cargo test -p cl8y-community-tax-token` / `make verify-issue-592` — inbound 1:1, extra-debit sell, outbound buy, 50 UST1 invoice fail-closed.
+- **#609 source:** manager-directory skip for buy/sell/transfer is in-repo (`make verify-issue-609`). Live **11611** bytes still need CMM migrate before instances skip buy/sell.
 - **A-mt:** `cw20_codeid_harness` mintable + mutants via `make verify-issue-589` (2026-08-23: 34 tests ok).
 - **A-lcd:** [`../../scripts/layer-a-lcd.sh`](../../scripts/layer-a-lcd.sh) **executed** 2026-08-23 — Transfer / TransferFrom 1:1, unauthorized mint/burn_from rejected, idle stable. `balance_at` A29 N/A.
 
