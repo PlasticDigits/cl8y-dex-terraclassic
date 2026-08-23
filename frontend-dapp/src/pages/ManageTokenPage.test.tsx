@@ -122,6 +122,11 @@ describe('ManageTokenPage (#593)', () => {
     expect(screen.getByTestId('manage-save-copy')).toHaveTextContent('50 UST1')
   })
 
+  it('discloses pair-direct buy/sell tax (#607)', async () => {
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-token-tax-scope')).toHaveTextContent('Buy/sell tax is pair-direct only.')
+  })
+
   it('Minting SKU is not in the unlock list', async () => {
     renderManage(MANAGER)
     expect(await screen.findByTestId('manage-unlock-sku')).toBeInTheDocument()

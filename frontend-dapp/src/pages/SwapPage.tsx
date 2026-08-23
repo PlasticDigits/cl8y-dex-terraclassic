@@ -80,7 +80,11 @@ import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
-import { SELL_TAX_EXTRA_HINT } from '@/utils/taxPreviewMaxSpend'
+import {
+  communityTaxExecuteUsesRouter,
+  communityTaxRouteHint,
+  extraDebitSellBpsForExecute,
+} from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -191,6 +195,7 @@ export default function SwapPage() {
   const [fromToken, setFromToken] = useState<string>('')
   const taxSell = useCommunityTaxSellBps(fromToken.startsWith('terra1') ? fromToken : null)
   const [toToken, setToToken] = useState<string>('')
+  const taxReceive = useCommunityTaxSellBps(toToken.startsWith('terra1') ? toToken : null)
   const [showSettings, setShowSettings] = useState(false)
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(readSwapSettingsAdvancedOpen)
   const [showExpertModeModal, setShowExpertModeModal] = useState(false)
@@ -413,7 +418,7 @@ export default function SwapPage() {
             hopCount: nativeSwapHopCount,
           }
         : undefined,
-      extraDebitSellBps: taxSell.sellBps,
+      extraDebitSellBps: extraDebitSellBpsForExecute(taxSell.sellBps, isMultiHop),
     })
   }, [
     balanceQuery.data,
@@ -424,6 +429,7 @@ export default function SwapPage() {
     nativeNeedsUnwrapOutput,
     nativeSwapHopCount,
     taxSell.sellBps,
+    isMultiHop,
   ])
 
   const bookLegMaxResult = useMemo(() => {
@@ -811,6 +817,18 @@ export default function SwapPage() {
       live: hybridStaleLive,
       snapshotted: hybridSubmitSnapshot,
     },
+  })
+  const communityTaxHint = communityTaxRouteHint({
+    payIsTax: taxSell.isTaxToken,
+    receiveIsTax: taxReceive.isTaxToken,
+    usesRouter: communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
+    sellBps: taxSell.sellBps,
+  })
+  const communityTaxHint = communityTaxRouteHint({
+    payIsTax: taxSell.isTaxToken,
+    receiveIsTax: taxReceive.isTaxToken,
+    usesRouter: communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
+    sellBps: taxSell.sellBps,
   })
 
   const swapBlacklistProbe = useMemo(() => {
@@ -1487,9 +1505,9 @@ export default function SwapPage() {
                   testIdFractionPrefix="swap-pay-frac"
                 />
               )}
-              {taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0 && (
+              {communityTaxHint && (
                 <p className="text-[11px] mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="swap-sell-tax-extra">
-                  {SELL_TAX_EXTRA_HINT}
+                  {communityTaxHint}
                 </p>
               )}
             </div>

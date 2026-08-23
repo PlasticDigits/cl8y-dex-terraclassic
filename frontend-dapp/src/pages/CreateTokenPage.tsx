@@ -7,7 +7,7 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { getTokens } from '@/services/indexer/client'
 import { createFreeCommunityToken, queryLauncherConfig } from '@/services/terraclassic/communityTaxToken'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
-import { DOCS_GITLAB_BASE } from '@/utils/constants'
+import { COMMUNITY_TAX_PAIR_DIRECT_COPY } from '@/utils/taxPreviewMaxSpend'
 import {
   COMMUNITY_TAX_SKUS,
   MAX_SINKS,
@@ -25,7 +25,12 @@ import {
   parseTokenSymbol,
   walletOwnershipHelper,
 } from '@/utils/communityTaxIdentity'
-import { COMMUNITY_TOKEN_LAUNCHER, isCommunityTaxEnabled, UST1_TOKEN_ADDRESS } from '@/utils/constants'
+import {
+  COMMUNITY_TOKEN_LAUNCHER,
+  DOCS_GITLAB_BASE,
+  isCommunityTaxEnabled,
+  UST1_TOKEN_ADDRESS,
+} from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -221,8 +226,8 @@ export default function CreateTokenPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Create Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Community tax token. Tax is not the DEX swap fee. Wasm upgrades are CMM-only — you cannot migrate this
-          contract.{' '}
+          Community tax token. Tax is not the DEX swap fee. {COMMUNITY_TAX_PAIR_DIRECT_COPY} Wasm upgrades are CMM-only
+          — you cannot migrate this contract.{' '}
           <a
             className="underline"
             href={`${DOCS_GITLAB_BASE}/contracts-terraclassic.md`}
@@ -299,8 +304,8 @@ export default function CreateTokenPage() {
             {fieldErr('sell')}
           </label>
         </div>
-        <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-          Up to 25.00% combined.
+        <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-tax-scope">
+          {COMMUNITY_TAX_PAIR_DIRECT_COPY} Up to 25.00% combined.
         </p>
         {fieldErrors.combined && (
           <p className="text-xs" style={{ color: 'var(--danger)' }}>

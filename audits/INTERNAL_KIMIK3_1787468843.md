@@ -136,6 +136,8 @@ Teaching the router to size extra-debit violates H-01 / “do not add pair/route
 
 There is no clean fix that keeps both “inbound 1:1 + unchanged router wasm” and “router hops pay tax.” This is the product’s central contradiction.
 
+**Status (2026-08-23):** [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) chose **option 1** (disclose). Written as **T592-13**. Contract follow-up **waived**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). `poc_router_exemption_full_tax_bypass` stays as a documented property.
+
 ---
 
 ### H-1 — Residual / #605: AutoV2Lp SKU is paid and never bound
