@@ -5,6 +5,10 @@
 //! **O601-3:** zero-SKU free profile uses `ExecuteMsg::CreateToken` (CW20 cannot
 //! `Send` 0). Canonical columbus-5 launcher is **11614**
 //! (`terra126pr5…ahzwze`, wasm admin DEX 2-of-3). **11612** is unused.
+//!
+//! **T606-1 / T606-5:** official Enable Feature is UST1 `Send` here
+//! (`{enable_feature:{token,sku}}`); create rejects duplicate SKUs. Playbook:
+//! [`skills/AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](../../../../skills/AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md).
 
 pub mod contract;
 pub mod error;

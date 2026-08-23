@@ -92,7 +92,7 @@ Web-research additions that were then checked against this code:
 
 **Impact:** Every post-create SKU unlock from the official UI reverts. UST1 is not taken (atomic revert) — **not a Critical fund-loss**. Users cannot buy TransferTax / SplitRouter / AutoV2Lp / ExemptionDirectory / VariableRates / LaunchGuards after a free create. Direct-to-token `Send` still works (CLI / QA smoke) — so the contract is usable, the **product path is not**.
 
-**PoC:** `poc_launcher_enable_feature_always_unauthorized` — PASS (Unauthorized; feature stays off).
+**PoC:** `poc_launcher_enable_feature_always_unauthorized` — **inverted** in [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) (official launcher path unlocks; CMM receives 50 UST1). Live **11611 / 11614** still need a CMM / DEX 2-of-3 migrate.
 
 **Live wasm:** 11611 + 11614. A **dApp-only** workaround (point `buildEnableFeatureInvoice` at the **token**, keep launcher for create) needs no migrate. A launcher-forward fix needs a token and/or launcher migrate.
 
@@ -158,7 +158,7 @@ Mainnet launcher has `autolp_code_id=11613`, so the SKU is offered and charged.
 
 The official UI uses unique checkboxes and does **not** send duplicates. Impact is overpay to CMM on a crafted hook, not theft of third-party funds — **Medium**, not High.
 
-**PoC:** `poc_launcher_duplicate_sku_double_charge` — PASS.
+**PoC:** `poc_launcher_duplicate_sku_double_charge` — **inverted** in [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) (duplicate SKUs reject; fee not kept).
 
 **Fix:** unique-set the SKU list (or reject duplicates) before multiplying. Bundle with C-1 / L-1.
 
@@ -271,7 +271,7 @@ Wasm admin is CMM (T592-5) — manager cannot migrate. That is the right split. 
 
 ### L-1 — Low: QA smoke hides C-1 (bundle with C-1)
 
-`scripts/qa/localterra-community-tax-smoke.sh` SKU unlock sends UST1 **to the token**, not the launcher. `make verify-issue-601` can stay green while the dApp path is dead. Launcher tests cover create only (3 tests). Acceptance on the C-1 issue: smoke (and `verify-issue-601` if it calls smoke) must use the **same** Enable Feature path as the dApp.
+`scripts/qa/localterra-community-tax-smoke.sh` SKU unlock now Sends UST1 to the **launcher** with `{enable_feature:{token,sku}}` ([#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) **T606-7**). `verify-issue-601` requires `sku_unlock_via_launcher`. Do not revert to a direct-to-token shortcut.
 
 ### L-2 — Low: decimals 0–5 and charset
 

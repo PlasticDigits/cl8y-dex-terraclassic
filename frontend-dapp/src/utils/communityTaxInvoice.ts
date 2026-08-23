@@ -1,6 +1,7 @@
 /**
- * Invoice + hook builders for community tax create / manage (GitLab #593).
+ * Invoice + hook builders for community tax create / manage (GitLab #593 / #606).
  * Payee is always env launcher or the token contract — never a URL param.
+ * Enable Feature stays on the launcher (**C593-4** / **T606-1**).
  */
 
 import type { Invoice } from '@/utils/payInvoice'
@@ -37,8 +38,13 @@ export function encodeInvoiceHook(inner: Record<string, unknown>): string {
   return btoa(JSON.stringify(inner))
 }
 
+/** First-seen SKU order. Launcher rejects duplicates (**T606-5**); do not double-charge. */
+export function uniqueCommunityTaxSkus(skus: CommunityTaxSkuId[]): CommunityTaxSkuId[] {
+  return [...new Set(skus)]
+}
+
 export function buildCreateTokenHook(args: CreateTokenHookArgs): string {
-  const features = args.features
+  const features = uniqueCommunityTaxSkus(args.features)
   const caps = instantiateTaxCaps({
     buyBps: args.buyBps,
     sellBps: args.sellBps,
@@ -58,9 +64,9 @@ export function buildCreateTokenHook(args: CreateTokenHookArgs): string {
     treasury: args.treasury,
     buy_bps: args.buyBps,
     sell_bps: args.sellBps,
-    max_buy_bps: caps.maxBuyBps,
-    max_sell_bps: caps.maxSellBps,
-    max_transfer_bps: caps.maxTransferBps,
+    max_buy_bps: args.maxBuyBps ?? caps.maxBuyBps,
+    max_sell_bps: args.maxSellBps ?? caps.maxSellBps,
+    max_transfer_bps: args.maxTransferBps ?? caps.maxTransferBps,
     features,
   }
   if (args.mint && features.includes('mint_control')) create_token.mint = args.mint
@@ -84,7 +90,7 @@ export function buildCreateTokenHook(args: CreateTokenHookArgs): string {
 export function buildCreateTokenInvoice(input: { launcher: string; ust1: string; args: CreateTokenHookArgs }): Invoice {
   return {
     invoiceToken: input.ust1,
-    invoiceAmount: skuInvoiceUst1RawString(input.args.features.length),
+    invoiceAmount: skuInvoiceUst1RawString(uniqueCommunityTaxSkus(input.args.features).length),
     payee: input.launcher,
     hookMsg: buildCreateTokenHook(input.args),
   }

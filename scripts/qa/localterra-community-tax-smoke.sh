@@ -7,7 +7,8 @@
 #   3. Rogue --admin instantiate has no launcher origin
 #   4. CreatePair + RegisterListedPair + provide 1:1
 #   5. Sell extra-debit + TaxPreview (max-button) + buy outbound split
-#   6. SKU unlock 50 UST1; settings batch 50 UST1
+#   6. SKU unlock 50 UST1 via the official launcher Enable Feature path (#606);
+#      settings batch 50 UST1 still targets the token
 #   7. MintControl instantiate + RevokeMint one-way
 #
 # Never AddWhitelistedCodeId columbus-5 11611 from this evidence — only the
@@ -380,12 +381,13 @@ if abs(tax - expect) > 1:
 print(f"601-smoke: buy outbound split pair_debit={pair_debit} user={user_credit} tax={tax}")
 ' "$USER_TOK_BEFORE" "$USER_TOK_AFTER" "$PAIR_TOK_BEFORE" "$PAIR_TOK_AFTER" "$BUY_BPS"
 
-# SKU unlock + settings batch (50 UST1 each) on the free token.
-SKU_HOOK='{"enable_feature":{"sku":"transfer_tax"}}'
-SKU_TX="$(send_cw20_hook "$UST1_ADDR" "$FREE_TOKEN" "$INVOICE" "$SKU_HOOK")"
+# SKU unlock via the official dApp path: UST1 Send → launcher → token (#606 / T606-1).
+# Do not Send EnableFeature straight to the token here — that hid C-1 (L-1).
+SKU_HOOK="$(jq -nc --arg t "$FREE_TOKEN" '{"enable_feature":{"token":$t,"sku":"transfer_tax"}}')"
+SKU_TX="$(send_cw20_hook "$UST1_ADDR" "$LAUNCHER_ADDR" "$INVOICE" "$SKU_HOOK")"
 FEAT="$(layer_smart "$FREE_TOKEN" '{"get_features":{}}')"
 echo "$FEAT" | jq -e '.transfer_tax == true' >/dev/null || {
-  echo "FAIL: EnableFeature transfer_tax not set: $FEAT" >&2
+  echo "FAIL: EnableFeature transfer_tax not set via launcher: $FEAT" >&2
   exit 1
 }
 SET_HOOK='{"update_settings":{"settings":{"buy_bps":400}}}'
@@ -395,7 +397,7 @@ CFG="$(layer_smart "$FREE_TOKEN" '{"get_config":{}}')"
   echo "FAIL: settings batch did not apply buy_bps=400: $CFG" >&2
   exit 1
 }
-echo "601-smoke: SKU unlock + settings batch 50 UST1 each (T592-4)"
+echo "601-smoke: SKU unlock via launcher + settings batch 50 UST1 each (T592-4 / T606-1)"
 
 # MintControl via paid launcher create, then RevokeMint one-way.
 MINT_HOOK="$(jq -nc --arg n "MintTax" --arg s "MNT" --arg a "$TEST_ADDRESS" \
@@ -460,6 +462,7 @@ jq -nc \
     sell_extra_debit: true,
     buy_outbound_split: true,
     sku_unlock_50_ust1: true,
+    sku_unlock_via_launcher: true,
     settings_batch_50_ust1: true,
     mintcontrol_revoke_one_way: true,
     local_token_code_id: $token_code,

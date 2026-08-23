@@ -126,6 +126,7 @@ run_smoke() {
     and .sell_extra_debit == true
     and .buy_outbound_split == true
     and .sku_unlock_50_ust1 == true
+    and .sku_unlock_via_launcher == true
     and .settings_batch_50_ust1 == true
     and .mintcontrol_revoke_one_way == true' "$json" >/dev/null
 }
