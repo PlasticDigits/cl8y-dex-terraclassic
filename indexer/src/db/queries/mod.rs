@@ -1,4 +1,5 @@
 pub mod assets;
+pub mod community_tokens;
 pub mod candles;
 pub mod hook_events;
 pub mod hub_prices;

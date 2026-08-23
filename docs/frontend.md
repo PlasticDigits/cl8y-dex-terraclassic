@@ -673,6 +673,26 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 
 **v1 settlement** is wallet multi-msg (swap to user, then exact invoice `Send`). An on-chain `invoice-payer` adapter is recommended later (one user `Send`, allowance-friendly) but is **not** required for #593 to import this module.
 
+### Create Token (community tax) {#create-token-community-tax}
+
+Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Routes: `/token/create`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Verify: `make verify-issue-593`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **C593-1** Env gate | `VITE_COMMUNITY_TAX_CODE_ID` + `VITE_COMMUNITY_TOKEN_LAUNCHER`. Unset → unavailable + hidden More item. |
+| **C593-2** Names | **Create Token** ≠ Mint ≠ Create Pair. |
+| **C593-3** Pay card | SKU + settings Save import `PayWithAnyToken` (**I595**). |
+| **C593-4** Invoices | Create `N × 50 UST1` → launcher; Enable Feature 50 → launcher; Save **50 UST1 flat** → token. Mint unpaid. |
+| **C593-5** MintControl | Create-only. |
+| **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
+| **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |
+| **C593-8** Template | Manage requires `code_id == 11611` (env). |
+| **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax. |
+| **C593-10** Payee from env | Never URL. |
+| **C593-11** No Swap dump | Not auto-listed (#562). |
+| **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Columbus-5 11612 needs migrate. |
+| **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
+
 ### Max amount / gas reserve {#max-amount-gas-reserve}
 
 Retail **Max** (and pool **50%**) actions share [`AmountBalanceActions`](../frontend-dapp/src/components/common/AmountBalanceActions.tsx) and compute spendable amounts via [`maxSpendableAmount.ts`](../frontend-dapp/src/utils/maxSpendableAmount.ts) ([GitLab **#213**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)).
@@ -682,7 +702,7 @@ Retail **Max** (and pool **50%**) actions share [`AmountBalanceActions`](../fron
 | Single compute helper | **`computeMaxSpendableHumanAmount`** — all surfaces call this (Swap, Pool, trade limit/market, `/limits`); no inline `fromRawAmount(balance)` Max handlers. |
 | BigInt reserve | Native **`uluna`** Max subtracts fee reserve in **raw micro-units** before **`fromRawAmount`**; never float subtraction on LUNC. |
 | Fee envelope source | Reserves derive only from **`transactions.ts`** / **`terraGas.ts`** (`estimateNativeSwapUlunaFeesTotal`, `estimateProvideLiquidityNativeWrapUlunaFeesTotal`, existing sequence helpers). No magic uluna constants in UI. |
-| CW20 Max unchanged | When pay asset is **not** native **`uluna`**, Max = full CW20 balance; native gas **submit** gates ([#132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132), [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)) still block low-LUNC submits. |
+| CW20 Max unchanged | When pay asset is **not** native **`uluna`**, Max = full CW20 balance **unless** it is the community tax template (**C593-9** extra-debit sell). Native gas **submit** gates ([#132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132), [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147)) still block low-LUNC submits. |
 | Native pay / wrap | Swap native pay, pool **Use native (auto-wrap)**, and native-input router paths subtract the action-specific reserve so one-click Max leaves **`Fee.amount`** payable from bank balance. |
 | **`MaxAmountContext`** | Explicit per-surface context (`swap_native`, `swap_cw20`, `limit_place`, `market_swap`, `provide_liquidity_native_side`, `provide_liquidity_cw20`, `book_leg`) selects the correct fee envelope. |
 | Limit **max mode** | Bid/Ask switch re-apply uses the same helper via [`useLimitEscrowMaxReapply`](../frontend-dapp/src/hooks/useLimitEscrowMaxReapply.ts). |

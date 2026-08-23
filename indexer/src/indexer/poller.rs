@@ -7,8 +7,8 @@ use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
 use super::{
-    asset_code_id_freeze, block_indexer, book_snapshot, fee_discount_registry_health, oracle,
-    pair_discovery, reorg_alert, trader_tracker, venus_vfdusd, volume_aggregator,
+    asset_code_id_freeze, block_indexer, book_snapshot, community_tokens, fee_discount_registry_health,
+    oracle, pair_discovery, reorg_alert, trader_tracker, venus_vfdusd, volume_aggregator,
 };
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 
@@ -105,6 +105,16 @@ pub async fn run_indexer(
                 freeze_cancel,
             )
             .await;
+        });
+    }
+
+    {
+        let tax_pool = pool.clone();
+        let tax_lcd = lcd.clone();
+        let tax_cfg = config.clone();
+        let tax_cancel = cancel.clone();
+        tokio::spawn(async move {
+            community_tokens::run_probe_loop(tax_pool, tax_lcd, tax_cfg, tax_cancel).await;
         });
     }
 

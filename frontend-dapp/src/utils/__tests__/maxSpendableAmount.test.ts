@@ -151,6 +151,23 @@ describe('maxSpendableAmount (GitLab #213)', () => {
     expect(result.reserveUluna).toBe(0n)
   })
 
+  it('extra-debit sell caps CW20 Max below 100% (#593)', () => {
+    const full = computeMaxSpendableHumanAmount({
+      balanceRaw: '10000000',
+      decimals: 6,
+      assetIsNativeUluna: false,
+      context: 'swap_cw20',
+    })
+    const taxed = computeMaxSpendableHumanAmount({
+      balanceRaw: '10000000',
+      decimals: 6,
+      assetIsNativeUluna: false,
+      context: 'swap_cw20',
+      extraDebitSellBps: 500,
+    })
+    expect(taxed.spendableRaw).toBeLessThan(full.spendableRaw)
+  })
+
   it('floors native Max at zero when balance below reserve', () => {
     const reserve = estimateNativeSwapUlunaFeesTotal({ isDirectWrap: true, needsWrapInput: false })
     const tiny = (reserve - 1n).toString()

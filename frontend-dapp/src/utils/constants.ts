@@ -97,6 +97,29 @@ export function isUst1WindowEnabled(): boolean {
   return !!UST1_WINDOW_CONTRACT_ADDRESS && !!UST1_TOKEN_ADDRESS && !!VFDUSD_TOKEN_ADDRESS
 }
 
+/**
+ * Community tax create/manage (GitLab #593 / #601). Unset hides Create Token.
+ * Columbus-5: code **11611**, launcher `terra1af9xm…894lyz`. Never a LocalTerra store id.
+ */
+export const COMMUNITY_TAX_CODE_ID = Number(import.meta.env.VITE_COMMUNITY_TAX_CODE_ID || '') || 0
+export const COMMUNITY_TOKEN_LAUNCHER = import.meta.env.VITE_COMMUNITY_TOKEN_LAUNCHER || ''
+/** Wasm-admin banner compare. Optional override; columbus-5 CMM is the default. */
+export const CMM_GOVERNANCE_ADDR =
+  import.meta.env.VITE_CMM_GOVERNANCE_ADDR || 'terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2'
+
+export function isCommunityTaxEnabled(): boolean {
+  return COMMUNITY_TAX_CODE_ID > 0 && !!COMMUNITY_TOKEN_LAUNCHER
+}
+
+/** Free create (0 SKU) launcher execute — instantiate submsg (#593). */
+export const COMMUNITY_CREATE_TOKEN_GAS_LIMIT = 1_200_000
+/** Token `Mint` (not invoiced). */
+export const COMMUNITY_MINT_GAS_LIMIT = 400_000
+/** Permissionless AutoLP `SkimToLp`. */
+export const COMMUNITY_SKIM_GAS_LIMIT = 800_000
+/** `RegisterListedPair` factory lookup. */
+export const COMMUNITY_REGISTER_PAIR_GAS_LIMIT = 400_000
+
 /** Default-branch docs in GitLab (security audit, limit orders, ADRs). */
 export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs'
 

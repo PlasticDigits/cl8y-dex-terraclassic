@@ -40,7 +40,7 @@ export type PayWithAnyTokenProps = {
   invoice: Invoice
   tokens: string[]
   invoiceSymbol?: string
-  cta?: 'pay' | 'enable'
+  cta?: 'pay' | 'enable' | 'create'
   onPaid?: (txHash: string) => void
 }
 

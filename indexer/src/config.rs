@@ -165,6 +165,36 @@ pub struct Config {
     /// Pinned wrap-mapper bech32 for wrap/unwrap treasury fees (GitLab #586).
     /// Invalid / empty → wrap sources omitted (not fake idle `$0`).
     pub wrap_mapper_address: Option<String>,
+    /// Community tax template code id (GitLab #594). Unset → catalog `configured: false`.
+    pub community_tax_code_id: Option<u64>,
+    /// Launcher contract — only this emitter may attest `launcher_tx`.
+    pub community_token_launcher: Option<String>,
+    /// Expected wasm admin (CMM) for `attested_cmm`.
+    pub cmm_governance_addr: Option<String>,
+}
+
+/// Catalog env snapshot shared by API + probe (GitLab #594).
+#[derive(Debug, Clone, Default)]
+pub struct CommunityTaxCatalogConfig {
+    pub code_id: Option<u64>,
+    pub launcher: Option<String>,
+    pub cmm_governance: Option<String>,
+}
+
+impl CommunityTaxCatalogConfig {
+    pub fn from_indexer_config(c: &Config) -> Self {
+        Self {
+            code_id: c.community_tax_code_id,
+            launcher: c.community_token_launcher.clone(),
+            cmm_governance: c.cmm_governance_addr.clone(),
+        }
+    }
+
+    pub fn is_configured(&self) -> bool {
+        self.code_id.is_some()
+            && self.launcher.as_ref().is_some_and(|s| !s.is_empty())
+            && self.cmm_governance.as_ref().is_some_and(|s| !s.is_empty())
+    }
 }
 
 impl Config {
@@ -382,6 +412,19 @@ impl Config {
             wrap_mapper_address: env::var("WRAP_MAPPER_ADDRESS")
                 .ok()
                 .and_then(|s| crate::indexer::protocol_fees::parse_wrap_mapper_address(&s)),
+            community_tax_code_id: env::var("COMMUNITY_TAX_CODE_ID")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .and_then(|s| s.parse().ok()),
+            community_token_launcher: env::var("COMMUNITY_TOKEN_LAUNCHER")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
+            cmm_governance_addr: env::var("CMM_GOVERNANCE_ADDR")
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty()),
         })
     }
 

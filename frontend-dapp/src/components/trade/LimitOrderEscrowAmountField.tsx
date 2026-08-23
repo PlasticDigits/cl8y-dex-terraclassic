@@ -27,6 +27,7 @@ type Props = {
    * `null` means headline/ref unavailable — display an em dash (same coverage as limit price USD anchor; GitLab #155).
    */
   escrowUsdNotionalApprox?: string | null
+  extraDebitSellBps?: number | null
 }
 
 /**
@@ -47,6 +48,7 @@ export function LimitOrderEscrowAmountField({
   marketUsesHybrid,
   limitPlaceRungCount,
   escrowUsdNotionalApprox,
+  extraDebitSellBps,
 }: Props) {
   const amountInputId = useId()
   const showUsd = escrowUsdNotionalApprox !== undefined && amountHuman.trim() !== ''
@@ -63,6 +65,7 @@ export function LimitOrderEscrowAmountField({
       nativeSwapHints,
       marketUsesHybrid,
       limitPlaceRungCount,
+      extraDebitSellBps,
     })
   }, [
     balanceQuery.data,
@@ -72,6 +75,7 @@ export function LimitOrderEscrowAmountField({
     nativeSwapHints,
     marketUsesHybrid,
     limitPlaceRungCount,
+    extraDebitSellBps,
   ])
 
   return (

@@ -77,6 +77,9 @@ pub fn test_config() -> Config {
         bsc_rpc_urls: vec![],
         venus_vfdusd_poll_interval_ms: 30_000,
         wrap_mapper_address: None,
+        community_tax_code_id: None,
+        community_token_launcher: None,
+        cmm_governance_addr: None,
     }
 }
 
@@ -157,7 +160,9 @@ async fn clean_db_tables(pool: &PgPool) {
             trader_positions,
             traders,
             pairs,
-            assets
+            assets,
+            community_token_events,
+            community_tokens
         RESTART IDENTITY CASCADE",
     )
     .execute(pool)
@@ -941,6 +946,9 @@ pub async fn build_test_app_with_vfdusd(
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
         hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
+        community_tax: cl8y_dex_indexer::config::CommunityTaxCatalogConfig::from_indexer_config(
+            &config,
+        ),
     };
     build_router(state, &config)
 }
@@ -982,6 +990,9 @@ pub async fn build_test_app_with_venus(
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
         hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
+        community_tax: cl8y_dex_indexer::config::CommunityTaxCatalogConfig::from_indexer_config(
+            &config,
+        ),
     };
     build_router(state, &config)
 }
@@ -1022,6 +1033,9 @@ pub async fn build_test_app_with_oracle_prices_and_config(
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
         hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
+        community_tax: cl8y_dex_indexer::config::CommunityTaxCatalogConfig::from_indexer_config(
+            &config,
+        ),
     };
     build_router(state, &config)
 }

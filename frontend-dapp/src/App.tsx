@@ -67,6 +67,12 @@ export default function App() {
                 <Route path="/mint" element={<LazyRoute loader={() => import('./pages/MintPage')} />} />
                 <Route path="/ust1" element={<LazyRoute loader={() => import('./pages/Ust1Page')} />} />
                 <Route path="/wrap" element={<LazyRoute loader={() => import('./pages/WrapPage')} />} />
+                <Route path="/token/create" element={<LazyRoute loader={() => import('./pages/CreateTokenPage')} />} />
+                <Route path="/tokens" element={<LazyRoute loader={() => import('./pages/MyCommunityTokensPage')} />} />
+                <Route
+                  path="/token/:addr/manage"
+                  element={<LazyRoute loader={() => import('./pages/ManageTokenPage')} />}
+                />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

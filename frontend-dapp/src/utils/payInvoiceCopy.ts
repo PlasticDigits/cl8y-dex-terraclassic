@@ -23,6 +23,8 @@ export function payInvoiceSummaryLine(input: {
   return `You pay ~${input.payHuman} ${input.paySymbol} (incl. DEX swap) → ${input.invoiceHuman} ${input.invoiceSymbol} fee`
 }
 
-export function payInvoiceCtaLabel(kind: 'pay' | 'enable' = 'pay'): string {
-  return kind === 'enable' ? 'Enable' : 'Pay'
+export function payInvoiceCtaLabel(kind: 'pay' | 'enable' | 'create' = 'pay'): string {
+  if (kind === 'enable') return 'Enable'
+  if (kind === 'create') return 'Create Token'
+  return 'Pay'
 }

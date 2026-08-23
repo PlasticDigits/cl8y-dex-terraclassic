@@ -151,6 +151,8 @@ Retail copy terms used across docs and skills ([#489](https://gitlab.com/Plastic
 | 24h volume | Trailing window (`now − 24h`), not a midnight reset. `$0` means no priced swaps in that window (idle), not a calendar-day close. Same for Protocol **7d** / **30d** (`now − N days`). Playbook: [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md) ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). |
 | Pay with any token | Shared invoice checkout: user picks any routable token; the payee still receives a **canonical invoice** (e.g. 50 UST1). CTA is **Pay** / **Enable**, not Swap. Playbook: [`AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md) ([#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)). |
 | Invoice (protocol fee) | Exact CW20 amount a feature charges (SKU unlock or settings batch). Not a DEX swap fee and not a community token tax. |
+| Community tax token | Leader-created CW20 from the #592 template. Buy/sell/wallet tax is **not** the DEX swap fee. Manager cannot migrate wasm (CMM-only). Playbook: [`AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md) ([#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). |
+| Create Token | More-menu flow to instantiate a community tax token (`/token/create`). Not faucet **Mint** and not **Create Pair**. |
 
 ## Verification
 

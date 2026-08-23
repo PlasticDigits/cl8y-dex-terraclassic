@@ -57,6 +57,8 @@ import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalan
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
+import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
+import { SELL_TAX_EXTRA_HINT } from '@/utils/taxPreviewMaxSpend'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
@@ -139,6 +141,7 @@ export function TradeMarketOrderPanel({
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const fromToken = side === 'bid' ? token1 : token0
+  const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null)
   const toToken = side === 'bid' ? token0 : token1
   const offerDecimals = fromToken ? getDecimals(tokenAssetInfo(fromToken)) : 6
   const receiveDecimals = toToken ? getDecimals(tokenAssetInfo(toToken)) : 6
@@ -606,7 +609,13 @@ export function TradeMarketOrderPanel({
         maxContext="market_swap"
         assetIsNativeUluna={fromToken === 'uluna'}
         marketUsesHybrid={true}
+        extraDebitSellBps={taxSell.sellBps}
       />
+      {taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0 && (
+        <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }} data-testid="trade-sell-tax-extra">
+          {SELL_TAX_EXTRA_HINT}
+        </p>
+      )}
 
       <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
         <button

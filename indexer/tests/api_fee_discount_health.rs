@@ -40,6 +40,9 @@ async fn build_app_with_health(
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
         hub_usd: cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
+        community_tax: cl8y_dex_indexer::config::CommunityTaxCatalogConfig::from_indexer_config(
+            &config,
+        ),
     };
     build_router(state, &config)
 }

@@ -388,7 +388,7 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 - Token `EnableFeature { sku }` — not MintControl (instantiate-only).
 - Token `UpdateSettings { settings }` — one flat 50 UST1 for the whole already-activated batch. No-op / unactivated SKU / non-manager → revert, fee not kept.
 - Launcher UST1 `Send` hook: `create_token` is a **newtype** (`CreateTokenMsg` fields as the object); `enable_feature` is `{ token, sku }`. JSON is `{"create_token":{…fields…}}` / `{"enable_feature":{…}}`. Instantiate stamps `admin: cmm_governance`. AutoLP sibling instantiate in the same create tx is **not** wired in v1 (SKU may be paid; bind later).
-- **O601-3:** zero-SKU free profile cannot `Send` 0 UST1. Launcher `ExecuteMsg::CreateToken` instantiates the same way with `features == []`. Columbus-5 **11612** predates this execute (LocalTerra smoke stores in-repo launcher wasm).
+- **0-SKU free create (C593-12 / O601-3):** launcher `ExecuteMsg::CreateToken` (no UST1). CW20 `Send` of 0 is invalid, so free create cannot use `Receive`. Paid SKUs still require the invoice hook. Columbus-5 **11612** predates this execute (LocalTerra smoke stores in-repo launcher wasm; mainnet needs a migrate/re-store).
 
 ### Listing
 

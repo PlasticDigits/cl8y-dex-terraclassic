@@ -1,4 +1,5 @@
 pub mod asset_code_id_freeze;
+pub mod community_tokens;
 pub mod asset_resolver;
 pub mod block_indexer;
 pub mod book_snapshot;

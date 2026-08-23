@@ -71,6 +71,9 @@ mod tests {
             bsc_rpc_urls: vec![],
             venus_vfdusd_poll_interval_ms: 30_000,
             wrap_mapper_address: None,
+            community_tax_code_id: None,
+            community_token_launcher: None,
+            cmm_governance_addr: None,
         }
     }
 

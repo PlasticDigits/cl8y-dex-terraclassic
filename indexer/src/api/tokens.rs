@@ -91,6 +91,9 @@ pub async fn list_tokens(
 pub struct TokenDetailResponse {
     pub token: TokenResponse,
     pub volume_stats: Vec<VolumeStatResponse>,
+    /// Present only when this CW20 is in the community-tax catalog (#594).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub community_tax: Option<super::community_tokens::CommunityTokenItem>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -136,9 +139,18 @@ pub async fn get_token(
         })
         .collect();
 
+    let community_tax = if let Some(ref addr) = asset.contract_address {
+        super::community_tokens::community_tax_for_asset(&state.pool, addr)
+            .await
+            .map_err(internal_err)?
+    } else {
+        None
+    };
+
     Ok(Json(TokenDetailResponse {
         token: TokenResponse::from(&asset),
         volume_stats,
+        community_tax,
     }))
 }
 

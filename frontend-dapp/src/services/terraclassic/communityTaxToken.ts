@@ -1,0 +1,165 @@
+/**
+ * LCD queries + unpaid executes for community tax tokens (GitLab #593).
+ * Paid SKU / settings paths go through PayWithAnyToken — do not assemble router ops here.
+ */
+
+import { executeTerraContract } from './transactions'
+import { getChainContractInfo, queryContract } from './queries'
+import { COMMUNITY_TAX_CODE_ID, COMMUNITY_TOKEN_LAUNCHER, isCommunityTaxEnabled } from '@/utils/constants'
+import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
+import type { CreateTokenHookArgs } from '@/utils/communityTaxInvoice'
+import { instantiateTaxCaps } from '@/utils/communityTaxSku'
+
+export type CommunityTaxConfigResponse = {
+  manager: string
+  treasury: string
+  buy_bps: number
+  sell_bps: number
+  transfer_bps: number
+  max_buy_bps: number
+  max_sell_bps: number
+  max_transfer_bps: number
+  factory: string
+  router: string | null
+  ust1: string
+  cmm_treasury: string
+  autolp: string | null
+  sinks: { kind: string; addr?: string | null; bps: number }[]
+  launch_guards: { max_wallet?: string | null; cooldown_blocks: number; trading_enabled: boolean } | null
+  mint_revoked: boolean
+}
+
+export type CommunityTaxFeaturesResponse = {
+  mint_control: boolean
+  transfer_tax: boolean
+  split_router: boolean
+  auto_v2_lp: boolean
+  exemption_directory: boolean
+  variable_rates: boolean
+  launch_guards: boolean
+}
+
+export type TaxPreviewResponse = {
+  kind: string
+  declared: string
+  debit: string
+  credit: string
+  tax: string
+}
+
+export type LauncherOriginResponse = {
+  launcher: string | null
+}
+
+function requireLauncher(): string {
+  if (!COMMUNITY_TOKEN_LAUNCHER) throw new Error('Community token launcher is not configured')
+  return COMMUNITY_TOKEN_LAUNCHER
+}
+
+export function requireCommunityTaxTokenAddr(addr: string): string {
+  const trimmed = addr.trim()
+  if (!isValidTerraBech32Address(trimmed)) throw new Error('Invalid token address')
+  return trimmed
+}
+
+export async function assertCommunityTaxTemplate(addr: string): Promise<{ code_id: number; admin: string }> {
+  const info = await getChainContractInfo(addr)
+  if (COMMUNITY_TAX_CODE_ID && info.code_id !== COMMUNITY_TAX_CODE_ID) {
+    throw new Error('This contract is not the community tax template')
+  }
+  return info
+}
+
+export async function queryCommunityTaxConfig(addr: string): Promise<CommunityTaxConfigResponse> {
+  return queryContract<CommunityTaxConfigResponse>(requireCommunityTaxTokenAddr(addr), { get_config: {} })
+}
+
+export async function queryCommunityTaxFeatures(addr: string): Promise<CommunityTaxFeaturesResponse> {
+  return queryContract<CommunityTaxFeaturesResponse>(requireCommunityTaxTokenAddr(addr), { get_features: {} })
+}
+
+export async function queryCommunityTaxExemptions(addr: string): Promise<{
+  protocol: string[]
+  manager: string[]
+}> {
+  return queryContract(requireCommunityTaxTokenAddr(addr), { get_exemptions: {} })
+}
+
+export async function queryLauncherOrigin(addr: string): Promise<LauncherOriginResponse> {
+  return queryContract<LauncherOriginResponse>(requireCommunityTaxTokenAddr(addr), {
+    get_launcher_origin: {},
+  })
+}
+
+export async function queryTaxPreview(input: {
+  token: string
+  from: string
+  to: string
+  amount: string
+  sendMsg?: string
+}): Promise<TaxPreviewResponse> {
+  const q: Record<string, unknown> = {
+    tax_preview: {
+      from: input.from,
+      to: input.to,
+      amount: input.amount,
+      send_msg: input.sendMsg ?? null,
+    },
+  }
+  return queryContract<TaxPreviewResponse>(requireCommunityTaxTokenAddr(input.token), q)
+}
+
+/** Free create (0 SKUs). Paid create uses PayWithAnyToken → launcher Receive. */
+export function buildFreeCreateTokenMsg(args: CreateTokenHookArgs): Record<string, unknown> {
+  if (args.features.length > 0) {
+    throw new Error('Paid SKUs must settle via the invoice card')
+  }
+  const caps = instantiateTaxCaps({
+    buyBps: args.buyBps,
+    sellBps: args.sellBps,
+    transferBps: args.transferBps,
+    variableRates: false,
+    transferTax: false,
+  })
+  return {
+    create_token: {
+      name: args.name,
+      symbol: args.symbol,
+      decimals: args.decimals,
+      initial_balances: args.initialBalances,
+      manager: args.manager,
+      treasury: args.treasury,
+      buy_bps: args.buyBps,
+      sell_bps: args.sellBps,
+      max_buy_bps: args.maxBuyBps ?? caps.maxBuyBps,
+      max_sell_bps: args.maxSellBps ?? caps.maxSellBps,
+      max_transfer_bps: args.maxTransferBps ?? caps.maxTransferBps,
+      features: [],
+    },
+  }
+}
+
+export async function createFreeCommunityToken(walletAddress: string, args: CreateTokenHookArgs): Promise<string> {
+  if (!isCommunityTaxEnabled()) throw new Error('Create Token is not configured')
+  return executeTerraContract(walletAddress, requireLauncher(), buildFreeCreateTokenMsg(args))
+}
+
+export async function mintCommunityTax(
+  walletAddress: string,
+  token: string,
+  recipient: string,
+  amount: string
+): Promise<string> {
+  await assertCommunityTaxTemplate(token)
+  return executeTerraContract(walletAddress, token, { mint: { recipient, amount } })
+}
+
+export async function skimAutoLp(walletAddress: string, autolp: string): Promise<string> {
+  if (!isValidTerraBech32Address(autolp)) throw new Error('Invalid AutoLP address')
+  return executeTerraContract(walletAddress, autolp, { skim_to_lp: {} })
+}
+
+export async function registerListedPair(walletAddress: string, token: string, pair: string): Promise<string> {
+  await assertCommunityTaxTemplate(token)
+  return executeTerraContract(walletAddress, token, { register_listed_pair: { pair } })
+}

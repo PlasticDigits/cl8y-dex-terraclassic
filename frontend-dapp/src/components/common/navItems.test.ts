@@ -10,6 +10,7 @@ import {
   PRIMARY_NAV_ITEMS,
   UST1_NAV_ITEM,
   WRAP_NAV_ITEM,
+  CREATE_TOKEN_NAV_ITEM,
   TABLET_COMPACT_HEADER_MAX_WIDTH_PX,
   TABLET_COMPACT_HEADER_NAV_ROW_LABELS,
 } from '@/components/common/navItems'
@@ -71,6 +72,19 @@ describe('navItems', () => {
       MINT_NAV_ITEM,
     ])
     expect(getHeaderMoreMenuItems(true)).not.toContainEqual(WRAP_NAV_ITEM)
+  })
+
+  it('appends Create Token (not Mint / Create Pair) when includeCreateToken (#593)', () => {
+    expect(CREATE_TOKEN_NAV_ITEM.label).toBe('Create Token')
+    expect(CREATE_TOKEN_NAV_ITEM.label).not.toBe('Mint')
+    expect(CREATE_TOKEN_NAV_ITEM.path).toBe('/token/create')
+    expect(getHeaderMoreMenuItems(true, { includeCreateToken: true })).toEqual([
+      ...MORE_NAV_ITEMS,
+      CREATE_TOKEN_NAV_ITEM,
+    ])
+    expect(getMobileMoreMenuItems({ includeCreateToken: true }).map((i) => i.path)).toContain('/token/create')
+    expect(getHeaderMoreMenuItems(true)).not.toContainEqual(CREATE_TOKEN_NAV_ITEM)
+    expect(MOBILE_BOTTOM_NAV_ITEMS.map((i) => i.path)).not.toContain('/token/create')
   })
 
   it('has expected primary and more routes for regression checks', () => {
