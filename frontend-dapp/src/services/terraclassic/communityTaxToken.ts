@@ -78,6 +78,12 @@ export async function queryCommunityTaxFeatures(addr: string): Promise<Community
   return queryContract<CommunityTaxFeaturesResponse>(requireCommunityTaxTokenAddr(addr), { get_features: {} })
 }
 
+export async function queryCommunityTaxTokenInfo(
+  addr: string
+): Promise<{ name: string; symbol: string; decimals: number }> {
+  return queryContract(requireCommunityTaxTokenAddr(addr), { token_info: {} })
+}
+
 export async function queryCommunityTaxExemptions(addr: string): Promise<{
   protocol: string[]
   manager: string[]
@@ -117,7 +123,7 @@ export function buildFreeCreateTokenMsg(args: CreateTokenHookArgs): Record<strin
   const caps = instantiateTaxCaps({
     buyBps: args.buyBps,
     sellBps: args.sellBps,
-    transferBps: args.transferBps,
+    transferBps: undefined,
     variableRates: false,
     transferTax: false,
   })
@@ -131,12 +137,26 @@ export function buildFreeCreateTokenMsg(args: CreateTokenHookArgs): Record<strin
       treasury: args.treasury,
       buy_bps: args.buyBps,
       sell_bps: args.sellBps,
-      max_buy_bps: args.maxBuyBps ?? caps.maxBuyBps,
-      max_sell_bps: args.maxSellBps ?? caps.maxSellBps,
-      max_transfer_bps: args.maxTransferBps ?? caps.maxTransferBps,
+      max_buy_bps: caps.maxBuyBps,
+      max_sell_bps: caps.maxSellBps,
+      max_transfer_bps: caps.maxTransferBps,
       features: [],
     },
   }
+}
+
+export type LauncherConfigResponse = {
+  token_code_id: number
+  autolp_code_id: number | null
+  ust1: string
+  cmm_treasury: string
+  cmm_governance: string
+  factory: string
+  router: string | null
+}
+
+export async function queryLauncherConfig(): Promise<LauncherConfigResponse> {
+  return queryContract<LauncherConfigResponse>(requireLauncher(), { get_config: {} })
 }
 
 export async function createFreeCommunityToken(walletAddress: string, args: CreateTokenHookArgs): Promise<string> {

@@ -81,12 +81,13 @@ fn enable_feature(
     FEATURES.save(deps.storage, &features)?;
 
     if matches!(sku, Sku::LaunchGuards) && LAUNCH_GUARDS.may_load(deps.storage)?.is_none() {
+        // Post-create unlock has no form; default trading **off** (anti-snipe, #605).
         LAUNCH_GUARDS.save(
             deps.storage,
             &LaunchGuards {
                 max_wallet: None,
                 cooldown_blocks: 0,
-                trading_enabled: true,
+                trading_enabled: false,
             },
         )?;
     }
@@ -167,6 +168,16 @@ fn update_settings(
         }
         for raw in addrs {
             let addr = deps.api.addr_validate(raw)?;
+            if is_protocol_exempt(deps.storage, &cfg.factory, &addr)
+                || PROTOCOL_EXEMPT
+                    .may_load(deps.storage, &addr)?
+                    .unwrap_or(false)
+                || addr == cfg.factory
+                || cfg.router.as_ref() == Some(&addr)
+                || cfg.autolp.as_ref() == Some(&addr)
+            {
+                return Err(ContractError::ProtocolExemptNotAllowed {});
+            }
             if !MANAGER_EXEMPT
                 .may_load(deps.storage, &addr)?
                 .unwrap_or(false)
@@ -208,13 +219,17 @@ fn update_settings(
             }
         }
     }
+    let mut extra_msgs: Vec<WasmMsg> = vec![];
     if let Some(ref autolp) = batch.autolp {
         if !features.auto_v2_lp {
             return Err(ContractError::SkuNotUnlocked {
                 sku: Sku::AutoV2Lp.as_str().to_string(),
             });
         }
-        apply_autolp_settings(&mut deps, &mut cfg, autolp.clone(), &mut changed)?;
+        if let Some(msg) = apply_autolp_settings(&mut deps, &mut cfg, autolp.clone(), &mut changed)?
+        {
+            extra_msgs.push(msg);
+        }
     }
     if let Some(ref guards) = batch.launch_guards {
         if !features.launch_guards {
@@ -238,10 +253,14 @@ fn update_settings(
     }
     CONFIG.save(deps.storage, &cfg)?;
 
-    Ok(Response::new()
+    let mut resp = Response::new()
         .add_message(forward_ust1(config, amount)?)
         .add_attribute("action", "update_settings")
-        .add_attribute("invoice", amount))
+        .add_attribute("invoice", amount);
+    for m in extra_msgs {
+        resp = resp.add_message(m);
+    }
+    Ok(resp)
 }
 
 fn require_variable_or_free_profile(
@@ -300,20 +319,43 @@ fn apply_autolp_settings(
     cfg: &mut Config,
     autolp: AutoLpConfig,
     changed: &mut bool,
-) -> Result<(), ContractError> {
+) -> Result<Option<WasmMsg>, ContractError> {
     let recipient = deps.api.addr_validate(&autolp.lp_recipient)?;
-    let _ = recipient;
-    if let Some(pair) = autolp.pair {
-        let _ = deps.api.addr_validate(&pair)?;
+    if let Some(ref pair) = autolp.pair {
+        let _ = deps.api.addr_validate(pair)?;
     }
-    if cfg.autolp.is_none() {
-        return Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+    let sister = cfg.autolp.clone().ok_or_else(|| {
+        ContractError::Std(cosmwasm_std::StdError::generic_err(
             "AutoLP contract not bound; enable AutoV2Lp via launcher",
-        )));
-    }
+        ))
+    })?;
     // Pair/threshold/recipient live on the AutoLP sister; token only tracks binding.
     *changed = true;
-    Ok(())
+    #[derive(serde::Serialize)]
+    struct SisterUpdate {
+        pair: Option<String>,
+        router: Option<String>,
+        quote_token: Option<String>,
+        threshold: Option<Uint128>,
+        lp_recipient: Option<String>,
+    }
+    #[derive(serde::Serialize)]
+    struct SisterExec {
+        update_config: SisterUpdate,
+    }
+    Ok(Some(WasmMsg::Execute {
+        contract_addr: sister.to_string(),
+        msg: to_json_binary(&SisterExec {
+            update_config: SisterUpdate {
+                pair: autolp.pair,
+                router: None,
+                quote_token: None,
+                threshold: Some(autolp.threshold),
+                lp_recipient: Some(recipient.to_string()),
+            },
+        })?,
+        funds: vec![],
+    }))
 }
 
 fn apply_launch_guard_settings(

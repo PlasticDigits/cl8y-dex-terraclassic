@@ -387,7 +387,10 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 
 - Token `EnableFeature { sku }` — not MintControl (instantiate-only).
 - Token `UpdateSettings { settings }` — one flat 50 UST1 for the whole already-activated batch. No-op / unactivated SKU / non-manager → revert, fee not kept.
-- Launcher UST1 `Send` hook: `create_token` is a **newtype** (`CreateTokenMsg` fields as the object); `enable_feature` is `{ token, sku }`. JSON is `{"create_token":{…fields…}}` / `{"enable_feature":{…}}`. Instantiate stamps `admin: cmm_governance`. AutoLP sibling instantiate in the same create tx is **not** wired in v1 (SKU may be paid; bind later).
+- Launcher UST1 `Send` hook: `create_token` is a **newtype** (`CreateTokenMsg` fields as the object); `enable_feature` is `{ token, sku }`. JSON is `{"create_token":{…fields…}}` / `{"enable_feature":{…}}`. Instantiate stamps `admin: cmm_governance`.
+- **Identity (#604):** `validate_identity` runs **before** `cw20_base` init. Name/symbol ASCII alphanumeric, name 3–50, symbol 3–12, decimals **6–18**. Errors: `DecimalsRange`, `InvalidName`, `InvalidSymbol`. Columbus-5 **11611** does not gain these checks until launcher `token_code_id` rotates (no silent mainnet store in #604/#605).
+- **SKU payloads (#605):** `transfer_bps` / `sinks` / `launch_guards` / `initial_exempt` / AutoLP fields are rejected unless that SKU is in `features`. Launch guards SKU **requires** an explicit `launch_guards` object (no silent `trading_enabled: true`). `initial_exempt` (≤20) writes `MANAGER_EXEMPT`; protocol addrs rejected.
+- **AutoLP create (#605):** when `auto_v2_lp` is purchased and launcher `autolp_code_id` is set, the launcher reply instantiates the sister and `BindAutolp`s it. Unset code id → `AutolpCodeNotSet` (invoice not kept). `SkimToLp` is still never called from token `Transfer`/`Send`.
 - **0-SKU free create (C593-12 / O601-3):** launcher `ExecuteMsg::CreateToken` (no UST1). CW20 `Send` of 0 is invalid, so free create cannot use `Receive`. Paid SKUs still require the invoice hook. Canonical columbus-5 launcher is **11614** (`terra126pr5…ahzwze`). **11612** predates this execute and is unused.
 
 ### Listing

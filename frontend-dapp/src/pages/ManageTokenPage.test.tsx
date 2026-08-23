@@ -71,6 +71,7 @@ vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   }),
   mintCommunityTax: vi.fn(),
   skimAutoLp: vi.fn(),
+  queryCommunityTaxTokenInfo: vi.fn().mockResolvedValue({ name: 'Demo', symbol: 'DEMO', decimals: 6 }),
 }))
 
 vi.mock('@/components/payments/PayWithAnyToken', () => ({
@@ -125,6 +126,13 @@ describe('ManageTokenPage (#593)', () => {
     renderManage(MANAGER)
     expect(await screen.findByTestId('manage-unlock-sku')).toBeInTheDocument()
     expect(screen.getByTestId('manage-unlock-sku').textContent).not.toMatch(/Minting/)
+  })
+
+  it('P19: tax placeholders are percent not bps', async () => {
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-save-copy')).toBeInTheDocument()
+    expect(await screen.findByTestId('manage-buy-pct')).toHaveAttribute('placeholder', '1.00')
+    expect(screen.getByTestId('manage-sell-pct')).toHaveAttribute('placeholder', '1.00')
   })
 
   it('shows Unverified admin when wasm admin is not CMM', async () => {

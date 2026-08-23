@@ -10,6 +10,7 @@ import {
   mintCommunityTax,
   queryCommunityTaxConfig,
   queryCommunityTaxFeatures,
+  queryCommunityTaxTokenInfo,
   skimAutoLp,
   type CommunityTaxFeaturesResponse,
 } from '@/services/terraclassic/communityTaxToken'
@@ -23,10 +24,13 @@ import {
 } from '@/utils/constants'
 import {
   COMMUNITY_TAX_SKUS,
+  formatBpsAsPercent,
   isUnlockableAfterCreate,
-  parseTaxBps,
+  parseSharePercent,
+  parseTaxPercent,
   type CommunityTaxSkuId,
 } from '@/utils/communityTaxSku'
+import { toRawAmount } from '@/utils/formatAmount'
 import {
   buildEnableFeatureInvoice,
   buildSettingsBatchInvoice,
@@ -41,11 +45,18 @@ import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingEr
 export default function ManageTokenPage() {
   const { addr = '' } = useParams<{ addr: string }>()
   const address = useWalletStore((s) => s.address)
-  const [buyBps, setBuyBps] = useState('')
-  const [sellBps, setSellBps] = useState('')
+  const [buyPct, setBuyPct] = useState('')
+  const [sellPct, setSellPct] = useState('')
   const [treasury, setTreasury] = useState('')
-  const [transferBps, setTransferBps] = useState('')
+  const [transferPct, setTransferPct] = useState('')
   const [exemptAdd, setExemptAdd] = useState('')
+  const [sinkRows, setSinkRows] = useState<{ kind: string; addr: string; percent: string }[]>([])
+  const [guardMaxWallet, setGuardMaxWallet] = useState('')
+  const [guardCooldown, setGuardCooldown] = useState('')
+  const [guardTrading, setGuardTrading] = useState(false)
+  const [autolpPair, setAutolpPair] = useState('')
+  const [autolpThreshold, setAutolpThreshold] = useState('')
+  const [autolpRecipient, setAutolpRecipient] = useState('')
   const [mintTo, setMintTo] = useState('')
   const [mintAmount, setMintAmount] = useState('')
   const [revokeAck, setRevokeAck] = useState(false)
@@ -69,6 +80,11 @@ export default function ManageTokenPage() {
     queryFn: () => queryCommunityTaxFeatures(addr),
     enabled: isCommunityTaxEnabled() && tokenOk,
   })
+  const infoTokQuery = useQuery({
+    queryKey: ['communityTaxTokenInfo', addr],
+    queryFn: () => queryCommunityTaxTokenInfo(addr),
+    enabled: isCommunityTaxEnabled() && tokenOk,
+  })
 
   const cfg = configQuery.data
   const feats = featuresQuery.data
@@ -79,11 +95,12 @@ export default function ManageTokenPage() {
     CMM_GOVERNANCE_ADDR &&
     infoQuery.data.admin.toLowerCase() !== CMM_GOVERNANCE_ADDR.toLowerCase()
 
-  const buy = parseTaxBps(buyBps || String(cfg?.buy_bps ?? 0))
-  const sell = parseTaxBps(sellBps || String(cfg?.sell_bps ?? 0))
-  const transfer = parseTaxBps(transferBps || String(cfg?.transfer_bps ?? 0))
+  const buy = parseTaxPercent(buyPct || (cfg ? formatBpsAsPercent(cfg.buy_bps) : '0'))
+  const sell = parseTaxPercent(sellPct || (cfg ? formatBpsAsPercent(cfg.sell_bps) : '0'))
+  const transfer = parseTaxPercent(transferPct || (cfg ? formatBpsAsPercent(cfg.transfer_bps) : '0'))
   const treasuryDraft = treasury.trim() || cfg?.treasury || ''
   const treasuryErr = treasuryDraft ? getTerraAddressInputError(treasuryDraft) : null
+  const decimals = infoTokQuery.data?.decimals ?? 6
 
   const settings: SettingsBatchFields = {}
   if (cfg && buy.ok && buy.bps !== cfg.buy_bps) settings.buy_bps = buy.bps
@@ -96,8 +113,49 @@ export default function ManageTokenPage() {
     settings.add_exempt = [exemptAdd.trim()]
   }
   if (revokeAck && feats?.mint_control && !cfg?.mint_revoked) settings.revoke_mint = true
+  if (feats?.split_router && sinkRows.length > 0) {
+    const parsed = sinkRows.map((r) => ({
+      kind: r.kind,
+      addr: r.addr.trim() || undefined,
+      share: parseSharePercent(r.percent),
+    }))
+    if (parsed.every((p) => p.share.ok)) {
+      const sinks = parsed.map((p) => ({
+        kind: p.kind,
+        addr: p.addr,
+        bps: p.share.ok ? p.share.bps : 0,
+      }))
+      const sum = sinks.reduce((a, s) => a + s.bps, 0)
+      if (sum === 10_000) settings.sinks = sinks
+    }
+  }
+  if (
+    feats?.launch_guards &&
+    (guardMaxWallet.trim() || guardCooldown.trim() || guardTrading !== Boolean(cfg?.launch_guards?.trading_enabled))
+  ) {
+    const cooldown = guardCooldown.trim() ? Number(guardCooldown.trim()) : (cfg?.launch_guards?.cooldown_blocks ?? 0)
+    if (Number.isInteger(cooldown) && cooldown >= 0) {
+      settings.launch_guards = {
+        max_wallet: guardMaxWallet.trim()
+          ? toRawAmount(guardMaxWallet.trim(), decimals)
+          : (cfg?.launch_guards?.max_wallet ?? undefined),
+        cooldown_blocks: cooldown,
+        trading_enabled: guardTrading,
+      }
+    }
+  }
+  if (feats?.auto_v2_lp && cfg?.autolp && (autolpPair.trim() || autolpThreshold.trim() || autolpRecipient.trim())) {
+    const recip = autolpRecipient.trim() || address || ''
+    if (recip && !getTerraAddressInputError(recip)) {
+      settings.autolp = {
+        pair: autolpPair.trim() || undefined,
+        threshold: autolpThreshold.trim() ? toRawAmount(autolpThreshold.trim(), decimals) : '1',
+        lp_recipient: recip,
+      }
+    }
+  }
 
-  const transferDirtyLocked = Boolean(transferBps.trim()) && !feats?.transfer_tax
+  const transferDirtyLocked = Boolean(transferPct.trim()) && !feats?.transfer_tax
   const saveReady =
     isManager && !settingsBatchIsEmpty(settings) && !transferDirtyLocked && buy.ok && sell.ok && !treasuryErr
 
@@ -212,27 +270,30 @@ export default function ManageTokenPage() {
 
       <section className="shell-panel-strong space-y-3">
         <h3 className="font-heading uppercase text-sm">Taxes</h3>
+        <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+          Up to 25.00% combined.
+        </p>
         <div className="grid grid-cols-2 gap-3">
           <label>
-            <span className="label-glass">Buy bps</span>
+            <span className="label-glass">Buy tax (%)</span>
             <input
               className="input-glass w-full"
               disabled={!isManager}
-              value={buyBps}
-              placeholder={cfg ? String(cfg.buy_bps) : ''}
-              onChange={(e) => setBuyBps(e.target.value)}
-              data-testid="manage-buy-bps"
+              value={buyPct}
+              placeholder={cfg ? formatBpsAsPercent(cfg.buy_bps) : ''}
+              onChange={(e) => setBuyPct(e.target.value)}
+              data-testid="manage-buy-pct"
             />
           </label>
           <label>
-            <span className="label-glass">Sell bps</span>
+            <span className="label-glass">Sell tax (%)</span>
             <input
               className="input-glass w-full"
               disabled={!isManager}
-              value={sellBps}
-              placeholder={cfg ? String(cfg.sell_bps) : ''}
-              onChange={(e) => setSellBps(e.target.value)}
-              data-testid="manage-sell-bps"
+              value={sellPct}
+              placeholder={cfg ? formatBpsAsPercent(cfg.sell_bps) : ''}
+              onChange={(e) => setSellPct(e.target.value)}
+              data-testid="manage-sell-pct"
             />
           </label>
         </div>
@@ -247,14 +308,14 @@ export default function ManageTokenPage() {
           />
         </label>
         <label>
-          <span className="label-glass">Wallet-to-wallet tax (bps)</span>
+          <span className="label-glass">Wallet-to-wallet tax (%)</span>
           <input
             className="input-glass w-full"
             disabled={!isManager || !feats?.transfer_tax}
-            value={transferBps}
-            placeholder={feats?.transfer_tax ? String(cfg?.transfer_bps ?? '') : 'Locked — unlock SKU'}
-            onChange={(e) => setTransferBps(e.target.value)}
-            data-testid="manage-transfer-bps"
+            value={transferPct}
+            placeholder={feats?.transfer_tax ? formatBpsAsPercent(cfg?.transfer_bps ?? 0) : 'Locked — unlock SKU'}
+            onChange={(e) => setTransferPct(e.target.value)}
+            data-testid="manage-transfer-pct"
           />
         </label>
         {feats?.exemption_directory && (
@@ -267,6 +328,114 @@ export default function ManageTokenPage() {
               onChange={(e) => setExemptAdd(e.target.value)}
             />
           </label>
+        )}
+        {feats?.split_router && (
+          <div className="space-y-2" data-testid="manage-sinks-editor">
+            <span className="label-glass">Split treasury (sum 100.00%)</span>
+            {sinkRows.map((row, i) => (
+              <div key={i} className="grid grid-cols-3 gap-2">
+                <select
+                  className="input-glass"
+                  disabled={!isManager}
+                  value={row.kind}
+                  onChange={(e) =>
+                    setSinkRows((cur) => cur.map((s, j) => (j === i ? { ...s, kind: e.target.value } : s)))
+                  }
+                >
+                  <option value="treasury">Treasury</option>
+                  <option value="burn">Burn</option>
+                  <option value="auto_lp">AutoLP</option>
+                  <option value="wallet">Wallet</option>
+                </select>
+                <input
+                  className="input-glass"
+                  disabled={!isManager}
+                  placeholder="%"
+                  value={row.percent}
+                  onChange={(e) =>
+                    setSinkRows((cur) => cur.map((s, j) => (j === i ? { ...s, percent: e.target.value } : s)))
+                  }
+                />
+                <input
+                  className="input-glass"
+                  disabled={!isManager || row.kind !== 'wallet'}
+                  placeholder="terra1…"
+                  value={row.addr}
+                  onChange={(e) =>
+                    setSinkRows((cur) => cur.map((s, j) => (j === i ? { ...s, addr: e.target.value } : s)))
+                  }
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn-secondary text-xs"
+              disabled={!isManager || sinkRows.length >= 4}
+              onClick={() => setSinkRows((cur) => [...cur, { kind: 'treasury', addr: '', percent: '' }])}
+            >
+              Add sink
+            </button>
+          </div>
+        )}
+        {feats?.launch_guards && (
+          <div className="space-y-2" data-testid="manage-guards-editor">
+            <span className="label-glass">Launch guards</span>
+            <input
+              className="input-glass w-full"
+              disabled={!isManager}
+              placeholder="Max wallet (human)"
+              value={guardMaxWallet}
+              onChange={(e) => setGuardMaxWallet(e.target.value)}
+            />
+            <input
+              className="input-glass w-full"
+              disabled={!isManager}
+              placeholder={cfg?.launch_guards ? String(cfg.launch_guards.cooldown_blocks) : 'Cooldown blocks'}
+              value={guardCooldown}
+              onChange={(e) => setGuardCooldown(e.target.value)}
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                disabled={!isManager}
+                checked={guardTrading}
+                onChange={(e) => setGuardTrading(e.target.checked)}
+              />
+              Trading enabled
+            </label>
+          </div>
+        )}
+        {feats?.auto_v2_lp && (
+          <div className="space-y-2" data-testid="manage-autolp-editor">
+            <span className="label-glass">Auto liquidity bind</span>
+            {!cfg?.autolp && (
+              <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+                Sister is not bound yet. Unlock Auto liquidity at create, or Enable Feature when the launcher has an
+                AutoLP code id.
+              </p>
+            )}
+            <input
+              className="input-glass w-full"
+              disabled={!isManager || !cfg?.autolp}
+              placeholder="Listed pair"
+              value={autolpPair}
+              onChange={(e) => setAutolpPair(e.target.value)}
+            />
+            <input
+              className="input-glass w-full"
+              disabled={!isManager || !cfg?.autolp}
+              placeholder="Threshold (human)"
+              value={autolpThreshold}
+              onChange={(e) => setAutolpThreshold(e.target.value)}
+            />
+            <input
+              className="input-glass w-full"
+              disabled={!isManager || !cfg?.autolp}
+              placeholder="LP recipient"
+              value={autolpRecipient}
+              onChange={(e) => setAutolpRecipient(e.target.value)}
+            />
+          </div>
         )}
         {feats?.mint_control && !cfg?.mint_revoked && (
           <label className="flex items-center gap-2 text-sm">
