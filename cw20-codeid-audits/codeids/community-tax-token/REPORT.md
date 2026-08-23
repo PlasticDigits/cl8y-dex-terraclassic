@@ -30,5 +30,7 @@ Approving an ID admits **every** instantiate of that wasm (including rogue `--ad
 ## Cross-links
 
 - Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../../../skills/AGENTS_COMMUNITY_TAX_CW20.md)
+- LaunchGuards liveness: [`skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](../../../skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) ([#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608))
 - Policy exception: [`docs/runbooks/cw20-whitelist-policy.md`](../../../docs/runbooks/cw20-whitelist-policy.md)
 - `make verify-issue-592`
+- `make verify-issue-608`

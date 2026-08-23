@@ -109,5 +109,6 @@ pub const LISTED_PAIRS: Map<&Addr, bool> = Map::new("pairs");
 pub const PROTOCOL_EXEMPT: Map<&Addr, bool> = Map::new("pex");
 /// Manager directory (ExemptionDirectory SKU).
 pub const MANAGER_EXEMPT: Map<&Addr, bool> = Map::new("mex");
-/// Last taxed swap block per wallet (LaunchGuards cooldown).
+/// Last taxed swap block per **user** wallet (LaunchGuards cooldown, H608-1 / #608).
+/// Listed pairs / protocol-exempt addresses are never written or checked.
 pub const LAST_TRADE_BLOCK: Map<&Addr, u64> = Map::new("ltb");

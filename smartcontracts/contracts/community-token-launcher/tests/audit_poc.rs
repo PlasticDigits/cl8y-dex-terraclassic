@@ -1,8 +1,8 @@
 //! Security-audit PoC tests (internal audit, 2026-08-23).
 //!
 //! Each test is a minimal reproduction of a finding in `audits/INTERNAL_KIMIK3_*.md`.
-//! Tests PASS on current code — i.e. they demonstrate the flawed behavior. A fix
-//! should flip the marked assertions.
+//! H-3 / H-4 (#608) are inverted: they now assert the fixed per-wallet cooldown
+//! and provide-after-cap behavior. Remaining PoCs still demonstrate residuals.
 
 use cosmwasm_std::{to_json_binary, Addr, Binary, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -665,8 +665,8 @@ fn poc_router_exemption_full_tax_bypass() {
 }
 
 // ============================================================================
-// PoC 5 (H-3): cooldown_blocks > 0 bricks the listed pair (pair-wide, not
-// per-wallet). LAST_TRADE_BLOCK comment says per wallet; from+to are both saved.
+// PoC 5 (H-3 / #608 inverted): cooldown is per user wallet. A second wallet
+// can trade after alice; the same wallet still hits cooldown (H608-1 / H608-2).
 // ============================================================================
 #[test]
 fn poc_cooldown_bricks_pair() {
@@ -707,10 +707,23 @@ fn poc_cooldown_bricks_pair() {
         .unwrap();
 
     hub.app.update_block(|b| b.height += 1);
+    hub.app
+        .execute_contract(
+            Addr::unchecked("bob"),
+            token.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: pair.to_string(),
+                amount: Uint128::new(100_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+
     let err = hub
         .app
         .execute_contract(
-            Addr::unchecked("bob"),
+            Addr::unchecked("alice"),
             token.clone(),
             &Cw20ExecuteMsg::Send {
                 contract: pair.to_string(),
@@ -722,12 +735,13 @@ fn poc_cooldown_bricks_pair() {
         .unwrap_err();
     assert!(
         format!("{err:?}").contains("cooldown active"),
-        "pair-wide cooldown bricks second trade: {err:?}"
+        "same wallet still rate-limited: {err:?}"
     );
 }
 
 // ============================================================================
-// PoC 6 (H-4): max_wallet applies to the pair on provide (TransferFrom).
+// PoC 6 (H-4 / #608 inverted): max_wallet skips listed-pair `to`, so provide
+// TransferFrom succeeds after sells grow the pair above the cap (H608-4).
 // Stand-in is pair.TransferFrom, not pair ProvideLiquidity wasm.
 // ============================================================================
 #[test]
@@ -755,7 +769,7 @@ fn poc_max_wallet_bricks_provide() {
         .unwrap();
     let pair = register_pair(&mut hub, &token);
 
-    // Sell bypasses max_wallet (T592-11): pair balance climbs above the cap.
+    // Sell bypasses max_wallet (T592-11 / H608-6): pair balance climbs above the cap.
     hub.app
         .execute_contract(
             Addr::unchecked("alice"),
@@ -770,7 +784,6 @@ fn poc_max_wallet_bricks_provide() {
         .unwrap();
     assert_eq!(bal(&hub.app, &token, pair.as_str()), 1_500_000);
 
-    // LP provide (pair does TransferFrom) reverts while pair balance > cap.
     hub.app
         .execute_contract(
             Addr::unchecked("alice"),
@@ -783,8 +796,7 @@ fn poc_max_wallet_bricks_provide() {
             &[],
         )
         .unwrap();
-    let err = hub
-        .app
+    hub.app
         .execute_contract(
             Addr::unchecked(pair.clone()),
             token.clone(),
@@ -795,11 +807,8 @@ fn poc_max_wallet_bricks_provide() {
             },
             &[],
         )
-        .unwrap_err();
-    assert!(
-        format!("{err:?}").contains("Max wallet exceeded"),
-        "provide reverts once pair balance > max_wallet: {err:?}"
-    );
+        .unwrap();
+    assert_eq!(bal(&hub.app, &token, pair.as_str()), 1_600_000);
 }
 
 // ============================================================================
