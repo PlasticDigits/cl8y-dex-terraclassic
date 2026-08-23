@@ -58,7 +58,11 @@ import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGa
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
 import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
-import { SELL_TAX_EXTRA_HINT } from '@/utils/taxPreviewMaxSpend'
+import {
+  communityTaxExecuteUsesRouter,
+  communityTaxRouteHint,
+  extraDebitSellBpsForExecute,
+} from '@/utils/taxPreviewMaxSpend'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
@@ -143,6 +147,7 @@ export function TradeMarketOrderPanel({
   const fromToken = side === 'bid' ? token1 : token0
   const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null)
   const toToken = side === 'bid' ? token0 : token1
+  const taxReceive = useCommunityTaxSellBps(toToken?.startsWith('terra1') ? toToken : null)
   const offerDecimals = fromToken ? getDecimals(tokenAssetInfo(fromToken)) : 6
   const receiveDecimals = toToken ? getDecimals(tokenAssetInfo(toToken)) : 6
   const rawInputAmount = marketAmountHuman.trim() ? toRawAmount(marketAmountHuman.trim(), offerDecimals) : '0'
@@ -360,6 +365,13 @@ export function TradeMarketOrderPanel({
       live: { bookInputHuman, hybridMaxMakers },
       snapshotted: hybridSubmitSnapshot,
     },
+  })
+  const tradeUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length)
+  const communityTaxHint = communityTaxRouteHint({
+    payIsTax: taxSell.isTaxToken,
+    receiveIsTax: taxReceive.isTaxToken,
+    usesRouter: tradeUsesRouter,
+    sellBps: taxSell.sellBps,
   })
 
   const swapMutation = useTerraBroadcastMutation({
@@ -609,11 +621,11 @@ export function TradeMarketOrderPanel({
         maxContext="market_swap"
         assetIsNativeUluna={fromToken === 'uluna'}
         marketUsesHybrid={true}
-        extraDebitSellBps={taxSell.sellBps}
+        extraDebitSellBps={extraDebitSellBpsForExecute(taxSell.sellBps, tradeUsesRouter)}
       />
-      {taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0 && (
+      {communityTaxHint && (
         <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }} data-testid="trade-sell-tax-extra">
-          {SELL_TAX_EXTRA_HINT}
+          {communityTaxHint}
         </p>
       )}
 

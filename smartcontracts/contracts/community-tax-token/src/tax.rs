@@ -70,19 +70,22 @@ pub fn is_swap_send_hook(msg: &Binary) -> bool {
     )
 }
 
-/// Economic kind **before** the manager-directory tax skip (**T592-7**, **#609**).
+/// Economic kind **before** the manager-directory tax skip (**T592-7**, **#609**) + **T592-13**.
 ///
 /// Launch guards (`trading_enabled`, cooldown, `max_wallet`) use this so exemption
 /// is tax-only and does not disable **T592-11**.
 ///
-/// - **Sell** — `Send` to a registered listed pair whose hook is `Cw20HookMsg::Swap`.
-///   Extra-debit: pair is credited exactly `amount` (inbound 1:1 / **P2**).
+/// - **Sell** — `Send` to a registered listed pair whose hook is `Cw20HookMsg::Swap`
+///   **and** `from` is not protocol-exempt. Extra-debit: pair is credited exactly
+///   `amount` (inbound 1:1 / **P2**).
 /// - **Buy** — `Transfer`/`Send` **from** a registered listed pair to a non-protocol-exempt
 ///   recipient. Pair is debited exactly `amount`. Pair→EOA `Transfer` is also how withdraw
 ///   and limit refunds are paid; those paths therefore take buy tax (same primitive).
 ///   Provide (`TransferFrom`) and limit `PlaceLimitOrder*` `Send` stay 1:1.
 /// - **Transfer** — TransferTax SKU, neither side protocol- or manager-exempt.
-/// - **Honest** — everything else (protocol inbound, wallet 1:1, TransferFrom to pair).
+/// - **Honest** — everything else, including **router hops** (protocol-exempt `from`/`to`:
+///   official multi-hop, hybrid-on-router, 1-op `execute_swap_operations`, invoice wrap-routes).
+///   Pair-direct EOA `Send+Swap` still sells. Do not un-exempt the router without a new issue.
 pub fn classify_trade(
     storage: &dyn Storage,
     self_addr: &Addr,
