@@ -311,7 +311,7 @@ export default function CreateTokenPage() {
         {createdHash && (
           <p className="text-sm">
             Next: copy the new token address from the explorer tx, then{' '}
-            <Link className="underline" to="/create">
+            <Link className="underline" to="/create" data-testid="create-token-next-create-pair">
               Create Pair
             </Link>
             . Tokens are not auto-added to Swap.

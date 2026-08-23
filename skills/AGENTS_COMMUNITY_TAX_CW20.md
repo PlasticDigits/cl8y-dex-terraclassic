@@ -4,7 +4,7 @@ Use when changing the **community tax token**, **launcher**, or **AutoLP** siste
 
 This is the **only** tax-token exception to **H-01**. It is DEX-safe because inbound credits to pair / router / escrow / AutoLP stay **1:1**. Do **not** add pair/router FoT balance-delta math. Factory `AddWhitelistedCodeId` is a **separate ops step** after `#589` REPORT **GO**.
 
-Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) (**I595-14** — launcher/token still accept UST1 `Send` only).
+Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) (**I595-14** — launcher/token still accept UST1 `Send` only); post-merge Coolify + LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)).
 
 ## Canonical references
 
@@ -80,6 +80,7 @@ Token-only extra-debit sell + outbound buy. `SetPairHooks` stays governance-only
 ```bash
 make verify-issue-592
 make verify-issue-601
+make verify-issue-602
 CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp
 ```

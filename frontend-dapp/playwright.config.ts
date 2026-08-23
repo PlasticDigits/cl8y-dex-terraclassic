@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 import { getLocalTerraTestMnemonic } from './e2e/localterra-mnemonic'
+import { COMMUNITY_TAX_E2E_VITE_ENV } from './e2e/helpers/community-tax-env'
 import { UST1_E2E_VITE_ENV } from './e2e/helpers/ust1-window-lcd-mock'
 
 const devMnemonic = getLocalTerraTestMnemonic()
@@ -67,6 +68,8 @@ export default defineConfig({
       VITE_TERRA_TX_BROADCAST_TIMEOUT_MS: process.env.VITE_TERRA_TX_BROADCAST_TIMEOUT_MS ?? '3000',
       /** Bake UST1 window env so `/ust1` E2E gates run without LocalTerra deploy (#506). */
       ...UST1_E2E_VITE_ENV,
+      /** Bake Create Token env so `/token/create` is not the unavailable stub (#602). */
+      ...COMMUNITY_TAX_E2E_VITE_ENV,
     },
   },
   projects: [

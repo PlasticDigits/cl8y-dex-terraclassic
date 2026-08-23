@@ -15,7 +15,7 @@ vi.mock('@/utils/constants', async (importOriginal) => {
   return {
     ...actual,
     COMMUNITY_TAX_CODE_ID: 11611,
-    COMMUNITY_TOKEN_LAUNCHER: 'terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz',
+    COMMUNITY_TOKEN_LAUNCHER: 'terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze',
     UST1_TOKEN_ADDRESS: 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72',
     isCommunityTaxEnabled: () => mockEnabled(),
   }
@@ -23,6 +23,10 @@ vi.mock('@/utils/constants', async (importOriginal) => {
 
 vi.mock('@/services/indexer/client', () => ({
   getTokens: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('@/services/terraclassic/communityTaxToken', () => ({
+  createFreeCommunityToken: vi.fn().mockResolvedValue('create-tx-hash'),
 }))
 
 vi.mock('@/components/payments/PayWithAnyToken', () => ({
@@ -82,7 +86,20 @@ describe('CreateTokenPage (#593)', () => {
     await user.click(screen.getByTestId('create-token-ack'))
     await user.click(screen.getByTestId('create-token-sku-transfer_tax'))
     expect(await screen.findByTestId('pay-with-any-token')).toHaveTextContent(
-      '50000000:terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz'
+      '50000000:terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze'
     )
+  })
+
+  it('P402-5: after free create, Create Pair link is /create with no query prefill', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: WALLET, walletType: 'keplr', error: null })
+    renderWithProviders(<CreateTokenPage />)
+    await user.type(screen.getByTestId('create-token-name'), 'Demo')
+    await user.type(screen.getByTestId('create-token-symbol'), 'DEMO')
+    await user.click(screen.getByTestId('create-token-ack'))
+    await user.click(screen.getByTestId('create-token-free-cta'))
+    const next = await screen.findByTestId('create-token-next-create-pair')
+    expect(next).toHaveAttribute('href', '/create')
+    expect(next.getAttribute('href')).not.toMatch(/\?/)
   })
 })

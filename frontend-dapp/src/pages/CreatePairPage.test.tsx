@@ -207,6 +207,17 @@ describe('CreatePairPage', () => {
     expect((combo as HTMLInputElement).value.length).toBeLessThanOrEqual(TOKEN_SEARCH_MAX_QUERY_LENGTH)
   })
 
+  it('P402-5 / C542-11: does not prefill Token A/B from /create query', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<CreatePairPage />, { route: `/create?a=${VALID_A}&b=${VALID_B}` })
+    await openCustom(user, 'Token A')
+    await openCustom(user, 'Token B')
+    expect(screen.getByLabelText(/Token A Contract Address/i)).toHaveValue('')
+    expect(screen.getByLabelText(/Token B Contract Address/i)).toHaveValue('')
+    expect(screen.queryByDisplayValue(VALID_A)).not.toBeInTheDocument()
+    expect(screen.queryByDisplayValue(VALID_B)).not.toBeInTheDocument()
+  })
+
   it('C2: native LUNC / USTC / uluna are not selectable options', async () => {
     const user = userEvent.setup()
     renderWithProviders(<CreatePairPage />)

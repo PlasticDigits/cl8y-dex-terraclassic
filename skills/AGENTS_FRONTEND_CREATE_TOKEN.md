@@ -2,7 +2,7 @@
 
 Use when changing `/token/create`, `/token/:addr/manage`, `/tokens`, community-tax Swap max, or launcher invoice checkout.
 
-Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595).
+Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595); post-merge Coolify / LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)).
 
 ## Canonical references
 
@@ -37,9 +37,10 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 ```bash
 make verify-issue-593
+make verify-issue-602
 ```
 
-Columbus-5 free-create is live on launcher **11614** (`terra126pr5…ahzwze`). Do not point Coolify at **11612** (`terra1af9xm…`).
+Columbus-5 free-create is live on launcher **11614** (`terra126pr5…ahzwze`). Do not point Coolify at **11612** (`terra1af9xm…`). Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602).
 
 ## Do not
 

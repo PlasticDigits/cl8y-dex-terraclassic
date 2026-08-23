@@ -675,7 +675,7 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 
 ### Create Token (community tax) {#create-token-community-tax}
 
-Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Routes: `/token/create`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Verify: `make verify-issue-593`.
+Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Routes: `/token/create`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Verify: `make verify-issue-593`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -689,7 +689,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-8** Template | Manage requires `code_id == 11611` (env). |
 | **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax. |
 | **C593-10** Payee from env | Never URL. |
-| **C593-11** No Swap dump | Not auto-listed (#562). |
+| **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |
 | **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 **11614**. |
 | **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
 

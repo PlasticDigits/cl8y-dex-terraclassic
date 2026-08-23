@@ -2,7 +2,7 @@
 
 Use when changing community-token ingest, `GET /api/v1/community-tokens`, or `community_tax` on token detail.
 
-Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592).
+Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)).
 
 ## Canonical references
 
@@ -33,6 +33,7 @@ Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/is
 ```bash
 make setup-indexer-postgres
 make verify-issue-594
+make verify-issue-602
 ```
 
 ## Do not

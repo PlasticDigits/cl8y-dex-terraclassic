@@ -4,7 +4,7 @@ Audience: third-party agents touching `/create`, token pickers, or `tokenlist.js
 
 **Issue:** [GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)  
 **Invariants:** [`docs/frontend.md` § Create pair listed CW20 picker](../docs/frontend.md#create-pair-token-picker) (**C542-1–C542-11**)  
-**Related:** [#382](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382) checksum, [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) code-ID ≠ safety, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) logo allowlist, [#481](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/481) Swap search (wrong universe), [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) UST1 AMM ≠ mint, [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) economic-first sort
+**Related:** [#382](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382) checksum, [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) code-ID ≠ safety, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) logo allowlist, [#481](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/481) Swap search (wrong universe), [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) UST1 AMM ≠ mint, [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) economic-first sort, [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) Create Token → `/create` copy-address only (**P402-5** / **C542-11**)
 
 ## Problem class
 

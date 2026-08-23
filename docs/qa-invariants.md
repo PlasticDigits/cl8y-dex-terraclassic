@@ -152,6 +152,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M600-7** | Do **not** reopen #599 unless 3.11M still OOGs. File a new envelope ticket if the named combo must rise. |
 | **M600-8** | Playbook + this Q8 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !402 Create Token Coolify + LocalTerra (invariant Q9) {#post-merge-ops-602}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q9** Post-merge !402 Create Token / catalog is live-checked (Coolify env + 11614 free-create + LocalTerra retail); unit/docs already landed with #593 / #594 / #601 | **`make verify-issue-602`** → children **593, 594** plus live Coolify pins and optional LocalTerra smoke (**M602-1–M602-8**) | Non-zero exit; fix the failing child, Coolify pin, or smoke; do not treat green `verify-issue-593` as Coolify / LocalTerra clearance |
+
+**M602** (GitLab **#602** — [`skills/AGENTS_POST_MERGE_OPS_602.md`](../skills/AGENTS_POST_MERGE_OPS_602.md)):
+
+| ID | Rule |
+|----|------|
+| **M602-1** | `make verify-issue-602` runs children **593** and **594**. Unit/docs FAILs fail the stack. Live Coolify SKIP only with `VERIFY602_SKIP_LIVE=1`. LocalTerra SKIP only when the chain is down (unless `VERIFY602_REQUIRE_CHAIN=1`). |
+| **M602-2** | **P402-1.** Coolify frontend bakes `VITE_COMMUNITY_TAX_CODE_ID=11611` and launcher **11614** `terra126pr5…`. More menu shows **Create Token**. Do not bake unused **11612**. |
+| **M602-3** | **P402-2.** Coolify indexer `COMMUNITY_TAX_CODE_ID` + `COMMUNITY_TOKEN_LAUNCHER` + `CMM_GOVERNANCE_ADDR`. `GET /api/v1/community-tokens` is `{ configured: true, … }` (empty list OK). |
+| **M602-4** | **P402-3.** Free create lives on **11614** (store `33F6A49F…` / instantiate `041E3C43…`). **11612** unused. Do not whitelist 11612 / 11613 / 11614. |
+| **M602-5** | **P402-4.** LocalTerra in-repo launcher smoke + UI: free create, paid SKU via #595, Manage Save 50 UST1, non-manager read-only, Unverified admin. |
+| **M602-6** | **P402-5.** `/create` is copy-address + link only — no query prefill (**C542-11**). |
+| **M602-7** | **P402-6.** Swap/Trade Max is extra-debit. Catalog lists without a pair; default `attested_cmm` only. Do not reopen #593 / #594 unless **C593** / **I594** is wrong. |
+| **M602-8** | Playbook + this Q9 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -164,3 +183,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_STACK.md`](../skills/AGENTS_POST_MERGE_STACK.md) — post-merge Coolify + indexer stack !368–!377 ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573), **Q6**)
 - [`skills/AGENTS_POST_MERGE_OPS_590.md`](../skills/AGENTS_POST_MERGE_OPS_590.md) — post-merge !394–!396 fees / wrap gas / 8266 A-lcd ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590), **Q7**)
 - [`skills/AGENTS_POST_MERGE_OPS_600.md`](../skills/AGENTS_POST_MERGE_OPS_600.md) — post-merge !400 LocalTerra E9 + columbus-5 USTR→USTC unwrap gas ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600), **Q8**)
+- [`skills/AGENTS_POST_MERGE_OPS_602.md`](../skills/AGENTS_POST_MERGE_OPS_602.md) — post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token ([#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602), **Q9**)

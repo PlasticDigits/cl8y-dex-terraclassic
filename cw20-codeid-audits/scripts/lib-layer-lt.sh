@@ -24,7 +24,13 @@ layer_find_env_local() {
     printf '%s' "$REPO_ROOT/frontend-dapp/.env.local"
     return 0
   fi
-  local sibling
+  local sibling primary
+  # Git worktrees sit beside the primary clone (…/cl8y-dex-terraclassic-wt-*).
+  primary="$(cd "$REPO_ROOT/.." 2>/dev/null && pwd)/cl8y-dex-terraclassic/frontend-dapp/.env.local"
+  if [[ -f "$primary" ]]; then
+    printf '%s' "$primary"
+    return 0
+  fi
   sibling="$(cd "$REPO_ROOT/../.." 2>/dev/null && pwd)/frontend-dapp/.env.local"
   if [[ -f "$sibling" ]]; then
     printf '%s' "$sibling"
