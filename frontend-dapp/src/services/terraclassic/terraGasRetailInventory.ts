@@ -21,6 +21,7 @@
  */
 
 import {
+  PAY_INVOICE_SEND_GAS_LIMIT,
   UNWRAP_GAS_LIMIT,
   UST1_WINDOW_SEND_GAS_LIMIT,
   WRAP_GAS_LIMIT,
@@ -204,6 +205,18 @@ export const RETAIL_GAS_SHAPE_FIXTURES: readonly RetailGasShapeFixture[] = [
     expectedGas: UST1_WINDOW_SEND_GAS_LIMIT,
   },
   {
+    id: 'send_inner_pay_invoice_enable_feature',
+    note: 'invoice payee Send enable_feature (#595)',
+    msg: { send: { msg: b64({ enable_feature: { sku: 'transfer_tax' } }) } },
+    expectedGas: PAY_INVOICE_SEND_GAS_LIMIT,
+  },
+  {
+    id: 'send_inner_pay_invoice_update_settings',
+    note: 'invoice payee Send settings batch (#595)',
+    msg: { send: { msg: b64({ update_settings: { buy_bps: 100 } }) } },
+    expectedGas: PAY_INVOICE_SEND_GAS_LIMIT,
+  },
+  {
     id: 'send_inner_withdraw_liquidity',
     note: 'pair withdrawLiquidity',
     msg: { send: { msg: b64({ withdraw_liquidity: {} }) } },
@@ -301,5 +314,19 @@ export const RETAIL_COMBINED_ENVELOPE_FIXTURES: readonly RetailCombinedEnvelopeF
     note: 'USTR→LUNC router 2-hop + unwrap_output (no wrap msg)',
     msgs: [{ msg: routerSendMsg(2, true) }],
     expectedGas: gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT,
+  },
+  {
+    id: 'wrap_plus_2hop_plus_invoice_send',
+    note: 'LUNC wrap + router 2-hop + invoice Send (#595)',
+    msgs: [
+      { msg: { wrap_deposit: {} } },
+      { msg: routerSendMsg(2) },
+      { msg: { send: { msg: b64({ enable_feature: { sku: 'transfer_tax' } }) } } },
+    ],
+    expectedGas:
+      WRAP_GAS_LIMIT +
+      gasLimitForRouterExecuteSwapOperations(2) +
+      WRAP_ROUTER_COMBO_OVERHEAD_GAS +
+      PAY_INVOICE_SEND_GAS_LIMIT,
   },
 ]

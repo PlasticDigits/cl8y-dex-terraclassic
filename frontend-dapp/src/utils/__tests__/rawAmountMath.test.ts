@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   applyBpsFloor,
+  applySlippagePercentCeiling,
   applySlippagePercentFloor,
   withdrawMinAssetAmounts,
   estimateWithdrawAssetAmounts,
@@ -92,6 +93,20 @@ describe('applySlippagePercentFloor', () => {
 
   it('returns full return at 0% slippage', () => {
     expect(applySlippagePercentFloor(TWO_53_PLUS_1, 0)).toBe(TWO_53_PLUS_1)
+  })
+})
+
+describe('applySlippagePercentCeiling', () => {
+  it('matches 5% exact-out max-in on small amounts', () => {
+    expect(applySlippagePercentCeiling('1000000', 5)).toBe('1050000')
+  })
+
+  it('ceils a non-divisible premium (GitLab #595 invoice max_in)', () => {
+    expect(applySlippagePercentCeiling('3', 5)).toBe('4')
+  })
+
+  it('returns the offer at 0% slippage', () => {
+    expect(applySlippagePercentCeiling(TWO_53_PLUS_1, 0)).toBe(TWO_53_PLUS_1)
   })
 })
 

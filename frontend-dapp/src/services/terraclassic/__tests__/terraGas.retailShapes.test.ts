@@ -87,6 +87,12 @@ describe('combined wrap+router envelopes (GitLab #587)', () => {
     const wrap1 = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_send_1hop')!
     expect(totalGasLimitForExecuteMsgs(wrap1.msgs)).toBe(WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(1))
   })
+
+  it('wrap+2hop+invoice Send exceeds wrap+2hop swap-only (#595)', () => {
+    const swapOnly = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_send_2hop')!
+    const invoice = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_2hop_plus_invoice_send')!
+    expect(totalGasLimitForExecuteMsgs(invoice.msgs)).toBeGreaterThan(totalGasLimitForExecuteMsgs(swapOnly.msgs))
+  })
 })
 
 describe('unmapped gas fallback warn (GitLab #475)', () => {

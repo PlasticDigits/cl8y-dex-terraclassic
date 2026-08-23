@@ -47,11 +47,33 @@ export function applyBpsFloor(rawAmount: string, bps: number): string | null {
 }
 
 /**
+ * Apply a basis-point premium with ceiling semantics (exact-out max-in).
+ * `ceil(raw * (10000 + bps) / 10000)` — never rounds down the user's debit.
+ *
+ * @returns ceiled raw string, or `null` when input is not a valid uint string
+ */
+export function applyBpsCeiling(rawAmount: string, bps: number): string | null {
+  const raw = tryParseBigInt(rawAmount)
+  if (raw === null) return null
+  const clampedBps = Math.min(10000, Math.max(0, Math.trunc(bps)))
+  const factor = BPS_SCALE + BigInt(clampedBps)
+  return ((raw * factor + BPS_SCALE - 1n) / BPS_SCALE).toString()
+}
+
+/**
  * Minimum receive after slippage tolerance (percent, e.g. `1` = 1%).
  * Used for swap `min_received` / `max_spread` protection args.
  */
 export function applySlippagePercentFloor(rawAmount: string, slippagePercent: number): string | null {
   return applyBpsFloor(rawAmount, slippagePercentToBps(slippagePercent))
+}
+
+/**
+ * Maximum pay-token debit after slippage tolerance (percent, e.g. `5` = 5%).
+ * Used for invoice exact-out `max_in` — not for `minimum_receive` (invoice is a floor).
+ */
+export function applySlippagePercentCeiling(rawAmount: string, slippagePercent: number): string | null {
+  return applyBpsCeiling(rawAmount, slippagePercentToBps(slippagePercent))
 }
 
 /**

@@ -30,6 +30,27 @@ export const UST1_ORACLE_CONTRACT_ADDRESS = import.meta.env.VITE_UST1_ORACLE_ADD
  */
 export const UST1_WINDOW_SEND_GAS_LIMIT = 800_000
 
+/**
+ * CW20 Send → payee hook for DEX-routed invoices (GitLab #595).
+ * Same ballpark as a router Send (600k) — launcher `EnableFeature` / settings batch
+ * is one extra execute, not a hop. Combined wrap+N-hop+invoice uses this **plus**
+ * the swap envelope in `totalGasLimitForExecuteMsgs`.
+ */
+export const PAY_INVOICE_SEND_GAS_LIMIT = 600_000
+
+/** Inner CW20 hook keys treated as invoice settlement (#592 / #593 / #597). */
+export const PAY_INVOICE_HOOK_KEYS = [
+  'enable_feature',
+  'create_token',
+  'update_settings',
+  'apply_settings',
+  'subscribe',
+] as const
+
+export function isPayInvoiceHookInner(inner: Record<string, unknown>): boolean {
+  return PAY_INVOICE_HOOK_KEYS.some((key) => key in inner)
+}
+
 const SOFT_LAUNCH_MINTABLE_TOKEN_ENV: { symbol: string; envKey: string }[] = [
   { symbol: 'EMBER', envKey: 'VITE_TOKEN_EMBER_ADDRESS' },
   { symbol: 'CORAL', envKey: 'VITE_TOKEN_CORAL_ADDRESS' },

@@ -46,7 +46,7 @@ export interface SwapOperation {
   }
 }
 
-function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
+export function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
   const out: Record<string, unknown> = {
     offer_asset_info: ts.offer_asset_info,
     ask_asset_info: ts.ask_asset_info,
