@@ -71,6 +71,35 @@ export async function assertTxResultAlert(page: Page, timeoutMs = 90_000): Promi
 }
 
 /**
+ * After a successful wrap/swap submit, LCD `gas_used` must be strictly below
+ * `gas_wanted` (#600 P599-1 / E9). Hash comes from the success-alert explorer
+ * `title` (full tx hash).
+ */
+export async function assertSuccessTxGasUsedLtWanted(
+  page: Page,
+  request: APIRequestContext
+): Promise<{ txHash: string; gasWanted: number; gasUsed: number }> {
+  const success = page.locator('.alert-success').first()
+  await expect(success, 'expected success alert before LCD gas check').toBeVisible()
+  const link = success.locator('a[title]')
+  await expect(link, 'success alert must include explorer tx hash').toHaveCount(1)
+  const txHash = (await link.getAttribute('title'))?.trim() ?? ''
+  expect(txHash, 'explorer title must be a tx hash').toMatch(/^[0-9A-Fa-f]{64}$/)
+
+  const res = await lcdRequestGet(request, `/cosmos/tx/v1beta1/txs/${txHash}`)
+  expect(res.ok, `LCD tx ${txHash} returned ${res.status}`).toBe(true)
+  const body = (await res.json()) as {
+    tx_response?: { gas_wanted?: string; gas_used?: string }
+  }
+  const gasWanted = Number(body.tx_response?.gas_wanted)
+  const gasUsed = Number(body.tx_response?.gas_used)
+  expect(gasUsed, `gas_used for ${txHash}`).toBeGreaterThan(0)
+  expect(gasWanted, `gas_wanted for ${txHash}`).toBeGreaterThan(0)
+  expect(gasUsed, `OOG: gas_used ${gasUsed} >= gas_wanted ${gasWanted} (${txHash})`).toBeLessThan(gasWanted)
+  return { txHash, gasWanted, gasUsed }
+}
+
+/**
  * Optional-chain legacy helper — prefer `assertTxResultAlert` in `e2e-tx` specs.
  * Skips when no alert in optional mode; fails in strict mode.
  */
