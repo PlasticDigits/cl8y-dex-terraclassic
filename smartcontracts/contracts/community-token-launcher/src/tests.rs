@@ -617,5 +617,130 @@ fn create_token_instantiates_and_binds_autolp() {
     assert!(cfg.autolp.is_some(), "AutoLP must be bound at create");
 }
 
+#[test]
+fn enable_feature_manager_path_unlocks_and_forwards_to_cmm() {
+    let mut app = App::default();
+    let manager = Addr::unchecked("manager");
+    let cmm_gov = Addr::unchecked("cmm_gov");
+    let cmm_treas = Addr::unchecked("cmm_treas");
+    let factory = Addr::unchecked("factory");
+
+    let ust1_code = app.store_code(cw20_base_contract());
+    let token_code = app.store_code(token_contract());
+    let launcher_code = app.store_code(launcher_contract());
+    let ust1 = app
+        .instantiate_contract(
+            ust1_code,
+            manager.clone(),
+            &cw20_base::msg::InstantiateMsg {
+                name: "UST1".into(),
+                symbol: "USTT".into(),
+                decimals: 6,
+                initial_balances: vec![Cw20Coin {
+                    address: manager.to_string(),
+                    amount: Uint128::new(500_000_000),
+                }],
+                mint: None,
+                marketing: None,
+            },
+            &[],
+            "ust1",
+            None,
+        )
+        .unwrap();
+    let launcher = app
+        .instantiate_contract(
+            launcher_code,
+            manager.clone(),
+            &InstantiateMsg {
+                token_code_id: token_code,
+                autolp_code_id: None,
+                ust1: ust1.to_string(),
+                cmm_treasury: cmm_treas.to_string(),
+                cmm_governance: cmm_gov.to_string(),
+                factory: factory.to_string(),
+                router: None,
+            },
+            &[],
+            "launcher",
+            Some(cmm_gov.to_string()),
+        )
+        .unwrap();
+
+    let res = app
+        .execute_contract(
+            manager.clone(),
+            launcher.clone(),
+            &ExecuteMsg::CreateToken(Box::new(CreateTokenMsg {
+                name: "Free".into(),
+                symbol: "FREE".into(),
+                decimals: 6,
+                initial_balances: vec![Cw20Coin {
+                    address: manager.to_string(),
+                    amount: Uint128::new(1_000_000),
+                }],
+                manager: manager.to_string(),
+                treasury: manager.to_string(),
+                buy_bps: 500,
+                sell_bps: 500,
+                max_buy_bps: 500,
+                max_sell_bps: 500,
+                max_transfer_bps: 0,
+                features: vec![],
+                mint: None,
+                transfer_bps: None,
+                sinks: None,
+                launch_guards: None,
+                autolp_threshold: None,
+                autolp_lp_recipient: None,
+                initial_exempt: None,
+            })),
+            &[],
+        )
+        .unwrap();
+    let token = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .find(|a| a.key == "community_token" && a.value != "pending")
+        .map(|a| Addr::unchecked(a.value.clone()))
+        .expect("community_token address");
+
+    app.execute_contract(
+        manager.clone(),
+        ust1.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: launcher.to_string(),
+            amount: Uint128::new(INVOICE_UST1),
+            msg: cosmwasm_std::to_json_binary(&InvoiceHookMsg::EnableFeature {
+                token: token.to_string(),
+                sku: Sku::TransferTax,
+            })
+            .unwrap(),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let feats: cl8y_community_tax_token::msg::FeaturesResponse = app
+        .wrap()
+        .query_wasm_smart(
+            &token,
+            &cl8y_community_tax_token::msg::QueryMsg::GetFeatures {},
+        )
+        .unwrap();
+    assert!(feats.transfer_tax);
+    let bal: cw20::BalanceResponse = app
+        .wrap()
+        .query_wasm_smart(
+            &ust1,
+            &cw20::Cw20QueryMsg::Balance {
+                address: cmm_treas.to_string(),
+            },
+        )
+        .unwrap();
+    assert_eq!(bal.balance.u128(), INVOICE_UST1);
+}
+
 #[allow(dead_code)]
 fn _token_init(_: TokenInit) {}

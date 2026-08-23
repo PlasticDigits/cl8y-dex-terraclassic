@@ -24,4 +24,10 @@ pub enum ContractError {
 
     #[error("{0}")]
     Token(#[from] cl8y_community_tax_token::error::ContractError),
+
+    #[error("Unauthorized")]
+    Unauthorized {},
+
+    #[error("Duplicate SKU {sku} in create invoice")]
+    DuplicateSku { sku: String },
 }

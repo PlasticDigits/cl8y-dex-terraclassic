@@ -1,8 +1,9 @@
 //! Security-audit PoC tests (internal audit, 2026-08-23).
 //!
 //! Each test is a minimal reproduction of a finding in `audits/INTERNAL_KIMIK3_*.md`.
-//! H-1 / M-1 (#605) and H-3 / H-4 (#608) are inverted. Remaining PoCs still
-//! demonstrate residuals.
+//! H-1 / M-1 (#605) and H-3 / H-4 (#608) are inverted. C-1 / H-2 (**#606**)
+//! are inverted (official launcher Enable Feature + unique SKUs). Remaining PoCs
+//! still demonstrate residuals.
 
 use cosmwasm_std::{to_json_binary, Addr, Binary, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -458,20 +459,20 @@ fn default_instantiate(
 }
 
 // ============================================================================
-// PoC 1 (C-1): launcher `enable_feature` invoice path is broken on-chain.
+// PoC 1 (C-1): inverted (#606) — official launcher Enable Feature succeeds.
 // ============================================================================
 #[test]
 fn poc_launcher_enable_feature_always_unauthorized() {
     let mut hub = setup(Some("router"));
     let token = create_free(&mut hub, "manager", create_token_msg(vec![]));
+    let cmm_before = bal(&hub.app, &hub.ust1, "cmm");
 
     let hook = to_json_binary(&LauncherInvoice::EnableFeature {
         token: token.to_string(),
         sku: Sku::TransferTax,
     })
     .unwrap();
-    let err = hub
-        .app
+    hub.app
         .execute_contract(
             Addr::unchecked("manager"),
             hub.ust1.clone(),
@@ -482,35 +483,108 @@ fn poc_launcher_enable_feature_always_unauthorized() {
             },
             &[],
         )
-        .unwrap_err();
-    let msg = format!("{err:?}");
-    assert!(
-        msg.contains("Unauthorized"),
-        "expected token Unauthorized via launcher path, got: {msg}"
-    );
+        .unwrap();
 
     let feats: FeaturesResponse = hub
         .app
         .wrap()
         .query_wasm_smart(token.clone(), &TokenQuery::GetFeatures {})
         .unwrap();
-    assert!(!feats.transfer_tax);
+    assert!(feats.transfer_tax);
+    assert_eq!(
+        bal(&hub.app, &hub.ust1, "cmm") - cmm_before,
+        UST1_INVOICE,
+        "CMM must receive the 50 UST1 invoice"
+    );
+
+    // Non-manager cannot unlock via launcher (T606-2).
+    hub.app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            hub.ust1.clone(),
+            &Cw20ExecuteMsg::Transfer {
+                recipient: "attacker".into(),
+                amount: Uint128::new(UST1_INVOICE),
+            },
+            &[],
+        )
+        .unwrap();
+    let err = hub
+        .app
+        .execute_contract(
+            Addr::unchecked("attacker"),
+            hub.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: hub.launcher.to_string(),
+                amount: Uint128::new(UST1_INVOICE),
+                msg: to_json_binary(&LauncherInvoice::EnableFeature {
+                    token: token.to_string(),
+                    sku: Sku::VariableRates,
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("Unauthorized"),
+        "non-manager launcher EnableFeature: {err:?}"
+    );
+    let feats: FeaturesResponse = hub
+        .app
+        .wrap()
+        .query_wasm_smart(token, &TokenQuery::GetFeatures {})
+        .unwrap();
+    assert!(!feats.variable_rates);
 }
 
 // ============================================================================
-// PoC 2 (H-2): duplicate SKUs in a create invoice are double-charged.
+// PoC 2 (H-2): inverted (#606) — duplicate SKUs are rejected; fee not kept.
 // ============================================================================
 #[test]
 fn poc_launcher_duplicate_sku_double_charge() {
     let mut hub = setup(Some("router"));
     let cmm_before = bal(&hub.app, &hub.ust1, "cmm");
     let msg = create_token_msg(vec![Sku::TransferTax, Sku::TransferTax]);
-    let _token = create_paid(&mut hub, "manager", msg, UST1_INVOICE * 2);
-    let cmm_after = bal(&hub.app, &hub.ust1, "cmm");
+    let hook = to_json_binary(&LauncherInvoice::CreateToken(Box::new(msg))).unwrap();
+    let err = hub
+        .app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            hub.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: hub.launcher.to_string(),
+                amount: Uint128::new(UST1_INVOICE * 2),
+                msg: hook,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("Duplicate SKU"),
+        "expected DuplicateSku, got: {err:?}"
+    );
     assert_eq!(
-        cmm_after - cmm_before,
+        bal(&hub.app, &hub.ust1, "cmm"),
+        cmm_before,
+        "duplicate SKU must not take the invoice"
+    );
+
+    let token = create_paid(
+        &mut hub,
+        "manager",
+        create_token_msg(vec![Sku::TransferTax, Sku::VariableRates]),
         UST1_INVOICE * 2,
-        "duplicate SKU charged twice for one feature"
+    );
+    let feats: FeaturesResponse = hub
+        .app
+        .wrap()
+        .query_wasm_smart(token, &TokenQuery::GetFeatures {})
+        .unwrap();
+    assert!(feats.transfer_tax && feats.variable_rates);
+    assert_eq!(
+        bal(&hub.app, &hub.ust1, "cmm") - cmm_before,
+        UST1_INVOICE * 2
     );
 }
 

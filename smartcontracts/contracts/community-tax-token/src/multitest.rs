@@ -1124,6 +1124,106 @@ fn enable_launch_guards(e: &mut EnvTok, max_wallet: Option<Uint128>, cooldown_bl
         .unwrap();
 }
 
+#[test]
+fn enable_feature_origin_launcher_ok_settings_still_manager_only() {
+    let mut e = clean(vec![], None);
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Transfer {
+                recipient: "launcher".into(),
+                amount: Uint128::new(INVOICE_UST1 * 2),
+            },
+            &[],
+        )
+        .unwrap();
+
+    e.app
+        .execute_contract(
+            Addr::unchecked("launcher"),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::EnableFeature {
+                    sku: Sku::TransferTax,
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap();
+    let feats: FeaturesResponse = e
+        .app
+        .wrap()
+        .query_wasm_smart(&e.token, &QueryMsg::GetFeatures {})
+        .unwrap();
+    assert!(feats.transfer_tax);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), INVOICE_UST1);
+
+    let err = e
+        .app
+        .execute_contract(
+            Addr::unchecked("launcher"),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
+                    settings: SettingsBatch {
+                        buy_bps: Some(0),
+                        ..Default::default()
+                    },
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("Unauthorized"));
+}
+
+#[test]
+fn enable_feature_non_manager_non_launcher_unauthorized() {
+    let mut e = clean(vec![], None);
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Transfer {
+                recipient: e.user.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+            },
+            &[],
+        )
+        .unwrap();
+    let err = e
+        .app
+        .execute_contract(
+            e.user.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::EnableFeature {
+                    sku: Sku::TransferTax,
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("Unauthorized"));
+    let feats: FeaturesResponse = e
+        .app
+        .wrap()
+        .query_wasm_smart(&e.token, &QueryMsg::GetFeatures {})
+        .unwrap();
+    assert!(!feats.transfer_tax);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
 fn sell_to_pair(e: &mut EnvTok, who: &str, amount: u128) {
     e.app
         .execute_contract(

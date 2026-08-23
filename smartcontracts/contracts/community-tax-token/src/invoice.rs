@@ -23,11 +23,8 @@ pub fn execute_receive(
         return Err(ContractError::InvoiceToken {});
     }
     let payer = deps.api.addr_validate(&cw20.sender)?;
-    if payer != config.manager {
-        return Err(ContractError::Unauthorized {});
-    }
-
     let hook: InvoiceHookMsg = cosmwasm_std::from_json(&cw20.msg)?;
+    assert_invoice_payer(&payer, &config, &hook)?;
     match hook {
         InvoiceHookMsg::EnableFeature { sku } => {
             assert_exact_invoice(cw20.amount)?;
@@ -36,6 +33,32 @@ pub fn execute_receive(
         InvoiceHookMsg::UpdateSettings { settings } => {
             assert_exact_invoice(cw20.amount)?;
             update_settings(deps, &config, settings, cw20.amount)
+        }
+    }
+}
+
+/// **T606-3 / T606-4** — `UpdateSettings` is manager-only. `EnableFeature` also
+/// accepts **this token's** `origin.launcher` so the official dApp path
+/// (manager → launcher → token) can succeed. Arbitrary contracts stay unauthorized.
+fn assert_invoice_payer(
+    payer: &Addr,
+    config: &Config,
+    hook: &InvoiceHookMsg,
+) -> Result<(), ContractError> {
+    match hook {
+        InvoiceHookMsg::EnableFeature { .. } => {
+            if payer == config.manager || config.launcher.as_ref() == Some(payer) {
+                Ok(())
+            } else {
+                Err(ContractError::Unauthorized {})
+            }
+        }
+        InvoiceHookMsg::UpdateSettings { .. } => {
+            if payer == config.manager {
+                Ok(())
+            } else {
+                Err(ContractError::Unauthorized {})
+            }
         }
     }
 }

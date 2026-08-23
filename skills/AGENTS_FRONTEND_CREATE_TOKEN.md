@@ -2,7 +2,7 @@
 
 Use when changing `/token/create`, `/token/:addr/manage`, `/tokens`, community-tax Swap max, or launcher invoice checkout.
 
-Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); identity + wallet helpers [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent taxes [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595); post-merge Coolify / LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); router hops Honest [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) ([`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md)); ExemptionDirectory full tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)).
+Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); identity + wallet helpers [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent taxes [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); Enable Feature path [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) ([`AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](./AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595); post-merge Coolify / LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); router hops Honest [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) ([`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md)); ExemptionDirectory full tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)).
 
 ## Canonical references
 
@@ -17,6 +17,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [`communityTaxInvoice.ts`](../frontend-dapp/src/utils/communityTaxInvoice.ts) | Hooks + invoices |
 | [`AGENTS_FRONTEND_PAY_INVOICE.md`](./AGENTS_FRONTEND_PAY_INVOICE.md) | Shared Pay card |
 | [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) | On-chain SKUs |
+| [`AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](./AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md) | Official Enable Feature path (**T606**) |
 | [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) | Catalog API |
 
 ## Invariants **C593-1–C593-14**
@@ -24,7 +25,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 1. **C593-1 — env gate.** Pages + More-menu **Create Token** live only when `VITE_COMMUNITY_TAX_CODE_ID` and `VITE_COMMUNITY_TOKEN_LAUNCHER` are set. Unset → unavailable (Mint/Wrap pattern).
 2. **C593-2 — names.** Nav label is **Create Token**. Never Mint (faucet) or Create Pair.
 3. **C593-3 — pay card.** Paid SKUs and settings Save **import** `PayWithAnyToken`. Do not assemble router ops on these pages.
-4. **C593-4 — invoices.** Create = `50 UST1 × SKU count` to the **env launcher**. Enable Feature = 50 UST1 to the launcher. Save = **50 UST1 flat** to the **token**. Mint is not invoiced.
+4. **C593-4 — invoices.** Create = `50 UST1 × unique SKU count` to the **env launcher**. Enable Feature = 50 UST1 to the **launcher** (official path; **T606-1**). Save = **50 UST1 flat** to the **token**. Mint is not invoiced. Do not retarget Enable Feature at the token.
 5. **C593-5 — MintControl.** Create-only. Manage unlock list must omit Minting.
 6. **C593-6 — manager gate.** Submit compares connected wallet to LCD `GetConfig.manager`, not a URL param. Non-manager is read-only; config stays visible.
 7. **C593-7 — unverified admin.** LCD `ContractInfo.admin ≠ CMM` → **Unverified admin** banner.
@@ -55,6 +56,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 make verify-issue-593
 make verify-issue-604
 make verify-issue-605
+make verify-issue-606
 make verify-issue-607
 make verify-issue-602
 ```

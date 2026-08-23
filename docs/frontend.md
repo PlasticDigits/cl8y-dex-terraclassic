@@ -682,7 +682,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-1** Env gate | `VITE_COMMUNITY_TAX_CODE_ID` + `VITE_COMMUNITY_TOKEN_LAUNCHER`. Unset → unavailable + hidden More item. |
 | **C593-2** Names | **Create Token** ≠ Mint ≠ Create Pair. |
 | **C593-3** Pay card | SKU + settings Save import `PayWithAnyToken` (**I595**). |
-| **C593-4** Invoices | Create `N × 50 UST1` → launcher; Enable Feature 50 → launcher; Save **50 UST1 flat** → token. Mint unpaid. |
+| **C593-4** Invoices | Create `N × 50 UST1` (unique SKUs) → launcher; Enable Feature 50 → **launcher** (official path, [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) **T606-1**); Save **50 UST1 flat** → token. Mint unpaid. |
 | **C593-5** MintControl | Create-only. |
 | **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
 | **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |

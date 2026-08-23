@@ -1,6 +1,7 @@
 use cl8y_community_tax_autolp::msg::InstantiateMsg as AutolpInit;
 use cl8y_community_tax_token::msg::{
-    ExecuteMsg as TokenExecute, InstantiateMsg as TokenInit, InvoiceHookMsg, Sku, INVOICE_UST1,
+    ConfigResponse as TokenConfigResponse, ExecuteMsg as TokenExecute, InstantiateMsg as TokenInit,
+    InvoiceHookMsg, LauncherOriginResponse, QueryMsg as TokenQuery, Sku, INVOICE_UST1,
 };
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
@@ -86,7 +87,7 @@ fn execute_receive(
     match hook {
         LauncherHook::CreateToken(args) => create_token(deps, env, cfg, cw20.amount, *args),
         LauncherHook::EnableFeature { token, sku } => {
-            enable_feature(deps, cfg, cw20.amount, token, sku)
+            enable_feature(deps, env, cfg, cw20.amount, &cw20.sender, token, sku)
         }
     }
 }
@@ -100,7 +101,7 @@ fn create_token(
 ) -> Result<Response, ContractError> {
     cl8y_community_tax_token::identity::validate_identity(&args.name, &args.symbol, args.decimals)?;
     reject_create_sku_payloads(&args)?;
-
+    assert_unique_skus(&args.features)?;
     let paid_skus = args.features.len() as u128;
     let required = Uint128::new(INVOICE_UST1)
         .checked_mul(Uint128::new(paid_skus))
@@ -236,10 +237,24 @@ fn reject_create_sku_payloads(args: &CreateTokenMsg) -> Result<(), ContractError
     Ok(())
 }
 
+/// Reject duplicate SKU names before multiplying the 50 UST1 invoice (**T606-5**).
+fn assert_unique_skus(features: &[Sku]) -> Result<(), ContractError> {
+    for (i, a) in features.iter().enumerate() {
+        if features[i + 1..].iter().any(|b| a == b) {
+            return Err(ContractError::DuplicateSku {
+                sku: a.as_str().to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
 fn enable_feature(
     deps: DepsMut,
+    env: Env,
     cfg: Config,
     paid: Uint128,
+    payer: &str,
     token: String,
     sku: Sku,
 ) -> Result<Response, ContractError> {
@@ -254,6 +269,22 @@ fn enable_feature(
         });
     }
     let token = deps.api.addr_validate(&token)?;
+    let payer = deps.api.addr_validate(payer)?;
+
+    // **T606-2** — only the token's manager may buy a SKU via this launcher.
+    let token_cfg: TokenConfigResponse = deps
+        .querier
+        .query_wasm_smart(token.clone(), &TokenQuery::GetConfig {})?;
+    if payer != token_cfg.manager {
+        return Err(ContractError::Unauthorized {});
+    }
+    let origin: LauncherOriginResponse = deps
+        .querier
+        .query_wasm_smart(token.clone(), &TokenQuery::GetLauncherOrigin {})?;
+    if origin.launcher.as_ref() != Some(&env.contract.address) {
+        return Err(ContractError::Unauthorized {});
+    }
+
     // Forward the same UST1 to the token so EnableFeature is atomic there.
     // Launcher already received `paid`; send it onward with the hook, then the
     // token forwards to CMM. To avoid a double-forward, launcher sends to token

@@ -4,7 +4,7 @@ Use when changing the **community tax token**, **launcher**, or **AutoLP** siste
 
 This is the **only** tax-token exception to **H-01**. It is DEX-safe because inbound credits to pair / router / escrow / AutoLP stay **1:1**. Do **not** add pair/router FoT balance-delta math. Factory `AddWhitelistedCodeId` is a **separate ops step** after `#589` REPORT **GO**.
 
-Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)); identity [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) (**I595-14** — launcher/token still accept UST1 `Send` only); post-merge Coolify + LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); router hops Honest [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) ([`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md)); LaunchGuards liveness [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608) ([`AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](./AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) **H608-1–H608-8**); ExemptionDirectory buy/sell/transfer skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)).
+Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)); identity [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); Enable Feature path + SKU dedupe [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) ([`AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](./AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) (**I595-14** — launcher/token still accept UST1 `Send` only); post-merge Coolify + LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); router hops Honest [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) ([`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md)); LaunchGuards liveness [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608) ([`AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](./AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) **H608-1–H608-8**); ExemptionDirectory buy/sell/transfer skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)).
 
 ## Canonical references
 
@@ -40,7 +40,7 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 3. **O601-3 — free-profile launcher create.** `features == []` uses `ExecuteMsg::CreateToken` (CW20 cannot `Send` 0). Paid SKUs stay on UST1 `Send`. Stamps token `admin: cmm_governance` and `GetLauncherOrigin`. Canonical columbus-5 launcher is **11614** (`terra126pr5…ahzwze`). **11612** (`terra1af9xm…`) predates this execute and is not migratable (CMM treasury wasm admin); leave unused.
 4. **O601-4 — catalog filter.** Rogue `--admin` instantiate has `GetLauncherOrigin.launcher == null`. dApp (#593) / indexer (#594) must require CMM admin + origin.
 5. **O601-5 — listed-pair tax.** After `RegisterListedPair`, sell extra-debit + buy outbound split match `TaxPreview` (max-button). Provide `TransferFrom` stays 1:1. Layer B-lt does **not** register the pair (1:1 harness).
-6. **O601-6 — invoices on chain.** SKU unlock and settings batch are each exactly 50 UST1. MintControl `RevokeMint` is one-way.
+6. **O601-6 — invoices on chain.** SKU unlock and settings batch are each exactly 50 UST1. Smoke SKU unlock must Send to the **launcher** (same as the dApp; **T606-7**). MintControl `RevokeMint` is one-way.
 7. **O601-7 — DEX residuals stay out.** Hybrid / live zap / AutoLP `SkimToLp` vs a live router are **not** #601 close gates (issue body §5). Router multi-hop tax is **T592-13** (Honest hops, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) option 1) — not an open classify bug.
 
 Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra-community-tax-smoke.sh). Gate: `make verify-issue-601`.
@@ -50,7 +50,7 @@ Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra
 1. **T592-1 — inbound 1:1.** Transfers **to** pair, router, this token, AutoLP, or other protocol-exempt addresses credit exactly `amount`. Classic inbound FoT still fails `fee_on_transfer_creates_reserve_imbalance`.
 2. **T592-2 — sell extra-debit.** `Send` to a registered listed pair with `Cw20HookMsg::Swap` **from a non-protocol-exempt `from`** debits `amount + tax` and credits the pair `amount`.
 3. **T592-3 — buy outbound split.** `Transfer`/`Send` **from** a registered listed pair **to a non-protocol-exempt `to`** debits the pair `amount`; trader + sinks = `amount`.
-4. **T592-4 — invoices.** SKU unlock and settings batch are each **exactly 50 UST1** (`50000000`). Forwarded to CMM treasury. Wrong token / wrong amount / no-op / unactivated SKU → revert, fee not kept. Do not mix `EnableFeature` into a settings batch.
+4. **T592-4 — invoices.** SKU unlock and settings batch are each **exactly 50 UST1** (`50000000`). Forwarded to CMM treasury. Wrong token / wrong amount / no-op / unactivated SKU → revert, fee not kept. Do not mix `EnableFeature` into a settings batch. Official post-create SKU unlock is manager → **launcher** → token: `origin.launcher` is authorized for `EnableFeature` only (**T606-1–T606-4**, [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606)). `UpdateSettings` stays manager-only.
 5. **T592-5 — CMM wasm admin.** Launcher `Instantiate { admin: cmm_governance }`. Manager cannot migrate or `UpdateAdmin`. Rogue instantiate with another admin is not catalog-promoted (`GetLauncherOrigin`).
 6. **T592-6 — MintControl instantiate-only.** `RevokeMint` is one-way and requires a settings invoice. `Mint` itself is not invoiced.
 7. **T592-7 — classification.** Provide (`TransferFrom`) and limit `PlaceLimitOrder*` `Send` are 1:1. Pair→EOA `Transfer` (swap receive / withdraw / limit refund) uses **buy tax** — same CosmWasm primitive; documented, not a pair wasm change. Router hops are Honest (**T592-13**). Manager-directory wallets skip **buy, sell, and transfer** tax (**#609** / **E609-1**); launch guards still use the economic kind (**E609-2** / **T592-11**).
@@ -63,7 +63,7 @@ Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra
 
 ## Launcher UST1 hook
 
-`community-token-launcher` `Receive` accepts UST1 only. Exact invoice: `50 UST1 × SKU count` on create; `50 UST1` on later `EnableFeature`. **O601-3:** zero-SKU free profile is `ExecuteMsg::CreateToken` (no UST1).
+`community-token-launcher` `Receive` accepts UST1 only. Exact invoice: `50 UST1 × unique SKU count` on create (duplicate names **reject**, **T606-5**); `50 UST1` on later `EnableFeature`. **O601-3:** zero-SKU free profile is `ExecuteMsg::CreateToken` (no UST1).
 
 | Path | JSON |
 |------|------|
@@ -83,6 +83,7 @@ Token-only extra-debit sell + outbound buy. `SetPairHooks` stays governance-only
 make verify-issue-592
 make verify-issue-604
 make verify-issue-605
+make verify-issue-606
 make verify-issue-607
 make verify-issue-608
 make verify-issue-609

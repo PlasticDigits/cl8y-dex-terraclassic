@@ -4,6 +4,7 @@ import {
   buildEnableFeatureInvoice,
   buildSettingsBatchInvoice,
   settingsBatchIsEmpty,
+  uniqueCommunityTaxSkus,
 } from './communityTaxInvoice'
 
 const LAUNCHER = 'terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz'
@@ -40,6 +41,30 @@ describe('communityTaxInvoice (#593)', () => {
     const ct = hook.create_token as { max_buy_bps: number; max_sell_bps: number; max_transfer_bps: number }
     expect(ct.max_buy_bps + ct.max_sell_bps + ct.max_transfer_bps).toBeLessThanOrEqual(2500)
     expect(JSON.stringify(hook)).not.toContain('increase_allowance')
+  })
+
+  it('create unique-sets duplicate SKUs so the invoice is charged once (#606)', () => {
+    expect(uniqueCommunityTaxSkus(['transfer_tax', 'transfer_tax', 'variable_rates'])).toEqual([
+      'transfer_tax',
+      'variable_rates',
+    ])
+    const invoice = buildCreateTokenInvoice({
+      launcher: LAUNCHER,
+      ust1: UST1,
+      args: {
+        name: 'Demo',
+        symbol: 'DEMO',
+        decimals: 6,
+        initialBalances: [],
+        manager: MANAGER,
+        treasury: MANAGER,
+        buyBps: 100,
+        sellBps: 100,
+        features: ['transfer_tax', 'transfer_tax'],
+      },
+    })
+    expect(invoice.invoiceAmount).toBe('50000000')
+    expect((decodeHook(invoice.hookMsg).create_token as { features: string[] }).features).toEqual(['transfer_tax'])
   })
 
   it('Enable Feature invoices 50 UST1 to the launcher, not a URL payee', () => {
