@@ -9,6 +9,9 @@ members = [
   "contracts/hooks/burn-hook",
   "contracts/hooks/tax-hook",
   "contracts/hooks/lp-burn-hook",
+  "contracts/community-tax-token",
+  "contracts/community-tax-autolp",
+  "contracts/community-token-launcher",
   "packages/dex-common",
   "tests",
 ]

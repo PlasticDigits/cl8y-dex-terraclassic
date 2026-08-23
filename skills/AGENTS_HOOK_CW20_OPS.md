@@ -14,6 +14,7 @@ Use when hardening or verifying post-swap hooks, factory CW20 whitelist policy, 
 ## Ops docs
 
 - CW20 whitelist: [`docs/runbooks/cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md)
+- Community tax template (named **H-01** exception, inbound 1:1): [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md); `make verify-issue-592`
 - Code-ID intake (#589): [`AGENTS_CW20_CODE_ID_AUDIT.md`](./AGENTS_CW20_CODE_ID_AUDIT.md); `make verify-issue-589`
 - Hook registration: [`docs/runbooks/hook-registration.md`](../docs/runbooks/hook-registration.md)
 - Code ID LCD check: `bash scripts/verify-cw20-code-ids.sh`

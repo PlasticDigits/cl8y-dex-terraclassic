@@ -362,3 +362,35 @@ Any contract implementing this interface can be registered as a post-swap hook v
 | Variant     | Fields                                                                                         |
 |-------------|------------------------------------------------------------------------------------------------|
 | `AfterSwap` | `pair`, `sender`, `offer_asset: Asset`, `return_asset: Asset`, `commission_amount`, `spread_amount` |
+
+---
+
+## Community tax CW20 (GitLab #592)
+
+In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-token-launcher` + `cl8y-community-tax-autolp`. Pair/router swap math is **unchanged**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../skills/AGENTS_COMMUNITY_TAX_CW20.md). Invariants **T592-1–T592-12**.
+
+### Classification (T592-7)
+
+| Path | Tax |
+|------|-----|
+| `Send` to a `RegisterListedPair` pair with `Cw20HookMsg::Swap` | **Sell** extra-debit (`debit = amount + tax`, pair credit = `amount`) |
+| `Transfer` / `Send` **from** a listed pair to a non-protocol-exempt address | **Buy** outbound split (pair debit = `amount`) — also withdraw / limit refund |
+| `TransferFrom` to a pair (provide) | **Honest** 1:1 |
+| `Send` + `PlaceLimitOrder*` | **Honest** 1:1 |
+| Wallet↔wallet with TransferTax SKU | Transfer tax (never on protocol addresses) |
+
+`TaxPreview { from, to, amount, send_msg }` matches execute. dApp max-sell must size extra-debit.
+
+### Invoices
+
+Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) routes any token off-chain).
+
+- Token `EnableFeature { sku }` — not MintControl (instantiate-only).
+- Token `UpdateSettings { settings }` — one flat 50 UST1 for the whole already-activated batch. No-op / unactivated SKU / non-manager → revert, fee not kept.
+- Launcher UST1 `Send` hook: `create_token` is a **newtype** (`CreateTokenMsg` fields as the object); `enable_feature` is `{ token, sku }`. JSON is `{"create_token":{…fields…}}` / `{"enable_feature":{…}}`. Instantiate stamps `admin: cmm_governance`. AutoLP sibling instantiate in the same create tx is **not** wired in v1 (SKU may be paid; bind later).
+
+### Listing
+
+Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Stub: [`cw20-codeid-audits/codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) is **NO-GO** until store. Do not whitelist **8654**.
+
+`make verify-issue-592`.
