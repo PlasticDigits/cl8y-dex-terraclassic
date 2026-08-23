@@ -145,6 +145,22 @@ export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
  */
 export const WRAP_ROUTER_COMBO_OVERHEAD_GAS = 400_000
 /**
+ * Same-msg router `execute_swap_operations` (N≥2) + `unwrap_output`
+ * ([GitLab #599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)).
+ *
+ * Analog of {@link WRAP_ROUTER_COMBO_OVERHEAD_GAS}: hop floors + mapper
+ * {@link UNWRAP_GAS_LIMIT} do not include InstantWithdraw after two hub hops
+ * (taxed `uusd` bank sends). Columbus-5 USTR→USTC OOGed at the 2.71M sum
+ * (1.91M hops + 800k unwrap). Applied only for N≥2 so direct cUSTC→USTC
+ * mapper unwrap stays 800k and router 1-hop + unwrap stays 2.2M.
+ *
+ * No failed `gasUsed` was attached to #599; 400k matches the wrap combo
+ * class. Envelope **3,110,000** (~88.09 LUNC at 28.325) — tens-of-LUNC,
+ * not hybrid 15M. Raise this named combo (not UNWRAP_GAS_LIMIT) if a
+ * measured used still exceeds 3.11M.
+ */
+export const UNWRAP_ROUTER_COMBO_OVERHEAD_GAS = 400_000
+/**
  * CW20 `send` → wrap-mapper `{ unwrap }` (and router `unwrap_output` add-on).
  *
  * Mainnet columbus-5 LCD `/cosmos/tx/v1beta1/simulate` (signer terra1xsecn…, cLUNC→mapper):
@@ -154,6 +170,8 @@ export const WRAP_ROUTER_COMBO_OVERHEAD_GAS = 400_000
  * - wrap_deposit stays ~303k (WRAP_GAS_LIMIT 400k remains OK)
  *
  * Ceiling **800k** (~1.4× sim) so ReadFlat/WriteFlat headroom survives state growth.
+ * Hub USTR→USTC InstantWithdraw after N≥2 hops uses {@link UNWRAP_ROUTER_COMBO_OVERHEAD_GAS}
+ * on top — do not raise this floor for every unwrap (#599).
  */
 export const UNWRAP_GAS_LIMIT = 800_000
 

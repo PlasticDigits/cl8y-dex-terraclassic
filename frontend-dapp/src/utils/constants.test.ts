@@ -4,6 +4,7 @@ import {
   GAS_PRICE_ULUNA,
   WRAP_GAS_LIMIT,
   UNWRAP_GAS_LIMIT,
+  UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
   NATIVE_WRAPPED_PAIRS,
   WRAPPED_NATIVE_PAIRS,
 } from './constants'
@@ -57,6 +58,10 @@ describe('wrap constants', () => {
   it('UNWRAP_GAS_LIMIT is above mainnet LCD sim (~562k) with headroom', () => {
     expect(UNWRAP_GAS_LIMIT).toBeGreaterThan(562_459)
     expect(UNWRAP_GAS_LIMIT).toBe(800_000)
+  })
+
+  it('UNWRAP_ROUTER_COMBO_OVERHEAD_GAS is wrap-combo analog (#599)', () => {
+    expect(UNWRAP_ROUTER_COMBO_OVERHEAD_GAS).toBe(400_000)
   })
 
   it('NATIVE_WRAPPED_PAIRS contains uluna and uusd', () => {

@@ -104,7 +104,8 @@ export type NativeSwapFeeHints = {
 /**
  * Execute msgs matching `executeNativeSwap` so Max / Network fee / broadcast share one envelope
  * ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213),
- * [#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)).
+ * [#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587),
+ * [#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)).
  */
 export function nativeSwapFeeExecuteMsgs(hints: NativeSwapFeeHints): Array<{ msg: Record<string, unknown> }> {
   if (hints.isDirectWrap) {

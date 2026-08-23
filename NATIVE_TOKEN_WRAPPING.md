@@ -18,7 +18,7 @@ flowchart LR
     end
 ```
 
-Gas for the combined wrap + router multi-msg tx is **not** wrap-alone + hop-alone. Wrap+≥2hop adds `WRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k) so LUNC→USTR does not OOG ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)). See [`docs/frontend.md` § Terra Classic gas limits](./docs/frontend.md#terra-classic-gas-limits) and [`skills/AGENTS_TERRACLASSIC_GAS.md`](./skills/AGENTS_TERRACLASSIC_GAS.md).
+Gas for the combined wrap + router multi-msg tx is **not** wrap-alone + hop-alone. Wrap+≥2hop adds `WRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k) so LUNC→USTR does not OOG ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)). Same-msg router `unwrap_output` after N≥2 hops adds `UNWRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k) so USTR→USTC InstantWithdraw does not OOG at the 2.71M hop+unwrap sum ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)). Direct mapper unwrap stays 800k. See [`docs/frontend.md` § Terra Classic gas limits](./docs/frontend.md#terra-classic-gas-limits) and [`skills/AGENTS_TERRACLASSIC_GAS.md`](./skills/AGENTS_TERRACLASSIC_GAS.md).
 
 The router does NOT accept native token input directly. Instead, the frontend builds multi-message transactions:
 - **Input wrapping**: Msg 1 = `treasury.WrapDeposit()` (native funds go directly to treasury = 1 tax event), Msg 2 = CW20 send to router.

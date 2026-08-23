@@ -30,7 +30,7 @@ Issue **#596 is implemented**. Indexer `GET /api/v1/route/solve?pool_only=true` 
 4. **H596-4 — pool-only is integrator-only.** Official dApp must not send `pool_only=true`. Integrators who want v2-LP-only quotes use indexer GET `pool_only=true` or their own frontend.
 5. **H596-5 — degraded fallback is not opt-out.** If indexer GET fails, LCD `simulateSwap` / pool-only hybrid may still quote so the ticket is not stuck. That is transport degradation, not a user control.
 6. **H596-6 — quote = execute.** Submit uses solver `hybrid` from `indexerOperations` (`hybridFromSingleHopIndexerOps`) or the Advanced override split. Do not show a pool-only receive line while a manual book leg is configured (**#418**).
-7. **H596-7 — wrap / native unchanged.** Direct wrap/unwrap and native denom routes are not CW20 Pattern C hybrid. Do not force a book leg there.
+7. **H596-7 — wrap / native unchanged.** Direct wrap/unwrap and native denom routes are not CW20 Pattern C hybrid. Do not force a book leg there. USTR→USTC gas is the unwrap+≥2hop combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)), not hybrid 15M — see [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md).
 8. **H596-8 — gas assumes hybrid.** Trade market `estimateMarketPairSwapSequenceUlunaFeesTotal(true, …)` / `marketUsesHybrid={true}`. Do not reserve pool-only gas for the retail market ticket.
 
 ## Rules of thumb

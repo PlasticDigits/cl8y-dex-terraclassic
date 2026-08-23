@@ -297,6 +297,21 @@ describe('gas limit selection (tested indirectly)', () => {
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
     expect(fee.gasLimit).toBeGreaterThanOrEqual(BigInt(1_400_000 + 800_000))
+    expect(fee.gasLimit).toBe(BigInt(1_400_000 + 800_000))
+  })
+
+  it('adds unwrap combo on 2-hop unwrap_output (#599)', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        execute_swap_operations: {
+          operations: [{ terra_swap: {} }, { terra_swap: {} }],
+          max_spread: '0.01',
+          unwrap_output: true,
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(3_110_000))
   })
 
   it('uses buffered pool-only gas for send with inner swap msg (GitLab #134)', async () => {
@@ -539,12 +554,15 @@ describe('estimateNativeSwapUlunaFeesTotal (GitLab #213 / #587)', () => {
   })
 
   it('unwrap_output 2-hop matches send-only envelope; wrap+2hop+unwrap is larger', () => {
-    const unwrap2 = estimateNativeSwapUlunaFeesTotal({
+    const unwrap2Hints = {
       isDirectWrap: false,
       needsWrapInput: false,
       needsUnwrapOutput: true,
       hopCount: 2,
-    })
+    }
+    const unwrap2 = estimateNativeSwapUlunaFeesTotal(unwrap2Hints)
+    expect(nativeSwapFeeExecuteMsgs(unwrap2Hints)).toHaveLength(1)
+    expect(unwrap2).toBe(estimateFeeUlunaAmountForGasLimit(3_110_000))
     const wrap2 = estimateNativeSwapUlunaFeesTotal({
       isDirectWrap: false,
       needsWrapInput: true,
@@ -559,6 +577,11 @@ describe('estimateNativeSwapUlunaFeesTotal (GitLab #213 / #587)', () => {
     expect(unwrap2).toBeGreaterThan(0n)
     expect(wrap2unwrap).toBeGreaterThan(wrap2)
     expect(wrap2unwrap).toBeGreaterThan(unwrap2)
+    const sendHook = nativeSwapFeeExecuteMsgs(unwrap2Hints)[0].msg.send as { msg: string }
+    const sendInner = JSON.parse(atob(sendHook.msg)) as {
+      execute_swap_operations: { operations: Array<{ terra_swap?: { hybrid?: unknown } }> }
+    }
+    expect(sendInner.execute_swap_operations.operations.every((op) => op.terra_swap?.hybrid == null)).toBe(true)
   })
 })
 

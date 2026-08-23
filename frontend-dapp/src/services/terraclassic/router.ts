@@ -375,7 +375,7 @@ export async function executeNativeSwap(
     cw20SendAmount = (await netCw20AfterNativeWrap(BigInt(amount), fromToken)).toString()
   }
 
-  // Pool-only hops from client BFS `findRoute` — never copy hybrid / book_input (#587).
+  // Pool-only hops from client BFS `findRoute` — never copy hybrid / book_input (#587 / #599).
   const swapHookMsg = {
     execute_swap_operations: {
       operations: routeInfo.operations.map((op) => ({

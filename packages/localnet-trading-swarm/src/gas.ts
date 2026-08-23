@@ -29,6 +29,9 @@ const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
  * Keep in sync with `ROUTER_SWAP_OPS_MIN_GAS_PER_HOP` (#353 / #587 docs: 950k, not 900k).
  * Wrap+≥2hop combo overhead is dApp-only (`WRAP_ROUTER_COMBO_OVERHEAD_GAS` in
  * `totalGasLimitForExecuteMsgs`) — swarm does not compose wrap+router multi-msg.
+ * Unwrap+≥2hop combo (`UNWRAP_ROUTER_COMBO_OVERHEAD_GAS`, #599) is likewise
+ * dApp-only — swarm does not compose `unwrap_output` InstantWithdraw. Hop
+ * floors stay in lockstep with `constants.ts`.
  */
 const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 /** Keep in sync with `SWAP_GAS_SAFETY_MARGIN` in `frontend-dapp/src/utils/constants.ts`. */
