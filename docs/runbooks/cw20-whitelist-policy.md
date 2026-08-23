@@ -15,10 +15,11 @@ Both desync the pair's internal accounting. The pair (and limit-order escrow) cr
 
 | Allowed | Forbidden |
 |---------|-----------|
-| Standard CW20 (Terraport / GDEX-style) with 1:1 transfer semantics | Templates that skim on `transfer` / `send` |
-| Protocol-issued LP tokens (factory `lp_token_code_id`) | “Tax on transfer” forks unless pair logic is redesigned |
+| Standard CW20 (Terraport / GDEX-style) with 1:1 transfer semantics | Templates that skim on `transfer` / `send` **to** the pair (inbound FoT) |
+| Protocol-issued LP tokens (factory `lp_token_code_id`) | Generic “tax on transfer” forks (ALPHA **8654**, mutants) |
 | Audited mintable CW20 used in local deploy | Rebase / elastic-supply / reflection tokens |
 | Fixed-supply, balance-stable CW20 | Adversarial / unaudited wasm |
+| **Named exception only:** in-repo `cl8y-community-tax-token` after `#589` REPORT **GO** ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592)). Inbound pair/router/escrow credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split. This is **not** a license to whitelist other tax tokens. | Pair/router FoT math (**H-01**). Do not whitelist until `cw20-codeid-audits/codeids/<id>/REPORT.md` is GO. The in-repo stub [`community-tax-token/REPORT.md`](../../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) is **NO-GO** until store. |
 
 ## Pre-whitelist verification
 
