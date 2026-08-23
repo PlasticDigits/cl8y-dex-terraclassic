@@ -43,6 +43,9 @@ pub struct CreateTokenMsg {
     pub launch_guards: Option<LaunchGuardsConfig>,
     pub autolp_threshold: Option<Uint128>,
     pub autolp_lp_recipient: Option<String>,
+    /// Manager exemptions at instantiate when `exemption_directory` is selected (#605).
+    #[serde(default)]
+    pub initial_exempt: Option<Vec<String>>,
 }
 
 #[cw_serde]

@@ -12,11 +12,12 @@ use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use cw20_base::state::{BALANCES, TOKEN_INFO};
 
 use crate::error::ContractError;
+use crate::identity;
 use crate::invoice;
 use crate::msg::{
     ConfigResponse, ExecuteMsg, ExemptionsResponse, FeaturesResponse, InstantiateMsg,
-    IsExemptResponse, LaunchGuardsView, LauncherOriginResponse, QueryMsg, SinkView, INVOICE_UST1,
-    MAX_DECIMALS, MAX_TAX_BPS,
+    IsExemptResponse, LaunchGuardsView, LauncherOriginResponse, QueryMsg, SinkView, Sku,
+    INVOICE_UST1, MAX_INITIAL_EXEMPT, MAX_TAX_BPS,
 };
 use crate::pair_registry;
 use crate::state::{
@@ -34,9 +35,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    if msg.decimals > MAX_DECIMALS {
-        return Err(ContractError::DecimalsCap { max: MAX_DECIMALS });
-    }
+    identity::validate_identity(&msg.name, &msg.symbol, msg.decimals)?;
     validate_instantiate_caps(msg.max_buy_bps, msg.max_sell_bps, msg.max_transfer_bps)?;
     validate_bps_at_init(msg.buy_bps, msg.max_buy_bps)?;
     validate_bps_at_init(msg.sell_bps, msg.max_sell_bps)?;
@@ -50,6 +49,8 @@ pub fn instantiate(
             "MintControl SKU and mint init must match",
         )));
     }
+    reject_sku_payload_without_feature(&features, &msg)?;
+    reject_headroom_without_variable_rates(&features, &msg)?;
 
     let mint = msg.mint.as_ref().map(|m| cw20::MinterResponse {
         minter: m.minter.clone(),
@@ -135,11 +136,9 @@ pub fn instantiate(
         }
     }
     if features.launch_guards {
-        let g = msg.launch_guards.unwrap_or(crate::msg::LaunchGuardsConfig {
-            max_wallet: None,
-            cooldown_blocks: 0,
-            trading_enabled: true,
-        });
+        let g = msg
+            .launch_guards
+            .ok_or(ContractError::LaunchGuardsRequired {})?;
         LAUNCH_GUARDS.save(
             deps.storage,
             &LaunchGuards {
@@ -148,6 +147,12 @@ pub fn instantiate(
                 trading_enabled: g.trading_enabled,
             },
         )?;
+    }
+
+    if features.exemption_directory {
+        if let Some(addrs) = msg.initial_exempt {
+            write_initial_exempt(deps.branch(), &env.contract.address, &addrs)?;
+        }
     }
 
     Ok(Response::new()
@@ -241,7 +246,128 @@ pub fn execute(
         ExecuteMsg::RegisterListedPair { pair } => {
             pair_registry::register_listed_pair(deps, &env.contract.address, pair)
         }
+        ExecuteMsg::BindAutolp { autolp } => execute_bind_autolp(deps, info, autolp),
     }
+}
+
+fn execute_bind_autolp(
+    deps: DepsMut,
+    info: MessageInfo,
+    autolp: String,
+) -> Result<Response, ContractError> {
+    let features = FEATURES.load(deps.storage)?;
+    if !features.auto_v2_lp {
+        return Err(ContractError::SkuNotUnlocked {
+            sku: Sku::AutoV2Lp.as_str().to_string(),
+        });
+    }
+    let mut cfg = CONFIG.load(deps.storage)?;
+    let launcher = cfg
+        .launcher
+        .as_ref()
+        .ok_or(ContractError::Unauthorized {})?;
+    if info.sender != *launcher {
+        return Err(ContractError::Unauthorized {});
+    }
+    if cfg.autolp.is_some() {
+        return Err(ContractError::AutolpAlreadyBound {});
+    }
+    let addr = deps.api.addr_validate(&autolp)?;
+    PROTOCOL_EXEMPT.save(deps.storage, &addr, &true)?;
+    cfg.autolp = Some(addr.clone());
+    CONFIG.save(deps.storage, &cfg)?;
+    Ok(Response::new()
+        .add_attribute("action", "bind_autolp")
+        .add_attribute("autolp", addr))
+}
+
+fn reject_sku_payload_without_feature(
+    features: &Features,
+    msg: &InstantiateMsg,
+) -> Result<(), ContractError> {
+    if msg.transfer_bps.is_some() && !features.transfer_tax {
+        return Err(ContractError::SkuPayloadWithoutFeature {
+            field: "transfer_bps".into(),
+            sku: Sku::TransferTax.as_str().to_string(),
+        });
+    }
+    if msg.sinks.is_some() && !features.split_router {
+        return Err(ContractError::SkuPayloadWithoutFeature {
+            field: "sinks".into(),
+            sku: Sku::SplitRouter.as_str().to_string(),
+        });
+    }
+    if msg.launch_guards.is_some() && !features.launch_guards {
+        return Err(ContractError::SkuPayloadWithoutFeature {
+            field: "launch_guards".into(),
+            sku: Sku::LaunchGuards.as_str().to_string(),
+        });
+    }
+    if msg.initial_exempt.as_ref().is_some_and(|v| !v.is_empty()) && !features.exemption_directory {
+        return Err(ContractError::SkuPayloadWithoutFeature {
+            field: "initial_exempt".into(),
+            sku: Sku::ExemptionDirectory.as_str().to_string(),
+        });
+    }
+    if msg.autolp.is_some() && !features.auto_v2_lp {
+        return Err(ContractError::SkuPayloadWithoutFeature {
+            field: "autolp".into(),
+            sku: Sku::AutoV2Lp.as_str().to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// #605 M-1: without VariableRates, max_* must equal the current rate (no CLI headroom).
+fn reject_headroom_without_variable_rates(
+    features: &Features,
+    msg: &InstantiateMsg,
+) -> Result<(), ContractError> {
+    if features.variable_rates {
+        return Ok(());
+    }
+    let transfer = msg.transfer_bps.unwrap_or(0);
+    for (field, max, current) in [
+        ("max_buy_bps", msg.max_buy_bps, msg.buy_bps),
+        ("max_sell_bps", msg.max_sell_bps, msg.sell_bps),
+        ("max_transfer_bps", msg.max_transfer_bps, transfer),
+    ] {
+        if max != current {
+            return Err(ContractError::SkuPayloadWithoutFeature {
+                field: field.into(),
+                sku: Sku::VariableRates.as_str().to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn write_initial_exempt(
+    deps: DepsMut,
+    self_addr: &cosmwasm_std::Addr,
+    addrs: &[String],
+) -> Result<(), ContractError> {
+    if addrs.len() > MAX_INITIAL_EXEMPT {
+        return Err(ContractError::TooManyInitialExempt {
+            max: MAX_INITIAL_EXEMPT,
+        });
+    }
+    let cfg = CONFIG.load(deps.storage)?;
+    for raw in addrs {
+        let addr = deps.api.addr_validate(raw)?;
+        if addr == *self_addr
+            || addr == cfg.factory
+            || cfg.router.as_ref() == Some(&addr)
+            || cfg.autolp.as_ref() == Some(&addr)
+            || PROTOCOL_EXEMPT
+                .may_load(deps.storage, &addr)?
+                .unwrap_or(false)
+        {
+            return Err(ContractError::ProtocolExemptNotAllowed {});
+        }
+        MANAGER_EXEMPT.save(deps.storage, &addr, &true)?;
+    }
+    Ok(())
 }
 
 fn execute_transfer(

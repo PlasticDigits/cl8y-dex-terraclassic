@@ -73,4 +73,73 @@ describe('communityTaxInvoice (#593)', () => {
     expect(settingsBatchIsEmpty({})).toBe(true)
     expect(settingsBatchIsEmpty({ buy_bps: 1 })).toBe(false)
   })
+
+  it('P6/P7: transfer_bps only when transfer_tax SKU is on (#605)', () => {
+    const withSku = buildCreateTokenInvoice({
+      launcher: LAUNCHER,
+      ust1: UST1,
+      args: {
+        name: 'Demo',
+        symbol: 'DEMO',
+        decimals: 6,
+        initialBalances: [],
+        manager: MANAGER,
+        treasury: MANAGER,
+        buyBps: 0,
+        sellBps: 0,
+        features: ['transfer_tax'],
+        transferBps: 100,
+      },
+    })
+    const ct = decodeHook(withSku.hookMsg).create_token as { transfer_bps?: number; features: string[] }
+    expect(ct.transfer_bps).toBe(100)
+    expect(ct.features).toContain('transfer_tax')
+
+    const leftover = buildCreateTokenInvoice({
+      launcher: LAUNCHER,
+      ust1: UST1,
+      args: {
+        name: 'Demo',
+        symbol: 'DEMO',
+        decimals: 6,
+        initialBalances: [],
+        manager: MANAGER,
+        treasury: MANAGER,
+        buyBps: 0,
+        sellBps: 0,
+        features: [],
+        transferBps: 100,
+      },
+    })
+    const dropped = decodeHook(leftover.hookMsg).create_token as { transfer_bps?: number }
+    expect(dropped.transfer_bps).toBeUndefined()
+  })
+
+  it('P8: sinks encode percent→bps and A1 snapshot 2.50% → 250', () => {
+    const invoice = buildCreateTokenInvoice({
+      launcher: LAUNCHER,
+      ust1: UST1,
+      args: {
+        name: 'Demo',
+        symbol: 'DEMO',
+        decimals: 6,
+        initialBalances: [],
+        manager: MANAGER,
+        treasury: MANAGER,
+        buyBps: 250,
+        sellBps: 0,
+        features: ['split_router'],
+        sinks: [
+          { kind: 'treasury', bps: 7000 },
+          { kind: 'burn', bps: 3000 },
+        ],
+      },
+    })
+    const ct = decodeHook(invoice.hookMsg).create_token as {
+      buy_bps: number
+      sinks: { bps: number }[]
+    }
+    expect(ct.buy_bps).toBe(250)
+    expect(ct.sinks.map((s) => s.bps)).toEqual([7000, 3000])
+  })
 })

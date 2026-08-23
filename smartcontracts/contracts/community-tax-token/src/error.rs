@@ -75,8 +75,29 @@ pub enum ContractError {
     #[error("Transfer cooldown active")]
     Cooldown {},
 
-    #[error("Decimals must be <= {max}")]
-    DecimalsCap { max: u8 },
+    #[error("Decimals must be {min}–{max}, got {got}")]
+    DecimalsRange { min: u8, max: u8, got: u8 },
+
+    #[error("Name must be 3–50 ASCII alphanumeric characters")]
+    InvalidName {},
+
+    #[error("Symbol must be 3–12 ASCII alphanumeric characters")]
+    InvalidSymbol {},
+
+    #[error("Launch guards SKU requires an explicit launch_guards config")]
+    LaunchGuardsRequired {},
+
+    #[error("SKU payload {field} requires feature {sku}")]
+    SkuPayloadWithoutFeature { field: String, sku: String },
+
+    #[error("Too many initial exemptions (max {max})")]
+    TooManyInitialExempt { max: usize },
+
+    #[error("Cannot add a protocol address as a manager exemption")]
+    ProtocolExemptNotAllowed {},
+
+    #[error("AutoLP is already bound")]
+    AutolpAlreadyBound {},
 
     #[error("Do not mix EnableFeature into a settings batch")]
     MixedInvoice {},

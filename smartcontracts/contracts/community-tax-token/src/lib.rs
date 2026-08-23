@@ -30,6 +30,7 @@
 
 pub mod contract;
 pub mod error;
+pub mod identity;
 pub mod invoice;
 pub mod msg;
 pub mod pair_registry;
