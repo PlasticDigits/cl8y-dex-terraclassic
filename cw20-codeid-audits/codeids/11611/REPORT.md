@@ -89,9 +89,9 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 | A6 | control; pending-lt | Pair reentrancy tests exist; 11611 as offer token not executed on LocalTerra this host |
 | A7 | control; crate | CW20 increase/decrease allowance; no overwrite-approve race |
 | A8 | control | Unauthorized TransferFrom rejected on mintable analogue; no admin skip-allowance string |
-| A9 | crate (T592-11); pending-lt B7 | `trading_enabled=false` blocks **both** buy and sell (launch guard SKU), not sell-only honeypot. Sell to listed pair bypasses `max_wallet` |
+| A9 | crate (T592-11 / H608); pending-lt B7 | `trading_enabled=false` blocks **both** buy and sell (launch guard SKU), not sell-only honeypot. Sell to listed pair bypasses `max_wallet`. After [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608): cooldown is per user wallet; `max_wallet` skips protocol / listed pair as `to` (crate + inverted PoCs). Live 11611 still needs a token migrate |
 | A10 | residual (SKU) | `LaunchGuards.trading_enabled` is manager settings (invoiced), not a hidden pause. Residual: manager can halt both sides |
-| A11 | residual (SKU) | `max_wallet` is launch-guard SKU; sell-to-listed-pair bypasses. Not a silent post-list shrink of pair balance |
+| A11 | residual (SKU); crate #608 | `max_wallet` is launch-guard SKU; sell-to-listed-pair **and** protocol/`to` (provide) skip the cap after [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608). User Buy / Transfer still capped. Not a silent post-list shrink of pair balance. Pin bytes on LCD are pre-#608 until remigrate |
 | A12 | crate | Unauthorized mint rejected. MintControl instantiate-only; `RevokeMint` one-way + settings invoice (T592-6) |
 | A13 | static-pass | No flash-mint execute |
 | A14 | residual; **not blocking** | Wasm admin is CMM when launched via launcher (`cmm_governance`). F6 freeze on migrate-off-11611. Rogue `--admin` is catalog-filtered (`GetLauncherOrigin`) |
@@ -158,7 +158,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 | D8 | crate (T592-9) | `RegisterListedPair` is permissionless but **factory Pair lookup** required; cannot register an arbitrary addr to turn on tax |
 | D9 | residual | Manager ≠ wasm admin. CMM migrate residual = A14 |
 | D10 | static-pass | Raw balances |
-| D11 | residual (SKU) | `cooldown_blocks` can reject a second transfer in-block if LaunchGuards on — batch/ladder residual (**CH3**) |
+| D11 | residual (SKU); crate #608 | **Same-sender** in-block batch / ladder can still cooldown (**CH3** / **H608-8**). Pair-wide halt (H-3: pair `LAST_TRADE_BLOCK` blocking other wallets) is **fixed in crate** [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608). LCD 11611 pin is pre-fix until token migrate |
 | D12 | static-pass | CW20 path does not require `info.funds` |
 | D13 | static-pass | No SetDecimals |
 | D14 | residual | Hostile init (non-CMM admin, extreme bps within cap) possible because Everybody instantiate. Catalog filter, not a template veto |

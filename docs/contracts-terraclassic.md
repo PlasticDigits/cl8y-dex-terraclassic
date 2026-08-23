@@ -367,7 +367,7 @@ Any contract implementing this interface can be registered as a post-swap hook v
 
 ## Community tax CW20 (GitLab #592)
 
-In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-token-launcher` + `cl8y-community-tax-autolp`. Pair/router swap math is **unchanged**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../skills/AGENTS_COMMUNITY_TAX_CW20.md). Invariants **T592-1–T592-12**.
+In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-token-launcher` + `cl8y-community-tax-autolp`. Pair/router swap math is **unchanged**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../skills/AGENTS_COMMUNITY_TAX_CW20.md). Invariants **T592-1–T592-12**. LaunchGuards liveness (**H608-1–H608-8**, [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608)): [`skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](../skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md).
 
 ### Classification (T592-7)
 
@@ -398,4 +398,8 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 
 Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**, wasm admin DEX 2-of-3). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654** or launcher **11612** / **11614**.
 
-`make verify-issue-592` (crates). `make verify-issue-601` (store + REPORT + LocalTerra smoke).
+`make verify-issue-592` (crates). `make verify-issue-608` (LaunchGuards cooldown / `max_wallet` liveness). `make verify-issue-601` (store + REPORT + LocalTerra smoke).
+
+### LaunchGuards (T592-11 / #608)
+
+Cooldown is **per user wallet**. Listed pairs, router, factory, this token, and AutoLP are not cooldown subjects — one sell must not halt the pair. `max_wallet` does **not** apply when `to` is a listed pair or other protocol-exempt address (provide `TransferFrom` after organic sells; sell-to-pair exit bypass). User Buy / Transfer still hit the cap. `trading_enabled=false` still blocks both sides (H-5 residual). Same-wallet in-block batch may still cooldown (11611 **D11**).

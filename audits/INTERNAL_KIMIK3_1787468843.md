@@ -170,9 +170,9 @@ The official UI uses unique checkboxes and does **not** send duplicates. Impact 
 
 Not a per-wallet anti-snipe. A global pair halt. `LAST_TRADE_BLOCK` is documented as “last taxed swap block **per wallet**” (`state.rs`); implementation writes **both** `from` and `to`. Stronger than 11611 REPORT **D11** (same-sender in-block batch residual).
 
-**PoC:** `poc_cooldown_bricks_pair` — PASS.
+**PoC:** `poc_cooldown_bricks_pair` — originally PASS (bug). **Fixed in crate** [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608); PoC inverted (H608-1). LCD 11611 pin is pre-fix until token migrate.
 
-Existing multitest `launch_guards_block_both_sides_and_sell_bypasses_max_wallet` only covers `max_wallet` + sell bypass — **not** cooldown, **not** provide, **not** trading-off withdrawals.
+Existing multitest `launch_guards_*` now covers per-wallet cooldown and provide after cap. `trading_enabled` exit lock remains **H-5**.
 
 ---
 
@@ -180,7 +180,7 @@ Existing multitest `launch_guards_block_both_sides_and_sell_bypasses_max_wallet`
 
 Sell to a listed pair bypasses `max_wallet` (T592-11). Provide is `TransferFrom` → Honest, so `max_wallet` **does** apply to the pair’s new balance. After enough sells, `pair_balance > max_wallet` and every `ProvideLiquidity` reverts.
 
-**PoC:** `poc_max_wallet_bricks_provide` — PASS.
+**PoC:** `poc_max_wallet_bricks_provide` — originally PASS (bug). **Fixed in crate** [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608); PoC inverted (H608-4).
 
 ---
 

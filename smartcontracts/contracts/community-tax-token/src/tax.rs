@@ -50,6 +50,13 @@ pub fn is_transfer_exempt(storage: &dyn Storage, self_addr: &Addr, addr: &Addr) 
     is_protocol_exempt(storage, self_addr, addr) || is_manager_exempt(storage, addr)
 }
 
+/// Cooldown subjects are user wallets only (H608-1 / #608).
+/// Do not check or record listed pairs, router, factory, this token, or AutoLP —
+/// those are protocol-exempt. Manager-exempt wallets stay subjects (anti-snipe).
+pub fn is_cooldown_subject(storage: &dyn Storage, self_addr: &Addr, addr: &Addr) -> bool {
+    !is_protocol_exempt(storage, self_addr, addr)
+}
+
 pub fn is_swap_send_hook(msg: &Binary) -> bool {
     matches!(
         cosmwasm_std::from_json::<Cw20HookMsg>(msg),
@@ -142,6 +149,7 @@ fn apply_launch_guards(
     storage: &dyn Storage,
     env: &Env,
     features: &Features,
+    self_addr: &Addr,
     from: &Addr,
     to: &Addr,
     kind: &TaxKind,
@@ -159,17 +167,23 @@ fn apply_launch_guards(
             if !guards.trading_enabled {
                 return Err(ContractError::TradingDisabled {});
             }
-            check_cooldown(storage, &guards, env, from)?;
-            check_cooldown(storage, &guards, env, to)?;
+            // H-5 residual: pause still blocks both sides (T592-11). Do not carve
+            // withdraw/cancel/claim here (#608 out of scope).
+            check_cooldown(storage, &guards, env, self_addr, from)?;
+            check_cooldown(storage, &guards, env, self_addr, to)?;
         }
         _ => {}
     }
-    // Sell to pair must never brick an exit (T592-11).
-    if !matches!(kind, TaxKind::Sell) {
-        if let Some(max) = guards.max_wallet {
-            if !to_new_balance.is_zero() && to_new_balance > max && credit_to > Uint128::zero() {
-                return Err(ContractError::MaxWallet {});
-            }
+    // H608-4 / T592-11: skip max_wallet when `to` is a listed pair or other
+    // protocol-exempt address (provide, sell-to-pair, router, AutoLP, self).
+    // User wallets on Buy / Transfer stay capped (H608-5).
+    if let Some(max) = guards.max_wallet {
+        if !is_protocol_exempt(storage, self_addr, to)
+            && !to_new_balance.is_zero()
+            && to_new_balance > max
+            && credit_to > Uint128::zero()
+        {
+            return Err(ContractError::MaxWallet {});
         }
     }
     Ok(())
@@ -179,9 +193,13 @@ fn check_cooldown(
     storage: &dyn Storage,
     guards: &LaunchGuards,
     env: &Env,
+    self_addr: &Addr,
     wallet: &Addr,
 ) -> Result<(), ContractError> {
     if guards.cooldown_blocks == 0 {
+        return Ok(());
+    }
+    if !is_cooldown_subject(storage, self_addr, wallet) {
         return Ok(());
     }
     if let Some(last) = LAST_TRADE_BLOCK.may_load(storage, wallet)? {
@@ -197,6 +215,7 @@ fn record_trade_blocks(
     features: &Features,
     env: &Env,
     kind: &TaxKind,
+    self_addr: &Addr,
     from: &Addr,
     to: &Addr,
 ) -> Result<(), ContractError> {
@@ -206,8 +225,12 @@ fn record_trade_blocks(
     if !matches!(kind, TaxKind::Buy | TaxKind::Sell) {
         return Ok(());
     }
-    LAST_TRADE_BLOCK.save(storage, from, &env.block.height)?;
-    LAST_TRADE_BLOCK.save(storage, to, &env.block.height)?;
+    if is_cooldown_subject(storage, self_addr, from) {
+        LAST_TRADE_BLOCK.save(storage, from, &env.block.height)?;
+    }
+    if is_cooldown_subject(storage, self_addr, to) {
+        LAST_TRADE_BLOCK.save(storage, to, &env.block.height)?;
+    }
     Ok(())
 }
 
@@ -337,6 +360,7 @@ pub fn apply_transfer(
         deps.storage,
         env,
         &features,
+        self_addr,
         from,
         to,
         &kind,
@@ -362,7 +386,7 @@ pub fn apply_transfer(
         TOKEN_INFO.save(deps.storage, &info)?;
     }
 
-    record_trade_blocks(deps.storage, &features, env, &kind, from, to)?;
+    record_trade_blocks(deps.storage, &features, env, &kind, self_addr, from, to)?;
 
     let mut resp = Response::new()
         .add_attribute("action", "transfer")

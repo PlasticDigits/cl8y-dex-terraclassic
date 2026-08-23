@@ -1,4 +1,4 @@
-//! Multi-test coverage for GitLab #592 (T592-1–T592-12).
+//! Multi-test coverage for GitLab #592 (T592-1–T592-12) and #608 (H608-1–H608-8).
 
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
@@ -1039,9 +1039,7 @@ fn enable_feature_second_pay_rejected() {
     assert!(err.root_cause().to_string().contains("already"));
 }
 
-#[test]
-fn launch_guards_block_both_sides_and_sell_bypasses_max_wallet() {
-    let mut e = clean(vec![Sku::LaunchGuards], None);
+fn enable_launch_guards(e: &mut EnvTok, max_wallet: Option<Uint128>, cooldown_blocks: u64) {
     e.app
         .execute_contract(
             e.manager.clone(),
@@ -1052,7 +1050,246 @@ fn launch_guards_block_both_sides_and_sell_bypasses_max_wallet() {
                 msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
                     settings: SettingsBatch {
                         launch_guards: Some(LaunchGuardsConfig {
-                            max_wallet: Some(Uint128::new(1)),
+                            max_wallet,
+                            cooldown_blocks,
+                            trading_enabled: true,
+                        }),
+                        ..Default::default()
+                    },
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+fn register_listed_pair(e: &mut EnvTok) {
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::RegisterListedPair {
+                pair: e.pair.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+fn sell_to_pair(e: &mut EnvTok, who: &str, amount: u128) {
+    e.app
+        .execute_contract(
+            Addr::unchecked(who),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+fn sell_to_pair_err(e: &mut EnvTok, who: &str, amount: u128) -> String {
+    let err = e
+        .app
+        .execute_contract(
+            Addr::unchecked(who),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    format!("{err:?}")
+}
+
+fn assert_cooldown(err: impl std::fmt::Debug) {
+    let s = format!("{err:?}");
+    assert!(
+        s.contains("cooldown") || s.contains("Cooldown"),
+        "expected cooldown: {s}"
+    );
+}
+
+fn assert_max_wallet(err: impl std::fmt::Debug) {
+    let s = format!("{err:?}");
+    assert!(
+        s.contains("Max wallet") || s.contains("MaxWallet"),
+        "expected max wallet: {s}"
+    );
+}
+
+#[test]
+fn launch_guards_block_both_sides_and_sell_bypasses_max_wallet() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    enable_launch_guards(&mut e, Some(Uint128::new(1)), 0);
+    register_listed_pair(&mut e);
+    // Sell still works despite max_wallet=1 (T592-11 / H608-6).
+    sell_to_pair(&mut e, "user", 1_000);
+}
+
+#[test]
+fn launch_guards_cooldown_zero_allows_same_block_trades() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    // #605 instantiate default is trading_enabled=false; enable with cooldown 0 (H608-3).
+    enable_launch_guards(&mut e, None, 0);
+    register_listed_pair(&mut e);
+    sell_to_pair(&mut e, "user", 1_000);
+    sell_to_pair(&mut e, "user", 1_000);
+}
+
+#[test]
+fn launch_guards_cooldown_is_per_wallet_not_pair() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    enable_launch_guards(&mut e, None, 10);
+    register_listed_pair(&mut e);
+
+    let bob = Addr::unchecked("bob");
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: bob.to_string(),
+                amount: Uint128::new(5_000_000),
+            },
+            &[],
+        )
+        .unwrap();
+
+    sell_to_pair(&mut e, "user", 1_000);
+    // Same block: a different wallet must not inherit the pair timestamp (H608-1).
+    sell_to_pair(&mut e, "bob", 1_000);
+    // Same wallet still rate-limited until cooldown_blocks elapse (H608-2).
+    assert_cooldown(sell_to_pair_err(&mut e, "user", 1_000));
+
+    e.app.update_block(|b| b.height += 1);
+    assert_cooldown(sell_to_pair_err(&mut e, "user", 1_000));
+
+    e.app.update_block(|b| b.height += 9);
+    sell_to_pair(&mut e, "user", 1_000);
+}
+
+#[test]
+fn launch_guards_buy_after_sell_does_not_use_pair_timestamp() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    enable_launch_guards(&mut e, None, 10);
+    register_listed_pair(&mut e);
+
+    let bob = Addr::unchecked("bob");
+    sell_to_pair(&mut e, "user", 1_000);
+    e.app.update_block(|b| b.height += 1);
+    // Pair is `from` on Buy; must not block a fresh recipient (H608-1).
+    e.app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: bob.to_string(),
+                amount: Uint128::new(1_000),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+#[test]
+fn launch_guards_provide_succeeds_after_pair_exceeds_max_wallet() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    enable_launch_guards(&mut e, Some(Uint128::new(1_000_000)), 0);
+    register_listed_pair(&mut e);
+
+    sell_to_pair(&mut e, "user", 1_500_000);
+    assert!(balance(&e.app, &e.token, e.pair.as_str()) > 1_000_000);
+
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::IncreaseAllowance {
+                spender: e.pair.to_string(),
+                amount: Uint128::new(100_000),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    e.app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::TransferFrom {
+                owner: e.user.to_string(),
+                recipient: e.pair.to_string(),
+                amount: Uint128::new(100_000),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + 100_000
+    );
+}
+
+#[test]
+fn launch_guards_max_wallet_still_caps_user_buy_and_transfer() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    enable_launch_guards(&mut e, Some(Uint128::new(1_000)), 0);
+    register_listed_pair(&mut e);
+
+    let carol = Addr::unchecked("carol");
+    let err = e
+        .app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: carol.to_string(),
+                amount: Uint128::new(2_000),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert_max_wallet(err);
+
+    let err = e
+        .app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: carol.to_string(),
+                amount: Uint128::new(2_000),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert_max_wallet(err);
+}
+
+#[test]
+fn launch_guards_transfer_tax_still_caps_eoa() {
+    let mut e = clean(vec![Sku::LaunchGuards, Sku::TransferTax], None);
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
+                    settings: SettingsBatch {
+                        transfer_bps: Some(200),
+                        launch_guards: Some(LaunchGuardsConfig {
+                            max_wallet: Some(Uint128::new(1_000)),
                             cooldown_blocks: 0,
                             trading_enabled: true,
                         }),
@@ -1064,25 +1301,68 @@ fn launch_guards_block_both_sides_and_sell_bypasses_max_wallet() {
             &[],
         )
         .unwrap();
+    let dave = Addr::unchecked("dave");
+    let err = e
+        .app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: dave.to_string(),
+                amount: Uint128::new(5_000),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert_max_wallet(err);
+}
+
+#[test]
+fn launch_guards_sku_off_skips_cooldown_and_max_wallet() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    sell_to_pair(&mut e, "user", 1_000);
+    sell_to_pair(&mut e, "user", 1_000);
+    let zed = Addr::unchecked("zed");
     e.app
         .execute_contract(
             e.user.clone(),
             e.token.clone(),
-            &ExecuteMsg::RegisterListedPair {
-                pair: e.pair.to_string(),
+            &ExecuteMsg::Transfer {
+                recipient: zed.to_string(),
+                amount: Uint128::new(50_000_000),
             },
             &[],
         )
         .unwrap();
-    // Sell still works despite max_wallet=1
+    assert_eq!(balance(&e.app, &e.token, zed.as_str()), 50_000_000);
+}
+
+#[test]
+fn launch_guards_max_wallet_skips_protocol_exempt_to() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    enable_launch_guards(&mut e, Some(Uint128::new(1)), 0);
+    let router = Addr::unchecked("router");
     e.app
         .execute_contract(
             e.user.clone(),
             e.token.clone(),
-            &ExecuteMsg::Send {
-                contract: e.pair.to_string(),
-                amount: Uint128::new(1_000),
-                msg: swap_hook(),
+            &ExecuteMsg::Transfer {
+                recipient: router.to_string(),
+                amount: Uint128::new(10_000),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, router.as_str()), 10_000);
+
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.token.to_string(),
+                amount: Uint128::new(10_000),
             },
             &[],
         )
