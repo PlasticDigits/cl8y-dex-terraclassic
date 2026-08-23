@@ -3,8 +3,8 @@
 //! **T592-5:** `WasmMsg::Instantiate { admin: cmm_governance }`. Manager cannot
 //! migrate. **T592-12:** paid SKUs accept UST1 `Send` only (#595 routes off-chain).
 //! **O601-3:** zero-SKU free profile uses `ExecuteMsg::CreateToken` (CW20 cannot
-//! `Send` 0). Columbus-5 **11612** predates this execute — LocalTerra smoke
-//! stores the in-repo launcher; mainnet re-store is a later ops residual.
+//! `Send` 0). Canonical columbus-5 launcher is **11614**
+//! (`terra126pr5…ahzwze`, wasm admin DEX 2-of-3). **11612** is unused.
 
 pub mod contract;
 pub mod error;

@@ -99,7 +99,7 @@ export function isUst1WindowEnabled(): boolean {
 
 /**
  * Community tax create/manage (GitLab #593 / #601). Unset hides Create Token.
- * Columbus-5: code **11611**, launcher `terra1af9xm…894lyz`. Never a LocalTerra store id.
+ * Columbus-5: code **11611**, launcher `terra126pr5…ahzwze` (11614). Never a LocalTerra store id.
  */
 export const COMMUNITY_TAX_CODE_ID = Number(import.meta.env.VITE_COMMUNITY_TAX_CODE_ID || '') || 0
 export const COMMUNITY_TOKEN_LAUNCHER = import.meta.env.VITE_COMMUNITY_TOKEN_LAUNCHER || ''

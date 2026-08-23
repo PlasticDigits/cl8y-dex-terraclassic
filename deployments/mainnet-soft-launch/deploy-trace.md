@@ -244,13 +244,14 @@ Template **GO**: [`cw20-codeid-audits/codeids/8266/REPORT.md`](../../cw20-codeid
 
 ### Community tax CW20 store + whitelist + launcher (columbus-5, 2026-08-23)
 
-Ops [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601). Template **GO**: [`cw20-codeid-audits/codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md) (Layer B-lt residual). Named T592 exception — inbound 1:1. Do **not** whitelist launcher **11612**, AutoLP **11613**, a LocalTerra store id, or ALPHA **8654**.
+Ops [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601). Template **GO**: [`cw20-codeid-audits/codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md). Named T592 exception — inbound 1:1. Do **not** whitelist launcher **11612** / **11614**, AutoLP **11613**, a LocalTerra store id, or ALPHA **8654**.
 
 | Role | `code_id` | `data_hash` | store tx | height |
 |------|-----------|-------------|----------|--------|
 | Token (listed) | **11611** | `9D33BF2539A9A5B2F13FD4B321CDBD0B0FD86D936D5D6BD6681955FA30210EC2` | [`C610FB95…2BF2`](https://finder.terraclassic.community/columbus-5/tx/C610FB95B4BF18F5C96B972545D8649993461FC631A219F80C927DF5172B2BF2) | 30071140 |
-| Launcher | 11612 | `A0F95FBA548F4EA6F5536CE564922EC39B9ECE691CF3F01FF8733B7A93223F19` | [`3907A435…9E8A`](https://finder.terraclassic.community/columbus-5/tx/3907A435FE6EB2EFEBB314869A031817FD64E5FB6D922A0D44E22C07E93B9E8A) | 30071141 |
+| Launcher (superseded) | 11612 | `A0F95FBA548F4EA6F5536CE564922EC39B9ECE691CF3F01FF8733B7A93223F19` | [`3907A435…9E8A`](https://finder.terraclassic.community/columbus-5/tx/3907A435FE6EB2EFEBB314869A031817FD64E5FB6D922A0D44E22C07E93B9E8A) | 30071141 |
 | AutoLP | 11613 | `B110CCD6E543AD5F42663D8A087B58D1993D3342DD2326559DFAB8656F8F828B` | [`84A8501C…A95C`](https://finder.terraclassic.community/columbus-5/tx/84A8501C35A20A40F490479350E9270E4FC3AA1492EE6C5DB7BD6D870B44A95C) | 30071142 |
+| Launcher (canonical, `CreateToken`) | **11614** | `04F57008E019172C04A25173E5F6FE6C975D67285CF953747F8F724434E44539` | [`33F6A49F…45B8`](https://finder.terraclassic.community/columbus-5/tx/33F6A49F7221A377132D0A2B534A48D5AC64A5CA1F30D20BBE8A34086D3A45B8) | 30072268 |
 
 Uploader: `cl8ydeploy` (`terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`). Instantiate permission **Everybody**.
 
@@ -259,9 +260,11 @@ Uploader: `cl8ydeploy` (`terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`). Instant
 | **`AddWhitelistedCodeId 11611`** | [`241FE20E…B30E`](https://finder.terraclassic.community/columbus-5/tx/241FE20E7649738DF8E34B778AE171E803C2962C1FC556242DFC1CE0A53CB30E) height **30071160** (2026-08-23T04:12:54Z) |
 | **Signer** | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` |
 | **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184, 11611]`** |
-| **Launcher** | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` |
-| **Launcher instantiate** | [`F7FCF13F…2317`](https://finder.terraclassic.community/columbus-5/tx/F7FCF13FB59148832AFA717FE3889830C19ACA33B18BFFB0122FB237BBDC2317) height **30071219** |
-| **Launcher admin / `cmm_governance`** | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` (CMM) |
+| **Launcher (canonical)** | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` |
+| **Launcher instantiate** | [`041E3C43…87FE`](https://finder.terraclassic.community/columbus-5/tx/041E3C4379E88CE073B2EEED0125BEC58BCCAC31711AC15500352581763287FE) height **30072275** |
+| **Launcher wasm admin** | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` (DEX 2-of-3) |
+| **Token `cmm_governance` / CMM** | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
+| **Unused 11612 instance** | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (CMM treasury admin; no `CreateToken`) |
 
-Coolify / indexer (dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593), indexer [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = launcher above, `CMM_GOVERNANCE_ADDR` = CMM. Unset keeps Create Token / catalog unconfigured.
+Coolify / indexer (dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593), indexer [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = canonical launcher above, `CMM_GOVERNANCE_ADDR` = CMM. Unset keeps Create Token / catalog unconfigured.
 

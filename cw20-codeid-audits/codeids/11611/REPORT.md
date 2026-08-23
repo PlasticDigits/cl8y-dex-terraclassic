@@ -10,7 +10,7 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 ## Verdict
 
-**GO** for factory `AddWhitelistedCodeId 11611` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). Columbus-5 listed **11611** 2026-08-23 (height **30071160**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184, 11611]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** or AutoLP **11613** (not pair-asset CW20s).
+**GO** for factory `AddWhitelistedCodeId 11611` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). Columbus-5 listed **11611** 2026-08-23 (height **30071160**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184, 11611]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** or AutoLP **11613** (not pair-asset CW20s).
 
 - [x] GO — LCD pin matches; decomp + fingerprint; crate multitest covers T592 classification; harness known-bad stays red; catalogue filled
 - [ ] NO-GO — inbound FoT / 8654 class / missing pin
@@ -31,13 +31,13 @@ Re-run: `make verify-issue-601` · `CODE_ID=11611 LAYER_B_LT=1 ./scripts/qa/veri
 | Match | **yes** (LCD + local artifact `cl8y_community_tax_token.wasm`) |
 | Creator / uploader | `terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv` (`cl8ydeploy`) |
 | Instantiate permission | **Everybody** |
-| Approximate instantiate count | **0** tokens at intake (2026-08-23). Launcher instance: `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` |
+| Approximate instantiate count | **0** tokens at intake (2026-08-23). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (11614) |
 | Wasm size | 535789 bytes |
 | Store tx | [`C610FB95B4BF18F5C96B972545D8649993461FC631A219F80C927DF5172B2BF2`](https://finder.terraclassic.community/columbus-5/tx/C610FB95B4BF18F5C96B972545D8649993461FC631A219F80C927DF5172B2BF2) height **30071140** |
 | Whitelist tx | [`241FE20E7649738DF8E34B778AE171E803C2962C1FC556242DFC1CE0A53CB30E`](https://finder.terraclassic.community/columbus-5/tx/241FE20E7649738DF8E34B778AE171E803C2962C1FC556242DFC1CE0A53CB30E) height **30071160** (DEX 2-of-3) |
 | `meta.json` | [`meta.json`](meta.json) |
 
-Sister stores (not listable as pair assets): launcher **11612** `A0F95FBA…` at `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (instantiate [`F7FCF13F…2317`](https://finder.terraclassic.community/columbus-5/tx/F7FCF13FB59148832AFA717FE3889830C19ACA33B18BFFB0122FB237BBDC2317) height **30071219**, admin CMM), AutoLP **11613** `B110CCD6…`.
+Sister stores (not listable as pair assets): canonical launcher **11614** `04F57008…` at `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (instantiate [`041E3C43…87FE`](https://finder.terraclassic.community/columbus-5/tx/041E3C4379E88CE073B2EEED0125BEC58BCCAC31711AC15500352581763287FE) height **30072275**, wasm admin DEX 2-of-3). Unused first launcher **11612** `A0F95FBA…` at `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (CMM treasury admin; predates `CreateToken`). AutoLP **11613** `B110CCD6…`.
 
 ## Fetch
 
@@ -195,7 +195,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 | G2 | pass | `cw20_mutants.rs` |
 | G3 | pending | Bindiff vs cw20-base not run |
 | G4 | residual | Single LCD this run |
-| G5 | residual | 0 token instances at intake; launcher `terra1af9xm…894lyz` is the only 11612 contract |
+| G5 | residual | 0 token instances at intake; canonical launcher is **11614** `terra126pr5…ahzwze`; unused **11612** `terra1af9xm…` |
 | G6 | control | multitest block advance |
 | G7 | ops | F6 drill in `cw20-code-id-ops.md` |
 | G8 | static-pass | Host imports: iterator; no IBC |

@@ -42,7 +42,8 @@ AUDIT="$REPO_ROOT/cw20-codeid-audits"
 REPORT="$AUDIT/codeids/11611/REPORT.md"
 PIN="9D33BF2539A9A5B2F13FD4B321CDBD0B0FD86D936D5D6BD6681955FA30210EC2"
 FACTORY_C5="terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea"
-LAUNCHER_C5="terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz"
+LAUNCHER_C5="terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze"
+LAUNCHER_ADMIN_C5="terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7"
 LCD_C5="${VERIFY601_LCD:-https://terra-classic-lcd.publicnode.com}"
 
 run_docs() {
@@ -88,6 +89,7 @@ run_c5_whitelist() {
   echo "$ids" | jq -e '.code_ids | index(11611) != null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11612) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11613) == null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(8654) == null' >/dev/null
   echo "columbus-5 whitelist: $(echo "$ids" | jq -c '.code_ids')"
 }
@@ -99,12 +101,11 @@ run_c5_launcher() {
   local raw
   raw="$(localterra_host_curl "${LCD_C5%/}/cosmwasm/wasm/v1/contract/${LAUNCHER_C5}" 2>/dev/null \
     || curl -fsS --max-time 30 "${LCD_C5%/}/cosmwasm/wasm/v1/contract/${LAUNCHER_C5}")"
-  echo "$raw" | jq -e --arg a "$LAUNCHER_C5" '.contract_info.address == $a or .address == $a or .contract_info.code_id == "11612" or .contract_info.code_id == 11612' >/dev/null \
-    || echo "$raw" | jq -e '.contract_info.code_id == "11612" or (.contract_info.code_id|tonumber) == 11612' >/dev/null
+  echo "$raw" | jq -e '.contract_info.code_id == "11614" or (.contract_info.code_id|tonumber) == 11614' >/dev/null
   local admin
   admin="$(echo "$raw" | jq -r '.contract_info.admin // empty')"
-  [[ "$admin" == "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2" ]]
-  echo "columbus-5 launcher admin=$admin code=11612"
+  [[ "$admin" == "$LAUNCHER_ADMIN_C5" ]]
+  echo "columbus-5 launcher admin=$admin code=11614"
 }
 
 run_layer_b_lt() {
@@ -146,7 +147,7 @@ echo "── first pass ──"
 run_step "docs: REPORT GO + O601 + no 11612/8654 whitelist" run_docs
 run_step "child: make verify-issue-592" run_592
 run_step "columbus-5: GetWhitelistedCodeIds includes 11611 only" run_c5_whitelist
-run_step "columbus-5: launcher 11612 admin == CMM" run_c5_launcher
+run_step "columbus-5: launcher 11614 admin == DEX 2-of-3" run_c5_launcher
 
 HAS_LT=1
 if timeout 20 make -s has-localterra >/dev/null 2>&1; then

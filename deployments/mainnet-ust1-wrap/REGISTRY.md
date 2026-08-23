@@ -63,7 +63,7 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 | Role | Address / id | Coolify / env key |
 |------|--------------|-------------------|
 | Token template (factory-listed) | code **11611** · pin `9D33BF25…210EC2` | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` |
-| Launcher | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (code **11612**) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
+| Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**, wasm admin DEX 2-of-3) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
 | AutoLP template | code **11613** (not factory-whitelisted) | bind later; not required for create |
 | CMM wasm admin / attested `cmm_governance` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | `CMM_GOVERNANCE_ADDR` (indexer); dApp admin-banner compare |
 

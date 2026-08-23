@@ -4,7 +4,7 @@ Named T592 exception for the #589 harness ([#592](https://gitlab.com/PlasticDigi
 
 - Pin: [`wasm.sha256`](wasm.sha256) = LCD `data_hash` `9D33BF25…210EC2`
 - Report: [`REPORT.md`](REPORT.md)
-- Columbus-5 listed 2026-08-23. Launcher: `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`
+- Columbus-5 listed 2026-08-23. Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**)
 
 ```bash
 ./cw20-codeid-audits/scripts/fetch-lcd-wasm.sh 11611

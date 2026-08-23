@@ -650,7 +650,7 @@ Hybrid hops use quote-driven limits in [`hybridSwapGas.ts`](../frontend-dapp/src
 
 Shared checkout for paid protocol features ([GitLab **#595**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)). First consumers: community tax-token SKU unlocks and manager settings **batch** Save ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Next: prepaid market-making subscription ([#597](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/597)). **Do not** copy Swap quote/execute into those pages.
 
-Columbus-5 Create Token env (unset → page unavailable): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER=terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. CMM admin banner: `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2`. Pins: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) · [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601).
+Columbus-5 Create Token env (unset → page unavailable): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER=terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**). Token CMM-admin banner: `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2`. Launcher wasm admin is DEX 2-of-3. Pins: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) · [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601).
 
 Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyToken.tsx`](../frontend-dapp/src/components/payments/PayWithAnyToken.tsx). Playbook: [`skills/AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md). Verify: `make verify-issue-595`.
 
@@ -690,7 +690,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). |
-| **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Columbus-5 11612 needs migrate. |
+| **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 **11614**. |
 | **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
 
 ### Max amount / gas reserve {#max-amount-gas-reserve}

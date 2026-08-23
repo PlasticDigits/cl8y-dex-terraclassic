@@ -39,7 +39,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 make verify-issue-593
 ```
 
-Columbus-5 launcher **11612** needs a migrate before free-create execute exists on mainnet. LocalTerra picks it up after redeploy.
+Columbus-5 free-create is live on launcher **11614** (`terra126pr5…ahzwze`). Do not point Coolify at **11612** (`terra1af9xm…`).
 
 ## Do not
 

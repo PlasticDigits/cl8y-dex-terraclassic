@@ -388,10 +388,10 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 - Token `EnableFeature { sku }` — not MintControl (instantiate-only).
 - Token `UpdateSettings { settings }` — one flat 50 UST1 for the whole already-activated batch. No-op / unactivated SKU / non-manager → revert, fee not kept.
 - Launcher UST1 `Send` hook: `create_token` is a **newtype** (`CreateTokenMsg` fields as the object); `enable_feature` is `{ token, sku }`. JSON is `{"create_token":{…fields…}}` / `{"enable_feature":{…}}`. Instantiate stamps `admin: cmm_governance`. AutoLP sibling instantiate in the same create tx is **not** wired in v1 (SKU may be paid; bind later).
-- **0-SKU free create (C593-12 / O601-3):** launcher `ExecuteMsg::CreateToken` (no UST1). CW20 `Send` of 0 is invalid, so free create cannot use `Receive`. Paid SKUs still require the invoice hook. Columbus-5 **11612** predates this execute (LocalTerra smoke stores in-repo launcher wasm; mainnet needs a migrate/re-store).
+- **0-SKU free create (C593-12 / O601-3):** launcher `ExecuteMsg::CreateToken` (no UST1). CW20 `Send` of 0 is invalid, so free create cannot use `Receive`. Paid SKUs still require the invoice hook. Canonical columbus-5 launcher is **11614** (`terra126pr5…ahzwze`). **11612** predates this execute and is unused.
 
 ### Listing
 
-Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Launcher `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (code **11612**). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654**.
+Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**, wasm admin DEX 2-of-3). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654** or launcher **11612** / **11614**.
 
 `make verify-issue-592` (crates). `make verify-issue-601` (store + REPORT + LocalTerra smoke).
