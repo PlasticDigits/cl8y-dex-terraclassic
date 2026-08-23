@@ -4,7 +4,7 @@ Use when changing the **community tax token**, **launcher**, or **AutoLP** siste
 
 This is the **only** tax-token exception to **H-01**. It is DEX-safe because inbound credits to pair / router / escrow / AutoLP stay **1:1**. Do **not** add pair/router FoT balance-delta math. Factory `AddWhitelistedCodeId` is a **separate ops step** after `#589` REPORT **GO**.
 
-Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) (**I595-14** — launcher/token still accept UST1 `Send` only); post-merge Coolify + LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); ExemptionDirectory buy/sell/transfer skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)).
+Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)); identity [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595) (**I595-14** — launcher/token still accept UST1 `Send` only); post-merge Coolify + LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); LaunchGuards liveness [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608) ([`AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](./AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) **H608-1–H608-8**); ExemptionDirectory buy/sell/transfer skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)).
 
 ## Canonical references
 
@@ -56,7 +56,7 @@ Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra
 8. **T592-8 — no rug APIs.** No reflection, rebase, pause, or blacklist manager methods.
 9. **T592-9 — protocol exemptions.** `RegisterListedPair` requires factory `Pair` lookup. Manager cannot remove protocol entries. The paid manager directory is a **full tax skip** for Transfer / Buy / Sell, not a transfer-only list, and does not grant listed-pair status.
 10. **T592-10 — AutoLP deferred.** `SkimToLp` is permissionless and is never called from token `Transfer`/`Send` or pair `AfterSwap`.
-11. **T592-11 — launch guards.** `trading_enabled=false` blocks **both** buy and sell. Sell to a listed pair bypasses `max_wallet`.
+11. **T592-11 — launch guards.** `trading_enabled=false` blocks **both** buy and sell (**H-5** residual). Cooldown is **per user wallet** — do not check or record listed pairs / protocol-exempt addresses. `max_wallet` skips protocol / listed pair as `to` (provide + sell-to-pair bypass). User Buy / Transfer still capped. Full **H608-1–H608-8** in [`AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md`](./AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) ([#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608)).
 12. **T592-12 — UST1-only invoice.** #595 routes any token off-chain. Token/launcher do not accept the tax token as fee.
 
 ## Launcher UST1 hook
@@ -69,7 +69,7 @@ Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra
 | UST1 hook `create_token` | Newtype `CreateTokenMsg` — `{"create_token":{name,symbol,decimals,initial_balances,manager,treasury,buy_bps,sell_bps,max_*,features,…}}` |
 | `enable_feature` | `{"enable_feature":{"token":"terra1…","sku":"transfer_tax"}}` |
 
-Do not send a settings batch to the launcher. AutoLP instantiate+bind in the same create tx is **out of v1** (pay SKU, then bind).
+Do not send a settings batch to the launcher. **#605 H-1:** AutoLP instantiate+bind **is** wired on create (and on Enable Feature) when `autolp_code_id` is set. Unset → `AutolpCodeNotSet`, invoice not kept. Token `BindAutolp` is launcher-only. **#605 M-1:** `variable_rates` is a real gate — instantiate `max_*` cannot exceed current rates without the SKU; settings `buy_bps` / `sell_bps` require it. Columbus-5 **11611** does not gain #604 identity / #605 `initial_exempt` / this gate until `token_code_id` rotates after #589 GO.
 
 ## Option A (v1)
 
@@ -79,6 +79,9 @@ Token-only extra-debit sell + outbound buy. `SetPairHooks` stays governance-only
 
 ```bash
 make verify-issue-592
+make verify-issue-604
+make verify-issue-605
+make verify-issue-608
 make verify-issue-609
 make verify-issue-601
 make verify-issue-602

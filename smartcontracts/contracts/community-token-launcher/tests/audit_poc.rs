@@ -1,8 +1,8 @@
 //! Security-audit PoC tests (internal audit, 2026-08-23).
 //!
 //! Each test is a minimal reproduction of a finding in `audits/INTERNAL_KIMIK3_*.md`.
-//! Tests PASS on current code — i.e. they demonstrate the flawed behavior. A fix
-//! should flip the marked assertions.
+//! H-1 / M-1 (#605) and H-3 / H-4 (#608) are inverted. Remaining PoCs still
+//! demonstrate residuals.
 
 use cosmwasm_std::{to_json_binary, Addr, Binary, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -13,11 +13,11 @@ use cl8y_community_tax_autolp::msg::{
     ConfigResponse as AutoLpConfigResponse, ExecuteMsg as AutoLpExecute,
     InstantiateMsg as AutoLpInstantiate, QueryMsg as AutoLpQuery,
 };
-use cl8y_community_tax_token::msg::{
-    AutoLpConfig, ExecuteMsg as TokenExecute, InstantiateMsg as TokenInstantiate,
-    InvoiceHookMsg as TokenInvoice, LaunchGuardsConfig, QueryMsg as TokenQuery, SettingsBatch, Sku,
-};
 use cl8y_community_tax_token::msg::{ConfigResponse as TokenConfigResponse, FeaturesResponse};
+use cl8y_community_tax_token::msg::{
+    ExecuteMsg as TokenExecute, InstantiateMsg as TokenInstantiate, InvoiceHookMsg as TokenInvoice,
+    LaunchGuardsConfig, QueryMsg as TokenQuery, SettingsBatch, Sku,
+};
 use cl8y_community_token_launcher::msg::{
     CreateTokenMsg, ExecuteMsg as LauncherExecute, InstantiateMsg as LauncherInstantiate,
     InvoiceHookMsg as LauncherInvoice,
@@ -289,9 +289,9 @@ fn create_token_msg(features: Vec<Sku>) -> CreateTokenMsg {
         treasury: "treasury".into(),
         buy_bps: 0,
         sell_bps: 500,
-        max_buy_bps: 500,
+        max_buy_bps: 0,
         max_sell_bps: 500,
-        max_transfer_bps: 500,
+        max_transfer_bps: 0,
         features,
         mint: None,
         transfer_bps: None,
@@ -299,6 +299,7 @@ fn create_token_msg(features: Vec<Sku>) -> CreateTokenMsg {
         launch_guards: None,
         autolp_threshold: None,
         autolp_lp_recipient: None,
+        initial_exempt: None,
     }
 }
 
@@ -434,9 +435,9 @@ fn default_instantiate(
         treasury: "treasury".into(),
         buy_bps,
         sell_bps,
-        max_buy_bps: 500,
-        max_sell_bps: 500,
-        max_transfer_bps: 500,
+        max_buy_bps: buy_bps,
+        max_sell_bps: sell_bps,
+        max_transfer_bps: 0,
         factory: hub.factory.to_string(),
         router: Some("router".into()),
         ust1: hub.ust1.to_string(),
@@ -452,6 +453,7 @@ fn default_instantiate(
         autolp: None,
         launcher: None,
         launch_guards: guards,
+        initial_exempt: None,
     }
 }
 
@@ -530,37 +532,8 @@ fn poc_autov2lp_paid_but_never_bound() {
         .query_wasm_smart(token.clone(), &TokenQuery::GetConfig {})
         .unwrap();
     assert!(
-        cfg.autolp.is_none(),
-        "AutoLP paid at create but never bound"
-    );
-
-    let hook = to_json_binary(&TokenInvoice::UpdateSettings {
-        settings: SettingsBatch {
-            autolp: Some(AutoLpConfig {
-                pair: None,
-                threshold: Uint128::new(1_000_000),
-                lp_recipient: "manager".into(),
-            }),
-            ..Default::default()
-        },
-    })
-    .unwrap();
-    let err = hub
-        .app
-        .execute_contract(
-            Addr::unchecked("manager"),
-            hub.ust1.clone(),
-            &Cw20ExecuteMsg::Send {
-                contract: token.to_string(),
-                amount: Uint128::new(UST1_INVOICE),
-                msg: hook,
-            },
-            &[],
-        )
-        .unwrap_err();
-    assert!(
-        format!("{err:?}").contains("AutoLP contract not bound"),
-        "settings batch cannot bind AutoLP: {err:?}"
+        cfg.autolp.is_some(),
+        "AutoLP SKU instantiates and binds sister when autolp_code_id is set"
     );
 }
 
@@ -665,8 +638,8 @@ fn poc_router_exemption_full_tax_bypass() {
 }
 
 // ============================================================================
-// PoC 5 (H-3): cooldown_blocks > 0 bricks the listed pair (pair-wide, not
-// per-wallet). LAST_TRADE_BLOCK comment says per wallet; from+to are both saved.
+// PoC 5 (H-3 / #608 inverted): cooldown is per user wallet. A second wallet
+// can trade after alice; the same wallet still hits cooldown (H608-1 / H608-2).
 // ============================================================================
 #[test]
 fn poc_cooldown_bricks_pair() {
@@ -707,10 +680,23 @@ fn poc_cooldown_bricks_pair() {
         .unwrap();
 
     hub.app.update_block(|b| b.height += 1);
+    hub.app
+        .execute_contract(
+            Addr::unchecked("bob"),
+            token.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: pair.to_string(),
+                amount: Uint128::new(100_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+
     let err = hub
         .app
         .execute_contract(
-            Addr::unchecked("bob"),
+            Addr::unchecked("alice"),
             token.clone(),
             &Cw20ExecuteMsg::Send {
                 contract: pair.to_string(),
@@ -722,12 +708,13 @@ fn poc_cooldown_bricks_pair() {
         .unwrap_err();
     assert!(
         format!("{err:?}").contains("cooldown active"),
-        "pair-wide cooldown bricks second trade: {err:?}"
+        "same wallet still rate-limited: {err:?}"
     );
 }
 
 // ============================================================================
-// PoC 6 (H-4): max_wallet applies to the pair on provide (TransferFrom).
+// PoC 6 (H-4 / #608 inverted): max_wallet skips listed-pair `to`, so provide
+// TransferFrom succeeds after sells grow the pair above the cap (H608-4).
 // Stand-in is pair.TransferFrom, not pair ProvideLiquidity wasm.
 // ============================================================================
 #[test]
@@ -755,7 +742,7 @@ fn poc_max_wallet_bricks_provide() {
         .unwrap();
     let pair = register_pair(&mut hub, &token);
 
-    // Sell bypasses max_wallet (T592-11): pair balance climbs above the cap.
+    // Sell bypasses max_wallet (T592-11 / H608-6): pair balance climbs above the cap.
     hub.app
         .execute_contract(
             Addr::unchecked("alice"),
@@ -770,7 +757,6 @@ fn poc_max_wallet_bricks_provide() {
         .unwrap();
     assert_eq!(bal(&hub.app, &token, pair.as_str()), 1_500_000);
 
-    // LP provide (pair does TransferFrom) reverts while pair balance > cap.
     hub.app
         .execute_contract(
             Addr::unchecked("alice"),
@@ -783,8 +769,7 @@ fn poc_max_wallet_bricks_provide() {
             &[],
         )
         .unwrap();
-    let err = hub
-        .app
+    hub.app
         .execute_contract(
             Addr::unchecked(pair.clone()),
             token.clone(),
@@ -795,11 +780,8 @@ fn poc_max_wallet_bricks_provide() {
             },
             &[],
         )
-        .unwrap_err();
-    assert!(
-        format!("{err:?}").contains("Max wallet exceeded"),
-        "provide reverts once pair balance > max_wallet: {err:?}"
-    );
+        .unwrap();
+    assert_eq!(bal(&hub.app, &token, pair.as_str()), 1_600_000);
 }
 
 // ============================================================================
@@ -888,13 +870,14 @@ fn poc_trading_disabled_locks_withdrawals() {
 }
 
 // ============================================================================
-// PoC 8 (M): variable_rates SKU gates nothing on-chain.
+// PoC 8 (M-1 / #605 inverted): settings buy/sell require VariableRates SKU.
 // ============================================================================
 #[test]
 fn poc_variable_rates_sku_is_theater() {
     let mut hub = setup(Some("router"));
     let mut msg = create_token_msg(vec![]);
     msg.sell_bps = 0;
+    msg.max_sell_bps = 0;
     let token = create_free(&mut hub, "manager", msg);
 
     let hook = to_json_binary(&TokenInvoice::UpdateSettings {
@@ -904,7 +887,8 @@ fn poc_variable_rates_sku_is_theater() {
         },
     })
     .unwrap();
-    hub.app
+    let err = hub
+        .app
         .execute_contract(
             Addr::unchecked("manager"),
             hub.ust1.clone(),
@@ -915,15 +899,11 @@ fn poc_variable_rates_sku_is_theater() {
             },
             &[],
         )
-        .unwrap();
-    let cfg: TokenConfigResponse = hub
-        .app
-        .wrap()
-        .query_wasm_smart(token.clone(), &TokenQuery::GetConfig {})
-        .unwrap();
-    assert_eq!(
-        cfg.sell_bps, 500,
-        "rate raised to cap without variable_rates SKU"
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("variable_rates")
+            || format!("{err:?}").contains("not unlocked"),
+        "settings buy/sell require VariableRates SKU: {err:?}"
     );
 }
 

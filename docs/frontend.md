@@ -675,7 +675,7 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 
 ### Create Token (community tax) {#create-token-community-tax}
 
-Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Routes: `/token/create`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Verify: `make verify-issue-593`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
+Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Identity + wallet helpers: [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604). SKU init + percent taxes: [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605). Routes: `/token/create`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Verify: `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -692,6 +692,13 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |
 | **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 **11614**. |
 | **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
+| **C604-1** Identity | Name/symbol `^[A-Za-z0-9]+$`, name 3–50, symbol 3–12 (submitted uppercase; name case preserved). Decimals integer **6–18**. Shared parsers in `communityTaxIdentity.ts` used by the page **and** hook builders. |
+| **C604-2** Wallet helpers | Treasury/manager autofill the **connected** wallet when empty; never clobber a typed address; never `?manager=` / `?treasury=`. Helper copy is exactly `connected wallet` / `not connected wallet` (bech32-normalized). |
+| **C604-3** Columbus-5 gap | Listed token **11611** does **not** gain instantiate identity checks until launcher `token_code_id` rotates after #589 GO + `AddWhitelistedCodeId`. Keep 11611 listed (**F6**). Frontend ships as a client gate first. |
+| **C605-1** Percent taxes | Retail fields are **percent, 2 dp** (`2.50` → 250 bps). Never show “bps” on Create/Manage inputs. Combined cap still 25.00%. |
+| **C605-2** SKU init | Selecting a SKU shows its init fields; unchecking drops those fields from the hook. Free create (0 SKU) still cannot include paid payloads (**C593-12**). |
+| **C605-3** AutoLP create | Auto liquidity at create instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → create blocked for that SKU (no 50 UST1 no-op). `SkimToLp` stays permissionless and is never called from `Transfer`/`Send` (**T592-10**). |
+| **C605-4** VariableRates gate | Without `variable_rates`, instantiate `max_*` must equal the current rate (no CLI headroom). Settings `buy_bps` / `sell_bps` require the SKU (`SkuNotUnlocked`). Not a no-op (audit M-1). Caps stay immutable after create. |
 
 ### Max amount / gas reserve {#max-amount-gas-reserve}
 

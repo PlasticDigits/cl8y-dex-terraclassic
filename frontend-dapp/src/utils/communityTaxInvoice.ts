@@ -26,6 +26,11 @@ export type CreateTokenHookArgs = {
   features: CommunityTaxSkuId[]
   mint?: { minter: string; cap?: string }
   transferBps?: number
+  sinks?: { kind: string; addr?: string; bps: number }[]
+  launchGuards?: { max_wallet?: string; cooldown_blocks: number; trading_enabled: boolean }
+  initialExempt?: string[]
+  autolpThreshold?: string
+  autolpLpRecipient?: string
 }
 
 export function encodeInvoiceHook(inner: Record<string, unknown>): string {
@@ -33,12 +38,16 @@ export function encodeInvoiceHook(inner: Record<string, unknown>): string {
 }
 
 export function buildCreateTokenHook(args: CreateTokenHookArgs): string {
+  const features = args.features
   const caps = instantiateTaxCaps({
     buyBps: args.buyBps,
     sellBps: args.sellBps,
     transferBps: args.transferBps,
-    variableRates: args.features.includes('variable_rates'),
-    transferTax: args.features.includes('transfer_tax'),
+    variableRates: features.includes('variable_rates'),
+    transferTax: features.includes('transfer_tax'),
+    maxBuyBps: args.maxBuyBps,
+    maxSellBps: args.maxSellBps,
+    maxTransferBps: args.maxTransferBps,
   })
   const create_token: Record<string, unknown> = {
     name: args.name,
@@ -49,13 +58,26 @@ export function buildCreateTokenHook(args: CreateTokenHookArgs): string {
     treasury: args.treasury,
     buy_bps: args.buyBps,
     sell_bps: args.sellBps,
-    max_buy_bps: args.maxBuyBps ?? caps.maxBuyBps,
-    max_sell_bps: args.maxSellBps ?? caps.maxSellBps,
-    max_transfer_bps: args.maxTransferBps ?? caps.maxTransferBps,
-    features: args.features,
+    max_buy_bps: caps.maxBuyBps,
+    max_sell_bps: caps.maxSellBps,
+    max_transfer_bps: caps.maxTransferBps,
+    features,
   }
-  if (args.mint) create_token.mint = args.mint
-  if (args.transferBps != null) create_token.transfer_bps = args.transferBps
+  if (args.mint && features.includes('mint_control')) create_token.mint = args.mint
+  if (args.transferBps != null && features.includes('transfer_tax')) {
+    create_token.transfer_bps = args.transferBps
+  }
+  if (args.sinks && features.includes('split_router')) create_token.sinks = args.sinks
+  if (args.launchGuards && features.includes('launch_guards')) {
+    create_token.launch_guards = args.launchGuards
+  }
+  if (args.initialExempt && features.includes('exemption_directory')) {
+    create_token.initial_exempt = args.initialExempt
+  }
+  if (features.includes('auto_v2_lp')) {
+    if (args.autolpThreshold != null) create_token.autolp_threshold = args.autolpThreshold
+    if (args.autolpLpRecipient) create_token.autolp_lp_recipient = args.autolpLpRecipient
+  }
   return encodeInvoiceHook({ create_token })
 }
 

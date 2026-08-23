@@ -3,8 +3,8 @@ use cl8y_community_tax_token::msg::{
     ExecuteMsg as TokenExecute, InstantiateMsg as TokenInit, InvoiceHookMsg, Sku, INVOICE_UST1,
 };
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
-    Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -14,11 +14,12 @@ use crate::msg::{
     ConfigResponse, CreateTokenMsg, ExecuteMsg, InstantiateMsg, InvoiceHookMsg as LauncherHook,
     QueryMsg,
 };
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, PendingAutolp, CONFIG, PENDING_AUTOLP};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-token-launcher";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const REPLY_TOKEN: u64 = 1;
+const REPLY_AUTOLP: u64 = 2;
 
 pub fn instantiate(
     deps: DepsMut,
@@ -91,12 +92,15 @@ fn execute_receive(
 }
 
 fn create_token(
-    _deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     cfg: Config,
     paid: Uint128,
     args: CreateTokenMsg,
 ) -> Result<Response, ContractError> {
+    cl8y_community_tax_token::identity::validate_identity(&args.name, &args.symbol, args.decimals)?;
+    reject_create_sku_payloads(&args)?;
+
     let paid_skus = args.features.len() as u128;
     let required = Uint128::new(INVOICE_UST1)
         .checked_mul(Uint128::new(paid_skus))
@@ -109,6 +113,24 @@ fn create_token(
     }
 
     let wants_autolp = args.features.iter().any(|s| matches!(s, Sku::AutoV2Lp));
+    if wants_autolp && cfg.autolp_code_id.is_none() {
+        return Err(ContractError::AutolpCodeNotSet {});
+    }
+    if wants_autolp {
+        PENDING_AUTOLP.save(
+            deps.storage,
+            &PendingAutolp {
+                token: env.contract.address.clone(), // overwritten in token reply
+                manager: args.manager.clone(),
+                threshold: args.autolp_threshold.unwrap_or(Uint128::new(1)),
+                lp_recipient: args
+                    .autolp_lp_recipient
+                    .unwrap_or_else(|| args.manager.clone()),
+            },
+        )?;
+    } else {
+        PENDING_AUTOLP.remove(deps.storage);
+    }
 
     let token_init = TokenInit {
         name: args.name.clone(),
@@ -134,6 +156,7 @@ fn create_token(
         autolp: None,
         launcher: Some(env.contract.address.to_string()),
         launch_guards: args.launch_guards,
+        initial_exempt: args.initial_exempt,
     };
 
     let mut resp = Response::new()
@@ -147,25 +170,6 @@ fn create_token(
         resp = resp.add_attribute("sku", sku.as_str());
     }
 
-    if wants_autolp {
-        let code_id = cfg
-            .autolp_code_id
-            .ok_or(ContractError::AutolpCodeNotSet {})?;
-        let autolp_init = AutolpInit {
-            token: env.contract.address.to_string(), // replaced after token instantiate — see reply
-            manager: args.manager.clone(),
-            router: cfg.router.as_ref().map(|a| a.to_string()),
-            pair: None,
-            quote_token: None,
-            threshold: args.autolp_threshold.unwrap_or(Uint128::new(1)),
-            lp_recipient: args
-                .autolp_lp_recipient
-                .unwrap_or_else(|| args.manager.clone()),
-        };
-        // Token instantiate first (reply) then AutoLP — token address is in reply.
-        let _ = (code_id, autolp_init);
-    }
-
     let instantiate_token = WasmMsg::Instantiate {
         admin: Some(cfg.cmm_governance.to_string()),
         code_id: cfg.token_code_id,
@@ -177,6 +181,59 @@ fn create_token(
         .add_submessage(SubMsg::reply_on_success(instantiate_token, REPLY_TOKEN))
         .add_attribute("community_token", "pending");
     Ok(resp)
+}
+
+fn reject_create_sku_payloads(args: &CreateTokenMsg) -> Result<(), ContractError> {
+    let has = |sku: Sku| args.features.iter().any(|s| s == &sku);
+    if args.transfer_bps.is_some() && !has(Sku::TransferTax) {
+        return Err(ContractError::Token(
+            cl8y_community_tax_token::error::ContractError::SkuPayloadWithoutFeature {
+                field: "transfer_bps".into(),
+                sku: Sku::TransferTax.as_str().to_string(),
+            },
+        ));
+    }
+    if args.sinks.is_some() && !has(Sku::SplitRouter) {
+        return Err(ContractError::Token(
+            cl8y_community_tax_token::error::ContractError::SkuPayloadWithoutFeature {
+                field: "sinks".into(),
+                sku: Sku::SplitRouter.as_str().to_string(),
+            },
+        ));
+    }
+    if args.launch_guards.is_some() && !has(Sku::LaunchGuards) {
+        return Err(ContractError::Token(
+            cl8y_community_tax_token::error::ContractError::SkuPayloadWithoutFeature {
+                field: "launch_guards".into(),
+                sku: Sku::LaunchGuards.as_str().to_string(),
+            },
+        ));
+    }
+    if args.initial_exempt.as_ref().is_some_and(|v| !v.is_empty()) && !has(Sku::ExemptionDirectory)
+    {
+        return Err(ContractError::Token(
+            cl8y_community_tax_token::error::ContractError::SkuPayloadWithoutFeature {
+                field: "initial_exempt".into(),
+                sku: Sku::ExemptionDirectory.as_str().to_string(),
+            },
+        ));
+    }
+    if (args.autolp_threshold.is_some() || args.autolp_lp_recipient.is_some())
+        && !has(Sku::AutoV2Lp)
+    {
+        return Err(ContractError::Token(
+            cl8y_community_tax_token::error::ContractError::SkuPayloadWithoutFeature {
+                field: "autolp".into(),
+                sku: Sku::AutoV2Lp.as_str().to_string(),
+            },
+        ));
+    }
+    if has(Sku::LaunchGuards) && args.launch_guards.is_none() {
+        return Err(ContractError::Token(
+            cl8y_community_tax_token::error::ContractError::LaunchGuardsRequired {},
+        ));
+    }
+    Ok(())
 }
 
 fn enable_feature(
@@ -210,11 +267,44 @@ fn enable_feature(
         })?,
         funds: vec![],
     };
-    Ok(Response::new()
+    let mut resp = Response::new()
         .add_message(send)
         .add_attribute("action", "enable_feature")
-        .add_attribute("token", token)
-        .add_attribute("sku", sku.as_str()))
+        .add_attribute("token", token.to_string())
+        .add_attribute("sku", sku.as_str());
+
+    if matches!(sku, Sku::AutoV2Lp) {
+        let code_id = cfg
+            .autolp_code_id
+            .ok_or(ContractError::AutolpCodeNotSet {})?;
+        let token_cfg: cl8y_community_tax_token::msg::ConfigResponse =
+            deps.querier.query_wasm_smart(
+                &token,
+                &cl8y_community_tax_token::msg::QueryMsg::GetConfig {},
+            )?;
+        PENDING_AUTOLP.save(
+            deps.storage,
+            &PendingAutolp {
+                token: token.clone(),
+                manager: token_cfg.manager.to_string(),
+                threshold: Uint128::new(1),
+                lp_recipient: token_cfg.manager.to_string(),
+            },
+        )?;
+        resp = resp.add_submessage(instantiate_autolp_submsg(
+            &cfg,
+            code_id,
+            &token,
+            &PendingAutolp {
+                token: token.clone(),
+                manager: token_cfg.manager.to_string(),
+                threshold: Uint128::new(1),
+                lp_recipient: token_cfg.manager.to_string(),
+            },
+        )?);
+    }
+
+    Ok(resp)
 }
 
 fn forward_ust1(cfg: &Config, amount: Uint128) -> StdResult<WasmMsg> {
@@ -229,21 +319,86 @@ fn forward_ust1(cfg: &Config, amount: Uint128) -> StdResult<WasmMsg> {
 }
 
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    if msg.id != REPLY_TOKEN {
-        return Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
+    match msg.id {
+        REPLY_TOKEN => reply_token(deps, msg),
+        REPLY_AUTOLP => reply_autolp(deps, msg),
+        _ => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
             "unknown reply",
-        )));
+        ))),
     }
+}
+
+fn reply_token(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
     let parsed = cw_utils::parse_reply_instantiate_data(msg)
         .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
     let addr = parsed.contract_address;
-    Ok(Response::new()
+    let cfg = CONFIG.load(deps.storage)?;
+    let mut resp = Response::new()
         .add_attribute("action", "create_token_ready")
-        .add_attribute("community_token", addr)
-        .add_attribute(
-            "code_id",
-            CONFIG.load(deps.storage)?.token_code_id.to_string(),
-        ))
+        .add_attribute("community_token", &addr)
+        .add_attribute("code_id", cfg.token_code_id.to_string());
+
+    if let Some(mut pending) = PENDING_AUTOLP.may_load(deps.storage)? {
+        let code_id = cfg
+            .autolp_code_id
+            .ok_or(ContractError::AutolpCodeNotSet {})?;
+        pending.token = Addr::unchecked(&addr);
+        PENDING_AUTOLP.save(deps.storage, &pending)?;
+        resp = resp.add_submessage(instantiate_autolp_submsg(
+            &cfg,
+            code_id,
+            &pending.token,
+            &pending,
+        )?);
+    }
+    Ok(resp)
+}
+
+fn reply_autolp(deps: DepsMut, msg: Reply) -> Result<Response, ContractError> {
+    let parsed = cw_utils::parse_reply_instantiate_data(msg)
+        .map_err(|e| ContractError::Std(cosmwasm_std::StdError::generic_err(e.to_string())))?;
+    let autolp = parsed.contract_address;
+    let pending = PENDING_AUTOLP.load(deps.storage)?;
+    PENDING_AUTOLP.remove(deps.storage);
+    let bind = WasmMsg::Execute {
+        contract_addr: pending.token.to_string(),
+        msg: to_json_binary(&TokenExecute::BindAutolp {
+            autolp: autolp.clone(),
+        })?,
+        funds: vec![],
+    };
+    Ok(Response::new()
+        .add_message(bind)
+        .add_attribute("action", "autolp_bound")
+        .add_attribute("community_token", pending.token)
+        .add_attribute("autolp", autolp))
+}
+
+fn instantiate_autolp_submsg(
+    cfg: &Config,
+    code_id: u64,
+    token: &cosmwasm_std::Addr,
+    pending: &PendingAutolp,
+) -> Result<SubMsg, ContractError> {
+    let init = AutolpInit {
+        token: token.to_string(),
+        manager: pending.manager.clone(),
+        router: cfg.router.as_ref().map(|a| a.to_string()),
+        pair: None,
+        quote_token: None,
+        threshold: pending.threshold,
+        lp_recipient: pending.lp_recipient.clone(),
+    };
+    Ok(SubMsg::reply_on_success(
+        WasmMsg::Instantiate {
+            admin: Some(cfg.cmm_governance.to_string()),
+            code_id,
+            msg: to_json_binary(&init)?,
+            funds: vec![],
+            label: format!("community-autolp-{}", token),
+        },
+        REPLY_AUTOLP,
+    ))
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

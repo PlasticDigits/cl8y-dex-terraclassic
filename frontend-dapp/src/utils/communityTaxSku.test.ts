@@ -3,9 +3,12 @@ import {
   COMMUNITY_TAX_INVOICE_UST1_RAW,
   COMMUNITY_TAX_MAX_BPS,
   COMMUNITY_TAX_SKUS,
+  formatBpsAsPercent,
   instantiateTaxCaps,
   isUnlockableAfterCreate,
+  parseSharePercent,
   parseTaxBps,
+  parseTaxPercent,
   skuInvoiceUst1Raw,
   skuInvoiceUst1RawString,
 } from './communityTaxSku'
@@ -43,6 +46,31 @@ describe('communityTaxSku (#593)', () => {
     expect(parseTaxBps('')).toEqual({ ok: true, bps: 0 })
   })
 
+  it('P1–P4: parseTaxPercent 2dp matrix (#605 / A1)', () => {
+    expect(parseTaxPercent('')).toEqual({ ok: true, bps: 0 })
+    expect(parseTaxPercent('0')).toEqual({ ok: true, bps: 0 })
+    expect(parseTaxPercent('0.00')).toEqual({ ok: true, bps: 0 })
+    expect(parseTaxPercent('2.5')).toEqual({ ok: true, bps: 250 })
+    expect(parseTaxPercent('2.50')).toEqual({ ok: true, bps: 250 })
+    expect(parseTaxPercent('25')).toEqual({ ok: true, bps: 2500 })
+    expect(parseTaxPercent('25.00')).toEqual({ ok: true, bps: 2500 })
+    expect(parseTaxPercent('25.01').ok).toBe(false)
+    expect(parseTaxPercent('2.501').ok).toBe(false)
+    expect(parseTaxPercent('10.1.0').ok).toBe(false)
+    expect(parseTaxPercent('abc').ok).toBe(false)
+    expect(parseTaxPercent('1e2').ok).toBe(false)
+    expect(parseTaxPercent('10%').ok).toBe(false)
+    expect(parseTaxPercent('999999999.99').ok).toBe(false)
+    expect(formatBpsAsPercent(100)).toBe('1.00')
+    expect(formatBpsAsPercent(250)).toBe('2.50')
+  })
+
+  it('A18: sink percents sum in integer bps', () => {
+    const a = parseSharePercent('50.00')
+    const b = parseSharePercent('50.00')
+    expect(a.ok && b.ok && a.bps + b.bps).toBe(10_000)
+  })
+
   it('instantiate caps never sum above 2500 (not 2500+2500+2500)', () => {
     const locked = instantiateTaxCaps({
       buyBps: 100,
@@ -60,5 +88,27 @@ describe('communityTaxSku (#593)', () => {
       transferTax: true,
     })
     expect(variable.maxBuyBps + variable.maxSellBps + variable.maxTransferBps).toBe(COMMUNITY_TAX_MAX_BPS)
+
+    const lockedIgnoresHidden = instantiateTaxCaps({
+      buyBps: 0,
+      sellBps: 0,
+      variableRates: false,
+      transferTax: false,
+      maxBuyBps: 2500,
+      maxSellBps: 2500,
+      maxTransferBps: 0,
+    })
+    expect(lockedIgnoresHidden).toEqual({ maxBuyBps: 0, maxSellBps: 0, maxTransferBps: 0 })
+
+    const explicit = instantiateTaxCaps({
+      buyBps: 500,
+      sellBps: 0,
+      variableRates: true,
+      transferTax: false,
+      maxBuyBps: 1000,
+      maxSellBps: 0,
+      maxTransferBps: 0,
+    })
+    expect(explicit).toEqual({ maxBuyBps: 1000, maxSellBps: 0, maxTransferBps: 0 })
   })
 })
