@@ -9,9 +9,11 @@ import {
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
   UNWRAP_GAS_LIMIT,
   UST1_WINDOW_SEND_GAS_LIMIT,
+  PAY_INVOICE_SEND_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
   effectiveGasPriceUluna,
+  isPayInvoiceHookInner,
 } from '@/utils/constants'
 import { HYBRID_SWAP_GAS_LIMIT, gasLimitForHybridParams, hybridSwapParamsFromRecord } from './hybridSwapGas'
 
@@ -259,6 +261,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         if ('withdraw_liquidity' in inner) return REMOVE_LIQUIDITY_GAS_LIMIT
         if ('unwrap' in inner) return UNWRAP_GAS_LIMIT
         if ('deposit' in inner || 'withdraw' in inner) return UST1_WINDOW_SEND_GAS_LIMIT
+        if (isPayInvoiceHookInner(inner)) return PAY_INVOICE_SEND_GAS_LIMIT
         if ('execute_swap_operations' in inner) {
           return gasLimitForSwapOperationsMsg(inner)
         }

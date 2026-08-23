@@ -149,6 +149,8 @@ Retail copy terms used across docs and skills ([#489](https://gitlab.com/Plastic
 | Limit (maker) | Resting escrow on `/trade` or `/limits` — **not** pool LP and **not** a farm. |
 | Bid / Ask (book) | Order-book column titles and on-chain side enums only; not retail place-card button copy. |
 | 24h volume | Trailing window (`now − 24h`), not a midnight reset. `$0` means no priced swaps in that window (idle), not a calendar-day close. Same for Protocol **7d** / **30d** (`now − N days`). Playbook: [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md) ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). |
+| Pay with any token | Shared invoice checkout: user picks any routable token; the payee still receives a **canonical invoice** (e.g. 50 UST1). CTA is **Pay** / **Enable**, not Swap. Playbook: [`AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md) ([#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)). |
+| Invoice (protocol fee) | Exact CW20 amount a feature charges (SKU unlock or settings batch). Not a DEX swap fee and not a community token tax. |
 
 ## Verification
 
