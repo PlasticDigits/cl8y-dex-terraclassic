@@ -1,8 +1,8 @@
 //! Security-audit PoC tests (internal audit, 2026-08-23).
 //!
 //! Each test is a minimal reproduction of a finding in `audits/INTERNAL_KIMIK3_*.md`.
-//! H-3 / H-4 (#608) are inverted: they now assert the fixed per-wallet cooldown
-//! and provide-after-cap behavior. Remaining PoCs still demonstrate residuals.
+//! H-1 / M-1 (#605) and H-3 / H-4 (#608) are inverted. Remaining PoCs still
+//! demonstrate residuals.
 
 use cosmwasm_std::{to_json_binary, Addr, Binary, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -13,11 +13,11 @@ use cl8y_community_tax_autolp::msg::{
     ConfigResponse as AutoLpConfigResponse, ExecuteMsg as AutoLpExecute,
     InstantiateMsg as AutoLpInstantiate, QueryMsg as AutoLpQuery,
 };
-use cl8y_community_tax_token::msg::{
-    AutoLpConfig, ExecuteMsg as TokenExecute, InstantiateMsg as TokenInstantiate,
-    InvoiceHookMsg as TokenInvoice, LaunchGuardsConfig, QueryMsg as TokenQuery, SettingsBatch, Sku,
-};
 use cl8y_community_tax_token::msg::{ConfigResponse as TokenConfigResponse, FeaturesResponse};
+use cl8y_community_tax_token::msg::{
+    ExecuteMsg as TokenExecute, InstantiateMsg as TokenInstantiate, InvoiceHookMsg as TokenInvoice,
+    LaunchGuardsConfig, QueryMsg as TokenQuery, SettingsBatch, Sku,
+};
 use cl8y_community_token_launcher::msg::{
     CreateTokenMsg, ExecuteMsg as LauncherExecute, InstantiateMsg as LauncherInstantiate,
     InvoiceHookMsg as LauncherInvoice,
@@ -289,9 +289,9 @@ fn create_token_msg(features: Vec<Sku>) -> CreateTokenMsg {
         treasury: "treasury".into(),
         buy_bps: 0,
         sell_bps: 500,
-        max_buy_bps: 500,
+        max_buy_bps: 0,
         max_sell_bps: 500,
-        max_transfer_bps: 500,
+        max_transfer_bps: 0,
         features,
         mint: None,
         transfer_bps: None,
@@ -435,9 +435,9 @@ fn default_instantiate(
         treasury: "treasury".into(),
         buy_bps,
         sell_bps,
-        max_buy_bps: 500,
-        max_sell_bps: 500,
-        max_transfer_bps: 500,
+        max_buy_bps: buy_bps,
+        max_sell_bps: sell_bps,
+        max_transfer_bps: 0,
         factory: hub.factory.to_string(),
         router: Some("router".into()),
         ust1: hub.ust1.to_string(),
@@ -532,37 +532,8 @@ fn poc_autov2lp_paid_but_never_bound() {
         .query_wasm_smart(token.clone(), &TokenQuery::GetConfig {})
         .unwrap();
     assert!(
-        cfg.autolp.is_none(),
-        "AutoLP paid at create but never bound"
-    );
-
-    let hook = to_json_binary(&TokenInvoice::UpdateSettings {
-        settings: SettingsBatch {
-            autolp: Some(AutoLpConfig {
-                pair: None,
-                threshold: Uint128::new(1_000_000),
-                lp_recipient: "manager".into(),
-            }),
-            ..Default::default()
-        },
-    })
-    .unwrap();
-    let err = hub
-        .app
-        .execute_contract(
-            Addr::unchecked("manager"),
-            hub.ust1.clone(),
-            &Cw20ExecuteMsg::Send {
-                contract: token.to_string(),
-                amount: Uint128::new(UST1_INVOICE),
-                msg: hook,
-            },
-            &[],
-        )
-        .unwrap_err();
-    assert!(
-        format!("{err:?}").contains("AutoLP contract not bound"),
-        "settings batch cannot bind AutoLP: {err:?}"
+        cfg.autolp.is_some(),
+        "AutoLP SKU instantiates and binds sister when autolp_code_id is set"
     );
 }
 
@@ -899,13 +870,14 @@ fn poc_trading_disabled_locks_withdrawals() {
 }
 
 // ============================================================================
-// PoC 8 (M): variable_rates SKU gates nothing on-chain.
+// PoC 8 (M-1 / #605 inverted): settings buy/sell require VariableRates SKU.
 // ============================================================================
 #[test]
 fn poc_variable_rates_sku_is_theater() {
     let mut hub = setup(Some("router"));
     let mut msg = create_token_msg(vec![]);
     msg.sell_bps = 0;
+    msg.max_sell_bps = 0;
     let token = create_free(&mut hub, "manager", msg);
 
     let hook = to_json_binary(&TokenInvoice::UpdateSettings {
@@ -915,7 +887,8 @@ fn poc_variable_rates_sku_is_theater() {
         },
     })
     .unwrap();
-    hub.app
+    let err = hub
+        .app
         .execute_contract(
             Addr::unchecked("manager"),
             hub.ust1.clone(),
@@ -926,15 +899,11 @@ fn poc_variable_rates_sku_is_theater() {
             },
             &[],
         )
-        .unwrap();
-    let cfg: TokenConfigResponse = hub
-        .app
-        .wrap()
-        .query_wasm_smart(token.clone(), &TokenQuery::GetConfig {})
-        .unwrap();
-    assert_eq!(
-        cfg.sell_bps, 500,
-        "rate raised to cap without variable_rates SKU"
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("variable_rates")
+            || format!("{err:?}").contains("not unlocked"),
+        "settings buy/sell require VariableRates SKU: {err:?}"
     );
 }
 
