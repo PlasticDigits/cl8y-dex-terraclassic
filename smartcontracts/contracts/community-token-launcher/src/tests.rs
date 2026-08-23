@@ -3,7 +3,9 @@ use cosmwasm_std::{Addr, Empty, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{ConfigResponse, CreateTokenMsg, InstantiateMsg, InvoiceHookMsg, QueryMsg};
+use crate::msg::{
+    ConfigResponse, CreateTokenMsg, ExecuteMsg, InstantiateMsg, InvoiceHookMsg, QueryMsg,
+};
 
 fn launcher_contract() -> Box<dyn Contract<Empty>> {
     Box::new(
@@ -223,6 +225,76 @@ fn create_token_wrong_invoice_rejected() {
         )
         .unwrap_err();
     assert!(err.root_cause().to_string().contains("exactly"));
+}
+
+#[test]
+fn free_create_token_execute_zero_sku() {
+    let mut app = App::default();
+    let manager = Addr::unchecked("manager");
+    let ust1_code = app.store_code(cw20_base_contract());
+    let token_code = app.store_code(token_contract());
+    let launcher_code = app.store_code(launcher_contract());
+    let ust1 = app
+        .instantiate_contract(
+            ust1_code,
+            manager.clone(),
+            &cw20_base::msg::InstantiateMsg {
+                name: "UST1".into(),
+                symbol: "USTT".into(),
+                decimals: 6,
+                initial_balances: vec![],
+                mint: None,
+                marketing: None,
+            },
+            &[],
+            "ust1",
+            None,
+        )
+        .unwrap();
+    let launcher = app
+        .instantiate_contract(
+            launcher_code,
+            manager.clone(),
+            &InstantiateMsg {
+                token_code_id: token_code,
+                autolp_code_id: None,
+                ust1: ust1.to_string(),
+                cmm_treasury: manager.to_string(),
+                cmm_governance: manager.to_string(),
+                factory: manager.to_string(),
+                router: None,
+            },
+            &[],
+            "launcher",
+            Some(manager.to_string()),
+        )
+        .unwrap();
+    app.execute_contract(
+        manager.clone(),
+        launcher,
+        &ExecuteMsg::CreateToken(Box::new(CreateTokenMsg {
+            name: "Free".into(),
+            symbol: "FREE".into(),
+            decimals: 6,
+            initial_balances: vec![],
+            manager: manager.to_string(),
+            treasury: manager.to_string(),
+            buy_bps: 0,
+            sell_bps: 0,
+            max_buy_bps: 0,
+            max_sell_bps: 0,
+            max_transfer_bps: 0,
+            features: vec![],
+            mint: None,
+            transfer_bps: None,
+            sinks: None,
+            launch_guards: None,
+            autolp_threshold: None,
+            autolp_lp_recipient: None,
+        })),
+        &[],
+    )
+    .unwrap();
 }
 
 #[allow(dead_code)]

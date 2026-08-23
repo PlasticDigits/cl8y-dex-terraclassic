@@ -11,6 +11,10 @@ import {
   UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
   UST1_WINDOW_SEND_GAS_LIMIT,
   PAY_INVOICE_SEND_GAS_LIMIT,
+  COMMUNITY_CREATE_TOKEN_GAS_LIMIT,
+  COMMUNITY_MINT_GAS_LIMIT,
+  COMMUNITY_SKIM_GAS_LIMIT,
+  COMMUNITY_REGISTER_PAIR_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
   effectiveGasPriceUluna,
@@ -284,6 +288,14 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     return SWAP_GAS_LIMIT
   } else if ('drip' in executeMsg) {
     return FAUCET_DRIP_GAS_LIMIT
+  } else if ('create_token' in executeMsg) {
+    return COMMUNITY_CREATE_TOKEN_GAS_LIMIT
+  } else if ('mint' in executeMsg) {
+    return COMMUNITY_MINT_GAS_LIMIT
+  } else if ('skim_to_lp' in executeMsg) {
+    return COMMUNITY_SKIM_GAS_LIMIT
+  } else if ('register_listed_pair' in executeMsg) {
+    return COMMUNITY_REGISTER_PAIR_GAS_LIMIT
   } else if ('increase_allowance' in executeMsg || 'decrease_allowance' in executeMsg) {
     return BASE_GAS_LIMIT
   }

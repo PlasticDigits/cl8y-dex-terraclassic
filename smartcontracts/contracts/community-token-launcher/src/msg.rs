@@ -17,6 +17,9 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     Receive(Cw20ReceiveMsg),
+    /// 0-SKU create only. CW20 Send of 0 UST1 is rejected by UST1, so free create
+    /// cannot use `Receive` (GitLab #593). Paid SKUs still require the invoice hook.
+    CreateToken(Box<CreateTokenMsg>),
 }
 
 #[cw_serde]

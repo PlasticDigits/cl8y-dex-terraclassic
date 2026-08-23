@@ -79,6 +79,8 @@ import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmoun
 import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
+import { SELL_TAX_EXTRA_HINT } from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -187,6 +189,7 @@ export default function SwapPage() {
 
   const [inputAmount, setInputAmount] = useState('')
   const [fromToken, setFromToken] = useState<string>('')
+  const taxSell = useCommunityTaxSellBps(fromToken.startsWith('terra1') ? fromToken : null)
   const [toToken, setToToken] = useState<string>('')
   const [showSettings, setShowSettings] = useState(false)
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(readSwapSettingsAdvancedOpen)
@@ -410,6 +413,7 @@ export default function SwapPage() {
             hopCount: nativeSwapHopCount,
           }
         : undefined,
+      extraDebitSellBps: taxSell.sellBps,
     })
   }, [
     balanceQuery.data,
@@ -419,6 +423,7 @@ export default function SwapPage() {
     nativeNeedsWrapInput,
     nativeNeedsUnwrapOutput,
     nativeSwapHopCount,
+    taxSell.sellBps,
   ])
 
   const bookLegMaxResult = useMemo(() => {
@@ -1481,6 +1486,11 @@ export default function SwapPage() {
                   testIdMax="swap-pay-max"
                   testIdFractionPrefix="swap-pay-frac"
                 />
+              )}
+              {taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0 && (
+                <p className="text-[11px] mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="swap-sell-tax-extra">
+                  {SELL_TAX_EXTRA_HINT}
+                </p>
               )}
             </div>
 

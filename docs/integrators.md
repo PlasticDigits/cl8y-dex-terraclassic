@@ -204,6 +204,12 @@ Full Terraport reference: [terraport.md](./terraport.md).
 
 The indexer only **auto-discovers** pairs that respond to the pair `Pair` query **and** are listed at the same `contract_addr` in the configured factory’s `Pair { asset_infos }` reverse lookup ([GitLab **#311**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/311)). Operators must set **`FACTORY_ADDRESS`** in production (`RUN_MODE=prod` rejects an empty factory). Treat `GET /api/v1/pairs` and route discovery as **canonical factory deployments**, not arbitrary contracts that mimic the pair API. Details: [indexer-invariants.md § Factory pair provenance (P1)](./indexer-invariants.md).
 
+## Community tax catalog (GitLab #594)
+
+`GET /api/v1/community-tokens` lists **attested** community tax CW20s (launcher create, CMM admin, or env `code_id`). It is **not** the factory whitelist / F6 pin. When `COMMUNITY_TAX_CODE_ID` + `COMMUNITY_TOKEN_LAUNCHER` are unset, the list returns `{ "configured": false, "items": [] }` and does **not** LCD-probe on the request path.
+
+`GET /api/v1/community-tokens/{addr}` and `/{addr}/events` expose features, settings, pair registry, and SKU vs settings-fee events. `GET /api/v1/tokens/{addr}` may embed `community_tax` when the address is catalogued. Playbook: [`skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md`](../skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md). Invariants **I594-1–I594-10**.
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.

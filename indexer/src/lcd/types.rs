@@ -145,6 +145,9 @@ pub struct WasmContractInfoEnvelope {
 pub struct WasmContractInfo {
     /// LCD may emit a JSON number or a decimal string.
     pub code_id: serde_json::Value,
+    /// Wasm admin (CMM for launcher-attested community tax tokens, GitLab #594).
+    #[serde(default)]
+    pub admin: Option<String>,
 }
 
 impl WasmContractInfo {

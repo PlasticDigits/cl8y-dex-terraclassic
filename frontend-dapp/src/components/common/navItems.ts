@@ -35,10 +35,17 @@ export const UST1_NAV_ITEM: NavItem = { path: '/ust1', label: 'UST1' }
  */
 export const WRAP_NAV_ITEM: NavItem = { path: '/wrap', label: 'Wrap' }
 
+/**
+ * Community tax token create (GitLab #593) — More menu when launcher env is set.
+ * Label is **Create Token**, never Mint or Create Pair.
+ */
+export const CREATE_TOKEN_NAV_ITEM: NavItem = { path: '/token/create', label: 'Create Token' }
+
 export type NavMenuOptions = {
   includeMint?: boolean
   includeUst1?: boolean
   includeWrap?: boolean
+  includeCreateToken?: boolean
 }
 
 function appendConditionalNavItems(items: NavItem[], options?: NavMenuOptions): NavItem[] {
@@ -51,6 +58,9 @@ function appendConditionalNavItems(items: NavItem[], options?: NavMenuOptions): 
   }
   if (options?.includeMint) {
     next = [...next, MINT_NAV_ITEM]
+  }
+  if (options?.includeCreateToken) {
+    next = [...next, CREATE_TOKEN_NAV_ITEM]
   }
   return next
 }

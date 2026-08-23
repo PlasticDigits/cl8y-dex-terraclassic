@@ -5,6 +5,7 @@ mod aggregator_snapshot;
 mod best_execution;
 mod cg;
 mod cmc;
+mod community_tokens;
 mod compliance;
 mod consolidated_stats;
 pub mod db_orderbook_sim;
@@ -98,6 +99,8 @@ pub struct AppState {
     pub route_fidelity_drift_bps: u32,
     /// Configured hub wrap CW20s for `asset_address` on `GET /hub-prices` (GitLab #570).
     pub hub_usd: HubUsdConfig,
+    /// Community tax catalog env (GitLab #594). Unset → list `configured: false`.
+    pub community_tax: crate::config::CommunityTaxCatalogConfig,
 }
 
 pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
@@ -292,6 +295,9 @@ pub async fn find_pair_by_ticker(
         tokens::list_tokens,
         tokens::get_token,
         tokens::get_token_pairs,
+        community_tokens::list_community_tokens,
+        community_tokens::get_community_token,
+        community_tokens::get_community_token_events,
         traders::get_trader_profile,
         traders::get_trader_trades,
         traders::get_trader_limit_fills,
@@ -356,6 +362,11 @@ pub async fn find_pair_by_ticker(
         tokens::TokenResponse,
         tokens::TokenDetailResponse,
         tokens::VolumeStatResponse,
+        community_tokens::CommunityTokenListResponse,
+        community_tokens::CommunityTokenDetailResponse,
+        community_tokens::CommunityTokenItem,
+        community_tokens::CommunityTokenEventItem,
+        community_tokens::CommunityTokenFeaturesJson,
         traders::TraderTradesQuery,
         traders::TraderHistoryQuery,
         traders::TraderResponse,
@@ -388,6 +399,7 @@ pub async fn find_pair_by_ticker(
         (name = "Routing", description = "Multihop route discovery for swaps"),
         (name = "Pairs", description = "Trading pair endpoints"),
         (name = "Tokens", description = "Token/asset endpoints"),
+        (name = "CommunityTokens", description = "Community tax CW20 catalog (GitLab #594)"),
         (name = "Traders", description = "Trader profile and leaderboard"),
         (name = "Overview", description = "Global DEX statistics"),
         (name = "HubPrices", description = "DEX hub USD marks (cUSTC / LUNC / UST1 / USTR) — not CEX"),
@@ -495,6 +507,18 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route("/api/v1/tokens", get(tokens::list_tokens))
         .route("/api/v1/tokens/{addr}", get(tokens::get_token))
         .route("/api/v1/tokens/{addr}/pairs", get(tokens::get_token_pairs))
+        .route(
+            "/api/v1/community-tokens",
+            get(community_tokens::list_community_tokens),
+        )
+        .route(
+            "/api/v1/community-tokens/{addr}",
+            get(community_tokens::get_community_token),
+        )
+        .route(
+            "/api/v1/community-tokens/{addr}/events",
+            get(community_tokens::get_community_token_events),
+        )
         .route("/api/v1/traders/leaderboard", get(traders::leaderboard))
         .route("/api/v1/traders/{addr}", get(traders::get_trader_profile))
         .route(
@@ -634,6 +658,7 @@ pub async fn serve(
         book_snapshot_max_staleness_ms: config.book_snapshot_max_staleness_ms(),
         route_fidelity_drift_bps: config.route_fidelity_drift_bps,
         hub_usd: crate::indexer::hub_usd::HubUsdConfig::from_indexer_config(&config),
+        community_tax: crate::config::CommunityTaxCatalogConfig::from_indexer_config(&config),
     };
     let app = build_router(state, &config);
 

@@ -4,7 +4,7 @@ Use when adding or changing a **paid protocol feature** that invoices a canonica
 
 **Do not** fork Swap quote/execute, TokenSearchSelect+router construction, or a second “swap then pay” path into the feature page. Import [`quotePayInvoice`](../frontend-dapp/src/utils/payInvoice.ts) + [`PayWithAnyToken`](../frontend-dapp/src/components/payments/PayWithAnyToken.tsx).
 
-Issue **#595 is implemented** (v1 multi-msg settlement). An on-chain `invoice-payer` adapter and indexer exact-out `amount_out=` are **follow-ups**, not v1 blockers. `#593` Create Token / Manage Save must consume this card when those pages land.
+Issue **#595 is implemented** (v1 multi-msg settlement). An on-chain `invoice-payer` adapter and indexer exact-out `amount_out=` are **follow-ups**, not v1 blockers. `#593` Create Token / Manage Save consume this card ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)).
 
 ## Canonical references
 

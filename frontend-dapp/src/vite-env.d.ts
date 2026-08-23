@@ -31,6 +31,10 @@ interface ImportMetaEnv {
   readonly VITE_UST1_TOKEN_ADDRESS?: string
   readonly VITE_VFDUSD_TOKEN_ADDRESS?: string
   readonly VITE_UST1_ORACLE_ADDRESS?: string
+  /** Community tax template code id (GitLab #593). */
+  readonly VITE_COMMUNITY_TAX_CODE_ID?: string
+  readonly VITE_COMMUNITY_TOKEN_LAUNCHER?: string
+  readonly VITE_CMM_GOVERNANCE_ADDR?: string
 }
 
 declare module 'react-blockies'

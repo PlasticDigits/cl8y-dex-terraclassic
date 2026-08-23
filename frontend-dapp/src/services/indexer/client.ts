@@ -494,6 +494,17 @@ export async function getTokenDetail(addrOrDenom: string): Promise<IndexerTokenD
   return fetchJson<IndexerTokenDetail>(`/api/v1/tokens/${enc}`)
 }
 
+export async function getCommunityTokens(params?: {
+  manager?: string
+  includeUnattested?: boolean
+}): Promise<import('@/types').IndexerCommunityTokenList> {
+  const sp = new URLSearchParams()
+  if (params?.manager) sp.set('manager', params.manager)
+  if (params?.includeUnattested) sp.set('include_unattested', '1')
+  const qs = sp.toString()
+  return fetchJson(`/api/v1/community-tokens${qs ? `?${qs}` : ''}`)
+}
+
 /** Pairs that include this token. */
 export async function getTokenPairs(addrOrDenom: string): Promise<IndexerPair[]> {
   const enc = pathSegment(addrOrDenom)

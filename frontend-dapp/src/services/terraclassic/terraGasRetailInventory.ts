@@ -23,6 +23,10 @@
 
 import {
   PAY_INVOICE_SEND_GAS_LIMIT,
+  COMMUNITY_CREATE_TOKEN_GAS_LIMIT,
+  COMMUNITY_MINT_GAS_LIMIT,
+  COMMUNITY_SKIM_GAS_LIMIT,
+  COMMUNITY_REGISTER_PAIR_GAS_LIMIT,
   UNWRAP_GAS_LIMIT,
   UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
   UST1_WINDOW_SEND_GAS_LIMIT,
@@ -82,6 +86,30 @@ export const RETAIL_GAS_SHAPE_FIXTURES: readonly RetailGasShapeFixture[] = [
     note: 'CreatePairPage (#345)',
     msg: { create_pair: { asset_infos: [] } },
     expectedGas: CREATE_PAIR_GAS_LIMIT,
+  },
+  {
+    id: 'create_token_free',
+    note: 'launcher 0-SKU CreateToken execute (#593)',
+    msg: { create_token: { name: 'Demo', symbol: 'DEMO', features: [] } },
+    expectedGas: COMMUNITY_CREATE_TOKEN_GAS_LIMIT,
+  },
+  {
+    id: 'community_mint',
+    note: 'community tax Mint (not invoiced, #593)',
+    msg: { mint: { recipient: 'terra1x', amount: '1' } },
+    expectedGas: COMMUNITY_MINT_GAS_LIMIT,
+  },
+  {
+    id: 'skim_to_lp',
+    note: 'AutoLP SkimToLp permissionless (#593)',
+    msg: { skim_to_lp: {} },
+    expectedGas: COMMUNITY_SKIM_GAS_LIMIT,
+  },
+  {
+    id: 'register_listed_pair',
+    note: 'community tax RegisterListedPair (#593)',
+    msg: { register_listed_pair: { pair: 'terra1x' } },
+    expectedGas: COMMUNITY_REGISTER_PAIR_GAS_LIMIT,
   },
   {
     id: 'register',

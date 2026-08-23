@@ -267,13 +267,24 @@ impl LcdClient {
             .map_err(|e| LcdError::Deserialize(format!("Failed to parse contract response: {}", e)))
     }
 
-    /// Live wasm `code_id` for a contract instance (GitLab #585 F6 freeze probe).
-    pub async fn get_contract_code_id(&self, contract_addr: &str) -> Result<u64, LcdError> {
+    /// Live wasm `ContractInfo` (code_id + admin) for community-tax attestation (#594).
+    pub async fn get_contract_info(
+        &self,
+        contract_addr: &str,
+    ) -> Result<crate::lcd::types::WasmContractInfo, LcdError> {
         let path = format!("/cosmwasm/wasm/v1/contract/{}", contract_addr);
         let env: WasmContractInfoEnvelope = self.get(&path).await?;
-        env.contract_info.code_id_u64().ok_or_else(|| {
-            LcdError::Deserialize("contract_info.code_id missing or not a u64".to_string())
-        })
+        Ok(env.contract_info)
+    }
+
+    /// Live wasm `code_id` for a contract instance (GitLab #585 F6 freeze probe).
+    pub async fn get_contract_code_id(&self, contract_addr: &str) -> Result<u64, LcdError> {
+        self.get_contract_info(contract_addr)
+            .await?
+            .code_id_u64()
+            .ok_or_else(|| {
+                LcdError::Deserialize("contract_info.code_id missing or not a u64".to_string())
+            })
     }
 
     pub async fn get_latest_block_height(&self) -> Result<i64, LcdError> {

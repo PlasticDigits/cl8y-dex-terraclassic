@@ -393,6 +393,11 @@ pub async fn process_block_txs(
             .await?;
         }
 
+        for ev in crate::indexer::community_tokens::parse_community_events_from_tx(tx) {
+            crate::indexer::community_tokens::ingest_event(pool, config, &ev, &tx.txhash, height)
+                .await?;
+        }
+
         if let Some(ref mapper) = config.wrap_mapper_address {
             for fee in protocol_fees::parse_wrap_fees(tx, mapper) {
                 process_wrap_fee(

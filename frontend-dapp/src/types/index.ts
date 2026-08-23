@@ -485,9 +485,31 @@ export interface IndexerVolumeStat {
   unique_traders: number
 }
 
+export interface IndexerCommunityTaxSnapshot {
+  contract_address: string
+  code_id: number | null
+  manager: string | null
+  treasury: string | null
+  buy_bps: number | null
+  sell_bps: number | null
+  transfer_bps: number | null
+  attested_cmm: boolean
+  name?: string | null
+  symbol?: string | null
+  features?: Record<string, boolean>
+}
+
 export interface IndexerTokenDetail {
   token: IndexerToken
   volume_stats: IndexerVolumeStat[]
+  community_tax?: IndexerCommunityTaxSnapshot | null
+}
+
+export interface IndexerCommunityTokenList {
+  configured: boolean
+  code_id: number | null
+  items: IndexerCommunityTaxSnapshot[]
+  total: number
 }
 
 /** `GET /api/v1/hooks` */
