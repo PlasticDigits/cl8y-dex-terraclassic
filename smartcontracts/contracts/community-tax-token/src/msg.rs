@@ -10,6 +10,14 @@ pub const MAX_TAX_BPS: u16 = 2_500;
 pub const BPS_DENOM: u16 = 10_000;
 pub const MAX_SINKS: usize = 4;
 pub const MAX_DECIMALS: u8 = 18;
+/// Retail + on-chain floor so human-scale Swap/Trade/tape math stays sane (#604).
+pub const MIN_DECIMALS: u8 = 6;
+pub const MIN_NAME_LEN: usize = 3;
+pub const MAX_NAME_LEN: usize = 50;
+pub const MIN_SYMBOL_LEN: usize = 3;
+pub const MAX_SYMBOL_LEN: usize = 12;
+/// Manager exemptions written at instantiate when `ExemptionDirectory` is purchased (#605).
+pub const MAX_INITIAL_EXEMPT: usize = 20;
 
 /// Paid feature SKUs. MintControl is instantiate-only.
 #[cw_serde]
@@ -135,6 +143,9 @@ pub struct InstantiateMsg {
     pub autolp: Option<String>,
     pub launcher: Option<String>,
     pub launch_guards: Option<LaunchGuardsConfig>,
+    /// Written to `MANAGER_EXEMPT` when `ExemptionDirectory` is in `features` (#605).
+    #[serde(default)]
+    pub initial_exempt: Option<Vec<String>>,
 }
 
 #[cw_serde]
@@ -192,6 +203,10 @@ pub enum ExecuteMsg {
     /// Permissionless. Factory-listed pair that holds this token as an asset.
     RegisterListedPair {
         pair: String,
+    },
+    /// Launcher-only. Bind the AutoLP sister after it is instantiated in the create/enable reply (#605).
+    BindAutolp {
+        autolp: String,
     },
 }
 

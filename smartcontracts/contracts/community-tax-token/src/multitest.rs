@@ -208,6 +208,21 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
         )
         .unwrap();
 
+    let launch_guards = if features.iter().any(|s| matches!(s, Sku::LaunchGuards)) {
+        Some(LaunchGuardsConfig {
+            max_wallet: None,
+            cooldown_blocks: 0,
+            trading_enabled: false,
+        })
+    } else {
+        None
+    };
+    let variable = features.iter().any(|s| matches!(s, Sku::VariableRates));
+    let transfer_init = if features.iter().any(|s| matches!(s, Sku::TransferTax)) {
+        200
+    } else {
+        0
+    };
     let token = app
         .instantiate_contract(
             token_code,
@@ -231,20 +246,25 @@ fn clean(features: Vec<Sku>, mint: Option<MintInit>) -> EnvTok {
                 treasury: treasury.to_string(),
                 buy_bps: 500,
                 sell_bps: 500,
-                max_buy_bps: 1000,
-                max_sell_bps: 1000,
-                max_transfer_bps: 500,
+                max_buy_bps: if variable { 1000 } else { 500 },
+                max_sell_bps: if variable { 1000 } else { 500 },
+                max_transfer_bps: if variable { 500 } else { transfer_init },
                 factory: factory.to_string(),
                 router: Some("router".into()),
                 ust1: ust1.to_string(),
                 cmm_treasury: cmm.to_string(),
                 features,
                 mint,
-                transfer_bps: None,
+                transfer_bps: if transfer_init > 0 {
+                    Some(transfer_init)
+                } else {
+                    None
+                },
                 sinks: None,
                 autolp: None,
                 launcher: Some("launcher".into()),
-                launch_guards: None,
+                launch_guards,
+                initial_exempt: None,
             },
             &[],
             "comm",
@@ -519,26 +539,8 @@ fn transfer_tax_off_is_one_to_one() {
 #[test]
 fn transfer_tax_sku_taxes_wallet() {
     let mut e = clean(vec![Sku::TransferTax], None);
-    // enable transfer bps via settings batch
-    e.app
-        .execute_contract(
-            e.manager.clone(),
-            e.ust1.clone(),
-            &Cw20ExecuteMsg::Send {
-                contract: e.token.to_string(),
-                amount: Uint128::new(INVOICE_UST1),
-                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
-                    settings: SettingsBatch {
-                        transfer_bps: Some(200),
-                        ..Default::default()
-                    },
-                })
-                .unwrap(),
-            },
-            &[],
-        )
-        .unwrap();
     let other = Addr::unchecked("alice");
+    let treas_before = balance(&e.app, &e.token, e.treasury.as_str());
     e.app
         .execute_contract(
             e.user.clone(),
@@ -552,7 +554,10 @@ fn transfer_tax_sku_taxes_wallet() {
         .unwrap();
     let tax = 10_000u128 * 200 / 10_000;
     assert_eq!(balance(&e.app, &e.token, other.as_str()), 10_000 - tax);
-    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), tax);
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treas_before + tax
+    );
 }
 
 #[test]
@@ -1428,7 +1433,7 @@ fn instantiate_rejects_combined_cap() {
             token_code,
             manager.clone(),
             &InstantiateMsg {
-                name: "X".into(),
+                name: "BadCap".into(),
                 symbol: "XXXX".into(),
                 decimals: 6,
                 initial_balances: vec![Cw20Coin {
@@ -1447,13 +1452,14 @@ fn instantiate_rejects_combined_cap() {
                 router: None,
                 ust1: manager.to_string(),
                 cmm_treasury: manager.to_string(),
-                features: vec![],
+                features: vec![Sku::VariableRates],
                 mint: None,
                 transfer_bps: None,
                 sinks: None,
                 autolp: None,
                 launcher: None,
                 launch_guards: None,
+                initial_exempt: None,
             },
             &[],
             "bad",
@@ -1463,5 +1469,201 @@ fn instantiate_rejects_combined_cap() {
     assert!(
         err.root_cause().to_string().contains("Combined")
             || err.root_cause().to_string().contains("cap")
+    );
+}
+
+fn instantiate_raw(msg: InstantiateMsg) -> Result<Addr, String> {
+    let mut app = App::default();
+    let manager = Addr::unchecked("manager");
+    let token_code = app.store_code(token_contract());
+    app.instantiate_contract(token_code, manager, &msg, &[], "tok", None)
+        .map_err(|e| e.root_cause().to_string())
+}
+
+fn base_init(name: &str, symbol: &str, decimals: u8) -> InstantiateMsg {
+    InstantiateMsg {
+        name: name.into(),
+        symbol: symbol.into(),
+        decimals,
+        initial_balances: vec![Cw20Coin {
+            address: "manager".into(),
+            amount: Uint128::new(1),
+        }],
+        marketing: None,
+        manager: "manager".into(),
+        treasury: "treasury".into(),
+        buy_bps: 0,
+        sell_bps: 0,
+        max_buy_bps: 0,
+        max_sell_bps: 0,
+        max_transfer_bps: 0,
+        factory: "factory".into(),
+        router: None,
+        ust1: "ust1".into(),
+        cmm_treasury: "cmm".into(),
+        features: vec![],
+        mint: None,
+        transfer_bps: None,
+        sinks: None,
+        autolp: None,
+        launcher: None,
+        launch_guards: None,
+        initial_exempt: None,
+    }
+}
+
+#[test]
+fn instantiate_rejects_decimals_outside_6_18() {
+    for dec in [0u8, 5, 19, 255] {
+        let err = instantiate_raw(base_init("Demo", "DEMO", dec)).unwrap_err();
+        assert!(
+            err.to_string().contains("Decimals") || format!("{err:?}").contains("Decimals"),
+            "{dec}: {err}"
+        );
+    }
+}
+
+#[test]
+fn instantiate_accepts_decimals_6_and_18() {
+    instantiate_raw(base_init("Demo", "DEMO", 6)).unwrap();
+    instantiate_raw(base_init("Demo", "DEMO", 18)).unwrap();
+}
+
+#[test]
+fn instantiate_rejects_bad_name_and_symbol() {
+    for name in ["My Token", "Demo!", "ab", "", "🚀"] {
+        let err = instantiate_raw(base_init(name, "DEMO", 6)).unwrap_err();
+        assert!(err.to_string().contains("Name") || format!("{err:?}").contains("InvalidName"));
+    }
+    for symbol in ["DE-MO", "D", "TOOLONGSYMBOLX"] {
+        let err = instantiate_raw(base_init("Demo", symbol, 6)).unwrap_err();
+        assert!(err.to_string().contains("Symbol") || format!("{err:?}").contains("InvalidSymbol"));
+    }
+}
+
+#[test]
+fn instantiate_requires_explicit_launch_guards() {
+    let mut msg = base_init("Demo", "DEMO", 6);
+    msg.features = vec![Sku::LaunchGuards];
+    let err = instantiate_raw(msg).unwrap_err();
+    assert!(err.to_string().contains("launch_guards") || err.to_string().contains("Launch guards"));
+}
+
+#[test]
+fn instantiate_launch_guards_and_initial_exempt() {
+    let mut app = App::default();
+    let manager = Addr::unchecked("manager");
+    let user = Addr::unchecked("user");
+    let token_code = app.store_code(token_contract());
+    let mut msg = base_init("Demo", "DEMO", 6);
+    msg.manager = manager.to_string();
+    msg.treasury = manager.to_string();
+    msg.factory = manager.to_string();
+    msg.ust1 = manager.to_string();
+    msg.cmm_treasury = manager.to_string();
+    msg.features = vec![Sku::LaunchGuards, Sku::ExemptionDirectory];
+    msg.launch_guards = Some(LaunchGuardsConfig {
+        max_wallet: Some(Uint128::new(1_000_000)),
+        cooldown_blocks: 10,
+        trading_enabled: false,
+    });
+    msg.initial_exempt = Some(vec![user.to_string()]);
+    let token = app
+        .instantiate_contract(token_code, manager.clone(), &msg, &[], "tok", None)
+        .unwrap();
+    let cfg: ConfigResponse = app
+        .wrap()
+        .query_wasm_smart(&token, &QueryMsg::GetConfig {})
+        .unwrap();
+    assert!(!cfg.launch_guards.as_ref().unwrap().trading_enabled);
+    assert_eq!(cfg.launch_guards.as_ref().unwrap().cooldown_blocks, 10);
+    let ex: crate::msg::ExemptionsResponse = app
+        .wrap()
+        .query_wasm_smart(
+            &token,
+            &QueryMsg::GetExemptions {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+    assert!(ex.manager.iter().any(|a| a == &user));
+}
+
+#[test]
+fn instantiate_rejects_headroom_without_variable_rates() {
+    let mut msg = base_init("Demo", "DEMO", 6);
+    msg.max_sell_bps = 500;
+    let err = instantiate_raw(msg).unwrap_err();
+    assert!(
+        err.contains("variable_rates") || err.contains("max_sell") || err.contains("feature"),
+        "{err}"
+    );
+}
+
+#[test]
+fn settings_buy_sell_require_variable_rates() {
+    let mut e = clean(vec![], None);
+    let err = e
+        .app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings {
+                    settings: SettingsBatch {
+                        sell_bps: Some(0),
+                        ..Default::default()
+                    },
+                })
+                .unwrap(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("variable_rates")
+            || err.root_cause().to_string().contains("not unlocked"),
+        "{err:?}"
+    );
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
+#[test]
+fn instantiate_rejects_transfer_bps_without_sku() {
+    let mut msg = base_init("Demo", "DEMO", 6);
+    msg.max_transfer_bps = 100;
+    msg.transfer_bps = Some(100);
+    let err = instantiate_raw(msg).unwrap_err();
+    assert!(
+        err.contains("transfer_bps")
+            || err.contains("SKU")
+            || err.contains("feature")
+            || err.contains("SkuPayload"),
+        "{err}"
+    );
+}
+
+#[test]
+fn instantiate_rejects_protocol_initial_exempt() {
+    let mut app = App::default();
+    let manager = Addr::unchecked("manager");
+    let token_code = app.store_code(token_contract());
+    let mut msg = base_init("Demo", "DEMO", 6);
+    msg.manager = manager.to_string();
+    msg.treasury = manager.to_string();
+    msg.factory = manager.to_string();
+    msg.ust1 = manager.to_string();
+    msg.cmm_treasury = manager.to_string();
+    msg.features = vec![Sku::ExemptionDirectory];
+    msg.initial_exempt = Some(vec![manager.to_string()]); // factory == manager in this fixture
+    let err = app
+        .instantiate_contract(token_code, manager, &msg, &[], "tok", None)
+        .unwrap_err();
+    assert!(
+        err.root_cause().to_string().contains("protocol")
+            || err.root_cause().to_string().contains("Protocol")
     );
 }

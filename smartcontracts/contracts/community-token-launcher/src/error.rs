@@ -21,4 +21,7 @@ pub enum ContractError {
     /// Paid SKUs must go through UST1 `Send` so the invoice is collected.
     #[error("CreateToken execute is free-profile only (empty features); paid SKUs use UST1 Send")]
     FreeProfileOnly {},
+
+    #[error("{0}")]
+    Token(#[from] cl8y_community_tax_token::error::ContractError),
 }

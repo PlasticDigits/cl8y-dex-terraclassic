@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::Item;
 
 #[cw_serde]
@@ -13,4 +13,14 @@ pub struct Config {
     pub router: Option<Addr>,
 }
 
+/// In-flight AutoLP instantiate after token (or EnableFeature) reply (#605).
+#[cw_serde]
+pub struct PendingAutolp {
+    pub token: Addr,
+    pub manager: String,
+    pub threshold: Uint128,
+    pub lp_recipient: String,
+}
+
 pub const CONFIG: Item<Config> = Item::new("cfg");
+pub const PENDING_AUTOLP: Item<PendingAutolp> = Item::new("pending_autolp");

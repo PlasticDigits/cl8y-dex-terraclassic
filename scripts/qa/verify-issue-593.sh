@@ -32,6 +32,8 @@ run_step "frontend: SKU / invoice / extra-debit / pages / nav" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/communityTaxSku.test.ts \
     src/utils/communityTaxInvoice.test.ts \
+    src/utils/communityTaxIdentity.test.ts \
+    src/utils/communityTaxCreateForm.test.ts \
     src/utils/taxPreviewMaxSpend.test.ts \
     src/utils/__tests__/maxSpendableAmount.test.ts \
     src/pages/CreateTokenPage.test.tsx \
