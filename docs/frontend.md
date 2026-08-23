@@ -628,6 +628,7 @@ Hybrid hops use quote-driven limits in [`hybridSwapGas.ts`](../frontend-dapp/src
 | Router `execute_swap_operations` ([#353](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/353)) | Native wrap + CW20 router paths use **`gasLimitForRouterExecuteSwapOperations`**: single-hop **1.4M** (`ROUTER_SINGLE_HOP_GAS_LIMIT`, measured ~1.28M); multi-hop floor **`ROUTER_SWAP_OPS_MIN_GAS_PER_HOP` (950k)** per hop (raised from 900k after 2-hop sat on `gasUsed` 1,810,064 vs wanted 1,810,000). **`WRAP_GAS_LIMIT` = 400k** (measured ~301k). Direct pair `swap` stays **840k**. |
 | Wrap + ≥2hop combo ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)) | Combined `wrap_deposit` + CW20 `send`→`execute_swap_operations` (N≥2) adds **`WRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k)** in `totalGasLimitForExecuteMsgs`. Wrap+2hop = **2,710,000** (~76.76 LUNC at 28.325) — above the gem-calibrated 2.31M sum. Wrap+1hop stays **1.8M** (#353). Malformed `send.msg` **throws** (`SendHookGasDecodeError`) instead of silent 600k. Native path stays **pool-only** (no hybrid / `book_input`). |
 | Unwrap + ≥2hop combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)) | Same-msg router `unwrap_output` after N≥2 hops adds **`UNWRAP_ROUTER_COMBO_OVERHEAD_GAS` (400k)** in `gasLimitForSwapOperationsMsg` — analog of the wrap combo so InstantWithdraw after two hub hops (taxed `uusd` on USTR→USTC) is not charged to every unwrap. USTR→USTC / USTR→LUNC = **3,110,000** (~88.09 LUNC at 28.325), above the 2.71M columbus-5 OOG sum. Direct mapper unwrap (cUSTC→USTC / cLUNC→LUNC) stays **800k**. Router 1-hop + unwrap stays **2.2M**. Wrap+2hop+unwrap = **3,910,000**. Native path stays **pool-only** (**H596-7**). Inventory: `send_2hop_unwrap_ustc` / `send_2hop_unwrap`. Verify: `make verify-issue-599`. |
+| Invoice pay combo ([#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)) | CW20 `send` → launcher hook (`enable_feature` / `create_token` / `update_settings` / `apply_settings` / `subscribe`) uses **`PAY_INVOICE_SEND_GAS_LIMIT` (600k)**. Combined wrap+2hop+invoice Send (`wrap_plus_2hop_plus_invoice_send`) is **larger** than wrap+2hop swap-only. Playbook: [`AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md). |
 | Swap Network fee row ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)) | When a quote is ready, Swap shows **Network fee (est.) ~X LUNC** (`swap-network-fee`) from the same envelope as broadcast. Fee denom is **LUNC / `uluna` only** — 0 USTC does not block a LUNC-funded swap. AMM **Fee** row stays pool `fee_bps`. Optional `gas × price` internals only inside **Trade details**. Native LUNC **Max** uses the same wrap+N-hop hints (`hopCount` defaults to **2** until the route is known). Submit preflight: bank LUNC ≥ pay+fee (native) or fee (CW20). |
 | **Min uluna gas price (fee amount)** | `effectiveGasPriceUluna()` in [`constants.ts`](../frontend-dapp/src/utils/constants.ts) floors a low `VITE_GAS_PRICE_ULUNA` at **`MIN_GAS_PRICE_ULUNA` (28.325)**, matching Station `gasPriceStep` / Columbus-5 norms. Without this, **insufficient fee** errors occur at broadcast: high `gas_wanted` but **Fee.amount** computed with a tiny gas price (repro stack: **`increase_allowance`** on `/trade` or `/limits` before the CW20 **`send`** + `place_limit_order` tx — [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). |
 | **Universal broadcast path** | Every on-chain submit uses **`broadcastTerraExecuteContracts`**; do not add parallel `wallet.broadcastTx` call sites. Gas limits live in **`terraGas.ts`**; sequence helpers (`executeCw20AllowanceThen`, `placeLimitOrderWithAllowance`) live in **`transactions.ts`** / **`pair.ts`**. [GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127). |
@@ -644,6 +645,31 @@ Hybrid hops use quote-driven limits in [`hybridSwapGas.ts`](../frontend-dapp/src
 **Operational alignment:** local/mainnet helper scripts use `terrad … --gas-adjustment 1.3` (see `scripts/deploy-dex-local.sh`). **`SWAP_GAS_BUFFER` is set to 1.3** so the dApp matches that default rather than a looser multiplier.
 
 **Third-party / agent context:** see repository [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) for a short playbook when changing gas constants or debugging `out of gas`. [`packages/localnet-trading-swarm/src/gas.ts`](../packages/localnet-trading-swarm/src/gas.ts) mirrors the same buffer for scripted swaps on LocalTerra ([GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)).
+
+### Pay with any token (DEX-routed invoice) {#pay-with-any-token}
+
+Shared checkout for paid protocol features ([GitLab **#595**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)). First consumers: community tax-token SKU unlocks and manager settings **batch** Save ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Next: prepaid market-making subscription ([#597](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/597)). **Do not** copy Swap quote/execute into those pages.
+
+Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyToken.tsx`](../frontend-dapp/src/components/payments/PayWithAnyToken.tsx). Playbook: [`skills/AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md). Verify: `make verify-issue-595`.
+
+| Invariant | Meaning |
+|-----------|---------|
+| **I595-1** Canonical invoice | SKU / settings batch stay **50 UST1** (or `N × 50` for SKU count) on-chain. The module only acquires ≥ invoice of that CW20. |
+| **I595-2** One broadcast | `buildPayInvoiceMsgs` → one `executeTerraContractMulti`. Two user txs is a fail. |
+| **I595-3** Exact payee credit | Swap `to` = user; last `Send` amount = invoice. Excess invoice token refunds to the user. Do not set swap `to = payee`. |
+| **I595-4** No pair FoT math | Existing router + pairs only (**H-01**). |
+| **I595-5** Reuse solver | `GET /route/solve` (path) + `ReverseSimulateSwapOperations` (`amount_in`) + forward sim `out ≥ invoice`. Indexer exact-out is a follow-up. |
+| **I595-6** Invoice is a floor | `minimum_receive` ≥ invoice. Slippage scales **max_in** only (`applySlippagePercentCeiling`). |
+| **I595-7** No route | Frozen / gem-bridge / unroutable → disable + **No route**. |
+| **I595-8** Same-asset Send | Pay token = invoice token → one `Send`, no router. |
+| **I595-9** Native wrap | LUNC/USTC wrap then route when wrap env is set. |
+| **I595-10** Payee from config | `Invoice.payee` from the caller (launcher env). Never URL/query. |
+| **I595-11** No unlimited allowance | `Send` amount = quoted debit only. |
+| **I595-12** Copy | “You pay ~X TOKEN (incl. DEX swap) → 50 UST1 fee”. CTA **Pay** / **Enable**. One Route row. |
+| **I595-13** Gas | `PAY_INVOICE_SEND_GAS_LIMIT` (600k) + wrap+N-hop combo. `make verify-issue-475` stays green. |
+| **I595-14** Launcher stays dumb | #592 accepts only invoice-token `Send`. Routing is not inside the launcher. |
+
+**v1 settlement** is wallet multi-msg (swap to user, then exact invoice `Send`). An on-chain `invoice-payer` adapter is recommended later (one user `Send`, allowance-friendly) but is **not** required for #593 to import this module.
 
 ### Max amount / gas reserve {#max-amount-gas-reserve}
 

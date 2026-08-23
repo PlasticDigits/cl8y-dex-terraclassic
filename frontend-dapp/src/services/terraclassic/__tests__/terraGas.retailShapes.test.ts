@@ -13,11 +13,7 @@ import {
   primaryExecuteMsgKey,
   totalGasLimitForExecuteMsgs,
 } from '../terraGas'
-import {
-  UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
-  WRAP_GAS_LIMIT,
-  WRAP_ROUTER_COMBO_OVERHEAD_GAS,
-} from '@/utils/constants'
+import { UNWRAP_ROUTER_COMBO_OVERHEAD_GAS, WRAP_GAS_LIMIT, WRAP_ROUTER_COMBO_OVERHEAD_GAS } from '@/utils/constants'
 
 /**
  * Soft-launch faucet drip LocalTerra ballpark (CW20 Mint submsg).
@@ -91,6 +87,12 @@ describe('combined wrap+router envelopes (GitLab #587)', () => {
     const wrap1 = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_send_1hop')!
     expect(totalGasLimitForExecuteMsgs(wrap1.msgs)).toBe(WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(1))
   })
+
+  it('wrap+2hop+invoice Send exceeds wrap+2hop swap-only (#595)', () => {
+    const swapOnly = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_send_2hop')!
+    const invoice = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_2hop_plus_invoice_send')!
+    expect(totalGasLimitForExecuteMsgs(invoice.msgs)).toBeGreaterThan(totalGasLimitForExecuteMsgs(swapOnly.msgs))
+  })
 })
 
 describe('unwrap+≥2hop combo (GitLab #599)', () => {
@@ -99,9 +101,7 @@ describe('unwrap+≥2hop combo (GitLab #599)', () => {
     const ustc = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'send_2hop_unwrap_ustc')!
     const gas = totalGasLimitForExecuteMsgs(ustc.msgs)
     expect(gas).toBe(totalGasLimitForExecuteMsgs(lunc.msgs))
-    expect(gas).toBe(
-      gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT + UNWRAP_ROUTER_COMBO_OVERHEAD_GAS
-    )
+    expect(gas).toBe(gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT + UNWRAP_ROUTER_COMBO_OVERHEAD_GAS)
     expect(gas).toBe(3_110_000)
     expect(gas).toBeGreaterThan(2_710_000)
     expect(gas).toBeLessThan(15_000_000)
@@ -115,9 +115,7 @@ describe('unwrap+≥2hop combo (GitLab #599)', () => {
 
   it('router 1-hop + unwrap does not pay unwrap combo', () => {
     const hop1 = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'send_1hop_unwrap')!
-    expect(totalGasLimitForExecuteMsgs(hop1.msgs)).toBe(
-      gasLimitForRouterExecuteSwapOperations(1) + UNWRAP_GAS_LIMIT
-    )
+    expect(totalGasLimitForExecuteMsgs(hop1.msgs)).toBe(gasLimitForRouterExecuteSwapOperations(1) + UNWRAP_GAS_LIMIT)
   })
 
   it('unwrap+2hop fee stays tens-of-LUNC class at 28.325', () => {
