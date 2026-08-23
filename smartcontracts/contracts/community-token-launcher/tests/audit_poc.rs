@@ -299,6 +299,7 @@ fn create_token_msg(features: Vec<Sku>) -> CreateTokenMsg {
         launch_guards: None,
         autolp_threshold: None,
         autolp_lp_recipient: None,
+        initial_exempt: None,
     }
 }
 
@@ -452,6 +453,7 @@ fn default_instantiate(
         autolp: None,
         launcher: None,
         launch_guards: guards,
+        initial_exempt: None,
     }
 }
 

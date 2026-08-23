@@ -1137,6 +1137,8 @@ fn launch_guards_block_both_sides_and_sell_bypasses_max_wallet() {
 #[test]
 fn launch_guards_cooldown_zero_allows_same_block_trades() {
     let mut e = clean(vec![Sku::LaunchGuards], None);
+    // #605 instantiate default is trading_enabled=false; enable with cooldown 0 (H608-3).
+    enable_launch_guards(&mut e, None, 0);
     register_listed_pair(&mut e);
     sell_to_pair(&mut e, "user", 1_000);
     sell_to_pair(&mut e, "user", 1_000);
