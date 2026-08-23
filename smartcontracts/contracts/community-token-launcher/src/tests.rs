@@ -3,7 +3,9 @@ use cosmwasm_std::{Addr, Empty, Uint128};
 use cw20::Cw20Coin;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{ConfigResponse, CreateTokenMsg, InstantiateMsg, InvoiceHookMsg, QueryMsg};
+use crate::msg::{
+    ConfigResponse, CreateTokenMsg, ExecuteMsg, InstantiateMsg, InvoiceHookMsg, QueryMsg,
+};
 
 fn launcher_contract() -> Box<dyn Contract<Empty>> {
     Box::new(
@@ -223,6 +225,129 @@ fn create_token_wrong_invoice_rejected() {
         )
         .unwrap_err();
     assert!(err.root_cause().to_string().contains("exactly"));
+}
+
+#[test]
+fn create_free_profile_via_execute_stamps_cmm_admin() {
+    let mut app = App::default();
+    let manager = Addr::unchecked("manager");
+    let cmm_gov = Addr::unchecked("cmm_gov");
+    let token_code = app.store_code(token_contract());
+    let launcher_code = app.store_code(launcher_contract());
+    let ust1_code = app.store_code(cw20_base_contract());
+    let ust1 = app
+        .instantiate_contract(
+            ust1_code,
+            manager.clone(),
+            &cw20_base::msg::InstantiateMsg {
+                name: "UST1".into(),
+                symbol: "USTT".into(),
+                decimals: 6,
+                initial_balances: vec![],
+                mint: None,
+                marketing: None,
+            },
+            &[],
+            "ust1",
+            None,
+        )
+        .unwrap();
+    let launcher = app
+        .instantiate_contract(
+            launcher_code,
+            manager.clone(),
+            &InstantiateMsg {
+                token_code_id: token_code,
+                autolp_code_id: None,
+                ust1: ust1.to_string(),
+                cmm_treasury: manager.to_string(),
+                cmm_governance: cmm_gov.to_string(),
+                factory: manager.to_string(),
+                router: None,
+            },
+            &[],
+            "launcher",
+            Some(cmm_gov.to_string()),
+        )
+        .unwrap();
+
+    let paid = app
+        .execute_contract(
+            manager.clone(),
+            launcher.clone(),
+            &ExecuteMsg::CreateToken(Box::new(CreateTokenMsg {
+                name: "Free".into(),
+                symbol: "FREE".into(),
+                decimals: 6,
+                initial_balances: vec![Cw20Coin {
+                    address: manager.to_string(),
+                    amount: Uint128::new(1_000_000),
+                }],
+                manager: manager.to_string(),
+                treasury: manager.to_string(),
+                buy_bps: 500,
+                sell_bps: 500,
+                max_buy_bps: 1000,
+                max_sell_bps: 1000,
+                max_transfer_bps: 500,
+                features: vec![Sku::TransferTax],
+                mint: None,
+                transfer_bps: None,
+                sinks: None,
+                launch_guards: None,
+                autolp_threshold: None,
+                autolp_lp_recipient: None,
+            })),
+            &[],
+        )
+        .unwrap_err();
+    assert!(paid.root_cause().to_string().contains("free-profile only"));
+
+    let res = app
+        .execute_contract(
+            manager.clone(),
+            launcher.clone(),
+            &ExecuteMsg::CreateToken(Box::new(CreateTokenMsg {
+                name: "Free".into(),
+                symbol: "FREE".into(),
+                decimals: 6,
+                initial_balances: vec![Cw20Coin {
+                    address: manager.to_string(),
+                    amount: Uint128::new(1_000_000),
+                }],
+                manager: manager.to_string(),
+                treasury: manager.to_string(),
+                buy_bps: 500,
+                sell_bps: 500,
+                max_buy_bps: 1000,
+                max_sell_bps: 1000,
+                max_transfer_bps: 500,
+                features: vec![],
+                mint: None,
+                transfer_bps: None,
+                sinks: None,
+                launch_guards: None,
+                autolp_threshold: None,
+                autolp_lp_recipient: None,
+            })),
+            &[],
+        )
+        .unwrap();
+    let token = res
+        .events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .find(|a| a.key == "community_token" && a.value != "pending")
+        .map(|a| Addr::unchecked(a.value.clone()))
+        .expect("community_token address");
+    let origin: cl8y_community_tax_token::msg::LauncherOriginResponse = app
+        .wrap()
+        .query_wasm_smart(
+            &token,
+            &cl8y_community_tax_token::msg::QueryMsg::GetLauncherOrigin {},
+        )
+        .unwrap();
+    assert_eq!(origin.launcher, Some(launcher));
 }
 
 #[allow(dead_code)]

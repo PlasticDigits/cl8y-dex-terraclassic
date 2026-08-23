@@ -10,6 +10,8 @@ codeids/*/decomp/*
 !codeids/*/decomp/README.md
 !codeids/*/decomp/fingerprint.json
 
-# Suite logs
+# Suite logs + LocalTerra layer outputs (regenerated; do not commit)
 codeids/*/logs/
+codeids/*/layer-a-lcd.json
+codeids/*/layer-b-lt.json
 *.junit.xml

@@ -388,9 +388,10 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 - Token `EnableFeature { sku }` — not MintControl (instantiate-only).
 - Token `UpdateSettings { settings }` — one flat 50 UST1 for the whole already-activated batch. No-op / unactivated SKU / non-manager → revert, fee not kept.
 - Launcher UST1 `Send` hook: `create_token` is a **newtype** (`CreateTokenMsg` fields as the object); `enable_feature` is `{ token, sku }`. JSON is `{"create_token":{…fields…}}` / `{"enable_feature":{…}}`. Instantiate stamps `admin: cmm_governance`. AutoLP sibling instantiate in the same create tx is **not** wired in v1 (SKU may be paid; bind later).
+- **O601-3:** zero-SKU free profile cannot `Send` 0 UST1. Launcher `ExecuteMsg::CreateToken` instantiates the same way with `features == []`. Columbus-5 **11612** predates this execute (LocalTerra smoke stores in-repo launcher wasm).
 
 ### Listing
 
 Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Launcher `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (code **11612**). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654**.
 
-`make verify-issue-592`.
+`make verify-issue-592` (crates). `make verify-issue-601` (store + REPORT + LocalTerra smoke).

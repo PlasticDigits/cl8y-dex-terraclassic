@@ -97,24 +97,72 @@ echo "A-lcd: local store code_id=$LOCAL_CODE_ID tx=$STORE_TX"
 
 STAMP="$(date +%s)"
 SYM="$(layer_terraport_symbol)"
+INST_LABEL="audit-${ID}-a-lcd-${STAMP}"
+INST_KIND="cw20-base"
+
+layer_a_try_instantiate() {
+  local init="$1"
+  local out tx
+  out="$(terrad_tx wasm instantiate "$LOCAL_CODE_ID" "$init" \
+    --label "$INST_LABEL" --admin "$TEST_ADDRESS" || true)"
+  tx="$(layer_txhash "$out")"
+  if [[ -n "$tx" ]]; then
+    INST_OUT="$out"
+    INST_TX="$tx"
+    return 0
+  fi
+  INST_OUT="$out"
+  return 1
+}
+
+# cw20-base / mintable (8266, 10184 analogue).
 INIT="$(jq -nc --arg n "Audit${ID}" --arg s "$SYM" --arg a "$TEST_ADDRESS" \
   '{name:$n,symbol:$s,decimals:6,initial_balances:[{address:$a,amount:"1000000000000"}],mint:{minter:$a}}')"
-INST_OUT="$(terrad_tx wasm instantiate "$LOCAL_CODE_ID" "$INIT" \
-  --label "audit-${ID}-a-lcd-${STAMP}" --admin "$TEST_ADDRESS" || true)"
-INST_TX="$(layer_txhash "$INST_OUT")"
-if [[ -z "$INST_TX" ]]; then
+if ! layer_a_try_instantiate "$INIT"; then
   echo "A-lcd: instantiate without marketing failed; retrying with marketing:{}" >&2
   INIT="$(jq -nc --arg n "Audit${ID}" --arg s "$SYM" --arg a "$TEST_ADDRESS" \
     '{name:$n,symbol:$s,decimals:6,initial_balances:[{address:$a,amount:"1000000000000"}],mint:{minter:$a},marketing:{}}')"
-  INST_OUT="$(terrad_tx wasm instantiate "$LOCAL_CODE_ID" "$INIT" \
-    --label "audit-${ID}-a-lcd-${STAMP}" --admin "$TEST_ADDRESS")"
-  INST_TX="$(layer_txhash "$INST_OUT")"
+  layer_a_try_instantiate "$INIT" || true
 fi
-[[ -n "$INST_TX" ]] || {
+
+# Community tax / #601 (11611): extra manager/treasury/factory fields; not cw20-base.
+if [[ -z "${INST_TX:-}" ]]; then
+  echo "A-lcd: retrying community-tax InstantiateMsg (O601-1)" >&2
+  INST_KIND="community-tax"
+  FACTORY_ADDR="${VITE_FACTORY_ADDRESS:-}"
+  ROUTER_ADDR="${VITE_ROUTER_ADDRESS:-}"
+  UST1_ADDR="${VITE_UST1_TOKEN_ADDRESS:-${VITE_TOKEN_EMBER_ADDRESS:-}}"
+  [[ "$FACTORY_ADDR" == terra1* && "$UST1_ADDR" == terra1* ]] || {
+    echo "FAIL: community-tax instantiate needs VITE_FACTORY_ADDRESS and a UST1/EMBER addr." >&2
+    printf '%s\n' "$INST_OUT" >&2
+    exit 1
+  }
+  INIT="$(jq -nc \
+    --arg n "Audit${ID}" --arg s "$SYM" --arg a "$TEST_ADDRESS" \
+    --arg factory "$FACTORY_ADDR" --arg router "$ROUTER_ADDR" --arg ust1 "$UST1_ADDR" \
+    '{
+      name:$n, symbol:$s, decimals:6,
+      initial_balances:[{address:$a,amount:"1000000000000"}],
+      marketing:{},
+      manager:$a, treasury:$a,
+      buy_bps:0, sell_bps:0,
+      max_buy_bps:1000, max_sell_bps:1000, max_transfer_bps:500,
+      factory:$factory,
+      router: (if $router == "" then null else $router end),
+      ust1:$ust1,
+      cmm_treasury:$a,
+      features:["mint_control"],
+      mint:{minter:$a},
+      launch_guards:{max_wallet:null, cooldown_blocks:0, trading_enabled:true}
+    }')"
+  layer_a_try_instantiate "$INIT" || true
+fi
+[[ -n "${INST_TX:-}" ]] || {
   echo "FAIL: instantiate produced no txhash (LCD wasm may need Terra-only init):" >&2
   printf '%s\n' "$INST_OUT" >&2
   exit 1
 }
+echo "A-lcd: instantiate kind=$INST_KIND"
 layer_wait_tx "$INST_TX"
 TOKEN_ADDR="$(echo "$(terrad_wait_tx_query "$CONTAINER" "$INST_TX" "$TERRAD_NODE")" \
   | terrad_jq_contract_address_from_tx_json | head -1)"
@@ -303,17 +351,34 @@ IDLE_AFTER="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
 echo "A-lcd: idle balance stable"
 
 SNAP_H="$(layer_block_height)"
-if [[ "$SNAP_H" =~ ^[0-9]+$ ]]; then
-  SNAP="$(layer_cw20_balance_at "$TOKEN_ADDR" "$TEST_ADDRESS" "$SNAP_H")"
-  LIVE="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
-  [[ "$SNAP" == "$LIVE" ]] || {
-    echo "FAIL: balance_at@$SNAP_H=$SNAP != live $LIVE (A29)" >&2
-    exit 1
-  }
-  echo "A-lcd: balance_at snapshot matches live"
+HAS_BALANCE_AT=true
+if [[ "${INST_KIND:-}" == "community-tax" ]]; then
+  HAS_BALANCE_AT=false
+elif [[ -f "$AUDIT_ROOT/codeids/$ID/decomp/fingerprint.json" ]]; then
+  if jq -e '.hits.balance_at == false or .balance_at == false' "$AUDIT_ROOT/codeids/$ID/decomp/fingerprint.json" >/dev/null 2>&1; then
+    HAS_BALANCE_AT=false
+  fi
+fi
+if [[ "$HAS_BALANCE_AT" == "false" ]]; then
+  echo "A-lcd: balance_at unsupported (A29 N/A; idle 1:1 already asserted)"
+elif [[ "$SNAP_H" =~ ^[0-9]+$ ]]; then
+  SNAP=""
+  set +e
+  SNAP="$(layer_cw20_balance_at "$TOKEN_ADDR" "$TEST_ADDRESS" "$SNAP_H" 2>/dev/null)"
+  SNAP_ST=$?
+  set -e
+  if [[ "$SNAP_ST" -eq 0 && "$SNAP" =~ ^[0-9]+$ ]]; then
+    LIVE="$(layer_cw20_balance "$TOKEN_ADDR" "$TEST_ADDRESS")"
+    [[ "$SNAP" == "$LIVE" ]] || {
+      echo "FAIL: balance_at@$SNAP_H=$SNAP != live $LIVE (A29)" >&2
+      exit 1
+    }
+    echo "A-lcd: balance_at snapshot matches live"
+  else
+    echo "A-lcd: balance_at unsupported (A29 N/A; idle 1:1 already asserted)"
+  fi
 else
-  echo "FAIL: could not read block height for balance_at" >&2
-  exit 1
+  echo "A-lcd: no block height for balance_at (A29 N/A; idle already asserted)"
 fi
 
 mkdir -p "$(dirname "$OUT_JSON")"

@@ -17,9 +17,9 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 **Reason:** SHA-256 of LCD bytes equals `CodeInfo.data_hash` (`9D33BF25…`). cw2 `crates.io:cl8y-community-tax-token` / `1.0.0`. No `tax_map` / `fee_on_transfer` / `rebase` / `ibc_receive`. Pair credit on sell is `amount` (extra-debit on the trader), not inbound FoT. **8654** / FoT mutants must stay red.
 
-**Residual (C589-7):** this host had **no LocalTerra**. `CODE_ID=11611 make verify-issue-589` printed `SKIP Layer B-lt` (explicit, not a silent pass). Layer A-lcd / B-lt **did not execute** the pinned 11611 bytes. Close with `CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589`. Generic mintable A-mt/B-mt is **not** A-lcd of 11611.
+**Layer A-lcd / B-lt (O601-1):** executed 2026-08-23 on pinned LCD bytes (`make verify-issue-601`). A-lcd retries community-tax `InstantiateMsg` (cw20-base init missing `manager`). `balance_at` is A29 N/A. B-lt does **not** `RegisterListedPair` — inbound 1:1 / provide / round-trip / limit escrow hold. Tax classification is the LocalTerra smoke, not the generic harness.
 
-Re-run: `CODE_ID=11611 make verify-issue-589` · `CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589` · `make verify-issue-592`.
+Re-run: `make verify-issue-601` · `CODE_ID=11611 LAYER_B_LT=1 ./scripts/qa/verify-issue-589.sh` · `make verify-issue-592`.
 
 ## Identity
 
@@ -138,9 +138,9 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 |----|--------|-------|
 | C1 | pass | Fetch pin = `data_hash` |
 | C2 | pass | Decomp ran with wabt |
-| C3 | crate + A-mt/B-mt; **A-lcd/B-lt pending** | Do not treat mintable harness as 11611 lcd execute |
+| C3 | crate + A-mt/B-mt; **A-lcd/B-lt executed** | Pinned 11611 bytes on LocalTerra 2026-08-23 (`layer-a-lcd.json` / `layer-b-lt.json`) |
 | C4 | pass | Known-bad FoT 1:1 / P2 stay red |
-| C5 | pass (explicit skip) | `SKIP Layer B-lt: make has-localterra` printed 2026-08-23 |
+| C5 | pass (executed) | `LAYER_B_LT=1` ran A-lcd + B-lt on pinned 11611 (not a stub) |
 | C6 | pass | No keys under `codeids/` |
 | C7 | pass | LCD `data_hash` only |
 
@@ -219,12 +219,12 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 
 - **Crate:** `cd smartcontracts && cargo test -p cl8y-community-tax-token` / `make verify-issue-592` — inbound 1:1, extra-debit sell, outbound buy, 50 UST1 invoice fail-closed.
 - **A-mt:** `cw20_codeid_harness` mintable + mutants via `make verify-issue-589` (2026-08-23: 34 tests ok).
-- **A-lcd:** [`../../scripts/layer-a-lcd.sh`](../../scripts/layer-a-lcd.sh) **not run** (no LocalTerra).
+- **A-lcd:** [`../../scripts/layer-a-lcd.sh`](../../scripts/layer-a-lcd.sh) **executed** 2026-08-23 — Transfer / TransferFrom 1:1, unauthorized mint/burn_from rejected, idle stable. `balance_at` A29 N/A.
 
 ## Layer B (DEX + limits)
 
 - **B-mt:** harness P1/P2/P3/donation/flash/honeypot/limit/same-asset; FoT **P2** red.
-- **B-lt:** [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) — **explicit skip** 2026-08-23: `SKIP Layer B-lt: make has-localterra`. When run, whitelist only the **local** store id (never treat that id as columbus-5 11611).
+- **B-lt:** [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) **executed** 2026-08-23 — provide 1:1, P2 reserves, round-trip swap, limit escrow 1:1, SendFrom. Whitelist only the **local** store id (never treat that id as columbus-5 11611). Listed-pair extra-debit is the #601 smoke, not this harness.
 
 ## Factory-global impact
 

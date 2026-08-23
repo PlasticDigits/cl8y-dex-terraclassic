@@ -17,6 +17,10 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     Receive(Cw20ReceiveMsg),
+    /// Zero-SKU free profile (**O601-3**). Paid SKUs still use UST1 `Send`
+    /// (`InvoiceHookMsg::CreateToken`). CW20 cannot `Send` amount 0, so this
+    /// execute is the only launcher path for `features == []`.
+    CreateToken(Box<CreateTokenMsg>),
 }
 
 #[cw_serde]

@@ -1,7 +1,10 @@
 //! Community token launcher — stamps CMM wasm admin and collects SKU invoices (#592).
 //!
 //! **T592-5:** `WasmMsg::Instantiate { admin: cmm_governance }`. Manager cannot
-//! migrate. **T592-12:** accepts UST1 `Send` only (#595 routes off-chain).
+//! migrate. **T592-12:** paid SKUs accept UST1 `Send` only (#595 routes off-chain).
+//! **O601-3:** zero-SKU free profile uses `ExecuteMsg::CreateToken` (CW20 cannot
+//! `Send` 0). Columbus-5 **11612** predates this execute — LocalTerra smoke
+//! stores the in-repo launcher; mainnet re-store is a later ops residual.
 
 pub mod contract;
 pub mod error;

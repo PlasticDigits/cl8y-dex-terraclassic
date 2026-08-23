@@ -36,6 +36,10 @@ echo "  GitLab #592 — community tax CW20 (DEX-safe buy/sell/transfer)"
 echo "════════════════════════════════════════════════════════════════"
 
 export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
+if [[ -e "$REPO_ROOT/smartcontracts/target" && ! -w "$REPO_ROOT/smartcontracts/target" ]]; then
+  export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/cl8y-592-target}"
+  mkdir -p "$CARGO_TARGET_DIR"
+fi
 
 run_crates() {
   (cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp --offline -- --test-threads=1)
@@ -49,6 +53,7 @@ run_docs() {
   rg -q "T592-1" skills/AGENTS_COMMUNITY_TAX_CW20.md
   rg -q "AGENTS_COMMUNITY_TAX_CW20" AGENTS.md
   rg -q "verify-issue-592" AGENTS.md
+  rg -q "verify-issue-601" AGENTS.md
   rg -q "verify-issue-592" docs/testing.md
   rg -q "community-tax-token" cw20-codeid-audits/CATALOG.md
   test -f cw20-codeid-audits/codeids/community-tax-token/REPORT.md

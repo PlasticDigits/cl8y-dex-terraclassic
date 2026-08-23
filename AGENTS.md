@@ -176,6 +176,7 @@ make verify-issue-587                    # #587 wrap+≥2hop LUNC↔USTR gas + S
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
 make verify-issue-592                    # #592 community tax CW20 (token + launcher + AutoLP; docs)
+make verify-issue-601                    # #601 store + 11611 REPORT + factory list + LocalTerra smoke
 make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc/vfdusd catalog + routes)
 make verify-issue-579                    # #579 CoinGecko User-Agent (403 vs 429; no live CoinGecko)
 make verify-issue-580                    # #580 CEX FDUSD identity under path vfdusd (logs/API, not Terra vFDUSD)
@@ -264,7 +265,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_HYBRID_QUOTING.md](skills/AGENTS_HYBRID_QUOTING.md) — hybrid quote = execute; Swap + Trade market share `quoteCw20ViaRouteSolve` (#418, #501); regression `make verify-issue-501`
 - [skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md](skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — official dApp never opts out of best-execution hybrid (**H596-1–H596-8**, [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)); `make verify-issue-596`
 - [skills/AGENTS_FRONTEND_PAY_INVOICE.md](skills/AGENTS_FRONTEND_PAY_INVOICE.md) — reusable pay-with-any-token invoice card (**I595-1–I595-14**, [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)); `make verify-issue-595`
-- [skills/AGENTS_COMMUNITY_TAX_CW20.md](skills/AGENTS_COMMUNITY_TAX_CW20.md) — community tax CW20 template + launcher + AutoLP (**T592-1–T592-12**, [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592)); `make verify-issue-592`
+- [skills/AGENTS_COMMUNITY_TAX_CW20.md](skills/AGENTS_COMMUNITY_TAX_CW20.md) — community tax CW20 template + launcher + AutoLP (**T592-1–T592-12**, [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); **O601-1–O601-7**, [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601)); `make verify-issue-592` · `make verify-issue-601`
 - [skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md](skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) — default **Slippage protection** 5% + shared presets (#497)
 - [skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md](skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) — Trade Market + Swap Settings 0.5/1/5% chips stay one aligned group ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528))
 - [skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md](skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) — sim `refetchInterval` guard + receive Calculating UX for slow multihop quotes (#484); clear/load You Receive on pay amount/token change (#496)

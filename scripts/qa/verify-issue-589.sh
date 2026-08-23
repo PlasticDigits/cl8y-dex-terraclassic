@@ -36,6 +36,10 @@ echo "  GitLab #589 — CW20 code-id audit harness"
 echo "════════════════════════════════════════════════════════════════"
 
 export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
+if [[ -e "$REPO_ROOT/smartcontracts/target" && ! -w "$REPO_ROOT/smartcontracts/target" ]]; then
+  export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/tmp/cl8y-589-target}"
+  mkdir -p "$CARGO_TARGET_DIR"
+fi
 AUDIT="$REPO_ROOT/cw20-codeid-audits"
 chmod +x "$AUDIT/scripts/fetch-lcd-wasm.sh" \
   "$AUDIT/scripts/decompile-wasm.sh" \
@@ -164,12 +168,13 @@ run_layer_b_lt() {
       return 1
     fi
     if [[ ! -f "$AUDIT/codeids/$id/token.wasm" ]]; then
-      "$AUDIT/scripts/fetch-lcd-wasm.sh" "$id"
+      "$AUDIT/scripts/fetch-lcd-wasm.sh" "$id" || return 1
     fi
-    "$AUDIT/scripts/layer-a-lcd.sh" "$id"
-    "$AUDIT/scripts/layer-b-lt.sh" "$id"
-    test -f "$AUDIT/codeids/$id/layer-a-lcd.json"
-    test -f "$AUDIT/codeids/$id/layer-b-lt.json"
+    # `if run_step` disables set -e — fail closed on A-lcd/B-lt (C589-7).
+    "$AUDIT/scripts/layer-a-lcd.sh" "$id" || return 1
+    "$AUDIT/scripts/layer-b-lt.sh" "$id" || return 1
+    test -f "$AUDIT/codeids/$id/layer-a-lcd.json" || return 1
+    test -f "$AUDIT/codeids/$id/layer-b-lt.json" || return 1
     jq -e '.executed == true and .one_to_one == true and .transfer_from_one_to_one == true
       and .transfer_from_no_allowance_rejected == true and .unauthorized_mint_rejected == true
       and .idle_balance_stable == true and .snapshot_matches_live == true' \
