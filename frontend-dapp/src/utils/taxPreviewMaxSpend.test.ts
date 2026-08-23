@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyExtraDebitSellCap,
+  effectiveExtraDebitSellBps,
   extraDebitSellHuman,
   maxDeclaredForExtraDebitSell,
   SELL_TAX_EXTRA_HINT,
@@ -29,5 +30,14 @@ describe('taxPreviewMaxSpend (#593 extra-debit sell)', () => {
   it('does not offer 100% of a taxed sell (abuse = self-DoS)', () => {
     const balance = 10_000_000n
     expect(applyExtraDebitSellCap(balance, 2500)).toBeLessThan(balance)
+  })
+
+  it('#609 manager-exempt skips extra-debit; unknown stays fail-closed', () => {
+    expect(effectiveExtraDebitSellBps(500, true)).toBe(0)
+    expect(effectiveExtraDebitSellBps(500, false)).toBe(500)
+    expect(effectiveExtraDebitSellBps(500, null)).toBe(500)
+    expect(effectiveExtraDebitSellBps(500, undefined)).toBe(500)
+    expect(effectiveExtraDebitSellBps(null, true)).toBeNull()
+    expect(applyExtraDebitSellCap(10_000_000n, effectiveExtraDebitSellBps(500, true))).toBe(10_000_000n)
   })
 })

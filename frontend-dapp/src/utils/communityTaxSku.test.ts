@@ -29,6 +29,13 @@ describe('communityTaxSku (#593)', () => {
     expect(COMMUNITY_TAX_SKUS.map((s) => s.label)).not.toContain('mint_control')
   })
 
+  it('#609 exemption hint names buy, sell, and transfer tax', () => {
+    const hint = COMMUNITY_TAX_SKUS.find((s) => s.id === 'exemption_directory')?.hint ?? ''
+    expect(hint.toLowerCase()).toContain('buy')
+    expect(hint.toLowerCase()).toContain('sell')
+    expect(hint.toLowerCase()).toContain('transfer')
+  })
+
   it('rejects tax bps above on-chain max', () => {
     expect(parseTaxBps('2500')).toEqual({ ok: true, bps: 2500 })
     expect(parseTaxBps('2501').ok).toBe(false)

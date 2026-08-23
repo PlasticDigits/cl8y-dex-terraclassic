@@ -2,7 +2,7 @@
 
 Use when changing community-token ingest, `GET /api/v1/community-tokens`, or `community_tax` on token detail.
 
-Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)).
+Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); ExemptionDirectory tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md) — do not treat a catalog event as on-chain exempt).
 
 ## Canonical references
 
@@ -41,4 +41,5 @@ make verify-issue-602
 - Trust event `code_id`.
 - Mark `launcher_tx` from a non-launcher emitter.
 - Treat 11612/11613 instantiates as catalog tokens.
+- Treat a catalog / wasm event as on-chain `MANAGER_EXEMPT` without the token already in catalog ([#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) **E609** / **I594-3**).
 - Bind-mount `indexer/` into root Docker to run cargo.

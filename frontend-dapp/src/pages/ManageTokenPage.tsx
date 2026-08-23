@@ -266,6 +266,9 @@ export default function ManageTokenPage() {
               value={exemptAdd}
               onChange={(e) => setExemptAdd(e.target.value)}
             />
+            <span className="mt-1 block text-xs text-[var(--text-muted)]">
+              Skips buy, sell, and transfer tax. Launch guards still apply.
+            </span>
           </label>
         )}
         {feats?.mint_control && !cfg?.mint_revoked && (

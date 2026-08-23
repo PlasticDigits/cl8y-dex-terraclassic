@@ -40,7 +40,12 @@ export const COMMUNITY_TAX_SKUS: readonly CommunityTaxSkuDef[] = [
     createOnly: false,
   },
   { id: 'auto_v2_lp', label: 'Auto liquidity', hint: 'Optional skim into a CL8Y pair. Not a farm.', createOnly: false },
-  { id: 'exemption_directory', label: 'Extra exemptions', hint: 'Manager-chosen wallets skip tax.', createOnly: false },
+  {
+    id: 'exemption_directory',
+    label: 'Extra exemptions',
+    hint: 'Manager-chosen wallets skip buy, sell, and transfer tax.',
+    createOnly: false,
+  },
   {
     id: 'variable_rates',
     label: 'Change rates later',
