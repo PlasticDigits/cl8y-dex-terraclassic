@@ -824,12 +824,6 @@ export default function SwapPage() {
     usesRouter: communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
     sellBps: taxSell.sellBps,
   })
-  const communityTaxHint = communityTaxRouteHint({
-    payIsTax: taxSell.isTaxToken,
-    receiveIsTax: taxReceive.isTaxToken,
-    usesRouter: communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
-    sellBps: taxSell.sellBps,
-  })
 
   const swapBlacklistProbe = useMemo(() => {
     const routeOps = deriveSwapSubmitRouteOps({
