@@ -8,6 +8,7 @@ import {
   SWAP_GAS_SAFETY_MARGIN,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
   UNWRAP_GAS_LIMIT,
+  UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
   UST1_WINDOW_SEND_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
@@ -156,6 +157,16 @@ function unwrapOutputFromExecuteSwapOps(msg: Record<string, unknown>): boolean {
   return e?.unwrap_output === true
 }
 
+/**
+ * Same-msg router `unwrap_output` after N≥2 hops adds {@link UNWRAP_ROUTER_COMBO_OVERHEAD_GAS}
+ * so USTR→USTC / USTR→LUNC do not OOG at the 2.71M hop+unwrap sum
+ * ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)).
+ * Mapper-only `{ unwrap }` and router 1-hop + unwrap stay without this add-on.
+ */
+export function unwrapRouterComboOverheadGas(hops: number, unwrapOutput: boolean): number {
+  return unwrapOutput && hops >= 2 ? UNWRAP_ROUTER_COMBO_OVERHEAD_GAS : 0
+}
+
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
   let limit = gasLimitForRouterExecuteSwapOperations(hops)
@@ -163,7 +174,7 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
     limit = Math.max(limit, gasLimitForHybridRouterOperations(msg))
   }
   if (unwrapOutputFromExecuteSwapOps(msg)) {
-    limit += UNWRAP_GAS_LIMIT
+    limit += UNWRAP_GAS_LIMIT + unwrapRouterComboOverheadGas(hops, true)
   }
   return limit
 }

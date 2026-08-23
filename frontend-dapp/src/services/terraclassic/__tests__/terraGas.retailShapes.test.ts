@@ -13,7 +13,11 @@ import {
   primaryExecuteMsgKey,
   totalGasLimitForExecuteMsgs,
 } from '../terraGas'
-import { WRAP_GAS_LIMIT, WRAP_ROUTER_COMBO_OVERHEAD_GAS } from '@/utils/constants'
+import {
+  UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  WRAP_GAS_LIMIT,
+  WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+} from '@/utils/constants'
 
 /**
  * Soft-launch faucet drip LocalTerra ballpark (CW20 Mint submsg).
@@ -86,6 +90,40 @@ describe('combined wrap+router envelopes (GitLab #587)', () => {
   it('wrap+1hop stays #353 1.8M (no combo overhead)', () => {
     const wrap1 = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'wrap_plus_send_1hop')!
     expect(totalGasLimitForExecuteMsgs(wrap1.msgs)).toBe(WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(1))
+  })
+})
+
+describe('unwrap+≥2hop combo (GitLab #599)', () => {
+  it('USTR→USTC / USTR→LUNC share the unwrap combo and exceed the 2.71M OOG sum', () => {
+    const lunc = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'send_2hop_unwrap')!
+    const ustc = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'send_2hop_unwrap_ustc')!
+    const gas = totalGasLimitForExecuteMsgs(ustc.msgs)
+    expect(gas).toBe(totalGasLimitForExecuteMsgs(lunc.msgs))
+    expect(gas).toBe(
+      gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT + UNWRAP_ROUTER_COMBO_OVERHEAD_GAS
+    )
+    expect(gas).toBe(3_110_000)
+    expect(gas).toBeGreaterThan(2_710_000)
+    expect(gas).toBeLessThan(15_000_000)
+  })
+
+  it('direct mapper unwrap stays 800k (no hub-multihop combo)', () => {
+    const unwrap = RETAIL_GAS_SHAPE_FIXTURES.find((f) => f.id === 'send_inner_unwrap')!
+    expect(getGasLimitForTx(unwrap.msg)).toBe(UNWRAP_GAS_LIMIT)
+    expect(getGasLimitForTx(unwrap.msg)).toBe(800_000)
+  })
+
+  it('router 1-hop + unwrap does not pay unwrap combo', () => {
+    const hop1 = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'send_1hop_unwrap')!
+    expect(totalGasLimitForExecuteMsgs(hop1.msgs)).toBe(
+      gasLimitForRouterExecuteSwapOperations(1) + UNWRAP_GAS_LIMIT
+    )
+  })
+
+  it('unwrap+2hop fee stays tens-of-LUNC class at 28.325', () => {
+    const ustc = RETAIL_COMBINED_ENVELOPE_FIXTURES.find((f) => f.id === 'send_2hop_unwrap_ustc')!
+    const gas = totalGasLimitForExecuteMsgs(ustc.msgs)
+    expect((gas * 28.325) / 1_000_000).toBeLessThan(100)
   })
 })
 

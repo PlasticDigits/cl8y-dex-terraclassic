@@ -207,6 +207,57 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
   })
 
+  /**
+   * Hub USTR→USTC is 2 hops + `unwrap_output` into taxed `uusd`. LocalTerra may
+   * lack USTR — JADE/RUBY → USTC is the documented ≥2-hop stand-in (#599).
+   */
+  test('E9: ≥2hop CW20 → USTC unwrap one submit (#599)', async ({ page }) => {
+    let paySym = ''
+    for (const sym of ['USTR', 'JADE', 'RUBY']) {
+      const ok = await selectTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, sym)
+      if (ok) {
+        paySym = sym
+        break
+      }
+    }
+    if (!paySym) {
+      await requireTokenInCombobox(
+        page,
+        ARIA_SELECT_TOKEN_PAY,
+        'JADE',
+        undefined,
+        'No USTR/JADE/RUBY pay token for unwrap+≥2hop USTC E2E (#599)'
+      )
+    }
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'cUSTC')
+
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
+
+    const receiveField = swapYouReceiveAmountDisplay(page)
+    await expect(async () => {
+      const text = await receiveField.textContent()
+      expect(text).not.toBe('0.00')
+      expect(text).not.toContain('Calculating')
+    }).toPass({ timeout: 20000 })
+
+    const feeHint = page.getByTestId('swap-network-fee')
+    await expect(feeHint).toBeVisible()
+    await expect(feeHint).toContainText('LUNC')
+    await expect(feeHint).not.toContainText('USTC')
+
+    const route = page.getByTestId('swap-route-summary')
+    if ((await route.count()) > 0 && paySym === 'USTR') {
+      const routeText = await route.innerText()
+      expect(routeText).not.toMatch(/EMBER|RUBY|JADE/i)
+    }
+
+    await openSwapSettingsAndSetSlippage(page, 15)
+    await clickSwapSubmit(page)
+    await expect(page.locator('.alert-success').first()).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
+  })
+
   test('E2: swap native output — CW20 to native USTC', async ({ page }) => {
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'EMBER')
     await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_RECEIVE, 'USTC', 'cUSTC')

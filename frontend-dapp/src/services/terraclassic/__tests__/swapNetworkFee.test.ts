@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { MIN_GAS_PRICE_ULUNA, WRAP_GAS_LIMIT, WRAP_ROUTER_COMBO_OVERHEAD_GAS } from '@/utils/constants'
+import {
+  MIN_GAS_PRICE_ULUNA,
+  UNWRAP_GAS_LIMIT,
+  UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  WRAP_GAS_LIMIT,
+  WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+} from '@/utils/constants'
 import { estimateSwapNetworkFee } from '../swapNetworkFee'
 import { estimateNativeSwapUlunaFeesTotal, nativeSwapFeeExecuteMsgs } from '../transactions'
 import { buildTerraClassicFee, gasLimitForRouterExecuteSwapOperations, totalGasLimitForExecuteMsgs } from '../terraGas'
@@ -37,10 +43,14 @@ describe('estimateSwapNetworkFee (GitLab #587)', () => {
     expect(h4.gasLimit).toBeGreaterThan(h3.gasLimit)
   })
 
-  it('unwrap_output 2-hop matches nativeSwapFeeExecuteMsgs', () => {
+  it('unwrap_output 2-hop matches nativeSwapFeeExecuteMsgs and includes unwrap combo (#599)', () => {
     const hints = { isDirectWrap: false, needsWrapInput: false, needsUnwrapOutput: true, hopCount: 2 }
     const est = estimateSwapNetworkFee(hints)
     expect(est.gasLimit).toBe(totalGasLimitForExecuteMsgs(nativeSwapFeeExecuteMsgs(hints)))
+    expect(est.gasLimit).toBe(
+      gasLimitForRouterExecuteSwapOperations(2) + UNWRAP_GAS_LIMIT + UNWRAP_ROUTER_COMBO_OVERHEAD_GAS
+    )
+    expect(Number(est.feeUluna) / 1_000_000).toBeLessThan(100)
     expect(est.feeUluna).toBe(
       estimateTerraClassicFeeForEntries([{ contract: '', msg: nativeSwapFeeExecuteMsgs(hints)[0].msg }]).feeUluna
     )
