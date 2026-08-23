@@ -13,29 +13,29 @@
 
 The template is **DEX-safe in the intended sense** (T592-1): inbound credits to pair / router / escrow stay 1:1. Pair and router wasm are unchanged. Sell tax is extra-debit; buy tax is an outbound split. Invoice amounts are exact-50-UST1 and revert on wrong token / wrong amount / no-op. Wasm admin is CMM, not the manager. Indexer attestation (`code_id` + CMM admin + launcher origin + launcher-emitted `create_token_ready`) is sound. SQL is parameterized. No SQLi, no reflection/rebase/blacklist APIs, no inbound FoT.
 
-**The product as shipped on columbus-5 is not ready for retail Create Token / Manage Token.** Two defects are Critical for the dApp path; one is Critical for the tax model itself once any token is live and the official Swap uses the router:
+**The product as shipped on columbus-5 is not ready for retail Create Token / Manage Token.** Recast after lead review (2026-08-23): C-1 is a **product High** (dead official path, no fund loss). C-2 is a **design decision** (T592-1 + router exempt vs advertised buy/sell; **O601-7** already deferred router multi-hop). Live wasm **11611 / 11614 / 11613** — token/launcher/AutoLP code fixes need a CMM/2-of-3 migrate; C-1 has a dApp-only workaround.
 
-| Sev | ID | One-line |
-|-----|----|----------|
-| **Critical** | C-1 | Launcher `enable_feature` always `Unauthorized` — dApp Enable Feature is dead. |
-| **Critical** | C-2 | Protocol-exempt router zeroes buy **and** sell tax on every official Swap / hybrid / invoice-routed hop. |
-| **High** | H-1 | AutoV2Lp SKU is payable; sister contract is never instantiated or bound. |
-| **High** | H-2 | Duplicate SKUs in `features[]` are double-charged. |
-| **High** | H-3 | `cooldown_blocks > 0` rate-limits the **pair**, so the second trade in the window reverts. |
-| **High** | H-4 | `max_wallet` applies to the pair on `TransferFrom` provide — LP adds brick after sells grow the pair above the cap. |
-| **High** | H-5 | `trading_enabled=false` locks LP withdraw, limit cancel/claim, and any pair→user transfer (soft rug / honeypot). |
-| **High** | H-6 | Buy tax hits limit-order maker payouts and refunds; quotes do not apply buy tax. |
-| **Medium** | M-1 | `variable_rates` SKU is on-chain theater (`require_variable_or_free_profile` is a no-op). |
-| **Medium** | M-2 | AutoLP skim has no slippage / `min_return`; permissionless sandwich. |
-| **Medium** | M-3 | AutoLP `pair` is manager-settable with no factory check — skim can be pointed at a fake pair. |
-| **Medium** | M-4 | Manager is a standing honeypot operator (tax, guards, mint, treasury, exemptions). |
-| **Medium** | M-5 | ExemptionDirectory only skips **transfer** tax, not buy/sell — copy oversells. |
-| **Low** | L-1 | QA smoke enables SKUs by sending UST1 **directly to the token**, so it never sees C-1. |
-| **Low** | L-2 | `0–5` decimals allowed on-chain; name/symbol charset not checked (#604). |
-| **Low** | L-3 | Launch-guard / AutoLP editors missing on Manage Token (#605). |
-| **Info** | I-1 | No tokens live yet — C-2 is latent until first `RegisterListedPair`. |
+| Sev | ID | Disposition | One-line |
+|-----|----|-------------|----------|
+| **High** (product) | C-1 | **New** (bundle launcher invoices) | Launcher `enable_feature` always `Unauthorized` — dApp Enable Feature is dead. |
+| **Design** | C-2 | **New design issue** (three options) | Protocol-exempt router skips buy/sell on multi-hop and permissionless 1-op router Send. Official single-hop pair Send still taxes. |
+| Residual / #605 | H-1 | **Expand #605** | AutoV2Lp SKU is payable; same-tx bind is documented out of v1, but **no later bind execute** exists. |
+| **Medium** | H-2 | **New** (bundle launcher invoices) | Duplicate SKUs in `features[]` are double-charged. UI checkboxes do not send dups. |
+| **High** | H-3 | **New** (bundle launch guards) | `cooldown_blocks > 0` rate-limits the **pair** (from+to recorded). Stronger than 11611 D11 same-sender residual. |
+| **High** | H-4 | **New** (bundle launch guards) | `max_wallet` applies to the pair on `TransferFrom` provide — LP adds brick after sells grow the pair above the cap. |
+| Residual / spec | H-5 | **Do not file** | `trading_enabled=false` locks pair→EOA (T592-11 / 11611 A9/A10/E8). Spec-change later, not a new bug. |
+| Split | H-6 | On-chain **T592-7 / 11611 B6** (do not file); quote → **#593** | Buy tax on pair→EOA is documented; dApp does not quote the outbound split. |
+| #605 note | M-1 | **Expand #605** | `variable_rates` is theater. **Implement only if needed; otherwise remove** the SKU. |
+| **Medium** | M-2 | **New** (bundle AutoLP) | AutoLP skim has no slippage / `min_return`; permissionless sandwich. |
+| **Medium** | M-3 | **New** (bundle AutoLP) | AutoLP `pair` must be factory-listed **and** have the tax token as one side. |
+| Design | M-4 | **Do not file** as a vuln | Manager tax/halt/treasury is the product. Disclosure can ride a frontend ticket. |
+| **Medium** | M-5 | **New** | ExemptionDirectory must skip **transfer, buy, and sell** (not transfer-only). |
+| **Low** | L-1 | **Bundle with C-1** | QA smoke sends UST1 **directly to the token**, so it never sees C-1. |
+| — | L-2 | Already **#604** | Decimals 0–5 / charset. |
+| — | L-3 | Already **#605** | Manage Token editors. |
+| **Info** | I-1 | Analysis only | No 11611 instances at audit — C-2 latent until first `RegisterListedPair`. |
 
-**Verdict:** **Do not market Enable Feature, AutoLP, or launch guards as working.** Fix C-1 and C-2 (and H-1) before the first community token is created on columbus-5. PoCs live in `smartcontracts/contracts/community-token-launcher/tests/audit_poc.rs` (9/9 pass against current wasm).
+**Verdict:** **Do not market Enable Feature, AutoLP, or launch guards as working.** File the bundled issues in §14. Do **not** mint tickets from Chains J–R, prior-audit indexer residuals, #526, or #603. PoCs live in `smartcontracts/contracts/community-token-launcher/tests/audit_poc.rs` (9/9 pass against current wasm — they **demonstrate** defects; invert when fixed).
 
 ---
 
@@ -68,7 +68,7 @@ Web-research additions that were then checked against this code:
 
 ## 2. Findings
 
-### C-1 — Critical: launcher `EnableFeature` is broken; dApp Enable Feature cannot succeed
+### C-1 — High (product): launcher `EnableFeature` is broken; dApp Enable Feature cannot succeed
 
 **Where:** `community-tax-token/src/invoice.rs` `execute_receive` requires `payer == config.manager`. `community-token-launcher/src/contract.rs` `enable_feature` forwards UST1 with `Cw20ExecuteMsg::Send` from the **launcher**, so the token sees `cw20.sender = launcher`.
 
@@ -90,20 +90,22 @@ Web-research additions that were then checked against this code:
 
 **dApp:** `buildEnableFeatureInvoice` sets `payee: launcher`. Settings batches correctly target the **token** and work.
 
-**Impact:** Every post-create SKU unlock from the official UI reverts. UST1 is not taken (atomic revert). Users cannot buy TransferTax / SplitRouter / AutoV2Lp / ExemptionDirectory / VariableRates / LaunchGuards after a free create. Direct-to-token `Send` still works (CLI / QA smoke) — so the contract is usable, the **product path is not**.
+**Impact:** Every post-create SKU unlock from the official UI reverts. UST1 is not taken (atomic revert) — **not a Critical fund-loss**. Users cannot buy TransferTax / SplitRouter / AutoV2Lp / ExemptionDirectory / VariableRates / LaunchGuards after a free create. Direct-to-token `Send` still works (CLI / QA smoke) — so the contract is usable, the **product path is not**.
 
 **PoC:** `poc_launcher_enable_feature_always_unauthorized` — PASS (Unauthorized; feature stays off).
 
+**Live wasm:** 11611 + 11614. A **dApp-only** workaround (point `buildEnableFeatureInvoice` at the **token**, keep launcher for create) needs no migrate. A launcher-forward fix needs a token and/or launcher migrate.
+
 **Fix (pick one):**
 1. Token: treat `payer == launcher && origin.launcher == payer` as manager-authorized, and keep the inner hook manager-only for direct pays; or
-2. Token: accept `EnableFeature` with an extra `manager` field signed by… (worse); or
+2. dApp: pay Enable Feature to the **token** (manager `Send`) — no migrate; or
 3. Launcher: do not re-Send. Have the token expose a launcher-only `EnableFeature { sku, manager }` after the launcher already collected the invoice (splits the 50 UST1 path).
 
-Do **not** loosen `payer == manager` for arbitrary addresses.
+Do **not** loosen `payer == manager` for arbitrary addresses. Bundle **L-1** (QA smoke must use the official path) and **H-2** (SKU dedupe) in the same launcher-invoice issue.
 
 ---
 
-### C-2 — Critical: protocol-exempt router makes all trade taxes optional
+### C-2 — Design: protocol-exempt router skips buy/sell on router hops
 
 **Where:** instantiate stamps `PROTOCOL_EXEMPT` on `config.router` when set. Mainnet launcher **does** set the official router (`terra1e7s0h9…rsrw`). Classification:
 
@@ -112,42 +114,53 @@ Do **not** loosen `payer == manager` for arbitrary addresses.
 
 A router hop is: user → router (honest inbound) → router `Send+Swap` to pair (sell, but `from=router` is exempt → **Honest**) → pair `Transfer` to router (buy, but `to=router` is exempt → **Honest**) → router `Transfer` to user (wallet↔wallet; transfer tax SKU only, default off).
 
-**Official Swap:** `swapOpsRequireRouter` is `ops.length >= 2`. Hybrid / always-on route-solve (`#501` / `#596`) prefers indexer ops; multi-hop **always** goes through the router. Direct single-hop pair `swap()` still pays tax. Any user or integrator can permissionlessly `Send` the tax token to the router with `execute_swap_operations` of **one** hop and pay **zero** buy/sell tax.
+**What is actually untaxed (do not overclaim):**
+- Official **multi-hop** (`swapOpsRequireRouter` is `ops.length >= 2`) and hybrid ops that execute on the router.
+- Permissionless **1-op** `execute_swap_operations` (any integrator / bot).
+- Invoice wrap-routes that hop via the router.
+
+**What still taxes:** official **single-hop pair** `Send+Swap` (and some Trade market pair-direct paths). Not “every official Swap.”
+
+**PoC scope:** `poc_router_exemption_full_tax_bypass` uses an address named `"router"` that is `PROTOCOL_EXEMPT`. It does **not** run router wasm. Classification is demonstrated; official-route wording is inferred.
 
 **If the router were not exempt:** the router itself would pay sell extra-debit and would typically fail `InsufficientForSellTax` (it only holds `amount`). That is why the exemption exists — and why it also deletes the tax.
 
-**Impact:** Once a token is listed and registered, the advertised buy/sell bps are not collected on the path the dApp tells users to use for best execution. Treasury / AutoLP sinks stay empty. Direct pair swaps (and some Trade market single-hops) still tax — so the same token has two economic regimes. Sophisticated flow (router, bots, invoice wrap-route) is cheaper than the retail pair button.
+**Impact:** Once a token is listed and registered, advertised buy/sell bps are not collected on router hops. Direct pair swaps still tax — two economic regimes. **O601-7** already said hybrid / router multi-hop are **not** #601 close gates. File a **design** issue with the three options; do not file “fix Critical” with no chosen invariant.
 
-**PoC:** `poc_router_exemption_full_tax_bypass` — PASS (router sell: 0 tax; EOA sell: +5%; pair→router→user: full credit).
+**Fix (design, not a one-liner) — pick one and write it into T592:**
+1. **Accept router hops as untaxed.** Disclose on Swap / Trade and in T592. Pair-direct still taxes. Closest to H-01 (unchanged router wasm, inbound 1:1).
+2. **Tax the original trader on `Send+Swap` even if `from` is protocol-exempt.** Needs a trusted `trader` (pair already has this for fee discount). Router wasm still unchanged; extra-debit stays on the user, not the router.
+3. **Stop marking the router exempt and refuse router-routed sells of this template.** Users `Send` the tax token to the **pair** only. Breaks hybrid / #596 for this `code_id` unless the dApp forces pair-only execute.
 
-**Fix (design, not a one-liner):**
-- Stop protocol-exempting the router **and** teach the router to size extra-debit (violates H-01 / “do not add pair/router FoT math” — rejected by current policy); or
-- Classify `Send+Swap` as Sell whenever `to` is a listed pair, **even if `from` is protocol-exempt**, and have the **original trader** pay extra-debit (needs a trusted `trader` field — pair already has this for fee discount); or
-- Do not mark the router exempt; require the user to `Send` the tax token to the **pair** only; router-routed sells of this template are unsupported (breaks hybrid / #596).
+Teaching the router to size extra-debit violates H-01 / “do not add pair/router FoT math” and is **rejected** unless H-01 is explicitly reopened.
 
 There is no clean fix that keeps both “inbound 1:1 + unchanged router wasm” and “router hops pay tax.” This is the product’s central contradiction.
 
 ---
 
-### H-1 — High: AutoV2Lp SKU is paid and never bound
+### H-1 — Residual / #605: AutoV2Lp SKU is paid and never bound
 
 Launcher `create_token` builds `AutolpInit` then `let _ = (code_id, autolp_init);`. Token instantiate always gets `autolp: None`. `reply` only emits `create_token_ready`. `apply_autolp_settings` errors `AutoLP contract not bound; enable AutoLp via launcher` if `cfg.autolp` is None — and there is **no** execute that sets it later.
+
+This is **documented v1** (`AGENTS_COMMUNITY_TAX_CW20.md`: same-tx instantiate+bind is **out of v1**, “pay SKU, then bind”; `docs/contracts-terraclassic.md`; REGISTRY “bind later”). The **new** fact vs that plan: **bind later is impossible** — no bind API.
 
 Mainnet launcher has `autolp_code_id=11613`, so the SKU is offered and charged.
 
 **PoC:** `poc_autov2lp_paid_but_never_bound` — PASS.
 
-**Also:** #605 already records this. Treat as a live billing defect, not a future feature.
+**Do not open a second AutoLP ticket.** Expand **#605** with: (1) no later bind execute; (2) refuse the SKU at create **or** add a bind path before charging.
 
 ---
 
-### H-2 — High: duplicate SKUs double-charge
+### H-2 — Medium: duplicate SKUs double-charge
 
 `paid_skus = args.features.len()`. `Features::from_skus` is idempotent (second `TransferTax` is a no-op). Invoice is `50 UST1 * len`. A crafted hook `[transfer_tax, transfer_tax]` pays 100 UST1 for one flag.
 
+The official UI uses unique checkboxes and does **not** send duplicates. Impact is overpay to CMM on a crafted hook, not theft of third-party funds — **Medium**, not High.
+
 **PoC:** `poc_launcher_duplicate_sku_double_charge` — PASS.
 
-**Fix:** unique-set the SKU list (or reject duplicates) before multiplying.
+**Fix:** unique-set the SKU list (or reject duplicates) before multiplying. Bundle with C-1 / L-1.
 
 ---
 
@@ -155,7 +168,7 @@ Mainnet launcher has `autolp_code_id=11613`, so the SKU is offered and charged.
 
 `apply_launch_guards` on Buy/Sell calls `check_cooldown` for **both** `from` and `to`, then `record_trade_blocks` writes **both**. The listed pair is `to` on every sell and `from` on every buy. After the first trade, the pair’s `LAST_TRADE_BLOCK` blocks every other wallet until `cooldown_blocks` elapse.
 
-Not a per-wallet anti-snipe. A global pair halt.
+Not a per-wallet anti-snipe. A global pair halt. `LAST_TRADE_BLOCK` is documented as “last taxed swap block **per wallet**” (`state.rs`); implementation writes **both** `from` and `to`. Stronger than 11611 REPORT **D11** (same-sender in-block batch residual).
 
 **PoC:** `poc_cooldown_bricks_pair` — PASS.
 
@@ -171,7 +184,7 @@ Sell to a listed pair bypasses `max_wallet` (T592-11). Provide is `TransferFrom`
 
 ---
 
-### H-5 — High: `trading_enabled=false` locks exits (honeypot / manager soft-rug)
+### H-5 — Residual / do not file: `trading_enabled=false` locks exits (documented T592-11)
 
 Buy **and** sell are blocked (T592-11, documented). Pair→EOA `Transfer` is classified **Buy**. So the same flag also reverts:
 
@@ -181,19 +194,22 @@ Buy **and** sell are blocked (T592-11, documented). Pair→EOA `Transfer` is cla
 
 Manager can collect buys, then flip the flag (50 UST1 settings batch; no timelock). Classic honeypot lever ([BlockMind / OpenLiquid / Token-Tax-Abuse-Science](https://docs.blockmind.app/blog/honeypot-crypto-token) “trading toggle after purchases”).
 
-**PoC:** `poc_trading_disabled_locks_withdrawals` — PASS.
+**PoC:** `poc_trading_disabled_locks_withdrawals` — PASS. Scope: pair `Transfer` to an EOA (Buy). Mock pair has no `WithdrawLiquidity` / book; withdraw/cancel/claim lock is inferred from T592-7 classify.
 
-**Fix:** apply `trading_enabled` only to `TaxKind::Sell` and `TaxKind::Buy` where the recipient is **not** the original depositor of a provide/limit. Exits (withdraw, cancel, claim) should stay Honest or at least not `TradingDisabled`.
+**Do not file as a new bug.** T592-11, 11611 **A9/A10/E8** already record pause-both-sides including parked claim. A later spec-change (“carve out withdraw/cancel/claim”) can reopen this; it is not a surprise defect.
 
 ---
 
-### H-6 — High: buy tax silently taxes makers and mis-quotes buys
+### H-6 — Split: on-chain buy tax is T592-7; missing buy quote is #593
 
-Documented in T592-7: pair→EOA Transfer is Buy — “same primitive.” Consequence:
+Documented in T592-7 / 11611 **B6**: pair→EOA Transfer is Buy — “same primitive.” Consequence:
 
 - Limit **fill** paying the tax token to the maker is taxed (worse fill than `belief_price`).
 - Limit **refund** of the tax token is taxed.
-- dApp `useCommunityTaxSellBps` only adjusts **sell** extra-debit. Receiving the tax token (Swap You Receive, Trade buy) uses wallet `simulate_swap_operations` / pair `Simulation`, which do **not** model the outbound split. Users see a quote they will not receive.
+
+**Do not file the on-chain half as a new bug.**
+
+dApp `useCommunityTaxSellBps` only adjusts **sell** extra-debit. Receiving the tax token (Swap You Receive, Trade buy) uses wallet `simulate_swap_operations` / pair `Simulation`, which do **not** model the outbound split. Users see a quote they will not receive. **No PoC** for this half — expand **#593** (C593-9 is sell-max only).
 
 No oracle is involved; this is quote/execute divergence on the tax token itself.
 
@@ -206,6 +222,8 @@ No oracle is involved; this is quote/execute divergence on the tax token itself.
 Retail copy: “Adjust buy/sell after launch (still capped).” That is true **without** paying 50 UST1 for the SKU.
 
 **PoC:** `poc_variable_rates_sku_is_theater` — PASS.
+
+**Approved direction:** **implement or remove** — implement the gate **only if** product still needs a paid “change rates later” SKU; otherwise drop the SKU from the dApp catalog and stop charging 50 UST1 for a no-op. Do **not** leave the theater. Expand **#605** (do not open a second VariableRates ticket).
 
 ---
 
@@ -223,11 +241,13 @@ T592-10 is respected (skim is not in Transfer/Send). The economic hole is the mi
 
 **PoC:** `poc_autolp_manager_can_skim_to_fake_pair` — PASS.
 
+**Approved direction:** `pair` must (1) be a **factory-listed** CL8Y pair (`factory.Pair` lookup) and (2) have **the tax token as one of the two `asset_infos`**. Reject anything else. Same check on instantiate if `pair` is set. Bundle with **M-2** (`min_return` / skim floor). Latent until H-1 / #605 bind exists.
+
 (Earlier hypothesis that `UpdateConfig` wipes omitted `Option` fields was **wrong** — fields merge. Retracted.)
 
 ---
 
-### M-4 — Medium: manager is a standing honeypot operator
+### M-4 — Design / do not file as a vuln: manager is a standing honeypot operator
 
 Even after C-1–H-5 are fixed, the manager can:
 
@@ -241,15 +261,17 @@ Wasm admin is CMM (T592-5) — manager cannot migrate. That is the right split. 
 
 ---
 
-### M-5 — Medium: ExemptionDirectory copy vs behavior
+### M-5 — Medium: ExemptionDirectory must skip transfer, buy, **and** sell
 
-`is_manager_exempt` is consulted only in the Transfer branch (`is_transfer_exempt`). Buy and Sell ignore it. Retail hint: “Manager-chosen wallets skip tax.” Holders will assume swap tax is skipped. It is not.
+`is_manager_exempt` is consulted only in the Transfer branch (`is_transfer_exempt`). Buy and Sell ignore it. Retail hint: “Manager-chosen wallets skip tax.”
+
+**Approved direction:** a manager-directory exempt address skips **transfer, buy, and sell** tax (not transfer-only). Protocol-exempt / listed-pair rules stay as they are. Do not let exemption disable launch-guard `trading_enabled` / cooldown / max_wallet unless a later spec says so. New issue (not a copy-only fix).
 
 ---
 
-### L-1 — Low: QA smoke hides C-1
+### L-1 — Low: QA smoke hides C-1 (bundle with C-1)
 
-`scripts/qa/localterra-community-tax-smoke.sh` SKU unlock sends UST1 **to the token**, not the launcher. `make verify-issue-601` can stay green while the dApp path is dead. Launcher tests cover create only (3 tests).
+`scripts/qa/localterra-community-tax-smoke.sh` SKU unlock sends UST1 **to the token**, not the launcher. `make verify-issue-601` can stay green while the dApp path is dead. Launcher tests cover create only (3 tests). Acceptance on the C-1 issue: smoke (and `verify-issue-601` if it calls smoke) must use the **same** Enable Feature path as the dApp.
 
 ### L-2 — Low: decimals 0–5 and charset
 
@@ -523,15 +545,15 @@ Chains B, C, I, G from 1787230030 are **unchanged**. They do not need the tax to
 
 ## 11. Recommended fix order
 
-1. **C-1** — EnableFeature via launcher (or point the dApp at the token and keep launcher for create only). Add a launcher-path test; change QA smoke to use it.
-2. **C-2** — Decide the tax/router invariant in writing. Do not launch tokens until this is explicit. If “router hops are untaxed” is accepted, say so on Swap and in T592; remove the implication that buy/sell bps apply to official routes.
-3. **H-1** — Finish AutoLP instantiate in `reply`, or refuse the SKU at create when bind is impossible.
-4. **H-2** — Dedupe SKUs.
-5. **H-3 / H-4 / H-5** — Cooldown per **wallet** only; `max_wallet` skip listed pairs (not only Sell); `trading_enabled` must not block withdraw/cancel/claim.
-6. **H-6** — Quote buy tax; document maker payout tax or classify limit payouts Honest.
-7. **M-1 / M-5** — Either gate VariableRates or stop selling it; fix exemption copy.
-8. **M-2 / M-3** — `min_return` + factory-listed pair on AutoLP.
-9. Do not ship #603 importer until C-2 / H-5 policy is settled.
+1. **C-1 + H-2 + L-1** — Launcher invoices: EnableFeature path (or dApp→token), unique SKUs, QA smoke via the official path.
+2. **C-2** — Design issue: write the three options and pick one before the first taxed token has liquidity. Do not implement until chosen.
+3. **H-3 + H-4** — Cooldown per **wallet** only (do not record the pair); `max_wallet` skip listed pairs on Honest provide, not only Sell.
+4. **M-5** — ExemptionDirectory skips transfer **and** buy/sell.
+5. **M-2 + M-3** — AutoLP: factory-listed pair with the tax token as one side + skim `min_return` (gated on #605 bind).
+6. **#605 notes** — H-1 (no later bind API) and M-1 (implement VariableRates only if needed, else remove).
+7. **#593 note** — H-6 buy-side quote (on-chain maker tax stays T592-7).
+8. **Do not file** H-5, M-4, L-2, L-3, I-1, Chains J–R, prior-audit residuals.
+9. Do not ship #603 importer until C-2 policy is settled.
 
 ---
 
@@ -556,7 +578,9 @@ cargo test -p cl8y-community-token-launcher --test audit_poc
 # 9 passed; 0 failed  (2026-08-23)
 ```
 
-A fix should **fail** the corresponding PoC (or invert the assertion). Do not delete the file until the finding is closed.
+A fix should **fail** the corresponding PoC (or invert the assertion). Do not delete the file until the finding is closed. These tests **encode the defect** — green means “bug still present,” not “feature works.” Invert them in the fix MR; do not treat them as a long-lived CI happy-path suite.
+
+PoC comment IDs were corrected (PoC 3 = H-1, PoC 5 = H-3, PoC 6 = H-4, PoC 7 = H-5). C-2 / H-5 comments now state harness limits (no router wasm; no pair book).
 
 ---
 
@@ -567,3 +591,38 @@ A fix should **fail** the corresponding PoC (or invert the assertion). Do not de
 - Issues: #592 #593 #594 #601 #602 #603 #604 #605 #526
 - External: PancakeSwap FoT+sync post-mortem; Trail of Bits CosmWasm patterns; BlockMind / OpenLiquid honeypot mechanics; Token-Tax-Abuse-Science
 - Live LCD: launcher `GetConfig` 2026-08-23 — router set, `autolp_code_id=11613`; zero 11611 instances
+
+---
+
+## 14. Issue disposition (approved 2026-08-23)
+
+Lead-review punch list accepted. Additional product decisions: C-2 is a design issue (three options + tradeoffs); M-5 exemptions apply to transfer **and** buy/sell; M-3 pair must be factory-listed **and** have the tax token as one side; M-1 implement VariableRates only if needed, else remove (note on #605).
+
+### 14.1 Live wasm / migrate
+
+| Code | Columbus-5 | Who migrates | Notes |
+|------|------------|--------------|--------|
+| Token **11611** | Factory-listed | CMM wasm admin | Any `tax.rs` / `invoice.rs` change (H-3, H-4, M-5, C-1 option 1) needs a new store + migrate. |
+| Launcher **11614** | Live Create Token | DEX 2-of-3 | H-2 dedupe; C-1 option 3. |
+| AutoLP **11613** | Stored, not listed | CMM | M-2 / M-3. No instances required until #605 bind. |
+| dApp only | Coolify | — | C-1 option 2 (Enable Feature payee = token) needs **no** migrate. L-1 smoke is scripts. |
+
+Do not describe contract edits as if they go live from `main` without a migrate playbook.
+
+### 14.2 File / do-not-file
+
+| Bundle | Findings | Action |
+|--------|----------|--------|
+| Launcher invoices | C-1, H-2, L-1 | **New issue** |
+| Router tax invariant | C-2 | **New design issue** (options, no implementation until chosen) |
+| Launch-guard liveness | H-3, H-4 | **New issue** (11611 migrate) |
+| ExemptionDirectory | M-5 | **New issue** (11611 migrate) |
+| AutoLP hardening | M-2, M-3 | **New issue** (11613; gated on #605 bind) |
+| SKU init / AutoLP bind / VariableRates | H-1, M-1, L-3 | **Notes on #605** |
+| Buy-side quote | H-6 frontend | **Note on #593** |
+| Pause exits / manager privilege / identity | H-5, H-6 on-chain, M-4, L-2, I-1 | **Do not file** |
+| Chains J–R, PARSER-04, REORG, #526, #603 | analysis | **Do not file** |
+
+### 14.3 PoCs on `main`
+
+`audit_poc.rs` lands as defect-demonstration tests. Invert assertions in the fix MR for the matching finding. Do not delete until that finding is closed.

@@ -513,8 +513,8 @@ fn poc_launcher_duplicate_sku_double_charge() {
 }
 
 // ============================================================================
-// PoC 3 (H-3): AutoV2Lp SKU is payable at create but AutoLP is never bound,
-// and no on-chain path can bind it later.
+// PoC 3 (H-1): AutoV2Lp SKU is payable at create but AutoLP is never bound,
+// and no on-chain path can bind it later. Tracked on #605 (not a new issue).
 // ============================================================================
 #[test]
 fn poc_autov2lp_paid_but_never_bound() {
@@ -565,7 +565,9 @@ fn poc_autov2lp_paid_but_never_bound() {
 }
 
 // ============================================================================
-// PoC 4 (C-2): protocol-exempt router makes ALL trade taxes optional.
+// PoC 4 (C-2): protocol-exempt `from`/`to` skips Sell/Buy classification.
+// This uses an address named "router" (PROTOCOL_EXEMPT), not router wasm
+// `execute_swap_operations`. Official single-hop pair Send still pays tax.
 // ============================================================================
 #[test]
 fn poc_router_exemption_full_tax_bypass() {
@@ -663,7 +665,8 @@ fn poc_router_exemption_full_tax_bypass() {
 }
 
 // ============================================================================
-// PoC 5 (H-4): cooldown_blocks > 0 bricks the listed pair.
+// PoC 5 (H-3): cooldown_blocks > 0 bricks the listed pair (pair-wide, not
+// per-wallet). LAST_TRADE_BLOCK comment says per wallet; from+to are both saved.
 // ============================================================================
 #[test]
 fn poc_cooldown_bricks_pair() {
@@ -724,7 +727,8 @@ fn poc_cooldown_bricks_pair() {
 }
 
 // ============================================================================
-// PoC 6 (H-5): max_wallet applies to the pair on provide (TransferFrom).
+// PoC 6 (H-4): max_wallet applies to the pair on provide (TransferFrom).
+// Stand-in is pair.TransferFrom, not pair ProvideLiquidity wasm.
 // ============================================================================
 #[test]
 fn poc_max_wallet_bricks_provide() {
@@ -799,7 +803,9 @@ fn poc_max_wallet_bricks_provide() {
 }
 
 // ============================================================================
-// PoC 7 (H-6): trading_enabled=false locks LP withdrawals / limit refunds.
+// PoC 7 (H-5): trading_enabled=false reverts pair→EOA Transfer (Buy).
+// Inferred withdraw/cancel/claim lock via T592-7 classify; mock pair has no
+// book. Documented residual (T592-11 / 11611 A9/E8) — do not file as a new bug.
 // ============================================================================
 #[test]
 fn poc_trading_disabled_locks_withdrawals() {
