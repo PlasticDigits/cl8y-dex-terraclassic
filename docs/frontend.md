@@ -650,6 +650,8 @@ Hybrid hops use quote-driven limits in [`hybridSwapGas.ts`](../frontend-dapp/src
 
 Shared checkout for paid protocol features ([GitLab **#595**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)). First consumers: community tax-token SKU unlocks and manager settings **batch** Save ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Next: prepaid market-making subscription ([#597](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/597)). **Do not** copy Swap quote/execute into those pages.
 
+Columbus-5 Create Token env (unset → page unavailable): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER=terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. CMM admin banner: `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2`. Pins: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) · [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601).
+
 Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyToken.tsx`](../frontend-dapp/src/components/payments/PayWithAnyToken.tsx). Playbook: [`skills/AGENTS_FRONTEND_PAY_INVOICE.md`](../skills/AGENTS_FRONTEND_PAY_INVOICE.md). Verify: `make verify-issue-595`.
 
 | Invariant | Meaning |

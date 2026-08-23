@@ -58,6 +58,19 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 
 ---
 
+## Community tax CW20 ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601))
+
+| Role | Address / id | Coolify / env key |
+|------|--------------|-------------------|
+| Token template (factory-listed) | code **11611** · pin `9D33BF25…210EC2` | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` |
+| Launcher | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (code **11612**) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
+| AutoLP template | code **11613** (not factory-whitelisted) | bind later; not required for create |
+| CMM wasm admin / attested `cmm_governance` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | `CMM_GOVERNANCE_ADDR` (indexer); dApp admin-banner compare |
+
+Factory whitelist after 2026-08-23: **`[6036, 8266, 10184, 11611]`**. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). REPORT: [`../../cw20-codeid-audits/codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md).
+
+---
+
 ## Governance split (ops critical)
 
 | Surface | On-chain `governance` (queried) | Signs pause / migrate |

@@ -1,21 +1,21 @@
-# REPORT: community-tax-token (in-repo template)
+# REPORT: community-tax-token (in-repo template stub)
 
 **Date:** 2026-08-23  
 **Operator:** contracts  
-**LCD:** *not stored — no columbus-5 / LocalTerra code_id yet*  
+**LCD:** superseded — columbus-5 **11611** stored  
 **Procedure:** [`PROCEDURE.md`](../../PROCEDURE.md) ([#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589))  
-**Issue:** [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592)
+**Issue:** [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601)
 
-The inspected binary will be a **decompilation / fingerprint of LCD wasm** after `store`. This file is the intake template so ops does not skip catalogue rows.
+This file was the **NO-GO** intake stub until LCD store. Canonical report is [`../11611/REPORT.md`](../11611/REPORT.md) (**GO**, Layer B-lt residual).
 
 ## Verdict
 
 **GO / NO-GO** for factory `AddWhitelistedCodeId`:
 
-- [ ] GO — Layer A + Layer B green on the **pinned LCD wasm**; catalogue rows pass or N/A+reason; residuals written
-- [x] **NO-GO** — code_id not stored; do not whitelist; do not add FoT math
+- [ ] GO — use [`../11611/REPORT.md`](../11611/REPORT.md)
+- [x] **NO-GO** — this stub has no `code_id`; do not whitelist from this path; do not add FoT math
 
-One-line reason: in-repo crate only; factory whitelist is a **separate ops step** gated on LCD pin + Layer A/B **GO**.
+One-line reason: placeholder only; pin + catalogue live under `codeids/11611/`.
 
 Approving an ID admits **every** instantiate of that wasm (including rogue `--admin`). Catalog must still filter `ContractInfo.admin == CMM` and `GetLauncherOrigin`.
 
@@ -23,39 +23,9 @@ Approving an ID admits **every** instantiate of that wasm (including rogue `--ad
 
 | Field | Value |
 |-------|--------|
-| `code_id` | *TBD after store* |
-| `data_hash` (LCD) | *TBD* |
-| SHA-256 of downloaded wasm | *TBD* |
-| Match | pending |
-| Creator / uploader | pending |
-| Instantiate permission | Everybody (expected) |
-| Approximate instantiate count | 0 |
-| `meta.json` | not yet |
-
-## Fetch
-
-Not run. After store: `cw20-codeid-audits/scripts/fetch-lcd-wasm.sh <id>`.
-
-## Fingerprint / decomp
-
-Not run. After store: `fingerprint-wasm.sh` + `decompile-wasm.sh`.
-
-## Catalogue
-
-Fill every A–CH row from [`CATALOG.md`](../../CATALOG.md) against the **pinned LCD wasm**. In-repo unit tests cover inbound 1:1, extra-debit sell, outbound buy, and invoice fail-closed. They do **not** replace Layer A/B on stored bytes.
-
-Known-bad **8654** / FoT mutants must still **FAIL** 1:1 and **P2**. This template must **not** match mutant inbound-tax.
-
-## Layer A / B
-
-- Layer A (multi-test): `cl8y-community-tax-token` multitest — inbound pair Transfer 1:1; sell extra-debit; buy outbound split.
-- Layer B-lt: **not run** (`LAYER_B_LT=1 make verify-issue-589` after LocalTerra store).
-
-## Residuals
-
-- Issuer/manager keys and Everybody instantiate — expected; F6 freezes migrate-off-template.
-- Pair→EOA `Transfer` (withdraw / limit refund) takes **buy tax** (**T592-7**).
-- Rogue `--admin` instantiate — dApp/indexer must not promote (`GetLauncherOrigin`).
+| `code_id` | **11611** (see sibling REPORT) |
+| `data_hash` (LCD) | `9D33BF2539A9A5B2F13FD4B321CDBD0B0FD86D936D5D6BD6681955FA30210EC2` |
+| Match | yes on LCD (documented in 11611 REPORT) |
 
 ## Cross-links
 

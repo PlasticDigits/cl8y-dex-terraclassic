@@ -14,10 +14,23 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 | [`docs/contracts-terraclassic.md` § Community tax CW20](../docs/contracts-terraclassic.md#community-tax-cw20-gitlab-592) | Message shapes + classification |
 | [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) | Invariants **T592-1–T592-12** |
 | [`docs/runbooks/cw20-whitelist-policy.md`](../docs/runbooks/cw20-whitelist-policy.md) | Narrow whitelist exception |
-| [`cw20-codeid-audits/codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) | #589 template (NO-GO until LCD store) |
+| [`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md) | #589 intake (**GO**; columbus-5 listed). Stub: [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) |
 | [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) | **H-01** / do not add FoT math |
 | [`AGENTS_CW20_CODE_ID_AUDIT.md`](./AGENTS_CW20_CODE_ID_AUDIT.md) | Listing intake |
 | [`AGENTS_FRONTEND_PAY_INVOICE.md`](./AGENTS_FRONTEND_PAY_INVOICE.md) | Off-chain any-token pay |
+| [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) | Columbus-5 **11611** / launcher `terra1af9xm…894lyz` |
+
+## Columbus-5 pins (#601)
+
+| Role | Value |
+|------|--------|
+| Token code_id (listed) | **11611** · `data_hash` `9D33BF2539A9A5B2F13FD4B321CDBD0B0FD86D936D5D6BD6681955FA30210EC2` |
+| Launcher | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (code **11612**) |
+| AutoLP code_id | **11613** (stored; not factory-whitelisted) |
+| CMM admin | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
+| Factory whitelist | `[6036, 8266, 10184, 11611]` |
+
+`VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` = 11611. `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = launcher. Unset → dApp page unavailable / indexer `configured: false`.
 
 ## Invariants **T592-1–T592-12**
 
@@ -56,7 +69,7 @@ make verify-issue-592
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp
 ```
 
-Do **not** `AddWhitelistedCodeId` until `cw20-codeid-audits/codeids/<id>/REPORT.md` is **GO**. Do not whitelist ALPHA **8654**.
+Do **not** `AddWhitelistedCodeId` until `cw20-codeid-audits/codeids/<id>/REPORT.md` is **GO**. Columbus-5 **11611** is listed (see that REPORT). Do not whitelist ALPHA **8654**. Do not whitelist launcher **11612** or AutoLP **11613**.
 
 ## Do not
 

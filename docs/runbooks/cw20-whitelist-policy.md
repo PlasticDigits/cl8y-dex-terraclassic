@@ -19,7 +19,7 @@ Both desync the pair's internal accounting. The pair (and limit-order escrow) cr
 | Protocol-issued LP tokens (factory `lp_token_code_id`) | Generic “tax on transfer” forks (ALPHA **8654**, mutants) |
 | Audited mintable CW20 used in local deploy | Rebase / elastic-supply / reflection tokens |
 | Fixed-supply, balance-stable CW20 | Adversarial / unaudited wasm |
-| **Named exception only:** in-repo `cl8y-community-tax-token` after `#589` REPORT **GO** ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592)). Inbound pair/router/escrow credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split. This is **not** a license to whitelist other tax tokens. | Pair/router FoT math (**H-01**). Do not whitelist until `cw20-codeid-audits/codeids/<id>/REPORT.md` is GO. The in-repo stub [`community-tax-token/REPORT.md`](../../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) is **NO-GO** until store. |
+| **Named exception only:** in-repo `cl8y-community-tax-token` after `#589` REPORT **GO** ([#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601)). Columbus-5 **11611** listed 2026-08-23 ([`codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md)). Inbound pair/router/escrow credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split. This is **not** a license to whitelist other tax tokens. | Pair/router FoT math (**H-01**). Do not whitelist until `cw20-codeid-audits/codeids/<id>/REPORT.md` is GO. The stub [`community-tax-token/REPORT.md`](../../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) is a **NO-GO** placeholder. |
 
 ## Pre-whitelist verification
 
@@ -97,4 +97,4 @@ Snapshot from [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/is
 | PEARL, QUARTZ | 6036 | DEX 2-of-3 `terra1zlmv2…` |
 | SpaceUSD (code **8266** listed 2026-08-22; pair not created) | 8266 | issuer `terra133n0pv8…` |
 
-This table is a 2026-08-20 snapshot of **pair assets**, not a live probe. Re-query LCD `ContractInfo` (code_id + admin) before Refresh. F6 is live. Factory whitelist 2026-08-22 is **`[6036, 8266, 10184]`**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558).
+This table is a 2026-08-20 snapshot of **pair assets**, not a live probe. Re-query LCD `ContractInfo` (code_id + admin) before Refresh. F6 is live. Factory whitelist 2026-08-23 is **`[6036, 8266, 10184, 11611]`** (8266 on 2026-08-22; community-tax **11611** on 2026-08-23). SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558).

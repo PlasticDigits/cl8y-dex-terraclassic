@@ -391,6 +391,6 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 
 ### Listing
 
-Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Stub: [`cw20-codeid-audits/codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) is **NO-GO** until store. Do not whitelist **8654**.
+Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Launcher `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (code **11612**). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654**.
 
 `make verify-issue-592`.
