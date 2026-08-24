@@ -53,3 +53,5 @@ make verify-issue-616   # post-merge !409–!413 stack + live leftovers
 - Put buy/sell bps in a spoofable query param as the only source.
 - Serve a no-tax cached winner to a tax-aware client (or the reverse).
 - Double-count sell extra-debit on You Receive (Max already reserved leftover).
+
+Retail Playwright on the LocalTerra tax/EMBER pair asserts You Receive **net** (not raw pair debit): [`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-5**, [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)).

@@ -85,8 +85,33 @@ factory_pair_creation_fee_uluna() {
 
 PAIR_CREATION_FEE_ULUNA="$(factory_pair_creation_fee_uluna)"
 
+factory_pair_addr() {
+  local a="$1" b="$2"
+  local q raw
+  q="$(jq -nc --arg a "$a" --arg b "$b" \
+    '{pair:{asset_infos:[{token:{contract_addr:$a}},{token:{contract_addr:$b}}]}}')"
+  raw="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" "$q" 2>/dev/null || true)"
+  if echo "$raw" | jq -e '.data' >/dev/null 2>&1; then
+    decode_smart_payload "$raw" | jq -r '.contract_addr // .pair.contract_addr // empty'
+  else
+    printf ''
+  fi
+}
+
 factory_has_pair_with_token() {
   local token="$1"
+  local partner hit
+  for partner in "${VITE_TOKEN_EMBER_ADDRESS:-}" "${VITE_TOKEN_CORAL_ADDRESS:-}"; do
+    [[ -n "$partner" ]] || continue
+    hit="$(factory_pair_addr "$token" "$partner")"
+    if [[ "$hit" =~ ^terra1 ]]; then
+      return 0
+    fi
+    hit="$(factory_pair_addr "$partner" "$token")"
+    if [[ "$hit" =~ ^terra1 ]]; then
+      return 0
+    fi
+  done
   local pairs_doc
   pairs_doc="$(decode_smart_payload "$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":120}}')")"
   echo "$pairs_doc" | jq -e --arg t "$token" '
@@ -118,13 +143,17 @@ fund_wrap_token_via_treasury() {
   sleep 2
 }
 
-# First factory pair (EMBER/CORAL) for stable wrap-pair partners.
-RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":5}}')"
-PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
-EMBER_ADDR="$(echo "$PAIRS_DOC" | jq -r '.pairs[0].asset_infos[0].token.contract_addr // empty')"
-CORAL_ADDR="$(echo "$PAIRS_DOC" | jq -r '.pairs[0].asset_infos[1].token.contract_addr // empty')"
+# Deploy pins, not factory pairs[0] — leftover tax markets can sort first (#622).
+EMBER_ADDR="${VITE_TOKEN_EMBER_ADDRESS:-}"
+CORAL_ADDR="${VITE_TOKEN_CORAL_ADDRESS:-}"
 if [[ -z "$EMBER_ADDR" || -z "$CORAL_ADDR" ]]; then
-  echo "e2e-seed-wrap-pairs: could not resolve EMBER/CORAL from factory pairs." >&2
+  RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":5}}')"
+  PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
+  EMBER_ADDR="$(echo "$PAIRS_DOC" | jq -r '.pairs[0].asset_infos[0].token.contract_addr // empty')"
+  CORAL_ADDR="$(echo "$PAIRS_DOC" | jq -r '.pairs[0].asset_infos[1].token.contract_addr // empty')"
+fi
+if [[ -z "$EMBER_ADDR" || -z "$CORAL_ADDR" ]]; then
+  echo "e2e-seed-wrap-pairs: could not resolve EMBER/CORAL from .env.local / factory pairs." >&2
   exit 1
 fi
 
@@ -151,7 +180,8 @@ create_wrap_pair() {
   if [[ "$PAIR_CREATION_FEE_ULUNA" != "0" && -n "$PAIR_CREATION_FEE_ULUNA" ]]; then
     fee_args=(--amount "${PAIR_CREATION_FEE_ULUNA}uluna")
   fi
-  if ! tx_hash="$(terrad_tx wasm execute "$VITE_FACTORY_ADDRESS" "$create_msg" "${fee_args[@]}" | jq -r '.txhash')"; then
+  if ! tx_hash="$(terrad_tx wasm execute "$VITE_FACTORY_ADDRESS" "$create_msg" "${fee_args[@]}" \
+    | sed -n '/^{/,$p' | tail -1 | jq -r '.txhash // empty')"; then
     if factory_has_pair_with_token "$wrap_addr"; then
       echo "e2e-seed-wrap-pairs: $wrap_sym/$partner_sym already on factory; skipping create."
       return 0
@@ -192,7 +222,7 @@ else
 fi
 
 echo "e2e-seed-wrap-pairs: waiting for indexer to list LUNC-C pair (pool page / wrap-pool E2E)..."
-for i in $(seq 1 90); do
+for i in $(seq 1 "${E2E_WRAP_INDEXER_WAIT_LOOPS:-90}"); do
   if curl -sf "${INDEXER_API}/api/v1/pairs?limit=200" | jq -e --arg lc "$VITE_LUNC_C_TOKEN_ADDRESS" \
     '[.items[] | select(.asset_0.contract_addr == $lc or .asset_1.contract_addr == $lc)] | length > 0' >/dev/null; then
     echo "e2e-seed-wrap-pairs: indexer has LUNC-C pair."

@@ -61,6 +61,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 | [`frontend-dapp/playwright.config.ts`](../frontend-dapp/playwright.config.ts) | `e2e-smoke` / `e2e-tx` / `e2e-indexer-outage` projects, optional global setup, **1 worker for `e2e-tx`** |
 | [`scripts/test-e2e-indexer-outage.sh`](../scripts/test-e2e-indexer-outage.sh) | Local indexer stop + outage Playwright ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219)) |
 | [`frontend-dapp/e2e/helpers/chain.ts`](../frontend-dapp/e2e/helpers/chain.ts) | `isChainOptional()`, LCD + CTA assertions |
+| [`frontend-dapp/e2e/helpers/community-tax-e2e.ts`](../frontend-dapp/e2e/helpers/community-tax-e2e.ts) | Tax-pair LCD TaxPreview / extra-debit / net receive ([#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)) |
 | [`frontend-dapp/e2e/global-setup.ts`](../frontend-dapp/e2e/global-setup.ts) | LCD wait + provision + hybrid book seed |
 | [`scripts/e2e-provision-dev-wallet.sh`](../scripts/e2e-provision-dev-wallet.sh) | CW20 mint floor; TCL8Y (18-dec CL8Y) ≥ tier-1 via `E2E_DEV_MIN_CL8Y_U128` ([#383](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/383)) |
 | [`scripts/with-node.sh`](../scripts/with-node.sh) | Local Node/npm via nvm (`.nvmrc`) |
@@ -80,3 +81,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- env PLAYWRIGHT_SKIP_CHAIN=1 npm
 - Indexer outage E2E (separate automation target): [`docs/testing.md`](../docs/testing.md#frontend-e2e-indexer-outage), [`AGENTS_E2E_INDEXER_OUTAGE.md`](./AGENTS_E2E_INDEXER_OUTAGE.md), [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) ([#219](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/219))
 - Price chart browser smoke: [`docs/testing.md`](../docs/testing.md#price-chart-playwright-smoke-gitlab-228), [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) ([#228](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/228))
 - Trade desktop layout (no drag-resize, independent tape): [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)); Playwright in `trade-page-responsive.spec.ts` (**P10–P13**, `e2e-smoke` @ 5 workers)
+- Community-tax pair e2e-tx: [`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md) ([#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)); `community-tax-tx.spec.ts` fails closed without seed pins

@@ -33,7 +33,7 @@ Issue **#596 is implemented**. Indexer `GET /api/v1/route/solve?pool_only=true` 
 7. **H596-7 — wrap / native unchanged.** Direct wrap/unwrap and native denom routes are not CW20 Pattern C hybrid. Do not force a book leg there. USTR→USTC gas is the unwrap+≥2hop combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)), not hybrid 15M — see [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md). Post-merge E9 / columbus-5: [#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600) / `make verify-issue-600`.
 8. **H596-8 — gas assumes hybrid.** Trade market `estimateMarketPairSwapSequenceUlunaFeesTotal(true, …)` / `marketUsesHybrid={true}`. Do not reserve pool-only gas for the retail market ticket.
 
-Community tax buy/sell **does** apply on router hops after the #607 option 2 wasm (**T592-13**). Do **not** turn hybrid off or force pair-only execute — tax is classify-side, not a hybrid opt-out. Live **11611** is Honest hops until migrate. Playbook: [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md).
+Community tax buy/sell **does** apply on router hops after the #607 option 2 wasm (**T592-13**). Do **not** turn hybrid off or force pair-only execute — tax is classify-side, not a hybrid opt-out. Live **11611** is Honest hops until migrate. Playbook: [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md). LocalTerra tax-pair Playwright must keep hybrid on: [`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-7**, [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)).
 
 ## Rules of thumb
 
