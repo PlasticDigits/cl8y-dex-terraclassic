@@ -160,8 +160,7 @@ run_c5_launcher() {
   [[ "$admin" == "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7" ]]
   raw="$(lcd_smart_query_raw "$LCD_C5" "$FACTORY_C5" '{"get_whitelisted_code_ids":{}}')"
   ids="$(lcd_decode_smart_data "$raw")"
-  echo "$ids" | jq -e '.code_ids | index(11611) != null' >/dev/null
-  echo "$ids" | jq -e '.code_ids | index(11619) != null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11626) != null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11612) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11613) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null

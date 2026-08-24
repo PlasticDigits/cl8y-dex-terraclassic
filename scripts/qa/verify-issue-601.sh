@@ -86,8 +86,8 @@ run_c5_whitelist() {
   local raw ids
   raw="$(lcd_smart_query_raw "$LCD_C5" "$FACTORY_C5" '{"get_whitelisted_code_ids":{}}')"
   ids="$(lcd_decode_smart_data "$raw")"
-  echo "$ids" | jq -e '.code_ids | index(11611) != null' >/dev/null
-  echo "$ids" | jq -e '.code_ids | index(11619) != null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11626) != null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11611) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11612) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11613) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null
@@ -153,7 +153,7 @@ echo ""
 echo "── first pass ──"
 run_step "docs: REPORT GO + O601 + no 11612/8654 whitelist" run_docs
 run_step "child: make verify-issue-592" run_592
-run_step "columbus-5: GetWhitelistedCodeIds includes 11611 and 11619" run_c5_whitelist
+run_step "columbus-5: GetWhitelistedCodeIds includes 11626 (not 11611/sisters/8654)" run_c5_whitelist
 run_step "columbus-5: launcher 11622 admin == DEX 2-of-3" run_c5_launcher
 
 HAS_LT=1

@@ -31,7 +31,7 @@ Re-run: `CODE_ID=11626 LAYER_B_LT=1 make verify-issue-589` · `make verify-issue
 | Match | **yes** (LCD + local artifact `cl8y_community_tax_token.wasm`) |
 | Creator / uploader | `terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv` (`cl8ydeploy`) |
 | Instantiate permission | **Everybody** |
-| Approximate instantiate count | **0** tokens (2026-08-24). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**; `token_code_id` still **11619** until `UpdateConfig`) |
+| Approximate instantiate count | **0** tokens (2026-08-24). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**; `token_code_id` **11626**) |
 | Wasm size | 579806 bytes |
 | Store tx | [`95D5D44C07AB2284DD377684265C7E2BE573D05D52612FF2B8388B0896F97E01`](https://finder.terraclassic.community/columbus-5/tx/95D5D44C07AB2284DD377684265C7E2BE573D05D52612FF2B8388B0896F97E01) height **30091582** |
 | Whitelist tx | [`03F74C9BEFF145732E1A358E06F785DBC499D8529096BF599191E5967896DC91`](https://finder.terraclassic.community/columbus-5/tx/03F74C9BEFF145732E1A358E06F785DBC499D8529096BF599191E5967896DC91) height **30091644** (DEX 2-of-3) |
@@ -235,7 +235,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 
 Approving **11626** admits **every** instantiate of this wasm, including rogue `--admin` and non-launcher creates. That is accepted for the template: dApp (#593) and indexer (#594) **must** filter `ContractInfo.admin == CMM` and (`GetLauncherOrigin` **or** allowlisted `GetMigrateOrigin`). Pair-create fee remains **100 LUNC**. Keep **11619** listed until CMM migrate + factory Refresh so any remaining 11619 pair pins stay writable.
 
-Launcher `GetConfig.token_code_id` is still **11619** until DEX 2-of-3 `UpdateConfig`. Retail `/token/migrate` can target 11626 once Coolify `VITE_COMMUNITY_TAX_CODE_ID=11626`. Create Token still instantiates **11619** until that `UpdateConfig`.
+Launcher `GetConfig.token_code_id` is **11626** (`UpdateConfig` [`ED5E5725…E80A`](https://finder.terraclassic.community/columbus-5/tx/ED5E57255689A497BF391374DEFE988B1D13072E1693243F8081B65A78DFE80A) height **30091680**). Create Token instantiates 11626. Retail `/token/migrate` still needs Coolify `VITE_COMMUNITY_TAX_CODE_ID=11626`.
 
 ## Instance admin / migrate residual (F6)
 
@@ -254,8 +254,7 @@ Launcher stamps CosmWasm admin = `cmm_governance` (CMM `terra16j5u6ey7a84g40sr3g
 - After GO, list is **done** (2026-08-24). Leftover is launcher `UpdateConfig` + Coolify:
 
 ```bash
-# listed 11626; launcher GetConfig still token=11619 autolp=11621
-# UPGRADE611_UPDATE_CONFIG=1 … (DEX 2-of-3)
+# listed 11626; launcher 11622 GetConfig token=11626 autolp=11621
 # Coolify:
 #   VITE_COMMUNITY_TAX_CODE_ID=11626
 #   COMMUNITY_TAX_CODE_ID=11626

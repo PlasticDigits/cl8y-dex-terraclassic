@@ -5,7 +5,7 @@
 # Proves (docs + children + live pins + optional leftovers / LocalTerra):
 #   1. Q11 / M616-1–M616-8 documented and crosslinked.
 #   2. Child make verify-issue-{607,610,613,614,615}.
-#   3. Columbus-5 launcher 11622 + GetConfig 11619/11621; sisters not listed.
+#   3. Columbus-5 launcher 11622 + GetConfig 11626/11621; sisters not listed.
 #   4. Coolify bakes 11619 + canonical launcher; no option-1 skip copy.
 #   5. Option-2 Swap/Trade/Create copy (Playwright e2e-smoke, 5 workers).
 #   6. Optional: indexer window pin / wrap event_count leftovers.
@@ -173,12 +173,11 @@ run_c5_pins() {
   echo "$raw" | jq -e '.contract_info.code_id == "11622" or (.contract_info.code_id|tonumber) == 11622' >/dev/null
   raw="$(lcd_smart_query_raw "$LCD_C5" "$LAUNCHER_C5" '{"get_config":{}}')"
   cfg="$(lcd_decode_smart_data "$raw")"
-  echo "$cfg" | jq -e '.token_code_id == 11619 or (.token_code_id|tonumber) == 11619' >/dev/null
+  echo "$cfg" | jq -e '.token_code_id == 11626 or (.token_code_id|tonumber) == 11626' >/dev/null
   echo "$cfg" | jq -e '.autolp_code_id == 11621 or (.autolp_code_id|tonumber) == 11621' >/dev/null
   raw="$(lcd_smart_query_raw "$LCD_C5" "$FACTORY_C5" '{"get_whitelisted_code_ids":{}}')"
   ids="$(lcd_decode_smart_data "$raw")"
-  echo "$ids" | jq -e '.code_ids | index(11611) != null' >/dev/null
-  echo "$ids" | jq -e '.code_ids | index(11619) != null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11626) != null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11612) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11613) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null
@@ -186,7 +185,7 @@ run_c5_pins() {
   echo "$ids" | jq -e '.code_ids | index(11621) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11622) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(8654) == null' >/dev/null
-  echo "columbus-5 launcher 11622 token=11619 autolp=11621 whitelist=$(echo "$ids" | jq -c '.code_ids')"
+  echo "columbus-5 launcher 11622 token=11626 autolp=11621 whitelist=$(echo "$ids" | jq -c '.code_ids')"
 }
 
 run_live_window_pin() {
@@ -246,7 +245,7 @@ else
   run_step "M616-3: dex.cl8y.com bakes 11619 + option-2 copy" run_live_dapp
   run_step "M616-3: indexer.dex.cl8y.com community-tokens 11619" run_live_indexer_catalog
   run_step "M616-3: indexer UST1_WINDOW_ADDRESS pinned" run_live_window_pin
-  run_step "M616-2: columbus-5 launcher 11622 GetConfig 11619/11621" run_c5_pins
+  run_step "M616-2: columbus-5 launcher 11622 GetConfig 11626/11621" run_c5_pins
   if [[ "${VERIFY616_REQUIRE_LIVE_LEFTOVERS:-}" == "1" ]]; then
     run_step "M616-3 leftovers: wrap + ust1 mint/redeem events" run_live_leftovers
   else

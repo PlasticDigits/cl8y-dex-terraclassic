@@ -6,7 +6,7 @@ Named T592 exception for the #589 harness ([#628](https://gitlab.com/PlasticDigi
 - Report: [`REPORT.md`](REPORT.md)
 - Listed rotate pin remains [`../11619/REPORT.md`](../11619/REPORT.md)
 - Honest pin remains [`../11611/REPORT.md`](../11611/REPORT.md)
-- Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**; still `token_code_id` **11619** until `UpdateConfig`)
+- Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**; `token_code_id` **11626**)
 
 ```bash
 ./cw20-codeid-audits/scripts/fetch-lcd-wasm.sh 11626
