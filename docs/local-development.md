@@ -42,6 +42,7 @@ make dev
 | `make dev`            | Start Vite (`scripts/dev-frontend-local.sh` — requires `.env.local`) |
 | `make swarm-local`    | Run the **localnet-only** trading bot swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)) — requires LocalTerra + `deploy-dex-local` first |
 | `make verify-issue-620` | LocalTerra community-tax seed + Transfer funding ([GitLab #620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)) |
+| `make verify-issue-621` | Tax-aware localnet swarm gem exclude + tax workers ([GitLab #621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)) |
 
 ### Trading swarm (UI load / localnet only)
 
@@ -54,7 +55,7 @@ make swarm-local
 # equivalent: ./scripts/localnet-trading-swarm.sh
 ```
 
-Details, invariants, `--dry-run`, `--stats`, and env vars: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md). Agent-oriented notes: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md).
+Details, invariants, `--dry-run`, `--stats`, and env vars: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md). Agent-oriented notes: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md). After the #620 tax seed, gem workers exclude the tax token and a dedicated `tax_listed` / `--worker tax` path sizes extra-debit correctly — [`skills/AGENTS_LOCALNET_SWARM_TAX.md`](../skills/AGENTS_LOCALNET_SWARM_TAX.md).
 
 ### Community-tax seed (GitLab #620)
 

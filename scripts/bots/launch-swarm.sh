@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Launch swap workers (5 types × 5 replicas = 25), five limit-order makers, and three
-# provide_liquidity workers so LocalTerra test pools stay deep enough for swap QA (#293).
+# Launch swap workers (5 types × 5 replicas = 25), five limit-order makers, three
+# provide_liquidity workers (#293), and one tax-aware worker (#621) unless
+# SWARM_TAX_WORKERS=0. Gem swap/LP workers exclude the community-tax token.
 # Runs bootstrap-swarm-liquidity once first unless BOTS_SKIP_BOOTSTRAP=1.
 #
 # Usage (from repo root):
@@ -27,8 +28,10 @@ mkdir -p "$LOGDIR"
 BASE_MEAN="${BOTS_MEAN_INTERVAL_SEC:-45}"
 LIMIT_MEAN="${BOTS_LIMIT_MEAN_INTERVAL_SEC:-120}"
 LP_MEAN="${BOTS_LP_MEAN_INTERVAL_SEC:-90}"
+TAX_MEAN="${BOTS_TAX_MEAN_INTERVAL_SEC:-40}"
 DRY="${BOTS_DRY_RUN:-0}"
 SKIP_BOOTSTRAP="${BOTS_SKIP_BOOTSTRAP:-0}"
+TAX_WORKERS="${SWARM_TAX_WORKERS:-1}"
 
 echo "Preflight: test1 gas balance…"
 python3 "$SWARM_PY" --preflight-gas
@@ -49,6 +52,11 @@ fi
 echo "Launching ${#SWAP_TYPES[@]} swap types × 5 replicas → $((${#SWAP_TYPES[@]} * 5)) processes"
 echo "  plus 5 limit-order workers (mean ${LIMIT_MEAN}s)"
 echo "  plus 3 provide_liquidity workers (mean ${LP_MEAN}s)"
+if [[ "$TAX_WORKERS" != "0" && "$TAX_WORKERS" != "false" ]]; then
+  echo "  plus 1 tax-aware worker (mean ${TAX_MEAN}s) — set SWARM_TAX_WORKERS=0 to skip"
+else
+  echo "  tax workers off (SWARM_TAX_WORKERS=${TAX_WORKERS}); gem workers still exclude the tax token"
+fi
 echo "  swap base mean interval: ${BASE_MEAN}s  dry_run: ${DRY}"
 echo "  logs: $LOGDIR  pids: $PIDFILE"
 
@@ -99,5 +107,18 @@ for i in 0 1 2; do
   echo $! >>"$PIDFILE"
   echo "  started lp-${i} pid=$! mean=${mean}s -> $log"
 done
+
+if [[ "$TAX_WORKERS" != "0" && "$TAX_WORKERS" != "false" ]]; then
+  log="$LOGDIR/tax-0.log"
+  (
+    cd "$REPO_ROOT"
+    export BOTS_TAX_MEAN_INTERVAL_SEC="$TAX_MEAN"
+    export BOTS_MEAN_INTERVAL_SEC="$TAX_MEAN"
+    export BOTS_DRY_RUN="$DRY"
+    exec python3 "$SWARM_PY" --worker tax 0
+  ) >>"$log" 2>&1 &
+  echo $! >>"$PIDFILE"
+  echo "  started tax-0 pid=$! mean=${TAX_MEAN}s -> $log"
+fi
 
 echo "Done. $(wc -l <"$PIDFILE") PIDs recorded. Stop with: $REPO_ROOT/scripts/bots/stop-swarm.sh"

@@ -32,6 +32,8 @@ Environment:
   SWARM_REPO_ROOT       Repo root (auto-detected if unset).
   SWARM_BOT_MNEMONIC    Optional 12-word English mnemonic; five accounts use indices 0–4.
                         If unset, a fresh mnemonic is generated (printed once on stderr).
+  SWARM_TAX_WORKERS     Default 1: wallet 4 is tax_listed (tax/EMBER + router ≥2hop).
+                        Set 0 to exclude the tax token from gem workers only (no tax volume).
 
 See packages/localnet-trading-swarm/README.md.`)
     process.exit(0)
