@@ -41,6 +41,7 @@ make dev
 | `make deploy-local`   | Deploy to LocalTerra                           |
 | `make dev`            | Start Vite (`scripts/dev-frontend-local.sh` — requires `.env.local`) |
 | `make swarm-local`    | Run the **localnet-only** trading bot swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)) — requires LocalTerra + `deploy-dex-local` first |
+| `make verify-issue-620` | LocalTerra community-tax seed + Transfer funding ([GitLab #620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)) |
 
 ### Trading swarm (UI load / localnet only)
 
@@ -54,6 +55,19 @@ make swarm-local
 ```
 
 Details, invariants, `--dry-run`, `--stats`, and env vars: [`packages/localnet-trading-swarm/README.md`](../packages/localnet-trading-swarm/README.md). Agent-oriented notes: [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md).
+
+### Community-tax seed (GitLab #620)
+
+Default `make deploy-local` stores the current community-tax / launcher / AutoLP wasm, instantiates a **SmokeUST1** invoice stand-in, paid-creates **QATax** (`auto_v2_lp`, buy/sell 500 bps, no MintControl), `CreatePair` vs EMBER, `RegisterListedPair`, seeds LP above the swarm floor, and binds AutoLP `pair`. Writes local pins into `frontend-dapp/.env.local` and `indexer/.env` (catalog `configured: true` after ingest).
+
+This is **not** a license to whitelist columbus-5 **11611** / **11619** from LocalTerra. CMM stand-in is `test1`. Funding tops up the tax token with **Transfer** from `test1` — never Mint.
+
+```bash
+DEPLOY_SKIP_COMMUNITY_TAX=1 make deploy-local   # gems only
+make verify-issue-620
+```
+
+Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). `#601` smoke stays ephemeral.
 
 ## Docker Setup
 

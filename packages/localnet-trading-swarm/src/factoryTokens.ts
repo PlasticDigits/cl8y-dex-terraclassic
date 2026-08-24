@@ -23,7 +23,7 @@ export async function fetchAllPairs(lcdBase: string, factory: string): Promise<P
   return all
 }
 
-/** Unique CW20 contract addresses appearing in any factory pair (full enumeration for mint funding). */
+/** Unique CW20 contract addresses appearing in any factory pair (funding classifies Mint vs Transfer). */
 export function uniqueCw20TokenAddresses(pairs: PairInfo[]): string[] {
   const set = new Set<string>()
   for (const p of pairs) {

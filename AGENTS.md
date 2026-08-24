@@ -190,6 +190,7 @@ make verify-issue-606                    # #606 launcher Enable Feature + SKU de
 make verify-issue-602                    # #602 post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token
 make verify-issue-612                    # #612 post-merge !407/!408 Enable Feature migrate + LocalTerra QA
 make verify-issue-616                    # #616 post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking
+make verify-issue-620                    # #620 LocalTerra community-tax seed + Transfer funding + indexer env
 make verify-issue-607                    # #607 community tax router hops tax the original trader (C-2 option 2)
 make verify-issue-615                    # #615 tax-aware route/solve ranking + You Receive net
 make verify-issue-515                    # #515 ticker-scoped external oracle (ustc/lunc/vfdusd catalog + routes)
@@ -283,6 +284,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md](skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — official dApp never opts out of best-execution hybrid (**H596-1–H596-8**, [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)); `make verify-issue-596`
 - [skills/AGENTS_FRONTEND_PAY_INVOICE.md](skills/AGENTS_FRONTEND_PAY_INVOICE.md) — reusable pay-with-any-token invoice card (**I595-1–I595-14**, [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)); `make verify-issue-595`
 - [skills/AGENTS_COMMUNITY_TAX_CW20.md](skills/AGENTS_COMMUNITY_TAX_CW20.md) — community tax CW20 template + launcher + AutoLP (**T592-1–T592-13**, [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); **O601-1–O601-7**, [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601)); `make verify-issue-592` · `make verify-issue-601`
+- [skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md](skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) — LocalTerra tax/EMBER seed + Transfer funding + indexer pins (**L620-1–L620-8**, [#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)); `make verify-issue-620`
 - [skills/AGENTS_COMMUNITY_TAX_ROUTER.md](skills/AGENTS_COMMUNITY_TAX_ROUTER.md) — C-2 improved option 2: official-router hops tax the original trader (**T592-13** / **R607-1–R607-8**, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607)); `make verify-issue-607`
 - [skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md](skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md) — catalog net rank + 11611 pin + You Receive net (**R615-1–R615-8**, [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615)); `make verify-issue-615`
 - [skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md](skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) — LaunchGuards per-wallet cooldown + `max_wallet` protocol skip (**H608-1–H608-8**, [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608)); `make verify-issue-608`

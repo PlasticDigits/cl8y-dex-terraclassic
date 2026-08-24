@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { defaultFundingOptions } from './funding.js'
+import { classifyCw20FundingKind, fundingEnvFromVite } from './fundingKind.js'
 
 describe('defaultFundingOptions', () => {
   const saved: Record<string, string | undefined> = {}
@@ -43,5 +44,38 @@ describe('defaultFundingOptions', () => {
     expect(f.uusdTopup).toBe('2')
     expect(f.cw20MintTopup).toBe('3')
     expect(f.minCw20Balance).toBe('4')
+  })
+})
+
+describe('classifyCw20FundingKind (GitLab #620)', () => {
+  const wrap = 'terra1wrap'
+  const tax = 'terra1tax'
+  const gem = 'terra1gem'
+  const env = fundingEnvFromVite({
+    VITE_LUNC_C_TOKEN_ADDRESS: wrap,
+    VITE_TOKEN_COMMUNITY_TAX_ADDRESS: tax,
+  })
+
+  it('skips wrap CW20s (no Mint)', () => {
+    expect(classifyCw20FundingKind(wrap, env)).toBe('skip')
+  })
+
+  it('Transfers the pinned QA tax token (never Mint)', () => {
+    expect(classifyCw20FundingKind(tax, env)).toBe('transfer')
+  })
+
+  it('Transfers when GetLauncherOrigin.launcher is set', () => {
+    expect(classifyCw20FundingKind(gem, { wrapAddresses: [] }, 'terra1launcher')).toBe(
+      'transfer'
+    )
+  })
+
+  it('Mints gems and leaves TCL8Y to the caller Mint path', () => {
+    expect(classifyCw20FundingKind(gem, env)).toBe('mint')
+  })
+
+  it('does not treat an empty origin as tax', () => {
+    expect(classifyCw20FundingKind(gem, env, null)).toBe('mint')
+    expect(classifyCw20FundingKind(gem, env, '')).toBe('mint')
   })
 })

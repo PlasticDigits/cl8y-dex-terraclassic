@@ -29,6 +29,8 @@ source "$(cd "$(dirname "$0")" && pwd)/lib/terrad-tx-events.sh"
 source "$(cd "$(dirname "$0")" && pwd)/lib/terrad-wait-tx.sh"
 # shellcheck source=scripts/lib/qa-phase-timing.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib/qa-phase-timing.sh"
+# shellcheck source=scripts/lib/deploy-community-tax-local.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/deploy-community-tax-local.sh"
 
 QA_DEPLOY_SEED="${QA_DEPLOY_SEED:-full}"
 case "$QA_DEPLOY_SEED" in
@@ -70,6 +72,14 @@ NOWHITELIST_ADDRESSES=()
 UNPAIRED_NAMES=("Zinc" "Iron" "Neon")
 UNPAIRED_SYMBOLS=("ZINC" "IRON" "NEON")
 UNPAIRED_ADDRESSES=()
+
+# GitLab #620 — set by deploy_community_tax_local (empty when DEPLOY_SKIP_COMMUNITY_TAX=1).
+COMMUNITY_TAX_CODE_ID=""
+COMMUNITY_TOKEN_LAUNCHER=""
+TOKEN_COMMUNITY_TAX_ADDRESS=""
+PAIR_COMMUNITY_TAX_EMBER=""
+COMMUNITY_TAX_UST1=""
+COMMUNITY_TAX_AUTOLP=""
 
 # Pair configs: tokenA_index:tokenB_index:liquidityA(micro):liquidityB(micro)
 PAIR_CONFIGS=(
@@ -337,7 +347,11 @@ if [ "$PAIR_CREATION_FEE_ULUNA" != "0" ]; then
       full) _qa_extra_pairs=5 ;;
       wallet) _qa_extra_pairs=2 ;;
     esac
-    PAIRS_TO_CREATE=$(( ${#PAIR_CONFIGS[@]} + _qa_extra_pairs ))
+    _qa_tax_pair=1
+    if [ "${DEPLOY_SKIP_COMMUNITY_TAX:-}" = "1" ]; then
+      _qa_tax_pair=0
+    fi
+    PAIRS_TO_CREATE=$(( ${#PAIR_CONFIGS[@]} + _qa_extra_pairs + _qa_tax_pair ))
     FEE_NEEDED=$(( PAIR_CREATION_FEE_ULUNA * PAIRS_TO_CREATE + 5000000000 ))
     TEST1_ULUNA=$(terrad_query bank balances "$TEST_ADDRESS" \
       | jq -r '(.balances[]? | select(.denom=="uluna") | .amount) // empty' | head -1)
@@ -925,6 +939,11 @@ echo ""
 echo "  $WRAP_PAIR_NUM wrapped-native pairs created."
 fi
 
+# ── Phase 4d: Community tax QA market (GitLab #620) ─────────────────────
+qa_timing_phase_start "community-tax"
+deploy_community_tax_local
+qa_timing_phase_end
+
 # ── Phase 5: Test Swaps ─────────────────────────────────────────────────
 
 if [ "$QA_DEPLOY_SEED" = "full" ] || [ "$QA_DEPLOY_SEED" = "charts" ]; then
@@ -1003,9 +1022,14 @@ echo "  Faucet:        ${FAUCET_ADDRESS:-(skipped)}"
 echo "  TCL8Y (CL8Y):  $TCL8Y_ADDRESS"
 echo "  Treasury:      $TREASURY_ADDRESS"
 echo "  Wrap-Mapper:   $WRAP_MAPPER_ADDRESS"
-echo "  cLUNC:         $LUNC_C_ADDRESS"
-echo "  cUSTC:         $USTC_C_ADDRESS"
-echo ""
+  echo "  cLUNC:         $LUNC_C_ADDRESS"
+  echo "  cUSTC:         $USTC_C_ADDRESS"
+  echo "  QA tax token:  ${TOKEN_COMMUNITY_TAX_ADDRESS:-(skipped)}"
+  echo "  QA tax/EMBER:  ${PAIR_COMMUNITY_TAX_EMBER:-(skipped)}"
+  echo "  QA launcher:   ${COMMUNITY_TOKEN_LAUNCHER:-(skipped)}"
+  echo "  QA AutoLP:     ${COMMUNITY_TAX_AUTOLP:-(skipped)}"
+  echo "  SmokeUST1:     ${COMMUNITY_TAX_UST1:-(skipped)}"
+  echo ""
 echo "  Tokens (whitelisted, code_id=$CW20_CODE_ID):"
 for i in "${!TOKEN_SYMBOLS[@]}"; do
     printf "    %-8s %s\n" "${TOKEN_SYMBOLS[$i]}" "${TOKEN_ADDRESSES[$i]}"
@@ -1065,6 +1089,14 @@ VITE_NOWHITELIST_TOKEN_2=${NOWHITELIST_ADDRESSES[1]:-}
 VITE_UNPAIRED_TOKEN_ZINC=${UNPAIRED_ADDRESSES[0]:-}
 VITE_UNPAIRED_TOKEN_IRON=${UNPAIRED_ADDRESSES[1]:-}
 VITE_UNPAIRED_TOKEN_NEON=${UNPAIRED_ADDRESSES[2]:-}
+# LocalTerra community-tax pins (GitLab #620). Empty when DEPLOY_SKIP_COMMUNITY_TAX=1.
+# Never bake columbus-5 11611/11619 from this script.
+VITE_COMMUNITY_TAX_CODE_ID=${COMMUNITY_TAX_CODE_ID:-}
+VITE_COMMUNITY_TOKEN_LAUNCHER=${COMMUNITY_TOKEN_LAUNCHER:-}
+VITE_TOKEN_COMMUNITY_TAX_ADDRESS=${TOKEN_COMMUNITY_TAX_ADDRESS:-}
+VITE_PAIR_COMMUNITY_TAX_EMBER=${PAIR_COMMUNITY_TAX_EMBER:-}
+VITE_UST1_TOKEN_ADDRESS=${COMMUNITY_TAX_UST1:-}
+VITE_CMM_GOVERNANCE_ADDR=${TOKEN_COMMUNITY_TAX_ADDRESS:+$TEST_ADDRESS}
 # Use 127.0.0.1 so the browser does not resolve "localhost" to ::1 while API_BIND is IPv4-only.
 VITE_INDEXER_URL=http://127.0.0.1:${API_PORT:-3001}
 ENVEOF
@@ -1112,6 +1144,15 @@ RATE_LIMIT_RPS=0
 # LCD-heavy routes keep explicit 10 RPS cap for QA template (#363); applies even when global RATE_LIMIT_RPS=0.
 RATE_LIMIT_LCD_HEAVY_RPS=10
 ENVEOF
+if [ -n "${COMMUNITY_TAX_CODE_ID:-}" ] && [ -n "${COMMUNITY_TOKEN_LAUNCHER:-}" ]; then
+  cat >> "$REPO_ROOT/indexer/.env" <<TAXEOF
+# LocalTerra community-tax catalog (GitLab #620). Local store id — not columbus-5 11619.
+COMMUNITY_TAX_CODE_ID=$COMMUNITY_TAX_CODE_ID
+COMMUNITY_TOKEN_LAUNCHER=$COMMUNITY_TOKEN_LAUNCHER
+CMM_GOVERNANCE_ADDR=$TEST_ADDRESS
+COMMUNITY_TAX_OPTION2_CODE_IDS=$COMMUNITY_TAX_CODE_ID
+TAXEOF
+fi
 echo "  Written to indexer/.env"
 
 echo ""
@@ -1125,6 +1166,9 @@ git_sha=${DEPLOY_GIT_SHA}
 deployed_at=${DEPLOY_AT}
 factory_address=${FACTORY_ADDRESS}
 pair_address=${VERIFY_PAIR}
+community_tax_code_id=${COMMUNITY_TAX_CODE_ID:-}
+community_tax_token=${TOKEN_COMMUNITY_TAX_ADDRESS:-}
+community_tax_pair=${PAIR_COMMUNITY_TAX_EMBER:-}
 STAMPEOF
 echo "  git_sha=${DEPLOY_GIT_SHA} pair=${VERIFY_PAIR}"
 
