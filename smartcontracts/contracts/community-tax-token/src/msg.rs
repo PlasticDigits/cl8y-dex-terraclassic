@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
 use cw20::{Cw20Coin, Cw20ReceiveMsg, Expiration};
 use cw20_base::msg::InstantiateMarketingInfo;
 
@@ -73,6 +73,11 @@ pub struct AutoLpConfig {
     pub pair: Option<String>,
     pub threshold: Uint128,
     pub lp_recipient: String,
+    /// Optional skim floor forwarded to the sister (`UpdateConfig`). Omit → merge.
+    #[serde(default)]
+    pub skim_max_spread: Option<Decimal>,
+    #[serde(default)]
+    pub skim_min_return: Option<Uint128>,
 }
 
 /// UST1 `Send` hook on this token (or forwarded by the launcher).

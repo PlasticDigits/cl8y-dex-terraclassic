@@ -155,6 +155,41 @@ describe('ManageTokenPage (#593)', () => {
     )
   })
 
+  it('#610 AutoLP pair copy names this token CL8Y factory pair', async () => {
+    const { queryCommunityTaxConfig, queryCommunityTaxFeatures } =
+      await import('@/services/terraclassic/communityTaxToken')
+    vi.mocked(queryCommunityTaxFeatures).mockResolvedValueOnce({
+      mint_control: false,
+      transfer_tax: false,
+      split_router: false,
+      auto_v2_lp: true,
+      exemption_directory: false,
+      variable_rates: true,
+      launch_guards: false,
+    })
+    vi.mocked(queryCommunityTaxConfig).mockResolvedValueOnce({
+      manager: MANAGER,
+      treasury: MANAGER,
+      buy_bps: 100,
+      sell_bps: 100,
+      transfer_bps: 0,
+      max_buy_bps: 1000,
+      max_sell_bps: 1000,
+      max_transfer_bps: 500,
+      factory: MANAGER,
+      router: null,
+      ust1: MANAGER,
+      cmm_treasury: MANAGER,
+      autolp: TOKEN,
+      sinks: [],
+      launch_guards: null,
+      mint_revoked: false,
+    })
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-autolp-pair-hint')).toHaveTextContent("this token's CL8Y factory pair")
+    expect(screen.getByPlaceholderText("This token's CL8Y factory pair")).toBeInTheDocument()
+  })
+
   it('P19: tax placeholders are percent not bps', async () => {
     renderManage(MANAGER)
     expect(await screen.findByTestId('manage-save-copy')).toBeInTheDocument()

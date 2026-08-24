@@ -359,6 +359,8 @@ fn apply_autolp_settings(
         quote_token: Option<String>,
         threshold: Option<Uint128>,
         lp_recipient: Option<String>,
+        skim_max_spread: Option<cosmwasm_std::Decimal>,
+        skim_min_return: Option<Uint128>,
     }
     #[derive(serde::Serialize)]
     struct SisterExec {
@@ -373,6 +375,8 @@ fn apply_autolp_settings(
                 quote_token: None,
                 threshold: Some(autolp.threshold),
                 lp_recipient: Some(recipient.to_string()),
+                skim_max_spread: autolp.skim_max_spread,
+                skim_min_return: autolp.skim_min_return,
             },
         })?,
         funds: vec![],

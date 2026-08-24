@@ -615,6 +615,18 @@ fn create_token_instantiates_and_binds_autolp() {
         )
         .unwrap();
     assert!(cfg.autolp.is_some(), "AutoLP must be bound at create");
+    let autolp_cfg: cl8y_community_tax_autolp::msg::ConfigResponse = app
+        .wrap()
+        .query_wasm_smart(
+            cfg.autolp.as_ref().unwrap(),
+            &cl8y_community_tax_autolp::msg::QueryMsg::GetConfig {},
+        )
+        .unwrap();
+    assert_eq!(
+        autolp_cfg.factory, manager,
+        "launcher pins immutable factory on AutoLP instantiate (#610)"
+    );
+    assert!(autolp_cfg.pair.is_none());
 }
 
 #[test]

@@ -183,6 +183,7 @@ make verify-issue-594                    # #594 community tax indexer catalog (P
 make verify-issue-592                    # #592 community tax CW20 (token + launcher + AutoLP; docs)
 make verify-issue-608                    # #608 LaunchGuards per-wallet cooldown + provide after max_wallet (H-3/H-4)
 make verify-issue-609                    # #609 ExemptionDirectory skips buy/sell/transfer tax (multitest + hint)
+make verify-issue-610                    # #610 AutoLP factory-listed pair + skim floor (M-2 / M-3)
 make verify-issue-601                    # #601 store + 11611 REPORT + factory list + LocalTerra smoke
 make verify-issue-606                    # #606 launcher Enable Feature + SKU dedupe (T606; crates + dApp invoices)
 make verify-issue-602                    # #602 post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token
@@ -281,6 +282,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md](skills/AGENTS_COMMUNITY_TAX_LAUNCH_GUARDS.md) — LaunchGuards per-wallet cooldown + `max_wallet` protocol skip (**H608-1–H608-8**, [#608](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/608)); `make verify-issue-608`
 - [skills/AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md](skills/AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md) — official launcher Enable Feature + unique SKUs (**T606-1–T606-8**, [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606)); `make verify-issue-606`
 - [skills/AGENTS_COMMUNITY_TAX_EXEMPT.md](skills/AGENTS_COMMUNITY_TAX_EXEMPT.md) — ExemptionDirectory skips buy/sell/transfer tax; launch guards stay on (**E609-1–E609-7**, [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609)); `make verify-issue-609`
+- [skills/AGENTS_COMMUNITY_TAX_AUTOLP.md](skills/AGENTS_COMMUNITY_TAX_AUTOLP.md) — AutoLP factory-listed pair + skim floor (**M610-1–M610-8**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610)); `make verify-issue-610`
 - [skills/AGENTS_FRONTEND_CREATE_TOKEN.md](skills/AGENTS_FRONTEND_CREATE_TOKEN.md) — Create Token + manager console (**C593-1–C593-14**, [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); **C604-1–C604-3**, [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); **C605-1–C605-4**, [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605)); `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605`; post-merge Coolify/LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602)
 - [skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md](skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md) — community tax catalog API (**I594-1–I594-10**, [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)); `make verify-issue-594`; post-merge Coolify [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602)
 - [skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md](skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) — default **Slippage protection** 5% + shared presets (#497)

@@ -39,7 +39,12 @@ export const COMMUNITY_TAX_SKUS: readonly CommunityTaxSkuDef[] = [
     hint: 'Split tax across treasury, burn, AutoLP, or wallets.',
     createOnly: false,
   },
-  { id: 'auto_v2_lp', label: 'Auto liquidity', hint: 'Optional skim into a CL8Y pair. Not a farm.', createOnly: false },
+  {
+    id: 'auto_v2_lp',
+    label: 'Auto liquidity',
+    hint: 'Optional skim into a factory-listed CL8Y pair that includes this token. Skim has a spread floor. Not a farm.',
+    createOnly: false,
+  },
   {
     id: 'exemption_directory',
     label: 'Extra exemptions',
