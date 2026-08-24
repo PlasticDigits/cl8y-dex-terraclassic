@@ -542,6 +542,27 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(tokens.querySelector('img')).toBeNull()
   })
 
+  it('shows Unwrap and wrap-fee tokens when event_count > 0 (GitLab #613)', async () => {
+    vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
+      ...feesOk,
+      by_source: [
+        { source: 'wrap', amount_usd: '0.4', share_pct: '40', event_count: 2 },
+        { source: 'unwrap', amount_usd: '0.2', share_pct: '20', event_count: 1 },
+        { source: 'swap_amm', amount_usd: '0.4', share_pct: '40', event_count: 1 },
+      ],
+      by_token: [
+        { asset_id: 3, symbol: 'uusd', amount_human: '0.02', amount_usd: '0.0001', is_other: false },
+        { asset_id: 4, symbol: 'cLUNC', amount_human: '20', amount_usd: '0.001', is_other: false },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const fees = await screen.findByTestId('protocol-fee-stats')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Wrap')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Unwrap')
+    expect(within(fees).getByTestId('protocol-fees-by-token')).toHaveTextContent('uusd')
+    expect(within(fees).getByTestId('protocol-fees-by-token')).toHaveTextContent('cLUNC')
+  })
+
   it('fee panel ignores ?ticker= (GitLab #586 / P550-2)', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=javascript:alert(1)' })
     await screen.findByTestId('protocol-fee-stats')

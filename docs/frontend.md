@@ -815,7 +815,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | Invariant | Meaning |
 |-----------|---------|
 | **P550-1 Order** | Stats → **fees** (`protocol-fee-stats`, #586) → **DEX hub card** (#556 / #570) → CEX oracle. Do not merge factory/router into stats or fees. Do not clone `AddressRow` onto Swap confirmation. Do not add USTR as a fourth CEX tab. |
-| **PFee-1–PFee-12 Fees** | Trailing 24h/7d/30d treasury USD + flow Δ%. Source + token tables from `GET /api/v1/protocol/fees`. Idle `$0`; unpriced `—`; never `Infinity`. Not `traders.total_fees_paid`. Testids: `protocol-fee-stats`, `protocol-stat-fees-24h` / `7d` / `30d` + `-chg`, `protocol-fees-by-source`, `protocol-fees-by-token`. |
+| **PFee-1–PFee-12 Fees** | Trailing 24h/7d/30d treasury USD + flow Δ%. Source + token tables from `GET /api/v1/protocol/fees`. Idle `$0`; unpriced `—`; never `Infinity`. Not `traders.total_fees_paid`. Wrap/Unwrap rows appear when ingest sees mapper `notify_deposit` / `unwrap` `fee` ([GitLab #613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)). Testids: `protocol-fee-stats`, `protocol-stat-fees-24h` / `7d` / `30d` + `-chg`, `protocol-fees-by-source`, `protocol-fees-by-token`. |
 | **P550-2 Tickers** | Tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3 One card** | Snapshot, sources, and history share one `shell-panel`. Query keys include ticker. |
 | **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |

@@ -56,7 +56,7 @@ Flash LP that is added and withdrawn inside one snapshot interval can move **cur
 
 `GET /api/v1/protocol/fees?window=` is allowlisted (`24h` \| `7d` \| `30d`) and 60s-cached. A 15-minute stale rollup still **serves** last fee columns — do not fall back to a live 60d event scan.
 
-Hybrid L7: `swap_amm` is pool `commission_amount` only; `book_take` is fill commission — never also `book_commission_amount`. Unwrap uses mapper `fee_amount`, not InstantWithdraw `tax_amount` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)).
+Hybrid L7: `swap_amm` is pool `commission_amount` only; `book_take` is fill commission — never also `book_commission_amount`. Unwrap uses mapper **`fee`** (legacy `fee_amount`), not InstantWithdraw `tax_amount` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). Wrap execute is mapper `notify_deposit` — last-value parse on a flattened wrap+swap stream must not drop it ([#613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613), **I613-1–I613-8**).
 
 Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** / **fee** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity and fees are follow-on updates of the same row.
 
