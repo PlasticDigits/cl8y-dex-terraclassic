@@ -403,7 +403,19 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 
 Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 tokens **11611** and **11619** are listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md), [`codeids/11619/REPORT.md`](../cw20-codeid-audits/codeids/11619/REPORT.md)). Launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**, wasm admin DEX 2-of-3) instantiates **11619**. Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654** or launcher **11612** / **11614** / **11620** / **11622** or AutoLP **11613** / **11621**.
 
-`make verify-issue-592` (crates). `make verify-issue-608` (LaunchGuards cooldown / `max_wallet` liveness). `make verify-issue-610` (AutoLP factory pair + skim floor). `make verify-issue-601` (store + REPORT + LocalTerra smoke).
+`make verify-issue-592` (crates). `make verify-issue-608` (LaunchGuards cooldown / `max_wallet` liveness). `make verify-issue-610` (AutoLP factory pair + skim floor). `make verify-issue-601` (store + REPORT + LocalTerra smoke). Free listed-template adopt: [`#626`](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / `make verify-issue-626` ([`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md)).
+
+### Migrate-adopt (GitLab #626) {#migrate-adopt-gitlab-626}
+
+Same-crate bump is still `MigrateMsg {}` + `cw2::ensure_from_older_version` (CMM-only; **not** the retail page). Foreign adopt is `MigrateMsg { adopt: AdoptMigrateMsg }` for allowlisted cw2 ∈ `{crates.io:cw20-base, crates.io:cw20-mintable, crates.io:terraport-token, crates.io:cw20-taxed}`. Retail source gate is **`VITE_COMMUNITY_MIGRATE_CODE_IDS`** (default **6036, 10184, 8266, 8654**) — not factory `AddWhitelistedCodeId`. Append future source ids on Coolify. Leftover `tax_info` / `tax_map` / `whale_info` are wiped on any allowlisted source; zeros map 4.5%/1% → buy 450 / sell 100. Unknown cw2 or `cfg`/`feat` smash → revert. Balances / `total_supply` unchanged. Source minter is revoked. Do **not** factory-list **8654** (pair-asset H-01) — listing **11619** covers the adopted address. `CONFIG.launcher` is the official launcher. `GetMigrateOrigin` is written so catalog can attest without faking `launcher_tx`. Retail `/token/migrate` is **free** (no 50 UST1) and broadcasts `MsgMigrateContract` + `MsgUpdateAdmin` → CMM.
+
+| Source | Status | Terraport / GDEX LP (LCD 2026-08-24) |
+|--------|--------|--------------------------------------|
+| **6036** / **10184** | **S3 go** | Honest 1:1 stay 1:1. CL8Y pairs freeze until Refresh. |
+| **8266** Open `terra1qz56v…s74n3` | **S3-8266 go** | Terraport Open/LUNC `terra1uxr6m…nypyc` (Open `13056446286` / uluna `1733267547`). Leftover `balance_at` unread. Do not RegisterListedPair. |
+| **8654** ALPHA `terra1x6e64…zysuxz` | **On migrate allowlist** (not a special case; never factory-list 8654) | Terraport ALPHA/LUNC `terra12u7kh…9e7p6` (ALPHA `25732882067035` / uluna `5603001027933`); ALPHA/USTC `terra1jg2vu…wph` (uusd `54087298` / ALPHA `23466167250`). After wipe, forward 1:1; historical 4.5% skim not unwound. No GDEX factory pin in-repo. |
+
+Design record: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603). Wrap fallback: [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558).
 
 ### LaunchGuards (T592-11 / #608)
 

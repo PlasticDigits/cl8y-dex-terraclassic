@@ -34,6 +34,8 @@ interface ImportMetaEnv {
   /** Community tax template code id (GitLab #593). */
   readonly VITE_COMMUNITY_TAX_CODE_ID?: string
   readonly VITE_COMMUNITY_TOKEN_LAUNCHER?: string
+  /** Comma-separated migrate-source code ids (#626). Default 6036,10184,8266,8654. */
+  readonly VITE_COMMUNITY_MIGRATE_CODE_IDS?: string
   readonly VITE_CMM_GOVERNANCE_ADDR?: string
 }
 

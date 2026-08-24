@@ -676,7 +676,7 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 
 ### Create Token (community tax) {#create-token-community-tax}
 
-Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Identity + wallet helpers: [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604). SKU init + percent taxes: [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605). Routes: `/token/create`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Verify: `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
+Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Identity + wallet helpers: [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604). SKU init + percent taxes: [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605). Routes: `/token/create`, `/token/migrate`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Free listed-template adopt: [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md). Verify: `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605` · `make verify-issue-626`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -687,7 +687,8 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-5** MintControl | Create-only. |
 | **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
 | **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |
-| **C593-8** Template | Manage requires `code_id ==` env pin (columbus-5 **11619**). |
+| **C593-8** Template | Manage requires `code_id ==` env pin (columbus-5 **11619**). After #626 adopt, the same address is 11619 and Manage shows tax SKUs. |
+| **M626** Migrate Token | `/token/migrate` is free (no invoice). Source gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default 6036,10184,8266,8654) — not factory whitelist. Create Token links here for **other** templates; launcher 11619 stays CMM-only. |
 | **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax on **pair-direct and router-hop** sells (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |

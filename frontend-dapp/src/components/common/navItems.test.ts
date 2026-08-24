@@ -11,6 +11,7 @@ import {
   UST1_NAV_ITEM,
   WRAP_NAV_ITEM,
   CREATE_TOKEN_NAV_ITEM,
+  MIGRATE_TOKEN_NAV_ITEM,
   TABLET_COMPACT_HEADER_MAX_WIDTH_PX,
   TABLET_COMPACT_HEADER_NAV_ROW_LABELS,
 } from '@/components/common/navItems'
@@ -85,6 +86,19 @@ describe('navItems', () => {
     expect(getMobileMoreMenuItems({ includeCreateToken: true }).map((i) => i.path)).toContain('/token/create')
     expect(getHeaderMoreMenuItems(true)).not.toContainEqual(CREATE_TOKEN_NAV_ITEM)
     expect(MOBILE_BOTTOM_NAV_ITEMS.map((i) => i.path)).not.toContain('/token/create')
+  })
+
+  it('appends Migrate Token when includeMigrateToken (#626)', () => {
+    expect(MIGRATE_TOKEN_NAV_ITEM.label).toBe('Migrate Token')
+    expect(MIGRATE_TOKEN_NAV_ITEM.label).not.toBe('Create Token')
+    expect(MIGRATE_TOKEN_NAV_ITEM.path).toBe('/token/migrate')
+    expect(getHeaderMoreMenuItems(true, { includeMigrateToken: true })).toEqual([
+      ...MORE_NAV_ITEMS,
+      MIGRATE_TOKEN_NAV_ITEM,
+    ])
+    expect(getMobileMoreMenuItems({ includeMigrateToken: true }).map((i) => i.path)).toContain('/token/migrate')
+    expect(getHeaderMoreMenuItems(true)).not.toContainEqual(MIGRATE_TOKEN_NAV_ITEM)
+    expect(MOBILE_BOTTOM_NAV_ITEMS.map((i) => i.path)).not.toContain('/token/migrate')
   })
 
   it('has expected primary and more routes for regression checks', () => {

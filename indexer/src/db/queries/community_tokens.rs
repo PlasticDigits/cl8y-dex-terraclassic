@@ -87,6 +87,33 @@ pub async fn upsert_from_launcher(
     Ok(())
 }
 
+/// Adopt ingest (#626): insert the row without `launcher_tx`.
+pub async fn upsert_from_migrate(
+    pool: &PgPool,
+    contract_address: &str,
+    instantiate_tx: &str,
+    height: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO community_tokens (
+            contract_address, instantiate_tx, created_at_block, updated_at
+        )
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (contract_address) DO UPDATE SET
+            instantiate_tx = COALESCE(community_tokens.instantiate_tx, EXCLUDED.instantiate_tx),
+            created_at_block = COALESCE(community_tokens.created_at_block, EXCLUDED.created_at_block),
+            updated_at = NOW()
+        "#,
+    )
+    .bind(contract_address)
+    .bind(instantiate_tx)
+    .bind(height)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn apply_lcd_snapshot(
     pool: &PgPool,
     contract_address: &str,

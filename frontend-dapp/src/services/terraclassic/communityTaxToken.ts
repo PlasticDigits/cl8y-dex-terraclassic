@@ -3,9 +3,20 @@
  * Paid SKU / settings paths go through PayWithAnyToken — do not assemble router ops here.
  */
 
+import { MsgMigrateContract, MsgUpdateAdmin } from '@goblinhunt/cosmes/client'
 import { executeTerraContract } from './transactions'
 import { getChainContractInfo, queryContract } from './queries'
-import { COMMUNITY_TAX_CODE_ID, COMMUNITY_TOKEN_LAUNCHER, isCommunityTaxEnabled } from '@/utils/constants'
+import { broadcastTerraClassicMsgs } from './terraBroadcast'
+import { getConnectedWallet } from './wallet'
+import {
+  CMM_GOVERNANCE_ADDR,
+  COMMUNITY_MIGRATE_ADOPT_GAS_LIMIT,
+  COMMUNITY_TAX_CODE_ID,
+  COMMUNITY_TOKEN_LAUNCHER,
+  isCommunityTaxEnabled,
+} from '@/utils/constants'
+import { buildAdoptMigrateMsg } from '@/utils/communityTaxMigrate'
+import { getTerraBroadcastScopeOptions } from './terraBroadcastScope'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import type { CreateTokenHookArgs } from '@/utils/communityTaxInvoice'
 import { instantiateTaxCaps } from '@/utils/communityTaxSku'
@@ -197,4 +208,61 @@ export async function skimAutoLp(walletAddress: string, autolp: string): Promise
 export async function registerListedPair(walletAddress: string, token: string, pair: string): Promise<string> {
   await assertCommunityTaxTemplate(token)
   return executeTerraContract(walletAddress, token, { register_listed_pair: { pair } })
+}
+
+export async function probeHasTaxMap(addr: string): Promise<boolean> {
+  try {
+    await queryContract(requireCommunityTaxTokenAddr(addr), { tax_map: {} })
+    return true
+  } catch {
+    return false
+  }
+}
+
+export type AdoptBundleInput = {
+  token: string
+  wasmAdmin: string
+  factory: string
+  router: string | null
+  ust1: string
+  cmmTreasury: string
+  sourceCodeId: number
+  hasTaxMap?: boolean
+}
+
+/** One-click adopt: `MsgMigrateContract` then `MsgUpdateAdmin` → CMM. No UST1 invoice. */
+export async function migrateAdoptCommunityToken(input: AdoptBundleInput): Promise<string> {
+  if (!isCommunityTaxEnabled()) throw new Error('Migrate Token is not configured')
+  if (COMMUNITY_TAX_CODE_ID <= 0) throw new Error('Community tax code id is not configured')
+  const token = requireCommunityTaxTokenAddr(input.token)
+  const wallet = getConnectedWallet()
+  if (!wallet) throw new Error('Wallet not connected. Please connect your wallet first.')
+  if (wallet.address !== input.wasmAdmin) {
+    throw new Error('Wallet address mismatch')
+  }
+  const migrateMsg = buildAdoptMigrateMsg({
+    manager: input.wasmAdmin,
+    treasury: input.cmmTreasury,
+    factory: input.factory,
+    router: input.router,
+    ust1: input.ust1,
+    cmmTreasury: input.cmmTreasury,
+    officialLauncher: requireLauncher(),
+    sourceCodeId: input.sourceCodeId,
+    hasTaxMap: input.hasTaxMap,
+  })
+  const msgs = [
+    new MsgMigrateContract({
+      sender: input.wasmAdmin,
+      contract: token,
+      codeId: BigInt(COMMUNITY_TAX_CODE_ID),
+      msg: migrateMsg,
+    }),
+    new MsgUpdateAdmin({
+      sender: input.wasmAdmin,
+      newAdmin: CMM_GOVERNANCE_ADDR,
+      contract: token,
+    }),
+  ]
+  return broadcastTerraClassicMsgs(wallet, msgs, COMMUNITY_MIGRATE_ADOPT_GAS_LIMIT, getTerraBroadcastScopeOptions())
 }

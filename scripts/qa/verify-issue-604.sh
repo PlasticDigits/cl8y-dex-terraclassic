@@ -54,20 +54,20 @@ run_docs() {
   rg -q "validate_identity" smartcontracts/contracts/community-tax-token/src/identity.rs
   rg -q "verify-issue-604" docs/testing.md
   rg -q "verify-issue-604" AGENTS.md
-  ! rg -q "token/migrate" frontend-dapp/src/pages/CreateTokenPage.tsx
+  rg -q "token/migrate" frontend-dapp/src/pages/CreateTokenPage.tsx
 }
 
 echo ""
 echo "── first pass ──"
 run_step "crates: identity instantiate" run_crates
 run_step "frontend: identity + create page" run_frontend
-run_step "docs: C604 + 11611 gap + no migrate importer" run_docs
+run_step "docs: C604 + 11611 gap + Create Token links /token/migrate (#626)" run_docs
 
 echo ""
 echo "── retest ──"
 run_step "retest crates: identity instantiate" run_crates
 run_step "retest frontend: identity + create page" run_frontend
-run_step "retest docs: C604 + 11611 gap + no migrate importer" run_docs
+run_step "retest docs: C604 + 11611 gap + Create Token links /token/migrate (#626)" run_docs
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"

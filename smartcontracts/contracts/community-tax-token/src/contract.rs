@@ -16,13 +16,13 @@ use crate::identity;
 use crate::invoice;
 use crate::msg::{
     ConfigResponse, ExecuteMsg, ExemptionsResponse, FeaturesResponse, InstantiateMsg,
-    IsExemptResponse, LaunchGuardsView, LauncherOriginResponse, QueryMsg, SinkView, Sku,
-    INVOICE_UST1, MAX_INITIAL_EXEMPT, MAX_TAX_BPS,
+    IsExemptResponse, LaunchGuardsView, LauncherOriginResponse, MigrateOriginResponse, QueryMsg,
+    SinkView, Sku, INVOICE_UST1, MAX_INITIAL_EXEMPT, MAX_TAX_BPS,
 };
 use crate::pair_registry;
 use crate::state::{
     Config, Features, LaunchGuards, CONFIG, FEATURES, LAUNCH_GUARDS, LISTED_PAIRS, MANAGER_EXEMPT,
-    PROTOCOL_EXEMPT, SINKS,
+    MIGRATE_ORIGIN, PROTOCOL_EXEMPT, SINKS,
 };
 use crate::tax::{self, is_protocol_exempt};
 
@@ -162,7 +162,7 @@ pub fn instantiate(
         .add_attribute("invoice_ust1", INVOICE_UST1.to_string()))
 }
 
-fn validate_instantiate_caps(
+pub(crate) fn validate_instantiate_caps(
     max_buy: u16,
     max_sell: u16,
     max_transfer: u16,
@@ -192,7 +192,7 @@ fn validate_instantiate_caps(
     Ok(())
 }
 
-fn validate_bps_at_init(bps: u16, cap: u16) -> Result<(), ContractError> {
+pub(crate) fn validate_bps_at_init(bps: u16, cap: u16) -> Result<(), ContractError> {
     if bps > cap {
         return Err(ContractError::TaxBpsCap { bps, cap });
     }
@@ -579,6 +579,15 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 launcher: cfg.launcher,
             })
         }
+        QueryMsg::GetMigrateOrigin {} => {
+            let o = MIGRATE_ORIGIN.may_load(deps.storage)?;
+            to_json_binary(&MigrateOriginResponse {
+                source_cw2: o.as_ref().map(|x| x.source_cw2.clone()),
+                source_version: o.as_ref().map(|x| x.source_version.clone()),
+                source_code_id: o.as_ref().and_then(|x| x.source_code_id),
+                migrated_at_height: o.as_ref().map(|x| x.migrated_at_height),
+            })
+        }
     }
 }
 
@@ -679,11 +688,27 @@ fn query_is_exempt(deps: Deps, address: String) -> StdResult<IsExemptResponse> {
 
 pub fn migrate(
     deps: DepsMut,
-    _env: Env,
-    _msg: crate::msg::MigrateMsg,
+    env: Env,
+    msg: crate::msg::MigrateMsg,
 ) -> Result<Response, ContractError> {
-    ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    Ok(Response::new().add_attribute("action", "migrate"))
+    let existing = cw2::get_contract_version(deps.storage).ok();
+    if existing
+        .as_ref()
+        .is_some_and(|v| v.contract == CONTRACT_NAME)
+    {
+        if msg.adopt.is_some() {
+            return Err(ContractError::AdoptNotForSameCrate {});
+        }
+        ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        return Ok(Response::new().add_attribute("action", "migrate"));
+    }
+    let adopt = msg.adopt.ok_or_else(|| ContractError::AdoptRequired {
+        cw2: existing
+            .as_ref()
+            .map(|v| v.contract.clone())
+            .unwrap_or_default(),
+    })?;
+    crate::adopt::execute_adopt(deps, env, adopt)
 }
 
 // Silence unused import in older rustc if Expiration is only in match arms via cw20_base.

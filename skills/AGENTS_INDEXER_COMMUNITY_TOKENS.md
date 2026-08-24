@@ -19,8 +19,8 @@ Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/is
 
 1. **I594-1 — configured.** Unset `COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TOKEN_LAUNCHER` / `CMM_GOVERNANCE_ADDR` → list `{ configured: false, items: [] }`; detail **404**.
 2. **I594-2 — default list.** `attested_cmm=true` only. Ops: `?include_unattested=1`.
-3. **I594-3 — attest.** `code_id` + `admin` from LCD `ContractInfo` (not event fields). `launcher_tx` only when wasm `_contract_address` == env launcher. `GetLauncherOrigin` must match launcher.
-4. **I594-4 — no scrape.** Ingest launcher `create_token_ready` / `enable_feature` and catalogued token `update_settings` / `mint`. Do not index every CW20.
+3. **I594-3 — attest.** `code_id` + `admin` from LCD `ContractInfo` (not event fields). `launcher_tx` only when wasm `_contract_address` == env launcher. `GetLauncherOrigin` must match launcher. Adopted tokens ([#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626)) may attest with `GetMigrateOrigin` (allowlisted source cw2) **instead of** `launcher_tx` — never fake `launcher_tx`. See [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M626-6**.
+4. **I594-4 — no scrape.** Ingest launcher `create_token_ready` / `enable_feature`, token `migrate-adopt` (no `launcher_tx`), and catalogued token `update_settings` / `mint`. Do not index every CW20.
 5. **I594-5 — settings vs SKU.** Event `kind=settings_fee` is separate from `sku_unlock`.
 6. **I594-6 — pagination.** Same clamp as tokens: `limit` 1–100 (default 50), `offset` > 10_000 → **400**.
 7. **I594-7 — no request-path LCD.** List/detail/events read Postgres only. Probe loop is 60s background.

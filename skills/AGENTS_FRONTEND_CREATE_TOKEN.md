@@ -1,6 +1,6 @@
 # Agent playbook: Create Token + manager console (GitLab #593)
 
-Use when changing `/token/create`, `/token/:addr/manage`, `/tokens`, community-tax Swap max, or launcher invoice checkout.
+Use when changing `/token/create`, `/token/:addr/manage`, `/tokens`, community-tax Swap max, or launcher invoice checkout. Free listed-template adopt is a **sibling** page (`/token/migrate`, [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626), [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md)) — do not fold it into Create Token invoices.
 
 Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); identity + wallet helpers [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent taxes [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); Enable Feature path [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) ([`AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](./AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595); post-merge Coolify / LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); Enable Feature post-merge QA [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)); option-2 copy leftovers [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)); router hop tax [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) ([`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md)); ExemptionDirectory full tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)); AutoLP factory pair + skim floor [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610) ([`AGENTS_COMMUNITY_TAX_AUTOLP.md`](./AGENTS_COMMUNITY_TAX_AUTOLP.md)).
 
@@ -12,7 +12,8 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [`docs/frontend.md` § Create Token](../docs/frontend.md#create-token-community-tax) | Invariants **C593-1–C593-14**, **C604-1–C604-3**, **C605-1–C605-4** |
 | [`communityTaxIdentity.ts`](../frontend-dapp/src/utils/communityTaxIdentity.ts) | Name/symbol/decimals + connected-wallet helpers (#604) |
 | [`communityTaxCreateForm.ts`](../frontend-dapp/src/utils/communityTaxCreateForm.ts) | Shared form → hook args (#604 / #605) |
-| [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard |
+| [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard (links **Migrate Token** for other templates; launcher 11619 stays CMM-only) |
+| [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | `/token/migrate` adopt (**M626**, #626) |
 | [`ManageTokenPage.tsx`](../frontend-dapp/src/pages/ManageTokenPage.tsx) | Manager console |
 | [`communityTaxInvoice.ts`](../frontend-dapp/src/utils/communityTaxInvoice.ts) | Hooks + invoices |
 | [`AGENTS_FRONTEND_PAY_INVOICE.md`](./AGENTS_FRONTEND_PAY_INVOICE.md) | Shared Pay card |
@@ -62,6 +63,7 @@ make verify-issue-610
 make verify-issue-602
 make verify-issue-612
 make verify-issue-616
+make verify-issue-626
 ```
 
 Columbus-5 free-create is live on launcher `terra126pr5…ahzwze` (code **11622**; store was **11614**). `token_code_id` is **11619**. Do not point Coolify at **11612** (`terra1af9xm…`). Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602). Store/rotate: [#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611).

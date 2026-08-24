@@ -95,6 +95,7 @@ export default function Layout() {
         includeUst1: isUst1WindowEnabled(),
         includeWrap: isNativeWrapEnabled(),
         includeCreateToken: isCommunityTaxEnabled(),
+        includeMigrateToken: isCommunityTaxEnabled(),
       }),
     [fullDesktopHeader]
   )
@@ -114,6 +115,7 @@ export default function Layout() {
         includeUst1: isUst1WindowEnabled(),
         includeWrap: isNativeWrapEnabled(),
         includeCreateToken: isCommunityTaxEnabled(),
+        includeMigrateToken: isCommunityTaxEnabled(),
       }),
     []
   )

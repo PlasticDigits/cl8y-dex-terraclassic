@@ -177,6 +177,7 @@ make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas c
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
+make verify-issue-626                    # #626 free listed-template adopt + Terraport/GDEX LP gate
 make verify-issue-604                    # #604 identity + connected-wallet helpers (Vitest + crates)
 make verify-issue-605                    # #605 SKU init + percent taxes (Vitest + crates)
 make verify-issue-594                    # #594 community tax indexer catalog (Postgres + sqlx)
@@ -299,6 +300,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_COMMUNITY_TAX_EXEMPT.md](skills/AGENTS_COMMUNITY_TAX_EXEMPT.md) — ExemptionDirectory skips buy/sell/transfer tax; launch guards stay on (**E609-1–E609-7**, [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609)); `make verify-issue-609`
 - [skills/AGENTS_COMMUNITY_TAX_AUTOLP.md](skills/AGENTS_COMMUNITY_TAX_AUTOLP.md) — AutoLP factory-listed pair + skim floor (**M610-1–M610-8**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610)); `make verify-issue-610`
 - [skills/AGENTS_FRONTEND_CREATE_TOKEN.md](skills/AGENTS_FRONTEND_CREATE_TOKEN.md) — Create Token + manager console (**C593-1–C593-14**, [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); **C604-1–C604-3**, [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); **C605-1–C605-4**, [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605)); `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605`; post-merge Coolify/LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602)
+- [skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md](skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md) — free `/token/migrate` listed-template adopt + Terraport/GDEX LP gate (**M626-1–M626-12**, [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626)); `make verify-issue-626`
 - [skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md](skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md) — community tax catalog API (**I594-1–I594-10**, [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)); `make verify-issue-594`; post-merge Coolify [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602)
 - [skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md](skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) — default **Slippage protection** 5% + shared presets (#497)
 - [skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md](skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) — Trade Market + Swap Settings 0.5/1/5% chips stay one aligned group ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528))
