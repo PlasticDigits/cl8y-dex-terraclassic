@@ -41,6 +41,14 @@ VITE_UST1_ORACLE_ADDRESS=terra1fmht0t6svq3n24zx03nkfja0m40zhfyyxkdcvlrkl6u7gfe6a
 
 Also listed in [`frontend-dapp/.env.example`](../../frontend-dapp/.env.example). Rebuild Coolify after changing build-args (Vite bakes env at build time).
 
+Indexer protocol fees ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) / **PFee-13**) need the **indexer** pin (Vite does not feed ingest):
+
+```bash
+UST1_WINDOW_ADDRESS=terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2
+```
+
+See [`coolify.env.example`](../../deployments/mainnet-ust1-wrap/coolify.env.example) and [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md).
+
 ## Code map
 
 | Path | Role |

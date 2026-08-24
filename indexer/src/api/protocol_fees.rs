@@ -54,6 +54,8 @@ pub struct ProtocolFeeTokenRow {
 pub struct ProtocolFeesResponse {
     pub window: String,
     pub wrap_mapper_configured: bool,
+    /// Additive (GitLab #614). Missing on old indexers → UI hides window rows.
+    pub ust1_window_configured: bool,
     pub by_source: Vec<ProtocolFeeSourceRow>,
     pub by_token: Vec<ProtocolFeeTokenRow>,
 }
@@ -155,6 +157,7 @@ pub async fn get_protocol_fees(
     let resp = ProtocolFeesResponse {
         window: window.to_string(),
         wrap_mapper_configured: rollup.wrap_mapper_configured,
+        ust1_window_configured: rollup.ust1_window_configured,
         by_source,
         by_token,
     };

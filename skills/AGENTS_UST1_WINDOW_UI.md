@@ -24,6 +24,7 @@ Use when changing **`/ust1`**, ust1-window CW20 Send client, UST1/vFDUSD metadat
 6. Prod Coolify must bake columbus-5 addresses from the runbook table — never LocalTerra defaults (**U7**).
 7. New gas shape: `send` → `deposit` / `withdraw` → **`UST1_WINDOW_SEND_GAS_LIMIT`** + retail inventory fixture (**U8** / #475).
 8. Keep retail copy short — oracle mint/redeem ≠ AMM; link Swap/Trade for secondary markets ([`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)).
+9. Protocol fee ingest is a **separate pin**: indexer `UST1_WINDOW_ADDRESS` (**PFee-13** / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)). Vite `VITE_UST1_WINDOW_ADDRESS` does not feed `/protocol`. Do not infer window fees from `fee_bps`.
 
 ## Quick commands
 
@@ -43,3 +44,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-wi
 - Design / copy: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
 - Prod Vite / Coolify: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
 - Phase 5 ops (oracle age, pause, inventory): [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](./AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
+- Protocol treasury fees for window mint/redeem: [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **PFee-13** ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)). Indexer pin is `UST1_WINDOW_ADDRESS` (not Vite-only). CEX/hub cards stay **not** the window rate (**P550-11**).

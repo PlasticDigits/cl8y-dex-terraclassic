@@ -407,6 +407,15 @@ pub async fn process_block_txs(
                 .await?;
             }
         }
+
+        if let Some(ref window) = config.ust1_window_address {
+            for fee in protocol_fees::parse_ust1_window_fees(tx, window) {
+                process_wrap_fee(
+                    pool, lcd, config, &fee, height, block_time, &tx.txhash, ustc_price,
+                )
+                .await?;
+            }
+        }
     }
     Ok(())
 }

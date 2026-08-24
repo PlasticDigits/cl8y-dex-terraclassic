@@ -9,7 +9,8 @@ use cl8y_dex_indexer::api::reset_overview_cache;
 use cl8y_dex_indexer::api::reset_protocol_fees_cache;
 use cl8y_dex_indexer::db::queries::protocol_fees as fee_q;
 use cl8y_dex_indexer::indexer::protocol_fees::{
-    overview_fee_usd_field, parse_wrap_fees, parse_wrap_mapper_address, FeeEventDraft, FeeSource,
+    overview_fee_usd_field, parse_ust1_window_fees, parse_wrap_fees, parse_wrap_mapper_address,
+    FeeEventDraft, FeeSource,
 };
 use cl8y_dex_indexer::lcd::{Attribute, Event, TxLog, TxResponse};
 use common::{build_test_app, seed_db, setup_pool};
@@ -73,7 +74,9 @@ async fn pool_only_swap_amm_no_book() {
     let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
     let amm = sources.iter().find(|s| s.source == "swap_amm").unwrap();
     assert_eq!(amm.event_count, 1);
-    assert!(sources.iter().all(|s| s.source != "book_take" || s.event_count == 0));
+    assert!(sources
+        .iter()
+        .all(|s| s.source != "book_take" || s.event_count == 0));
     assert!(sources.iter().all(|s| s.source != "wrap"));
 }
 
@@ -241,7 +244,10 @@ async fn unpriced_activity_headline_null() {
     let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
     assert_eq!(rollup.fee_event_count_24h, 1);
     assert!(rollup.total_fees_24h_usd.is_none());
-    assert_eq!(overview_fee_usd_field(1, rollup.total_fees_24h_usd.as_ref()), None);
+    assert_eq!(
+        overview_fee_usd_field(1, rollup.total_fees_24h_usd.as_ref()),
+        None
+    );
 }
 
 #[serial]
@@ -305,7 +311,11 @@ async fn overview_and_fees_get_are_o1() {
     .fetch_all(&pool)
     .await
     .unwrap();
-    let ov = ov_plan.into_iter().map(|(l,)| l).collect::<Vec<_>>().join("\n");
+    let ov = ov_plan
+        .into_iter()
+        .map(|(l,)| l)
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(!ov.contains("swap_events"), "{ov}");
     assert!(!ov.contains("protocol_fee_events"), "{ov}");
     assert!(!ov.contains("limit_order_fills"), "{ov}");
@@ -317,7 +327,11 @@ async fn overview_and_fees_get_are_o1() {
     .fetch_all(&pool)
     .await
     .unwrap();
-    let fp = fee_plan.into_iter().map(|(l,)| l).collect::<Vec<_>>().join("\n");
+    let fp = fee_plan
+        .into_iter()
+        .map(|(l,)| l)
+        .collect::<Vec<_>>()
+        .join("\n");
     assert!(!fp.contains("protocol_fee_events"), "{fp}");
     assert!(!fp.contains("swap_events"), "{fp}");
 }
@@ -341,6 +355,8 @@ async fn fees_get_window_allowlist() {
     assert_eq!(body["window"], "24h");
     assert!(body["by_source"].is_array());
     assert!(body["by_token"].is_array());
+    assert!(body["ust1_window_configured"].is_boolean());
+    assert_eq!(body["ust1_window_configured"], false);
 
     for bad in [
         "window=1';drop",
@@ -564,8 +580,12 @@ async fn unconfigured_mapper_omits_wrap_family() {
     )
     .await;
     let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
-    assert!(sources.iter().all(|s| s.source != "wrap" && s.source != "unwrap"));
-    assert!(sources.iter().any(|s| s.source == "swap_amm" && s.event_count == 1));
+    assert!(sources
+        .iter()
+        .all(|s| s.source != "wrap" && s.source != "unwrap"));
+    assert!(sources
+        .iter()
+        .any(|s| s.source == "swap_amm" && s.event_count == 1));
 }
 
 #[serial]
@@ -607,4 +627,190 @@ async fn wrap_window_decay_and_unpriced_null() {
     let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
     assert_eq!(rollup.fee_event_count_24h, 1);
     assert!(rollup.total_fees_24h_usd.is_none());
+}
+
+#[serial]
+#[tokio::test]
+async fn ust1_window_fees_included_in_totals_when_configured() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Mint,
+        seed.asset_1_id,
+        "10000",
+        Some("2.5"),
+        1,
+        "tx-ust1-mint",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Redeem,
+        seed.asset_1_id,
+        "10000",
+        Some("1.5"),
+        1,
+        "tx-ust1-redeem",
+        0,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_pins(
+        &pool, true, false, true,
+    )
+    .await;
+    let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
+    assert!(rollup.ust1_window_configured);
+    assert_eq!(rollup.fee_event_count_24h, 2);
+    assert_eq!(rollup.total_fees_24h_usd.unwrap(), bd("4"));
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    let mint = sources.iter().find(|s| s.source == "ust1_mint").unwrap();
+    let redeem = sources.iter().find(|s| s.source == "ust1_redeem").unwrap();
+    assert_eq!(mint.event_count, 1);
+    assert_eq!(redeem.event_count, 1);
+    assert_eq!(mint.amount_usd.as_ref().unwrap(), &bd("2.5"));
+}
+
+#[serial]
+#[tokio::test]
+async fn ust1_window_unconfigured_omits_sources_not_fake_zero() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        "1000000",
+        Some("5"),
+        1,
+        "tx-amm-only",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Mint,
+        seed.asset_1_id,
+        "10000",
+        Some("2"),
+        1,
+        "tx-window-hidden",
+        0,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_pins(
+        &pool, true, false, false,
+    )
+    .await;
+    let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
+    assert!(!rollup.ust1_window_configured);
+    // Totals still include stored events (census); Source table omits window keys.
+    assert_eq!(rollup.fee_event_count_24h, 2);
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    assert!(sources
+        .iter()
+        .all(|s| s.source != "ust1_mint" && s.source != "ust1_redeem"));
+    assert!(sources
+        .iter()
+        .any(|s| s.source == "swap_amm" && s.event_count == 1));
+}
+
+#[serial]
+#[tokio::test]
+async fn ust1_window_unpriced_activity_is_null_not_zero() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Mint,
+        seed.asset_1_id,
+        "10000",
+        None,
+        1,
+        "tx-unpriced-window",
+        0,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_pins(
+        &pool, true, false, true,
+    )
+    .await;
+    let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
+    assert_eq!(rollup.fee_event_count_24h, 1);
+    assert!(rollup.total_fees_24h_usd.is_none());
+}
+
+#[serial]
+#[tokio::test]
+async fn ust1_window_replay_does_not_double_count() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Mint,
+        seed.asset_1_id,
+        "10000",
+        Some("3"),
+        1,
+        "tx-replay-window",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Mint,
+        seed.asset_1_id,
+        "10000",
+        Some("3"),
+        1,
+        "tx-replay-window",
+        0,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_pins(
+        &pool, true, false, true,
+    )
+    .await;
+    let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
+    assert_eq!(rollup.fee_event_count_24h, 1);
+    assert_eq!(rollup.total_fees_24h_usd.unwrap(), bd("3"));
+}
+
+#[test]
+fn ust1_window_parse_exported_for_fixtures() {
+    let pin = "terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2";
+    let ust1 = "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72";
+    let tx = TxResponse {
+        height: "1".into(),
+        txhash: "W".into(),
+        timestamp: None,
+        logs: Some(vec![TxLog {
+            events: vec![Event {
+                event_type: "wasm".into(),
+                attributes: vec![
+                    Attribute {
+                        key: "_contract_address".into(),
+                        value: pin.into(),
+                    },
+                    Attribute {
+                        key: "action".into(),
+                        value: "deposit".into(),
+                    },
+                    Attribute {
+                        key: "fee_amount".into(),
+                        value: "10000".into(),
+                    },
+                    Attribute {
+                        key: "fee_asset".into(),
+                        value: ust1.into(),
+                    },
+                ],
+            }],
+        }]),
+        events: None,
+    };
+    let fees = parse_ust1_window_fees(&tx, pin);
+    assert_eq!(fees.len(), 1);
+    assert_eq!(fees[0].source, FeeSource::Ust1Mint);
 }
