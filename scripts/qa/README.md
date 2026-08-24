@@ -208,6 +208,21 @@ After !414 landed the #620 seed + Transfer funding fork:
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_624.md`](../../skills/AGENTS_POST_MERGE_OPS_624.md). QA invariant **Q12**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-624).
 
+### Post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers (GitLab #625)
+
+After !415–!417 landed tax-aware swarm, named tax-on Layer B, and Playwright e2e-tx:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-625` | Children **621, 622, 623** plus leftover live + **293** / **M625-1–M625-8** |
+| Tax-on seed buy | `LAYER_B_TAX_ON=1` buy from `pick_trader` (non-treasury); artifact `buy_user` set |
+| Playwright P0 | `VERIFY_ISSUE_622_CHAIN=1` sell extra-debit + buy net + provide/limit; indexer `CORS_ORIGINS` includes `http://127.0.0.1:3173` |
+| Seed treasury | `GetConfig.treasury` ≠ test1 (CMM stand-in stays test1) |
+| Swarm soak | `tax_listed` extra-debit + `tax_hybrid_skip`; `SWARM_TAX_WORKERS=0` exclude-only |
+| Disclose | Do **not** reopen #621 / #622 / #623 / #620; do not merge tax-on into B-lt |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_625.md`](../../skills/AGENTS_POST_MERGE_OPS_625.md). QA invariant **Q13**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-625).
+
 ---
 
 ## Makefile reference

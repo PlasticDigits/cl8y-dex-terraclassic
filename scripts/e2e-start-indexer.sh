@@ -37,18 +37,38 @@ _require_file "$REPO_ROOT/indexer/.env" "run scripts/deploy-dex-local.sh first"
 _require_file "$REPO_ROOT/frontend-dapp/.env.local" "run scripts/deploy-dex-local.sh first"
 _require_file "$REPO_ROOT/indexer/target/release/cl8y-dex-indexer" "build: (cd indexer && cargo build --release)"
 
+# shellcheck source=scripts/lib/indexer-cors-playwright.sh
+source "$REPO_ROOT/scripts/lib/indexer-cors-playwright.sh"
+# shellcheck source=scripts/lib/indexer-port.sh
+source "$REPO_ROOT/scripts/lib/indexer-port.sh"
+CORS_CHANGED=0
+if indexer_cors_apply_env_file "$REPO_ROOT/indexer/.env"; then
+  CORS_CHANGED=1
+fi
+
+INDEXER_PORT="$(indexer_port_from_url "$INDEXER_URL")"
+if [[ "$CORS_CHANGED" -eq 0 ]] && curl -sf "${INDEXER_URL}/api/v1/overview" >/dev/null 2>&1; then
+  indexer_sync_pidfile_with_port "$INDEXER_PID_FILE" "$INDEXER_PORT"
+  echo "[e2e-start-indexer] reusing indexer already listening on :${INDEXER_PORT}"
+  exit 0
+fi
 if [[ -f "$INDEXER_PID_FILE" ]]; then
   old_pid="$(cat "$INDEXER_PID_FILE" 2>/dev/null || true)"
   if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
-    if curl -sf "${INDEXER_URL}/api/v1/overview" >/dev/null 2>&1; then
+    if [[ "$CORS_CHANGED" -eq 0 ]] && curl -sf "${INDEXER_URL}/api/v1/overview" >/dev/null 2>&1; then
       echo "[e2e-start-indexer] reusing running indexer pid ${old_pid}"
       exit 0
     fi
-    echo "[e2e-start-indexer] stopping stale indexer pid ${old_pid}"
+    echo "[e2e-start-indexer] stopping indexer pid ${old_pid} (stale or CORS_ORIGINS updated)"
     kill "$old_pid" 2>/dev/null || true
     sleep 1
   fi
   rm -f "$INDEXER_PID_FILE"
+fi
+# Worktree / leftover QA may have started the API under another pid file.
+if [[ "$CORS_CHANGED" -eq 1 ]]; then
+  echo "[e2e-start-indexer] restarting :${INDEXER_PORT} so CORS_ORIGINS includes Playwright Vite"
+  indexer_stop_port_listeners "$INDEXER_PORT"
 fi
 
 echo "[e2e-start-indexer] starting indexer (log: ${INDEXER_LOG})"

@@ -43,7 +43,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 | unset (default) | **Strict** — global setup required; tx helpers **fail** on missing preconditions |
 | `PLAYWRIGHT_SKIP_CHAIN=1` | **Optional** — no global setup; helpers may `test.skip` (local UI dev only) |
 | `REQUIRE_LOCALTERRA=0` | Legacy alias for `PLAYWRIGHT_SKIP_CHAIN=1` |
-| `PLAYWRIGHT_WEB_PORT` | Dedicated Vite port (and `PLAYWRIGHT_BASE_URL`) so a worktree does not reuse another checkout on `:3000` |
+| `PLAYWRIGHT_WEB_PORT` | Dedicated Vite port (and `PLAYWRIGHT_BASE_URL`) so a worktree does not reuse another checkout on `:3000`. Indexer `CORS_ORIGINS` must include that Origin (default `http://127.0.0.1:3173`) or `/pool` catalog fetch fails ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)). `scripts/e2e-start-indexer.sh` merges it. |
 
 **Do not** set `PLAYWRIGHT_SKIP_CHAIN=1` in CI.
 
@@ -188,7 +188,7 @@ Strict Playwright on the LocalTerra **QATax / EMBER** seed pair (`VITE_PAIR_COMM
 | Sell QTAX → EMBER | Max is extra-debit; small sell: user debit == `TaxPreview.debit`; pair credit == Send amount |
 | Buy EMBER → QTAX | You Receive is **net** (#615); user credit + sink == pair debit |
 | Provide / withdraw | `TransferFrom` pair delta == declared |
-| Limit place / cancel | Escrow 1:1; cancel returns offer without sell tax |
+| Limit place / cancel | Place Send honest (`declared - maker_fee`); cancel pair debit = remaining; refund is buy-net unless directory skip |
 | Trade Market (P1) | Default `GET /route/solve`; option-2 copy |
 
 Helpers: `e2e/helpers/community-tax-e2e.ts`, `e2e/helpers/community-tax-env.ts` (tx reads `.env.local`; smoke `/token/create` may bake columbus-5). Provision never Mints tax and never Transfers `test1→test1` (leftover launcher-origin tokens are skipped). Playbook: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**).

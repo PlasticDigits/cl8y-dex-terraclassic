@@ -334,10 +334,10 @@ Retail **single** limit placement uses the batch hook with `orders.len() == 1`. 
 
 | Flow | Signed txs (after allowance) | dApp gas limit model ([`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts)) |
 |------|------------------------------|--------------------------------------------------------------------------------------------------|
-| **N separate** limits | N × (`increase_allowance` + `send`) = **2N** wallet prompts | N × (`PLACE_LIMIT_ORDER_GAS_LIMIT` ≈ 950k) + N allowance envelopes |
-| **One batch / ladder** | **1** `send` | `PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT` (400k) + `PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT` (180k) × N |
+| **N separate** limits | N × (`increase_allowance` + `send`) = **2N** wallet prompts | N × (`PLACE_LIMIT_ORDER_GAS_LIMIT` ≈ 1.2M) + N allowance envelopes |
+| **One batch / ladder** | **1** `send` | `PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT` (1M) + `PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT` (180k) × N |
 
-Example (5 rungs, fee math only — actual gas used varies by chain): batch attach ≈ **1.3M** gas units vs 5×950k ≈ **4.75M** for separate placements; native LUNC preflight uses `estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)` ([`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts)). UI copy: [`LimitOrderLadderPanel`](../frontend-dapp/src/components/trade/LimitOrderLadderPanel.tsx) · agent skill [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md).
+Example (5 rungs, fee math only — actual gas used varies by chain): batch attach ≈ **1.9M** gas units vs 5×1.2M ≈ **6M** for separate placements; native LUNC preflight uses `estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount)` ([`transactions.ts`](../frontend-dapp/src/services/terraclassic/transactions.ts)). UI copy: [`LimitOrderLadderPanel`](../frontend-dapp/src/components/trade/LimitOrderLadderPanel.tsx) · agent skill [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md). Retail single place is batch `n=1` (**1.18M**). The 400k base OOGed tax CW20 `Send` + pair place at 580k ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)).
 
 <a id="batch-cancel-claim-gas-savings"></a>
 
@@ -345,7 +345,7 @@ Example (5 rungs, fee math only — actual gas used varies by chain): batch atta
 
 | Flow | Signed txs | dApp gas limit model ([`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts)) |
 |------|------------|--------------------------------------------------------------------------------------------------|
-| **N separate cancels** | N | N × `CANCEL_LIMIT_ORDER_GAS_LIMIT` (450k) |
+| **N separate cancels** | N | N × `CANCEL_LIMIT_ORDER_GAS_LIMIT` (1M; tax refund OOGs at 450k) |
 | **One `cancel_limit_orders` batch** | **1** | `CANCEL_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT` (400k) + `CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT` (80k) × N |
 | **N separate claims** | N | N × `CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT` (450k) |
 | **One `claim_expired_limit_orders` batch** | **1** | same formula as batch cancel |

@@ -15,7 +15,7 @@ This is the **tax-on** harness. Generic honest-CW20 Layer B-lt stays **tax-off**
 | **C623-5** | Whitelist **local store id only**. Never columbus-5 `11611` / `11612` / `11613` / `11614` / `11619` / `11620` / `11621` / `11622` / `8654` from this evidence. |
 | **C623-6** | Pair credit on sell stays `amount` (**H-01** / **T592-1**). No pair/router FoT math. |
 | **C623-7** | Official-router ≥2hop extra-debits authenticated `Swap.trader`; pair→router 1:1; pair-direct ignores spoofed `trader`; missing router `trader` fail-closes (**T592-13** / **R607**). |
-| **C623-8** | AutoLP `pair` is factory-listed with this token; `SkimToLp` respects floor (100/200 bps); fake pair rejected; skim is **never** called from token `Transfer`/`Send` (**T592-10** / **M610**). |
+| **C623-8** | AutoLP `pair` is factory-listed with this token; `SkimToLp` respects floor (100/200 bps); fake pair rejected; skim is **never** called from token `Transfer`/`Send` (**T592-10** / **M610**). Seed-path leftover: a prior hostile `skim_min_return=1e15` stays on AutoLP — clear with `UpdateConfig { skim_min_return: 0 }` before the floor-success skim, and restore after the hostile probe so `#625` re-runs are not stuck. |
 
 ## Operator sequence
 
@@ -30,7 +30,7 @@ LAYER_B_TAX_ON=1 make verify-issue-623
 make verify-issue-601
 ```
 
-Inputs (first match): seed pins `VITE_TOKEN_COMMUNITY_TAX_ADDRESS` + pair + AutoLP ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)), **or** ephemeral store/instantiate (nonzero bps, AutoLP on). Shared helpers: [`lib-tax-on.sh`](../cw20-codeid-audits/scripts/lib-tax-on.sh) (also sourced by `#601` smoke).
+Inputs (first match): seed pins `VITE_TOKEN_COMMUNITY_TAX_ADDRESS` + pair + AutoLP ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)), **or** ephemeral store/instantiate (nonzero bps, AutoLP on). Shared helpers: [`lib-tax-on.sh`](../cw20-codeid-audits/scripts/lib-tax-on.sh) (also sourced by `#601` smoke). Seed-path **buy** must use `pick_trader` (non-treasury / non-exempt) — leftover live after !416 is [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625).
 
 ## Do not
 
@@ -47,4 +47,5 @@ Inputs (first match): seed pins `VITE_TOKEN_COMMUNITY_TAX_ADDRESS` + pair + Auto
 - [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) — R607 / T592-13
 - [`AGENTS_COMMUNITY_TAX_AUTOLP.md`](./AGENTS_COMMUNITY_TAX_AUTOLP.md) — M610
 - [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) — optional seed pins
+- [`AGENTS_POST_MERGE_OPS_625.md`](./AGENTS_POST_MERGE_OPS_625.md) — leftover seed-path buy after !415–!417 ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625))
 - [`cw20-codeid-audits/harness/README.md`](../cw20-codeid-audits/harness/README.md)

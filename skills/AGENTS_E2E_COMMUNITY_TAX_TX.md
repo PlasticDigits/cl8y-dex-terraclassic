@@ -22,9 +22,9 @@ Parent seed: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COM
 1. **E622-1 — e2e-tx only, 1 worker.** `community-tax-tx.spec.ts` matches `*-tx.spec.ts`. Never add tax txs to `e2e-smoke` as silent skips. Shared `test1` mnemonic — do not raise `e2e-tx` workers. Gem helpers (`firstDualCwPair`, hybrid/wrap seed) prefer **EMBER/CORAL** from `.env.local` and skip the pinned tax market so leftover tax pairs cannot steal the default pair.
 2. **E622-2 — fail closed on missing seed.** Missing `VITE_TOKEN_COMMUNITY_TAX_ADDRESS` / `VITE_PAIR_COMMUNITY_TAX_EMBER` / local launcher after a default seed deploy **fails** the spec. No `test.skip` on the default path. `PLAYWRIGHT_SKIP_CHAIN=1` does not run this file (smoke-only).
 3. **E622-3 — local pins, not columbus-5.** Tx path reads `frontend-dapp/.env.local`. Code ids **11611 / 11612 / 11613 / 11614 / 11619 / 11620 / 11621 / 11622 / 8654** and launcher `terra126pr5…ahzwze` are rejected. Smoke `/token/create` may still bake columbus-5 when skip-tax deploy is used.
-4. **E622-4 — sell extra-debit.** Max is `maxDeclaredForExtraDebitSell` (not 100% wallet). After a small sell, user debit == `TaxPreview.debit`; pair credit == Send `amount` (inbound 1:1). CTA not blocked. Do not submit Max against the seed LP (wallet is ~1e18 raw).
+4. **E622-4 — sell extra-debit.** Max is `maxDeclaredForExtraDebitSell` (not 100% wallet). After a small sell, user debit == `TaxPreview.debit`; pair credit == Send `amount` (inbound 1:1). CTA not blocked. Do not submit Max against the seed LP (wallet is ~1e18 raw). Thin tax/EMBER vs hub fair-rate may trip the 30% expected-slippage gate — enable **Expert Mode** (do not turn hybrid off).
 5. **E622-5 — buy You Receive is net.** Display matches LCD user credit after outbound split (**R615**). User credit + sink == pair debit. Do not assert raw pair `Simulation`.
-6. **E622-6 — provide / place are 1:1.** Pool `TransferFrom` pair delta == declared. Limit escrow debit == declared. Extra-debit on provide or place is a product bug. Cancel returns offer without sell tax.
+6. **E622-6 — provide / place are 1:1.** Pool `TransferFrom` pair delta == declared. Limit **Send** is honest (`tax_kind=honest`, no sell extra-debit). Pair takes **maker fee** from escrow and pays it to the maker in the same tx — wallet/pair deltas are `declared - maker_fee_amount`, not `declared`. Extra-debit (`userDebit > declared`) on provide or place is a product bug. Cancel pair debit equals remaining escrow (no sell extra-debit). Pair→EOA refund is buy-classified: user + treasury = remaining. QA seed has ExemptionDirectory off, so wallet restore is **net** (`buy_bps`) — do not assert `userAfterCancel === userBefore`. Directory skip (#609) is 1:1. After leftover retries, cancel by LCD `order_id` (Advanced form) — indexer `last-placed-order-id` is maxId and can point at a cancelled row. Withdraw UI on the tax pair is not P0 (Advanced `<details>` toggle is flaky; wrap-pool covers withdraw). Limit price helper must parse **`Ref N`** as well as `Current: N`. Last-placed id is **`Order #N`** — parse case-insensitively. Place gas is batch `n=1` at **1.18M** (`PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT` **1M** + 180k) so tax `Send` does not OOG at 580k.
 7. **E622-7 — hybrid stays on.** Specs must not set `pool_only` or restore a hybrid checkbox to go green. Router hops tax the original trader (**T592-13**); copy is option-2 (`Buy/sell tax applies on every listed-pair swap`).
 8. **E622-8 — not a FoT license / not wrap.** Do not put tax pairs into `multihop-hybrid-tx` CORAL→IRON unless the route is explicit. Do not force wrap-swap/pool onto the tax template. Invoice Create/Enable (P2) needs the local UST1 stand-in — do not Send 50 columbus-5 UST1.
 
@@ -46,13 +46,17 @@ Parent seed: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COM
 
 ```bash
 make verify-issue-622
-# Live (seed deploy + indexer):
-# bash scripts/e2e-start-indexer.sh
-# CI=1 PLAYWRIGHT_WEB_PORT=3173 bash scripts/with-node.sh --cwd frontend-dapp -- \
-#   npx playwright test e2e/community-tax-tx.spec.ts --project=e2e-tx
+# Live (seed deploy + indexer). VERIFY_ISSUE_622_CHAIN=1 starts the indexer and
+# merges PLAYWRIGHT_WEB_PORT (default 3173) into CORS_ORIGINS (#625 leftover #2):
+# VERIFY_ISSUE_622_CHAIN=1 make verify-issue-622
+# Manual:
+# PLAYWRIGHT_WEB_PORT=3173 bash scripts/e2e-start-indexer.sh
+# CI=1 PLAYWRIGHT_WEB_PORT=3173 PLAYWRIGHT_BASE_URL=http://127.0.0.1:3173 \
+#   bash scripts/with-node.sh --cwd frontend-dapp -- \
+#   ./node_modules/.bin/playwright test e2e/community-tax-tx.spec.ts --project=e2e-tx
 ```
 
-`make verify-issue-596` / `501` / `533` stay the gem/hybrid/zap gates — this spec does not replace them.
+`make verify-issue-596` / `501` / `533` stay the gem/hybrid/zap gates — this spec does not replace them. Leftover live after !417 (P0 LCD extra-debit on a clean seed, treasury ≠ test1): [`AGENTS_POST_MERGE_OPS_625.md`](./AGENTS_POST_MERGE_OPS_625.md) ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)).
 
 ## Do not
 

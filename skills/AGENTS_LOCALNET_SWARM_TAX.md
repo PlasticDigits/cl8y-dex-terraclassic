@@ -43,6 +43,8 @@ make verify-issue-293     # gem hub OE-1 still pool_only
 # after seed deploy:
 # ./scripts/localnet-trading-swarm.sh -- --dry-run
 # make swarm-launch && make swarm-stop
+# leftover live after !415 (soak + OE-1 293):
+# make verify-issue-625
 ```
 
 ## Do not
@@ -53,3 +55,5 @@ make verify-issue-293     # gem hub OE-1 still pool_only
 - Add the tax pair to OE-1 hub symmetry.
 - Enable MintControl on the QA tax token so funding can Mint ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620) **L620-2**).
 - Turn hybrid off for `code_id` 11611 (**R607-5**).
+
+Leftover live soak after !415: [`AGENTS_POST_MERGE_OPS_625.md`](./AGENTS_POST_MERGE_OPS_625.md) ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)).

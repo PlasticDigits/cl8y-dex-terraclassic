@@ -20,6 +20,46 @@ async function waitForSwapQuoteIdle(panel: Locator): Promise<void> {
   }).toPass({ timeout: 120_000 })
 }
 
+export async function closeSwapSettingsIfOpen(page: Page): Promise<void> {
+  const settings = page.locator('#swap-slippage-settings')
+  if (await settings.isVisible().catch(() => false)) {
+    await swapActionPanel(page).getByRole('button', { name: 'Settings' }).click()
+  }
+}
+
+/**
+ * Tax/EMBER seed LP vs hub fair-rate often trips the 30% expected-slippage gate
+ * (#625 leftover #2). Expert Mode is the LocalTerra escape hatch — not hybrid-off.
+ */
+export async function enableExpertModeForSwap(page: Page): Promise<void> {
+  const panel = swapActionPanel(page)
+  const settings = page.locator('#swap-slippage-settings')
+  if (!(await settings.isVisible().catch(() => false))) {
+    await panel.getByRole('button', { name: 'Settings' }).click()
+    await expect(settings).toBeVisible()
+  }
+  const enableExpert = page.getByTestId('swap-enable-expert-mode')
+  if (await enableExpert.isVisible().catch(() => false)) {
+    await enableExpert.click()
+    await page.getByTestId('expert-mode-confirm-input').fill('ENABLE EXPERT MODE')
+    await page.getByTestId('expert-mode-confirm-enable').click()
+    await closeSwapSettingsIfOpen(page)
+    return
+  }
+  const expert = page.getByTestId('swap-expert-mode-toggle')
+  if (await expert.count()) {
+    if (!(await expert.isChecked())) {
+      await expert.click({ force: true })
+      const confirm = page.getByTestId('expert-mode-confirm-input')
+      if (await confirm.isVisible().catch(() => false)) {
+        await confirm.fill('ENABLE EXPERT MODE')
+        await page.getByTestId('expert-mode-confirm-enable').click()
+      }
+    }
+  }
+  await closeSwapSettingsIfOpen(page)
+}
+
 /** Native-wrap multihop routes often exceed 1% preset slippage on LocalTerra seed pools. */
 export async function openSwapSettingsAndSetSlippage(page: Page, percent: number): Promise<void> {
   const panel = swapActionPanel(page)
@@ -28,6 +68,7 @@ export async function openSwapSettingsAndSetSlippage(page: Page, percent: number
   await expect(settings).toBeVisible()
   await settings.getByRole('textbox', { name: /Custom slippage protection/i }).fill(String(percent))
   await waitForSwapQuoteIdle(panel)
+  await closeSwapSettingsIfOpen(page)
 }
 
 /** Expand Swap Settings → Advanced (integrator controls, GitLab #413). */

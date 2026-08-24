@@ -1135,7 +1135,9 @@ FACTORY_ADDRESS=$FACTORY_ADDRESS
 ROUTER_ADDRESS=$ROUTER_ADDRESS
 FEE_DISCOUNT_ADDRESS=$FEE_DISCOUNT_ADDRESS
 LCD_URLS=$LCD
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:4173
+# :3173 is the default dedicated Playwright Vite port (verify-issue-622 / #625).
+# localhost vs 127.0.0.1 are distinct Origins (GitLab #131).
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:4173,http://localhost:3173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:4173,http://127.0.0.1:3173
 API_PORT=${API_PORT:-3001}
 API_BIND=127.0.0.1
 POLL_INTERVAL_MS=2000

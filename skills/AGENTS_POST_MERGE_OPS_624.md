@@ -9,7 +9,7 @@ These leftovers were **not** proven on the merge tip: fresh volume deploy, index
 **Invariants:** [`docs/qa-invariants.md`](../docs/qa-invariants.md) **Q12** (**M624-1–M624-8**)  
 **Verify:** `make verify-issue-624`
 
-Do **not** reopen #620 / #592 / #601 / #610 / #594 unless a merged invariant is wrong. Siblings stay their own tickets: tax-aware swarm [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621), Playwright `e2e-tx` [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622), named tax-on Layer B [#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623). Live leftovers from !415 / !416 / !417 live on [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625).
+Do **not** reopen #620 / #592 / #601 / #610 / #594 unless a merged invariant is wrong. Siblings stay their own tickets: tax-aware swarm [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621), Playwright `e2e-tx` [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622), named tax-on Layer B [#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623). Live leftovers from !415 / !416 / !417 live on [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625) ([`AGENTS_POST_MERGE_OPS_625.md`](./AGENTS_POST_MERGE_OPS_625.md), `make verify-issue-625`).
 
 Parent seed playbook: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md). Catalog: [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**I594**). Ranking: [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md) (**R615**). Swarm funding: [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md).
 

@@ -14,11 +14,13 @@ const HYBRID_SWAP_PER_EXPIRED_PARK_GAS = 8_000
 /** Keep in sync with `frontend-dapp/src/services/terraclassic/hybridBookWalkLimits.ts` (GitLab #262). */
 const MAX_SCAN_STEPS = 500
 const MAX_EXPIRED_PARKS_PER_SWAP = 15
-const PLACE_LIMIT_ORDER_GAS_LIMIT = 950_000
-const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400_000
+/** Keep in sync with `frontend-dapp/src/services/terraclassic/terraGas.ts` (#625 tax place). */
+const PLACE_LIMIT_ORDER_GAS_LIMIT = 1_200_000
+const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 1_000_000
 const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180_000
-const ADD_LIQUIDITY_GAS_LIMIT = 500_000
-const REMOVE_LIQUIDITY_GAS_LIMIT = 600_000
+/** Keep in sync with `frontend-dapp/src/services/terraclassic/terraGas.ts` (#625 tax provide). */
+const ADD_LIQUIDITY_GAS_LIMIT = 1_000_000
+const REMOVE_LIQUIDITY_GAS_LIMIT = 900_000
 /** Keep in sync with `SWAP_GAS_BUFFER` in `frontend-dapp/src/utils/constants.ts` (GitLab #115). */
 const SWAP_GAS_BUFFER = 1.3
 const SWAP_MULTIHOP_GAS_PADDING_PER_HOP = 50_000
@@ -139,6 +141,9 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
     if (sendMsg?.msg) {
       try {
         const inner = JSON.parse(Buffer.from(sendMsg.msg, 'base64').toString('utf8')) as Record<string, unknown>
+        if ('place_limit_order' in inner) {
+          return PLACE_LIMIT_ORDER_GAS_LIMIT
+        }
         if ('place_limit_order_batch' in inner || 'place_limit_order_ladder' in inner) {
           const batch = inner.place_limit_order_batch as { orders?: unknown[] } | undefined
           const ladder = inner.place_limit_order_ladder as { ladder?: { count?: number } } | undefined

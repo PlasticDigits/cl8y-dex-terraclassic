@@ -67,6 +67,7 @@ TEST2="$(layer_ensure_test2)"
 
 SELL_TX=""
 BUY_TX=""
+BUY_USER=""
 ROUTER_TX=""
 SPOOF_TX=""
 LIMIT_TX=""
@@ -314,16 +315,29 @@ tax_on_assert_sell "$USER_BEFORE" "$USER_AFTER" "$PAIR_BEFORE" "$PAIR_AFTER" \
   "$SINK_BEFORE" "$SINK_AFTER" "$TAX_ON_SWAP_RAW" "$EXPECT_TAX"
 
 # --- Pair-direct buy (EMBER → tax token outbound split) ---
-EMBER_HAVE="$(layer_cw20_balance "$VITE_TOKEN_EMBER_ADDRESS" "$TEST_ADDRESS")"
-python3 -c 'import sys; sys.exit(0 if int(sys.argv[1]) >= int(sys.argv[2]) else 1)' \
-  "$EMBER_HAVE" "$TAX_ON_SWAP_RAW" || {
-  echo "FAIL: EMBER balance $EMBER_HAVE < $TAX_ON_SWAP_RAW" >&2
+# Buyer must not be treasury (tax sink returns to the same wallet → 1:1) and
+# must not be manager-directory exempt (#609). Reuse pick_trader / TRADER.
+# Seed leftover: test1 is manager (+ was treasury); buy from test1 failed
+# `user credit >= pair debit` even with buy_bps=500 (#625 leftover #1).
+BUY_USER="$TRADER"
+[[ "$BUY_USER" != "$TREASURY" ]] || {
+  echo "FAIL: buy wallet $BUY_USER is the token treasury — outbound split is invisible" >&2
   exit 1
 }
-BUY_USER="$TEST_ADDRESS"
+ensure_trader_funded "$VITE_TOKEN_EMBER_ADDRESS" "$BUY_USER" "$TAX_ON_SWAP_RAW"
+EMBER_HAVE="$(layer_cw20_balance "$VITE_TOKEN_EMBER_ADDRESS" "$BUY_USER")"
+python3 -c 'import sys; sys.exit(0 if int(sys.argv[1]) >= int(sys.argv[2]) else 1)' \
+  "$EMBER_HAVE" "$TAX_ON_SWAP_RAW" || {
+  echo "FAIL: EMBER balance $EMBER_HAVE < $TAX_ON_SWAP_RAW on $BUY_USER" >&2
+  exit 1
+}
 USER_TOK_BEFORE="$(layer_cw20_balance "$TOKEN_ADDR" "$BUY_USER")"
 PAIR_TOK_BEFORE="$(layer_cw20_balance "$TOKEN_ADDR" "$PAIR_ADDR")"
-BUY_TX="$(tax_on_send_cw20_hook "$VITE_TOKEN_EMBER_ADDRESS" "$PAIR_ADDR" "$TAX_ON_SWAP_RAW" "$SWAP_HOOK")"
+if [[ "$TRADER_KEY" == "test1" ]]; then
+  BUY_TX="$(tax_on_send_cw20_hook "$VITE_TOKEN_EMBER_ADDRESS" "$PAIR_ADDR" "$TAX_ON_SWAP_RAW" "$SWAP_HOOK")"
+else
+  BUY_TX="$(tax_on_send_cw20_hook_from test2 "$VITE_TOKEN_EMBER_ADDRESS" "$PAIR_ADDR" "$TAX_ON_SWAP_RAW" "$SWAP_HOOK")"
+fi
 USER_TOK_AFTER="$(layer_cw20_balance_changed "$TOKEN_ADDR" "$BUY_USER" "$USER_TOK_BEFORE")"
 PAIR_TOK_AFTER="$(layer_cw20_balance_changed "$TOKEN_ADDR" "$PAIR_ADDR" "$PAIR_TOK_BEFORE")"
 tax_on_assert_buy_split "$USER_TOK_BEFORE" "$USER_TOK_AFTER" \
@@ -519,6 +533,12 @@ if ! layer_execute_rejected "$FAKE_ALP"; then
 fi
 echo "tax-on: AutoLP fake pair rejected"
 
+# Leftover #625: a prior tax-on hostile probe leaves skim_min_return=1e15 on
+# the seed AutoLP. Zero clears it (contract treats 0 as None / M610-3).
+CLEAR_MIN="$(jq -nc '{update_config:{skim_min_return:"0"}}')"
+tax_on_exec_ok wasm execute "$AUTOLP_ADDR" "$CLEAR_MIN" >/dev/null
+echo "tax-on: cleared leftover skim_min_return"
+
 # Deep-pool skim should succeed at default 100 bps floor.
 SKIM_SEED="$(jq -nc --arg r "$AUTOLP_ADDR" --arg amt "$TAX_ON_SKIM_RAW" \
   '{transfer:{recipient:$r,amount:$amt}}')"
@@ -551,6 +571,8 @@ HOSTILE_AFTER="$(layer_cw20_balance "$TOKEN_ADDR" "$AUTOLP_ADDR")"
   exit 1
 }
 echo "tax-on: hostile SkimToLp reverted; tax remains on AutoLP"
+tax_on_exec_ok wasm execute "$AUTOLP_ADDR" "$CLEAR_MIN" >/dev/null
+echo "tax-on: restored skim_min_return so leftover re-runs are not stuck"
 
 jq -nc \
   --arg source "$SOURCE" \
@@ -559,6 +581,7 @@ jq -nc \
   --arg autolp "$AUTOLP_ADDR" \
   --arg local "${LOCAL_TOKEN_CODE}" \
   --arg trader "$TRADER" \
+  --arg buy_user "$BUY_USER" \
   --arg hop2 "$HOP2_TOKEN" \
   --arg sell "$SELL_TX" \
   --arg buy "$BUY_TX" \
@@ -584,6 +607,7 @@ jq -nc \
     autolp: $autolp,
     local_token_code_id: $local,
     trader: $trader,
+    buy_user: $buy_user,
     hop2_token: $hop2,
     sell_tx: $sell,
     buy_tx: $buy,

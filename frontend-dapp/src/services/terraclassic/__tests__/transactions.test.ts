@@ -251,12 +251,12 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('uses ADD_LIQUIDITY_GAS_LIMIT for provide_liquidity', async () => {
     const fee = await getFeeForMsg({ provide_liquidity: {} })
-    expect(fee.gasLimit).toBe(BigInt(650000))
+    expect(fee.gasLimit).toBe(BigInt(1_000_000))
   })
 
   it('uses REMOVE_LIQUIDITY_GAS_LIMIT for withdraw_liquidity', async () => {
     const fee = await getFeeForMsg({ withdraw_liquidity: {} })
-    expect(fee.gasLimit).toBe(BigInt(600000))
+    expect(fee.gasLimit).toBe(BigInt(900_000))
   })
 
   it('uses CREATE_PAIR_GAS_LIMIT for create_pair (#345)', async () => {
@@ -323,7 +323,7 @@ describe('gas limit selection (tested indirectly)', () => {
   it('uses REMOVE_LIQUIDITY_GAS_LIMIT for send with inner withdraw_liquidity msg', async () => {
     const innerWithdraw = btoa(JSON.stringify({ withdraw_liquidity: {} }))
     const fee = await getFeeForMsg({ send: { msg: innerWithdraw } })
-    expect(fee.gasLimit).toBe(BigInt(600000))
+    expect(fee.gasLimit).toBe(BigInt(900_000))
   })
 
   it('uses BASE_GAS_LIMIT for increase_allowance', async () => {
@@ -366,7 +366,7 @@ describe('gas limit selection (tested indirectly)', () => {
 
   it('uses CANCEL_LIMIT_ORDER_GAS_LIMIT for cancel_limit_order', async () => {
     const fee = await getFeeForMsg({ cancel_limit_order: { order_id: 1 } })
-    expect(fee.gasLimit).toBe(BigInt(450000))
+    expect(fee.gasLimit).toBe(BigInt(1_000_000))
   })
 
   it('uses CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT for claim_expired_limit_order', async () => {
@@ -381,7 +381,7 @@ describe('gas limit selection (tested indirectly)', () => {
         orders: [{ price: '1', amount: '100', max_adjust_steps: 32 }],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(580000))
+    expect(fee.gasLimit).toBe(BigInt(1_180_000))
   })
 
   it('uses batch gas for send with inner place_limit_order_batch', async () => {
@@ -394,7 +394,22 @@ describe('gas limit selection (tested indirectly)', () => {
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBe(BigInt(580000))
+    expect(fee.gasLimit).toBe(BigInt(1_180_000))
+  })
+
+  it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for send with inner place_limit_order (#625)', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        place_limit_order: {
+          side: 'bid',
+          price: '1',
+          amount: '100',
+          max_adjust_steps: 32,
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(1_200_000))
   })
 
   it('uses quote-driven hybrid gas for send with inner swap (deep book cap)', async () => {
@@ -507,8 +522,8 @@ describe('executeCw20AllowanceThen', () => {
 describe('estimateLimitOrderPlaceSequenceUlunaFeesTotal', () => {
   it('sums fee uluna for increase_allowance + batch place gas at effective gas price', () => {
     const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal(1)
-    // allowance 200k + batch 580k gas × 28.325 uluna (GitLab #206)
-    expect(total).toBe(22_093_500n)
+    // allowance 200k + batch 1.18M gas × 28.325 uluna (#206 / #625 tax Send)
+    expect(total).toBe(39_088_500n)
   })
 })
 
@@ -529,8 +544,8 @@ describe('estimateMarketPairSwapSequenceUlunaFeesTotal', () => {
 describe('estimateProvideLiquidityCw20SequenceUlunaFeesTotal', () => {
   it('sums fee uluna for two increase_allowance + provide_liquidity gas limits at effective gas price', () => {
     const total = estimateProvideLiquidityCw20SequenceUlunaFeesTotal()
-    // 2×(200k × 28.325) + 650k × 28.325 = 29_741_250 uluna (ADD_LIQUIDITY_GAS_LIMIT)
-    expect(total).toBe(29_741_250n)
+    // 2×(200k × 28.325) + 1_000k × 28.325 = 39_655_000 uluna (ADD_LIQUIDITY_GAS_LIMIT)
+    expect(total).toBe(39_655_000n)
   })
 })
 

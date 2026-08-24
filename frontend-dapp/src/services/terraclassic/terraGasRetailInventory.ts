@@ -43,6 +43,7 @@ import {
   FAUCET_DRIP_GAS_LIMIT,
   REGISTER_FEE_DISCOUNT_GAS_LIMIT,
   REMOVE_LIQUIDITY_GAS_LIMIT,
+  PLACE_LIMIT_ORDER_GAS_LIMIT,
   UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT,
   gasLimitForExecuteSwapOperations,
   gasLimitForLimitOrderBatch,
@@ -178,6 +179,19 @@ export const RETAIL_GAS_SHAPE_FIXTURES: readonly RetailGasShapeFixture[] = [
     expectedGas: UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT,
   },
   {
+    id: 'place_limit_order',
+    note: 'legacy single place; retail uses send-inner batch n=1 (#625)',
+    msg: {
+      place_limit_order: {
+        side: 'bid',
+        price: '1',
+        amount: '100',
+        max_adjust_steps: 32,
+      },
+    },
+    expectedGas: PLACE_LIMIT_ORDER_GAS_LIMIT,
+  },
+  {
     id: 'place_limit_order_batch',
     note: 'top-level batch (hooks / tests); retail uses send-inner',
     msg: {
@@ -263,6 +277,23 @@ export const RETAIL_GAS_SHAPE_FIXTURES: readonly RetailGasShapeFixture[] = [
       },
     },
     expectedGas: gasLimitForRouterExecuteSwapOperations(2),
+  },
+  {
+    id: 'send_inner_place_limit_order',
+    note: 'legacy CW20 send → place_limit_order (#625 tax TransferFrom)',
+    msg: {
+      send: {
+        msg: b64({
+          place_limit_order: {
+            side: 'bid',
+            price: '1',
+            amount: '100',
+            max_adjust_steps: 32,
+          },
+        }),
+      },
+    },
+    expectedGas: PLACE_LIMIT_ORDER_GAS_LIMIT,
   },
   {
     id: 'send_inner_place_limit_order_batch',

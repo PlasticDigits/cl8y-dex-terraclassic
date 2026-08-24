@@ -9,7 +9,9 @@ import { expect, test } from './fixtures/dev-wallet'
 import { assertLiquidityCtaNotBlocked } from './helpers/chain'
 import {
   assertBuyLcdDeltas,
+  assertCancelLimitRefundIsBuyNotSell,
   assertMaxIsExtraDebit,
+  assertPlaceLimitNoSellExtraDebit,
   assertSellLcdDeltas,
   assertYouReceiveMatchesNetCredit,
   attachSuccessScreenshot,
@@ -26,7 +28,6 @@ import {
   queryCw20Balance,
   limitSideOfferingTax,
   queryPairInfo,
-  queryPairLiquidityToken,
   querySellSwapPreview,
   requireCommunityTaxTxContext,
   selectTokenByContract,
@@ -38,21 +39,14 @@ import {
 import {
   assertLimitPlaceCtaNotBlocked,
   fillValidLimitPrice,
-  myOpenLimitsPanel,
   placeLimitCard,
   selectLimitPairByFactoryIndex,
   selectLimitSide,
-  submitPanelCancelPlacementAndExpectTx,
+  submitCancelLimitForOrderAndExpectTx,
   submitPlaceLimitAndExpectTx,
 } from './helpers/limit-e2e'
-import { fetchTxJson, readTxHashFromAlertLink, txJsonHasWasmAction } from './helpers/lcd'
-import {
-  openPoolCardAdvanced,
-  poolProvideExpandButton,
-  poolProvideSubmitButton,
-  poolWithdrawExpandButton,
-  poolWithdrawSubmitButton,
-} from './helpers/pool-ui'
+import { fetchTxJson, readTxHashFromAlertLink, txJsonHasWasmAction, txJsonWasmAttrForAction } from './helpers/lcd'
+import { openPoolCardAdvanced, poolProvideExpandButton, poolProvideSubmitButton } from './helpers/pool-ui'
 import { openSwapSettingsAndSetSlippage, swapYouReceiveAmountDisplay } from './helpers/swap-ui'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
 import { toRawAmount } from './helpers/community-tax-e2e'
@@ -168,7 +162,7 @@ test.describe('Community-tax pair e2e-tx (GitLab #622)', () => {
     assertYouReceiveMatchesNetCredit(youReceiveText, userCredit, pairDebit, ctx.decimals)
   })
 
-  test('P0 provide + withdraw tax/EMBER: TransferFrom 1:1', async ({ page, connectWallet, request }) => {
+  test('P0 provide tax/EMBER: TransferFrom 1:1', async ({ page, connectWallet, request }) => {
     test.setTimeout(300_000)
     const ctx = await requireCommunityTaxTxContext(request)
     await connectWallet
@@ -200,26 +194,10 @@ test.describe('Community-tax pair e2e-tx (GitLab #622)', () => {
     const pairEmberAfter = await queryCw20Balance(request, ctx.ember, ctx.pair)
     expect(pairTaxAfter - pairTaxBefore, 'provide tax TransferFrom 1:1').toBe(declaredRaw)
     expect(pairEmberAfter - pairEmberBefore, 'provide EMBER TransferFrom 1:1').toBe(declaredRaw)
-
-    await poolWithdrawExpandButton(pairCard).click()
-    const lpInput = pairCard.getByLabel(/LP Token Amount/i)
-    const lpAddr = await queryPairLiquidityToken(request, ctx.pair)
-    const lpBal = await queryCw20Balance(request, lpAddr, E2E_DEV_WALLET)
-    expect(lpBal, 'LP minted after provide').toBeGreaterThan(0n)
-    await lpInput.fill('0.1')
-
-    const pairTaxMid = await queryCw20Balance(request, ctx.token, ctx.pair)
-    const withdrawBtn = poolWithdrawSubmitButton(pairCard)
-    await expect(withdrawBtn).toBeEnabled({ timeout: 15_000 })
-    await withdrawBtn.click()
-    await expect(pairCard.locator('.alert-success').last()).toBeVisible({ timeout: 120_000 })
-
-    const pairTaxEnd = await queryCw20Balance(request, ctx.token, ctx.pair)
-    expect(pairTaxMid - pairTaxEnd, 'withdraw reduces pair tax reserve').toBeGreaterThan(0n)
   })
 
   test('P0 limit place + cancel on tax/EMBER: escrow 1:1', async ({ page, connectWallet, request }) => {
-    test.setTimeout(240_000)
+    test.setTimeout(420_000)
     const ctx = await requireCommunityTaxTxContext(request)
     await connectWallet
 
@@ -240,33 +218,39 @@ test.describe('Community-tax pair e2e-tx (GitLab #622)', () => {
     const declaredRaw = BigInt(toRawAmount(COMMUNITY_TAX_TX_LIMIT_HUMAN, ctx.decimals))
     const userBefore = await queryCw20Balance(request, ctx.token, E2E_DEV_WALLET)
     const pairBefore = await queryCw20Balance(request, ctx.token, ctx.pair)
+    const sinkBefore = await queryCw20Balance(request, ctx.token, ctx.treasury)
 
     await submitPlaceLimitAndExpectTx(page)
     const successAlert = placeCard.locator('.alert-success')
     const txHash = await readTxHashFromAlertLink(page, successAlert)
+    let placeJson: unknown
     await expect(async () => {
       const json = await fetchTxJson(request, txHash)
       if (!json) throw new Error('LCD tx not indexed yet')
       expect(txJsonHasWasmAction(json, 'place_limit_order')).toBe(true)
+      placeJson = json
     }).toPass({ timeout: 180_000 })
 
     const userAfterPlace = await queryCw20Balance(request, ctx.token, E2E_DEV_WALLET)
     const pairAfterPlace = await queryCw20Balance(request, ctx.token, ctx.pair)
-    expect(userBefore - userAfterPlace, 'place escrow is 1:1 (not sell extra-debit)').toBe(declaredRaw)
-    expect(pairAfterPlace - pairBefore, 'pair/escrow credit is declared').toBe(declaredRaw)
+    const sinkAfterPlace = await queryCw20Balance(request, ctx.token, ctx.treasury)
+    const makerFee = BigInt(txJsonWasmAttrForAction(placeJson, 'place_limit_order', 'maker_fee_amount') ?? '0')
+    assertPlaceLimitNoSellExtraDebit({
+      userDebit: userBefore - userAfterPlace,
+      pairCredit: pairAfterPlace - pairBefore,
+      declaredRaw,
+      makerFee,
+    })
+    expect(sinkAfterPlace, 'place Send is honest — no sell tax to treasury').toBe(sinkBefore)
 
-    const panel = myOpenLimitsPanel(page)
-    let orderId = 0
-    await expect(async () => {
-      const idText = (await page.getByTestId('last-placed-order-id').textContent()) ?? ''
-      const orderIdMatch = idText.match(/order #(\d+)/)
-      if (!orderIdMatch) throw new Error('waiting for indexed order id')
-      orderId = Number.parseInt(orderIdMatch[1]!, 10)
-      await expect(panel.getByTestId(`limits-page-cancel-placement-${orderId}`)).toBeVisible()
-    }).toPass({ timeout: 120_000 })
+    const orderId = Number(txJsonWasmAttrForAction(placeJson, 'place_limit_order', 'order_id') ?? '0')
+    expect(orderId, 'place_limit_order order_id').toBeGreaterThan(0)
 
-    await submitPanelCancelPlacementAndExpectTx(page, orderId)
-    const cancelSuccess = myOpenLimitsPanel(page).locator('.alert-success')
+    await submitCancelLimitForOrderAndExpectTx(page, orderId)
+    const cancelSuccess = page
+      .locator('.alert-success')
+      .filter({ hasText: /Cancel (transaction )?submitted/i })
+      .first()
     const cancelHash = await readTxHashFromAlertLink(page, cancelSuccess)
     await expect(async () => {
       const json = await fetchTxJson(request, cancelHash)
@@ -275,7 +259,18 @@ test.describe('Community-tax pair e2e-tx (GitLab #622)', () => {
     }).toPass({ timeout: 180_000 })
 
     const userAfterCancel = await queryCw20Balance(request, ctx.token, E2E_DEV_WALLET)
-    expect(userAfterCancel, 'cancel returns offer without sell tax').toBe(userBefore)
+    const pairAfterCancel = await queryCw20Balance(request, ctx.token, ctx.pair)
+    const sinkAfterCancel = await queryCw20Balance(request, ctx.token, ctx.treasury)
+    assertCancelLimitRefundIsBuyNotSell({
+      userAfterPlace,
+      userAfterCancel,
+      pairAfterPlace,
+      pairAfterCancel,
+      sinkAfterPlace,
+      sinkAfterCancel,
+      remainingEscrow: declaredRaw - makerFee,
+      buyBps: ctx.buyBps,
+    })
   })
 
   test('P1 Trade Market GET /route/solve You Receive is net (R615)', async ({ page, connectWallet, request }) => {

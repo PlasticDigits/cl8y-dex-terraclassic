@@ -13,6 +13,24 @@
 # Columbus-5 pins that must never be AddWhitelistedCodeId from this script.
 _CTAX_FORBIDDEN_CODE_IDS="11611 11612 11613 11614 11619 11620 11621 11622 8654"
 
+# Distinct LocalTerra sink so test1 extra-debit / buy split are LCD-visible (#625).
+_ctax_token_treasury() {
+  local addr
+  addr="$(docker exec "$CONTAINER_NAME" terrad keys show test2 -a --keyring-backend test 2>/dev/null \
+    | tr -d '[:space:]' || true)"
+  if [ "${addr#terra1}" = "$addr" ]; then
+    echo "  adding LocalTerra key test2 (QA tax treasury; not the e2e trader)" >&2
+    docker exec "$CONTAINER_NAME" terrad keys add test2 --keyring-backend test --output json >/dev/null
+    addr="$(docker exec "$CONTAINER_NAME" terrad keys show test2 -a --keyring-backend test \
+      | tr -d '[:space:]')"
+  fi
+  if [ "${addr#terra1}" = "$addr" ] || [ "$addr" = "$TEST_ADDRESS" ]; then
+    echo "ERROR: QA tax treasury must be a distinct LocalTerra key (not test1)." >&2
+    return 1
+  fi
+  printf '%s' "$addr"
+}
+
 _ctax_is_forbidden_code() {
   local id="$1" x
   for x in $_CTAX_FORBIDDEN_CODE_IDS; do
@@ -193,16 +211,24 @@ deploy_community_tax_local() {
   local BUY_BPS=500
   local SELL_BPS=500
   local INIT_BAL="1000000000000000000"
+  # Token treasury must not be the e2e/swarm trader (test1). Otherwise sell
+  # extra-debit is a self-transfer (user debit == amount) and buy tax returns
+  # to the same wallet (user credit == pair debit) — #625 leftovers #1/#2.
+  # CMM stand-in stays test1 (L620-7). ExemptionDirectory stays off.
+  local TAX_TREASURY
+  TAX_TREASURY="$(_ctax_token_treasury)" || return 1
   echo ""
   echo "[4d.5] Paid CreateToken features=[auto_v2_lp] (50 UST1 invoice → launcher)…"
+  echo "  token treasury sink: $TAX_TREASURY (not test1 — extra-debit visible)"
   local CREATE_HOOK CREATE_TX TAX_TOKEN
   CREATE_HOOK="$(jq -nc --arg n "QATax" --arg s "QTAX" --arg a "$TEST_ADDRESS" \
+    --arg treas "$TAX_TREASURY" \
     --argjson buy "$BUY_BPS" --argjson sell "$SELL_BPS" --arg bal "$INIT_BAL" \
     '{
       create_token:{
         name:$n, symbol:$s, decimals:6,
         initial_balances:[{address:$a,amount:$bal}],
-        manager:$a, treasury:$a,
+        manager:$a, treasury:$treas,
         buy_bps:$buy, sell_bps:$sell,
         max_buy_bps:$buy, max_sell_bps:$sell, max_transfer_bps:0,
         features:["auto_v2_lp"],

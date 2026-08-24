@@ -228,6 +228,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M624-7** | Do not reopen #620 / #592 / #601 / #610 / #594 for ops/QA. Do not enable `MintControl` or fall back to Mint. Do not implement pair/router FoT math (**H-01**). |
 | **M624-8** | Playbook + this Q12 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers (invariant Q13) {#post-merge-ops-625}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q13** Post-merge !415–!417 leftover live is checked (tax-on seed buy from non-treasury, Playwright P0 extra-debit, swarm soak, OE-1 `pool_only`, children 621/622/623) | **`make verify-issue-625`** → children **621, 622, 623** plus leftover probes and **293** (**M625-1–M625-8**) | Non-zero exit; fix the failing child, buy wallet, seed treasury, or swarm exclude; do not treat green #621/#622/#623 docs-only as leftover live |
+
+**M625** (GitLab **#625** — [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md)):
+
+| ID | Rule |
+|----|------|
+| **M625-1** | `make verify-issue-625` runs children **621, 622, 623** plus leftover live (tax-on seed buy, Playwright P0, swarm soak, **293**). Unit/docs FAILs fail the stack. Fresh-volume leftover SKIP unless `VERIFY625_FRESH=1`. Live leftover SKIP unless LocalTerra + seed pins (FAIL when `VERIFY625_REQUIRE_LIVE=1`). |
+| **M625-2** | Seed token treasury ≠ **test1** (e2e / swarm trader). CMM stand-in stays test1. Tax-on seed-path **buy** uses `pick_trader` (non-treasury / non-exempt). |
+| **M625-3** | `VERIFY_ISSUE_622_CHAIN=1` P0 sell extra-debit + buy net + provide 1:1 + limit place honest / cancel buy-net refund. Missing pins fail closed. Gem pickers skip the pinned tax market. Playwright Vite Origin (default `http://127.0.0.1:3173`) must be in indexer `CORS_ORIGINS`. Place gas is batch `n=1` at **1.18M** (base **1M**); send-inner `place_limit_order` is **1.2M**. Cancel refund is buy-classified (not `userAfterCancel === userBefore` when ExemptionDirectory is off). |
+| **M625-4** | Short swarm soak: `tax_listed` extra-debit + buy split + router `trader` + `tax_hybrid_skip`. `SWARM_TAX_WORKERS=0` is exclude-only. |
+| **M625-5** | `make verify-issue-293` stays OE-1 gem `pool_only`. Do not add tax/EMBER to hub symmetry. |
+| **M625-6** | Prefer a fresh #620 seed so leftover #623 ephemeral tax pairs cannot steal `pairs[0]`. Tax-on pins are `VITE_TOKEN_COMMUNITY_TAX_*`. |
+| **M625-7** | Do not reopen #621 / #622 / #623 / #620 for ops/QA. Do not merge tax-on into B-lt. Do not turn hybrid off. Do not `test.skip` e2e-tx. Never whitelist 11611 / 11619 / 8654. No pair/router FoT math. |
+| **M625-8** | Playbook + this Q13 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -244,3 +263,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_612.md`](../skills/AGENTS_POST_MERGE_OPS_612.md) — post-merge !407/!408 Enable Feature migrate + LocalTerra QA ([#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612), **Q10**)
 - [`skills/AGENTS_POST_MERGE_OPS_616.md`](../skills/AGENTS_POST_MERGE_OPS_616.md) — post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616), **Q11**)
 - [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) — post-merge !414 LocalTerra community-tax seed leftovers ([#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624), **Q12**)
+- [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md) — post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625), **Q13**)

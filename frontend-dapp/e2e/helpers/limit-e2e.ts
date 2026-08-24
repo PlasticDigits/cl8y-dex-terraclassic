@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-import { assertTxResultAlert, isChainOptional } from './chain'
+import { isChainOptional } from './chain'
 import { firstUnpausedDualCwPair, type LcdPairInfo } from './lcd'
 import { skipOrFailIfPairPaused } from './hybrid-e2e'
 
@@ -54,7 +54,18 @@ export function assertLimitPlaceCtaNotBlocked(label: string | null, detail = PLA
   expect(label, detail).not.toMatch(/Insufficient Balance|Connect Wallet|Connect/i)
 }
 
-const LIMIT_PRICE_REF_RE = /Current[^:]*:\s*([\d.]+)/
+/** Retail copy is `Ref 1.01259`; older builds used `Current: 1.01259` (#625 leftover #2). */
+const LIMIT_PRICE_REF_RE = /(?:Current[^:]*:\s*|Ref\s+)([\d.]+)/
+
+/** UI is `Order #7` — the old `/order #/` regex is case-sensitive and never matches. */
+const LAST_PLACED_ORDER_ID_RE = /order #(\d+)/i
+
+export function parseLastPlacedOrderId(text: string): number | null {
+  const match = text.match(LAST_PLACED_ORDER_ID_RE)
+  if (!match) return null
+  const id = Number.parseInt(match[1]!, 10)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
 
 /**
  * Fill a limit price that passes the place gate for the given side (GitLab #154 / #195).
@@ -180,6 +191,14 @@ export function myOpenLimitsPanel(page: Page) {
  * Cancel a resting limit via the placements panel row CTA (not Advanced order-id form).
  * Accepts the confirm dialog and waits for the cancel tx success alert.
  */
+async function waitForCancelSuccessAlert(page: Page): Promise<void> {
+  const pageSuccess = page
+    .locator('.alert-success')
+    .filter({ hasText: /Cancel (transaction )?submitted/i })
+    .first()
+  await expect(pageSuccess).toBeVisible({ timeout: 90_000 })
+}
+
 export async function submitPanelCancelPlacementAndExpectTx(page: Page, orderId: number): Promise<void> {
   const panel = myOpenLimitsPanel(page)
   const cancelBtn = panel.getByTestId(`limits-page-cancel-placement-${orderId}`)
@@ -191,10 +210,36 @@ export async function submitPanelCancelPlacementAndExpectTx(page: Page, orderId:
     expect(dialog.message()).toContain(`Cancel order #${orderId}`)
     void dialog.accept()
   })
+  await cancelBtn.scrollIntoViewIfNeeded()
   await cancelBtn.click()
+  await waitForCancelSuccessAlert(page)
+}
 
-  await assertTxResultAlert(panel, 180_000)
-  await expect(panel.locator('.alert-success')).toContainText(/Cancel submitted/i)
+/** Advanced order-id form — does not wait on indexer My placements or a clogged book. */
+export async function submitCancelLimitForOrderAndExpectTx(page: Page, orderId: number): Promise<void> {
+  await submitAdvancedCancelByOrderIdAndExpectTx(page, orderId)
+}
+
+/**
+ * Cancel by LCD `order_id` via Advanced **Cancel by order ID**.
+ * Prefer this on leftover tax/EMBER runs: `last-placed-order-id` is indexer maxId
+ * (includes cancelled leftovers) so the My placements Cancel row can be missing.
+ */
+export async function submitAdvancedCancelByOrderIdAndExpectTx(page: Page, orderId: number): Promise<void> {
+  const details = page.locator('details.card-glass').filter({ hasText: 'Cancel by order ID' })
+  await expect(details).toBeVisible({ timeout: 30_000 })
+  await details.evaluate((el) => {
+    ;(el as HTMLDetailsElement).open = true
+  })
+  const input = details.getByRole('textbox', { name: 'Order ID' })
+  await expect(input).toBeVisible({ timeout: 15_000 })
+  await input.fill(String(orderId))
+  await expect(input).toHaveValue(String(orderId))
+  const cancelBtn = details.getByRole('button', { name: /^Cancel limit$/i })
+  await expect(cancelBtn).toBeEnabled({ timeout: 15_000 })
+  await cancelBtn.scrollIntoViewIfNeeded()
+  await cancelBtn.click()
+  await waitForCancelSuccessAlert(page)
 }
 
 /** Click Place ladder and wait for TX success (retries LocalTerra account sequence races). */

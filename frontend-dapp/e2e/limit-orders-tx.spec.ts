@@ -3,6 +3,7 @@ import { skipIfLcdUnreachable } from './helpers/chain'
 import {
   assertLimitPlaceCtaNotBlocked,
   fillValidLimitPrice,
+  parseLastPlacedOrderId,
   placeLimitCard,
   requireLimitTxPair,
   selectLimitPairByFactoryIndex,
@@ -71,9 +72,9 @@ test.describe('Limit orders funded txs', () => {
     let orderId = 0
     await expect(async () => {
       const idText = (await page.getByTestId('last-placed-order-id').textContent()) ?? ''
-      const orderIdMatch = idText.match(/order #(\d+)/)
-      if (!orderIdMatch) throw new Error('waiting for indexed order id')
-      orderId = Number.parseInt(orderIdMatch[1]!, 10)
+      const parsed = parseLastPlacedOrderId(idText)
+      if (parsed == null) throw new Error('waiting for indexed order id')
+      orderId = parsed
       await expect(panel.getByTestId(`limits-page-cancel-placement-${orderId}`)).toBeVisible()
     }).toPass({ timeout: 120_000 })
 

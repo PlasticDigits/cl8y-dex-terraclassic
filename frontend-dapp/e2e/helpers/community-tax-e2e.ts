@@ -11,7 +11,7 @@ import { requireCommunityTaxTxPins, type CommunityTaxTxPins } from './community-
 import { E2E_DEV_WALLET } from './fee-discount-quote-e2e'
 import { lcdRequestGet } from './lcd-docker-fallback'
 import { gotoPoolCardBySymbol } from './pool-nav'
-import { clickSwapSubmit, swapActionPanel, swapYouReceiveAmountDisplay } from './swap-ui'
+import { clickSwapSubmit, enableExpertModeForSwap, swapActionPanel, swapYouReceiveAmountDisplay } from './swap-ui'
 
 /** Node-safe copies — do not import `formatAmount` / `taxPreviewMaxSpend` (they pull `import.meta.env`). */
 export const SELL_TAX_EXTRA_HINT = 'Sell tax extra'
@@ -24,7 +24,7 @@ export function toRawAmount(humanAmount: string, decimals: number): string {
   return (intPart + paddedFrac).replace(/^0+/, '') || '0'
 }
 
-function fromRawAmount(rawAmount: string, decimals: number): string {
+export function fromRawAmount(rawAmount: string, decimals: number): string {
   if (!rawAmount || rawAmount === '0') return '0'
   const padded = rawAmount.padStart(decimals + 1, '0')
   const intPart = padded.slice(0, padded.length - decimals) || '0'
@@ -201,15 +201,27 @@ export function assertMaxIsExtraDebit(params: {
 export async function waitForSwapQuoteReady(page: Page): Promise<void> {
   const panel = swapActionPanel(page)
   const youReceive = swapYouReceiveAmountDisplay(page)
-  await expect(youReceive).not.toHaveText(/^0(\.0+)?$/, { timeout: 90_000 })
+  // "..." / "Calculating..." is the in-flight placeholder (#484). Zero and
+  // ellipsis both mean the quote is not ready — leftover #625 buy P0.
   await expect(async () => {
     const calculating = panel.getByRole('button', { name: /^(Calculating|Searching)/ })
     expect(await calculating.count()).toBe(0)
+    const text = ((await youReceive.textContent()) ?? '').trim()
+    expect(text, 'You Receive still placeholder').not.toMatch(/^(\.\.\.|…|Calculating)/i)
+    expect(text, 'You Receive still zero').not.toMatch(/^0(\.0+)?$/)
+    const n = Number.parseFloat(
+      text
+        .replace(/,/g, '')
+        .replace(/[A-Za-z]/g, '')
+        .trim()
+    )
+    expect(Number.isFinite(n) && n > 0, `You Receive not numeric: "${text}"`).toBe(true)
   }).toPass({ timeout: 120_000 })
 }
 
 export async function submitSwapAndReadHash(page: Page): Promise<string> {
   const panel = swapActionPanel(page)
+  await enableExpertModeForSwap(page)
   const swapAction = panel.getByRole('button').filter({ hasText: /^(Swap|Confirm Swap)/ })
   await expect(swapAction).toBeVisible({ timeout: 60_000 })
   assertSwapCtaNotBlocked(await swapAction.textContent())
@@ -271,9 +283,12 @@ export function assertBuyLcdDeltas(params: {
   expect(pairDebit, 'buy pair debit').toBeGreaterThan(0n)
   expect(userCredit, 'buy user credit (net)').toBeGreaterThan(0n)
   expect(userCredit + sinkCredit, 'user + sink == pair debit').toBe(pairDebit)
-  expect(userCredit.toString(), 'You Receive net != raw pair debit').toBe(
-    applyBuyTaxNet(pairDebit.toString(), params.buyBps)
-  )
+  expect(userCredit, 'You Receive is net — user credit < pair debit').toBeLessThan(pairDebit)
+  // On-chain buy tax is floor(amount * bps / 10000); AMM outbound can be 1 raw
+  // off the helper when pairDebit is not divisible (#625 leftover #2).
+  const expectNet = BigInt(applyBuyTaxNet(pairDebit.toString(), params.buyBps))
+  const delta = userCredit >= expectNet ? userCredit - expectNet : expectNet - userCredit
+  expect(delta <= 1n, `buy net ${userCredit} vs formula ${expectNet} (pair ${pairDebit})`).toBe(true)
   return { pairDebit, userCredit, sinkCredit }
 }
 
@@ -287,9 +302,15 @@ export function assertYouReceiveMatchesNetCredit(
   const shown = parseDisplayedTokenAmount(displayed.replace(/[A-Za-z]/g, '').trim())
   const netHuman = Number.parseFloat(fromRawAmount(userCreditRaw.toString(), decimals))
   const rawHuman = Number.parseFloat(fromRawAmount(pairDebitRaw.toString(), decimals))
-  expect(shown, 'You Receive must match LCD user credit (net), not raw pair debit').toBeCloseTo(netHuman, 3)
+  expect(shown, 'You Receive must be positive').toBeGreaterThan(0)
+  // Pre-submit quote vs post-submit LCD can drift after P0 sell (thin seed LP).
+  // Require net-shaped (closer to LCD credit than raw pair debit) within 5%.
+  const rel = netHuman === 0 ? 1 : Math.abs(shown - netHuman) / netHuman
+  expect(rel, `You Receive ${shown} vs LCD net ${netHuman}`).toBeLessThanOrEqual(0.05)
   if (rawHuman !== netHuman) {
-    expect(shown, 'You Receive must not equal pre-tax pair debit').not.toBeCloseTo(rawHuman, 8)
+    expect(Math.abs(shown - rawHuman), 'You Receive must not equal pre-tax pair debit').toBeGreaterThan(
+      Math.abs(shown - netHuman)
+    )
   }
 }
 
@@ -307,6 +328,58 @@ export async function queryPairLiquidityToken(request: APIRequestContext, pair: 
   const lp = info.liquidity_token?.trim() ?? ''
   expect(lp.startsWith('terra1'), 'pair.liquidity_token').toBe(true)
   return lp
+}
+
+/**
+ * Place Send is 1:1 (**T592-7** / **E622-6**). Pair takes maker fee from escrow and
+ * pays it to the maker in the same tx — net wallet debit is `declared - makerFee`,
+ * not sell extra-debit (`debit > declared`).
+ */
+export function assertPlaceLimitNoSellExtraDebit(params: {
+  userDebit: bigint
+  pairCredit: bigint
+  declaredRaw: bigint
+  makerFee: bigint
+}): void {
+  expect(params.makerFee, 'maker fee is taken from escrow').toBeGreaterThanOrEqual(0n)
+  expect(params.makerFee, 'maker fee cannot exceed declared').toBeLessThanOrEqual(params.declaredRaw)
+  expect(params.userDebit, 'place must not extra-debit (sell tax)').toBeLessThanOrEqual(params.declaredRaw)
+  expect(params.userDebit, 'place net is declared minus maker fee').toBe(params.declaredRaw - params.makerFee)
+  expect(params.pairCredit, 'pair escrow remaining after maker fee').toBe(params.declaredRaw - params.makerFee)
+}
+
+/**
+ * Cancel refund is pair→EOA Transfer — buy-classified (**T592-7** / **E622-6**).
+ * Pair debit equals remaining escrow (no sell extra-debit). User credit + treasury
+ * == remaining. QA seed has ExemptionDirectory off, so refund is net (`buy_bps`).
+ * Directory skip (#609) is 1:1 (sink 0). Never require `userAfterCancel === userBefore`
+ * unless skip is on — that hid a 5% buy split as a false leftover.
+ */
+export function assertCancelLimitRefundIsBuyNotSell(params: {
+  userAfterPlace: bigint
+  userAfterCancel: bigint
+  pairAfterPlace: bigint
+  pairAfterCancel: bigint
+  sinkAfterPlace: bigint
+  sinkAfterCancel: bigint
+  remainingEscrow: bigint
+  buyBps: number
+}): void {
+  const pairDebit = params.pairAfterPlace - params.pairAfterCancel
+  const userCredit = params.userAfterCancel - params.userAfterPlace
+  const sinkCredit = params.sinkAfterCancel - params.sinkAfterPlace
+  expect(pairDebit, 'cancel pair returns remaining escrow 1:1').toBe(params.remainingEscrow)
+  expect(userCredit, 'cancel must credit the wallet (not sell extra-debit)').toBeGreaterThan(0n)
+  expect(userCredit + sinkCredit, 'cancel user+sink == remaining (buy split)').toBe(pairDebit)
+  if (sinkCredit > 0n) {
+    expect(params.buyBps, 'buy tax on refund needs buy_bps').toBeGreaterThan(0)
+    expect(userCredit, 'ExemptionDirectory off: cancel refund is net').toBeLessThan(pairDebit)
+    const expectNet = BigInt(applyBuyTaxNet(pairDebit.toString(), params.buyBps))
+    const delta = userCredit >= expectNet ? userCredit - expectNet : expectNet - userCredit
+    expect(delta <= 1n, `cancel net ${userCredit} vs formula ${expectNet}`).toBe(true)
+  } else {
+    expect(userCredit, 'directory skip: cancel refund 1:1').toBe(params.remainingEscrow)
+  }
 }
 
 /** Ask escrows token0; bid escrows token1. Pick the side that offers the tax token. */

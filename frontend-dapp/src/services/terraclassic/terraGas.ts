@@ -74,12 +74,14 @@ function warnUnmappedRetailGasFallback(msg: Record<string, unknown>): void {
 /** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (840k, GitLab #115 / #134). */
 export const SWAP_GAS_LIMIT = 600000
 /** Pattern C / limit-book matching — flat fallback when quote-driven estimate unavailable (GitLab #249). */
-export const PLACE_LIMIT_ORDER_GAS_LIMIT = 950000
-/** Base gas for one CW20 send → `place_limit_order_batch` / ladder (GitLab #206). */
-export const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
+export const PLACE_LIMIT_ORDER_GAS_LIMIT = 1_200_000
+/** Base gas for one CW20 send → `place_limit_order_batch` / ladder (GitLab #206 / #625).
+ * Must cover tax CW20 `Send` + pair place; 400k + 180k×1 = 580k OOGs on tax/EMBER. */
+export const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 1_000_000
 /** Per-rung marginal gas on top of batch base. */
 export const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180000
-export const CANCEL_LIMIT_ORDER_GAS_LIMIT = 450000
+/** Tax pair→EOA refund on cancel OOGs at 450k (#625 leftover). */
+export const CANCEL_LIMIT_ORDER_GAS_LIMIT = 1_000_000
 /** Base gas for one `cancel_limit_orders` / `claim_expired_limit_orders` batch tx (GitLab #246). */
 export const CANCEL_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
 /** Per-order marginal gas on top of batch cancel/claim base. */
@@ -87,8 +89,10 @@ export const CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT = 80000
 /** In-place limit price relink — one pair execute, no CW20 (GitLab #247; ≪ cancel+place). */
 export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = 350000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
-export const ADD_LIQUIDITY_GAS_LIMIT = 650000
-export const REMOVE_LIQUIDITY_GAS_LIMIT = 600000
+/** Community-tax TransferFrom on provide exceeds 650k (#625 leftover #2 / E622-6). */
+export const ADD_LIQUIDITY_GAS_LIMIT = 1_000_000
+/** Withdraw TransferFrom can also hit tax hooks; keep above the old 600k envelope. */
+export const REMOVE_LIQUIDITY_GAS_LIMIT = 900_000
 /** Pair + LP instantiate; measured ~871,552 on LocalTerra (GitLab #345). */
 export const CREATE_PAIR_GAS_LIMIT = 1_000_000
 /** Fee-discount self-register; measured ~204,438 on LocalTerra tier-1 (GitLab #384, FT-3). */
@@ -212,6 +216,9 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
   if ('wrap_deposit' in executeMsg) {
     return WRAP_GAS_LIMIT
   }
+  if ('place_limit_order' in executeMsg) {
+    return PLACE_LIMIT_ORDER_GAS_LIMIT
+  }
   if ('place_limit_order_batch' in executeMsg || 'place_limit_order_ladder' in executeMsg) {
     const batch = executeMsg.place_limit_order_batch as { orders?: unknown[] } | undefined
     const ladder = executeMsg.place_limit_order_ladder as { ladder?: { count?: number } } | undefined
@@ -258,6 +265,9 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     if (sendMsg?.msg) {
       try {
         const inner = JSON.parse(atob(sendMsg.msg)) as Record<string, unknown>
+        if ('place_limit_order' in inner) {
+          return PLACE_LIMIT_ORDER_GAS_LIMIT
+        }
         if ('place_limit_order_batch' in inner) {
           const batch = inner.place_limit_order_batch as { orders?: unknown[] }
           return gasLimitForLimitOrderBatch(batch.orders?.length ?? 1)

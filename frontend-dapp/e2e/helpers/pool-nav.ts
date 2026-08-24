@@ -6,7 +6,8 @@ const WRAP_POOL_PAIR_SYMBOL = 'cLUNC'
 const MISSING_WRAP_PAIR_MSG =
   'cLUNC pool card not found after pool search and pagination; run scripts/e2e-seed-wrap-pairs.sh (GitLab #201, #340).'
 
-const INDEXER_OUTAGE_MSG = 'Pool list indexer outage — start indexer for wrap-pool E2E (GitLab #340).'
+const INDEXER_OUTAGE_MSG =
+  'Pool list indexer outage — start indexer and include the Playwright Vite Origin in CORS_ORIGINS (e.g. http://127.0.0.1:3173; GitLab #340 / #625).'
 
 /** Escape user-provided symbol for safe use inside a RegExp. */
 function escapeRegExp(value: string): string {
@@ -93,7 +94,16 @@ export type GotoPoolCardOptions = {
 export async function gotoPoolCardBySymbol(page: Page, symbol: string, opts?: GotoPoolCardOptions): Promise<Locator> {
   if (opts?.goto) {
     await page.goto('/pool')
-    await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
+    const table = page.getByTestId('pool-pairs-table')
+    const outage = page.getByTestId('pool-market-data-outage-banner')
+    await expect(async () => {
+      if (await outage.isVisible().catch(() => false)) {
+        const retry = outage.getByRole('button', { name: /^Retry$/i })
+        if (await retry.isVisible().catch(() => false)) await retry.click()
+        throw new Error(INDEXER_OUTAGE_MSG)
+      }
+      await expect(table).toBeVisible()
+    }).toPass({ timeout: 90_000 })
   }
 
   const searchQuery = opts?.searchQuery ?? symbol

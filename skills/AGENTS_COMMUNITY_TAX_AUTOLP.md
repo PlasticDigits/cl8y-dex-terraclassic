@@ -21,7 +21,7 @@ Product decision (2026-08-23): `pair` must be factory-listed **and** have the ta
 
 1. **M610-1 — factory-listed tax pair.** `pair` on instantiate or `UpdateConfig` must succeed `factory.Pair { asset_infos }` for the **immutable launcher factory** and include **`cfg.token` as one of the two `asset_infos`**. Store only the factory-returned `contract_addr`. Reject native-only / wrong-token / non-factory contracts. Same check as token `RegisterListedPair` (**T592-9**).
 2. **M610-2 — immutable factory.** Factory is stamped from the launcher at instantiate. Manager **cannot** `UpdateConfig` factory (closes fake-registry spoof).
-3. **M610-3 — skim floor.** `SkimToLp` always sets `max_spread` (default **100 bps**, hard cap **200 bps**). Optional manager `skim_min_return`. Never leave both `None`. Permissionless caller cannot pass or loosen the floor. Manager cannot set `skim_max_spread` above 200 bps.
+3. **M610-3 — skim floor.** `SkimToLp` always sets `max_spread` (default **100 bps**, hard cap **200 bps**). Optional manager `skim_min_return`. Never leave both `None`. Permissionless caller cannot pass or loosen the floor. Manager cannot set `skim_max_spread` above 200 bps. `UpdateConfig { skim_min_return: 0 }` clears a leftover hostile absolute floor (seed-path `#625` / **C623-8**).
 4. **M610-4 — floor revert keeps tax.** Swap that violates `max_spread` / `min_return` reverts the tx. Tax stays on AutoLP. `SKIMMING` rolls back with the tx.
 5. **M610-5 — T592-10 unchanged.** `SkimToLp` stays permissionless and is **never** called from token `Transfer` / `Send` or pair `AfterSwap`. Do not add pair/router FoT math (**H-01**).
 6. **M610-6 — merge.** Omitted `UpdateConfig` fields keep their previous values (including pair, factory, floor).
@@ -41,7 +41,7 @@ cd smartcontracts && cargo test -p cl8y-community-tax-autolp
 cd smartcontracts && cargo test -p cl8y-community-token-launcher poc_autolp_manager_can_skim_to_fake_pair
 ```
 
-Columbus-5 AutoLP **11621** is the live launcher pin (store was **11613**). No instances required until a token binds. Do not whitelist **11613** / **11621**. Post-merge leftover: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)).
+Columbus-5 AutoLP **11621** is the live launcher pin (store was **11613**). No instances required until a token binds. Do not whitelist **11613** / **11621**. Post-merge leftover: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)). Seed-path hostile `skim_min_return` leftover after !416: [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625) ([`AGENTS_POST_MERGE_OPS_625.md`](./AGENTS_POST_MERGE_OPS_625.md)).
 
 ## Do not
 

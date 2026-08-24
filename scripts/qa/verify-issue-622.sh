@@ -98,8 +98,12 @@ run_unit() {
 }
 
 run_chain_playwright() {
-  CI=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}" \
-    PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-3173}" \
+  export PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}"
+  export PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT}"
+  # Dedicated Vite Origin must be in indexer CORS_ORIGINS (#625 leftover #2).
+  bash "$REPO_ROOT/scripts/e2e-start-indexer.sh"
+  CI=1 PLAYWRIGHT_WEB_PORT="$PLAYWRIGHT_WEB_PORT" \
+    PLAYWRIGHT_BASE_URL="$PLAYWRIGHT_BASE_URL" \
     E2E_WRAP_INDEXER_WAIT_LOOPS="${E2E_WRAP_INDEXER_WAIT_LOOPS:-3}" \
     bash scripts/with-node.sh --cwd frontend-dapp -- \
     ./node_modules/.bin/playwright test e2e/community-tax-tx.spec.ts --project=e2e-tx
