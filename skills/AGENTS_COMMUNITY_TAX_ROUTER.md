@@ -22,6 +22,7 @@ Live columbus-5 **11611** still runs pre-option-2 wasm until CMM store + migrate
 | [`tax.rs` `classify`](../smartcontracts/contracts/community-tax-token/src/tax.rs) | Sell on pair-direct **or** official-router `Send+Swap`; buy on pair→EOA **or** router→user |
 | [`swapRouting.ts`](../frontend-dapp/src/services/terraclassic/swapRouting.ts) | `swapOpsRequireRouter` ⇔ `ops.length >= 2` |
 | [`taxPreviewMaxSpend.ts`](../frontend-dapp/src/utils/taxPreviewMaxSpend.ts) | Extra-debit Max on every listed-pair sell + route hints |
+| [`AGENTS_LOCALNET_SWARM_TAX.md`](./AGENTS_LOCALNET_SWARM_TAX.md) | LocalTerra swarm gem exclude + tax workers (**S621**, [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)) |
 
 ## Invariants **R607-1–R607-8**
 

@@ -12,6 +12,7 @@ Spec and acceptance criteria: [GitLab #119](https://gitlab.com/PlasticDigits/cl8
 4. **No committed secrets:** Bot keys are **not** stored in git. Default: generate a fresh 12-word mnemonic at startup and print it **once** on stderr (set `SWARM_BOT_MNEMONIC` to reproduce the same five addresses via indices `0…4`). This differs from the public `TEST_MNEMONIC` in `docker/init-chain.sh`, which is a **dev-only** test vector for the simulated wallet / Playwright (see `docs/frontend.md`, GitLab #118).
 5. **CW20 funding:** Every CW20 that appears in **any** factory pair is enumerated (paginated `pairs` query). Gems/TCL8Y get idempotent `Mint` top-ups; wrap CW20s skip Mint; community-tax tokens (`VITE_TOKEN_COMMUNITY_TAX_ADDRESS` or `GetLauncherOrigin`) get **Transfer** from `test1` ([GitLab #620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)). Same fork as `scripts/e2e-provision-dev-wallet.sh`.
 6. **Router swap `Fee.gas`:** `src/gas.ts` mirrors the dApp’s `execute_swap_operations` formula (same `SWAP_GAS_BUFFER` as [`frontend-dapp/src/utils/constants.ts`](../frontend-dapp/src/utils/constants.ts); [GitLab #115](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/115)). Change both together.
+7. **Community-tax workers (GitLab #621):** Gem profiles exclude tax-token addresses from offer / route / LP picks. Default `SWARM_TAX_WORKERS=1` replaces wallet 4 (`balanced`) with profile `tax_listed` (tax/EMBER pair-direct sell extra-debit, buy split, provide 1:1, place-limit 1:1, official-router ≥2hop). Hybrid on that pair logs `tax_hybrid_skip` and does not broadcast. `SWARM_TAX_WORKERS=0` is exclude-only. Pair-direct never sets `Swap.trader`. Invariants **S621-1–S621-8**: [`skills/AGENTS_LOCALNET_SWARM_TAX.md`](../../skills/AGENTS_LOCALNET_SWARM_TAX.md).
 
 ## Liquidity / sizing invariants (bots vs `deploy-dex-local.sh`)
 
@@ -71,10 +72,11 @@ Stop: **Ctrl+C** (SIGINT). The process exits after printing optional stats.
 | `SWARM_ULUNA_TOPUP` / `SWARM_UUSD_TOPUP` / `SWARM_CW20_MINT_TOPUP` / `SWARM_MIN_CW20_BALANCE` / `SWARM_MINT_SLEEP_MS` | Funding tuning (see `src/funding.ts`). Defaults **10×** genesis/deploy seeds ([#372](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/372)): `20000000000000` uluna, `10000000000000` uusd, `100000000000000000` CW20 mint, `10000000000000` min CW20 floor per bot. |
 | `SWARM_FUNDING_TX_SLEEP_MS` | Pause after **each** `terrad tx` from `test1` (default **2000** ms) so account sequence does not race under `--broadcast-mode sync`. |
 | `VITE_*` | Read from `frontend-dapp/.env.local`; **process environment overrides** the file (same as CI / shell exports). |
+| `SWARM_TAX_WORKERS` | Default **1**: wallet 4 is `tax_listed`. Set **0** to keep five gem profiles (tax token still excluded). |
 
 ## Logs
 
-Structured **JSON lines** to stdout: `profile`, `bot`, `action`, `txHash`, `note`, `error`, timestamps.
+Structured **JSON lines** to stdout: `profile`, `bot`, `action`, `txHash`, `note`, `error`, timestamps. Tax sells also emit `tax_debit`, `tax_credit`, `bps`, `path=pair|router`. Startup includes `kind: "swarm_tax"`.
 
 ## Manual verification (after deploy)
 
@@ -85,4 +87,4 @@ Structured **JSON lines** to stdout: `profile`, `bot`, `action`, `txHash`, `note
 
 ## Agent docs
 
-Third-party / automation agents: [`../../skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../../skills/AGENTS_LOCALNET_TRADING_SWARM.md).
+Third-party / automation agents: [`../../skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../../skills/AGENTS_LOCALNET_TRADING_SWARM.md). Tax-token workers: [`../../skills/AGENTS_LOCALNET_SWARM_TAX.md`](../../skills/AGENTS_LOCALNET_SWARM_TAX.md) (**S621**, [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)).
