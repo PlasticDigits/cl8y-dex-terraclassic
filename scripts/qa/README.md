@@ -194,6 +194,20 @@ After !409–!413 landed option-2 classify, wrap ingest, window pin, AutoLP floo
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_616.md`](../../skills/AGENTS_POST_MERGE_OPS_616.md). QA invariant **Q11**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-616).
 
+### Post-merge !414 LocalTerra community-tax seed leftovers (GitLab #624)
+
+After !414 landed the #620 seed + Transfer funding fork:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-624` | Child **620** plus leftover live + children **601, 592, 610, 594** / **M624-1–M624-8** |
+| Fresh volume | `VERIFY624_FRESH=1` → `make reset && make start && make deploy-local`; stamp `git_sha` == `HEAD` |
+| Indexer | `GET /api/v1/community-tokens` `configured: true` + QA token `attested_cmm` (local code id, not 11619) |
+| Funding | `e2e-provision-dev-wallet.sh` Transfer; swarm `--dry-run` logs `swarm_funding_plan` and does **not** call `fundBotWallets` |
+| Disclose | Do **not** reopen #620 / #592 / #601 / #610 / #594; siblings #621 / #622 / #623 / #625 stay their tickets |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_624.md`](../../skills/AGENTS_POST_MERGE_OPS_624.md). QA invariant **Q12**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-624).
+
 ---
 
 ## Makefile reference

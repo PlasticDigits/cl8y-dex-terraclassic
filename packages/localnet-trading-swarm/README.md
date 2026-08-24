@@ -58,7 +58,7 @@ npm run test:run
 
 Flags:
 
-- `--dry-run` — no `bank send` / `Mint` funding and no bot txs; still requires LocalTerra + `.env.local` + LCD chain check.
+- `--dry-run` — no `bank send` / `Mint` / `Transfer` funding and no bot txs; still requires LocalTerra + `.env.local` + LCD chain check. Logs `kind: "swarm_funding_plan"` (classify only). **Does not** call `fundBotWallets` — not a tax Transfer proof ([#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624)).
 - `--stats` — on shutdown, emit `kind: "swarm_stats"` JSON with per-bot mean gap vs target (20s).
 
 Stop: **Ctrl+C** (SIGINT). The process exits after printing optional stats.

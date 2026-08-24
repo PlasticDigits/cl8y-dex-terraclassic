@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { defaultFundingOptions } from './funding.js'
+import { defaultFundingOptions, fundingExecuteMsg } from './funding.js'
 import { classifyCw20FundingKind, fundingEnvFromVite } from './fundingKind.js'
 
 describe('defaultFundingOptions', () => {
@@ -77,5 +77,23 @@ describe('classifyCw20FundingKind (GitLab #620)', () => {
   it('does not treat an empty origin as tax', () => {
     expect(classifyCw20FundingKind(gem, env, null)).toBe('mint')
     expect(classifyCw20FundingKind(gem, env, '')).toBe('mint')
+  })
+})
+
+describe('fundingExecuteMsg (GitLab #624 leftover #5)', () => {
+  it('Transfers the tax token and never Mints it', () => {
+    expect(fundingExecuteMsg('transfer', 'terra1bot', '1')).toEqual({
+      transfer: { recipient: 'terra1bot', amount: '1' },
+    })
+    expect(JSON.stringify(fundingExecuteMsg('transfer', 'terra1bot', '1'))).not.toMatch(
+      /"mint"/
+    )
+  })
+
+  it('Mints gems and skips wraps', () => {
+    expect(fundingExecuteMsg('mint', 'terra1bot', '1')).toEqual({
+      mint: { recipient: 'terra1bot', amount: '1' },
+    })
+    expect(fundingExecuteMsg('skip', 'terra1bot', '1')).toBeNull()
   })
 })

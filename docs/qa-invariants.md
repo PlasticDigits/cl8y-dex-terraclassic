@@ -209,6 +209,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M616-7** | Do not reopen #607 / #610 / #613 / #615 for ops/QA. #614 stays open until live `ust1_mint` / `ust1_redeem` increment. |
 | **M616-8** | Playbook + this Q11 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !414 LocalTerra community-tax seed leftovers (invariant Q12) {#post-merge-ops-624}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q12** Post-merge !414 leftover live is checked (fresh volume + indexer catalog + Transfer funding + stamp skip + children 620/601/592/610/594) | **`make verify-issue-624`** → child **620** plus leftover probes and children **601, 592, 610, 594** (**M624-1–M624-8**) | Non-zero exit; fix the failing child, env pin, or Transfer fork; do not treat green #620 on a stale volume as leftover #1 |
+
+**M624** (GitLab **#624** — [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md)):
+
+| ID | Rule |
+|----|------|
+| **M624-1** | `make verify-issue-624` runs child **620** plus leftover live probes and children **601, 592, 610, 594**. Unit/docs FAILs fail the stack. Fresh-volume leftover SKIP unless `VERIFY624_FRESH=1`. Indexer leftover SKIP unless the indexer is up (FAIL when `VERIFY624_REQUIRE_LIVE=1`). |
+| **M624-2** | Fresh `make reset && make start && make deploy-local` writes **local** `VITE_COMMUNITY_TAX_*` / SmokeUST1 / indexer `COMMUNITY_TAX_*`. LCD pair + AutoLP `pair` match env. Reserves ≥ **10M** raw / side. Stamp `git_sha` == `HEAD`. Never whitelist columbus-5 **11611** / **11619** / launcher / AutoLP / ALPHA **8654**. |
+| **M624-3** | `GET /api/v1/community-tokens` is `configured: true` and lists the QA token as `attested_cmm`. Do not pin columbus-5 **11619** against local instances. `GET /tokens/{tax}` may embed `community_tax`. `route/solve` sees `buy_tax_bps` / `sell_tax_bps`. |
+| **M624-4** | `e2e-provision-dev-wallet.sh` **Transfer**s the QA tax token from `test1` (fail-closed). Wrap skip. TCL8Y still **Mint**s. `DEPLOY_SKIP_COMMUNITY_TAX=1` is gems-only. |
+| **M624-5** | Swarm `fundBotWallets` never **Mint**s the tax token. `--dry-run` skips funding and logs `swarm_funding_plan` only. |
+| **M624-6** | Re-run without `--fresh`: `deploy_up_to_date` stamp skip (no second tax pair). Phase 4d always stores + paid-creates if the whole deploy runs. |
+| **M624-7** | Do not reopen #620 / #592 / #601 / #610 / #594 for ops/QA. Do not enable `MintControl` or fall back to Mint. Do not implement pair/router FoT math (**H-01**). |
+| **M624-8** | Playbook + this Q12 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -224,3 +243,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_602.md`](../skills/AGENTS_POST_MERGE_OPS_602.md) — post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token ([#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602), **Q9**)
 - [`skills/AGENTS_POST_MERGE_OPS_612.md`](../skills/AGENTS_POST_MERGE_OPS_612.md) — post-merge !407/!408 Enable Feature migrate + LocalTerra QA ([#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612), **Q10**)
 - [`skills/AGENTS_POST_MERGE_OPS_616.md`](../skills/AGENTS_POST_MERGE_OPS_616.md) — post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616), **Q11**)
+- [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) — post-merge !414 LocalTerra community-tax seed leftovers ([#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624), **Q12**)

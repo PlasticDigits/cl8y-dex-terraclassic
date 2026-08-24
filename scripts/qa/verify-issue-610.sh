@@ -54,6 +54,9 @@ run_poc() {
 }
 
 run_frontend() {
+  if [[ ! -x frontend-dapp/node_modules/.bin/vitest ]]; then
+    bash scripts/with-node.sh --cwd frontend-dapp -- npm ci
+  fi
   bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/communityTaxSku.test.ts \
     src/pages/ManageTokenPage.test.tsx

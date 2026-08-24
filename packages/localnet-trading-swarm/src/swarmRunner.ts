@@ -1,7 +1,7 @@
 import type { MnemonicWallet } from '@goblinhunt/cosmes/wallet'
 import type { ActionContext } from './actions.js'
 import { runAction } from './actions.js'
-import { fundBotWallets, defaultFundingOptions } from './funding.js'
+import { fundBotWallets, defaultFundingOptions, planCw20Funding } from './funding.js'
 import { fundingEnvFromVite } from './fundingKind.js'
 import { uniqueCw20TokenAddresses, fetchAllPairs } from './factoryTokens.js'
 import { filterTaxPairs } from './pairPick.js'
@@ -48,6 +48,16 @@ export async function startSwarm(opts: {
   const pairs = await fetchAllPairs(lcd, factory)
   const cw20s = uniqueCw20TokenAddresses(pairs)
   const botAddresses = wallets.map((w) => w.address)
+  const fundingEnv = fundingEnvFromVite(env)
+  const fundingPlan = await planCw20Funding(lcd, cw20s, fundingEnv)
+  console.log(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      kind: 'swarm_funding_plan',
+      dryRun: opts.runnerOpts.dryRun,
+      tokens: fundingPlan,
+    })
+  )
 
   if (!opts.runnerOpts.dryRun) {
     await fundBotWallets({
@@ -56,7 +66,7 @@ export async function startSwarm(opts: {
       botAddresses,
       cw20Tokens: cw20s,
       funding: defaultFundingOptions(),
-      fundingEnv: fundingEnvFromVite(env),
+      fundingEnv,
     })
   }
 

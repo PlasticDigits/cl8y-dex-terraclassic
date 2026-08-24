@@ -42,6 +42,7 @@ make dev
 | `make dev`            | Start Vite (`scripts/dev-frontend-local.sh` — requires `.env.local`) |
 | `make swarm-local`    | Run the **localnet-only** trading bot swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)) — requires LocalTerra + `deploy-dex-local` first |
 | `make verify-issue-620` | LocalTerra community-tax seed + Transfer funding ([GitLab #620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)) |
+| `make verify-issue-624` | Post-merge !414 leftover live ([GitLab #624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624)) |
 | `make verify-issue-621` | Tax-aware localnet swarm gem exclude + tax workers ([GitLab #621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)) |
 | `make verify-issue-622` | Playwright e2e-tx community-tax pair ([GitLab #622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)) |
 
@@ -67,9 +68,10 @@ This is **not** a license to whitelist columbus-5 **11611** / **11619** from Loc
 ```bash
 DEPLOY_SKIP_COMMUNITY_TAX=1 make deploy-local   # gems only
 make verify-issue-620
+make verify-issue-624   # leftover fresh volume / indexer / Transfer after !414
 ```
 
-Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). `#601` smoke stays ephemeral. Retail dApp txs on that pair: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**, `make verify-issue-622`).
+Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). Post-merge leftovers: [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) (**M624-1–M624-8**, [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624)). `#601` smoke stays ephemeral. Retail dApp txs on that pair: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**, `make verify-issue-622`). Swarm `--dry-run` logs `swarm_funding_plan` and does **not** call `fundBotWallets`.
 
 ## Docker Setup
 

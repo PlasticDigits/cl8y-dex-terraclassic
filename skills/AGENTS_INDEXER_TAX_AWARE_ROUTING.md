@@ -4,7 +4,7 @@ Use when changing **`GET /api/v1/route/solve`** winner pick, hybrid GET cache ke
 
 This is a **score / display / path-eligibility** layer. Do **not** teach pair/router wasm to size extra-debit (**H-01** / **T592-1**). Official dApp stays on GET best-execution (**#596**).
 
-Parent: classify option 2 / Honest hops — [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) (**T592-13** / **#607**). Catalog bps — [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**#594**). Hybrid quote=execute — [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md).
+Parent: classify option 2 / Honest hops — [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) (**T592-13** / **#607**). Catalog bps — [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**#594**). Hybrid quote=execute — [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md). LocalTerra leftover catalog + `route/solve` bps after !414: [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624) ([`AGENTS_POST_MERGE_OPS_624.md`](./AGENTS_POST_MERGE_OPS_624.md)).
 
 ## Canonical references
 
@@ -45,6 +45,7 @@ After CMM migrate of 11611 to option-2 wasm: add **11611** to `COMMUNITY_TAX_OPT
 make verify-issue-615
 make verify-issue-607   # classify / Honest hops must not regress
 make verify-issue-616   # post-merge !409–!413 stack + live leftovers
+make verify-issue-624   # leftover LocalTerra catalog + route/solve bps after !414
 ```
 
 ## Do not

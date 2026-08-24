@@ -2,7 +2,7 @@
 
 Use when changing the **community-tax AutoLP** sister, launcher AutoLP instantiate, Manage Token pair copy, or skim execution.
 
-Parent template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) ([`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) **T592-10**). LocalTerra seed binds AutoLP `pair` after factory list ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620), [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) **L620-4**). Bind / SKU init [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605) (**H-1** — AutoLP is paid and bound at create; **do not re-do bind here**). Audit **M-2 / M-3** in [`INTERNAL_KIMIK3_1787468843`](../audits/INTERNAL_KIMIK3_1787468843.md).
+Parent template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) ([`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) **T592-10**). LocalTerra seed binds AutoLP `pair` after factory list ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620), [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) **L620-4**). Post-merge leftover LCD pair + AutoLP bind: [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624) ([`AGENTS_POST_MERGE_OPS_624.md`](./AGENTS_POST_MERGE_OPS_624.md) **M624-2**). Bind / SKU init [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605) (**H-1** — AutoLP is paid and bound at create; **do not re-do bind here**). Audit **M-2 / M-3** in [`INTERNAL_KIMIK3_1787468843`](../audits/INTERNAL_KIMIK3_1787468843.md).
 
 Product decision (2026-08-23): `pair` must be factory-listed **and** have the tax token as one side.
 

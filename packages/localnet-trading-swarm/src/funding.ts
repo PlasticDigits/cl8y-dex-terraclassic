@@ -150,7 +150,18 @@ async function cw20Balance(
   }
 }
 
-async function resolveCw20FundingKind(
+/** Execute payload for the funding fork. `skip` → no tx. Tax tokens never Mint. */
+export function fundingExecuteMsg(
+  kind: Cw20FundingKind,
+  recipient: string,
+  amount: string
+): Record<string, unknown> | null {
+  if (kind === 'skip') return null
+  if (kind === 'transfer') return { transfer: { recipient, amount } }
+  return { mint: { recipient, amount } }
+}
+
+export async function resolveCw20FundingKind(
   lcdBase: string,
   token: string,
   env: Cw20FundingEnv
@@ -165,6 +176,19 @@ async function resolveCw20FundingKind(
   } catch {
     return 'mint'
   }
+}
+
+/** Classify every factory CW20. `--dry-run` logs this and skips `fundBotWallets` (#624). */
+export async function planCw20Funding(
+  lcdBase: string,
+  tokens: string[],
+  env: Cw20FundingEnv
+): Promise<{ token: string; fundingKind: Cw20FundingKind }[]> {
+  const out: { token: string; fundingKind: Cw20FundingKind }[] = []
+  for (const token of tokens) {
+    out.push({ token, fundingKind: await resolveCw20FundingKind(lcdBase, token, env) })
+  }
+  return out
 }
 
 export async function fundBotWallets(opts: {
@@ -206,21 +230,18 @@ export async function fundBotWallets(opts: {
     for (const addr of botAddresses) {
       const bal = await cw20Balance(lcdBase, token, addr)
       if (bal >= minB) continue
-      if (kind === 'transfer') {
-        terradTx(v, [
-          'wasm',
-          'execute',
+      const msg = fundingExecuteMsg(kind, addr, funding.cw20MintTopup)
+      if (!msg) continue
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          kind: 'swarm_funding_action',
           token,
-          JSON.stringify({ transfer: { recipient: addr, amount: funding.cw20MintTopup } }),
-        ])
-      } else {
-        terradTx(v, [
-          'wasm',
-          'execute',
-          token,
-          JSON.stringify({ mint: { recipient: addr, amount: funding.cw20MintTopup } }),
-        ])
-      }
+          fundingKind: kind,
+          recipient: addr,
+        })
+      )
+      terradTx(v, ['wasm', 'execute', token, JSON.stringify(msg)])
       await pauseFunding(funding.sleepMsBetweenFundingTx)
       if (funding.sleepMsBetweenMint > 0) {
         await new Promise((r) => setTimeout(r, funding.sleepMsBetweenMint))

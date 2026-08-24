@@ -2,7 +2,7 @@
 
 Use when changing **`make deploy-local`** community-tax wiring, LocalTerra funding (Mint vs Transfer), or indexer/dApp env pins for the QA tax market.
 
-This is **stack wiring only**. Do **not** reopen [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601) / [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610) / [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) unless an on-chain invariant is wrong. Sibling follow-ups: tax-aware swarm [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621) ([`AGENTS_LOCALNET_SWARM_TAX.md`](./AGENTS_LOCALNET_SWARM_TAX.md)), Playwright `e2e-tx` [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622) ([`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md), `make verify-issue-622`), named tax-on Layer B [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) ([#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623); seed pins are optional inputs).
+This is **stack wiring only**. Do **not** reopen [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601) / [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610) / [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) unless an on-chain invariant is wrong. Sibling follow-ups: tax-aware swarm [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621) ([`AGENTS_LOCALNET_SWARM_TAX.md`](./AGENTS_LOCALNET_SWARM_TAX.md)), Playwright `e2e-tx` [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622) ([`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md), `make verify-issue-622`), named tax-on Layer B [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) ([#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623); seed pins are optional inputs). Post-merge leftover live after !414: [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624) ([`AGENTS_POST_MERGE_OPS_624.md`](./AGENTS_POST_MERGE_OPS_624.md), `make verify-issue-624`).
 
 Parent template: [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) (**T592** / **O601**). AutoLP: [`AGENTS_COMMUNITY_TAX_AUTOLP.md`](./AGENTS_COMMUNITY_TAX_AUTOLP.md) (**M610**). Catalog: [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**I594**). Swarm funding: [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md).
 
@@ -38,9 +38,11 @@ make verify-issue-620
 # grep COMMUNITY_TAX indexer/.env
 # bash scripts/e2e-provision-dev-wallet.sh
 # cd packages/localnet-trading-swarm && npm run start -- --dry-run
+# leftover live after !414 (fresh volume / indexer / Transfer):
+# make verify-issue-624
 ```
 
-`make reset` / `--fresh` must recreate the tax market — do not rely on a stale `.qa-deploy-stamp` alone ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/325)).
+`make reset` / `--fresh` must recreate the tax market — do not rely on a stale `.qa-deploy-stamp` alone ([#325](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/325)). Swarm `--dry-run` logs `swarm_funding_plan` and **skips** `fundBotWallets` — it is not a funding proof ([#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624) **M624-5**).
 
 ## Do not
 
