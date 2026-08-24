@@ -1,8 +1,8 @@
 /**
  * Extra-debit sell max (GitLab #593 / #592 T592-2) + route policy (#607 / T592-13).
- * Pair-direct sell to a listed pair debits `declared + tax`. Max must leave room for
- * the extra debit so Swap/Trade cannot offer 100% of balance (self-DoS / failed tx spam).
- * Router hops are Honest — do not cap Max as if extra-debit will fire (**R607-7**).
+ * Pair-direct and official-router sells debit the trader `declared + tax` (router hop:
+ * user Sends `declared` 1:1, then extra-debit `tax` from leftover). Max must leave
+ * room so Swap/Trade cannot offer 100% of balance (**R607-7**).
  */
 
 import { fromRawAmount } from '@/utils/formatAmount'
@@ -51,19 +51,20 @@ export function extraDebitSellHuman(balanceRaw: string, decimals: number, sellBp
 }
 
 export const SELL_TAX_EXTRA_HINT = 'Sell tax extra'
+export const BUY_TAX_HINT = 'Buy tax applies'
 /** Create/Manage + glossary (#607 / C593-14). */
-export const COMMUNITY_TAX_PAIR_DIRECT_COPY = 'Buy/sell tax is pair-direct only.'
-/** Swap/Trade when execute uses the router (ops.length >= 2). */
-export const ROUTER_TAX_SKIP_HINT = 'Route skips buy/sell tax'
+export const COMMUNITY_TAX_SCOPE_COPY = 'Buy/sell tax applies on every listed-pair swap.'
+/** @deprecated Use {@link COMMUNITY_TAX_SCOPE_COPY} — option 1 pair-direct-only wording. */
+export const COMMUNITY_TAX_PAIR_DIRECT_COPY = COMMUNITY_TAX_SCOPE_COPY
 
 /** Official dApp: router execute ⇔ `ops.length >= 2` (`swapOpsRequireRouter`). */
 export function communityTaxExecuteUsesRouter(opsLength: number | undefined, clientMultiHop = false): boolean {
   return (opsLength ?? 0) >= 2 || clientMultiHop
 }
 
-/** Extra-debit Max only on pair-direct execute (**C593-9** / **R607-7**). */
-export function extraDebitSellBpsForExecute(sellBps: number | null | undefined, usesRouter: boolean): number | null {
-  if (usesRouter) return null
+/** Extra-debit Max on pair-direct **and** router-hop sells (**C593-9** / **R607-7**). */
+export function extraDebitSellBpsForExecute(sellBps: number | null | undefined, usesRouter?: boolean): number | null {
+  void usesRouter
   if (sellBps == null || sellBps <= 0) return null
   return sellBps
 }
@@ -74,11 +75,11 @@ export function communityTaxRouteHint(input: {
   usesRouter: boolean
   sellBps?: number | null
 }): string | null {
-  if (input.usesRouter && (input.payIsTax || input.receiveIsTax)) {
-    return ROUTER_TAX_SKIP_HINT
-  }
   if (input.payIsTax && input.sellBps != null && input.sellBps > 0) {
     return SELL_TAX_EXTRA_HINT
+  }
+  if (input.receiveIsTax) {
+    return BUY_TAX_HINT
   }
   return null
 }

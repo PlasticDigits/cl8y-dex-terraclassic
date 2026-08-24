@@ -6,7 +6,15 @@
 //! — never also add a swap-level `book_commission_amount`.
 //!
 //! Wrap/unwrap wasm is accepted only from a pinned `WRAP_MAPPER_ADDRESS` (exact bech32).
-//! Fail closed on missing `fee_amount` / token identity. Do not infer `amount × bps`.
+//! Fail closed on missing treasury `fee` / `fee_amount` / token identity. Do not infer
+//! `amount × bps`.
+//!
+//! **Captured ustr-cmm wrap-mapper attrs (GitLab #613):** retail wrap is mapper
+//! `action=notify_deposit` (treasury `wrap_deposit` is not a fee). Unwrap is
+//! `action=unwrap`. The amount key is **`fee`** (not `fee_amount`). Token is `denom`
+//! (`uusd` / `uluna`). LCD may flatten wrap + swap + InstantWithdraw into one `wasm`
+//! stream — parse **each** `action` segment and scope by reserved `_contract_address`
+//! only (#285). `tax_amount` / `instant_withdraw` / `wrap_deposit` are not fees.
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -116,16 +124,32 @@ pub fn wrap_mapper_matches(pinned: &str, contract: &str) -> bool {
     !pinned.is_empty() && pinned == contract
 }
 
-fn wasm_attr_last<'a>(attributes: &'a [Attribute], key: &str) -> Option<&'a str> {
-    attributes
+/// Same contract as parser lifecycle scans (#141 / #285): last reserved
+/// `_contract_address` **before** `idx`. Forged `contract_address` is ignored.
+fn wasm_contract_addr_before<'a>(attrs: &'a [Attribute], idx: usize) -> Option<&'a str> {
+    attrs[..idx]
         .iter()
         .rev()
-        .find(|a| a.key == key)
+        .find(|a| a.key == "_contract_address")
         .map(|a| a.value.as_str())
 }
 
-fn wasm_contract_addr(attributes: &[Attribute]) -> Option<&str> {
-    wasm_attr_last(attributes, "_contract_address")
+/// Key/value pairs after `action_pos` until the next `action` or `_contract_address`.
+fn wasm_kv_map_after_action(
+    attrs: &[Attribute],
+    action_pos: usize,
+) -> std::collections::HashMap<&str, &str> {
+    let mut m = std::collections::HashMap::new();
+    let mut i = action_pos.saturating_add(1);
+    while i < attrs.len() {
+        let k = attrs[i].key.as_str();
+        if k == "action" || k == "_contract_address" {
+            break;
+        }
+        m.insert(k, attrs[i].value.as_str());
+        i += 1;
+    }
+    m
 }
 
 fn parse_positive_raw(s: &str) -> Option<BigDecimal> {
@@ -137,12 +161,12 @@ fn parse_positive_raw(s: &str) -> Option<BigDecimal> {
     }
 }
 
-/// Token identity for a wrap-mapper fee. Fail closed if missing.
+/// Token identity for a wrap-mapper fee segment. Fail closed if missing.
 ///
 /// Prefers explicit fee token attrs, then native denom. Never uses `symbol=` (A1 spoof).
-fn wrap_fee_token(attrs: &[Attribute]) -> Option<String> {
+fn wrap_fee_token_from_seg(seg: &std::collections::HashMap<&str, &str>) -> Option<String> {
     for key in ["fee_asset", "fee_denom", "native_denom", "denom"] {
-        if let Some(v) = wasm_attr_last(attrs, key) {
+        if let Some(v) = seg.get(key).copied() {
             let t = v.trim();
             if !t.is_empty() && !t.chars().any(char::is_whitespace) {
                 return Some(t.to_string());
@@ -152,34 +176,72 @@ fn wrap_fee_token(attrs: &[Attribute]) -> Option<String> {
     None
 }
 
-fn parse_wrap_fee_from_attrs(attrs: &[Attribute], pinned: &str, ordinal: i64) -> Option<ParsedWrapFee> {
-    let contract = wasm_contract_addr(attrs)?;
-    if !wrap_mapper_matches(pinned, contract) {
-        return None;
+/// Captured ustr-cmm amount key is `fee`. `fee_amount` is a #586 alias only.
+fn wrap_fee_amount_from_seg(seg: &std::collections::HashMap<&str, &str>) -> Option<BigDecimal> {
+    for key in ["fee", "fee_amount"] {
+        if let Some(v) = seg.get(key).copied() {
+            if let Some(n) = parse_positive_raw(v) {
+                return Some(n);
+            }
+        }
     }
-    let action = wasm_attr_last(attrs, "action")?;
-    let source = match action {
-        "wrap" => FeeSource::Wrap,
-        "unwrap" => FeeSource::Unwrap,
-        _ => return None,
-    };
-    // Fail closed: require an explicit treasury fee amount. Do not use `amount × bps`.
-    // Do not count burn_tax / tax_amount / InstantWithdraw remainder.
-    let amount_raw = wasm_attr_last(attrs, "fee_amount").and_then(parse_positive_raw)?;
-    let token = wrap_fee_token(attrs)?;
-    Some(ParsedWrapFee {
-        source,
-        amount_raw,
-        token,
-        ordinal,
-    })
+    None
+}
+
+fn wrap_fee_source(action: &str) -> Option<FeeSource> {
+    match action {
+        // Captured wrap-mapper wrap execute (treasury `wrap_deposit` is not a fee).
+        "notify_deposit" | "wrap" => Some(FeeSource::Wrap),
+        "unwrap" => Some(FeeSource::Unwrap),
+        _ => None,
+    }
+}
+
+fn parse_wrap_fees_from_attrs(
+    attrs: &[Attribute],
+    pinned: &str,
+    ordinal: &mut i64,
+) -> Vec<ParsedWrapFee> {
+    let mut out = Vec::new();
+    for (i, a) in attrs.iter().enumerate() {
+        if a.key != "action" {
+            continue;
+        }
+        let Some(source) = wrap_fee_source(a.value.as_str()) else {
+            continue;
+        };
+        let Some(contract) = wasm_contract_addr_before(attrs, i) else {
+            continue;
+        };
+        if !wrap_mapper_matches(pinned, contract) {
+            continue;
+        }
+        let seg = wasm_kv_map_after_action(attrs, i);
+        // Fail closed: require an explicit treasury fee amount. Do not use `amount × bps`.
+        // Do not count burn_tax / tax_amount / InstantWithdraw remainder / wrap_deposit amount.
+        let Some(amount_raw) = wrap_fee_amount_from_seg(&seg) else {
+            continue;
+        };
+        let Some(token) = wrap_fee_token_from_seg(&seg) else {
+            continue;
+        };
+        out.push(ParsedWrapFee {
+            source,
+            amount_raw,
+            token,
+            ordinal: *ordinal,
+        });
+        *ordinal += 1;
+    }
+    out
 }
 
 /// Extract wrap/unwrap treasury fees from LCD wasm events.
 ///
-/// Documented ustr-cmm (post-#9) attrs: `_contract_address`, `action` = `wrap` \| `unwrap`,
-/// `fee_amount` (raw integer to treasury), token via `fee_asset` / `fee_denom` /
-/// `native_denom` / `denom`. Burn-tax attrs are ignored.
+/// **Locked from ustr-cmm wrap-mapper** (`contracts/wrap-mapper/src/contract.rs`):
+/// `_contract_address`, `action` = `notify_deposit` (wrap) \| `unwrap`, amount key
+/// **`fee`**, token `denom`. Legacy `action=wrap` + `fee_amount` still accepted.
+/// Flattened combo txs are scanned per `action` (#141 / #285). Burn-tax attrs ignored.
 pub fn parse_wrap_fees(tx: &TxResponse, pinned_mapper: &str) -> Vec<ParsedWrapFee> {
     if pinned_mapper.is_empty() {
         return Vec::new();
@@ -198,10 +260,11 @@ pub fn parse_wrap_fees(tx: &TxResponse, pinned_mapper: &str) -> Vec<ParsedWrapFe
         if event.event_type != "wasm" && event.event_type != "wasm-wasm" {
             continue;
         }
-        if let Some(fee) = parse_wrap_fee_from_attrs(&event.attributes, pinned_mapper, ordinal) {
-            ordinal += 1;
-            out.push(fee);
-        }
+        out.extend(parse_wrap_fees_from_attrs(
+            &event.attributes,
+            pinned_mapper,
+            &mut ordinal,
+        ));
     }
     out
 }
@@ -422,6 +485,196 @@ mod tests {
             attr("_contract_address", pin),
             attr("action", "wrap"),
             attr("fee_amount", "0"),
+            attr("denom", "uusd"),
+        ]);
+        assert!(parse_wrap_fees(&tx, pin).is_empty());
+    }
+
+    /// Captured ustr-cmm wrap-mapper attrs (GitLab #613).
+    /// Wrap execute is `notify_deposit` + `fee` + `denom` — not `action=wrap` / `fee_amount`.
+    /// Source: PlasticDigits2/ustr-cmm `wrap-mapper` `execute_notify_deposit` /
+    /// `execute_receive_cw20`. Columbus-5 mapper
+    /// `terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2`.
+    fn captured_notify_deposit_attrs(pin: &str, denom: &str, fee: &str) -> Vec<Attribute> {
+        vec![
+            attr("_contract_address", pin),
+            attr("action", "notify_deposit"),
+            attr("depositor", "terra1userxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+            attr("denom", denom),
+            attr("gross_amount", "1000000"),
+            attr("fee", fee),
+            attr("fee_wrap_bps", "200"),
+            attr("mint_amount", "980000"),
+        ]
+    }
+
+    fn captured_unwrap_attrs(pin: &str, denom: &str, fee: &str) -> Vec<Attribute> {
+        vec![
+            attr("_contract_address", pin),
+            attr("action", "unwrap"),
+            attr("cw20_contract", "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"),
+            attr("recipient", "terra1userxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+            attr("denom", denom),
+            attr("gross_amount", "1000000"),
+            attr("fee", fee),
+            attr("fee_unwrap_bps", "51"),
+            attr("withdraw_amount", "994900"),
+        ]
+    }
+
+    #[test]
+    fn parse_wrap_captured_notify_deposit_uusd() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(captured_notify_deposit_attrs(pin, "uusd", "20000"));
+        let fees = parse_wrap_fees(&tx, pin);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Wrap);
+        assert_eq!(fees[0].amount_raw, bd("20000"));
+        assert_eq!(fees[0].token, "uusd");
+    }
+
+    #[test]
+    fn parse_wrap_captured_notify_deposit_uluna() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(captured_notify_deposit_attrs(pin, "uluna", "20000"));
+        let fees = parse_wrap_fees(&tx, pin);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Wrap);
+        assert_eq!(fees[0].token, "uluna");
+    }
+
+    #[test]
+    fn parse_unwrap_captured_fee_not_tax_amount() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let mut attrs = captured_unwrap_attrs(pin, "uusd", "5100");
+        attrs.push(attr("tax_amount", "15000"));
+        let tx = tx_with_wasm(attrs);
+        let fees = parse_wrap_fees(&tx, pin);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Unwrap);
+        assert_eq!(fees[0].amount_raw, bd("5100"));
+        assert_eq!(fees[0].token, "uusd");
+    }
+
+    #[test]
+    fn parse_wrap_flattened_combo_keeps_wrap_when_last_action_is_swap() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let treasury = "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2";
+        let pair = "terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f";
+        let mut attrs = vec![
+            attr("_contract_address", treasury),
+            attr("action", "wrap_deposit"),
+            attr("depositor", "terra1userxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+            attr("denom", "uusd"),
+            attr("amount", "1000000"),
+        ];
+        attrs.extend(captured_notify_deposit_attrs(pin, "uusd", "20000"));
+        attrs.extend([
+            attr("_contract_address", pair),
+            attr("action", "swap"),
+            attr("commission_amount", "3000"),
+            attr("offer_amount", "980000"),
+            attr("return_amount", "900000"),
+        ]);
+        let tx = tx_with_wasm(attrs);
+        let fees = parse_wrap_fees(&tx, pin);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Wrap);
+        assert_eq!(fees[0].amount_raw, bd("20000"));
+        assert_eq!(fees[0].token, "uusd");
+    }
+
+    #[test]
+    fn parse_unwrap_flattened_ignores_instant_withdraw_tax() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let treasury = "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2";
+        let mut attrs = captured_unwrap_attrs(pin, "uluna", "5100");
+        attrs.extend([
+            attr("_contract_address", treasury),
+            attr("action", "instant_withdraw"),
+            attr("recipient", "terra1userxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+            attr("denom", "uluna"),
+            attr("amount", "994900"),
+            attr("tax_amount", "14923"),
+            attr("fee_amount", "999999"),
+        ]);
+        let tx = tx_with_wasm(attrs);
+        let fees = parse_wrap_fees(&tx, pin);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Unwrap);
+        assert_eq!(fees[0].amount_raw, bd("5100"));
+        assert_eq!(fees[0].token, "uluna");
+    }
+
+    #[test]
+    fn parse_wrap_deposit_without_mapper_fee_drops() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let treasury = "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2";
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", treasury),
+            attr("action", "wrap_deposit"),
+            attr("denom", "uusd"),
+            attr("amount", "1000000"),
+        ]);
+        assert!(parse_wrap_fees(&tx, pin).is_empty());
+    }
+
+    #[test]
+    fn parse_wrap_forged_contract_address_ignored() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(vec![
+            attr("contract_address", pin),
+            attr("action", "notify_deposit"),
+            attr("fee", "20000"),
+            attr("denom", "uusd"),
+        ]);
+        assert!(parse_wrap_fees(&tx, pin).is_empty());
+    }
+
+    #[test]
+    fn parse_wrap_missing_fee_and_token_fail_closed() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let no_fee = tx_with_wasm(vec![
+            attr("_contract_address", pin),
+            attr("action", "notify_deposit"),
+            attr("denom", "uusd"),
+            attr("gross_amount", "1000000"),
+            attr("fee_wrap_bps", "200"),
+        ]);
+        assert!(parse_wrap_fees(&no_fee, pin).is_empty());
+        let no_token = tx_with_wasm(vec![
+            attr("_contract_address", pin),
+            attr("action", "notify_deposit"),
+            attr("fee", "20000"),
+            attr("gross_amount", "1000000"),
+        ]);
+        assert!(parse_wrap_fees(&no_token, pin).is_empty());
+    }
+
+    #[test]
+    fn parse_wrap_never_infers_amount_times_bps() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", pin),
+            attr("action", "notify_deposit"),
+            attr("denom", "uusd"),
+            attr("gross_amount", "1000000"),
+            attr("fee_wrap_bps", "200"),
+            attr("amount", "1000000"),
+        ]);
+        assert!(parse_wrap_fees(&tx, pin).is_empty());
+    }
+
+    #[test]
+    fn parse_wrap_spoof_notify_deposit_ignored() {
+        let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
+        let tx = tx_with_wasm(vec![
+            attr(
+                "_contract_address",
+                "terra1attackerxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            ),
+            attr("action", "notify_deposit"),
+            attr("fee", "999999"),
             attr("denom", "uusd"),
         ]);
         assert!(parse_wrap_fees(&tx, pin).is_empty());

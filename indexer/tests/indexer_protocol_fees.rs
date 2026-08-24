@@ -1,4 +1,4 @@
-//! GitLab #586 — protocol treasury fee ingest, rollup, overview scalars, GET /protocol/fees.
+//! GitLab #586 / #613 — protocol treasury fee ingest, rollup, overview scalars, GET /protocol/fees.
 
 mod common;
 
@@ -412,4 +412,199 @@ fn wrap_pin_and_spoof() {
         events: None,
     };
     assert!(parse_wrap_fees(&tx, &pin).is_empty());
+}
+
+fn attr(key: &str, value: &str) -> Attribute {
+    Attribute {
+        key: key.to_string(),
+        value: value.to_string(),
+    }
+}
+
+/// Captured ustr-cmm wrap-mapper fixture (GitLab #613): `notify_deposit` + `fee`.
+fn captured_wrap_tx(pin: &str, denom: &str, fee: &str) -> TxResponse {
+    TxResponse {
+        height: "1".into(),
+        txhash: "WRAP-CAPTURED".into(),
+        timestamp: None,
+        logs: Some(vec![TxLog {
+            events: vec![Event {
+                event_type: "wasm".into(),
+                attributes: vec![
+                    attr("_contract_address", pin),
+                    attr("action", "notify_deposit"),
+                    attr("denom", denom),
+                    attr("gross_amount", "1000000"),
+                    attr("fee", fee),
+                    attr("fee_wrap_bps", "200"),
+                    attr("mint_amount", "980000"),
+                ],
+            }],
+        }]),
+        events: None,
+    }
+}
+
+#[serial]
+#[tokio::test]
+async fn captured_wrap_ingest_rollup_and_get() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    let pin = parse_wrap_mapper_address(
+        "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2",
+    )
+    .unwrap();
+    let fees = parse_wrap_fees(&captured_wrap_tx(&pin, "uluna", "20000"), &pin);
+    assert_eq!(fees.len(), 1);
+    assert_eq!(fees[0].source, FeeSource::Wrap);
+    assert_eq!(fees[0].token, "uluna");
+    insert_fee(
+        &pool,
+        fees[0].source,
+        seed.asset_0_id,
+        &fees[0].amount_raw.to_string(),
+        Some("0.12"),
+        1,
+        "tx-wrap-custc",
+        fees[0].ordinal,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_wrap(
+        &pool, true, true,
+    )
+    .await;
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    let wrap = sources.iter().find(|s| s.source == "wrap").unwrap();
+    assert_eq!(wrap.event_count, 1);
+    assert!(wrap.amount_usd.as_ref().unwrap() > &bd("0"));
+
+    reset_protocol_fees_cache();
+    let app = build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let resp = server.get("/api/v1/protocol/fees?window=24h").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["wrap_mapper_configured"], true);
+    let wrap_row = body["by_source"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["source"] == "wrap")
+        .unwrap();
+    assert!(wrap_row["event_count"].as_i64().unwrap() >= 1);
+}
+
+#[serial]
+#[tokio::test]
+async fn captured_unwrap_and_combo_with_swap_amm() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Unwrap,
+        seed.asset_0_id,
+        "5100",
+        Some("0.03"),
+        1,
+        "tx-combo",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        "3000",
+        Some("0.05"),
+        1,
+        "tx-combo",
+        1,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_wrap(
+        &pool, true, true,
+    )
+    .await;
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    let unwrap = sources.iter().find(|s| s.source == "unwrap").unwrap();
+    let amm = sources.iter().find(|s| s.source == "swap_amm").unwrap();
+    assert_eq!(unwrap.event_count, 1);
+    assert_eq!(amm.event_count, 1);
+}
+
+#[serial]
+#[tokio::test]
+async fn unconfigured_mapper_omits_wrap_family() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_0_id,
+        "20000",
+        Some("0.1"),
+        1,
+        "tx-wrap-omit",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        "1",
+        Some("5"),
+        1,
+        "tx-amm-keep",
+        0,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_wrap(
+        &pool, true, false,
+    )
+    .await;
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    assert!(sources.iter().all(|s| s.source != "wrap" && s.source != "unwrap"));
+    assert!(sources.iter().any(|s| s.source == "swap_amm" && s.event_count == 1));
+}
+
+#[serial]
+#[tokio::test]
+async fn wrap_window_decay_and_unpriced_null() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_0_id,
+        "20000",
+        Some("0.2"),
+        25,
+        "tx-wrap-old",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Unwrap,
+        seed.asset_0_id,
+        "5100",
+        None,
+        1,
+        "tx-unwrap-unpriced",
+        0,
+    )
+    .await;
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_wrap(
+        &pool, true, true,
+    )
+    .await;
+    let sources = fee_q::get_fees_by_source(&pool, "24h").await.unwrap();
+    let wrap = sources.iter().find(|s| s.source == "wrap").unwrap();
+    let unwrap = sources.iter().find(|s| s.source == "unwrap").unwrap();
+    assert_eq!(wrap.event_count, 0);
+    assert_eq!(unwrap.event_count, 1);
+    let rollup = fee_q::get_fee_rollup(&pool).await.unwrap();
+    assert_eq!(rollup.fee_event_count_24h, 1);
+    assert!(rollup.total_fees_24h_usd.is_none());
 }

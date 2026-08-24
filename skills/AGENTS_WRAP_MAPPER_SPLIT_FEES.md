@@ -41,7 +41,7 @@ Integer check: 10 000 @ 51 bps → 9 949 after fee; `floor(9949 × 0.015) = 
 | [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) / [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Provide auto-fill: **wrap** fee only |
 | [`check-ust1-wrap-ops-health.sh`](../scripts/check-ust1-wrap-ops-health.sh) | Display split fees; WARN if still single `fee_bps` |
 
-Indexer **#586** persists wrap/unwrap **treasury** `fee_amount` from the pinned `WRAP_MAPPER_ADDRESS` into `protocol_fee_events` (sources `wrap` / `unwrap`). That is ingest of on-chain fee amounts — **not** query-time `amount × bps`. Burn tax is still not a protocol fee ([#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)). Skill: [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **PFee-6**.
+Indexer **#586** / **#613** persists wrap/unwrap **treasury** `fee` (captured ustr-cmm; legacy `fee_amount`) from the pinned `WRAP_MAPPER_ADDRESS` into `protocol_fee_events` (sources `wrap` / `unwrap`). Wrap execute is mapper `notify_deposit`, not treasury `wrap_deposit`. That is ingest of on-chain fee amounts — **not** query-time `amount × bps`. Burn tax is still not a protocol fee ([#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)). Skills: [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **PFee-6**; [`AGENTS_INDEXER_WRAP_FEE_INGEST.md`](./AGENTS_INDEXER_WRAP_FEE_INGEST.md) (**I613-1–I613-8**).
 
 ## Related playbooks
 

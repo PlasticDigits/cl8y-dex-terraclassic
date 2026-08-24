@@ -5,10 +5,13 @@
 //! - **T592-1** — Inbound `Transfer`/`Send`/`TransferFrom`/`SendFrom` to pair, router,
 //!   this contract, AutoLP, or other protocol-exempt addresses credits **exactly**
 //!   `amount` (no inbound FoT). Pair/router wasm is unchanged (**H-01**).
-//! - **T592-2** — Sell tax is **extra-debit** on `Send` + pair `Cw20HookMsg::Swap` only.
-//!   Pair is credited `amount`; seller is debited `amount + tax`.
+//! - **T592-2** — Sell tax is **extra-debit** on `Send` + pair `Cw20HookMsg::Swap`.
+//!   Pair-direct: seller (`from`) is debited `amount + tax`. Official-router hop:
+//!   router is debited `amount`, authenticated `Swap.trader` is extra-debited `tax`.
+//!   Pair is credited `amount` (no inbound FoT).
 //! - **T592-3** — Buy tax is an **outbound split** when `from` is a registered listed
-//!   pair. Pair is debited `amount`; trader + sinks = `amount`.
+//!   pair **or** the official router (router→user). Debit `amount`; trader + sinks =
+//!   `amount`. Pair→router stays 1:1 (**T592-1**).
 //! - **T592-4** — SKU unlock and settings batch each cost exactly **50 UST1**, forwarded
 //!   to CMM treasury. Wrong token / wrong amount / no-op / unactivated SKU → revert,
 //!   fee not kept. EnableFeature is never mixed into a settings batch.
@@ -19,9 +22,15 @@
 //! - **T592-6** — MintControl is instantiate-only; `RevokeMint` is one-way.
 //! - **T592-7** — Classification: see `tax.rs`. Provide (`TransferFrom`) and limit
 //!   `PlaceLimitOrder*` stay 1:1. Pair→EOA `Transfer` (swap receive / withdraw /
-//!   limit refund) uses buy tax — same primitive, documented. Manager-directory
-//!   wallets skip **buy, sell, and transfer** tax (**#609** / **E609-1**); launch
-//!   guards still use the economic kind (**T592-11**).
+//!   limit refund) uses buy tax — same primitive, documented. Official router hops
+//!   tax the original trader (**T592-13** / #607 improved option 2). Manager-directory
+//!   wallets (including hop `trader`) skip **buy, sell, and transfer** tax
+//!   (**#609** / **E609-1**); launch guards still use the economic kind (**T592-11**).
+//! - **T592-13** — Router hops charge buy/sell. Sell: extra-debit authenticated
+//!   `Swap.trader` when `from` is `config.router` (router wasm already sets this;
+//!   pair-direct ignores spoofed `trader`). Buy: outbound split on official
+//!   router→non-exempt. Missing trader fail-closes (`RouterTraderRequired`).
+//!   Pair/router swap math unchanged (**H-01**).
 //! - **T592-8** — No reflection, rebase, pause, or blacklist manager APIs.
 //! - **T592-9** — Protocol exemptions cannot be removed. `RegisterListedPair` requires
 //!   factory `Pair` lookup. Manager directory is a full tax skip for those three

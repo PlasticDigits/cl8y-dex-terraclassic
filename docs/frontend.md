@@ -687,18 +687,18 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
 | **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |
 | **C593-8** Template | Manage requires `code_id == 11611` (env). |
-| **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax **on pair-direct execute only** (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
+| **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax on **pair-direct and router-hop** sells (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |
 | **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 **11614**. |
 | **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
-| **C593-14** Pair-direct tax copy | Create/Manage: buy/sell is pair-direct only. Swap/Trade: `Sell tax extra` vs `Route skips buy/sell tax`. [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) / [`AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). |
+| **C593-14** Listed-pair tax copy | Create/Manage: buy/sell applies on every listed-pair swap. Swap/Trade: `Sell tax extra` / `Buy tax applies`. [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) / [`AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). |
 | **C604-1** Identity | Name/symbol `^[A-Za-z0-9]+$`, name 3–50, symbol 3–12 (submitted uppercase; name case preserved). Decimals integer **6–18**. Shared parsers in `communityTaxIdentity.ts` used by the page **and** hook builders. |
 | **C604-2** Wallet helpers | Treasury/manager autofill the **connected** wallet when empty; never clobber a typed address; never `?manager=` / `?treasury=`. Helper copy is exactly `connected wallet` / `not connected wallet` (bech32-normalized). |
 | **C604-3** Columbus-5 gap | Listed token **11611** does **not** gain instantiate identity checks until launcher `token_code_id` rotates after #589 GO + `AddWhitelistedCodeId`. Keep 11611 listed (**F6**). Frontend ships as a client gate first. |
 | **C605-1** Percent taxes | Retail fields are **percent, 2 dp** (`2.50` → 250 bps). Never show “bps” on Create/Manage inputs. Combined cap still 25.00%. |
 | **C605-2** SKU init | Selecting a SKU shows its init fields; unchecking drops those fields from the hook. Free create (0 SKU) still cannot include paid payloads (**C593-12**). |
-| **C605-3** AutoLP create | Auto liquidity at create instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → create blocked for that SKU (no 50 UST1 no-op). `SkimToLp` stays permissionless and is never called from `Transfer`/`Send` (**T592-10**). |
+| **C605-3** AutoLP create | Auto liquidity at create instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → create blocked for that SKU (no 50 UST1 no-op). `SkimToLp` stays permissionless and is never called from `Transfer`/`Send` (**T592-10**). Pair must be this token’s factory-listed CL8Y pool; skim has a spread floor (**M610**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610)). |
 | **C605-4** VariableRates gate | Without `variable_rates`, instantiate `max_*` must equal the current rate (no CLI headroom). Settings `buy_bps` / `sell_bps` require the SKU (`SkuNotUnlocked`). Not a no-op (audit M-1). Caps stay immutable after create. |
 
 ### Max amount / gas reserve {#max-amount-gas-reserve}
@@ -815,7 +815,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | Invariant | Meaning |
 |-----------|---------|
 | **P550-1 Order** | Stats → **fees** (`protocol-fee-stats`, #586) → **DEX hub card** (#556 / #570) → CEX oracle. Do not merge factory/router into stats or fees. Do not clone `AddressRow` onto Swap confirmation. Do not add USTR as a fourth CEX tab. |
-| **PFee-1–PFee-12 Fees** | Trailing 24h/7d/30d treasury USD + flow Δ%. Source + token tables from `GET /api/v1/protocol/fees`. Idle `$0`; unpriced `—`; never `Infinity`. Not `traders.total_fees_paid`. Testids: `protocol-fee-stats`, `protocol-stat-fees-24h` / `7d` / `30d` + `-chg`, `protocol-fees-by-source`, `protocol-fees-by-token`. |
+| **PFee-1–PFee-12 Fees** | Trailing 24h/7d/30d treasury USD + flow Δ%. Source + token tables from `GET /api/v1/protocol/fees`. Idle `$0`; unpriced `—`; never `Infinity`. Not `traders.total_fees_paid`. Wrap/Unwrap rows appear when ingest sees mapper `notify_deposit` / `unwrap` `fee` ([GitLab #613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)). Testids: `protocol-fee-stats`, `protocol-stat-fees-24h` / `7d` / `30d` + `-chg`, `protocol-fees-by-source`, `protocol-fees-by-token`. |
 | **P550-2 Tickers** | Tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3 One card** | Snapshot, sources, and history share one `shell-panel`. Query keys include ticker. |
 | **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |

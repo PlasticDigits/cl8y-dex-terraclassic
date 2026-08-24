@@ -66,6 +66,11 @@ pub enum ContractError {
     #[error("Insufficient balance for extra-debit sell tax")]
     InsufficientForSellTax {},
 
+    /// Official router `Send+Swap` must carry an authenticated non-exempt `trader`
+    /// (#607 improved option 2). Missing / protocol-exempt / self trader is fail-closed.
+    #[error("Official router hop requires a trusted non-exempt trader")]
+    RouterTraderRequired {},
+
     #[error("Trading is not enabled")]
     TradingDisabled {},
 

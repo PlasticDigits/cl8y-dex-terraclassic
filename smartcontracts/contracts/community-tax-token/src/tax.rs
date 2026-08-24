@@ -70,22 +70,83 @@ pub fn is_swap_send_hook(msg: &Binary) -> bool {
     )
 }
 
+pub fn is_official_router(config: &Config, addr: &Addr) -> bool {
+    config.router.as_ref() == Some(addr)
+}
+
+/// `trader` on `Cw20HookMsg::Swap` — the official router already sets this to the
+/// user who invoked `execute_swap_operations` (fee-discount path). Not trusted
+/// until `from` is [`is_official_router`].
+pub fn swap_hook_trader(msg: &Binary) -> Option<String> {
+    match cosmwasm_std::from_json::<Cw20HookMsg>(msg) {
+        Ok(Cw20HookMsg::Swap { trader, .. }) => trader,
+        _ => None,
+    }
+}
+
+/// Official-router `Send+Swap` to a listed pair (**T592-13** / #607 improved option 2).
+pub fn is_router_sell_hop(
+    storage: &dyn Storage,
+    config: &Config,
+    from: &Addr,
+    to: &Addr,
+    send_msg: Option<&Binary>,
+) -> bool {
+    is_listed_pair(storage, to)
+        && send_msg.is_some_and(is_swap_send_hook)
+        && is_official_router(config, from)
+}
+
+/// Authenticated hop trader: honor `Swap.trader` only when `from` is the stamped
+/// official router. Pair-direct ignores the field (extra-debit `from`). Protocol-exempt
+/// or missing trader is `None` here; execute fail-closes with [`ContractError::RouterTraderRequired`].
+pub fn hop_trader_addr(
+    storage: &dyn Storage,
+    self_addr: &Addr,
+    config: &Config,
+    from: &Addr,
+    to: &Addr,
+    send_msg: Option<&Binary>,
+) -> Option<Addr> {
+    if !is_router_sell_hop(storage, config, from, to, send_msg) {
+        return None;
+    }
+    let raw = send_msg.and_then(swap_hook_trader)?;
+    let trader = Addr::unchecked(raw);
+    if trader == *from || is_protocol_exempt(storage, self_addr, &trader) {
+        return None;
+    }
+    Some(trader)
+}
+
+fn require_hop_trader(
+    storage: &dyn Storage,
+    self_addr: &Addr,
+    config: &Config,
+    from: &Addr,
+    to: &Addr,
+    send_msg: Option<&Binary>,
+) -> Result<Addr, ContractError> {
+    hop_trader_addr(storage, self_addr, config, from, to, send_msg)
+        .ok_or(ContractError::RouterTraderRequired {})
+}
+
 /// Economic kind **before** the manager-directory tax skip (**T592-7**, **#609**) + **T592-13**.
 ///
 /// Launch guards (`trading_enabled`, cooldown, `max_wallet`) use this so exemption
 /// is tax-only and does not disable **T592-11**.
 ///
 /// - **Sell** — `Send` to a registered listed pair whose hook is `Cw20HookMsg::Swap`
-///   **and** `from` is not protocol-exempt. Extra-debit: pair is credited exactly
-///   `amount` (inbound 1:1 / **P2**).
-/// - **Buy** — `Transfer`/`Send` **from** a registered listed pair to a non-protocol-exempt
-///   recipient. Pair is debited exactly `amount`. Pair→EOA `Transfer` is also how withdraw
-///   and limit refunds are paid; those paths therefore take buy tax (same primitive).
-///   Provide (`TransferFrom`) and limit `PlaceLimitOrder*` `Send` stay 1:1.
+///   **and** (`from` is not protocol-exempt **or** `from` is the official router).
+///   Pair-direct extra-debits `from`. Router hop extra-debits the authenticated
+///   `Swap.trader` (official router already passes the user; **H-01** / no FoT).
+///   Pair is credited exactly `amount` (inbound 1:1 / **T592-1**).
+/// - **Buy** — `Transfer`/`Send` **from** a registered listed pair **or** the official
+///   router to a non-protocol-exempt recipient. Debit `amount`; trader + sinks = `amount`.
+///   Pair→router stays 1:1. Pair→EOA `Transfer` is also withdraw / limit refund (same
+///   primitive). Provide (`TransferFrom`) and limit `PlaceLimitOrder*` `Send` stay 1:1.
 /// - **Transfer** — TransferTax SKU, neither side protocol- or manager-exempt.
-/// - **Honest** — everything else, including **router hops** (protocol-exempt `from`/`to`:
-///   official multi-hop, hybrid-on-router, 1-op `execute_swap_operations`, invoice wrap-routes).
-///   Pair-direct EOA `Send+Swap` still sells. Do not un-exempt the router without a new issue.
+/// - **Honest** — everything else. Do not un-exempt the router (option 3 bricks hops).
 pub fn classify_trade(
     storage: &dyn Storage,
     self_addr: &Addr,
@@ -100,7 +161,10 @@ pub fn classify_trade(
 
     if to_pair {
         if let Some(msg) = send_msg {
-            if is_swap_send_hook(msg) && !is_protocol_exempt(storage, self_addr, from) {
+            if is_swap_send_hook(msg)
+                && (!is_protocol_exempt(storage, self_addr, from)
+                    || is_official_router(config, from))
+            {
                 return (TaxKind::Sell, config.sell_bps);
             }
         }
@@ -108,6 +172,11 @@ pub fn classify_trade(
     }
 
     if from_pair && !is_protocol_exempt(storage, self_addr, to) {
+        return (TaxKind::Buy, config.buy_bps);
+    }
+
+    // Router → user (swap output / leftover return). Pair→router stayed 1:1 (**T592-1**).
+    if is_official_router(config, from) && !is_protocol_exempt(storage, self_addr, to) {
         return (TaxKind::Buy, config.buy_bps);
     }
 
@@ -123,6 +192,7 @@ pub fn classify_trade(
 }
 
 /// Tax kind after **#609** manager-directory skip (Buy / Sell / Transfer → Honest).
+/// Router-hop sell also skips when the authenticated `trader` is directory-exempt.
 pub fn classify(
     storage: &dyn Storage,
     self_addr: &Addr,
@@ -133,18 +203,21 @@ pub fn classify(
     config: &Config,
 ) -> (TaxKind, u16) {
     let (kind, bps) = classify_trade(storage, self_addr, from, to, send_msg, features, config);
-    apply_manager_directory_tax_skip(storage, from, to, kind, bps)
+    let hop = hop_trader_addr(storage, self_addr, config, from, to, send_msg);
+    apply_manager_directory_tax_skip(storage, from, to, hop.as_ref(), kind, bps)
 }
 
 fn apply_manager_directory_tax_skip(
     storage: &dyn Storage,
     from: &Addr,
     to: &Addr,
+    hop_trader: Option<&Addr>,
     kind: TaxKind,
     bps: u16,
 ) -> (TaxKind, u16) {
     if matches!(kind, TaxKind::Sell | TaxKind::Buy | TaxKind::Transfer)
-        && is_manager_directory_tax_skip(storage, from, to)
+        && (is_manager_directory_tax_skip(storage, from, to)
+            || hop_trader.is_some_and(|t| is_manager_exempt(storage, t)))
     {
         return (TaxKind::Honest, 0);
     }
@@ -170,8 +243,11 @@ pub fn preview(
         &features,
         &config,
     );
+    let hop = hop_trader_addr(deps.storage, self_addr, &config, from, to, send_msg);
     let tax = tax_amount(amount, bps);
+    let router_sell = matches!(kind, TaxKind::Sell) && is_official_router(&config, from);
     let (debit, credit) = match kind {
+        TaxKind::Sell if router_sell => (amount, amount),
         TaxKind::Sell => (amount.checked_add(tax)?, amount),
         TaxKind::Buy | TaxKind::Transfer => (amount, amount.checked_sub(tax)?),
         TaxKind::Honest => (amount, amount),
@@ -182,6 +258,12 @@ pub fn preview(
         debit,
         credit,
         tax,
+        hop_trader: hop.clone(),
+        hop_trader_debit: if router_sell && !tax.is_zero() {
+            Some(tax)
+        } else {
+            None
+        },
     })
 }
 
@@ -193,6 +275,7 @@ fn apply_launch_guards(
     self_addr: &Addr,
     from: &Addr,
     to: &Addr,
+    hop_trader: Option<&Addr>,
     kind: &TaxKind,
     credit_to: Uint128,
     to_new_balance: Uint128,
@@ -212,6 +295,10 @@ fn apply_launch_guards(
             // withdraw/cancel/claim here (#608 out of scope).
             check_cooldown(storage, &guards, env, self_addr, from)?;
             check_cooldown(storage, &guards, env, self_addr, to)?;
+            // Router sell: from=router and to=pair are not cooldown subjects — check trader.
+            if let Some(trader) = hop_trader {
+                check_cooldown(storage, &guards, env, self_addr, trader)?;
+            }
         }
         _ => {}
     }
@@ -251,6 +338,7 @@ fn check_cooldown(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn record_trade_blocks(
     storage: &mut dyn Storage,
     features: &Features,
@@ -259,6 +347,7 @@ fn record_trade_blocks(
     self_addr: &Addr,
     from: &Addr,
     to: &Addr,
+    hop_trader: Option<&Addr>,
 ) -> Result<(), ContractError> {
     if !features.launch_guards {
         return Ok(());
@@ -271,6 +360,11 @@ fn record_trade_blocks(
     }
     if is_cooldown_subject(storage, self_addr, to) {
         LAST_TRADE_BLOCK.save(storage, to, &env.block.height)?;
+    }
+    if let Some(trader) = hop_trader {
+        if is_cooldown_subject(storage, self_addr, trader) {
+            LAST_TRADE_BLOCK.save(storage, trader, &env.block.height)?;
+        }
     }
     Ok(())
 }
@@ -378,10 +472,30 @@ pub fn apply_transfer(
         &features,
         &config,
     );
-    let (kind, bps) =
-        apply_manager_directory_tax_skip(deps.storage, from, to, trade_kind.clone(), trade_bps);
+    let hop = if is_router_sell_hop(deps.storage, &config, from, to, send_msg) {
+        Some(require_hop_trader(
+            deps.storage,
+            self_addr,
+            &config,
+            from,
+            to,
+            send_msg,
+        )?)
+    } else {
+        None
+    };
+    let (kind, bps) = apply_manager_directory_tax_skip(
+        deps.storage,
+        from,
+        to,
+        hop.as_ref(),
+        trade_kind.clone(),
+        trade_bps,
+    );
     let tax = tax_amount(amount, bps);
+    let router_sell = matches!(kind, TaxKind::Sell) && hop.is_some();
     let (debit, credit) = match kind {
+        TaxKind::Sell if router_sell => (amount, amount),
         TaxKind::Sell => {
             let debit = amount.checked_add(tax)?;
             (debit, amount)
@@ -407,6 +521,7 @@ pub fn apply_transfer(
         self_addr,
         from,
         to,
+        hop.as_ref(),
         &trade_kind,
         credit,
         to_bal_after,
@@ -414,6 +529,11 @@ pub fn apply_transfer(
 
     BALANCES.save(deps.storage, from, &from_bal_after)?;
     add_balance(deps.storage, to, credit)?;
+    if router_sell {
+        if let Some(trader) = &hop {
+            sub_balance(deps.storage, trader, tax)?;
+        }
+    }
 
     let sinks = sink_credits(deps.storage, &features, &config, tax)?;
     let mut info = TOKEN_INFO.load(deps.storage)?;
@@ -438,6 +558,7 @@ pub fn apply_transfer(
         self_addr,
         from,
         to,
+        hop.as_ref(),
     )?;
 
     let mut resp = Response::new()
@@ -449,6 +570,12 @@ pub fn apply_transfer(
         .add_attribute("debit", debit)
         .add_attribute("tax", tax)
         .add_attribute("tax_kind", format!("{kind:?}").to_lowercase());
+    if let Some(trader) = &hop {
+        resp = resp.add_attribute("hop_trader", trader);
+        if router_sell && !tax.is_zero() {
+            resp = resp.add_attribute("hop_trader_debit", tax);
+        }
+    }
     for (addr, share, is_burn) in &sinks {
         if *is_burn {
             resp = resp
