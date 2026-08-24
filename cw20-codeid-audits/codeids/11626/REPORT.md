@@ -10,7 +10,7 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 ## Verdict
 
-**GO** for factory `AddWhitelistedCodeId 11626` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). This pin adds **#626 foreign adopt** (`AdoptMigrateMsg` / `GetMigrateOrigin` / leftover `tax_map` wipe). Columbus-5 **stored 2026-08-24** (height **30091582**). **Not listed yet** — keep **11619** listed until Refresh. Do **not** treat 11619 as the retail adopt target. Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** / **11620** / **11622** or AutoLP **11613** / **11621** (not pair-asset CW20s). Do **not** append columbus-5 code **3**.
+**GO** for factory `AddWhitelistedCodeId 11626` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). This pin adds **#626 foreign adopt** (`AdoptMigrateMsg` / `GetMigrateOrigin` / leftover `tax_map` wipe). Columbus-5 **stored 2026-08-24** (height **30091582**) and **listed 2026-08-24** (height **30091644**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184, 11619, 11626]`**). Keep **11619** listed until Refresh. Live `IsCodeIdWhitelisted 11611` is **false** (0 instances; not this add). Do **not** treat 11619 as the retail adopt target. Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** / **11620** / **11622** or AutoLP **11613** / **11621** (not pair-asset CW20s). Do **not** append columbus-5 code **3**.
 
 - [x] GO — LCD pin matches; decomp + fingerprint; crate multitest covers T592 / option-2 / #608 / #609 / #626 adopt; harness known-bad stays red; A-lcd/B-lt executed; catalogue filled
 - [ ] NO-GO — inbound FoT / 8654 class / missing pin
@@ -34,7 +34,7 @@ Re-run: `CODE_ID=11626 LAYER_B_LT=1 make verify-issue-589` · `make verify-issue
 | Approximate instantiate count | **0** tokens (2026-08-24). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**; `token_code_id` still **11619** until `UpdateConfig`) |
 | Wasm size | 579806 bytes |
 | Store tx | [`95D5D44C07AB2284DD377684265C7E2BE573D05D52612FF2B8388B0896F97E01`](https://finder.terraclassic.community/columbus-5/tx/95D5D44C07AB2284DD377684265C7E2BE573D05D52612FF2B8388B0896F97E01) height **30091582** |
-| Whitelist tx | **not yet** (this REPORT is the #589 gate) |
+| Whitelist tx | [`03F74C9BEFF145732E1A358E06F785DBC499D8529096BF599191E5967896DC91`](https://finder.terraclassic.community/columbus-5/tx/03F74C9BEFF145732E1A358E06F785DBC499D8529096BF599191E5967896DC91) height **30091644** (DEX 2-of-3) |
 | `meta.json` | [`meta.json`](meta.json) |
 
 Sister stores (not listable as pair assets): canonical launcher instance `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` is code **11622**. Unused first launcher **11612** at `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. AutoLP launcher pin **11621**. Listed Honest pin remains [`../11611/REPORT.md`](../11611/REPORT.md). Listed rotate pin remains [`../11619/REPORT.md`](../11619/REPORT.md) until Refresh.
@@ -235,7 +235,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 
 Approving **11626** admits **every** instantiate of this wasm, including rogue `--admin` and non-launcher creates. That is accepted for the template: dApp (#593) and indexer (#594) **must** filter `ContractInfo.admin == CMM` and (`GetLauncherOrigin` **or** allowlisted `GetMigrateOrigin`). Pair-create fee remains **100 LUNC**. Keep **11619** listed until CMM migrate + factory Refresh so any remaining 11619 pair pins stay writable.
 
-Launcher `GetConfig.token_code_id` is still **11619** until DEX 2-of-3 `UpdateConfig`. Retail `/token/migrate` cannot `execute_adopt` until this id is listed **and** Coolify `VITE_COMMUNITY_TAX_CODE_ID=11626`.
+Launcher `GetConfig.token_code_id` is still **11619** until DEX 2-of-3 `UpdateConfig`. Retail `/token/migrate` can target 11626 once Coolify `VITE_COMMUNITY_TAX_CODE_ID=11626`. Create Token still instantiates **11619** until that `UpdateConfig`.
 
 ## Instance admin / migrate residual (F6)
 
@@ -251,10 +251,12 @@ Launcher stamps CosmWasm admin = `cmm_governance` (CMM `terra16j5u6ey7a84g40sr3g
 - In-repo crate: `smartcontracts/contracts/community-tax-token` (workspace 1.0.0, `adopt.rs`). Optimizer artifact hash matched LCD; **not** a required rebuild proof.
 - Policy: [`docs/runbooks/cw20-whitelist-policy.md`](../../../docs/runbooks/cw20-whitelist-policy.md) named exception.
 - Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../../../skills/AGENTS_COMMUNITY_TAX_CW20.md) **T592-1–T592-13**; migrate [`skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../../../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M626**.
-- After GO, ops leftover is DEX 2-of-3 list + Coolify:
+- After GO, list is **done** (2026-08-24). Leftover is launcher `UpdateConfig` + Coolify:
 
 ```bash
-# after UPGRADE611_589_GO=1 AddWhitelistedCodeId 11626:
+# listed 11626; launcher GetConfig still token=11619 autolp=11621
+# UPGRADE611_UPDATE_CONFIG=1 … (DEX 2-of-3)
+# Coolify:
 #   VITE_COMMUNITY_TAX_CODE_ID=11626
 #   COMMUNITY_TAX_CODE_ID=11626
 #   COMMUNITY_TAX_OPTION2_CODE_IDS=11626

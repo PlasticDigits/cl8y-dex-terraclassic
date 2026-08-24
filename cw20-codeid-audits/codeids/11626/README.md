@@ -1,6 +1,6 @@
 # 11626 (`cl8y-community-tax-token` adopt pin)
 
-Named T592 exception for the #589 harness ([#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)). Post-#626 foreign `adopt.rs` pin. **GO** 2026-08-24; **not factory-listed yet** — keep **11619** listed until Refresh.
+Named T592 exception for the #589 harness ([#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)). Post-#626 foreign `adopt.rs` pin. **GO** 2026-08-24; factory-listed 2026-08-24. Keep **11619** listed until Refresh.
 
 - Pin: [`wasm.sha256`](wasm.sha256) = LCD `data_hash` `A7244C93…D9DA1C`
 - Report: [`REPORT.md`](REPORT.md)

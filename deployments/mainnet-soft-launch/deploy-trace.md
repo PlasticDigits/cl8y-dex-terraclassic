@@ -300,3 +300,17 @@ Do **not** whitelist **11620** / **11621** / **11622** / unused **11612** / ALPH
 
 Coolify leftover: flip `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` to **11619** (catalog is single-id) and set `COMMUNITY_TAX_OPTION2_CODE_IDS=11619`. Do not factory-list **11622**.
 
+### Community tax adopt pin (#628, columbus-5, 2026-08-24)
+
+Script: [`scripts/upgrade-611-community-tax.sh`](../../scripts/upgrade-611-community-tax.sh) with `UPGRADE611_SKIP_STORE=1` / `UPGRADE611_TOKEN_CODE_ID=11626`. Uploader `cl8ydeploy`. Instantiate permission **Everybody**.
+
+| Field | Value |
+|-------|--------|
+| Token (stored + listed 2026-08-24) | **11626** · pin `A7244C93D8490CFD1063DC7B45C3F09E38E947008A0C6069A93E6191C2D9DA1C` · store [`95D5D44C…7E01`](https://finder.terraclassic.community/columbus-5/tx/95D5D44C07AB2284DD377684265C7E2BE573D05D52612FF2B8388B0896F97E01) height **30091582** |
+| **`AddWhitelistedCodeId 11626`** | [`03F74C9B…DC91`](https://finder.terraclassic.community/columbus-5/tx/03F74C9BEFF145732E1A358E06F785DBC499D8529096BF599191E5967896DC91) height **30091644** (DEX 2-of-3) |
+| **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184, 11619, 11626]`** — `IsCodeIdWhitelisted 11611` is **false** (0 instances; not this add) |
+| **`GetConfig`** | still `token_code_id` **11619** / `autolp_code_id` **11621** — `UpdateConfig` **not** run |
+| **11611 / 11619 / 11626 instances** | **0** — no CMM migrate / no Refresh |
+
+Do **not** whitelist **11621** / **11622** / unused **11612** / ALPHA **8654** / code **3**. Keep **11619** listed until Refresh. Retail adopt + Create Token stay on 11619 until launcher `UpdateConfig` + Coolify `VITE_COMMUNITY_TAX_CODE_ID=11626`. REPORT: [`cw20-codeid-audits/codeids/11626/REPORT.md`](../../cw20-codeid-audits/codeids/11626/REPORT.md).
+

@@ -62,14 +62,15 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 
 | Role | Address / id | Coolify / env key |
 |------|--------------|-------------------|
-| Token template (factory-listed, legacy Honest pin) | code **11611** · pin `9D33BF25…210EC2` | keep listed (F6); do not Remove until Refresh |
-| Token rotate (listed + launcher pin) | code **11619** · pin `63CB21D1…BAFA20` | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_OPTION2_CODE_IDS` |
+| Token template (legacy Honest pin) | code **11611** · pin `9D33BF25…210EC2` | **not** listed (2026-08-24 LCD); 0 instances |
+| Token rotate (listed; launcher pin until UpdateConfig) | code **11619** · pin `63CB21D1…BAFA20` | keep listed until Refresh |
+| Token adopt pin (listed 2026-08-24) | code **11626** · pin `A7244C93…D9DA1C` | Coolify after `UpdateConfig`: `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_OPTION2_CODE_IDS` |
 | Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**, was 11620 / 11614; wasm admin DEX 2-of-3) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
 | AutoLP template (superseded pin) | code **11613** | not factory-whitelisted; launcher no longer instantiates this |
 | AutoLP rotate (launcher pin, not listed) | code **11621** · pin `DAD413A3…8B76F1` | do not whitelist |
 | CMM wasm admin / attested `cmm_governance` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | `CMM_GOVERNANCE_ADDR` (indexer); dApp admin-banner compare |
 
-Factory whitelist: **`[6036, 8266, 10184, 11611, 11619]`**. Launcher is **11622**; `GetConfig` is `token_code_id` **11619** / `autolp_code_id` **11621**. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). Listed REPORTs: [`../../cw20-codeid-audits/codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md), [`../../cw20-codeid-audits/codeids/11619/REPORT.md`](../../cw20-codeid-audits/codeids/11619/REPORT.md). Coolify should bake **11619** (catalog is single-id).
+Factory whitelist: **`[6036, 8266, 10184, 11619, 11626]`** (11626 listed 2026-08-24; `IsCodeIdWhitelisted 11611` is **false**). Launcher is **11622**; `GetConfig` is still `token_code_id` **11619** / `autolp_code_id` **11621** until `UpdateConfig`. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). Listed REPORTs: [`../../cw20-codeid-audits/codeids/11619/REPORT.md`](../../cw20-codeid-audits/codeids/11619/REPORT.md), [`../../cw20-codeid-audits/codeids/11626/REPORT.md`](../../cw20-codeid-audits/codeids/11626/REPORT.md). Coolify should bake **11626** after launcher `UpdateConfig` (catalog is single-id).
 
 ---
 
