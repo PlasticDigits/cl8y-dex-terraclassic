@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyExtraDebitSellCap,
+  BUY_TAX_HINT,
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
-  COMMUNITY_TAX_PAIR_DIRECT_COPY,
+  COMMUNITY_TAX_SCOPE_COPY,
   effectiveExtraDebitSellBps,
   extraDebitSellBpsForExecute,
   extraDebitSellHuman,
   maxDeclaredForExtraDebitSell,
-  ROUTER_TAX_SKIP_HINT,
   SELL_TAX_EXTRA_HINT,
 } from './taxPreviewMaxSpend'
 
@@ -46,15 +46,15 @@ describe('taxPreviewMaxSpend (#593 extra-debit sell)', () => {
     expect(applyExtraDebitSellCap(10_000_000n, effectiveExtraDebitSellBps(500, true))).toBe(10_000_000n)
   })
 
-  it('router hops are Honest: skip extra-debit Max and disclose (#607)', () => {
+  it('router hops extra-debit the trader and disclose tax (#607 option 2)', () => {
     expect(communityTaxExecuteUsesRouter(1)).toBe(false)
     expect(communityTaxExecuteUsesRouter(2)).toBe(true)
     expect(communityTaxExecuteUsesRouter(1, true)).toBe(true)
     expect(extraDebitSellBpsForExecute(500, false)).toBe(500)
-    expect(extraDebitSellBpsForExecute(500, true)).toBeNull()
+    expect(extraDebitSellBpsForExecute(500, true)).toBe(500)
     expect(communityTaxRouteHint({ payIsTax: true, usesRouter: false, sellBps: 500 })).toBe(SELL_TAX_EXTRA_HINT)
-    expect(communityTaxRouteHint({ payIsTax: true, usesRouter: true, sellBps: 500 })).toBe(ROUTER_TAX_SKIP_HINT)
-    expect(communityTaxRouteHint({ payIsTax: false, receiveIsTax: true, usesRouter: true })).toBe(ROUTER_TAX_SKIP_HINT)
-    expect(COMMUNITY_TAX_PAIR_DIRECT_COPY).toBe('Buy/sell tax is pair-direct only.')
+    expect(communityTaxRouteHint({ payIsTax: true, usesRouter: true, sellBps: 500 })).toBe(SELL_TAX_EXTRA_HINT)
+    expect(communityTaxRouteHint({ payIsTax: false, receiveIsTax: true, usesRouter: true })).toBe(BUY_TAX_HINT)
+    expect(COMMUNITY_TAX_SCOPE_COPY).toBe('Buy/sell tax applies on every listed-pair swap.')
   })
 })

@@ -27,6 +27,8 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md), full guide: [route-solver.md](../docs/route-solver.md)).
 
+**Community tax net ranking (GitLab #615):** winner is max **`estimated_amount_out_net`** (catalog buy split when `token_out` is a tax token). `estimated_amount_out` stays pre-tax hop/router sim (**H-01**). Option-2 wasm: paths that **sell** a catalogued tax token as a **middle** hop are skipped. Unmigrated **11611** hops stay Honest (no skip). Cache key includes tax identity. Playbook: [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
+
 ## Terraport-compatible swap events
 
 Hybrid swaps emit baseline Terraport attrs plus CL8Y extensions. Mapping table: [docs/integrators.md](../docs/integrators.md#vyntrex--terraport-hybrid-event-mapping-gitlab-189).

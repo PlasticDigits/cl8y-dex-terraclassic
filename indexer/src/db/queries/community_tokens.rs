@@ -140,7 +140,11 @@ pub async fn apply_lcd_snapshot(
     Ok(())
 }
 
-pub async fn merge_feature(pool: &PgPool, contract_address: &str, sku: &str) -> Result<(), sqlx::Error> {
+pub async fn merge_feature(
+    pool: &PgPool,
+    contract_address: &str,
+    sku: &str,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         UPDATE community_tokens
@@ -237,6 +241,26 @@ pub async fn get_by_address(
     )
     .bind(addr)
     .fetch_optional(pool)
+    .await
+}
+
+/// Batch catalog lookup for route/solve tax ranking (GitLab #615). Empty `addrs` → empty vec.
+pub async fn get_by_addresses(
+    pool: &PgPool,
+    addrs: &[String],
+) -> Result<Vec<CommunityTokenRow>, sqlx::Error> {
+    if addrs.is_empty() {
+        return Ok(vec![]);
+    }
+    let lowered: Vec<String> = addrs
+        .iter()
+        .map(|a| a.trim().to_ascii_lowercase())
+        .collect();
+    sqlx::query_as::<_, CommunityTokenRow>(
+        "SELECT * FROM community_tokens WHERE lower(contract_address) = ANY($1)",
+    )
+    .bind(&lowered)
+    .fetch_all(pool)
     .await
 }
 

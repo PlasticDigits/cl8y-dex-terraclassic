@@ -143,4 +143,14 @@ describe('buildSubmitAlignedSimPayload', () => {
     expect(payload.simData).toBe(simData)
     expect(payload.indexerOperations).toBe(simData.indexerOperations)
   })
+
+  it('uses executeAmountOut for min_return when You Receive is post-buy-split (#615)', () => {
+    const simData = {
+      return_amount: '980100',
+      executeAmountOut: '990000',
+      indexerOperations: [{ terra_swap: {} }],
+    }
+    const payload = buildSubmitAlignedSimPayload('1000000', simData, 1, (amount, pct) => `${amount}-floor-${pct}`)
+    expect(payload.minReceived).toBe('990000-floor-1')
+  })
 })

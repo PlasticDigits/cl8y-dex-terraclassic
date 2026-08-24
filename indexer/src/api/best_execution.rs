@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::api::AppState;
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
 use crate::api::hybrid_route_opt::{
     self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta,
@@ -12,10 +13,9 @@ use crate::api::route_graph::{self, RouteGraphSnapshot};
 use crate::api::route_paths;
 use crate::api::route_solve_progress;
 use crate::api::route_solver::{
+    FidelityCheck, GET_DEFAULT_MAX_HOPS, RouteHop, RouteQuoteKind, RouteSolveResponse,
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
-    FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, GET_DEFAULT_MAX_HOPS,
 };
-use crate::api::AppState;
 use axum::http::StatusCode;
 use sqlx::PgPool;
 
@@ -32,8 +32,10 @@ pub const MAX_PATH_CANDIDATES: usize = 5;
 pub const SOLVE_CONCURRENCY: usize = MAX_PATH_CANDIDATES;
 
 /// Documented optimality scope for clients.
-pub const OPTIMALITY_SCOPE: &str =
-    "optimal within top-5 simple paths by hop count and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops";
+pub const OPTIMALITY_SCOPE: &str = "optimal within top-5 simple paths by hop count and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops";
+
+/// Additive #615 note: rank is catalog net; hop sims unchanged.
+pub const TAX_RANK_NOTE: &str = "Ranking is net of catalog buy/sell policy for this snapshot (GitLab #615); hop LCD/DB sims unchanged";
 
 /// Upper bound on pair-level hybrid simulations per request (worst-case estimate for docs/tests).
 /// Post-#319 each hop is priced from the DB orderbook mirror, not live LCD; this constant
@@ -98,6 +100,7 @@ pub fn hybrid_notes_for_global(meta: &BestExecutionMeta, solver_version: &str) -
          Evaluated {} path(s); {} db-hybrid + {} lcd-hybrid grid evals. \
          {pricing}. \
          Final output validated via router simulate_swap_operations when configured (fidelity_check={}). \
+         {TAX_RANK_NOTE}. \
          Execution on-chain may differ from mirror/LCD snapshots.{truncation}",
         meta.paths_considered,
         meta.db_hybrid_queries,
@@ -251,6 +254,8 @@ struct CandidateEval {
     index: usize,
     body: RouteSolveResponse,
     out_u: u128,
+    /// Catalog net used for winner compare (#615). Equal to `out_u` when no buy tax.
+    net_u: u128,
     grid_out: u128,
     lcd_delta: u32,
     db_delta: u32,
@@ -261,8 +266,8 @@ struct CandidateEval {
     max_snapshot_age_ms: u64,
 }
 
-/// Merge per-candidate results: max `out_u` with first-seen (lowest index) tie-break; cumulative
-/// query counts through the winner index match the serial loop (#324).
+/// Merge per-candidate results: max `net_u` (catalog net, #615) with first-seen (lowest index)
+/// tie-break; cumulative query counts through the winner index match the serial loop (#324).
 fn merge_candidate_evaluations(
     evals: &[CandidateEval],
     paths_enumerated: usize,
@@ -276,7 +281,7 @@ fn merge_candidate_evaluations(
 
     let mut winner: Option<&CandidateEval> = None;
     for ev in &sorted {
-        let replace = winner.map(|w| ev.out_u > w.out_u).unwrap_or(true);
+        let replace = winner.map(|w| ev.net_u > w.net_u).unwrap_or(true);
         if replace {
             winner = Some(ev);
         }
@@ -308,12 +313,7 @@ fn merge_candidate_evaluations(
         search_truncated,
     };
 
-    Some((
-        winner.body.clone(),
-        winner.out_u,
-        winner.grid_out,
-        meta,
-    ))
+    Some((winner.body.clone(), winner.out_u, winner.grid_out, meta))
 }
 
 async fn evaluate_candidate(
@@ -359,36 +359,35 @@ async fn evaluate_candidate(
         None
     };
 
-    let (hybrid_plan, opt_meta, grid_out) =
-        match hybrid_route_opt::optimize_multihop_hybrid_joint(
-            &source,
-            mm,
-            &hops_desc,
-            amount_in,
-            max_maker_fills,
-            &quote_trader,
-        )
-        .await
-        {
-            Ok(v) => v,
-            Err(HybridSimError::PathUnusable) => {
-                tracing::debug!(
-                    path_index = index,
-                    hops = hops_desc.len(),
-                    "skipping path candidate: unusable pool liquidity on hop"
-                );
-                return Ok(None);
-            }
-            Err(HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)) => {
-                tracing::debug!(
-                    path_index = index,
-                    hops = hops_desc.len(),
-                    "skip path candidate: zero-reserve pool leg"
-                );
-                return Ok(None);
-            }
-            Err(e) => return Err(hybrid_sim_gateway_err(e)),
-        };
+    let (hybrid_plan, opt_meta, grid_out) = match hybrid_route_opt::optimize_multihop_hybrid_joint(
+        &source,
+        mm,
+        &hops_desc,
+        amount_in,
+        max_maker_fills,
+        &quote_trader,
+    )
+    .await
+    {
+        Ok(v) => v,
+        Err(HybridSimError::PathUnusable) => {
+            tracing::debug!(
+                path_index = index,
+                hops = hops_desc.len(),
+                "skipping path candidate: unusable pool liquidity on hop"
+            );
+            return Ok(None);
+        }
+        Err(HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)) => {
+            tracing::debug!(
+                path_index = index,
+                hops = hops_desc.len(),
+                "skip path candidate: zero-reserve pool leg"
+            );
+            return Ok(None);
+        }
+        Err(e) => return Err(hybrid_sim_gateway_err(e)),
+    };
 
     let lcd_delta = if db_mode {
         mirror_meta.lcd_fallback_queries
@@ -443,12 +442,19 @@ async fn evaluate_candidate(
         slippage_percent: None,
         token_in_price_quote: None,
         token_out_price_quote: None,
+        estimated_amount_out_net: None,
+        tax_kind: None,
+        buy_tax_bps: None,
+        sell_tax_bps: None,
+        tax_notes: None,
+        router_hops_tax: None,
     };
 
     Ok(Some(CandidateEval {
         index,
         body,
         out_u,
+        net_u: out_u,
         grid_out,
         lcd_delta,
         db_delta,
@@ -480,9 +486,11 @@ async fn preload_mirrors_with_progress(
 
     let mut mirrors = HashMap::new();
     if progress_key.is_some() {
-        use chrono::Utc;
-        use crate::api::db_orderbook_sim::{load_hop_mirror, DbSimError, HopMirror, MirrorFreshness};
+        use crate::api::db_orderbook_sim::{
+            DbSimError, HopMirror, MirrorFreshness, load_hop_mirror,
+        };
         use crate::db::queries::pairs;
+        use chrono::Utc;
 
         let now_secs = Utc::now().timestamp().max(0) as u64;
         for (i, addr) in addrs.iter().enumerate() {
@@ -545,14 +553,10 @@ async fn preload_mirrors_with_progress(
             }
         }
     } else {
-        mirrors = db_orderbook_sim::preload_mirrors_for_pairs(
-            pool,
-            addrs,
-            id_to_addr,
-            max_staleness_ms,
-        )
-        .await
-        .map_err(crate::api::internal_err)?;
+        mirrors =
+            db_orderbook_sim::preload_mirrors_for_pairs(pool, addrs, id_to_addr, max_staleness_ms)
+                .await
+                .map_err(crate::api::internal_err)?;
     }
 
     Ok(mirrors)
@@ -768,10 +772,7 @@ async fn run_concurrent_candidate_evaluations(
         }
     }
 
-    if evals.is_empty()
-        && gateway_err_count > 0
-        && gateway_err_count == eval_count as u32
-    {
+    if evals.is_empty() && gateway_err_count > 0 && gateway_err_count == eval_count as u32 {
         return Err(gateway_err.expect("gateway_err_count > 0"));
     }
 
@@ -845,6 +846,31 @@ pub(crate) async fn solve_global_best_execution_inner(
         enumerate_path_candidates(&snapshot, token_in, token_out, GET_DEFAULT_MAX_HOPS).await?;
     let enum_ms = enum_start.elapsed().as_millis();
 
+    let hop_extras: Vec<String> = candidates
+        .iter()
+        .flat_map(|c| crate::api::community_tax_rank::extra_addrs_from_hops(&c.hops))
+        .collect();
+    let tax_snap = crate::api::community_tax_rank::load_tax_rank_snapshot(
+        state,
+        token_in,
+        token_out,
+        &hop_extras,
+        quote_trader.trader.as_deref(),
+    )
+    .await;
+    let candidates: Vec<PathCandidate> = candidates
+        .into_iter()
+        .filter(|c| {
+            !crate::api::community_tax_rank::path_sells_middle_tax_hop(&c.hops, token_in, &tax_snap)
+        })
+        .collect();
+    if candidates.is_empty() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("no viable route within {} hops", GET_DEFAULT_MAX_HOPS),
+        ));
+    }
+
     let discount_bps = crate::api::route_solver::resolve_discount_bps(state, quote_trader).await;
 
     let mirror_start = Instant::now();
@@ -871,7 +897,7 @@ pub(crate) async fn solve_global_best_execution_inner(
 
     let mirrors = Arc::new(mirrors);
     let candidate_start = Instant::now();
-    let (evals, search_truncated) = run_concurrent_candidate_evaluations(
+    let (mut evals, search_truncated) = run_concurrent_candidate_evaluations(
         state,
         &candidates,
         token_in,
@@ -890,17 +916,26 @@ pub(crate) async fn solve_global_best_execution_inner(
     .await?;
     let candidate_ms = candidate_start.elapsed().as_millis();
 
-    let (mut body, _router_out, grid_out, mut meta) = merge_candidate_evaluations(
-        &evals,
-        candidates.len(),
-        search_truncated,
-    )
-    .ok_or_else(|| {
-        (
-            StatusCode::NOT_FOUND,
-            format!("no viable route within {} hops", GET_DEFAULT_MAX_HOPS),
-        )
-    })?;
+    for ev in &mut evals {
+        let scored = crate::api::community_tax_rank::score_path(
+            ev.out_u,
+            &ev.body.hops,
+            token_in,
+            &tax_snap,
+        );
+        ev.net_u = scored.net_out;
+        apply_tax_rank_fields(&mut ev.body, &scored);
+    }
+
+    let (mut body, _router_out, grid_out, mut meta) =
+        merge_candidate_evaluations(&evals, candidates.len(), search_truncated).ok_or_else(
+            || {
+                (
+                    StatusCode::NOT_FOUND,
+                    format!("no viable route within {} hops", GET_DEFAULT_MAX_HOPS),
+                )
+            },
+        )?;
 
     if db_mode {
         let final_est = apply_fidelity_guard(
@@ -938,7 +973,7 @@ pub(crate) async fn solve_global_best_execution_inner(
     body.hybrid_notes = Some(hybrid_notes_for_global(&meta, solver_version));
     body.solver_version = Some(solver_version.to_string());
     body.paths_considered = Some(meta.paths_considered);
-    body.optimality_scope = Some(OPTIMALITY_SCOPE.to_string());
+    body.optimality_scope = Some(format!("{OPTIMALITY_SCOPE}. {TAX_RANK_NOTE}"));
     body.lcd_hybrid_queries = Some(meta.lcd_hybrid_queries);
     body.db_hybrid_queries = Some(meta.db_hybrid_queries);
     body.fidelity_check = Some(meta.fidelity_check);
@@ -986,9 +1021,21 @@ pub(crate) async fn solve_global_best_execution_inner(
     Ok((body, meta))
 }
 
+fn apply_tax_rank_fields(
+    body: &mut RouteSolveResponse,
+    scored: &crate::api::community_tax_rank::TaxRankResult,
+) {
+    body.estimated_amount_out_net = Some(scored.net_out.to_string());
+    body.tax_kind = Some(scored.tax_kind.to_string());
+    body.buy_tax_bps = Some(scored.buy_tax_bps);
+    body.sell_tax_bps = Some(scored.sell_tax_bps);
+    body.tax_notes = Some(scored.tax_notes.clone());
+    body.router_hops_tax = Some(scored.router_hops_tax);
+}
+
 #[cfg(test)]
 mod concurrent_solve_tests {
-    use super::{merge_candidate_evaluations, CandidateEval, RouteHop, SOLVE_CONCURRENCY};
+    use super::{CandidateEval, RouteHop, SOLVE_CONCURRENCY, merge_candidate_evaluations};
     use crate::api::route_solver::{RouteQuoteKind, RouteSolveResponse};
     use std::time::{Duration, Instant};
 
@@ -1020,8 +1067,15 @@ mod concurrent_solve_tests {
                 slippage_percent: None,
                 token_in_price_quote: None,
                 token_out_price_quote: None,
+                estimated_amount_out_net: None,
+                tax_kind: None,
+                buy_tax_bps: None,
+                sell_tax_bps: None,
+                tax_notes: None,
+                router_hops_tax: None,
             },
             out_u,
+            net_u: out_u,
             grid_out: out_u,
             lcd_delta,
             db_delta,
@@ -1042,9 +1096,24 @@ mod concurrent_solve_tests {
         ];
         let (_, out, _, meta) = merge_candidate_evaluations(&evals, 3, false).unwrap();
         assert_eq!(out, 200);
-        assert_eq!(meta.lcd_hybrid_queries, 30, "cumulative through winner index 1");
+        assert_eq!(
+            meta.lcd_hybrid_queries, 30,
+            "cumulative through winner index 1"
+        );
         assert_eq!(meta.db_hybrid_queries, 3);
         assert!(meta.degraded, "winner index 1 has degraded=true");
+    }
+
+    #[test]
+    fn merge_picks_max_net_not_raw() {
+        let mut low_net = stub_eval(0, 200, 1, 0);
+        low_net.net_u = 100;
+        let mut high_net = stub_eval(1, 150, 1, 0);
+        high_net.net_u = 140;
+        let (body, raw, _, _) =
+            merge_candidate_evaluations(&[low_net, high_net], 2, false).unwrap();
+        assert_eq!(body.hops[0].pair, "pair1");
+        assert_eq!(raw, 150);
     }
 
     #[test]
@@ -1148,6 +1217,10 @@ mod concurrent_solve_tests {
                 Err(_) => {}
             }
         }
-        assert_eq!(evals, vec![2], "failed candidate skipped; later candidate kept");
+        assert_eq!(
+            evals,
+            vec![2],
+            "failed candidate skipped; later candidate kept"
+        );
     }
 }

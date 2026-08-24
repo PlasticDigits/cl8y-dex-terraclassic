@@ -127,7 +127,7 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M590-1** | `make verify-issue-590` runs children **586, 587, 589**. Unit/docs FAILs fail the stack. Optional A-lcd/B-lt and wrap-swap E7/E8 SKIP only when LocalTerra is absent (unless `VERIFY590_REQUIRE_CHAIN=1`). |
 | **M590-2** | Coolify indexer migrate + `WRAP_MAPPER_ADDRESS` + dApp Protocol fees / Swap Network fee ship together. Empty mapper omits wrap/unwrap. |
 | **M590-3** | Hybrid fee = pool `commission_amount` (`swap_amm`) + fill `commission_amount` (`book_take`) once — never swap `book_commission_amount` (**L7**). |
-| **M590-4** | `limit_place` from `maker_fee_amount`; unwrap from wrap-mapper `fee_amount` only (not InstantWithdraw burn tax). |
+| **M590-4** | `limit_place` from `maker_fee_amount`; unwrap from wrap-mapper **`fee`** (legacy `fee_amount`) only (not InstantWithdraw burn tax; [#613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)). |
 | **M590-5** | Playwright `e2e/wrap-swap.spec.ts` **E7/E8** `--project=e2e-tx` (1 worker): success, no OOG. 0 USTC still allows LUNC-funded swap. |
 | **M590-6** | `LAYER_B_LT=1` executes pinned LCD wasm (`layer-a-lcd.sh` + `layer-b-lt.sh`). Stub PASS is a harness bug. |
 | **M590-7** | 8266 `codeids/8266/REPORT.md` is **GO**. Columbus-5 `AddWhitelistedCodeId 8266` **RAN 2026-08-22** (height **30060600**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184]`**). Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. SpaceUSD/UST1 create+provide stays on [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558). |

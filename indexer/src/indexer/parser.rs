@@ -4,7 +4,8 @@
 //! single logical value is intended. **Lifecycle wasm** (`limit_order_expired_parked`,
 //! `claim_expired_limit_order`, `limit_order_fill`) may share one `wasm` event with other actions
 //! when LCD output flattens attribute streams — those parsers scan **every** `action` occurrence
-//! (GitLab #141, #269).
+//! (GitLab #141, #269). Wrap-mapper fees (`notify_deposit` / `unwrap`) use the same per-action
+//! scan in [`super::protocol_fees`] (GitLab #613).
 //! LocalTerra also emits standalone lifecycle rows as **`wasm-wasm`** events (same attribute keys).
 //! Parsing must not panic on adversarial attribute lists (see stress tests in `#[cfg(test)]`).
 //! Full matrix: `docs/indexer-invariants.md`.

@@ -422,10 +422,15 @@ export default function ManageTokenPage() {
                 AutoLP code id.
               </p>
             )}
+            {cfg?.autolp && (
+              <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="manage-autolp-pair-hint">
+                Pair must be this token&apos;s CL8Y factory pair. Skim uses a 1% spread floor (max 2%).
+              </p>
+            )}
             <input
               className="input-glass w-full"
               disabled={!isManager || !cfg?.autolp}
-              placeholder="Listed pair"
+              placeholder="This token's CL8Y factory pair"
               value={autolpPair}
               onChange={(e) => setAutolpPair(e.target.value)}
             />

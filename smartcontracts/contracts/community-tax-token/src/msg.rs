@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
 use cw20::{Cw20Coin, Cw20ReceiveMsg, Expiration};
 use cw20_base::msg::InstantiateMarketingInfo;
 
@@ -73,6 +73,11 @@ pub struct AutoLpConfig {
     pub pair: Option<String>,
     pub threshold: Uint128,
     pub lp_recipient: String,
+    /// Optional skim floor forwarded to the sister (`UpdateConfig`). Omit → merge.
+    #[serde(default)]
+    pub skim_max_spread: Option<Decimal>,
+    #[serde(default)]
+    pub skim_min_return: Option<Uint128>,
 }
 
 /// UST1 `Send` hook on this token (or forwarded by the launcher).
@@ -335,11 +340,17 @@ pub enum TaxKind {
 pub struct TaxPreviewResponse {
     pub kind: TaxKind,
     pub declared: Uint128,
-    /// Amount debited from `from` (sell = declared + tax).
+    /// Amount debited from `from` (pair-direct sell = declared + tax; router sell = declared).
     pub debit: Uint128,
     /// Amount credited to `to` (buy/transfer = declared − tax).
     pub credit: Uint128,
     pub tax: Uint128,
+    /// Authenticated hop trader when `from` is the official router (**T592-13** / #607).
+    #[serde(default)]
+    pub hop_trader: Option<Addr>,
+    /// Extra-debit taken from [`Self::hop_trader`] on a router sell (pair still credited `declared`).
+    #[serde(default)]
+    pub hop_trader_debit: Option<Uint128>,
 }
 
 #[cw_serde]

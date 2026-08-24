@@ -2,8 +2,9 @@
 //!
 //! Each test is a minimal reproduction of a finding in `audits/INTERNAL_KIMIK3_*.md`.
 //! H-1 / M-1 (#605) and H-3 / H-4 (#608) are inverted. C-1 / H-2 (**#606**)
-//! are inverted (official launcher Enable Feature + unique SKUs). Remaining PoCs
-//! still demonstrate residuals.
+//! are inverted (official launcher Enable Feature + unique SKUs). M-3 / M-2
+//! AutoLP pair + skim floor (**#610**) is inverted. Remaining PoCs still
+//! demonstrate residuals.
 
 use cosmwasm_std::{to_json_binary, Addr, Binary, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -115,7 +116,12 @@ fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
     ) -> StdResult<Binary> {
         match msg {
             MockFactoryQuery::Pair { .. } => {
-                let pair = String::from_utf8(deps.storage.get(b"pair").unwrap()).unwrap();
+                let pair = String::from_utf8(
+                    deps.storage
+                        .get(b"pair")
+                        .ok_or_else(|| cosmwasm_std::StdError::generic_err("pair not listed"))?,
+                )
+                .unwrap();
                 to_json_binary(&PairResponse {
                     pair: PairInfo {
                         asset_infos: [
@@ -407,6 +413,19 @@ fn swap_hook() -> Binary {
     .unwrap()
 }
 
+fn swap_hook_trader(trader: &str) -> Binary {
+    to_json_binary(&PairHook::Swap {
+        belief_price: None,
+        max_spread: None,
+        min_return: None,
+        to: None,
+        deadline: None,
+        trader: Some(trader.into()),
+        hybrid: None,
+    })
+    .unwrap()
+}
+
 fn default_instantiate(
     hub: &Hub,
     guards: Option<LaunchGuardsConfig>,
@@ -612,10 +631,10 @@ fn poc_autov2lp_paid_but_never_bound() {
 }
 
 // ============================================================================
-// T592-13 / #607 option 1 (was audit C-2): protocol-exempt `from`/`to` is Honest.
-// Documented property — not a defect to invert. Address named "router"
-// (PROTOCOL_EXEMPT), not router wasm `execute_swap_operations`.
-// Official single-hop pair Send still pays tax (pair-direct).
+// T592-13 / #607 improved option 2 (was audit C-2 / option 1 Honest hops).
+// Official router Send+Swap extra-debits authenticated Swap.trader; missing
+// trader fail-closes. Pair→router stays 1:1; router→user is buy outbound split.
+// Address named "router" (PROTOCOL_EXEMPT + config.router), not router wasm.
 // ============================================================================
 #[test]
 fn poc_router_exemption_full_tax_bypass() {
@@ -633,8 +652,9 @@ fn poc_router_exemption_full_tax_bypass() {
         .unwrap();
     let pair = register_pair(&mut hub, &token);
 
-    // Sell leg via router: router -> pair Send+Swap. Zero sell tax.
-    hub.app
+    // Evasion: router Send+Swap without trader must not skip tax.
+    let err = hub
+        .app
         .execute_contract(
             Addr::unchecked("router"),
             token.clone(),
@@ -645,20 +665,45 @@ fn poc_router_exemption_full_tax_bypass() {
             },
             &[],
         )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("trusted non-exempt trader"),
+        "{err:?}"
+    );
+
+    // Sell via router with authenticated trader (official router wasm sets this).
+    hub.app
+        .execute_contract(
+            Addr::unchecked("router"),
+            token.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: pair.to_string(),
+                amount: Uint128::new(100_000),
+                msg: swap_hook_trader("alice"),
+            },
+            &[],
+        )
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "router"),
         900_000,
-        "router paid no sell tax"
+        "router debited declared amount only"
     );
     assert_eq!(bal(&hub.app, &token, pair.as_str()), 100_000);
     assert_eq!(
+        bal(&hub.app, &token, "alice"),
+        10_000_000 - 5_000,
+        "alice extra-debit 5% sell tax"
+    );
+    assert_eq!(
         bal(&hub.app, &token, "treasury"),
-        0,
-        "no tax collected on router sell"
+        5_000,
+        "sell tax collected on router hop"
     );
 
-    // Contrast: direct EOA sell pays the 5% extra debit.
+    // Pair-direct EOA sell still extra-debits the sender (spoofed trader ignored).
     hub.app
         .execute_contract(
             Addr::unchecked("alice"),
@@ -666,18 +711,23 @@ fn poc_router_exemption_full_tax_bypass() {
             &Cw20ExecuteMsg::Send {
                 contract: pair.to_string(),
                 amount: Uint128::new(100_000),
-                msg: swap_hook(),
+                msg: swap_hook_trader("bob"),
             },
             &[],
         )
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "alice"),
-        10_000_000 - 105_000,
-        "EOA paid 5% sell tax"
+        10_000_000 - 5_000 - 105_000,
+        "EOA paid 5% sell tax on pair-direct"
+    );
+    assert_eq!(
+        bal(&hub.app, &token, "bob"),
+        10_000_000,
+        "spoofed trader not debited"
     );
 
-    // Buy leg: pair -> router (exempt) -> user. Zero buy tax end-to-end.
+    // Buy leg: pair → router 1:1; router → user outbound split.
     hub.app
         .execute_contract(
             Addr::unchecked(pair.clone()),
@@ -692,7 +742,7 @@ fn poc_router_exemption_full_tax_bypass() {
     assert_eq!(
         bal(&hub.app, &token, "router"),
         900_000 + 100_000,
-        "router buy credit untaxed"
+        "router buy credit 1:1"
     );
     hub.app
         .execute_contract(
@@ -707,8 +757,8 @@ fn poc_router_exemption_full_tax_bypass() {
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "bob"),
-        10_100_000,
-        "user received full amount, no buy tax"
+        10_000_000 + 95_000,
+        "user received amount minus 5% buy tax"
     );
 }
 
@@ -983,8 +1033,8 @@ fn poc_variable_rates_sku_is_theater() {
 }
 
 // ============================================================================
-// PoC 9 (M): AutoLP `pair` is manager-settable with no validation — a manager
-// can point skims at an arbitrary contract and exfiltrate the skimmed taxes.
+// PoC 9 (M-3 / #610 inverted): AutoLP `pair` must be factory-listed with this
+// tax token. Fake / wrong-token pointers revert on set, not only on skim.
 // ============================================================================
 #[test]
 fn poc_autolp_manager_can_skim_to_fake_pair() {
@@ -1001,7 +1051,6 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         )
         .unwrap();
 
-    // Manager-controlled stand-in "pair" (any contract that accepts the hook).
     let fake_pair = hub
         .app
         .instantiate_contract(
@@ -1014,6 +1063,35 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         )
         .unwrap();
 
+    let err = hub
+        .app
+        .instantiate_contract(
+            hub.autolp_code,
+            Addr::unchecked("admin"),
+            &AutoLpInstantiate {
+                token: token.to_string(),
+                manager: "manager".into(),
+                factory: hub.factory.to_string(),
+                router: Some("router".into()),
+                pair: Some(fake_pair.to_string()),
+                quote_token: None,
+                threshold: Uint128::new(1_000_000),
+                lp_recipient: "manager".into(),
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+            "autolp-fake",
+            None,
+        )
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("not factory-listed")
+            || format!("{err:?}").contains("PairNotListed")
+            || format!("{err:?}").contains("pair not listed"),
+        "fake pair must revert on instantiate: {err:?}"
+    );
+
     let autolp = hub
         .app
         .instantiate_contract(
@@ -1022,11 +1100,14 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
             &AutoLpInstantiate {
                 token: token.to_string(),
                 manager: "manager".into(),
+                factory: hub.factory.to_string(),
                 router: Some("router".into()),
-                pair: Some(fake_pair.to_string()),
+                pair: None,
                 quote_token: None,
                 threshold: Uint128::new(1_000_000),
                 lp_recipient: "manager".into(),
+                skim_max_spread: None,
+                skim_min_return: None,
             },
             &[],
             "autolp",
@@ -1034,36 +1115,66 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         )
         .unwrap();
 
-    // Taxes accumulate on the AutoLP contract.
+    let err = hub
+        .app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            autolp.clone(),
+            &AutoLpExecute::UpdateConfig {
+                pair: Some(fake_pair.to_string()),
+                router: None,
+                quote_token: None,
+                threshold: None,
+                lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("not factory-listed")
+            || format!("{err:?}").contains("PairNotListed")
+            || format!("{err:?}").contains("pair not listed"),
+        "fake pair must revert on UpdateConfig: {err:?}"
+    );
+
+    let listed = hub
+        .app
+        .instantiate_contract(
+            hub.pair_code,
+            Addr::unchecked("manager"),
+            &(token.to_string(), hub.ust1.to_string()),
+            &[],
+            "listed-pair",
+            None,
+        )
+        .unwrap();
     hub.app
         .execute_contract(
-            Addr::unchecked("alice"),
-            token.clone(),
-            &Cw20ExecuteMsg::Transfer {
-                recipient: autolp.to_string(),
-                amount: Uint128::new(2_000_000),
+            Addr::unchecked("manager"),
+            hub.factory.clone(),
+            &listed.to_string(),
+            &[],
+        )
+        .unwrap();
+    hub.app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            autolp.clone(),
+            &AutoLpExecute::UpdateConfig {
+                pair: Some(listed.to_string()),
+                router: None,
+                quote_token: None,
+                threshold: None,
+                lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
             },
             &[],
         )
         .unwrap();
 
-    // Permissionless skim sends half the balance to the manager's fake pair.
-    hub.app
-        .execute_contract(
-            Addr::unchecked("anyone"),
-            autolp.clone(),
-            &AutoLpExecute::SkimToLp {},
-            &[],
-        )
-        .unwrap();
-
-    assert_eq!(
-        bal(&hub.app, &token, fake_pair.as_str()),
-        1_000_000,
-        "half the skimmed balance went to the unvalidated manager-set pair"
-    );
-
-    // Sanity: UpdateConfig merges (does not wipe) omitted fields.
     hub.app
         .execute_contract(
             Addr::unchecked("manager"),
@@ -1074,6 +1185,8 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
                 quote_token: None,
                 threshold: Some(Uint128::new(5_000_000)),
                 lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
             },
             &[],
         )
@@ -1084,5 +1197,7 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         .query_wasm_smart(autolp.clone(), &AutoLpQuery::GetConfig {})
         .unwrap();
     assert_eq!(cfg.threshold, Uint128::new(5_000_000));
-    assert_eq!(cfg.pair, Some(fake_pair.clone()));
+    assert_eq!(cfg.pair, Some(listed.clone()));
+    assert_eq!(cfg.factory, hub.factory);
+    assert!(cfg.skim_max_spread > cosmwasm_std::Decimal::zero());
 }

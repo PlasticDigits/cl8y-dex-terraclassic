@@ -82,7 +82,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 | ID | Result | Notes |
 |----|--------|-------|
 | A1 | **named-exception** + crate; control red on mutants | Inbound `Transfer` / `TransferFrom` to pair/router/escrow/AutoLP credits `amount` (T592-1). Not 8654 inbound FoT. Sell `Send`+`Swap` extra-debits the trader; pair still gets `amount`. FoT mutants stay red |
-| A2 | **named-exception** + crate | Directional **sell** extra-debit / **buy** outbound split only on **factory-registered** listed pairs from/to non-exempt. Router hops Honest (**T592-13** / #607 option 1). Wallet↔wallet honest unless TransferTax SKU. Must **not** match inbound-tax mutant |
+| A2 | **named-exception** + crate | Directional **sell** extra-debit / **buy** outbound split on **factory-registered** listed pairs. In-repo crate: official-router hops tax authenticated `Swap.trader` (**T592-13** / #607 improved option 2). **Live 11611 pin** is still Honest hops until CMM store + migrate. Wallet↔wallet honest unless TransferTax SKU. Must **not** match inbound-tax mutant |
 | A3 | static-pass; crate idle | No rebase / reflection / `balance_at` live mutate. Balances change only on transfer/mint/burn |
 | A4 | static-pass; control | No `tax_map` / `UpdateTaxMap`. 8654 remains known-bad |
 | A5 | static-pass | Plain `Transfer` does not dispatch a recipient `WasmMsg`. `Send` is CW20 Receive only |
