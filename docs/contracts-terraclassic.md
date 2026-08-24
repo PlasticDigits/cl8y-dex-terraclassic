@@ -400,7 +400,7 @@ Both **50 UST1** (`50000000`). Token/launcher accept **UST1 `Send` only** ([#595
 
 ### Listing
 
-Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Token rotate **11619** is stored and **NO-GO** until intake. Launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**, wasm admin DEX 2-of-3). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654** or launcher **11612** / **11614** / **11620** or AutoLP **11613** / **11621**.
+Factory `AddWhitelistedCodeId` is **ops after** `#589` REPORT **GO**. Columbus-5 token **11611** is listed ([`cw20-codeid-audits/codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Token rotate **11619** REPORT is **GO** ([`cw20-codeid-audits/codeids/11619/REPORT.md`](../cw20-codeid-audits/codeids/11619/REPORT.md)); not listed until ops whitelist. Launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**, wasm admin DEX 2-of-3). Stub [`community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) remains a **NO-GO** placeholder. Do not whitelist **8654** or launcher **11612** / **11614** / **11620** or AutoLP **11613** / **11621**.
 
 `make verify-issue-592` (crates). `make verify-issue-608` (LaunchGuards cooldown / `max_wallet` liveness). `make verify-issue-610` (AutoLP factory pair + skim floor). `make verify-issue-601` (store + REPORT + LocalTerra smoke).
 

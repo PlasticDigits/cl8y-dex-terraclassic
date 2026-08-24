@@ -283,7 +283,7 @@ Script: [`scripts/upgrade-611-community-tax.sh`](../../scripts/upgrade-611-commu
 | **Launcher migrate** `terra126pr5…` **11614 → 11620** | [`97C0FCA9…EE8C`](https://finder.terraclassic.community/columbus-5/tx/97C0FCA93DFADD4BE4250935C7EFAF1CAB0A20C6FB64B2D8B774A4A8BF63EE8C) height **30085550** |
 | **Signer** | DEX 2-of-3 `terra1zlmv2…hep7` |
 | **`GetConfig`** | `token_code_id` **11611**, `autolp_code_id` **11613** (no `UpdateConfig` on launcher) |
-| **`GetWhitelistedCodeIds`** | still **`[6036, 8266, 10184, 11611]`** — 11619 waits `#589` REPORT **GO** |
+| **`GetWhitelistedCodeIds`** | still **`[6036, 8266, 10184, 11611]`** — 11619 `#589` REPORT is **GO**; `AddWhitelistedCodeId` still pending |
 | **11611 / 11613 / 11619 / 11621 instances** | **0** — no CMM migrate |
 
 Do **not** whitelist **11620** / **11621** / unused **11612** / ALPHA **8654**. Keep **11611** listed until rotate + Refresh. Coolify `COMMUNITY_TAX_OPTION2_CODE_IDS` stays unset until instances run 11619 bytes.

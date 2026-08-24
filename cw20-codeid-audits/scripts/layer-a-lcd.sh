@@ -155,7 +155,30 @@ if [[ -z "${INST_TX:-}" ]]; then
       mint:{minter:$a},
       launch_guards:{max_wallet:null, cooldown_blocks:0, trading_enabled:true}
     }')"
-  layer_a_try_instantiate "$INIT" || true
+  if ! layer_a_try_instantiate "$INIT"; then
+    # 11619+ (#605): SKU payloads require the matching feature (guards / variable_rates headroom).
+    echo "A-lcd: retrying community-tax InstantiateMsg without SKU-gated fields" >&2
+    INIT="$(jq -nc \
+      --arg n "Audit${ID}" --arg s "$SYM" --arg a "$TEST_ADDRESS" \
+      --arg factory "$FACTORY_ADDR" --arg router "$ROUTER_ADDR" --arg ust1 "$UST1_ADDR" \
+      '{
+        name:$n, symbol:$s, decimals:6,
+        initial_balances:[{address:$a,amount:"1000000000000"}],
+        marketing:{},
+        manager:$a, treasury:$a,
+        buy_bps:0, sell_bps:0,
+        max_buy_bps:0, max_sell_bps:0, max_transfer_bps:0,
+        factory:$factory,
+        router: (if $router == "" then null else $router end),
+        ust1:$ust1,
+        cmm_treasury:$a,
+        features:["mint_control"],
+        mint:{minter:$a},
+        launch_guards:null,
+        initial_exempt:null
+      }')"
+    layer_a_try_instantiate "$INIT" || true
+  fi
 fi
 [[ -n "${INST_TX:-}" ]] || {
   echo "FAIL: instantiate produced no txhash (LCD wasm may need Terra-only init):" >&2
