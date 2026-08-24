@@ -56,13 +56,17 @@ layer_docker_cp() {
   local src="$1" dest="$2"
   # Worktrees often symlink artifacts; docker cp of a symlink can land a
   # dangling name inside the container (host target is not visible there).
+  # docker cp can also fail on this LocalTerra image (fuse-overlayfs mkdirat
+  # usr/local/bin/init-chain.sh); stream bytes like tax_on_stream_to_container.
   if [[ -e "$src" ]]; then
     src="$(readlink -f "$src")"
   fi
+  local container="${dest%%:*}"
+  local path="${dest#*:}"
   if [[ -n "${LOCALTERRA_DOCKER_VIA_SG:-}" ]] && command -v sg >/dev/null 2>&1; then
-    sg docker -c "docker cp $(printf '%q' "$src") $(printf '%q' "$dest")"
+    sg docker -c "docker exec -i $(printf '%q' "$container") sh -c $(printf '%q' "cat > '$path'")" < "$src"
   else
-    docker cp "$src" "$dest"
+    docker exec -i "$container" sh -c "cat > '$path'" < "$src"
   fi
 }
 
