@@ -8,7 +8,7 @@ source "$REPO_ROOT/scripts/lib/upgrade-611-community-tax.sh"
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 
-for id in 8654 11612 11613 11614 11620 11621; do
+for id in 8654 11612 11613 11614 11620 11621 11622; do
   upgrade611_is_forbidden_whitelist "$id" || die "expected $id forbidden"
 done
 upgrade611_is_forbidden_whitelist 11700 && die "11700 should be allowed"

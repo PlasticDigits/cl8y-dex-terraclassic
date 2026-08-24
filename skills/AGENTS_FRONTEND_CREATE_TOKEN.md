@@ -62,7 +62,7 @@ make verify-issue-610
 make verify-issue-602
 ```
 
-Columbus-5 free-create is live on launcher `terra126pr5…ahzwze` (code **11620**; store was **11614**). Do not point Coolify at **11612** (`terra1af9xm…`). Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602). Store/rotate: [#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611).
+Columbus-5 free-create is live on launcher `terra126pr5…ahzwze` (code **11622**; store was **11614**). `token_code_id` is **11619**. Do not point Coolify at **11612** (`terra1af9xm…`). Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602). Store/rotate: [#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611).
 
 ## Do not
 

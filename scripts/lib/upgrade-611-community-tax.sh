@@ -3,7 +3,7 @@
 # shellcheck shell=bash
 
 # Factory must never list these (O601-2). Sisters + ALPHA + unused first launcher.
-UPGRADE611_NEVER_WHITELIST_FIXED="8654 11612 11613 11614 11620 11621"
+UPGRADE611_NEVER_WHITELIST_FIXED="8654 11612 11613 11614 11620 11621 11622"
 
 upgrade611_die() { echo "ERROR: $*" >&2; exit 1; }
 

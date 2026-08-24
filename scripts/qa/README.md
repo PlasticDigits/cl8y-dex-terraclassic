@@ -137,7 +137,7 @@ After stacking protocol fees, wrap+≥2hop gas, and the CW20 audit harness:
 | `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` | A-lcd/B-lt **execute** pinned wasm (not a stub) |
 | Coolify indexer + dApp | Fee migration + `WRAP_MAPPER_ADDRESS`; `/protocol` fees + Swap Network fee |
 | 8266 | REPORT **GO**; columbus-5 listed 2026-08-22. Do **not** whitelist a LocalTerra store id. ALPHA **8654** stays off. |
-| 11611 | Community tax (#601) REPORT **GO**; listed 2026-08-23. Live whitelist **`[6036, 8266, 10184, 11611, 11619]`** (11619 listed 2026-08-24). Canonical launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` is code **11620** (was 11614); `token_code_id` still **11611** until launcher `UpdateConfig`. Unused 11612 `terra1af9xm…` has no `CreateToken`. Do **not** whitelist 11612/11613/11614/11620/11621. Gate: `make verify-issue-601` (A-lcd/B-lt + LocalTerra smoke). Post-merge Coolify: `make verify-issue-602` (**Q9**). |
+| 11611 | Community tax (#601) REPORT **GO**; listed 2026-08-23. Live whitelist **`[6036, 8266, 10184, 11611, 11619]`**. Canonical launcher `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` is code **11622**; `GetConfig` **11619** / **11621**. Unused 11612 `terra1af9xm…` has no `CreateToken`. Do **not** whitelist 11612/11613/11614/11620/11621/11622. Gate: `make verify-issue-601` (A-lcd/B-lt + LocalTerra smoke). Post-merge Coolify: `make verify-issue-602` (**Q9**). |
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_590.md`](../../skills/AGENTS_POST_MERGE_OPS_590.md). QA invariant **Q7**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-590).
 
@@ -160,7 +160,7 @@ After !402 landed Create Token + catalog without Coolify bake / LocalTerra retai
 | Step | Expected |
 | ---- | -------- |
 | `make verify-issue-602` | Children **593, 594** plus Q9 / **M602-1–M602-8** |
-| Coolify frontend | `VITE_COMMUNITY_TAX_CODE_ID=11611` + launcher `terra126pr5…` (code **11620**; not unused 11612) |
+| Coolify frontend | `VITE_COMMUNITY_TAX_CODE_ID=11619` + launcher `terra126pr5…` (code **11622**; not unused 11612) |
 | Coolify indexer | `GET /api/v1/community-tokens` `{ configured: true, … }` |
 | LocalTerra | `VERIFY602_REQUIRE_CHAIN=1` smoke + `/token/create` retail |
 

@@ -10,7 +10,7 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 ## Verdict
 
-**GO** for factory `AddWhitelistedCodeId 11619` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). Columbus-5 **stored 2026-08-24** (height **30085543**) and **listed 2026-08-24** (height **30085794**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184, 11611, 11619]`**). Keep **11611** listed until rotate + Refresh. Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** / **11620** or AutoLP **11613** / **11621** (not pair-asset CW20s).
+**GO** for factory `AddWhitelistedCodeId 11619` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). Columbus-5 **stored 2026-08-24** (height **30085543**) and **listed 2026-08-24** (height **30085794**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184, 11611, 11619]`**). Keep **11611** listed until rotate + Refresh. Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** / **11620** / **11622** or AutoLP **11613** / **11621** (not pair-asset CW20s).
 
 - [x] GO — LCD pin matches; decomp + fingerprint; crate multitest covers T592 / option-2 / #608 / #609; harness known-bad stays red; A-lcd/B-lt executed; catalogue filled
 - [ ] NO-GO — inbound FoT / 8654 class / missing pin
@@ -31,13 +31,13 @@ Re-run: `CODE_ID=11619 LAYER_B_LT=1 make verify-issue-589` · `make verify-issue
 | Match | **yes** (LCD + local artifact `cl8y_community_tax_token.wasm`) |
 | Creator / uploader | `terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv` (`cl8ydeploy`) |
 | Instantiate permission | **Everybody** |
-| Approximate instantiate count | **0** tokens at intake (2026-08-24). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**; `token_code_id` still **11611**) |
+| Approximate instantiate count | **0** tokens (2026-08-24). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**; `token_code_id` **11619**) |
 | Wasm size | 554158 bytes |
 | Store tx | [`42A76F85B687C3E8DF548193E11CDBAC92A4D6934C877F76CF85EE97806CCFDE`](https://finder.terraclassic.community/columbus-5/tx/42A76F85B687C3E8DF548193E11CDBAC92A4D6934C877F76CF85EE97806CCFDE) height **30085543** |
 | Whitelist tx | [`B659D914CEAA045F05B5371F90669B79E34E7AE414537C6B4A8A58286BC640CF`](https://finder.terraclassic.community/columbus-5/tx/B659D914CEAA045F05B5371F90669B79E34E7AE414537C6B4A8A58286BC640CF) height **30085794** (DEX 2-of-3) |
 | `meta.json` | [`meta.json`](meta.json) |
 
-Sister stores (not listable as pair assets): canonical launcher instance `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` is code **11620** `7AD7DBA2…` (migrated from **11614** `04F57008…` — migrate [`97C0FCA9…EE8C`](https://finder.terraclassic.community/columbus-5/tx/97C0FCA93DFADD4BE4250935C7EFAF1CAB0A20C6FB64B2D8B774A4A8BF63EE8C) height **30085550**, wasm admin DEX 2-of-3). Unused first launcher **11612** `A0F95FBA…` at `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. AutoLP live pin **11613** `B110CCD6…`; stored rotate **11621** `DAD413A3…`. Listed token pin remains [`../11611/REPORT.md`](../11611/REPORT.md).
+Sister stores (not listable as pair assets): canonical launcher instance `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` is code **11622** `8E56AE0F…` (11614 → 11620 → 11622; migrate [`F2166AB0…AAB2`](https://finder.terraclassic.community/columbus-5/tx/F2166AB0C09B4E7989AB10DC8DCC4D5855B4E3F91C7E4F8C6D5B8F780947AAB2) height **30086055**, wasm admin DEX 2-of-3). Unused first launcher **11612** `A0F95FBA…` at `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. AutoLP launcher pin **11621** `DAD413A3…`. Listed Honest pin remains [`../11611/REPORT.md`](../11611/REPORT.md).
 
 ## Fetch
 
@@ -82,7 +82,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 | ID | Result | Notes |
 |----|--------|-------|
 | A1 | **named-exception** + crate; control red on mutants | Inbound `Transfer` / `TransferFrom` to pair/router/escrow/AutoLP credits `amount` (T592-1). Not 8654 inbound FoT. Sell `Send`+`Swap` extra-debits the trader; pair still gets `amount`. FoT mutants stay red |
-| A2 | **named-exception** + crate; **in these bytes** | Directional **sell** extra-debit / **buy** outbound split on **factory-registered** listed pairs. Official-router hops tax authenticated `Swap.trader` (**T592-13** / #607 improved option 2) — LCD strings `hop_trader` / `hop_trader_debit`. Wallet↔wallet honest unless TransferTax SKU. Must **not** match inbound-tax mutant. Do **not** set Coolify `COMMUNITY_TAX_OPTION2_CODE_IDS=11619` until instances actually run these bytes (none exist; launcher `token_code_id` is still 11611) |
+| A2 | **named-exception** + crate; **in these bytes** | Directional **sell** extra-debit / **buy** outbound split on **factory-registered** listed pairs. Official-router hops tax authenticated `Swap.trader` (**T592-13** / #607 improved option 2) — LCD strings `hop_trader` / `hop_trader_debit`. Wallet↔wallet honest unless TransferTax SKU. Must **not** match inbound-tax mutant. Set Coolify `COMMUNITY_TAX_OPTION2_CODE_IDS=11619` now that launcher `token_code_id` is **11619** (0 instances yet; new creates use these bytes) |
 | A3 | static-pass; crate idle; lt-pass | No rebase / reflection / `balance_at` live mutate. Balances change only on transfer/mint/burn. A-lcd idle 1:1 |
 | A4 | static-pass; control | No `tax_map` / `UpdateTaxMap`. 8654 remains known-bad |
 | A5 | static-pass | Plain `Transfer` does not dispatch a recipient `WasmMsg`. `Send` is CW20 Receive only |
@@ -195,7 +195,7 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 | G2 | pass | `cw20_mutants.rs` |
 | G3 | pending | Bindiff vs cw20-base not run |
 | G4 | residual | Single LCD this run |
-| G5 | residual | 0 token instances at intake; canonical launcher is **11620** `terra126pr5…ahzwze`; unused **11612** `terra1af9xm…` |
+| G5 | residual | 0 token instances; canonical launcher is **11622** `terra126pr5…ahzwze`; unused **11612** `terra1af9xm…` |
 | G6 | control | multitest block advance |
 | G7 | ops | F6 drill in `cw20-code-id-ops.md` |
 | G8 | static-pass | Host imports: iterator; no IBC |
@@ -229,9 +229,9 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 
 ## Factory-global impact
 
-Approving **11619** admits **every** instantiate of this wasm, including rogue `--admin` and non-launcher creates. That is accepted for the template: dApp (#593) and indexer (#594) **must** filter `ContractInfo.admin == CMM` and `GetLauncherOrigin`. Pair-create fee remains **100 LUNC**. Keep **11611** listed until CMM migrate + factory Refresh so existing (and new launcher) instances stay writable.
+Approving **11619** admits **every** instantiate of this wasm, including rogue `--admin` and non-launcher creates. That is accepted for the template: dApp (#593) and indexer (#594) **must** filter `ContractInfo.admin == CMM` and `GetLauncherOrigin`. Pair-create fee remains **100 LUNC**. Keep **11611** listed until CMM migrate + factory Refresh so any remaining 11611 pair pins stay writable.
 
-Launcher `GetConfig.token_code_id` is still **11611** (no `UpdateConfig`). New `CreateToken` still instantiates 11611 until a crate rotate or new launcher instantiate.
+Launcher `GetConfig.token_code_id` is **11619** (`UpdateConfig` 2026-08-24). New `CreateToken` instantiates 11619. Coolify catalog is still single-id — bake **11619** or new creates stay unattested.
 
 ## Instance admin / migrate residual (F6)
 
@@ -247,14 +247,12 @@ Launcher stamps CosmWasm admin = `cmm_governance` (CMM `terra16j5u6ey7a84g40sr3g
 - In-repo crate: `smartcontracts/contracts/community-tax-token` (workspace 1.0.0). Optimizer artifact hash matched LCD; **not** a required rebuild proof.
 - Policy: [`docs/runbooks/cw20-whitelist-policy.md`](../../../docs/runbooks/cw20-whitelist-policy.md) named exception.
 - Playbook: [`skills/AGENTS_COMMUNITY_TAX_CW20.md`](../../../skills/AGENTS_COMMUNITY_TAX_CW20.md) **T592-1–T592-13**.
-- After GO, whitelist only:
+- After GO, whitelist + launcher pin are **done** (2026-08-24). Leftover is Coolify:
 
 ```bash
-UPGRADE611_589_GO=1 \
-  UPGRADE611_SKIP_STORE=1 \
-  UPGRADE611_SKIP_LAUNCHER_MIGRATE=1 \
-  UPGRADE611_TOKEN_CODE_ID=11619 \
-  UPGRADE611_LAUNCHER_CODE_ID=11620 \
-  UPGRADE611_AUTOLP_CODE_ID=11621 \
-  ./scripts/upgrade-611-community-tax.sh
+# already live: listed 11619; launcher 11622 GetConfig token=11619 autolp=11621
+# Coolify:
+#   VITE_COMMUNITY_TAX_CODE_ID=11619
+#   COMMUNITY_TAX_CODE_ID=11619
+#   COMMUNITY_TAX_OPTION2_CODE_IDS=11619
 ```

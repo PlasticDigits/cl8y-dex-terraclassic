@@ -93,6 +93,7 @@ run_c5_whitelist() {
   echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11620) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11621) == null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11622) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(8654) == null' >/dev/null
   echo "columbus-5 whitelist: $(echo "$ids" | jq -c '.code_ids')"
 }
@@ -104,11 +105,11 @@ run_c5_launcher() {
   local raw
   raw="$(localterra_host_curl "${LCD_C5%/}/cosmwasm/wasm/v1/contract/${LAUNCHER_C5}" 2>/dev/null \
     || curl -fsS --max-time 30 "${LCD_C5%/}/cosmwasm/wasm/v1/contract/${LAUNCHER_C5}")"
-  echo "$raw" | jq -e '.contract_info.code_id == "11620" or (.contract_info.code_id|tonumber) == 11620' >/dev/null
+  echo "$raw" | jq -e '.contract_info.code_id == "11622" or (.contract_info.code_id|tonumber) == 11622' >/dev/null
   local admin
   admin="$(echo "$raw" | jq -r '.contract_info.admin // empty')"
   [[ "$admin" == "$LAUNCHER_ADMIN_C5" ]]
-  echo "columbus-5 launcher admin=$admin code=11620"
+  echo "columbus-5 launcher admin=$admin code=11622"
 }
 
 run_layer_b_lt() {
@@ -151,7 +152,7 @@ echo "── first pass ──"
 run_step "docs: REPORT GO + O601 + no 11612/8654 whitelist" run_docs
 run_step "child: make verify-issue-592" run_592
 run_step "columbus-5: GetWhitelistedCodeIds includes 11611 and 11619" run_c5_whitelist
-run_step "columbus-5: launcher 11620 admin == DEX 2-of-3" run_c5_launcher
+run_step "columbus-5: launcher 11622 admin == DEX 2-of-3" run_c5_launcher
 
 HAS_LT=1
 if timeout 20 make -s has-localterra >/dev/null 2>&1; then

@@ -6,7 +6,7 @@
 #   1. Q9 / M602-1–M602-8 documented and crosslinked.
 #   2. Child make verify-issue-{593,594}.
 #   3. P402-1/2 live Coolify pins 11611 + canonical launcher address (not unused 11612).
-#   4. P402-3 columbus-5 launcher CreateToken (code 11620); factory does not list sisters.
+#   4. P402-3 columbus-5 launcher CreateToken (code 11622); factory does not list sisters.
 #   5. P402-4 LocalTerra community-tax smoke when chain is up.
 #   6. P402-5 /create has no query prefill; Create Token next-link is /create.
 #   7. P402-6 extra-debit Max + attested_cmm default catalog.
@@ -125,7 +125,10 @@ run_live_dapp() {
     return 1
   }
   js="$(curl -fsS --max-time 45 "${DAPP_URL%/}${js_path}")"
-  printf '%s' "$js" | grep -q 'VITE_COMMUNITY_TAX_CODE_ID:"11611"'
+  if ! printf '%s' "$js" | grep -qE 'VITE_COMMUNITY_TAX_CODE_ID:"(11611|11619)"'; then
+    echo "dex.cl8y.com bundle missing VITE_COMMUNITY_TAX_CODE_ID 11611 or 11619" >&2
+    return 1
+  fi
   printf '%s' "$js" | grep -qF "$LAUNCHER_C5"
   printf '%s' "$js" | grep -q '/token/create'
   printf '%s' "$js" | grep -q 'Create Token'
@@ -133,16 +136,16 @@ run_live_dapp() {
     echo "Coolify frontend still bakes unused 11612 launcher" >&2
     return 1
   fi
-  echo "dex.cl8y.com bundle pins 11611 + canonical launcher address"
+  echo "dex.cl8y.com bundle pins community-tax code id + canonical launcher address"
 }
 
 run_live_indexer() {
   set -euo pipefail
   local body
   body="$(curl -fsS --max-time 20 "${INDEXER_URL%/}/api/v1/community-tokens")"
-  echo "$body" | jq -e '.configured == true and .code_id == 11611' >/dev/null
+  echo "$body" | jq -e '.configured == true and (.code_id == 11611 or .code_id == 11619)' >/dev/null
   echo "$body" | jq -e '(.items | type) == "array"' >/dev/null
-  echo "indexer community-tokens configured=true code_id=11611 items=$(echo "$body" | jq '.total // (.items|length)')"
+  echo "indexer community-tokens configured=true code_id=$(echo "$body" | jq -r '.code_id') items=$(echo "$body" | jq '.total // (.items|length)')"
 }
 
 run_c5_launcher() {
@@ -152,7 +155,7 @@ run_c5_launcher() {
   local raw ids admin
   raw="$(localterra_host_curl "${LCD_C5%/}/cosmwasm/wasm/v1/contract/${LAUNCHER_C5}" 2>/dev/null \
     || curl -fsS --max-time 30 "${LCD_C5%/}/cosmwasm/wasm/v1/contract/${LAUNCHER_C5}")"
-  echo "$raw" | jq -e '.contract_info.code_id == "11620" or (.contract_info.code_id|tonumber) == 11620' >/dev/null
+  echo "$raw" | jq -e '.contract_info.code_id == "11622" or (.contract_info.code_id|tonumber) == 11622' >/dev/null
   admin="$(echo "$raw" | jq -r '.contract_info.admin // empty')"
   [[ "$admin" == "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7" ]]
   raw="$(lcd_smart_query_raw "$LCD_C5" "$FACTORY_C5" '{"get_whitelisted_code_ids":{}}')"
@@ -164,7 +167,8 @@ run_c5_launcher() {
   echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11620) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11621) == null' >/dev/null
-  echo "columbus-5 launcher 11620 admin=$admin whitelist=$(echo "$ids" | jq -c '.code_ids')"
+  echo "$ids" | jq -e '.code_ids | index(11622) == null' >/dev/null
+  echo "columbus-5 launcher 11622 admin=$admin whitelist=$(echo "$ids" | jq -c '.code_ids')"
 }
 
 run_593() { make verify-issue-593; }
@@ -206,7 +210,7 @@ if [[ "${VERIFY602_SKIP_LIVE:-}" == "1" ]]; then
 else
   run_step "P402-1: dex.cl8y.com bakes 11611 + canonical launcher" run_live_dapp
   run_step "P402-2: indexer.dex.cl8y.com community-tokens configured" run_live_indexer
-  run_step "P402-3: columbus-5 launcher 11620 CreateToken; no sister whitelist" run_c5_launcher
+  run_step "P402-3: columbus-5 launcher 11622 CreateToken; no sister whitelist" run_c5_launcher
 fi
 
 HAS_LT=1

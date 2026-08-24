@@ -5,7 +5,7 @@ Named T592 exception for the #589 harness ([#611](https://gitlab.com/PlasticDigi
 - Pin: [`wasm.sha256`](wasm.sha256) = LCD `data_hash` `63CB21D1…BAFA20`
 - Report: [`REPORT.md`](REPORT.md)
 - Listed pin remains [`../11611/REPORT.md`](../11611/REPORT.md)
-- Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**)
+- Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**)
 
 ```bash
 ./cw20-codeid-audits/scripts/fetch-lcd-wasm.sh 11619

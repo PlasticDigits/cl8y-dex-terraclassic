@@ -349,23 +349,17 @@ CMM migrate (admin $CMM; signer $CMM_GOV / ustr-cmm — NOT DEX 2-of-3):
   # AutoLP instances: same, code $AUTOLP_CODE  msg '{"factory":"$FACTORY"}' if pre-#610
   # 0 token / AutoLP instances as of 2026-08-24 — no CMM migrate required.
 
-Launcher token_code_id / autolp_code_id (11620 has no UpdateConfig):
-  make build-optimized
-  UPGRADE611_STORE_LAUNCHER_ONLY=1 \\
-    UPGRADE611_SKIP_WHITELIST=1 \\
-    UPGRADE611_UPDATE_CONFIG=1 \\
-    UPGRADE611_TOKEN_CODE_ID=$TOKEN_CODE \\
-    UPGRADE611_AUTOLP_CODE_ID=$AUTOLP_CODE \\
-    ./scripts/upgrade-611-community-tax.sh
-  # Do not whitelist the new launcher store id.
+Launcher pins (done 2026-08-24 on 11622): GetConfig token_code_id=$TOKEN_CODE autolp_code_id=$AUTOLP_CODE.
 
-Coolify after instances actually run option-2 bytes:
+Coolify / indexer (catalog keys on a single code_id — flip or new 11619 creates stay unattested):
+  VITE_COMMUNITY_TAX_CODE_ID=$TOKEN_CODE
+  COMMUNITY_TAX_CODE_ID=$TOKEN_CODE
   COMMUNITY_TAX_OPTION2_CODE_IDS=$TOKEN_CODE
   UST1_WINDOW_ADDRESS=$UST1_OPS_WINDOW
-  # keep VITE_COMMUNITY_TAX_CODE_ID=$OLD_TOKEN_CODE until UpdateConfig + catalog accept 11619
-  # VITE_COMMUNITY_TOKEN_LAUNCHER=$LAUNCHER
+  VITE_COMMUNITY_TOKEN_LAUNCHER=$LAUNCHER
+  COMMUNITY_TOKEN_LAUNCHER=$LAUNCHER
 
-Do not whitelist $LAUNCHER_CODE / $AUTOLP_CODE / 11612 / 8654.
+Do not whitelist $LAUNCHER_CODE / $AUTOLP_CODE / 11612 / 11620 / 8654.
 Do not RemoveWhitelistedCodeId $OLD_TOKEN_CODE until every pair pin is refreshed.
 EOF
 

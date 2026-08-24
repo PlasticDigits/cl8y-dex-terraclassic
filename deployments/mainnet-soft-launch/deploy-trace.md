@@ -266,7 +266,7 @@ Uploader: `cl8ydeploy` (`terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`). Instant
 | **Token `cmm_governance` / CMM** | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
 | **Unused 11612 instance** | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` (CMM treasury admin; no `CreateToken`) |
 
-Coolify / indexer (dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593), indexer [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = canonical launcher above, `CMM_GOVERNANCE_ADDR` = CMM. Unset keeps Create Token / catalog unconfigured.
+Coolify / indexer (dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593), indexer [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)): `VITE_COMMUNITY_TAX_CODE_ID=11619`, `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = canonical launcher above, `CMM_GOVERNANCE_ADDR` = CMM, `COMMUNITY_TAX_OPTION2_CODE_IDS=11619`. Unset keeps Create Token / catalog unconfigured.
 
 ### Community tax rotate (#611 / #612 / #616, columbus-5, 2026-08-24)
 
@@ -286,7 +286,17 @@ Script: [`scripts/upgrade-611-community-tax.sh`](../../scripts/upgrade-611-commu
 | **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184, 11611, 11619]`** — `AddWhitelistedCodeId 11619` [`B659D914…40CF`](https://finder.terraclassic.community/columbus-5/tx/B659D914CEAA045F05B5371F90669B79E34E7AE414537C6B4A8A58286BC640CF) height **30085794** (DEX 2-of-3) |
 | **11611 / 11613 / 11619 / 11621 instances** | **0** — no CMM migrate |
 
-Do **not** whitelist **11620** / **11621** / unused **11612** / ALPHA **8654**. Keep **11611** listed until rotate + Refresh. Coolify `COMMUNITY_TAX_OPTION2_CODE_IDS` stays unset until instances run 11619 bytes.
+Do **not** whitelist **11620** / **11621** / **11622** / unused **11612** / ALPHA **8654**. Keep **11611** listed (F6) until every pair pin is refreshed.
 
-Launcher `GetConfig` is still `token_code_id=11611` / `autolp_code_id=11613` (live **11620** has no `UpdateConfig`). After this repo's launcher crate change: `make build-optimized`, then `UPGRADE611_STORE_LAUNCHER_ONLY=1 UPGRADE611_SKIP_WHITELIST=1 UPGRADE611_UPDATE_CONFIG=1 UPGRADE611_TOKEN_CODE_ID=11619 UPGRADE611_AUTOLP_CODE_ID=11621 ./scripts/upgrade-611-community-tax.sh`. Do not factory-list the new launcher store id.
+### Launcher UpdateConfig (#611, columbus-5, 2026-08-24)
+
+| Field | Value |
+|-------|--------|
+| Launcher store **11622** | pin `8E56AE0FDA1336EB3C39EC67E6C49D7A002E8E70E30D0766EEE69BA3D2098E90` · store [`FA30A5B1…2355`](https://finder.terraclassic.community/columbus-5/tx/FA30A5B1CD87E4D984123EE17BA05D7CFE6F852D1A93EFAB293AB7CBE0B12355) |
+| Migrate `terra126pr5…` **11620 → 11622** | [`F2166AB0…AAB2`](https://finder.terraclassic.community/columbus-5/tx/F2166AB0C09B4E7989AB10DC8DCC4D5855B4E3F91C7E4F8C6D5B8F780947AAB2) height **30086055** (DEX 2-of-3) |
+| `UpdateConfig` | [`DAC86F27…6ED3`](https://finder.terraclassic.community/columbus-5/tx/DAC86F27B4E95FC83461B733453A9EF1028BC8421F2FE3AE022B0A14DADF6ED3) height **30086058** |
+| **`GetConfig`** | `token_code_id` **11619**, `autolp_code_id` **11621** |
+| Instances | still **0** — no CMM migrate / no Refresh |
+
+Coolify leftover: flip `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` to **11619** (catalog is single-id) and set `COMMUNITY_TAX_OPTION2_CODE_IDS=11619`. Do not factory-list **11622**.
 
