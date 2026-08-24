@@ -222,7 +222,7 @@ export default function MigrateTokenPage() {
 
         {txHash && (
           <div data-testid="migrate-token-success">
-            <TxResultAlert hash={txHash} />
+            <TxResultAlert type="success" message="Token migrated." txHash={txHash} />
             <Link className="underline text-sm" to={`/token/${loaded}/manage`} data-testid="migrate-token-next-manage">
               Manage this token
             </Link>
