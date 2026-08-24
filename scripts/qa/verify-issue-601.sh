@@ -88,6 +88,7 @@ run_c5_whitelist() {
   ids="$(lcd_decode_smart_data "$raw")"
   echo "$ids" | jq -e '.code_ids | index(11626) != null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11611) == null' >/dev/null
+  echo "$ids" | jq -e '.code_ids | index(11619) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11612) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11613) == null' >/dev/null
   echo "$ids" | jq -e '.code_ids | index(11614) == null' >/dev/null

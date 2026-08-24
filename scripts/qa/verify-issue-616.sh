@@ -138,7 +138,7 @@ run_live_dapp() {
     return 1
   }
   js="$(curl -fsS --max-time 45 "${DAPP_URL%/}${js_path}")"
-  printf '%s' "$js" | grep -qE 'VITE_COMMUNITY_TAX_CODE_ID:"11619"'
+  printf '%s' "$js" | grep -qE 'VITE_COMMUNITY_TAX_CODE_ID:"(11619|11626)"'
   printf '%s' "$js" | grep -qF "$LAUNCHER_C5"
   if printf '%s' "$js" | grep -qF "$UNUSED_11612"; then
     echo "Coolify frontend still bakes unused 11612 launcher" >&2
@@ -158,7 +158,7 @@ run_live_indexer_catalog() {
   set -euo pipefail
   local body
   body="$(curl -fsS --max-time 20 "${INDEXER_URL%/}/api/v1/community-tokens")"
-  echo "$body" | jq -e '.configured == true and .code_id == 11619' >/dev/null
+  echo "$body" | jq -e '.configured == true and (.code_id == 11626 or .code_id == 11619)' >/dev/null
   echo "$body" | jq -e '(.items | type) == "array"' >/dev/null
   echo "indexer community-tokens configured=true code_id=$(echo "$body" | jq -r '.code_id')"
 }

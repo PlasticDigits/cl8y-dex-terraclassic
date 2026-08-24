@@ -308,10 +308,10 @@ Script: [`scripts/upgrade-611-community-tax.sh`](../../scripts/upgrade-611-commu
 |-------|--------|
 | Token (stored + listed 2026-08-24) | **11626** · pin `A7244C93D8490CFD1063DC7B45C3F09E38E947008A0C6069A93E6191C2D9DA1C` · store [`95D5D44C…7E01`](https://finder.terraclassic.community/columbus-5/tx/95D5D44C07AB2284DD377684265C7E2BE573D05D52612FF2B8388B0896F97E01) height **30091582** |
 | **`AddWhitelistedCodeId 11626`** | [`03F74C9B…DC91`](https://finder.terraclassic.community/columbus-5/tx/03F74C9BEFF145732E1A358E06F785DBC499D8529096BF599191E5967896DC91) height **30091644** (DEX 2-of-3) |
-| **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184, 11619, 11626]`** — `IsCodeIdWhitelisted 11611` is **false** (0 instances; not this add) |
+| **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184, 11626]`** after `RemoveWhitelistedCodeId 11619` [`9591AC1E…ABFE`](https://finder.terraclassic.community/columbus-5/tx/9591AC1E8E39734081C0EA304C255253C47009368C07C6EB4FE3325822C1ABFE) height **30091710** |
 | **`GetConfig`** | `token_code_id` **11626** / `autolp_code_id` **11621** — `UpdateConfig` [`ED5E5725…E80A`](https://finder.terraclassic.community/columbus-5/tx/ED5E57255689A497BF391374DEFE988B1D13072E1693243F8081B65A78DFE80A) height **30091680** |
 | **11611 / 11619 / 11626 instances** | **0** — no CMM migrate / no Refresh |
 | **Pair pins** | 16/16 factory pairs are 6036 / 8266 / 10184 only — no 11619 |
 
-Do **not** whitelist **11621** / **11622** / unused **11612** / ALPHA **8654** / code **3**. Unused **11619** may be `RemoveWhitelistedCodeId` (0 instances, 0 pair pins). Coolify leftover: `VITE_COMMUNITY_TAX_CODE_ID=11626`. REPORT: [`cw20-codeid-audits/codeids/11626/REPORT.md`](../../cw20-codeid-audits/codeids/11626/REPORT.md).
+Do **not** whitelist **11621** / **11622** / unused **11612** / unused **11619** / ALPHA **8654** / code **3**. Coolify leftover: frontend rebuild must bake `VITE_COMMUNITY_TAX_CODE_ID=11626` (indexer catalog already `code_id=11626`). REPORT: [`cw20-codeid-audits/codeids/11626/REPORT.md`](../../cw20-codeid-audits/codeids/11626/REPORT.md).
 

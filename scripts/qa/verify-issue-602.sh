@@ -125,8 +125,8 @@ run_live_dapp() {
     return 1
   }
   js="$(curl -fsS --max-time 45 "${DAPP_URL%/}${js_path}")"
-  if ! printf '%s' "$js" | grep -qE 'VITE_COMMUNITY_TAX_CODE_ID:"(11611|11619)"'; then
-    echo "dex.cl8y.com bundle missing VITE_COMMUNITY_TAX_CODE_ID 11611 or 11619" >&2
+  if ! printf '%s' "$js" | grep -qE 'VITE_COMMUNITY_TAX_CODE_ID:"(11611|11619|11626)"'; then
+    echo "dex.cl8y.com bundle missing VITE_COMMUNITY_TAX_CODE_ID 11626 (or 11619 during rebuild)" >&2
     return 1
   fi
   printf '%s' "$js" | grep -qF "$LAUNCHER_C5"
@@ -143,7 +143,7 @@ run_live_indexer() {
   set -euo pipefail
   local body
   body="$(curl -fsS --max-time 20 "${INDEXER_URL%/}/api/v1/community-tokens")"
-  echo "$body" | jq -e '.configured == true and (.code_id == 11611 or .code_id == 11619)' >/dev/null
+  echo "$body" | jq -e '.configured == true and (.code_id == 11626 or .code_id == 11619)' >/dev/null
   echo "$body" | jq -e '(.items | type) == "array"' >/dev/null
   echo "indexer community-tokens configured=true code_id=$(echo "$body" | jq -r '.code_id') items=$(echo "$body" | jq '.total // (.items|length)')"
 }
