@@ -2,7 +2,7 @@
 
 Use when changing community-token ingest, `GET /api/v1/community-tokens`, or `community_tax` on token detail.
 
-Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); ExemptionDirectory tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md) — do not treat a catalog event as on-chain exempt); route/solve net ranking [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) ([`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md) — catalog `buy_bps` / `sell_bps` feed the solver; list handlers stay no request-path LCD).
+Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); ExemptionDirectory tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md) — do not treat a catalog event as on-chain exempt); route/solve net ranking [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) ([`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md) — catalog `buy_bps` / `sell_bps` feed the solver; list handlers stay no request-path LCD). LocalTerra deploy writes **local** `COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TOKEN_LAUNCHER` / `CMM_GOVERNANCE_ADDR=test1` / `COMMUNITY_TAX_OPTION2_CODE_IDS=<local id>` ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620), [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) **L620-5**) — do not pin columbus-5 **11619** against local instances.
 
 ## Canonical references
 
@@ -34,6 +34,7 @@ Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/is
 make setup-indexer-postgres
 make verify-issue-594
 make verify-issue-602
+make verify-issue-620
 ```
 
 ## Do not

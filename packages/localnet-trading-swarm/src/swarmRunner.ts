@@ -2,6 +2,7 @@ import type { MnemonicWallet } from '@goblinhunt/cosmes/wallet'
 import type { ActionContext } from './actions.js'
 import { runAction } from './actions.js'
 import { fundBotWallets, defaultFundingOptions } from './funding.js'
+import { fundingEnvFromVite } from './fundingKind.js'
 import { uniqueCw20TokenAddresses, fetchAllPairs } from './factoryTokens.js'
 import { pickActionKind, type ProfileConfig, type ProfilesFile } from './profiles.js'
 import { createTxQueue, sampleInterTxDelaySeconds, GapAccumulator } from './scheduler.js'
@@ -46,6 +47,7 @@ export async function startSwarm(opts: {
       botAddresses,
       cw20Tokens: cw20s,
       funding: defaultFundingOptions(),
+      fundingEnv: fundingEnvFromVite(env),
     })
   }
 

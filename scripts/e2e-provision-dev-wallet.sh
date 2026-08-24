@@ -47,6 +47,8 @@ fi
 source "$REPO_ROOT/scripts/lib/e2e-terrad-tx.sh"
 # shellcheck source=scripts/lib/lcd-smart-query.sh
 source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
+# shellcheck source=scripts/lib/cw20-funding-kind.sh
+source "$REPO_ROOT/scripts/lib/cw20-funding-kind.sh"
 
 terrad_tx() {
   # Re-resolve each call — another agent may recreate the shared compose stack
@@ -86,13 +88,25 @@ if [[ ${#TOKEN_ADDRS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+origin_launcher_or_empty() {
+  local token="$1"
+  local raw origin
+  raw="$(lcd_smart_query_raw "$LCD" "$token" '{"get_launcher_origin":{}}' 2>/dev/null || true)"
+  if [[ -z "$raw" ]]; then
+    echo ""
+    return 0
+  fi
+  origin="$(decode_pairs_payload "$raw" 2>/dev/null | jq -r '.launcher // empty' 2>/dev/null || true)"
+  printf '%s' "$origin"
+}
+
 for TOKEN in "${TOKEN_ADDRS[@]}"; do
   [[ -n "$TOKEN" ]] || continue
-  # Wrapped natives mint via wrap-mapper only (GitLab #201 wrap-pair seed).
-  if [[ -n "${VITE_LUNC_C_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_LUNC_C_TOKEN_ADDRESS" ]]; then
-    continue
+  KIND="$(classify_cw20_funding_kind "$TOKEN")"
+  if [[ "$KIND" == "mint" ]]; then
+    KIND="$(classify_cw20_funding_kind "$TOKEN" "$(origin_launcher_or_empty "$TOKEN")")"
   fi
-  if [[ -n "${VITE_USTC_C_TOKEN_ADDRESS:-}" && "$TOKEN" == "$VITE_USTC_C_TOKEN_ADDRESS" ]]; then
+  if [[ "$KIND" == "skip" ]]; then
     continue
   fi
   MIN_FOR_TOKEN="$MIN_RAW_BALANCE"
@@ -104,8 +118,16 @@ for TOKEN in "${TOKEN_ADDRS[@]}"; do
   if [[ "$BAL" =~ ^[0-9]+$ ]] && ((10#$BAL >= 10#$MIN_FOR_TOKEN)); then
     continue
   fi
-  echo "e2e-provision: minting $MINT_TOPUP units to dev wallet on $TOKEN (balance was $BAL)."
-  terrad_tx wasm execute "$TOKEN" "{\"mint\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$MINT_TOPUP\"}}" >/dev/null
+  if [[ "$KIND" == "transfer" ]]; then
+    echo "e2e-provision: transferring $MINT_TOPUP units to dev wallet on tax token $TOKEN (balance was $BAL)."
+    if ! terrad_tx wasm execute "$TOKEN" "{\"transfer\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$MINT_TOPUP\"}}" >/dev/null; then
+      echo "e2e-provision: Transfer failed for $TOKEN — fail-closed (no Mint fallback, GitLab #620)." >&2
+      exit 1
+    fi
+  else
+    echo "e2e-provision: minting $MINT_TOPUP units to dev wallet on $TOKEN (balance was $BAL)."
+    terrad_tx wasm execute "$TOKEN" "{\"mint\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$MINT_TOPUP\"}}" >/dev/null
+  fi
   sleep 2
 done
 
@@ -123,4 +145,4 @@ if [[ -n "${VITE_CL8Y_TOKEN_ADDRESS:-}" ]]; then
   fi
 fi
 
-echo "e2e-provision: CW20 balances for factory tokens are at least $MIN_RAW_BALANCE (raw units) where minting is allowed."
+echo "e2e-provision: CW20 balances for factory tokens are at least $MIN_RAW_BALANCE (raw units) where minting or tax Transfer is allowed."

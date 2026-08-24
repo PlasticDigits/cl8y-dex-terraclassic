@@ -27,6 +27,22 @@ dex_wasm_stale_vs_sources() {
       STALE_CONTRACTS+=("$basename")
     fi
   done
+  # GitLab #620 — LocalTerra tax seed uses these artifacts; stale wasm must fail deploy.
+  local ctax_pair
+  for ctax_pair in \
+    "cl8y_community_tax_token:community-tax-token" \
+    "cl8y_community_token_launcher:community-token-launcher" \
+    "cl8y_community_tax_autolp:community-tax-autolp"; do
+    basename="${ctax_pair%%:*}"
+    src_dir="$contracts_dir/${ctax_pair#*:}"
+    wasm="$artifacts_dir/${basename}.wasm"
+    [ -f "$wasm" ] || continue
+    [ -d "$src_dir/src" ] || continue
+    newest_src=$(find "$src_dir/src" -name '*.rs' -newer "$wasm" 2>/dev/null | head -1)
+    if [ -n "$newest_src" ]; then
+      STALE_CONTRACTS+=("$basename")
+    fi
+  done
   [ "${#STALE_CONTRACTS[@]}" -eq 0 ]
 }
 
@@ -35,5 +51,5 @@ dex_wasm_newer_than_stamp() {
   local repo_root="$1"
   local stamp="$2"
   local artifacts_dir="${repo_root}/smartcontracts/artifacts"
-  [ -n "$(find "$artifacts_dir" -maxdepth 1 -name 'cl8y_dex_*.wasm' -newer "$stamp" -print -quit 2>/dev/null)" ]
+  [ -n "$(find "$artifacts_dir" -maxdepth 1 \( -name 'cl8y_dex_*.wasm' -o -name 'cl8y_community_*.wasm' \) -newer "$stamp" -print -quit 2>/dev/null)" ]
 }
