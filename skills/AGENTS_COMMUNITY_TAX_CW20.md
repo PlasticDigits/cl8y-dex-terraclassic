@@ -33,7 +33,7 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 | Token wasm admin / CMM | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` (stamped on create; not launcher `ContractInfo.admin`) |
 | Factory whitelist | `[6036, 8266, 10184, 11611, 11619]` |
 
-Post-merge rotate (#611 / #612 / #616, 2026-08-24): stored **11619** / **11620** / **11621** / **11622**; listed **11619**; launcher **11614 → 11620 → 11622**; `UpdateConfig` set `token_code_id` **11619** / `autolp_code_id` **11621** (tx [`DAC86F27…6ED3`](https://finder.terraclassic.community/columbus-5/tx/DAC86F27B4E95FC83461B733453A9EF1028BC8421F2FE3AE022B0A14DADF6ED3) height **30086058**). Do not whitelist launcher **11612** / **11614** / **11620** / **11622**, AutoLP **11613** / **11621**, or ALPHA **8654**. Keep **11611** listed until Refresh.
+Post-merge rotate (#611 / #612 / [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616), 2026-08-24): stored **11619** / **11620** / **11621** / **11622**; listed **11619**; launcher **11614 → 11620 → 11622**; `UpdateConfig` set `token_code_id` **11619** / `autolp_code_id` **11621** (tx [`DAC86F27…6ED3`](https://finder.terraclassic.community/columbus-5/tx/DAC86F27B4E95FC83461B733453A9EF1028BC8421F2FE3AE022B0A14DADF6ED3) height **30086058**). Do not whitelist launcher **11612** / **11614** / **11620** / **11622**, AutoLP **11613** / **11621**, or ALPHA **8654**. Keep **11611** listed until Refresh.
 
 `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` = **11619** (catalog is single-id; leave 11611 and new creates stay unattested). `COMMUNITY_TAX_OPTION2_CODE_IDS=11619`. `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = launcher. Unset → dApp page unavailable / indexer `configured: false`.
 
@@ -95,6 +95,7 @@ make verify-issue-610
 make verify-issue-601
 make verify-issue-602
 make verify-issue-612
+make verify-issue-616
 CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp
 ```

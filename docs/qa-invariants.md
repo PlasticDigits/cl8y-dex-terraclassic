@@ -190,6 +190,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M612-7** | Do not reopen #606 / #607 for ops/QA. File a new ticket if **T606** / **T592-13** / **C593-14** is wrong. |
 | **M612-8** | Playbook + this Q10 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking (invariant Q11) {#post-merge-ops-616}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q11** Post-merge !409–!413 is live-checked (columbus-5 11622 + `token_code_id` 11619 + option-2 copy + children 607/610/613/614/615); Coolify window/wrap leftovers stay recorded | **`make verify-issue-616`** → children **607, 610, 613, 614, 615** plus live pins and optional leftovers (**M616-1–M616-8**) | Non-zero exit; fix the failing child, Coolify pin, or copy; do not treat green children as live wrap/window ingest |
+
+**M616** (GitLab **#616** — [`skills/AGENTS_POST_MERGE_OPS_616.md`](../skills/AGENTS_POST_MERGE_OPS_616.md)):
+
+| ID | Rule |
+|----|------|
+| **M616-1** | `make verify-issue-616` runs children **607, 610, 613, 614, 615**. Unit/docs FAILs fail the stack. Coolify leftover probes SKIP unless `VERIFY616_REQUIRE_LIVE_LEFTOVERS=1`. LocalTerra SKIP only when the chain is down (unless `VERIFY616_REQUIRE_CHAIN=1`). |
+| **M616-2** | Columbus-5 launcher `terra126pr5…` is **11622** with `GetConfig` **11619** / **11621**. Do not whitelist 11612 / 11613 / 11614 / 11620 / 11621 / 11622 / 8654. Keep 11611 listed until Refresh. |
+| **M616-3** | Coolify frontend bakes `VITE_COMMUNITY_TAX_CODE_ID=11619` and launcher `terra126pr5…`. Indexer catalog `code_id=11619`. Indexer `UST1_WINDOW_ADDRESS` is pinned (`ust1_window_configured: true`). Remaining leftovers: wrap `event_count` and live `ust1_mint` / `ust1_redeem`. |
+| **M616-4** | Swap/Trade pair-direct **and** hops show `Sell tax extra` / `Buy tax applies`. Create/Manage: `Buy/sell tax applies on every listed-pair swap.` No `Route skips buy/sell tax`. |
+| **M616-5** | AutoLP skim floor (100 bps, cap 200) + factory-listed tax pair. Do not whitelist AutoLP. Crate **610** is the gate when LocalTerra is down. |
+| **M616-6** | Ranking TAX→UST1 vs TAX→USTR. Unmigrated 11611 stays Honest hops until `COMMUNITY_TAX_OPTION2_*` (**R615-5**). Do not infer wrap/window fees from `amount × bps`. |
+| **M616-7** | Do not reopen #607 / #610 / #613 / #615 for ops/QA. #614 stays open until live `ust1_mint` / `ust1_redeem` increment. |
+| **M616-8** | Playbook + this Q11 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -204,3 +223,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_600.md`](../skills/AGENTS_POST_MERGE_OPS_600.md) — post-merge !400 LocalTerra E9 + columbus-5 USTR→USTC unwrap gas ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600), **Q8**)
 - [`skills/AGENTS_POST_MERGE_OPS_602.md`](../skills/AGENTS_POST_MERGE_OPS_602.md) — post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token ([#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602), **Q9**)
 - [`skills/AGENTS_POST_MERGE_OPS_612.md`](../skills/AGENTS_POST_MERGE_OPS_612.md) — post-merge !407/!408 Enable Feature migrate + LocalTerra QA ([#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612), **Q10**)
+- [`skills/AGENTS_POST_MERGE_OPS_616.md`](../skills/AGENTS_POST_MERGE_OPS_616.md) — post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616), **Q11**)

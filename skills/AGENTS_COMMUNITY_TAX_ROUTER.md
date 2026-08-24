@@ -68,9 +68,10 @@ Then `GET /route/solve` drops middle-hop TAX sells and applies buy-split net on 
 make verify-issue-607
 make verify-issue-615
 make verify-issue-612
+make verify-issue-616
 ```
 
-Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit). Post-merge Enable Feature LocalTerra: [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)). Do not run the stale option-1 disclose checklist on this ticket.
+Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit). Post-merge Enable Feature LocalTerra: [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)). Live option-2 copy + wrap/window leftovers: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)). Do not run the stale option-1 disclose checklist on this ticket.
 
 ## Do not
 

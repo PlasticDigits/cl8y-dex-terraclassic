@@ -32,11 +32,12 @@ Product decision (2026-08-23): `pair` must be factory-listed **and** have the ta
 
 ```bash
 make verify-issue-610
+make verify-issue-616
 cd smartcontracts && cargo test -p cl8y-community-tax-autolp
 cd smartcontracts && cargo test -p cl8y-community-token-launcher poc_autolp_manager_can_skim_to_fake_pair
 ```
 
-Columbus-5 AutoLP **11613** needs a CMM migrate after merge (no instances required until a token binds). Do not whitelist **11613**.
+Columbus-5 AutoLP **11621** is the live launcher pin (store was **11613**). No instances required until a token binds. Do not whitelist **11613** / **11621**. Post-merge leftover: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)).
 
 ## Do not
 

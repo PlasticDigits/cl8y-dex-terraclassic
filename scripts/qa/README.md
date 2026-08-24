@@ -180,6 +180,20 @@ After !407/!408 landed Enable Feature + unique SKUs without LocalTerra smoke / l
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_612.md`](../../skills/AGENTS_POST_MERGE_OPS_612.md). QA invariant **Q10**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-612).
 
+### Post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking (GitLab #616)
+
+After !409–!413 landed option-2 classify, wrap ingest, window pin, AutoLP floor, and tax ranking:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-616` | Children **607, 610, 613, 614, 615** plus Q11 / **M616-1–M616-8** |
+| Columbus-5 launcher | `terra126pr5…` code **11622**, `GetConfig` **11619** / **11621**; 11611+11619 listed |
+| Coolify frontend | `VITE_COMMUNITY_TAX_CODE_ID=11619` + option-2 copy (not `Route skips buy/sell tax`) |
+| Coolify indexer leftovers | `UST1_WINDOW_ADDRESS=terra1zxwpz…h3rh2` (Vite is not enough); wrap `event_count ≥ 1`; `COMMUNITY_TAX_OPTION2_CODE_IDS=11619` after a 11619 instance |
+| Disclose | Pair-direct **and** hops: `Sell tax extra` / `Buy tax applies` |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_616.md`](../../skills/AGENTS_POST_MERGE_OPS_616.md). QA invariant **Q11**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-616).
+
 ---
 
 ## Makefile reference

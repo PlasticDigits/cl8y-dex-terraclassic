@@ -44,6 +44,7 @@ After CMM migrate of 11611 to option-2 wasm: add **11611** to `COMMUNITY_TAX_OPT
 ```bash
 make verify-issue-615
 make verify-issue-607   # classify / Honest hops must not regress
+make verify-issue-616   # post-merge !409–!413 stack + live leftovers
 ```
 
 ## Do not
