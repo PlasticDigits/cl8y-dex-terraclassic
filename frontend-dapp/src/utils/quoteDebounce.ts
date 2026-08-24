@@ -102,15 +102,26 @@ export function assertSubmitHybridAligned(live: SubmitHybridSnapshot, snapshotte
   }
 }
 
-export type SubmitAlignedSimPayload<T extends { return_amount: string; indexerOperations?: unknown }> = {
+export type SubmitSimQuoteFields = {
+  return_amount: string
+  indexerOperations?: unknown
+  executeAmountOut?: string
+}
+
+export type SubmitAlignedSimPayload<T extends SubmitSimQuoteFields> = {
   payRaw: string
   minReceived: string | null
   simData: T
   indexerOperations: T['indexerOperations']
 }
 
+/** Pre-tax execute amount when You Receive is post-buy-split (#615) or unwrap display (#512). */
+export function submitMinReceiveBase<T extends SubmitSimQuoteFields>(simData: T): string {
+  return simData.executeAmountOut ?? simData.return_amount
+}
+
 /** Bundle pay size + quote-derived fields for a single submit snapshot (GitLab #356). */
-export function buildSubmitAlignedSimPayload<T extends { return_amount: string; indexerOperations?: unknown }>(
+export function buildSubmitAlignedSimPayload<T extends SubmitSimQuoteFields>(
   payRaw: string,
   simData: T,
   slippageTolerance: number,
@@ -118,7 +129,7 @@ export function buildSubmitAlignedSimPayload<T extends { return_amount: string; 
 ): SubmitAlignedSimPayload<T> {
   return {
     payRaw,
-    minReceived: applySlippageFloor(simData.return_amount, slippageTolerance),
+    minReceived: applySlippageFloor(submitMinReceiveBase(simData), slippageTolerance),
     simData,
     indexerOperations: simData.indexerOperations,
   }

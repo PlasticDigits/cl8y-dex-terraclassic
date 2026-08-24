@@ -63,6 +63,7 @@ import {
   communityTaxRouteHint,
   extraDebitSellBpsForExecute,
 } from '@/utils/taxPreviewMaxSpend'
+import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
@@ -74,6 +75,8 @@ import { TradeMarketSubmitChrome, type TradeMarketSubmitChromeModel } from '@/co
 
 interface MarketSimData {
   return_amount: string
+  /** Pre-tax wallet sim when `return_amount` is post-buy-split (#615). */
+  executeAmountOut?: string
   spread_amount: string
   commission_amount: string
   quoteDisclosure: string
@@ -228,6 +231,7 @@ export function TradeMarketOrderPanel({
       debouncedHybridMaxMakers,
       slippageTolerance,
       address,
+      taxReceive.buyBps ?? null,
     ],
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<MarketSimData> => {
@@ -250,16 +254,19 @@ export function TradeMarketOrderPanel({
           maxSpreadStr,
           quoteTrader,
         })
-        return {
-          return_amount: quoted.return_amount,
-          spread_amount: quoted.spread_amount,
-          commission_amount: quoted.commission_amount,
-          quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
-          indexerQuoteKind: quoted.indexerQuoteKind,
-          indexerOperations: quoted.indexerOperations,
-          routePreflight: quoted.routePreflight,
-          indexerAmountReconciled: quoted.indexerAmountReconciled,
-        }
+        return withBuyTaxReceiveDisplay(
+          {
+            return_amount: quoted.return_amount,
+            spread_amount: quoted.spread_amount,
+            commission_amount: quoted.commission_amount,
+            quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
+            indexerQuoteKind: quoted.indexerQuoteKind,
+            indexerOperations: quoted.indexerOperations,
+            routePreflight: quoted.routePreflight,
+            indexerAmountReconciled: quoted.indexerAmountReconciled,
+          },
+          taxReceive.buyBps
+        )
       }
 
       // Default (empty manual book): GET /route/solve best-execution split (#501 / #596).
@@ -278,6 +285,7 @@ export function TradeMarketOrderPanel({
           if (quoted) {
             return {
               return_amount: quoted.return_amount,
+              executeAmountOut: quoted.executeAmountOut,
               spread_amount: quoted.spread_amount,
               commission_amount: quoted.commission_amount,
               quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
@@ -292,10 +300,13 @@ export function TradeMarketOrderPanel({
       }
 
       const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, simRaw, quoteTrader)
-      return {
-        ...sim,
-        quoteDisclosure: POOL_ONLY_QUOTE_DISCLOSURE,
-      }
+      return withBuyTaxReceiveDisplay(
+        {
+          ...sim,
+          quoteDisclosure: POOL_ONLY_QUOTE_DISCLOSURE,
+        },
+        taxReceive.buyBps
+      )
     },
     enabled:
       !!selectedPair &&

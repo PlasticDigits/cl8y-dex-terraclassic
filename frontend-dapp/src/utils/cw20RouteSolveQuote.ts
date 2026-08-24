@@ -11,19 +11,23 @@ import type { IndexerRouteQuoteKind } from '@/types'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
+import { displayReceiveNet } from '@/utils/communityTaxNetOut'
 
 /**
  * Wallet-authoritative CW20 quote from indexer `GET /route/solve` (global best-execution hybrid).
  * Shared by Swap and Trade market (GitLab #501 / always-on #596).
  *
  * Invariants:
- * - Receive amount comes from wallet `simulate_swap_operations` (or single-hop equivalent), not indexer `estimated_amount_out`.
+ * - Receive **display** is wallet sim minus catalog buy split when indexer `buy_tax_bps` > 0 (#615).
+ * - Submit `min_return` uses pre-tax wallet sim (`executeAmountOut`), not the net display.
  * - Submit must use returned `indexerOperations` (including per-hop `hybrid`) via `hybridFromSingleHopIndexerOps` / router execute.
  * - Returns `null` when token_in/out mismatch the request (caller falls back).
  * - Throws on indexer/wallet failure (caller catches for pool-only / Advanced fallback).
  */
 export type Cw20RouteSolveQuote = {
   return_amount: string
+  /** Pre-tax wallet sim for `min_return` when `return_amount` is post-buy-split (#615). */
+  executeAmountOut?: string
   spread_amount: string
   commission_amount: string
   routeSlippagePercent?: string
@@ -87,8 +91,13 @@ export async function quoteCw20ViaRouteSolve(input: {
     )
   }
 
+  const rawWallet = result.amount
+  const buyBps = idx.buy_tax_bps ?? 0
+  const displayNet = displayReceiveNet(rawWallet, buyBps)
+
   return {
-    return_amount: result.amount,
+    return_amount: displayNet,
+    executeAmountOut: displayNet !== rawWallet ? rawWallet : undefined,
     spread_amount: '0',
     commission_amount: '0',
     routeSlippagePercent: resolveRouteSlippagePercent(result.amount, idx.spot_amount_out, idx.slippage_percent),

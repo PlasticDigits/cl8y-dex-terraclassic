@@ -4,7 +4,7 @@ Use when changing **community tax** classification, Swap/Trade copy for `code_id
 
 This is the **C-2 design close**. Chosen option: **1 — accept router hops as untaxed and disclose**. Do **not** implement option 2 (tax original trader) or option 3 (un-exempt the router) unless a new issue reopens H-01 or drops hybrid for this template.
 
-Issue **#607 is a disclose-only close**. Contract classify / pair / router wasm stay as shipped. Follow-up implement ticket: **waived**.
+Issue **#607 is a disclose-only close** on **live 11611**. Contract classify / pair / router wasm stay as shipped until a migrate. Solver ranking that *prepares* for option-2 wasm (without treating unmigrated 11611 as option 2) is **[#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615)** — [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
 
 ## Canonical references
 
@@ -41,10 +41,25 @@ Issue **#607 is a disclose-only close**. Contract classify / pair / router wasm 
 
 [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603) was blocked until this choice was written. Importers (if any) must keep **T592-13**: migrated 11611 tokens have Honest router hops. Do not ship an importer that promises “bps on every official Swap.”
 
+## 11611 pin vs option-2 ranking (#615)
+
+Live columbus-5 **code_id 11611** stays Honest hops (**R607-4**) until CMM migrate. The indexer must **not** skip UST1→TAX→USTR on that pin.
+
+**Flip after migrate / new crate** (ops, not a silent default):
+
+```bash
+# indexer/.env — list the option-2 code id and/or wasm data_hash
+COMMUNITY_TAX_OPTION2_CODE_IDS=11611
+# COMMUNITY_TAX_OPTION2_DATA_HASHES=<lowercase hex>
+```
+
+Then `GET /route/solve` drops middle-hop TAX sells and applies buy-split net on multi-hop `token_out` (**R615-3** / **R615-5**). Pair/router wasm still must actually tax hops — the env flag only changes **ranking**. See [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
+
 ## Verify
 
 ```bash
 make verify-issue-607
+make verify-issue-615
 ```
 
 Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit).

@@ -9,22 +9,22 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use sqlx::PgPool;
 
+use crate::api::AppState;
 use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
 use crate::api::route_graph;
 use crate::api::route_solve_progress;
-use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
-use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
+use crate::hybrid_limits::{MAX_MAKER_FILLS_HARD_CAP, clamp_max_maker_fills};
 
 pub use hybrid_route_opt::HybridHopJson;
 
@@ -255,6 +255,24 @@ pub struct RouteSolveResponse {
     pub router_operations: Vec<serde_json::Value>,
     /// LCD router `simulate_swap_operations` output when `amount_in` and `ROUTER_ADDRESS` are set — **not** a guaranteed fill.
     pub estimated_amount_out: Option<String>,
+    /// Catalog buy-split net of `estimated_amount_out` (GitLab #615). Same as raw when no buy tax.
+    /// Execute / `min_return` still use `estimated_amount_out`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_amount_out_net: Option<String>,
+    /// `buy` / `sell_in` / `exempt` / `honest_hops` / `none` / `skipped_middle_sell`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tax_kind: Option<String>,
+    /// Effective buy bps used for `estimated_amount_out_net` (0 when exempt / Honest hops).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buy_tax_bps: Option<u16>,
+    /// Catalog sell bps on `token_in` (informational; not re-ranked).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sell_tax_bps: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tax_notes: Option<String>,
+    /// True when a catalogued token on this quote uses option-2 router-hop tax.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub router_hops_tax: Option<bool>,
     /// Solver generation label on global best-execution GET (shipped: `global_v1`). Absent on discovery-only GET and POST.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub solver_version: Option<String>,
@@ -641,7 +659,11 @@ pub(crate) async fn resolve_discount_bps(
                 "sender": sender,
             }
         });
-        if let Ok(val) = state.lcd.query_contract::<serde_json::Value>(fee_addr, &q).await {
+        if let Ok(val) = state
+            .lcd
+            .query_contract::<serde_json::Value>(fee_addr, &q)
+            .await
+        {
             return val
                 .get("discount_bps")
                 .and_then(|v| v.as_u64())
@@ -661,16 +683,18 @@ pub(crate) fn hybrid_cache_key(
     amount_bucket: u128,
     max_maker_fills: u32,
     discount_bps: u16,
+    tax_identity: &str,
 ) -> String {
     let mmf_key = cache_key_maker_fills(max_maker_fills);
     format!(
-        "{}|{}|{}|{}|{}|d{}",
+        "{}|{}|{}|{}|{}|d{}|t{}",
         solver_version,
         token_in.trim().to_lowercase(),
         token_out.trim().to_lowercase(),
         amount_bucket,
         mmf_key,
-        discount_bps
+        discount_bps,
+        tax_identity
     )
 }
 
@@ -701,12 +725,15 @@ fn cache_put(key: String, body: serde_json::Value, amount_in: u128, ttl: Duratio
                 g.remove(&oldest_k);
             }
         }
-        g.insert(key, CacheEntry {
-            at: now,
-            body,
-            amount_in,
-            ttl,
-        });
+        g.insert(
+            key,
+            CacheEntry {
+                at: now,
+                body,
+                amount_in,
+                ttl,
+            },
+        );
     }
 }
 
@@ -735,6 +762,15 @@ async fn execute_hybrid_route_solve(
     let bucket = amount_cache_key(amount_u);
     let discount_bps = resolve_discount_bps(state, quote_trader).await;
     let solver_version = crate::api::best_execution::solver_version_for(state);
+    let tax_identity = crate::api::community_tax_rank::load_tax_rank_snapshot(
+        state,
+        token_in,
+        token_out,
+        &[],
+        quote_trader.trader.as_deref(),
+    )
+    .await
+    .cache_identity();
     let ck = hybrid_cache_key(
         solver_version,
         token_in,
@@ -742,6 +778,7 @@ async fn execute_hybrid_route_solve(
         bucket,
         max_makers,
         discount_bps,
+        &tax_identity,
     );
     route_solve_progress::progress_begin(&ck);
 
@@ -912,6 +949,12 @@ pub async fn solve_route(
         slippage_percent: None,
         token_in_price_quote: None,
         token_out_price_quote: None,
+        estimated_amount_out_net: None,
+        tax_kind: None,
+        buy_tax_bps: None,
+        sell_tax_bps: None,
+        tax_notes: None,
+        router_hops_tax: None,
     };
 
     if let Some(amount_raw) = amount_raw {
@@ -992,6 +1035,12 @@ pub async fn solve_route_post(
         slippage_percent: None,
         token_in_price_quote: None,
         token_out_price_quote: None,
+        estimated_amount_out_net: None,
+        tax_kind: None,
+        buy_tax_bps: None,
+        sell_tax_bps: None,
+        tax_notes: None,
+        router_hops_tax: None,
     };
 
     if let Some(ref amount_raw) = body.amount_in {
@@ -1052,18 +1101,18 @@ mod hybrid_cache_key_tests {
 
     #[test]
     fn hybrid_cache_key_same_tier_traders_share_key() {
-        let key7 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 7, 5_000);
-        let key8 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000);
+        let key7 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 7, 5_000, "none");
+        let key8 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000, "none");
         assert_eq!(key7, key8, "mmf 7 and 8 bucket to the same cache key");
-        let other_wallet = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000);
+        let other_wallet = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000, "none");
         assert_eq!(key8, other_wallet, "trader address is not part of the key");
     }
 
     #[test]
     fn hybrid_cache_key_maker_fills_distinct_buckets() {
-        let retail = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0);
-        let mid = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 12, 0);
-        let high = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 25, 0);
+        let retail = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0, "none");
+        let mid = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 12, 0, "none");
+        let high = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 25, 0, "none");
         assert_ne!(retail, mid);
         assert_ne!(mid, high);
         assert_eq!(cache_key_maker_fills(7), 8);
@@ -1077,9 +1126,9 @@ mod hybrid_cache_key_tests {
     // tiers can never collide — and two callers on the SAME tier still share the cache.
     #[test]
     fn hybrid_cache_key_distinguishes_discount_bps() {
-        let tier0 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 10_000);
-        let tier5 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000);
-        let tier9 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 9_500);
+        let tier0 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 10_000, "none");
+        let tier5 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000, "none");
+        let tier9 = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 9_500, "none");
         assert_ne!(
             tier0, tier5,
             "different discount bps must not share a cache key"
@@ -1087,22 +1136,31 @@ mod hybrid_cache_key_tests {
         assert_ne!(tier5, tier9);
         assert_eq!(
             tier5,
-            hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000),
+            hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 5_000, "none"),
             "same-discount callers should reuse the cache regardless of address"
         );
     }
 
     #[test]
     fn hybrid_cache_key_amount_bucket_regression() {
-        let a = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_500_000), 8, 0);
-        let b = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_900_000), 8, 0);
+        let a = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_500_000), 8, 0, "none");
+        let b = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(1_900_000), 8, 0, "none");
         assert_eq!(a, b, "micro-variation within one amount bucket shares key");
+    }
+
+    #[test]
+    fn hybrid_cache_key_isolates_tax_identity() {
+        let ordinary = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0, "none");
+        let taxed = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0, "b0s0/b100s0/rh0/e0");
+        let exempt = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0, "b0s0/b100s0/rh0/e1");
+        assert_ne!(ordinary, taxed);
+        assert_ne!(taxed, exempt);
     }
 }
 
 #[cfg(test)]
 mod cache_ttl_tests {
-    use super::{cache_ttl_for_hops, ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT};
+    use super::{ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT, cache_ttl_for_hops};
     use std::time::Duration;
 
     #[test]

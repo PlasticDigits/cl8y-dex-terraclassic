@@ -5,6 +5,7 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { COMMUNITY_TAX_CODE_ID, isCommunityTaxEnabled } from '@/utils/constants'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { effectiveExtraDebitSellBps } from '@/utils/taxPreviewMaxSpend'
+import { effectiveBuyTaxBps } from '@/utils/communityTaxNetOut'
 
 /** LCD sell_bps when pay token is the community tax template (#593 / #609). Null otherwise. */
 export function useCommunityTaxSellBps(tokenAddr: string | null | undefined) {
@@ -32,6 +33,7 @@ export function useCommunityTaxSellBps(tokenAddr: string | null | undefined) {
   })
   return {
     sellBps: isTax ? effectiveExtraDebitSellBps(cfg.data?.sell_bps ?? null, exempt.data?.manager) : null,
+    buyBps: isTax ? effectiveBuyTaxBps(cfg.data?.buy_bps ?? null, exempt.data?.manager) : null,
     isTaxToken: isTax,
     isLoading: info.isLoading || (isTax && cfg.isLoading),
   }

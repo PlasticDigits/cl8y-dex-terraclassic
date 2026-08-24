@@ -90,6 +90,43 @@ describe('quoteCw20ViaRouteSolve (#501)', () => {
     })
     // Wallet amount wins over indexer estimated_amount_out for receive.
     expect(quoted?.return_amount).toBe('950000')
+    expect(quoted?.executeAmountOut).toBeUndefined()
+  })
+
+  it('shows buy-split net You Receive and keeps pre-tax execute amount (#615)', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+      token_in: from,
+      token_out: to,
+      hops: [{ pair, offer_token: from, ask_token: to }],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: from } },
+            ask_asset_info: { token: { contract_addr: to } },
+            hybrid: null,
+          },
+        },
+      ],
+      quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '950000',
+      estimated_amount_out_net: '940500',
+      buy_tax_bps: 100,
+      tax_kind: 'buy',
+      intermediate_tokens: [from, to],
+    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
+    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '950000' })
+
+    const quoted = await quoteCw20ViaRouteSolve({
+      fromToken: from,
+      toToken: to,
+      simRaw: '1000000',
+      maxMakerFills: 8,
+      slippageTolerancePercent: 5,
+      maxSpreadStr: '0.05',
+    })
+
+    expect(quoted?.return_amount).toBe('940500')
+    expect(quoted?.executeAmountOut).toBe('950000')
   })
 
   it('returns null when indexer token_in/out disagree with the request', async () => {

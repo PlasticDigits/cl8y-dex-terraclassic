@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -171,6 +172,10 @@ pub struct Config {
     pub community_token_launcher: Option<String>,
     /// Expected wasm admin (CMM) for `attested_cmm`.
     pub cmm_governance_addr: Option<String>,
+    /// Option-2 community-tax code ids (router hops tax). GitLab #615.
+    pub community_tax_option2_code_ids: HashSet<i64>,
+    /// Known option-2 wasm data hashes (lowercase hex, no 0x). GitLab #615.
+    pub community_tax_option2_data_hashes: HashSet<String>,
 }
 
 /// Catalog env snapshot shared by API + probe (GitLab #594).
@@ -179,6 +184,10 @@ pub struct CommunityTaxCatalogConfig {
     pub code_id: Option<u64>,
     pub launcher: Option<String>,
     pub cmm_governance: Option<String>,
+    /// Post-migrate / new-crate code ids whose hops tax the original trader (#615).
+    pub option2_code_ids: HashSet<i64>,
+    /// Known option-2 `data_hash` values (lowercase hex). Unmigrated 11611 is never implied.
+    pub option2_data_hashes: HashSet<String>,
 }
 
 impl CommunityTaxCatalogConfig {
@@ -187,6 +196,8 @@ impl CommunityTaxCatalogConfig {
             code_id: c.community_tax_code_id,
             launcher: c.community_token_launcher.clone(),
             cmm_governance: c.cmm_governance_addr.clone(),
+            option2_code_ids: c.community_tax_option2_code_ids.clone(),
+            option2_data_hashes: c.community_tax_option2_data_hashes.clone(),
         }
     }
 
@@ -425,6 +436,10 @@ impl Config {
                 .ok()
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty()),
+            community_tax_option2_code_ids: parse_i64_set_env("COMMUNITY_TAX_OPTION2_CODE_IDS"),
+            community_tax_option2_data_hashes: parse_hash_set_env(
+                "COMMUNITY_TAX_OPTION2_DATA_HASHES",
+            ),
         })
     }
 
@@ -432,6 +447,25 @@ impl Config {
     pub fn book_snapshot_max_staleness_ms(&self) -> u64 {
         book_snapshot_max_staleness_ms(self.book_snapshot_interval_ms)
     }
+}
+
+fn parse_i64_set_env(key: &str) -> HashSet<i64> {
+    env::var(key)
+        .ok()
+        .map(|s| s.split(',').filter_map(|p| p.trim().parse().ok()).collect())
+        .unwrap_or_default()
+}
+
+fn parse_hash_set_env(key: &str) -> HashSet<String> {
+    env::var(key)
+        .ok()
+        .map(|s| {
+            s.split(',')
+                .map(|p| p.trim().trim_start_matches("0x").to_ascii_lowercase())
+                .filter(|p| !p.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
