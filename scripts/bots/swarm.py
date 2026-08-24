@@ -51,6 +51,20 @@ from swarm_liquidity import (
     pick_scaled_provide_amounts,
     pool_reserves_ok,
 )
+from swarm_tax import (
+    DEFAULT_SELL_BPS,
+    balance_covers_debit,
+    collect_tax_addrs,
+    filter_gem_pairs,
+    filter_tax_pairs,
+    find_tax_multihop,
+    pair_direct_swap_hook,
+    parse_vite_env_file,
+    required_wallet_debit,
+    router_execute_swap_operations,
+    router_hop_swap_preview_hook,
+    tax_workers_enabled,
+)
 
 
 def _env(name: str, default: str | None = None) -> str | None:
@@ -114,19 +128,33 @@ def _docker_localterra_id() -> str:
     return cid
 
 
+def _vite_pins() -> dict[str, str]:
+    env_local = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "frontend-dapp", ".env.local")
+    )
+    pins = parse_vite_env_file(env_local) if os.path.isfile(env_local) else {}
+    for key in (
+        "VITE_TOKEN_COMMUNITY_TAX_ADDRESS",
+        "VITE_ROUTER_ADDRESS",
+        "VITE_FACTORY_ADDRESS",
+        "VITE_PAIR_COMMUNITY_TAX_EMBER",
+    ):
+        ov = _env(key)
+        if ov:
+            pins[key] = ov
+    return pins
+
+
+def _tax_addrs() -> set[str]:
+    return collect_tax_addrs(None, _vite_pins())
+
+
+def _router_addr() -> str | None:
+    return _vite_pins().get("VITE_ROUTER_ADDRESS") or _env("VITE_ROUTER_ADDRESS")
+
+
 def _factory_addr() -> str:
-    a = _env("FACTORY_ADDRESS") or _env("VITE_FACTORY_ADDRESS")
-    if not a:
-        env_local = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "frontend-dapp", ".env.local")
-        )
-        if os.path.isfile(env_local):
-            with open(env_local, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("VITE_FACTORY_ADDRESS="):
-                        a = line.split("=", 1)[1].strip().strip('"').strip("'")
-                        break
+    a = _env("FACTORY_ADDRESS") or _env("VITE_FACTORY_ADDRESS") or _vite_pins().get("VITE_FACTORY_ADDRESS")
     if not a:
         print("ERROR: set FACTORY_ADDRESS or VITE_FACTORY_ADDRESS (or frontend-dapp/.env.local).", file=sys.stderr)
         sys.exit(1)
@@ -278,9 +306,7 @@ def _pick_directed(
 
 
 def _swap_hook_b64() -> str:
-    msg = {"swap": {"belief_price": None, "max_spread": "0.50", "to": None, "deadline": None, "trader": None}}
-    raw = json.dumps(msg, separators=(",", ":")).encode("utf-8")
-    return base64.b64encode(raw).decode("ascii")
+    return _b64_json(pair_direct_swap_hook())
 
 
 async def _terrad_tx(container: str, args: list[str]) -> tuple[int, str]:
@@ -492,13 +518,15 @@ def _amount_from_reserves(reserve: int, mult: float, jitter: float) -> int:
     return min(base, int(reserve * 0.05))
 
 
-def _collect_pair_metas(lcd: str, factory: str) -> list[PairMeta]:
+def _collect_pair_metas(lcd: str, factory: str, *, exclude_tax: bool = False) -> list[PairMeta]:
     addrs = _iter_factory_pairs(lcd, factory)
     metas: list[PairMeta] = []
     for pa in addrs:
         meta = _load_pair_meta(lcd, pa)
         if meta:
             metas.append(meta)
+    if exclude_tax:
+        return filter_gem_pairs(metas, _tax_addrs())
     return metas
 
 
@@ -634,7 +662,7 @@ async def limit_order_worker_loop(
 
 
 SWAP_BOT_TYPES = ("offer0", "offer1", "heavy", "light", "directed")
-WORKER_TYPES = SWAP_BOT_TYPES + ("limit", "lp")
+WORKER_TYPES = SWAP_BOT_TYPES + ("limit", "lp", "tax")
 
 
 async def lp_worker_loop(
@@ -772,6 +800,217 @@ async def worker_loop(
             print(f"[{name}] error: {exc}", file=sys.stderr)
 
 
+def _sell_bps(lcd: str, tax_token: str) -> int:
+    try:
+        cfg = _lcd_smart(lcd, tax_token, {"get_config": {}})
+        bps = int(cfg.get("sell_bps") or DEFAULT_SELL_BPS)
+        return bps if bps >= 0 else DEFAULT_SELL_BPS
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, ValueError, TypeError):
+        return DEFAULT_SELL_BPS
+
+
+def _cw20_balance(lcd: str, token: str, holder: str) -> int:
+    try:
+        data = _lcd_smart(lcd, token, {"balance": {"address": holder}})
+        return int(data.get("balance") or 0)
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, ValueError, TypeError):
+        return 0
+
+
+def _tax_preview(
+    lcd: str, token: str, frm: str, to: str, amount: int, send_msg: dict[str, Any] | None
+) -> dict[str, Any] | None:
+    try:
+        return _lcd_smart(
+            lcd,
+            token,
+            {
+                "tax_preview": {
+                    "from": frm,
+                    "to": to,
+                    "amount": str(amount),
+                    "send_msg": _b64_json(send_msg) if send_msg else None,
+                }
+            },
+        )
+    except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+        return None
+
+
+def _tax_log(path: str, sell_bps: int, preview: dict[str, Any] | None, amount: int) -> str:
+    need = required_wallet_debit(preview, amount, path, sell_bps)
+    credit = int((preview or {}).get("credit") or amount)
+    return (
+        f"tax_debit={need} tax_credit={credit} bps={sell_bps} path={path}"
+    )
+
+
+async def _tax_gate_sell(
+    lcd: str,
+    tax_token: str,
+    offer: str,
+    amount: int,
+    path: str,
+    preview_from: str,
+    preview_to: str,
+    send_msg: dict[str, Any],
+    sell_bps: int,
+) -> tuple[bool, dict[str, Any] | None]:
+    if offer != tax_token:
+        return True, None
+    preview = _tax_preview(lcd, tax_token, preview_from, preview_to, amount, send_msg)
+    need = required_wallet_debit(preview, amount, path, sell_bps)
+    bal = _cw20_balance(lcd, tax_token, TEST1_ADDR)
+    if not balance_covers_debit(bal, need):
+        return False, preview
+    return True, preview
+
+
+async def tax_worker_loop(
+    name: str,
+    replica_idx: int,
+    all_metas: list[PairMeta],
+    lcd: str,
+    container: str,
+    mean_base: float,
+    dry: bool,
+) -> None:
+    """Dedicated tax/EMBER worker: sell extra-debit, buy split, provide 1:1, limit 1:1, router ≥2hop."""
+    del replica_idx
+    tax_addrs = _tax_addrs()
+    tax_metas = filter_tax_pairs(all_metas, tax_addrs)
+    if not tax_addrs or not tax_metas:
+        print(f"[{name}] no tax pair — idle (seed deploy required)", flush=True)
+        while True:
+            await asyncio.sleep(60.0)
+    tax_token = next(iter(tax_addrs))
+    sell_bps = _sell_bps(lcd, tax_token)
+    router = _router_addr()
+    rng = random.Random(abs(hash(name)) % (2**31))
+    kinds = ("sell", "buy", "provide", "limit", "router", "hybrid")
+    print(
+        f"[{name}] tax worker token={tax_token[:18]}… sell_bps={sell_bps} "
+        f"router={'set' if router else 'missing'} dry_run={dry}",
+        flush=True,
+    )
+
+    while True:
+        wait = rng.expovariate(1.0 / mean_base)
+        await asyncio.sleep(min(max(wait, 1.0), 600.0))
+        m = rng.choice(tax_metas)
+        fresh = _load_pair_meta(lcd, m.pair_addr)
+        if not fresh:
+            continue
+        m = fresh
+        floor = _min_reserve_per_side()
+        if m.reserve0 < floor or m.reserve1 < floor:
+            print(f"[{name}] skip thin tax reserves < {floor}", flush=True)
+            continue
+        kind = rng.choice(kinds)
+        try:
+            if kind == "hybrid":
+                print(f"[{name}] tax_hybrid_skip", flush=True)
+                continue
+            if kind == "provide":
+                scaled = pick_scaled_provide_amounts(
+                    m.reserve0, m.reserve1, 3_000, min_reserve_per_side=floor
+                )
+                if not scaled:
+                    continue
+                amount0, amount1 = scaled
+                if await provide_liquidity_pair(
+                    container, m.token0, m.token1, m.pair_addr, amount0, amount1, dry
+                ):
+                    print(
+                        f"[{name}] provide_liquidity pair={m.sym0}/{m.sym1} "
+                        f"amt0={amount0} amt1={amount1} path=pair bps=0",
+                        flush=True,
+                    )
+                continue
+            if kind == "limit":
+                side = rng.choice(["bid", "ask"])
+                r0, r1 = Decimal(m.reserve0), Decimal(m.reserve1)
+                mid = r1 / r0 if r0 > 0 else Decimal("1")
+                if side == "bid":
+                    price = mid * Decimal("0.9")
+                    tok, res = m.token1, m.reserve1
+                else:
+                    price = mid * Decimal("1.1")
+                    tok, res = m.token0, m.reserve0
+                amt = _amount_from_reserves(res, 0.7, 1.0)
+                await place_limit_cw20_send(
+                    container, tok, m.pair_addr, amt, side, _decimal_price_str(price), dry
+                )
+                print(
+                    f"[{name}] limit {side} pair={m.sym0}/{m.sym1} amt={amt} path=pair bps=0",
+                    flush=True,
+                )
+                continue
+            if kind == "router":
+                hop = find_tax_multihop(all_metas, tax_addrs, prefer_sell=True)
+                if not hop or not router:
+                    print(f"[{name}] no_tax_route", flush=True)
+                    continue
+                offer, _dest, ops = hop
+                offer_meta = m if offer in (m.token0, m.token1) else None
+                res = (offer_meta.reserve0 if offer_meta and offer_meta.token0 == offer else
+                       offer_meta.reserve1 if offer_meta else m.reserve0)
+                amt = _amount_from_reserves(res, 0.7, 1.0)
+                ok, preview = await _tax_gate_sell(
+                    lcd,
+                    tax_token,
+                    offer,
+                    amt,
+                    "router",
+                    router,
+                    m.pair_addr,
+                    router_hop_swap_preview_hook(TEST1_ADDR),
+                    sell_bps,
+                )
+                extra = _tax_log("router", sell_bps, preview, amt)
+                if not ok:
+                    print(f"[{name}] tax_balance_short {extra}", flush=True)
+                    continue
+                inner = router_execute_swap_operations(ops)
+                exec_msg = json.dumps(
+                    {"send": {"contract": router, "amount": str(amt), "msg": _b64_json(inner)}},
+                    separators=(",", ":"),
+                )
+                await _wasm_execute(container, offer, exec_msg, dry, f"router>=2hop amt={amt}")
+                print(f"[{name}] router_multihop offer={offer[:12]}… {extra}", flush=True)
+                continue
+            sell = kind == "sell"
+            tok = tax_token if sell else (m.token1 if m.token0 == tax_token else m.token0)
+            res = m.reserve0 if tok == m.token0 else m.reserve1
+            amt = _amount_from_reserves(res, 0.7, 1.0)
+            hook = pair_direct_swap_hook()
+            if sell:
+                ok, preview = await _tax_gate_sell(
+                    lcd, tax_token, tok, amt, "pair", TEST1_ADDR, m.pair_addr, hook, sell_bps
+                )
+                extra = _tax_log("pair", sell_bps, preview, amt)
+                if not ok:
+                    print(f"[{name}] tax_balance_short {extra}", flush=True)
+                    continue
+            else:
+                extra = "path=pair bps=0"
+            await swap_cw20_send(container, tok, m.pair_addr, amt, dry)
+            print(f"[{name}] pair_{'sell' if sell else 'buy'} amt={amt} {extra}", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[{name}] error: {exc}", file=sys.stderr)
+
+
+async def main_async_tax_only(replica_idx: int) -> None:
+    lcd = _lcd_base()
+    factory = _factory_addr()
+    container = _docker_localterra_id()
+    mean_base = float(_env("BOTS_TAX_MEAN_INTERVAL_SEC", "40") or "40")
+    dry = (_env("BOTS_DRY_RUN", "0") or "0") == "1"
+    metas = _collect_pair_metas(lcd, factory, exclude_tax=False)
+    name = f"tax-{replica_idx}"
+    await tax_worker_loop(name, replica_idx, metas, lcd, container, mean_base, dry)
+
+
 async def main_async_lp_only(replica_idx: int) -> None:
     """Single-process LP bot (`--worker lp N`)."""
     lcd = _lcd_base()
@@ -779,7 +1018,7 @@ async def main_async_lp_only(replica_idx: int) -> None:
     container = _docker_localterra_id()
     mean_base = float(_env("BOTS_LP_MEAN_INTERVAL_SEC", "90") or "90")
     dry = (_env("BOTS_DRY_RUN", "0") or "0") == "1"
-    metas = _collect_pair_metas(lcd, factory)
+    metas = _collect_pair_metas(lcd, factory, exclude_tax=True)
     if len(metas) < 1:
         print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
         sys.exit(1)
@@ -813,6 +1052,9 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
     if bot_type == "lp":
         await main_async_lp_only(replica_idx)
         return
+    if bot_type == "tax":
+        await main_async_tax_only(replica_idx)
+        return
     if bot_type not in SWAP_BOT_TYPES:
         print(
             f"ERROR: unknown bot type {bot_type!r}. Expected one of {WORKER_TYPES}.",
@@ -829,7 +1071,7 @@ async def main_async_single(bot_type: str, replica_idx: int) -> None:
     parts = [p.strip().upper() for p in sym_raw.split(",") if p.strip()]
     directed_syms = (parts[0], parts[1]) if len(parts) >= 2 else ("OPAL", "AMBER")
 
-    metas = _collect_pair_metas(lcd, factory)
+    metas = _collect_pair_metas(lcd, factory, exclude_tax=True)
     if len(metas) < 1:
         print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
         sys.exit(1)
@@ -860,7 +1102,8 @@ async def main_async() -> None:
         print("ERROR: factory returned no pairs.", file=sys.stderr)
         sys.exit(1)
 
-    metas = _collect_pair_metas(lcd, factory)
+    all_metas = _collect_pair_metas(lcd, factory)
+    metas = filter_gem_pairs(all_metas, _tax_addrs())
 
     if len(metas) < 1:
         print("ERROR: could not load any CW20/CW20 pair metadata from LCD.", file=sys.stderr)
@@ -873,9 +1116,10 @@ async def main_async() -> None:
             file=sys.stderr,
         )
 
+    tax_on = tax_workers_enabled()
     print(
-        f"Swarm: {len(metas)} pairs, LCD={lcd}, mean_interval≈{mean_base}s, "
-        f"{replicas} replicas × {len(SWAP_BOT_TYPES)} swap types, dry_run={dry}"
+        f"Swarm: {len(metas)} gem pairs (tax excluded), LCD={lcd}, mean_interval≈{mean_base}s, "
+        f"{replicas} replicas × {len(SWAP_BOT_TYPES)} swap types, dry_run={dry} tax_workers={tax_on}"
     )
     if directed:
         print(f"Directed pair: {directed.sym0}/{directed.sym1} -> {directed.pair_addr}")
@@ -890,6 +1134,13 @@ async def main_async() -> None:
                     name=tag,
                 )
             )
+    if tax_on:
+        tasks.append(
+            asyncio.create_task(
+                tax_worker_loop("tax-0", 0, all_metas, lcd, container, mean_base, dry),
+                name="tax-0",
+            )
+        )
 
     await asyncio.gather(*tasks)
 
@@ -905,7 +1156,7 @@ def main() -> None:
         "--worker",
         nargs=2,
         metavar=("TYPE", "REPLICA"),
-        help="Run a single bot worker, e.g. --worker offer0 0 or --worker limit 0",
+        help="Run a single bot worker, e.g. --worker offer0 0, --worker limit 0, or --worker tax 0",
     )
     args = parser.parse_args()
     try:

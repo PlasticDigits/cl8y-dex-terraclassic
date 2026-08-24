@@ -4,8 +4,17 @@ import { runAction } from './actions.js'
 import { fundBotWallets, defaultFundingOptions } from './funding.js'
 import { fundingEnvFromVite } from './fundingKind.js'
 import { uniqueCw20TokenAddresses, fetchAllPairs } from './factoryTokens.js'
-import { pickActionKind, type ProfileConfig, type ProfilesFile } from './profiles.js'
+import { filterTaxPairs } from './pairPick.js'
+import {
+  pickActionKind,
+  resolveSwarmProfiles,
+  TAX_LISTED_PROFILE_ID,
+  type ProfileConfig,
+  type ProfilesFile,
+} from './profiles.js'
 import { createTxQueue, sampleInterTxDelaySeconds, GapAccumulator } from './scheduler.js'
+import { DEFAULT_SELL_BPS, taxWorkersEnabled } from './taxDetect.js'
+import { discoverTaxTokens, querySellBps } from './taxQuery.js'
 import type { LocalnetValidation } from './validateLocalnet.js'
 import type { SwarmEnv } from './env.js'
 
@@ -51,13 +60,35 @@ export async function startSwarm(opts: {
     })
   }
 
-  const ctx: ActionContext = {
+  const taxOn = taxWorkersEnabled()
+  const taxTokens = await discoverTaxTokens(lcd, cw20s, env)
+  let sellBps = DEFAULT_SELL_BPS
+  const firstTax = [...taxTokens][0]
+  if (firstTax) {
+    sellBps = await querySellBps(lcd, firstTax)
+  }
+  const taxPairs = filterTaxPairs(pairs, taxTokens)
+
+  const ctxBase = {
     lcdBase: lcd,
     router,
     pairs,
     gasPriceUluna: gasPrice,
     dryRun: opts.runnerOpts.dryRun,
+    taxTokens,
+    sellBps,
   }
+
+  console.log(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      kind: 'swarm_tax',
+      taxWorkers: taxOn,
+      taxTokens: [...taxTokens],
+      taxPairs: taxPairs.map((p) => p.contract_addr),
+      sellBps,
+    })
+  )
 
   const queues = wallets.map(() => createTxQueue())
   const gapAcc = new GapAccumulator(wallets.length)
@@ -69,7 +100,7 @@ export async function startSwarm(opts: {
     stopResolve = r
   })
 
-  const profileList = profiles.profiles as ProfileConfig[]
+  const profileList: ProfileConfig[] = resolveSwarmProfiles(taxOn)
 
   function logLine(obj: Record<string, unknown>): void {
     console.log(JSON.stringify({ ts: new Date().toISOString(), ...obj }))
@@ -98,6 +129,10 @@ export async function startSwarm(opts: {
 
     await queue(async () => {
       try {
+        const ctx: ActionContext = {
+          ...ctxBase,
+          taxMode: profile.id === TAX_LISTED_PROFILE_ID,
+        }
         const res = await runAction(kind, wallet, ctx)
         const now = Date.now() / 1000
         const prev = lastActionAt[botIndex]
@@ -112,6 +147,10 @@ export async function startSwarm(opts: {
           txHash: res.txHash ?? null,
           note: res.note ?? null,
           dryRun: res.dryRun ?? false,
+          tax_debit: res.tax_debit ?? null,
+          tax_credit: res.tax_credit ?? null,
+          bps: res.bps ?? null,
+          path: res.path ?? null,
         })
       } catch (err) {
         logLine({
