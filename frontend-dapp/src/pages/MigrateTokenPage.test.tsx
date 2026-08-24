@@ -78,8 +78,9 @@ describe('MigrateTokenPage (#626)', () => {
     expect(screen.getByTestId('migrate-token-addr')).toHaveValue('')
   })
 
-  it('P6: ALPHA 8654 shows not supported', async () => {
+  it('P6: ALPHA 8654 + wasm admin shows free wipe CTA', async () => {
     const user = userEvent.setup()
+    useWalletStore.setState({ address: ADMIN, walletType: 'keplr', error: null })
     getChainContractInfo.mockResolvedValue({
       code_id: 8654,
       admin: ADMIN,
@@ -91,8 +92,10 @@ describe('MigrateTokenPage (#626)', () => {
     renderWithProviders(<MigrateTokenPage />)
     await user.type(screen.getByTestId('migrate-token-addr'), ALPHA_COLUMBUS5_ADDR)
     await user.click(screen.getByTestId('migrate-token-load'))
-    expect(await screen.findByTestId('migrate-token-nogo-8654')).toBeInTheDocument()
-    expect(screen.queryByTestId('migrate-token-cta')).not.toBeInTheDocument()
+    expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
+    expect(screen.getByTestId('migrate-token-alpha-go')).toBeInTheDocument()
+    expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/tax_info/)
+    expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
   })
 
   it('P3: listed 10184 + wasm admin shows free CTA', async () => {

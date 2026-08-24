@@ -37,6 +37,7 @@ struct SourceInit {
     mint: Option<MinterResponse>,
     cw2_name: String,
     write_tax_map: bool,
+    write_tax_info: bool,
     write_snapshot: bool,
 }
 
@@ -65,6 +66,14 @@ fn source_fixture() -> Box<dyn Contract<Empty>> {
             .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
         if msg.write_tax_map {
             deps.storage.set(b"tax_map", b"1");
+        }
+        if msg.write_tax_info {
+            let mut key = Vec::from((b"tax_info".len() as u16).to_be_bytes());
+            key.extend_from_slice(b"tax_info");
+            deps.storage.set(&key, b"alpha-tax");
+            let mut whale = Vec::from((b"whale_info".len() as u16).to_be_bytes());
+            whale.extend_from_slice(b"whale_info");
+            deps.storage.set(&whale, b"whale");
         }
         if msg.write_snapshot {
             deps.storage.set(b"balance_at", b"leftover");
@@ -134,6 +143,16 @@ fn spawn_source(
     write_snapshot: bool,
     with_minter: bool,
 ) -> (App, Addr, u64) {
+    spawn_source_ex(cw2_name, write_tax_map, false, write_snapshot, with_minter)
+}
+
+fn spawn_source_ex(
+    cw2_name: &str,
+    write_tax_map: bool,
+    write_tax_info: bool,
+    write_snapshot: bool,
+    with_minter: bool,
+) -> (App, Addr, u64) {
     let mut app = App::default();
     let admin = Addr::unchecked("source_admin");
     let holder = Addr::unchecked("holder");
@@ -167,6 +186,7 @@ fn spawn_source(
                 },
                 cw2_name: cw2_name.into(),
                 write_tax_map,
+                write_tax_info,
                 write_snapshot,
             },
             &[],
@@ -354,10 +374,10 @@ fn p4_s3_8266_terraport_leftover_snapshot_unread() {
 }
 
 #[test]
-fn p5_tax_map_and_unknown_cw2_and_caps_revert() {
+fn p5_unknown_cw2_and_caps_revert() {
     let admin = Addr::unchecked("source_admin");
 
-    let (mut app, token, tax_code) = spawn_source("crates.io:cw20-base", true, false, false);
+    let (mut app, token, tax_code) = spawn_source("crates.io:evil-fot", true, false, false);
     let before = balance(&app, &token, "holder");
     let err = app
         .migrate_contract(
@@ -369,24 +389,11 @@ fn p5_tax_map_and_unknown_cw2_and_caps_revert() {
             tax_code,
         )
         .unwrap_err();
-    assert!(err.root_cause().to_string().contains("tax_map"), "{err:?}");
-    assert_eq!(balance(&app, &token, "holder"), before);
-
-    let (mut app, token, tax_code) = spawn_source("crates.io:cw20-taxed", true, false, false);
-    let err = app
-        .migrate_contract(
-            admin.clone(),
-            token,
-            &MigrateMsg {
-                adopt: Some(adopt_msg(admin.as_str())),
-            },
-            tax_code,
-        )
-        .unwrap_err();
     assert!(
         err.root_cause().to_string().contains("not an allowlisted"),
         "{err:?}"
     );
+    assert_eq!(balance(&app, &token, "holder"), before);
 
     let (mut app, token, tax_code) = spawn_source("crates.io:cw20-base", false, false, false);
     let mut bad = adopt_msg(admin.as_str());
@@ -460,4 +467,103 @@ fn a2_total_supply_unchanged_on_adopt() {
         .query_wasm_smart(&token, &QueryMsg::TokenInfo {})
         .unwrap();
     assert_eq!(after.total_supply, before.total_supply);
+}
+
+fn adopt_zeros(manager: &str, source_code_id: u64) -> AdoptMigrateMsg {
+    let mut m = adopt_msg(manager);
+    m.buy_bps = 0;
+    m.sell_bps = 0;
+    m.max_buy_bps = 0;
+    m.max_sell_bps = 0;
+    m.source_code_id = Some(source_code_id);
+    m
+}
+
+#[test]
+fn s4_alpha_wipes_tax_info_and_maps_rates() {
+    let admin = Addr::unchecked("source_admin");
+    let holder = Addr::unchecked("holder");
+    let (mut app, token, tax_code) =
+        spawn_source_ex("crates.io:cw20-base", true, true, false, false);
+    let before_holder = balance(&app, &token, holder.as_str());
+    let before_supply: cw20::TokenInfoResponse = app
+        .wrap()
+        .query_wasm_smart(&token, &cw20::Cw20QueryMsg::TokenInfo {})
+        .unwrap();
+
+    app.migrate_contract(
+        admin.clone(),
+        token.clone(),
+        &MigrateMsg {
+            adopt: Some(adopt_zeros(admin.as_str(), 8654)),
+        },
+        tax_code,
+    )
+    .unwrap();
+
+    assert_eq!(balance(&app, &token, holder.as_str()), before_holder);
+    let after_supply: cw20::TokenInfoResponse = app
+        .wrap()
+        .query_wasm_smart(&token, &QueryMsg::TokenInfo {})
+        .unwrap();
+    assert_eq!(after_supply.total_supply, before_supply.total_supply);
+
+    let cfg: ConfigResponse = app
+        .wrap()
+        .query_wasm_smart(&token, &QueryMsg::GetConfig {})
+        .unwrap();
+    assert_eq!(cfg.buy_bps, 450);
+    assert_eq!(cfg.sell_bps, 100);
+    assert_eq!(cfg.max_buy_bps, 450);
+    assert_eq!(cfg.max_sell_bps, 100);
+
+    let tax_map_err = app
+        .wrap()
+        .query_wasm_smart::<Empty>(&token, &TaxMapProbe::TaxMap {})
+        .unwrap_err();
+    assert!(
+        tax_map_err.to_string().contains("unknown variant")
+            || tax_map_err.to_string().contains("Error parsing"),
+        "{tax_map_err}"
+    );
+
+    let pair = Addr::unchecked("terraport_pair");
+    app.execute_contract(
+        holder.clone(),
+        token.clone(),
+        &ExecuteMsg::Transfer {
+            recipient: pair.to_string(),
+            amount: Uint128::new(1_000_000),
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(balance(&app, &token, pair.as_str()), 1_000_000);
+}
+
+#[test]
+fn s4_named_cw20_taxed_wipes() {
+    let admin = Addr::unchecked("source_admin");
+    let (mut app, token, tax_code) =
+        spawn_source_ex("crates.io:cw20-taxed", true, true, false, false);
+    app.migrate_contract(
+        admin.clone(),
+        token.clone(),
+        &MigrateMsg {
+            adopt: Some(adopt_zeros(admin.as_str(), 8654)),
+        },
+        tax_code,
+    )
+    .unwrap();
+    let cfg: ConfigResponse = app
+        .wrap()
+        .query_wasm_smart(&token, &QueryMsg::GetConfig {})
+        .unwrap();
+    assert_eq!(cfg.buy_bps, 450);
+    assert_eq!(cfg.sell_bps, 100);
+    let mig: MigrateOriginResponse = app
+        .wrap()
+        .query_wasm_smart(&token, &QueryMsg::GetMigrateOrigin {})
+        .unwrap();
+    assert_eq!(mig.source_cw2.as_deref(), Some("crates.io:cw20-taxed"));
 }

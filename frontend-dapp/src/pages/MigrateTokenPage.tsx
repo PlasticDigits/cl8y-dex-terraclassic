@@ -19,7 +19,7 @@ import {
   isCommunityTaxEnabled,
   NETWORKS,
 } from '@/utils/constants'
-import { classifyMigrateSource, MIGRATE_LP_CONFIRM } from '@/utils/communityTaxMigrate'
+import { classifyMigrateSource, MIGRATE_LP_CONFIRM, MIGRATE_LP_CONFIRM_ALPHA } from '@/utils/communityTaxMigrate'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
@@ -122,8 +122,8 @@ export default function MigrateTokenPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Migrate Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Adopt a listed honest CW20 onto the community tax wasm. Same address, no 50 UST1. Launcher-created tokens stay
-          CMM-only.{' '}
+          Adopt a listed honest CW20 or ALPHA (8654) onto the community tax wasm. Same address, no 50 UST1.
+          Launcher-created tokens stay CMM-only.{' '}
           <a
             className="underline"
             href={`${DOCS_GITLAB_BASE}/contracts-terraclassic.md`}
@@ -185,9 +185,9 @@ export default function MigrateTokenPage() {
                 {verdict.reason}
               </p>
             )}
-            {verdict?.kind === 'nogo_8654' && (
-              <p data-testid="migrate-token-nogo-8654">
-                Not supported. New ticker via <Link to="/token/create">Create Token</Link> or wrap on #558.
+            {verdict?.kind === 'go_alpha' && (
+              <p data-testid="migrate-token-alpha-go">
+                ALPHA wipe path. 8654 is never factory-whitelisted — listing 11619 covers this address after adopt.
               </p>
             )}
           </div>
@@ -196,7 +196,7 @@ export default function MigrateTokenPage() {
         {verdict?.canSubmit && (
           <div className="space-y-3" data-testid="migrate-token-confirm">
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-              {MIGRATE_LP_CONFIRM}
+              {verdict.kind === 'go_alpha' ? MIGRATE_LP_CONFIRM_ALPHA : MIGRATE_LP_CONFIRM}
             </p>
             <button
               type="button"

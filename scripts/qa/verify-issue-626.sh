@@ -60,6 +60,8 @@ run_docs() {
   rg -q "/token/migrate" skills/AGENTS_FRONTEND_CREATE_TOKEN.md
   rg -q "M626-1" skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md
   rg -q "8654" skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md
+  rg -q "tax_info" skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md
+  rg -q "S4 go" docs/contracts-terraclassic.md
   rg -q "migrate-adopt" docs/contracts-terraclassic.md
   rg -q "terra12u7kh" docs/contracts-terraclassic.md
   rg -q "terra1uxr6m" docs/contracts-terraclassic.md

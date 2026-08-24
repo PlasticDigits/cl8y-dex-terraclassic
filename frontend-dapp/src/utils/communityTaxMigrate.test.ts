@@ -46,7 +46,7 @@ describe('communityTaxMigrate (#626)', () => {
     expect(v.kind).toBe('go')
   })
 
-  it('P6: ALPHA / 8654 is not supported', () => {
+  it('P6: ALPHA / 8654 wipe path is go without factory whitelist', () => {
     const v = classifyMigrateSource({
       chainId: 'columbus-5',
       codeId: 8654,
@@ -57,8 +57,21 @@ describe('communityTaxMigrate (#626)', () => {
       connectedWallet: ADMIN,
       tokenAddr: ALPHA_COLUMBUS5_ADDR,
     })
-    expect(v.kind).toBe('nogo_8654')
-    expect(v.canSubmit).toBe(false)
+    expect(v.kind).toBe('go_alpha')
+    expect(v.canSubmit).toBe(true)
+    const msg = buildAdoptMigrateMsg({
+      manager: ADMIN,
+      treasury: ADMIN,
+      factory: ADMIN,
+      router: null,
+      ust1: ADMIN,
+      cmmTreasury: ADMIN,
+      officialLauncher: ADMIN,
+      sourceCodeId: 8654,
+      tokenAddr: ALPHA_COLUMBUS5_ADDR,
+    })
+    expect(msg.adopt.buy_bps).toBe(450)
+    expect(msg.adopt.sell_bps).toBe(100)
   })
 
   it('P2: already 11619 is CMM-only', () => {

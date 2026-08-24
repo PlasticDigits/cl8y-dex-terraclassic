@@ -248,6 +248,7 @@ export async function migrateAdoptCommunityToken(input: AdoptBundleInput): Promi
     cmmTreasury: input.cmmTreasury,
     officialLauncher: requireLauncher(),
     sourceCodeId: input.sourceCodeId,
+    tokenAddr: token,
   })
   const msgs = [
     new MsgMigrateContract({

@@ -117,7 +117,7 @@ pub enum ContractError {
     #[error("Source cw2 {name} is not an allowlisted adopt template")]
     AdoptCw2NotAllowed { name: String },
 
-    #[error("Source storage has leftover tax_map keys; 8654/FoT adopt is no-go")]
+    #[error("Source FoT leftovers could not be wiped")]
     AdoptTaxMapPresent {},
 
     #[error("Adopt storage smash on key {key}")]

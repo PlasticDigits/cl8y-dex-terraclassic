@@ -258,7 +258,11 @@ struct LcdMigrateOrigin {
 pub fn is_allowed_adopt_cw2(name: &str) -> bool {
     matches!(
         name,
-        "crates.io:cw20-base" | "crates.io:cw20-mintable" | "crates.io:terraport-token"
+        "crates.io:cw20-base"
+            | "crates.io:cw20-mintable"
+            | "crates.io:terraport-token"
+            | "crates.io:cw20-taxed"
+            | "cw20_taxed"
     )
 }
 
@@ -448,6 +452,16 @@ mod tests {
             Some("launcher"),
             "launcher",
             Some("crates.io:terraport-token"),
+        ));
+        assert!(attested_cmm(
+            11619,
+            11619,
+            "cmm",
+            "cmm",
+            false,
+            Some("launcher"),
+            "launcher",
+            Some("crates.io:cw20-taxed"),
         ));
     }
 
