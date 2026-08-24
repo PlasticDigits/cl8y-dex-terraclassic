@@ -13,13 +13,19 @@ import {
   queryLauncherConfig,
 } from '@/services/terraclassic/communityTaxToken'
 import {
+  COMMUNITY_MIGRATE_CODE_IDS,
   COMMUNITY_TAX_CODE_ID,
   DEFAULT_NETWORK,
   DOCS_GITLAB_BASE,
   isCommunityTaxEnabled,
   NETWORKS,
 } from '@/utils/constants'
-import { classifyMigrateSource, MIGRATE_LP_CONFIRM, MIGRATE_LP_CONFIRM_ALPHA } from '@/utils/communityTaxMigrate'
+import {
+  classifyMigrateSource,
+  isColumbus5,
+  MIGRATE_LP_CONFIRM,
+  MIGRATE_LP_CONFIRM_WIPE,
+} from '@/utils/communityTaxMigrate'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
@@ -39,6 +45,7 @@ export default function MigrateTokenPage() {
   const [txHash, setTxHash] = useState<string | null>(null)
 
   const chainId = NETWORKS[DEFAULT_NETWORK]?.terra.chainId ?? 'localterra'
+  const useFactoryFallback = !isColumbus5(chainId)
 
   const infoQuery = useQuery({
     queryKey: ['migrateTokenInfo', loaded],
@@ -58,7 +65,7 @@ export default function MigrateTokenPage() {
   const whitelistQuery = useQuery({
     queryKey: ['migrateTokenWhitelist', infoQuery.data?.code_id],
     queryFn: () => isCodeIdWhitelisted(infoQuery.data!.code_id),
-    enabled: Number.isFinite(infoQuery.data?.code_id),
+    enabled: useFactoryFallback && Number.isFinite(infoQuery.data?.code_id),
   })
   const launcherQuery = useQuery({
     queryKey: ['communityTaxLauncherConfig'],
@@ -67,21 +74,25 @@ export default function MigrateTokenPage() {
     enabled: isCommunityTaxEnabled(),
   })
 
+  const probesReady =
+    !!loaded &&
+    !!infoQuery.data &&
+    taxMapQuery.data !== undefined &&
+    (!useFactoryFallback || whitelistQuery.data !== undefined)
+
   const verdict = useMemo(() => {
-    if (!loaded || !infoQuery.data || taxMapQuery.data === undefined || !whitelistQuery.data) {
-      return null
-    }
+    if (!probesReady || !infoQuery.data) return null
     return classifyMigrateSource({
       chainId,
       codeId: infoQuery.data.code_id,
       taxCodeId: COMMUNITY_TAX_CODE_ID,
-      whitelisted: whitelistQuery.data.whitelisted,
-      hasTaxMap: taxMapQuery.data,
+      factoryWhitelisted: whitelistQuery.data?.whitelisted,
+      hasTaxMap: taxMapQuery.data === true,
       wasmAdmin: infoQuery.data.admin,
       connectedWallet: address,
-      tokenAddr: loaded,
+      allowedCodeIds: COMMUNITY_MIGRATE_CODE_IDS,
     })
-  }, [address, chainId, infoQuery.data, loaded, taxMapQuery.data, whitelistQuery.data])
+  }, [address, chainId, infoQuery.data, probesReady, taxMapQuery.data, whitelistQuery.data])
 
   const migrateMut = useTerraBroadcastMutation({
     mutationFn: async () => {
@@ -94,6 +105,7 @@ export default function MigrateTokenPage() {
         ust1: launcherQuery.data.ust1,
         cmmTreasury: launcherQuery.data.cmm_treasury,
         sourceCodeId: infoQuery.data.code_id,
+        hasTaxMap: taxMapQuery.data === true,
       })
     },
     onSuccess: (hash) => {
@@ -122,8 +134,8 @@ export default function MigrateTokenPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Migrate Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Adopt a listed honest CW20 or ALPHA (8654) onto the community tax wasm. Same address, no 50 UST1.
-          Launcher-created tokens stay CMM-only.{' '}
+          Adopt an allowlisted CW20 onto the community tax wasm. Same address, no 50 UST1. Add source code ids with{' '}
+          <code>VITE_COMMUNITY_MIGRATE_CODE_IDS</code>. Launcher-created tokens stay CMM-only.{' '}
           <a
             className="underline"
             href={`${DOCS_GITLAB_BASE}/contracts-terraclassic.md`}
@@ -185,18 +197,13 @@ export default function MigrateTokenPage() {
                 {verdict.reason}
               </p>
             )}
-            {verdict?.kind === 'go_alpha' && (
-              <p data-testid="migrate-token-alpha-go">
-                ALPHA wipe path. 8654 is never factory-whitelisted — listing 11619 covers this address after adopt.
-              </p>
-            )}
           </div>
         )}
 
         {verdict?.canSubmit && (
           <div className="space-y-3" data-testid="migrate-token-confirm">
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-              {verdict.kind === 'go_alpha' ? MIGRATE_LP_CONFIRM_ALPHA : MIGRATE_LP_CONFIRM}
+              {taxMapQuery.data ? MIGRATE_LP_CONFIRM_WIPE : MIGRATE_LP_CONFIRM}
             </p>
             <button
               type="button"

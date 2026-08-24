@@ -27,12 +27,12 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 
 1. **M626-1 — env gate.** `/token/migrate` + More-menu **Migrate Token** use the same `isCommunityTaxEnabled()` gate as Create Token (**C593-1**).
 2. **M626-2 — free.** No 50 UST1, no `PayWithAnyToken`, no `?payee=` / `?manager=` / `?treasury=` prefill (**C593-10**).
-3. **M626-3 — allowlist.** Contract allowlists honest cw2 ∈ `{cw20-base, cw20-mintable, terraport-token}` plus taxed `{cw20-taxed, cw20_taxed}`. Unknown cw2 / `cfg`/`feat` smash → revert, balances untouched. Honest templates with leftover `tax_info` take the ALPHA wipe (live 8654 may report cw2 `cw20-base`).
-4. **M626-4 — 8654.** Never `AddWhitelistedCodeId 8654`. Retail button **is** enabled for ALPHA: wipe leftovers, land on 11619, CMM admin. Live columbus-5 broadcast is ops after wasm 11619 from this crate is stored.
+3. **M626-3 — migrate allowlist.** Retail gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default **6036, 10184, 8266, 8654**). This is **not** factory `AddWhitelistedCodeId`. 8654 is a normal list entry. Add future source ids by appending the env (Coolify) — do not special-case addresses. Contract still allowlists cw2 ∈ `{cw20-base, cw20-mintable, terraport-token, cw20-taxed}`. Unknown cw2 / `cfg`/`feat` smash → revert. Leftover `tax_info` / `tax_map` / `whale_info` are wiped on any allowlisted source.
+4. **M626-4 — pair-asset whitelist stays separate.** Never `AddWhitelistedCodeId 8654` (H-01). After adopt, listing **11619** covers the address. New migrate sources do **not** need to be factory-listed.
 5. **M626-5 — CMM admin.** Retail tx is `MsgMigrateContract` then `MsgUpdateAdmin` → CMM in one bundle. Source admin becomes **manager**. Manager cannot migrate.
 6. **M626-6 — origin.** Write `CONFIG.launcher` to the official launcher. Write `GetMigrateOrigin`. Do **not** fake `launcher_tx`. Catalog attests CMM + origin + (`launcher_tx` **or** allowlisted migrate cw2).
 7. **M626-7 — no mint/burn.** `total_supply` and balances stay. Source minter is revoked; MintControl stays off.
-8. **M626-8 — caps.** Combined `max_*` ≤ 2500. Retail payload is tax-off zeros. Headroom without VariableRates is rejected.
+8. **M626-8 — caps.** Combined `max_*` ≤ 2500. Honest adopt payload is tax-off zeros. Leftover FoT maps 4.5%/1% → buy 450 / sell 100. Headroom without VariableRates is rejected.
 9. **M626-9 — F6.** Page discloses CL8Y pairs freeze until governance `RefreshPairAssetCodeIds`. Token admin cannot Refresh. Do not Refresh a pair whose other asset is unlisted.
 10. **M626-10 — Terraport/GDEX.** Do not `RegisterListedPair` those pair addrs. Honest templates stay 1:1 on external DEX. Extra-debit is CL8Y listed pairs only.
 11. **M626-11 — already tax.** 11611 / 11619 (or LocalTerra tax store id) are **not** offered as adopt. Same-crate bump stays CMM ops (`MigrateMsg {}`).
@@ -50,6 +50,12 @@ In-place adopt **keeps the CW20 address**. External DEX pairs are not F6-pinned.
 | GDEX | — | — | No GDEX factory pin in-repo. Any GDEX pair keeps the CW20 address; still do not RegisterListedPair. |
 
 LocalTerra analogue: a factory-whitelisted `cw20-mintable` gem (10184 analogue) adopts the same way; inbound Transfer to a CL8Y pair stays 1:1 (crate **P3**).
+
+## Add a future migrate source
+
+1. Confirm cw2 is already in `ALLOWED_SOURCE_CW2` / `ALLOWED_TAXED_CW2` in `adopt.rs` (or add the crate name there).
+2. Append the columbus-5 code id to Coolify `VITE_COMMUNITY_MIGRATE_CODE_IDS` (and the default list in `communityTaxMigrate.ts` if it should ship without env).
+3. Do **not** factory-whitelist a FoT / `tax_map` wasm. Listing **11619** covers the address after adopt.
 
 ## Ops after adopt (not the retail button)
 

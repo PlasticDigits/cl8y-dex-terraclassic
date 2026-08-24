@@ -1,3 +1,5 @@
+import { parseCommunityMigrateCodeIds } from './communityTaxMigrate'
+
 export const TERRA_LCD_URL = import.meta.env.VITE_TERRA_LCD_URL || 'https://terra-classic-lcd.publicnode.com'
 export const TERRA_RPC_URL = import.meta.env.VITE_TERRA_RPC_URL || 'https://terra-classic-rpc.publicnode.com:443'
 export const FACTORY_CONTRACT_ADDRESS = import.meta.env.VITE_FACTORY_ADDRESS || ''
@@ -105,6 +107,11 @@ export function isUst1WindowEnabled(): boolean {
  */
 export const COMMUNITY_TAX_CODE_ID = Number(import.meta.env.VITE_COMMUNITY_TAX_CODE_ID || '') || 0
 export const COMMUNITY_TOKEN_LAUNCHER = import.meta.env.VITE_COMMUNITY_TOKEN_LAUNCHER || ''
+/**
+ * Migrate-source code ids (#626). Distinct from factory pair-asset whitelist.
+ * Default 6036,10184,8266,8654. Append more via `VITE_COMMUNITY_MIGRATE_CODE_IDS`.
+ */
+export const COMMUNITY_MIGRATE_CODE_IDS = parseCommunityMigrateCodeIds(import.meta.env.VITE_COMMUNITY_MIGRATE_CODE_IDS)
 /** Wasm-admin banner compare. Optional override; columbus-5 CMM is the default. */
 export const CMM_GOVERNANCE_ADDR =
   import.meta.env.VITE_CMM_GOVERNANCE_ADDR || 'terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2'

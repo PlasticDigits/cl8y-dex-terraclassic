@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { useWalletStore } from '@/hooks/useWallet'
-import { ALPHA_COLUMBUS5_ADDR } from '@/utils/communityTaxMigrate'
+const ALPHA = 'terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz'
 
 const { mockEnabled, getChainContractInfo, probeHasTaxMap, isCodeIdWhitelisted } = vi.hoisted(() => ({
   mockEnabled: vi.fn(() => true),
@@ -21,6 +21,7 @@ vi.mock('@/utils/constants', async (importOriginal) => {
   return {
     ...actual,
     COMMUNITY_TAX_CODE_ID: 11619,
+    COMMUNITY_MIGRATE_CODE_IDS: [6036, 10184, 8266, 8654],
     COMMUNITY_TOKEN_LAUNCHER: 'terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze',
     DEFAULT_NETWORK: 'mainnet',
     isCommunityTaxEnabled: () => mockEnabled(),
@@ -78,7 +79,7 @@ describe('MigrateTokenPage (#626)', () => {
     expect(screen.getByTestId('migrate-token-addr')).toHaveValue('')
   })
 
-  it('P6: ALPHA 8654 + wasm admin shows free wipe CTA', async () => {
+  it('P6: allowlisted 8654 + wasm admin shows free wipe CTA', async () => {
     const user = userEvent.setup()
     useWalletStore.setState({ address: ADMIN, walletType: 'keplr', error: null })
     getChainContractInfo.mockResolvedValue({
@@ -88,12 +89,10 @@ describe('MigrateTokenPage (#626)', () => {
       label: 'alpha',
     })
     probeHasTaxMap.mockResolvedValue(true)
-    isCodeIdWhitelisted.mockResolvedValue({ code_id: 8654, whitelisted: false })
     renderWithProviders(<MigrateTokenPage />)
-    await user.type(screen.getByTestId('migrate-token-addr'), ALPHA_COLUMBUS5_ADDR)
+    await user.type(screen.getByTestId('migrate-token-addr'), ALPHA)
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
-    expect(screen.getByTestId('migrate-token-alpha-go')).toBeInTheDocument()
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/tax_info/)
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
   })

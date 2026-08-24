@@ -227,6 +227,7 @@ export type AdoptBundleInput = {
   ust1: string
   cmmTreasury: string
   sourceCodeId: number
+  hasTaxMap?: boolean
 }
 
 /** One-click adopt: `MsgMigrateContract` then `MsgUpdateAdmin` → CMM. No UST1 invoice. */
@@ -248,7 +249,7 @@ export async function migrateAdoptCommunityToken(input: AdoptBundleInput): Promi
     cmmTreasury: input.cmmTreasury,
     officialLauncher: requireLauncher(),
     sourceCodeId: input.sourceCodeId,
-    tokenAddr: token,
+    hasTaxMap: input.hasTaxMap,
   })
   const msgs = [
     new MsgMigrateContract({

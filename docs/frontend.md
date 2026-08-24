@@ -688,7 +688,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
 | **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |
 | **C593-8** Template | Manage requires `code_id ==` env pin (columbus-5 **11619**). After #626 adopt, the same address is 11619 and Manage shows tax SKUs. |
-| **M626** Migrate Token | `/token/migrate` is free (no invoice). S3/S3-8266 go; S4 ALPHA wipe go (never whitelist 8654). Create Token links here for **other** templates; launcher 11619 stays CMM-only. |
+| **M626** Migrate Token | `/token/migrate` is free (no invoice). Source gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default 6036,10184,8266,8654) — not factory whitelist. Create Token links here for **other** templates; launcher 11619 stays CMM-only. |
 | **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax on **pair-direct and router-hop** sells (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |
