@@ -54,6 +54,11 @@ layer_load_env_local() {
 
 layer_docker_cp() {
   local src="$1" dest="$2"
+  # Worktrees often symlink artifacts; docker cp of a symlink can land a
+  # dangling name inside the container (host target is not visible there).
+  if [[ -e "$src" ]]; then
+    src="$(readlink -f "$src")"
+  fi
   if [[ -n "${LOCALTERRA_DOCKER_VIA_SG:-}" ]] && command -v sg >/dev/null 2>&1; then
     sg docker -c "docker cp $(printf '%q' "$src") $(printf '%q' "$dest")"
   else

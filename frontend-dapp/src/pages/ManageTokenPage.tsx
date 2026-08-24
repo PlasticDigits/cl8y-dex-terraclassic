@@ -218,7 +218,7 @@ export default function ManageTokenPage() {
   if (!tokenOk) {
     return (
       <div className="max-w-[640px] mx-auto" data-testid="manage-token-page">
-        <p className="text-sm" style={{ color: 'var(--danger)' }}>
+        <p className="text-sm" style={{ color: 'var(--danger)' }} data-testid="manage-token-invalid">
           Invalid token address.
         </p>
       </div>
@@ -476,8 +476,10 @@ export default function ManageTokenPage() {
         {saveHash && <TxResultAlert type="success" message="Settings saved." txHash={saveHash} />}
       </section>
 
-      <section className="shell-panel-strong space-y-3">
-        <h3 className="font-heading uppercase text-sm">Enable feature</h3>
+      <section className="shell-panel-strong space-y-3" data-testid="manage-enable-feature">
+        <h3 className="font-heading uppercase text-sm" data-testid="manage-enable-feature-heading">
+          Enable feature
+        </h3>
         <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
           50 UST1 per SKU. Minting cannot be purchased here.
         </p>

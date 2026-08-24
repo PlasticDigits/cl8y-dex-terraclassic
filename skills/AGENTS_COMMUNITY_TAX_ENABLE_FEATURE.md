@@ -32,7 +32,7 @@ Settings Save stays manager `Send` to the **token**. Do not mix Enable Feature i
 5. **T606-5 — unique SKUs.** Create rejects duplicate SKU names **before** multiplying `50 UST1 × len`. Two distinct SKUs = 100 UST1 and both flags on. `Features::from_skus` stays idempotent. dApp `uniqueCommunityTaxSkus` unique-sets before quoting.
 6. **T606-6 — exact 50 UST1 to CMM.** Same **T592-4** / **T592-12**. Launcher does **not** also forward to CMM (token does). Already-on / MintControl / wrong token / wrong amount / no-op revert; fee not kept.
 7. **T606-7 — QA matches the dApp.** Smoke (and `verify-issue-601` if it calls smoke) must use the launcher hook, not a hidden direct-to-token shortcut that hid C-1 (**L-1**).
-8. **T606-8 — columbus-5 migrate.** Launcher instance is on **11622** (2026-08-24) with `token_code_id` **11619** / `autolp_code_id` **11621**. A dApp-only payee change was the no-migrate alternative and was **not** chosen.
+8. **T606-8 — columbus-5 migrate.** Launcher instance is on **11622** (2026-08-24) with `token_code_id` **11619** / `autolp_code_id` **11621**. A dApp-only payee change was the no-migrate alternative and was **not** chosen. Post-merge LocalTerra + Coolify remainder: [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)).
 
 ## Verify
 
@@ -47,6 +47,8 @@ cd smartcontracts && cargo test -p cl8y-community-token-launcher --test audit_po
 make verify-issue-593
 # smoke (needs LocalTerra + redeploy of these crates):
 make verify-issue-601
+# post-merge !407/!408 remainder (columbus-5 11622 + LocalTerra SKU unlock):
+make verify-issue-612
 ```
 
 ## Do not

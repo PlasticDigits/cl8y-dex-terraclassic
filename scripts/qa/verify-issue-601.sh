@@ -132,7 +132,9 @@ run_smoke() {
     and .sku_unlock_50_ust1 == true
     and .sku_unlock_via_launcher == true
     and .settings_batch_50_ust1 == true
-    and .mintcontrol_revoke_one_way == true' "$json" >/dev/null
+    and .mintcontrol_revoke_one_way == true
+    and .paid_create_one_sku == true
+    and .sku_second_unlock_via_launcher == true' "$json" >/dev/null
 }
 
 run_report_layer_notes() {

@@ -10,12 +10,19 @@
 #   6. SKU unlock 50 UST1 via the official launcher Enable Feature path (#606);
 #      settings batch 50 UST1 still targets the token
 #   7. MintControl instantiate + RevokeMint one-way
+#   8. Paid create with one SKU, then Enable Feature a second SKU (#612)
+#
+# C605-2: do not send launch_guards / transfer_bps / sinks unless that SKU is
+# selected — current launcher rejects SKU payloads without the feature.
+# C605-4: without variable_rates, max_* must equal current rates.
 #
 # Never AddWhitelistedCodeId columbus-5 11611 from this evidence — only the
 # LocalTerra store id. Do not whitelist launcher/AutoLP/8654.
 #
 # Requires: make has-localterra, frontend-dapp/.env.local (or VERIFY_ENV_LOCAL),
-#           cw20-codeid-audits/codeids/11611/token.wasm (fetch-lcd-wasm.sh),
+#           cw20-codeid-audits/codeids/11611/token.wasm (pin check only),
+#           smartcontracts/artifacts/cl8y_community_tax_token.wasm (instantiate;
+#           11611 cannot accept post-#605 launcher `initial_exempt`),
 #           smartcontracts/artifacts/cw20_mintable.wasm (deploy-local artifacts).
 set -euo pipefail
 
@@ -59,15 +66,47 @@ LCD="${LCD%/}"
   exit 1
 }
 
-TOKEN_WASM="$AUDIT/codeids/11611/token.wasm"
+# 11611 pin stays the #589 / O601-1 LCD artifact. Post-#605 launcher
+# InstantiateMsg includes `initial_exempt`, which 11611 rejects (unknown field).
+# Enable Feature smoke (#612) must store current token bytes with current launcher.
 PIN_FILE="$AUDIT/codeids/11611/wasm.sha256"
-[[ -f "$TOKEN_WASM" ]] || "$AUDIT/scripts/fetch-lcd-wasm.sh" 11611
+PINNED_11611="$AUDIT/codeids/11611/token.wasm"
+[[ -f "$PINNED_11611" ]] || "$AUDIT/scripts/fetch-lcd-wasm.sh" 11611
 expected_pin="$(tr -d '[:space:]' < "$PIN_FILE" | tr '[:lower:]' '[:upper:]')"
-got_pin="$(sha256sum "$TOKEN_WASM" | awk '{print toupper($1)}')"
-[[ "$got_pin" == "$expected_pin" ]] || {
-  echo "FAIL: C1 pin mismatch $got_pin != $expected_pin" >&2
+pinned_sha="$(sha256sum "$PINNED_11611" | awk '{print toupper($1)}')"
+[[ "$pinned_sha" == "$expected_pin" ]] || {
+  echo "FAIL: C1 pin mismatch $pinned_sha != $expected_pin" >&2
   exit 1
 }
+
+TOKEN_WASM="${VERIFY601_TOKEN_WASM:-}"
+if [[ -z "$TOKEN_WASM" ]]; then
+  for cand in \
+    "$REPO_ROOT/smartcontracts/artifacts/cl8y_community_tax_token.wasm" \
+    "$REPO_ROOT/smartcontracts/target/wasm32-unknown-unknown/release/cl8y_community_tax_token.wasm"; do
+    if [[ -f "$cand" ]]; then
+      TOKEN_WASM="$cand"
+      break
+    fi
+  done
+fi
+if [[ -z "$TOKEN_WASM" ]]; then
+  echo "601-smoke: building community-tax-token wasm (artifacts missing)"
+  (cd "$REPO_ROOT/smartcontracts" && cargo build -p cl8y-community-tax-token \
+    --release --target wasm32-unknown-unknown --offline 2>/dev/null \
+    || cargo build -p cl8y-community-tax-token --release --target wasm32-unknown-unknown)
+  TOKEN_WASM="$REPO_ROOT/smartcontracts/target/wasm32-unknown-unknown/release/cl8y_community_tax_token.wasm"
+fi
+[[ -f "$TOKEN_WASM" ]] || {
+  echo "FAIL: token wasm missing. Run make build-optimized or cargo wasm32." >&2
+  exit 1
+}
+got_pin="$(sha256sum "$TOKEN_WASM" | awk '{print toupper($1)}')"
+if [[ "$got_pin" == "$expected_pin" ]]; then
+  echo "FAIL: smoke token wasm is still 11611; post-#605 launcher cannot instantiate it" >&2
+  exit 1
+fi
+echo "601-smoke: 11611 pin OK; instantiate wasm=$TOKEN_WASM sha=$got_pin"
 
 MINTABLE_WASM="$REPO_ROOT/smartcontracts/artifacts/cw20_mintable.wasm"
 LAUNCHER_WASM="$REPO_ROOT/smartcontracts/artifacts/cl8y_community_token_launcher.wasm"
@@ -144,7 +183,7 @@ send_cw20_hook() {
   exec_ok wasm execute "$token" "$msg"
 }
 
-echo "601-smoke: storing 11611 token + launcher + mintable UST1 stand-in…"
+echo "601-smoke: storing current token + launcher + mintable UST1 stand-in…"
 TOKEN_CODE="$(store_wasm "$TOKEN_WASM" /tmp/cw20-audit-11611.wasm)"
 LAUNCHER_CODE="$(store_wasm "$LAUNCHER_WASM" /tmp/cw20-audit-launcher.wasm)"
 MINTABLE_CODE="$(store_wasm "$MINTABLE_WASM" /tmp/cw20-audit-mintable.wasm)"
@@ -199,10 +238,10 @@ FREE_MSG="$(jq -nc --arg n "FreeTax" --arg s "$SYM" --arg a "$TEST_ADDRESS" \
       initial_balances:[{address:$a,amount:"1000000000000"}],
       manager:$a, treasury:$treas,
       buy_bps:$buy, sell_bps:$sell,
-      max_buy_bps:1000, max_sell_bps:1000, max_transfer_bps:500,
+      max_buy_bps:$buy, max_sell_bps:$sell, max_transfer_bps:0,
       features:[],
       mint:null, transfer_bps:null, sinks:null,
-      launch_guards:{max_wallet:null, cooldown_blocks:0, trading_enabled:true},
+      launch_guards:null,
       autolp_threshold:null, autolp_lp_recipient:null
     }
   }')"
@@ -235,10 +274,10 @@ ROGUE_INIT="$(jq -nc --arg n "RogueTax" --arg s "ROG" --arg a "$TEST_ADDRESS" \
     marketing:{},
     manager:$a, treasury:$a,
     buy_bps:0, sell_bps:0,
-    max_buy_bps:1000, max_sell_bps:1000, max_transfer_bps:500,
+    max_buy_bps:0, max_sell_bps:0, max_transfer_bps:0,
     factory:$factory, router:null, ust1:$ust1, cmm_treasury:$a,
     features:[], mint:null,
-    launch_guards:{max_wallet:null, cooldown_blocks:0, trading_enabled:true}
+    launch_guards:null
   }')"
 ROGUE_OUT="$(layer_terrad_tx_from test2 wasm instantiate "$TOKEN_CODE" "$ROGUE_INIT" \
   --label "601-rogue-${STAMP}" --admin "$TEST2")"
@@ -384,10 +423,34 @@ print(f"601-smoke: buy outbound split pair_debit={pair_debit} user={user_credit}
 # SKU unlock via the official dApp path: UST1 Send → launcher → token (#606 / T606-1).
 # Do not Send EnableFeature straight to the token here — that hid C-1 (L-1).
 SKU_HOOK="$(jq -nc --arg t "$FREE_TOKEN" '{"enable_feature":{"token":$t,"sku":"transfer_tax"}}')"
+CMM_UST1_BEFORE="$(layer_cw20_balance "$UST1_ADDR" "$TEST_ADDRESS")"
 SKU_TX="$(send_cw20_hook "$UST1_ADDR" "$LAUNCHER_ADDR" "$INVOICE" "$SKU_HOOK")"
 FEAT="$(layer_smart "$FREE_TOKEN" '{"get_features":{}}')"
 echo "$FEAT" | jq -e '.transfer_tax == true' >/dev/null || {
   echo "FAIL: EnableFeature transfer_tax not set via launcher: $FEAT" >&2
+  exit 1
+}
+LAUNCHER_HELD="$(layer_cw20_balance "$UST1_ADDR" "$LAUNCHER_ADDR")"
+TOKEN_HELD="$(layer_cw20_balance "$UST1_ADDR" "$FREE_TOKEN")"
+CMM_UST1_AFTER="$(layer_cw20_balance "$UST1_ADDR" "$TEST_ADDRESS")"
+python3 -c '
+import sys
+held_l, held_t, before, after, invoice = (int(x) for x in sys.argv[1:])
+if held_l != 0 or held_t != 0:
+    sys.stderr.write(f"FAIL: launcher/token kept UST1 {held_l}/{held_t} (T606-6)\n")
+    sys.exit(1)
+# Payer is also CMM stand-in: net should be 0 after token forwards the invoice.
+if after != before:
+    sys.stderr.write(f"FAIL: CMM stand-in UST1 {before}->{after} (expected net 0 after +{invoice} forward)\n")
+    sys.exit(1)
+print("601-smoke: EnableFeature fee forwarded (launcher/token hold 0; CMM stand-in net 0)")
+' "$LAUNCHER_HELD" "$TOKEN_HELD" "$CMM_UST1_BEFORE" "$CMM_UST1_AFTER" "$INVOICE"
+# 11619+ C605-4: settings buy/sell require variable_rates.
+VR_HOOK="$(jq -nc --arg t "$FREE_TOKEN" '{"enable_feature":{"token":$t,"sku":"variable_rates"}}')"
+VR_TX="$(send_cw20_hook "$UST1_ADDR" "$LAUNCHER_ADDR" "$INVOICE" "$VR_HOOK")"
+FEAT_VR="$(layer_smart "$FREE_TOKEN" '{"get_features":{}}')"
+echo "$FEAT_VR" | jq -e '.transfer_tax == true and .variable_rates == true' >/dev/null || {
+  echo "FAIL: EnableFeature variable_rates not set via launcher: $FEAT_VR" >&2
   exit 1
 }
 SET_HOOK='{"update_settings":{"settings":{"buy_bps":400}}}'
@@ -407,11 +470,11 @@ MINT_HOOK="$(jq -nc --arg n "MintTax" --arg s "MNT" --arg a "$TEST_ADDRESS" \
       initial_balances:[{address:$a,amount:"1000000"}],
       manager:$a, treasury:$a,
       buy_bps:0, sell_bps:0,
-      max_buy_bps:1000, max_sell_bps:1000, max_transfer_bps:500,
+      max_buy_bps:0, max_sell_bps:0, max_transfer_bps:0,
       features:["mint_control"],
       mint:{minter:$a, cap:null},
       transfer_bps:null, sinks:null,
-      launch_guards:{max_wallet:null, cooldown_blocks:0, trading_enabled:true},
+      launch_guards:null,
       autolp_threshold:null, autolp_lp_recipient:null
     }
   }')"
@@ -437,6 +500,44 @@ if [[ "$MINT_ST" -eq 0 ]] && ! layer_execute_rejected "$MINT_OUT"; then
 fi
 echo "601-smoke: MintControl revoke one-way (T592-6)"
 
+# Paid create with one SKU, then Enable Feature a second SKU (#612 / M612-5).
+PAID_HOOK="$(jq -nc --arg n "PaidTax" --arg s "PDT" --arg a "$TEST_ADDRESS" \
+  --arg treas "$TREASURY" \
+  --argjson buy "$BUY_BPS" --argjson sell "$SELL_BPS" \
+  '{
+    create_token:{
+      name:$n, symbol:$s, decimals:6,
+      initial_balances:[{address:$a,amount:"1000000000000"}],
+      manager:$a, treasury:$treas,
+      buy_bps:$buy, sell_bps:$sell,
+      max_buy_bps:$buy, max_sell_bps:$sell, max_transfer_bps:100,
+      features:["transfer_tax"],
+      mint:null, transfer_bps:100, sinks:null,
+      launch_guards:null,
+      autolp_threshold:null, autolp_lp_recipient:null
+    }
+  }')"
+PAID_CREATE_TX="$(send_cw20_hook "$UST1_ADDR" "$LAUNCHER_ADDR" "$INVOICE" "$PAID_HOOK")"
+PAID_JSON="$(terrad_wait_tx_query "$CONTAINER" "$PAID_CREATE_TX" "$TERRAD_NODE")"
+PAID_TOKEN="$(echo "$PAID_JSON" | terrad_jq_contract_address_from_tx_json | head -1)"
+[[ "$PAID_TOKEN" == terra1* ]] || {
+  echo "FAIL: paid create did not yield a contract" >&2
+  exit 1
+}
+PAID_FEAT="$(layer_smart "$PAID_TOKEN" '{"get_features":{}}')"
+echo "$PAID_FEAT" | jq -e '.transfer_tax == true and .variable_rates == false' >/dev/null || {
+  echo "FAIL: paid create should start with transfer_tax only: $PAID_FEAT" >&2
+  exit 1
+}
+PAID_SKU2_HOOK="$(jq -nc --arg t "$PAID_TOKEN" '{"enable_feature":{"token":$t,"sku":"variable_rates"}}')"
+PAID_SKU2_TX="$(send_cw20_hook "$UST1_ADDR" "$LAUNCHER_ADDR" "$INVOICE" "$PAID_SKU2_HOOK")"
+PAID_FEAT2="$(layer_smart "$PAID_TOKEN" '{"get_features":{}}')"
+echo "$PAID_FEAT2" | jq -e '.transfer_tax == true and .variable_rates == true' >/dev/null || {
+  echo "FAIL: second SKU variable_rates not set via launcher: $PAID_FEAT2" >&2
+  exit 1
+}
+echo "601-smoke: paid create transfer_tax + Enable Feature variable_rates via launcher (#612)"
+
 jq -nc \
   --arg token_code "$TOKEN_CODE" \
   --arg launcher_code "$LAUNCHER_CODE" \
@@ -445,12 +546,15 @@ jq -nc \
   --arg rogue "$ROGUE_TOKEN" \
   --arg pair "$PAIR_ADDR" \
   --arg mint_tok "$MINT_TOKEN" \
+  --arg paid "$PAID_TOKEN" \
   --arg free_tx "$FREE_TX" \
   --arg sell_tx "$SELL_TX" \
   --arg buy_tx "$BUY_TX" \
   --arg sku_tx "$SKU_TX" \
   --arg set_tx "$SET_TX" \
   --arg rev_tx "$REV_TX" \
+  --arg paid_tx "$PAID_CREATE_TX" \
+  --arg sku2_tx "$PAID_SKU2_TX" \
   --arg pin "$got_pin" \
   '{
     executed: true,
@@ -465,6 +569,8 @@ jq -nc \
     sku_unlock_via_launcher: true,
     settings_batch_50_ust1: true,
     mintcontrol_revoke_one_way: true,
+    paid_create_one_sku: true,
+    sku_second_unlock_via_launcher: true,
     local_token_code_id: $token_code,
     local_launcher_code_id: $launcher_code,
     launcher: $launcher,
@@ -472,8 +578,9 @@ jq -nc \
     rogue_token: $rogue,
     pair: $pair,
     mint_token: $mint_tok,
+    paid_token: $paid,
     pin: $pin,
-    note: "LocalTerra only. Do not whitelist this store id, 11612, 11613, or 8654 on columbus-5."
+    note: "LocalTerra only. Instantiates current token+launcher (not 11611). Do not whitelist this store id, 11612, 11613, or 8654 on columbus-5."
   }' > "$OUT_JSON"
 
 echo "601-smoke: wrote $OUT_JSON"
