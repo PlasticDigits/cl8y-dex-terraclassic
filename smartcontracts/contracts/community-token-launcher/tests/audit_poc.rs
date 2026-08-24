@@ -2,8 +2,9 @@
 //!
 //! Each test is a minimal reproduction of a finding in `audits/INTERNAL_KIMIK3_*.md`.
 //! H-1 / M-1 (#605) and H-3 / H-4 (#608) are inverted. C-1 / H-2 (**#606**)
-//! are inverted (official launcher Enable Feature + unique SKUs). Remaining PoCs
-//! still demonstrate residuals.
+//! are inverted (official launcher Enable Feature + unique SKUs). M-3 / M-2
+//! AutoLP pair + skim floor (**#610**) is inverted. Remaining PoCs still
+//! demonstrate residuals.
 
 use cosmwasm_std::{to_json_binary, Addr, Binary, Empty, StdResult, Uint128};
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -115,7 +116,12 @@ fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
     ) -> StdResult<Binary> {
         match msg {
             MockFactoryQuery::Pair { .. } => {
-                let pair = String::from_utf8(deps.storage.get(b"pair").unwrap()).unwrap();
+                let pair = String::from_utf8(
+                    deps.storage
+                        .get(b"pair")
+                        .ok_or_else(|| cosmwasm_std::StdError::generic_err("pair not listed"))?,
+                )
+                .unwrap();
                 to_json_binary(&PairResponse {
                     pair: PairInfo {
                         asset_infos: [
@@ -983,8 +989,8 @@ fn poc_variable_rates_sku_is_theater() {
 }
 
 // ============================================================================
-// PoC 9 (M): AutoLP `pair` is manager-settable with no validation — a manager
-// can point skims at an arbitrary contract and exfiltrate the skimmed taxes.
+// PoC 9 (M-3 / #610 inverted): AutoLP `pair` must be factory-listed with this
+// tax token. Fake / wrong-token pointers revert on set, not only on skim.
 // ============================================================================
 #[test]
 fn poc_autolp_manager_can_skim_to_fake_pair() {
@@ -1001,7 +1007,6 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         )
         .unwrap();
 
-    // Manager-controlled stand-in "pair" (any contract that accepts the hook).
     let fake_pair = hub
         .app
         .instantiate_contract(
@@ -1014,6 +1019,35 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         )
         .unwrap();
 
+    let err = hub
+        .app
+        .instantiate_contract(
+            hub.autolp_code,
+            Addr::unchecked("admin"),
+            &AutoLpInstantiate {
+                token: token.to_string(),
+                manager: "manager".into(),
+                factory: hub.factory.to_string(),
+                router: Some("router".into()),
+                pair: Some(fake_pair.to_string()),
+                quote_token: None,
+                threshold: Uint128::new(1_000_000),
+                lp_recipient: "manager".into(),
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+            "autolp-fake",
+            None,
+        )
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("not factory-listed")
+            || format!("{err:?}").contains("PairNotListed")
+            || format!("{err:?}").contains("pair not listed"),
+        "fake pair must revert on instantiate: {err:?}"
+    );
+
     let autolp = hub
         .app
         .instantiate_contract(
@@ -1022,11 +1056,14 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
             &AutoLpInstantiate {
                 token: token.to_string(),
                 manager: "manager".into(),
+                factory: hub.factory.to_string(),
                 router: Some("router".into()),
-                pair: Some(fake_pair.to_string()),
+                pair: None,
                 quote_token: None,
                 threshold: Uint128::new(1_000_000),
                 lp_recipient: "manager".into(),
+                skim_max_spread: None,
+                skim_min_return: None,
             },
             &[],
             "autolp",
@@ -1034,36 +1071,66 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         )
         .unwrap();
 
-    // Taxes accumulate on the AutoLP contract.
+    let err = hub
+        .app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            autolp.clone(),
+            &AutoLpExecute::UpdateConfig {
+                pair: Some(fake_pair.to_string()),
+                router: None,
+                quote_token: None,
+                threshold: None,
+                lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        format!("{err:?}").contains("not factory-listed")
+            || format!("{err:?}").contains("PairNotListed")
+            || format!("{err:?}").contains("pair not listed"),
+        "fake pair must revert on UpdateConfig: {err:?}"
+    );
+
+    let listed = hub
+        .app
+        .instantiate_contract(
+            hub.pair_code,
+            Addr::unchecked("manager"),
+            &(token.to_string(), hub.ust1.to_string()),
+            &[],
+            "listed-pair",
+            None,
+        )
+        .unwrap();
     hub.app
         .execute_contract(
-            Addr::unchecked("alice"),
-            token.clone(),
-            &Cw20ExecuteMsg::Transfer {
-                recipient: autolp.to_string(),
-                amount: Uint128::new(2_000_000),
+            Addr::unchecked("manager"),
+            hub.factory.clone(),
+            &listed.to_string(),
+            &[],
+        )
+        .unwrap();
+    hub.app
+        .execute_contract(
+            Addr::unchecked("manager"),
+            autolp.clone(),
+            &AutoLpExecute::UpdateConfig {
+                pair: Some(listed.to_string()),
+                router: None,
+                quote_token: None,
+                threshold: None,
+                lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
             },
             &[],
         )
         .unwrap();
 
-    // Permissionless skim sends half the balance to the manager's fake pair.
-    hub.app
-        .execute_contract(
-            Addr::unchecked("anyone"),
-            autolp.clone(),
-            &AutoLpExecute::SkimToLp {},
-            &[],
-        )
-        .unwrap();
-
-    assert_eq!(
-        bal(&hub.app, &token, fake_pair.as_str()),
-        1_000_000,
-        "half the skimmed balance went to the unvalidated manager-set pair"
-    );
-
-    // Sanity: UpdateConfig merges (does not wipe) omitted fields.
     hub.app
         .execute_contract(
             Addr::unchecked("manager"),
@@ -1074,6 +1141,8 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
                 quote_token: None,
                 threshold: Some(Uint128::new(5_000_000)),
                 lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
             },
             &[],
         )
@@ -1084,5 +1153,7 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
         .query_wasm_smart(autolp.clone(), &AutoLpQuery::GetConfig {})
         .unwrap();
     assert_eq!(cfg.threshold, Uint128::new(5_000_000));
-    assert_eq!(cfg.pair, Some(fake_pair.clone()));
+    assert_eq!(cfg.pair, Some(listed.clone()));
+    assert_eq!(cfg.factory, hub.factory);
+    assert!(cfg.skim_max_spread > cosmwasm_std::Decimal::zero());
 }

@@ -414,11 +414,14 @@ fn instantiate_autolp_submsg(
     let init = AutolpInit {
         token: token.to_string(),
         manager: pending.manager.clone(),
+        factory: cfg.factory.to_string(),
         router: cfg.router.as_ref().map(|a| a.to_string()),
         pair: None,
         quote_token: None,
         threshold: pending.threshold,
         lp_recipient: pending.lp_recipient.clone(),
+        skim_max_spread: None,
+        skim_min_return: None,
     };
     Ok(SubMsg::reply_on_success(
         WasmMsg::Instantiate {

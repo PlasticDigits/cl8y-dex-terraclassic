@@ -698,7 +698,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C604-3** Columbus-5 gap | Listed token **11611** does **not** gain instantiate identity checks until launcher `token_code_id` rotates after #589 GO + `AddWhitelistedCodeId`. Keep 11611 listed (**F6**). Frontend ships as a client gate first. |
 | **C605-1** Percent taxes | Retail fields are **percent, 2 dp** (`2.50` → 250 bps). Never show “bps” on Create/Manage inputs. Combined cap still 25.00%. |
 | **C605-2** SKU init | Selecting a SKU shows its init fields; unchecking drops those fields from the hook. Free create (0 SKU) still cannot include paid payloads (**C593-12**). |
-| **C605-3** AutoLP create | Auto liquidity at create instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → create blocked for that SKU (no 50 UST1 no-op). `SkimToLp` stays permissionless and is never called from `Transfer`/`Send` (**T592-10**). |
+| **C605-3** AutoLP create | Auto liquidity at create instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → create blocked for that SKU (no 50 UST1 no-op). `SkimToLp` stays permissionless and is never called from `Transfer`/`Send` (**T592-10**). Pair must be this token’s factory-listed CL8Y pool; skim has a spread floor (**M610**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610)). |
 | **C605-4** VariableRates gate | Without `variable_rates`, instantiate `max_*` must equal the current rate (no CLI headroom). Settings `buy_bps` / `sell_bps` require the SKU (`SkuNotUnlocked`). Not a no-op (audit M-1). Caps stay immutable after create. |
 
 ### Max amount / gas reserve {#max-amount-gas-reserve}

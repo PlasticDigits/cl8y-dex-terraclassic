@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, Uint128, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
@@ -9,6 +9,8 @@ use dex_common::types::{Asset, AssetInfo};
 
 use crate::error::ContractError;
 use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::pair::require_factory_listed_tax_pair;
+use crate::spread::{clamp_skim_max_spread, default_skim_max_spread};
 use crate::state::{Config, CONFIG, SKIMMING};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-tax-autolp";
@@ -25,28 +27,44 @@ pub fn instantiate(
     let token = deps.api.addr_validate(&msg.token)?;
     let manager = deps.api.addr_validate(&msg.manager)?;
     let lp_recipient = deps.api.addr_validate(&msg.lp_recipient)?;
+    let factory = deps.api.addr_validate(&msg.factory)?;
+    let skim_max_spread = match msg.skim_max_spread {
+        Some(s) => clamp_skim_max_spread(s)?,
+        None => default_skim_max_spread(),
+    };
+    let skim_min_return = msg.skim_min_return.filter(|m| !m.is_zero());
+
+    let mut pair = None;
+    let mut quote_token = msg
+        .quote_token
+        .as_ref()
+        .map(|q| deps.api.addr_validate(q))
+        .transpose()?;
+    if let Some(p) = msg.pair.as_ref() {
+        let (listed, quote) = require_factory_listed_tax_pair(deps.as_ref(), &factory, &token, p)?;
+        pair = Some(listed);
+        if quote.is_some() {
+            quote_token = quote;
+        }
+    }
+
     CONFIG.save(
         deps.storage,
         &Config {
             token,
             manager,
+            factory,
             router: msg
                 .router
                 .as_ref()
                 .map(|r| deps.api.addr_validate(r))
                 .transpose()?,
-            pair: msg
-                .pair
-                .as_ref()
-                .map(|p| deps.api.addr_validate(p))
-                .transpose()?,
-            quote_token: msg
-                .quote_token
-                .as_ref()
-                .map(|q| deps.api.addr_validate(q))
-                .transpose()?,
+            pair,
+            quote_token,
             threshold: msg.threshold,
             lp_recipient,
+            skim_max_spread,
+            skim_min_return,
         },
     )?;
     SKIMMING.save(deps.storage, &false)?;
@@ -67,45 +85,68 @@ pub fn execute(
             quote_token,
             threshold,
             lp_recipient,
+            skim_max_spread,
+            skim_min_return,
         } => execute_update(
             deps,
             info,
-            pair,
-            router,
-            quote_token,
-            threshold,
-            lp_recipient,
+            UpdateFields {
+                pair,
+                router,
+                quote_token,
+                threshold,
+                lp_recipient,
+                skim_max_spread,
+                skim_min_return,
+            },
         ),
     }
 }
 
-fn execute_update(
-    deps: DepsMut,
-    info: MessageInfo,
+struct UpdateFields {
     pair: Option<String>,
     router: Option<String>,
     quote_token: Option<String>,
     threshold: Option<Uint128>,
     lp_recipient: Option<String>,
+    skim_max_spread: Option<Decimal>,
+    skim_min_return: Option<Uint128>,
+}
+
+fn execute_update(
+    deps: DepsMut,
+    info: MessageInfo,
+    fields: UpdateFields,
 ) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
     if info.sender != cfg.manager {
         return Err(ContractError::Unauthorized {});
     }
-    if let Some(p) = pair {
-        cfg.pair = Some(deps.api.addr_validate(&p)?);
+    if let Some(p) = fields.pair {
+        let (listed, quote) =
+            require_factory_listed_tax_pair(deps.as_ref(), &cfg.factory, &cfg.token, &p)?;
+        cfg.pair = Some(listed);
+        if quote.is_some() {
+            cfg.quote_token = quote;
+        }
     }
-    if let Some(r) = router {
+    if let Some(r) = fields.router {
         cfg.router = Some(deps.api.addr_validate(&r)?);
     }
-    if let Some(q) = quote_token {
+    if let Some(q) = fields.quote_token {
         cfg.quote_token = Some(deps.api.addr_validate(&q)?);
     }
-    if let Some(t) = threshold {
+    if let Some(t) = fields.threshold {
         cfg.threshold = t;
     }
-    if let Some(r) = lp_recipient {
+    if let Some(r) = fields.lp_recipient {
         cfg.lp_recipient = deps.api.addr_validate(&r)?;
+    }
+    if let Some(s) = fields.skim_max_spread {
+        cfg.skim_max_spread = clamp_skim_max_spread(s)?;
+    }
+    if let Some(m) = fields.skim_min_return {
+        cfg.skim_min_return = if m.is_zero() { None } else { Some(m) };
     }
     CONFIG.save(deps.storage, &cfg)?;
     Ok(Response::new().add_attribute("action", "update_config"))
@@ -146,10 +187,11 @@ fn execute_skim(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     }
     SKIMMING.save(deps.storage, &true)?;
 
+    // Floor is config-only. Permissionless caller cannot pass None/None (M-2 / M610-3).
     let hook = to_json_binary(&Cw20HookMsg::Swap {
         belief_price: None,
-        max_spread: None,
-        min_return: None,
+        max_spread: Some(cfg.skim_max_spread),
+        min_return: cfg.skim_min_return,
         to: Some(env.contract.address.to_string()),
         deadline: None,
         trader: None,
@@ -169,7 +211,8 @@ fn execute_skim(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     Ok(Response::new()
         .add_submessage(SubMsg::reply_on_success(send, REPLY_SWAP))
         .add_attribute("action", "skim_to_lp")
-        .add_attribute("half", half))
+        .add_attribute("half", half)
+        .add_attribute("max_spread", cfg.skim_max_spread.to_string()))
 }
 
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
@@ -179,6 +222,9 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         )));
     }
     let cfg = CONFIG.load(deps.storage)?;
+    // Residual **M610-8**: lock clears before provide messages. A listed pair's
+    // provide hook could call SkimToLp again in this tx. Factory+token-side
+    // listing (M-3) is what keeps that pair in the CL8Y set.
     SKIMMING.save(deps.storage, &false)?;
 
     let Some(quote) = cfg.quote_token.clone() else {
@@ -257,11 +303,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&ConfigResponse {
                 token: c.token,
                 manager: c.manager,
+                factory: c.factory,
                 router: c.router,
                 pair: c.pair,
                 quote_token: c.quote_token,
                 threshold: c.threshold,
                 lp_recipient: c.lp_recipient,
+                skim_max_spread: c.skim_max_spread,
+                skim_min_return: c.skim_min_return,
                 skimming,
             })
         }
@@ -271,8 +320,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(
     deps: DepsMut,
     _env: Env,
-    _msg: crate::msg::MigrateMsg,
+    msg: crate::msg::MigrateMsg,
 ) -> Result<Response, ContractError> {
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    if let Some(factory) = msg.factory {
+        let mut cfg = CONFIG.load(deps.storage)?;
+        cfg.factory = deps.api.addr_validate(&factory)?;
+        CONFIG.save(deps.storage, &cfg)?;
+    }
     Ok(Response::new().add_attribute("action", "migrate"))
 }

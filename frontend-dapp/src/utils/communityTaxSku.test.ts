@@ -32,6 +32,13 @@ describe('communityTaxSku (#593)', () => {
     expect(COMMUNITY_TAX_SKUS.map((s) => s.label)).not.toContain('mint_control')
   })
 
+  it('#610 Auto liquidity hint requires factory-listed pair with this token', () => {
+    const hint = COMMUNITY_TAX_SKUS.find((s) => s.id === 'auto_v2_lp')?.hint ?? ''
+    expect(hint.toLowerCase()).toContain('factory-listed')
+    expect(hint.toLowerCase()).toContain('this token')
+    expect(hint.toLowerCase()).toContain('floor')
+  })
+
   it('#609 exemption hint names buy, sell, and transfer tax', () => {
     const hint = COMMUNITY_TAX_SKUS.find((s) => s.id === 'exemption_directory')?.hint ?? ''
     expect(hint.toLowerCase()).toContain('buy')
