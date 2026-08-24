@@ -45,6 +45,6 @@ VERIFY508_MAINNET=1 make verify-issue-508     # read-only pair presence
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — retail copy; keep secondary-market wording short
 - `/ust1` UI track: [#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)
 - Pair Price (USD) for UST1/cUSTC and UST1/USTR: [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522))
-- Oracle rebalance + $1k LP to CMM: [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md)
+- Oracle rebalance + $5k LP to CMM: [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md)
 - Trade/Charts other-side display invert: [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524))
 - Create Pair listed-CW20 picker (keep the U1 AMM ≠ mint notice): [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) ([#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542))

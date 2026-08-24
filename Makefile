@@ -699,7 +699,7 @@ check-ust1-wrap-ops-health:
 	@chmod +x scripts/check-ust1-wrap-ops-health.sh scripts/lib/ust1-wrap-ops-defaults.sh
 	./scripts/check-ust1-wrap-ops-health.sh
 
-# Columbus-5: rebalance UST1/cUSTC to oracle, mint $1k LP ×2, send to CMM.
+# Columbus-5: rebalance UST1/cUSTC to oracle, mint $5k LP ×2, send to CMM.
 # DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + UST1_LP_YES=1 (or TTY confirm).
 rebalance-mint-ust1-lp:
 	@chmod +x scripts/rebalance-mint-ust1-lp.sh scripts/lib/ust1-lp-rebalance-math.py

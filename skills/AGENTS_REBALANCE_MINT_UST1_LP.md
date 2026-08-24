@@ -1,4 +1,4 @@
-# Agent playbook: rebalance UST1/cUSTC and mint $1k LP to CMM
+# Agent playbook: rebalance UST1/cUSTC and mint $5k LP to CMM
 
 Use when deepening **UST1/cUSTC** and **UST1/USTR** with oracle-sized LP sent to the **ustr-cmm CMM treasury**, or when changing that mint/swap/provide flow.
 

@@ -204,7 +204,7 @@ def mint_need(have: int, need: int) -> int:
 def build_plan(inp: dict[str, Any]) -> dict[str, Any]:
     ustc_usd = _d(inp["ustc_usd"])
     ustr_per = _d(inp.get("ustr_per_ustc", USTR_PER_USTC))
-    usd_each = _d(inp.get("usd_each", 1000))
+    usd_each = _d(inp.get("usd_each", 5000))
     tol = _d(inp.get("tolerance", "0.001"))
     fee_bps = int(inp.get("fee_bps", 180))
     buffer_bps = int(inp.get("buffer_bps", 50))

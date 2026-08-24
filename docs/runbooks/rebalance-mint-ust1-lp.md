@@ -1,6 +1,6 @@
-# Rebalance UST1/cUSTC and mint $1k LP to the CMM treasury
+# Rebalance UST1/cUSTC and mint $5k LP to the CMM treasury
 
-Operator script for deepening **UST1/cUSTC** and **UST1/USTR** with **$1000** of LP each, after bringing the **UST1/cUSTC** pool to the indexer USTC oracle (within **0.1%**). LP is minted to the **ustr-cmm CMM treasury**. The UST1/USTR pool is **not** swapped.
+Operator script for deepening **UST1/cUSTC** and **UST1/USTR** with **$5000** of LP each, after bringing the **UST1/cUSTC** pool to the indexer USTC oracle (within **0.1%**). LP is minted to the **ustr-cmm CMM treasury**. The UST1/USTR pool is **not** swapped.
 
 Script: [`scripts/rebalance-mint-ust1-lp.sh`](../../scripts/rebalance-mint-ust1-lp.sh)  
 Playbook: [`skills/AGENTS_REBALANCE_MINT_UST1_LP.md`](../../skills/AGENTS_REBALANCE_MINT_UST1_LP.md)
@@ -50,7 +50,7 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 
 | Env | Purpose |
 |-----|---------|
-| `UST1_LP_USD_EACH` | USD per pair (default `1000`) |
+| `UST1_LP_USD_EACH` | USD per pair (default `5000`) |
 | `UST1_LP_PRICE_TOLERANCE` | Rel error vs oracle (default `0.001`) |
 | `UST1_LP_ADMIN_KEY` / `UST1_LP_ADMIN_ADDR` | Hot wallet (default `cl8ydeploy`) |
 | `UST1_LP_USTC_USD` | Skip indexer oracle |

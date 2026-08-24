@@ -21,7 +21,7 @@
 : "${UST1_LP_ADMIN_KEY:=cl8ydeploy}"
 : "${UST1_LP_ADMIN_ADDR:=terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv}"
 
-: "${UST1_LP_USD_EACH:=1000}"
+: "${UST1_LP_USD_EACH:=5000}"
 : "${UST1_LP_PRICE_TOLERANCE:=0.001}"
 : "${UST1_LP_USTR_PER_USTC:=2.5}"
 : "${UST1_LP_INDEXER_ORACLE:=https://indexer.dex.cl8y.com/api/v1/oracle/price/ustc}"

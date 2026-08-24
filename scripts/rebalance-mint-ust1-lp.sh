@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebalance UST1/cUSTC to the USTC oracle, mint $1k LP on UST1/cUSTC and UST1/USTR,
+# Rebalance UST1/cUSTC to the USTC oracle, mint $5k LP on UST1/cUSTC and UST1/USTR,
 # and send both LP tokens to the CMM treasury.
 #
 # Flow:
@@ -577,4 +577,4 @@ echo "treasury=$TREASURY"
 if [[ "$FAIL" -ne 0 ]]; then
   die "post-checks failed"
 fi
-echo "OK — rebalance + \$1k LP on both pairs sent to CMM."
+echo "OK — rebalance + \$${USD_EACH} LP on both pairs sent to CMM."
