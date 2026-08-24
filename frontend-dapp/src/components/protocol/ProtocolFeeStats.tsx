@@ -20,6 +20,8 @@ import type { IndexerOverview, ProtocolFeeSourceKey, ProtocolFeesResponse } from
 const SOURCE_LABEL: Record<ProtocolFeeSourceKey, string> = {
   wrap: 'Wrap',
   unwrap: 'Unwrap',
+  ust1_mint: 'UST1 mint',
+  ust1_redeem: 'UST1 redeem',
   swap_amm: 'AMM swap',
   book_take: 'Book take',
   limit_place: 'Limit place',
@@ -28,10 +30,20 @@ const SOURCE_LABEL: Record<ProtocolFeeSourceKey, string> = {
 const SOURCE_ORDER: ProtocolFeeSourceKey[] = [
   'wrap',
   'unwrap',
+  'ust1_mint',
+  'ust1_redeem',
   'swap_amm',
   'book_take',
   'limit_place',
 ]
+
+function isWrapFamily(source: string): boolean {
+  return source === 'wrap' || source === 'unwrap'
+}
+
+function isUst1WindowFamily(source: string): boolean {
+  return source === 'ust1_mint' || source === 'ust1_redeem'
+}
 
 function sourceLabel(source: string): string {
   if (source in SOURCE_LABEL) return SOURCE_LABEL[source as ProtocolFeeSourceKey]
@@ -45,11 +57,7 @@ interface ProtocolFeeStatsProps {
 
 function overviewHasFeeFields(o: IndexerOverview | undefined): boolean {
   if (!o) return false
-  return (
-    o.total_fees_24h_usd !== undefined ||
-    o.total_fees_7d_usd !== undefined ||
-    o.total_fees_30d_usd !== undefined
-  )
+  return o.total_fees_24h_usd !== undefined || o.total_fees_7d_usd !== undefined || o.total_fees_30d_usd !== undefined
 }
 
 export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsProps) {
@@ -60,11 +68,13 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
 
   const loading = overviewQuery.isLoading
   const wrapConfigured = fees?.wrap_mapper_configured === true
+  const windowConfigured = fees?.ust1_window_configured === true
 
   const sources = (fees?.by_source ?? [])
     .filter((row) => {
-      if (row.source !== 'wrap' && row.source !== 'unwrap') return true
-      return wrapConfigured
+      if (isWrapFamily(row.source)) return wrapConfigured
+      if (isUst1WindowFamily(row.source)) return windowConfigured
+      return true
     })
     .filter((row) => row.event_count !== 0 || row.amount_usd !== '0')
     .sort((a, b) => {
@@ -79,8 +89,8 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         Protocol fees
       </h2>
       <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
-        Treasury inflows indexed from swaps, book takes, limit places, and wrap. Reference only — not a CMM
-        balance.
+        Treasury inflows indexed from swaps, book takes, limit places, wrap, and UST1 mint/redeem. Reference only — not
+        a CMM balance.
       </p>
       {overviewQuery.isError && (
         <RetryError message="Failed to load fee totals" onRetry={() => void overviewQuery.refetch()} />

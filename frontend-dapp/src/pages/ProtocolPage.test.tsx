@@ -117,12 +117,15 @@ const overviewOk = {
 const feesOk = {
   window: '24h' as const,
   wrap_mapper_configured: true,
+  ust1_window_configured: true,
   by_source: [
     { source: 'swap_amm', amount_usd: '8', share_pct: '64', event_count: 2 },
     { source: 'book_take', amount_usd: '2', share_pct: '16', event_count: 1 },
     { source: 'limit_place', amount_usd: '1.5', share_pct: '12', event_count: 1 },
     { source: 'wrap', amount_usd: '1', share_pct: '8', event_count: 1 },
     { source: 'unwrap', amount_usd: '0', share_pct: null, event_count: 0 },
+    { source: 'ust1_mint', amount_usd: '0.4', share_pct: '3', event_count: 1 },
+    { source: 'ust1_redeem', amount_usd: '0', share_pct: null, event_count: 0 },
   ],
   by_token: [
     { asset_id: 1, symbol: 'UST1', amount_human: '10', amount_usd: '9.8', is_other: false },
@@ -498,7 +501,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Book take')
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Limit place')
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Wrap')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('UST1 mint')
     expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('unwrap')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 redeem')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('deposit')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('withdraw')
     expect(within(fees).getByTestId('protocol-fees-by-token')).toHaveTextContent('UST1')
     expect(within(fees).getByTestId('protocol-fees-by-token')).toHaveTextContent('cUSTC')
     expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
@@ -547,5 +554,36 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await screen.findByTestId('protocol-fee-stats')
     expect(indexerClient.getProtocolFees).toHaveBeenCalled()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
+  })
+
+  it('omits UST1 mint/redeem when window is unconfigured (GitLab #614)', async () => {
+    vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
+      ...feesOk,
+      ust1_window_configured: false,
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const fees = await screen.findByTestId('protocol-fee-stats')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('AMM swap')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 mint')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 redeem')
+  })
+
+  it('omits UST1 window rows when flag is missing (old indexer, GitLab #614 / PFee-10)', async () => {
+    vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
+      window: feesOk.window,
+      wrap_mapper_configured: feesOk.wrap_mapper_configured,
+      by_source: feesOk.by_source,
+      by_token: feesOk.by_token,
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const fees = await screen.findByTestId('protocol-fee-stats')
+    expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 mint')
+  })
+
+  it('CEX oracle card still does not claim to be the UST1 window rate (P550-11)', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=vfdusd' })
+    const oracle = await screen.findByTestId('protocol-oracle')
+    expect(oracle.textContent).not.toMatch(/is the UST1 window|window mint|oracle mint\/redeem/i)
+    expect(await screen.findByTestId('protocol-fee-stats')).toBeInTheDocument()
   })
 })

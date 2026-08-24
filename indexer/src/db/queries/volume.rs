@@ -210,8 +210,10 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
 pub async fn refresh_protocol_fee_stats(
     pool: &PgPool,
     wrap_mapper_configured: bool,
+    ust1_window_configured: bool,
 ) -> Result<(), sqlx::Error> {
-    super::protocol_fees::refresh_protocol_fees(pool, wrap_mapper_configured).await
+    super::protocol_fees::refresh_protocol_fees(pool, wrap_mapper_configured, ust1_window_configured)
+        .await
 }
 
 /// Recompute `swap_events.volume_usd` from stored amounts + P522-Q catalog + latest oracles

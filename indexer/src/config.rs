@@ -165,6 +165,9 @@ pub struct Config {
     /// Pinned wrap-mapper bech32 for wrap/unwrap treasury fees (GitLab #586).
     /// Invalid / empty → wrap sources omitted (not fake idle `$0`).
     pub wrap_mapper_address: Option<String>,
+    /// Pinned ust1-window bech32 for mint/redeem treasury fees (GitLab #614).
+    /// Invalid / empty → ust1_mint / ust1_redeem omitted (not fake idle `$0`).
+    pub ust1_window_address: Option<String>,
     /// Community tax template code id (GitLab #594). Unset → catalog `configured: false`.
     pub community_tax_code_id: Option<u64>,
     /// Launcher contract — only this emitter may attest `launcher_tx`.
@@ -412,6 +415,9 @@ impl Config {
             wrap_mapper_address: env::var("WRAP_MAPPER_ADDRESS")
                 .ok()
                 .and_then(|s| crate::indexer::protocol_fees::parse_wrap_mapper_address(&s)),
+            ust1_window_address: env::var("UST1_WINDOW_ADDRESS")
+                .ok()
+                .and_then(|s| crate::indexer::protocol_fees::parse_ust1_window_address(&s)),
             community_tax_code_id: env::var("COMMUNITY_TAX_CODE_ID")
                 .ok()
                 .map(|s| s.trim().to_string())

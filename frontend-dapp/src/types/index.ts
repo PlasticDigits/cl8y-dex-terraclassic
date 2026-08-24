@@ -434,8 +434,15 @@ export interface IndexerOverview {
   fees_change_30d_pct?: string | number | null
 }
 
-/** Allowlisted fee source keys from `GET /api/v1/protocol/fees` (GitLab #586). */
-export type ProtocolFeeSourceKey = 'swap_amm' | 'book_take' | 'limit_place' | 'wrap' | 'unwrap'
+/** Allowlisted fee source keys from `GET /api/v1/protocol/fees` (GitLab #586 / #614). */
+export type ProtocolFeeSourceKey =
+  | 'swap_amm'
+  | 'book_take'
+  | 'limit_place'
+  | 'wrap'
+  | 'unwrap'
+  | 'ust1_mint'
+  | 'ust1_redeem'
 
 export interface ProtocolFeeSourceRow {
   source: ProtocolFeeSourceKey | string
@@ -458,6 +465,8 @@ export interface ProtocolFeeTokenRow {
 export interface ProtocolFeesResponse {
   window: '24h' | '7d' | '30d' | string
   wrap_mapper_configured: boolean
+  /** Additive (#614). Missing on old indexers → hide UST1 mint/redeem rows. */
+  ust1_window_configured?: boolean
   by_source: ProtocolFeeSourceRow[]
   by_token: ProtocolFeeTokenRow[]
 }

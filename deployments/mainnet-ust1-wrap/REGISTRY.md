@@ -16,7 +16,7 @@ When addresses change, update **this file first**, then mirror into Coolify, [`c
 | vFDUSD CW20 | `terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3` | — | `VITE_VFDUSD_TOKEN_ADDRESS` |
 | UST1 CW20 | `terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72` | — | `VITE_UST1_TOKEN_ADDRESS` |
 | ust1-oracle | `terra1fmht0t6svq3n24zx03nkfja0m40zhfyyxkdcvlrkl6u7gfe6aagq4gch8n` | **11568** | `VITE_UST1_ORACLE_ADDRESS` |
-| ust1-window | `terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2` | **11566** | `VITE_UST1_WINDOW_ADDRESS` |
+| ust1-window | `terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2` | **11566** | `VITE_UST1_WINDOW_ADDRESS` (dApp) · indexer `UST1_WINDOW_ADDRESS` ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)) |
 
 Approved window params (governance-updatable; always re-query on-chain): `fee_bps=100`, per-tx **1000** UST1 (`1000000000` raw @ 6dp), rolling 24h **10000** UST1 (`10000000000` raw). Observed `max_oracle_age_sec` on mainnet: **21600** (6h).
 

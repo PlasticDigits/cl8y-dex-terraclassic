@@ -1,12 +1,15 @@
-//! Protocol treasury fee ingest + wrap-mapper pin (GitLab #586).
+//! Protocol treasury fee ingest + wrap-mapper / ust1-window pins (GitLab #586 / #614).
 //!
-//! **PFee / L7:** count amounts sent to pair / wrap-mapper treasury only.
+//! **PFee / L7:** count amounts sent to pair / wrap-mapper / ust1-window treasury only.
 //! Do not count `spread_amount`, Terra Classic burn tax, gas, `hook_fee_amount`,
-//! LP, book escrow, or parked dust. Hybrid book taker is `limit_order_fills.commission_amount`
+//! LP, book escrow, parked dust, Venus redeem, oracle spread, or unused rolling capacity.
+//! Hybrid book taker is `limit_order_fills.commission_amount`
 //! — never also add a swap-level `book_commission_amount`.
 //!
 //! Wrap/unwrap wasm is accepted only from a pinned `WRAP_MAPPER_ADDRESS` (exact bech32).
-//! Fail closed on missing `fee_amount` / token identity. Do not infer `amount × bps`.
+//! UST1 mint/redeem wasm is accepted only from a pinned `UST1_WINDOW_ADDRESS`.
+//! Fail closed on missing `fee_amount` / token identity. Do not infer `amount × bps`
+//! (including `ust1_out × fee_total_bps` / `vfdusd_to_treasury × fee_cmm_protocol_bps`).
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -26,15 +29,19 @@ pub enum FeeSource {
     LimitPlace,
     Wrap,
     Unwrap,
+    Ust1Mint,
+    Ust1Redeem,
 }
 
 impl FeeSource {
-    pub const ALL: [FeeSource; 5] = [
+    pub const ALL: [FeeSource; 7] = [
         FeeSource::SwapAmm,
         FeeSource::BookTake,
         FeeSource::LimitPlace,
         FeeSource::Wrap,
         FeeSource::Unwrap,
+        FeeSource::Ust1Mint,
+        FeeSource::Ust1Redeem,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -44,6 +51,8 @@ impl FeeSource {
             FeeSource::LimitPlace => "limit_place",
             FeeSource::Wrap => "wrap",
             FeeSource::Unwrap => "unwrap",
+            FeeSource::Ust1Mint => "ust1_mint",
+            FeeSource::Ust1Redeem => "ust1_redeem",
         }
     }
 
@@ -54,12 +63,18 @@ impl FeeSource {
             "limit_place" => Some(FeeSource::LimitPlace),
             "wrap" => Some(FeeSource::Wrap),
             "unwrap" => Some(FeeSource::Unwrap),
+            "ust1_mint" => Some(FeeSource::Ust1Mint),
+            "ust1_redeem" => Some(FeeSource::Ust1Redeem),
             _ => None,
         }
     }
 
     pub fn is_wrap_family(self) -> bool {
         matches!(self, FeeSource::Wrap | FeeSource::Unwrap)
+    }
+
+    pub fn is_ust1_window_family(self) -> bool {
+        matches!(self, FeeSource::Ust1Mint | FeeSource::Ust1Redeem)
     }
 }
 
@@ -71,6 +86,8 @@ pub fn fee_source_label(source: FeeSource) -> &'static str {
         FeeSource::LimitPlace => "Limit place",
         FeeSource::Wrap => "Wrap",
         FeeSource::Unwrap => "Unwrap",
+        FeeSource::Ust1Mint => "UST1 mint",
+        FeeSource::Ust1Redeem => "UST1 redeem",
     }
 }
 
@@ -84,11 +101,11 @@ pub struct ParsedWrapFee {
     pub ordinal: i64,
 }
 
-/// Pin `WRAP_MAPPER_ADDRESS`: trim, reject whitespace/newline/wrong HRP, no `LIKE %`.
+/// Pin a reserved `terra1` bech32: trim, reject whitespace/newline/wrong HRP, no `LIKE %`.
 ///
-/// Accepts `terra1` bech32 only (columbus-5 / LocalTerra). Empty / garbage → `None`
-/// (wrap source omitted, not fake idle `$0`).
-pub fn parse_wrap_mapper_address(raw: &str) -> Option<String> {
+/// Shared by `WRAP_MAPPER_ADDRESS` and `UST1_WINDOW_ADDRESS`. Empty / garbage → `None`
+/// (that source family omitted, not fake idle `$0`).
+pub fn parse_terra1_pin(raw: &str) -> Option<String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -111,8 +128,22 @@ pub fn parse_wrap_mapper_address(raw: &str) -> Option<String> {
     Some(trimmed.to_string())
 }
 
+/// Pin `WRAP_MAPPER_ADDRESS` (GitLab #586).
+pub fn parse_wrap_mapper_address(raw: &str) -> Option<String> {
+    parse_terra1_pin(raw)
+}
+
+/// Pin `UST1_WINDOW_ADDRESS` (GitLab #614). Same rules as the wrap pin.
+pub fn parse_ust1_window_address(raw: &str) -> Option<String> {
+    parse_terra1_pin(raw)
+}
+
 /// Exact bech32 equality — never substring / case-fold.
 pub fn wrap_mapper_matches(pinned: &str, contract: &str) -> bool {
+    pin_matches(pinned, contract)
+}
+
+fn pin_matches(pinned: &str, contract: &str) -> bool {
     !pinned.is_empty() && pinned == contract
 }
 
@@ -152,7 +183,11 @@ fn wrap_fee_token(attrs: &[Attribute]) -> Option<String> {
     None
 }
 
-fn parse_wrap_fee_from_attrs(attrs: &[Attribute], pinned: &str, ordinal: i64) -> Option<ParsedWrapFee> {
+fn parse_wrap_fee_from_attrs(
+    attrs: &[Attribute],
+    pinned: &str,
+    ordinal: i64,
+) -> Option<ParsedWrapFee> {
     let contract = wasm_contract_addr(attrs)?;
     if !wrap_mapper_matches(pinned, contract) {
         return None;
@@ -206,6 +241,121 @@ pub fn parse_wrap_fees(tx: &TxResponse, pinned_mapper: &str) -> Vec<ParsedWrapFe
     out
 }
 
+/// Token identity for a ust1-window fee. Fail closed if missing.
+///
+/// Same allowlist as wrap. Never `symbol=` (A1 spoof). Never vFDUSD CEX ticker.
+fn window_fee_token(seg: &std::collections::HashMap<&str, &str>) -> Option<String> {
+    for key in [
+        "fee_asset",
+        "fee_denom",
+        "native_denom",
+        "denom",
+        "ust1_token",
+    ] {
+        if let Some(v) = seg.get(key) {
+            let t = v.trim();
+            if !t.is_empty() && !t.chars().any(char::is_whitespace) {
+                return Some(t.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn wasm_contract_addr_before_action<'a>(
+    attrs: &'a [Attribute],
+    action_idx: usize,
+) -> Option<&'a str> {
+    attrs[..action_idx]
+        .iter()
+        .rev()
+        .find(|a| a.key == "_contract_address")
+        .map(|a| a.value.as_str())
+}
+
+fn wasm_kv_after_action<'a>(
+    attrs: &'a [Attribute],
+    action_idx: usize,
+) -> std::collections::HashMap<&'a str, &'a str> {
+    let mut m = std::collections::HashMap::new();
+    let mut i = action_idx.saturating_add(1);
+    while i < attrs.len() {
+        let k = attrs[i].key.as_str();
+        if k == "action" || k == "_contract_address" {
+            break;
+        }
+        m.insert(k, attrs[i].value.as_str());
+        i += 1;
+    }
+    m
+}
+
+/// Extract UST1 window mint/redeem treasury fees from LCD wasm events (GitLab #614).
+///
+/// Locked crate attrs (ust1-window columbus-5 **11566** / `contracts/ust1-window`):
+/// `action` = `deposit` \| `withdraw`, plus `ust1_out` / `vfdusd_out`,
+/// `fee_total_bps`, `fee_chain_tax_bps`, `fee_cmm_protocol_bps`, and on deposit
+/// `vfdusd_to_treasury`. **Those are not a treasury fee amount.**
+///
+/// Ingest requires an explicit `fee_amount` (positive raw) + token identity
+/// (`fee_asset` / `fee_denom` / `native_denom` / `denom` / `ust1_token`) on the
+/// window `_contract_address` segment. Do not infer `ust1_out × fee_total_bps`.
+/// Flattened CW20 `send` + hook is scanned per `action` (#285 reserved key only).
+pub fn parse_ust1_window_fees(tx: &TxResponse, pinned_window: &str) -> Vec<ParsedWrapFee> {
+    if pinned_window.is_empty() {
+        return Vec::new();
+    }
+    let events: Vec<&crate::lcd::Event> = if let Some(logs) = &tx.logs {
+        logs.iter().flat_map(|l| l.events.iter()).collect()
+    } else if let Some(evts) = &tx.events {
+        evts.iter().collect()
+    } else {
+        Vec::new()
+    };
+
+    let mut out = Vec::new();
+    let mut ordinal = 0i64;
+    for event in events {
+        if event.event_type != "wasm" && event.event_type != "wasm-wasm" {
+            continue;
+        }
+        for (i, attr) in event.attributes.iter().enumerate() {
+            if attr.key != "action" {
+                continue;
+            }
+            let source = match attr.value.as_str() {
+                "deposit" => FeeSource::Ust1Mint,
+                "withdraw" => FeeSource::Ust1Redeem,
+                _ => continue,
+            };
+            let Some(contract) = wasm_contract_addr_before_action(&event.attributes, i) else {
+                continue;
+            };
+            if !pin_matches(pinned_window, contract) {
+                continue;
+            }
+            let seg = wasm_kv_after_action(&event.attributes, i);
+            // Fail closed: require explicit treasury fee amount. Never × fee_bps.
+            // Do not treat ust1_out / vfdusd_out / vfdusd_to_treasury / min_vfdusd_out as the fee.
+            let Some(amount_raw) = seg.get("fee_amount").copied().and_then(parse_positive_raw)
+            else {
+                continue;
+            };
+            let Some(token) = window_fee_token(&seg) else {
+                continue;
+            };
+            out.push(ParsedWrapFee {
+                source,
+                amount_raw,
+                token,
+                ordinal,
+            });
+            ordinal += 1;
+        }
+    }
+    out
+}
+
 /// Humanize raw fee × P522-Q/hub. Overflow / non-positive / unpriced → `None`.
 pub fn fee_usd_for_raw(
     asset: &AssetRow,
@@ -238,7 +388,10 @@ pub fn fee_usd_for_raw(
 }
 
 /// Flow Δ% = `(current − prior) / prior × 100` when `prior > 0`. Else `None` (never Inf).
-pub fn flow_change_pct(current: Option<&BigDecimal>, prior: Option<&BigDecimal>) -> Option<BigDecimal> {
+pub fn flow_change_pct(
+    current: Option<&BigDecimal>,
+    prior: Option<&BigDecimal>,
+) -> Option<BigDecimal> {
     let current = current?;
     let prior = prior?;
     if *prior <= BigDecimal::from(0) {
@@ -366,7 +519,10 @@ mod tests {
     fn parse_wrap_fees_spoof_contract_ignored() {
         let pin = "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2";
         let tx = tx_with_wasm(vec![
-            attr("_contract_address", "terra1attackerxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+            attr(
+                "_contract_address",
+                "terra1attackerxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            ),
             attr("action", "wrap"),
             attr("fee_amount", "999999"),
             attr("denom", "uusd"),
@@ -468,6 +624,145 @@ mod tests {
     fn fee_source_unknown_rejected() {
         assert!(FeeSource::parse("javascript:").is_none());
         assert!(FeeSource::parse("swap").is_none());
+        assert!(FeeSource::parse("deposit").is_none());
+        assert!(FeeSource::parse("withdraw").is_none());
         assert_eq!(FeeSource::parse("swap_amm"), Some(FeeSource::SwapAmm));
+        assert_eq!(FeeSource::parse("ust1_mint"), Some(FeeSource::Ust1Mint));
+        assert_eq!(FeeSource::parse("ust1_redeem"), Some(FeeSource::Ust1Redeem));
+        assert_eq!(fee_source_label(FeeSource::Ust1Mint), "UST1 mint");
+        assert_eq!(fee_source_label(FeeSource::Ust1Redeem), "UST1 redeem");
+    }
+
+    /// Columbus-5 window (REGISTRY.md / ust1-window code 11566).
+    const WINDOW: &str = "terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2";
+    /// Hub UST1 CW20 — fee token identity when wasm emits it.
+    const UST1: &str = "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72";
+
+    #[test]
+    fn ust1_window_pin_rejects_garbage() {
+        assert!(parse_ust1_window_address("").is_none());
+        assert!(parse_ust1_window_address("   ").is_none());
+        assert!(parse_ust1_window_address("terra1abc def").is_none());
+        assert!(parse_ust1_window_address("osmo1aaaaaaaaaaaaaaaaaaa").is_none());
+        assert_eq!(
+            parse_ust1_window_address(&format!("  {WINDOW}  ")).as_deref(),
+            Some(WINDOW)
+        );
+    }
+
+    #[test]
+    fn parse_ust1_window_deposit_fixture() {
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", WINDOW),
+            attr("action", "deposit"),
+            attr("ust1_out", "990000"),
+            attr("fee_total_bps", "100"),
+            attr("fee_chain_tax_bps", "50"),
+            attr("fee_cmm_protocol_bps", "50"),
+            attr("vfdusd_to_treasury", "1000000"),
+            attr("fee_amount", "10000"),
+            attr("fee_asset", UST1),
+        ]);
+        let fees = parse_ust1_window_fees(&tx, WINDOW);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Ust1Mint);
+        assert_eq!(fees[0].amount_raw, bd("10000"));
+        assert_eq!(fees[0].token, UST1);
+    }
+
+    #[test]
+    fn parse_ust1_window_withdraw_fixture() {
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", WINDOW),
+            attr("action", "withdraw"),
+            attr("vfdusd_out", "980000"),
+            attr("fee_total_bps", "100"),
+            attr("min_vfdusd_out", "970000"),
+            attr("fee_amount", "10000"),
+            attr("fee_asset", UST1),
+        ]);
+        let fees = parse_ust1_window_fees(&tx, WINDOW);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Ust1Redeem);
+        assert_eq!(fees[0].amount_raw, bd("10000"));
+        assert_eq!(fees[0].token, UST1);
+    }
+
+    #[test]
+    fn parse_ust1_window_crate_attrs_without_fee_amount_fail_closed() {
+        // Locked 11566 crate attrs — no fee_amount. Do not infer from fee_total_bps.
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", WINDOW),
+            attr("action", "deposit"),
+            attr("ust1_out", "990000"),
+            attr("fee_total_bps", "100"),
+            attr("fee_chain_tax_bps", "50"),
+            attr("fee_cmm_protocol_bps", "50"),
+            attr("vfdusd_to_treasury", "1000000"),
+        ]);
+        assert!(parse_ust1_window_fees(&tx, WINDOW).is_empty());
+    }
+
+    #[test]
+    fn parse_ust1_window_spoof_and_forged_contract_address_ignored() {
+        let spoof = tx_with_wasm(vec![
+            attr(
+                "_contract_address",
+                "terra1attackerxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            ),
+            attr("action", "deposit"),
+            attr("fee_amount", "999999"),
+            attr("fee_asset", UST1),
+        ]);
+        assert!(parse_ust1_window_fees(&spoof, WINDOW).is_empty());
+
+        let forged = tx_with_wasm(vec![
+            attr(
+                "_contract_address",
+                "terra1attackerxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            ),
+            attr("contract_address", WINDOW),
+            attr("action", "withdraw"),
+            attr("fee_amount", "999999"),
+            attr("fee_asset", UST1),
+        ]);
+        assert!(parse_ust1_window_fees(&forged, WINDOW).is_empty());
+    }
+
+    #[test]
+    fn parse_ust1_window_flattened_send_plus_hook_scopes_window() {
+        let tx = tx_with_wasm(vec![
+            attr(
+                "_contract_address",
+                "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3",
+            ),
+            attr("action", "send"),
+            attr("amount", "1000000"),
+            attr("_contract_address", WINDOW),
+            attr("action", "deposit"),
+            attr("ust1_out", "990000"),
+            attr("fee_total_bps", "100"),
+            attr("fee_amount", "10000"),
+            attr("fee_asset", UST1),
+            attr("_contract_address", UST1),
+            attr("action", "mint"),
+            attr("amount", "990000"),
+        ]);
+        let fees = parse_ust1_window_fees(&tx, WINDOW);
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].source, FeeSource::Ust1Mint);
+        assert_eq!(fees[0].amount_raw, bd("10000"));
+        assert_eq!(fees[0].token, UST1);
+    }
+
+    #[test]
+    fn parse_ust1_window_empty_pin_omits() {
+        let tx = tx_with_wasm(vec![
+            attr("_contract_address", WINDOW),
+            attr("action", "deposit"),
+            attr("fee_amount", "10000"),
+            attr("fee_asset", UST1),
+        ]);
+        assert!(parse_ust1_window_fees(&tx, "").is_empty());
     }
 }

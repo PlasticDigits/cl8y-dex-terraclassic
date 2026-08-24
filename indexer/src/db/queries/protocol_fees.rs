@@ -26,6 +26,7 @@ pub struct ProtocolFeeRollup {
     pub fee_event_count_7d: i64,
     pub fee_event_count_30d: i64,
     pub wrap_mapper_configured: bool,
+    pub ust1_window_configured: bool,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -98,6 +99,7 @@ fn clamp_usd(v: Option<BigDecimal>) -> Option<BigDecimal> {
 pub async fn refresh_protocol_fees(
     pool: &PgPool,
     wrap_mapper_configured: bool,
+    ust1_window_configured: bool,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now();
     let c24 = now - chrono::Duration::hours(24);
@@ -184,7 +186,8 @@ pub async fn refresh_protocol_fees(
                fee_event_count_24h = $7,
                fee_event_count_7d = $8,
                fee_event_count_30d = $9,
-               wrap_mapper_configured = $10
+               wrap_mapper_configured = $10,
+               ust1_window_configured = $11
            WHERE id = 1"#,
     )
     .bind(usd24.as_ref())
@@ -197,12 +200,16 @@ pub async fn refresh_protocol_fees(
     .bind(agg.n7)
     .bind(agg.n30)
     .bind(wrap_mapper_configured)
+    .bind(ust1_window_configured)
     .execute(pool)
     .await?;
 
-    refresh_source_breakdown(pool, "24h", c24, wrap_mapper_configured).await?;
-    refresh_source_breakdown(pool, "7d", c7, wrap_mapper_configured).await?;
-    refresh_source_breakdown(pool, "30d", c30, wrap_mapper_configured).await?;
+    refresh_source_breakdown(pool, "24h", c24, wrap_mapper_configured, ust1_window_configured)
+        .await?;
+    refresh_source_breakdown(pool, "7d", c7, wrap_mapper_configured, ust1_window_configured)
+        .await?;
+    refresh_source_breakdown(pool, "30d", c30, wrap_mapper_configured, ust1_window_configured)
+        .await?;
     refresh_token_breakdown(pool, "24h", c24).await?;
     refresh_token_breakdown(pool, "7d", c7).await?;
     refresh_token_breakdown(pool, "30d", c30).await?;
@@ -215,6 +222,7 @@ async fn refresh_source_breakdown(
     window: &str,
     cutoff: DateTime<Utc>,
     wrap_mapper_configured: bool,
+    ust1_window_configured: bool,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(r#"DELETE FROM protocol_fee_stats_by_source WHERE "window" = $1"#)
         .bind(window)
@@ -247,6 +255,9 @@ async fn refresh_source_breakdown(
 
     for source in FeeSource::ALL {
         if source.is_wrap_family() && !wrap_mapper_configured {
+            continue;
+        }
+        if source.is_ust1_window_family() && !ust1_window_configured {
             continue;
         }
         let found = rows.iter().find(|r| r.source == source.as_str());
@@ -401,13 +412,14 @@ pub async fn get_fee_rollup(pool: &PgPool) -> Result<ProtocolFeeRollup, sqlx::Er
         fee_event_count_7d: i64,
         fee_event_count_30d: i64,
         wrap_mapper_configured: bool,
+        ust1_window_configured: bool,
     }
 
     let row = sqlx::query_as::<_, Row>(
         r#"SELECT total_fees_24h_usd, total_fees_7d_usd, total_fees_30d_usd,
                   fees_change_24h_pct, fees_change_7d_pct, fees_change_30d_pct,
                   fee_event_count_24h, fee_event_count_7d, fee_event_count_30d,
-                  wrap_mapper_configured
+                  wrap_mapper_configured, ust1_window_configured
            FROM global_stats_24h WHERE id = 1"#,
     )
     .fetch_optional(pool)
@@ -425,6 +437,7 @@ pub async fn get_fee_rollup(pool: &PgPool) -> Result<ProtocolFeeRollup, sqlx::Er
             fee_event_count_7d: r.fee_event_count_7d,
             fee_event_count_30d: r.fee_event_count_30d,
             wrap_mapper_configured: r.wrap_mapper_configured,
+            ust1_window_configured: r.ust1_window_configured,
         },
         None => ProtocolFeeRollup::default(),
     })

@@ -9,7 +9,13 @@ use crate::db::queries::{traders, volume};
 /// `startup = true` logs failures at warn (same as historical pair/global poller init).
 /// The 5-minute loop uses `startup = false` (error). GitLab #577 **D5**.
 pub async fn refresh_all_volume_windows(pool: &PgPool, startup: bool) {
-    refresh_all_volume_windows_with_wrap(pool, startup, wrap_mapper_configured_from_env()).await;
+    refresh_all_volume_windows_with_pins(
+        pool,
+        startup,
+        wrap_mapper_configured_from_env(),
+        ust1_window_configured_from_env(),
+    )
+    .await;
 }
 
 fn wrap_mapper_configured_from_env() -> bool {
@@ -19,11 +25,35 @@ fn wrap_mapper_configured_from_env() -> bool {
         .is_some()
 }
 
+fn ust1_window_configured_from_env() -> bool {
+    std::env::var("UST1_WINDOW_ADDRESS")
+        .ok()
+        .and_then(|s| crate::indexer::protocol_fees::parse_ust1_window_address(&s))
+        .is_some()
+}
+
 /// Same as [`refresh_all_volume_windows`] with an explicit wrap-mapper pin (tests).
+/// UST1 window pin is read from env so existing #586 tests stay unconfigured.
 pub async fn refresh_all_volume_windows_with_wrap(
     pool: &PgPool,
     startup: bool,
     wrap_mapper_configured: bool,
+) {
+    refresh_all_volume_windows_with_pins(
+        pool,
+        startup,
+        wrap_mapper_configured,
+        ust1_window_configured_from_env(),
+    )
+    .await;
+}
+
+/// Same as [`refresh_all_volume_windows_with_wrap`] with an explicit window pin (GitLab #614).
+pub async fn refresh_all_volume_windows_with_pins(
+    pool: &PgPool,
+    startup: bool,
+    wrap_mapper_configured: bool,
+    ust1_window_configured: bool,
 ) {
     let fail = |label: &str, e: sqlx::Error| {
         if startup {
@@ -42,7 +72,13 @@ pub async fn refresh_all_volume_windows_with_wrap(
     if let Err(e) = volume::refresh_global_stats(pool).await {
         fail("global 24h stats", e);
     }
-    if let Err(e) = volume::refresh_protocol_fee_stats(pool, wrap_mapper_configured).await {
+    if let Err(e) = volume::refresh_protocol_fee_stats(
+        pool,
+        wrap_mapper_configured,
+        ust1_window_configured,
+    )
+    .await
+    {
         fail("protocol fee stats", e);
     }
     if let Err(e) = traders::refresh_rolling_volumes(pool).await {

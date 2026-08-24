@@ -2,7 +2,7 @@
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -60,7 +60,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 |----|------|
 | **PFee-1** | Fee panel `protocol-fee-stats` sits **after** Global stats and **before** DEX hub. Do not merge factory/router into fees. Do not headline `traders.total_fees_paid` (lifetime mixed-unit, includes spread). |
 | **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD + flow Δ% vs the prior equal window. Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. |
-| **PFee-3** | Source table uses retail labels (wrap / unwrap / AMM swap / book take / limit place), not wasm action strings. Unconfigured wrap mapper **omits** wrap/unwrap (not fake idle `$0`). Hide idle `$0` sources. |
+| **PFee-3** | Source table uses retail labels (wrap / unwrap / **UST1 mint** / **UST1 redeem** / AMM swap / book take / limit place), not wasm action strings (`deposit` / `withdraw` / `effective_swap`). Unconfigured wrap mapper **omits** wrap/unwrap. Unconfigured `UST1_WINDOW_ADDRESS` (or missing `ust1_window_configured`) **omits** mint/redeem — not fake idle `$0`. Hide idle `$0` sources. |
 | **PFee-4** | Token table is human units + USD, cap 8 + `other`. Unpriced token shows human + USD `—`. XSS/`javascript:` symbols render as **text**. |
 | **PFee-5** | Hybrid fee = pool `commission_amount` (`swap_amm`) + `limit_order_fills.commission_amount` (`book_take`) — **not both** fill commission and swap `book_commission_amount`. Placement `maker_fee_amount` is `limit_place`. |
 | **PFee-6** | Wrap/unwrap only from pinned `WRAP_MAPPER_ADDRESS` (exact `terra1` bech32). Fail closed on missing `fee_amount` / token identity. Burn tax / `tax_amount` / `hook_fee_amount` / spread are **not** protocol fees. |
@@ -69,13 +69,15 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **PFee-9** | Windows decay when events age out (#577). `--fresh` / young indexer → Δ% empty until 2×W fills. Copy must not claim chain genesis fees. Dust swaps **do** count (same as volume). |
 | **PFee-10** | Additive overview JSON. Missing fee fields (old indexer) → hide the fee panel, do not invent `$0`. Fee query is in `detectMarketDataOutage` / retry. `?ticker=` stay allowlisted; fee panel ignores ticker. |
 | **PFee-11** | Breakdown cardinality is bounded (fixed source enum; top 8 tokens + `other`). No CSV in v1. |
-| **PFee-12** | Verify: `make verify-issue-586`. Related: `make verify-issue-550` `569` `576` `577`. Post-merge stack: `make verify-issue-590` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). |
+| **PFee-12** | Verify: `make verify-issue-586`. Related: `make verify-issue-550` `569` `576` `577`. Post-merge stack: `make verify-issue-590` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). Window mint/redeem: `make verify-issue-614`. |
+| **PFee-13** | UST1 window mint/redeem only from pinned `UST1_WINDOW_ADDRESS` (same terra1 pin rules as wrap; do **not** reuse `WRAP_MAPPER_ADDRESS`). Actions `deposit` → `ust1_mint`, `withdraw` → `ust1_redeem`. Require explicit `fee_amount` + token (`fee_asset` / `fee_denom` / `denom` / `ust1_token`). **Never** infer `ust1_out × fee_total_bps` / `vfdusd_to_treasury × fee_cmm_protocol_bps`. Columbus-5 window **11566** emits `action` / `ust1_out` / `vfdusd_out` / `fee_*_bps` / `vfdusd_to_treasury` only — those crate attrs are **not** a fee amount (fail closed until wasm emits `fee_amount`). Flattened CW20 `send` + hook scopes by reserved `_contract_address` (#285). Price with hub UST1 (**PFee-7**); never vFDUSD/FDUSD / `$1` UST1. `window=` query param stays `24h`\|`7d`\|`30d` (not “ust1-window”). Coolify pin is the **indexer** `UST1_WINDOW_ADDRESS`, not only Vite `VITE_UST1_WINDOW_ADDRESS`. |
 
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). Do not add a lecture to the Global stats lead.
 
 ## Regression
 
 ```bash
+make verify-issue-614
 make verify-issue-586
 make verify-issue-569
 make verify-issue-550
@@ -91,6 +93,6 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub card + `GET /api/v1/hub-prices` (#556)
 - [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — cUSTC/cLUNC wrap `AddressRow` + LUNC column (#570)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for TVL legs
-- [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — different oracle
+- [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — `/ust1` execute; CEX/hub cards are **not** the window rate (**P550-11**). Window treasury fees: **PFee-13** / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576)

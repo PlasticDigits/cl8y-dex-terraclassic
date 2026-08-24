@@ -54,9 +54,9 @@ Flash LP that is added and withdrawn inside one snapshot interval can move **cur
 
 `total_fees_{24h,7d,30d}_usd` and the matching `fees_change_*_pct` / `*_event_count` columns are **UPDATE-only** on the existing `global_stats_24h` id=1 row (`refresh_protocol_fee_stats`). A volume-zero INSERT must not create a fee-only stub. Source / token mix lives in `protocol_fee_stats_by_source` and `protocol_fee_stats_by_token` (top 8 + `other`). Idle windows store `"0"` with `event_count=0`; activity with all unpriced fees stores `NULL` (UI `—`). Δ% vs the prior equal window is `NULL` when `then ≤ 0`.
 
-`GET /api/v1/protocol/fees?window=` is allowlisted (`24h` \| `7d` \| `30d`) and 60s-cached. A 15-minute stale rollup still **serves** last fee columns — do not fall back to a live 60d event scan.
+`GET /api/v1/protocol/fees?window=` is allowlisted (`24h` \| `7d` \| `30d`) and 60s-cached. Do **not** overload `window=` with “ust1-window”. A 15-minute stale rollup still **serves** last fee columns — do not fall back to a live 60d event scan.
 
-Hybrid L7: `swap_amm` is pool `commission_amount` only; `book_take` is fill commission — never also `book_commission_amount`. Unwrap uses mapper `fee_amount`, not InstantWithdraw `tax_amount` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)).
+Hybrid L7: `swap_amm` is pool `commission_amount` only; `book_take` is fill commission — never also `book_commission_amount`. Unwrap uses mapper `fee_amount`, not InstantWithdraw `tax_amount` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). UST1 mint/redeem uses pinned `UST1_WINDOW_ADDRESS` `fee_amount` only — never `ust1_out × fee_total_bps` ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614), **PFee-13**). Unconfigured `ust1_window_configured` omits those source rows.
 
 Do **not** run a 24h-only `INSERT` that omits 7d/30d / `active_pairs_24h` / `unique_traders_24h` / **liquidity** / **fee** columns — those columns would stay stale or zero. Use the indexer aggregator (`refresh_global_stats` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)) or restart the indexer. The live SQL matches that function: one `swap_events` pass with `FILTER` windows (`$1` = 24h, `$2` = 7d, `$3` = 30d). Liquidity and fees are follow-on updates of the same row.
 
