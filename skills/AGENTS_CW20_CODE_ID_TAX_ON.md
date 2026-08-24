@@ -30,7 +30,7 @@ LAYER_B_TAX_ON=1 make verify-issue-623
 make verify-issue-601
 ```
 
-Inputs (first match): seed pins `VITE_TOKEN_COMMUNITY_TAX_ADDRESS` + pair + AutoLP ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)), **or** ephemeral store/instantiate (nonzero bps, AutoLP on). Shared helpers: [`lib-tax-on.sh`](../cw20-codeid-audits/scripts/lib-tax-on.sh) (also sourced by `#601` smoke). Seed-path **buy** must use `pick_trader` (non-treasury / non-exempt) — leftover live after !416 is [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625).
+Inputs (first match): seed pins `VITE_TOKEN_COMMUNITY_TAX_ADDRESS` + pair + AutoLP ([#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)), **or** ephemeral store/instantiate (nonzero bps, AutoLP on). `LAYER_B_TAX_ON_FORCE_EPHEMERAL=1` skips seed pins so a #624 volume still proves the instantiate path ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)). Shared helpers: [`lib-tax-on.sh`](../cw20-codeid-audits/scripts/lib-tax-on.sh) (also sourced by `#601` smoke). Seed-path **buy** must use `pick_trader` (non-treasury / non-exempt) — leftover live after !416 is [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625).
 
 ## Do not
 

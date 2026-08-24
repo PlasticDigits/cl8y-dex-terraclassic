@@ -216,6 +216,7 @@ After !415–!417 landed tax-aware swarm, named tax-on Layer B, and Playwright e
 | ---- | -------- |
 | `make verify-issue-625` | Children **621, 622, 623** plus leftover live + **293** / **M625-1–M625-8** |
 | Tax-on seed buy | `LAYER_B_TAX_ON=1` buy from `pick_trader` (non-treasury); artifact `buy_user` set |
+| Tax-on ephemeral | `LAYER_B_TAX_ON_FORCE_EPHEMERAL=1` on a #624 seed volume; artifact `source=ephemeral` |
 | Playwright P0 | `VERIFY_ISSUE_622_CHAIN=1` sell extra-debit + buy net + provide/limit; indexer `CORS_ORIGINS` includes `http://127.0.0.1:3173` |
 | Seed treasury | `GetConfig.treasury` ≠ test1 (CMM stand-in stays test1) |
 | Swarm soak | `tax_listed` extra-debit + `tax_hybrid_skip`; `SWARM_TAX_WORKERS=0` exclude-only |

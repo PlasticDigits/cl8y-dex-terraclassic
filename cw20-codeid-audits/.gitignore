@@ -16,4 +16,5 @@ codeids/*/layer-a-lcd.json
 codeids/*/layer-b-lt.json
 codeids/*/layer-b-tax-on.json
 harness/layer-b-tax-on.json
+harness/layer-b-tax-on-ephemeral.json
 *.junit.xml

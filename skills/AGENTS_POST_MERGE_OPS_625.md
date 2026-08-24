@@ -18,9 +18,9 @@ Child playbooks: [`AGENTS_LOCALNET_SWARM_TAX.md`](./AGENTS_LOCALNET_SWARM_TAX.md
 | ID | Rule |
 |----|------|
 | **M625-1** | Local regression is `make verify-issue-625`, which runs children **621, 622, 623** plus leftover live (tax-on seed buy, Playwright P0, swarm soak, **293** `pool_only`). A child FAIL fails the stack. Fresh-volume leftover SKIP unless `VERIFY625_FRESH=1`. Live leftover SKIP unless LocalTerra + seed pins (FAIL when `VERIFY625_REQUIRE_LIVE=1`). |
-| **M625-2** | Seed token **treasury ≠ test1** (e2e / swarm trader). CMM stand-in stays **test1** (**L620-7**). `layer-b-tax-on.sh` seed-path **buy** uses `pick_trader` (non-treasury / non-exempt). Manager-directory skip (#609) is 1:1 — do not assert outbound split against the manager or treasury. |
+| **M625-2** | Seed token **treasury ≠ test1** (e2e / swarm trader). CMM stand-in stays **test1** (**L620-7**). `layer-b-tax-on.sh` seed-path **buy** uses `pick_trader` (non-treasury / non-exempt). Manager-directory skip (#609) is 1:1 — do not assert outbound split against the manager or treasury. Seed pins win by default; `LAYER_B_TAX_ON_FORCE_EPHEMERAL=1` skips them so a #624 volume still proves instantiate + buy-from-trader. |
 | **M625-3** | `VERIFY_ISSUE_622_CHAIN=1 make verify-issue-622` P0 sell extra-debit + buy net + provide/limit 1:1 on the pinned tax/EMBER pair. Missing pins fail closed (**E622-2**). Attach sell + buy screenshots. Gem `firstDualCwPair` prefers EMBER/CORAL and skips the pinned tax market. Dedicated Playwright Vite (`PLAYWRIGHT_WEB_PORT`, default **3173**) must be in indexer `CORS_ORIGINS` or `/pool` shows a market-data outage and provide cannot find `pool-pairs-table`. `e2e-start-indexer.sh` merges that origin and restarts when it was missing. |
-| **M625-4** | Short `make swarm-local` / `make swarm-launch` soak: `tax_listed` extra-debit + buy split + router `trader` + `tax_hybrid_skip`. Gem workers never offer the tax token. `SWARM_TAX_WORKERS=0` is exclude-only (no tax volume). |
+| **M625-4** | Short `make swarm-local` / `make swarm-launch` soak: `tax_listed` extra-debit + buy split + router `trader` + `tax_hybrid_skip`. Gem workers never offer the tax token. `SWARM_TAX_WORKERS=0` is exclude-only (no tax volume). Python `tax-0` starts **before** gem workers and warms up `hybrid` then `sell` so a short leftover soak is not RNG / sequence-storm flaky. |
 | **M625-5** | `make verify-issue-293` stays **OE-1 gem `pool_only`**. Do not add tax/EMBER to hub symmetry. |
 | **M625-6** | Prefer a **fresh** #620 seed (`VERIFY625_FRESH=1` / `VERIFY624_FRESH=1`) so leftover #623 ephemeral tax pairs cannot steal `pairs[0]`. Tax-on seed pins are `VITE_TOKEN_COMMUNITY_TAX_*`, not factory page 0. |
 | **M625-7** | Do **not** reopen #621 / #622 / #623 / #620 for ops/QA. Do not merge tax-on math into `layer-b-lt.sh` (**C623-1**). Do not turn hybrid off (**#596** / **E622-7**). Do not `test.skip` the e2e-tx spec (**E622-2**). Never whitelist columbus-5 **11611** / **11619** / ALPHA **8654**. Do not implement pair/router FoT math (**H-01**). |
@@ -37,6 +37,11 @@ A leftover tax-on **hostile** probe leaves AutoLP `skim_min_return=1e15`. The ne
 ```bash
 LAYER_B_TAX_ON=1 make verify-issue-623
 jq '{source,buy_user,trader,pair_direct_buy}' cw20-codeid-audits/harness/layer-b-tax-on.json
+# leftover: prove ephemeral even when #624 seed pins are present
+LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 \
+  LAYER_B_TAX_ON_JSON=cw20-codeid-audits/harness/layer-b-tax-on-ephemeral.json \
+  ./cw20-codeid-audits/scripts/layer-b-tax-on.sh
+jq '{source,buy_user,trader}' cw20-codeid-audits/harness/layer-b-tax-on-ephemeral.json
 ```
 
 ## Playwright P0 (leftover #2)
@@ -54,8 +59,8 @@ Sell user debit must equal `TaxPreview.debit` (not 1:1). That only holds when th
 
 ```bash
 make swarm-launch          # or make swarm-local
-# wait ~40s, then:
-rg -n 'tax_debit|tax_hybrid_skip|tax_listed' scripts/bots/run/logs/tax-0.log
+# tax-0 starts first; warmup logs tax_listed + tax_hybrid_skip + tax_debit=
+rg -n 'tax_listed|tax_debit|tax_hybrid_skip' scripts/bots/run/logs/tax-0.log
 make swarm-stop
 SWARM_TAX_WORKERS=0 make swarm-launch && make swarm-stop   # exclude-only
 make verify-issue-293
@@ -78,6 +83,6 @@ make verify-issue-625
 VERIFY625_SKIP_CHILDREN=1 VERIFY625_SKIP_CHAIN=1 make verify-issue-625
 # fail if live leftovers are still unset:
 VERIFY625_REQUIRE_LIVE=1 make verify-issue-625
-# fresh volume (reset + deploy-local) then leftovers:
-VERIFY625_FRESH=1 make verify-issue-625
+# fresh volume (reset + deploy-local) then leftovers (seed + ephemeral):
+VERIFY625_FRESH=1 VERIFY625_REQUIRE_LIVE=1 make verify-issue-625
 ```

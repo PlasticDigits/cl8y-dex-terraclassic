@@ -10,8 +10,14 @@
 #   1. Seed deploy pins (VITE_TOKEN_COMMUNITY_TAX_ADDRESS + pair + AutoLP)
 #   2. Ephemeral store/instantiate (nonzero bps, AutoLP on)
 #
+#   LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 skips seed pins so a #620/#624 volume
+#   can still prove the ephemeral path (issue #625 leftover). Writes a
+#   distinct JSON when LAYER_B_TAX_ON_JSON is set.
+#
 # Usage:
 #   LAYER_B_TAX_ON=1 ./cw20-codeid-audits/scripts/layer-b-tax-on.sh
+#   LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 LAYER_B_TAX_ON_JSON=.../layer-b-tax-on-ephemeral.json \
+#     ./cw20-codeid-audits/scripts/layer-b-tax-on.sh
 # Refuses to run without LocalTerra. Never stub PASS. Never whitelist
 # columbus-5 11611/11619/8654 from this evidence.
 set -euo pipefail
@@ -255,7 +261,10 @@ instantiate_ephemeral() {
   echo "tax-on: AutoLP=$AUTOLP_ADDR"
 }
 
-if use_seed_pins; then
+if [[ "${LAYER_B_TAX_ON_FORCE_EPHEMERAL:-}" == "1" ]]; then
+  echo "tax-on: LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 — skip seed pins (ephemeral leftover)"
+  instantiate_ephemeral
+elif use_seed_pins; then
   :
 else
   instantiate_ephemeral

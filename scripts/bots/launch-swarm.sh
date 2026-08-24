@@ -60,6 +60,21 @@ fi
 echo "  swap base mean interval: ${BASE_MEAN}s  dry_run: ${DRY}"
 echo "  logs: $LOGDIR  pids: $PIDFILE"
 
+# Start tax-0 first so leftover #625 soak sees extra-debit / hybrid skip
+# before 33 gem workers share test1 and storm the account sequence.
+if [[ "$TAX_WORKERS" != "0" && "$TAX_WORKERS" != "false" ]]; then
+  log="$LOGDIR/tax-0.log"
+  (
+    cd "$REPO_ROOT"
+    export BOTS_TAX_MEAN_INTERVAL_SEC="$TAX_MEAN"
+    export BOTS_MEAN_INTERVAL_SEC="$TAX_MEAN"
+    export BOTS_DRY_RUN="$DRY"
+    exec python3 "$SWARM_PY" --worker tax 0
+  ) >>"$log" 2>&1 &
+  echo $! >>"$PIDFILE"
+  echo "  started tax-0 pid=$! mean=${TAX_MEAN}s -> $log"
+fi
+
 for t in "${SWAP_TYPES[@]}"; do
   for i in 0 1 2 3 4; do
     # Slightly different Poisson mean per replica (same curve for every type).
@@ -107,18 +122,5 @@ for i in 0 1 2; do
   echo $! >>"$PIDFILE"
   echo "  started lp-${i} pid=$! mean=${mean}s -> $log"
 done
-
-if [[ "$TAX_WORKERS" != "0" && "$TAX_WORKERS" != "false" ]]; then
-  log="$LOGDIR/tax-0.log"
-  (
-    cd "$REPO_ROOT"
-    export BOTS_TAX_MEAN_INTERVAL_SEC="$TAX_MEAN"
-    export BOTS_MEAN_INTERVAL_SEC="$TAX_MEAN"
-    export BOTS_DRY_RUN="$DRY"
-    exec python3 "$SWARM_PY" --worker tax 0
-  ) >>"$log" 2>&1 &
-  echo $! >>"$PIDFILE"
-  echo "  started tax-0 pid=$! mean=${TAX_MEAN}s -> $log"
-fi
 
 echo "Done. $(wc -l <"$PIDFILE") PIDs recorded. Stop with: $REPO_ROOT/scripts/bots/stop-swarm.sh"

@@ -17,6 +17,7 @@
 # VERIFY625_SKIP_FRESH=1 — never reset (even if VERIFY625_FRESH=1).
 # VERIFY625_SKIP_PLAYWRIGHT=1 — skip VERIFY_ISSUE_622_CHAIN Playwright.
 # VERIFY625_SKIP_SWARM=1 — skip live swarm soak (source still checked).
+# VERIFY625_SKIP_EPHEMERAL=1 — skip leftover ephemeral tax-on (seed path still runs).
 # VERIFY625_SKIP_OPTIONAL=1 — skip optional 589 / 601.
 #
 # Refs: skills/AGENTS_POST_MERGE_OPS_625.md, docs/qa-invariants.md § Q13
@@ -77,6 +78,9 @@ run_docs() {
   grep -qE '#625' docs/local-development.md
   grep -qE 'M625-1' docs/contracts-security-audit.md
   grep -qE 'Do \*\*not\*\* reopen #621' skills/AGENTS_POST_MERGE_OPS_625.md
+  grep -qE 'LAYER_B_TAX_ON_FORCE_EPHEMERAL' skills/AGENTS_POST_MERGE_OPS_625.md
+  grep -qE 'LAYER_B_TAX_ON_FORCE_EPHEMERAL' skills/AGENTS_CW20_CODE_ID_TAX_ON.md
+  grep -qE 'LAYER_B_TAX_ON_FORCE_EPHEMERAL' docs/qa-invariants.md
   if grep -nE 'AddWhitelistedCodeId 11611' skills/AGENTS_POST_MERGE_OPS_625.md \
       skills/AGENTS_CW20_CODE_ID_TAX_ON.md; then
     echo "docs tell operators to whitelist columbus-5 11611 from LocalTerra" >&2
@@ -88,6 +92,7 @@ run_source() {
   set -euo pipefail
   # Leftover #1: buy uses TRADER / pick_trader, not hardcoded test1.
   grep -qE 'BUY_USER="\$TRADER"' cw20-codeid-audits/scripts/layer-b-tax-on.sh
+  grep -qE 'LAYER_B_TAX_ON_FORCE_EPHEMERAL' cw20-codeid-audits/scripts/layer-b-tax-on.sh
   grep -qE 'skim_min_return:"0"' cw20-codeid-audits/scripts/layer-b-tax-on.sh \
     || grep -qE 'cleared leftover skim_min_return' cw20-codeid-audits/scripts/layer-b-tax-on.sh
   grep -qE 'buy_user: \$buy_user' cw20-codeid-audits/scripts/layer-b-tax-on.sh
@@ -125,6 +130,9 @@ run_source() {
   grep -qE 'filterGemPairs' packages/localnet-trading-swarm/src/actions.ts
   grep -qE 'tax_hybrid_skip' packages/localnet-trading-swarm/src/actions.ts
   grep -qE 'SWARM_TAX_WORKERS' scripts/bots/launch-swarm.sh
+  grep -qE 'tax_listed worker' scripts/bots/swarm.py
+  grep -qE 'warmup = \("hybrid", "sell"\)' scripts/bots/swarm.py
+  grep -qE 'Start tax-0 first' scripts/bots/launch-swarm.sh
   grep -qE '3173' scripts/deploy-dex-local.sh
   grep -qE 'indexer-cors-playwright' scripts/e2e-start-indexer.sh
   grep -qE 'PLAYWRIGHT_WEB_PORT' scripts/lib/indexer-cors-playwright.sh
@@ -252,6 +260,27 @@ print(f"tax-on seed buy_user={buy} trader={doc.get('trader')} (test1={test1})")
 PY
 }
 
+run_tax_on_ephemeral() {
+  set -euo pipefail
+  # Seed pins win by default. FORCE_EPHEMERAL skips them so a #624 volume
+  # still proves instantiate + buy-from-trader (issue-body leftover).
+  local json="$REPO_ROOT/cw20-codeid-audits/harness/layer-b-tax-on-ephemeral.json"
+  LAYER_B_TAX_ON=1 LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 LAYER_B_TAX_ON_JSON="$json" \
+    "$REPO_ROOT/cw20-codeid-audits/scripts/layer-b-tax-on.sh" || return 1
+  test -f "$json"
+  jq -e '.executed == true and .source == "ephemeral" and .pair_direct_buy == true
+    and (.buy_user | startswith("terra1")) and .trader != ""' "$json" >/dev/null
+  python3 - "$json" <<'PY'
+import json, sys
+doc = json.load(open(sys.argv[1], encoding="utf-8"))
+buy = doc.get("buy_user") or ""
+trader = doc.get("trader") or ""
+if buy != trader:
+    raise SystemExit(f"ephemeral buy_user={buy!r} != trader={trader!r}")
+print(f"tax-on ephemeral buy_user={buy} trader={trader} token={doc.get('token')}")
+PY
+}
+
 run_playwright_p0() {
   set -euo pipefail
   VERIFY_ISSUE_622_CHAIN=1 make verify-issue-622
@@ -305,21 +334,32 @@ run_swarm_soak() {
   set -euo pipefail
   _load_vite || return 1
   make swarm-stop >/dev/null 2>&1 || true
-  local soak="${VERIFY625_SWARM_SOAK_SEC:-45}"
-  echo "swarm-launch soak ${soak}s (tax worker on)…"
+  local tax_log="$REPO_ROOT/scripts/bots/run/logs/tax-0.log"
+  rm -f "$tax_log"
+  # Poll until extra-debit + hybrid skip appear. Warmup is hybrid then sell
+  # (~1s); 45s fixed sleep was flaky when RNG only bought/limited and gem
+  # workers stormed test1's sequence.
+  local soak="${VERIFY625_SWARM_SOAK_SEC:-90}"
+  echo "swarm-launch soak up to ${soak}s (poll tax_debit + tax_hybrid_skip)…"
   BOTS_MEAN_INTERVAL_SEC="${BOTS_MEAN_INTERVAL_SEC:-8}" \
     BOTS_TAX_MEAN_INTERVAL_SEC="${BOTS_TAX_MEAN_INTERVAL_SEC:-8}" \
     make swarm-launch || return 1
-  sleep "$soak"
-  local tax_log="$REPO_ROOT/scripts/bots/run/logs/tax-0.log"
-  [[ -f "$tax_log" ]] || {
-    echo "missing $tax_log — SWARM_TAX_WORKERS default must start tax-0" >&2
-    make swarm-stop || true
-    return 1
-  }
-  if ! grep -qE 'tax_debit|tax_hybrid_skip|tax_listed|TaxPreview|extra.debit|hop_trader' "$tax_log"; then
-    echo "tax-0 log missing extra-debit / hybrid-skip / listed markers:" >&2
-    tail -n 40 "$tax_log" >&2
+  local deadline=$((SECONDS + soak))
+  local saw_debit=0 saw_skip=0 saw_listed=0
+  while (( SECONDS < deadline )); do
+    if [[ -f "$tax_log" ]]; then
+      grep -qE 'tax_debit=' "$tax_log" && saw_debit=1
+      grep -qE 'tax_hybrid_skip' "$tax_log" && saw_skip=1
+      grep -qE 'tax_listed' "$tax_log" && saw_listed=1
+      if [[ $saw_debit -eq 1 && $saw_skip -eq 1 && $saw_listed -eq 1 ]]; then
+        break
+      fi
+    fi
+    sleep 2
+  done
+  if [[ $saw_debit -ne 1 || $saw_skip -ne 1 || $saw_listed -ne 1 ]]; then
+    echo "tax-0 log missing extra-debit / hybrid-skip / tax_listed after ${soak}s:" >&2
+    tail -n 40 "$tax_log" >&2 || true
     make swarm-stop || true
     return 1
   fi
@@ -334,7 +374,7 @@ run_swarm_soak() {
     return 1
   fi
   make swarm-stop || true
-  echo "swarm soak: tax-0 extra-debit / skip markers present"
+  echo "swarm soak: tax_listed extra-debit + tax_hybrid_skip present"
 }
 
 run_swarm_exclude_only() {
@@ -424,6 +464,17 @@ elif [[ "$HAS_LT" -eq 0 ]]; then
       bad "M625-2: LAYER_B_TAX_ON=1 seed-path buy"
     else
       skip "M625-2 tax-on seed buy. Set VERIFY625_REQUIRE_LIVE=1 to fail."
+    fi
+  fi
+  if [[ "${VERIFY625_SKIP_EPHEMERAL:-}" == "1" ]]; then
+    skip "tax-on ephemeral (VERIFY625_SKIP_EPHEMERAL=1)"
+  elif run_tax_on_ephemeral; then
+    ok "M625-2: LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 buy (non-treasury)"
+  else
+    if [[ "${VERIFY625_REQUIRE_LIVE:-}" == "1" ]]; then
+      bad "M625-2: LAYER_B_TAX_ON_FORCE_EPHEMERAL=1 buy"
+    else
+      skip "M625-2 tax-on ephemeral. Set VERIFY625_REQUIRE_LIVE=1 to fail."
     fi
   fi
   if [[ "${VERIFY625_SKIP_SWARM:-}" == "1" ]]; then

@@ -888,15 +888,25 @@ async def tax_worker_loop(
     router = _router_addr()
     rng = random.Random(abs(hash(name)) % (2**31))
     kinds = ("sell", "buy", "provide", "limit", "router", "hybrid")
+    # Leftover #625: first cycle is hybrid skip (no tx) then pair sell so a
+    # short swarm-launch soak always sees tax_listed extra-debit + tax_hybrid_skip
+    # instead of RNG buy/limit-only plus a test1 sequence storm from gem workers.
+    warmup = ("hybrid", "sell")
+    warmup_i = 0
     print(
-        f"[{name}] tax worker token={tax_token[:18]}… sell_bps={sell_bps} "
+        f"[{name}] tax_listed worker token={tax_token[:18]}… sell_bps={sell_bps} "
         f"router={'set' if router else 'missing'} dry_run={dry}",
         flush=True,
     )
 
     while True:
-        wait = rng.expovariate(1.0 / mean_base)
-        await asyncio.sleep(min(max(wait, 1.0), 600.0))
+        if warmup_i < len(warmup):
+            kind = warmup[warmup_i]
+            wait = 0.2
+        else:
+            kind = rng.choice(kinds)
+            wait = rng.expovariate(1.0 / mean_base)
+        await asyncio.sleep(min(max(wait, 0.2), 600.0))
         m = rng.choice(tax_metas)
         fresh = _load_pair_meta(lcd, m.pair_addr)
         if not fresh:
@@ -906,7 +916,8 @@ async def tax_worker_loop(
         if m.reserve0 < floor or m.reserve1 < floor:
             print(f"[{name}] skip thin tax reserves < {floor}", flush=True)
             continue
-        kind = rng.choice(kinds)
+        if warmup_i < len(warmup):
+            warmup_i += 1
         try:
             if kind == "hybrid":
                 print(f"[{name}] tax_hybrid_skip", flush=True)
