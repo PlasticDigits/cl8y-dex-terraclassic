@@ -88,23 +88,29 @@ if [[ ${#TOKEN_ADDRS[@]} -eq 0 ]]; then
   exit 1
 fi
 
-origin_launcher_or_empty() {
+# Sets ORIGIN_LAUNCHER and ORIGIN_QUERY_OK (1 if GetLauncherOrigin decoded).
+probe_launcher_origin() {
   local token="$1"
-  local raw origin
+  local raw decoded
+  ORIGIN_LAUNCHER=""
+  ORIGIN_QUERY_OK=0
   raw="$(lcd_smart_query_raw "$LCD" "$token" '{"get_launcher_origin":{}}' 2>/dev/null || true)"
   if [[ -z "$raw" ]]; then
-    echo ""
     return 0
   fi
-  origin="$(decode_pairs_payload "$raw" 2>/dev/null | jq -r '.launcher // empty' 2>/dev/null || true)"
-  printf '%s' "$origin"
+  decoded="$(decode_pairs_payload "$raw" 2>/dev/null || true)"
+  if echo "$decoded" | jq -e 'type == "object" and has("launcher")' >/dev/null 2>&1; then
+    ORIGIN_QUERY_OK=1
+    ORIGIN_LAUNCHER="$(echo "$decoded" | jq -r '.launcher // empty')"
+  fi
 }
 
 for TOKEN in "${TOKEN_ADDRS[@]}"; do
   [[ -n "$TOKEN" ]] || continue
   KIND="$(classify_cw20_funding_kind "$TOKEN")"
   if [[ "$KIND" == "mint" ]]; then
-    KIND="$(classify_cw20_funding_kind "$TOKEN" "$(origin_launcher_or_empty "$TOKEN")")"
+    probe_launcher_origin "$TOKEN"
+    KIND="$(classify_cw20_funding_kind "$TOKEN" "$ORIGIN_LAUNCHER" "$ORIGIN_QUERY_OK")"
   fi
   if [[ "$KIND" == "skip" ]]; then
     continue
@@ -119,6 +125,17 @@ for TOKEN in "${TOKEN_ADDRS[@]}"; do
     continue
   fi
   if [[ "$KIND" == "transfer" ]]; then
+    # test1 is the e2e wallet. Transfer test1→test1 cannot top up (GitLab #622).
+    ACTION="$(classify_tax_provision_action "$TOKEN" "${VITE_TOKEN_COMMUNITY_TAX_ADDRESS:-}" "$DEV_ADDR" "$DEV_ADDR")"
+    if [[ "$ACTION" == "fail_seed" ]]; then
+      echo "e2e-provision: pinned tax token $TOKEN is below floor ($BAL < $MIN_FOR_TOKEN)." >&2
+      echo "e2e-provision: test1 cannot Transfer to itself — re-run the #620 seed (CreateToken initial_balances). No Mint fallback." >&2
+      exit 1
+    fi
+    if [[ "$ACTION" == "skip" ]]; then
+      echo "e2e-provision: skip leftover tax token $TOKEN (balance $BAL < $MIN_FOR_TOKEN; cannot Transfer test1→test1)."
+      continue
+    fi
     echo "e2e-provision: transferring $MINT_TOPUP units to dev wallet on tax token $TOKEN (balance was $BAL)."
     if ! terrad_tx wasm execute "$TOKEN" "{\"transfer\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$MINT_TOPUP\"}}" >/dev/null; then
       echo "e2e-provision: Transfer failed for $TOKEN — fail-closed (no Mint fallback, GitLab #620)." >&2
@@ -126,7 +143,10 @@ for TOKEN in "${TOKEN_ADDRS[@]}"; do
     fi
   else
     echo "e2e-provision: minting $MINT_TOPUP units to dev wallet on $TOKEN (balance was $BAL)."
-    terrad_tx wasm execute "$TOKEN" "{\"mint\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$MINT_TOPUP\"}}" >/dev/null
+    if ! terrad_tx wasm execute "$TOKEN" "{\"mint\":{\"recipient\":\"$DEV_ADDR\",\"amount\":\"$MINT_TOPUP\"}}" >/dev/null; then
+      echo "e2e-provision: Mint not available on $TOKEN — skip (leftover non-mintable; no tax Mint fallback)."
+      continue
+    fi
   fi
   sleep 2
 done

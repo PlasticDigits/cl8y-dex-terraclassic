@@ -192,6 +192,7 @@ make verify-issue-612                    # #612 post-merge !407/!408 Enable Feat
 make verify-issue-616                    # #616 post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking
 make verify-issue-620                    # #620 LocalTerra community-tax seed + Transfer funding + indexer env
 make verify-issue-621                    # #621 tax-aware localnet swarm (gem exclude + tax workers)
+make verify-issue-622                    # #622 Playwright e2e-tx community-tax pair (sell extra-debit / buy net)
 make verify-issue-623                    # #623 named tax-on Layer B (keep generic B-lt tax-off)
 make verify-issue-607                    # #607 community tax router hops tax the original trader (C-2 option 2)
 make verify-issue-615                    # #615 tax-aware route/solve ranking + You Receive net
@@ -287,6 +288,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PAY_INVOICE.md](skills/AGENTS_FRONTEND_PAY_INVOICE.md) — reusable pay-with-any-token invoice card (**I595-1–I595-14**, [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)); `make verify-issue-595`
 - [skills/AGENTS_COMMUNITY_TAX_CW20.md](skills/AGENTS_COMMUNITY_TAX_CW20.md) — community tax CW20 template + launcher + AutoLP (**T592-1–T592-13**, [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); **O601-1–O601-7**, [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601)); `make verify-issue-592` · `make verify-issue-601`
 - [skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md](skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) — LocalTerra tax/EMBER seed + Transfer funding + indexer pins (**L620-1–L620-8**, [#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)); `make verify-issue-620`
+- [skills/AGENTS_E2E_COMMUNITY_TAX_TX.md](skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) — Playwright `e2e-tx` tax/EMBER sell extra-debit / buy net / provide / limit (**E622-1–E622-8**, [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)); `make verify-issue-622`
 - [skills/AGENTS_LOCALNET_SWARM_TAX.md](skills/AGENTS_LOCALNET_SWARM_TAX.md) — tax-aware LocalTerra swarm gem exclude + `tax_listed` / `--worker tax` (**S621-1–S621-8**, [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)); `make verify-issue-621`
 - [skills/AGENTS_COMMUNITY_TAX_ROUTER.md](skills/AGENTS_COMMUNITY_TAX_ROUTER.md) — C-2 improved option 2: official-router hops tax the original trader (**T592-13** / **R607-1–R607-8**, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607)); `make verify-issue-607`
 - [skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md](skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md) — catalog net rank + 11611 pin + You Receive net (**R615-1–R615-8**, [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615)); `make verify-issue-615`

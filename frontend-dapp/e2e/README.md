@@ -33,7 +33,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:e2e:tx
 
 `playwright.config.ts` runs **`e2e/global-setup.ts`** (unless chain is optional), which waits for the LCD and runs:
 
-1. **`scripts/e2e-provision-dev-wallet.sh`** — idempotent CW20 mint (factory tokens + CL8Y ≥ tier-1 for fee-tier tx)
+1. **`scripts/e2e-provision-dev-wallet.sh`** — gems/TCL8Y **Mint**; wrap skip; tax tokens **Transfer** (or skip leftover `test1→test1`; pinned token below floor fails — GitLab #620 / #622)
 2. **`scripts/e2e-seed-hybrid-book.sh`** — resting bid on first dual-CW20 pair
 
 ## Strict vs optional chain
@@ -178,6 +178,24 @@ Native LUNC/USTC and CW20 routes must exist after `deploy-dex-local.sh`; helpers
 **Wrap safety CTA (SEC-A02 / GitLab #389):** `wrap-swap.spec.ts` asserts exact submit copy and `disabled` for wrap-mapper **pause** and **rate limit** in isolated tests (LCD route mocks in `e2e/helpers/wrap-mapper-lcd-mock.ts`; `wrapMapperAddressFromEnv` reads `frontend-dapp/.env.local`). Rate-limit path also asserts inline `swap-wrap-rate-limit-banner` with retry guidance (SEC-I05 F-04 / GitLab #463). Vitest parity: `SwapPage.test.tsx` `SEC-A02` describe. Run: `--project=e2e-tx` (spec is in `txSpecGlobs`, not `e2e-smoke`). Playbook: [`skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md`](../../skills/AGENTS_FRONTEND_SWAP_SAFETY_CTA.md).
 
 **Pool list pagination (#340):** `/pool` loads **20 pairs per page** from the indexer. Wrap-pool **tx** specs locate the seeded **cLUNC** card via `e2e/helpers/pool-nav.ts` (indexer search by symbol or `VITE_LUNC_C_TOKEN_ADDRESS`, then paginate fallback) — not by assuming page 1 contains cLUNC. UI smoke tests still use the first visible pair on the default list.
+
+## Community-tax pair tx (`community-tax-tx.spec.ts`, GitLab #622)
+
+Strict Playwright on the LocalTerra **QATax / EMBER** seed pair (`VITE_PAIR_COMMUNITY_TAX_EMBER` from `.env.local`). Missing tax pins **fail** — no `test.skip`. Gem specs stay on the first dual-CW20 pair (EMBER/CORAL).
+
+| Case | Assert |
+|------|--------|
+| Sell QTAX → EMBER | Max is extra-debit; small sell: user debit == `TaxPreview.debit`; pair credit == Send amount |
+| Buy EMBER → QTAX | You Receive is **net** (#615); user credit + sink == pair debit |
+| Provide / withdraw | `TransferFrom` pair delta == declared |
+| Limit place / cancel | Escrow 1:1; cancel returns offer without sell tax |
+| Trade Market (P1) | Default `GET /route/solve`; option-2 copy |
+
+Helpers: `e2e/helpers/community-tax-e2e.ts`, `e2e/helpers/community-tax-env.ts` (tx reads `.env.local`; smoke `/token/create` may bake columbus-5). Provision never Mints tax and never Transfers `test1→test1` (leftover launcher-origin tokens are skipped). Playbook: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**).
+
+```bash
+bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/community-tax-tx.spec.ts --project=e2e-tx
+```
 
 ## Fee tier tx (`fee-tier-tx.spec.ts`)
 

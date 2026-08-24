@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
+import { readFrontendEnvLocal } from './community-tax-env'
 import { lcdRequestGet } from './lcd-docker-fallback'
 
 /** Pair `is_paused` smart-query response (`data` may be JSON or base64 string). */
@@ -49,27 +50,76 @@ export function assetInfoLabel(info: LcdPairAssetInfo): string {
   return info.native_token.denom
 }
 
+function gemPairPins(): { ember: string; coral: string; taxToken: string; taxPair: string } {
+  const local = readFrontendEnvLocal()
+  const envOr = (key: string) => (process.env[key]?.trim() || local[key] || '').trim()
+  return {
+    ember: envOr('VITE_TOKEN_EMBER_ADDRESS'),
+    coral: envOr('VITE_TOKEN_CORAL_ADDRESS'),
+    taxToken: envOr('VITE_TOKEN_COMMUNITY_TAX_ADDRESS'),
+    taxPair: envOr('VITE_PAIR_COMMUNITY_TAX_EMBER'),
+  }
+}
+
+function isDualCw20(p: LcdPairInfo): boolean {
+  const a = assetInfoLabel(p.asset_infos[0])
+  const b = assetInfoLabel(p.asset_infos[1])
+  return a.startsWith('terra1') && b.startsWith('terra1')
+}
+
+function isEmberCoralPair(p: LcdPairInfo, ember: string, coral: string): boolean {
+  if (!ember || !coral) return false
+  const legs = new Set([assetInfoLabel(p.asset_infos[0]), assetInfoLabel(p.asset_infos[1])])
+  return legs.has(ember) && legs.has(coral)
+}
+
+/** Skip the QA tax market so gem e2e-tx stays on EMBER/CORAL (GitLab #622). */
+function isCommunityTaxPair(p: LcdPairInfo, taxToken: string, taxPair: string): boolean {
+  if (taxPair && p.contract_addr === taxPair) return true
+  if (!taxToken) return false
+  const a = assetInfoLabel(p.asset_infos[0])
+  const b = assetInfoLabel(p.asset_infos[1])
+  return a === taxToken || b === taxToken
+}
+
 export function firstDualCwPair(pairs: LcdPairInfo[]): { pair: LcdPairInfo; index: number } | null {
+  const { ember, coral, taxToken, taxPair } = gemPairPins()
+  if (ember && coral) {
+    for (let i = 0; i < pairs.length; i++) {
+      const p = pairs[i]
+      if (isDualCw20(p) && isEmberCoralPair(p, ember, coral)) return { pair: p, index: i }
+    }
+  }
   for (let i = 0; i < pairs.length; i++) {
     const p = pairs[i]
-    const a = assetInfoLabel(p.asset_infos[0])
-    const b = assetInfoLabel(p.asset_infos[1])
-    if (a.startsWith('terra1') && b.startsWith('terra1')) return { pair: p, index: i }
+    if (!isDualCw20(p) || isCommunityTaxPair(p, taxToken, taxPair)) continue
+    return { pair: p, index: i }
   }
   return null
 }
 
-/** First dual-CW20 factory pair whose `is_paused` query is false (factory list order). */
+/** First dual-CW20 factory pair whose `is_paused` query is false (EMBER/CORAL preferred). */
 export async function firstUnpausedDualCwPair(
   request: APIRequestContext,
   pairs: LcdPairInfo[]
 ): Promise<{ pair: LcdPairInfo; index: number } | null> {
-  for (let i = 0; i < pairs.length; i++) {
+  const { ember, coral, taxToken, taxPair } = gemPairPins()
+  const tryIdx = async (i: number): Promise<{ pair: LcdPairInfo; index: number } | null> => {
     const p = pairs[i]
-    const a = assetInfoLabel(p.asset_infos[0])
-    const b = assetInfoLabel(p.asset_infos[1])
-    if (!a.startsWith('terra1') || !b.startsWith('terra1')) continue
-    if (!(await queryPairPaused(request, p.contract_addr))) return { pair: p, index: i }
+    if (!isDualCw20(p) || isCommunityTaxPair(p, taxToken, taxPair)) return null
+    if (await queryPairPaused(request, p.contract_addr)) return null
+    return { pair: p, index: i }
+  }
+  if (ember && coral) {
+    for (let i = 0; i < pairs.length; i++) {
+      if (!isEmberCoralPair(pairs[i], ember, coral)) continue
+      const hit = await tryIdx(i)
+      if (hit) return hit
+    }
+  }
+  for (let i = 0; i < pairs.length; i++) {
+    const hit = await tryIdx(i)
+    if (hit) return hit
   }
   return null
 }

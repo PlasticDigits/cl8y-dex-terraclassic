@@ -69,23 +69,70 @@ order_book_head_id_from_payload() {
   jq -r 'if type == "number" then tostring elif type == "object" then (.head_order_id // empty | tostring) else empty end'
 }
 
-RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":60}}')"
-PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
-
 PAIR_ADDR=""
 TOKEN0=""
 TOKEN1=""
-while IFS= read -r row; do
-  [[ -n "$row" ]] || continue
-  PAIR_ADDR="$(echo "$row" | jq -r '.contract_addr')"
-  T0="$(echo "$row" | jq -r '.asset_infos[0].token.contract_addr // empty')"
-  T1="$(echo "$row" | jq -r '.asset_infos[1].token.contract_addr // empty')"
-  if [[ "$T0" =~ ^terra1 && "$T1" =~ ^terra1 ]]; then
+EMBER="${VITE_TOKEN_EMBER_ADDRESS:-}"
+CORAL="${VITE_TOKEN_CORAL_ADDRESS:-}"
+TAX="${VITE_TOKEN_COMMUNITY_TAX_ADDRESS:-}"
+TAX_PAIR="${VITE_PAIR_COMMUNITY_TAX_EMBER:-}"
+
+factory_pair_addr() {
+  local a="$1" b="$2"
+  local q raw
+  q="$(jq -nc --arg a "$a" --arg b "$b" \
+    '{pair:{asset_infos:[{token:{contract_addr:$a}},{token:{contract_addr:$b}}]}}')"
+  raw="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" "$q" 2>/dev/null || true)"
+  if echo "$raw" | jq -e '.data' >/dev/null 2>&1; then
+    decode_smart_payload "$raw" | jq -r '.contract_addr // .pair.contract_addr // empty'
+  else
+    printf ''
+  fi
+}
+
+# Prefer EMBER/CORAL from deploy pins (leftover tax markets can fill pairs[0], #622).
+if [[ -n "$EMBER" && -n "$CORAL" ]]; then
+  PAIR_ADDR="$(factory_pair_addr "$EMBER" "$CORAL")"
+  if [[ ! "$PAIR_ADDR" =~ ^terra1 ]]; then
+    PAIR_ADDR="$(factory_pair_addr "$CORAL" "$EMBER")"
+  fi
+  if [[ "$PAIR_ADDR" =~ ^terra1 ]]; then
+    PAIR_INFO="$(decode_smart_payload "$(lcd_smart_query_raw "$LCD" "$PAIR_ADDR" '{"pair":{}}')")"
+    TOKEN0="$(echo "$PAIR_INFO" | jq -r '.asset_infos[0].token.contract_addr // empty')"
+    TOKEN1="$(echo "$PAIR_INFO" | jq -r '.asset_infos[1].token.contract_addr // empty')"
+    if [[ -z "$TOKEN0" ]]; then
+      TOKEN0="$EMBER"
+      TOKEN1="$CORAL"
+    fi
+  fi
+fi
+
+if [[ -z "$PAIR_ADDR" && -n "$EMBER" && -n "$CORAL" ]]; then
+  echo "e2e-seed-hybrid-book: WARN factory Pair(EMBER,CORAL) missing — skip gem book (leftover-tax factory; #622)."
+  exit 0
+fi
+
+if [[ -z "$PAIR_ADDR" ]]; then
+  RAW_PAIRS="$(lcd_smart_query_raw "$LCD" "$VITE_FACTORY_ADDRESS" '{"pairs":{"start_after":null,"limit":60}}')"
+  PAIRS_DOC="$(decode_smart_payload "$RAW_PAIRS")"
+  while IFS= read -r row; do
+    [[ -n "$row" ]] || continue
+    local_pair="$(echo "$row" | jq -r '.contract_addr')"
+    T0="$(echo "$row" | jq -r '.asset_infos[0].token.contract_addr // empty')"
+    T1="$(echo "$row" | jq -r '.asset_infos[1].token.contract_addr // empty')"
+    [[ "$T0" =~ ^terra1 && "$T1" =~ ^terra1 ]] || continue
+    if [[ -n "$TAX_PAIR" && "$local_pair" == "$TAX_PAIR" ]]; then
+      continue
+    fi
+    if [[ -n "$TAX" && ( "$T0" == "$TAX" || "$T1" == "$TAX" ) ]]; then
+      continue
+    fi
+    PAIR_ADDR="$local_pair"
     TOKEN0="$T0"
     TOKEN1="$T1"
     break
-  fi
-done < <(echo "$PAIRS_DOC" | jq -c '.pairs[]')
+  done < <(echo "$PAIRS_DOC" | jq -c '.pairs[]')
+fi
 
 if [[ -z "$PAIR_ADDR" || -z "$TOKEN0" ]]; then
   echo "e2e-seed-hybrid-book: no dual-CW20 pair on factory first page; redeploy with scripts/deploy-dex-local.sh." >&2

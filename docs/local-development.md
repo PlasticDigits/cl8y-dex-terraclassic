@@ -43,6 +43,7 @@ make dev
 | `make swarm-local`    | Run the **localnet-only** trading bot swarm ([GitLab #119](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/119)) — requires LocalTerra + `deploy-dex-local` first |
 | `make verify-issue-620` | LocalTerra community-tax seed + Transfer funding ([GitLab #620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620)) |
 | `make verify-issue-621` | Tax-aware localnet swarm gem exclude + tax workers ([GitLab #621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)) |
+| `make verify-issue-622` | Playwright e2e-tx community-tax pair ([GitLab #622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)) |
 
 ### Trading swarm (UI load / localnet only)
 
@@ -68,7 +69,7 @@ DEPLOY_SKIP_COMMUNITY_TAX=1 make deploy-local   # gems only
 make verify-issue-620
 ```
 
-Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). `#601` smoke stays ephemeral.
+Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). `#601` smoke stays ephemeral. Retail dApp txs on that pair: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**, `make verify-issue-622`).
 
 ## Docker Setup
 

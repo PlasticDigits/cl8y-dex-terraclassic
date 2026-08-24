@@ -18,6 +18,8 @@ VITE_TOKEN_COMMUNITY_TAX_ADDRESS="terra1qatax"
 [[ "$(classify_cw20_funding_kind terra1gem)" == mint ]] || fail "gem must Mint"
 [[ "$(classify_cw20_funding_kind terra1gem terra1launcher)" == transfer ]] \
   || fail "GetLauncherOrigin.launcher must Transfer"
+[[ "$(classify_cw20_funding_kind terra1gem "" 1)" == transfer ]] \
+  || fail "GetLauncherOrigin decoded with null launcher must Transfer (#623)"
 [[ "$(classify_cw20_funding_kind terra1gem null)" == mint ]] || fail "null origin stays Mint"
 [[ "$(classify_cw20_funding_kind terra1gem "")" == mint ]] || fail "empty origin stays Mint"
 
@@ -26,4 +28,11 @@ unset VITE_TOKEN_COMMUNITY_TAX_ADDRESS
 [[ "$(classify_cw20_funding_kind terra1qatax terra1launcher)" == transfer ]] \
   || fail "unpinned + origin still Transfer"
 
-echo "PASS: cw20-funding-kind classify (skip/transfer/mint)"
+[[ "$(classify_tax_provision_action terra1qatax terra1qatax terra1x46 terra1x46)" == fail_seed ]] \
+  || fail "pinned tax + test1→test1 must fail_seed"
+[[ "$(classify_tax_provision_action terra1old terra1qatax terra1x46 terra1x46)" == skip ]] \
+  || fail "leftover tax + test1→test1 must skip"
+[[ "$(classify_tax_provision_action terra1qatax terra1qatax terra1fund terra1x46)" == transfer ]] \
+  || fail "distinct funder may Transfer"
+
+echo "PASS: cw20-funding-kind classify (skip/transfer/mint + tax provision action)"
