@@ -2,7 +2,7 @@
 
 Use when changing community-token ingest, `GET /api/v1/community-tokens`, or `community_tax` on token detail.
 
-Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); ExemptionDirectory tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md) — do not treat a catalog event as on-chain exempt).
+Sibling: dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593); on-chain events [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); post-merge Coolify catalog [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); ExemptionDirectory tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md) — do not treat a catalog event as on-chain exempt); route/solve net ranking [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) ([`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md) — catalog `buy_bps` / `sell_bps` feed the solver; list handlers stay no request-path LCD).
 
 ## Canonical references
 

@@ -45,7 +45,7 @@ flowchart TD
     F --> G[Pair HybridSimulation grid: 17 book_input fractions per hop]
     G --> H[Merge hybrid into router_operations]
     H --> I[Router simulate_swap_operations LCD]
-    I --> J[Compare estimated_amount_out; keep max]
+    I --> J[Compare estimated_amount_out_net; keep max raw estimated_amount_out]
     J --> E
     E --> K[Attach solver_version, optimality_scope, hybrid_notes]
     K --> L{Cache hit?}
@@ -101,7 +101,8 @@ Read the response using this doc:
 
 - **`hops`** / **`intermediate_tokens`** — chosen path (≤ 4 hops for optimized GET).
 - **`router_operations`** — submit-ready `ExecuteSwapOperations` shape; inspect `terra_swap.hybrid` per hop.
-- **`estimated_amount_out`** — LCD router sim snapshot; **not** a guaranteed fill.
+- **`estimated_amount_out`** — LCD router sim snapshot (`raw_out`); **not** a guaranteed fill. Execute / `min_return` use this.
+- **`estimated_amount_out_net`** — catalog buy-split net when `token_out` is a community-tax CW20 (GitLab **#615**). Same as raw when no buy tax. Swap/Trade You Receive uses net; do not put net in `min_return`.
 - **`quote_kind`** — whether hybrid legs were used or degraded.
 - **`optimality_scope`** — search bounds (see below); do not market as unbounded “best price”.
 - **`hybrid_notes`** — repeats liability + path/sim counts.
@@ -131,7 +132,7 @@ Read the response using this doc:
 | `LCD_HYBRID_SIM_BUDGET` | 1700 (= 5×4×85) | `best_execution.rs` |
 | `OPTIMALITY_SCOPE` | See [optimality scope](#optimality-scope-string) | `best_execution.rs` |
 
-Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, **bucketed** `max_maker_fills` (retail 1–8 → 8; 9–16 → 16; 17–30 → 30; above → **100** cap bucket; see `cache_key_maker_fills`), **`discount_bps`** from resolved tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283), [#324](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/324)). Trader address is **not** keyed — same-tier wallets share cache.
+Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `amount_in`, **bucketed** `max_maker_fills` (retail 1–8 → 8; 9–16 → 16; 17–30 → 30; above → **100** cap bucket; see `cache_key_maker_fills`), **`discount_bps`** from resolved tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283), [#324](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/324)), **tax identity** (`buy`/`sell` bps + router-hops-tax flag + exempt bit — [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615)). Trader address is **not** keyed — same-tier / same-tax-identity wallets share cache. Ordinary CW20 identity is `none`.
 
 **`max_maker_fills` cap (GitLab #379 / #262):** GET `max_maker_fills` is clamped to **`MAX_MAKER_FILLS_HARD_CAP` = 100**, matching on-chain `dex-common::pair`. The prior indexer DB-sim cap of **30** was stale. LocalTerra route-solve latency at cap **100** remains within the **30s** API timeout under typical book depth (same bound as chain execute); abuse requests like `max_maker_fills=4294967295` are clamped before hybrid grid / LCD fanout.
 
@@ -165,7 +166,7 @@ This means:
 
 1. Only up to **five** simple paths are considered, preferring **fewer hops** (then lexicographic pair order).
 2. On each path, each hop’s `book_input` is chosen from a **17-point** uniform grid on `[0, offer_amount]`, plus **two** full coordinate-descent passes that re-optimize each hop given the current plan.
-3. The winning path is the one with highest **`estimated_amount_out`** from router `simulate_swap_operations` when `ROUTER_ADDRESS` is set (else hybrid sim totals). Ties: first path with that output wins (later equal paths do not replace).
+3. The winning path is the one with highest **`estimated_amount_out_net`** (catalog buy/sell policy for this snapshot — GitLab **#615**). `estimated_amount_out` stays the hop/router **`raw_out`**. Ties: first path with that net wins (later equal paths do not replace). Option-2 wasm: a path that sells a catalogued tax token as a **middle** hop is skipped. Unmigrated **11611** does not skip.
 
 Paths **outside** the top-5 shortest (by hop count) are never evaluated. Split points **between** grid nodes are not exhaustively searched. The solver is **not** MEV-aware and uses an **LCD snapshot** that can change before execute.
 

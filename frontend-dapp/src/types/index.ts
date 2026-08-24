@@ -629,6 +629,13 @@ export interface IndexerRouteSolveResponse {
   hybrid_notes?: string | null
   router_operations: unknown[]
   estimated_amount_out?: string
+  /** Catalog buy-split net (#615). Execute / min_return still use `estimated_amount_out`. */
+  estimated_amount_out_net?: string
+  tax_kind?: string
+  buy_tax_bps?: number
+  sell_tax_bps?: number
+  tax_notes?: string
+  router_hops_tax?: boolean
   /** Fair output at best-route token cross-rate (raw integer). GitLab #293. */
   spot_amount_out?: string
   /** Symmetric deviation vs spot cross-rate (percent string). GitLab #293. */

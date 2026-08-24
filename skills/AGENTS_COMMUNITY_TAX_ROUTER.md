@@ -6,7 +6,7 @@ This is the **C-2 design close**. Chosen option: **improved 2 — tax the origin
 
 Issue **#607 is an implement close**. Token classify changes. Pair/router **swap math** stay unchanged (**H-01**). Official router wasm already passes `Swap.trader` (fee-discount path) — do not teach the router to size extra-debit.
 
-Live columbus-5 **11611** still runs pre-option-2 wasm until CMM store + migrate. In-repo crate + dApp match this playbook.
+Live columbus-5 **11611** still runs pre-option-2 wasm until CMM store + migrate. In-repo crate + dApp match this playbook. Solver ranking that prepares for option-2 wasm (without treating unmigrated 11611 as option 2) is **[#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615)** — [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
 
 ## Canonical references
 
@@ -48,10 +48,25 @@ Live columbus-5 **11611** still runs pre-option-2 wasm until CMM store + migrate
 
 [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603) may promise “bps on every official Swap” **after** the token instance is on this wasm (new launch or 11611 migrate). Importers of **unmigrated** 11611 must still disclose Honest hops.
 
+## 11611 pin vs option-2 ranking (#615)
+
+Live columbus-5 **code_id 11611** stays Honest hops (**R607-4**) until CMM migrate. The indexer must **not** skip UST1→TAX→USTR on that pin.
+
+**Flip after migrate / new crate** (ops, not a silent default):
+
+```bash
+# indexer/.env — list the option-2 code id and/or wasm data_hash
+COMMUNITY_TAX_OPTION2_CODE_IDS=11611
+# COMMUNITY_TAX_OPTION2_DATA_HASHES=<lowercase hex>
+```
+
+Then `GET /route/solve` drops middle-hop TAX sells and applies buy-split net on multi-hop `token_out` (**R615-3** / **R615-5**). Pair/router wasm still must actually tax hops — the env flag only changes **ranking**. See [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
+
 ## Verify
 
 ```bash
 make verify-issue-607
+make verify-issue-615
 ```
 
 Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit).

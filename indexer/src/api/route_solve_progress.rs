@@ -5,17 +5,17 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::api::AppState;
 use crate::api::best_execution::solver_version_for;
 use crate::api::route_solver::{
-    amount_cache_key, hybrid_cache_key, parse_quote_trader, resolve_discount_bps, SolveRouteParams,
+    SolveRouteParams, amount_cache_key, hybrid_cache_key, parse_quote_trader, resolve_discount_bps,
 };
-use crate::api::AppState;
 use crate::hybrid_limits::clamp_max_maker_fills;
 
 const MAX_ENTRIES: usize = 256;
@@ -150,7 +150,13 @@ pub fn progress_begin(key: &str) {
 }
 
 /// Update in-flight progress.
-pub fn progress_update(key: &str, stage: SolveStage, done: u32, total: u32, label: impl Into<String>) {
+pub fn progress_update(
+    key: &str,
+    stage: SolveStage,
+    done: u32,
+    total: u32,
+    label: impl Into<String>,
+) {
     let mut guard = registry();
     let map = guard.as_mut().expect("registry init");
     set_progress(map, key, stage, done, total, label, false, false);
@@ -239,6 +245,15 @@ pub async fn solve_route_progress(
     let bucket = amount_cache_key(amount_u);
     let discount_bps = resolve_discount_bps(&state, &quote_trader).await;
     let solver_version = solver_version_for(&state);
+    let tax_identity = crate::api::community_tax_rank::load_tax_rank_snapshot(
+        &state,
+        &q.token_in,
+        &q.token_out,
+        &[],
+        quote_trader.trader.as_deref(),
+    )
+    .await
+    .cache_identity();
     let ck = hybrid_cache_key(
         solver_version,
         &q.token_in,
@@ -246,6 +261,7 @@ pub async fn solve_route_progress(
         bucket,
         max_makers,
         discount_bps,
+        &tax_identity,
     );
 
     Ok(Json(progress_get(&ck).unwrap_or_else(idle_progress)))

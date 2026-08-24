@@ -5,6 +5,7 @@ mod aggregator_snapshot;
 mod best_execution;
 mod cg;
 mod cmc;
+mod community_tax_rank;
 mod community_tokens;
 mod compliance;
 mod consolidated_stats;
@@ -42,13 +43,13 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use axum::http::{header, HeaderValue, Method, StatusCode};
-use axum::routing::get;
 use axum::Router;
+use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::routing::get;
 use sqlx::PgPool;
+use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::PeerIpKeyExtractor;
-use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -112,7 +113,7 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 }
 
 #[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
-pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
+pub use errors::{LCD_UPSTREAM_GATEWAY_MSG, lcd_gateway_err};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
@@ -543,7 +544,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         )
         .route("/api/v1/hooks", get(hooks::get_hook_events))
         .route("/api/v1/overview", get(overview::get_overview))
-        .route("/api/v1/protocol/fees", get(protocol_fees::get_protocol_fees))
+        .route(
+            "/api/v1/protocol/fees",
+            get(protocol_fees::get_protocol_fees),
+        )
         .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
         .route(
             "/api/v1/hub-prices/{ticker}",

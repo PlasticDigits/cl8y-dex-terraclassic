@@ -80,6 +80,7 @@ import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
+import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
@@ -152,6 +153,8 @@ import { SlippageProtectionPresets } from '@/components/common/SlippageProtectio
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
+  /** Pre-tax wallet sim when `return_amount` is post-buy-split (#615). */
+  executeAmountOut?: string
   spread_amount: string
   commission_amount: string
   /**
@@ -530,6 +533,7 @@ export default function SwapPage() {
         wrapFeeBps ?? null,
         unwrapFeeBps ?? null,
         wrapMapperConfig != null,
+        taxReceive.buyBps ?? null,
       ] as const,
     [
       fromToken,
@@ -545,6 +549,7 @@ export default function SwapPage() {
       wrapFeeBps,
       unwrapFeeBps,
       wrapMapperConfig,
+      taxReceive.buyBps,
     ]
   )
 
@@ -654,6 +659,7 @@ export default function SwapPage() {
           if (quoted) {
             return {
               return_amount: quoted.return_amount,
+              executeAmountOut: quoted.executeAmountOut,
               spread_amount: quoted.spread_amount,
               commission_amount: quoted.commission_amount,
               routeSlippagePercent: quoted.routeSlippagePercent,
@@ -698,15 +704,20 @@ export default function SwapPage() {
             maxSpreadStr,
             quoteTrader,
           })
-          return withIndexerOutageFlag({
-            ...quoted,
-            routeSlippagePercent: quoted.routeSlippagePercent,
-            spotAmountOut: quoted.spotAmountOut,
-          })
+          return withIndexerOutageFlag(
+            withBuyTaxReceiveDisplay(
+              {
+                ...quoted,
+                routeSlippagePercent: quoted.routeSlippagePercent,
+                spotAmountOut: quoted.spotAmountOut,
+              },
+              taxReceive.buyBps
+            )
+          )
         }
         const offerInfo = tokenAssetInfo(fromToken)
         const r = await simulateSwap(directPair.contract_addr, offerInfo, simRaw, quoteTrader)
-        return withIndexerOutageFlag(r)
+        return withIndexerOutageFlag(withBuyTaxReceiveDisplay(r, taxReceive.buyBps))
       }
       if (isMultiHop && route) {
         const result = await simulateMultiHopSwap(simRaw, route, quoteTrader)
