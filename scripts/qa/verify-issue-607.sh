@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Automated verification for GitLab #607 — community tax router hops Honest (C-2 option 1).
+# Automated verification for GitLab #607 — community tax router hops tax the
+# original trader (C-2 improved option 2).
 #
-# Design close (disclose-only). Proves:
-#   1. T592-13 / C593-14 / R607 written in skills + docs
-#   2. Classify still skips protocol-exempt from/to (no option 2/3)
-#   3. PoC stays as a documented property
-#   4. dApp copy + extra-debit Max helpers
+# Proves:
+#   1. T592-13 / C593-14 / R607 written in skills + docs (option 2)
+#   2. Classify taxes official-router Send+Swap; fail-closes without trader
+#   3. Inverted PoC + token multitest
+#   4. dApp extra-debit Max + listed-pair copy
 #
 # Refs: skills/AGENTS_COMMUNITY_TAX_ROUTER.md
 set -euo pipefail
@@ -33,7 +34,7 @@ run_step() {
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  GitLab #607 — community tax router hops Honest (option 1)"
+echo "  GitLab #607 — community tax router hop tax (improved option 2)"
 echo "════════════════════════════════════════════════════════════════"
 
 export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
@@ -47,7 +48,7 @@ run_docs() {
   rg -q "T592-13" skills/AGENTS_COMMUNITY_TAX_CW20.md
   rg -q "C593-14" skills/AGENTS_FRONTEND_CREATE_TOKEN.md
   rg -q "R607-1" skills/AGENTS_COMMUNITY_TAX_ROUTER.md
-  rg -q "option 1" skills/AGENTS_COMMUNITY_TAX_ROUTER.md
+  rg -q "improved option 2" skills/AGENTS_COMMUNITY_TAX_ROUTER.md
   rg -q "T592-13" docs/contracts-terraclassic.md
   rg -q "T592-13" docs/contracts-security-audit.md
   rg -q "C593-14" docs/frontend.md
@@ -55,16 +56,26 @@ run_docs() {
   rg -q "AGENTS_COMMUNITY_TAX_ROUTER" AGENTS.md
   rg -q "T592-13" skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md
   rg -q "T592-13" smartcontracts/contracts/community-tax-token/src/tax.rs
-  rg -q "T592-13 / #607 option 1" smartcontracts/contracts/community-token-launcher/tests/audit_poc.rs
-  rg -q "pair-direct only" frontend-dapp/src/utils/taxPreviewMaxSpend.ts
-  rg -q "Route skips buy/sell tax" frontend-dapp/src/utils/taxPreviewMaxSpend.ts
+  rg -q "T592-13 / #607 improved option 2" smartcontracts/contracts/community-token-launcher/tests/audit_poc.rs
+  rg -q "Buy/sell tax applies on every listed-pair swap" frontend-dapp/src/utils/taxPreviewMaxSpend.ts
+  rg -q "Sell tax extra" frontend-dapp/src/utils/taxPreviewMaxSpend.ts
+  rg -q "Buy tax applies" frontend-dapp/src/utils/taxPreviewMaxSpend.ts
   rg -q "communityTaxRouteHint" frontend-dapp/src/pages/SwapPage.tsx
   rg -q "communityTaxRouteHint" frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx
   rg -q "create-token-tax-scope" frontend-dapp/src/pages/CreateTokenPage.tsx
   rg -q "manage-token-tax-scope" frontend-dapp/src/pages/ManageTokenPage.tsx
-  # Option 2/3 must not have been implemented: sell still requires !is_protocol_exempt(from).
-  rg -q "!is_protocol_exempt\\(storage, self_addr, from\\)" smartcontracts/contracts/community-tax-token/src/tax.rs
-  rg -q "!is_protocol_exempt\\(storage, self_addr, to\\)" smartcontracts/contracts/community-tax-token/src/tax.rs
+  rg -q "RouterTraderRequired" smartcontracts/contracts/community-tax-token/src/error.rs
+  rg -q "is_official_router" smartcontracts/contracts/community-tax-token/src/tax.rs
+  rg -q "hop_trader_addr" smartcontracts/contracts/community-tax-token/src/tax.rs
+  # Option 1 disclose-only copy must not remain as current policy.
+  if rg -q "Route skips buy/sell tax" frontend-dapp/src/utils/taxPreviewMaxSpend.ts; then
+    echo "stale option 1 skip hint" >&2
+    return 1
+  fi
+  if rg -q "Buy/sell tax is pair-direct only" frontend-dapp/src/utils/taxPreviewMaxSpend.ts; then
+    echo "stale option 1 Create copy" >&2
+    return 1
+  fi
 }
 
 run_frontend() {
@@ -78,17 +89,29 @@ run_poc() {
   (cd smartcontracts && cargo test -p cl8y-community-token-launcher --offline --test audit_poc poc_router_exemption_full_tax_bypass -- --test-threads=1)
 }
 
+run_token() {
+  (cd smartcontracts && cargo test -p cl8y-community-tax-token --offline --lib -- --test-threads=1 \
+    router_sell_extra_debits_authenticated_trader \
+    router_sell_without_trader_fail_closes \
+    router_sell_rejects_protocol_exempt_trader \
+    pair_direct_ignores_spoofed_trader \
+    router_to_user_is_buy_outbound_split \
+    manager_exempt_hop_trader_skips_router_sell_tax)
+}
+
 echo ""
 echo "── first pass ──"
-run_step "docs: T592-13 + C593-14 + R607 + classify guard" run_docs
-run_step "frontend: route hint + Create/Manage copy" run_frontend
-run_step "poc: router hops Honest (documented property)" run_poc
+run_step "docs: T592-13 + C593-14 + R607 option 2" run_docs
+run_step "frontend: extra-debit Max + Create/Manage copy" run_frontend
+run_step "token: router hop classify + extra-debit" run_token
+run_step "poc: inverted router hop tax" run_poc
 
 echo ""
 echo "── retest ──"
-run_step "retest docs: T592-13 + C593-14 + R607 + classify guard" run_docs
-run_step "retest frontend: route hint + Create/Manage copy" run_frontend
-run_step "retest poc: router hops Honest (documented property)" run_poc
+run_step "retest docs: T592-13 + C593-14 + R607 option 2" run_docs
+run_step "retest frontend: extra-debit Max + Create/Manage copy" run_frontend
+run_step "retest token: router hop classify + extra-debit" run_token
+run_step "retest poc: inverted router hop tax" run_poc
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"

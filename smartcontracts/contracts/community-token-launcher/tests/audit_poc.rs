@@ -413,6 +413,19 @@ fn swap_hook() -> Binary {
     .unwrap()
 }
 
+fn swap_hook_trader(trader: &str) -> Binary {
+    to_json_binary(&PairHook::Swap {
+        belief_price: None,
+        max_spread: None,
+        min_return: None,
+        to: None,
+        deadline: None,
+        trader: Some(trader.into()),
+        hybrid: None,
+    })
+    .unwrap()
+}
+
 fn default_instantiate(
     hub: &Hub,
     guards: Option<LaunchGuardsConfig>,
@@ -618,10 +631,10 @@ fn poc_autov2lp_paid_but_never_bound() {
 }
 
 // ============================================================================
-// T592-13 / #607 option 1 (was audit C-2): protocol-exempt `from`/`to` is Honest.
-// Documented property — not a defect to invert. Address named "router"
-// (PROTOCOL_EXEMPT), not router wasm `execute_swap_operations`.
-// Official single-hop pair Send still pays tax (pair-direct).
+// T592-13 / #607 improved option 2 (was audit C-2 / option 1 Honest hops).
+// Official router Send+Swap extra-debits authenticated Swap.trader; missing
+// trader fail-closes. Pair→router stays 1:1; router→user is buy outbound split.
+// Address named "router" (PROTOCOL_EXEMPT + config.router), not router wasm.
 // ============================================================================
 #[test]
 fn poc_router_exemption_full_tax_bypass() {
@@ -639,8 +652,9 @@ fn poc_router_exemption_full_tax_bypass() {
         .unwrap();
     let pair = register_pair(&mut hub, &token);
 
-    // Sell leg via router: router -> pair Send+Swap. Zero sell tax.
-    hub.app
+    // Evasion: router Send+Swap without trader must not skip tax.
+    let err = hub
+        .app
         .execute_contract(
             Addr::unchecked("router"),
             token.clone(),
@@ -651,20 +665,45 @@ fn poc_router_exemption_full_tax_bypass() {
             },
             &[],
         )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("trusted non-exempt trader"),
+        "{err:?}"
+    );
+
+    // Sell via router with authenticated trader (official router wasm sets this).
+    hub.app
+        .execute_contract(
+            Addr::unchecked("router"),
+            token.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: pair.to_string(),
+                amount: Uint128::new(100_000),
+                msg: swap_hook_trader("alice"),
+            },
+            &[],
+        )
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "router"),
         900_000,
-        "router paid no sell tax"
+        "router debited declared amount only"
     );
     assert_eq!(bal(&hub.app, &token, pair.as_str()), 100_000);
     assert_eq!(
+        bal(&hub.app, &token, "alice"),
+        10_000_000 - 5_000,
+        "alice extra-debit 5% sell tax"
+    );
+    assert_eq!(
         bal(&hub.app, &token, "treasury"),
-        0,
-        "no tax collected on router sell"
+        5_000,
+        "sell tax collected on router hop"
     );
 
-    // Contrast: direct EOA sell pays the 5% extra debit.
+    // Pair-direct EOA sell still extra-debits the sender (spoofed trader ignored).
     hub.app
         .execute_contract(
             Addr::unchecked("alice"),
@@ -672,18 +711,23 @@ fn poc_router_exemption_full_tax_bypass() {
             &Cw20ExecuteMsg::Send {
                 contract: pair.to_string(),
                 amount: Uint128::new(100_000),
-                msg: swap_hook(),
+                msg: swap_hook_trader("bob"),
             },
             &[],
         )
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "alice"),
-        10_000_000 - 105_000,
-        "EOA paid 5% sell tax"
+        10_000_000 - 5_000 - 105_000,
+        "EOA paid 5% sell tax on pair-direct"
+    );
+    assert_eq!(
+        bal(&hub.app, &token, "bob"),
+        10_000_000,
+        "spoofed trader not debited"
     );
 
-    // Buy leg: pair -> router (exempt) -> user. Zero buy tax end-to-end.
+    // Buy leg: pair → router 1:1; router → user outbound split.
     hub.app
         .execute_contract(
             Addr::unchecked(pair.clone()),
@@ -698,7 +742,7 @@ fn poc_router_exemption_full_tax_bypass() {
     assert_eq!(
         bal(&hub.app, &token, "router"),
         900_000 + 100_000,
-        "router buy credit untaxed"
+        "router buy credit 1:1"
     );
     hub.app
         .execute_contract(
@@ -713,8 +757,8 @@ fn poc_router_exemption_full_tax_bypass() {
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "bob"),
-        10_100_000,
-        "user received full amount, no buy tax"
+        10_000_000 + 95_000,
+        "user received amount minus 5% buy tax"
     );
 }
 

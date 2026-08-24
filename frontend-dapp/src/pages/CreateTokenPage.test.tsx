@@ -84,7 +84,9 @@ describe('CreateTokenPage (#593)', () => {
     expect(screen.getByRole('heading', { name: /create token/i })).toBeInTheDocument()
     expect(screen.getByText(/not the DEX swap fee/i)).toBeInTheDocument()
     expect(screen.getByText(/CMM-only/i)).toBeInTheDocument()
-    expect(screen.getByTestId('create-token-tax-scope')).toHaveTextContent('Buy/sell tax is pair-direct only.')
+    expect(screen.getByTestId('create-token-tax-scope')).toHaveTextContent(
+      'Buy/sell tax applies on every listed-pair swap.'
+    )
   })
 
   it('paid SKUs render PayWithAnyToken targeting the launcher', async () => {

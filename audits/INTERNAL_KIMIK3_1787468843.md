@@ -136,7 +136,7 @@ Teaching the router to size extra-debit violates H-01 / “do not add pair/route
 
 There is no clean fix that keeps both “inbound 1:1 + unchanged router wasm” and “router hops pay tax.” This is the product’s central contradiction.
 
-**Status (2026-08-23):** [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) chose **option 1** (disclose). Written as **T592-13**. Contract follow-up **waived**. Playbook: [`skills/AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). `poc_router_exemption_full_tax_bypass` stays as a documented property.
+**Status (2026-08-24):** [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) reversed option 1 and chose **improved option 2** (tax the original trader on official-router hops). Written as **T592-13**. Token classify extra-debits authenticated `Swap.trader`; pair/router swap math unchanged (**H-01**). Playbook: [`skills/AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). `poc_router_exemption_full_tax_bypass` is inverted. Live **11611** needs store + migrate.
 
 ---
 

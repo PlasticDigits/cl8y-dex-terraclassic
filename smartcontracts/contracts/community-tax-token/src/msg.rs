@@ -340,11 +340,17 @@ pub enum TaxKind {
 pub struct TaxPreviewResponse {
     pub kind: TaxKind,
     pub declared: Uint128,
-    /// Amount debited from `from` (sell = declared + tax).
+    /// Amount debited from `from` (pair-direct sell = declared + tax; router sell = declared).
     pub debit: Uint128,
     /// Amount credited to `to` (buy/transfer = declared − tax).
     pub credit: Uint128,
     pub tax: Uint128,
+    /// Authenticated hop trader when `from` is the official router (**T592-13** / #607).
+    #[serde(default)]
+    pub hop_trader: Option<Addr>,
+    /// Extra-debit taken from [`Self::hop_trader`] on a router sell (pair still credited `declared`).
+    #[serde(default)]
+    pub hop_trader_debit: Option<Uint128>,
 }
 
 #[cw_serde]

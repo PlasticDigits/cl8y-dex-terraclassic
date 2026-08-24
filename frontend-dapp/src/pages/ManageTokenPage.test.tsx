@@ -124,7 +124,9 @@ describe('ManageTokenPage (#593)', () => {
 
   it('discloses pair-direct buy/sell tax (#607)', async () => {
     renderManage(MANAGER)
-    expect(await screen.findByTestId('manage-token-tax-scope')).toHaveTextContent('Buy/sell tax is pair-direct only.')
+    expect(await screen.findByTestId('manage-token-tax-scope')).toHaveTextContent(
+      'Buy/sell tax applies on every listed-pair swap.'
+    )
   })
 
   it('Minting SKU is not in the unlock list', async () => {
