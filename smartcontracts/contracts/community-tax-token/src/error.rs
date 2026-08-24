@@ -106,4 +106,26 @@ pub enum ContractError {
 
     #[error("Do not mix EnableFeature into a settings batch")]
     MixedInvoice {},
+
+    /// Foreign adopt requires `MigrateMsg.adopt` (#626). Same-crate bumps stay `{}`.
+    #[error("Foreign cw2 {cw2} requires an allowlisted adopt payload")]
+    AdoptRequired { cw2: String },
+
+    #[error("Adopt is not used for same-crate community-tax upgrades")]
+    AdoptNotForSameCrate {},
+
+    #[error("Source cw2 {name} is not an allowlisted adopt template")]
+    AdoptCw2NotAllowed { name: String },
+
+    #[error("Source storage has leftover tax_map keys; 8654/FoT adopt is no-go")]
+    AdoptTaxMapPresent {},
+
+    #[error("Adopt storage smash on key {key}")]
+    AdoptStorageSmash { key: String },
+
+    #[error("Token is already a community-tax instance")]
+    AdoptAlreadyConfigured {},
+
+    #[error("Source token_info is missing; not a cw20-base layout")]
+    AdoptMissingTokenInfo {},
 }

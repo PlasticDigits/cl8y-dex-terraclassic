@@ -268,6 +268,9 @@ pub enum QueryMsg {
     },
     #[returns(LauncherOriginResponse)]
     GetLauncherOrigin {},
+    /// Present after a successful foreign adopt (#626). Launcher-created tokens return empty.
+    #[returns(MigrateOriginResponse)]
+    GetMigrateOrigin {},
 }
 
 #[cw_serde]
@@ -359,4 +362,38 @@ pub struct LauncherOriginResponse {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub struct MigrateOriginResponse {
+    pub source_cw2: Option<String>,
+    pub source_version: Option<String>,
+    pub source_code_id: Option<u64>,
+    pub migrated_at_height: Option<u64>,
+}
+
+/// Same-crate bump is `{}` / `{ "adopt": null }`. Foreign adopt sets [`AdoptMigrateMsg`].
+#[cw_serde]
+pub struct MigrateMsg {
+    #[serde(default)]
+    pub adopt: Option<AdoptMigrateMsg>,
+}
+
+/// Free-profile adopt onto this wasm. No paid SKUs. Source admin becomes `manager`.
+#[cw_serde]
+pub struct AdoptMigrateMsg {
+    pub manager: String,
+    pub treasury: String,
+    pub factory: String,
+    pub router: Option<String>,
+    pub ust1: String,
+    pub cmm_treasury: String,
+    /// Official launcher — written to `CONFIG.launcher` so `GetLauncherOrigin` matches catalog env.
+    pub official_launcher: String,
+    pub buy_bps: u16,
+    pub sell_bps: u16,
+    pub transfer_bps: Option<u16>,
+    pub max_buy_bps: u16,
+    pub max_sell_bps: u16,
+    pub max_transfer_bps: u16,
+    /// Informational LCD source id (cw2 allowlist is authoritative).
+    #[serde(default)]
+    pub source_code_id: Option<u64>,
+}

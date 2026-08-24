@@ -52,6 +52,8 @@ UPGRADE582_LOCAL=1 ./scripts/upgrade-582-code-id-pin.sh
 
 The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every listed asset → stores wasm → migrates **factory 1.9.0** → asserts cw2 + `IsCodeIdWhitelisted` (parseable boolean; LCD flakes are retried, not treated as empty pins) → **`UpdateConfig { pair_code_id }`** so new `CreatePair` instantiates pair 1.15.0 → paginates `pairs` at `limit: 30` with `start_after` = last `asset_infos` → migrates each pair (skips addrs already on the target code id — retry-safe after RPC RST) → reconciles `GetPairCount` → smoke `GetAssetCodeIds` + `HybridSimulation` (queries are **ungated**; a quote is not “pair is tradable”). Optional `UPGRADE582_REFRESH=1` loops `RefreshPairAssetCodeIdsBatch` until wasm `has_more=false`.
 
+Retail listed-template adopt onto **11619** ([#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626), [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md)) uses this same Refresh sequence. Token admin cannot Refresh. Terraport/GDEX pairs are not F6-pinned.
+
 ## Operator sequence (honest token upgrade)
 
 1. Source-review the new wasm; `AddWhitelistedCodeId` the new id (keep the old id listed until Refresh finishes).

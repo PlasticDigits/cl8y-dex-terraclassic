@@ -268,3 +268,29 @@ async fn ingest_launcher_create_without_pair() {
     assert_eq!(row.launcher_tx.as_deref(), Some("create-hash"));
     assert_eq!(row.created_at_block, Some(42));
 }
+
+#[tokio::test]
+#[serial]
+async fn ingest_migrate_adopt_does_not_fake_launcher_tx() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    let cfg = configured();
+    let ev = ParsedCommunityEvent {
+        emitter: TOKEN.into(),
+        action: "migrate-adopt".into(),
+        community_token: Some(TOKEN.into()),
+        token: None,
+        sku: None,
+        invoice: None,
+    };
+    ingest_event(&pool, &cfg, &ev, "adopt-hash", 99)
+        .await
+        .unwrap();
+    let row = cl8y_dex_indexer::db::queries::community_tokens::get_by_address(&pool, TOKEN)
+        .await
+        .unwrap()
+        .expect("row");
+    assert!(row.launcher_tx.is_none(), "must not fake launcher_tx");
+    assert!(!row.attested_cmm, "attest is LCD probe only");
+    assert_eq!(row.instantiate_tx.as_deref(), Some("adopt-hash"));
+}

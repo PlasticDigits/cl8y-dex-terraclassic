@@ -226,8 +226,9 @@ export default function CreateTokenPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Create Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Community tax token. Tax is not the DEX swap fee. {COMMUNITY_TAX_PAIR_DIRECT_COPY} Wasm upgrades are CMM-only
-          — you cannot migrate this contract.{' '}
+          Community tax token. Tax is not the DEX swap fee. {COMMUNITY_TAX_PAIR_DIRECT_COPY} Wasm upgrades on a token
+          you create here are CMM-only. To adopt a listed 6036 / 10184 / 8266 template onto this wasm, use{' '}
+          <Link to="/token/migrate">Migrate Token</Link>.{' '}
           <a
             className="underline"
             href={`${DOCS_GITLAB_BASE}/contracts-terraclassic.md`}

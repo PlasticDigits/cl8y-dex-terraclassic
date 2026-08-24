@@ -1,7 +1,8 @@
 //! Community tax catalog ingest + LCD attestation probe (GitLab #594).
 //!
 //! Trust LCD `ContractInfo.code_id` / `admin`, not event fields. Attest `launcher_tx`
-//! only when the wasm emitter is `COMMUNITY_TOKEN_LAUNCHER`.
+//! only when the wasm emitter is `COMMUNITY_TOKEN_LAUNCHER`. Adopted tokens (#626) may
+//! attest via `GetMigrateOrigin` + CMM admin — never a fake `launcher_tx`.
 
 use std::time::Duration;
 
@@ -40,7 +41,7 @@ pub struct ParsedCommunityEvent {
 pub fn parse_community_event(attrs: &[Attribute]) -> Option<ParsedCommunityEvent> {
     let action = wasm_attr_last(attrs, "action")?;
     match action {
-        "create_token_ready" | "enable_feature" | "update_settings" | "mint" => {}
+        "create_token_ready" | "enable_feature" | "update_settings" | "mint" | "migrate-adopt" => {}
         _ => return None,
     }
     let emitter = wasm_contract_addr(attrs)?.to_string();
@@ -174,6 +175,26 @@ pub async fn ingest_event(
             )
             .await?;
         }
+        "migrate-adopt" => {
+            let addr = ev
+                .community_token
+                .as_deref()
+                .unwrap_or(ev.emitter.as_str());
+            // Do not write launcher_tx — origin is GetMigrateOrigin + CMM admin.
+            db::upsert_from_migrate(pool, addr, txhash, height).await?;
+            db::insert_event(
+                pool,
+                addr,
+                txhash,
+                height,
+                "migrate-adopt",
+                "adopt",
+                None,
+                None,
+                Some(&json!({ "emitter": ev.emitter })),
+            )
+            .await?;
+        }
         "mint" => {
             if db::get_by_address(pool, &ev.emitter).await?.is_none() {
                 return Ok(());
@@ -228,6 +249,40 @@ struct LcdLauncherOrigin {
     launcher: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct LcdMigrateOrigin {
+    source_cw2: Option<String>,
+}
+
+/// Honest listed-template cw2 names written by the #626 importer.
+pub fn is_allowed_adopt_cw2(name: &str) -> bool {
+    matches!(
+        name,
+        "crates.io:cw20-base" | "crates.io:cw20-mintable" | "crates.io:terraport-token"
+    )
+}
+
+/// I594-3 + #626: CMM admin + official launcher origin, plus either a real
+/// launcher_tx **or** an allowlisted GetMigrateOrigin. Never fake launcher_tx.
+pub fn attested_cmm(
+    code_id: u64,
+    want_code: u64,
+    admin: &str,
+    cmm: &str,
+    launcher_tx_ok: bool,
+    origin_launcher: Option<&str>,
+    want_launcher: &str,
+    migrate_source_cw2: Option<&str>,
+) -> bool {
+    if code_id != want_code || admin != cmm {
+        return false;
+    }
+    if origin_launcher != Some(want_launcher) {
+        return false;
+    }
+    launcher_tx_ok || migrate_source_cw2.is_some_and(is_allowed_adopt_cw2)
+}
+
 pub async fn refresh_one(pool: &sqlx::PgPool, lcd: &LcdClient, config: &Config, addr: &str) {
     let Some(want_code) = config.community_tax_code_id else {
         return;
@@ -267,17 +322,28 @@ pub async fn refresh_one(pool: &sqlx::PgPool, lcd: &LcdClient, config: &Config, 
         .query_contract(addr, &json!({ "get_launcher_origin": {} }))
         .await
         .ok();
+    let migrate_origin: Option<LcdMigrateOrigin> = lcd
+        .query_contract(addr, &json!({ "get_migrate_origin": {} }))
+        .await
+        .ok();
 
     let row = db::get_by_address(pool, addr).await.ok().flatten();
     let launcher_tx_ok = row
         .as_ref()
         .and_then(|r| r.launcher_tx.as_ref())
         .is_some_and(|t| !t.is_empty());
-    let origin_ok = origin
-        .as_ref()
-        .and_then(|o| o.launcher.as_deref())
-        .is_some_and(|l| l == launcher);
-    let attested = code_id == want_code && admin == cmm && launcher_tx_ok && origin_ok;
+    let attested = attested_cmm(
+        code_id,
+        want_code,
+        &admin,
+        cmm,
+        launcher_tx_ok,
+        origin.as_ref().and_then(|o| o.launcher.as_deref()),
+        launcher,
+        migrate_origin
+            .as_ref()
+            .and_then(|o| o.source_cw2.as_deref()),
+    );
 
     let features = json!({
         "mint_control": feats.as_ref().and_then(|f| f.mint_control).unwrap_or(false),
@@ -340,5 +406,106 @@ pub async fn run_probe_loop(
             _ = cancel.cancelled() => return,
             _ = tokio::time::sleep(COMMUNITY_TAX_PROBE_INTERVAL) => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attest_launcher_path() {
+        assert!(attested_cmm(
+            11619,
+            11619,
+            "cmm",
+            "cmm",
+            true,
+            Some("launcher"),
+            "launcher",
+            None,
+        ));
+    }
+
+    #[test]
+    fn attest_adopt_path_without_launcher_tx() {
+        assert!(attested_cmm(
+            11619,
+            11619,
+            "cmm",
+            "cmm",
+            false,
+            Some("launcher"),
+            "launcher",
+            Some("crates.io:cw20-base"),
+        ));
+        assert!(attested_cmm(
+            11619,
+            11619,
+            "cmm",
+            "cmm",
+            false,
+            Some("launcher"),
+            "launcher",
+            Some("crates.io:terraport-token"),
+        ));
+    }
+
+    #[test]
+    fn attest_rejects_rogue_without_cmm_or_origin() {
+        assert!(!attested_cmm(
+            11619,
+            11619,
+            "not-cmm",
+            "cmm",
+            false,
+            Some("launcher"),
+            "launcher",
+            Some("crates.io:cw20-base"),
+        ));
+        assert!(!attested_cmm(
+            11619,
+            11619,
+            "cmm",
+            "cmm",
+            false,
+            Some("launcher"),
+            "launcher",
+            None,
+        ));
+        assert!(!attested_cmm(
+            11619,
+            11619,
+            "cmm",
+            "cmm",
+            true,
+            None,
+            "launcher",
+            Some("crates.io:cw20-base"),
+        ));
+    }
+
+    #[test]
+    fn parse_migrate_adopt_event() {
+        let parsed = parse_community_event(&attrs(&[
+            ("_contract_address", "terra1token"),
+            ("action", "migrate-adopt"),
+            ("community_token", "terra1token"),
+            ("source_cw2", "crates.io:cw20-base"),
+        ]))
+        .expect("parse");
+        assert_eq!(parsed.action, "migrate-adopt");
+        assert_eq!(parsed.emitter, "terra1token");
+        assert_eq!(parsed.community_token.as_deref(), Some("terra1token"));
+    }
+
+    fn attrs(pairs: &[(&str, &str)]) -> Vec<Attribute> {
+        pairs
+            .iter()
+            .map(|(k, v)| Attribute {
+                key: (*k).to_string(),
+                value: (*v).to_string(),
+            })
+            .collect()
     }
 }

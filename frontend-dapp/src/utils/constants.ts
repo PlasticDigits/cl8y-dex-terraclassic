@@ -121,6 +121,8 @@ export const COMMUNITY_MINT_GAS_LIMIT = 400_000
 export const COMMUNITY_SKIM_GAS_LIMIT = 800_000
 /** `RegisterListedPair` factory lookup. */
 export const COMMUNITY_REGISTER_PAIR_GAS_LIMIT = 400_000
+/** `MsgMigrateContract` + `MsgUpdateAdmin` adopt bundle (#626). */
+export const COMMUNITY_MIGRATE_ADOPT_GAS_LIMIT = 1_500_000
 
 /** Default-branch docs in GitLab (security audit, limit orders, ADRs). */
 export const DOCS_GITLAB_BASE = 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs'

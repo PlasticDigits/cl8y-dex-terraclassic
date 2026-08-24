@@ -1,4 +1,4 @@
-import { MsgExecuteContract, RpcClient } from '@goblinhunt/cosmes/client'
+import { MsgExecuteContract, RpcClient, type Adapter } from '@goblinhunt/cosmes/client'
 import type { ConnectedWallet } from '@goblinhunt/cosmes/wallet'
 import type { UnsignedTx } from '@goblinhunt/cosmes/wallet'
 import { WalletName, WalletType } from '@goblinhunt/cosmes/wallet'
@@ -312,6 +312,48 @@ export async function broadcastTerraExecuteContracts(
       return await broadcastSignedSplitPath(wallet, unsignedTx, fee, entries, onPhaseChange)
     }
 
+    return await broadcastAtomicWalletPath(wallet, unsignedTx, fee, onPhaseChange)
+  } catch (error: unknown) {
+    console.error('Terra Classic transaction error:', error)
+    throw handleBroadcastError(error)
+  }
+}
+
+/**
+ * Broadcast CosmWasm admin msgs (migrate + UpdateAdmin). Not an execute path — no invoice.
+ * GitLab #626.
+ */
+export async function broadcastTerraClassicMsgs(
+  wallet: ConnectedWallet,
+  msgs: Adapter[],
+  gasLimit: number,
+  options?: TerraBroadcastOptions
+): Promise<string> {
+  const resolvedOptions = options ?? getTerraBroadcastScopeOptions()
+  const onPhaseChange = resolvedOptions?.onPhaseChange
+  if (msgs.length === 0) {
+    throw new Error('No messages to broadcast')
+  }
+
+  const unsignedTx: UnsignedTx = {
+    msgs,
+    memo: '',
+  }
+  const fee = buildTerraClassicFee(gasLimit)
+
+  if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {
+    await prepareStationExtensionForTerraClassicSign(wallet)
+  }
+  if (wallet.id === WalletName.KEPLR && wallet.type === WalletType.EXTENSION) {
+    await prepareKeplrExtensionForTerraClassicSign(wallet)
+  }
+
+  const useSplitPath = walletSupportsSplitSignBroadcast(wallet) && !isAtomicWalletConnectPost(wallet)
+
+  try {
+    if (useSplitPath) {
+      return await broadcastSignedSplitPath(wallet, unsignedTx, fee, [], onPhaseChange)
+    }
     return await broadcastAtomicWalletPath(wallet, unsignedTx, fee, onPhaseChange)
   } catch (error: unknown) {
     console.error('Terra Classic transaction error:', error)

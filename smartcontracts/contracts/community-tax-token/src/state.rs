@@ -112,3 +112,14 @@ pub const MANAGER_EXEMPT: Map<&Addr, bool> = Map::new("mex");
 /// Last taxed swap block per **user** wallet (LaunchGuards cooldown, H608-1 / #608).
 /// Listed pairs / protocol-exempt addresses are never written or checked.
 pub const LAST_TRADE_BLOCK: Map<&Addr, u64> = Map::new("ltb");
+
+/// Written only by the foreign adopt importer (#626). Key does not collide with cw20-base.
+#[cw_serde]
+pub struct MigrateOrigin {
+    pub source_cw2: String,
+    pub source_version: String,
+    pub source_code_id: Option<u64>,
+    pub migrated_at_height: u64,
+}
+
+pub const MIGRATE_ORIGIN: Item<MigrateOrigin> = Item::new("mig_origin");

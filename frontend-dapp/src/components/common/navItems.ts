@@ -41,11 +41,18 @@ export const WRAP_NAV_ITEM: NavItem = { path: '/wrap', label: 'Wrap' }
  */
 export const CREATE_TOKEN_NAV_ITEM: NavItem = { path: '/token/create', label: 'Create Token' }
 
+/**
+ * Free listed-template adopt (#626) — More menu when launcher env is set.
+ * Label is **Migrate Token**, never Create Token / Mint.
+ */
+export const MIGRATE_TOKEN_NAV_ITEM: NavItem = { path: '/token/migrate', label: 'Migrate Token' }
+
 export type NavMenuOptions = {
   includeMint?: boolean
   includeUst1?: boolean
   includeWrap?: boolean
   includeCreateToken?: boolean
+  includeMigrateToken?: boolean
 }
 
 function appendConditionalNavItems(items: NavItem[], options?: NavMenuOptions): NavItem[] {
@@ -61,6 +68,9 @@ function appendConditionalNavItems(items: NavItem[], options?: NavMenuOptions): 
   }
   if (options?.includeCreateToken) {
     next = [...next, CREATE_TOKEN_NAV_ITEM]
+  }
+  if (options?.includeMigrateToken) {
+    next = [...next, MIGRATE_TOKEN_NAV_ITEM]
   }
   return next
 }

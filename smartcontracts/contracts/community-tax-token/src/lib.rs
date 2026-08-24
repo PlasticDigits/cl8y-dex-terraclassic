@@ -42,6 +42,7 @@
 //!
 //! Pair/router swap math is **not** in this crate.
 
+pub mod adopt;
 pub mod contract;
 pub mod error;
 pub mod identity;
@@ -51,6 +52,8 @@ pub mod pair_registry;
 pub mod state;
 pub mod tax;
 
+#[cfg(test)]
+mod adopt_multitest;
 #[cfg(test)]
 mod multitest;
 
