@@ -11,6 +11,12 @@ import { queryWasmSmart } from './lcd.js'
 import type { ActionKind } from './profiles.js'
 import type { AssetInfo, HybridSwapParams, PairInfo, PoolResponse, SwapOperation } from './types.js'
 import { assetInfoLabel, tokenAssetInfo } from './types.js'
+import { filterGemPairs, filterTaxPairs, findTaxInclusiveRoute, randomCw20PairEndpoints } from './pairPick.js'
+import { isTaxToken } from './taxDetect.js'
+import { DEFAULT_SELL_BPS } from './taxDetect.js'
+import { balanceCoversDebit, requiredWalletDebit, taxLogFields, type TaxLogFields } from './taxPreview.js'
+import { pairDirectSwapHook, routerExecuteSwapOperations, routerHopSwapPreviewHook } from './taxHooks.js'
+import { queryCw20Balance, queryTaxPreview } from './taxQuery.js'
 
 export interface ActionContext {
   lcdBase: string
@@ -18,6 +24,20 @@ export interface ActionContext {
   pairs: PairInfo[]
   gasPriceUluna: string
   dryRun: boolean
+  taxTokens?: Set<string>
+  taxMode?: boolean
+  sellBps?: number
+}
+
+export interface ActionResult {
+  action: ActionKind
+  txHash?: string
+  dryRun?: boolean
+  note?: string
+  tax_debit?: string
+  tax_credit?: string
+  bps?: number
+  path?: 'pair' | 'router'
 }
 
 interface HybridSimulationResponse {
@@ -28,20 +48,17 @@ function b64(obj: unknown): string {
   return Buffer.from(JSON.stringify(obj), 'utf8').toString('base64')
 }
 
-function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
-  const out: Record<string, unknown> = {
-    offer_asset_info: ts.offer_asset_info,
-    ask_asset_info: ts.ask_asset_info,
-  }
-  if (ts.hybrid) {
-    out.hybrid = {
-      pool_input: ts.hybrid.pool_input,
-      book_input: ts.hybrid.book_input,
-      max_maker_fills: ts.hybrid.max_maker_fills,
-      book_start_hint: ts.hybrid.book_start_hint ?? undefined,
-    }
-  }
-  return out
+function taxSet(ctx: ActionContext): Set<string> {
+  return ctx.taxTokens ?? new Set()
+}
+
+function workingPairs(ctx: ActionContext): PairInfo[] {
+  const taxes = taxSet(ctx)
+  return ctx.taxMode ? filterTaxPairs(ctx.pairs, taxes) : filterGemPairs(ctx.pairs, taxes)
+}
+
+function routeGraphPairs(ctx: ActionContext): PairInfo[] {
+  return ctx.taxMode ? ctx.pairs : workingPairs(ctx)
 }
 
 async function poolForOfferToken(
@@ -80,26 +97,6 @@ async function randomLiquidPair(
   return null
 }
 
-function randomCw20PairEndpoints(pairs: PairInfo[]): { from: string; to: string } | null {
-  const tokens = new Set<string>()
-  for (const p of pairs) {
-    for (const ai of p.asset_infos) {
-      const x = assetInfoLabel(ai)
-      if (x.startsWith('terra1')) tokens.add(x)
-    }
-  }
-  const arr = [...tokens]
-  if (arr.length < 2) return null
-  const from = arr[Math.floor(Math.random() * arr.length)]!
-  let to = arr[Math.floor(Math.random() * arr.length)]!
-  let guard = 0
-  while (to === from && guard++ < 8) {
-    to = arr[Math.floor(Math.random() * arr.length)]!
-  }
-  if (to === from) return null
-  return { from, to }
-}
-
 function pickOfferAmount(pool: PoolResponse, offerInfo: AssetInfo): string {
   const side = pool.assets.find((a) => JSON.stringify(a.info) === JSON.stringify(offerInfo))
   const reserve = side ? BigInt(side.amount) : 0n
@@ -110,57 +107,142 @@ function pickOfferAmount(pool: PoolResponse, offerInfo: AssetInfo): string {
   return use.toString()
 }
 
+function pairForHop(pairs: PairInfo[], offer: string, ask: string): PairInfo | undefined {
+  return pairs.find((p) => {
+    const a = assetInfoLabel(p.asset_infos[0])
+    const b = assetInfoLabel(p.asset_infos[1])
+    return (a === offer && b === ask) || (a === ask && b === offer)
+  })
+}
+
+async function gateTaxSell(input: {
+  ctx: ActionContext
+  wallet: string
+  offerToken: string
+  amount: string
+  path: 'pair' | 'router'
+  pairAddr?: string
+}): Promise<{ ok: true; logs: TaxLogFields } | { ok: false; note: string; logs?: TaxLogFields }> {
+  const taxes = taxSet(input.ctx)
+  if (!isTaxToken(input.offerToken, taxes)) {
+    return { ok: true, logs: { tax_debit: input.amount, tax_credit: input.amount, bps: 0, path: input.path } }
+  }
+  const sellBps = input.ctx.sellBps ?? DEFAULT_SELL_BPS
+  const amt = BigInt(input.amount)
+  let preview = null
+  if (input.path === 'pair' && input.pairAddr) {
+    preview = await queryTaxPreview({
+      lcdBase: input.ctx.lcdBase,
+      token: input.offerToken,
+      from: input.wallet,
+      to: input.pairAddr,
+      amount: input.amount,
+      sendMsgB64: b64(pairDirectSwapHook()),
+    })
+  } else if (input.path === 'router' && input.pairAddr) {
+    preview = await queryTaxPreview({
+      lcdBase: input.ctx.lcdBase,
+      token: input.offerToken,
+      from: input.ctx.router,
+      to: input.pairAddr,
+      amount: input.amount,
+      sendMsgB64: b64(routerHopSwapPreviewHook(input.wallet)),
+    })
+  }
+  const required = requiredWalletDebit(preview, amt, input.path, sellBps)
+  const logs = taxLogFields(preview, amt, input.path, sellBps)
+  const bal = await queryCw20Balance(input.ctx.lcdBase, input.offerToken, input.wallet)
+  if (!balanceCoversDebit(bal, required)) {
+    return { ok: false, note: 'tax_balance_short', logs }
+  }
+  return { ok: true, logs }
+}
+
+function withTaxLogs(base: ActionResult, logs?: TaxLogFields): ActionResult {
+  if (!logs) return base
+  return { ...base, ...logs }
+}
+
 export async function runAction(
   kind: ActionKind,
   wallet: MnemonicWallet,
   ctx: ActionContext
-): Promise<{ action: ActionKind; txHash?: string; dryRun?: boolean; note?: string }> {
-  const { lcdBase, router, pairs, gasPriceUluna, dryRun } = ctx
+): Promise<ActionResult> {
+  const { lcdBase, router, gasPriceUluna, dryRun } = ctx
+  const pairs = workingPairs(ctx)
+  const graphPairs = routeGraphPairs(ctx)
+  const taxes = taxSet(ctx)
 
-  if (pairs.length === 0) {
+  if (ctx.pairs.length === 0) {
     return { action: kind, note: 'no_pairs' }
   }
 
   if (dryRun) {
-    return { action: kind, dryRun: true, note: 'skipped_broadcast' }
+    const taxVisible = filterTaxPairs(ctx.pairs, taxes).length > 0
+    const note = ctx.taxMode
+      ? taxVisible
+        ? 'tax_pair_visible'
+        : 'tax_pair_missing'
+      : 'skipped_broadcast'
+    return { action: kind, dryRun: true, note }
+  }
+
+  if (ctx.taxMode && kind === 'hybrid_swap') {
+    return { action: kind, note: 'tax_hybrid_skip' }
+  }
+
+  if (pairs.length === 0) {
+    return { action: kind, note: ctx.taxMode ? 'no_tax_pair' : 'no_gem_pairs' }
   }
 
   switch (kind) {
     case 'router_multihop': {
       let route: SwapOperation[] | null = null
       let from = ''
-      for (let t = 0; t < 25 && !route; t++) {
-        const e = randomCw20PairEndpoints(pairs)
-        if (!e) break
-        const r = findRoute(pairs, e.from, e.to)
-        if (r && r.length >= 2) {
+      if (ctx.taxMode) {
+        const hit = findTaxInclusiveRoute(graphPairs, taxes, Math.random() < 0.6)
+        if (!hit) return { action: kind, note: 'no_tax_route' }
+        route = hit.route
+        from = hit.from
+      } else {
+        for (let t = 0; t < 25 && !route; t++) {
+          const e = randomCw20PairEndpoints(pairs, taxes)
+          if (!e) break
+          const r = findRoute(graphPairs, e.from, e.to)
+          if (r && r.length >= 2) {
+            route = r
+            from = e.from
+            break
+          }
+        }
+        if (!route) {
+          const e = randomCw20PairEndpoints(pairs, taxes)
+          if (!e) return { action: kind, note: 'no_route' }
+          const r = findRoute(graphPairs, e.from, e.to)
+          if (!r) return { action: kind, note: 'no_route' }
           route = r
           from = e.from
-          break
         }
       }
-      if (!route) {
-        const e = randomCw20PairEndpoints(pairs)
-        if (!e) return { action: kind, note: 'no_route' }
-        const r = findRoute(pairs, e.from, e.to)
-        if (!r) return { action: kind, note: 'no_route' }
-        route = r
-        from = e.from
-      }
-      const pool = await poolForOfferToken(lcdBase, pairs, from)
+      const pool = await poolForOfferToken(lcdBase, graphPairs, from)
       if (!pool) return { action: kind, note: 'no_liquid_pair' }
       const offerInfo = tokenAssetInfo(from)
       const offerAmount = pickOfferAmount(pool, offerInfo)
       if (offerAmount === '0') return { action: kind, note: 'offer_too_small' }
-      const inner = {
-        execute_swap_operations: {
-          operations: route.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
-          max_spread: '1',
-          minimum_receive: undefined,
-          to: undefined,
-          deadline: undefined,
-        },
-      }
+      const firstAsk = assetInfoLabel(route[0]!.terra_swap.ask_asset_info)
+      const firstPair = pairForHop(graphPairs, from, firstAsk)
+      const gated = await gateTaxSell({
+        ctx,
+        wallet: wallet.address,
+        offerToken: from,
+        amount: offerAmount,
+        path: 'router',
+        pairAddr: firstPair?.contract_addr,
+      })
+      if (!gated.ok) return withTaxLogs({ action: kind, note: gated.note }, gated.logs)
+      const inner = routerExecuteSwapOperations(
+        route.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) }))
+      )
       const txHash = await executeWasm(
         wallet,
         from,
@@ -174,7 +256,7 @@ export async function runAction(
         [],
         gasPriceUluna
       )
-      return { action: kind, txHash }
+      return withTaxLogs({ action: kind, txHash }, gated.logs)
     }
     case 'pair_swap': {
       const liq = await randomLiquidPair(lcdBase, pairs)
@@ -184,18 +266,21 @@ export async function runAction(
       const offerInfo = pair.asset_infos[i]!
       const offerToken = assetInfoLabel(offerInfo)
       if (!offerToken.startsWith('terra1')) return { action: kind, note: 'native_offer_skip' }
+      if (!ctx.taxMode && isTaxToken(offerToken, taxes)) {
+        return { action: kind, note: 'gem_tax_exclude' }
+      }
       const amount = pickOfferAmount(pool, offerInfo)
       if (amount === '0') return { action: kind, note: 'offer_too_small' }
-      const swapInner = {
-        swap: {
-          belief_price: undefined,
-          max_spread: '1',
-          to: undefined,
-          deadline: undefined,
-          trader: undefined,
-          hybrid: undefined,
-        },
-      }
+      const swapInner = pairDirectSwapHook()
+      const gated = await gateTaxSell({
+        ctx,
+        wallet: wallet.address,
+        offerToken,
+        amount,
+        path: 'pair',
+        pairAddr: pair.contract_addr,
+      })
+      if (!gated.ok) return withTaxLogs({ action: kind, note: gated.note }, gated.logs)
       const txHash = await executeWasm(
         wallet,
         offerToken,
@@ -209,7 +294,7 @@ export async function runAction(
         [],
         gasPriceUluna
       )
-      return { action: kind, txHash }
+      return withTaxLogs({ action: kind, txHash }, gated.logs)
     }
     case 'hybrid_swap': {
       const liq = await randomLiquidPair(lcdBase, pairs)
@@ -219,6 +304,9 @@ export async function runAction(
       const offerInfo = pair.asset_infos[idx]!
       const offerToken = assetInfoLabel(offerInfo)
       if (!offerToken.startsWith('terra1')) return { action: kind, note: 'native_offer_skip' }
+      if (isTaxToken(offerToken, taxes)) {
+        return { action: kind, note: 'tax_hybrid_skip' }
+      }
       const total = pickOfferAmount(pool, offerInfo)
       if (total === '0') return { action: kind, note: 'offer_too_small' }
       const tot = BigInt(total)
@@ -313,7 +401,7 @@ export async function runAction(
         [],
         gasPriceUluna
       )
-      return { action: kind, txHash }
+      return { action: kind, txHash, path: 'pair', bps: 0, tax_debit: amount, tax_credit: amount }
     }
     case 'add_liquidity': {
       const liq = await randomLiquidPair(lcdBase, pairs)
@@ -340,7 +428,7 @@ export async function runAction(
         ],
         gasPriceUluna
       )
-      return { action: kind, txHash }
+      return { action: kind, txHash, path: 'pair', bps: 0 }
     }
     case 'remove_liquidity': {
       const liq = await randomLiquidPair(lcdBase, pairs)
@@ -370,4 +458,20 @@ export async function runAction(
       return { action: kind, txHash }
     }
   }
+}
+
+function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
+  const out: Record<string, unknown> = {
+    offer_asset_info: ts.offer_asset_info,
+    ask_asset_info: ts.ask_asset_info,
+  }
+  if (ts.hybrid) {
+    out.hybrid = {
+      pool_input: ts.hybrid.pool_input,
+      book_input: ts.hybrid.book_input,
+      max_maker_fills: ts.hybrid.max_maker_fills,
+      book_start_hint: ts.hybrid.book_start_hint ?? undefined,
+    }
+  }
+  return out
 }

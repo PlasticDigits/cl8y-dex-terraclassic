@@ -17,7 +17,7 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 **Reason:** SHA-256 of LCD bytes equals `CodeInfo.data_hash` (`9D33BF25…`). cw2 `crates.io:cl8y-community-tax-token` / `1.0.0`. No `tax_map` / `fee_on_transfer` / `rebase` / `ibc_receive`. Pair credit on sell is `amount` (extra-debit on the trader), not inbound FoT. **8654** / FoT mutants must stay red.
 
-**Layer A-lcd / B-lt (O601-1):** executed 2026-08-23 on pinned LCD bytes (`make verify-issue-601`). A-lcd retries community-tax `InstantiateMsg` (cw20-base init missing `manager`). `balance_at` is A29 N/A. B-lt does **not** `RegisterListedPair` — inbound 1:1 / provide / round-trip / limit escrow hold. Tax classification is the LocalTerra smoke, not the generic harness.
+**Layer A-lcd / B-lt (O601-1):** executed 2026-08-23 on pinned LCD bytes (`make verify-issue-601`). A-lcd retries community-tax `InstantiateMsg` (cw20-base init missing `manager`). `balance_at` is A29 N/A. B-lt does **not** `RegisterListedPair` — inbound 1:1 / provide / round-trip / limit escrow hold. **Tax-on suite** ([#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623) / [`layer-b-tax-on.sh`](../../scripts/layer-b-tax-on.sh)): extra-debit / outbound / router `trader` / AutoLP floor after register. Do **not** merge that into B-lt. Invoices stay `#601` smoke.
 
 Re-run: `make verify-issue-601` · `CODE_ID=11611 LAYER_B_LT=1 ./scripts/qa/verify-issue-589.sh` · `make verify-issue-592`.
 
@@ -225,7 +225,8 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 ## Layer B (DEX + limits)
 
 - **B-mt:** harness P1/P2/P3/donation/flash/honeypot/limit/same-asset; FoT **P2** red.
-- **B-lt:** [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) **executed** 2026-08-23 — provide 1:1, P2 reserves, round-trip swap, limit escrow 1:1, SendFrom. Whitelist only the **local** store id (never treat that id as columbus-5 11611). Listed-pair extra-debit is the #601 smoke, not this harness.
+- **B-lt:** [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) **executed** 2026-08-23 — provide 1:1, P2 reserves, round-trip swap, limit escrow 1:1, SendFrom. Whitelist only the **local** store id (never treat that id as columbus-5 11611). B-lt stays **tax-off** (no `RegisterListedPair`).
+- **B-tax-on:** [`../../scripts/layer-b-tax-on.sh`](../../scripts/layer-b-tax-on.sh) (`make verify-issue-623`) — named tax-on suite vs B-lt split. Not a license to whitelist this LocalTerra store id or ALPHA **8654**.
 
 ## Factory-global impact
 

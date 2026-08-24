@@ -28,12 +28,15 @@ Product decision (2026-08-23): `pair` must be factory-listed **and** have the ta
 7. **M610-7 — reject on set.** Fake pair / wrong listed pair revert on instantiate or `UpdateConfig`, not only on skim. `poc_autolp_manager_can_skim_to_fake_pair` is inverted.
 8. **M610-8 — reentrancy residual.** `SKIMMING` is true for the swap submsg (pair hook calling `SkimToLp` → `Reentrancy`). Reply clears the lock **before** provide messages. A listed pair's provide hook could call `SkimToLp` again in the same tx. Factory+token-side listing is what keeps that pair in the CL8Y set.
 
+Live LocalTerra `SkimToLp` vs a factory pair (floor + fake-pair reject) is the named tax-on suite: [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) / `make verify-issue-623` (**C623-8**). `#601` smoke still leaves AutoLP `null`.
+
 ## Verify
 
 ```bash
 make verify-issue-610
 make verify-issue-616
 make verify-issue-620
+make verify-issue-623
 cd smartcontracts && cargo test -p cl8y-community-tax-autolp
 cd smartcontracts && cargo test -p cl8y-community-token-launcher poc_autolp_manager_can_skim_to_fake_pair
 ```

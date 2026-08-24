@@ -20,6 +20,30 @@ export type ProfilesFile = {
 
 const file = profilesDoc as ProfilesFile
 
+/** Dedicated tax/EMBER worker (GitLab #621). Replaces `balanced` when tax workers are on. */
+export const TAX_LISTED_PROFILE_ID = 'tax_listed'
+
+export function taxListedProfile(): ProfileConfig {
+  return {
+    id: TAX_LISTED_PROFILE_ID,
+    weights: {
+      router_multihop: 0.22,
+      pair_swap: 0.28,
+      hybrid_swap: 0.08,
+      limit_order: 0.18,
+      add_liquidity: 0.18,
+      remove_liquidity: 0.06,
+    },
+  }
+}
+
+/** Five wallets stay; wallet 4 becomes `tax_listed` unless `SWARM_TAX_WORKERS=0`. */
+export function resolveSwarmProfiles(taxOn: boolean): ProfileConfig[] {
+  const base = loadProfiles().profiles
+  if (!taxOn) return base
+  return [...base.slice(0, 4), taxListedProfile()]
+}
+
 export function loadProfiles(): ProfilesFile {
   if (!file.profiles || file.profiles.length !== 5) {
     throw new Error('profiles.json must define exactly five profiles.')

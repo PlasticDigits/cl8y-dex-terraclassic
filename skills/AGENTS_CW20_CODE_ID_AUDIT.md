@@ -12,7 +12,7 @@ This playbook is the **intake** process. Listing-time pin **F6** is [`AGENTS_CW2
 | **C589-2** | Decompile **and** tests are both required (**C2**, **C3**). Missing `wabt` fails; do not skip decomp. |
 | **C589-3** | Optimizer / byte-identical rebuild is an **optional appendix**, never a go/no-go input. |
 | **C589-4** | Approving an ID admits **every** instantiate of that wasm. Write that on every `REPORT.md`. |
-| **C589-5** | Known-bad **8654** / FoT mutants must fail 1:1 and **P2**. Green known-bad is a harness bug (**C4**). |
+| **C589-5** | Known-bad **8654** / FoT mutants must fail 1:1 and **P2**. Green known-bad is a harness bug (**C4**). Do **not** merge tax-on math into B-lt — that is [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) / [`layer-b-tax-on.sh`](../cw20-codeid-audits/scripts/layer-b-tax-on.sh) (**C623**). |
 | **C589-6** | 10184 analogue (`cw20-mintable`) must stay green on honest rows. Failures are harness bugs. |
 | **C589-7** | Layer B-lt is never a **silent** skip (**C5**). `make verify-issue-589` prints `SKIP Layer B-lt` or, with `LAYER_B_LT=1`, **executes** pinned wasm via `layer-a-lcd.sh` + `layer-b-lt.sh`. Stub PASS is a harness bug ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590) **M590-6**). |
 | **C589-8** | No mnemonics / admin keys in `cw20-codeid-audits/codeids/` (**C6**). CertiK file hashes are not `data_hash` (**C7**). |
@@ -47,13 +47,14 @@ Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_5
 - Treat a non-matching rebuild as the binary audit.
 - `AddWhitelistedCodeId` while that id’s `REPORT.md` is **NO-GO**. 8266 is **GO** and listed on columbus-5; 11619 is **GO** and listed 2026-08-24; still do **not** whitelist a LocalTerra store id or ALPHA **8654**.
 - Treat issuer wasm-admin, Everybody instantiate, or a minter cap as a template veto — those are documented residuals ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581)).
-- Whitelist a community-tax **LocalTerra** store id, or ALPHA **8654**. Columbus-5 **11611** REPORT is **GO** ([`codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). The stub [`codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) stays a **NO-GO** placeholder. See [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) (**O601-1–O601-7**). `make verify-issue-601` runs A-lcd/B-lt on pinned 11611 plus LocalTerra tax smoke.
+- Whitelist a community-tax **LocalTerra** store id, or ALPHA **8654**. Columbus-5 **11611** REPORT is **GO** ([`codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). The stub [`codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) stays a **NO-GO** placeholder. See [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) (**O601-1–O601-7**). `make verify-issue-601` runs A-lcd/B-lt on pinned 11611 plus LocalTerra tax smoke. Tax-on DEX paths (router `trader`, AutoLP floor) are `make verify-issue-623` — **not** a substitute listing gate and **not** merged into B-lt.
 - Bind-mount `indexer/` into root Docker to run cargo.
 - Store secrets under `codeids/`.
 - Split catalogue + harness into a parallel issue (work stays in #589).
 
 ## Related
 
+- [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) — named tax-on Layer B (**C623**, [#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623)); do **not** merge into B-lt
 - [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) — F6
 - [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) — H-01
 - [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_590.md) — #590 stacked verify
