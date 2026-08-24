@@ -45,6 +45,8 @@ export type TaxPreviewResponse = {
   debit: string
   credit: string
   tax: string
+  hop_trader?: string | null
+  hop_trader_debit?: string | null
 }
 
 export type LauncherOriginResponse = {

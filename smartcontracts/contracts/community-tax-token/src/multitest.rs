@@ -1,4 +1,4 @@
-//! Multi-test coverage for GitLab #592 (T592-1–T592-12) and #608 (H608-1–H608-8).
+//! Multi-test coverage for GitLab #592 (T592-1–T592-13), #607 (R607), and #608 (H608-1–H608-8).
 
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
@@ -358,6 +358,33 @@ fn swap_hook() -> Binary {
         hybrid: None,
     })
     .unwrap()
+}
+
+fn swap_hook_trader(trader: &str) -> Binary {
+    to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: None,
+        min_return: None,
+        to: None,
+        deadline: None,
+        trader: Some(trader.into()),
+        hybrid: None,
+    })
+    .unwrap()
+}
+
+fn fund_router(e: &mut EnvTok, amount: u128) {
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: "router".into(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
 }
 
 fn register_listed_pair(e: &mut EnvTok) {
@@ -2316,5 +2343,222 @@ fn instantiate_rejects_protocol_initial_exempt() {
     assert!(
         err.root_cause().to_string().contains("protocol")
             || err.root_cause().to_string().contains("Protocol")
+    );
+}
+
+// ---------------------------------------------------------------------------
+// #607 improved option 2 — official router hops tax the authenticated trader
+// ---------------------------------------------------------------------------
+
+#[test]
+fn router_sell_extra_debits_authenticated_trader() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    fund_router(&mut e, 1_000_000);
+    let router = Addr::unchecked("router");
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    let treasury_before = balance(&e.app, &e.token, e.treasury.as_str());
+
+    e.app
+        .execute_contract(
+            router.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: swap_hook_trader(e.user.as_str()),
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        balance(&e.app, &e.token, router.as_str()),
+        0,
+        "router debited declared amount only"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + 1_000_000,
+        "pair inbound 1:1"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - 50_000,
+        "trader extra-debit 5%"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treasury_before + 50_000
+    );
+
+    let p = preview(
+        &e,
+        &router,
+        &e.pair,
+        1_000_000,
+        Some(swap_hook_trader(e.user.as_str())),
+    );
+    assert_eq!(p.kind, TaxKind::Sell);
+    assert_eq!(p.debit, Uint128::new(1_000_000));
+    assert_eq!(p.credit, Uint128::new(1_000_000));
+    assert_eq!(p.tax, Uint128::new(50_000));
+    assert_eq!(p.hop_trader.as_ref(), Some(&e.user));
+    assert_eq!(p.hop_trader_debit, Some(Uint128::new(50_000)));
+}
+
+#[test]
+fn router_sell_without_trader_fail_closes() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    fund_router(&mut e, 1_000_000);
+    let err = e
+        .app
+        .execute_contract(
+            Addr::unchecked("router"),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("trusted non-exempt trader"),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn router_sell_rejects_protocol_exempt_trader() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    fund_router(&mut e, 1_000_000);
+    let err = e
+        .app
+        .execute_contract(
+            Addr::unchecked("router"),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: swap_hook_trader(e.pair.as_str()),
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("trusted non-exempt trader"),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn pair_direct_ignores_spoofed_trader() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let victim = e.manager.clone();
+    let victim_before = balance(&e.app, &e.token, victim.as_str());
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: swap_hook_trader(victim.as_str()),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, victim.as_str()),
+        victim_before,
+        "spoofed trader is not extra-debited"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - 1_050_000,
+        "sender pays pair-direct extra-debit"
+    );
+}
+
+#[test]
+fn router_to_user_is_buy_outbound_split() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    // pair → router stays 1:1 (T592-1)
+    e.app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: "router".into(),
+                amount: Uint128::new(1_000_000),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, "router"), 1_000_000);
+
+    let bob = Addr::unchecked("bob");
+    e.app
+        .execute_contract(
+            Addr::unchecked("router"),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: bob.to_string(),
+                amount: Uint128::new(1_000_000),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, bob.as_str()), 950_000);
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), 50_000);
+}
+
+#[test]
+fn manager_exempt_hop_trader_skips_router_sell_tax() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    fund_router(&mut e, 1_000_000);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    e.app
+        .execute_contract(
+            Addr::unchecked("router"),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: swap_hook_trader(e.user.as_str()),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before,
+        "directory hop trader is not extra-debited"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + 1_000_000
     );
 }
