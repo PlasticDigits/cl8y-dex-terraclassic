@@ -18,13 +18,14 @@ The #602 issue body still lists unused launcher **11612** (`terra1af9xm…`). Th
 | Env | Value |
 |-----|--------|
 | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` | **11611** |
-| `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**) |
+| `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**; store was **11614**) |
 | `CMM_GOVERNANCE_ADDR` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` |
 
 | Record | Tx |
 |--------|----|
 | 11614 store (`CreateToken`) | [`33F6A49F…45B8`](https://finder.terraclassic.community/columbus-5/tx/33F6A49F7221A377132D0A2B534A48D5AC64A5CA1F30D20BBE8A34086D3A45B8) height **30072268** |
 | Canonical launcher instantiate | [`041E3C43…87FE`](https://finder.terraclassic.community/columbus-5/tx/041E3C4379E88CE073B2EEED0125BEC58BCCAC31711AC15500352581763287FE) height **30072275** |
+| Launcher migrate 11614 → **11620** | [`97C0FCA9…EE8C`](https://finder.terraclassic.community/columbus-5/tx/97C0FCA93DFADD4BE4250935C7EFAF1CAB0A20C6FB64B2D8B774A4A8BF63EE8C) height **30085550** ([#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611)) |
 | Unused 11612 instance | `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz` |
 
 Registry: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md). Trace: [`deployments/mainnet-soft-launch/deploy-trace.md`](../deployments/mainnet-soft-launch/deploy-trace.md). Coolify keys: [`deployments/mainnet-ust1-wrap/coolify.env.example`](../deployments/mainnet-ust1-wrap/coolify.env.example).

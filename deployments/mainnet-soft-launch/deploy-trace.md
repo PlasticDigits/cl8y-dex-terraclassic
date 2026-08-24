@@ -268,3 +268,23 @@ Uploader: `cl8ydeploy` (`terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`). Instant
 
 Coolify / indexer (dApp [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593), indexer [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594)): `VITE_COMMUNITY_TAX_CODE_ID=11611`, `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = canonical launcher above, `CMM_GOVERNANCE_ADDR` = CMM. Unset keeps Create Token / catalog unconfigured.
 
+### Community tax rotate (#611 / #612 / #616, columbus-5, 2026-08-24)
+
+Script: [`scripts/upgrade-611-community-tax.sh`](../../scripts/upgrade-611-community-tax.sh). Tip includes !409 option-2 classify. Uploader `cl8ydeploy`. Instantiate permission **Everybody**.
+
+| Role | `code_id` | `data_hash` | store tx | height |
+|------|-----------|-------------|----------|--------|
+| Token (stored, **not** listed) | **11619** | `63CB21D1806C5DA65818AEABCDB4727C71709862B7E4C7042F99CFB34CBAFA20` | [`42A76F85…CFDE`](https://finder.terraclassic.community/columbus-5/tx/42A76F85B687C3E8DF548193E11CDBAC92A4D6934C877F76CF85EE97806CCFDE) | 30085543 |
+| Launcher (canonical instance now this wasm) | **11620** | `7AD7DBA2200BAACF61C8B4D1088F3B55F22B8CDCB3BBB10EF5DEDFC7A78E87BF` | [`672F9464…AEC2`](https://finder.terraclassic.community/columbus-5/tx/672F946410FD5FC89953DD9F033FCD17171AAAFA14647A5291341F7335A5AEC2) | 30085545 |
+| AutoLP (stored, **not** listed) | **11621** | `DAD413A3207291BB697BEE703CA590C27825BA64BE3D174361D4861F108B76F1` | [`92F90C51…C8A6`](https://finder.terraclassic.community/columbus-5/tx/92F90C510B604D8413AAA366D37C3E3F8F1B22230A3AD7DB8B39F22EBAA5C8A6) | 30085547 |
+
+| Field | Value |
+|-------|--------|
+| **Launcher migrate** `terra126pr5…` **11614 → 11620** | [`97C0FCA9…EE8C`](https://finder.terraclassic.community/columbus-5/tx/97C0FCA93DFADD4BE4250935C7EFAF1CAB0A20C6FB64B2D8B774A4A8BF63EE8C) height **30085550** |
+| **Signer** | DEX 2-of-3 `terra1zlmv2…hep7` |
+| **`GetConfig`** | `token_code_id` **11611**, `autolp_code_id` **11613** (no `UpdateConfig` on launcher) |
+| **`GetWhitelistedCodeIds`** | still **`[6036, 8266, 10184, 11611]`** — 11619 waits `#589` REPORT **GO** |
+| **11611 / 11613 / 11619 / 11621 instances** | **0** — no CMM migrate |
+
+Do **not** whitelist **11620** / **11621** / unused **11612** / ALPHA **8654**. Keep **11611** listed until rotate + Refresh. Coolify `COMMUNITY_TAX_OPTION2_CODE_IDS` stays unset until instances run 11619 bytes.
+

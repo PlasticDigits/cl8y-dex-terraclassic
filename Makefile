@@ -632,6 +632,8 @@ verify-issue-594:
 verify-issue-601:
 	@chmod +x scripts/qa/verify-issue-601.sh \
 		scripts/qa/localterra-community-tax-smoke.sh \
+		scripts/upgrade-611-community-tax.sh \
+		scripts/qa/test-upgrade-611-guards.sh \
 		scripts/qa/verify-issue-592.sh \
 		scripts/qa/verify-issue-589.sh \
 		cw20-codeid-audits/scripts/layer-a-lcd.sh \

@@ -19,25 +19,29 @@ Sibling surfaces: dApp create/manage [#593](https://gitlab.com/PlasticDigits/cl8
 | [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) | **H-01** / do not add FoT math |
 | [`AGENTS_CW20_CODE_ID_AUDIT.md`](./AGENTS_CW20_CODE_ID_AUDIT.md) | Listing intake |
 | [`AGENTS_FRONTEND_PAY_INVOICE.md`](./AGENTS_FRONTEND_PAY_INVOICE.md) | Off-chain any-token pay |
-| [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) | Columbus-5 **11611** / launcher `terra126pr5…ahzwze` (11614) |
+| [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) | Columbus-5 listed **11611** / launcher `terra126pr5…ahzwze` (**11620**) |
 
 ## Columbus-5 pins (#601)
 
 | Role | Value |
 |------|--------|
 | Token code_id (listed) | **11611** · `data_hash` `9D33BF2539A9A5B2F13FD4B321CDBD0B0FD86D936D5D6BD6681955FA30210EC2` |
-| Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11614**, wasm admin DEX 2-of-3 `terra1zlmv2…hep7`) |
-| AutoLP code_id | **11613** (stored; not factory-whitelisted) |
+| Token rotate (stored) | **11619** · `63CB21D1…BAFA20` — not listed; `#589` intake pending |
+| Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**, wasm admin DEX 2-of-3 `terra1zlmv2…hep7`) |
+| AutoLP code_id (launcher config) | **11613** (not factory-whitelisted) |
+| AutoLP rotate (stored) | **11621** · `DAD413A3…8B76F1` — not listed |
 | Token wasm admin / CMM | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` (stamped on create; not launcher `ContractInfo.admin`) |
 | Factory whitelist | `[6036, 8266, 10184, 11611]` |
+
+Post-merge rotate (#611 / #612 / #616, 2026-08-24): [`scripts/upgrade-611-community-tax.sh`](../scripts/upgrade-611-community-tax.sh) stored **11619** / **11620** / **11621** and 2-of-3-migrated canonical launcher **11614 → 11620**. `GetConfig.token_code_id` is still **11611** (no `UpdateConfig`). Do not whitelist launcher **11612** / **11614** / **11620**, AutoLP **11613** / **11621**, or ALPHA **8654**. `UPGRADE611_589_GO=1` after [`codeids/11619/REPORT.md`](../cw20-codeid-audits/codeids/11619/REPORT.md) is **GO**.
 
 `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` = 11611. `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` = launcher. Unset → dApp page unavailable / indexer `configured: false`.
 
 ## Ops / LocalTerra invariants **O601-1–O601-7** ([#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601))
 
 1. **O601-1 — pinned A-lcd / B-lt.** `CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589` executes the LCD wasm (not mintable analogue). A-lcd retries community-tax `InstantiateMsg` when cw20-base init fails. `balance_at` is A29 N/A.
-2. **O601-2 — whitelist after GO only.** Factory lists **11611**. Do **not** whitelist launcher **11612** / **11614**, AutoLP **11613**, a LocalTerra store id, or ALPHA **8654**.
-3. **O601-3 — free-profile launcher create.** `features == []` uses `ExecuteMsg::CreateToken` (CW20 cannot `Send` 0). Paid SKUs stay on UST1 `Send`. Stamps token `admin: cmm_governance` and `GetLauncherOrigin`. Canonical columbus-5 launcher is **11614** (`terra126pr5…ahzwze`). **11612** (`terra1af9xm…`) predates this execute and is not migratable (CMM treasury wasm admin); leave unused.
+2. **O601-2 — whitelist after GO only.** Factory lists **11611**. Do **not** whitelist launcher **11612** / **11614** / **11620**, AutoLP **11613** / **11621**, a LocalTerra store id, or ALPHA **8654**.
+3. **O601-3 — free-profile launcher create.** `features == []` uses `ExecuteMsg::CreateToken` (CW20 cannot `Send` 0). Paid SKUs stay on UST1 `Send`. Stamps token `admin: cmm_governance` and `GetLauncherOrigin`. Canonical columbus-5 launcher is `terra126pr5…ahzwze` (code **11620**; store was **11614**). **11612** (`terra1af9xm…`) predates this execute and is not migratable (CMM treasury wasm admin); leave unused.
 4. **O601-4 — catalog filter.** Rogue `--admin` instantiate has `GetLauncherOrigin.launcher == null`. dApp (#593) / indexer (#594) must require CMM admin + origin.
 5. **O601-5 — listed-pair tax.** After `RegisterListedPair`, sell extra-debit + buy outbound split match `TaxPreview` (max-button). Provide `TransferFrom` stays 1:1. Layer B-lt does **not** register the pair (1:1 harness).
 6. **O601-6 — invoices on chain.** SKU unlock and settings batch are each exactly 50 UST1. Smoke SKU unlock must Send to the **launcher** (same as the dApp; **T606-7**). MintControl `RevokeMint` is one-way.
@@ -94,7 +98,7 @@ CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp
 ```
 
-Do **not** `AddWhitelistedCodeId` until `cw20-codeid-audits/codeids/<id>/REPORT.md` is **GO**. Columbus-5 **11611** is listed (see that REPORT). Do not whitelist ALPHA **8654**. Do not whitelist launcher **11612** / **11614** or AutoLP **11613**.
+Do **not** `AddWhitelistedCodeId` until `cw20-codeid-audits/codeids/<id>/REPORT.md` is **GO**. Columbus-5 **11611** is listed (see that REPORT). **11619** is stored and **NO-GO** until intake. Do not whitelist ALPHA **8654**. Do not whitelist launcher **11612** / **11614** / **11620** or AutoLP **11613** / **11621**.
 
 ## Do not
 

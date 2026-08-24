@@ -185,6 +185,7 @@ make verify-issue-608                    # #608 LaunchGuards per-wallet cooldown
 make verify-issue-609                    # #609 ExemptionDirectory skips buy/sell/transfer tax (multitest + hint)
 make verify-issue-610                    # #610 AutoLP factory-listed pair + skim floor (M-2 / M-3)
 make verify-issue-601                    # #601 store + 11611 REPORT + factory list + LocalTerra smoke
+# columbus-5 rotate (#611): ./scripts/upgrade-611-community-tax.sh  (11619/11620/11621; launcher 11620)
 make verify-issue-606                    # #606 launcher Enable Feature + SKU dedupe (T606; crates + dApp invoices)
 make verify-issue-602                    # #602 post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token
 make verify-issue-607                    # #607 community tax router hops tax the original trader (C-2 option 2)
