@@ -16,7 +16,6 @@ import {
   COMMUNITY_MIGRATE_CODE_IDS,
   COMMUNITY_TAX_CODE_ID,
   DEFAULT_NETWORK,
-  DOCS_GITLAB_BASE,
   isCommunityTaxEnabled,
   NETWORKS,
 } from '@/utils/constants'
@@ -134,16 +133,7 @@ export default function MigrateTokenPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Migrate Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Adopt an allowlisted CW20 onto the community tax wasm. Same address, no 50 UST1. Add source code ids with{' '}
-          <code>VITE_COMMUNITY_MIGRATE_CODE_IDS</code>. Launcher-created tokens stay CMM-only.{' '}
-          <a
-            className="underline"
-            href={`${DOCS_GITLAB_BASE}/contracts-terraclassic.md`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Docs
-          </a>
+          Move an existing token onto this template. Address stays the same.
         </p>
       </div>
 
@@ -184,15 +174,10 @@ export default function MigrateTokenPage() {
           <div className="text-sm space-y-2" data-testid="migrate-token-probe">
             {tokenInfoQuery.data && (
               <p>
-                {tokenInfoQuery.data.symbol} · {tokenInfoQuery.data.name} · {tokenInfoQuery.data.decimals} dp
+                {tokenInfoQuery.data.symbol} · {tokenInfoQuery.data.name}
               </p>
             )}
-            {infoQuery.data && (
-              <p style={{ color: 'var(--ink-dim)' }}>
-                code {infoQuery.data.code_id} · admin {infoQuery.data.admin}
-              </p>
-            )}
-            {verdict && (
+            {verdict && !verdict.canSubmit && (
               <p data-testid={`migrate-token-verdict-${verdict.kind}`} style={{ color: 'var(--ink-dim)' }}>
                 {verdict.reason}
               </p>

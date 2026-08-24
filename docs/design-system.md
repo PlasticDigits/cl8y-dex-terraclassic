@@ -153,7 +153,8 @@ Retail copy terms used across docs and skills ([#489](https://gitlab.com/Plastic
 | Invoice (protocol fee) | Exact CW20 amount a feature charges (SKU unlock or settings batch). Not a DEX swap fee and not a community token tax. |
 | Community tax token | Leader-created CW20 from the #592 template. Buy/sell/wallet tax is **not** the DEX swap fee. Buy/sell applies on **every listed-pair swap**, including hybrid and multi-hop (**T592-13** / [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) improved option 2). Manager cannot migrate wasm (CMM-only). Playbook: [`AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md) ([#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)); router policy: [`AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). |
 | Extra exemptions | Paid SKU: manager-chosen wallets skip **buy, sell, and transfer** tax. Launch guards still apply. Playbook: [`AGENTS_COMMUNITY_TAX_EXEMPT.md`](../skills/AGENTS_COMMUNITY_TAX_EXEMPT.md) ([#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609)). |
-| Create Token | More-menu flow to instantiate a community tax token (`/token/create`). Not faucet **Mint** and not **Create Pair**. |
+| Create Token | More-menu flow to instantiate a community tax token (`/token/create`). Not faucet **Mint** and not **Create Pair**. Lead links **Migrate here** for an existing token. |
+| Migrate Token | Free adopt of an existing token onto the community tax template (`/token/migrate`). Address stays the same. Not Create Token. |
 
 ## Verification
 

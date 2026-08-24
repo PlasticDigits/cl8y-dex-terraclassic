@@ -11,7 +11,7 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 | [GitLab **#626**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) | Impl + LP gate |
 | [`docs/contracts-terraclassic.md` § migrate-adopt](../docs/contracts-terraclassic.md#migrate-adopt-gitlab-626) | Message shape + LP table |
 | [`adopt.rs`](../smartcontracts/contracts/community-tax-token/src/adopt.rs) | Foreign importer |
-| [`MigrateTokenPage.tsx`](../frontend-dapp/src/pages/MigrateTokenPage.tsx) | Retail page |
+| [`MigrateTokenPage.tsx`](../frontend-dapp/src/pages/MigrateTokenPage.tsx) | Retail page — title + one lead sentence; no env-var / 50 UST1 / cw2 essays (**#489**) |
 | [`communityTaxMigrate.ts`](../frontend-dapp/src/utils/communityTaxMigrate.ts) | Verdict + free-profile payload |
 | [`community_tokens.rs`](../indexer/src/indexer/community_tokens.rs) | `GetMigrateOrigin` attest |
 
@@ -33,7 +33,7 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 6. **M626-6 — origin.** Write `CONFIG.launcher` to the official launcher. Write `GetMigrateOrigin`. Do **not** fake `launcher_tx`. Catalog attests CMM + origin + (`launcher_tx` **or** allowlisted migrate cw2).
 7. **M626-7 — no mint/burn.** `total_supply` and balances stay. Source minter is revoked; MintControl stays off.
 8. **M626-8 — caps.** Combined `max_*` ≤ 2500. Honest adopt payload is tax-off zeros. Leftover FoT maps 4.5%/1% → buy 450 / sell 100. Headroom without VariableRates is rejected.
-9. **M626-9 — F6.** Page discloses CL8Y pairs freeze until governance `RefreshPairAssetCodeIds`. Token admin cannot Refresh. Do not Refresh a pair whose other asset is unlisted.
+9. **M626-9 — F6.** Page discloses CL8Y pairs pause until governance refreshes them (`RefreshPairAssetCodeIds`). Token admin cannot Refresh. Do not Refresh a pair whose other asset is unlisted. Human words only — no `tax_info` / `RegisterListedPair` / `VITE_*` on the card.
 10. **M626-10 — Terraport/GDEX.** Do not `RegisterListedPair` those pair addrs. Honest templates stay 1:1 on external DEX. Extra-debit is CL8Y listed pairs only.
 11. **M626-11 — already tax.** 11611 / 11619 (or LocalTerra tax store id) are **not** offered as adopt. Same-crate bump stays CMM ops (`MigrateMsg {}`).
 12. **M626-12 — no Swap dump.** After success, link `/token/:addr/manage` only (**C593-11**).

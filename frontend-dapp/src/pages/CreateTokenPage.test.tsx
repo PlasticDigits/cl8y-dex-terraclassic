@@ -84,7 +84,9 @@ describe('CreateTokenPage (#593)', () => {
     expect(screen.getByRole('heading', { name: /create token/i })).toBeInTheDocument()
     expect(screen.getByText(/not the DEX swap fee/i)).toBeInTheDocument()
     expect(screen.getByText(/CMM-only/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /migrate token/i })).toHaveAttribute('href', '/token/migrate')
+    expect(screen.getByRole('link', { name: /migrate here/i })).toHaveAttribute('href', '/token/migrate')
+    expect(screen.getByText(/already have a token/i)).toBeInTheDocument()
+    expect(screen.queryByText(/6036/)).not.toBeInTheDocument()
     expect(screen.getByTestId('create-token-tax-scope')).toHaveTextContent(
       'Buy/sell tax applies on every listed-pair swap.'
     )

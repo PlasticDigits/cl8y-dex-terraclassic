@@ -12,7 +12,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [`docs/frontend.md` § Create Token](../docs/frontend.md#create-token-community-tax) | Invariants **C593-1–C593-14**, **C604-1–C604-3**, **C605-1–C605-4** |
 | [`communityTaxIdentity.ts`](../frontend-dapp/src/utils/communityTaxIdentity.ts) | Name/symbol/decimals + connected-wallet helpers (#604) |
 | [`communityTaxCreateForm.ts`](../frontend-dapp/src/utils/communityTaxCreateForm.ts) | Shared form → hook args (#604 / #605) |
-| [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard (links **Migrate Token** for other templates; launcher 11619 stays CMM-only) |
+| [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard (lead links **Migrate here** → `/token/migrate`; launcher 11619 stays CMM-only) |
 | [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | `/token/migrate` adopt (**M626**, #626) |
 | [`ManageTokenPage.tsx`](../frontend-dapp/src/pages/ManageTokenPage.tsx) | Manager console |
 | [`communityTaxInvoice.ts`](../frontend-dapp/src/utils/communityTaxInvoice.ts) | Hooks + invoices |

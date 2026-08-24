@@ -61,7 +61,7 @@ export function classifyMigrateSource(input: {
   if (input.codeId === input.taxCodeId || COLUMBUS5_TAX_CODE_IDS.includes(input.codeId as 11611 | 11619)) {
     return {
       kind: 'already_tax',
-      reason: 'This contract is already the community tax wasm. Same-crate upgrades are CMM-only — not this page.',
+      reason: 'This token is already on this template.',
       canSubmit: false,
     }
   }
@@ -70,23 +70,20 @@ export function classifyMigrateSource(input: {
   if (!onList && !localFactoryOk) {
     return {
       kind: 'unlisted',
-      reason:
-        'Source code id is not on the migrate allowlist. Add it to VITE_COMMUNITY_MIGRATE_CODE_IDS. This page does not factory-whitelist code ids.',
+      reason: 'This token cannot be migrated here.',
       canSubmit: false,
     }
   }
   if (!input.connectedWallet || input.connectedWallet !== input.wasmAdmin) {
     return {
       kind: 'not_admin',
-      reason: 'Connect the current wasm admin. Holders cannot migrate someone else’s token.',
+      reason: 'Connect the token admin wallet.',
       canSubmit: false,
     }
   }
   return {
     kind: 'go',
-    reason: input.hasTaxMap
-      ? 'Allowlisted source with tax leftovers. One click wipes tax_info / tax_map, keeps this address, and lands on the tax wasm. No 50 UST1.'
-      : 'Allowlisted source. One click migrates this address onto the tax wasm. No 50 UST1.',
+    reason: 'Ready to migrate.',
     canSubmit: true,
   }
 }
@@ -124,7 +121,7 @@ export function buildAdoptMigrateMsg(input: {
 }
 
 export const MIGRATE_LP_CONFIRM =
-  'Address stays the same. Holders stay. Terraport/GDEX keep this CW20 (honest templates stay 1:1). CL8Y factory pairs freeze until governance Refresh. Extra-debit applies only after you register a CL8Y listed pair — never a Terraport or GDEX pair.'
+  'Address stays the same. CL8Y pairs pause until governance refreshes them. Terraport and GDEX keep this token.'
 
 export const MIGRATE_LP_CONFIRM_WIPE =
-  'Address stays the same. Holders stay. tax_info / tax_map are wiped — Terraport/GDEX forward flow becomes 1:1. Historical skim is not unwound. Do not RegisterListedPair those pairs. CL8Y factory pairs freeze until governance Refresh. Extra-debit is CL8Y listed pairs only.'
+  'Address stays the same. Old tax leftovers are cleared. CL8Y pairs pause until governance refreshes them. Terraport and GDEX keep this token 1:1.'

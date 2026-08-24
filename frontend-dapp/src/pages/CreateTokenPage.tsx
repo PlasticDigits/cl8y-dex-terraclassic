@@ -25,12 +25,7 @@ import {
   parseTokenSymbol,
   walletOwnershipHelper,
 } from '@/utils/communityTaxIdentity'
-import {
-  COMMUNITY_TOKEN_LAUNCHER,
-  DOCS_GITLAB_BASE,
-  isCommunityTaxEnabled,
-  UST1_TOKEN_ADDRESS,
-} from '@/utils/constants'
+import { COMMUNITY_TOKEN_LAUNCHER, isCommunityTaxEnabled, UST1_TOKEN_ADDRESS } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -227,16 +222,10 @@ export default function CreateTokenPage() {
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Create Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
           Community tax token. Tax is not the DEX swap fee. {COMMUNITY_TAX_PAIR_DIRECT_COPY} Wasm upgrades on a token
-          you create here are CMM-only. To adopt a listed 6036 / 10184 / 8266 template onto this wasm, use{' '}
-          <Link to="/token/migrate">Migrate Token</Link>.{' '}
-          <a
-            className="underline"
-            href={`${DOCS_GITLAB_BASE}/contracts-terraclassic.md`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Docs
-          </a>
+          you create here are CMM-only. Already have a token?{' '}
+          <Link className="underline" to="/token/migrate">
+            Migrate here
+          </Link>
         </p>
       </div>
 

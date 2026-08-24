@@ -75,6 +75,9 @@ describe('MigrateTokenPage (#626)', () => {
   it('A9: heading is Migrate Token and no invoice', () => {
     renderWithProviders(<MigrateTokenPage />, { route: '/token/migrate?payee=terra1evil&manager=terra1evil' })
     expect(screen.getByRole('heading', { name: /migrate token/i })).toBeInTheDocument()
+    expect(screen.getByText(/move an existing token onto this template/i)).toBeInTheDocument()
+    expect(screen.queryByText(/VITE_COMMUNITY_MIGRATE_CODE_IDS/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/allowlisted CW20/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
     expect(screen.getByTestId('migrate-token-addr')).toHaveValue('')
   })
@@ -93,7 +96,8 @@ describe('MigrateTokenPage (#626)', () => {
     await user.type(screen.getByTestId('migrate-token-addr'), ALPHA)
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
-    expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/tax_info/)
+    expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/tax leftovers/)
+    expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Terraport/)
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
   })
 
