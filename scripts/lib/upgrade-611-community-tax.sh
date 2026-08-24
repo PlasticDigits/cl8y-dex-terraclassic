@@ -25,8 +25,8 @@ upgrade611_assert_whitelist_ok() {
   if upgrade611_is_forbidden_whitelist "$id" "$*"; then
     upgrade611_die "refusing AddWhitelistedCodeId $id (launcher / AutoLP / ALPHA / unused 11612 / new sister store)"
   fi
-  if [[ "$id" == "11611" ]]; then
-    upgrade611_die "11611 is already listed. Pass the new token code_id from this store, not 11611."
+  if [[ "$id" == "11611" || "$id" == "11619" ]]; then
+    upgrade611_die "$id is already listed. Pass a new token code_id from this store, not $id."
   fi
 }
 

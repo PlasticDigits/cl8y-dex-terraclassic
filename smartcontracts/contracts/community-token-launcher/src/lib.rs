@@ -3,8 +3,9 @@
 //! **T592-5:** `WasmMsg::Instantiate { admin: cmm_governance }`. Manager cannot
 //! migrate. **T592-12:** paid SKUs accept UST1 `Send` only (#595 routes off-chain).
 //! **O601-3:** zero-SKU free profile uses `ExecuteMsg::CreateToken` (CW20 cannot
-//! `Send` 0). Canonical columbus-5 launcher is **11614**
-//! (`terra126pr5…ahzwze`, wasm admin DEX 2-of-3). **11612** is unused.
+//! `Send` 0). Canonical columbus-5 launcher is `terra126pr5…ahzwze`
+//! (code **11620**, wasm admin DEX 2-of-3). **11612** is unused.
+//! **UpdateConfig** (wasm admin) rotates `token_code_id` / `autolp_code_id`.
 //!
 //! **T606-1 / T606-5:** official Enable Feature is UST1 `Send` here
 //! (`{enable_feature:{token,sku}}`); create rejects duplicate SKUs. Playbook:

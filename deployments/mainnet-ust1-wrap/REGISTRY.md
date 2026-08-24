@@ -63,13 +63,13 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 | Role | Address / id | Coolify / env key |
 |------|--------------|-------------------|
 | Token template (factory-listed) | code **11611** · pin `9D33BF25…210EC2` | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` |
-| Token rotate (stored, not listed) | code **11619** · pin `63CB21D1…BAFA20` | `#589` REPORT **GO**; `AddWhitelistedCodeId` still pending ([#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611)) |
+| Token rotate (listed) | code **11619** · pin `63CB21D1…BAFA20` | listed 2026-08-24 tx [`B659D914…40CF`](https://finder.terraclassic.community/columbus-5/tx/B659D914CEAA045F05B5371F90669B79E34E7AE414537C6B4A8A58286BC640CF) height **30085794** |
 | Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**, was 11614; wasm admin DEX 2-of-3) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
 | AutoLP template (live bind pin) | code **11613** (launcher `GetConfig.autolp_code_id`) | bind later; not required for create |
 | AutoLP rotate (stored, not listed) | code **11621** · pin `DAD413A3…8B76F1` | do not whitelist |
 | CMM wasm admin / attested `cmm_governance` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | `CMM_GOVERNANCE_ADDR` (indexer); dApp admin-banner compare |
 
-Factory whitelist after 2026-08-24: still **`[6036, 8266, 10184, 11611]`**. Launcher instance migrated 11614→11620; `token_code_id` still **11611**. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). Listed REPORT: [`../../cw20-codeid-audits/codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md). Rotate REPORT: [`../../cw20-codeid-audits/codeids/11619/REPORT.md`](../../cw20-codeid-audits/codeids/11619/REPORT.md) (**GO**; whitelist is a separate ops step).
+Factory whitelist after 2026-08-24: **`[6036, 8266, 10184, 11611, 11619]`**. Launcher instance is **11620**; `GetConfig.token_code_id` still **11611** / `autolp_code_id` **11613** until a new launcher store + `UpdateConfig`. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). Listed REPORTs: [`../../cw20-codeid-audits/codeids/11611/REPORT.md`](../../cw20-codeid-audits/codeids/11611/REPORT.md), [`../../cw20-codeid-audits/codeids/11619/REPORT.md`](../../cw20-codeid-audits/codeids/11619/REPORT.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # 11619 (`cl8y-community-tax-token` rotate)
 
-Named T592 exception for the #589 harness ([#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611)). Post-#604–#609 + option-2 pin. **GO** 2026-08-24; not factory-listed until ops `AddWhitelistedCodeId`.
+Named T592 exception for the #589 harness ([#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611)). Post-#604–#609 + option-2 pin. **GO** 2026-08-24; factory-listed 2026-08-24.
 
 - Pin: [`wasm.sha256`](wasm.sha256) = LCD `data_hash` `63CB21D1…BAFA20`
 - Report: [`REPORT.md`](REPORT.md)

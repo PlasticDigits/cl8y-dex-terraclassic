@@ -18,6 +18,7 @@ cw20 = { workspace = true }
 cw-utils = { workspace = true }
 cl8y-community-tax-token = { path = "../community-tax-token", features = ["library"] }
 cl8y-community-tax-autolp = { path = "../community-tax-autolp", features = ["library"] }
+dex-common = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -25,4 +26,4 @@ thiserror = { workspace = true }
 [dev-dependencies]
 cw-multi-test = { workspace = true }
 cw20-base = { workspace = true }
-dex-common = { workspace = true }
+cw-storage-plus = { workspace = true }

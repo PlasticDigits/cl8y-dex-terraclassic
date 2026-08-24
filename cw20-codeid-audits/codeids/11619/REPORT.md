@@ -10,7 +10,7 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 ## Verdict
 
-**GO** for factory `AddWhitelistedCodeId 11619` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). Columbus-5 **stored 2026-08-24** (height **30085543**). **Not listed yet** — whitelist is a separate ops step (`UPGRADE611_589_GO=1`). Keep **11611** listed until rotate + Refresh. Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** / **11620** or AutoLP **11613** / **11621** (not pair-asset CW20s).
+**GO** for factory `AddWhitelistedCodeId 11619` as the **named T592 exception** (inbound pair/router/escrow/AutoLP credit stays **1:1**; sell tax is extra-debit; buy tax is outbound split). Columbus-5 **stored 2026-08-24** (height **30085543**) and **listed 2026-08-24** (height **30085794**, `GetWhitelistedCodeIds` **`[6036, 8266, 10184, 11611, 11619]`**). Keep **11611** listed until rotate + Refresh. Do **not** whitelist a LocalTerra store id. Do **not** whitelist ALPHA **8654**. Do **not** whitelist launcher **11612** / **11614** / **11620** or AutoLP **11613** / **11621** (not pair-asset CW20s).
 
 - [x] GO — LCD pin matches; decomp + fingerprint; crate multitest covers T592 / option-2 / #608 / #609; harness known-bad stays red; A-lcd/B-lt executed; catalogue filled
 - [ ] NO-GO — inbound FoT / 8654 class / missing pin
@@ -34,7 +34,7 @@ Re-run: `CODE_ID=11619 LAYER_B_LT=1 make verify-issue-589` · `make verify-issue
 | Approximate instantiate count | **0** tokens at intake (2026-08-24). Canonical launcher: `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11620**; `token_code_id` still **11611**) |
 | Wasm size | 554158 bytes |
 | Store tx | [`42A76F85B687C3E8DF548193E11CDBAC92A4D6934C877F76CF85EE97806CCFDE`](https://finder.terraclassic.community/columbus-5/tx/42A76F85B687C3E8DF548193E11CDBAC92A4D6934C877F76CF85EE97806CCFDE) height **30085543** |
-| Whitelist tx | **none** — GO does not list; ops must `AddWhitelistedCodeId` separately |
+| Whitelist tx | [`B659D914CEAA045F05B5371F90669B79E34E7AE414537C6B4A8A58286BC640CF`](https://finder.terraclassic.community/columbus-5/tx/B659D914CEAA045F05B5371F90669B79E34E7AE414537C6B4A8A58286BC640CF) height **30085794** (DEX 2-of-3) |
 | `meta.json` | [`meta.json`](meta.json) |
 
 Sister stores (not listable as pair assets): canonical launcher instance `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` is code **11620** `7AD7DBA2…` (migrated from **11614** `04F57008…` — migrate [`97C0FCA9…EE8C`](https://finder.terraclassic.community/columbus-5/tx/97C0FCA93DFADD4BE4250935C7EFAF1CAB0A20C6FB64B2D8B774A4A8BF63EE8C) height **30085550**, wasm admin DEX 2-of-3). Unused first launcher **11612** `A0F95FBA…` at `terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz`. AutoLP live pin **11613** `B110CCD6…`; stored rotate **11621** `DAD413A3…`. Listed token pin remains [`../11611/REPORT.md`](../11611/REPORT.md).

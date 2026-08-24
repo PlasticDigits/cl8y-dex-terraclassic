@@ -6,7 +6,8 @@
 #   DEX 2-of-3  → migrate canonical launcher 11614, AddWhitelistedCodeId (new token only)
 # Does NOT CMM-migrate token / AutoLP instances (admin is CMM, not the DEX multisig).
 # Does NOT whitelist launcher / AutoLP / 11612 / ALPHA 8654.
-# Launcher has no UpdateConfig — token_code_id stays 11611 until a follow-up crate change.
+# After this crate's UpdateConfig is stored + the instance is migrated, set
+# UPGRADE611_UPDATE_CONFIG=1 to rotate token_code_id / autolp_code_id.
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/upgrade-611-community-tax.sh
@@ -15,13 +16,19 @@
 #     UPGRADE611_TOKEN_CODE_ID=<n> UPGRADE611_LAUNCHER_CODE_ID=<n> \
 #     UPGRADE611_AUTOLP_CODE_ID=<n> \
 #     ./scripts/upgrade-611-community-tax.sh               # whitelist after #589 REPORT GO
+#   UPGRADE611_STORE_LAUNCHER_ONLY=1 UPGRADE611_SKIP_WHITELIST=1 \
+#     UPGRADE611_UPDATE_CONFIG=1 \
+#     UPGRADE611_TOKEN_CODE_ID=11619 UPGRADE611_AUTOLP_CODE_ID=11621 \
+#     ./scripts/upgrade-611-community-tax.sh               # store+migrate launcher, then UpdateConfig
 #   UPGRADE611_LOCAL=1 ./scripts/upgrade-611-community-tax.sh
 #
 # Optional:
 #   UPGRADE611_SKIP_STORE=1 + TOKEN / LAUNCHER / AUTOLP code ids
+#   UPGRADE611_STORE_LAUNCHER_ONLY=1  store new launcher; reuse TOKEN / AUTOLP env ids
 #   UPGRADE611_SKIP_LAUNCHER_MIGRATE=1
 #   UPGRADE611_SKIP_WHITELIST=1
 #   UPGRADE611_589_GO=1          required to factory-list the new token
+#   UPGRADE611_UPDATE_CONFIG=1   wasm-admin UpdateConfig after launcher migrate
 #   UPGRADE611_REFRESH=1         RefreshPairAssetCodeIdsBatch after CMM migrate
 #   UPGRADE611_STORE_ONLY=1      stop after store (print resume)
 set -euo pipefail
@@ -182,6 +189,14 @@ Resume after #589 REPORT GO (do not re-store):
     UPGRADE611_AUTOLP_CODE_ID=${AUTOLP_CODE:-<new-autolp>} \\
     ./scripts/upgrade-611-community-tax.sh
 
+Rotate launcher pins (needs UpdateConfig wasm + new store):
+  UPGRADE611_STORE_LAUNCHER_ONLY=1 \\
+    UPGRADE611_SKIP_WHITELIST=1 \\
+    UPGRADE611_UPDATE_CONFIG=1 \\
+    UPGRADE611_TOKEN_CODE_ID=${TOKEN_CODE:-11619} \\
+    UPGRADE611_AUTOLP_CODE_ID=${AUTOLP_CODE:-11621} \\
+    ./scripts/upgrade-611-community-tax.sh
+
 #589 intake:
   ./cw20-codeid-audits/scripts/fetch-lcd-wasm.sh ${TOKEN_CODE:-<new-token>}
   ./cw20-codeid-audits/scripts/fingerprint-wasm.sh ${TOKEN_CODE:-<new-token>}
@@ -198,9 +213,13 @@ if [[ "$LAUNCHER" == "$UNUSED_LAUNCHER" ]]; then
   upgrade611_die "refusing unused 11612 launcher $UNUSED_LAUNCHER — use terra126pr5… (11614)"
 fi
 if [[ "${UPGRADE611_SKIP_STORE:-0}" != "1" && "${DRY_RUN:-0}" != "1" ]]; then
-  need_wasm "$TOKEN_WASM"
-  need_wasm "$LAUNCHER_WASM"
-  need_wasm "$AUTOLP_WASM"
+  if [[ "${UPGRADE611_STORE_LAUNCHER_ONLY:-0}" == "1" ]]; then
+    need_wasm "$LAUNCHER_WASM"
+  else
+    need_wasm "$TOKEN_WASM"
+    need_wasm "$LAUNCHER_WASM"
+    need_wasm "$AUTOLP_WASM"
+  fi
 fi
 if [[ "${DRY_RUN:-0}" != "1" && "${UPGRADE611_LOCAL:-0}" != "1" ]]; then
   INFO="$(upgrade611_lcd_contract_info "$LCD_URL" "$LAUNCHER" || true)"
@@ -222,6 +241,13 @@ if [[ "${UPGRADE611_SKIP_STORE:-0}" == "1" ]]; then
   [[ -n "$TOKEN_CODE" && -n "$LAUNCHER_CODE" && -n "$AUTOLP_CODE" ]] \
     || upgrade611_die "UPGRADE611_SKIP_STORE=1 needs UPGRADE611_TOKEN_CODE_ID, UPGRADE611_LAUNCHER_CODE_ID, UPGRADE611_AUTOLP_CODE_ID"
   echo "  reuse token=$TOKEN_CODE launcher=$LAUNCHER_CODE autolp=$AUTOLP_CODE"
+elif [[ "${UPGRADE611_STORE_LAUNCHER_ONLY:-0}" == "1" ]]; then
+  TOKEN_CODE="${UPGRADE611_TOKEN_CODE_ID:-}"
+  AUTOLP_CODE="${UPGRADE611_AUTOLP_CODE_ID:-}"
+  [[ -n "$TOKEN_CODE" && -n "$AUTOLP_CODE" ]] \
+    || upgrade611_die "UPGRADE611_STORE_LAUNCHER_ONLY=1 needs UPGRADE611_TOKEN_CODE_ID and UPGRADE611_AUTOLP_CODE_ID"
+  echo "  reuse token=$TOKEN_CODE autolp=$AUTOLP_CODE"
+  LAUNCHER_CODE="$(store_code "$LAUNCHER_WASM" launcher)"
 else
   TOKEN_CODE="$(store_code "$TOKEN_WASM" token)"
   LAUNCHER_CODE="$(store_code "$LAUNCHER_WASM" launcher)"
@@ -288,7 +314,22 @@ else
 fi
 
 echo ""
-echo "[6] RefreshPairAssetCodeIdsBatch"
+echo "[6] launcher UpdateConfig token_code_id=$TOKEN_CODE autolp_code_id=$AUTOLP_CODE"
+if [[ "${UPGRADE611_UPDATE_CONFIG:-0}" != "1" ]]; then
+  echo "  skipped (set UPGRADE611_UPDATE_CONFIG=1 after migrating a launcher wasm that has UpdateConfig)"
+else
+  CFG_MSG="$(jq -nc --argjson token "$TOKEN_CODE" --argjson autolp "$AUTOLP_CODE" \
+    '{update_config:{token_code_id:$token,autolp_code_id:$autolp}}')"
+  gov_tx "UpdateConfig token/autolp pins" wasm execute "$LAUNCHER" "$CFG_MSG"
+  if [[ "${DRY_RUN:-0}" != "1" ]]; then
+    LIVE_CFG="$(lcd_smart_query_raw "$LCD_URL" "$LAUNCHER" '{"get_config":{}}' || true)"
+    LIVE_CFG="$(lcd_decode_smart_data "$LIVE_CFG" || true)"
+    echo "  GetConfig token_code_id=$(printf '%s' "$LIVE_CFG" | jq -r '.token_code_id // empty') autolp_code_id=$(printf '%s' "$LIVE_CFG" | jq -r '.autolp_code_id // empty')"
+  fi
+fi
+
+echo ""
+echo "[7] RefreshPairAssetCodeIdsBatch"
 if [[ "${UPGRADE611_REFRESH:-0}" != "1" ]]; then
   echo "  skipped (set UPGRADE611_REFRESH=1 after CMM migrate of listed tokens)"
 else
@@ -297,7 +338,7 @@ else
 fi
 
 echo ""
-echo "[7] leftover (not signed here)"
+echo "[8] leftover (not signed here)"
 cat <<EOF
 CMM migrate (admin $CMM; signer $CMM_GOV / ustr-cmm — NOT DEX 2-of-3):
   # if ContractInfo.admin is the CMM contract, use ustr-cmm WasmMsg::Migrate
@@ -306,15 +347,22 @@ CMM migrate (admin $CMM; signer $CMM_GOV / ustr-cmm — NOT DEX 2-of-3):
     --chain-id columbus-5 --node https://terra-classic-rpc.publicnode.com:443 \\
     --gas auto --gas-adjustment 1.4 --gas-prices 28.325uluna
   # AutoLP instances: same, code $AUTOLP_CODE  msg '{"factory":"$FACTORY"}' if pre-#610
+  # 0 token / AutoLP instances as of 2026-08-24 — no CMM migrate required.
 
-Launcher token_code_id / autolp_code_id:
-  GetConfig still shows $OLD_TOKEN_CODE / $OLD_AUTOLP_CODE — current launcher has no UpdateConfig.
-  New creates stay on $OLD_TOKEN_CODE until a follow-up execute or a new instantiate.
+Launcher token_code_id / autolp_code_id (11620 has no UpdateConfig):
+  make build-optimized
+  UPGRADE611_STORE_LAUNCHER_ONLY=1 \\
+    UPGRADE611_SKIP_WHITELIST=1 \\
+    UPGRADE611_UPDATE_CONFIG=1 \\
+    UPGRADE611_TOKEN_CODE_ID=$TOKEN_CODE \\
+    UPGRADE611_AUTOLP_CODE_ID=$AUTOLP_CODE \\
+    ./scripts/upgrade-611-community-tax.sh
+  # Do not whitelist the new launcher store id.
 
 Coolify after instances actually run option-2 bytes:
   COMMUNITY_TAX_OPTION2_CODE_IDS=$TOKEN_CODE
   UST1_WINDOW_ADDRESS=$UST1_OPS_WINDOW
-  # keep VITE_COMMUNITY_TAX_CODE_ID=$OLD_TOKEN_CODE until rotate + Refresh finish
+  # keep VITE_COMMUNITY_TAX_CODE_ID=$OLD_TOKEN_CODE until UpdateConfig + catalog accept 11619
   # VITE_COMMUNITY_TOKEN_LAUNCHER=$LAUNCHER
 
 Do not whitelist $LAUNCHER_CODE / $AUTOLP_CODE / 11612 / 8654.

@@ -18,6 +18,9 @@ upgrade611_is_forbidden_whitelist 11701 "11701 11702" || die "extra sister must 
 if (upgrade611_assert_whitelist_ok 11611) 2>/dev/null; then
   die "11611 must be rejected (already listed)"
 fi
+if (upgrade611_assert_whitelist_ok 11619) 2>/dev/null; then
+  die "11619 must be rejected (already listed)"
+fi
 if (upgrade611_assert_whitelist_ok 11613) 2>/dev/null; then
   die "11613 must be rejected"
 fi

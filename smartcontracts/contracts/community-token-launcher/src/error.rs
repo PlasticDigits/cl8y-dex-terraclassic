@@ -28,6 +28,15 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
+    #[error("token_code_id {code_id} is not factory-whitelisted")]
+    TokenCodeNotWhitelisted { code_id: u64 },
+
+    #[error("code_id must be non-zero")]
+    InvalidCodeId {},
+
+    #[error("UpdateConfig requires token_code_id and/or autolp_code_id")]
+    NothingToUpdate {},
+
     #[error("Duplicate SKU {sku} in create invoice")]
     DuplicateSku { sku: String },
 }

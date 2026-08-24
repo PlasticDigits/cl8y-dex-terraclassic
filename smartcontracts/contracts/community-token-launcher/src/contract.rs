@@ -57,7 +57,62 @@ pub fn execute(
     match msg {
         ExecuteMsg::Receive(cw20) => execute_receive(deps, env, info, cw20),
         ExecuteMsg::CreateToken(args) => execute_create_free(deps, env, *args),
+        ExecuteMsg::UpdateConfig {
+            token_code_id,
+            autolp_code_id,
+        } => execute_update_config(deps, env, info, token_code_id, autolp_code_id),
     }
+}
+
+fn assert_wasm_admin(deps: Deps, env: &Env, info: &MessageInfo) -> Result<(), ContractError> {
+    let ci = deps
+        .querier
+        .query_wasm_contract_info(env.contract.address.to_string())?;
+    match ci.admin {
+        Some(admin) if admin == info.sender => Ok(()),
+        _ => Err(ContractError::Unauthorized {}),
+    }
+}
+
+fn execute_update_config(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    token_code_id: Option<u64>,
+    autolp_code_id: Option<u64>,
+) -> Result<Response, ContractError> {
+    assert_wasm_admin(deps.as_ref(), &env, &info)?;
+    if token_code_id.is_none() && autolp_code_id.is_none() {
+        return Err(ContractError::NothingToUpdate {});
+    }
+    let mut cfg = CONFIG.load(deps.storage)?;
+    if let Some(id) = token_code_id {
+        if id == 0 {
+            return Err(ContractError::InvalidCodeId {});
+        }
+        let listed: dex_common::factory::CodeIdWhitelistedResponse =
+            deps.querier.query_wasm_smart(
+                cfg.factory.clone(),
+                &dex_common::factory::QueryMsg::IsCodeIdWhitelisted { code_id: id },
+            )?;
+        if !listed.whitelisted {
+            return Err(ContractError::TokenCodeNotWhitelisted { code_id: id });
+        }
+        cfg.token_code_id = id;
+    }
+    if let Some(id) = autolp_code_id {
+        if id == 0 {
+            return Err(ContractError::InvalidCodeId {});
+        }
+        cfg.autolp_code_id = Some(id);
+    }
+    CONFIG.save(deps.storage, &cfg)?;
+    let mut resp = Response::new().add_attribute("action", "update_config");
+    resp = resp.add_attribute("token_code_id", cfg.token_code_id.to_string());
+    if let Some(id) = cfg.autolp_code_id {
+        resp = resp.add_attribute("autolp_code_id", id.to_string());
+    }
+    Ok(resp)
 }
 
 /// **O601-3** — `features == []` cannot be paid via CW20 `Send(0)`.

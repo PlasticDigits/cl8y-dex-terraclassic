@@ -21,6 +21,13 @@ pub enum ExecuteMsg {
     /// UST1 `Send` (`InvoiceHookMsg::CreateToken`). CW20 cannot `Send` amount 0,
     /// so this execute is the only launcher path for `features == []`.
     CreateToken(Box<CreateTokenMsg>),
+    /// Rotate instantiate pins. Sender must be this contract's CosmWasm admin
+    /// (columbus-5: DEX 2-of-3). `token_code_id` must be factory-whitelisted.
+    /// AutoLP is never a pair-asset CW20 — no factory list check.
+    UpdateConfig {
+        token_code_id: Option<u64>,
+        autolp_code_id: Option<u64>,
+    },
 }
 
 #[cw_serde]

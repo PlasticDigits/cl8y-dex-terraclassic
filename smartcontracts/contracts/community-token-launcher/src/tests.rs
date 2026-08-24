@@ -754,5 +754,178 @@ fn enable_feature_manager_path_unlocks_and_forwards_to_cmm() {
     assert_eq!(bal.balance.u128(), INVOICE_UST1);
 }
 
+use cosmwasm_std::{
+    Binary, Deps as StdDeps, DepsMut as StdDepsMut, Response as StdResponse, StdResult,
+};
+use cw_storage_plus::Item as StorageItem;
+
+const MOCK_LISTED: StorageItem<Vec<u64>> = StorageItem::new("listed");
+
+#[cosmwasm_schema::cw_serde]
+struct MockFactoryInit {
+    listed: Vec<u64>,
+}
+
+#[cosmwasm_schema::cw_serde]
+enum MockFactoryQuery {
+    IsCodeIdWhitelisted { code_id: u64 },
+}
+
+fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
+    Box::new(ContractWrapper::new(
+        |_: StdDepsMut, _: cosmwasm_std::Env, _: cosmwasm_std::MessageInfo, _: Empty| {
+            Ok::<StdResponse, cosmwasm_std::StdError>(StdResponse::new())
+        },
+        |deps: StdDepsMut,
+         _: cosmwasm_std::Env,
+         _: cosmwasm_std::MessageInfo,
+         msg: MockFactoryInit| {
+            MOCK_LISTED.save(deps.storage, &msg.listed)?;
+            Ok::<StdResponse, cosmwasm_std::StdError>(StdResponse::new())
+        },
+        |deps: StdDeps, _: cosmwasm_std::Env, msg: MockFactoryQuery| -> StdResult<Binary> {
+            match msg {
+                MockFactoryQuery::IsCodeIdWhitelisted { code_id } => {
+                    let listed = MOCK_LISTED.load(deps.storage)?;
+                    cosmwasm_std::to_json_binary(&dex_common::factory::CodeIdWhitelistedResponse {
+                        code_id,
+                        whitelisted: listed.contains(&code_id),
+                    })
+                }
+            }
+        },
+    ))
+}
+
+fn setup_update_config_env() -> (App, Addr, Addr, u64, u64) {
+    let mut app = App::default();
+    let admin = Addr::unchecked("dex_gov");
+    let manager = Addr::unchecked("manager");
+    let token_old = app.store_code(token_contract());
+    let token_new = app.store_code(token_contract());
+    let autolp_new = 77u64;
+    let factory_code = app.store_code(mock_factory_contract());
+    let launcher_code = app.store_code(launcher_contract());
+    let factory = app
+        .instantiate_contract(
+            factory_code,
+            admin.clone(),
+            &MockFactoryInit {
+                listed: vec![token_old, token_new],
+            },
+            &[],
+            "factory",
+            None,
+        )
+        .unwrap();
+    let launcher = app
+        .instantiate_contract(
+            launcher_code,
+            manager.clone(),
+            &InstantiateMsg {
+                token_code_id: token_old,
+                autolp_code_id: Some(13),
+                ust1: manager.to_string(),
+                cmm_treasury: manager.to_string(),
+                cmm_governance: manager.to_string(),
+                factory: factory.to_string(),
+                router: None,
+            },
+            &[],
+            "launcher",
+            Some(admin.to_string()),
+        )
+        .unwrap();
+    (app, launcher, admin, token_new, autolp_new)
+}
+
+#[test]
+fn update_config_admin_rotates_code_ids() {
+    let (mut app, launcher, admin, token_new, autolp_new) = setup_update_config_env();
+    app.execute_contract(
+        admin,
+        launcher.clone(),
+        &ExecuteMsg::UpdateConfig {
+            token_code_id: Some(token_new),
+            autolp_code_id: Some(autolp_new),
+        },
+        &[],
+    )
+    .unwrap();
+    let cfg: ConfigResponse = app
+        .wrap()
+        .query_wasm_smart(&launcher, &QueryMsg::GetConfig {})
+        .unwrap();
+    assert_eq!(cfg.token_code_id, token_new);
+    assert_eq!(cfg.autolp_code_id, Some(autolp_new));
+}
+
+#[test]
+fn update_config_rejects_non_admin() {
+    let (mut app, launcher, _admin, token_new, _) = setup_update_config_env();
+    let err = app
+        .execute_contract(
+            Addr::unchecked("stranger"),
+            launcher,
+            &ExecuteMsg::UpdateConfig {
+                token_code_id: Some(token_new),
+                autolp_code_id: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(err.root_cause().to_string().contains("Unauthorized"));
+}
+
+#[test]
+fn update_config_rejects_unlisted_token_code() {
+    let (mut app, launcher, admin, _, _) = setup_update_config_env();
+    let err = app
+        .execute_contract(
+            admin,
+            launcher,
+            &ExecuteMsg::UpdateConfig {
+                token_code_id: Some(9999),
+                autolp_code_id: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let msg = err.root_cause().to_string();
+    assert!(
+        msg.contains("not factory-whitelisted") || msg.contains("TokenCodeNotWhitelisted"),
+        "{msg}"
+    );
+}
+
+#[test]
+fn update_config_rejects_empty_and_zero() {
+    let (mut app, launcher, admin, _, _) = setup_update_config_env();
+    let empty = app
+        .execute_contract(
+            admin.clone(),
+            launcher.clone(),
+            &ExecuteMsg::UpdateConfig {
+                token_code_id: None,
+                autolp_code_id: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(empty.root_cause().to_string().contains("UpdateConfig"));
+    let zero = app
+        .execute_contract(
+            admin,
+            launcher,
+            &ExecuteMsg::UpdateConfig {
+                token_code_id: Some(0),
+                autolp_code_id: None,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(zero.root_cause().to_string().contains("non-zero"));
+}
+
 #[allow(dead_code)]
 fn _token_init(_: TokenInit) {}
