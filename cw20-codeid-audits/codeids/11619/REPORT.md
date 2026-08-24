@@ -17,7 +17,7 @@ The inspected artifact is a **decompilation / string fingerprint of LCD wasm**. 
 
 **Reason:** SHA-256 of LCD bytes equals `CodeInfo.data_hash` (`63CB21D1…`). cw2 `crates.io:cl8y-community-tax-token` / `1.0.0`. No `tax_map` / `fee_on_transfer` / `rebase` / `ibc_receive`. Pair credit on sell is `amount` (extra-debit on the trader), not inbound FoT. **This pin includes #604–#609 and option-2 `hop_trader` classify** (unlike listed 11611). **8654** / FoT mutants must stay red.
 
-**Layer A-lcd / B-lt (O601-1):** executed 2026-08-24 on pinned LCD bytes (`CODE_ID=11619 LAYER_B_LT=1 make verify-issue-589`). A-lcd retries community-tax `InstantiateMsg` (cw20-base init missing `manager`); 11619 then rejects SKU-gated `launch_guards` / `max_*` headroom unless those features are on — harness retries without those fields. `balance_at` is A29 N/A. B-lt does **not** `RegisterListedPair` — inbound 1:1 / provide / round-trip / limit escrow hold. Tax classification is crate + LocalTerra smoke, not the generic harness.
+**Layer A-lcd / B-lt (O601-1):** executed 2026-08-24 on pinned LCD bytes (`CODE_ID=11619 LAYER_B_LT=1 make verify-issue-589`). A-lcd retries community-tax `InstantiateMsg` (cw20-base init missing `manager`); 11619 then rejects SKU-gated `launch_guards` / `max_*` headroom unless those features are on — harness retries without those fields. `balance_at` is A29 N/A. B-lt does **not** `RegisterListedPair` — inbound 1:1 / provide / round-trip / limit escrow hold. **Tax-on suite** ([#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623) / [`layer-b-tax-on.sh`](../../scripts/layer-b-tax-on.sh)): extra-debit / outbound / router `trader` / AutoLP floor after register. Do **not** merge that into B-lt. Invoices stay `#601` smoke.
 
 Re-run: `CODE_ID=11619 LAYER_B_LT=1 make verify-issue-589` · `make verify-issue-592` · `make verify-issue-607` · `make verify-issue-608` · `make verify-issue-609`.
 
@@ -225,7 +225,8 @@ Legend: **static-pass** = LCD strings/dump; **crate** = `cl8y-community-tax-toke
 ## Layer B (DEX + limits)
 
 - **B-mt:** harness P1/P2/P3/donation/flash/honeypot/limit/same-asset; FoT **P2** red.
-- **B-lt:** [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) **executed** 2026-08-24 — provide 1:1, P2 reserves, round-trip swap, limit escrow 1:1, SendFrom. Whitelist only the **local** store id (never treat that id as columbus-5 11619). Listed-pair extra-debit is the #601 smoke, not this harness.
+- **B-lt:** [`../../scripts/layer-b-lt.sh`](../../scripts/layer-b-lt.sh) **executed** 2026-08-24 — provide 1:1, P2 reserves, round-trip swap, limit escrow 1:1, SendFrom. Whitelist only the **local** store id (never treat that id as columbus-5 11619). B-lt stays **tax-off** (no `RegisterListedPair`).
+- **B-tax-on:** [`../../scripts/layer-b-tax-on.sh`](../../scripts/layer-b-tax-on.sh) (`make verify-issue-623`) — named tax-on suite vs B-lt split. Not a license to whitelist this LocalTerra store id or ALPHA **8654**.
 
 ## Factory-global impact
 

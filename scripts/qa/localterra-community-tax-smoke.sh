@@ -50,6 +50,8 @@ source "$REPO_ROOT/scripts/lib/terrad-wait-tx.sh"
 source "$REPO_ROOT/scripts/lib/lcd-smart-query.sh"
 # shellcheck source=cw20-codeid-audits/scripts/lib-layer-lt.sh
 source "$AUDIT/scripts/lib-layer-lt.sh"
+# shellcheck source=cw20-codeid-audits/scripts/lib-tax-on.sh
+source "$AUDIT/scripts/lib-tax-on.sh"
 
 layer_require_localterra
 ENV_LOCAL="$(layer_find_env_local || true)"
@@ -126,46 +128,10 @@ fi
   exit 1
 }
 
-terrad_tx() { e2e_terrad_tx "$CONTAINER" "$@"; }
-
-exec_ok() {
-  local out tx
-  out="$(terrad_tx "$@")"
-  tx="$(layer_txhash "$out")"
-  [[ -n "$tx" ]] || {
-    echo "FAIL: no txhash for: $*" >&2
-    printf '%s\n' "$out" >&2
-    exit 1
-  }
-  layer_wait_tx "$tx"
-  printf '%s' "$tx"
-}
-
-store_wasm() {
-  local host="$1" dest="$2"
-  layer_docker_cp "$host" "${CONTAINER}:${dest}"
-  local out tx json code
-  out="$(terrad_tx wasm store "$dest")"
-  tx="$(layer_txhash "$out")"
-  [[ -n "$tx" ]] || {
-    echo "FAIL: store $host produced no txhash" >&2
-    printf '%s\n' "$out" >&2
-    exit 1
-  }
-  json="$(terrad_wait_tx_query "$CONTAINER" "$tx" "$TERRAD_NODE")"
-  code="$(echo "$json" | terrad_jq_code_id_from_tx_json | head -1 | tr -d '[:space:]')"
-  [[ "$code" =~ ^[0-9]+$ ]] || {
-    echo "FAIL: could not parse code_id from store $tx" >&2
-    exit 1
-  }
-  printf '%s' "$code"
-}
-
-contract_from_tx() {
-  local tx="$1"
-  echo "$(terrad_wait_tx_query "$CONTAINER" "$tx" "$TERRAD_NODE")" \
-    | terrad_jq_contract_address_from_tx_json | head -1
-}
+terrad_tx() { tax_on_terrad_tx "$@"; }
+exec_ok() { tax_on_exec_ok "$@"; }
+store_wasm() { tax_on_store_wasm "$@"; }
+contract_from_tx() { tax_on_contract_from_tx "$@"; }
 
 lcd_contract_admin() {
   local addr="$1"
@@ -174,14 +140,7 @@ lcd_contract_admin() {
   echo "$raw" | jq -r '.contract_info.admin // empty'
 }
 
-send_cw20_hook() {
-  local token="$1" dest="$2" amount="$3" hook_json="$4"
-  local b64 msg
-  b64="$(printf '%s' "$hook_json" | base64 -w0 2>/dev/null || printf '%s' "$hook_json" | base64 | tr -d '\n')"
-  msg="$(jq -nc --arg c "$dest" --arg amt "$amount" --arg m "$b64" \
-    '{send:{contract:$c,amount:$amt,msg:$m}}')"
-  exec_ok wasm execute "$token" "$msg"
-}
+send_cw20_hook() { tax_on_send_cw20_hook "$@"; }
 
 echo "601-smoke: storing current token + launcher + mintable UST1 stand-in…"
 TOKEN_CODE="$(store_wasm "$TOKEN_WASM" /tmp/cw20-audit-11611.wasm)"

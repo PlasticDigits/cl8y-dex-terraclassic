@@ -63,6 +63,8 @@ COMMUNITY_TAX_OPTION2_CODE_IDS=11611
 
 Then `GET /route/solve` drops middle-hop TAX sells and applies buy-split net on multi-hop `token_out` (**R615-3** / **R615-5**). Pair/router wasm still must actually tax hops — the env flag only changes **ranking**. See [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
 
+LocalTerra tax-on hop + spoof + missing-trader (not crate-only): [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) / `make verify-issue-623` (**C623-7**). Do **not** fold that into generic B-lt.
+
 ## Verify
 
 ```bash
@@ -70,6 +72,7 @@ make verify-issue-607
 make verify-issue-615
 make verify-issue-612
 make verify-issue-616
+make verify-issue-623
 ```
 
 Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit). Post-merge Enable Feature LocalTerra: [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)). Live option-2 copy + wrap/window leftovers: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)). Do not run the stale option-1 disclose checklist on this ticket.
