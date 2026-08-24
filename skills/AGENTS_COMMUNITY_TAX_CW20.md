@@ -43,11 +43,11 @@ Post-merge rotate (#611 / #612 / [#616](https://gitlab.com/PlasticDigits/cl8y-de
 2. **O601-2 — whitelist after GO only.** Factory lists **11611** and **11619**. Do **not** whitelist launcher **11612** / **11614** / **11620** / **11622**, AutoLP **11613** / **11621**, a LocalTerra store id, or ALPHA **8654**.
 3. **O601-3 — free-profile launcher create.** `features == []` uses `ExecuteMsg::CreateToken` (CW20 cannot `Send` 0). Paid SKUs stay on UST1 `Send`. Stamps token `admin: cmm_governance` and `GetLauncherOrigin`. Canonical columbus-5 launcher is `terra126pr5…ahzwze` (code **11622**; store was **11614** / **11620**). **11612** (`terra1af9xm…`) predates this execute and is not migratable (CMM treasury wasm admin); leave unused.
 4. **O601-4 — catalog filter.** Rogue `--admin` instantiate has `GetLauncherOrigin.launcher == null`. dApp (#593) / indexer (#594) must require CMM admin + origin.
-5. **O601-5 — listed-pair tax.** After `RegisterListedPair`, sell extra-debit + buy outbound split match `TaxPreview` (max-button). Provide `TransferFrom` stays 1:1. Layer B-lt does **not** register the pair (1:1 harness).
+5. **O601-5 — listed-pair tax.** After `RegisterListedPair`, sell extra-debit + buy outbound split match `TaxPreview` (max-button). Provide `TransferFrom` stays 1:1. Layer B-lt does **not** register the pair (1:1 harness). Named tax-on Layer B is [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) / `make verify-issue-623` ([#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623)).
 6. **O601-6 — invoices on chain.** SKU unlock and settings batch are each exactly 50 UST1. Smoke SKU unlock must Send to the **launcher** (same as the dApp; **T606-7**). MintControl `RevokeMint` is one-way.
-7. **O601-7 — DEX residuals stay out.** Hybrid / live zap / AutoLP `SkimToLp` vs a live router are **not** #601 close gates (issue body §5). Router multi-hop tax is **T592-13** (improved option 2, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607)) — not an open classify bug.
+7. **O601-7 — DEX residuals stay out of #601.** Hybrid / live zap / AutoLP `SkimToLp` vs a live pair are **not** #601 close gates (issue body §5). Those plus official-router `trader` are the `#623` tax-on suite (`layer-b-tax-on.sh`). Router multi-hop tax is **T592-13** (improved option 2, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607)) — not an open classify bug.
 
-Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra-community-tax-smoke.sh). Gate: `make verify-issue-601`.
+Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra-community-tax-smoke.sh) (sources [`lib-tax-on.sh`](../cw20-codeid-audits/scripts/lib-tax-on.sh)). Gate: `make verify-issue-601`. Tax-on DEX: `make verify-issue-623`.
 
 ## Invariants **T592-1–T592-13**
 
@@ -97,6 +97,7 @@ make verify-issue-602
 make verify-issue-612
 make verify-issue-616
 make verify-issue-620
+make verify-issue-623
 CODE_ID=11611 LAYER_B_LT=1 make verify-issue-589
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-token-launcher -p cl8y-community-tax-autolp
 ```
