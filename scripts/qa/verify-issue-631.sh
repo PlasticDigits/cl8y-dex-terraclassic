@@ -44,7 +44,7 @@ run_step "docs: playbook + invariants + skill crosslinks" \
     test -f docs/DEFILLAMA.md
     test -f skills/AGENTS_DEFILLAMA.md
     test -f scripts/defillama/README.md
-    test -f indexer/migrations/20260825140000_defillama_daily.sql
+    test -f indexer/migrations/20260825150000_defillama_daily.sql
     grep -q "L631-1" skills/AGENTS_DEFILLAMA.md
     grep -q "L631-9" skills/AGENTS_DEFILLAMA.md
     grep -q "DeFiLlama UTC-day (#631)" docs/indexer-invariants.md

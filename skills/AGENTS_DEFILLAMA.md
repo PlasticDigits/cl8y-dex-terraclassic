@@ -47,7 +47,7 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 | Daily GET | [`indexer/src/api/defillama.rs`](../indexer/src/api/defillama.rs) |
 | Rollup | [`indexer/src/db/queries/defillama.rs`](../indexer/src/db/queries/defillama.rs) |
 | Gems + parse | [`indexer/src/indexer/defillama.rs`](../indexer/src/indexer/defillama.rs) |
-| Migration | [`indexer/migrations/20260825140000_defillama_daily.sql`](../indexer/migrations/20260825140000_defillama_daily.sql) |
+| Migration | [`indexer/migrations/20260825150000_defillama_daily.sql`](../indexer/migrations/20260825150000_defillama_daily.sql) |
 | TVL helper | [`scripts/defillama/tvl/tvlCore.js`](../scripts/defillama/tvl/tvlCore.js) |
 | Tests | [`indexer/tests/indexer_defillama.rs`](../indexer/tests/indexer_defillama.rs) |
 

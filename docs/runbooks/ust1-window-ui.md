@@ -24,7 +24,7 @@ Upstream contracts: [ust1-window](https://gitlab.com/PlasticDigits/ust1-window) 
 | vFDUSD | `terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3` |
 | UST1 | `terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72` |
 | ust1-oracle | `terra1fmht0t6svq3n24zx03nkfja0m40zhfyyxkdcvlrkl6u7gfe6aagq4gch8n` (code **11568**) |
-| ust1-window | `terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2` (code **11566**) |
+| ust1-window | `terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2` (code **11618**, was **11566**) |
 
 Approved window params: `fee_bps=100`, per-tx **1000** UST1, rolling 24h **10000** UST1.
 
@@ -47,7 +47,7 @@ Indexer protocol fees ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terracla
 UST1_WINDOW_ADDRESS=terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2
 ```
 
-See [`coolify.env.example`](../../deployments/mainnet-ust1-wrap/coolify.env.example) and [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md).
+See [`coolify.env.example`](../../deployments/mainnet-ust1-wrap/coolify.env.example), [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](../../skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614**), and [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md).
 
 ## Code map
 
@@ -92,3 +92,4 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-wi
 - Gas inventory: [`AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md)
 - Routes table: [`docs/frontend.md`](../frontend.md)
 - Registry: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../../deployments/mainnet-ust1-wrap/REGISTRY.md)
+- Protocol treasury fees: [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](../../skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614**, [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614))

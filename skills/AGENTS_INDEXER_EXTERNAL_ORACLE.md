@@ -78,3 +78,4 @@ Frontend helpers: `getOraclePriceCatalog()`, `getOraclePrice(ticker?)` (default 
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub marks; `/oracle/price/ustr` stays 400
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD uses hub snapshot, never CEX `/oracle/price/ustr` ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))
 - GitLab [**#580**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580) — CEX FDUSD identity under path `vfdusd`; `make verify-issue-580`
+- Keplr Add Token / `ceramicliberty-com` (BSC-only CoinGecko id): [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md) ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)) — not this oracle

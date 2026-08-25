@@ -2,7 +2,7 @@
 
 Use when changing `/token/migrate`, the community-tax `migrate` foreign importer, catalog `GetMigrateOrigin` attest, or Terraport/GDEX LP copy after an in-place adopt.
 
-Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603) (closed; S1–S5 on the close comment). Impl is this page + [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626). Template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) ([`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md)). Create Token [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)). Catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)). F6 pin [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) ([`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md)). ALPHA wrap vs drop [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558) stays open — this page does **not** replace POL wrap.
+Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603) (closed; S1–S5 on the close comment). Impl is this page + [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626). Template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) ([`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md)). Create Token [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)). Catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)). F6 pin [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) ([`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md)). ALPHA wrap vs drop [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558) stays open — this page does **not** replace POL wrap. Post-merge leftover live after !418: [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) ([`AGENTS_POST_MERGE_OPS_628.md`](./AGENTS_POST_MERGE_OPS_628.md); `make verify-issue-628`).
 
 ## Canonical references
 
@@ -19,7 +19,8 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 
 | ID | Source | Status |
 |----|--------|--------|
-| **S3** | columbus-5 **6036** / **10184** | **go** — cw2 `crates.io:cw20-base` / `crates.io:cw20-mintable`, no `tax_map` |
+| **S3** | columbus-5 **10184** | **go** — cw2 `crates.io:cw20-mintable` (LocalTerra mintable writes `cw20-base`) |
+| **S3-6036** | columbus-5 **6036** | **page-go / chain-revert** — live instance cw2 is `crates.io:terraswap-token` (LCD 2026-08-25, [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) leftover). Retail allowlist still includes 6036; `adopt.rs` will revert until a follow-up crate change. Do **not** append `terraswap-token` from #628. |
 | **S3-8266** | columbus-5 **8266** | **go** — cw2 `crates.io:terraport-token`; leftover `marketing_info` / `balance_at` unread; LP table 1:1 stay-1:1 |
 | **S4** | columbus-5 **8654** (ALPHA) | **go** — wipe `tax_info` / `tax_map` / `whale_info`; map 4.5% / 1% → buy 450 / sell 100. **Never** `AddWhitelistedCodeId 8654` (listing 11619 covers the address). |
 
@@ -28,7 +29,7 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 1. **M626-1 — env gate.** `/token/migrate` + More-menu **Migrate Token** use the same `isCommunityTaxEnabled()` gate as Create Token (**C593-1**).
 2. **M626-2 — free.** No 50 UST1, no `PayWithAnyToken`, no `?payee=` / `?manager=` / `?treasury=` prefill (**C593-10**).
 3. **M626-3 — migrate allowlist.** Retail gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default **6036, 10184, 8266, 8654**). This is **not** factory `AddWhitelistedCodeId`. 8654 is a normal list entry. Add future source ids by appending the env (Coolify) — do not special-case addresses. Contract still allowlists cw2 ∈ `{cw20-base, cw20-mintable, terraport-token, cw20-taxed}`. Unknown cw2 / `cfg`/`feat` smash → revert. Leftover `tax_info` / `tax_map` / `whale_info` are wiped on any allowlisted source.
-4. **M626-4 — pair-asset whitelist stays separate.** Never `AddWhitelistedCodeId 8654` (H-01). After adopt, listing **11619** covers the address. New migrate sources do **not** need to be factory-listed.
+4. **M626-4 — pair-asset whitelist stays separate.** Never `AddWhitelistedCodeId 8654` (H-01). After adopt, the current listed tax pin covers the address (**11626** was the #628 store; live pin is **11630** — [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)). New migrate sources do **not** need to be factory-listed.
 5. **M626-5 — CMM admin.** Retail tx is `MsgMigrateContract` then `MsgUpdateAdmin` → CMM in one bundle. Source admin becomes **manager**. Manager cannot migrate.
 6. **M626-6 — origin.** Write `CONFIG.launcher` to the official launcher. Write `GetMigrateOrigin`. Do **not** fake `launcher_tx`. Catalog attests CMM + origin + (`launcher_tx` **or** allowlisted migrate cw2).
 7. **M626-7 — no mint/burn.** `total_supply` and balances stay. Source minter is revoked; MintControl stays off.
@@ -78,6 +79,7 @@ Whitelist already has **11619** → `SetPairPaused` on affected **CL8Y** pairs �
 
 ```bash
 make verify-issue-626
+make verify-issue-628
 make verify-issue-634
 # LocalTerra live (fail if chain missing):
 VERIFY634_REQUIRE_CHAIN=1 make verify-issue-634

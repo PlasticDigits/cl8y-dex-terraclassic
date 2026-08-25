@@ -6,6 +6,29 @@ use crate::lcd::LcdClient;
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
+/// Retail catalog labels for known bank denoms (GitLab #630).
+/// Unknown denoms stay denom/denom (fail closed). Wrap CW20s are not natives.
+pub fn native_retail_meta(denom: &str) -> (&'static str, &'static str) {
+    match denom.to_ascii_lowercase().as_str() {
+        "uluna" => ("Terra Luna Classic", "LUNC"),
+        "uusd" => ("TerraClassicUSD", "USTC"),
+        _ => ("", ""),
+    }
+}
+
+pub fn is_known_bank_denom(denom: &str) -> bool {
+    matches!(denom.to_ascii_lowercase().as_str(), "uluna" | "uusd")
+}
+
+fn native_insert_labels<'a>(denom: &'a str) -> (&'a str, &'a str) {
+    let (name, symbol) = native_retail_meta(denom);
+    if name.is_empty() {
+        (denom, denom)
+    } else {
+        (name, symbol)
+    }
+}
+
 pub async fn resolve_asset(
     pool: &PgPool,
     lcd: &LcdClient,
@@ -64,14 +87,30 @@ pub async fn resolve_asset(
             Ok(id)
         }
         AssetInfo::NativeToken { denom } => {
+            let (name, symbol) = native_insert_labels(denom);
             if let Some(asset) = assets::get_asset_by_denom(pool, denom).await? {
+                if is_known_bank_denom(denom) && asset.symbol.eq_ignore_ascii_case(denom) {
+                    assets::upsert_asset(pool, None, Some(denom), false, name, symbol, 6, None)
+                        .await?;
+                    tracing::info!(
+                        "Repaired native asset labels: {} -> {} / {}",
+                        denom,
+                        name,
+                        symbol
+                    );
+                }
                 return Ok(asset.id);
             }
 
             let id =
-                assets::upsert_asset(pool, None, Some(denom), false, denom, denom, 6, None).await?;
+                assets::upsert_asset(pool, None, Some(denom), false, name, symbol, 6, None).await?;
 
-            tracing::info!("Resolved new native asset: {} -> id {}", denom, id);
+            tracing::info!(
+                "Resolved new native asset: {} ({}) -> id {}",
+                symbol,
+                denom,
+                id
+            );
             Ok(id)
         }
     }
@@ -92,4 +131,36 @@ pub async fn resolve_asset_str(
         }
     };
     resolve_asset(pool, lcd, &info).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_bank_denoms_map_to_retail_tickers() {
+        assert_eq!(native_retail_meta("uluna"), ("Terra Luna Classic", "LUNC"));
+        assert_eq!(native_retail_meta("ULUNA"), ("Terra Luna Classic", "LUNC"));
+        assert_eq!(native_retail_meta("uusd"), ("TerraClassicUSD", "USTC"));
+        assert_eq!(native_retail_meta("UUSD"), ("TerraClassicUSD", "USTC"));
+        assert!(is_known_bank_denom("uluna"));
+        assert!(is_known_bank_denom("uusd"));
+    }
+
+    #[test]
+    fn unknown_denoms_stay_raw() {
+        assert_eq!(native_retail_meta("usdr"), ("", ""));
+        assert_eq!(native_retail_meta("ibc/ABC"), ("", ""));
+        assert_eq!(native_insert_labels("usdr"), ("usdr", "usdr"));
+        assert_eq!(native_insert_labels("ibc/ABC"), ("ibc/ABC", "ibc/ABC"));
+        assert!(!is_known_bank_denom("usdr"));
+        assert!(!is_known_bank_denom("ufoo"));
+    }
+
+    #[test]
+    fn wrap_cw20_addresses_are_not_bank_denoms() {
+        assert!(!is_known_bank_denom(
+            "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+        ));
+    }
 }
