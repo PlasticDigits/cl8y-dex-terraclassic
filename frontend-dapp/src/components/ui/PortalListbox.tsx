@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, type CSSProperties, type RefObject } from 'react'
-import { getMobileBottomNavInsetPx } from '@/lib/mobileBottomNav'
 import { computePortalListboxStyle } from './portalListboxPosition'
+import { getPortalListboxViewport } from '@/lib/portalListboxViewport'
 
 export type UsePortalListboxArgs = {
   open: boolean
@@ -16,9 +16,10 @@ export type UsePortalListboxArgs = {
 
 /**
  * Shared fixed + portal listbox positioning and outside-click handling
- * for MenuSelect and TokenSelect. Flips above the anchor when space below is tight
- * so the menu does not collide with fixed footers or the mobile tab bar
- * ({@link getMobileBottomNavInsetPx}); clamps horizontally.
+ * for MenuSelect and TokenSelect. Uses `visualViewport` when present plus
+ * DEX tab bar / in-app chrome insets ({@link getPortalListboxViewport}) so the
+ * menu does not sit on IME or Keplr URL chrome (GitLab #632). Flips above the
+ * anchor when space below is tight; clamps horizontally.
  *
  * Position is computed synchronously during render when open so the first painted
  * frame already uses `position: fixed` coords (avoids CLS from a late setState pass).
@@ -40,11 +41,7 @@ export function usePortalListbox({
     if (!el) return null
     return computePortalListboxStyle({
       anchor: el.getBoundingClientRect(),
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        bottomInset: getMobileBottomNavInsetPx(),
-      },
+      viewport: getPortalListboxViewport(),
       preferredMaxHeight,
       gap,
     })
@@ -56,12 +53,17 @@ export function usePortalListbox({
     if (!open || !canShow) return
     bumpPosition()
     const w = window
+    const vv = w.visualViewport
     const onMove = () => bumpPosition()
     w.addEventListener('scroll', onMove, true)
     w.addEventListener('resize', onMove)
+    vv?.addEventListener('resize', onMove)
+    vv?.addEventListener('scroll', onMove)
     return () => {
       w.removeEventListener('scroll', onMove, true)
       w.removeEventListener('resize', onMove)
+      vv?.removeEventListener('resize', onMove)
+      vv?.removeEventListener('scroll', onMove)
     }
   }, [open, canShow])
 
