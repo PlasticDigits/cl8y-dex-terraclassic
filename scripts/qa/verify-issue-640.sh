@@ -47,6 +47,7 @@ run_step "docs: invariants C640-1–C640-8" \
     grep -qE "\*\*C640-8\*\*" docs/listings/cosmostation/README.md && \
     grep -qE "chain/terra" docs/listings/cosmostation/README.md && \
     grep -qE "unstablecoin" docs/listings/cosmostation/README.md && \
+    grep -qE "archived" docs/listings/cosmostation/README.md && \
     grep -qE "make verify-issue-640" docs/listings/cosmostation/README.md
   '
 
@@ -57,9 +58,13 @@ run_step "docs: skill + AGENTS.md + integrators" \
     grep -qE "make verify-issue-640" skills/AGENTS_COSMOSTATION.md && \
     grep -qE "AGENTS_COSMOSTATION" AGENTS.md && \
     grep -qE "verify-issue-640" AGENTS.md && \
+    grep -qE "AGENTS_LISTINGS|#639" skills/AGENTS_COSMOSTATION.md && \
+    grep -qE "AGENTS_HEXXAGON|#641" skills/AGENTS_COSMOSTATION.md && \
     grep -qE "cosmostation-cw20-gitlab-640" docs/integrators.md && \
+    grep -qE "archived" docs/integrators.md && \
     grep -qE "verify-issue-640" docs/testing.md && \
-    grep -qE "C640-1" docs/qa/issue-640/README.md
+    grep -qE "C640-1" docs/qa/issue-640/README.md && \
+    grep -qE "archived" docs/qa/issue-640/README.md
   '
 
 echo ""

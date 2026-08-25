@@ -4,6 +4,8 @@ Use when adding Terra Classic CW20 metadata for **Cosmostation** or **Mintscan**
 
 Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639). This is **not** Keplr ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)) and **not** Hexxagon ([#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)).
 
+**Upstream blocked:** [cosmostation/chainlist](https://github.com/cosmostation/chainlist) is **archived** (read-only, 2026-07). Cosmostation Wallet apps shut down **2026-09-01**. Keep the in-repo pack; do **not** open a GitHub PR. Fork (cannot PR upstream): https://github.com/PlasticDigits/chainlist/tree/feat/terra-classic-cl8y-cw20
+
 ## Canonical references
 
 | Doc / code | Purpose |
@@ -21,7 +23,7 @@ Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/
 4. **C640-4 coinGeckoId** — `ceramicliberty-com` on CL8Y only; `""` elsewhere. No second id.
 5. **C640-5 Pegs** — UST1 is an unstablecoin (never `$1`). USTR is USTC Repeg, not a stablecoin.
 6. **C640-6 Append** — do not replace the live 43-row file.
-7. **C640-7 No CI PR** — export, open GitHub PR, link #640.
+7. **C640-7 No CI PR** — export only. Do **not** open a GitHub PR while `cosmostation/chainlist` is archived. Link a replacement-registry PR on #640 if one appears.
 8. **C640-8** — this skill + README + `make verify-issue-640`.
 
 ## Verification
@@ -30,11 +32,18 @@ Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/
 make verify-issue-640
 ```
 
-No LocalTerra. After upstream merge: Cosmostation / Mintscan search CL8Y.
+No LocalTerra. Do **not** treat an archived-repo PR as a remaining deliverable. After a replacement registry appears: Cosmostation / Mintscan search CL8Y.
+
+## Do not
+
+- Open a GitHub PR against archived `cosmostation/chainlist`.
+- Reopen Keplr ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)) or DeFiLlama ([#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)).
+- Invent a phoenix / Terra 2 folder.
 
 ## Cross-links
 
-- Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)
-- Keplr: [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md)
-- Hexxagon: [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)
+- Parent catalog: [`AGENTS_LISTINGS.md`](./AGENTS_LISTINGS.md) · [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)
+- Keplr (same pins): [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md)
+- Hexxagon / Galaxy Station (live PR venue): [`AGENTS_HEXXAGON.md`](./AGENTS_HEXXAGON.md) · [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)
 - chain-registry / Leap: [#642](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/642)
+- QA: [`docs/qa/issue-640/README.md`](../docs/qa/issue-640/README.md)

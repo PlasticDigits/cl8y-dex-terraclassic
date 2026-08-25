@@ -56,6 +56,7 @@ run_step "docs: listing catalog invariants L639-1–L639-8" \
     grep -qE "ceramicliberty-com" docs/listings/README.md && \
     grep -qE "Coinhall" docs/listings/README.md && \
     grep -qE "DexScreener" docs/listings/README.md && \
+    grep -qE "archived" docs/listings/README.md && \
     ! grep -qE "https?://(pro-)?api\.coingecko\.com" docs/listings/forms/*.md
   '
 

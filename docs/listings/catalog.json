@@ -88,11 +88,13 @@
       "id": "cosmostation",
       "kind": "wallet",
       "channel": "pr",
-      "agentic": true,
+      "agentic": false,
+      "blocked": "cosmostation/chainlist archived 2026-07; wallet service ends 2026-09-01",
       "priority": 1,
       "upstream": "https://github.com/cosmostation/chainlist",
       "path": "chain/terra/cw20_2.json",
-      "notes": "Folder is terra (Classic, not Terra 2). Plus PNG under chain/terra/asset/."
+      "pack": "docs/listings/cosmostation/",
+      "notes": "Folder is terra (Classic, not Terra 2). In-repo pack + fork exist (#640). Do not open a GitHub PR while archived."
     },
     {
       "id": "hexxagon",
@@ -102,7 +104,9 @@
       "priority": 2,
       "upstream": "https://github.com/hexxagon-io/chain-registry",
       "path": "cw20/tokens/mainnet/terra.js",
-      "notes": "Galaxy Station. USTR already present as USTC Repeg. Optional cw20/dex_pairs."
+      "pack": "docs/listings/hexxagon/",
+      "upstream_pr": "https://github.com/hexxagon-io/chain-registry/pull/68",
+      "notes": "Galaxy Station. USTR already present as USTC Repeg. Optional cw20/dex_pairs. In-repo pack submits the other five."
     },
     {
       "id": "cosmos-chain-registry",
@@ -253,7 +257,8 @@
       "order": 2,
       "venue": "hexxagon",
       "issue": 641,
-      "title": "Hexxagon terra.js PR"
+      "title": "Hexxagon terra.js PR",
+      "upstream_pr": "https://github.com/hexxagon-io/chain-registry/pull/68"
     },
     {
       "order": 3,

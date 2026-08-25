@@ -16,7 +16,7 @@ Agent playbook: [`skills/AGENTS_COSMOSTATION.md`](../../../skills/AGENTS_COSMOST
 | **C640-4** | `coinGeckoId` is `ceramicliberty-com` on CL8Y only. All others are `""` (upstream empty-string rule). Do not invent a second CG id. |
 | **C640-5** | UST1 description must say **unstablecoin** and must not advertise a `$1` peg. USTR is **USTC Repeg** and **not** a stablecoin. |
 | **C640-6** | Append entries to the existing 43-row `cw20_2.json`. Do not recreate the file. Do not replace LUNAX…GRDX. |
-| **C640-7** | Do not open the GitHub PR from this repo’s CI. Export the pack, open the upstream PR, link it on #640. |
+| **C640-7** | Do not open the GitHub PR from this repo’s CI. Export the pack only. **Do not** open an upstream PR while `cosmostation/chainlist` is archived. Link a replacement-registry PR on #640 if one appears. |
 | **C640-8** | This README + fragment + `make verify-issue-640` + [`skills/AGENTS_COSMOSTATION.md`](../../../skills/AGENTS_COSMOSTATION.md). |
 
 ## Catalog

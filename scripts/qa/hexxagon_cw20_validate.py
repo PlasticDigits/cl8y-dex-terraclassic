@@ -13,6 +13,18 @@ KEPLR = REPO / "docs/listings/keplr-contract-registry/cosmos/columbus/tokens"
 USTR = "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv"
 ICON_HOST = "gitlab.com/PlasticDigits/cl8y-dex-terraclassic"
 REQUIRED = ("protocol", "symbol", "name", "token", "icon", "decimals")
+GEMS = frozenset(
+    {
+        "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94",
+        "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena",
+        "terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr",
+        "terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9",
+        "terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc",
+        "terra12k67cvfs7y7g8lca3qr4g4py6s6j69fu24gze5pjfamfpckv8mps7cymme",
+        "terra17dpnjlpgsnm8muu4msfjra4f2hrptnjp2jdpkka4p0e3px42ayxq0pmc2z",
+        "terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs",
+    }
+)
 
 
 def fail(msg: str) -> None:
@@ -45,6 +57,8 @@ def main() -> None:
         addr = row["token"]
         if addr == USTR:
             fail("do not resubmit already-listed USTR")
+        if addr in GEMS:
+            fail(f"gem listed: {addr}")
         if addr not in pins:
             fail(f"{addr} not in Keplr pack")
         if row["symbol"] != pins[addr]["symbol"] or row["decimals"] != pins[addr]["decimals"]:

@@ -63,7 +63,7 @@ Legend: **PR** = GitHub pull request. **Form** = public request form (agent draf
 | Venue | What it unlocks | How |
 |-------|-----------------|-----|
 | **Cosmostation** (+ Mintscan token metadata) | CW20 name / logo / optional `coinGeckoId` | Pack: [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640) / !431. **Blocked:** [cosmostation/chainlist](https://github.com/cosmostation/chainlist) is **archived** (2026-07); Cosmostation wallet service ends **2026-09-01**. Folder would have been **`terra`**. |
-| **Galaxy Station / Hexxagon** | Token + optional DEX pair display | PR to [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js` (+ `cw20/dex_pairs` if they want CL8Y pools). **USTR** already there. |
+| **Galaxy Station / Hexxagon** | Token + optional DEX pair display | Pack: [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641) / !432. PR to [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js` (+ `cw20/dex_pairs` if they want CL8Y pools). **USTR** already there. Live append: [PR #68](https://github.com/hexxagon-io/chain-registry/pull/68). |
 | **cosmos/chain-registry** | Cosmos Directory, Leap custom-token metadata, explorers | PR `terra/assetlist.json` + images; `type_asset: cw20`. This is Leap’s real path — Leap has **no** public CW20 registry of its own. |
 | **Trust Wallet assets** | Logo / info in Trust Wallet | PR to [trustwallet/assets](https://github.com/trustwallet/assets). **Paid** merge. Only if product asks. |
 
@@ -122,5 +122,7 @@ Copy [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) Keplr CW20 — [`keplr-contract-registry/`](./keplr-contract-registry/) · [`skills/AGENTS_KEPLR_CW20_REGISTRY.md`](../../skills/AGENTS_KEPLR_CW20_REGISTRY.md)
 - [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) `/cg` `/cmc` — [`docs/CG_CMC_COMPLIANCE.md`](../CG_CMC_COMPLIANCE.md)
 - [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) gem hide
+- [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640) Cosmostation (archived) — [`cosmostation/`](./cosmostation/) · [`AGENTS_COSMOSTATION.md`](../../skills/AGENTS_COSMOSTATION.md)
+- [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641) Hexxagon — [`hexxagon/`](./hexxagon/) · [`AGENTS_HEXXAGON.md`](../../skills/AGENTS_HEXXAGON.md)
 - Integrators: [`docs/integrators.md`](../integrators.md#listing-venue-catalog-gitlab-639)
 - QA: [`docs/qa/issue-639/README.md`](../qa/issue-639/README.md)

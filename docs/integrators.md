@@ -228,13 +228,13 @@ Invariants **L639-1–L639-8**: [`listings/README.md`](./listings/README.md). Pi
 
 ## Cosmostation / Mintscan CW20s (GitLab #640) {#cosmostation-cw20-gitlab-640}
 
-Cosmostation and Mintscan read [cosmostation/chainlist](https://github.com/cosmostation/chainlist) **`chain/terra/cw20_2.json`** (Classic — not phoenix). This repo vendors a six-row fragment + PNGs to append. Same permanent-six pins as Keplr. `coinGeckoId` is `ceramicliberty-com` on CL8Y only; others are `""`. UST1 is an **unstablecoin**; USTR is **USTC Repeg**, not a stablecoin.
+Cosmostation and Mintscan read [cosmostation/chainlist](https://github.com/cosmostation/chainlist) **`chain/terra/cw20_2.json`** (Classic — not phoenix). This repo vendors a six-row fragment + PNGs to append. Same permanent-six pins as Keplr. `coinGeckoId` is `ceramicliberty-com` on CL8Y only; others are `""`. UST1 is an **unstablecoin**; USTR is **USTC Repeg**, not a stablecoin. **Upstream is archived** (2026-07); Cosmostation Wallet apps end **2026-09-01**. Treat #640 as pack-ready / blocked — do not open a GitHub PR.
 
 Invariants **C640-1–C640-8**: [`listings/cosmostation/README.md`](./listings/cosmostation/README.md). Agent playbook: [`skills/AGENTS_COSMOSTATION.md`](../skills/AGENTS_COSMOSTATION.md). Verify: `make verify-issue-640`. Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
 
 ## Hexxagon / Galaxy Station CW20s (GitLab #641) {#hexxagon-cw20-gitlab-641}
 
-Galaxy Station reads [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js`. **USTR is already listed** as USTC Repeg. This repo vendors five more rows (CL8Y, UST1, cLUNC, cUSTC, vFDUSD) with Keplr decimals. `coinGeckoID` only on CL8Y. Do not PR `terra-money/assets`.
+Galaxy Station reads [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js`. **USTR is already listed** as USTC Repeg. This repo vendors five more rows (CL8Y, UST1, cLUNC, cUSTC, vFDUSD) with Keplr decimals. `coinGeckoID` only on CL8Y. Do not PR `terra-money/assets`. Live append: [hexxagon-io/chain-registry#68](https://github.com/hexxagon-io/chain-registry/pull/68).
 
 Invariants **H641-1–H641-8**: [`listings/hexxagon/README.md`](./listings/hexxagon/README.md). Skill: [`AGENTS_HEXXAGON.md`](../skills/AGENTS_HEXXAGON.md). Verify: `make verify-issue-641`. Parent: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
 

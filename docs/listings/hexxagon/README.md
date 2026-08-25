@@ -21,8 +21,19 @@ Verify: `make verify-issue-641`. Playbook: [`skills/AGENTS_HEXXAGON.md`](../../.
 
 Fragment: [`terra.fragment.json`](./terra.fragment.json). Icons are live GitLab `tokenlist/images/` URLs.
 
-## Submit
+## Upstream status (2026-08-25)
 
-1. Fork [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry).
+Live append PR (do not open a duplicate): [hexxagon-io/chain-registry#68](https://github.com/hexxagon-io/chain-registry/pull/68).
+
+## Submit (operator, GitHub)
+
+1. Fork [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) only if #68 is closed without merge.
 2. Append the five objects to `cw20/tokens/mainnet/terra.js` (trailing commas, end of list).
 3. PR: *Add CL8Y ecosystem CW20s on Terra Classic (CL8Y, UST1, cLUNC, cUSTC, vFDUSD)*. Mention USTR is already listed.
+
+## Related
+
+- Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)
+- Keplr pack (same pins): [`../keplr-contract-registry/`](../keplr-contract-registry/)
+- Cosmostation (archived): [`../cosmostation/`](../cosmostation/)
+- QA: [`docs/qa/issue-641/README.md`](../../qa/issue-641/README.md)

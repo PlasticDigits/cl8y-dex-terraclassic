@@ -190,6 +190,25 @@ def check_venues(catalog: dict) -> None:
     child_venues = {row.get("venue") for row in children}
     if "cosmostation" not in child_venues:
         fail("children must start with Cosmostation")
+    cs = venues.get("cosmostation")
+    if not cs:
+        fail("missing venue cosmostation")
+    if cs.get("agentic") is not False:
+        fail("cosmostation venue must set agentic false while chainlist is archived")
+    if "archived" not in (cs.get("blocked") or "").lower():
+        fail("cosmostation venue must document archived blocked reason")
+    cs_child = next((row for row in children if row.get("venue") == "cosmostation"), None)
+    if not cs_child or "archived" not in (cs_child.get("blocked") or "").lower():
+        fail("children cosmostation must stay blocked while chainlist is archived")
+    hx = venues.get("hexxagon")
+    if not hx:
+        fail("missing venue hexxagon")
+    hx_pr = hx.get("upstream_pr") or ""
+    if "hexxagon-io/chain-registry/pull/" not in hx_pr:
+        fail("hexxagon venue must pin the live upstream PR")
+    hx_child = next((row for row in children if row.get("venue") == "hexxagon"), None)
+    if not hx_child or hx_child.get("upstream_pr") != hx_pr:
+        fail("children hexxagon upstream_pr must match the venue pin")
 
 
 def check_peg_language(catalog: dict) -> None:

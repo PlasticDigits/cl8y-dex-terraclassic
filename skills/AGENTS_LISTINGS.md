@@ -32,7 +32,7 @@ This is the **parent catalog**. It does **not** add indexer APIs.
 
 ## Rules of thumb
 
-1. **Start a child, don’t dump venues into this MR.** Cosmostation first, then Hexxagon, then chain-registry, then CG/CMC forms.
+1. **Start a child, don’t dump venues into this MR.** Cosmostation pack exists but **upstream is archived** ([#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)) — do not open a GitHub PR. Live wallet PR is Hexxagon ([#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)), then chain-registry, then CG/CMC forms.
 2. **Copy the Keplr/Llama skill shape** when a child starts: `docs/listings/<venue>/`, `skills/AGENTS_<VENUE>.md`, `make verify-issue-*`.
 3. **Reuse Keplr decimals and gem exclude.** Close blocked if a child ships gems, wrong decimals, or the BSC CL8Y contract as Classic.
 4. **Leap is chain-registry.** `suggestCW20Token` is per-user; official metadata is Cosmos Directory.
@@ -52,6 +52,8 @@ No LocalTerra, indexer, or wallet. Child venue PRs and form submits are operator
 
 - Keplr pack: [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md)
 - DeFiLlama: [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md)
+- Cosmostation (archived): [`AGENTS_COSMOSTATION.md`](./AGENTS_COSMOSTATION.md) · [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)
+- Hexxagon / Galaxy Station: [`AGENTS_HEXXAGON.md`](./AGENTS_HEXXAGON.md) · [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)
 - Retail gem hide: [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) (**#562**)
 - Integrators: [`docs/integrators.md`](../docs/integrators.md#listing-venue-catalog-gitlab-639)
 - QA: [`docs/qa/issue-639/README.md`](../docs/qa/issue-639/README.md)

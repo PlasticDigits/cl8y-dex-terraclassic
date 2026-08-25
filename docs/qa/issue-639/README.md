@@ -19,6 +19,7 @@ Playbook: [`skills/AGENTS_LISTINGS.md`](../../../skills/AGENTS_LISTINGS.md) · c
 2. Do **not** submit Coinhall, DexScreener, or LuncScan Telegram as if they were PRs.
 3. Human clicks captcha / login on CoinGecko and CMC forms.
 4. Do **not** open upstream GitHub PRs from CI.
+5. Cosmostation (#640) is **blocked** (chainlist archived). Hexxagon (#641) is the live wallet PR.
 
 ## Out of scope here
 
