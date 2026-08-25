@@ -54,7 +54,11 @@ live.extend(row for row in frag if row["contract"] not in have)
 PY
 ```
 
-## Submit (operator, GitHub)
+## Upstream status (2026-08-25)
+
+[cosmostation/chainlist](https://github.com/cosmostation/chainlist) is **archived** (read-only). Cosmostation Wallet apps shut down **2026-09-01**. The in-repo pack + `make verify-issue-640` still lock the pins. Fork branch (cannot PR upstream): https://github.com/PlasticDigits/chainlist/tree/feat/terra-classic-cl8y-cw20
+
+## Submit (operator, GitHub) — blocked while archived
 
 1. Fork [cosmostation/chainlist](https://github.com/cosmostation/chainlist).
 2. Append the six fragment objects to `chain/terra/cw20_2.json` (do not drop existing rows).
