@@ -149,6 +149,25 @@ describe('ManageTokenPage (#593)', () => {
     expect(screen.getByTestId('manage-unlock-sku').textContent).not.toMatch(/Minting/)
   })
 
+  it('P11: adopted tax-pin token shows unlock SKUs', async () => {
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-unlock-sku')).toBeInTheDocument()
+    expect(screen.queryByTestId('manage-token-wrong-template')).not.toBeInTheDocument()
+  })
+
+  it('P11: 6036 source hides tax SKUs', async () => {
+    const { getChainContractInfo } = await import('@/services/terraclassic/queries')
+    vi.mocked(getChainContractInfo).mockResolvedValueOnce({
+      code_id: 6036,
+      admin: 'terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2',
+      creator: MANAGER,
+      label: 'cw20-base',
+    })
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-token-wrong-template')).toBeInTheDocument()
+    expect(screen.queryByTestId('manage-unlock-sku')).not.toBeInTheDocument()
+  })
+
   it('M-1: buy/sell stay locked without variable_rates', async () => {
     const { queryCommunityTaxFeatures } = await import('@/services/terraclassic/communityTaxToken')
     vi.mocked(queryCommunityTaxFeatures).mockResolvedValueOnce({

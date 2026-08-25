@@ -86,6 +86,17 @@ run_step "indexer lib: protocol_fees math + wrap pin" \
 run_step "indexer integration: protocol fees + overview keys" \
   bash -c 'cd indexer && cargo test --test indexer_protocol_fees --test api_overview -- --test-threads=1 --quiet'
 
+if [[ ! -x "$REPO_ROOT/frontend-dapp/node_modules/.bin/vitest" ]]; then
+  SIBLING="$(dirname "$REPO_ROOT")/cl8y-dex-terraclassic/frontend-dapp/node_modules"
+  if [[ -x "$SIBLING/.bin/vitest" ]]; then
+    ln -sfn "$SIBLING" "$REPO_ROOT/frontend-dapp/node_modules"
+    echo "[bootstrap] linked frontend-dapp/node_modules from primary checkout"
+  else
+    echo "[bootstrap] frontend-dapp/node_modules missing — npm ci…"
+    bash "$REPO_ROOT/scripts/with-node.sh" --cwd frontend-dapp -- npm ci
+  fi
+fi
+
 run_step "frontend: Protocol RTL + trailing-window copy" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run src/pages/ProtocolPage.test.tsx src/utils/__tests__/trailingWindowCopy.test.ts'
 

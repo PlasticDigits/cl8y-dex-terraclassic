@@ -46,6 +46,7 @@ make dev
 | `make verify-issue-621` | Tax-aware localnet swarm gem exclude + tax workers ([GitLab #621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621)) |
 | `make verify-issue-622` | Playwright e2e-tx community-tax pair ([GitLab #622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)) |
 | `make verify-issue-625` | Post-merge !415–!417 leftover live ([GitLab #625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)) |
+| `make verify-issue-628` | Post-merge !418 migrate leftovers ([GitLab #628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)) |
 
 ### Trading swarm (UI load / localnet only)
 
@@ -73,7 +74,7 @@ make verify-issue-624   # leftover fresh volume / indexer / Transfer after !414
 make verify-issue-625   # leftover tax-on buy / e2e-tx P0 / swarm soak after !415–!417
 ```
 
-Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). Post-merge leftovers: [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) (**M624-1–M624-8**, [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624)); [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md) (**M625-1–M625-8**, [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)). `#601` smoke stays ephemeral. Retail dApp txs on that pair: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**, `make verify-issue-622`). Swarm `--dry-run` logs `swarm_funding_plan` and does **not** call `fundBotWallets`. Seed token treasury is a distinct sink (not test1) so extra-debit is LCD-visible.
+Playbook: [`skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](../skills/AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md) (**L620-1–L620-8**). Post-merge leftovers: [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) (**M624-1–M624-8**, [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624)); [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md) (**M625-1–M625-8**, [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)). Post-merge migrate leftovers: [`skills/AGENTS_POST_MERGE_OPS_628.md`](../skills/AGENTS_POST_MERGE_OPS_628.md) (**M628-1–M628-8**, [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)). `#601` smoke stays ephemeral. Retail dApp txs on that pair: [`skills/AGENTS_E2E_COMMUNITY_TAX_TX.md`](../skills/AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-1–E622-8**, `make verify-issue-622`). Swarm `--dry-run` logs `swarm_funding_plan` and does **not** call `fundBotWallets`. Seed token treasury is a distinct sink (not test1) so extra-debit is LCD-visible.
 
 ## Docker Setup
 
