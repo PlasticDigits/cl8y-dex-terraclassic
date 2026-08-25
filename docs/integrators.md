@@ -210,6 +210,14 @@ The indexer only **auto-discovers** pairs that respond to the pair `Pair` query 
 
 `GET /api/v1/community-tokens/{addr}` and `/{addr}/events` expose features, settings, pair registry, and SKU vs settings-fee events. `GET /api/v1/tokens/{addr}` may embed `community_tax` when the address is catalogued. Playbook: [`skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md`](../skills/AGENTS_INDEXER_COMMUNITY_TOKENS.md). Invariants **I594-1–I594-10**.
 
+## Keplr CW20 recognition (GitLab #629) {#keplr-cw20-recognition-gitlab-629}
+
+Keplr **Add Token** names and logos come from [keplr-contract-registry](https://github.com/chainapsis/keplr-contract-registry) under **`cosmos/columbus`** (columbus-5) — not `terra` or phoenix-1.
+
+This repo keeps a ready-to-copy pack (permanent CW20s only: CL8Y, UST1, USTR, cLUNC, cUSTC, vFDUSD). **USTR is already listed** upstream as **USTC Repeg**. Recognition JSON has **no** invented price fields; optional `coinGeckoId` is `ceramicliberty-com` on CL8Y only (CoinGecko still maps that id to BSC). Invariants **K629-1–K629-8**: [`listings/keplr-contract-registry/README.md`](./listings/keplr-contract-registry/README.md). Agent playbook: [`skills/AGENTS_KEPLR_CW20_REGISTRY.md`](../skills/AGENTS_KEPLR_CW20_REGISTRY.md). Verify: `make verify-issue-629`.
+
+Do **not** treat `/cg/*` or `/cmc/*` as Keplr wallet metadata. Related listing (TVL/volume, not Keplr): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.

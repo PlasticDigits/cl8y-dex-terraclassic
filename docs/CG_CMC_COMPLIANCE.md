@@ -25,6 +25,8 @@ This document describes the CL8Y DEX's self-hosted market data API endpoints tha
 
 > **Warning:** [CoinGecko Pro API v3](https://docs.coingecko.com/) (`/api/v3/...` on `api.coingecko.com`) is the **aggregator consumer API**. CL8Y implements the **self-hosted exchange integration** surface (`/cg/*`, `/cmc/*`) that listing crawlers poll on **your** API domain — the same class as [Kujira FIN](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) and [Openware Peatio CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap). Do not point integrators or listing forms at Pro v3 paths.
 
+Keplr **Add Token** name/logo is a different listing: [keplr-contract-registry](https://github.com/chainapsis/keplr-contract-registry) under `cosmos/columbus` ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)). CL8Y’s CoinGecko id `ceramicliberty-com` is still BSC-only; that does not change `/cg/*`. Pack: [`listings/keplr-contract-registry/`](./listings/keplr-contract-registry/).
+
 ---
 
 ## Spec compliance matrix
