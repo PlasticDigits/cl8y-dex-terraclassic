@@ -27,7 +27,7 @@ This document describes the CL8Y DEX's self-hosted market data API endpoints tha
 
 > **Warning:** [CoinGecko Pro API v3](https://docs.coingecko.com/) (`/api/v3/...` on `api.coingecko.com`) is the **aggregator consumer API**. CL8Y implements the **self-hosted exchange integration** surface (`/cg/*`, `/cmc/*`) that listing crawlers poll on **your** API domain — the same class as [Kujira FIN](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) and [Openware Peatio CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap). Do not point integrators or listing forms at Pro v3 paths.
 
-Keplr **Add Token** name/logo is a different listing: [keplr-contract-registry](https://github.com/chainapsis/keplr-contract-registry) under `cosmos/columbus` ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)). CL8Y’s CoinGecko id `ceramicliberty-com` is still BSC-only; that does not change `/cg/*`. Pack: [`listings/keplr-contract-registry/`](./listings/keplr-contract-registry/).
+Keplr **Add Token** name/logo is a different listing: [keplr-contract-registry](https://github.com/chainapsis/keplr-contract-registry) under `cosmos/columbus` ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)). CL8Y’s CoinGecko id `ceramicliberty-com` is still BSC-only; that does not change `/cg/*`. Pack: [`listings/keplr-contract-registry/`](./listings/keplr-contract-registry/). Exchange **form** submit + other wallets: [listing venue catalog](./listings/README.md) ([#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)).
 
 ---
 
@@ -435,6 +435,8 @@ GeckoTerminal (owned by CoinGecko) crawls on-chain data directly from blockchain
 
 If GeckoTerminal does not support Terra Classic natively, the `/cg/` endpoints above serve as a fallback for CoinGecko to list the DEX. Contact CoinGecko's listing team directly.
 
+**Verified 2026-08-25:** Terra Classic is **not** in `GET https://api.geckoterminal.com/api/v2/networks`. The listing path is Non-EVM adapters + the Google form — see [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) and [`listings/README.md`](./listings/README.md). Do not treat Uniswap-V2 auto-detect as available.
+
 ---
 
 ## Hybrid Orderbook Simulation
@@ -507,11 +509,11 @@ This matches the pair contract pool leg (`ceil_div`, commission on gross output)
 ### CoinGecko
 
 1. Ensure all `/cg/` endpoints are live and returning valid data
-2. Go to [CoinGecko Request Form](https://www.coingecko.com/en/request) or contact listings@coingecko.com
+2. Go to [CoinGecko Partners Platform](https://partner.coingecko.com/request-form/new) → Decentralized Spot Exchange (account + captcha). Field pack: [`listings/forms/coingecko-exchange.md`](./listings/forms/coingecko-exchange.md) ([#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)).
 3. Provide:
    - Exchange name: CL8Y DEX
    - Exchange type: Decentralized (AMM)
-   - API base URL: `https://<your-api-domain>/cg/`
+   - API base URL: `https://indexer.dex.cl8y.com/cg/` (not CoinGecko Pro v3)
    - Network: Terra Classic (columbus-5)
    - Supported endpoints: `/pairs`, `/tickers`, `/orderbook`, `/historical_trades`
 4. CoinGecko will crawl the endpoints and verify data quality
@@ -519,12 +521,13 @@ This matches the pair contract pool leg (`ceil_div`, commission on gross output)
 ### CoinMarketCap
 
 1. Ensure all `/cmc/` endpoints are live and returning valid data
-2. Apply at [CoinMarketCap Exchange Listing](https://support.coinmarketcap.com/hc/en-us/articles/360043659351-Listings-Criteria)
+2. Apply at [coinmarketcap.com/request](https://coinmarketcap.com/request/) → Add exchange. Criteria: [Listings Criteria](https://support.coinmarketcap.com/hc/en-us/articles/360043659351-Listings-Criteria) (60-day operation). Field pack: [`listings/forms/coinmarketcap-exchange.md`](./listings/forms/coinmarketcap-exchange.md) ([#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)). CMC DexScan is **not** the Terra Classic path.
 3. Provide:
-   - Exchange name and website
+   - Exchange name and website (`https://dex.cl8y.com`, books visible logged-out)
    - API documentation URL (link to this document)
-   - API base URL: `https://<your-api-domain>/cmc/`
-   - For each token, the `unified_cryptoasset_id` should be set in the assets table
+   - API base URL: `https://indexer.dex.cl8y.com/cmc/` (not CoinGecko Pro v3)
+   - Factory: `terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea`
+   - For each token, the `unified_cryptoasset_id` should be set in the assets table once CMC ids exist
 4. CMC will verify endpoint compliance and data freshness
 
 ### Token-Level Listings

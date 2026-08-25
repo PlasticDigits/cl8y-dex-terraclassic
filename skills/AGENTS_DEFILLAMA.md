@@ -72,3 +72,4 @@ Live Coolify (operator, after deploy): yesterday UTC `GET https://indexer.dex.cl
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md)
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md)
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) Llama pricing coverage
+- [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) other listing venues — [`AGENTS_LISTINGS.md`](./AGENTS_LISTINGS.md)

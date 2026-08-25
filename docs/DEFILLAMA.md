@@ -137,3 +137,4 @@ Volume includes gems or fills; TVL is sourced from indexer USD; fees include `sp
 - [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) production gem hide
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) token recognition (Llama pricing coverage)
 - [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) CG/CMC (do not conflate)
+- [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) listing venue catalog (do not reopen Llama adapters there)
