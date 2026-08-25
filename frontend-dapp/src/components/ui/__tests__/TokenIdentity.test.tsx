@@ -65,6 +65,7 @@ describe('TokenIdentity (GitLab #541)', () => {
     wrap(<TokenIdentity info={{ native_token: { denom: 'uluna' } }} role="quote" />)
 
     expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', 'uluna')
+    expect(screen.getByTestId('token-identity-quote')).toHaveTextContent('LUNC')
     expect(screen.getByRole('button', { name: /copy /i })).toBeInTheDocument()
     expect(screen.queryByTestId('token-identity-quote-explorer')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()

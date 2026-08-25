@@ -255,7 +255,7 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 **Regression:** `make verify-issue-541` — unit + scoped page tests + Playwright smoke `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md). Visible native tickers are **LUNC** / **USTC** ([#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630), [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](../skills/AGENTS_FRONTEND_NATIVE_TICKERS.md)); copy payload stays the denom (**T541-4** / **N630-7**).
 
 ### Charts overview strip {#charts-overview}
 
@@ -1067,10 +1067,18 @@ Swap **YOU PAY** / **YOU RECEIVE** use [`TokenSearchSelect`](../frontend-dapp/sr
 | **Accessibility** | Input `role="combobox"` + `aria-autocomplete="list"` + portaled `listbox`; Arrow / Enter / Escape / Tab. Typed query + Enter commits **first hit** (same #350 rule as pair search). |
 | **Mobile layout stability (#498)** | Leading logo stays mounted while open; trigger uses **`.token-select-trigger--with-leading-logo`**. Selected label remains until the user edits (`queryDraft`); focus selects the label. See [Portal listboxes — layout stability](#portal-listbox-layout-stability). |
 | **Quote path unchanged** | Selection still updates the same token id string; routing/simulation/execution are untouched. |
+| **N630-1** Native product tickers | Visible option / trigger / `TokenDisplay` / `TokenIdentity` text for bank `uluna` / `uusd` is **LUNC** / **USTC**, never the denom ([GitLab **#630**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)). Shared helper [`registryProductSymbol`](../frontend-dapp/src/utils/tokenRegistry.ts) runs **before** indexer `symbol` in [`useTokenDisplayInfo`](../frontend-dapp/src/hooks/useTokenDisplayInfo.ts) and [`getTokenDisplaySymbol`](../frontend-dapp/src/utils/tokenDisplay.ts). |
+| **N630-2** Wrap rows stay distinct | **cLUNC** / **cUSTC** stay four-way distinct from LUNC / USTC even when indexer/on-chain say `LUNC-C` / `USTC-C` ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507)). |
+| **N630-3** Ids unchanged | `onChange`, `data-testid` (`token-option-uluna`), balances, route/solve, and execute stay `uluna` / `uusd` (or wrap CW20 address). |
+| **N630-4** Registry wins | A stale or spoofed indexer `symbol` (`uluna`, `UST1`, HTML) cannot relabel known natives or wrap CW20s. Unknown CW20s still use indexer / `token_info`. |
+| **N630-5** Unknown natives fail closed | `ufoo` / `ibc/…` display as the raw denom (or indexer symbol if present). Do not invent tickers. |
+| **N630-6** Search both forms | Haystack keeps denom **and** product ticker so `LUNC` / `uluna` / `USTC` / `uusd` all hit the native row. |
+| **N630-7** Copy stays denom | [#541](#token-identity) copy payload is `uluna` / `uusd`; natives stay copy-only. No always-on “uluna means LUNC” essay ([#489](#retail-copy-cognitive-load)). |
+| **N630-8** Indexer catalog | First native insert + denom-as-symbol repair write `LUNC` / `USTC` for `uluna` / `uusd` only. Other denoms stay denom/denom. Wrap CW20 rows untouched. |
 
-**Regression tests:** [`tokenSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/tokenSearchQuery.test.ts); [`TokenSearchSelect.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TokenSearchSelect.test.tsx); E2E helpers [`e2e/helpers/token-select.ts`](../frontend-dapp/e2e/helpers/token-select.ts) target `combobox` (not `button`); mobile CLS [`e2e/swap-token-select-cls.spec.ts`](../frontend-dapp/e2e/swap-token-select-cls.spec.ts) (**#498**); LocalTerra gems-still-listed P1 [`e2e/retail-test-tokens-562.spec.ts`](../frontend-dapp/e2e/retail-test-tokens-562.spec.ts) (**#562** / **#573**).
+**Regression tests:** [`tokenSearchQuery.test.ts`](../frontend-dapp/src/utils/__tests__/tokenSearchQuery.test.ts); [`TokenSearchSelect.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TokenSearchSelect.test.tsx); [`TokenSearchSelect.issue630.test.tsx`](../frontend-dapp/src/components/trade/__tests__/TokenSearchSelect.issue630.test.tsx); [`useTokenDisplayInfo.test.tsx`](../frontend-dapp/src/hooks/__tests__/useTokenDisplayInfo.test.tsx); E2E helpers [`e2e/helpers/token-select.ts`](../frontend-dapp/e2e/helpers/token-select.ts) target `combobox` (not `button`); mobile CLS [`e2e/swap-token-select-cls.spec.ts`](../frontend-dapp/e2e/swap-token-select-cls.spec.ts) (**#498**); LocalTerra gems-still-listed P1 [`e2e/retail-test-tokens-562.spec.ts`](../frontend-dapp/e2e/retail-test-tokens-562.spec.ts) (**#562** / **#573**). Issue-scoped: `make verify-issue-630`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_SEARCH.md`](../skills/AGENTS_FRONTEND_TOKEN_SEARCH.md); CLS: [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); keyboard notes in [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_SEARCH.md`](../skills/AGENTS_FRONTEND_TOKEN_SEARCH.md); native tickers: [`skills/AGENTS_FRONTEND_NATIVE_TICKERS.md`](../skills/AGENTS_FRONTEND_NATIVE_TICKERS.md); CLS: [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md); keyboard notes in [`skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](../skills/AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md).
 
 ### Trader profile (indexer JSON + route error recovery) {#trader-profile-indexer}
 

@@ -66,3 +66,4 @@ Vitest: `tokenIdentity.test.ts`, `TokenIdentity.test.tsx`, `TokenIdentity.explor
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert must not swap identity payloads
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no address essays
 - [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md) — no Protocol factory/router clone
+- [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](./AGENTS_FRONTEND_NATIVE_TICKERS.md) — visible **LUNC** / **USTC**; copy payload stays `uluna` / `uusd` (**N630-7**, [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630))

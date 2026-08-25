@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { lookupByDenom, lookupByCW20, lookupByTokenId, lookupByAssetInfo, TOKENS } from '../tokenRegistry'
+import {
+  lookupByDenom,
+  lookupByCW20,
+  lookupByTokenId,
+  lookupByAssetInfo,
+  registryProductSymbol,
+  TOKENS,
+} from '../tokenRegistry'
 
 describe('lookupByDenom', () => {
   it('returns LUNC for uluna', () => {
@@ -60,6 +67,27 @@ describe('lookupByTokenId', () => {
 
   it('returns undefined for unknown', () => {
     expect(lookupByTokenId('xyz')).toBeUndefined()
+  })
+})
+
+describe('registryProductSymbol (GitLab #630)', () => {
+  it('maps known natives case-insensitively', () => {
+    expect(registryProductSymbol('uluna')).toBe('LUNC')
+    expect(registryProductSymbol('ULUNA')).toBe('LUNC')
+    expect(registryProductSymbol('uusd')).toBe('USTC')
+    expect(registryProductSymbol('UUSD')).toBe('USTC')
+  })
+
+  it('maps wrap CW20s to cLUNC / cUSTC', () => {
+    expect(registryProductSymbol('terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg')).toBe('cLUNC')
+    expect(registryProductSymbol('terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch')).toBe('cUSTC')
+  })
+
+  it('returns undefined for unknown natives and empty input', () => {
+    expect(registryProductSymbol('ufoo')).toBeUndefined()
+    expect(registryProductSymbol('ibc/ABC')).toBeUndefined()
+    expect(registryProductSymbol('')).toBeUndefined()
+    expect(registryProductSymbol(null)).toBeUndefined()
   })
 })
 
