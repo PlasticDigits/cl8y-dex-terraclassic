@@ -60,7 +60,7 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | `type` | Yes | `native` or `cw20` |
 | `denom` | Native only | On-chain denomination (e.g. `uluna`, `uusd`) |
 | `address` | CW20 only | Contract address on Terra Classic |
-| `decimals` | Yes | Token decimal places (usually `6`) |
+| `decimals` | Yes | On-chain decimal places (usually `6`; **CL8Y and USTR are 18**) |
 | `logoURI` | Yes | GitLab raw URL to the image in `tokenlist/images/` |
 | `website` | No | Project website |
 

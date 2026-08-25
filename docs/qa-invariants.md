@@ -202,11 +202,11 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 |----|------|
 | **M616-1** | `make verify-issue-616` runs children **607, 610, 613, 614, 615**. Unit/docs FAILs fail the stack. Coolify leftover probes SKIP unless `VERIFY616_REQUIRE_LIVE_LEFTOVERS=1`. LocalTerra SKIP only when the chain is down (unless `VERIFY616_REQUIRE_CHAIN=1`). |
 | **M616-2** | Columbus-5 launcher `terra126pr5…` is **11622** with `GetConfig` **11619** / **11621**. Do not whitelist 11612 / 11613 / 11614 / 11620 / 11621 / 11622 / 8654. Keep 11611 listed until Refresh. |
-| **M616-3** | Coolify frontend bakes `VITE_COMMUNITY_TAX_CODE_ID=11619` and launcher `terra126pr5…`. Indexer catalog `code_id=11619`. Indexer `UST1_WINDOW_ADDRESS` is pinned (`ust1_window_configured: true`). Remaining leftovers: wrap `event_count` and live `ust1_mint` / `ust1_redeem`. |
+| **M616-3** | Coolify frontend bakes `VITE_COMMUNITY_TAX_CODE_ID=11619` and launcher `terra126pr5…`. Indexer catalog `code_id=11619`. Indexer `UST1_WINDOW_ADDRESS` is pinned (`ust1_window_configured: true`). Live wrap/unwrap and `ust1_mint` / `ust1_redeem` increment (2026-08-25). |
 | **M616-4** | Swap/Trade pair-direct **and** hops show `Sell tax extra` / `Buy tax applies`. Create/Manage: `Buy/sell tax applies on every listed-pair swap.` No `Route skips buy/sell tax`. |
 | **M616-5** | AutoLP skim floor (100 bps, cap 200) + factory-listed tax pair. Do not whitelist AutoLP. Crate **610** is the gate when LocalTerra is down. |
 | **M616-6** | Ranking TAX→UST1 vs TAX→USTR. Unmigrated 11611 stays Honest hops until `COMMUNITY_TAX_OPTION2_*` (**R615-5**). Do not infer wrap/window fees from `amount × bps`. |
-| **M616-7** | Do not reopen #607 / #610 / #613 / #615 for ops/QA. #614 stays open until live `ust1_mint` / `ust1_redeem` increment. |
+| **M616-7** | Do not reopen #607 / #610 / #613 / #614 / #615 for ops/QA. Live `ust1_mint` / `ust1_redeem` increment on `/protocol`. |
 | **M616-8** | Playbook + this Q11 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
 ## Post-merge !414 LocalTerra community-tax seed leftovers (invariant Q12) {#post-merge-ops-624}
@@ -247,6 +247,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M625-7** | Do not reopen #621 / #622 / #623 / #620 for ops/QA. Do not merge tax-on into B-lt. Do not turn hybrid off. Do not `test.skip` e2e-tx. Never whitelist 11611 / 11619 / 8654. No pair/router FoT math. |
 | **M625-8** | Playbook + this Q13 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !418 community-tax migrate leftovers (invariant Q14) {#post-merge-ops-628}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q14** Post-merge !418 leftover live is checked (adopt pin ≠ 11619, factory list without 8654/code 3, Coolify/indexer single-id, 6036 cw2, LocalTerra P3/P7/P11, children 626/592/593/594) | **`make verify-issue-628`** → children **626, 592, 593, 594** plus leftover probes (**M628-1–M628-8**) | Non-zero exit; fix the failing child, pin, or LocalTerra leftover; do not treat green #626 docs-only as leftover live |
+
+**M628** (GitLab **#628** — [`skills/AGENTS_POST_MERGE_OPS_628.md`](../skills/AGENTS_POST_MERGE_OPS_628.md)):
+
+| ID | Rule |
+|----|------|
+| **M628-1** | `make verify-issue-628` runs children **626, 592, 593, 594** plus leftover live (columbus-5 pins, 6036 cw2, Coolify/indexer, LocalTerra P3/P7/P11). Unit/docs FAILs fail the stack. Live leftover SKIP unless LCD / `dex.cl8y.com` answers (FAIL when `VERIFY628_REQUIRE_LIVE=1` or `VERIFY628_IID=628`). LocalTerra SKIP unless the chain + tax pins are up (FAIL when `VERIFY628_REQUIRE_LIVE=1` / `VERIFY628_IID=628` / `VERIFY628_REQUIRE_CHAIN=1`). |
+| **M628-2** | Retail adopt target is the current listed tax pin, not **11619**. #628 stored + listed **11626**; #635 bump **11630** is the live factory / launcher / Coolify pin. 0 instances of 11619 — CMM same-crate migrate is N/A. |
+| **M628-3** | Factory-list only a GO tax pin. Never whitelist **8654** or columbus-5 **code 3**. 11619 may be removed at 0 instances. Keep 6036 / 8266 / 10184 listed. |
+| **M628-4** | Coolify `VITE_COMMUNITY_TAX_CODE_ID` + indexer `COMMUNITY_TAX_CODE_ID` match the current listed tax pin (**11630** after #635; **11626** was the #628 store). Migrate allowlist default **6036,10184,8266,8654**. Catalog is single-id. Do not bake 11619. |
+| **M628-5** | Confirm LCD cw2 on a live 6036 instance. `crates.io:cw20-base` is adopt-go. `terraswap-token` stays page-go / chain-revert — do not append that name from this ticket. Either recorded outcome PASSes the leftover probe. |
+| **M628-6** | LocalTerra: mintable adopt keeps balances / `total_supply`; inbound Transfer to a CL8Y pair is 1:1; admin CMM (**P3**). Pair fail-closes until `RefreshPairAssetCodeIds`; after Refresh, extra-debit sell works (**P7**). Manage shows tax SKUs when `code_id` matches the env pin (**P11**). |
+| **M628-7** | Create Token retail copy stays code-id-free. Lead is “Already have a token? Migrate here”. 8654 is a normal migrate-allowlist entry in env/docs — never factory-list language. Do not reopen #626 / implement #627 / RegisterListedPair Terraport/GDEX / turn hybrid off / add pair-router FoT math. |
+| **M628-8** | Playbook + this Q14 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -264,3 +283,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_616.md`](../skills/AGENTS_POST_MERGE_OPS_616.md) — post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616), **Q11**)
 - [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) — post-merge !414 LocalTerra community-tax seed leftovers ([#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624), **Q12**)
 - [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md) — post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625), **Q13**)
+- [`skills/AGENTS_POST_MERGE_OPS_628.md`](../skills/AGENTS_POST_MERGE_OPS_628.md) — post-merge !418 community-tax migrate leftovers ([#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628), **Q14**)

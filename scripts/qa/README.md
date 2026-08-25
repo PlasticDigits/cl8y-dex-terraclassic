@@ -189,7 +189,7 @@ After !409–!413 landed option-2 classify, wrap ingest, window pin, AutoLP floo
 | `make verify-issue-616` | Children **607, 610, 613, 614, 615** plus Q11 / **M616-1–M616-8** |
 | Columbus-5 launcher | `terra126pr5…` code **11622**, `GetConfig` **11619** / **11621**; 11611+11619 listed |
 | Coolify frontend | `VITE_COMMUNITY_TAX_CODE_ID=11619` + option-2 copy (not `Route skips buy/sell tax`) |
-| Coolify indexer leftovers | `UST1_WINDOW_ADDRESS=terra1zxwpz…h3rh2` (Vite is not enough); wrap `event_count ≥ 1`; `COMMUNITY_TAX_OPTION2_CODE_IDS=11619` after a 11619 instance |
+| Coolify indexer | `UST1_WINDOW_ADDRESS=terra1zxwpz…h3rh2` (Vite is not enough; live pin + mint/redeem ingest as of 2026-08-25); wrap `event_count ≥ 1`; `COMMUNITY_TAX_OPTION2_CODE_IDS=11619` after a 11619 instance |
 | Disclose | Pair-direct **and** hops: `Sell tax extra` / `Buy tax applies` |
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_616.md`](../../skills/AGENTS_POST_MERGE_OPS_616.md). QA invariant **Q11**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-616).
@@ -223,6 +223,23 @@ After !415–!417 landed tax-aware swarm, named tax-on Layer B, and Playwright e
 | Disclose | Do **not** reopen #621 / #622 / #623 / #620; do not merge tax-on into B-lt |
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_625.md`](../../skills/AGENTS_POST_MERGE_OPS_625.md). QA invariant **Q13**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-625).
+
+### Post-merge !418 community-tax migrate leftovers (GitLab #628)
+
+After !418 landed free `/token/migrate` + `adopt.rs`:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-628` | Children **626, 592, 593, 594** plus leftover live / **M628-1–M628-8** / **Q14** |
+| Adopt pin | Current listed tax pin (**11630** after #635; **11626** was the #628 store) — not 11619 |
+| Factory list | `[6036, 8266, 10184, 11630]` — never 8654 or code 3 |
+| Coolify / indexer | Single-id bake of the listed tax pin; `VITE_COMMUNITY_MIGRATE_CODE_IDS` includes 8654 |
+| 6036 cw2 | Live instance is `crates.io:cw20-base` (do not append `terraswap-token` from this ticket) |
+| LocalTerra | [`localterra-628-migrate-leftover.sh`](./localterra-628-migrate-leftover.sh) P3 / P7 / P11 |
+| Create Token | Code-id-free lead + **Migrate here** — 8654 is allowlist/docs only |
+| Disclose | Do **not** reopen #626 / implement #627 / factory-list 8654 or code 3 |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_628.md`](../../skills/AGENTS_POST_MERGE_OPS_628.md). QA invariant **Q14**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-628).
 
 ### Listed-pair autoregister + migrate inventory (GitLab #633 / #634)
 
