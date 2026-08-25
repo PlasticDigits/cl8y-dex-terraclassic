@@ -105,7 +105,7 @@ Also: `GetAssetCodeIds` **hard-errors** on pre-1.15.0 pairs (not `null`). `Clean
 
 ## After a retail adopt (#626)
 
-`/token/migrate` moves a listed 6036 / 10184 / 8266 instance onto **11619**. CL8Y factory pairs pinned to the **old** id fail-closed until governance Refresh. Token admin cannot Refresh. Do **not** Refresh a pair whose other asset is unlisted. Do **not** `RegisterListedPair` Terraport/GDEX pair addrs. Playbook: [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md).
+`/token/migrate` moves a listed 6036 / 10184 / 8266 instance onto **11619**. CL8Y factory pairs pinned to the **old** id fail-closed until governance Refresh. Token admin cannot Refresh. Do **not** Refresh a pair whose other asset is unlisted. Do **not** `RegisterListedPair` Terraport/GDEX pair addrs. The retail page lists those venues and a post-refresh CL8Y register tool ([#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) **M634**). Playbook: [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md).
 
 Order: 11619 already listed → `SetPairPaused` on affected CL8Y pairs → `RefreshPairAssetCodeIds` (single) → smoke extra-debit sell → unpause.
 
