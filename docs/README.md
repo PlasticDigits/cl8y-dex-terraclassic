@@ -6,7 +6,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 
 ## Architecture & Design
 - [Architecture Overview](./architecture.md) — system diagram, contract relationships, swap flow
-- [Integrators](./integrators.md) — hybrid hooks (L7), limit-book fees, [on-chain book HTTP](./integrators.md#on-chain-limit-book-lcd-proxy)
+- [Integrators](./integrators.md) — hybrid hooks (L7), limit-book fees, [on-chain book HTTP](./integrators.md#on-chain-limit-book-lcd-proxy), [Keplr CW20 recognition](./integrators.md#keplr-cw20-recognition-gitlab-629) ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629), pack [`listings/keplr-contract-registry/`](./listings/keplr-contract-registry/), skill [`AGENTS_KEPLR_CW20_REGISTRY.md`](../skills/AGENTS_KEPLR_CW20_REGISTRY.md))
 - [Integrators — hybrid volume reconciliation](./integrators-hybrid-volume.md) — headline vs leg vs fill volumes, CG/CMC mapping ([GitLab #216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216)); agent playbook [`skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md`](../skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md)
 - [Security Model](./security-model.md) — governance keys, treasury, hook safety; [user security contact](../SECURITY.md) (SEC-A07, [#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392))
 - [Public security posture](./security-posture.md) — launch expectations, audit disclaimer, TVL-scaled controls (dApp footer link, SEC-A01)

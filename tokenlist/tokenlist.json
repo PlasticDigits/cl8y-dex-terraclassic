@@ -4,7 +4,7 @@
   "version": {
     "major": 1,
     "minor": 0,
-    "patch": 0
+    "patch": 1
   },
   "keywords": ["terra-classic", "cl8y", "dex"],
   "tokens": [
@@ -45,7 +45,7 @@
       "name": "CL8Y Token",
       "address": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
       "type": "cw20",
-      "decimals": 6,
+      "decimals": 18,
       "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png"
     },
     {

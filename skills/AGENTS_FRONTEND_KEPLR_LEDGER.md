@@ -54,3 +54,4 @@ Manual columbus-5: Terra Classic (LUNA) app open → swap confirms; Cosmos app o
 - Pre-sign swap summary: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md) ([#409](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/409))
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489))
 - Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
+- Keplr Add Token name/logo (not signing): [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md) ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629))
