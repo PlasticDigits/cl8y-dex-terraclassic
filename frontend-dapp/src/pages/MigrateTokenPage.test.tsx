@@ -3,14 +3,23 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { useWalletStore } from '@/hooks/useWallet'
+import {
+  ALPHA_TERRAPORT_LUNC_PAIR,
+  ALPHA_TERRAPORT_USTC_PAIR,
+  MIGRATE_VENUE_CL8Y_EMPTY,
+  MIGRATE_VENUE_GDEX,
+} from '@/utils/communityTaxMigratePairs'
 const ALPHA = 'terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz'
 
-const { mockEnabled, getChainContractInfo, probeHasTaxMap, isCodeIdWhitelisted } = vi.hoisted(() => ({
-  mockEnabled: vi.fn(() => true),
-  getChainContractInfo: vi.fn(),
-  probeHasTaxMap: vi.fn(),
-  isCodeIdWhitelisted: vi.fn(),
-}))
+const { mockEnabled, getChainContractInfo, probeHasTaxMap, isCodeIdWhitelisted, loadMigratePairInventory } = vi.hoisted(
+  () => ({
+    mockEnabled: vi.fn(() => true),
+    getChainContractInfo: vi.fn(),
+    probeHasTaxMap: vi.fn(),
+    isCodeIdWhitelisted: vi.fn(),
+    loadMigratePairInventory: vi.fn(),
+  })
+)
 
 vi.mock('@/lib/sounds', () => ({
   sounds: { playButtonPress: vi.fn(), playSuccess: vi.fn(), playError: vi.fn() },
@@ -39,6 +48,9 @@ vi.mock('@/services/terraclassic/factory', () => ({
 vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   probeHasTaxMap,
   queryCommunityTaxTokenInfo: vi.fn().mockResolvedValue({ name: 'Open', symbol: 'Open', decimals: 6 }),
+  queryCommunityTaxConfig: vi.fn().mockResolvedValue({
+    manager: 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3',
+  }),
   queryLauncherConfig: vi.fn().mockResolvedValue({
     token_code_id: 11619,
     autolp_code_id: 11621,
@@ -51,18 +63,48 @@ vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   migrateAdoptCommunityToken: vi.fn().mockResolvedValue('migrate-hash'),
 }))
 
+vi.mock('@/utils/communityTaxMigratePairs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/communityTaxMigratePairs')>()
+  return {
+    ...actual,
+    loadMigratePairInventory,
+  }
+})
+
 import MigrateTokenPage from './MigrateTokenPage'
 
 const ADMIN = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
 const OPEN = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 
-describe('MigrateTokenPage (#626)', () => {
+const EMPTY_INV = { cl8y: [], otherDex: [], terraportIncomplete: false }
+const ALPHA_INV = {
+  cl8y: [],
+  otherDex: [
+    {
+      venue: 'other_dex' as const,
+      pair: ALPHA_TERRAPORT_LUNC_PAIR,
+      symbols: ['ALPHA', 'LUNC'] as [string, string],
+      source: 'static' as const,
+    },
+    {
+      venue: 'other_dex' as const,
+      pair: ALPHA_TERRAPORT_USTC_PAIR,
+      symbols: ['ALPHA', 'USTC'] as [string, string],
+      source: 'static' as const,
+    },
+  ],
+  terraportIncomplete: false,
+}
+
+describe('MigrateTokenPage (#626 / #634)', () => {
   beforeEach(() => {
     mockEnabled.mockReturnValue(true)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     getChainContractInfo.mockReset()
     probeHasTaxMap.mockReset()
     isCodeIdWhitelisted.mockReset()
+    loadMigratePairInventory.mockReset()
+    loadMigratePairInventory.mockResolvedValue(EMPTY_INV)
   })
 
   it('P0: env unset → unavailable, no invoice card', () => {
@@ -72,8 +114,10 @@ describe('MigrateTokenPage (#626)', () => {
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
   })
 
-  it('A9: heading is Migrate Token and no invoice', () => {
-    renderWithProviders(<MigrateTokenPage />, { route: '/token/migrate?payee=terra1evil&manager=terra1evil' })
+  it('A9 / AC8: heading is Migrate Token and query params do not prefill', () => {
+    renderWithProviders(<MigrateTokenPage />, {
+      route: '/token/migrate?payee=terra1evil&manager=terra1evil&token=terra1evil&addr=terra1evil&pair=terra1terraport',
+    })
     expect(screen.getByRole('heading', { name: /migrate token/i })).toBeInTheDocument()
     expect(screen.getByText(/move an existing token onto this template/i)).toBeInTheDocument()
     expect(screen.queryByText(/VITE_COMMUNITY_MIGRATE_CODE_IDS/)).not.toBeInTheDocument()
@@ -92,12 +136,19 @@ describe('MigrateTokenPage (#626)', () => {
       label: 'alpha',
     })
     probeHasTaxMap.mockResolvedValue(true)
+    loadMigratePairInventory.mockResolvedValue(ALPHA_INV)
     renderWithProviders(<MigrateTokenPage />)
     await user.type(screen.getByTestId('migrate-token-addr'), ALPHA)
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/tax leftovers/)
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Terraport/)
+    expect(await screen.findByTestId('migrate-venue-inventory')).toBeInTheDocument()
+    expect(screen.getAllByTestId('migrate-venue-other-row')).toHaveLength(2)
+    expect(screen.getByText(/ALPHA\/LUNC/)).toBeInTheDocument()
+    expect(screen.getByText(/ALPHA\/USTC/)).toBeInTheDocument()
+    expect(screen.queryByTestId('migrate-register-cl8y')).not.toBeInTheDocument()
+    expect(screen.getByTestId('migrate-venue-gdex')).toHaveTextContent(MIGRATE_VENUE_GDEX)
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
   })
 
@@ -117,6 +168,9 @@ describe('MigrateTokenPage (#626)', () => {
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Terraport/)
+    expect(await screen.findByTestId('migrate-venue-cl8y-empty')).toHaveTextContent(MIGRATE_VENUE_CL8Y_EMPTY)
+    expect(screen.getByTestId('migrate-create-pair')).toHaveAttribute('href', '/create')
+    expect(screen.getByTestId('migrate-venue-gdex')).toBeInTheDocument()
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
   })
 
@@ -140,5 +194,25 @@ describe('MigrateTokenPage (#626)', () => {
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-verdict-not_admin')).toBeInTheDocument()
     expect(screen.queryByTestId('migrate-token-cta')).not.toBeInTheDocument()
+    expect(await screen.findByTestId('migrate-venue-inventory')).toBeInTheDocument()
+  })
+
+  it('AC8: ?pair= does not become a register target', async () => {
+    const user = userEvent.setup()
+    useWalletStore.setState({ address: ADMIN, walletType: 'keplr', error: null })
+    getChainContractInfo.mockResolvedValue({
+      code_id: 10184,
+      admin: ADMIN,
+      creator: ADMIN,
+      label: 'mintable',
+    })
+    probeHasTaxMap.mockResolvedValue(false)
+    isCodeIdWhitelisted.mockResolvedValue({ code_id: 10184, whitelisted: true })
+    renderWithProviders(<MigrateTokenPage />, { route: `/token/migrate?pair=${ALPHA_TERRAPORT_LUNC_PAIR}` })
+    await user.type(screen.getByTestId('migrate-token-addr'), OPEN)
+    await user.click(screen.getByTestId('migrate-token-load'))
+    expect(await screen.findByTestId('migrate-token-cta')).toBeInTheDocument()
+    expect(screen.queryByTestId('migrate-register-cl8y')).not.toBeInTheDocument()
+    expect(screen.getByTestId('migrate-token-addr')).toHaveValue(OPEN)
   })
 })

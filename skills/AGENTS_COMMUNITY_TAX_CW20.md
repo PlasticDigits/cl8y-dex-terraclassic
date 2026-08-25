@@ -12,6 +12,7 @@ LocalTerra reused QA market: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENT
 |------------|---------|
 | [GitLab **#592**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) | On-chain design |
 | [GitLab **#626**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | Free listed-template adopt + Terraport/GDEX LP gate |
+| [GitLab **#634**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M634** | Migrate page venue inventory + post-refresh CL8Y register (never Terraport/GDEX) |
 | [`docs/contracts-terraclassic.md` § Community tax CW20](../docs/contracts-terraclassic.md#community-tax-cw20-gitlab-592) | Message shapes + classification |
 | [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) | Invariants **T592-1–T592-13** + **O601-1–O601-7** |
 | [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) | **T592-13** / **R607** — router hops tax the original trader (#607 improved option 2) |

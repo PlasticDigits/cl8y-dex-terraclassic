@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { MigratePairInventoryCard } from '@/components/community/MigratePairInventory'
 import { TxResultAlert } from '@/components/ui'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
@@ -9,10 +10,12 @@ import { isCodeIdWhitelisted } from '@/services/terraclassic/factory'
 import {
   migrateAdoptCommunityToken,
   probeHasTaxMap,
+  queryCommunityTaxConfig,
   queryCommunityTaxTokenInfo,
   queryLauncherConfig,
 } from '@/services/terraclassic/communityTaxToken'
 import {
+  CMM_GOVERNANCE_ADDR,
   COMMUNITY_MIGRATE_CODE_IDS,
   COMMUNITY_TAX_CODE_ID,
   DEFAULT_NETWORK,
@@ -25,6 +28,9 @@ import {
   MIGRATE_LP_CONFIRM,
   MIGRATE_LP_CONFIRM_WIPE,
 } from '@/utils/communityTaxMigrate'
+import { loadMigratePairInventory, registerMigrateCl8yPair } from '@/utils/communityTaxMigratePairs'
+import { isManagerWallet } from '@/utils/communityTaxManager'
+import { isCommunityTaxCodeId } from '@/utils/communityTaxRegisterPair'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
@@ -38,6 +44,7 @@ export default function MigrateTokenPage() {
   void searchParams.get('payee')
   void searchParams.get('token')
   void searchParams.get('addr')
+  void searchParams.get('pair')
 
   const [pasted, setPasted] = useState('')
   const [loaded, setLoaded] = useState('')
@@ -47,7 +54,7 @@ export default function MigrateTokenPage() {
   const useFactoryFallback = !isColumbus5(chainId)
 
   const infoQuery = useQuery({
-    queryKey: ['migrateTokenInfo', loaded],
+    queryKey: ['migrateTokenInfo', loaded, txHash],
     queryFn: () => getChainContractInfo(loaded),
     enabled: !!loaded,
   })
@@ -93,6 +100,30 @@ export default function MigrateTokenPage() {
     })
   }, [address, chainId, infoQuery.data, probesReady, taxMapQuery.data, whitelistQuery.data])
 
+  const postAdopt = !!txHash || verdict?.kind === 'already_tax'
+  const taxPinMatches = isCommunityTaxCodeId(infoQuery.data?.code_id ?? 0)
+  const inventoryQuery = useQuery({
+    queryKey: ['migratePairInventory', loaded, txHash],
+    queryFn: () => loadMigratePairInventory(loaded, { postAdopt }),
+    enabled: !!loaded,
+  })
+
+  const taxConfigQuery = useQuery({
+    queryKey: ['migrateTokenTaxConfig', loaded, txHash, verdict?.kind],
+    queryFn: () => queryCommunityTaxConfig(loaded),
+    enabled: !!loaded && postAdopt && (taxPinMatches || !!txHash),
+  })
+
+  const adminIsCmm = Boolean(
+    CMM_GOVERNANCE_ADDR &&
+    infoQuery.data?.admin &&
+    infoQuery.data.admin.toLowerCase() === CMM_GOVERNANCE_ADDR.toLowerCase()
+  )
+  const halfMigrated = Boolean(postAdopt && infoQuery.data && !adminIsCmm)
+  const isManager = taxConfigQuery.data
+    ? isManagerWallet(address, taxConfigQuery.data.manager)
+    : Boolean(txHash && address)
+
   const migrateMut = useTerraBroadcastMutation({
     mutationFn: async () => {
       if (!infoQuery.data || !launcherQuery.data) throw new Error('Token is still loading')
@@ -114,6 +145,18 @@ export default function MigrateTokenPage() {
     onError: () => sounds.playError(),
   })
 
+  const registerMut = useTerraBroadcastMutation({
+    mutationFn: async (pair: string) => {
+      if (!address) throw new Error('Connect wallet')
+      return registerMigrateCl8yPair({ wallet: address, token: loaded, pair })
+    },
+    onSuccess: async () => {
+      sounds.playSuccess()
+      await inventoryQuery.refetch()
+    },
+    onError: () => sounds.playError(),
+  })
+
   if (!isCommunityTaxEnabled()) {
     return (
       <div className="max-w-[520px] mx-auto" data-testid="migrate-token-page">
@@ -126,6 +169,14 @@ export default function MigrateTokenPage() {
         </div>
       </div>
     )
+  }
+
+  const inventoryPhase = txHash ? 'success' : verdict?.canSubmit ? 'confirm' : 'readonly'
+  const registerCtx = {
+    postAdopt,
+    isManager,
+    taxPinMatches,
+    adminIsCmm,
   }
 
   return (
@@ -185,6 +236,20 @@ export default function MigrateTokenPage() {
           </div>
         )}
 
+        {loaded && inventoryQuery.data && (
+          <MigratePairInventoryCard
+            inventory={inventoryQuery.data}
+            token={loaded}
+            phase={inventoryPhase}
+            registerCtx={halfMigrated ? { ...registerCtx, adminIsCmm: false } : registerCtx}
+            onRegister={(pair) => {
+              sounds.playButtonPress()
+              registerMut.mutate(pair)
+            }}
+            registeringPair={registerMut.isPending ? (registerMut.variables ?? null) : null}
+          />
+        )}
+
         {verdict?.canSubmit && (
           <div className="space-y-3" data-testid="migrate-token-confirm">
             <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
@@ -208,6 +273,11 @@ export default function MigrateTokenPage() {
         {txHash && (
           <div data-testid="migrate-token-success">
             <TxResultAlert type="success" message="Token migrated." txHash={txHash} />
+            {halfMigrated && (
+              <p className="text-sm mt-2" style={{ color: 'var(--danger)' }} data-testid="unverified-admin-banner">
+                Unverified admin — wasm admin is not CMM.
+              </p>
+            )}
             <Link className="underline text-sm" to={`/token/${loaded}/manage`} data-testid="migrate-token-next-manage">
               Manage this token
             </Link>
@@ -216,6 +286,11 @@ export default function MigrateTokenPage() {
         {migrateMut.isError && (
           <p className="text-sm" style={{ color: 'var(--danger)' }} data-testid="migrate-token-error">
             {humanizeUserFacingErrorFromUnknown(migrateMut.error)}
+          </p>
+        )}
+        {registerMut.isError && (
+          <p className="text-sm" style={{ color: 'var(--danger)' }} data-testid="migrate-register-error">
+            {humanizeUserFacingErrorFromUnknown(registerMut.error)}
           </p>
         )}
       </div>
