@@ -245,51 +245,62 @@
     {
       "order": 1,
       "venue": "cosmostation",
-      "title": "Cosmostation cw20_2.json PR"
+      "issue": 640,
+      "title": "Cosmostation cw20_2.json PR",
+      "blocked": "cosmostation/chainlist archived 2026-07; wallet service ends 2026-09-01"
     },
     {
       "order": 2,
       "venue": "hexxagon",
+      "issue": 641,
       "title": "Hexxagon terra.js PR"
     },
     {
       "order": 3,
       "venue": "cosmos-chain-registry",
+      "issue": 642,
       "title": "cosmos/chain-registry terra CW20s"
     },
     {
       "order": 4,
       "venue": "coingecko-exchange",
+      "issue": 643,
       "title": "CoinGecko exchange form"
     },
     {
       "order": 5,
       "venue": "coingecko-terra-classic-platform",
+      "issue": 644,
       "title": "CoinGecko ceramicliberty-com + Terra Classic platform"
     },
     {
       "order": 6,
       "venue": "coinmarketcap-exchange",
+      "issue": 645,
       "title": "CMC exchange form"
     },
     {
       "order": 7,
       "venue": "geckoterminal",
+      "issue": 646,
       "title": "GeckoTerminal non-EVM adapters + form"
     },
     {
       "order": 8,
       "venue": "coinpaprika",
+      "issue": 647,
       "title": "CoinPaprika / Coinranking contract-fix / LiveCoinWatch"
     },
     {
       "order": 9,
       "venue": "coinmarketcap-tokens",
+      "issue": 648,
       "title": "UST1 / USTR / wrap token listings on CG/CMC"
     },
     {
       "order": 10,
       "venue": "trust-wallet",
+      "issue": 649,
       "title": "Trust Wallet paid PR"
     }
   ]

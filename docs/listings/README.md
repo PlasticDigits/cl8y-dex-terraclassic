@@ -62,7 +62,7 @@ Legend: **PR** = GitHub pull request. **Form** = public request form (agent draf
 
 | Venue | What it unlocks | How |
 |-------|-----------------|-----|
-| **Cosmostation** (+ Mintscan token metadata) | CW20 name / logo / optional `coinGeckoId` | PR to [cosmostation/chainlist](https://github.com/cosmostation/chainlist) `chain/terra/cw20_2.json` + PNG under `chain/terra/asset/`. Folder is **`terra`** (Classic, not Terra 2). |
+| **Cosmostation** (+ Mintscan token metadata) | CW20 name / logo / optional `coinGeckoId` | Pack: [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640) / !431. **Blocked:** [cosmostation/chainlist](https://github.com/cosmostation/chainlist) is **archived** (2026-07); Cosmostation wallet service ends **2026-09-01**. Folder would have been **`terra`**. |
 | **Galaxy Station / Hexxagon** | Token + optional DEX pair display | PR to [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js` (+ `cw20/dex_pairs` if they want CL8Y pools). **USTR** already there. |
 | **cosmos/chain-registry** | Cosmos Directory, Leap custom-token metadata, explorers | PR `terra/assetlist.json` + images; `type_asset: cw20`. This is Leap’s real path — Leap has **no** public CW20 registry of its own. |
 | **Trust Wallet assets** | Logo / info in Trust Wallet | PR to [trustwallet/assets](https://github.com/trustwallet/assets). **Paid** merge. Only if product asks. |
