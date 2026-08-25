@@ -218,6 +218,12 @@ This repo keeps a ready-to-copy pack (permanent CW20s only: CL8Y, UST1, USTR, cL
 
 Do **not** treat `/cg/*` or `/cmc/*` as Keplr wallet metadata. Related listing (TVL/volume, not Keplr): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631).
 
+## Hexxagon / Galaxy Station CW20s (GitLab #641) {#hexxagon-cw20-gitlab-641}
+
+Galaxy Station reads [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js`. **USTR is already listed** as USTC Repeg. This repo vendors five more rows (CL8Y, UST1, cLUNC, cUSTC, vFDUSD) with Keplr decimals. `coinGeckoID` only on CL8Y. Do not PR `terra-money/assets`.
+
+Invariants **H641-1–H641-8**: [`listings/hexxagon/README.md`](./listings/hexxagon/README.md). Skill: [`AGENTS_HEXXAGON.md`](../skills/AGENTS_HEXXAGON.md). Verify: `make verify-issue-641`. Parent: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.

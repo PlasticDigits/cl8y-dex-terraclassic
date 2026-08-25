@@ -920,6 +920,12 @@ verify-issue-629:
 		scripts/qa/keplr_cw20_registry_validate.py scripts/with-node.sh
 	./scripts/qa/verify-issue-629.sh
 
+# GitLab #641 — Hexxagon / Galaxy Station CW20 pack.
+.PHONY: verify-issue-641
+verify-issue-641:
+	@chmod +x scripts/qa/verify-issue-641.sh scripts/qa/hexxagon_cw20_validate.py
+	./scripts/qa/verify-issue-641.sh
+
 # GitLab #573 — post-merge stack !368–!377 (child verifies 557–567 + Coolify/ops docs).
 verify-issue-573:
 	@chmod +x scripts/qa/verify-issue-573.sh
