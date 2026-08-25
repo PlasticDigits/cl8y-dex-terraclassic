@@ -50,3 +50,4 @@ No LocalTerra, indexer, or wallet. After the upstream merge: Keplr → Terra Cla
 - DeFiLlama listing (related pricing coverage): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)
 - Other wallets / CG+CMC forms (parent catalog): [`AGENTS_LISTINGS.md`](./AGENTS_LISTINGS.md) ([#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639))
 - Cosmostation / Mintscan (same pins, different repo): [`AGENTS_COSMOSTATION.md`](./AGENTS_COSMOSTATION.md) ([#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640))
+- Hexxagon / Galaxy Station (same pins, different repo): [`AGENTS_HEXXAGON.md`](./AGENTS_HEXXAGON.md) ([#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641))

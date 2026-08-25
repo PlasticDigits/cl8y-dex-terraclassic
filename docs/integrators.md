@@ -232,6 +232,12 @@ Cosmostation and Mintscan read [cosmostation/chainlist](https://github.com/cosmo
 
 Invariants **C640-1–C640-8**: [`listings/cosmostation/README.md`](./listings/cosmostation/README.md). Agent playbook: [`skills/AGENTS_COSMOSTATION.md`](../skills/AGENTS_COSMOSTATION.md). Verify: `make verify-issue-640`. Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
 
+## Hexxagon / Galaxy Station CW20s (GitLab #641) {#hexxagon-cw20-gitlab-641}
+
+Galaxy Station reads [hexxagon-io/chain-registry](https://github.com/hexxagon-io/chain-registry) `cw20/tokens/mainnet/terra.js`. **USTR is already listed** as USTC Repeg. This repo vendors five more rows (CL8Y, UST1, cLUNC, cUSTC, vFDUSD) with Keplr decimals. `coinGeckoID` only on CL8Y. Do not PR `terra-money/assets`.
+
+Invariants **H641-1–H641-8**: [`listings/hexxagon/README.md`](./listings/hexxagon/README.md). Skill: [`AGENTS_HEXXAGON.md`](../skills/AGENTS_HEXXAGON.md). Verify: `make verify-issue-641`. Parent: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.
