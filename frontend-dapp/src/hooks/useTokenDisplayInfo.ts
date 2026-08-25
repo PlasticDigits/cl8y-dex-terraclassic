@@ -10,7 +10,7 @@ import {
   isAddressLike,
 } from '@/utils/tokenDisplay'
 import { resolveTrustedTokenLogoUrl } from '@/utils/tokenLogoAllowlist'
-import { lookupByCW20 } from '@/utils/tokenRegistry'
+import { registryProductSymbol } from '@/utils/tokenRegistry'
 
 export interface TokenDisplayInfo {
   displayLabel: string
@@ -19,12 +19,16 @@ export interface TokenDisplayInfo {
   logoURI: string | undefined
 }
 
-function indexerTokenForId(tokenId: string, list: IndexerToken[] | undefined) {
+/** Match indexer rows by identity, not display symbol (GitLab #630). */
+export function indexerTokenForId(tokenId: string, list: IndexerToken[] | undefined) {
   if (!list?.length || !tokenId) return undefined
-  const t = tokenId.toLowerCase()
-  return list.find(
-    (x) => (x.contract_address && x.contract_address.toLowerCase() === t) || (x.denom && x.denom === tokenId)
-  )
+  const isCw20Id = tokenId.toLowerCase().startsWith('terra1')
+  if (isCw20Id) {
+    const t = tokenId.toLowerCase()
+    return list.find((x) => x.contract_address && x.contract_address.toLowerCase() === t)
+  }
+  // Native id: denom equality only. Do not bind a CW20 whose address string equals the denom.
+  return list.find((x) => x.denom === tokenId && !x.contract_address)
 }
 
 export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
@@ -68,11 +72,9 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
   }
 
   const chainSymbol = resolved ?? (isAddressLike(tokenId) ? shortenAddress(tokenId) : tokenId)
-  // Product display for wrap CW20s is cLUNC/cUSTC even when on-chain/indexer still say LUNC-C (#507).
-  const registryCw20 = isCw20 ? lookupByCW20(tokenId) : undefined
-  const wrapProductSymbol =
-    registryCw20?.symbol === 'cLUNC' || registryCw20?.symbol === 'cUSTC' ? registryCw20.symbol : undefined
-  const symbol = wrapProductSymbol || indexerMeta?.symbol?.trim() || chainSymbol
+  // Registry product tickers (LUNC/USTC/cLUNC/cUSTC/…) beat indexer/on-chain text (#507, #630).
+  const productSymbol = registryProductSymbol(tokenId)
+  const symbol = productSymbol || indexerMeta?.symbol?.trim() || chainSymbol
   const addressForBlockie = isCw20 ? tokenId : undefined
   const rawLogo = indexerMeta?.logo_url?.trim() || (info ? getTokenLogoURI(info) : undefined) || undefined
   const logoURI = resolveTrustedTokenLogoUrl(rawLogo)

@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePortalListbox } from '@/components/ui/PortalListbox'
 import { movePortalListboxActiveIndex, portalListboxOptionId } from '@/components/ui/portalListboxKeyboard'
+import { SearchSelectMenuSearch } from '@/components/ui/SearchSelectMenuSearch'
+import { useCoarseNarrowViewport } from '@/hooks/useCoarseNarrowViewport'
+import { optionMovedBeyondThreshold } from '@/lib/optionTapStability'
 import { getPairs } from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 import type { PairInfo } from '@/types'
@@ -92,8 +95,10 @@ export function PairSearchSelect({
 }: PairSearchSelectProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const dropdownRef = useRef<HTMLUListElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const optionTapRectRef = useRef<DOMRect | null>(null)
   const listId = useId()
+  const browseWithoutIme = useCoarseNarrowViewport()
 
   const [open, setOpen] = useState(false)
   const [searchText, setSearchText] = useState('')
@@ -129,7 +134,7 @@ export function PairSearchSelect({
 
   const queryReady = isPairSearchQueryReady(debouncedSearch)
   const useIndexerSearch = queryReady && open && !indexerUnavailable
-  const inputValue = open ? searchText : selectedLabel
+  const inputValue = browseWithoutIme ? selectedLabel : open ? searchText : selectedLabel
 
   const emptyQueryLimit = Math.min(100, Math.max(PAIR_SEARCH_RESULT_LIMIT, factoryPairs.length))
 
@@ -271,7 +276,7 @@ export function PairSearchSelect({
   })
 
   const handleInputKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLButtonElement>) => {
       if (!canOpen) return
       if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault()
@@ -322,37 +327,65 @@ export function PairSearchSelect({
 
   const activeOptionId = open && options.length > 0 ? portalListboxOptionId(listId, activeIndex) : undefined
 
+  const closeIfFocusLeft = useCallback(() => {
+    window.setTimeout(() => {
+      const ae = document.activeElement
+      if (rootRef.current?.contains(ae)) return
+      if (dropdownRef.current?.contains(ae)) return
+      close()
+    }, 150)
+  }, [close])
+
   return (
     <div ref={rootRef} className={`token-select-root ${className ?? 'relative w-full'}`}>
-      <input
-        ref={inputRef}
-        type="text"
-        id={id}
-        role="combobox"
-        className="token-select-trigger w-full"
-        aria-label={ariaLabel}
-        aria-autocomplete="list"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-activedescendant={activeOptionId}
-        disabled={!canOpen}
-        placeholder={canOpen ? placeholder : emptyLabel}
-        value={inputValue}
-        onChange={(e) => {
-          setSearchText(e.target.value)
-          if (!open) setOpen(true)
-        }}
-        onFocus={() => {
-          if (!canOpen) return
-          setOpen(true)
-        }}
-        onKeyDown={handleInputKeyDown}
-        onBlur={() => {
-          window.setTimeout(() => {
-            if (!rootRef.current?.contains(document.activeElement)) close()
-          }, 150)
-        }}
-      />
+      {browseWithoutIme ? (
+        <button
+          type="button"
+          id={id}
+          role="combobox"
+          className="token-select-trigger w-full"
+          aria-label={ariaLabel}
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-activedescendant={activeOptionId}
+          disabled={!canOpen}
+          onClick={() => {
+            if (!canOpen) return
+            setOpen(true)
+          }}
+          onKeyDown={handleInputKeyDown}
+          onBlur={closeIfFocusLeft}
+        >
+          <span className="truncate">{canOpen ? inputValue || placeholder : emptyLabel}</span>
+        </button>
+      ) : (
+        <input
+          ref={inputRef}
+          type="text"
+          id={id}
+          role="combobox"
+          className="token-select-trigger w-full"
+          aria-label={ariaLabel}
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-activedescendant={activeOptionId}
+          disabled={!canOpen}
+          placeholder={canOpen ? placeholder : emptyLabel}
+          value={inputValue}
+          onChange={(e) => {
+            setSearchText(e.target.value)
+            if (!open) setOpen(true)
+          }}
+          onFocus={() => {
+            if (!canOpen) return
+            setOpen(true)
+          }}
+          onKeyDown={handleInputKeyDown}
+          onBlur={closeIfFocusLeft}
+        />
+      )}
       <span
         className="token-select-chevron pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 shrink-0"
         aria-hidden
@@ -362,77 +395,104 @@ export function PairSearchSelect({
         canOpen &&
         dropdownStyle &&
         createPortal(
-          <ul
+          <div
             ref={dropdownRef}
-            id={listId}
-            role="listbox"
-            tabIndex={-1}
-            className="token-select-dropdown"
-            aria-label={ariaLabel}
-            aria-busy={awaitingIndexer || undefined}
+            className="token-select-dropdown token-select-dropdown--menu"
             style={dropdownStyle}
+            data-testid="token-select-menu"
           >
-            {useLocalFallback && options.length > 0 ? (
-              <li className="px-3 py-1.5 text-xs" style={{ color: 'var(--ink-dim)' }} role="presentation">
-                Offline search — showing factory pairs from cached labels
-              </li>
+            {browseWithoutIme ? (
+              <SearchSelectMenuSearch
+                inputRef={inputRef}
+                value={searchText}
+                placeholder={placeholder}
+                aria-label={`${ariaLabel ?? 'Pair'} search`}
+                onChange={(next) => {
+                  setSearchText(next)
+                  if (!open) setOpen(true)
+                }}
+                onKeyDown={handleInputKeyDown}
+              />
             ) : null}
-            {awaitingIndexer && options.length === 0 ? (
-              <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
-                Searching…
-              </li>
-            ) : null}
-            {showEmptyState ? (
-              <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
-                No pairs match your search
-              </li>
-            ) : null}
-            {options.map((opt, index) => {
-              const isSelected = opt.value === value
-              const isActive = index === activeIndex
-              const showTestDivider =
-                !debouncedSearch && opt.isTestPair && (index === 0 || !options[index - 1]?.isTestPair)
-              const volLabel = formatQuoteVolume24h(opt.volumeQuote24h, opt.quoteDecimals ?? 6, 3)
-              return (
-                <li key={opt.value} role="none">
-                  {showTestDivider ? (
-                    <div
-                      className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-semibold"
-                      style={{ color: 'var(--ink-dim)' }}
-                      role="presentation"
-                    >
-                      Test pairs
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    id={portalListboxOptionId(listId, index)}
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`token-select-option w-full flex items-center justify-between gap-2${isSelected ? ' token-select-option-active' : ''}${isActive ? ' token-select-option-keyboard-active' : ''}`}
-                    onPointerEnter={() => {
-                      setActiveIndex(index)
-                      onOptionIntent?.(opt.value)
-                    }}
-                    onFocus={() => onOptionIntent?.(opt.value)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectIndex(index)}
-                  >
-                    <span className="truncate text-left">{opt.label}</span>
-                    {volLabel ? (
-                      <span
-                        className="shrink-0 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded"
-                        style={{ color: 'var(--ink-dim)', background: 'var(--surface-muted)' }}
-                        title="24h quote volume (human units of the quote token)"
-                      >
-                        vol {volLabel}
-                      </span>
-                    ) : null}
-                  </button>
+            <ul
+              id={listId}
+              role="listbox"
+              tabIndex={-1}
+              className="token-select-dropdown-list"
+              aria-label={ariaLabel}
+              aria-busy={awaitingIndexer || undefined}
+            >
+              {useLocalFallback && options.length > 0 ? (
+                <li className="px-3 py-1.5 text-xs" style={{ color: 'var(--ink-dim)' }} role="presentation">
+                  Offline search — showing factory pairs from cached labels
                 </li>
-              )
-            })}
-          </ul>,
+              ) : null}
+              {awaitingIndexer && options.length === 0 ? (
+                <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
+                  Searching…
+                </li>
+              ) : null}
+              {showEmptyState ? (
+                <li className="px-3 py-2 text-sm" style={{ color: 'var(--ink-dim)' }} role="presentation">
+                  No pairs match your search
+                </li>
+              ) : null}
+              {options.map((opt, index) => {
+                const isSelected = opt.value === value
+                const isActive = index === activeIndex
+                const showTestDivider =
+                  !debouncedSearch && opt.isTestPair && (index === 0 || !options[index - 1]?.isTestPair)
+                const volLabel = formatQuoteVolume24h(opt.volumeQuote24h, opt.quoteDecimals ?? 6, 3)
+                return (
+                  <li key={opt.value} role="none">
+                    {showTestDivider ? (
+                      <div
+                        className="px-3 py-1.5 text-[10px] uppercase tracking-wide font-semibold"
+                        style={{ color: 'var(--ink-dim)' }}
+                        role="presentation"
+                      >
+                        Test pairs
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      id={portalListboxOptionId(listId, index)}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`token-select-option w-full flex items-center justify-between gap-2${isSelected ? ' token-select-option-active' : ''}${isActive ? ' token-select-option-keyboard-active' : ''}`}
+                      onPointerEnter={() => {
+                        setActiveIndex(index)
+                        onOptionIntent?.(opt.value)
+                      }}
+                      onFocus={() => onOptionIntent?.(opt.value)}
+                      onPointerDown={(e) => {
+                        optionTapRectRef.current = e.currentTarget.getBoundingClientRect()
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        const start = optionTapRectRef.current
+                        if (start && optionMovedBeyondThreshold(start, e.currentTarget.getBoundingClientRect())) {
+                          return
+                        }
+                        selectIndex(index)
+                      }}
+                    >
+                      <span className="truncate text-left">{opt.label}</span>
+                      {volLabel ? (
+                        <span
+                          className="shrink-0 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded"
+                          style={{ color: 'var(--ink-dim)', background: 'var(--surface-muted)' }}
+                          title="24h quote volume (human units of the quote token)"
+                        >
+                          vol {volLabel}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>,
           document.body
         )}
     </div>

@@ -40,5 +40,6 @@ Manual: Tab to Mint token select → open with ArrowDown → navigate with arrow
 
 - Swap token search: [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md)
 - Layout / CLS: [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md)
+- Visual viewport / in-app chrome: [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632))
 - Focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - axe E2E gate: [`AGENTS_FRONTEND_A11Y_CI.md`](./AGENTS_FRONTEND_A11Y_CI.md)

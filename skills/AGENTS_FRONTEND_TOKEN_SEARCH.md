@@ -1,6 +1,6 @@
 # Agent playbook: Swap token search combobox
 
-Use when changing **Swap** pay/receive token pickers, [`TokenSearchSelect`](../frontend-dapp/src/components/trade/TokenSearchSelect.tsx), [`tokenSearchQuery.ts`](../frontend-dapp/src/utils/tokenSearchQuery.ts), or E2E helpers that open those controls ([GitLab **#481**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/481), mobile CLS [**#498**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/498)).
+Use when changing **Swap** pay/receive token pickers, [`TokenSearchSelect`](../frontend-dapp/src/components/trade/TokenSearchSelect.tsx), [`tokenSearchQuery.ts`](../frontend-dapp/src/utils/tokenSearchQuery.ts), or E2E helpers that open those controls ([GitLab **#481**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/481), mobile CLS [**#498**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/498), Keplr in-app hit targets [**#632**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)).
 
 ## Canonical references
 
@@ -24,7 +24,8 @@ Use when changing **Swap** pay/receive token pickers, [`TokenSearchSelect`](../f
 5. **Keyboard (#350 parity)** — empty query may keep current token at index 0; **typed** ready query highlights index 0 (first hit) and must **not** prepend the current token over the first hit.
 6. **Security** — render symbol/name as text only; logos via `resolveTrustedTokenLogoUrl`; truncate long paste (`TOKEN_SEARCH_MAX_QUERY_LENGTH`); `onChange` only for ids in the gated options list; honor `excludeToken`.
 7. **Mobile CLS (#498)** — keep leading logo + `.token-select-trigger--with-leading-logo` while open; do not clear the input to empty on focus (`queryDraft` stays `null` until edit); select-all on focus so typing replaces the label.
-8. **E2E** — target `getByRole('combobox', { name: 'Select token you pay|receive' })`. Mint still uses `button` / `TokenSelect`.
+8. **E2E** — target `getByRole('combobox', { name: 'Select token you pay|receive' })`. On coarse/narrow the trigger is a button combobox; type-to-filter uses the in-menu `searchbox` ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)). Mint still uses `button` / `TokenSelect`.
+9. **Keplr in-app / IME (#632)** — do not size the list against `innerHeight` alone; do not auto-focus a text field when browsing on coarse/narrow. See [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md).
 
 ## Verification
 
@@ -41,8 +42,10 @@ Manual: open Swap at ~390px width → tap pay combobox → confirm logo/padding 
 ## Related
 
 - Portal CLS / CSS: [`AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_CLS.md) ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181), **#498**)
+- Visual viewport + in-app chrome: [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) ([GitLab **#632**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`
 - Button listbox keyboard (Mint / MenuSelect): [`AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md)
 - Swap route display (unrelated to picker): [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
 - Pair/token empty-browse catalog (economic first, gems last): [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) ([GitLab **#534**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534))
 - Production hide of gems from Swap browse: [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) ([GitLab **#562**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - Create Pair listed-CW20 catalog (do **not** reuse Swap’s factory universe): [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542))
+- Native LUNC / USTC visible tickers (never `uluna` / `uusd`): [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](./AGENTS_FRONTEND_NATIVE_TICKERS.md) ([GitLab **#630**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)); `make verify-issue-630`

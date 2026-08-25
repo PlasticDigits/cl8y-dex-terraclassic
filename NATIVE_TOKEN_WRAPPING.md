@@ -417,5 +417,5 @@ Using 20+ worker agents.
 | E8 | `pool-deposit-wrapped` | Select wrapped in dropdown, provide liquidity succeeds (existing flow) |
 | E9 | `pool-withdraw-native` | Withdraw with "Receive wrapped" unchecked, auto-prompt unwrap, receive native |
 | E10 | `pool-withdraw-wrapped` | Withdraw with "Receive wrapped" checked, receive CW20 directly |
-| E11 | `token-selector-shows-both` | Token selector displays both LUNC and cLUNC, USTC and cUSTC |
+| E11 | `token-selector-shows-both` | Token selector displays both LUNC and cLUNC, USTC and cUSTC (visible **LUNC** / **USTC**, never `uluna` / `uusd` — [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)) |
 | E12 | `rate-limit-error-display` | When rate limit exceeded, user sees descriptive error message |

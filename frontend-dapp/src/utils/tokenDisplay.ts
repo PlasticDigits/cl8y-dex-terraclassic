@@ -1,6 +1,6 @@
 import { queryContract } from '@/services/terraclassic/queries'
 import type { AssetInfo } from '@/types'
-import { lookupByTokenId, lookupByAssetInfo } from './tokenRegistry'
+import { lookupByTokenId, lookupByAssetInfo, registryProductSymbol } from './tokenRegistry'
 
 interface CW20TokenInfo {
   name: string
@@ -74,8 +74,8 @@ export async function fetchCW20TokenInfo(contractAddr: string): Promise<CW20Toke
 
 export function getTokenDisplaySymbol(tokenId: string): string {
   if (!tokenId?.trim()) return ''
-  const reg = lookupByTokenId(tokenId)
-  if (reg) return reg.symbol
+  const product = registryProductSymbol(tokenId)
+  if (product) return product
   if (tokenId.toLowerCase().startsWith('terra1') && tokenId.length >= 44) {
     const cache = loadCache()
     if (cache[tokenId.toLowerCase()]?.symbol) return cache[tokenId.toLowerCase()].symbol

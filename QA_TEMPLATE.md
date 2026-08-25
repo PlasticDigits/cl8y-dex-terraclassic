@@ -60,6 +60,7 @@
 | 1.2.10 | Keplr fee tier register | Register → Sign | Success | | |
 | 1.2.11 | Keplr mobile Chrome WalletConnect (#554) | Android Chrome (no extension) → Keplr | Pairing sheet with **Open Keplr** + **Copy pairing link**, not Install-only | | |
 | 1.2.12 | Keplr in-app browser still works (#554 WC-M7) | Open dex.cl8y.com in Keplr browser → Connect | Extension/injected path connects | | |
+| 1.2.13 | Keplr in-app token picker (#632) | Android Keplr browser, compact + large: Swap → tap You Pay / You Receive → immediately tap last visible token; then search and pick | Token selects; URL / nav chrome is **not** activated; list stays above tab bar + wallet chrome; IME opens only after tapping Search | | |
 
 ### 1.2a Keplr + Ledger Nano (columbus-5 only — GitLab #567)
 

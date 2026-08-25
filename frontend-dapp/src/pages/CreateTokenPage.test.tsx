@@ -87,6 +87,9 @@ describe('CreateTokenPage (#593)', () => {
     expect(screen.getByRole('link', { name: /migrate here/i })).toHaveAttribute('href', '/token/migrate')
     expect(screen.getByText(/already have a token/i)).toBeInTheDocument()
     expect(screen.queryByText(/6036/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/10184/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/8266/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/8654/)).not.toBeInTheDocument()
     expect(screen.getByTestId('create-token-tax-scope')).toHaveTextContent(
       'Buy/sell tax applies on every listed-pair swap.'
     )

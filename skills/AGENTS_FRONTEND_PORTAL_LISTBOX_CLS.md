@@ -1,6 +1,6 @@
 # Agent playbook: Portal listbox layout stability (CLS)
 
-Use when changing **`MenuSelect`**, **`TokenSelect`**, **`TokenSearchSelect`**, **`PairSearchSelect`**, **`usePortalListbox`**, **`portalListboxPosition.ts`**, `.token-select-*` CSS, or trade/charts pair pickers ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181), Swap mobile CLS [**#498**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/498)).
+Use when changing **`MenuSelect`**, **`TokenSelect`**, **`TokenSearchSelect`**, **`PairSearchSelect`**, **`usePortalListbox`**, **`portalListboxPosition.ts`**, `.token-select-*` CSS, or trade/charts pair pickers ([GitLab **#181**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181), Swap mobile CLS [**#498**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/498)). Visual viewport / Keplr in-app chrome: [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) ([**#632**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)).
 
 ## Canonical references
 
@@ -8,7 +8,7 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`TokenSearchSelect`**, 
 |------------|---------|
 | [docs/frontend.md § Portal listboxes — layout stability](../docs/frontend.md#portal-listbox-layout-stability) | Invariants: fixed portal, stable trigger footprint, Swap leading logo (#498), scrollbar gutter, CLS &lt; 0.1 |
 | [`frontend-dapp/src/components/ui/portalListboxPosition.ts`](../frontend-dapp/src/components/ui/portalListboxPosition.ts) | Pure `computePortalListboxStyle` (unit-tested flip/clamp) |
-| [`frontend-dapp/src/components/ui/PortalListbox.tsx`](../frontend-dapp/src/components/ui/PortalListbox.tsx) | Sync position on open + scroll/resize listeners |
+| [`frontend-dapp/src/components/ui/PortalListbox.tsx`](../frontend-dapp/src/components/ui/PortalListbox.tsx) | Sync position on open + window / `visualViewport` listeners ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)) |
 | [`frontend-dapp/src/components/ui/usePortalListboxKeyboard.ts`](../frontend-dapp/src/components/ui/usePortalListboxKeyboard.ts) | WAI-ARIA listbox keyboard APG ([GitLab **#244**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244)) |
 | [`frontend-dapp/e2e/trade-pair-select-cls.spec.ts`](../frontend-dapp/e2e/trade-pair-select-cls.spec.ts) | Playwright: `#trade-pair-select` and desktop workspace Y/X stable on open |
 | [`frontend-dapp/e2e/swap-token-select-cls.spec.ts`](../frontend-dapp/e2e/swap-token-select-cls.spec.ts) | Playwright: phone-width `/swap` pay combobox trigger + amount Y/X stable ([**#498**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/498)) |
@@ -29,3 +29,4 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`TokenSearchSelect`**, 
 - Keyboard focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Trade page layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Mobile tab bar inset for flip-above: `getMobileBottomNavInsetPx` ([`mobileBottomNav.ts`](../frontend-dapp/src/lib/mobileBottomNav.ts))
+- Visual viewport + in-app chrome + browse-without-IME: [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) ([GitLab **#632**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`

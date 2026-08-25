@@ -51,7 +51,7 @@ Playbooks: [`skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](../../skills/AGENTS_WRAP_
 ### 0. Discoverability (post–Coolify wrap env)
 
 - [ ] **More → Wrap** opens `/wrap` (label **Wrap**, not Mint / UST1)
-- [ ] Swap token search lists **LUNC**, **cLUNC**, **USTC**, **cUSTC** even when no wrap factory pairs exist
+- [ ] Swap token search lists **LUNC**, **cLUNC**, **USTC**, **cUSTC** even when no wrap factory pairs exist (visible text is never `uluna` / `uusd`; ids stay those denoms — [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630))
 - [ ] Dedicated `/wrap` page: Wrap/Unwrap tabs + LUNC/cLUNC and USTC/cUSTC asset toggles
 
 ### 1. Direct Wrap (Native → Wrapped CW20)
