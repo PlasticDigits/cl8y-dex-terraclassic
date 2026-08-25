@@ -9,4 +9,6 @@ Single-service Dockerfiles for production soft launch. Do **not** add a compose 
 
 Build context is the **repository root** for both.
 
+Public indexer also serves `GET /api/v1/defillama/daily` for Llama dimension adapters ([#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631), [`docs/DEFILLAMA.md`](../docs/DEFILLAMA.md)). TVL stays on-chain (factory `Pool {}`); do not point Llama at `/cg/tickers` `liquidity_in_usd`.
+
 See [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md) and [`skills/AGENTS_MAINNET_SOFT_LAUNCH.md`](../skills/AGENTS_MAINNET_SOFT_LAUNCH.md).

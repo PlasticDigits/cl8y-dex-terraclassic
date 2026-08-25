@@ -32,6 +32,19 @@ describe('getTokenDisplaySymbol', () => {
 
   it('returns registry symbol for known denom', () => {
     expect(getTokenDisplaySymbol('uluna')).toBe('LUNC')
+    expect(getTokenDisplaySymbol('ULUNA')).toBe('LUNC')
+    expect(getTokenDisplaySymbol('uusd')).toBe('USTC')
+    expect(getTokenDisplaySymbol('UUSD')).toBe('USTC')
+  })
+
+  it('returns registry wrap product symbols (#507 / #630)', () => {
+    expect(getTokenDisplaySymbol('terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg')).toBe('cLUNC')
+    expect(getTokenDisplaySymbol('terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch')).toBe('cUSTC')
+  })
+
+  it('leaves unknown natives as the raw denom', () => {
+    expect(getTokenDisplaySymbol('ufoo')).toBe('ufoo')
+    expect(getTokenDisplaySymbol('ibc/ABC')).toBe('ibc/ABC')
   })
 
   it('returns registry symbol for known CW20', () => {

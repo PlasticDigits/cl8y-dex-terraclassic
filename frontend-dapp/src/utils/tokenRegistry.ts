@@ -92,6 +92,7 @@ export const TOKENS: TokenRegistryEntry[] = [
   },
 ]
 
+// Allowlist only — unknown bank/IBC denoms stay raw (GitLab #630).
 const DENOM_MAP: Record<string, string> = {
   uluna: 'LUNC',
   uusd: 'USTC',
@@ -131,6 +132,15 @@ export function lookupByCW20(addr: string): TokenRegistryEntry | undefined {
 
 export function lookupByTokenId(tokenId: string): TokenRegistryEntry | undefined {
   return lookupByDenom(tokenId) ?? lookupByCW20(tokenId)
+}
+
+/**
+ * Static product ticker for known natives (`uluna`→LUNC, `uusd`→USTC) and listed CW20s
+ * (cLUNC / cUSTC / UST1 / …). Undefined for unknown bank denoms (fail closed, GitLab #630).
+ */
+export function registryProductSymbol(tokenId: string | undefined | null): string | undefined {
+  if (!tokenId?.trim()) return undefined
+  return lookupByTokenId(tokenId)?.symbol
 }
 
 export function lookupByAssetInfo(info: AssetInfo): TokenRegistryEntry | undefined {
