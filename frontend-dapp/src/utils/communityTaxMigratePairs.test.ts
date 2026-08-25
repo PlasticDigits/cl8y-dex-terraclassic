@@ -3,6 +3,8 @@ import {
   ALPHA_TOKEN_ADDRESS,
   ALPHA_TERRAPORT_LUNC_PAIR,
   ALPHA_TERRAPORT_USTC_PAIR,
+  OPEN_TOKEN_ADDRESS,
+  OPEN_TERRAPORT_LUNC_PAIR,
   buildGovernanceTicket,
   knownTerraportRowsForToken,
   overlayKnownTerraportRows,
@@ -97,6 +99,15 @@ describe('communityTaxMigratePairs (#634)', () => {
     expect(merged).toHaveLength(1)
     expect(merged[0].symbols).toEqual(['Open', 'LUNC'])
     expect(merged[0].venue).toBe('other_dex')
+  })
+
+  it('pins the LCD Open token and Terraport Open/LUNC bech32', () => {
+    expect(tokenMatchesKnown(OPEN_TOKEN_ADDRESS, knownTerraportRowsForToken(OPEN_TOKEN_ADDRESS)[0])).toBe(true)
+    const merged = overlayKnownTerraportRows(OPEN_TOKEN_ADDRESS, [])
+    expect(merged).toHaveLength(1)
+    expect(merged[0].pair).toBe(OPEN_TERRAPORT_LUNC_PAIR)
+    expect(merged[0].pairDisplay).toBeUndefined()
+    expect(merged[0].symbols).toEqual(['Open', 'LUNC'])
   })
 
   it('honest unknown token gets no static Terraport rows', () => {

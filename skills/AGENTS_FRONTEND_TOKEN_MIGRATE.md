@@ -59,7 +59,7 @@ In-place adopt **keeps the CW20 address**. External DEX pairs are not F6-pinned.
 |--------|------|----------------|-------------|
 | ALPHA **8654** `terra1x6e64…zysuxz` | Terraport ALPHA/LUNC `terra12u7khzrzn05a73xkpq6a5zrcazz2xmqn7lvupmqmca06pgcyt5qsa9e7p6` | ALPHA `25732882067035` / uluna `5603001027933` | After wipe: forward 1:1. Historical 4.5% skim not unwound. Do not RegisterListedPair. |
 | ALPHA **8654** | Terraport ALPHA/USTC `terra1jg2vu97ssz2ldn6gztyl4fp9lfdtc23ffr65l4gpvuxw4znkmpxsja5wph` | uusd `54087298` / ALPHA `23466167250` | Same wipe → forward 1:1. Do not RegisterListedPair. |
-| **8266** Open `terra1qz56v…s74n3` | Terraport Open/LUNC `terra1uxr6m…nypyc` | Open `13056446286` / uluna `1733267547` | Address unchanged. 1:1 stay 1:1. `tax_map` query already unknown variant. |
+| **8266** Open `terra1qz56v6p8ca3hh34wnj5yc3jykmw6jaaal0ukecscq8m9qqtgztnscs74n3` | Terraport Open/LUNC `terra1uxr6m55wxez5csnttz00893zur6pksn54nwlpye0c2pyuyyqp3qqknypyc` | Open `13056446286` / uluna `1733267547` | Address unchanged. 1:1 stay 1:1. `tax_map` query already unknown variant. |
 | GDEX | — | — | No GDEX factory pin in-repo. Any GDEX pair keeps the CW20 address; still do not RegisterListedPair. |
 
 LocalTerra analogue: a factory-whitelisted `cw20-mintable` gem (10184 analogue) adopts the same way; inbound Transfer to a CL8Y pair stays 1:1 (crate **P3**). That wasm writes cw2 `crates.io:cw20-base` — `GetMigrateOrigin.source_cw2` after adopt is `cw20-base`, not `cw20-mintable`. Live proof: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh).

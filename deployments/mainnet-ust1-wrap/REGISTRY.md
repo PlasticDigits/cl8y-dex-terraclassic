@@ -62,15 +62,17 @@ Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`s
 
 | Role | Address / id | Coolify / env key |
 |------|--------------|-------------------|
-| Token template (legacy Honest pin) | code **11611** · pin `9D33BF25…210EC2` | **not** listed (2026-08-24 LCD); 0 instances |
+| Token template (legacy Honest pin) | code **11611** · pin `9D33BF25…210EC2` | **not** listed; 0 instances |
 | Token rotate (removed 2026-08-24) | code **11619** · pin `63CB21D1…BAFA20` | `RemoveWhitelistedCodeId` [`9591AC1E…ABFE`](https://finder.terraclassic.community/columbus-5/tx/9591AC1E8E39734081C0EA304C255253C47009368C07C6EB4FE3325822C1ABFE) |
-| Token adopt pin (listed + launcher pin 2026-08-24) | code **11626** · pin `A7244C93…D9DA1C` | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_OPTION2_CODE_IDS` |
-| Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11622**, was 11620 / 11614; wasm admin DEX 2-of-3) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
-| AutoLP template (superseded pin) | code **11613** | not factory-whitelisted; launcher no longer instantiates this |
-| AutoLP rotate (launcher pin, not listed) | code **11621** · pin `DAD413A3…8B76F1` | do not whitelist |
+| Token adopt pin (removed 2026-08-25) | code **11626** · pin `A7244C93…D9DA1C` | not listed (2026-08-25 LCD); 0 instances |
+| Token #633 pin (listed + launcher pin 2026-08-25) | code **11630** · pin `E60A6E31…CA872B96` | `VITE_COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_CODE_ID` / `COMMUNITY_TAX_OPTION2_CODE_IDS` |
+| Duplicate token store (do not list) | code **11631** · same pin as **11630** | accidental #611 re-store; keep **11630** |
+| Launcher (canonical) | `terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze` (code **11632**, was 11622 / 11620 / 11614; wasm admin DEX 2-of-3) | `VITE_COMMUNITY_TOKEN_LAUNCHER` / `COMMUNITY_TOKEN_LAUNCHER` |
+| AutoLP template (superseded pin) | code **11613** / **11621** | not factory-whitelisted |
+| AutoLP #633 pin (launcher pin, not listed) | code **11633** · pin `A5E56F61…E95934` | do not whitelist |
 | CMM wasm admin / attested `cmm_governance` | `terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2` | `CMM_GOVERNANCE_ADDR` (indexer); dApp admin-banner compare |
 
-Factory whitelist: **`[6036, 8266, 10184, 11626]`**. Launcher is **11622**; `GetConfig` is `token_code_id` **11626** / `autolp_code_id` **11621**. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). Adopt REPORT: [`../../cw20-codeid-audits/codeids/11626/REPORT.md`](../../cw20-codeid-audits/codeids/11626/REPORT.md). Coolify should bake **11626**.
+Factory is **11629** (cw2 1.10.0). Whitelist: **`[6036, 8266, 10184, 11630]`**. Launcher `GetConfig` is `token_code_id` **11630** / `autolp_code_id` **11633**. Trace: [`../mainnet-soft-launch/deploy-trace.md`](../mainnet-soft-launch/deploy-trace.md). Token REPORT: [`../../cw20-codeid-audits/codeids/11630/REPORT.md`](../../cw20-codeid-audits/codeids/11630/REPORT.md). Coolify should bake **11630**. Do not whitelist **11631** / **11632** / **11633** / **11628** / **11629** / **8654**.
 
 ---
 

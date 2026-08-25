@@ -315,3 +315,20 @@ Script: [`scripts/upgrade-611-community-tax.sh`](../../scripts/upgrade-611-commu
 
 Do **not** whitelist **11621** / **11622** / unused **11612** / unused **11619** / ALPHA **8654** / code **3**. Coolify leftover: frontend rebuild must bake `VITE_COMMUNITY_TAX_CODE_ID=11626` (indexer catalog already `code_id=11626`). REPORT: [`cw20-codeid-audits/codeids/11626/REPORT.md`](../../cw20-codeid-audits/codeids/11626/REPORT.md).
 
+### Community tax #633 pin (#635, columbus-5, 2026-08-25)
+
+Factory migrate + token list + launcher AutoLP pin. Uploader `cl8ydeploy`. Instantiate permission **Everybody**.
+
+| Field | Value |
+|-------|--------|
+| Factory (live) | **11629** · pin `64ABBCCB…22982C` · unused prior store **11628** same hash |
+| Token (stored + listed) | **11630** · pin `E60A6E31BB0261505170208BBF2B0E17CDB4C6258D701E2E6D22E362CA872B96` · store [`11763CB7…9E48`](https://finder.terraclassic.community/columbus-5/tx/11763CB747BEE51231871F580A36862A47330D4C9EBF220FC779A0E16DC99E48) height **30100763** |
+| Duplicate token store | **11631** · same pin as **11630** — do not list · store [`627DD94A…CC6A`](https://finder.terraclassic.community/columbus-5/tx/627DD94A26885736C189ABE5EFCA2E594C128E565CA90CEF484F827AE810CC6A) |
+| Launcher wasm | **11632** · migrate [`68B5A234…5D01`](https://finder.terraclassic.community/columbus-5/tx/68B5A234D5C14A2CFEC4A4264E04E2E8915BAA2BD51EAC7E582E7A80AFE65D01) height **30101035** |
+| AutoLP store | **11633** · pin `A5E56F61FCCA59232E37DCA283F2E300731B999E60C6813D274FD8A5CEE95934` · store [`6CBD04B6…ED00`](https://finder.terraclassic.community/columbus-5/tx/6CBD04B6448E162D68CF4AE95B421008435EB3FD316C60D29A9E3E5BC52BED00) |
+| **`GetWhitelistedCodeIds`** | **`[6036, 8266, 10184, 11630]`** (11626 removed; 0 instances) |
+| **`GetConfig`** | `token_code_id` **11630** / `autolp_code_id` **11633** — AutoLP pin [`E2259FB0…5B03`](https://finder.terraclassic.community/columbus-5/tx/E2259FB0001648E92CB5144ACBCA3347ADA3AF05754E9478FC3071D77DFC5B03) height **30101052** |
+| **11611 / 11619 / 11626 / 11630 / 11633 instances** | **0** — no CMM migrate / no Refresh |
+
+Do **not** whitelist **11631** / **11632** / **11633** / **11628** / **11629** / **11621** / **11622** / unused **11612** / ALPHA **8654**. Coolify/indexer bake **11630**. REPORT: [`cw20-codeid-audits/codeids/11630/REPORT.md`](../../cw20-codeid-audits/codeids/11630/REPORT.md).
+

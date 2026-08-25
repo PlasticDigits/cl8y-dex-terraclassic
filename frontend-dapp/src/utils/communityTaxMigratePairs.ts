@@ -24,7 +24,9 @@ export const ALPHA_TOKEN_ADDRESS = 'terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnh
 export const ALPHA_TERRAPORT_LUNC_PAIR = 'terra12u7khzrzn05a73xkpq6a5zrcazz2xmqn7lvupmqmca06pgcyt5qsa9e7p6'
 export const ALPHA_TERRAPORT_USTC_PAIR = 'terra1jg2vu97ssz2ldn6gztyl4fp9lfdtc23ffr65l4gpvuxw4znkmpxsja5wph'
 
-/** Open 8266 — prefix/suffix until a full bech32 is pinned in-repo. */
+/** Open 8266 — full bech32 from LCD 2026-08-25 (#636). */
+export const OPEN_TOKEN_ADDRESS = 'terra1qz56v6p8ca3hh34wnj5yc3jykmw6jaaal0ukecscq8m9qqtgztnscs74n3'
+export const OPEN_TERRAPORT_LUNC_PAIR = 'terra1uxr6m55wxez5csnttz00893zur6pksn54nwlpye0c2pyuyyqp3qqknypyc'
 export const OPEN_TOKEN_PREFIX = 'terra1qz56v'
 export const OPEN_TOKEN_SUFFIX = 's74n3'
 export const OPEN_TERRAPORT_LUNC_PREFIX = 'terra1uxr6m'
@@ -115,12 +117,12 @@ export const KNOWN_TERRAPORT_ROWS: readonly KnownTerraportRow[] = [
     quoteDenom: 'uusd',
   },
   {
+    token: OPEN_TOKEN_ADDRESS,
     tokenPrefix: OPEN_TOKEN_PREFIX,
     tokenSuffix: OPEN_TOKEN_SUFFIX,
-    pair: '',
+    pair: OPEN_TERRAPORT_LUNC_PAIR,
     pairPrefix: OPEN_TERRAPORT_LUNC_PREFIX,
     pairSuffix: OPEN_TERRAPORT_LUNC_SUFFIX,
-    pairDisplay: `${OPEN_TERRAPORT_LUNC_PREFIX}…${OPEN_TERRAPORT_LUNC_SUFFIX}`,
     symbols: ['Open', 'LUNC'],
     quoteDenom: 'uluna',
   },

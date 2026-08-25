@@ -82,7 +82,10 @@ run_docs() {
   rg -q "This market is not collecting buy/sell tax yet" frontend-dapp/src/utils/communityTaxRegisterPair.ts
   rg -q "localterra-633-autoregister" skills/AGENTS_COMMUNITY_TAX_AUTOREGISTER.md
   rg -q "localterra-633-autoregister" docs/testing.md
+  rg -q "upgrade-635-autoregister" skills/AGENTS_COMMUNITY_TAX_AUTOREGISTER.md
   bash -n scripts/qa/localterra-633-autoregister.sh
+  bash -n scripts/upgrade-635-autoregister.sh
+  bash scripts/qa/test-upgrade-635-guards.sh
 }
 
 run_live() {

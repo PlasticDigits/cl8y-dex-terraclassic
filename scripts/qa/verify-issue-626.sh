@@ -65,7 +65,8 @@ run_docs() {
   rg -q "S4 go" docs/contracts-terraclassic.md
   rg -q "migrate-adopt" docs/contracts-terraclassic.md
   rg -q "terra12u7kh" docs/contracts-terraclassic.md
-  rg -q "terra1uxr6m" docs/contracts-terraclassic.md
+  rg -q "terra1uxr6m55wxez5csnttz00893zur6pksn54nwlpye0c2pyuyyqp3qqknypyc" docs/contracts-terraclassic.md
+  rg -q "terra1qz56v6p8ca3hh34wnj5yc3jykmw6jaaal0ukecscq8m9qqtgztnscs74n3" docs/contracts-terraclassic.md
   rg -q "GetMigrateOrigin" docs/contracts-terraclassic.md
   rg -q "/token/migrate" frontend-dapp/src/App.tsx
   rg -q "8654" frontend-dapp/src/utils/communityTaxMigrate.ts

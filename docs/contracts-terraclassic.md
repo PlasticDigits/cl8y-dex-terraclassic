@@ -414,7 +414,7 @@ Same-crate bump is still `MigrateMsg {}` + `cw2::ensure_from_older_version` (CMM
 | Source | Status | Terraport / GDEX LP (LCD 2026-08-24) |
 |--------|--------|--------------------------------------|
 | **6036** / **10184** | **S3 go** | Honest 1:1 stay 1:1. CL8Y pairs freeze until Refresh. |
-| **8266** Open `terra1qz56v…s74n3` | **S3-8266 go** | Terraport Open/LUNC `terra1uxr6m…nypyc` (Open `13056446286` / uluna `1733267547`). Leftover `balance_at` unread. Do not RegisterListedPair. |
+| **8266** Open `terra1qz56v6p8ca3hh34wnj5yc3jykmw6jaaal0ukecscq8m9qqtgztnscs74n3` | **S3-8266 go** | Terraport Open/LUNC `terra1uxr6m55wxez5csnttz00893zur6pksn54nwlpye0c2pyuyyqp3qqknypyc` (Open `13056446286` / uluna `1733267547`, LCD 2026-08-25). Leftover `balance_at` unread. Do not RegisterListedPair. |
 | **8654** ALPHA `terra1x6e64…zysuxz` | **On migrate allowlist** (not a special case; never factory-list 8654) | Terraport ALPHA/LUNC `terra12u7kh…9e7p6` (ALPHA `25732882067035` / uluna `5603001027933`); ALPHA/USTC `terra1jg2vu…wph` (uusd `54087298` / ALPHA `23466167250`). After wipe, forward 1:1; historical 4.5% skim not unwound. No GDEX factory pin in-repo. |
 
 Design record: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603). Wrap fallback: [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558).

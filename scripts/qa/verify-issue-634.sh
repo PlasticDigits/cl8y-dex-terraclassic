@@ -65,6 +65,8 @@ run_docs() {
   rg -q "loadMigratePairInventory" frontend-dapp/src/utils/communityTaxMigratePairs.ts
   rg -q "migrate-venue-inventory" frontend-dapp/src/components/community/MigratePairInventory.tsx
   rg -q "terra12u7khzrzn05a73xkpq6a5zrcazz2xmqn7lvupmqmca06pgcyt5qsa9e7p6" frontend-dapp/src/utils/communityTaxMigratePairs.ts
+  rg -q "terra1qz56v6p8ca3hh34wnj5yc3jykmw6jaaal0ukecscq8m9qqtgztnscs74n3" frontend-dapp/src/utils/communityTaxMigratePairs.ts
+  rg -q "terra1uxr6m55wxez5csnttz00893zur6pksn54nwlpye0c2pyuyyqp3qqknypyc" frontend-dapp/src/utils/communityTaxMigratePairs.ts
   rg -q "This CL8Y market pauses until CL8Y governance refreshes" frontend-dapp/src/utils/communityTaxMigratePairs.ts
   ! rg -n "refresh_pair_asset_code_ids|set_pair_paused|add_whitelisted_code_id" \
     frontend-dapp/src/pages/MigrateTokenPage.tsx \

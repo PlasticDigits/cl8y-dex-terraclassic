@@ -1,0 +1,9 @@
+{
+  "code_id": 11630,
+  "data_hash": "E60A6E31BB0261505170208BBF2B0E17CDB4C6258D701E2E6D22E362CA872B96",
+  "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+  "instantiate_permission": "Everybody",
+  "lcd": "https://terra-classic-lcd.publicnode.com",
+  "lcd_code_id": "11630",
+  "note": "SHA-256 of LCD wasm bytes; not an optimizer rebuild. Do not overwrite REPORT.md."
+}
