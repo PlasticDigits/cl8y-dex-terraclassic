@@ -223,3 +223,82 @@ describe('TokenSearchSelect (GitLab #481)', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 })
+
+describe('TokenSearchSelect coarse/narrow browse (GitLab #632)', () => {
+  const originalMatchMedia = window.matchMedia
+  const originalInnerWidth = window.innerWidth
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    localStorage.setItem(
+      TOKEN_CACHE_KEY,
+      JSON.stringify({
+        [EMBER_ADDR.toLowerCase()]: { symbol: 'EMBER', name: 'Ember' },
+        [JADE_ADDR.toLowerCase()]: { symbol: 'JADE', name: 'Jade' },
+      })
+    )
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('pointer: coarse'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    localStorage.removeItem(TOKEN_CACHE_KEY)
+    window.matchMedia = originalMatchMedia
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalInnerWidth })
+    vi.clearAllMocks()
+  })
+
+  it('opens the list without focusing a text field', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    renderWithProviders(
+      <TokenSearchSelect value={EMBER_ADDR} tokens={tokens} onChange={vi.fn()} aria-label="Select token you pay" />
+    )
+
+    const trigger = screen.getByRole('combobox', { name: 'Select token you pay' })
+    expect(trigger.tagName).toBe('BUTTON')
+    await user.click(trigger)
+
+    await screen.findByRole('listbox', { name: 'Select token you pay' })
+    expect(document.activeElement).not.toBeInstanceOf(HTMLInputElement)
+    expect(document.activeElement).toBe(trigger)
+    expect(screen.getByRole('searchbox', { name: 'Select token you pay search' })).toBeInTheDocument()
+  })
+
+  it('filters from the in-menu search field and keeps the factory gate', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    const onChange = vi.fn()
+    renderWithProviders(
+      <TokenSearchSelect
+        value={EMBER_ADDR}
+        tokens={tokens}
+        excludeToken={CORAL_ADDR}
+        onChange={onChange}
+        aria-label="Select token you pay"
+      />
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Select token you pay' }))
+    const search = await screen.findByRole('searchbox', { name: 'Select token you pay search' })
+    await user.click(search)
+    await user.type(search, 'jade')
+    await vi.advanceTimersByTimeAsync(TOKEN_SEARCH_DEBOUNCE_MS + 50)
+
+    const listbox = screen.getByRole('listbox', { name: 'Select token you pay' })
+    await waitFor(() => {
+      expect(within(listbox).getByTestId(`token-option-${JADE_ADDR}`)).toBeInTheDocument()
+    })
+    expect(within(listbox).queryByTestId(`token-option-${CORAL_ADDR}`)).not.toBeInTheDocument()
+    await user.click(within(listbox).getByTestId(`token-option-${JADE_ADDR}`))
+    expect(onChange).toHaveBeenCalledWith(JADE_ADDR)
+  })
+})

@@ -180,6 +180,7 @@ make verify-issue-630                    # #630 LUNC/USTC picker labels (registr
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
 make verify-issue-626                    # #626 free listed-template adopt + Terraport/GDEX LP gate
 make verify-issue-628                    # #628 post-merge !418 community-tax migrate leftovers (P3/P7/P11 + 11626/11630)
+make verify-issue-632                    # #632 Keplr in-app / visualViewport token picker
 make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool (LocalTerra: localterra-634-migrate-inventory.sh)
 make verify-issue-604                    # #604 identity + connected-wallet helpers (Vitest + crates)
 make verify-issue-605                    # #605 SKU init + percent taxes (Vitest + crates)
@@ -290,6 +291,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md](skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) — first-visit NFA / risk modal (#138)
 - [skills/AGENTS_FRONTEND_CLICKWRAP.md](skills/AGENTS_FRONTEND_CLICKWRAP.md) — connected Legal TermsGate for `dex.cl8y.com` (**C1–C10**, [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)); `make verify-issue-517`
 - [skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md](skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) — WalletConnect same-device mobile pairing (deep-link + copy, not QR-only; **WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)); `make verify-issue-519` · `make verify-issue-554` · `make verify-issue-566`
+- [skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md](skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) — portal listbox `visualViewport` + in-app chrome inset + coarse/narrow browse-without-IME (**V632-1–V632-8**, [#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`
 - [skills/AGENTS_FRONTEND_KEPLR_LEDGER.md](skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) — Keplr + Ledger Nano signing (amino, pre-sign suggest, stall UX) (**K567-1–K567-8**, [#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); `make verify-issue-567`
 - [skills/AGENTS_KEPLR_CW20_REGISTRY.md](skills/AGENTS_KEPLR_CW20_REGISTRY.md) — Keplr Add Token CW20 pack on `cosmos/columbus` (**K629-1–K629-8**, [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)); `make verify-issue-629`
 - [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — single execution-aligned **Route** row on Swap and `/trade` market quote (#158, #302); Trade market GET `/route/solve` default (#501); always-on hybrid (#596)

@@ -85,11 +85,13 @@ export async function selectTokenInCombobox(
   // must return false so callers can try JADE/RUBY — do not hang on 0 options.
   const filterHint = mustInclude.trim()
   if (filterHint.length >= 2 && !filterHint.toLowerCase().startsWith('terra1')) {
-    await trigger.fill('')
-    await trigger.type(filterHint.slice(0, Math.min(filterHint.length, 8)), { delay: 20 })
+    const triggerIsInput = await trigger.evaluate((el) => el instanceof HTMLInputElement)
+    const search = triggerIsInput ? trigger : page.getByRole('searchbox', { name: `${ariaLabel} search` })
+    await search.fill('')
+    await search.type(filterHint.slice(0, Math.min(filterHint.length, 8)), { delay: 20 })
     await page.waitForTimeout(400)
     if (await tryPick()) return true
-    await trigger.fill('')
+    await search.fill('')
     await page.waitForTimeout(400)
     await expect(async () => {
       expect(await opts.count()).toBeGreaterThan(0)

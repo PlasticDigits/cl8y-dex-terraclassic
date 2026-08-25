@@ -420,6 +420,44 @@
     scrollbar-gutter: stable;
     /* Match page theme for portaled listbox <button> rows (avoids light “system” button surfaces in dark mode). */
     color-scheme: inherit;
+    /* Keep scroll inside the menu so Android WebView chrome does not steal it (GitLab #632). */
+    overscroll-behavior: contain;
+  }
+
+  /* TokenSearchSelect / PairSearchSelect wrapper: search + scrolling list (GitLab #632). */
+  .token-select-dropdown--menu {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0.5rem;
+  }
+
+  .token-select-dropdown-list {
+    @apply m-0 p-0 list-none;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .token-select-dropdown-search-wrap {
+    flex-shrink: 0;
+    padding: 0 0 0.5rem;
+  }
+
+  .token-select-dropdown-search {
+    @apply w-full px-3 py-2 text-sm;
+    border: 1px solid var(--chrome-border);
+    border-radius: 12px;
+    background: var(--control-surface);
+    color: var(--ink);
+    min-height: 44px;
+  }
+
+  .token-select-dropdown-search:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--focus-ring) 55%, transparent);
   }
 
   .token-select-option {
@@ -431,6 +469,12 @@
     font: inherit;
     -webkit-appearance: none;
     appearance: none;
+  }
+
+  @media (pointer: coarse) {
+    .token-select-option {
+      min-height: 44px;
+    }
   }
 
   .token-select-option:hover {
