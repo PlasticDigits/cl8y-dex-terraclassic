@@ -48,7 +48,7 @@ JSON ready to copy: [`cosmos/columbus/tokens/`](./cosmos/columbus/tokens/).
 4. Open a PR: *Add CL8Y ecosystem CW20s on columbus-5 (CL8Y, UST1, cLUNC, cUSTC, vFDUSD)*. Mention USTR is already listed. Link `https://dex.cl8y.com` and this issue.
 5. After merge: Keplr Add Token → Terra Classic → search CL8Y / UST1 / cLUNC / cUSTC / vFDUSD.
 
-This repo **cannot** merge the upstream PR. Link the GitHub PR on [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) when opened.
+Upstream PR (opened 2026-08-25): [chainapsis/keplr-contract-registry#132](https://github.com/chainapsis/keplr-contract-registry/pull/132). This repo cannot merge it. After merge, Keplr Add Token should show name + logo for the five new files.
 
 ## Job 2 — USD price (decision)
 
