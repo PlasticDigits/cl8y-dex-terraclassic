@@ -47,6 +47,10 @@ run_step "docs: playbook + invariants + skill crosslinks" \
     test -f indexer/migrations/20260825150000_defillama_daily.sql
     grep -q "L631-1" skills/AGENTS_DEFILLAMA.md
     grep -q "L631-9" skills/AGENTS_DEFILLAMA.md
+    grep -q "L631-10" skills/AGENTS_DEFILLAMA.md
+    grep -q "L631-11" skills/AGENTS_DEFILLAMA.md
+    grep -q "unstablecoin" docs/DEFILLAMA.md
+    test -f indexer/migrations/20260825160000_defillama_daily_assets.sql
     grep -q "DeFiLlama UTC-day (#631)" docs/indexer-invariants.md
     grep -q "DEFILLAMA.md" docs/README.md
     grep -q "AGENTS_DEFILLAMA" docs/README.md
@@ -100,6 +104,8 @@ PY
     fi
     grep -q "never use this indexer USD" indexer/src/api/defillama.rs || \
       grep -q "Do not use this indexer USD" indexer/src/api/defillama.rs
+    grep -q unstablecoin indexer/src/api/defillama.rs
+    grep -q reserve indexer/src/api/defillama.rs
     if grep -nE "liquidity_in_usd|total_liquidity_usd" \
          scripts/defillama/tvl/tvlCore.js \
          scripts/defillama/dimensions/mapDaily.js 2>/dev/null; then
@@ -125,7 +131,9 @@ run_step "integration: daily API gem/hybrid/fee/400/404/O(1)" \
 run_step "node: TVL helper + dimension mapping" \
   bash -c '
     set -euo pipefail
-    node --test scripts/defillama/tvl/tvlCore.test.js scripts/defillama/dimensions/mapDaily.test.js
+    node --test scripts/defillama/tvl/tvlCore.test.js \
+      scripts/defillama/dimensions/mapDaily.test.js \
+      scripts/defillama/stablecoins/ust1Core.test.js
   '
 
 echo ""

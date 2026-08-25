@@ -31,6 +31,12 @@ const WRAP_TO_NATIVE = {
   [CUSTC]: 'uusd',
 }
 
+/** UST1 unstablecoin + USTR reserve (REGISTRY.md). Not gems. */
+const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+const USTR = 'terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv'
+const UST1_WINDOW = 'terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2'
+const VFDUSD = 'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'
+
 const INDEXER_DAILY_URL = 'https://indexer.dex.cl8y.com/api/v1/defillama/daily'
 
 /** 2026-05-01 00:00:00 UTC — first day dimension adapters may request. */
@@ -46,6 +52,10 @@ module.exports = {
   CLUNC,
   CUSTC,
   WRAP_TO_NATIVE,
+  UST1,
+  USTR,
+  UST1_WINDOW,
+  VFDUSD,
   INDEXER_DAILY_URL,
   ADAPTER_START,
   isGemAddress,

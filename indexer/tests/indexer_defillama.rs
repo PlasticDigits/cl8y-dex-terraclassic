@@ -56,6 +56,10 @@ async fn wipe_events(pool: &sqlx::PgPool) {
         .execute(pool)
         .await
         .unwrap();
+    sqlx::query("DELETE FROM defillama_daily_assets")
+        .execute(pool)
+        .await
+        .unwrap();
     sqlx::query("DELETE FROM defillama_daily_fees")
         .execute(pool)
         .await
@@ -293,6 +297,10 @@ async fn daily_volume_excludes_gems_fills_wrap_and_window() {
     assert_usd(&body["daily_fees_usd"], "2.35");
     assert_usd(&body["daily_revenue_usd"], "2.35");
     assert_eq!(body["methodology"]["factory"], COLUMBUS5_FACTORY);
+    assert_eq!(body["assets"]["ust1"]["product"], "unstablecoin");
+    assert_eq!(body["assets"]["ustr"]["category"], "reserve");
+    assert_usd(&body["assets"]["ust1"]["fees_usd"], "0.10");
+    assert_usd(&body["assets"]["ustr"]["volume_usd"], "0");
     assert!(body["methodology"]["tvl"]
         .as_str()
         .unwrap()
@@ -476,4 +484,151 @@ async fn cache_hit_does_not_require_reroll() {
         .await
         .json();
     assert_usd(&cached["volume_usd"], "7");
+}
+
+#[serial]
+#[tokio::test]
+async fn ust1_ustr_asset_volume_fees_and_hub_price() {
+    use cl8y_dex_indexer::config::{DEFAULT_HUB_UST1_ADDRESS, DEFAULT_HUB_USTR_ADDRESS};
+
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let d0 = day0() + Duration::hours(3);
+
+    let ust1_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'UST1', 'UST1', 6) RETURNING id",
+    )
+    .bind(DEFAULT_HUB_UST1_ADDRESS)
+    .fetch_one(&pool)
+    .await
+    .expect("ust1 asset");
+    let ustr_id: i32 = sqlx::query_scalar(
+        "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+         VALUES ($1, true, 'USTR', 'USTR', 18) RETURNING id",
+    )
+    .bind(DEFAULT_HUB_USTR_ADDRESS)
+    .fetch_one(&pool)
+    .await
+    .expect("ustr asset");
+
+    let ust1_pair: i32 = sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1ust1pair631', $1, $2, 'terra1ust1lp', 30) RETURNING id",
+    )
+    .bind(ust1_id)
+    .bind(seed.asset_1_id)
+    .fetch_one(&pool)
+    .await
+    .expect("ust1 pair");
+    let both_pair: i32 = sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1ust1ustr631', $1, $2, 'terra1bothlp', 30) RETURNING id",
+    )
+    .bind(ust1_id)
+    .bind(ustr_id)
+    .fetch_one(&pool)
+    .await
+    .expect("ust1/ustr pair");
+
+    insert_swap(
+        &pool,
+        ust1_pair,
+        ust1_id,
+        seed.asset_1_id,
+        d0,
+        "tx-ust1-vol",
+        Some("12"),
+    )
+    .await;
+    insert_swap(
+        &pool,
+        both_pair,
+        ust1_id,
+        ustr_id,
+        d0,
+        "tx-both-vol",
+        Some("3"),
+    )
+    .await;
+    insert_swap(
+        &pool,
+        seed.pair_id,
+        seed.asset_0_id,
+        seed.asset_1_id,
+        d0,
+        "tx-other-vol",
+        Some("50"),
+    )
+    .await;
+
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        ust1_id,
+        d0,
+        "tx-ust1-vol",
+        Some("0.40"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Ust1Redeem,
+        ust1_id,
+        d0,
+        "tx-ust1-redeem",
+        Some("0.05"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        d0,
+        "tx-other-vol",
+        Some("1.00"),
+        0,
+    )
+    .await;
+
+    sqlx::query(
+        "INSERT INTO hub_prices (ticker, price_usd, updated_at) VALUES ('ust1', 0.97, NOW())",
+    )
+    .execute(&pool)
+    .await
+    .expect("hub ust1");
+    sqlx::query(
+        "INSERT INTO hub_prices (ticker, price_usd, updated_at) VALUES ('ustr', 0.015, NOW())",
+    )
+    .execute(&pool)
+    .await
+    .expect("hub ustr");
+
+    refresh(&pool).await;
+
+    let app = build_test_app(pool.clone()).await;
+    let server = TestServer::new(app);
+    let ts0 = day0().timestamp();
+    let body: Value = server
+        .get(&format!("/api/v1/defillama/daily?timestamp={ts0}"))
+        .await
+        .json();
+
+    assert_usd(&body["volume_usd"], "65");
+    assert_eq!(body["trade_count"], 3);
+    assert_usd(&body["assets"]["ust1"]["volume_usd"], "15");
+    assert_eq!(body["assets"]["ust1"]["trade_count"], 2);
+    assert_usd(&body["assets"]["ustr"]["volume_usd"], "3");
+    assert_eq!(body["assets"]["ustr"]["trade_count"], 1);
+    assert_usd(&body["assets"]["ust1"]["fees_usd"], "0.45");
+    assert_usd(&body["assets"]["ustr"]["fees_usd"], "0");
+    assert_usd(&body["assets"]["ust1"]["price_usd"], "0.97");
+    assert_usd(&body["assets"]["ustr"]["price_usd"], "0.015");
+    assert_eq!(body["assets"]["ust1"]["product"], "unstablecoin");
+    assert_eq!(body["assets"]["ust1"]["peg_type"], "peggedUSD");
+    assert_eq!(body["assets"]["ustr"]["peg_type"], Value::Null);
+    assert_eq!(body["assets"]["ustr"]["category"], "reserve");
 }

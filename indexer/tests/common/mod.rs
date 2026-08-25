@@ -156,6 +156,7 @@ async fn clean_db_tables(pool: &PgPool) {
             protocol_fee_events,
             protocol_fee_stats_by_source,
             protocol_fee_stats_by_token,
+            defillama_daily_assets,
             defillama_daily_fees,
             defillama_daily_stats,
             pair_reserves,

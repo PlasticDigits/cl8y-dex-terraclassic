@@ -6,7 +6,7 @@
 **Adapter copies:** [`scripts/defillama/`](../scripts/defillama/)  
 **Not this ticket:** CoinGecko / CMC crawlers — [`CG_CMC_COMPLIANCE.md`](./CG_CMC_COMPLIANCE.md)
 
-List **CL8Y DEX** (`https://dex.cl8y.com`) on [DeFiLlama](https://defillama.com) as a Terra Classic Dexs protocol: **TVL**, **spot volume**, and **fees/revenue**. Llama merges **open-source adapters**. Hosted `/cg/*` and `/cmc/*` do not substitute.
+List **CL8Y DEX** (`https://dex.cl8y.com`) on [DeFiLlama](https://defillama.com) as a Terra Classic Dexs protocol (**TVL**, **spot volume**, **fees/revenue**) and list **UST1** on the **Stablecoins** dashboard as an **unstablecoin**. Publish **USTR** reserve-token volume, fees, and hub price on the same daily API. Llama merges **open-source adapters**. Hosted `/cg/*` and `/cmc/*` do not substitute.
 
 ## Public pins (columbus-5)
 
@@ -19,6 +19,9 @@ List **CL8Y DEX** (`https://dex.cl8y.com`) on [DeFiLlama](https://defillama.com)
 | Slug | `cl8y-dex` |
 | Adapter start | `1777593600` (2026-05-01 00:00 UTC) |
 | Daily API | `GET /api/v1/defillama/daily?timestamp=<unix_00:00_utc>` |
+| UST1 (unstablecoin) | `terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72` |
+| USTR (reserve) | `terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv` |
+| ust1-window | `terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2` |
 
 Factory pin matches [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md).
 
@@ -61,6 +64,33 @@ Pair commission goes to `FEE_CONFIG.treasury` (CMM), **not** to LPs. `spread_amo
 
 Community-tax extra-debit is **token tax**, not a protocol DEX fee.
 
+### UST1 unstablecoin (Stablecoins dashboard)
+
+UST1 is a USD-**target** token minted/redeemed through the oracle window against vFDUSD. Product name is **unstablecoin**: the window rate and secondary AMM can deviate. Llama listing:
+
+| Field | Value |
+|-------|--------|
+| Dashboard | [Stablecoins](https://defillama.com/stablecoins) via [peggedassets-server](https://github.com/DefiLlama/peggedassets-server) `ust1` |
+| `pegType` | `peggedUSD` |
+| `pegMechanism` | `crypto-backed` (vFDUSD in `ust1-window`) |
+| Circulating | On-chain CW20 `token_info.total_supply` / 1e6 |
+| Price | Llama / hub — **never** `$1` |
+
+`GET /api/v1/defillama/daily` `assets.ust1` adds UTC-day DEX volume (pairs with a UST1 leg), pair + window fees, and hub `price_usd`.
+
+### USTR (reserve token — not a stablecoin)
+
+USTR is the CMM reserve CW20 (18 decimals). Report it on the same daily GET as `assets.ustr` (DEX volume, pair fees, hub price). Do **not** file a second pegged-asset adapter and do **not** use 2.5× USTC as a peg.
+
+### Other Llama surfaces
+
+| Surface | Decision |
+|---------|----------|
+| UST1 window issuer TVL (`cl8y-ust1`) | Optional follow-up: vFDUSD locked in the window. Category **Stablecoin Issuer**. Separate from DEX TVL. May be `$0` until Llama prices vFDUSD ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)). |
+| Wrap-mapper as Stablecoin Wrapper | **Do not** this ticket — would double-count vs DEX pool TVL / wrap inventory. |
+| Yields / emissions / oracles-TVS / bridges | **Do not** — no incentive program; wrap is not a canonical bridge listing. |
+| Treasury page | Mail `metadata@defillama.com` after adapters merge if Llama asks. |
+
 ### Indexer contract
 
 | Status | When |
@@ -89,6 +119,7 @@ TVL keys by **contract/denom**, not symbol (A9). Volume exclude is by **address*
 | TVL `projects/cl8y-dex` | [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676) |
 | Volume `dexs/cl8y-dex` + fees `fees/cl8y-dex` | [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) (draft until Coolify ships `GET /api/v1/defillama/daily`) |
 | Icons / metadata | Follow-up if Llama asks |
+| UST1 Stablecoins | [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) (`ust1`, draft). Circulating is on-chain `token_info` (no Coolify dependency). |
 
 After merge: `https://defillama.com/protocol/cl8y-dex` should show Terra Classic + `dex.cl8y.com`.
 

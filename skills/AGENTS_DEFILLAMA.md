@@ -29,6 +29,8 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 | **L631-7** | GET `/api/v1/defillama/daily` is O(1) rollup + 60s cache. Invalid timestamp → **400**. Missing day → **404**. Idle → `"0"`. Activity + unpriced → `null`. Single-day param only. |
 | **L631-8** | Named wrap substitution only: cLUNC → `uluna`, cUSTC → `uusd` (1:1). No UST1=$1 / USTR hub pegs. vFDUSD / CEX FDUSD is not a pool asset. |
 | **L631-9** | This skill + `docs/DEFILLAMA.md` + `make verify-issue-631`. Keep `make verify-issue-586` / `569` / `562`. |
+| **L631-10** | UST1 is the **unstablecoin** on Llama Stablecoins (`peggedUSD`, crypto-backed). Circulating is CW20 `total_supply`. Price is hub / Llama — never `$1`. |
+| **L631-11** | USTR is reserve-token info on `assets.ustr` (volume, pair fees, hub price). Not a second stablecoin. Not 2.5× USTC. |
 
 ## Do / don’t
 
@@ -38,7 +40,8 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 - **Don’t** publish CG `liquidity_in_usd` as Llama TVL (it is mislabeled 24h volume).
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** treat `overview.total_volume_24h_usd` as `dailyVolume`.
-- **Don’t** open Llama GitHub PRs from this repo’s CI — copies live under `scripts/defillama/`. Filed: [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987).
+- **Don’t** list USTR as `peggedUSD` or invent a UST1 `$1` peg for Llama.
+- **Don’t** open Llama GitHub PRs from this repo’s CI — copies live under `scripts/defillama/`. Filed: [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987), [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903).
 
 ## Key files
 
@@ -48,6 +51,8 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 | Rollup | [`indexer/src/db/queries/defillama.rs`](../indexer/src/db/queries/defillama.rs) |
 | Gems + parse | [`indexer/src/indexer/defillama.rs`](../indexer/src/indexer/defillama.rs) |
 | Migration | [`indexer/migrations/20260825150000_defillama_daily.sql`](../indexer/migrations/20260825150000_defillama_daily.sql) |
+| Asset rollup | [`indexer/src/db/queries/defillama_assets.rs`](../indexer/src/db/queries/defillama_assets.rs) + [`20260825160000_defillama_daily_assets.sql`](../indexer/migrations/20260825160000_defillama_daily_assets.sql) |
+| UST1 pegged copy | [`scripts/defillama/stablecoins/`](../scripts/defillama/stablecoins/) |
 | TVL helper | [`scripts/defillama/tvl/tvlCore.js`](../scripts/defillama/tvl/tvlCore.js) |
 | Tests | [`indexer/tests/indexer_defillama.rs`](../indexer/tests/indexer_defillama.rs) |
 

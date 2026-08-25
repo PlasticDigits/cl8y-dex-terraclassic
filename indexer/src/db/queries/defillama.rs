@@ -28,6 +28,20 @@ pub struct DailyFeeRow {
     pub unpriced_count: i64,
 }
 
+#[derive(Debug, Clone, FromRow)]
+pub struct DailyAssetRow {
+    pub utc_day: NaiveDate,
+    pub ticker: String,
+    pub volume_usd: BigDecimal,
+    pub trade_count: i64,
+    pub unpriced_trade_count: i64,
+    pub fees_usd: BigDecimal,
+    pub fee_event_count: i64,
+    pub fee_unpriced_count: i64,
+    pub price_usd: Option<BigDecimal>,
+    pub circulating_raw: Option<BigDecimal>,
+}
+
 pub async fn get_daily_stat(
     pool: &PgPool,
     utc_day: NaiveDate,
@@ -50,6 +64,22 @@ pub async fn get_daily_fees(
         r#"SELECT utc_day, source, amount_usd, event_count, unpriced_count
            FROM defillama_daily_fees
            WHERE utc_day = $1"#,
+    )
+    .bind(utc_day)
+    .fetch_all(pool)
+    .await
+}
+
+pub async fn get_daily_assets(
+    pool: &PgPool,
+    utc_day: NaiveDate,
+) -> Result<Vec<DailyAssetRow>, sqlx::Error> {
+    sqlx::query_as::<_, DailyAssetRow>(
+        r#"SELECT utc_day, ticker, volume_usd, trade_count, unpriced_trade_count,
+                  fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw
+           FROM defillama_daily_assets
+           WHERE utc_day = $1
+           ORDER BY ticker"#,
     )
     .bind(utc_day)
     .fetch_all(pool)
@@ -224,6 +254,8 @@ pub async fn refresh_defillama_day(
         .execute(pool)
         .await?;
     }
+
+    super::defillama_assets::refresh_daily_assets(pool, day_start, day_end, utc_day, &gems).await?;
 
     Ok(())
 }
