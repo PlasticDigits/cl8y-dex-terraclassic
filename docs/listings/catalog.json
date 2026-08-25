@@ -1,0 +1,307 @@
+{
+  "issue": 639,
+  "verified": "2026-08-25",
+  "invariants": [
+    "L639-1",
+    "L639-2",
+    "L639-3",
+    "L639-4",
+    "L639-5",
+    "L639-6",
+    "L639-7",
+    "L639-8"
+  ],
+  "pins": {
+    "dapp": "https://dex.cl8y.com",
+    "indexer": "https://indexer.dex.cl8y.com",
+    "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+    "cg_base": "https://indexer.dex.cl8y.com/cg/",
+    "cg_paths": ["/pairs", "/tickers", "/orderbook", "/historical_trades"],
+    "cmc_base": "https://indexer.dex.cl8y.com/cmc/",
+    "cmc_paths": ["/summary", "/assets", "/ticker", "/orderbook/:pair", "/trades/:pair"],
+    "llama_daily_path": "/api/v1/defillama/daily",
+    "coingecko_id": "ceramicliberty-com",
+    "coingecko_id_platforms_today": ["binance-smart-chain"],
+    "cl8y_bsc": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+    "logos": "tokenlist/images/"
+  },
+  "tokens": [
+    {
+      "symbol": "CL8Y",
+      "decimals": 18,
+      "contract": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+      "coinGeckoId": "ceramicliberty-com",
+      "notes": "CG id exists; Terra Classic platform missing. Do not invent a second CG id."
+    },
+    {
+      "symbol": "UST1",
+      "decimals": 6,
+      "contract": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+      "notes": "No CoinGecko id. Unstablecoin — never advertise $1."
+    },
+    {
+      "symbol": "USTR",
+      "decimals": 18,
+      "contract": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+      "notes": "Already in Keplr + Hexxagon as USTC Repeg. Not a stablecoin."
+    },
+    {
+      "symbol": "cLUNC",
+      "decimals": 6,
+      "contract": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+    },
+    {
+      "symbol": "cUSTC",
+      "decimals": 6,
+      "contract": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+    },
+    {
+      "symbol": "vFDUSD",
+      "decimals": 6,
+      "contract": "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3",
+      "notes": "UST1-window mint asset."
+    }
+  ],
+  "owned_surfaces": [
+    {
+      "id": "defillama",
+      "issue": 631,
+      "status": "in_flight",
+      "do_not_reopen": true
+    },
+    {
+      "id": "keplr",
+      "issue": 629,
+      "status": "in_flight",
+      "do_not_reopen": true
+    },
+    {
+      "id": "cg_cmc_shape",
+      "issue": 224,
+      "status": "api_ready",
+      "do_not_reopen": true,
+      "forms_open": true
+    }
+  ],
+  "venues": [
+    {
+      "id": "cosmostation",
+      "kind": "wallet",
+      "channel": "pr",
+      "agentic": true,
+      "priority": 1,
+      "upstream": "https://github.com/cosmostation/chainlist",
+      "path": "chain/terra/cw20_2.json",
+      "notes": "Folder is terra (Classic, not Terra 2). Plus PNG under chain/terra/asset/."
+    },
+    {
+      "id": "hexxagon",
+      "kind": "wallet",
+      "channel": "pr",
+      "agentic": true,
+      "priority": 2,
+      "upstream": "https://github.com/hexxagon-io/chain-registry",
+      "path": "cw20/tokens/mainnet/terra.js",
+      "notes": "Galaxy Station. USTR already present as USTC Repeg. Optional cw20/dex_pairs."
+    },
+    {
+      "id": "cosmos-chain-registry",
+      "kind": "wallet",
+      "channel": "pr",
+      "agentic": true,
+      "priority": 3,
+      "upstream": "https://github.com/cosmos/chain-registry",
+      "path": "terra/assetlist.json",
+      "notes": "type_asset: cw20. Leap metadata comes from here — no Leap CW20 repo."
+    },
+    {
+      "id": "trust-wallet",
+      "kind": "wallet",
+      "channel": "pr",
+      "agentic": true,
+      "priority": 10,
+      "paid": true,
+      "upstream": "https://github.com/trustwallet/assets",
+      "notes": "Paid merge (500 TWT or 2.5 BNB). Only if product asks."
+    },
+    {
+      "id": "coingecko-exchange",
+      "kind": "dex",
+      "channel": "form",
+      "agentic": true,
+      "human_gate": "account + captcha",
+      "priority": 4,
+      "form": "https://partner.coingecko.com/request-form/new",
+      "form_pack": "docs/listings/forms/coingecko-exchange.md",
+      "notes": "Decentralized Spot Exchange. Point at /cg/ on indexer.dex.cl8y.com, not CoinGecko Pro v3."
+    },
+    {
+      "id": "coingecko-terra-classic-platform",
+      "kind": "token",
+      "channel": "form",
+      "agentic": true,
+      "human_gate": "account + captcha",
+      "priority": 5,
+      "form": "https://partner.coingecko.com/request-form/new",
+      "form_pack": "docs/listings/forms/coingecko-terra-classic-platform.md",
+      "notes": "Add columbus-5 CW20 to existing ceramicliberty-com. Do not invent a second CG id."
+    },
+    {
+      "id": "coinmarketcap-exchange",
+      "kind": "dex",
+      "channel": "form",
+      "agentic": true,
+      "human_gate": "human submit",
+      "priority": 6,
+      "form": "https://coinmarketcap.com/request/",
+      "form_pack": "docs/listings/forms/coinmarketcap-exchange.md",
+      "notes": "Add exchange. Point at /cmc/. 60-day operation clock. CMC DexScan is not the path."
+    },
+    {
+      "id": "coinmarketcap-tokens",
+      "kind": "token",
+      "channel": "form",
+      "agentic": true,
+      "human_gate": "human submit",
+      "priority": 9,
+      "form": "https://coinmarketcap.com/request/",
+      "notes": "Add cryptoasset after DEX volume is visible. UST1 is an unstablecoin."
+    },
+    {
+      "id": "geckoterminal",
+      "kind": "dex",
+      "channel": "form",
+      "agentic": true,
+      "priority": 7,
+      "form": "https://forms.gle/zBLCAEv69b8YoFxV6",
+      "notes": "Terra Classic is not in GT networks. Non-EVM adapters + form. Not Uniswap-V2 auto-detect. Child vendors under scripts/geckoterminal/ if we go."
+    },
+    {
+      "id": "coinpaprika",
+      "kind": "token",
+      "channel": "form",
+      "agentic": true,
+      "priority": 8,
+      "form": "https://coinpaprika.com/add/",
+      "notes": "Public form. Exchange listing needs a market they can poll (/cg or /cmc)."
+    },
+    {
+      "id": "coinranking",
+      "kind": "token",
+      "channel": "form",
+      "agentic": true,
+      "priority": 8,
+      "form": "https://coinranking.com/coin-listing",
+      "notes": "CL8Y token exists (BSC + stale Classic terra1u9c7…). Fix the Classic contract. Exchange = JS driver PR + email."
+    },
+    {
+      "id": "livecoinwatch",
+      "kind": "token",
+      "channel": "form",
+      "agentic": true,
+      "priority": 8,
+      "notes": "Footer Request a Coin. Low priority vs CG/CMC."
+    },
+    {
+      "id": "coincodex",
+      "kind": "token",
+      "channel": "form",
+      "agentic": true,
+      "priority": 8,
+      "notes": "FAQ request form. Exchange is email-only."
+    }
+  ],
+  "skip": [
+    {
+      "id": "coinhall",
+      "reason": "Auto-indexes supported DEXes only; Jupiter acquisition is deprecating Terra Classic. No public DEX-add PR."
+    },
+    {
+      "id": "dexscreener",
+      "reason": "Auto-track only on supported chains. Terra Classic is not a supported network. Discord is not an agent skill."
+    },
+    {
+      "id": "luncscan-telegram",
+      "reason": "Token listing is Telegram to Nueng. Agent can prepare a CA/logo pack; do not treat as a GitHub PR."
+    },
+    {
+      "id": "leap-own-repo",
+      "reason": "Official metadata comes from Cosmos Directory via cosmos/chain-registry. Do not invent a Leap repo."
+    },
+    {
+      "id": "terra-money-assets",
+      "reason": "Hexxagon replaced that repo for Galaxy Station. Classic Station users add CW20s by contract."
+    },
+    {
+      "id": "token-terminal",
+      "reason": "No Terra Classic DEX platform."
+    },
+    {
+      "id": "cmc-dexscan",
+      "reason": "Does not list Terra Classic. Use CMC exchange request form, not DexScan."
+    }
+  ],
+  "children": [
+    {
+      "order": 1,
+      "venue": "cosmostation",
+      "issue": 640,
+      "title": "Cosmostation cw20_2.json PR",
+      "blocked": "cosmostation/chainlist archived 2026-07; wallet service ends 2026-09-01"
+    },
+    {
+      "order": 2,
+      "venue": "hexxagon",
+      "issue": 641,
+      "title": "Hexxagon terra.js PR"
+    },
+    {
+      "order": 3,
+      "venue": "cosmos-chain-registry",
+      "issue": 642,
+      "title": "cosmos/chain-registry terra CW20s"
+    },
+    {
+      "order": 4,
+      "venue": "coingecko-exchange",
+      "issue": 643,
+      "title": "CoinGecko exchange form"
+    },
+    {
+      "order": 5,
+      "venue": "coingecko-terra-classic-platform",
+      "issue": 644,
+      "title": "CoinGecko ceramicliberty-com + Terra Classic platform"
+    },
+    {
+      "order": 6,
+      "venue": "coinmarketcap-exchange",
+      "issue": 645,
+      "title": "CMC exchange form"
+    },
+    {
+      "order": 7,
+      "venue": "geckoterminal",
+      "issue": 646,
+      "title": "GeckoTerminal non-EVM adapters + form"
+    },
+    {
+      "order": 8,
+      "venue": "coinpaprika",
+      "issue": 647,
+      "title": "CoinPaprika / Coinranking contract-fix / LiveCoinWatch"
+    },
+    {
+      "order": 9,
+      "venue": "coinmarketcap-tokens",
+      "issue": 648,
+      "title": "UST1 / USTR / wrap token listings on CG/CMC"
+    },
+    {
+      "order": 10,
+      "venue": "trust-wallet",
+      "issue": 649,
+      "title": "Trust Wallet paid PR"
+    }
+  ]
+}

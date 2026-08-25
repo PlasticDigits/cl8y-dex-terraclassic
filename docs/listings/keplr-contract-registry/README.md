@@ -68,3 +68,4 @@ Exchange crawlers (`/cg/*`, `/cmc/*`) are a different surface: [`docs/CG_CMC_COM
 - Token list (logos + decimals): [`tokenlist/`](../../../tokenlist/)
 - External oracle (not Keplr): [`docs/runbooks/indexer-external-oracle.md`](../../runbooks/indexer-external-oracle.md)
 - QA: [`docs/qa/issue-629/README.md`](../../qa/issue-629/README.md)
+- Other wallets / exchange forms (parent catalog): [`docs/listings/README.md`](../README.md) ([#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639), [`skills/AGENTS_LISTINGS.md`](../../../skills/AGENTS_LISTINGS.md))

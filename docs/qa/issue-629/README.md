@@ -20,5 +20,5 @@ Playbook: [`skills/AGENTS_KEPLR_CW20_REGISTRY.md`](../../../skills/AGENTS_KEPLR_
 ## Out of scope here
 
 - Opening/merging the GitHub PR (operator).
-- CoinGecko adding the Terra Classic CW20 platform.
+- CoinGecko adding the Terra Classic CW20 platform (parent catalog [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)).
 - Keplr Ledger signing ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)).

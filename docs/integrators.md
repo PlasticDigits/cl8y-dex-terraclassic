@@ -216,7 +216,15 @@ Keplr **Add Token** names and logos come from [keplr-contract-registry](https://
 
 This repo keeps a ready-to-copy pack (permanent CW20s only: CL8Y, UST1, USTR, cLUNC, cUSTC, vFDUSD). **USTR is already listed** upstream as **USTC Repeg**. Recognition JSON has **no** invented price fields; optional `coinGeckoId` is `ceramicliberty-com` on CL8Y only (CoinGecko still maps that id to BSC). Invariants **K629-1–K629-8**: [`listings/keplr-contract-registry/README.md`](./listings/keplr-contract-registry/README.md). Agent playbook: [`skills/AGENTS_KEPLR_CW20_REGISTRY.md`](../skills/AGENTS_KEPLR_CW20_REGISTRY.md). Verify: `make verify-issue-629`.
 
-Do **not** treat `/cg/*` or `/cmc/*` as Keplr wallet metadata. Related listing (TVL/volume, not Keplr): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631).
+Do **not** treat `/cg/*` or `/cmc/*` as Keplr wallet metadata. Related listing (TVL/volume, not Keplr): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631). Parent catalog for other wallets and exchange forms: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
+
+## Listing venue catalog (GitLab #639) {#listing-venue-catalog-gitlab-639}
+
+Places that can list CL8Y DEX stats, tokens, and wallet recognition (Cosmostation, Hexxagon, cosmos/chain-registry, CoinGecko/CMC forms, GeckoTerminal). This is a **catalog + go/no-go** — it does **not** add indexer endpoints. Exchange forms point at `https://indexer.dex.cl8y.com/cg/` and `/cmc/`, not CoinGecko Pro v3.
+
+Reuse the Keplr permanent-six pins (CL8Y 18, USTR 18, others 6). UST1 is an **unstablecoin** (never `$1`); USTR is not a stablecoin. Skip Coinhall, DexScreener, and LuncScan Telegram as if they were PRs.
+
+Invariants **L639-1–L639-8**: [`listings/README.md`](./listings/README.md). Pins: [`listings/catalog.json`](./listings/catalog.json). Form drafts: [`listings/forms/`](./listings/forms/). Agent playbook: [`skills/AGENTS_LISTINGS.md`](../skills/AGENTS_LISTINGS.md). Verify: `make verify-issue-639`.
 
 ## Related docs
 
