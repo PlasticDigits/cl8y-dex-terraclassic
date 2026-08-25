@@ -46,6 +46,7 @@ Playwright (when `make has-localterra`): `e2e/create-pair-picker-542.spec.ts`, `
 ## Related
 
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap combobox; factory gate only
+- [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](./AGENTS_FRONTEND_NATIVE_TICKERS.md) — Swap may label **LUNC** / **USTC**; Create Pair still excludes natives ([#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630) / **C542-2**)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — economic-first sort (**P534-7**)
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production does not append gems (**P562-5**, [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — Create Pair notice (**U1**)

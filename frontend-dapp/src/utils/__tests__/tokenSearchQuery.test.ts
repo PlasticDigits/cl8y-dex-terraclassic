@@ -86,6 +86,15 @@ describe('buildTokenLocalSearchHaystack / filterTokensByLocalSearch', () => {
     expect(filterTokensByLocalSearch(tokens, EMBER_ADDR.slice(0, 20))).toEqual([EMBER_ADDR])
   })
 
+  it('matches retail LUNC / USTC tickers and denoms (#630)', () => {
+    const natives = ['uluna', 'uusd', EMBER_ADDR]
+    expect(filterTokensByLocalSearch(natives, 'LUNC')).toEqual(['uluna'])
+    expect(filterTokensByLocalSearch(natives, 'lunc')).toEqual(['uluna'])
+    expect(filterTokensByLocalSearch(natives, 'uluna')).toEqual(['uluna'])
+    expect(filterTokensByLocalSearch(natives, 'USTC')).toEqual(['uusd'])
+    expect(filterTokensByLocalSearch(natives, 'uusd')).toEqual(['uusd'])
+  })
+
   it('returns empty when typed query matches nothing', () => {
     expect(filterTokensByLocalSearch(tokens, 'zzzzz')).toEqual([])
   })
