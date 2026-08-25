@@ -7,8 +7,7 @@ Audience: third-party agents changing wrap-mapper fee ingest, `GET /protocol/fee
 **Split fees (query-time bps, not ingest):** [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (**W12–W15**)  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **Protocol fees #586 / #613**)  
 **Ops:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md) § Protocol fees  
-**Sibling (out of scope):** [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) UST1 window mint/redeem fees  
-**Post-merge leftovers:** [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)) — live wrap `event_count` + indexer `UST1_WINDOW_ADDRESS`
+**Sibling (out of scope here):** [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) UST1 window mint/redeem fees — [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614**)
 
 ## Problem class
 
@@ -72,7 +71,8 @@ Optional LocalTerra capture (not required when fixtures match ustr-cmm): `make s
 ## Related
 
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — **PFee-6** points here
-- [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — live wrap `event_count` leftover ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616))
+- [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) — window mint/redeem sibling ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614))
+- [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — post-merge stack child ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616))
 - [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — ingest ≠ query-time bps
 - [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) — W8–W11
 - [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_590.md) — Coolify pin (**M590-2**), unwrap `fee` only (**M590-4**)

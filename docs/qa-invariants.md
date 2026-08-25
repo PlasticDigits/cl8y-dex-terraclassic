@@ -202,11 +202,11 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 |----|------|
 | **M616-1** | `make verify-issue-616` runs children **607, 610, 613, 614, 615**. Unit/docs FAILs fail the stack. Coolify leftover probes SKIP unless `VERIFY616_REQUIRE_LIVE_LEFTOVERS=1`. LocalTerra SKIP only when the chain is down (unless `VERIFY616_REQUIRE_CHAIN=1`). |
 | **M616-2** | Columbus-5 launcher `terra126pr5…` is **11622** with `GetConfig` **11619** / **11621**. Do not whitelist 11612 / 11613 / 11614 / 11620 / 11621 / 11622 / 8654. Keep 11611 listed until Refresh. |
-| **M616-3** | Coolify frontend bakes `VITE_COMMUNITY_TAX_CODE_ID=11619` and launcher `terra126pr5…`. Indexer catalog `code_id=11619`. Indexer `UST1_WINDOW_ADDRESS` is pinned (`ust1_window_configured: true`). Remaining leftovers: wrap `event_count` and live `ust1_mint` / `ust1_redeem`. |
+| **M616-3** | Coolify frontend bakes `VITE_COMMUNITY_TAX_CODE_ID=11619` and launcher `terra126pr5…`. Indexer catalog `code_id=11619`. Indexer `UST1_WINDOW_ADDRESS` is pinned (`ust1_window_configured: true`). Live wrap/unwrap and `ust1_mint` / `ust1_redeem` increment (2026-08-25). |
 | **M616-4** | Swap/Trade pair-direct **and** hops show `Sell tax extra` / `Buy tax applies`. Create/Manage: `Buy/sell tax applies on every listed-pair swap.` No `Route skips buy/sell tax`. |
 | **M616-5** | AutoLP skim floor (100 bps, cap 200) + factory-listed tax pair. Do not whitelist AutoLP. Crate **610** is the gate when LocalTerra is down. |
 | **M616-6** | Ranking TAX→UST1 vs TAX→USTR. Unmigrated 11611 stays Honest hops until `COMMUNITY_TAX_OPTION2_*` (**R615-5**). Do not infer wrap/window fees from `amount × bps`. |
-| **M616-7** | Do not reopen #607 / #610 / #613 / #615 for ops/QA. #614 stays open until live `ust1_mint` / `ust1_redeem` increment. |
+| **M616-7** | Do not reopen #607 / #610 / #613 / #614 / #615 for ops/QA. Live `ust1_mint` / `ust1_redeem` increment on `/protocol`. |
 | **M616-8** | Playbook + this Q11 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
 ## Post-merge !414 LocalTerra community-tax seed leftovers (invariant Q12) {#post-merge-ops-624}
