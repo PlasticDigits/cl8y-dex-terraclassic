@@ -17,6 +17,7 @@ NEEDLES=(
   ibc_receive ibc_packet requires_terra requires_stargate requires_iterator
   UpdateTaxMap permit flash_mint
   terraport_token cw20_base classic_terraport
+  cw20_legacy interface_version_7 addr_canonicalize
 )
 
 run_self_test() {

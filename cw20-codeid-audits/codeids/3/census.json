@@ -1,0 +1,369 @@
+{
+  "code_id": 3,
+  "lcd": "https://terra-classic-lcd.publicnode.com",
+  "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+  "factory_whitelist": {
+    "ok": true,
+    "data": {
+      "code_ids": [
+        6036,
+        8266,
+        10184,
+        11630
+      ],
+      "next": null
+    }
+  },
+  "instance_count": 38285,
+  "pages": 383,
+  "truncated": false,
+  "sample_head": [
+    "terra1qqqtguv45ledvgx2jzncp9mucsc4zxflw0w0th",
+    "terra1qqz7zlt892akhv64rs7chesl69dh7ydsqf9c53",
+    "terra1qqyxfpfacqczt6q9yhtkj378vvmklk5m2l0gm6",
+    "terra1qqy2atug6y2vq7qvqxs9ymzud0ysvljjt3enn4",
+    "terra1qqytqh675hvgzlkjkkrg4xf2p3vh0a9dc0tvek",
+    "terra1qq9v67kz0tqklyyn54qtw5e70ur66nf0l2l3jr",
+    "terra1qqgqws938hmafqr7zz44527meyw9wl5z296xae",
+    "terra1qqghlauna59mc7hk4s3ewmymj4nmeu6mny0vyc",
+    "terra1qqfx5jph0rsmkur2zgzyqnfucra45rtjae5vh6",
+    "terra1qqf2jrzh22wrrwhh7s5w3rqpk059553l7wdsww",
+    "terra1qq2a7ztnf55s0u7kwz3698t5uvf40hkm75l2jv",
+    "terra1qqt4f883xyuuyem2pt6ly9xmwrvd0djz7yz4xh",
+    "terra1qqv9tla9hzshmsqjka7d72ec08x44uhvpfa6gk",
+    "terra1qq0e6vhfd7y2r8f0t9ldn7tnw09jmkvvrz8a4s",
+    "terra1qqj97gy4nmm420g0d92ykzmhg7usefwz49c3t0"
+  ],
+  "sample_tail": [
+    "terra1ll78pl5a256d7lgqk49mc0r4cj9fnn544pwr0e",
+    "terra1lllluaja4jakd6j7rx7wwaqg08maznc3k85n2e",
+    "terra1epd6yqkt5yu784p3n4vnedcu7hn8fcljsw3j4wvwanpkqduxjwnqffhkwq",
+    "terra1uptgjek63e2rltaal4qqsuku9a8u5vyudptr74w3zkrxynd32y2sly4xpy",
+    "terra1dut9t6cglr2ns2gherm7dtwk3u05xtz0gqan8a7j0ehtkqkdefws7g20e4"
+  ],
+  "known": {
+    "MIR": {
+      "address": "terra15gwkyepfc6xgca5t5zefzwy42uts8l2m4g40k6",
+      "code_id": "3",
+      "admin": "terra1mxuvsdls2766fskmck0ly04da876sl6n2d0znw",
+      "label": "terra15gwkyepfc6xgca5t5zefzwy42uts8l2m4g40k6",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Mirror",
+        "symbol": "MIR",
+        "decimals": 6,
+        "total_supply": "370575000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    "KUJI": {
+      "address": "terra1xfsdgcemqwxp4hhnyk4rle6wr22sseq7j07dnn",
+      "code_id": "3",
+      "admin": "terra1u9yqqsfz28mk30anxnt4azp87e5r8q8haxvjeh",
+      "label": "terra1xfsdgcemqwxp4hhnyk4rle6wr22sseq7j07dnn",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Kuji",
+        "symbol": "KUJI",
+        "decimals": 6,
+        "total_supply": "123301624660584"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque"
+    },
+    "sKUJI": {
+      "address": "terra188w26t95tf4dz77raftme8p75rggatxjxfeknw",
+      "code_id": "3",
+      "admin": "terra1vvj874nwtmxk0u0spj83d364xyhqk2e652jrck",
+      "label": "terra188w26t95tf4dz77raftme8p75rggatxjxfeknw",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Staked KUJI",
+        "symbol": "sKUJI",
+        "decimals": 6,
+        "total_supply": "11968777771391"
+      },
+      "minter": {
+        "minter": "terra1vvj874nwtmxk0u0spj83d364xyhqk2e652jrck",
+        "cap": null
+      },
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque"
+    },
+    "VKR": {
+      "address": "terra1dy9kmlm4anr92e42mrkjwzyvfqwz66un00rwr5",
+      "code_id": "3",
+      "admin": "terra1q7fw20xc6puu6tsyeelszjwwuy9dmt60ecqnx9",
+      "label": "terra1dy9kmlm4anr92e42mrkjwzyvfqwz66un00rwr5",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Valkyrie Token",
+        "symbol": "VKR",
+        "decimals": 6,
+        "total_supply": "918804714932880"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque"
+    },
+    "WHALE": {
+      "address": "terra1php5m8a6qd68z02t3zpw4jv2pj4vgw4wz0t8mz",
+      "code_id": "3",
+      "admin": "terra1vjws6sa429u48dlw8s6mycr62nalyhakxc4v7v",
+      "label": "terra1php5m8a6qd68z02t3zpw4jv2pj4vgw4wz0t8mz",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "White Whale",
+        "symbol": "WHALE",
+        "decimals": 6,
+        "total_supply": "951724000000000"
+      },
+      "minter": {
+        "minter": "terra1vjws6sa429u48dlw8s6mycr62nalyhakxc4v7v",
+        "cap": "1000000000000000"
+      },
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque"
+    },
+    "TWD": {
+      "address": "terra19djkaepjjswucyt9weeyafs3cxjx0td99632h0",
+      "contract_info_error": "HTTP Error 500: Internal Server Error"
+    }
+  },
+  "admin_sample": [
+    {
+      "address": "terra1qqqtguv45ledvgx2jzncp9mucsc4zxflw0w0th",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqqtguv45ledvgx2jzncp9mucsc4zxflw0w0th",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqz7zlt892akhv64rs7chesl69dh7ydsqf9c53",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqz7zlt892akhv64rs7chesl69dh7ydsqf9c53",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2,\"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed\",\"details\":[]}\n",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqyxfpfacqczt6q9yhtkj378vvmklk5m2l0gm6",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqyxfpfacqczt6q9yhtkj378vvmklk5m2l0gm6",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqy2atug6y2vq7qvqxs9ymzud0ysvljjt3enn4",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqy2atug6y2vq7qvqxs9ymzud0ysvljjt3enn4",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqytqh675hvgzlkjkkrg4xf2p3vh0a9dc0tvek",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqytqh675hvgzlkjkkrg4xf2p3vh0a9dc0tvek",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qq9v67kz0tqklyyn54qtw5e70ur66nf0l2l3jr",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qq9v67kz0tqklyyn54qtw5e70ur66nf0l2l3jr",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqgqws938hmafqr7zz44527meyw9wl5z296xae",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqgqws938hmafqr7zz44527meyw9wl5z296xae",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2,\"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed\",\"details\":[]}\n",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqghlauna59mc7hk4s3ewmymj4nmeu6mny0vyc",
+      "code_id": "3",
+      "admin": "terra14zul7rcw7hrvjayp82edrjp8d0zz9ksd75rv62",
+      "label": "terra1qqghlauna59mc7hk4s3ewmymj4nmeu6mny0vyc",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqfx5jph0rsmkur2zgzyqnfucra45rtjae5vh6",
+      "code_id": "3",
+      "admin": "terra1mzj9nsxx0lxlaxnekleqdy8xnyw2qrh3uz6h8p",
+      "label": "terra1qqfx5jph0rsmkur2zgzyqnfucra45rtjae5vh6",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "ARK Innovation ETF",
+        "symbol": "mARKK",
+        "decimals": 6,
+        "total_supply": "8033993003"
+      },
+      "minter": {
+        "minter": "terra1wfz7h3aqf4cjmjcvc6s8lxdhh7k30nkczyf0mj",
+        "cap": null
+      },
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqf2jrzh22wrrwhh7s5w3rqpk059553l7wdsww",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqf2jrzh22wrrwhh7s5w3rqpk059553l7wdsww",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qq2a7ztnf55s0u7kwz3698t5uvf40hkm75l2jv",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qq2a7ztnf55s0u7kwz3698t5uvf40hkm75l2jv",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    },
+    {
+      "address": "terra1qqt4f883xyuuyem2pt6ly9xmwrvd0djz7yz4xh",
+      "code_id": "3",
+      "admin": "terra1xxxkttk2vazvkm6clr8qdq74874ukqnn68tmeh",
+      "label": "terra1qqt4f883xyuuyem2pt6ly9xmwrvd0djz7yz4xh",
+      "ibc_port_id": "",
+      "token_info": {
+        "name": "Anchor Token",
+        "symbol": "ANC",
+        "decimals": 6,
+        "total_supply": "1000000000000"
+      },
+      "minter": null,
+      "tax_map_error": "HTTP 500: {\"code\":2, \"message\":\"Error parsing into type cw20_legacy::msg::QueryMsg: unknown variant `tax_map`, expected one of `balance`, `token_info`, `minter`, `allowance`, `all_allowances`, `all_accounts`: query wasm contract failed: unknown reque",
+      "cw2_raw": {
+        "contract": "crates.io:cw20-base",
+        "version": "0.1.0"
+      }
+    }
+  ],
+  "note": "Approving this code id admits every instantiate (C589-4 / B13). Do not treat this file as a license to whitelist or append migrate env."
+}

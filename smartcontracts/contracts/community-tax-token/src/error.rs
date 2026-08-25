@@ -128,4 +128,8 @@ pub enum ContractError {
 
     #[error("Source token_info is missing; not a cw20-base layout")]
     AdoptMissingTokenInfo {},
+
+    /// Columbus-5 code 3 / cw20-legacy CanonicalAddr maps (#627). Not an importer.
+    #[error("Source uses cw20-legacy CanonicalAddr storage; adopt would smash or drop balances")]
+    AdoptLegacyLayout {},
 }

@@ -13,6 +13,9 @@
 //!   report cw2 `crates.io:cw20-base`). Unknown cw2 still reverts.
 //! - After wipe, inbound Transfer is 1:1. Do not whitelist 8654.
 //! - `BALANCES` / `TOKEN_INFO` / allowances are kept; no mint or burn.
+//! - Columbus-5 **code 3** / `cw20-legacy` CanonicalAddr maps fail closed
+//!   (`AdoptLegacyLayout`). cw2 `crates.io:cw20-base` is **not** layout proof
+//!   ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)).
 //! - Free profile: no paid SKUs. Source minter is **revoked**.
 //! - Wipe maps ALPHA 1% / 4.5% → sell 100 / buy 450 when the payload is zeros.
 //! - `CONFIG.launcher` is the official launcher (`GetLauncherOrigin`).
@@ -43,6 +46,7 @@ pub const ALPHA_BUY_BPS: u16 = 450;
 pub const ALPHA_SELL_BPS: u16 = 100;
 
 const WIPE_NAMESPACES: &[&[u8]] = &[b"tax_map", b"tax_info", b"whale_info"];
+const BALANCE_NAMESPACE: &[u8] = b"balance";
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-tax-token";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -81,6 +85,22 @@ pub fn has_fot_leftover(storage: &dyn Storage) -> bool {
     WIPE_NAMESPACES
         .iter()
         .any(|ns| storage_has_namespace(storage, ns))
+}
+
+/// cw-storage-plus `Map<&Addr>` stores `terra1…` UTF-8 after the namespace.
+/// cw20-legacy `Map<&CanonicalAddr>` stores 20- or 32-byte raw hashes (#627).
+pub fn is_canonical_balance_suffix(suffix: &[u8]) -> bool {
+    matches!(suffix.len(), 20 | 32) && !suffix.starts_with(b"terra")
+}
+
+/// True when the first `balance` key is a CanonicalAddr map entry.
+/// Modern honest templates (10184 / 6036 / 8266) use bech32 `Addr` suffixes.
+pub fn looks_like_legacy_canonical_balances(storage: &dyn Storage) -> bool {
+    let prefix = storage_plus_prefix(BALANCE_NAMESPACE);
+    match storage.range(Some(&prefix), None, Order::Ascending).next() {
+        Some((k, _)) if k.starts_with(&prefix) => is_canonical_balance_suffix(&k[prefix.len()..]),
+        _ => false,
+    }
 }
 
 fn wipe_prefix(storage: &mut dyn Storage, prefix: &[u8]) -> u32 {
@@ -149,9 +169,15 @@ pub fn execute_adopt(
         Ok(None) => {}
     }
 
-    let mut token_info = TOKEN_INFO
-        .may_load(deps.storage)?
-        .ok_or(ContractError::AdoptMissingTokenInfo {})?;
+    let mut token_info = match TOKEN_INFO.may_load(deps.storage) {
+        Ok(Some(t)) => t,
+        Ok(None) => return Err(ContractError::AdoptMissingTokenInfo {}),
+        // CanonicalAddr `MinterData` does not decode as `Addr` (#627).
+        Err(_) => return Err(ContractError::AdoptLegacyLayout {}),
+    };
+    if looks_like_legacy_canonical_balances(deps.storage) {
+        return Err(ContractError::AdoptLegacyLayout {});
+    }
     if !(MIN_DECIMALS..=MAX_DECIMALS).contains(&token_info.decimals) {
         return Err(ContractError::DecimalsRange {
             min: MIN_DECIMALS,
@@ -287,5 +313,122 @@ mod unit_tests {
         assert!(!has_fot_leftover(&s));
         s.set(b"balance", b"keep");
         assert!(!has_fot_leftover(&s));
+    }
+
+    #[test]
+    fn canonical_balance_suffix_detects_legacy_not_bech32() {
+        assert!(is_canonical_balance_suffix(&[0u8; 20]));
+        assert!(is_canonical_balance_suffix(&[1u8; 32]));
+        assert!(!is_canonical_balance_suffix(
+            b"terra1holderxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ));
+        assert!(!is_canonical_balance_suffix(b"terra1short"));
+        assert!(!is_canonical_balance_suffix(&[0u8; 19]));
+    }
+
+    #[test]
+    fn looks_like_legacy_canonical_balances_on_raw_20_byte_key() {
+        let mut s = MockStorage::new();
+        assert!(!looks_like_legacy_canonical_balances(&s));
+        let mut key = storage_plus_prefix(b"balance");
+        key.extend_from_slice(&[0xab; 20]);
+        s.set(&key, b"\x01");
+        assert!(looks_like_legacy_canonical_balances(&s));
+    }
+
+    #[test]
+    fn modern_bech32_balance_key_is_not_legacy() {
+        let mut s = MockStorage::new();
+        let mut key = storage_plus_prefix(b"balance");
+        key.extend_from_slice(b"terra1holderxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        s.set(&key, b"\x01");
+        assert!(!looks_like_legacy_canonical_balances(&s));
+    }
+
+    #[test]
+    fn execute_adopt_rejects_legacy_canonical_balances() {
+        use crate::msg::AdoptMigrateMsg;
+        use cosmwasm_std::testing::{mock_dependencies, mock_env};
+        use cosmwasm_std::Uint128;
+        use cw2::set_contract_version;
+        use cw20_base::state::TokenInfo;
+
+        let mut deps = mock_dependencies();
+        set_contract_version(deps.as_mut().storage, "crates.io:cw20-base", "0.0.0").unwrap();
+        TOKEN_INFO
+            .save(
+                deps.as_mut().storage,
+                &TokenInfo {
+                    name: "Legacy".into(),
+                    symbol: "LEG".into(),
+                    decimals: 6,
+                    total_supply: Uint128::new(1_000),
+                    mint: None,
+                },
+            )
+            .unwrap();
+        let mut key = storage_plus_prefix(b"balance");
+        key.extend_from_slice(&[0xcd; 20]);
+        deps.as_mut().storage.set(&key, b"\x01");
+
+        let err = execute_adopt(
+            deps.as_mut(),
+            mock_env(),
+            AdoptMigrateMsg {
+                manager: "manager".into(),
+                treasury: "treasury".into(),
+                factory: "factory".into(),
+                router: None,
+                ust1: "ust1".into(),
+                cmm_treasury: "cmm".into(),
+                official_launcher: "launcher".into(),
+                buy_bps: 0,
+                sell_bps: 0,
+                transfer_bps: None,
+                max_buy_bps: 0,
+                max_sell_bps: 0,
+                max_transfer_bps: 0,
+                source_code_id: Some(3),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::AdoptLegacyLayout {});
+    }
+
+    #[test]
+    fn execute_adopt_maps_token_info_serde_fail_to_legacy() {
+        use crate::msg::AdoptMigrateMsg;
+        use cosmwasm_std::testing::{mock_dependencies, mock_env};
+        use cw2::set_contract_version;
+
+        let mut deps = mock_dependencies();
+        set_contract_version(deps.as_mut().storage, "crates.io:cw20-base", "0.0.0").unwrap();
+        // Modern Item key is the raw namespace (not length-prefixed).
+        deps.as_mut()
+            .storage
+            .set(b"token_info", b"not-json-token-info");
+
+        let err = execute_adopt(
+            deps.as_mut(),
+            mock_env(),
+            AdoptMigrateMsg {
+                manager: "manager".into(),
+                treasury: "treasury".into(),
+                factory: "factory".into(),
+                router: None,
+                ust1: "ust1".into(),
+                cmm_treasury: "cmm".into(),
+                official_launcher: "launcher".into(),
+                buy_bps: 0,
+                sell_bps: 0,
+                transfer_bps: None,
+                max_buy_bps: 0,
+                max_sell_bps: 0,
+                max_transfer_bps: 0,
+                source_code_id: Some(3),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::AdoptLegacyLayout {});
     }
 }

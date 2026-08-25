@@ -45,7 +45,7 @@ Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_5
 ## Do not
 
 - Treat a non-matching rebuild as the binary audit.
-- `AddWhitelistedCodeId` while that id’s `REPORT.md` is **NO-GO**. 8266 is **GO** and listed on columbus-5; 11619 is **GO** and listed 2026-08-24; adopt pin **11626** is **GO** (stored + listed 2026-08-24 — [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628); 11619 removed at 0 instances); **#633** pin **11630** is **GO** (stored 2026-08-25 — [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635)); still do **not** whitelist a LocalTerra store id or ALPHA **8654**. Leftover live: `make verify-issue-628`.
+- `AddWhitelistedCodeId` while that id’s `REPORT.md` is **NO-GO**. 8266 is **GO** and listed on columbus-5; 11619 is **GO** and listed 2026-08-24; adopt pin **11626** is **GO** (stored + listed 2026-08-24 — [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628); 11619 removed at 0 instances); **#633** pin **11630** is **GO** (stored 2026-08-25 — [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635)); still do **not** whitelist a LocalTerra store id, ALPHA **8654**, or columbus-5 **3** ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627) / [`AGENTS_CW20_CODE_ID_3.md`](./AGENTS_CW20_CODE_ID_3.md) — `interface_version_7` / CanonicalAddr / B13). Leftover live: `make verify-issue-628`.
 - Treat issuer wasm-admin, Everybody instantiate, or a minter cap as a template veto — those are documented residuals ([#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581)).
 - Whitelist a community-tax **LocalTerra** store id, or ALPHA **8654**. Columbus-5 **11611** REPORT is **GO** ([`codeids/11611/REPORT.md`](../cw20-codeid-audits/codeids/11611/REPORT.md)). Adopt pin **11626** REPORT is **GO** ([`codeids/11626/REPORT.md`](../cw20-codeid-audits/codeids/11626/REPORT.md)). **#633** pin **11630** REPORT is **GO** ([`codeids/11630/REPORT.md`](../cw20-codeid-audits/codeids/11630/REPORT.md)). The stub [`codeids/community-tax-token/REPORT.md`](../cw20-codeid-audits/codeids/community-tax-token/REPORT.md) stays a **NO-GO** placeholder. See [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) (**O601-1–O601-7**). `make verify-issue-601` runs A-lcd/B-lt on pinned 11611 plus LocalTerra tax smoke. Tax-on DEX paths (router `trader`, AutoLP floor) are `make verify-issue-623` — **not** a substitute listing gate and **not** merged into B-lt.
 - Bind-mount `indexer/` into root Docker to run cargo.
@@ -54,6 +54,7 @@ Post-merge ops stack: [`AGENTS_POST_MERGE_OPS_590.md`](./AGENTS_POST_MERGE_OPS_5
 
 ## Related
 
+- [`AGENTS_CW20_CODE_ID_3.md`](./AGENTS_CW20_CODE_ID_3.md) — columbus-5 **3** adopt + list **NO-GO** (**C627**, [#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627))
 - [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) — named tax-on Layer B (**C623**, [#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623)); do **not** merge into B-lt
 - [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) — F6
 - [`AGENTS_HOOK_CW20_OPS.md`](./AGENTS_HOOK_CW20_OPS.md) — H-01

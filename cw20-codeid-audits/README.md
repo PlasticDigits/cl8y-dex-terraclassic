@@ -48,6 +48,7 @@ Do **not** dump decomp into `smartcontracts/` or `frontend-dapp/`. Do **not** st
 | **8266** | First candidate (#581) | REPORT **GO**; columbus-5 listed 2026-08-22. Do **not** whitelist a LocalTerra store id |
 | **11611** | Community tax CW20 (#592 / #601) | REPORT **GO** (named T592 exception); columbus-5 listed 2026-08-23. A-lcd/B-lt executed. Do **not** whitelist 11612/11613 or ALPHA **8654** |
 | **8654** / FoT mutant | Known-bad ALPHA tax / fee-on-transfer | 1:1 and **P2** **red** |
+| **3** | columbus-5 original Everybody `cw20-legacy` ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)) | Adopt **NO-GO** + factory list **NO-GO**. Report: [`codeids/3/REPORT.md`](codeids/3/REPORT.md). Do **not** append migrate env |
 
 ## Related
 

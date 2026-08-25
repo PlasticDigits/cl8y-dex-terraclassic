@@ -23,12 +23,13 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 | **S3-6036** | columbus-5 **6036** | **page-go / chain-revert** — live instance cw2 is `crates.io:terraswap-token` (LCD 2026-08-25, [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) leftover). Retail allowlist still includes 6036; `adopt.rs` will revert until a follow-up crate change. Do **not** append `terraswap-token` from #628. |
 | **S3-8266** | columbus-5 **8266** | **go** — cw2 `crates.io:terraport-token`; leftover `marketing_info` / `balance_at` unread; LP table 1:1 stay-1:1 |
 | **S4** | columbus-5 **8654** (ALPHA) | **go** — wipe `tax_info` / `tax_map` / `whale_info`; map 4.5% / 1% → buy 450 / sell 100. **Never** `AddWhitelistedCodeId 8654` (listing 11619 covers the address). |
+| **S3-code3** | columbus-5 **3** (`cw20-legacy`) | **NO-GO** — cw2 `crates.io:cw20-base` is **not** layout proof. CanonicalAddr balances / TokenInfo; adopt smash or silent wipe. Crate reverts `AdoptLegacyLayout`. Factory list also **NO-GO** (`interface_version_7`, B13 ≥34 900). Playbook [`AGENTS_CW20_CODE_ID_3.md`](./AGENTS_CW20_CODE_ID_3.md) / [`codeids/3/REPORT.md`](../cw20-codeid-audits/codeids/3/REPORT.md) ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)). |
 
 ## Invariants **M626-1–M626-12**
 
 1. **M626-1 — env gate.** `/token/migrate` + More-menu **Migrate Token** use the same `isCommunityTaxEnabled()` gate as Create Token (**C593-1**).
 2. **M626-2 — free.** No 50 UST1, no `PayWithAnyToken`, no `?payee=` / `?manager=` / `?treasury=` prefill (**C593-10**).
-3. **M626-3 — migrate allowlist.** Retail gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default **6036, 10184, 8266, 8654**). This is **not** factory `AddWhitelistedCodeId`. 8654 is a normal list entry. Add future source ids by appending the env (Coolify) — do not special-case addresses. Contract still allowlists cw2 ∈ `{cw20-base, cw20-mintable, terraport-token, cw20-taxed}`. Unknown cw2 / `cfg`/`feat` smash → revert. Leftover `tax_info` / `tax_map` / `whale_info` are wiped on any allowlisted source.
+3. **M626-3 — migrate allowlist.** Retail gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default **6036, 10184, 8266, 8654**). This is **not** factory `AddWhitelistedCodeId`. 8654 is a normal list entry. Add future source ids by appending the env (Coolify) — do not special-case addresses. **Do not append 3** — cw2 `cw20-base` is not layout proof (**C627-1** / **C627-3**). Contract still allowlists cw2 ∈ `{cw20-base, cw20-mintable, terraport-token, cw20-taxed}` and fail-closes `AdoptLegacyLayout` on CanonicalAddr maps. Unknown cw2 / `cfg`/`feat` smash → revert. Leftover `tax_info` / `tax_map` / `whale_info` are wiped on any allowlisted source.
 4. **M626-4 — pair-asset whitelist stays separate.** Never `AddWhitelistedCodeId 8654` (H-01). After adopt, the current listed tax pin covers the address (**11626** was the #628 store; live pin is **11630** — [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)). New migrate sources do **not** need to be factory-listed.
 5. **M626-5 — CMM admin.** Retail tx is `MsgMigrateContract` then `MsgUpdateAdmin` → CMM in one bundle. Source admin becomes **manager**. Manager cannot migrate.
 6. **M626-6 — origin.** Write `CONFIG.launcher` to the official launcher. Write `GetMigrateOrigin`. Do **not** fake `launcher_tx`. Catalog attests CMM + origin + (`launcher_tx` **or** allowlisted migrate cw2).
@@ -68,8 +69,9 @@ LocalTerra analogue: a factory-whitelisted `cw20-mintable` gem (10184 analogue) 
 ## Add a future migrate source
 
 1. Confirm cw2 is already in `ALLOWED_SOURCE_CW2` / `ALLOWED_TAXED_CW2` in `adopt.rs` (or add the crate name there).
-2. Append the columbus-5 code id to Coolify `VITE_COMMUNITY_MIGRATE_CODE_IDS` (and the default list in `communityTaxMigrate.ts` if it should ship without env).
-3. Do **not** factory-whitelist a FoT / `tax_map` wasm. Listing **11619** covers the address after adopt.
+2. Confirm the **storage layout** matches current `cw20_base::state` (`BALANCES` / `TOKEN_INFO` as `Addr`, not CanonicalAddr). cw2 `crates.io:cw20-base` alone is **not** enough — columbus-5 **3** reports that name and is **NO-GO** ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627) / [`AGENTS_CW20_CODE_ID_3.md`](./AGENTS_CW20_CODE_ID_3.md)).
+3. Append the columbus-5 code id to Coolify `VITE_COMMUNITY_MIGRATE_CODE_IDS` (and the default list in `communityTaxMigrate.ts` if it should ship without env).
+4. Do **not** factory-whitelist a FoT / `tax_map` wasm. Listing **11619** covers the address after adopt. Do **not** append **3**.
 
 ## Ops after adopt (not the retail button)
 
@@ -79,6 +81,7 @@ Whitelist already has **11619** → `SetPairPaused` on affected **CL8Y** pairs �
 
 ```bash
 make verify-issue-626
+make verify-issue-627
 make verify-issue-628
 make verify-issue-634
 # LocalTerra live (fail if chain missing):
@@ -95,6 +98,7 @@ LocalTerra (`localterra-634-migrate-inventory.sh`, **M634** live): adopt a facto
 ## Do not
 
 - Whitelist **8654** to “save” Terraport LP.
+- Append **3** / whitelist **3** because cw2 says `cw20-base` ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)).
 - Skip `UpdateAdmin` (source admin could migrate off 11619).
 - Offer adopt for 11611/11619 on the retail page.
 - Turn hybrid off (**#596**).
