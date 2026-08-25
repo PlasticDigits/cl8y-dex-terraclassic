@@ -27,7 +27,7 @@ Use when hardening **production monitoring**, **pause playbooks**, **address reg
 | **O3** | Pause is primary: window `set_paused`, oracle pause, wrap-mapper `set_paused`, treasury `set_wrapping_paused`. |
 | **O4** | Monitor treasury vFDUSD **balance and allowance** to ust1-window. |
 | **O5** | Wrap solvency: treasury native ≥ CW20 supply; pause unwrap on breach. |
-| **O6** | Wrap-stack governance ≠ DEX multisig (`terra1zlmv2…`). |
+| **O6** | Confirm on-chain `governance` before pause. Mapper + CMM treasury **app** gov is DEX 2-of-3 (`terra1zlmv2…`) after #525/#526; window/oracle stay `cl8y2_admin`. Wasm admin on mapper/treasury is still the EOA. |
 | **O7** | Do not widen factory CW20 whitelist in ops panic. |
 | **O8** | On-call roles named; silence-alert + pause-drill evidence on #503. |
 

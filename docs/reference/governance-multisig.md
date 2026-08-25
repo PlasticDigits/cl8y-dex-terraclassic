@@ -11,7 +11,7 @@ Canonical on-chain address for **governance**, **wasm contract admin**, and **co
 - **Factory `config.governance`** — fees, hooks, pause, whitelist, blacklist, treasury pointer
 - **Fee-discount `config.governance`** — tier registry, trusted routers
 - **Router `SetWrapMapper`** — must be signed as this address (router checks factory governance; EOAs get `Unauthorized`)
-- **Treasury / wrap-mapper `governance`** — pause, config updates (may be a different key than this multisig on external ustr-cmm contracts)
+- **Treasury / wrap-mapper `governance`** — pause, `set_fees`, wrap custody (columbus-5 app gov accepted onto this multisig 2026-08-25, [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525)/[#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526); wasm admin still `cl8y2_admin`)
 - **Wasm `--admin`** on every instantiate — migration and `set-contract-admin`
 
 Mainnet router wrap-mapper wiring evidence: [`deployments/mainnet-soft-launch/deploy-trace.md`](../../deployments/mainnet-soft-launch/deploy-trace.md) (Post–soft-launch section, [#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)).

@@ -332,3 +332,18 @@ Factory migrate + token list + launcher AutoLP pin. Uploader `cl8ydeploy`. Insta
 
 Do **not** whitelist **11631** / **11632** / **11633** / **11628** / **11629** / **11621** / **11622** / unused **11612** / ALPHA **8654**. Coolify/indexer bake **11630**. REPORT: [`cw20-codeid-audits/codeids/11630/REPORT.md`](../../cw20-codeid-audits/codeids/11630/REPORT.md).
 
+### DEX 2-of-3 accept queue (#525 / #526, columbus-5, 2026-08-25)
+
+App-governance accepts from `cl8y2_admin` pending transfers. Signer `multisig_2of3` (`multisig1` + `multisig2`) via [`scripts/multisig-2of3-host-tx.sh`](../../scripts/multisig-2of3-host-tx.sh).
+
+| Field | Treasury `AcceptGovernanceTransfer` | Wrap-mapper `accept_governance_transfer` |
+|-------|-------------------------------------|------------------------------------------|
+| Contract | `terra16j5u6…3lr2` | `terra1xuuuh…nmd2` code **11574** |
+| Tx | [`E819E594…B9A1`](https://finder.terraclassic.community/columbus-5/tx/E819E59471BCD82A230AF5771F062B2D7F984F6B12EAEB2FD146F83248F4B9A1) | [`02F139F1…00A2`](https://finder.terraclassic.community/columbus-5/tx/02F139F16BEA7322EC87C14FC8EB4EEEFB9E66B6CB2DED2D95AEC291FE0F00A2) |
+| Height | **30101431** | **30101435** |
+| `config.governance` after | DEX 2-of-3 `terra1zlmv2…hep7` | DEX 2-of-3 `terra1zlmv2…hep7` |
+| Pending after | `proposals: []` | `new_governance: null` |
+| Wasm admin (unchanged) | `cl8y2_admin` `terra1xsecn4…` | `cl8y2_admin` `terra1xsecn4…` |
+
+Window / oracle / swap / bridge accepts were **not** in this batch (still EOA). Registry: [`../mainnet-ust1-wrap/REGISTRY.md`](../mainnet-ust1-wrap/REGISTRY.md).
+

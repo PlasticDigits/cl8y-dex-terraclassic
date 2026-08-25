@@ -8,7 +8,7 @@ Step-by-step **pause / unpause** for the ustr-cmm **wrap-mapper** used by CL8Y D
 
 ## Authority
 
-- **Signer:** wrap-mapper `config.governance` (ustr-cmm) — may **differ** from DEX factory multisig `terra1zlmv2…`.
+- **Signer:** wrap-mapper `config.governance`. On columbus-5 after [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525) (2026-08-25) this **is** the DEX 2-of-3 `terra1zlmv2…hep7` (`scripts/multisig-2of3-host-tx.sh`). Wasm admin is still `cl8y2_admin`.
 - Confirm on-chain before broadcast: query wrap-mapper `{"config":{}}` and match `governance`.
 - Addresses: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../../deployments/mainnet-ust1-wrap/REGISTRY.md).
 
@@ -51,7 +51,7 @@ Or LCD:
 export WRAP_MAPPER=terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2
 export CHAIN_ID=columbus-5
 export NODE=https://terra-classic-rpc.publicnode.com:443
-# GOVERNANCE_KEY = keyring entry for wrap-mapper governance (ustr-cmm)
+# GOVERNANCE_KEY = wrap-mapper config.governance (columbus-5: multisig_2of3)
 
 terrad tx wasm execute "$WRAP_MAPPER" '{"set_paused":{"paused":true}}' \
   --from "$GOVERNANCE_KEY" \

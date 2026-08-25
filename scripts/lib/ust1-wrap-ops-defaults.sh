@@ -20,9 +20,12 @@
 : "${UST1_OPS_CLUNC:=terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg}"
 : "${UST1_OPS_CUSTC:=terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch}"
 
-# Governance (queried on-chain; defaults match 2026-08 mainnet)
-: "${UST1_OPS_WRAP_GOVERNANCE:=terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l}"
+# Governance (queried on-chain; defaults match 2026-08-25 after #525/#526 accept)
+# Mapper + CMM treasury app governance is the DEX 2-of-3. Window/oracle + wasm admin leftover stay EOA.
+: "${UST1_OPS_WRAP_GOVERNANCE:=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7}"
 : "${UST1_OPS_DEX_GOVERNANCE:=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7}"
+: "${UST1_OPS_WRAP_WASM_ADMIN:=terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l}"
+: "${UST1_OPS_WINDOW_GOVERNANCE:=terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l}"
 
 # Soft-launch DEX anchors
 : "${UST1_OPS_FACTORY:=terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea}"

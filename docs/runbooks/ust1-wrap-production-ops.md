@@ -24,7 +24,7 @@ Operator + agent runbook for **monitoring, pause playbooks, and registry complet
 | **O3** | Primary incident controls: **ust1-window `set_paused`**, **ust1-oracle pause** (governance), **wrap-mapper `set_paused`**, treasury **`set_wrapping_paused`**. Prefer pause over panic whitelist changes (**O7**). |
 | **O4** | Treasury **vFDUSD balance + allowance to ust1-window** bound withdraw capacity — monitor both. |
 | **O5** | Wrap solvency (**W1**): treasury native `uluna`/`uusd` ≥ cLUNC/cUSTC `total_supply`. On breach, pause unwrap before refill. |
-| **O6** | CMM wrap treasury / wrap-stack governance (`terra1xsecn4…`) **≠** DEX governance multisig `terra1zlmv2…` (**W2**). Confirm signers before pause txs. |
+| **O6** | Confirm on-chain `config.governance` before pause. After [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525)/[#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526) (2026-08-25): wrap-mapper + CMM treasury **app** governance **is** DEX 2-of-3 `terra1zlmv2…`. ust1-window / oracle stay `cl8y2_admin` `terra1xsecn4…`. Mapper/treasury **wasm admin** is still the EOA. |
 | **O7** | Do not silently widen factory CW20 whitelist during UST1/wrap incidents — follow [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md). |
 | **O8** | On-call **roles** named (oracle bot operator + treasury/wrap governance); silence-alert and pause-drill evidence attached on [#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503) (not committed secrets). |
 
@@ -39,8 +39,8 @@ Named by **role** (identities private per [`key-custody.md`](./key-custody.md)).
 | Role | Owns | Escalation |
 |------|------|------------|
 | **Oracle bot operator** | ust1-oracle updater key, `oracle-service` host/secrets, silence alert (`ORACLE_MAX_SILENCE_SECS` **21600** / 6h — align with window `max_oracle_age_sec`) | Key compromise → pause window → rotate operator → revoke old key |
-| **Treasury / wrap governance** | CMM treasury + wrap-mapper governance (`terra1xsecn4…`), vFDUSD inventory/allowance; treasury **`set_wrapping_paused`**; wrap-mapper / window **`set_paused`** (sections A–C) | Dual-control; never accept unsolicited migrate |
-| **DEX governance signer** | Factory/router pair pause/blacklist — separate from wrap stack (**O6**) | [`emergency-commands.md`](./emergency-commands.md) |
+| **Treasury / wrap governance** | CMM treasury + wrap-mapper **app** governance is DEX 2-of-3 (`terra1zlmv2…`); vFDUSD inventory/allowance; treasury **`set_wrapping_paused`**; wrap-mapper **`set_paused`**. Window pause stays wrap-stack EOA. | Dual-control; never accept unsolicited migrate |
+| **DEX governance signer** | Factory/router pair pause/blacklist **and** mapper/treasury pause (**O6**) | [`emergency-commands.md`](./emergency-commands.md) |
 
 ---
 
@@ -102,7 +102,7 @@ Upstream emergency pause: [ust1-window `docs/DEPLOYMENT.md` — emergency pause 
 
 ### A. ust1-window `set_paused`
 
-**Who:** wrap-stack governance `terra1xsecn4…` (**O6** — not DEX multisig).
+**Who:** ust1-window `config.governance` — still wrap-stack EOA `terra1xsecn4…` (**O6** — not DEX multisig). Confirm on-chain before execute.
 
 ```bash
 export WINDOW_ADDR=terra1zxwpzpzpleatqn39r00grau4yt29sld8pw78s7ktvjafnj5nsaxq0h3rh2
@@ -126,7 +126,7 @@ Confirm execute JSON against ust1-window schema if message shape drifts. Record 
 
 ### A2. ust1-oracle `set_paused` (circuit breaker)
 
-**Who:** same wrap-stack governance that owns ust1-oracle `config.governance` (**O6** — not DEX multisig, not the oracle **operator** updater key).
+**Who:** same wrap-stack EOA that owns ust1-oracle `config.governance` (**O6** — not DEX multisig, not the oracle **operator** updater key).
 
 Oracle pause fails closed on window deposit/withdraw immediately (`OraclePaused`) without waiting for staleness. Prefer this when Venus/BSC rate integrity is suspect; prefer window pause for window-local maintenance.
 
@@ -161,7 +161,7 @@ See [`wrap-mapper-pause.md`](./wrap-mapper-pause.md). LocalTerra: `make smoke-wr
 
 ### C. Treasury `set_wrapping_paused`
 
-Secondary control on the CMM treasury (ustr-cmm). Use when wrap-mapper pause is insufficient or treasury-side wrapping must stop. Treasury execute is **`set_wrapping_paused` only** — do not send wrap-mapper/window `set_paused` to the treasury address.
+Secondary control on the CMM treasury (ustr-cmm). Use when wrap-mapper pause is insufficient or treasury-side wrapping must stop. Treasury execute is **`set_wrapping_paused` only** — do not send wrap-mapper/window `set_paused` to the treasury address. **Who:** treasury `config.governance` — DEX 2-of-3 after 2026-08-25 accept ([#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526)). Use `scripts/multisig-2of3-host-tx.sh`, not `cl8y2_admin`.
 
 ```bash
 export TREASURY_ADDR=terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2
