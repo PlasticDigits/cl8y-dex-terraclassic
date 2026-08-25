@@ -23,7 +23,7 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.9.0";
+const CONTRACT_VERSION: &str = "1.10.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate
@@ -1389,10 +1389,17 @@ fn reply_instantiate_pair(deps: DepsMut, msg: Reply) -> Result<Response, Contrac
     PAIR_ADDR_REGISTERED.save(deps.storage, pair_info_resp.contract_addr.clone(), &true)?;
     PAIR_COUNT.save(deps.storage, &(count + 1))?;
 
+    // #633 / R633-2: cw2-gated register on tax assets only. Honest sides skipped.
+    let tax_msgs =
+        crate::tax_register::register_listed_pair_msgs(deps.as_ref(), &pair_addr, &asset_infos)?;
+    let tax_n = tax_msgs.len();
+
     Ok(Response::new()
+        .add_messages(tax_msgs)
         .add_attribute("action", "reply_instantiate_pair")
         .add_attribute("pair_contract", pair_addr)
-        .add_attribute("pair_index", count.to_string()))
+        .add_attribute("pair_index", count.to_string())
+        .add_attribute("tax_register_msgs", tax_n.to_string()))
 }
 
 /// Extract the contract address from a SubMsg reply's protobuf-encoded data.

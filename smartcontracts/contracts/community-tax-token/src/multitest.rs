@@ -2562,3 +2562,150 @@ fn manager_exempt_hop_trader_skips_router_sell_tax() {
         pair_before + 1_000_000
     );
 }
+
+/// #633 / R633-1: `config.manager` skips tax without a `MANAGER_EXEMPT` row or SKU.
+#[test]
+fn manager_role_skips_buy_sell_transfer_without_directory() {
+    let mut e = clean(vec![Sku::TransferTax], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+
+    let p_sell = preview(&e, &e.manager, &e.pair, amount, Some(swap_hook()));
+    assert_eq!(p_sell.kind, TaxKind::Honest);
+    assert_eq!(p_sell.tax, Uint128::zero());
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+
+    let p_buy = preview(&e, &e.pair, &e.manager, amount, None);
+    assert_eq!(p_buy.kind, TaxKind::Honest);
+    e.app
+        .execute_contract(
+            e.pair.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: e.manager.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+
+    let alice = Addr::unchecked("alice");
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: alice.to_string(),
+                amount: Uint128::new(10_000),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(balance(&e.app, &e.token, alice.as_str()), 10_000);
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), 0);
+
+    let r: IsExemptResponse = e
+        .app
+        .wrap()
+        .query_wasm_smart(
+            &e.token,
+            &QueryMsg::IsProtocolExempt {
+                address: e.manager.to_string(),
+            },
+        )
+        .unwrap();
+    assert!(r.manager, "role manager is IsProtocolExempt.manager");
+    assert!(!r.protocol, "manager must not be protocol-exempt");
+}
+
+#[test]
+fn manager_role_hop_trader_skips_without_directory() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    fund_router(&mut e, 1_000_000);
+    let mgr_before = balance(&e.app, &e.token, e.manager.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    e.app
+        .execute_contract(
+            Addr::unchecked("router"),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: swap_hook_trader(e.manager.as_str()),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.manager.as_str()),
+        mgr_before,
+        "role manager hop trader is not extra-debited"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + 1_000_000
+    );
+}
+
+#[test]
+fn manager_role_cannot_opt_into_tax_via_remove_exempt() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    let mgr = e.manager.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![mgr.clone()]),
+            ..Default::default()
+        },
+    );
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            remove_exempt: Some(vec![mgr]),
+            ..Default::default()
+        },
+    );
+    let p = preview(&e, &e.manager, &e.pair, 1_000_000, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Honest);
+}
+
+#[test]
+fn non_manager_still_pays_sell_on_registered_pair() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let tax = amount * 500 / 10_000;
+    let p = preview(&e, &e.user, &e.pair, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Sell);
+    assert_eq!(p.tax, Uint128::new(tax));
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount - tax
+    );
+}

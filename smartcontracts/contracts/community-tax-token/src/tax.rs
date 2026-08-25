@@ -38,7 +38,16 @@ pub fn is_protocol_exempt(storage: &dyn Storage, self_addr: &Addr, addr: &Addr) 
         .unwrap_or(false)
 }
 
+/// Role-based + paid-directory skip (GitLab #633 / **R633-1**).
+/// `config.manager` is always tax-skip for Buy / Sell / Transfer. Extra wallets
+/// still require `MANAGER_EXEMPT`. Do **not** treat the manager as protocol-exempt
+/// (launch guards stay on — **E609-2** / **T592-11**).
 pub fn is_manager_exempt(storage: &dyn Storage, addr: &Addr) -> bool {
+    if let Ok(cfg) = CONFIG.load(storage) {
+        if addr == cfg.manager {
+            return true;
+        }
+    }
     MANAGER_EXEMPT
         .may_load(storage, addr)
         .ok()
@@ -50,7 +59,7 @@ pub fn is_transfer_exempt(storage: &dyn Storage, self_addr: &Addr, addr: &Addr) 
     is_protocol_exempt(storage, self_addr, addr) || is_manager_exempt(storage, addr)
 }
 
-/// **#609 / T592-7:** manager-directory wallets skip Transfer, Buy, and Sell tax.
+/// **#609 / #633 / T592-7:** manager role or directory wallets skip Transfer, Buy, and Sell tax.
 /// Either side exempt is enough (same as the existing transfer rule).
 pub fn is_manager_directory_tax_skip(storage: &dyn Storage, from: &Addr, to: &Addr) -> bool {
     is_manager_exempt(storage, from) || is_manager_exempt(storage, to)
@@ -191,8 +200,8 @@ pub fn classify_trade(
     (TaxKind::Honest, 0)
 }
 
-/// Tax kind after **#609** manager-directory skip (Buy / Sell / Transfer → Honest).
-/// Router-hop sell also skips when the authenticated `trader` is directory-exempt.
+/// Tax kind after **#609 / #633** manager-role or directory skip (Buy / Sell / Transfer → Honest).
+/// Router-hop sell also skips when the authenticated `trader` is role- or directory-exempt.
 pub fn classify(
     storage: &dyn Storage,
     self_addr: &Addr,

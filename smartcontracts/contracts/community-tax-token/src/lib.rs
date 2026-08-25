@@ -25,7 +25,9 @@
 //!   limit refund) uses buy tax — same primitive, documented. Official router hops
 //!   tax the original trader (**T592-13** / #607 improved option 2). Manager-directory
 //!   wallets (including hop `trader`) skip **buy, sell, and transfer** tax
-//!   (**#609** / **E609-1**); launch guards still use the economic kind (**T592-11**).
+//!   (**#609** / **E609-1**). `config.manager` is the same skip without a
+//!   `MANAGER_EXEMPT` row (**#633** / **R633-1**). Launch guards still use the
+//!   economic kind (**T592-11**). The manager is **not** protocol-exempt.
 //! - **T592-13** — Router hops charge buy/sell. Sell: extra-debit authenticated
 //!   `Swap.trader` when `from` is `config.router` (router wasm already sets this;
 //!   pair-direct ignores spoofed `trader`). Buy: outbound split on official

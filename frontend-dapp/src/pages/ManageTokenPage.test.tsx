@@ -30,6 +30,9 @@ vi.mock('@/utils/constants', async (importOriginal) => {
 
 vi.mock('@/services/indexer/client', () => ({
   getTokens: vi.fn().mockResolvedValue([]),
+  getTokenPairs: vi.fn().mockResolvedValue([]),
+  getCommunityTokens: vi.fn().mockResolvedValue({ items: [] }),
+  getHubPrices: vi.fn().mockResolvedValue({ prices: [] }),
 }))
 
 vi.mock('@/services/terraclassic/queries', () => ({
@@ -71,8 +74,19 @@ vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   }),
   mintCommunityTax: vi.fn(),
   skimAutoLp: vi.fn(),
+  registerListedPair: vi.fn(),
+  queryCommunityTaxIsExempt: vi.fn().mockResolvedValue({ address: '', protocol: true, manager: false }),
   queryCommunityTaxTokenInfo: vi.fn().mockResolvedValue({ name: 'Demo', symbol: 'DEMO', decimals: 6 }),
 }))
+
+vi.mock('@/utils/communityTaxRegisterPair', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/communityTaxRegisterPair')>()
+  return {
+    ...actual,
+    loadUnregisteredFactoryPairs: vi.fn().mockResolvedValue([]),
+    tokensNeedingRegisterForManager: vi.fn().mockResolvedValue([]),
+  }
+})
 
 vi.mock('@/components/payments/PayWithAnyToken', () => ({
   PayWithAnyToken: ({ invoice }: { invoice: { invoiceAmount: string } }) => (
@@ -195,6 +209,58 @@ describe('ManageTokenPage (#593)', () => {
     expect(await screen.findByTestId('manage-save-copy')).toBeInTheDocument()
     expect(await screen.findByTestId('manage-buy-pct')).toHaveAttribute('placeholder', '1.00')
     expect(screen.getByTestId('manage-sell-pct')).toHaveAttribute('placeholder', '1.00')
+  })
+
+  it('#633 hides register alert when there is no factory pair', async () => {
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-token-page')).toBeInTheDocument()
+    expect(screen.queryByTestId('manage-register-alert')).not.toBeInTheDocument()
+  })
+
+  it('#633 manager sees one register button for the highest-LP unregistered pair', async () => {
+    const { loadUnregisteredFactoryPairs, tokensNeedingRegisterForManager } =
+      await import('@/utils/communityTaxRegisterPair')
+    vi.mocked(loadUnregisteredFactoryPairs).mockResolvedValueOnce([
+      {
+        pair: 'terra1lowxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        symbols: ['DEMO', 'EMBER'],
+        usdTvl: 1,
+        taxReserve: 1n,
+        otherReserve: 1n,
+      },
+      {
+        pair: 'terra1highxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        symbols: ['DEMO', 'UST1'],
+        usdTvl: 99,
+        taxReserve: 1n,
+        otherReserve: 1n,
+      },
+    ])
+    vi.mocked(tokensNeedingRegisterForManager).mockResolvedValueOnce([
+      { address: 'terra1othertokenxxxxxxxxxxxxxxxxxxxxxxxxxxx', symbol: 'OTH' },
+    ])
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-register-alert')).toBeInTheDocument()
+    expect(screen.getByTestId('manage-register-largest')).toHaveTextContent('DEMO/UST1')
+    expect(screen.getByTestId('manage-register-largest')).toHaveTextContent(/largest pool/)
+    expect(screen.getByTestId('manage-register-other')).toHaveTextContent('OTH')
+  })
+
+  it('#633 non-manager never sees the register CTA', async () => {
+    const { loadUnregisteredFactoryPairs } = await import('@/utils/communityTaxRegisterPair')
+    vi.mocked(loadUnregisteredFactoryPairs).mockResolvedValueOnce([
+      {
+        pair: 'terra1pairxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        symbols: ['DEMO', 'UST1'],
+        usdTvl: 1,
+        taxReserve: 1n,
+        otherReserve: 1n,
+      },
+    ])
+    renderManage(OTHER)
+    expect(await screen.findByTestId('manage-readonly')).toBeInTheDocument()
+    expect(screen.queryByTestId('manage-register-alert')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('manage-register-largest')).not.toBeInTheDocument()
   })
 
   it('shows Unverified admin when wasm admin is not CMM', async () => {

@@ -8,6 +8,8 @@
 //! `pair` must be a CL8Y factory-listed pool that includes this tax token.
 //! Factory is immutable (launcher pin). Skim always sets a spread floor
 //! (`max_spread` default 100 bps, cap 200 bps; optional `min_return`).
+//! Binding `pair` also executes `register_listed_pair` on the tax token
+//! (**#633** / **R633-3**). Re-bind of the same pair is idempotent.
 
 pub mod contract;
 pub mod error;

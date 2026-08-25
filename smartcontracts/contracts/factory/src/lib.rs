@@ -62,11 +62,20 @@
 //! **and** `IsCodeIdWhitelisted` is still true. Honest token upgrades freeze
 //! those pairs until governance `RefreshPairAssetCodeIds` /
 //! `RefreshPairAssetCodeIdsBatch`. Query errors fail closed. See **F6**.
+//!
+//! ## Community-tax autoregister (GitLab #633)
+//!
+//! After the pair is persisted in `reply`, the factory executes
+//! `register_listed_pair` on each asset whose cw2 name is
+//! `crates.io:cl8y-community-tax-token` (**R633-2**). Honest CW20s are not
+//! called. Fail-closed if a tax-side register reverts (except the token's
+//! idempotent `already`). Requires a factory migrate. See [`tax_register`].
 
 pub mod contract;
 pub mod error;
 pub mod msg;
 pub mod state;
+pub mod tax_register;
 
 #[cfg(not(feature = "library"))]
 pub mod entry {

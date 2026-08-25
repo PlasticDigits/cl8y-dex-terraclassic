@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import CreatePairPage from './CreatePairPage'
 import { createPair } from '@/services/terraclassic/factory'
+import { registerTaxAssetsAfterCreatePair } from '@/utils/communityTaxRegisterPair'
 import { getCreatePairCw20Options } from '@/utils/createPairTokenCatalog'
 import { TOKEN_SEARCH_MAX_QUERY_LENGTH } from '@/utils/tokenSearchQuery'
 import { INVALID_TERRA_ADDRESS_CHECKSUM_MSG, INVALID_TERRA_ADDRESS_FORMAT_MSG } from '@/utils/terraAddressValidation'
@@ -29,6 +30,10 @@ vi.mock('@/hooks/useWallet', () => ({
 vi.mock('@/services/terraclassic/factory', () => ({
   createPair: vi.fn().mockResolvedValue('txhash'),
   getWhitelistedCodeIds: vi.fn().mockResolvedValue({ code_ids: [10] }),
+}))
+
+vi.mock('@/utils/communityTaxRegisterPair', () => ({
+  registerTaxAssetsAfterCreatePair: vi.fn().mockResolvedValue({ pair: 'terra1pair', registered: [] }),
 }))
 
 vi.mock('@/services/terraclassic/settings', () => ({
@@ -124,6 +129,14 @@ describe('CreatePairPage', () => {
 
     await waitFor(() => {
       expect(createPair).toHaveBeenCalledWith('terra1wallet', a.address, b.address)
+    })
+    await waitFor(() => {
+      expect(registerTaxAssetsAfterCreatePair).toHaveBeenCalledWith({
+        wallet: 'terra1wallet',
+        tokenA: a.address,
+        tokenB: b.address,
+        taxCodeId: expect.any(Number),
+      })
     })
   })
 

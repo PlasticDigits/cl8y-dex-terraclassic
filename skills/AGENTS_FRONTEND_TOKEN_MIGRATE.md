@@ -34,7 +34,7 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 7. **M626-7 — no mint/burn.** `total_supply` and balances stay. Source minter is revoked; MintControl stays off.
 8. **M626-8 — caps.** Combined `max_*` ≤ 2500. Honest adopt payload is tax-off zeros. Leftover FoT maps 4.5%/1% → buy 450 / sell 100. Headroom without VariableRates is rejected.
 9. **M626-9 — F6.** Page discloses CL8Y pairs pause until governance refreshes them (`RefreshPairAssetCodeIds`). Token admin cannot Refresh. Do not Refresh a pair whose other asset is unlisted. Human words only — no `tax_info` / `RegisterListedPair` / `VITE_*` on the card.
-10. **M626-10 — Terraport/GDEX.** Do not `RegisterListedPair` those pair addrs. Honest templates stay 1:1 on external DEX. Extra-debit is CL8Y listed pairs only.
+10. **M626-10 — Terraport/GDEX.** Do not `RegisterListedPair` those pair addrs. Honest templates stay 1:1 on external DEX. Extra-debit is CL8Y listed pairs only. Adopt does **not** register existing CL8Y pairs either — Manage catch-up / permissionless register does ([#633](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) **R633-6** / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md)).
 11. **M626-11 — already tax.** 11611 / 11619 (or LocalTerra tax store id) are **not** offered as adopt. Same-crate bump stays CMM ops (`MigrateMsg {}`).
 12. **M626-12 — no Swap dump.** After success, link `/token/:addr/manage` only (**C593-11**).
 

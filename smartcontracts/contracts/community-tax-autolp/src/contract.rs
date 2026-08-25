@@ -9,7 +9,7 @@ use dex_common::types::{Asset, AssetInfo};
 
 use crate::error::ContractError;
 use crate::msg::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::pair::require_factory_listed_tax_pair;
+use crate::pair::{register_listed_pair_msg, require_factory_listed_tax_pair};
 use crate::spread::{clamp_skim_max_spread, default_skim_max_spread};
 use crate::state::{Config, CONFIG, SKIMMING};
 
@@ -48,6 +48,11 @@ pub fn instantiate(
         }
     }
 
+    let register = pair
+        .as_ref()
+        .map(|listed| register_listed_pair_msg(&token, listed))
+        .transpose()?;
+
     CONFIG.save(
         deps.storage,
         &Config {
@@ -68,7 +73,11 @@ pub fn instantiate(
         },
     )?;
     SKIMMING.save(deps.storage, &false)?;
-    Ok(Response::new().add_attribute("action", "instantiate"))
+    let mut resp = Response::new().add_attribute("action", "instantiate");
+    if let Some(msg) = register {
+        resp = resp.add_message(msg);
+    }
+    Ok(resp)
 }
 
 pub fn execute(
@@ -122,9 +131,11 @@ fn execute_update(
     if info.sender != cfg.manager {
         return Err(ContractError::Unauthorized {});
     }
+    let mut register = None;
     if let Some(p) = fields.pair {
         let (listed, quote) =
             require_factory_listed_tax_pair(deps.as_ref(), &cfg.factory, &cfg.token, &p)?;
+        register = Some(register_listed_pair_msg(&cfg.token, &listed)?);
         cfg.pair = Some(listed);
         if quote.is_some() {
             cfg.quote_token = quote;
@@ -149,7 +160,11 @@ fn execute_update(
         cfg.skim_min_return = if m.is_zero() { None } else { Some(m) };
     }
     CONFIG.save(deps.storage, &cfg)?;
-    Ok(Response::new().add_attribute("action", "update_config"))
+    let mut resp = Response::new().add_attribute("action", "update_config");
+    if let Some(msg) = register {
+        resp = resp.add_message(msg);
+    }
+    Ok(resp)
 }
 
 fn token_balance(

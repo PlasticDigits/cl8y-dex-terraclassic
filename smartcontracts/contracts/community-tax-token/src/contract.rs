@@ -659,11 +659,19 @@ fn query_exemptions(
         .take(limit)
         .filter_map(|r| r.ok().map(|(a, _)| a))
         .collect();
-    let manager: Vec<Addr> = MANAGER_EXEMPT
+    let mut manager: Vec<Addr> = MANAGER_EXEMPT
         .range(deps.storage, min, None, Order::Ascending)
         .take(limit)
         .filter_map(|r| r.ok().map(|(a, _)| a))
         .collect();
+    let cfg = CONFIG.load(deps.storage)?;
+    // Role manager is tax-skip without a MANAGER_EXEMPT row (#633 / R633-1).
+    if start.is_none() && !manager.contains(&cfg.manager) {
+        manager.insert(0, cfg.manager);
+        if manager.len() > limit {
+            manager.truncate(limit);
+        }
+    }
     let _ = LISTED_PAIRS;
     Ok(ExemptionsResponse { protocol, manager })
 }
@@ -676,9 +684,10 @@ fn query_is_exempt(deps: Deps, address: String) -> StdResult<IsExemptResponse> {
         || PROTOCOL_EXEMPT
             .may_load(deps.storage, &addr)?
             .unwrap_or(false);
-    let manager = MANAGER_EXEMPT
-        .may_load(deps.storage, &addr)?
-        .unwrap_or(false);
+    let manager = addr == cfg.manager
+        || MANAGER_EXEMPT
+            .may_load(deps.storage, &addr)?
+            .unwrap_or(false);
     Ok(IsExemptResponse {
         address: addr,
         protocol,
