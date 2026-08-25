@@ -355,10 +355,12 @@ fn wasm_kv_after_action<'a>(
 /// `fee_total_bps`, `fee_chain_tax_bps`, `fee_cmm_protocol_bps`, and on deposit
 /// `vfdusd_to_treasury`. **Those are not a treasury fee amount.**
 ///
-/// Ingest requires an explicit `fee_amount` (positive raw) + token identity
-/// (`fee_asset` / `fee_denom` / `native_denom` / `denom` / `ust1_token`) on the
-/// window `_contract_address` segment. Do not infer `ust1_out × fee_total_bps`.
-/// Flattened CW20 `send` + hook is scanned per `action` (#285 reserved key only).
+/// Same address **11618** ([ust1-window#33](https://gitlab.com/PlasticDigits/ust1-window/-/issues/33))
+/// emits explicit `fee_amount` + `fee_asset` (UST1). Ingest requires that
+/// positive raw amount + token identity (`fee_asset` / `fee_denom` /
+/// `native_denom` / `denom` / `ust1_token`) on the window `_contract_address`
+/// segment. Do not infer `ust1_out × fee_total_bps`. Flattened CW20 `send` +
+/// hook is scanned per `action` (#285 reserved key only). **I614-1–I614-8**.
 pub fn parse_ust1_window_fees(tx: &TxResponse, pinned_window: &str) -> Vec<ParsedWrapFee> {
     if pinned_window.is_empty() {
         return Vec::new();
