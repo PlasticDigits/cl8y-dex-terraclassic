@@ -4,7 +4,7 @@ Audience: third-party agents touching Swap/Trade/Pool/Charts/Create pickers, `fi
 
 **Issue:** [GitLab **#562**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)  
 **Invariants:** [`docs/frontend.md` § Production hide of test tokens](../docs/frontend.md#production-hide-test-tokens) (**P562-1–P562-8**)  
-**Related:** [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) rank-only (gems still listed on LocalTerra), [#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542) Create Pair gems, [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) `/pool` table, [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501) hybrid `route/solve`, [#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473) faucet Mint
+**Related:** [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) rank-only (gems still listed on LocalTerra), [#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542) Create Pair gems, [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) `/pool` table, [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501) hybrid `route/solve`, [#473](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473) faucet Mint, [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) DeFiLlama volume/fee gem exclude ([`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md) — keep `COLUMBUS5_GEM_ADDRESSES` in lockstep)
 
 ## Problem class
 

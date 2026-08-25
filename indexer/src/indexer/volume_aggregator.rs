@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use sqlx::PgPool;
 
-use crate::db::queries::{traders, volume};
+use crate::db::queries::{defillama, traders, volume};
 
-/// Refresh token, pair, global, trader, and protocol-fee rolling windows.
+/// Refresh token, pair, global, trader, protocol-fee, and DeFiLlama UTC-day windows.
 ///
 /// `startup = true` logs failures at warn (same as historical pair/global poller init).
 /// The 5-minute loop uses `startup = false` (error). GitLab #577 **D5**.
@@ -72,17 +72,17 @@ pub async fn refresh_all_volume_windows_with_pins(
     if let Err(e) = volume::refresh_global_stats(pool).await {
         fail("global 24h stats", e);
     }
-    if let Err(e) = volume::refresh_protocol_fee_stats(
-        pool,
-        wrap_mapper_configured,
-        ust1_window_configured,
-    )
-    .await
+    if let Err(e) =
+        volume::refresh_protocol_fee_stats(pool, wrap_mapper_configured, ust1_window_configured)
+            .await
     {
         fail("protocol fee stats", e);
     }
     if let Err(e) = traders::refresh_rolling_volumes(pool).await {
         fail("rolling trader volumes", e);
+    }
+    if let Err(e) = defillama::refresh_defillama_daily(pool).await {
+        fail("defillama utc-day stats", e);
     }
 }
 

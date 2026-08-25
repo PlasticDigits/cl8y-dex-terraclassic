@@ -8,6 +8,9 @@ mod cmc;
 mod community_tax_rank;
 mod community_tokens;
 mod compliance;
+mod defillama;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use defillama::reset_defillama_cache;
 mod consolidated_stats;
 pub mod db_orderbook_sim;
 mod errors;
@@ -308,6 +311,7 @@ pub async fn find_pair_by_ticker(
         traders::leaderboard,
         overview::get_overview,
         protocol_fees::get_protocol_fees,
+        defillama::get_defillama_daily,
         hub_prices::get_hub_prices,
         hub_prices::get_hub_price,
         oracle::get_oracle_price_catalog,
@@ -376,6 +380,9 @@ pub async fn find_pair_by_ticker(
         protocol_fees::ProtocolFeesResponse,
         protocol_fees::ProtocolFeeSourceRow,
         protocol_fees::ProtocolFeeTokenRow,
+        defillama::DefillamaDailyResponse,
+        defillama::DefillamaFeeBreakdown,
+        defillama::DefillamaMethodology,
         hub_prices::HubPricesResponse,
         hub_prices::HubPriceEntry,
         cg::CgPairResponse,
@@ -405,6 +412,7 @@ pub async fn find_pair_by_ticker(
         (name = "Overview", description = "Global DEX statistics"),
         (name = "HubPrices", description = "DEX hub USD marks (cUSTC / LUNC / UST1 / USTR) — not CEX"),
         (name = "Oracle", description = "External USTC/USD and LUNC/USD reference feeds"),
+        (name = "DeFiLlama", description = "UTC-day volume/fees for DeFiLlama dimension adapters (GitLab #631)"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
         (name = "Hooks", description = "Post-swap hook execution events"),
@@ -547,6 +555,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/protocol/fees",
             get(protocol_fees::get_protocol_fees),
+        )
+        .route(
+            "/api/v1/defillama/daily",
+            get(defillama::get_defillama_daily),
         )
         .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
         .route(

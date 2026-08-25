@@ -8,6 +8,8 @@
 
 Headline volume = **one** `swap_events` row per taker swap (`offer_amount` / `return_amount`). Never add `limit_order_fills` on top for the same `tx_hash`.
 
+DeFiLlama `dailyVolume` uses this rule on a UTC calendar day (`GET /api/v1/defillama/daily`) — [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md) / [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631).
+
 ## Fill ↔ swap linkage (#316)
 
 `limit_order_fills.swap_event_id` resolves via per-pair **`swap_index`** (on-chain wasm attr since #331 when present; else parser walk ordinal), not `MIN(swap_events.id)`. Multi-swap same-pair txs: each fill links to the swap that produced it. See [integrators-hybrid-volume.md § Fill ↔ swap linkage](../docs/integrators-hybrid-volume.md#fill--swap-linkage-swap_event_id).
