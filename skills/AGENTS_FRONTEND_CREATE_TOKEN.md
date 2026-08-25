@@ -1,6 +1,6 @@
 # Agent playbook: Create Token + manager console (GitLab #593)
 
-Use when changing `/token/create`, `/token/:addr/manage`, `/tokens`, community-tax Swap max, or launcher invoice checkout. Free listed-template adopt is a **sibling** page (`/token/migrate`, [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626), [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md)) — do not fold it into Create Token invoices.
+Use when changing `/token/create`, `/token/:addr/manage`, `/tokens`, community-tax Swap max, or launcher invoice checkout. Free listed-template adopt is a **sibling** page (`/token/migrate`, [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626), [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md)) — do not fold it into Create Token invoices. Post-merge leftover live after !418: [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) ([`AGENTS_POST_MERGE_OPS_628.md`](./AGENTS_POST_MERGE_OPS_628.md); `make verify-issue-628`). Retail Create Token stays code-id-free — 8654 lives on the migrate allowlist, not this card.
 
 Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); identity + wallet helpers [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604); SKU init + percent taxes [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605); Enable Feature path [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606) ([`AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](./AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md)); indexer catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594); pay-with-any-token [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595); post-merge Coolify / LocalTerra [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) ([`AGENTS_POST_MERGE_OPS_602.md`](./AGENTS_POST_MERGE_OPS_602.md)); Enable Feature post-merge QA [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)); option-2 copy leftovers [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)); router hop tax [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) ([`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md)); ExemptionDirectory full tax skip [#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) ([`AGENTS_COMMUNITY_TAX_EXEMPT.md`](./AGENTS_COMMUNITY_TAX_EXEMPT.md)); listed-pair autoregister + manager role skip [#633](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) ([`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md) **R633-1–R633-8**); AutoLP factory pair + skim floor [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610) ([`AGENTS_COMMUNITY_TAX_AUTOLP.md`](./AGENTS_COMMUNITY_TAX_AUTOLP.md)).
 
@@ -30,7 +30,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 5. **C593-5 — MintControl.** Create-only. Manage unlock list must omit Minting.
 6. **C593-6 — manager gate.** Submit compares connected wallet to LCD `GetConfig.manager`, not a URL param. Non-manager is read-only; config stays visible.
 7. **C593-7 — unverified admin.** LCD `ContractInfo.admin ≠ CMM` → **Unverified admin** banner.
-8. **C593-8 — template.** Manage requires LCD `code_id == VITE_COMMUNITY_TAX_CODE_ID`. 10184/8266/6036 must not show tax SKUs.
+8. **C593-8 — template.** Manage requires LCD `code_id == VITE_COMMUNITY_TAX_CODE_ID`. 10184/8266/6036/8654 must not show tax SKUs. After #626 adopt the same address is the current tax pin (**11630** after #635; **11626** was the #628 store) and Manage shows tax SKUs (**P11** / [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)).
 9. **C593-9 — extra-debit max.** Swap + Trade Market Max for this template uses sell extra-debit (`extraDebitSellBps` / TaxPreview) on **pair-direct and router-hop** sells. User Sends `amount` 1:1 to the router, then the hop extra-debits leftover tax (**T592-13** / **R607-7**). Manager-directory wallets skip extra-debit (**E609-7**); Extra exemptions hint must say buy, sell, and transfer.
 10. **C593-10 — payee from env.** Invoice payee is launcher or token from config/query. Never `?payee=`.
 11. **C593-11 — no Swap dump.** Created tokens are not auto-injected into Swap defaults (#562).
@@ -64,6 +64,7 @@ make verify-issue-602
 make verify-issue-612
 make verify-issue-616
 make verify-issue-626
+make verify-issue-628
 make verify-issue-634
 # LocalTerra migrate inventory (mintable adopt + Refresh + factory-only register):
 VERIFY634_REQUIRE_CHAIN=1 make verify-issue-634

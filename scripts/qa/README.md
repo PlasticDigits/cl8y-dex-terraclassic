@@ -224,6 +224,23 @@ After !415–!417 landed tax-aware swarm, named tax-on Layer B, and Playwright e
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_625.md`](../../skills/AGENTS_POST_MERGE_OPS_625.md). QA invariant **Q13**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-625).
 
+### Post-merge !418 community-tax migrate leftovers (GitLab #628)
+
+After !418 landed free `/token/migrate` + `adopt.rs`:
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-628` | Children **626, 592, 593, 594** plus leftover live / **M628-1–M628-8** / **Q14** |
+| Adopt pin | Current listed tax pin (**11630** after #635; **11626** was the #628 store) — not 11619 |
+| Factory list | `[6036, 8266, 10184, 11630]` — never 8654 or code 3 |
+| Coolify / indexer | Single-id bake of the listed tax pin; `VITE_COMMUNITY_MIGRATE_CODE_IDS` includes 8654 |
+| 6036 cw2 | Live instance is `crates.io:cw20-base` (do not append `terraswap-token` from this ticket) |
+| LocalTerra | [`localterra-628-migrate-leftover.sh`](./localterra-628-migrate-leftover.sh) P3 / P7 / P11 |
+| Create Token | Code-id-free lead + **Migrate here** — 8654 is allowlist/docs only |
+| Disclose | Do **not** reopen #626 / implement #627 / factory-list 8654 or code 3 |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_628.md`](../../skills/AGENTS_POST_MERGE_OPS_628.md). QA invariant **Q14**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-628).
+
 ### Listed-pair autoregister + migrate inventory (GitLab #633 / #634)
 
 LocalTerra-only live rungs (columbus-5 factory/token migrate and Open/ALPHA LCD stay on [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635) / [#636](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/636)):
