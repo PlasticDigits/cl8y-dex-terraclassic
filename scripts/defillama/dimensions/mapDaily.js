@@ -22,6 +22,19 @@ function mapVolume(json) {
   return { dailyVolume: asNumberOrNull(json.volume_usd) }
 }
 
+function mapAsset(json, ticker) {
+  const row = (json.assets && json.assets[ticker]) || {}
+  return {
+    ticker,
+    volume: asNumberOrNull(row.volume_usd),
+    fees: asNumberOrNull(row.fees_usd),
+    price: asNumberOrNull(row.price_usd),
+    circulating: asNumberOrNull(row.circulating),
+    product: row.product || null,
+    pegType: row.peg_type ?? null,
+  }
+}
+
 function mapFees(json) {
   const fees = json.fees || {}
   return {
@@ -66,6 +79,7 @@ module.exports = {
   INDEXER_DAILY_URL,
   dailyUrl,
   mapVolume,
+  mapAsset,
   mapFees,
   METHODOLOGY,
   BREAKDOWN_METHODOLOGY,

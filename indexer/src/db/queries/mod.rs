@@ -2,6 +2,7 @@ pub mod assets;
 pub mod candles;
 pub mod community_tokens;
 pub mod defillama;
+pub mod defillama_assets;
 pub mod hook_events;
 pub mod hub_prices;
 pub mod limit_order_fills;

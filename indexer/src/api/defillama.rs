@@ -20,6 +20,7 @@ use super::{internal_err, AppState};
 use crate::db::queries::defillama as daily_q;
 use crate::indexer::defillama::{
     daily_usd_field_fail_closed, naive_utc_day, parse_utc_day_timestamp, COLUMBUS5_FACTORY,
+    DAILY_ASSET_TICKERS, UST1_ADDRESS, UST1_DECIMALS, USTR_ADDRESS, USTR_DECIMALS,
 };
 use crate::indexer::protocol_fees::FeeSource;
 
@@ -60,6 +61,31 @@ pub struct DefillamaMethodology {
     pub fees: String,
     pub tvl: String,
     pub factory: String,
+    pub ust1: String,
+    pub ustr: String,
+}
+
+#[derive(Serialize, ToSchema, Clone)]
+pub struct DefillamaAssetRow {
+    pub ticker: String,
+    pub symbol: String,
+    pub address: String,
+    pub decimals: u8,
+    pub category: String,
+    pub product: String,
+    pub peg_type: Option<String>,
+    pub peg_mechanism: Option<String>,
+    pub volume_usd: Option<String>,
+    pub trade_count: i64,
+    pub fees_usd: Option<String>,
+    pub price_usd: Option<String>,
+    pub circulating: Option<String>,
+}
+
+#[derive(Serialize, ToSchema, Clone)]
+pub struct DefillamaDailyAssets {
+    pub ust1: DefillamaAssetRow,
+    pub ustr: DefillamaAssetRow,
 }
 
 #[derive(Serialize, ToSchema, Clone)]
@@ -74,6 +100,7 @@ pub struct DefillamaDailyResponse {
     pub daily_revenue_usd: Option<String>,
     pub daily_protocol_revenue_usd: Option<String>,
     pub daily_supply_side_revenue_usd: String,
+    pub assets: DefillamaDailyAssets,
     pub methodology: DefillamaMethodology,
 }
 
@@ -89,6 +116,78 @@ fn methodology() -> DefillamaMethodology {
               Do not use this indexer USD, overview.total_liquidity_usd, or CG liquidity_in_usd."
             .to_string(),
         factory: COLUMBUS5_FACTORY.to_string(),
+        ust1: "UST1 unstablecoin. Llama Stablecoins: peggedUSD, crypto-backed via vFDUSD window. \
+               assets.ust1 volume/fees are UTC-day DEX + window mint/redeem. Price is hub, not $1."
+            .to_string(),
+        ustr: "USTR reserve token (not a USD stablecoin). assets.ustr is DEX volume, pair fees, \
+               and hub price. Do not treat 2.5× USTC as a peg."
+            .to_string(),
+    }
+}
+
+fn empty_asset_row(ticker: &str) -> DefillamaAssetRow {
+    match ticker {
+        "ustr" => DefillamaAssetRow {
+            ticker: "ustr".to_string(),
+            symbol: "USTR".to_string(),
+            address: USTR_ADDRESS.to_string(),
+            decimals: USTR_DECIMALS,
+            category: "reserve".to_string(),
+            product: "ustr".to_string(),
+            peg_type: None,
+            peg_mechanism: None,
+            volume_usd: Some("0".to_string()),
+            trade_count: 0,
+            fees_usd: Some("0".to_string()),
+            price_usd: None,
+            circulating: None,
+        },
+        _ => DefillamaAssetRow {
+            ticker: "ust1".to_string(),
+            symbol: "UST1".to_string(),
+            address: UST1_ADDRESS.to_string(),
+            decimals: UST1_DECIMALS,
+            category: "stablecoins".to_string(),
+            product: "unstablecoin".to_string(),
+            peg_type: Some("peggedUSD".to_string()),
+            peg_mechanism: Some("crypto-backed".to_string()),
+            volume_usd: Some("0".to_string()),
+            trade_count: 0,
+            fees_usd: Some("0".to_string()),
+            price_usd: None,
+            circulating: None,
+        },
+    }
+}
+
+fn map_asset_row(ticker: &str, row: Option<&daily_q::DailyAssetRow>) -> DefillamaAssetRow {
+    let mut out = empty_asset_row(ticker);
+    let Some(row) = row else {
+        return out;
+    };
+    out.volume_usd =
+        daily_usd_field_fail_closed(row.trade_count, row.unpriced_trade_count, &row.volume_usd);
+    out.trade_count = row.trade_count;
+    out.fees_usd =
+        daily_usd_field_fail_closed(row.fee_event_count, row.fee_unpriced_count, &row.fees_usd);
+    out.price_usd = row
+        .price_usd
+        .as_ref()
+        .filter(|p| *p > &BigDecimal::from(0))
+        .map(|p| p.to_string());
+    out.circulating = row
+        .circulating_raw
+        .as_ref()
+        .filter(|c| *c > &BigDecimal::from(0))
+        .map(|c| c.to_string());
+    out
+}
+
+fn daily_assets_from_rows(rows: &[daily_q::DailyAssetRow]) -> DefillamaDailyAssets {
+    debug_assert!(DAILY_ASSET_TICKERS.contains(&"ust1") && DAILY_ASSET_TICKERS.contains(&"ustr"));
+    DefillamaDailyAssets {
+        ust1: map_asset_row("ust1", rows.iter().find(|r| r.ticker == "ust1")),
+        ustr: map_asset_row("ustr", rows.iter().find(|r| r.ticker == "ustr")),
     }
 }
 
@@ -159,6 +258,9 @@ pub async fn get_defillama_daily(
     let fee_rows = daily_q::get_daily_fees(&state.pool, utc_day)
         .await
         .map_err(internal_err)?;
+    let asset_rows = daily_q::get_daily_assets(&state.pool, utc_day)
+        .await
+        .map_err(internal_err)?;
 
     let volume_usd = daily_usd_field_fail_closed(
         stat.trade_count,
@@ -194,6 +296,7 @@ pub async fn get_defillama_daily(
         daily_revenue_usd: daily_fees.clone(),
         daily_protocol_revenue_usd: daily_fees,
         daily_supply_side_revenue_usd: "0".to_string(),
+        assets: daily_assets_from_rows(&asset_rows),
         methodology: methodology(),
     };
 

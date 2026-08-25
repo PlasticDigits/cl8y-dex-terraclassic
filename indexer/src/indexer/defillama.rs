@@ -27,6 +27,21 @@ pub const DAILY_LOOKBACK_DAYS: i64 = 8;
 pub const COLUMBUS5_FACTORY: &str =
     "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea";
 
+/// UST1 unstablecoin + USTR reserve (REGISTRY.md / hub defaults).
+pub const UST1_ADDRESS: &str = crate::config::DEFAULT_HUB_UST1_ADDRESS;
+pub const USTR_ADDRESS: &str = crate::config::DEFAULT_HUB_USTR_ADDRESS;
+pub const UST1_DECIMALS: u8 = 6;
+pub const USTR_DECIMALS: u8 = 18;
+pub const DAILY_ASSET_TICKERS: &[&str] = &["ust1", "ustr"];
+
+pub fn daily_asset_contract(ticker: &str) -> Option<&'static str> {
+    match ticker {
+        "ust1" => Some(UST1_ADDRESS),
+        "ustr" => Some(USTR_ADDRESS),
+        _ => None,
+    }
+}
+
 /// First UTC day the dimension adapters may request (soft-launch window).
 pub const ADAPTER_START_UTC_DAY: i64 = 1_777_593_600; // 2026-05-01 00:00:00 UTC
 

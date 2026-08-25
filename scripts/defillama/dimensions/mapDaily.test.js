@@ -6,6 +6,7 @@ const {
   dailyUrl,
   mapVolume,
   mapFees,
+  mapAsset,
   METHODOLOGY,
   BREAKDOWN_METHODOLOGY,
   ADAPTER_START,
@@ -50,6 +51,38 @@ test('mapFees SSR is 0 and labels ⊆ breakdownMethodology', () => {
   for (const key of ['Volume', 'Fees', 'Revenue', 'ProtocolRevenue', 'SupplySideRevenue']) {
     assert.ok(METHODOLOGY[key], key)
   }
+})
+
+test('mapAsset keeps UST1 unstablecoin metadata and USTR unpegged', () => {
+  const json = {
+    assets: {
+      ust1: {
+        product: 'unstablecoin',
+        peg_type: 'peggedUSD',
+        volume_usd: '15',
+        fees_usd: '0.45',
+        price_usd: '0.97',
+      },
+      ustr: {
+        product: 'ustr',
+        peg_type: null,
+        volume_usd: '3',
+        fees_usd: '0.08',
+        price_usd: '0.015',
+      },
+    },
+  }
+  assert.deepEqual(mapAsset(json, 'ust1'), {
+    ticker: 'ust1',
+    volume: 15,
+    fees: 0.45,
+    price: 0.97,
+    circulating: null,
+    product: 'unstablecoin',
+    pegType: 'peggedUSD',
+  })
+  assert.equal(mapAsset(json, 'ustr').pegType, null)
+  assert.equal(mapAsset(json, 'ustr').volume, 3)
 })
 
 test('A1: mapping never reads CG liquidity_in_usd', () => {
