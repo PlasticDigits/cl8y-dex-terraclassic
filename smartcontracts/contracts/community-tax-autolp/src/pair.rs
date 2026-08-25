@@ -5,12 +5,32 @@
 //! `factory.Pair { asset_infos }` returns the same `contract_addr`.
 //! Factory is the immutable launcher pin — do not trust a pair-reported factory.
 
-use cosmwasm_std::{to_json_binary, Addr, Deps, QueryRequest, WasmQuery};
+use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, Deps, QueryRequest, WasmMsg, WasmQuery};
 use dex_common::factory::{PairResponse, QueryMsg as FactoryQuery};
 use dex_common::pair::QueryMsg as PairQuery;
 use dex_common::types::{AssetInfo, PairInfo};
+use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum TaxTokenExecute {
+    RegisterListedPair { pair: String },
+}
+
+/// Permissionless token execute — same factory lookup already passed (**R633-3**).
+/// Idempotent on the token (`already: true`). Never calls `SkimToLp`.
+pub fn register_listed_pair_msg(token: &Addr, pair: &Addr) -> Result<CosmosMsg, ContractError> {
+    Ok(WasmMsg::Execute {
+        contract_addr: token.to_string(),
+        msg: to_json_binary(&TaxTokenExecute::RegisterListedPair {
+            pair: pair.to_string(),
+        })?,
+        funds: vec![],
+    }
+    .into())
+}
 
 /// Validate `pair_raw` against `factory` and `tax_token`.
 ///

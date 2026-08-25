@@ -18,7 +18,7 @@ Product decision (2026-08-23): exempted users skip **transfer, buy, and sell** t
 
 ## Invariants **E609-1–E609-7**
 
-1. **E609-1 — full tax skip.** If `from`, `to`, or an authenticated official-router hop `trader` is `MANAGER_EXEMPT` and the economic kind is Sell / Buy / Transfer → **Honest** (0 bps). `TaxPreview` matches execute. Pair still credited / debited `amount` (no inbound FoT).
+1. **E609-1 — full tax skip.** If `from`, `to`, or an authenticated official-router hop `trader` is `MANAGER_EXEMPT` **or** `config.manager` ([#633](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) **R633-1**) and the economic kind is Sell / Buy / Transfer → **Honest** (0 bps). `TaxPreview` matches execute. Pair still credited / debited `amount` (no inbound FoT). Extra wallets still require the paid directory.
 2. **E609-2 — launch guards stay on.** Exemption does **not** skip `trading_enabled`, cooldown, or `max_wallet`. Guards use `classify_trade` (economic kind), not the Honest tax kind. Sell to a listed pair still bypasses `max_wallet` (**T592-11**).
 3. **E609-3 — protocol list unchanged.** Listed pair / router / factory / AutoLP / self stay protocol-exempt. Manager cannot `remove_exempt` those (`CannotRemoveProtocolExempt`). `add_exempt` does not make an address a listed pair or allow spoof `RegisterListedPair` (**T592-9**).
 4. **E609-4 — inbound 1:1.** Exempt sell still credits the pair exactly `amount`. Protocol inbound to pair/router/escrow/AutoLP stays 1:1 (**T592-1**).
@@ -33,7 +33,7 @@ make verify-issue-609
 cd smartcontracts && cargo test -p cl8y-community-tax-token
 ```
 
-Columbus-5 **11611** instances still run pre-#609 wasm until CMM migrate. Do not treat listed 11611 as already skipping buy/sell until migrate.
+Columbus-5 **11611** instances still run pre-#609 wasm until CMM migrate. Do not treat listed 11611 as already skipping buy/sell until migrate. Manager **role** skip (no ExemptionDirectory row) is [#633](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md).
 
 ## Do not
 

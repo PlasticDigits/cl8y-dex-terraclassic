@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { useWalletStore } from '@/hooks/useWallet'
 import { createPair, getWhitelistedCodeIds } from '@/services/terraclassic/factory'
+import { registerTaxAssetsAfterCreatePair } from '@/utils/communityTaxRegisterPair'
+import { COMMUNITY_TAX_CODE_ID } from '@/utils/constants'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
 import { formatTokenAmount } from '@/utils/formatAmount'
 import { getChainContractInfo } from '@/services/terraclassic/queries'
@@ -68,11 +70,21 @@ export default function CreatePairPage() {
       const tokenBError = getTerraAddressInputError(tokenB)
       if (!tokenB || tokenBError) throw new Error(tokenBError ?? 'Token B address required')
       if (sameCreatePairAddress(tokenA, tokenB)) throw new Error('Token addresses must be different')
-      return createPair(address, tokenA, tokenB)
+      const hash = await createPair(address, tokenA, tokenB)
+      const follow = await registerTaxAssetsAfterCreatePair({
+        wallet: address,
+        tokenA,
+        tokenB,
+        taxCodeId: COMMUNITY_TAX_CODE_ID,
+      })
+      return { hash, registered: follow.registered }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       sounds.playSuccess()
-      toastApi?.pushToast('success', 'Trading pair created.')
+      toastApi?.pushToast(
+        'success',
+        data.registered.length > 0 ? 'Trading pair created. Buy/sell tax is on for this pool.' : 'Trading pair created.'
+      )
     },
     onError: (error) => {
       sounds.playError()
@@ -176,7 +188,7 @@ export default function CreatePairPage() {
 
           {createMutation.isSuccess && (
             <div className="mt-4">
-              <TxResultAlert type="success" message="Pair Created Successfully!" txHash={createMutation.data} />
+              <TxResultAlert type="success" message="Pair Created Successfully!" txHash={createMutation.data.hash} />
             </div>
           )}
         </div>

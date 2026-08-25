@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { PayWithAnyToken } from '@/components/payments/PayWithAnyToken'
+import { ManageUnregisteredPairAlert } from '@/components/community/ManageUnregisteredPairAlert'
 import { TxResultAlert } from '@/components/ui'
 import { useWalletStore } from '@/hooks/useWallet'
+import { useManageListedPairCatchUp } from '@/hooks/useManageListedPairCatchUp'
 import { getTokens } from '@/services/indexer/client'
 import { getChainContractInfo } from '@/services/terraclassic/queries'
 import {
@@ -11,6 +13,7 @@ import {
   queryCommunityTaxConfig,
   queryCommunityTaxFeatures,
   queryCommunityTaxTokenInfo,
+  registerListedPair,
   skimAutoLp,
   type CommunityTaxFeaturesResponse,
 } from '@/services/terraclassic/communityTaxToken'
@@ -204,6 +207,24 @@ export default function ManageTokenPage() {
     onSuccess: () => sounds.playSuccess(),
     onError: () => sounds.playError(),
   })
+  const catchUp = useManageListedPairCatchUp({
+    token: addr,
+    managerWallet: isManager,
+    taxTemplate: !codeMismatch,
+    connected: address,
+  })
+  const registerMut = useTerraBroadcastMutation({
+    mutationFn: async () => {
+      if (!address) throw new Error('Connect wallet')
+      if (!catchUp.target) throw new Error('No pool to register')
+      return registerListedPair(address, addr, catchUp.target.pair)
+    },
+    onSuccess: async () => {
+      sounds.playSuccess()
+      await catchUp.refetch()
+    },
+    onError: () => sounds.playError(),
+  })
 
   if (!isCommunityTaxEnabled()) {
     return (
@@ -261,6 +282,19 @@ export default function ManageTokenPage() {
         <div className="shell-panel-strong" data-testid="unverified-admin-banner">
           Unverified admin — wasm admin is not CMM.
         </div>
+      )}
+
+      {catchUp.show && catchUp.target && (
+        <ManageUnregisteredPairAlert
+          target={catchUp.target}
+          leftover={catchUp.leftover}
+          otherTokens={catchUp.otherTokens}
+          pending={registerMut.isPending}
+          onRegister={() => {
+            sounds.playButtonPress()
+            registerMut.mutate()
+          }}
+        />
       )}
 
       {!isManager && (

@@ -28,6 +28,62 @@ fn cw20_contract() -> Box<dyn Contract<Empty>> {
     ))
 }
 
+/// Tax-side mock: cw20-base plus `RegisterListedPair` (#633 / R633-3).
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+enum TaxTokenExec {
+    Register {
+        register_listed_pair: RegisterPairInner,
+    },
+    Cw20(cw20_base::msg::ExecuteMsg),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct RegisterPairInner {
+    pair: String,
+}
+
+fn tax_token_contract() -> Box<dyn Contract<Empty>> {
+    fn exec(
+        deps: cosmwasm_std::DepsMut,
+        env: cosmwasm_std::Env,
+        info: cosmwasm_std::MessageInfo,
+        msg: TaxTokenExec,
+    ) -> StdResult<cosmwasm_std::Response> {
+        match msg {
+            TaxTokenExec::Register {
+                register_listed_pair,
+            } => {
+                let already = deps.storage.get(b"listed").is_some();
+                deps.storage
+                    .set(b"listed", register_listed_pair.pair.as_bytes());
+                Ok(cosmwasm_std::Response::new()
+                    .add_attribute("action", "register_listed_pair")
+                    .add_attribute("already", if already { "true" } else { "false" }))
+            }
+            TaxTokenExec::Cw20(inner) => cw20_base::contract::execute(deps, env, info, inner)
+                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string())),
+        }
+    }
+    fn inst(
+        deps: cosmwasm_std::DepsMut,
+        env: cosmwasm_std::Env,
+        info: cosmwasm_std::MessageInfo,
+        msg: cw20_base::msg::InstantiateMsg,
+    ) -> StdResult<cosmwasm_std::Response> {
+        cw20_base::contract::instantiate(deps, env, info, msg)
+            .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
+    }
+    fn query(
+        deps: cosmwasm_std::Deps,
+        env: cosmwasm_std::Env,
+        msg: cw20_base::msg::QueryMsg,
+    ) -> StdResult<Binary> {
+        cw20_base::contract::query(deps, env, msg)
+    }
+    Box::new(ContractWrapper::new(exec, inst, query))
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum MockPairQuery {
@@ -244,7 +300,8 @@ struct Harness {
 fn setup(pair_at_init: bool) -> Harness {
     let mut app = App::default();
     let manager = Addr::unchecked("manager");
-    let token_code = app.store_code(cw20_contract());
+    let token_code = app.store_code(tax_token_contract());
+    let quote_code = app.store_code(cw20_contract());
     let autolp_code = app.store_code(autolp_contract());
     let pair_code = app.store_code(mock_pair_contract());
     let factory_code = app.store_code(mock_factory_contract());
@@ -271,7 +328,7 @@ fn setup(pair_at_init: bool) -> Harness {
         .unwrap();
     let quote = app
         .instantiate_contract(
-            token_code,
+            quote_code,
             manager.clone(),
             &cw20_base::msg::InstantiateMsg {
                 name: "Quote".into(),
@@ -866,4 +923,60 @@ fn skim_then_provide_when_quote_leg_present() {
             || bal(&h.app, &h.token, h.autolp.as_str()) < 2_000_000
     );
     assert!(!cfg(&h).skimming);
+}
+
+fn listed_pair(h: &Harness) -> Option<String> {
+    h.app
+        .wrap()
+        .query_wasm_raw(h.token.clone(), b"listed".as_slice())
+        .ok()
+        .flatten()
+        .and_then(|b| String::from_utf8(b).ok())
+}
+
+#[test]
+fn set_pair_registers_token_listed_pair() {
+    let mut h = setup(false);
+    assert!(listed_pair(&h).is_none());
+    h.app
+        .execute_contract(
+            h.manager.clone(),
+            h.autolp.clone(),
+            &ExecuteMsg::UpdateConfig {
+                pair: Some(h.pair.to_string()),
+                router: None,
+                quote_token: None,
+                threshold: None,
+                lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(listed_pair(&h).as_deref(), Some(h.pair.as_str()));
+    // Re-bind same pair is idempotent (token already: true).
+    h.app
+        .execute_contract(
+            h.manager.clone(),
+            h.autolp.clone(),
+            &ExecuteMsg::UpdateConfig {
+                pair: Some(h.pair.to_string()),
+                router: None,
+                quote_token: None,
+                threshold: None,
+                lp_recipient: None,
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(listed_pair(&h).as_deref(), Some(h.pair.as_str()));
+}
+
+#[test]
+fn instantiate_with_pair_registers_token() {
+    let h = setup(true);
+    assert_eq!(listed_pair(&h).as_deref(), Some(h.pair.as_str()));
 }
