@@ -218,6 +218,12 @@ This repo keeps a ready-to-copy pack (permanent CW20s only: CL8Y, UST1, USTR, cL
 
 Do **not** treat `/cg/*` or `/cmc/*` as Keplr wallet metadata. Related listing (TVL/volume, not Keplr): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631).
 
+## Cosmostation / Mintscan CW20s (GitLab #640) {#cosmostation-cw20-gitlab-640}
+
+Cosmostation and Mintscan read [cosmostation/chainlist](https://github.com/cosmostation/chainlist) **`chain/terra/cw20_2.json`** (Classic — not phoenix). This repo vendors a six-row fragment + PNGs to append. Same permanent-six pins as Keplr. `coinGeckoId` is `ceramicliberty-com` on CL8Y only; others are `""`. UST1 is an **unstablecoin**; USTR is **USTC Repeg**, not a stablecoin.
+
+Invariants **C640-1–C640-8**: [`listings/cosmostation/README.md`](./listings/cosmostation/README.md). Agent playbook: [`skills/AGENTS_COSMOSTATION.md`](../skills/AGENTS_COSMOSTATION.md). Verify: `make verify-issue-640`. Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.

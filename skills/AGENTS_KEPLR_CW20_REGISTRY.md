@@ -48,3 +48,4 @@ No LocalTerra, indexer, or wallet. After the upstream merge: Keplr → Terra Cla
 - CoinGecko User-Agent / CEX feeds: [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) ([#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515) / [#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579))
 - Hub USD (not Keplr): [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556))
 - DeFiLlama listing (related pricing coverage): [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)
+- Cosmostation / Mintscan (same pins, different repo): [`AGENTS_COSMOSTATION.md`](./AGENTS_COSMOSTATION.md) ([#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640))

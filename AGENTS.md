@@ -257,6 +257,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Contracts | `make test-contracts`, `make lint-contracts` |
 | Frontend | `make test-frontend`, `make lint-frontend` |
 | Keplr CW20 pack | `make verify-issue-629` |
+| Cosmostation CW20 pack | `make verify-issue-640` |
 | Indexer lib | `cd indexer && cargo test --lib` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
@@ -295,6 +296,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md](skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) — portal listbox `visualViewport` + in-app chrome inset + coarse/narrow browse-without-IME (**V632-1–V632-8**, [#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`
 - [skills/AGENTS_FRONTEND_KEPLR_LEDGER.md](skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) — Keplr + Ledger Nano signing (amino, pre-sign suggest, stall UX) (**K567-1–K567-8**, [#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); `make verify-issue-567`
 - [skills/AGENTS_KEPLR_CW20_REGISTRY.md](skills/AGENTS_KEPLR_CW20_REGISTRY.md) — Keplr Add Token CW20 pack on `cosmos/columbus` (**K629-1–K629-8**, [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)); `make verify-issue-629`
+- [skills/AGENTS_COSMOSTATION.md](skills/AGENTS_COSMOSTATION.md) — Cosmostation / Mintscan CW20 pack on `chain/terra` (**C640-1–C640-8**, [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)); `make verify-issue-640`
 - [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — single execution-aligned **Route** row on Swap and `/trade` market quote (#158, #302); Trade market GET `/route/solve` default (#501); always-on hybrid (#596)
 - [skills/AGENTS_HYBRID_QUOTING.md](skills/AGENTS_HYBRID_QUOTING.md) — hybrid quote = execute; Swap + Trade market share `quoteCw20ViaRouteSolve` (#418, #501); regression `make verify-issue-501`
 - [skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md](skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — official dApp never opts out of best-execution hybrid (**H596-1–H596-8**, [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)); `make verify-issue-596`
