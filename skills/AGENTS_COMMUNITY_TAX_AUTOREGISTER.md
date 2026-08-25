@@ -34,12 +34,18 @@ Cross-token Manage line: attested catalog `GET /api/v1/community-tokens?manager=
 
 ```bash
 make verify-issue-633
+# LocalTerra live (fail if chain missing):
+VERIFY633_REQUIRE_CHAIN=1 make verify-issue-633
+# or directly:
+./scripts/qa/localterra-633-autoregister.sh
 cd smartcontracts && cargo test -p cl8y-community-tax-token -p cl8y-community-tax-autolp -p cl8y-dex-factory
 make verify-issue-609
 make verify-issue-610
 ```
 
-Columbus-5 **11611** / **11619** stay pre-skip until CMM migrate. Factory CreatePair autoregister is live only after factory migrate to the #633 wasm.
+LocalTerra (`localterra-633-autoregister.sh`, **R633** live): seed tax/EMBER stays registered; factory `CreatePair` tax/UST1 autoregisters **without** a hand-rolled `register_listed_pair`; honest/honest `CreatePair` must not revert; test1 is `IsProtocolExempt.manager` without ExemptionDirectory and manager `Send+Swap` is Honest; a third wallet extra-debits. Fresh `make deploy-local` instantiates the #633 factory wasm so B2 is live — no factory migrate needed on a new LocalTerra. Columbus-5 factory migrate + CMM token migrate of live **11611** / **11619** stay on [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635) — do not treat LocalTerra store ids as columbus-5 evidence.
+
+Sibling migrate inventory: [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M634** / [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh).
 
 ## Do not
 

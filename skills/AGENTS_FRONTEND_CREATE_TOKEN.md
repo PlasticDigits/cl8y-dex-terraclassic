@@ -65,6 +65,8 @@ make verify-issue-612
 make verify-issue-616
 make verify-issue-626
 make verify-issue-634
+# LocalTerra migrate inventory (mintable adopt + Refresh + factory-only register):
+VERIFY634_REQUIRE_CHAIN=1 make verify-issue-634
 ```
 
 Columbus-5 free-create is live on launcher `terra126pr5…ahzwze` (code **11622**; store was **11614**). `token_code_id` is **11619**. Do not point Coolify at **11612** (`terra1af9xm…`). Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602). Store/rotate: [#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611).

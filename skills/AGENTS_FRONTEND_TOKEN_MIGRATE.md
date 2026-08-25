@@ -62,7 +62,7 @@ In-place adopt **keeps the CW20 address**. External DEX pairs are not F6-pinned.
 | **8266** Open `terra1qz56v…s74n3` | Terraport Open/LUNC `terra1uxr6m…nypyc` | Open `13056446286` / uluna `1733267547` | Address unchanged. 1:1 stay 1:1. `tax_map` query already unknown variant. |
 | GDEX | — | — | No GDEX factory pin in-repo. Any GDEX pair keeps the CW20 address; still do not RegisterListedPair. |
 
-LocalTerra analogue: a factory-whitelisted `cw20-mintable` gem (10184 analogue) adopts the same way; inbound Transfer to a CL8Y pair stays 1:1 (crate **P3**).
+LocalTerra analogue: a factory-whitelisted `cw20-mintable` gem (10184 analogue) adopts the same way; inbound Transfer to a CL8Y pair stays 1:1 (crate **P3**). That wasm writes cw2 `crates.io:cw20-base` — `GetMigrateOrigin.source_cw2` after adopt is `cw20-base`, not `cw20-mintable`. Live proof: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh).
 
 ## Add a future migrate source
 
@@ -79,10 +79,16 @@ Whitelist already has **11619** → `SetPairPaused` on affected **CL8Y** pairs �
 ```bash
 make verify-issue-626
 make verify-issue-634
+# LocalTerra live (fail if chain missing):
+VERIFY634_REQUIRE_CHAIN=1 make verify-issue-634
+# or directly:
+./scripts/qa/localterra-634-migrate-inventory.sh
 make verify-issue-592
 make verify-issue-593
 make verify-issue-594
 ```
+
+LocalTerra (`localterra-634-migrate-inventory.sh`, **M634** live): adopt a factory-listed `cw20-mintable` that already has a CL8Y pair — confirm that pair as the governance-refresh target; adopt does **not** register; after ops `RefreshPairAssetCodeIds` (never from `/token/migrate`), register lists **only** that factory pair; Terraport factory probe must not invent rows; a mintable with no CL8Y pair is a valid empty inventory. Columbus-5 Open/ALPHA LCD walkthrough stays on [#636](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/636). Autoregister leftovers: [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md) / [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635).
 
 ## Do not
 

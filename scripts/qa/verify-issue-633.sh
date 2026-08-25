@@ -8,8 +8,15 @@
 #   3. Factory: cw2-gated tax register msgs
 #   4. Frontend: Manage alert + highest-LP + Create Pair follow-up
 #   5. R633 + skill crosslinks
+#   6. LocalTerra (when chain is up, or VERIFY633_REQUIRE_CHAIN=1):
+#      seed registered; factory CreatePair tax/UST1 autoregisters; honest/honest
+#      CreatePair does not revert; manager Honest; retail extra-debit.
+#      Columbus-5 factory/token migrate is leftover #635 — this script never
+#      talks to columbus-5.
 #
 # Refs: skills/AGENTS_COMMUNITY_TAX_AUTOREGISTER.md
+# VERIFY633_REQUIRE_CHAIN=1 — FAIL (do not SKIP) when LocalTerra is missing.
+# VERIFY633_SKIP_CHAIN=1 — skip LocalTerra even if the chain is up.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -73,6 +80,14 @@ run_docs() {
   rg -q "registerTaxAssetsAfterCreatePair" frontend-dapp/src/utils/communityTaxRegisterPair.ts
   rg -q "manage-register-alert" frontend-dapp/src/components/community/ManageUnregisteredPairAlert.tsx
   rg -q "This market is not collecting buy/sell tax yet" frontend-dapp/src/utils/communityTaxRegisterPair.ts
+  rg -q "localterra-633-autoregister" skills/AGENTS_COMMUNITY_TAX_AUTOREGISTER.md
+  rg -q "localterra-633-autoregister" docs/testing.md
+  bash -n scripts/qa/localterra-633-autoregister.sh
+}
+
+run_live() {
+  set -euo pipefail
+  ./scripts/qa/localterra-633-autoregister.sh
 }
 
 echo ""
@@ -80,6 +95,19 @@ echo "── first pass ──"
 run_step "crates: token + autolp + factory" run_crates
 run_step "frontend: register picker + Manage + Create Pair" run_frontend
 run_step "docs: R633 + skill + copy" run_docs
+
+if [[ "${VERIFY633_SKIP_CHAIN:-}" == "1" ]]; then
+  echo "  [SKIP] LocalTerra (VERIFY633_SKIP_CHAIN=1)"
+  RESULTS+=("SKIP  LocalTerra live (VERIFY633_SKIP_CHAIN=1)")
+elif timeout 20 make -s has-localterra >/dev/null 2>&1 \
+  && grep -qE '^VITE_TOKEN_COMMUNITY_TAX_ADDRESS=terra1' frontend-dapp/.env.local 2>/dev/null; then
+  run_step "LocalTerra: seed + CreatePair autoregister + manager Honest" run_live
+elif [[ "${VERIFY633_REQUIRE_CHAIN:-}" == "1" ]]; then
+  bad "LocalTerra required (VERIFY633_REQUIRE_CHAIN=1) — make setup-cloud-localterra"
+else
+  echo "  [SKIP] LocalTerra (make has-localterra + tax pins). Cloud Agent: make setup-cloud-localterra"
+  RESULTS+=("SKIP  LocalTerra live (chain/pins down)")
+fi
 
 echo ""
 echo "── retest ──"

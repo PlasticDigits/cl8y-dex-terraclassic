@@ -625,12 +625,12 @@ verify-issue-605:
 
 # GitLab #633 — listed-pair autoregister + Manage catch-up + manager role tax skip.
 verify-issue-633:
-	@chmod +x scripts/qa/verify-issue-633.sh scripts/with-node.sh
+	@chmod +x scripts/qa/verify-issue-633.sh scripts/qa/localterra-633-autoregister.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-633.sh
 
 # GitLab #634 — migrate pair inventory + post-adopt CL8Y register tool.
 verify-issue-634:
-	@chmod +x scripts/qa/verify-issue-634.sh scripts/with-node.sh
+	@chmod +x scripts/qa/verify-issue-634.sh scripts/qa/localterra-634-migrate-inventory.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-634.sh
 
 # GitLab #626 — free listed-template adopt onto 11619 + Terraport/GDEX LP gate.

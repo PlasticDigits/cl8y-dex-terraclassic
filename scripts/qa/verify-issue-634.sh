@@ -3,6 +3,15 @@
 # post-adopt CL8Y register tool (no Refresh / no register-external).
 #
 # Refs: skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md (M634)
+#
+# LocalTerra (when chain is up, or VERIFY634_REQUIRE_CHAIN=1): adopt a
+# factory-listed mintable that already has a CL8Y pair → F6 freeze →
+# governance Refresh → register only that factory pair. Columbus-5
+# Open/ALPHA LCD walkthrough is leftover #636 — this script never
+# queries columbus-5 except the documented Terraport factory addr, which
+# LocalTerra must not invent pairs for.
+# VERIFY634_REQUIRE_CHAIN=1 — FAIL (do not SKIP) when LocalTerra is missing.
+# VERIFY634_SKIP_CHAIN=1 — skip LocalTerra even if the chain is up.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -61,12 +70,33 @@ run_docs() {
     frontend-dapp/src/pages/MigrateTokenPage.tsx \
     frontend-dapp/src/components/community/MigratePairInventory.tsx \
     frontend-dapp/src/utils/communityTaxMigratePairs.ts
+  rg -q "localterra-634-migrate-inventory" skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md
+  rg -q "localterra-634-migrate-inventory" docs/testing.md
+  bash -n scripts/qa/localterra-634-migrate-inventory.sh
+}
+
+run_live() {
+  set -euo pipefail
+  ./scripts/qa/localterra-634-migrate-inventory.sh
 }
 
 echo ""
 echo "── first pass ──"
 run_step "frontend: inventory helper + card + migrate page" run_frontend
 run_step "docs: M634 + no Refresh execute on migrate" run_docs
+
+if [[ "${VERIFY634_SKIP_CHAIN:-}" == "1" ]]; then
+  echo "  [SKIP] LocalTerra (VERIFY634_SKIP_CHAIN=1)"
+  RESULTS+=("SKIP  LocalTerra live (VERIFY634_SKIP_CHAIN=1)")
+elif timeout 20 make -s has-localterra >/dev/null 2>&1 \
+  && grep -qE '^VITE_TOKEN_COMMUNITY_TAX_ADDRESS=terra1' frontend-dapp/.env.local 2>/dev/null; then
+  run_step "LocalTerra: mintable adopt + Refresh + factory-only register" run_live
+elif [[ "${VERIFY634_REQUIRE_CHAIN:-}" == "1" ]]; then
+  bad "LocalTerra required (VERIFY634_REQUIRE_CHAIN=1) — make setup-cloud-localterra"
+else
+  echo "  [SKIP] LocalTerra (make has-localterra + tax pins). Cloud Agent: make setup-cloud-localterra"
+  RESULTS+=("SKIP  LocalTerra live (chain/pins down)")
+fi
 
 echo ""
 echo "── retest ──"

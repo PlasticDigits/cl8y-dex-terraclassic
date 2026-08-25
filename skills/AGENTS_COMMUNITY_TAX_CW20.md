@@ -12,7 +12,8 @@ LocalTerra reused QA market: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENT
 |------------|---------|
 | [GitLab **#592**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) | On-chain design |
 | [GitLab **#626**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | Free listed-template adopt + Terraport/GDEX LP gate |
-| [GitLab **#634**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M634** | Migrate page venue inventory + post-refresh CL8Y register (never Terraport/GDEX) |
+| [GitLab **#633**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md) **R633** | Factory/dApp/AutoLP listed-pair register + manager role skip. LocalTerra: [`localterra-633-autoregister.sh`](../scripts/qa/localterra-633-autoregister.sh) |
+| [GitLab **#634**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M634** | Migrate page venue inventory + post-refresh CL8Y register (never Terraport/GDEX). LocalTerra: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh) |
 | [`docs/contracts-terraclassic.md` § Community tax CW20](../docs/contracts-terraclassic.md#community-tax-cw20-gitlab-592) | Message shapes + classification |
 | [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) | Invariants **T592-1–T592-13** + **O601-1–O601-7** |
 | [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) | **T592-13** / **R607** — router hops tax the original trader (#607 improved option 2) |

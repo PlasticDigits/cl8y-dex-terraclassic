@@ -224,6 +224,19 @@ After !415–!417 landed tax-aware swarm, named tax-on Layer B, and Playwright e
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_625.md`](../../skills/AGENTS_POST_MERGE_OPS_625.md). QA invariant **Q13**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-625).
 
+### Listed-pair autoregister + migrate inventory (GitLab #633 / #634)
+
+LocalTerra-only live rungs (columbus-5 factory/token migrate and Open/ALPHA LCD stay on [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635) / [#636](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/636)):
+
+| Step | Expected |
+| ---- | -------- |
+| `VERIFY633_REQUIRE_CHAIN=1 make verify-issue-633` | Crates + Vitest + docs, then [`localterra-633-autoregister.sh`](./localterra-633-autoregister.sh): seed registered; factory `CreatePair` tax/UST1 autoregisters; honest/honest create does not revert; manager Honest; retail extra-debit |
+| `VERIFY634_REQUIRE_CHAIN=1 make verify-issue-634` | Vitest + docs, then [`localterra-634-migrate-inventory.sh`](./localterra-634-migrate-inventory.sh): mintable + CL8Y pair → adopt does not register → F6 freeze → ops Refresh → factory-only register |
+
+Host Postgres on `:5432` can block compose `postgres`; LocalTerra + `make deploy-local` is enough for these LCD rungs.
+
+Agent playbooks: [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](../../skills/AGENTS_COMMUNITY_TAX_AUTOREGISTER.md), [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md).
+
 ---
 
 ## Makefile reference

@@ -178,14 +178,14 @@ make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + 
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
 make verify-issue-626                    # #626 free listed-template adopt + Terraport/GDEX LP gate
-make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool
+make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool (LocalTerra: localterra-634-migrate-inventory.sh)
 make verify-issue-604                    # #604 identity + connected-wallet helpers (Vitest + crates)
 make verify-issue-605                    # #605 SKU init + percent taxes (Vitest + crates)
 make verify-issue-594                    # #594 community tax indexer catalog (Postgres + sqlx)
 make verify-issue-592                    # #592 community tax CW20 (token + launcher + AutoLP; docs)
 make verify-issue-608                    # #608 LaunchGuards per-wallet cooldown + provide after max_wallet (H-3/H-4)
 make verify-issue-609                    # #609 ExemptionDirectory skips buy/sell/transfer tax (multitest + hint)
-make verify-issue-633                    # #633 autoregister CL8Y pairs + Manage catch-up + manager tax skip
+make verify-issue-633                    # #633 autoregister CL8Y pairs + Manage catch-up + manager tax skip (LocalTerra: localterra-633-autoregister.sh)
 make verify-issue-610                    # #610 AutoLP factory-listed pair + skim floor (M-2 / M-3)
 make verify-issue-601                    # #601 store + 11611 REPORT + factory list + LocalTerra smoke
 # columbus-5 rotate (#611): ./scripts/upgrade-611-community-tax.sh (11619/11622/11621; launcher 11622)
