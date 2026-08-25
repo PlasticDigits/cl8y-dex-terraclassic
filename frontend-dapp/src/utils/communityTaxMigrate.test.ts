@@ -113,6 +113,22 @@ describe('communityTaxMigrate (#626)', () => {
     expect(v.canSubmit).toBe(false)
   })
 
+  it('#627: columbus-5 code 3 is not a default migrate source', () => {
+    expect(DEFAULT_COMMUNITY_MIGRATE_CODE_IDS).not.toContain(3)
+    const v = classifyMigrateSource({
+      chainId: 'columbus-5',
+      codeId: 3,
+      taxCodeId: 11619,
+      factoryWhitelisted: true,
+      hasTaxMap: false,
+      wasmAdmin: ADMIN,
+      connectedWallet: ADMIN,
+      allowedCodeIds: LIST,
+    })
+    expect(v.kind).toBe('unlisted')
+    expect(v.canSubmit).toBe(false)
+  })
+
   it('A13: code id off the migrate allowlist refuses', () => {
     const v = classifyMigrateSource({
       chainId: 'columbus-5',

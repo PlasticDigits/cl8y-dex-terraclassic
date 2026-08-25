@@ -6,7 +6,8 @@
  * not factory `AddWhitelistedCodeId`. Factory listing is for pair assets (F6).
  */
 
-/** Columbus-5 defaults. Append more ids via `VITE_COMMUNITY_MIGRATE_CODE_IDS`. */
+/** Columbus-5 defaults. Append more ids via `VITE_COMMUNITY_MIGRATE_CODE_IDS`.
+ * Do **not** append **3** — cw2 `cw20-base` is not layout proof (#627). */
 export const DEFAULT_COMMUNITY_MIGRATE_CODE_IDS = [6036, 10184, 8266, 8654] as const
 export const COLUMBUS5_TAX_CODE_IDS = [11611, 11619] as const
 /** Default FoT leftover map: 4.5% buy / 1% sell (combined 550 ≤ 2500). */
