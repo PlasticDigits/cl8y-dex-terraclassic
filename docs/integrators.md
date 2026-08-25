@@ -226,6 +226,12 @@ Reuse the Keplr permanent-six pins (CL8Y 18, USTR 18, others 6). UST1 is an **un
 
 Invariants **L639-1–L639-8**: [`listings/README.md`](./listings/README.md). Pins: [`listings/catalog.json`](./listings/catalog.json). Form drafts: [`listings/forms/`](./listings/forms/). Agent playbook: [`skills/AGENTS_LISTINGS.md`](../skills/AGENTS_LISTINGS.md). Verify: `make verify-issue-639`.
 
+## Cosmostation / Mintscan CW20s (GitLab #640) {#cosmostation-cw20-gitlab-640}
+
+Cosmostation and Mintscan read [cosmostation/chainlist](https://github.com/cosmostation/chainlist) **`chain/terra/cw20_2.json`** (Classic — not phoenix). This repo vendors a six-row fragment + PNGs to append. Same permanent-six pins as Keplr. `coinGeckoId` is `ceramicliberty-com` on CL8Y only; others are `""`. UST1 is an **unstablecoin**; USTR is **USTC Repeg**, not a stablecoin.
+
+Invariants **C640-1–C640-8**: [`listings/cosmostation/README.md`](./listings/cosmostation/README.md). Agent playbook: [`skills/AGENTS_COSMOSTATION.md`](../skills/AGENTS_COSMOSTATION.md). Verify: `make verify-issue-640`. Parent catalog: [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639).
+
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.

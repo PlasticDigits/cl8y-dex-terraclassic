@@ -1,0 +1,62 @@
+[
+  {
+    "type": "cw20",
+    "contract": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+    "name": "CL8Y",
+    "symbol": "CL8Y",
+    "description": "CL8Y on Terra Classic (columbus-5). CoinGecko id ceramicliberty-com is BSC-only until a Classic platform add.",
+    "decimals": 18,
+    "image": "https://raw.githubusercontent.com/cosmostation/chainlist/master/chain/terra/asset/cl8y.png",
+    "coinGeckoId": "ceramicliberty-com"
+  },
+  {
+    "type": "cw20",
+    "contract": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
+    "name": "UST1",
+    "symbol": "UST1",
+    "description": "UST1 unstablecoin on Terra Classic. Not a $1 peg.",
+    "decimals": 6,
+    "image": "https://raw.githubusercontent.com/cosmostation/chainlist/master/chain/terra/asset/ust1.png",
+    "coinGeckoId": ""
+  },
+  {
+    "type": "cw20",
+    "contract": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv",
+    "name": "USTC Repeg",
+    "symbol": "USTR",
+    "description": "USTC Repeg reserve token on Terra Classic. Not a stablecoin.",
+    "decimals": 18,
+    "image": "https://raw.githubusercontent.com/cosmostation/chainlist/master/chain/terra/asset/ustr.png",
+    "coinGeckoId": ""
+  },
+  {
+    "type": "cw20",
+    "contract": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
+    "name": "Wrapped Luna Classic",
+    "symbol": "cLUNC",
+    "description": "Wrapped LUNC (cLUNC) on Terra Classic.",
+    "decimals": 6,
+    "image": "https://raw.githubusercontent.com/cosmostation/chainlist/master/chain/terra/asset/clunc.png",
+    "coinGeckoId": ""
+  },
+  {
+    "type": "cw20",
+    "contract": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+    "name": "Wrapped TerraClassicUSD",
+    "symbol": "cUSTC",
+    "description": "Wrapped USTC (cUSTC) on Terra Classic.",
+    "decimals": 6,
+    "image": "https://raw.githubusercontent.com/cosmostation/chainlist/master/chain/terra/asset/custc.png",
+    "coinGeckoId": ""
+  },
+  {
+    "type": "cw20",
+    "contract": "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3",
+    "name": "Venus FDUSD (bridged)",
+    "symbol": "vFDUSD",
+    "description": "Venus FDUSD bridged to Terra Classic (UST1-window mint asset).",
+    "decimals": 6,
+    "image": "https://raw.githubusercontent.com/cosmostation/chainlist/master/chain/terra/asset/vfdusd.png",
+    "coinGeckoId": ""
+  }
+]
