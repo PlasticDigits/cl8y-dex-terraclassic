@@ -32,10 +32,10 @@ The TVL adapter paginates factory `Pairs { limit: 30, start_after }` and `api.ad
 |---------|---------|
 | Factory-listed pair pool reserves | Indexer `total_liquidity_usd`, hub marks, CG `liquidity_in_usd` |
 | Soft-launch gem pool locks (default) | LP `liquidity_token` / `total_share` (double-count) |
-| | Limit-book escrow, parked dust, CMM treasury, UST1-window inventory, Venus vFDUSD |
-| | Wrap-mapper native `uluna`/`uusd` (pools-only DEX TVL; omit unless Llama asks) |
+| cLUNC / cUSTC as `uluna` / `uusd` (1:1 wrap) | Limit-book escrow, parked dust, CMM treasury, UST1-window inventory, Venus vFDUSD |
+| | Wrap-mapper native `uluna`/`uusd` inventory (pools-only DEX TVL; omit unless Llama asks) |
 
-`timetravel: false`. Majority pool-query failure **throws** (no silent `$0`). No `misrepresentedTokens` pegs (no UST1=$1, no USTR=2.5×USTC). Unpriced CW20s are omitted on Llama’s side.
+`timetravel: false`. Majority pool-query failure **throws** (no silent `$0`). Named wrap substitution only: **cLUNC → `uluna`**, **cUSTC → `uusd`** (1:1). Do **not** peg UST1=$1 or USTR=2.5×USTC. Other unpriced CW20s are omitted on Llama’s side.
 
 **Expected drift vs** `GET /api/v1/overview` `total_liquidity_usd` (**#569**): different pricers + Llama omit-unpriced vs our one-sided 2× catalog. Document the gap; do not “fix” Llama TVL by posting indexer USD.
 
@@ -84,13 +84,15 @@ TVL keys by **contract/denom**, not symbol (A9). Volume exclude is by **address*
 
 ## Upstream process
 
-1. TVL PR → [DefiLlama-Adapters](https://github.com/DefiLlama/DefiLlama-Adapters) `projects/cl8y-dex/`
-2. Volume PR → [dimension-adapters](https://github.com/DefiLlama/dimension-adapters) `dexs/cl8y-dex/`
-3. Fees PR → same repo `fees/cl8y-dex/`
-4. Icons / metadata if Llama asks
-5. After merge: `https://defillama.com/protocol/cl8y-dex` should show Terra Classic + `dex.cl8y.com`
+| Adapter | Upstream PR |
+|---------|-------------|
+| TVL `projects/cl8y-dex` | [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676) |
+| Volume `dexs/cl8y-dex` + fees `fees/cl8y-dex` | [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) (draft until Coolify ships `GET /api/v1/defillama/daily`) |
+| Icons / metadata | Follow-up if Llama asks |
 
-In-repo copies and submission notes: [`scripts/defillama/README.md`](../scripts/defillama/README.md). **This MR does not open the GitHub PRs** (operator follow-up).
+After merge: `https://defillama.com/protocol/cl8y-dex` should show Terra Classic + `dex.cl8y.com`.
+
+In-repo copies: [`scripts/defillama/README.md`](../scripts/defillama/README.md). Local TVL check: `node test.js projects/cl8y-dex/index.js` in a DefiLlama-Adapters clone (~$13.3k Llama-priced cLUNC/cUSTC; unpriced CW20s omitted).
 
 ## Close is blocked
 

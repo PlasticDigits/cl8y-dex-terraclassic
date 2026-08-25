@@ -22,6 +22,15 @@ const COLUMBUS5_GEM_ADDRESSES = [
 const COLUMBUS5_FACTORY =
   'terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea'
 
+/** 1:1 wrap CW20s of native uluna / uusd (REGISTRY.md). Llama TVL maps these to those denoms. */
+const CLUNC = 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg'
+const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+
+const WRAP_TO_NATIVE = {
+  [CLUNC]: 'uluna',
+  [CUSTC]: 'uusd',
+}
+
 const INDEXER_DAILY_URL = 'https://indexer.dex.cl8y.com/api/v1/defillama/daily'
 
 /** 2026-05-01 00:00:00 UTC — first day dimension adapters may request. */
@@ -34,6 +43,9 @@ function isGemAddress(addr) {
 module.exports = {
   COLUMBUS5_GEM_ADDRESSES,
   COLUMBUS5_FACTORY,
+  CLUNC,
+  CUSTC,
+  WRAP_TO_NATIVE,
   INDEXER_DAILY_URL,
   ADAPTER_START,
   isGemAddress,

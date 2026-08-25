@@ -3,7 +3,10 @@
 /**
  * Testable TVL helpers for the DeFiLlama adapter (GitLab #631).
  * Adapter output is raw denom / CW20 amounts via api.add — never indexer USD.
+ * cLUNC / cUSTC map to uluna / uusd (named 1:1 wrap substitution).
  */
+
+const { WRAP_TO_NATIVE } = require('../gems')
 
 function isZeroAmount(amount) {
   if (amount == null) return true
@@ -27,7 +30,9 @@ function poolReserveAdds(pool) {
       continue
     }
     if (info.token && info.token.contract_addr) {
-      adds.push({ key: info.token.contract_addr, amount: String(amount) })
+      const addr = info.token.contract_addr
+      const native = WRAP_TO_NATIVE[addr]
+      adds.push({ key: native || addr, amount: String(amount) })
     }
   }
   return adds

@@ -40,6 +40,22 @@ test('majority pool-query failure throws (no silent $0)', () => {
   assert.equal(shouldFailPoolErrors(['e1'], 4), false)
 })
 
+test('cLUNC and cUSTC map to uluna and uusd; other CW20s stay raw', () => {
+  const { CLUNC, CUSTC } = require('../gems')
+  const adds = poolReserveAdds({
+    assets: [
+      { info: { token: { contract_addr: CLUNC } }, amount: '10' },
+      { info: { token: { contract_addr: CUSTC } }, amount: '20' },
+      { info: { token: { contract_addr: 'terra1ustr' } }, amount: '30' },
+    ],
+  })
+  assert.deepEqual(adds, [
+    { key: 'uluna', amount: '10' },
+    { key: 'uusd', amount: '20' },
+    { key: 'terra1ustr', amount: '30' },
+  ])
+})
+
 test('A1: never treat a precomputed USD blob as a pool add', () => {
   const adds = poolReserveAdds({
     liquidity_in_usd: '12345',

@@ -3,6 +3,10 @@
 /**
  * DefiLlama-Adapters project copy: `projects/cl8y-dex/index.js`
  *
+ * Upstream uses `queryContract` / `queryContractWithRetries` from
+ * `projects/helper/chain/cosmos` (Terraport pattern). This file is the
+ * in-repo stand-in for unit tests of pagination + reserve extraction.
+ *
  * Submit upstream to https://github.com/DefiLlama/DefiLlama-Adapters
  * Test there: `node test.js projects/cl8y-dex/index.js`
  *
@@ -70,9 +74,8 @@ async function tvl(api) {
 
 module.exports = {
   timetravel: false,
-  misrepresentedTokens: false,
   methodology:
-    'TVL is the sum of raw native denoms and CW20 balances returned by factory-listed pair Pool {} queries on Terra Classic. LP share tokens, limit-book escrow, wrap-mapper natives, treasury, and UST1-window inventory are omitted. Llama prices tokens; unpriced CW20s (UST1, USTR, cLUNC, cUSTC, CL8Y, community-tax) are omitted rather than pegged. Soft-launch gem pools are included as on-chain locks. Indexer USD and CoinGecko liquidity_in_usd are never used.',
+    'TVL is the sum of raw native denoms and CW20 balances returned by factory-listed pair Pool {} queries on Terra Classic. LP share tokens, limit-book escrow, wrap-mapper natives, treasury, and UST1-window inventory are omitted. Llama prices tokens; unpriced CW20s are omitted rather than pegged. Soft-launch gem pools are included as on-chain locks. Indexer USD and CoinGecko liquidity_in_usd are never used.',
   terra: { tvl },
   factory: COLUMBUS5_FACTORY,
 }

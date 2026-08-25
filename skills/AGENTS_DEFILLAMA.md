@@ -27,7 +27,7 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 | **L631-5** | Exclude wrap/unwrap and UST1 mint/redeem from `dailyVolume`. They may appear as **labeled** fee breakdowns. |
 | **L631-6** | Fees are PFee/L7 treasury sources. `spread_amount`, burn tax, gas, hooks, and community-tax extra-debit are not `dailyFees`. SSR is `0`. |
 | **L631-7** | GET `/api/v1/defillama/daily` is O(1) rollup + 60s cache. Invalid timestamp → **400**. Missing day → **404**. Idle → `"0"`. Activity + unpriced → `null`. Single-day param only. |
-| **L631-8** | No `misrepresentedTokens` pegs unless Llama + methodology name the substitution. vFDUSD / CEX FDUSD is not a pool asset. |
+| **L631-8** | Named wrap substitution only: cLUNC → `uluna`, cUSTC → `uusd` (1:1). No UST1=$1 / USTR hub pegs. vFDUSD / CEX FDUSD is not a pool asset. |
 | **L631-9** | This skill + `docs/DEFILLAMA.md` + `make verify-issue-631`. Keep `make verify-issue-586` / `569` / `562`. |
 
 ## Do / don’t
@@ -38,7 +38,7 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 - **Don’t** publish CG `liquidity_in_usd` as Llama TVL (it is mislabeled 24h volume).
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** treat `overview.total_volume_24h_usd` as `dailyVolume`.
-- **Don’t** open Llama GitHub PRs from this repo’s CI — copies live under `scripts/defillama/`.
+- **Don’t** open Llama GitHub PRs from this repo’s CI — copies live under `scripts/defillama/`. Filed: [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987).
 
 ## Key files
 

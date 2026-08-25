@@ -4,11 +4,13 @@
  * Submit upstream to https://github.com/DefiLlama/dimension-adapters
  * Test there: `pnpm test fees cl8y-dex`
  *
- * GitLab #631 — dailyFees / dailyRevenue from GET /api/v1/defillama/daily.
- * SSR is 0. Labels must stay ⊆ breakdownMethodology.
+ * Version 1 — GET /api/v1/defillama/daily is a UTC calendar-day rollup.
+ * SSR is 0. Breakdown labels map to Llama METRIC enum in the upstream file.
+ *
+ * In-repo unit tests use `../dimensions/mapDaily.js`, not this TypeScript file.
  */
 
-import { FetchOptions } from '../../options'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import {
   ADAPTER_START,
@@ -19,7 +21,7 @@ import {
   INDEXER_DAILY_URL,
 } from '../dimensions/mapDaily'
 
-const fetch = async (_: unknown, _1: unknown, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = dailyUrl(options.startOfDay, INDEXER_DAILY_URL)
   const res = await options.http.get(url)
   const mapped = mapFees(res)
@@ -43,14 +45,11 @@ const fetch = async (_: unknown, _1: unknown, options: FetchOptions) => {
   }
 }
 
-export default {
-  version: 2,
-  adapter: {
-    [CHAIN.TERRA]: {
-      fetch,
-      start: ADAPTER_START,
-    },
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.TERRA],
+  start: ADAPTER_START,
   methodology: {
     Fees: METHODOLOGY.Fees,
     Revenue: METHODOLOGY.Revenue,
@@ -61,3 +60,5 @@ export default {
     Fees: BREAKDOWN_METHODOLOGY,
   },
 }
+
+export default adapter

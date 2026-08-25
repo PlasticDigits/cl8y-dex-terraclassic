@@ -4,11 +4,13 @@
  * Submit upstream to https://github.com/DefiLlama/dimension-adapters
  * Test there: `pnpm test dexs cl8y-dex`
  *
- * GitLab #631 — dailyVolume from GET /api/v1/defillama/daily (UTC day).
- * Host is pinned. No user-supplied URL (A18).
+ * Version 1 — GET /api/v1/defillama/daily is a UTC calendar-day rollup and
+ * cannot be split hourly. Host is pinned (A18).
+ *
+ * In-repo unit tests use `../dimensions/mapDaily.js`, not this TypeScript file.
  */
 
-import { FetchOptions } from '../../options'
+import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import {
   ADAPTER_START,
@@ -18,7 +20,7 @@ import {
   INDEXER_DAILY_URL,
 } from '../dimensions/mapDaily'
 
-const fetch = async (_: unknown, _1: unknown, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = dailyUrl(options.startOfDay, INDEXER_DAILY_URL)
   const res = await options.http.get(url)
   const mapped = mapVolume(res)
@@ -28,15 +30,14 @@ const fetch = async (_: unknown, _1: unknown, options: FetchOptions) => {
   return { dailyVolume: mapped.dailyVolume }
 }
 
-export default {
-  version: 2,
-  adapter: {
-    [CHAIN.TERRA]: {
-      fetch,
-      start: ADAPTER_START,
-    },
-  },
+const adapter: SimpleAdapter = {
+  version: 1,
+  fetch,
+  chains: [CHAIN.TERRA],
+  start: ADAPTER_START,
   methodology: {
     Volume: METHODOLOGY.Volume,
   },
 }
+
+export default adapter
