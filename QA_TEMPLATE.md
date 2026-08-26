@@ -967,6 +967,18 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 21.6.2 | Fee CTA link on pool page | Click Pool unregistered fee CTA | Navigates to /tiers page | | |
 | 21.6.2 | Register with insufficient CL8Y | Attempt tier registration with low balance | Clear error showing required vs actual CL8Y balance | | |
 
+### 21.7 Migrate Token why-copy (GitLab #670)
+
+> Configured `/token/migrate` only. Adopt execute, invoices, and inventory stay [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634).
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.7.1 | Why headline | More → Migrate Token (or Create Token → Migrate here) with community-tax env on | Heading **Migrate Token**; lead **Unlock 7 features for your token on CL8Y Dex by migrating today** (`migrate-token-why`) before Load | | |
+| 21.7.2 | Examples paragraph | Same screen, first viewport 1280×720 and 375×667 | Second paragraph names ≥3 of: listed-pair buy/sell tax, Auto liquidity, Launch guards, Extra exemptions, Split treasury. No Minting. No horizontal overflow. No nested feature cards | | |
+| 21.7.3 | Access ≠ enable | Read why copy; Load ALPHA (wipe) and a mintable (honest) | Copy does not claim SKUs turn on in the migrate tx or mention 50 UST1 / `enable_feature` / env / cw2. Confirm still has address-stays + LP/pause/Terraport. CTA still **Migrate (free)** | | |
+| 21.7.4 | Light + dark | Toggle theme on `/token/migrate` | Why paragraphs use ink-dim; readable on both | | |
+| 21.7.5 | Unavailable stub | Unset community-tax env | `migrate-token-unavailable` only; no Unlock 7 tease | | |
+| 21.7.6 | After adopt | Existing LocalTerra #634 path → Manage | SKUs still empty + Enable Feature; headline did not imply they are already on | | |
 
 ---
 
@@ -1108,7 +1120,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 18. Configuration | 19 | | | | |
 | 19. Database Integrity | 7 | | | | |
 | 20. Known Limitations | 8 | | | | |
-| 21. Additional QA Checks | 22 | | | | |
+| 21. Additional QA Checks | 28 | | | | |
 | 22. Multi-Browser & Multi-Device | 16 | | | | |
 | 23. Indexer Pool List & Pool/Charts UI | 29 | | | | |
-| **TOTAL** | **437** | | | | |
+| **TOTAL** | **443** | | | | |

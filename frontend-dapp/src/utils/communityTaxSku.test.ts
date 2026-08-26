@@ -25,6 +25,7 @@ describe('communityTaxSku (#593)', () => {
     expect(isUnlockableAfterCreate('mint_control')).toBe(false)
     expect(isUnlockableAfterCreate('transfer_tax')).toBe(true)
     expect(COMMUNITY_TAX_SKUS.find((s) => s.id === 'mint_control')?.createOnly).toBe(true)
+    expect(COMMUNITY_TAX_SKUS.filter((s) => !s.createOnly)).toHaveLength(6)
   })
 
   it('uses retail labels, not raw SKU JSON', () => {
