@@ -40,7 +40,7 @@ Display symbols **cLUNC** / **cUSTC**; env keys may keep `LUNC_C` / `USTC_C` (**
 | `{ fee_bps }` | Pre [ustr-cmm#9](https://gitlab.com/PlasticDigits2/ustr-cmm/-/work_items/9) migrate (code **11565** as of 2026-08-15) | Observed **200**. UI maps to both wrap and unwrap (truthful ~3.47% unwrap all-in). |
 | `{ fee_wrap_bps, fee_unwrap_bps }` | Post migrate + `set_fees` | Product target **200 / 51** so unwrap 10 000 @ 1.5% tax ≈ **9 800**. `Config` drops `fee_bps`. |
 
-Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](../../skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (**W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)). After [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525) / [#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526) accept (2026-08-25), mapper `set_fees` / pause is DEX 2-of-3. Mapper **wasm migrate** is still `cl8y2_admin` until `set-contract-admin`.
+Retune: `fee_unwrap_bps = round(10000 − 9800 / (1 − burn_tax_rate))` — [`skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](../../skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) (**W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)). After [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525) / [#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526) accept (2026-08-25), mapper `set_fees` / pause is DEX 2-of-3. Mapper **wasm migrate** is DEX 2-of-3 after `set-contract-admin` 2026-08-26 ([`56DF7694…12ABD`](https://finder.terraclassic.community/columbus-5/tx/56DF7694C389DBB690021FF4950615A0B7851ECE853BD90D5885505F67512ABD)).
 
 ---
 
@@ -78,20 +78,20 @@ Factory is **11629** (cw2 1.10.0). Whitelist: **`[6036, 8266, 10184, 11630]`**. 
 
 ## Governance split (ops critical)
 
-Queried columbus-5 **2026-08-25** after DEX 2-of-3 accepts ([#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525), [#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526)).
+Queried columbus-5 **2026-08-26** after mapper/treasury `set-contract-admin` ([#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526), [#638](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/638)).
 
 | Surface | App `governance` | Wasm admin | Signs pause / `set_fees` | Signs wasm migrate |
 |---------|------------------|------------|--------------------------|--------------------|
-| wrap-mapper `terra1xuuuh…nmd2` | DEX 2-of-3 `terra1zlmv2…hep7` | `cl8y2_admin` `terra1xsecn4…` | DEX 2-of-3 | `cl8y2_admin` until `set-contract-admin` |
-| CMM treasury `terra16j5u6…3lr2` | DEX 2-of-3 `terra1zlmv2…hep7` | `cl8y2_admin` `terra1xsecn4…` | DEX 2-of-3 (`set_wrapping_paused`) | `cl8y2_admin` until `set-contract-admin` |
+| wrap-mapper `terra1xuuuh…nmd2` | DEX 2-of-3 `terra1zlmv2…hep7` | DEX 2-of-3 `terra1zlmv2…hep7` | DEX 2-of-3 | DEX 2-of-3 |
+| CMM treasury `terra16j5u6…3lr2` | DEX 2-of-3 `terra1zlmv2…hep7` | DEX 2-of-3 `terra1zlmv2…hep7` | DEX 2-of-3 (`set_wrapping_paused`) | DEX 2-of-3 |
 | ust1-window / ust1-oracle | `cl8y2_admin` `terra1xsecn4…` | `cl8y2_admin` | wrap-stack EOA (not proposed) | wrap-stack EOA |
 | Factory / router / pairs | DEX 2-of-3 `terra1zlmv2…hep7` | DEX 2-of-3 | DEX 2-of-3 | DEX 2-of-3 |
 
-Accept txs: treasury [`E819E594…B9A1`](https://finder.terraclassic.community/columbus-5/tx/E819E59471BCD82A230AF5771F062B2D7F984F6B12EAEB2FD146F83248F4B9A1) height **30101431**; wrap-mapper [`02F139F1…00A2`](https://finder.terraclassic.community/columbus-5/tx/02F139F16BEA7322EC87C14FC8EB4EEEFB9E66B6CB2DED2D95AEC291FE0F00A2) height **30101435**.
+Accept txs: treasury [`E819E594…B9A1`](https://finder.terraclassic.community/columbus-5/tx/E819E59471BCD82A230AF5771F062B2D7F984F6B12EAEB2FD146F83248F4B9A1) height **30101431**; wrap-mapper [`02F139F1…00A2`](https://finder.terraclassic.community/columbus-5/tx/02F139F16BEA7322EC87C14FC8EB4EEEFB9E66B6CB2DED2D95AEC291FE0F00A2) height **30101435**. Wasm admin: mapper [`56DF7694…12ABD`](https://finder.terraclassic.community/columbus-5/tx/56DF7694C389DBB690021FF4950615A0B7851ECE853BD90D5885505F67512ABD) height **30114344**; treasury [`1E4F1FD4…2CF5`](https://finder.terraclassic.community/columbus-5/tx/1E4F1FD45B9A8021FAE2F1C66E107FA472CEF6919751D5F24AFB5DF3E8A22CF5) height **30114345**.
 
-Full addresses: DEX 2-of-3 `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`; wrap-stack EOA / leftover wasm admin `terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l`.
+Full addresses: DEX 2-of-3 `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`; wrap-stack EOA (window/oracle leftover) `terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l`.
 
-Do **not** assume the DEX multisig can pause the UST1 window or oracle. Do **not** assume `cl8y2_admin` can pause wrap-mapper or treasury wrapping.
+Do **not** assume the DEX multisig can pause the UST1 window or oracle. Do **not** assume `cl8y2_admin` can pause, migrate, or `set_fees` wrap-mapper or treasury.
 
 ---
 

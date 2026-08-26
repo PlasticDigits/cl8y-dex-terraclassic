@@ -24,7 +24,7 @@ Operator + agent runbook for **monitoring, pause playbooks, and registry complet
 | **O3** | Primary incident controls: **ust1-window `set_paused`**, **ust1-oracle pause** (governance), **wrap-mapper `set_paused`**, treasury **`set_wrapping_paused`**. Prefer pause over panic whitelist changes (**O7**). |
 | **O4** | Treasury **vFDUSD balance + allowance to ust1-window** bound withdraw capacity — monitor both. |
 | **O5** | Wrap solvency (**W1**): treasury native `uluna`/`uusd` ≥ cLUNC/cUSTC `total_supply`. On breach, pause unwrap before refill. |
-| **O6** | Confirm on-chain `config.governance` before pause. After [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525)/[#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526) (2026-08-25): wrap-mapper + CMM treasury **app** governance **is** DEX 2-of-3 `terra1zlmv2…`. ust1-window / oracle stay `cl8y2_admin` `terra1xsecn4…`. Mapper/treasury **wasm admin** is still the EOA. |
+| **O6** | Confirm on-chain `config.governance` before pause. After [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525)/[#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526): wrap-mapper + CMM treasury **app** governance **and wasm admin** are DEX 2-of-3 `terra1zlmv2…` (wasm rotate 2026-08-26). ust1-window / oracle stay `cl8y2_admin` `terra1xsecn4…`. |
 | **O7** | Do not silently widen factory CW20 whitelist during UST1/wrap incidents — follow [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md). |
 | **O8** | On-call **roles** named (oracle bot operator + treasury/wrap governance); silence-alert and pause-drill evidence attached on [#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503) (not committed secrets). |
 
