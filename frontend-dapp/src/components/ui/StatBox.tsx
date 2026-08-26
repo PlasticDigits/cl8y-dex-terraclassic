@@ -36,7 +36,9 @@ export interface StatBoxProps {
   deltas?: StatDelta[]
 }
 
-function resolvedDeltas(props: StatBoxProps): StatDelta[] {
+type StatBoxDeltaProps = Pick<StatBoxProps, 'delta' | 'deltaLabel' | 'deltaTestId' | 'deltaTitle' | 'deltas'>
+
+function resolvedDeltas(props: StatBoxDeltaProps): StatDelta[] {
   if (props.deltas?.length) return props.deltas
   if (props.delta != null) {
     return [
