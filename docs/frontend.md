@@ -331,7 +331,7 @@ Regression: `make verify-issue-565` · `make verify-issue-564`.
 
 ### Charts trader leaderboard {#charts-trader-leaderboard}
 
-[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Agent playbook: [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md).
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** is the shared [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) (GitLab **[#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657)**). Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Agent playbooks: [`skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](../skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md), [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md). `/trader` hosts the **same global** board ([§ Trader profile](#trader-profile-indexer)). Pair-scoped Charts ranks are [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) (not this component’s default).
 
 | Control | Source | Display |
 |---------|--------|---------|
@@ -339,9 +339,9 @@ Regression: `make verify-issue-565` · `make verify-issue-564`.
 | Rank | `GET /api/v1/traders/leaderboard?sort=total_volume_usd` | `DESC NULLS LAST` so unpriced rows do not rank first. Matches the displayed column (**T553-5**). |
 | **Total Volume (USD)** (`/trader`, `/portfolio`) | same field | Same formatter. `data-testid="trader-total-volume-usd"`. |
 
-`GET /api/v1/traders/{addr}` and leaderboard still return **`total_volume`** (raw `SUM(offer_amount)`) for integrators — the dApp **must not** render it as Volume. API default sort remains `total_volume`; Charts explicitly requests `total_volume_usd`. Rolling `volume_24h` / `7d` / `30d` stay raw and are not shown on this table.
+`GET /api/v1/traders/{addr}` and leaderboard still return **`total_volume`** (raw `SUM(offer_amount)`) for integrators — the dApp **must not** render it as Volume. API default sort remains `total_volume`; Charts and `/trader` explicitly request `total_volume_usd`. Rolling `volume_24h` / `7d` / `30d` stay raw and are not shown on this table. Ranking is unauthenticated indexer order (Sybil / wash is a known limitation — POS-02; no retail banner).
 
-Regression: `make verify-issue-553`.
+Regression: `make verify-issue-553` · `make verify-issue-657`.
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
@@ -820,7 +820,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
 | `/portfolio`    | **My Portfolio** — connected wallet summary, open quote positions, wallet-wide open limits, LP overview, recent swaps ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212), phase 2 [**#217**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217)); alias `/my-portfolio` → `/portfolio` |
-| `/trader`       | Trader profile lookup (indexer); optional `/:address` |
+| `/trader`       | Trader profile lookup (indexer); optional `/:address`; global **Leaderboard** last in page content ([#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657)) |
 | `/trade`        | Trade UI — order book, **price chart**, tape, **limit + market** tickets ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)) |
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
 | `/limits`       | Limit order placements, lifecycle, and **wallet history** (fills, cancels, swaps on pair + CSV) — [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) |
@@ -870,7 +870,7 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 | **Read-only** | No signing on portfolio; limits deep-link to **`/trade/{pairAddr}`** and **`/limits`**. |
 | **Outage UX** | `MarketDataServiceOutageBanner` + `RetryError` parity with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) for indexer-backed sections. |
 | **Nav** | `Portfolio` in `PRIMARY_NAV_ITEMS` ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)); wallet menu **My Portfolio** link. |
-| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. |
+| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. **No** global [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) on this route ([#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657) **TL-8**). |
 
 **Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`, `make verify-issue-560`.
 
@@ -1107,10 +1107,26 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 |-----------|---------|
 | Parse or fail | `getTrader` runs `parseIndexerTraderPayload` on raw JSON; invalid shapes throw and become a **React Query error**, not a render-time exception. |
 | **Total Volume (USD) (#553)** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) formats `total_volume_usd` with [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts). Never `formatNum(total_volume)`. Unpriced → `—`. |
+| **Global leaderboard (#657)** | [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) is the **last** page section on `/trader` and `/trader/:address` (including empty lookup, 404, and profile outage). Same four tabs, `getLeaderboard(sort, 20)`, query key `['leaderboard', sort]`, and USD Volume rules as Charts. Not nested in `app-footer-shell` or Trade History. **Not** on `/portfolio`. Optional `aria-current="page"` when `:address` is in the top 20 — no invented “rank N”. Rows that fail `isValidTerraAddress` are omitted. `data-testid="trader-leaderboard"`. |
 | Route error boundary reset | `/trader` routes use `resetKeys` tied to `useParams().address` so switching between `/trader` and `/trader/:addr` (or between addresses) **clears a prior route error** without a full page reload ([`App.tsx`](../frontend-dapp/src/App.tsx) `TraderRouteShell`). |
 | Deduped React in Vite | [`vite.config.ts`](../frontend-dapp/vite.config.ts) sets `resolve.dedupe` for `react` / `react-dom` to avoid rare **dual-React** dev bundles that surface as `useContext`/`Invalid hook call` when lazy chunks load. |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
+| ID | Rule |
+|----|------|
+| **TL-1** | Order: search → profile/empty/error/outage → (when loaded) stats → positions → trade history → **leaderboard** → Layout footer. |
+| **TL-2** | Board mounts on both routes when the profile query fails; board errors are independent. |
+| **TL-3** | Tabs / default `total_volume_usd` / limit 20 / 30s refetch / shared React Query key with Charts. |
+| **TL-4** | Volume sorts and displays `total_volume_usd` (**T553-1 / T553-5**). |
+| **TL-5** | One `shell-panel-strong` (**C653-1**). No nested `shell-panel*` or per-row `card-glass`. |
+| **TL-6** | Heading **Leaderboard**. No Sybil lecture, no indexer URL in copy. |
+| **TL-7** | No indexer / contract change. Unscoped `GET /api/v1/traders/leaderboard` only. |
+| **TL-8** | `/portfolio` has no board. Links `/trader/{addr}` via `Link` + `encodeURIComponent`. No `dangerouslySetInnerHTML`. |
+| **TL-9** | Highlight current row only when it appears in the page. |
+| **TL-10** | `#126` / `#215` / `#177` unchanged. |
+
+Regression: `make verify-issue-657` · `make verify-issue-553`. Playwright [`e2e/trader-page.spec.ts`](../frontend-dapp/e2e/trader-page.spec.ts) (5 workers).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](../skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md); [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md); [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
 
 ### Trade page — price chart invariants {#trade-page-price-chart-invariants}
 
