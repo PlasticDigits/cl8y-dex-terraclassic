@@ -1344,6 +1344,10 @@
     margin-top: 0.5rem;
   }
 
+  .token-identity-v2-lp-usd {
+    position: relative;
+  }
+
   .wallet-trigger {
     color: var(--btn-primary-fg);
     background: var(--accent-gradient);

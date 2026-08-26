@@ -220,6 +220,7 @@ make verify-issue-646                    # #646 GeckoTerminal /gt/ adapters (Pos
 make verify-issue-640                    # #640 Cosmostation CW20 pack (docs only; no Postgres)
 make verify-issue-641                    # #641 Hexxagon Galaxy Station CW20 pack (docs only; no Postgres)
 make verify-issue-653                    # #653 one chrome layer / anti-nesting (StatBox flat + allowlist)
+make verify-issue-664                    # #664 /trade /charts identity v2 LP USD (stamp + chip)
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
 make verify-issue-577                    # #577 token/trader/pair/global 24h rollup decay + stale overview
@@ -264,6 +265,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Contracts | `make test-contracts`, `make lint-contracts` |
 | Frontend | `make test-frontend`, `make lint-frontend` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
+| Trade / Charts v2 LP USD | `make verify-issue-664` |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
@@ -355,6 +357,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md](skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — `/trade` + `/charts` UI invert for UST1-as-base pairs (other-side Price USD, pill, convert-on-submit) (**T524-1–T524-11**, [#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524)); `make verify-issue-524`
 - [skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md](skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — Price (USD) candles must use `invertUsd` (not `1/x`) + adaptive Y-axis (**C543-1–C543-9**, [#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)); `make verify-issue-543`
 - [skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md](skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) — compact copy + explorer for pair legs + pair contract on `/pool`, `/trade`, `/charts` (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)); `make verify-issue-541`
+- [skills/AGENTS_FRONTEND_TRADE_IDENTITY_LP.md](skills/AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts identity **v2 LP** USD from single-pair `liquidity_usd` (**T664-1–T664-8**, [#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664)); `make verify-issue-664`
 - [skills/AGENTS_FRONTEND_NATIVE_TICKERS.md](skills/AGENTS_FRONTEND_NATIVE_TICKERS.md) — Swap/Pool/Pay/Mint show **LUNC** / **USTC** not `uluna` / `uusd` (**N630-1–N630-8**, [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)); `make verify-issue-630`
 - [skills/AGENTS_FRONTEND_TIERS_PHONE.md](skills/AGENTS_FRONTEND_TIERS_PHONE.md) — `/tiers` phone-width cards + How it works stack (**T651-1–T651-8** / **I15**, [#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)); `make verify-issue-651`
 - [skills/AGENTS_LIMIT_PRICE_DECIMALS.md](skills/AGENTS_LIMIT_PRICE_DECIMALS.md) — limit-order price band is **human-scale** `raw × 10^(dec0 − dec1)` so UST1/USTR can place (**L20** / [#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529)); `make verify-issue-529`

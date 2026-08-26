@@ -109,6 +109,10 @@ describe('ChartsPage (component)', () => {
       price_usd: '0.004928',
       sources: [],
     })
+    vi.mocked(indexerClient.getPair).mockImplementation(async (addr: string) => ({
+      ...mockPair,
+      pair_address: addr,
+    }))
   })
 
   it('shows retail market-data banner when overview and pairs fail with transport errors (GitLab #215)', async () => {
@@ -276,6 +280,77 @@ describe('ChartsPage (component)', () => {
       expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
       expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
       expect(screen.getByTestId('token-identity-pair')).toBeInTheDocument()
+    })
+  })
+
+  describe('v2 LP identity (GitLab #664)', () => {
+    const PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+
+    it('C1: identity row shows v2 LP when getPair is stamped', async () => {
+      const identityPair: IndexerPair = {
+        ...mockPair,
+        pair_address: PAIR,
+        asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+        asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+        liquidity_usd: '1234.5',
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [identityPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPair).mockResolvedValue(identityPair)
+      renderWithProviders(<ChartsPage />)
+      const chip = await screen.findByTestId('token-identity-v2-lp-usd')
+      expect(chip).toHaveTextContent('v2 LP')
+      expect(chip).toHaveTextContent('$')
+    })
+
+    it('C2: 24h Stats Vol (USD) is still volume_usd, not TVL', async () => {
+      const identityPair: IndexerPair = {
+        ...mockPair,
+        pair_address: PAIR,
+        liquidity_usd: '99999',
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [identityPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPair).mockResolvedValue(identityPair)
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '1',
+        volume_quote: '1',
+        volume_usd: '42.5',
+        trade_count: 2,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      const vol = await screen.findByTestId('charts-pair-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('$'))
+      expect(vol.textContent).toMatch(/42/)
+      expect(vol.textContent).not.toMatch(/99999/)
+      expect(screen.getByTestId('charts-pair-24h-stats')).toBeInTheDocument()
+    })
+
+    it('C3: empty pairs has no identity LP chip', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      await waitFor(() => expect(screen.getByText(/no pairs yet/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
     })
   })
 

@@ -10,6 +10,19 @@ export function formatProtocolUsd(raw: string | number | null | undefined): stri
   return `$${formatNum(raw, 2)}`
 }
 
+/** Plain human USD decimal only — scientific / HTML / non-positive → omit the identity chip (#664). */
+const PLAIN_USD = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/
+
+export function formatPairV2LpUsd(raw: string | number | null | undefined): string | null {
+  if (raw == null || raw === '') return null
+  const trimmed = String(raw).trim()
+  if (!PLAIN_USD.test(trimmed) || trimmed.replace('.', '').length > 24) return null
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n <= 0) return null
+  const formatted = formatProtocolUsd(trimmed)
+  return formatted === EM_DASH ? null : formatted
+}
+
 /** Integer census figures: missing / non-finite → em-dash. */
 export function formatProtocolCount(raw: number | string | null | undefined): string {
   if (raw == null || raw === '') return EM_DASH
