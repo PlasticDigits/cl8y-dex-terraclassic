@@ -44,9 +44,30 @@ describe('formatPairV2LpUsd (GitLab #664)', () => {
 })
 
 describe('formatProtocolCount', () => {
-  it('uses em-dash for non-finite census values', () => {
+  it('renders small integers without trailing decimals (GitLab #667)', () => {
+    expect(formatProtocolCount(0)).toBe('0')
+    expect(formatProtocolCount(8)).toBe('8')
+    expect(formatProtocolCount(14)).toBe('14')
+    expect(formatProtocolCount(151)).toBe('151')
+    expect(formatProtocolCount('14.00')).toBe('14')
+    expect(formatProtocolCount(14)).not.toMatch(/\.0/)
+  })
+
+  it('uses compact K only when the count is actually ≥ 1000', () => {
+    expect(formatProtocolCount(999)).toBe('999')
+    expect(formatProtocolCount(1000)).toMatch(/K$/)
+    expect(formatProtocolCount(1000)).not.toMatch(/1000\.00|1,000\.00/)
+  })
+
+  it('uses em-dash for non-finite, negative, or XSS-like census values', () => {
     expect(formatProtocolCount(undefined)).toBe('—')
+    expect(formatProtocolCount(null)).toBe('—')
+    expect(formatProtocolCount('')).toBe('—')
     expect(formatProtocolCount(Number.NaN)).toBe('—')
+    expect(formatProtocolCount(Number.POSITIVE_INFINITY)).toBe('—')
+    expect(formatProtocolCount(-1)).toBe('—')
+    expect(formatProtocolCount('<script>')).toBe('—')
+    expect(formatProtocolCount('javascript:alert(1)')).toBe('—')
   })
 })
 

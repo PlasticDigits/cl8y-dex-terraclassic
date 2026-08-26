@@ -93,7 +93,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         <RetryError message="Failed to load fee totals" onRetry={() => void overviewQuery.refetch()} />
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div data-testid="protocol-stat-fees-24h">
+        <div data-testid="protocol-stat-fees-24h" className="min-w-0 overflow-hidden">
           <StatBox
             variant="flat"
             label={PROTOCOL_FEES_24H_LABEL}
@@ -106,7 +106,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
             deltaTitle={TRAILING_24H_FEES_CHG_TITLE}
           />
         </div>
-        <div data-testid="protocol-stat-fees-7d">
+        <div data-testid="protocol-stat-fees-7d" className="min-w-0 overflow-hidden">
           <StatBox
             variant="flat"
             label={PROTOCOL_FEES_7D_LABEL}
@@ -119,7 +119,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
             deltaTitle={TRAILING_7D_FEES_CHG_TITLE}
           />
         </div>
-        <div data-testid="protocol-stat-fees-30d">
+        <div data-testid="protocol-stat-fees-30d" className="min-w-0 overflow-hidden">
           <StatBox
             variant="flat"
             label={PROTOCOL_FEES_30D_LABEL}

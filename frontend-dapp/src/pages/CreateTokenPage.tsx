@@ -26,6 +26,22 @@ import {
   walletOwnershipHelper,
 } from '@/utils/communityTaxIdentity'
 import { COMMUNITY_TOKEN_LAUNCHER, isCommunityTaxEnabled, UST1_TOKEN_ADDRESS } from '@/utils/constants'
+import {
+  CREATE_TOKEN_ACK_LABEL_CLASS,
+  CREATE_TOKEN_AUTOLP_ROW_CLASS,
+  CREATE_TOKEN_BECH32_INPUT_CLASS,
+  CREATE_TOKEN_DESKTOP_GRID_CLASS,
+  CREATE_TOKEN_GUARDS_ROW_CLASS,
+  CREATE_TOKEN_IDENTITY_ROW_CLASS,
+  CREATE_TOKEN_PAGE_CLASS,
+  CREATE_TOKEN_SINK_ROW_CLASS,
+  CREATE_TOKEN_SKU_GRID_CLASS,
+  CREATE_TOKEN_SKU_LABEL_CLASS,
+  CREATE_TOKEN_TAX_ROW_CLASS,
+  CREATE_TOKEN_UNAVAILABLE_CLASS,
+  CREATE_TOKEN_VARIABLE_ROW_CLASS,
+  CREATE_TOKEN_WALLET_ROW_CLASS,
+} from '@/utils/createTokenLayout'
 import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -169,7 +185,7 @@ export default function CreateTokenPage() {
 
   if (!isCommunityTaxEnabled()) {
     return (
-      <div className="max-w-[520px] mx-auto" data-testid="create-token-page">
+      <div className={CREATE_TOKEN_UNAVAILABLE_CLASS} data-testid="create-token-page">
         <div
           className="shell-panel-strong py-8 text-center"
           style={{ color: 'var(--ink-dim)' }}
@@ -217,7 +233,7 @@ export default function CreateTokenPage() {
     ) : null
 
   return (
-    <div className="max-w-[520px] mx-auto" data-testid="create-token-page">
+    <div className={CREATE_TOKEN_PAGE_CLASS} data-testid="create-token-page">
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Create Token</h2>
         <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
@@ -230,337 +246,372 @@ export default function CreateTokenPage() {
       </div>
 
       <div className="shell-panel-strong space-y-4">
-        <label className="block">
-          <span className="label-glass">Name</span>
-          <input
-            className="input-glass w-full"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            data-testid="create-token-name"
-          />
-          {name && !nameParsed.ok && (
-            <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
-              {nameParsed.error}
-            </p>
-          )}
-        </label>
-        <label className="block">
-          <span className="label-glass">Symbol</span>
-          <input
-            className="input-glass w-full"
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            data-testid="create-token-symbol"
-          />
-          {symbol && !symbolParsed.ok && (
-            <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
-              {symbolParsed.error}
-            </p>
-          )}
-        </label>
-        <label className="block">
-          <span className="label-glass">Decimals</span>
-          <input
-            className="input-glass w-full"
-            value={decimals}
-            onChange={(e) => setDecimals(e.target.value)}
-            data-testid="create-token-decimals"
-          />
-          {!decParsed.ok && (
-            <p className="text-xs mt-1" style={{ color: 'var(--danger)' }} data-testid="create-token-decimals-error">
-              {decParsed.error}
-            </p>
-          )}
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          <label>
-            <span className="label-glass">Buy tax (%)</span>
-            <input
-              className="input-glass w-full"
-              value={buyPct}
-              onChange={(e) => setBuyPct(e.target.value)}
-              data-testid="create-token-buy-pct"
-            />
-            {fieldErr('buy')}
-          </label>
-          <label>
-            <span className="label-glass">Sell tax (%)</span>
-            <input
-              className="input-glass w-full"
-              value={sellPct}
-              onChange={(e) => setSellPct(e.target.value)}
-              data-testid="create-token-sell-pct"
-            />
-            {fieldErr('sell')}
-          </label>
-        </div>
-        <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-tax-scope">
-          {COMMUNITY_TAX_PAIR_DIRECT_COPY} Up to 25.00% combined.
-        </p>
-        {fieldErrors.combined && (
-          <p className="text-xs" style={{ color: 'var(--danger)' }}>
-            {fieldErrors.combined}
-          </p>
-        )}
-        <label className="block">
-          <span className="label-glass">Treasury</span>
-          <input
-            className="input-glass w-full"
-            value={treasury}
-            onChange={(e) => setTreasury(e.target.value)}
-            data-testid="create-token-treasury"
-          />
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-treasury-helper">
-            {walletOwnershipHelper(treasury, address)}
-          </p>
-          {fieldErr('treasury')}
-        </label>
-        <label className="block">
-          <span className="label-glass">Manager</span>
-          <input
-            className="input-glass w-full"
-            value={manager}
-            onChange={(e) => setManager(e.target.value)}
-            data-testid="create-token-manager"
-          />
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-manager-helper">
-            {walletOwnershipHelper(manager, address)}
-          </p>
-          {fieldErr('manager')}
-        </label>
-
-        <fieldset>
-          <legend className="label-glass mb-2">Paid features (50 UST1 each)</legend>
-          <p className="text-xs mb-2" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-sku-total">
-            SKU invoice: {skus.length === 0 ? '0' : Number(skuInvoiceUst1RawString(skus.length)) / 1_000_000} UST1
-          </p>
-          {COMMUNITY_TAX_SKUS.map((sku) => (
-            <label key={sku.id} className="flex items-start gap-2 text-sm mb-2">
-              <input
-                type="checkbox"
-                checked={skus.includes(sku.id)}
-                onChange={() => toggleSku(sku.id)}
-                data-testid={`create-token-sku-${sku.id}`}
-              />
-              <span>
-                <strong>{sku.label}</strong>
-                <span className="block text-xs" style={{ color: 'var(--ink-dim)' }}>
-                  {sku.hint}
-                </span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-
-        {skus.includes('transfer_tax') && (
-          <label className="block" data-testid="create-token-transfer-panel">
-            <span className="label-glass">Wallet-to-wallet tax (%)</span>
-            <input
-              className="input-glass w-full"
-              value={transferPct}
-              onChange={(e) => setTransferPct(e.target.value)}
-              data-testid="create-token-transfer-pct"
-            />
-            {fieldErr('transfer')}
-          </label>
-        )}
-
-        {skus.includes('split_router') && (
-          <div className="space-y-2" data-testid="create-token-sinks-panel">
-            <span className="label-glass">Split treasury (shares must sum to 100.00%)</span>
-            {sinks.map((row, i) => (
-              <div key={i} className="grid grid-cols-3 gap-2">
-                <select
-                  className="input-glass"
-                  value={row.kind}
-                  onChange={(e) => {
-                    const kind = e.target.value as SinkKindId
-                    setSinks((cur) => cur.map((s, j) => (j === i ? { ...s, kind } : s)))
-                  }}
-                  data-testid={`create-token-sink-kind-${i}`}
-                >
-                  <option value="treasury">Treasury</option>
-                  <option value="burn">Burn</option>
-                  <option value="auto_lp">AutoLP</option>
-                  <option value="wallet">Wallet</option>
-                </select>
+        <div className={CREATE_TOKEN_DESKTOP_GRID_CLASS} data-testid="create-token-desktop-grid">
+          <div className="space-y-4 min-w-0">
+            <div className={CREATE_TOKEN_IDENTITY_ROW_CLASS} data-testid="create-token-identity-row">
+              <label className="block min-w-0">
+                <span className="label-glass">Name</span>
                 <input
-                  className="input-glass"
-                  placeholder="%"
-                  value={row.percent}
-                  onChange={(e) =>
-                    setSinks((cur) => cur.map((s, j) => (j === i ? { ...s, percent: e.target.value } : s)))
-                  }
-                  data-testid={`create-token-sink-pct-${i}`}
+                  className="input-glass w-full"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  data-testid="create-token-name"
                 />
-                {row.kind === 'wallet' ? (
-                  <input
-                    className="input-glass"
-                    placeholder="terra1…"
-                    value={row.addr}
-                    onChange={(e) =>
-                      setSinks((cur) => cur.map((s, j) => (j === i ? { ...s, addr: e.target.value } : s)))
-                    }
-                    data-testid={`create-token-sink-addr-${i}`}
-                  />
-                ) : (
-                  <span />
+                {name && !nameParsed.ok && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
+                    {nameParsed.error}
+                  </p>
                 )}
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="btn-secondary text-xs"
-                disabled={sinks.length >= MAX_SINKS}
-                onClick={() => setSinks((cur) => [...cur, EMPTY_SINK()])}
-              >
-                Add sink
-              </button>
-              {sinks.length > 1 && (
-                <button
-                  type="button"
-                  className="btn-secondary text-xs"
-                  onClick={() => setSinks((cur) => cur.slice(0, -1))}
-                >
-                  Remove
-                </button>
-              )}
+              </label>
+              <label className="block min-w-0">
+                <span className="label-glass">Symbol</span>
+                <input
+                  className="input-glass w-full"
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value)}
+                  data-testid="create-token-symbol"
+                />
+                {symbol && !symbolParsed.ok && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
+                    {symbolParsed.error}
+                  </p>
+                )}
+              </label>
+              <label className="block min-w-0">
+                <span className="label-glass">Decimals</span>
+                <input
+                  className="input-glass w-full"
+                  value={decimals}
+                  onChange={(e) => setDecimals(e.target.value)}
+                  data-testid="create-token-decimals"
+                />
+                {!decParsed.ok && (
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: 'var(--danger)' }}
+                    data-testid="create-token-decimals-error"
+                  >
+                    {decParsed.error}
+                  </p>
+                )}
+              </label>
             </div>
-            {fieldErr('sinks')}
-          </div>
-        )}
-
-        {skus.includes('auto_v2_lp') && (
-          <div className="space-y-2" data-testid="create-token-autolp-panel">
-            <label className="block">
-              <span className="label-glass">AutoLP threshold (human)</span>
-              <input
-                className="input-glass w-full"
-                value={autolpThreshold}
-                onChange={(e) => setAutolpThreshold(e.target.value)}
-                data-testid="create-token-autolp-threshold"
-              />
-            </label>
-            <label className="block">
-              <span className="label-glass">LP recipient</span>
-              <input
-                className="input-glass w-full"
-                value={autolpRecipient}
-                onChange={(e) => setAutolpRecipient(e.target.value)}
-                data-testid="create-token-autolp-recipient"
-              />
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-dim)' }}>
-                {walletOwnershipHelper(autolpRecipient, address)}
-              </p>
-            </label>
-            {fieldErr('autolp')}
-            {fieldErr('autolpRecipient')}
-          </div>
-        )}
-
-        {skus.includes('exemption_directory') && (
-          <label className="block" data-testid="create-token-exempt-panel">
-            <span className="label-glass">Extra exemptions (addresses)</span>
-            <textarea
-              className="input-glass w-full"
-              value={exemptList}
-              onChange={(e) => setExemptList(e.target.value)}
-              data-testid="create-token-exempt-list"
-            />
-            {fieldErr('exempt')}
-          </label>
-        )}
-
-        {skus.includes('variable_rates') && (
-          <div className="space-y-2" data-testid="create-token-variable-panel">
-            <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
-              Max rates are immutable after create and cannot exceed 25.00% combined.
+            <div className={CREATE_TOKEN_TAX_ROW_CLASS} data-testid="create-token-tax-row">
+              <label className="min-w-0">
+                <span className="label-glass">Buy tax (%)</span>
+                <input
+                  className="input-glass w-full"
+                  value={buyPct}
+                  onChange={(e) => setBuyPct(e.target.value)}
+                  data-testid="create-token-buy-pct"
+                />
+                {fieldErr('buy')}
+              </label>
+              <label className="min-w-0">
+                <span className="label-glass">Sell tax (%)</span>
+                <input
+                  className="input-glass w-full"
+                  value={sellPct}
+                  onChange={(e) => setSellPct(e.target.value)}
+                  data-testid="create-token-sell-pct"
+                />
+                {fieldErr('sell')}
+              </label>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-tax-scope">
+              {COMMUNITY_TAX_PAIR_DIRECT_COPY} Up to 25.00% combined.
             </p>
-            <label className="block">
-              <span className="label-glass">Max buy (%)</span>
-              <input
-                className="input-glass w-full"
-                value={maxBuyPct}
-                onChange={(e) => setMaxBuyPct(e.target.value)}
-                data-testid="create-token-max-buy-pct"
-              />
-              {fieldErr('maxBuy')}
-            </label>
-            <label className="block">
-              <span className="label-glass">Max sell (%)</span>
-              <input
-                className="input-glass w-full"
-                value={maxSellPct}
-                onChange={(e) => setMaxSellPct(e.target.value)}
-                data-testid="create-token-max-sell-pct"
-              />
-              {fieldErr('maxSell')}
-            </label>
-            <label className="block">
-              <span className="label-glass">Max wallet-to-wallet (%)</span>
-              <input
-                className="input-glass w-full"
-                value={maxTransferPct}
-                onChange={(e) => setMaxTransferPct(e.target.value)}
-                data-testid="create-token-max-transfer-pct"
-              />
-              {fieldErr('maxTransfer')}
-            </label>
-            {fieldErr('maxCombined')}
+            {fieldErrors.combined && (
+              <p className="text-xs" style={{ color: 'var(--danger)' }} data-testid="create-token-error-combined">
+                {fieldErrors.combined}
+              </p>
+            )}
+            <div className={CREATE_TOKEN_WALLET_ROW_CLASS} data-testid="create-token-wallet-row">
+              <label className="block min-w-0">
+                <span className="label-glass">Treasury</span>
+                <input
+                  className={CREATE_TOKEN_BECH32_INPUT_CLASS}
+                  value={treasury}
+                  onChange={(e) => setTreasury(e.target.value)}
+                  data-testid="create-token-treasury"
+                />
+                <p
+                  className="text-xs mt-1 break-all"
+                  style={{ color: 'var(--ink-dim)' }}
+                  data-testid="create-token-treasury-helper"
+                >
+                  {walletOwnershipHelper(treasury, address)}
+                </p>
+                {fieldErr('treasury')}
+              </label>
+              <label className="block min-w-0">
+                <span className="label-glass">Manager</span>
+                <input
+                  className={CREATE_TOKEN_BECH32_INPUT_CLASS}
+                  value={manager}
+                  onChange={(e) => setManager(e.target.value)}
+                  data-testid="create-token-manager"
+                />
+                <p
+                  className="text-xs mt-1 break-all"
+                  style={{ color: 'var(--ink-dim)' }}
+                  data-testid="create-token-manager-helper"
+                >
+                  {walletOwnershipHelper(manager, address)}
+                </p>
+                {fieldErr('manager')}
+              </label>
+            </div>
           </div>
-        )}
 
-        {skus.includes('launch_guards') && (
-          <div className="space-y-2" data-testid="create-token-guards-panel">
-            <label className="block">
-              <span className="label-glass">Max wallet (human, optional)</span>
-              <input
-                className="input-glass w-full"
-                value={maxWallet}
-                onChange={(e) => setMaxWallet(e.target.value)}
-                data-testid="create-token-max-wallet"
-              />
-              {fieldErr('maxWallet')}
-            </label>
-            <label className="block">
-              <span className="label-glass">Cooldown blocks</span>
-              <input
-                className="input-glass w-full"
-                value={cooldown}
-                onChange={(e) => setCooldown(e.target.value)}
-                data-testid="create-token-cooldown"
-              />
-              {fieldErr('cooldown')}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={tradingEnabled}
-                onChange={(e) => setTradingEnabled(e.target.checked)}
-                data-testid="create-token-trading-enabled"
-              />
-              Trading enabled (default off)
-            </label>
+          <div className="space-y-4 min-w-0">
+            <fieldset>
+              <legend className="label-glass mb-2" data-testid="create-token-features-legend">
+                Paid features (50 UST1 each)
+              </legend>
+              <p className="text-xs mb-2" style={{ color: 'var(--ink-dim)' }} data-testid="create-token-sku-total">
+                SKU invoice: {skus.length === 0 ? '0' : Number(skuInvoiceUst1RawString(skus.length)) / 1_000_000} UST1
+              </p>
+              <div className={CREATE_TOKEN_SKU_GRID_CLASS} data-testid="create-token-sku-grid">
+                {COMMUNITY_TAX_SKUS.map((sku) => (
+                  <label key={sku.id} className={CREATE_TOKEN_SKU_LABEL_CLASS}>
+                    <input
+                      type="checkbox"
+                      className="mt-1 shrink-0"
+                      checked={skus.includes(sku.id)}
+                      onChange={() => toggleSku(sku.id)}
+                      data-testid={`create-token-sku-${sku.id}`}
+                    />
+                    <span>
+                      <strong>{sku.label}</strong>
+                      <span className="block text-xs" style={{ color: 'var(--ink-dim)' }}>
+                        {sku.hint}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            {skus.includes('transfer_tax') && (
+              <label className="block" data-testid="create-token-transfer-panel">
+                <span className="label-glass">Wallet-to-wallet tax (%)</span>
+                <input
+                  className="input-glass w-full"
+                  value={transferPct}
+                  onChange={(e) => setTransferPct(e.target.value)}
+                  data-testid="create-token-transfer-pct"
+                />
+                {fieldErr('transfer')}
+              </label>
+            )}
+
+            {skus.includes('split_router') && (
+              <div className="space-y-2" data-testid="create-token-sinks-panel">
+                <span className="label-glass">Split treasury (shares must sum to 100.00%)</span>
+                {sinks.map((row, i) => (
+                  <div key={i} className={CREATE_TOKEN_SINK_ROW_CLASS}>
+                    <select
+                      className="input-glass"
+                      value={row.kind}
+                      onChange={(e) => {
+                        const kind = e.target.value as SinkKindId
+                        setSinks((cur) => cur.map((s, j) => (j === i ? { ...s, kind } : s)))
+                      }}
+                      data-testid={`create-token-sink-kind-${i}`}
+                    >
+                      <option value="treasury">Treasury</option>
+                      <option value="burn">Burn</option>
+                      <option value="auto_lp">AutoLP</option>
+                      <option value="wallet">Wallet</option>
+                    </select>
+                    <input
+                      className="input-glass"
+                      placeholder="%"
+                      value={row.percent}
+                      onChange={(e) =>
+                        setSinks((cur) => cur.map((s, j) => (j === i ? { ...s, percent: e.target.value } : s)))
+                      }
+                      data-testid={`create-token-sink-pct-${i}`}
+                    />
+                    {row.kind === 'wallet' ? (
+                      <input
+                        className="input-glass"
+                        placeholder="terra1…"
+                        value={row.addr}
+                        onChange={(e) =>
+                          setSinks((cur) => cur.map((s, j) => (j === i ? { ...s, addr: e.target.value } : s)))
+                        }
+                        data-testid={`create-token-sink-addr-${i}`}
+                      />
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs"
+                    disabled={sinks.length >= MAX_SINKS}
+                    onClick={() => setSinks((cur) => [...cur, EMPTY_SINK()])}
+                  >
+                    Add sink
+                  </button>
+                  {sinks.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-secondary text-xs"
+                      onClick={() => setSinks((cur) => cur.slice(0, -1))}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {fieldErr('sinks')}
+              </div>
+            )}
+
+            {skus.includes('auto_v2_lp') && (
+              <div className="space-y-2" data-testid="create-token-autolp-panel">
+                <div className={CREATE_TOKEN_AUTOLP_ROW_CLASS}>
+                  <label className="block min-w-0">
+                    <span className="label-glass">AutoLP threshold (human)</span>
+                    <input
+                      className="input-glass w-full"
+                      value={autolpThreshold}
+                      onChange={(e) => setAutolpThreshold(e.target.value)}
+                      data-testid="create-token-autolp-threshold"
+                    />
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="label-glass">LP recipient</span>
+                    <input
+                      className={CREATE_TOKEN_BECH32_INPUT_CLASS}
+                      value={autolpRecipient}
+                      onChange={(e) => setAutolpRecipient(e.target.value)}
+                      data-testid="create-token-autolp-recipient"
+                    />
+                    <p className="text-xs mt-1 break-all" style={{ color: 'var(--ink-dim)' }}>
+                      {walletOwnershipHelper(autolpRecipient, address)}
+                    </p>
+                  </label>
+                </div>
+                {fieldErr('autolp')}
+                {fieldErr('autolpRecipient')}
+              </div>
+            )}
+
+            {skus.includes('exemption_directory') && (
+              <label className="block" data-testid="create-token-exempt-panel">
+                <span className="label-glass">Extra exemptions (addresses)</span>
+                <textarea
+                  className="input-glass w-full"
+                  value={exemptList}
+                  onChange={(e) => setExemptList(e.target.value)}
+                  data-testid="create-token-exempt-list"
+                />
+                {fieldErr('exempt')}
+              </label>
+            )}
+
+            {skus.includes('variable_rates') && (
+              <div className="space-y-2" data-testid="create-token-variable-panel">
+                <p className="text-xs" style={{ color: 'var(--ink-dim)' }}>
+                  Max rates are immutable after create and cannot exceed 25.00% combined.
+                </p>
+                <div className={CREATE_TOKEN_VARIABLE_ROW_CLASS}>
+                  <label className="block min-w-0">
+                    <span className="label-glass">Max buy (%)</span>
+                    <input
+                      className="input-glass w-full"
+                      value={maxBuyPct}
+                      onChange={(e) => setMaxBuyPct(e.target.value)}
+                      data-testid="create-token-max-buy-pct"
+                    />
+                    {fieldErr('maxBuy')}
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="label-glass">Max sell (%)</span>
+                    <input
+                      className="input-glass w-full"
+                      value={maxSellPct}
+                      onChange={(e) => setMaxSellPct(e.target.value)}
+                      data-testid="create-token-max-sell-pct"
+                    />
+                    {fieldErr('maxSell')}
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="label-glass">Max wallet-to-wallet (%)</span>
+                    <input
+                      className="input-glass w-full"
+                      value={maxTransferPct}
+                      onChange={(e) => setMaxTransferPct(e.target.value)}
+                      data-testid="create-token-max-transfer-pct"
+                    />
+                    {fieldErr('maxTransfer')}
+                  </label>
+                </div>
+                {fieldErr('maxCombined')}
+              </div>
+            )}
+
+            {skus.includes('launch_guards') && (
+              <div className="space-y-2" data-testid="create-token-guards-panel">
+                <div className={CREATE_TOKEN_GUARDS_ROW_CLASS}>
+                  <label className="block min-w-0">
+                    <span className="label-glass">Max wallet (human, optional)</span>
+                    <input
+                      className="input-glass w-full"
+                      value={maxWallet}
+                      onChange={(e) => setMaxWallet(e.target.value)}
+                      data-testid="create-token-max-wallet"
+                    />
+                    {fieldErr('maxWallet')}
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="label-glass">Cooldown blocks</span>
+                    <input
+                      className="input-glass w-full"
+                      value={cooldown}
+                      onChange={(e) => setCooldown(e.target.value)}
+                      data-testid="create-token-cooldown"
+                    />
+                    {fieldErr('cooldown')}
+                  </label>
+                </div>
+                <label className={CREATE_TOKEN_ACK_LABEL_CLASS}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 shrink-0"
+                    checked={tradingEnabled}
+                    onChange={(e) => setTradingEnabled(e.target.checked)}
+                    data-testid="create-token-trading-enabled"
+                  />
+                  Trading enabled (default off)
+                </label>
+              </div>
+            )}
+
+            {skus.includes('mint_control') && (
+              <label className="block" data-testid="create-token-mint-panel">
+                <span className="label-glass">Mint cap (optional, human)</span>
+                <input
+                  className="input-glass w-full"
+                  value={mintCap}
+                  onChange={(e) => setMintCap(e.target.value)}
+                  data-testid="create-token-mint-cap"
+                />
+                {fieldErr('mintCap')}
+              </label>
+            )}
           </div>
-        )}
+        </div>
 
-        {skus.includes('mint_control') && (
-          <label className="block">
-            <span className="label-glass">Mint cap (optional, human)</span>
-            <input
-              className="input-glass w-full"
-              value={mintCap}
-              onChange={(e) => setMintCap(e.target.value)}
-              data-testid="create-token-mint-cap"
-            />
-            {fieldErr('mintCap')}
-          </label>
-        )}
-
-        <label className="flex items-start gap-2 text-sm">
+        <label className={CREATE_TOKEN_ACK_LABEL_CLASS}>
           <input
             type="checkbox"
+            className="mt-1 shrink-0"
             checked={ack}
             onChange={(e) => setAck(e.target.checked)}
             data-testid="create-token-ack"

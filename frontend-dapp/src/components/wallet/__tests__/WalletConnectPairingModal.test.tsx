@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { useWalletConnectPairingStore } from '@/hooks/useWalletConnectPairingStore'
 import WalletConnectPairingModal from '../WalletConnectPairingModal'
 
@@ -68,5 +68,24 @@ describe('WalletConnectPairingModal (GitLab #519)', () => {
     const portal = screen.getByTestId('walletconnect-pairing-portal')
     expect(portal.className).toContain('z-[10001]')
     expect(screen.getByTestId('walletconnect-pairing-cancel')).toHaveTextContent('Cancel')
+  })
+
+  it('does not dismiss when Open or Copy is used (GitLab #672 D4)', async () => {
+    useWalletConnectPairingStore.setState({
+      isOpen: true,
+      payload: {
+        uri: WC_V1,
+        name: 'LUNC Dash',
+        android: '',
+        ios: '',
+        isStation: true,
+        isLuncDash: true,
+      },
+    })
+    render(<WalletConnectPairingModal />)
+    fireEvent.click(screen.getByTestId('walletconnect-pairing-wallet'))
+    fireEvent.click(screen.getByTestId('walletconnect-pairing-copy'))
+    expect(screen.getByTestId('walletconnect-pairing-modal')).toBeInTheDocument()
+    expect(useWalletConnectPairingStore.getState().isOpen).toBe(true)
   })
 })

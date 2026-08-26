@@ -2,6 +2,9 @@
  * Advanced two-sided provide/withdraw for a single pool row (GitLab #547).
  * Mount only when the table row is expanded so default /pool paint does not
  * N+1 LCD `getPool` / `getPairFeeConfig` (attack A8).
+ *
+ * Provide field labels use the selected input asset name/symbol (GitLab #661);
+ * wrap-equivalent legs default auto-wrap on (`provideWrapDefaultOn`).
  */
 import { useState, memo, useMemo, useId } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -44,7 +47,8 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { PairTokenLinks } from '@/components/ui/PairTokenLinks'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
-import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
+import { getTokenDisplaySymbol, formatPoolAssetFieldLabel, poolProvideAmountAriaLabel } from '@/utils/tokenDisplay'
+import { provideWrapDefaultOn } from '@/utils/poolProvideWrapDefault'
 import { formatTokenAmount, formatQuoteVolume24h, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
 import { isLpBurnExceedsBalance, withdrawMinAssetAmounts, estimateWithdrawAssetAmounts } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
@@ -82,8 +86,8 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   const [amountB, setAmountB] = useState('')
   const [lpAmount, setLpAmount] = useState('')
   const [withdrawSlippage, setWithdrawSlippage] = useState('1.0')
-  const [useNativeA, setUseNativeA] = useState(false)
-  const [useNativeB, setUseNativeB] = useState(false)
+  const [useNativeA, setUseNativeA] = useState(() => provideWrapDefaultOn(assetInfoLabel(pair.asset_infos[0])))
+  const [useNativeB, setUseNativeB] = useState(() => provideWrapDefaultOn(assetInfoLabel(pair.asset_infos[1])))
   const [receiveWrapped, setReceiveWrapped] = useState(true)
   const lpTokenAmountInputId = useId()
 
@@ -155,6 +159,18 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
 
   const balanceKeyA = useMemo(() => assetInfoLabel(balanceInfoA), [balanceInfoA])
   const balanceKeyB = useMemo(() => assetInfoLabel(balanceInfoB), [balanceInfoB])
+  const inputDisplayA = useTokenDisplayInfo(balanceInfoA)
+  const inputDisplayB = useTokenDisplayInfo(balanceInfoB)
+  const provideFieldLabelA = formatPoolAssetFieldLabel({
+    name: inputDisplayA.name,
+    symbol: inputDisplayA.symbol,
+  })
+  const provideFieldLabelB = formatPoolAssetFieldLabel({
+    name: inputDisplayB.name,
+    symbol: inputDisplayB.symbol,
+  })
+  const provideAriaA = poolProvideAmountAriaLabel(inputDisplayA.symbol)
+  const provideAriaB = poolProvideAmountAriaLabel(inputDisplayB.symbol)
 
   const balanceAQuery = useQuery({
     queryKey: ['tokenBalance', address, balanceKeyA],
@@ -726,11 +742,8 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
               </p>
             )}
             <div>
-              <label className="label-glass">
-                Asset A Amount
-                <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>
-                  ({displayA.displayLabel})
-                </span>
+              <label className="label-glass" data-testid="pool-provide-field-label-a">
+                <span className="normal-case">{provideFieldLabelA}</span>
               </label>
               {hasNativeOptionA && (
                 <label
@@ -742,6 +755,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                     checked={useNativeA}
                     onChange={(e) => setUseNativeA(e.target.checked)}
                     className="accent-[var(--cyan)]"
+                    data-testid="pool-provide-auto-wrap-a"
                   />
                   Use native {getTokenDisplaySymbol(nativeEquivA!)} (auto-wrap)
                 </label>
@@ -756,7 +770,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 }}
                 placeholder="0.00"
                 className="input-glass"
-                aria-label="Asset A amount"
+                aria-label={provideAriaA}
               />
               {address && (
                 <AmountBalanceActions
@@ -782,11 +796,8 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
               )}
             </div>
             <div>
-              <label className="label-glass">
-                Asset B Amount
-                <span className="ml-1 normal-case" style={{ color: 'var(--ink-subtle)' }}>
-                  ({displayB.displayLabel})
-                </span>
+              <label className="label-glass" data-testid="pool-provide-field-label-b">
+                <span className="normal-case">{provideFieldLabelB}</span>
               </label>
               {hasNativeOptionB && (
                 <label
@@ -798,6 +809,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                     checked={useNativeB}
                     onChange={(e) => setUseNativeB(e.target.checked)}
                     className="accent-[var(--cyan)]"
+                    data-testid="pool-provide-auto-wrap-b"
                   />
                   Use native {getTokenDisplaySymbol(nativeEquivB!)} (auto-wrap)
                 </label>
@@ -812,7 +824,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
                 }}
                 placeholder="0.00"
                 className="input-glass"
-                aria-label="Asset B amount"
+                aria-label={provideAriaB}
               />
               {address && (
                 <AmountBalanceActions
@@ -867,7 +879,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
               <PoolPreSubmitSummary
                 actionLabel="Provide Liquidity"
                 pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
-                amountLines={[`${amountA} ${displayA.displayLabel}`, `${amountB} ${displayB.displayLabel}`]}
+                amountLines={[`${amountA} ${inputDisplayA.symbol}`, `${amountB} ${inputDisplayB.symbol}`]}
                 data-testid="pool-provide-pre-submit-summary"
               />
             )}

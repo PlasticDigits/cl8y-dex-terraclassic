@@ -10,7 +10,7 @@ export interface ModalProps {
   /** Appended to the panel element for layout variants (e.g. wider risk modal). */
   panelClassName?: string
   /**
-   * When false, Escape and backdrop clicks do not close the dialog and the header close control is hidden.
+   * When false, Escape and backdrop/root clicks do not close the dialog and the header close control is hidden.
    * Use for blocking confirmations (e.g. first-visit risk acknowledgement — GitLab #138).
    */
   dismissible?: boolean
@@ -21,6 +21,11 @@ export interface ModalProps {
   zIndexClassName?: string
   /** Optional test id on the portal root. */
   rootTestId?: string
+  /**
+   * Accessible name for the header close control (GitLab #672).
+   * Visible label stays **Close**; this overrides the `aria-label` (e.g. Connect Wallet).
+   */
+  closeAriaLabel?: string
 }
 
 export function Modal({
@@ -32,8 +37,15 @@ export function Modal({
   panelClassName,
   zIndexClassName = 'z-[9999]',
   rootTestId,
+  closeAriaLabel = 'Close',
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+
+  const handleDismiss = () => {
+    if (!dismissible) return
+    sounds.playButtonPress()
+    onClose()
+  }
 
   useEffect(() => {
     if (!isOpen || !dismissible) return
@@ -51,7 +63,7 @@ export function Modal({
   }, [isOpen])
 
   useEffect(() => {
-    if (!isOpen || !dismissible) return
+    if (!isOpen) return
     const panel = modalRef.current
     if (!panel) return
 
@@ -74,7 +86,7 @@ export function Modal({
 
     panel.addEventListener('keydown', onKeyDown)
     return () => panel.removeEventListener('keydown', onKeyDown)
-  }, [isOpen, dismissible])
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -82,20 +94,9 @@ export function Modal({
     <div
       className={`app-modal-portal-root fixed inset-0 ${zIndexClassName} flex items-center justify-center p-4`}
       data-testid={rootTestId}
+      onClick={dismissible ? handleDismiss : undefined}
     >
-      <div
-        className="app-modal-backdrop"
-        onClick={
-          dismissible
-            ? () => {
-                sounds.playButtonPress()
-                onClose()
-              }
-            : undefined
-        }
-        role="presentation"
-        aria-hidden="true"
-      />
+      <div className="app-modal-backdrop" data-testid="modal-backdrop" role="presentation" aria-hidden="true" />
       <div
         ref={modalRef}
         tabIndex={-1}
@@ -103,30 +104,40 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
+        onClick={(event) => event.stopPropagation()}
       >
         {title && (
           <div className={`app-modal-header${dismissible ? '' : ' app-modal-header--blocking'}`}>
-            <h2 id="modal-title" className="text-lg font-semibold font-heading" style={{ color: 'var(--ink)' }}>
+            <h2
+              id="modal-title"
+              className="text-lg font-semibold font-heading min-w-0 truncate"
+              style={{ color: 'var(--ink)' }}
+            >
               {title}
             </h2>
             {dismissible ? (
               <button
-                onClick={() => {
-                  sounds.playButtonPress()
-                  onClose()
-                }}
-                className="btn-muted !min-h-0 !px-2.5 !py-2"
-                style={{ color: 'var(--ink-subtle)' }}
-                aria-label="Close modal"
+                type="button"
+                onClick={handleDismiss}
+                className="app-modal-close"
+                aria-label={closeAriaLabel}
+                data-testid="modal-close"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="app-modal-close-icon"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
+                <span className="app-modal-close-label">Close</span>
               </button>
             ) : null}
           </div>
         )}
-        {children}
+        <div className="app-modal-body">{children}</div>
       </div>
     </div>,
     document.body
