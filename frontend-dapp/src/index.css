@@ -1420,6 +1420,21 @@
     background: color-mix(in srgb, var(--control-surface-hover) 60%, transparent);
   }
 
+  .share-link-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding-inline: 12px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .share-link-button:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-button-muted),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
   .explorer-link {
     display: inline-flex;
     align-items: center;

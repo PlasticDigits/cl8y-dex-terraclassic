@@ -10,11 +10,14 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { TradesTable } from '@/components/ui/TradesTable'
 import { TraderSummaryStats } from '@/components/trader/TraderSummaryStats'
 import { TraderPositionsTable } from '@/components/trader/TraderPositionsTable'
+import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
 import { TraderLeaderboard } from '@/components/trader/TraderLeaderboard'
 import { sounds } from '@/lib/sounds'
 import { isValidTerraAddress } from '@/utils/constants'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { formatDateTime } from '@/utils/formatDate'
+import { buildCanonicalShareUrl, traderShareText } from '@/utils/sharePageLink'
+import { SHARE_LINK_ARIA_TRADER, SHARE_LINK_TITLE } from '@/utils/sharePageLinkCopy'
 
 export default function TraderPage() {
   const { address: paramAddr } = useParams<{ address?: string }>()
@@ -24,6 +27,11 @@ export default function TraderPage() {
   const [searchInput, setSearchInput] = useState('')
 
   const traderAddr = paramAddr || ''
+  const shareUrl = buildCanonicalShareUrl({
+    origin: window.location.origin,
+    kind: 'trader',
+    id: traderAddr,
+  })
 
   const traderQuery = useQuery({
     queryKey: ['trader-profile', traderAddr],
@@ -63,13 +71,24 @@ export default function TraderPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
-          Trader Profile
-        </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
-          Look up a wallet to review trading activity, positions, and P&amp;L.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-bold uppercase tracking-wider font-heading" style={{ color: 'var(--ink)' }}>
+            Trader Profile
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--ink-dim)' }}>
+            Look up a wallet to review trading activity, positions, and P&amp;L.
+          </p>
+        </div>
+        {shareUrl ? (
+          <ShareLinkButton
+            url={shareUrl}
+            title={SHARE_LINK_TITLE}
+            text={traderShareText(traderAddr)}
+            ariaLabel={SHARE_LINK_ARIA_TRADER}
+            data-testid="trader-share-link"
+          />
+        ) : null}
       </div>
 
       {/* Search / My Profile */}

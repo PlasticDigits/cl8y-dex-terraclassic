@@ -18,7 +18,8 @@ Use when adding **copy address / contract / tx hash** affordances anywhere in th
 3. **Empty/whitespace** `text` must fail gracefully (handler returns failure message; no throw).
 4. **Wallet chip** **Copy address** row uses **`menuLabel`** ([#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [docs § Connected wallet dropdown](../docs/frontend.md#connected-wallet-dropdown)); layout is owned by **`.wallet-menu-item`** CSS ([#671](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/671) **W671-1 / W671-4**) — do not re-add Tailwind `inline-flex items-center gap-2` on that branch. Explorer menu row uses [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md). WalletConnect **Copy pairing link** uses **`buttonLabel`** (not `menuLabel` / `role="menuitem"`) ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) — [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md)).
 5. **Address surfaces:** prefer [`AddressRow`](./AGENTS_FRONTEND_ADDRESS_ROW.md) (copy + shorten + explorer) over bare `CopyButton` in pages ([#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)). Token legs on Pool / Trade / Charts use [`TokenIdentity`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) ([#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)). Trader-as-person copy still goes through `AddressRow` (full bech32) — never the 4/6 chip ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656), [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md)).
-6. **Future surfaces:** `TxResultAlert` tx hash copy — extend `AddressRow` or add a sibling row primitive.
+6. **Share URL fallback:** [`ShareLinkButton`](./AGENTS_FRONTEND_SHARE_LINK.md) clipboard fallback must call **`copyToClipboard`** — do not add a second `navigator.clipboard.writeText` path ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665)).
+7. **Future surfaces:** `TxResultAlert` tx hash copy — extend `AddressRow` or add a sibling row primitive.
 
 ## Cross-links
 
@@ -30,3 +31,4 @@ Use when adding **copy address / contract / tx hash** affordances anywhere in th
 - Retail error funnel (unrelated): [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)
 - Keyboard focus on icon buttons: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - WalletConnect pairing copy: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519))
+- Profile Share (URL, not address): [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))

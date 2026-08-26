@@ -75,6 +75,7 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — trader volume USD
 - [`AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](./AGENTS_FRONTEND_TRADER_LEADERBOARD.md) — `/trader` global board is one `shell-panel-strong` (**TL-5**, [#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657))
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ%
+- [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) — trader Share is a header button, not a nested panel ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))
 - [`AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](./AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) — Swap flip plate on the Pay/Receive seam (**S659-1–S659-8**, [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)); do **not** delete the seam to hide the line
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ% parentage; [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) owns visual grouping
 - [`AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](./AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md) — `/token/create` desktop density (#669); no SKU `card-glass` tiles

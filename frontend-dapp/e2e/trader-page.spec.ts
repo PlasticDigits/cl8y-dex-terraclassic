@@ -86,3 +86,17 @@ test.describe('Trader page smoke (GitLab #422 / #657)', () => {
     await expectBoardAboveFooter(page, board)
   })
 })
+
+test.describe('Trader profile Share (GitLab #665)', () => {
+  test('Share control is visible on a valid trader path', async ({ page, connectWallet }) => {
+    await connectWallet
+    await page.goto(`/trader/${E2E_DEV_WALLET}`)
+    await page.waitForLoadState('domcontentloaded')
+
+    await expect(page.getByRole('heading', { name: /trader profile/i })).toBeVisible({ timeout: 15_000 })
+    const share = page.getByTestId('trader-share-link')
+    await expect(share).toBeVisible({ timeout: 15_000 })
+    await expect(share).toHaveAttribute('aria-label', 'Share trader profile link')
+    await expect(share).toContainText('Share')
+  })
+})

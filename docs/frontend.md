@@ -248,14 +248,39 @@ Reusable one-click clipboard control for addresses, contract IDs, and tx hashes 
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) only. WalletConnect pairing uses **`buttonLabel`** ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). |
+| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; address/tx UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx). Share URL fallback uses the same helper ([#665](#share-link-button)). WalletConnect pairing uses **`buttonLabel`** ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). |
 | **Accessible control** | Button has explicit **`aria-label`**; success/failure is announced in a **`sr-only`** region with **`aria-live="polite"`** and **`aria-atomic="true"`**. |
 | **Retail copy** | Strings live in [`copyButtonCopy.ts`](../frontend-dapp/src/utils/copyButtonCopy.ts); failures use a permission-safe message, not raw `DOMException` text. |
 | **Trim before write** | Whitespace-only `text` fails without calling the clipboard API. |
 | **Feedback window** | Success/error live text clears after **2s** so repeat copies stay screen-reader friendly. |
 | **Regression tests** | [`copyToClipboard.test.ts`](../frontend-dapp/src/utils/__tests__/copyToClipboard.test.ts), [`CopyButton.test.tsx`](../frontend-dapp/src/components/ui/__tests__/CopyButton.test.tsx) (mock `navigator.clipboard`). |
+| **Share fallback (#665)** | [`ShareLinkButton`](#share-link-button) uses this same `copyToClipboard` path when Web Share is missing or fails (non-abort). Do not add a second `navigator.clipboard.writeText` helper. |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md).
+
+### Share link — `ShareLinkButton` primitive {#share-link-button}
+
+In-app **Share** for canonical same-origin profile (and optional pair) URLs ([GitLab **#665**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665)). Mobile-first: prefer `navigator.share` on a user gesture; clipboard via [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) is the fallback. This is **not** per-route Open Graph ([#578](#open-graph-social-cards) **OG-5 / OG-6**).
+
+| ID | Invariant |
+|----|-----------|
+| **TS-1** | Required surface: **`/trader/:address`** when `isValidTerraAddress` is true. Hide Share on empty `/trader` and invalid segments. Do not create `/trader/:pair`. |
+| **TS-2** | Payload is `origin + '/trader/' + address` (or `/trade/` / `/charts/` for the helper). Strip search/hash. Never share `window.location.href`. Prefer the route param, not a pathname splice. |
+| **TS-3** | Prefer `navigator.share({ url, title, text })`. `AbortError` is not a failure toast. Missing share, `canShare === false`, or non-abort errors fall back to `copyToClipboard`. |
+| **TS-4** | AddressRow stays **Copy trader address** (bech32). Share is a distinct control (`aria-label` **Share trader profile link**). |
+| **TS-5** | Visible label **Share**. Clipboard success: **Link copied** (`sharePageLinkCopy.ts`). No how-to lecture, no `VITE_*` / host:port in errors. |
+| **TS-6** | One chrome layer (**C653**): icon/text button on the existing H1 row. No extra `shell-panel*` / `card-glass`. |
+| **TS-7** | Real `<button type="button">`, explicit `aria-label`, `:focus-visible` ring, 44px hit target, `sounds.playButtonPress`, CopyButton live-region pattern. |
+| **TS-8** | No helmet / per-route `og:*`. Share `title`/`text` are static product copy (**CL8Y DEX trader**) plus optional `shortenAddress` — not P&L, volume, or indexer fields. |
+| **TS-9** | Origin is `window.location.origin` of the loaded SPA. Do not hard-code `https://dex.cl8y.com`. Do not read `VITE_PUBLIC_ORIGIN` in the React bundle for this. |
+| **TS-10** | Show Share when the path address is valid, including profile **404** and indexer outage. Hide only when the segment is missing or not a terra address. |
+| **TS-11** | Optional: same primitive on `/trade/:pairAddr` / `/charts/:pairAddr` (validated pair) and `/portfolio` → `/trader/{wallet}` when connected. Do not share `/portfolio`. This change mounts **portfolio**; pair pages stay optional follow-up. |
+| **TS-12** | No new indexer/API, wallet signature, QR library, or third-party share SDK. |
+| **TS-13** | In-app browsers: clipboard fallback; denied clipboard uses `COPY_BUTTON_FAILURE_MESSAGE` (no `DOMException` text). |
+
+Implementation: [`sharePageLink.ts`](../frontend-dapp/src/utils/sharePageLink.ts), [`ShareLinkButton.tsx`](../frontend-dapp/src/components/ui/ShareLinkButton.tsx). `data-testid="trader-share-link"` on the profile; `share-link-button` on the primitive. Regression: `make verify-issue-665`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md).
 
 ### Address display — `AddressRow` primitive {#addressrow-primitive}
 
@@ -968,10 +993,11 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 | **Outage UX** | `MarketDataServiceOutageBanner` + `RetryError` parity with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) for indexer-backed sections. |
 | **Nav** | `Portfolio` in `PRIMARY_NAV_ITEMS` ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)); wallet menu **My Portfolio** link. |
 | **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) (4/6 + blockie header, [#656](#trader-identity)), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. **No** global [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) on this route ([#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657) **TL-8**). |
+| **Share public profile (#665)** | When connected, **Share** copies/shares canonical `/trader/{wallet}` — never `/portfolio`. Primitive: [Share link](#share-link-button). |
 
-**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`, `make verify-issue-560`.
+**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`, `make verify-issue-560`, `make verify-issue-665`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md), [`skills/AGENTS_FRONTEND_HUB_PNL.md`](../skills/AGENTS_FRONTEND_HUB_PNL.md), [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md), [`skills/AGENTS_FRONTEND_HUB_PNL.md`](../skills/AGENTS_FRONTEND_HUB_PNL.md), [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md), [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
 
 ### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
 
@@ -1226,6 +1252,7 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 | **Trader identity (#656)** | Header is 4/6 `AddressRow` plus [`TraderBlockie`](../frontend-dapp/src/components/trader/TraderBlockie.tsx). Copy + explorer stay full-bech32 / `getExplorerAddressUrl`. Invalid route params do not paint a PFP. |
 | **Global leaderboard (#657)** | [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) is the **last** page section on `/trader` and `/trader/:address` (including empty lookup, 404, and profile outage). Same four tabs, `getLeaderboard(sort, 20)`, query key `['leaderboard', sort]`, and USD Volume rules as Charts. Trader cells use 4/6 + blockie ([#656](#trader-identity)). Not nested in `app-footer-shell` or Trade History. **Not** on `/portfolio`. Optional `aria-current="page"` when `:address` is in the top 20 — no invented “rank N”. Rows that fail `isValidTerraAddress` are omitted. `data-testid="trader-leaderboard"`. |
 | Route error boundary reset | `/trader` routes use `resetKeys` tied to `useParams().address` so switching between `/trader` and `/trader/:addr` (or between addresses) **clears a prior route error** without a full page reload ([`App.tsx`](../frontend-dapp/src/App.tsx) `TraderRouteShell`). |
+| **Share vs address copy (#665)** | **Share** on the H1 row sends the canonical `/trader/{addr}` URL (Web Share or clipboard). [`AddressRow`](#addressrow-primitive) **Copy trader address** still copies the bech32 only. Share stays visible on 404 / indexer outage when the path is a valid terra address. See [Share link](#share-link-button) (**TS-1–TS-13**). |
 | Deduped React in Vite | [`vite.config.ts`](../frontend-dapp/vite.config.ts) sets `resolve.dedupe` for `react` / `react-dom` to avoid rare **dual-React** dev bundles that surface as `useContext`/`Invalid hook call` when lazy chunks load. |
 
 | ID | Rule |
@@ -1241,9 +1268,9 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 | **TL-9** | Highlight current row only when it appears in the page. |
 | **TL-10** | `#126` / `#215` / `#177` unchanged. |
 
-Regression: `make verify-issue-657` · `make verify-issue-656` · `make verify-issue-553`. Playwright [`e2e/trader-page.spec.ts`](../frontend-dapp/e2e/trader-page.spec.ts) (5 workers).
+Regression: `make verify-issue-657` · `make verify-issue-656` · `make verify-issue-553` · `make verify-issue-665`. Playwright [`e2e/trader-page.spec.ts`](../frontend-dapp/e2e/trader-page.spec.ts) (5 workers).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](../skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md); [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md) (4/6 + blockie); [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md); [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](../skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md); [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md) (4/6 + blockie); [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md); [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md) (profile Share); [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
 
 ### Trade page — price chart invariants {#trade-page-price-chart-invariants}
 
