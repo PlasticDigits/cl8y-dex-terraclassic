@@ -177,6 +177,7 @@ make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas c
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
 make verify-issue-630                    # #630 LUNC/USTC picker labels (registry beats indexer uluna/uusd)
+make verify-issue-661                    # #661 /pool Manage provide name/symbol + wrap default on
 make verify-issue-651                    # #651 /tiers phone-width cards + How it works (Vitest + docs)
 make verify-issue-669                    # #669 /token/create desktop density (Vitest + docs)
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
@@ -271,6 +272,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | One chrome layer / anti-nesting | `make verify-issue-653` |
 | Swap direction seam plate | `make verify-issue-659` |
 | Official CL8Y product links (footer) | `make verify-issue-663` |
+| Pool Manage provide labels | `make verify-issue-661` |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
@@ -369,6 +371,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md](skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — Price (USD) candles must use `invertUsd` (not `1/x`) + adaptive Y-axis (**C543-1–C543-9**, [#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)); `make verify-issue-543`
 - [skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md](skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) — compact copy + explorer for pair legs + pair contract on `/pool`, `/trade`, `/charts` (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)); `make verify-issue-541`
 - [skills/AGENTS_FRONTEND_NATIVE_TICKERS.md](skills/AGENTS_FRONTEND_NATIVE_TICKERS.md) — Swap/Pool/Pay/Mint show **LUNC** / **USTC** not `uluna` / `uusd` (**N630-1–N630-8**, [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)); `make verify-issue-630`
+- [skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md](skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md) — `/pool` Manage provide **name (symbol)** + wrap default on (**P661-1–P661-12**, [#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)); `make verify-issue-661`
 - [skills/AGENTS_FRONTEND_TIERS_PHONE.md](skills/AGENTS_FRONTEND_TIERS_PHONE.md) — `/tiers` phone-width cards + How it works stack (**T651-1–T651-8** / **I15**, [#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)); `make verify-issue-651`
 - [skills/AGENTS_LIMIT_PRICE_DECIMALS.md](skills/AGENTS_LIMIT_PRICE_DECIMALS.md) — limit-order price band is **human-scale** `raw × 10^(dec0 − dec1)` so UST1/USTR can place (**L20** / [#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529)); `make verify-issue-529`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md](skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) — `/trade` Place limit / Market CTA docks to ticket bottom; Chrome sticky mid-form float (**T527-1–T527-10**, [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527)); `make verify-issue-527`

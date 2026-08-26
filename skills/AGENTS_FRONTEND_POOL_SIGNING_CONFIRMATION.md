@@ -10,7 +10,7 @@ Before the wallet extension opens, pool provide and withdraw surfaces must show 
 |-------|-------|----------------------|
 | Action | `Provide Liquidity` or `Withdraw Liquidity` | `-action` |
 | Pair | `{tokenA} / {tokenB}` symbols | `-pair` |
-| Amount | provide: `{amountA} {symA} + {amountB} {symB}`; withdraw: `{lpAmount} LP` plus `~{expectedA} {symA} + ~{expectedB} {symB}` when pool data is available | `-amount` |
+| Amount | provide: `{amountA} {symA} + {amountB} {symB}` using the **selected** input tickers (native when wrap is on — [#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)); withdraw: `{lpAmount} LP` plus `~{expectedA} {symA} + ~{expectedB} {symB}` when pool data is available | `-amount` |
 | Chain | active network full label (`LocalTerra`, `Terra Classic`, …) | `-chain` |
 
 Panel roots: **`pool-provide-pre-submit-summary`** and **`pool-withdraw-pre-submit-summary`** on `/pool`.
@@ -50,3 +50,4 @@ cd frontend-dapp && npm run test:run -- \
 - Limit pre-sign: [`LimitOrderPreSubmitSummary.tsx`](../frontend-dapp/src/components/trade/LimitOrderPreSubmitSummary.tsx) ([#461](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/461))
 - Docs: [`docs/frontend.md` § Pool pre-sign summary](../docs/frontend.md#pool-page-pre-sign-summary)
 - One-sided Add/Withdraw (#533): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) — `pool-one-sided-add-pre-submit` / `pool-one-sided-withdraw-pre-submit`
+- Advanced provide labels + wrap default (#661): [`AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](./AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md)

@@ -1843,7 +1843,26 @@ The **Provide Liquidity** card mirrors on-chain `provide_liquidity` math for the
 
 **Ratio warning:** if the two typed amounts are not in the current pool price ratio, the contract still executes, but the **smaller** LP term sets the mint; the excess on the other side is effectively donated to the pool (same as Astroport/TerraSwap behavior). Warning element: `data-testid="pool-provide-ratio-warning"`.
 
-**Auto-fill counterpart ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** on a non-empty pool, editing Asset A or B auto-fills the other side from `floor(edited × reserve_other / reserve_edited)` when the counterpart field is empty. **Max** and **50%** always force-sync the counterpart (`forceSync: true`). Empty pool (both reserves `0`): no auto-fill. After auto-fill, if the user edits the filled side to a different value, the other side is left unchanged so the ratio warning can appear. Native-wrap paths use **net** post-tax amounts for ratio math (`provideRawAdd*` semantics); see [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) and [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
+**Auto-fill counterpart ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** on a non-empty pool, editing either provide amount auto-fills the other side from `floor(edited × reserve_other / reserve_edited)` when the counterpart field is empty. **Max** and **50%** always force-sync the counterpart (`forceSync: true`). Empty pool (both reserves `0`): no auto-fill. After auto-fill, if the user edits the filled side to a different value, the other side is left unchanged so the ratio warning can appear. Native-wrap paths use **net** post-tax amounts for ratio math (`provideRawAdd*` semantics); see [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) and [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
+
+**Provide field labels + wrap default ([#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)):** Advanced two-sided Provide (Manage → `<details data-testid="pool-card-advanced">`) labels each amount with the **selected** input `{Name} ({SYMBOL})` or `{SYMBOL}` — never Asset A/B. Wrap-equivalent legs (cLUNC / cUSTC) default **Use native … (auto-wrap)** **on** at mount (`provideWrapDefaultOn`). Tickers sit in a `normal-case` node so `.label-glass` uppercase does not paint `cLUNC` as `CLUNC`. Uncheck is session-only. Withdraw `receiveWrapped` default is unchanged. Retail one-sided is unchanged (**Z533-1**). Playbook: [`skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md). `make verify-issue-661`.
+
+**Invariants (dApp, P661-1–P661-12):**
+
+| ID | Meaning |
+|----|---------|
+| **P661-1** | Provide visible labels are `{Name} ({SYMBOL})` or `{SYMBOL}`. No Asset A/B (including uppercase CSS). |
+| **P661-2** | Amount `aria-label` is `{product ticker} amount`. |
+| **P661-3** | Known wrap / native / listed CW20 tickers follow **N630**. Never `uluna` / `uusd` as the visible label. |
+| **P661-4** | Name missing or equal to symbol collapses to symbol only. Never `UST1 (UST1)`. HTML / long indexer names dropped. |
+| **P661-5** | cLUNC / cUSTC leg: auto-wrap checkbox checked on first paint. Not persisted. |
+| **P661-6** | Wrap on → native balance + wrap execute + native label. Wrap off → CW20 + `#147` gas gate + CW20 label. |
+| **P661-7** | No native equivalent → no wrap checkbox; labels still name/symbol. |
+| **P661-8** | Dual wrap pair: both checkboxes default on independently. |
+| **P661-9** | Withdraw expected receive / pre-sign stay product tickers. `receiveWrapped` default unchanged. |
+| **P661-10** | Pause, freeze, blacklist, wrap treasury mismatch, IL, pre-sign, counterpart auto-fill, empty-pool no auto-fill still hold. |
+| **P661-11** | Retail one-sided unchanged (no wrap checkbox, no Asset A/B). |
+| **P661-12** | Indexer name/symbol are text. Registry wins. No N+1 LCD on default `/pool` paint (A8). |
 
 **Withdraw receive preview ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** when an LP amount is entered, the withdraw panel shows **expected** underlying tokens at 0% slippage (`pool-withdraw-estimated-receive`) and **minimum** after the selected slippage tolerance (`pool-withdraw-minimum-receive`). Labels use wrapped token symbols when “Receive as wrapped tokens” is checked; otherwise native symbols when unwrap is available.
 
@@ -1873,6 +1892,7 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 | [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) | `/pool` sortable table, catalog default, Charts deep links |
 | [#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) | Pre-sign summary card for provide/withdraw (SEC-I05 F-03) |
 | [#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480) | Provide auto-fill + withdraw receive preview |
+| [#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661) | Advanced provide name/symbol labels + wrap default on |
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
 
