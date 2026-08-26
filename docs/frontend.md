@@ -370,7 +370,7 @@ Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.c
 | Surface | Location |
 |---------|----------|
 | Environment strip | [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) lives in the **footer** on all breakpoints — **local**, **testnet**, and **mainnet** builds all show chain context. Desktop/tablet omit duplicate header [`NetworkBadge`](../frontend-dapp/src/components/wallet/NetworkBadge.tsx) for density ([GitLab **#483**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)); wallet chip + footer strip carry network context. Sticky header no longer hosts the ribbon (supersedes under-header seam stacking from [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482) / [#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)). |
-| NFA + risk summary | [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts) — reused by the modal and [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) in the **footer on all breakpoints** (footer shell stays visible on mobile above the bottom tab bar, with `EnvironmentRibbon`). Footer includes **Report suspicious activity** → GitLab security template ([#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392), [`SECURITY.md`](../SECURITY.md)). |
+| NFA + risk summary | [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts) — reused by the modal and [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) in the **footer on all breakpoints** (footer shell stays visible on mobile above the bottom tab bar, with `EnvironmentRibbon`). Footer includes **Report suspicious activity** → GitLab security template ([#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392), [`SECURITY.md`](../SECURITY.md)). Official **Homepage** / **Bridge** links are a **separate** footer row ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663), [§ Official CL8Y product links](#official-cl8y-product-links)). |
 | First-visit gate | [`RiskAcknowledgementModal`](../frontend-dapp/src/components/legal/RiskAcknowledgementModal.tsx) — blocking `Modal` (`dismissible={false}`) until the user checks the confirmation and clicks **Continue**; persisted in `localStorage` via [`riskAcknowledgement.ts`](../frontend-dapp/src/utils/riskAcknowledgement.ts). |
 | Playwright | `VITE_PLAYWRIGHT_E2E=true` on the Playwright `webServer` env ([`playwright.config.ts`](../frontend-dapp/playwright.config.ts)) skips the gate so E2E is not blocked; do not set this on user-facing production builds. |
 
@@ -383,7 +383,37 @@ Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.c
 | NFA footer on navigation | [`RouteContentReadyProvider`](../frontend-dapp/src/contexts/RouteContentReadyContext.tsx) exposes ready only when `readyForPath === pathname` (stale paths never satisfy a new route), then [`RouteContentReadyMarker`](../frontend-dapp/src/components/common/RouteContentReadyMarker.tsx) sets it via context (not `window` events — child `useEffect` runs before parent listeners and previously dropped the signal; [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)). **Do not** use render-phase `setState` in this provider — it can break React Router tab clicks ([GitLab #182](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)). Shell tab clicks must also remount lazy routes via **`Outlet key={pathname}`** in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) so Pool/Trade content replaces Swap when the URL changes. Regression: [`RouteContentReadyContext.test.tsx`](../frontend-dapp/src/contexts/__tests__/RouteContentReadyContext.test.tsx), E2E navigation NFA-after-route-change + “navigates to Pool page”. |
 | E2E / unit verification | See [`docs/testing.md` § E2E Tests — GitLab #138 verification](./testing.md#e2e-tests) for the checklist (`npm run test:unit`, hybrid seed re-run, Playwright NFA + Pool nav). Commits **`bd763be`** (cosmes patch test + hybrid seed idempotency), **`f58cce5`** (Outlet remount on tab nav). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md). Official sibling-product footer links: [`skills/AGENTS_FRONTEND_PRODUCT_LINKS.md`](../skills/AGENTS_FRONTEND_PRODUCT_LINKS.md) ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)).
+
+### Official CL8Y product links (footer) {#official-cl8y-product-links}
+
+The shell footer exposes two **official CL8Y products** so traders on `dex.cl8y.com` can reach sibling properties without unofficial links ([GitLab **#663**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)). This repo **does not** implement the Bridge (or GameFi). Link only.
+
+| Product | Label | Canonical URL | Testid |
+|---------|-------|---------------|--------|
+| CL8Y homepage | **Homepage** | `https://cl8y.com/` | `footer-product-home` |
+| CL8Y Bridge | **Bridge** | `https://bridge.cl8y.com/` | `footer-product-bridge` |
+
+Do **not** self-link `https://dex.cl8y.com`. `terms.cl8y.com` is Legal, not a product tile. Header More stays in-app DEX routes ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **P663-1** Footer only | Product `nav` (`aria-label="CL8Y products"`) lives in `footer.app-footer-shell` below the title. Do **not** add these URLs to header More, mobile More, or Swap/Pool banners. |
+| **P663-2** Hardcoded HTTPS allowlist | [`cl8yProductLinks.ts`](../frontend-dapp/src/utils/cl8yProductLinks.ts) pins the two origins. No `VITE_CL8Y_*_URL`. `isAllowedCl8yProductHref` rejects `http:`, `//`, `javascript:`, `data:`, userinfo, query/hash, extra path, lookalikes, and `dex.cl8y.com`. |
+| **P663-3** New tab + noopener | `<a target="_blank" rel="noopener noreferrer">`. No `window.open` of non-allowlisted URLs. No iframe of Bridge. |
+| **P663-4** Separate from legal | Do **not** splice Bridge into the NFA / Security / Report sentence. Labels **Homepage** and **Bridge** (≤ ~5 words); not Security, Report, or Connect Wallet. |
+| **P663-5** LCP + TermsGate | Text only (no footer logo). Product row may paint immediately; [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) stays deferred until route-ready ([#179](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179)). Footer stays mounted while [`ConnectedTermsGate`](../frontend-dapp/src/components/legal/ConnectedTermsGate.tsx) gates `<Outlet>` ([#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)). |
+| **P663-6** One chrome layer | No `card-glass` / `shell-panel` in the product row ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)). Links wrap; on 375px they sit above `.app-mobile-nav-shell`. Dark + light. |
+| **P663-7** Header brand | Logo + **CL8Y DEX** only. Do **not** reintroduce a “Terra Classic ecosystem” kicker ([#136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)). |
+| **P663-8** CSP | Do not add apex/bridge to `connect-src` or change `form-action` / `frame-ancestors`. Linking is navigation, not fetch. |
+
+**Code:** [`cl8yProductLinks.ts`](../frontend-dapp/src/utils/cl8yProductLinks.ts), [`Cl8yProductLinks.tsx`](../frontend-dapp/src/components/common/Cl8yProductLinks.tsx), [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx).
+
+**Regression:** `make verify-issue-663` (Vitest allowlist + component + `LegalFooterNotice`; Playwright `e2e/footer-product-links-663.spec.ts`, 5 workers). Skip E2E with `VERIFY_ISSUE_663_SKIP_E2E=1`.
+
+If a property URL moves, update the allowlist, tests, and this section in the **same** change. A third official product later extends the **same** allowlist — not a new chrome system.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PRODUCT_LINKS.md`](../skills/AGENTS_FRONTEND_PRODUCT_LINKS.md).
 
 ### CL8Y Legal clickwrap (connected TermsGate) {#legal-clickwrap}
 
@@ -409,7 +439,7 @@ Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [
 | **C7** CSP | Legal hosts in `connect-src` without blanket `https:`. |
 | **C8** No admin secrets | Public Legal endpoints only. |
 | **C9** E2E hatch | `VITE_PLAYWRIGHT_E2E` skips gate for Playwright `webServer` only. |
-| **C10** NFA retained | Footer NFA / environment ribbon unchanged. |
+| **C10** NFA retained | Footer NFA / environment ribbon unchanged. Official Homepage / Bridge stay in the footer, outside this gate ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)). |
 
 **Ops (Legal Coolify / admin — cross-repo):** register property `dex.cl8y.com`; add `https://dex.cl8y.com` to Legal API `CORS_ORIGINS` and portal `VITE_REDIRECT_URI_ALLOWLIST`.
 
@@ -953,6 +983,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 | Full desktop header | Viewports **`min-width: 1200px`**: all `PRIMARY_NAV_ITEMS` inline; header More lists **`MORE_NAV_ITEMS` only** (same as pre–#136 wide layout). |
 | Nav → controls gap | At full-desktop widths, last nav control (**More**) and `.app-header-theme-group` must keep **≥ ~8px** horizontal gap (wallet connected or not). Desktop/tablet **omit** header [`NetworkBadge`](../frontend-dapp/src/components/wallet/NetworkBadge.tsx) — [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) is the primary network signal; mobile keeps the badge beside the wallet chip ([GitLab **#483**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)). |
 | Footer environment ribbon | `.app-env-ribbon` renders inside `footer.app-footer-shell` on **all** viewports (including mobile, above the bottom tab bar). Sticky header is header-only for vertical density. |
+| Official CL8Y product links | Footer **Homepage** + **Bridge** (`https://cl8y.com/` / `https://bridge.cl8y.com/`) — allowlisted HTTPS, new tab. **Not** in header More / [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) ([GitLab **#663**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663), [§ Official CL8Y product links](#official-cl8y-product-links)). |
 | Sticky header clearance | `.app-top-sticky` uses an opaque `var(--bg-0)` background so scrolled page copy cannot bleed through the header card; Trade H1 clears the sticky header by **≥ ~16px** at `scrollY=0`. |
 | Mobile vs header “More” active state | The bottom-tab **More** button highlights only for **`MORE_NAV_ITEMS`** routes; the header **More** trigger uses the expanded tablet list when compact so Pool/Charts/etc. still show an active affordance. |
 | Header brand copy | Sticky header brand is **logo + “CL8Y DEX” title only** — no secondary kicker line (removed [GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136) regression fix; Terra Classic context stays in footer **`CL8Y DEX · Terra Classic`**). Below **`1024px`**, `.app-brand-copy` stays hidden ([GitLab **#52**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/52)). |
@@ -960,7 +991,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 
 Constants: `HEADER_FULL_NAV_MIN_WIDTH_PX` (`1200`), `TABLET_COMPACT_HEADER_MAX_WIDTH_PX` (`1199`), and row label tuples `DESKTOP_HEADER_NAV_ROW_LABELS` / `TABLET_COMPACT_HEADER_NAV_ROW_LABELS` for Playwright overlap checks (`frontend-dapp/e2e/navigation.spec.ts`). Footer ribbon placement, sticky header clearance, and nav→theme gap assertions live in the same file (**#483** density + footer ribbon regression).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md), [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) (environment ribbon), [`skills/AGENTS_FRONTEND_SOUND_MUTE.md`](../skills/AGENTS_FRONTEND_SOUND_MUTE.md) (SFX mute).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md), [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) (environment ribbon), [`skills/AGENTS_FRONTEND_PRODUCT_LINKS.md`](../skills/AGENTS_FRONTEND_PRODUCT_LINKS.md) (footer Homepage / Bridge, #663), [`skills/AGENTS_FRONTEND_SOUND_MUTE.md`](../skills/AGENTS_FRONTEND_SOUND_MUTE.md) (SFX mute).
 
 ### UI sound effects mute {#ui-sound-effects-mute}
 

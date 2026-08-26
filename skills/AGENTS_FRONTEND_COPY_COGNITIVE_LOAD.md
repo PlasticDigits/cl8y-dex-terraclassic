@@ -35,6 +35,7 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | Onboarding strip + progressive disclosure |
 | [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) | Single Route row; Swap vs Best Trade disambiguation |
 | [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) | Safety > brevity — keep required ack/footer |
+| [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) | Footer **Homepage** / **Bridge** only — not Swap lecture banners ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)) |
 | [docs/frontend.md § Retail copy & cognitive load](../docs/frontend.md#retail-copy-cognitive-load) | Engineering invariants + cross-links |
 | [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) | `/pool` table; no header lectures ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)) |
 | [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) | Opt-in `/pool` LUNC LP how-to (**H531-1–H531-10**, [#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)) — do not paste `frontend.md` pool math onto the page |

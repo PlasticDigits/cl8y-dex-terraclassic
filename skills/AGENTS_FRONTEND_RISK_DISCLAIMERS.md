@@ -32,6 +32,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 ## Related
 
 - **Connected Legal clickwrap (wallet TermsGate, #517):** [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — do not replace this first-visit risk modal with clickwrap; sequence them.
+- **Official CL8Y product links (footer Homepage / Bridge, #663):** [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) — do not splice these into the NFA / Security / Report sentence or into header More.
 - Anti-cognitive-overload retail copy (on-card vs legal): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - **Responsive shell / header:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136), [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482), [#483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483), [#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)).
 - **Production build / maps:** [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md).
