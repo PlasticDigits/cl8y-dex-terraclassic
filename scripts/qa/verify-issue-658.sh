@@ -40,6 +40,17 @@ echo "════════════════════════�
 echo "  GitLab #658 — Legal terms hint is not Keplr-only"
 echo "════════════════════════════════════════════════════════════════"
 
+run_step "dependency: @plasticdigits/cl8y-clickwrap is not a pass-through stub" \
+  bash -c '
+    set -euo pipefail
+    pkg=frontend-dapp/node_modules/@plasticdigits/cl8y-clickwrap
+    test -f "$pkg/dist/index.js"
+    test -f "$pkg/dist/react.js"
+    grep -q "getSignatureStatus" "$pkg/dist/index.js"
+    grep -q "isAllowedRedirectUri" "$pkg/dist/index.js"
+    grep -q "function TermsGate" "$pkg/dist/react.js"
+  '
+
 run_step "frontend: hint visibility + copy + ConnectedTermsGate + clickwrap" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/__tests__/legalKeplrInAppHint.test.ts \

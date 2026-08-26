@@ -84,10 +84,11 @@ frontend_vitest() {
 }
 
 playwright_pool_table() {
-  # Same invocation as verify-issue-547: Playwright webServer starts (or reuses) Vite.
-  # Do not set PLAYWRIGHT_BASE_URL without a running listener — tests then skip waiting
-  # on webServer and hit ERR_CONNECTION_REFUSED.
-  PLAYWRIGHT_SKIP_CHAIN=1 bash scripts/with-node.sh --cwd frontend-dapp -- \
+  # Dedicated :3173 is on LocalTerra indexer CORS (#625 / M673-7). Do not reuse :3000
+  # from another worktree (CORS miss → no pool-pairs-table).
+  PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}" \
+    PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-3173}" \
+    bash scripts/with-node.sh --cwd frontend-dapp -- \
     ./node_modules/.bin/playwright test e2e/pool-table-547.spec.ts --project=e2e-smoke --workers=5
 }
 

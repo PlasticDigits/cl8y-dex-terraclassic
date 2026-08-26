@@ -4,7 +4,7 @@ Audience: third-party agents adding trader-as-person chrome on Charts leaderboar
 
 **Issue:** [GitLab **#656**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)  
 **Invariants:** [`docs/frontend.md` § Trader identity](../docs/frontend.md#trader-identity) (**T-ID-1–T-ID-10**)  
-**Related:** [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) `AddressRow`, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541) token identity (tokens ≠ traders), [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) leaderboard Volume USD, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) logo allowlist, [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430) explorer hrefs, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) wallet chip, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) retail copy, [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer.
+**Related:** [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188) `AddressRow`, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541) token identity (tokens ≠ traders), [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553) leaderboard Volume USD, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) logo allowlist, [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430) explorer hrefs, [#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186) wallet chip, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) retail copy, [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer. Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md).
 
 ## Problem class
 
@@ -36,7 +36,7 @@ Retail trader surfaces used to print a long `terra1…` bech32 as the only ident
 | **T-ID-7** | No new npm identicon. No trader `logo_url`. No `GET /api/v1/traders/*` JSON change. |
 | **T-ID-8** | Token logos (#541), wallet chip (#186), tape, order-book owner tooltip unchanged. |
 | **T-ID-9** | One line at 375px (blockie + 4/6). No nested chrome card. |
-| **T-ID-10** | One shared primitive — do not hand-roll a second blockie in Charts vs profile. |
+| **T-ID-10** | One shared primitive — do not hand-roll a second blockie in Charts vs profile. Charts mounts [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) (`pairAddress`); identity lives inside that component, not `ChartsPage.tsx` ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)). |
 
 ## Canonical code
 
@@ -45,7 +45,7 @@ Retail trader surfaces used to print a long `terra1…` bech32 as the only ident
 | `frontend-dapp/src/utils/tokenDisplay.ts` | `shortenTraderAddress`, `TRADER_ADDR_*` |
 | `frontend-dapp/src/components/trader/TraderBlockie.tsx` | `react-blockies`, circular clip, `aria-hidden` |
 | `frontend-dapp/src/components/trader/TraderIdentity.tsx` | Compact chip + optional `/trader/{full}` `Link` |
-| `frontend-dapp/src/pages/ChartsPage.tsx` | Leaderboard Trader cell |
+| `frontend-dapp/src/pages/ChartsPage.tsx` | Mounts `TraderLeaderboard` (`pairAddress`); does not inline identity |
 | `frontend-dapp/src/components/trader/TraderSummaryStats.tsx` | Profile + portfolio header |
 
 ## Regression

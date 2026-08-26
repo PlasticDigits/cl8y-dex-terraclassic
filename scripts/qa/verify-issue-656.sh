@@ -61,7 +61,8 @@ run_step "code: shared primitive; no TokenLogo; no second identicon pkg" \
   bash -c '
     set -euo pipefail
     grep -q "resolveAllowedTokenLogoUri" frontend-dapp/src/components/ui/TokenLogo.tsx
-    grep -q "TraderIdentity" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "TraderIdentity" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "TraderLeaderboard" frontend-dapp/src/pages/ChartsPage.tsx
     grep -q "TraderIdentity" frontend-dapp/src/components/trader/TraderSummaryStats.tsx
     grep -q "TRADER_ADDR_START_CHARS" frontend-dapp/src/components/trader/TraderSummaryStats.tsx
     grep -q "shortenTraderAddress" frontend-dapp/src/utils/tokenDisplay.ts

@@ -54,7 +54,7 @@ Traders on `/trade/{pair}` see *which* tokens, not *how large* the factory v2 po
 make verify-issue-664
 ```
 
-Indexer: `GET /pairs/{addr}` stamp / omit / 404. Vitest: `PairTokenLinks` + Trade + Charts `#664`. Playwright: `e2e/trade-identity-lp-664.spec.ts` (5 workers, no e2e-tx). `make verify-issue-541` must stay green.
+Indexer: `GET /pairs/{addr}` stamp / omit / 404. Vitest: `PairTokenLinks` + Trade + Charts `#664`. Playwright: `e2e/trade-identity-lp-664.spec.ts` (5 workers, no e2e-tx). `make verify-issue-541` must stay green. `PairTokenLinks` / `TokenIdentity` tests mock `getExplorerAddressUrl` via `importOriginal` so AddressRow keeps real `isSafeExplorerHref` (#430). Do not stub the whole `terraExplorer` module.
 
 ## Related
 
@@ -65,3 +65,4 @@ Indexer: `GET /pairs/{addr}` stamp / omit / 404. Vitest: `PairTokenLinks` + Trad
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — no `StatBox` / `card-glass` in the pair-select panel
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — hub marks for UST1/USTR
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert must not change USD
+- Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)

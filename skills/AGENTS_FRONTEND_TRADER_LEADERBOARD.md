@@ -55,7 +55,7 @@ Audience: third-party agents editing `/trader`, `/trader/:address`, Charts **Lea
 make verify-issue-657
 ```
 
-Also keep `make verify-issue-553` and `make verify-issue-653` green. Vitest: `TraderLeaderboard.test.tsx`, `TraderPage.test.tsx`, `ChartsPage.test.tsx` #553, `PortfolioPage.test.tsx` (no board). Playwright: `e2e/trader-page.spec.ts` (5 workers, no `e2e-tx`) when LocalTerra is up.
+Also keep `make verify-issue-553` and `make verify-issue-653` green. Vitest: `TraderLeaderboard.test.tsx`, `TraderPage.test.tsx`, `ChartsPage.test.tsx` #553, `PortfolioPage.test.tsx` (no board). Playwright: `e2e/trader-page.spec.ts` (5 workers, no `e2e-tx`) when LocalTerra is up — dedicated Vite `:3173` (indexer CORS).
 
 ## Related
 
@@ -66,3 +66,4 @@ Also keep `make verify-issue-553` and `make verify-issue-653` green. Vitest: `Tr
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — profile outage vs board `RetryError`
 - [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) — Charts passes `pairAddress`; hide Best Trade; empty copy is pair-empty
 - [#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665) — trader share-link (separate)
+- Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)

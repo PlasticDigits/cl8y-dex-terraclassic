@@ -60,7 +60,8 @@ run_step "code: shared component last on TraderPage; Charts wrapper; no portfoli
     grep -q "charts-leaderboard-volume" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     grep -q "isValidTerraAddress" frontend-dapp/src/components/trader/traderLeaderboard.ts
     grep -q "to={\`/trader/\${address}\`}" frontend-dapp/src/components/trader/TraderIdentity.tsx
-    grep -q "\['leaderboard'" frontend-dapp/src/components/trader/useTraderLeaderboardQuery.ts
+    grep -q "queryKey:" frontend-dapp/src/components/trader/useTraderLeaderboardQuery.ts
+    grep -q "pairQueryKey" frontend-dapp/src/components/trader/useTraderLeaderboardQuery.ts
     ! grep -qE "formatNum\(.*total_volume[^_]" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     ! grep -q "dangerouslySetInnerHTML" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     ! grep -q "formatNum(trader.total_volume)" frontend-dapp/src/pages/TraderPage.tsx
@@ -121,8 +122,10 @@ run_step "chrome nesting static guard" \
 
 if make -s has-localterra >/dev/null 2>&1 && [[ -f frontend-dapp/.env.local ]]; then
   run_step "playwright: trader-page board above footer (5 workers)" \
-    bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- \
-      ./node_modules/.bin/playwright test --project=e2e-smoke e2e/trader-page.spec.ts'
+    bash -c 'PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}" \
+      PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-3173}" \
+      bash scripts/with-node.sh --cwd frontend-dapp -- \
+      ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 e2e/trader-page.spec.ts'
 else
   echo ""
   echo "[playwright: trader-page board above footer (5 workers)]"

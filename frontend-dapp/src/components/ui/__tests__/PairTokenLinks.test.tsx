@@ -20,9 +20,13 @@ vi.mock('@/utils/copyToClipboard', () => ({
   copyToClipboard: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
-vi.mock('@/utils/terraExplorer', () => ({
-  getExplorerAddressUrl: vi.fn(),
-}))
+vi.mock('@/utils/terraExplorer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/terraExplorer')>()
+  return {
+    ...actual,
+    getExplorerAddressUrl: vi.fn(),
+  }
+})
 
 vi.mock('@/services/indexer/client', () => ({
   getTokens: vi.fn().mockResolvedValue([]),

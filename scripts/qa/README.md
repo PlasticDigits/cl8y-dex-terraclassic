@@ -241,6 +241,22 @@ After !418 landed free `/token/migrate` + `adopt.rs`:
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_628.md`](../../skills/AGENTS_POST_MERGE_OPS_628.md). QA invariant **Q14**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-628).
 
+### Post-merge !437–!458 leftover verify (GitLab #673)
+
+After !437–!458 landed pool/charts/protocol/trader leftover UI on `main` (`8af5563c+`):
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-673` | Children **655–672** plus leftover live / **M673-1–M673-8** / **Q15** |
+| Coolify Postgres | Migrations `20260826150000_pair_liquidity_usd.sql` + `20260826180000_protocol_volume_hourly_monthly.sql`, then indexer redeploy |
+| Live pairs | `created_at` always; `liquidity_usd` when stamped; `sort=liquidity_usd` allowlisted |
+| Live leaderboard | `?pair=` unknown **404**; `sort=best_trade_pnl` with `pair` **400**; unscoped board unchanged |
+| Live volume | `GET /protocol/volume/daily?grain=hourly\|daily\|monthly` (not a `/hourly` path) |
+| Frontend | Rebuild from `8af5563c+`; no `charts-overview-*`; `/protocol` keeps census |
+| Disclose | Do **not** reopen #655–#672; do not restore Charts census or a second `pair_liquidity.rs`; do not commit `tmp-558-*` |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_673.md`](../../skills/AGENTS_POST_MERGE_OPS_673.md). QA invariant **Q15**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-673).
+
 ### Listed-pair autoregister + migrate inventory (GitLab #633 / #634)
 
 LocalTerra-only live rungs (columbus-5 factory/token migrate and Open/ALPHA LCD stay on [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635) / [#636](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/636)):

@@ -57,3 +57,4 @@ Regression: `make verify-issue-671` (Vitest + CSS/docs grep; Playwright `navigat
 - Trader identity (out of scope for the chip): [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md) ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)) — do not retune 6/6 / 4/4
 - Connected dropdown layout ([#671](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/671)): this playbook **W671-1–W671-8**; `make verify-issue-671`
 - Retail copy (no lectures): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
+- Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)

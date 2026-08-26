@@ -13,7 +13,7 @@ Pair **symbols are not identity**. Terra Classic has look-alike CW20s. Pool / Tr
 ## Do / don’t
 
 - **Do** use [`tokenIdentityTarget`](../frontend-dapp/src/utils/tokenIdentity.ts) + [`TokenIdentity`](../frontend-dapp/src/components/ui/TokenIdentity.tsx) / [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx). Pair contract stays [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx).
-- **Do** send every explorer `href` through `getExplorerAddressUrl`. Invalid / `javascript:` / HTML / non-bech32 → `null` → omit the anchor.
+- **Do** send every explorer `href` through `getExplorerAddressUrl`. Invalid / `javascript:` / HTML / non-bech32 → `null` → omit the anchor. Tests that mock `terraExplorer` must `importOriginal` so `isSafeExplorerHref` stays real (#430).
 - **Do** copy the **contract or denom**, never the display symbol.
 - **Do** keep explorer as a **sibling** of `TokenDisplay`. Do not wrap the symbol / pair-select label in `<a>`.
 - **Do** key the row on the pair address; hide it on #176 / #175 / empty “No pairs yet”.

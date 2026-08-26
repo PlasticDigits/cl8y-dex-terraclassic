@@ -72,6 +72,8 @@ These are **not** enforced by DEX unit tests; document completion on the issue/M
 cd frontend-dapp && npm install @plasticdigits/cl8y-clickwrap
 ```
 
+Do **not** replace the GitLab tarball with a local pass-through stub (`TermsGate` always returns `children`, `isAllowedRedirectUri` always `true`). That skips the connected gate and allowlists attacker redirect origins. `make verify-issue-658` fails closed if the installed package is stubbed. Worktree `node_modules` symlinks inherit a stub from the primary checkout — reinstall the package (or `npm ci`) before #658 / #673.
+
 ## Rules of thumb
 
 1. **Do not** treat `cl8y-dex-risk-ack` localStorage as Legal signature proof.
@@ -107,3 +109,4 @@ Manual soft-launch: connect unsigned wallet → portal Terra Classic sign → re
 - Soft-launch: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)
 - WalletConnect same-device mobile pairing / Legal hint: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M12**, [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) (#489 — one short sentence, no always-on essay after `signed_latest`)
+- Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)

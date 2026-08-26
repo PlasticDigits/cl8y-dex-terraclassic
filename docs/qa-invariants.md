@@ -266,6 +266,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M628-7** | Create Token retail copy stays code-id-free. Lead is “Already have a token? Migrate here”. 8654 is a normal migrate-allowlist entry in env/docs — never factory-list language. Do not reopen #626 / implement #627 / RegisterListedPair Terraport/GDEX / turn hybrid off / add pair-router FoT math. |
 | **M628-8** | Playbook + this Q14 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !437–!458 leftover verify (invariant Q15) {#post-merge-ops-673}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q15** Post-merge !437–!458 leftover live is checked (Coolify migrations + `liquidity_usd`/`created_at`, pair leaderboard 404/400, volume grains, frontend rebuild `8af5563c+`, children 655–672) | **`make verify-issue-673`** → children **655–672** plus leftover probes (**M673-1–M673-8**) | Non-zero exit; fix the failing child or Coolify leftover; do not treat green child docs-only as leftover live; do not reopen #655–#672 |
+
+**M673** (GitLab **#673** — [`skills/AGENTS_POST_MERGE_OPS_673.md`](../skills/AGENTS_POST_MERGE_OPS_673.md)):
+
+| ID | Rule |
+|----|------|
+| **M673-1** | `make verify-issue-673` runs children **655–672** plus leftover live (Coolify indexer + frontend). Unit/docs FAILs fail the stack. Live leftover SKIP unless `indexer.dex.cl8y.com` / `dex.cl8y.com` answers (FAIL when `VERIFY673_REQUIRE_LIVE=1` or `VERIFY673_IID=673`). Leftover Playwright SKIP unless LocalTerra is up (FAIL when `VERIFY673_REQUIRE_CHAIN=1`). |
+| **M673-2** | Coolify Postgres has `20260826150000_pair_liquidity_usd.sql` and `20260826180000_protocol_volume_hourly_monthly.sql`, then indexer redeploy. Live `GET /pairs` always includes `created_at`. `liquidity_usd` is present when stamped. `sort=liquidity_usd` is allowlisted. |
+| **M673-3** | Live `GET /traders/leaderboard?pair=`: unknown pair **404**; `sort=best_trade_pnl` with `pair` **400**. Unscoped board unchanged. Charts pair board hides Best Trade. |
+| **M673-4** | Live grains are `GET /protocol/volume/daily?grain=hourly\|daily\|monthly` + capped `limit`. No `/protocol/volume/hourly` path. `from`/`to` → **400**. |
+| **M673-5** | Coolify frontend rebuild from `8af5563c+`. `/charts` has no `charts-overview-*`. `/protocol` keeps census + Hourly/Daily/Monthly. `/pool` four tabs + v2 LP + Created. Swap seam, footer Homepage/Bridge, Connect Wallet Close, Create Token width, migrate Unlock copy stay on the bundle. |
+| **M673-6** | Do not restore Charts DEX-census tiles or a second `pair_liquidity.rs`. Do not commit `scripts/tmp-558-*`. Do not wait on GitLab CI. Do not reopen #655–#672 for ops/QA. |
+| **M673-7** | Optional LocalTerra leftover Playwright is `e2e-smoke` at **5 workers** (pool Manage, footer, Charts smoke, trader-page). `e2e-tx` stays **1 worker**. Do not leak a non-3173 `PLAYWRIGHT_WEB_PORT` into children (CORS). |
+| **M673-8** | Playbook + this Q15 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -284,3 +303,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_624.md`](../skills/AGENTS_POST_MERGE_OPS_624.md) — post-merge !414 LocalTerra community-tax seed leftovers ([#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624), **Q12**)
 - [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md) — post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625), **Q13**)
 - [`skills/AGENTS_POST_MERGE_OPS_628.md`](../skills/AGENTS_POST_MERGE_OPS_628.md) — post-merge !418 community-tax migrate leftovers ([#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628), **Q14**)
+- [`skills/AGENTS_POST_MERGE_OPS_673.md`](../skills/AGENTS_POST_MERGE_OPS_673.md) — post-merge !437–!458 leftover verify ([#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673), **Q15**)

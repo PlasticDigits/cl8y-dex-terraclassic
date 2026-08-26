@@ -316,7 +316,7 @@ Retail trader-as-person chrome on Charts **Trader leaderboard**, `/trader/:addr`
 | **T-ID-7** | No new identicon package. No trader `logo_url` / remote PFP. No `GET /api/v1/traders/*` JSON change. Do **not** reuse `TokenLogo`. |
 | **T-ID-8** | Token / pair identity, wallet chip, tape, and order-book owner tooltip are unchanged. |
 | **T-ID-9** | 375px: blockie + 4/6 stay one line (`whitespace-nowrap`). No `card-glass` on the row ([#653](#one-chrome-layer)). |
-| **T-ID-10** | One primitive — [`TraderIdentity`](../frontend-dapp/src/components/trader/TraderIdentity.tsx) / `TraderBlockie`. Do not hand-roll a second PFP. |
+| **T-ID-10** | One primitive — [`TraderIdentity`](../frontend-dapp/src/components/trader/TraderIdentity.tsx) / `TraderBlockie`. Do not hand-roll a second PFP. Charts mounts [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) (`pairAddress`); identity lives in that component, not `ChartsPage.tsx` ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)). |
 
 4/6 is **not unique**. Collision honesty: `title` / copy / `href` stay the full distinct bech32. Display-only — ranking stays [#553](#charts-trader-leaderboard).
 

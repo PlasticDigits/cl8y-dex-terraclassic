@@ -55,3 +55,4 @@ Do **not** bind wallet / pairing `name` into the close control as HTML (`dangero
 - Legal terms hint after connect matches this list (**not Keplr-only**, no Leap): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658) **L658** / **WC-M12**)
 - First-visit risk gate (must stay non-dismissible): [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138))
 - Connected Legal clickwrap: [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517))
+- Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)

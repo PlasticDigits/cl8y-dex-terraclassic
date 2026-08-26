@@ -52,6 +52,8 @@ Audience: third-party agents changing `/pool` columns, `GET /api/v1/pairs` JSON,
 make verify-issue-655
 ```
 
+Playwright pool-table uses dedicated Vite `:3173` (indexer CORS). Do not leak a different `PLAYWRIGHT_WEB_PORT`.
+
 Related: `make verify-issue-547` · `make verify-issue-569`.
 
 ## Related
@@ -62,3 +64,4 @@ Related: `make verify-issue-547` · `make verify-issue-569`.
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production gem hide
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — no nested chrome
 - GitLab [#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664) — same `pair_liquidity_usd` stamp on **single-pair** `GET /api/v1/pairs/{addr}` (list JOIN + `/pool` column stay this issue)
+- Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md). Do **not** reopen #655 unless a merged invariant is wrong.
