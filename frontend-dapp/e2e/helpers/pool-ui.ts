@@ -1,33 +1,43 @@
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 /**
- * Pool cards expose a toggle and a submit button with the same accessible name
- * once the provide/withdraw form is expanded. Use `.first()` to expand, `.last()` to submit.
- *
- * Invariant (GitLab #201): tx specs must not use ambiguous `getByRole('Provide Liquidity')`
- * on an expanded card — Playwright strict mode resolves both controls.
+ * Tab controls use `Select …` aria-labels so they do not collide with submit
+ * CTAs that reuse the visible action name (GitLab #201 / #660).
  */
-export function poolProvideExpandButton(pairCard: Locator): Locator {
-  return pairCard.getByRole('button', { name: /^Provide Liquidity$/i }).first()
+export type PoolManageAction = 'provide' | 'withdraw' | 'zap-add' | 'zap-withdraw'
+
+export function poolManageTab(scope: Locator | Page, action: PoolManageAction): Locator {
+  return scope.getByTestId(`pool-manage-tab-${action}`)
 }
 
-export function poolProvideSubmitButton(pairCard: Locator): Locator {
-  return pairCard.getByRole('button', { name: /^Provide Liquidity$/i }).last()
+export function poolProvideExpandButton(scope: Locator | Page): Locator {
+  return poolManageTab(scope, 'provide')
 }
 
-export function poolWithdrawExpandButton(pairCard: Locator): Locator {
-  return pairCard.getByRole('button', { name: /^Withdraw Liquidity$/i }).first()
+export function poolProvideSubmitButton(scope: Locator | Page): Locator {
+  return scope.getByRole('button', { name: /^Provide Liquidity$/i })
 }
 
-export function poolWithdrawSubmitButton(pairCard: Locator): Locator {
-  return pairCard.getByRole('button', { name: /^Withdraw Liquidity$/i }).last()
+export function poolWithdrawExpandButton(scope: Locator | Page): Locator {
+  return poolManageTab(scope, 'withdraw')
 }
 
-export function poolCardAdvanced(scope: Locator) {
-  return scope.getByTestId('pool-card-advanced').first()
+export function poolWithdrawSubmitButton(scope: Locator | Page): Locator {
+  return scope.getByRole('button', { name: /^Withdraw Liquidity$/i })
 }
 
-export async function openPoolCardAdvanced(scope: Locator): Promise<void> {
+export function poolReceiveWrappedCheckbox(scope: Locator | Page): Locator {
+  return scope.getByRole('checkbox', { name: /Receive as wrapped/i })
+}
+
+export function firstFactoryPairGroup(scope: Locator | Page): Locator {
+  return scope
+    .locator('[data-testid="pool-pair-group"]')
+    .filter({ has: scope.locator('[data-testid="pool-row-factory"]') })
+    .first()
+}
+
+export async function openPoolManage(scope: Locator | Page, action?: PoolManageAction): Promise<void> {
   const manage = scope.getByTestId('pool-row-manage').first()
   if ((await manage.count()) > 0) {
     const expanded = await manage.getAttribute('aria-expanded')
@@ -35,9 +45,23 @@ export async function openPoolCardAdvanced(scope: Locator): Promise<void> {
       await manage.click()
     }
   }
-  const details = poolCardAdvanced(scope)
-  await details.waitFor({ state: 'visible' })
-  if ((await details.getAttribute('open')) == null) {
-    await details.locator('summary').click()
+  await scope.getByTestId('pool-manage-actions').waitFor({ state: 'visible' })
+  if (action) {
+    const tab = poolManageTab(scope, action)
+    if ((await tab.getAttribute('aria-pressed')) !== 'true') {
+      await tab.click()
+    }
   }
+}
+
+/** Opens Manage on the first visible row. No Advanced disclosure (#660). */
+export async function openPoolCardAdvanced(scope: Locator | Page): Promise<void> {
+  await openPoolManage(scope)
+}
+
+export async function openFirstFactoryManage(page: Page, action?: PoolManageAction): Promise<Locator> {
+  const group = firstFactoryPairGroup(page)
+  await group.waitFor({ state: 'visible', timeout: 90_000 })
+  await openPoolManage(group, action)
+  return group
 }

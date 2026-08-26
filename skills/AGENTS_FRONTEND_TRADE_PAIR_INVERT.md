@@ -66,4 +66,5 @@ Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceCha
 - [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) — convert-on-submit
 - [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md) — human↔raw decimal scale (#529) is **not** invert; apply raw→human **before** the #524 reciprocal
 - [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — invert must not swap copy/explorer payloads (**T541-5**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541))
+- [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — invert must not change the **v2 LP** USD chip (#664)
 - [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape Amount in/out stay offer→ask under invert; Price uses reciprocal of **human** quote-per-base, never `1/price_usd` ([#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557))

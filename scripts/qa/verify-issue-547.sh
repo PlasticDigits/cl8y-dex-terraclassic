@@ -48,7 +48,8 @@ run_step "frontend: pool table + howto + charts deep link + catalog" \
     src/utils/__tests__/poolLpHowto.test.ts \
     src/utils/__tests__/chartsPairRoute.test.ts \
     src/utils/__tests__/poolListQuery.test.ts \
-    src/utils/__tests__/pairCatalogRank.test.ts'
+    src/utils/__tests__/pairCatalogRank.test.ts \
+    src/utils/__tests__/formatDate.test.ts'
 
 run_step "code: no header lectures / Router-known / PoolCard list" \
   bash -c '! grep -qE "Liquidity Pools" frontend-dapp/src/pages/PoolPage.tsx' && \
@@ -102,7 +103,7 @@ if [[ "${VERIFY_ISSUE_547_SKIP_E2E:-}" == "1" ]]; then
   echo "[playwright P1–P6] skipped (VERIFY_ISSUE_547_SKIP_E2E=1)"
 else
   run_step "playwright: P1–P6 pool table smoke (5 workers)" \
-    bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-table-547.spec.ts --project=e2e-smoke --workers=5'
+    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-30660}" PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-30660}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-table-547.spec.ts --project=e2e-smoke --workers=5'
 fi
 
 echo ""

@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { MenuSelect } from '@/components/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
 import { TxResultAlert } from '@/components/ui'
+import { AddressRow } from '@/components/ui/AddressRow'
 import { useWalletStore } from '@/hooks/useWallet'
-import { usePortfolioLpBalances } from '@/hooks/usePortfolioLpBalances'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
 import { usePairPaused } from '@/hooks/usePairPaused'
 import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
@@ -17,6 +16,7 @@ import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { getPool } from '@/services/terraclassic/pair'
 import { getPairFeeConfig } from '@/services/terraclassic/settings'
+import { getTokenBalance } from '@/services/terraclassic/queries'
 import { executeTerraContractMulti } from '@/services/terraclassic/transactions'
 import { queryWrapMapperConfig, wrapMapperFeeBps, wrapTreasuryMatchesEnv } from '@/services/terraclassic/wrapMapper'
 import { WRAP_MAPPER_CONTRACT_ADDRESS, isNativeWrapEnabled } from '@/utils/constants'
@@ -37,35 +37,36 @@ import { withdrawMinAssetAmounts } from '@/utils/rawAmountMath'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { sounds } from '@/lib/sounds'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
+import { ONE_SIDED_WITHDRAW_TITLE } from '@/utils/oneSidedLiquidityCopy'
+import { ONE_SIDED_EMPTY_POOL_ERROR } from '@/utils/oneSidedLiquidityQuote'
 
-export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[] }) {
+export function OneSidedWithdrawCard({ pair }: { pair: PairInfo }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const queryClient = useQueryClient()
   const slippageTolerance = useDexStore((s) => s.slippageTolerance)
 
-  const [lpToken, setLpToken] = useState('')
   const [asToken, setAsToken] = useState('')
   const [amount, setAmount] = useState('')
+  const { discountBps } = useFeeDiscountRegistryStatus(pair.contract_addr)
 
-  const lpQuery = usePortfolioLpBalances(address)
-  const factoryLpSet = useMemo(
-    () => new Set(factoryPairs.map((p) => p.liquidity_token).filter(Boolean)),
-    [factoryPairs]
-  )
-  const lpRows = useMemo(
-    () => (lpQuery.data?.rows ?? []).filter((r) => factoryLpSet.has(r.lpToken)),
-    [lpQuery.data, factoryLpSet]
-  )
-  const selectedRow = lpRows.find((r) => r.lpToken === lpToken) ?? null
-  const pair = useMemo(() => factoryPairs.find((p) => p.liquidity_token === lpToken) ?? null, [factoryPairs, lpToken])
-  const { discountBps } = useFeeDiscountRegistryStatus(pair?.contract_addr)
+  const lpBalanceQuery = useQuery({
+    queryKey: ['lpBalance', address, pair.liquidity_token],
+    queryFn: () => {
+      if (!address) throw new Error('No address')
+      return getTokenBalance(address, tokenAssetInfo(pair.liquidity_token))
+    },
+    enabled: !!address,
+    refetchInterval: 15_000,
+  })
+  const lpBalanceRaw = lpBalanceQuery.data ?? '0'
+  const hasLp = !!address && lpBalanceRaw !== '0'
 
-  const legs = pair
-    ? ([assetInfoLabel(pair.asset_infos[0]), assetInfoLabel(pair.asset_infos[1])] as [string, string])
-    : null
+  const legs = useMemo(
+    () => [assetInfoLabel(pair.asset_infos[0]), assetInfoLabel(pair.asset_infos[1])] as [string, string],
+    [pair]
+  )
   const asTokens = useMemo(() => {
-    if (!legs) return []
     const ids = [...legs]
     if (isNativeWrapEnabled()) {
       for (const leg of legs) {
@@ -78,13 +79,13 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
 
   const tradingBlacklist = useTradingBlacklist({
     wallet: address,
-    token0: legs?.[0] ?? null,
-    token1: legs?.[1] ?? null,
-    pairAddress: pair?.contract_addr,
-    enabled: !!address && !!pair,
+    token0: legs[0],
+    token1: legs[1],
+    pairAddress: pair.contract_addr,
+    enabled: !!address,
   })
-  const pairPaused = usePairPaused({ pairAddress: pair?.contract_addr ?? '' })
-  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair?.contract_addr ?? '' })
+  const pairPaused = usePairPaused({ pairAddress: pair.contract_addr })
+  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair.contract_addr })
 
   const rawLp = amount ? toRawAmount(amount, PAIR_LP_CW20_DECIMALS) : '0'
   const debouncedRaw = useDebouncedValue(rawLp, SIM_QUOTE_DEBOUNCE_MS)
@@ -102,19 +103,17 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
     (wrapMapperConfigQuery.data == null || !wrapTreasuryMatchesEnv(wrapMapperConfigQuery.data))
 
   const poolQuery = useQuery({
-    queryKey: ['pool', pair?.contract_addr],
-    queryFn: () => getPool(pair!.contract_addr),
-    enabled: !!pair,
+    queryKey: ['pool', pair.contract_addr],
+    queryFn: () => getPool(pair.contract_addr),
     staleTime: 15_000,
   })
   const feeQuery = useQuery({
-    queryKey: ['feeConfig', pair?.contract_addr],
-    queryFn: () => getPairFeeConfig(pair!.contract_addr),
-    enabled: !!pair,
+    queryKey: ['feeConfig', pair.contract_addr],
+    queryFn: () => getPairFeeConfig(pair.contract_addr),
     staleTime: 60_000,
   })
 
-  const kind = pair && asToken && legs ? resolveZapOutputKind(asToken, legs[0], legs[1]) : null
+  const kind = asToken ? resolveZapOutputKind(asToken, legs[0], legs[1]) : null
   const split =
     poolQuery.data && feeQuery.data && kind?.kind === 'pair_leg' && debouncedRaw !== '0'
       ? zapOutSplit({
@@ -157,26 +156,16 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
     staleTime: 60_000,
   })
 
-  const insufficient =
-    !!address && selectedRow != null && rawLp !== '0' && BigInt(rawLp) > BigInt(selectedRow.balanceRaw)
+  const insufficient = !!address && rawLp !== '0' && BigInt(rawLp) > BigInt(lpBalanceRaw)
 
   const withdrawMutation = useTerraBroadcastMutation({
     toastSuccess: 'Liquidity withdrawn.',
     mutationFn: async () => {
-      if (
-        !address ||
-        !pair ||
-        !split ||
-        split.status !== 'ok' ||
-        !minAssets ||
-        !exec ||
-        !kind ||
-        kind.kind !== 'pair_leg'
-      ) {
+      if (!address || !split || split.status !== 'ok' || !minAssets || !exec || !kind || kind.kind !== 'pair_leg') {
         throw new Error('Quote unavailable')
       }
-      const wantedCw20 = kind.side === 'a' ? legs![0] : legs![1]
-      const otherCw20 = kind.side === 'a' ? legs![1] : legs![0]
+      const wantedCw20 = kind.side === 'a' ? legs[0] : legs[1]
+      const otherCw20 = kind.side === 'a' ? legs[1] : legs[0]
       const msgs = buildZapOutMessages({
         pairAddress: pair.contract_addr,
         lpToken: pair.liquidity_token,
@@ -195,39 +184,43 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
       setAmount('')
       void queryClient.invalidateQueries({ queryKey: ['tokenBalance'] })
       void queryClient.invalidateQueries({ queryKey: ['pool'] })
+      void queryClient.invalidateQueries({ queryKey: ['lpBalance'] })
       void queryClient.invalidateQueries({ queryKey: ['portfolio-lp-balances'] })
     },
     onError: () => sounds.playError(),
   })
 
+  const emptyPool =
+    poolQuery.data != null && (poolQuery.data.assets[0].amount === '0' || poolQuery.data.assets[1].amount === '0')
   const noRoute = !!asToken && kind?.kind === 'off_pair'
-  const disableReason = wrapBlocked
-    ? wrapMapperConfigQuery.data == null
-      ? 'Wrap config unavailable'
-      : 'Wrap treasury misconfigured'
-    : pairPaused.isPaused
-      ? 'Pair is paused'
-      : pairCodeIdFreeze.isFrozen
-        ? CODE_ID_FROZEN_CTA
-        : tradingBlacklist.blocked
-          ? 'Trading restricted'
-          : insufficient
-            ? 'Insufficient LP balance'
-            : noRoute
-              ? 'No route'
-              : split?.status === 'unavailable'
-                ? 'Amount too small'
-                : split?.status === 'ok' && minAssets && !exec
+  const disableReason = emptyPool
+    ? ONE_SIDED_EMPTY_POOL_ERROR
+    : wrapBlocked
+      ? wrapMapperConfigQuery.data == null
+        ? 'Wrap config unavailable'
+        : 'Wrap treasury misconfigured'
+      : pairPaused.isPaused
+        ? 'Pair is paused'
+        : pairCodeIdFreeze.isFrozen
+          ? CODE_ID_FROZEN_CTA
+          : tradingBlacklist.blocked
+            ? 'Trading restricted'
+            : insufficient
+              ? 'Insufficient LP balance'
+              : noRoute
+                ? 'No route'
+                : split?.status === 'unavailable'
                   ? 'Amount too small'
-                  : isQuoteStale
-                    ? 'Quote updating…'
-                    : null
+                  : split?.status === 'ok' && minAssets && !exec
+                    ? 'Amount too small'
+                    : isQuoteStale
+                      ? 'Quote updating…'
+                      : null
 
   const submitBlocked =
     withdrawMutation.isPending ||
     (!!address &&
-      (!lpToken ||
-        !asToken ||
+      (!asToken ||
         !amount ||
         !split ||
         split.status !== 'ok' ||
@@ -241,43 +234,41 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
         insufficient ||
         isQuoteStale))
 
-  const lpOptions = lpRows.map((r) => ({ value: r.lpToken, label: `${r.label} LP` }))
   const nativePreview =
     unwrapAmount && unwrapFeeBps != null && nativeTaxQuery.data
       ? nativeAfterZapUnwrap(BigInt(unwrapAmount), unwrapFeeBps, nativeTaxQuery.data)
       : null
   const wantedDecimals =
-    kind?.kind === 'pair_leg' && !kind.wrapFromNative && legs
+    kind?.kind === 'pair_leg' && !kind.wrapFromNative
       ? getDecimals(tokenAssetInfo(kind.side === 'a' ? legs[0] : legs[1]))
       : asToken
         ? getDecimals(tokenAssetInfo(asToken))
         : 6
-  const lpBalanceQuery = {
-    data: selectedRow?.balanceRaw,
-    isLoading: false,
-    isError: false,
-  } as UseQueryResult<string, Error>
 
   return (
-    <div className="shell-panel-strong space-y-3" data-testid="pool-one-sided-withdraw">
-      <h3 className="text-sm font-semibold uppercase tracking-wide font-heading">Withdraw</h3>
-      {address && lpRows.length === 0 && !lpQuery.isLoading && (
+    <div className="card-glass space-y-3 animate-fade-in-up" data-testid="pool-one-sided-withdraw">
+      {address && !lpBalanceQuery.isLoading && !hasLp && (
         <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="pool-one-sided-withdraw-empty-lp">
-          No LP tokens in this wallet.
+          No LP in this wallet for this pair.
         </p>
       )}
       <div>
-        <label className="label-glass" htmlFor="pool-one-sided-lp">
-          LP
-        </label>
-        <MenuSelect
-          id="pool-one-sided-lp"
-          value={lpToken}
-          options={lpOptions}
-          onChange={setLpToken}
-          aria-label="LP"
-          emptyLabel={address ? 'No LP tokens' : 'Connect to load LP'}
-        />
+        <label className="label-glass">LP</label>
+        <p
+          className="text-xs flex flex-wrap items-center gap-1"
+          style={{ color: 'var(--ink-subtle)' }}
+          data-testid="pool-one-sided-lp-pinned"
+        >
+          This pair’s LP{' '}
+          <AddressRow
+            address={pair.liquidity_token}
+            startChars={8}
+            endChars={6}
+            copyAriaLabel="Copy LP token address"
+            explorerAriaLabel="View LP token address on explorer"
+            data-testid="pool-one-sided-lp-address-row"
+          />
+        </p>
       </div>
       <div>
         <label className="label-glass" htmlFor="pool-one-sided-withdraw-as">
@@ -311,13 +302,13 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
           aria-label="Amount"
           data-testid="pool-one-sided-withdraw-amount"
         />
-        {address && selectedRow && (
+        {address && hasLp && (
           <AmountBalanceActions
             balanceQuery={lpBalanceQuery}
             decimals={PAIR_LP_CW20_DECIMALS}
             walletConnected={!!address}
-            spendableRaw={BigInt(selectedRow.balanceRaw)}
-            onMax={() => setAmount(fromRawAmount(selectedRow.balanceRaw, PAIR_LP_CW20_DECIMALS))}
+            spendableRaw={BigInt(lpBalanceRaw)}
+            onMax={() => setAmount(fromRawAmount(lpBalanceRaw, PAIR_LP_CW20_DECIMALS))}
             testIdMax="pool-one-sided-withdraw-max"
           />
         )}
@@ -328,15 +319,15 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
           {nativePreview ? ` (~${formatTokenAmount(nativePreview.receive.toString(), 6)} native)` : ''}
         </p>
       )}
-      {disableReason && amount && (
+      {disableReason && (amount || emptyPool) && (
         <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }} role="alert">
           {disableReason}
         </p>
       )}
-      {amount && pair && (
+      {amount && (
         <PoolPreSubmitSummary
-          actionLabel="Withdraw"
-          pairLabel={`${legs?.[0] ?? ''} / ${legs?.[1] ?? ''}`}
+          actionLabel={ONE_SIDED_WITHDRAW_TITLE}
+          pairLabel={`${legs[0]} / ${legs[1]}`}
           amountLines={[`${amount} LP`, asToken ? `as ${asToken}` : '']}
           data-testid="pool-one-sided-withdraw-pre-submit"
         />
@@ -359,8 +350,8 @@ export function OneSidedWithdrawCard({ factoryPairs }: { factoryPairs: PairInfo[
           : terraBroadcastPendingButtonLabel(
               withdrawMutation.phase,
               withdrawMutation.isPending,
-              'Withdraw',
-              'Withdrawing…'
+              ONE_SIDED_WITHDRAW_TITLE,
+              'Zapping…'
             )}
       </button>
       <TerraBroadcastPendingLink phase={withdrawMutation.phase} txHash={withdrawMutation.pendingTxHash} />

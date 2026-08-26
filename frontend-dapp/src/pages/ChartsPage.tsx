@@ -1,7 +1,7 @@
 import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getPairs, getPair, getPairStats, getTrades, getLeaderboard, getOraclePrice } from '@/services/indexer/client'
+import { useNavigate, useParams } from 'react-router-dom'
+import { getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
@@ -18,8 +18,10 @@ import {
   type MenuSelectOption,
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
-import { PnlValue } from '@/components/trader/PnlValue'
+import { TraderLeaderboard } from '@/components/trader/TraderLeaderboard'
+import { useTraderLeaderboardQuery } from '@/components/trader/useTraderLeaderboardQuery'
 import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
+import { DEFAULT_LEADERBOARD_SORT } from '@/components/trader/traderLeaderboard'
 import { formatChartsPairTokenVolume, formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
 import {
   CHARTS_PAIR_SORT_VOLUME_LABEL,
@@ -31,10 +33,9 @@ import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { filterRetailDiscoveryIndexerPairs, sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
 import { chartsPairHref, getInvalidChartsPairRouteParam, isChartsPairRouteParam } from '@/utils/chartsPairRoute'
-import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
-import type { IndexerPair, IndexerPairSort, IndexerTrader } from '@/types'
+import type { IndexerPair, IndexerPairSort } from '@/types'
 import { assetInfoFromIndexerBrief } from '@/utils/tokenIdentity'
 
 const PAIR_PAGE_SIZE = 50
@@ -44,12 +45,6 @@ const TWAP_WINDOWS = [
   { label: '1h', seconds: 3600 },
   { label: '24h', seconds: 86400 },
 ]
-
-const LEADERBOARD_TABS = [
-  { key: 'total_volume_usd', label: 'Volume (USD)' },
-  { key: 'total_realized_pnl', label: 'Most Profit' },
-  { key: 'worst_trade_pnl', label: 'Most Loss' },
-] as const
 
 const CHARTS_PAIR_SORT_OPTIONS: MenuSelectOption[] = [
   { value: 'volume_24h', label: CHARTS_PAIR_SORT_VOLUME_LABEL },
@@ -75,7 +70,6 @@ export default function ChartsPage() {
   const [pairSort, setPairSort] = useState<IndexerPairSort>('volume_24h')
   const [pairOrder, setPairOrder] = useState<'asc' | 'desc'>('desc')
   const [pairPage, setPairPage] = useState(0)
-  const [leaderboardSort, setLeaderboardSort] = useState<string>('total_volume_usd')
   const deferredPairSearch = useDeferredValue(pairSearch.trim())
 
   useEffect(() => {
@@ -150,6 +144,13 @@ export default function ChartsPage() {
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
+  const pairLpQuery = useQuery({
+    queryKey: ['indexer-pair-lp-usd', activePairAddr],
+    queryFn: () => getPair(activePairAddr),
+    enabled: !!activePairAddr && isChartsPairRouteParam(activePairAddr),
+    staleTime: 60_000,
+    retry: false,
+  })
   const pairCodeIdFreeze = usePairCodeIdFreeze({
     pairAddress: activePairAddr,
     indexerHintFrozen: activePair?.code_id_frozen === true,
@@ -225,12 +226,11 @@ export default function ChartsPage() {
     ]
   )
 
-  const leaderboardQuery = useQuery({
-    queryKey: ['leaderboard', leaderboardSort, activePairAddr],
-    queryFn: () => getLeaderboard(leaderboardSort, 20, activePairAddr),
-    enabled: pairQueriesEnabled,
-    refetchInterval: 30_000,
-  })
+  const leaderboardQuery = useTraderLeaderboardQuery(
+    DEFAULT_LEADERBOARD_SORT,
+    pairQueriesEnabled ? activePairAddr : undefined,
+    pairQueriesEnabled
+  )
 
   const twapQuery = useQuery({
     queryKey: ['twap-prices', activePairAddr],
@@ -371,6 +371,9 @@ export default function ChartsPage() {
             asset0={assetInfoFromIndexerBrief(activePair.asset_0)}
             asset1={assetInfoFromIndexerBrief(activePair.asset_1)}
             inverted={pairOrientation.inverted}
+            liquidityUsd={
+              pairLpQuery.data?.pair_address === activePair.pair_address ? pairLpQuery.data.liquidity_usd : undefined
+            }
           />
         ) : null}
         {pairCodeIdFreeze.isFrozen && <PairCodeIdFrozenBanner testId="charts-pair-code-id-frozen-banner" />}
@@ -621,116 +624,7 @@ export default function ChartsPage() {
         )}
       </div>
 
-      {/* Leaderboard */}
-      <div className="shell-panel-strong">
-        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading" style={{ color: 'var(--ink)' }}>
-          Leaderboard
-        </h3>
-
-        <div className="flex gap-1 mb-4 flex-wrap" role="tablist" aria-label="Leaderboard sort">
-          {LEADERBOARD_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              role="tab"
-              aria-selected={leaderboardSort === tab.key}
-              onClick={() => {
-                sounds.playButtonPress()
-                setLeaderboardSort(tab.key)
-              }}
-              className={`tab-glass !text-[10px] !px-3 !py-1.5 ${
-                leaderboardSort === tab.key ? 'tab-glass-active' : 'tab-glass-inactive'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {leaderboardQuery.isLoading && (
-          <div className="space-y-2 py-4" aria-live="polite">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} height="1.5rem" />
-            ))}
-          </div>
-        )}
-        {leaderboardQuery.isError && (
-          <RetryError message="Failed to load leaderboard" onRetry={() => void leaderboardQuery.refetch()} />
-        )}
-        {leaderboardQuery.data && leaderboardQuery.data.length === 0 && (
-          <p className="text-center py-8 text-sm" style={{ color: 'var(--ink-dim)' }}>
-            No traders on this pair yet
-          </p>
-        )}
-        {leaderboardQuery.data && leaderboardQuery.data.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs" aria-label="Trader leaderboard">
-              <thead>
-                <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
-                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
-                    #
-                  </th>
-                  <th scope="col" className="text-left py-2 px-2 font-medium uppercase tracking-wider">
-                    Trader
-                  </th>
-                  <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
-                    {LEADERBOARD_TABS.find((t) => t.key === leaderboardSort)?.label ?? 'Value'}
-                  </th>
-                  <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
-                    Trades
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboardQuery.data.map((trader: IndexerTrader, i: number) => {
-                  const isPnl = leaderboardSort !== 'total_volume_usd'
-                  return (
-                    <tr key={trader.address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="py-1.5 px-2 font-semibold" style={{ color: 'var(--ink-subtle)' }}>
-                        {i + 1}
-                      </td>
-                      <td className="py-1.5 px-2">
-                        <Link
-                          to={`/trader/${trader.address}`}
-                          className="hover:underline"
-                          style={{ color: 'var(--mint)' }}
-                          onClick={() => sounds.playButtonPress()}
-                        >
-                          {shortenAddress(trader.address, 10, 6)}
-                        </Link>
-                      </td>
-                      <td
-                        className="py-1.5 px-2 text-right font-medium"
-                        style={{ color: isPnl ? undefined : 'var(--ink)' }}
-                      >
-                        {isPnl ? (
-                          <PnlValue value={getLeaderboardPnlValue(trader, leaderboardSort)} />
-                        ) : (
-                          <span data-testid="charts-leaderboard-volume">
-                            {formatIndexedVolumeUsd(trader.total_volume_usd, trader.total_trades)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink-subtle)' }}>
-                        {trader.total_trades.toLocaleString()}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {pairQueriesEnabled ? <TraderLeaderboard pairAddress={activePairAddr} enabled={pairQueriesEnabled} /> : null}
     </div>
   )
-}
-
-function getLeaderboardPnlValue(trader: IndexerTrader, sort: string): string | null {
-  switch (sort) {
-    case 'total_realized_pnl':
-    case 'worst_trade_pnl':
-      return trader.total_realized_pnl
-    default:
-      return null
-  }
 }

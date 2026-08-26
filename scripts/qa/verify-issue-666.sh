@@ -49,7 +49,7 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     grep -q "#666" docs/testing.md
   '
 
-run_step "code: Charts has no census strip; pair= on leaderboard" \
+run_step "code: Charts has no census strip; pair= on shared leaderboard" \
   bash -c '
     set -euo pipefail
     ! grep -q "charts-overview-pairs" frontend-dapp/src/pages/ChartsPage.tsx
@@ -57,8 +57,10 @@ run_step "code: Charts has no census strip; pair= on leaderboard" \
     ! grep -q "charts-overview-volume-usd" frontend-dapp/src/pages/ChartsPage.tsx
     ! grep -q "getOverview" frontend-dapp/src/pages/ChartsPage.tsx
     grep -q "charts-pair-24h-stats" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "getLeaderboard(leaderboardSort, 20, activePairAddr)" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "No traders on this pair yet" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "pairAddress={activePairAddr}" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "useTraderLeaderboardQuery" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "No traders on this pair yet" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "getLeaderboard(sort, TRADER_LEADERBOARD_LIMIT, pairTrim)" frontend-dapp/src/components/trader/useTraderLeaderboardQuery.ts
     ! grep -q "Best Trade" frontend-dapp/src/pages/ChartsPage.tsx
     grep -q "PAIR_SCOPED_SORTS" indexer/src/api/traders.rs
     grep -q "get_leaderboard_for_pair" indexer/src/db/queries/traders.rs

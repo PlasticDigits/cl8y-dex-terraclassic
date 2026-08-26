@@ -1,10 +1,10 @@
-/** Retail LUNC liquidity how-to copy (GitLab #531 / #533). Static strings only — no indexer/wallet interpolation. */
+/** Retail LUNC liquidity how-to copy (GitLab #531 / #533 / #660). Static strings only — no indexer/wallet interpolation. */
 
 import { ENVIRONMENT_EXPLAINER } from '@/components/legal/legalCopy'
 
 export const POOL_LP_HOWTO_ANCHOR = 'lp-howto'
 export const POOL_LP_HOWTO_HREF = `/pool#${POOL_LP_HOWTO_ANCHOR}`
-export const POOL_LP_HOWTO_HINT = 'Add one token. Native LUNC auto-wraps.'
+export const POOL_LP_HOWTO_HINT = 'Open Manage. Provide, withdraw, or zap.'
 export const POOL_LP_HOWTO_SUMMARY = 'How to add liquidity'
 export const POOL_LP_HOWTO_OPEN_LABEL = 'How to'
 export const POOL_LP_HOWTO_DISMISS_LABEL = 'Dismiss'
@@ -13,16 +13,16 @@ export const POOL_LP_HOWTO_FOOTER_LABEL = 'Add liquidity'
 export const POOL_LP_HOWTO_NO_INCENTIVE = 'There is no LP or maker incentive program currently.'
 
 export const POOL_LP_HOWTO_TWO_SIDED =
-  'Default Add uses one token you already hold. The other side is swapped to the pool ratio automatically. Two-sided deposit is Advanced (empty pools).'
+  'Open a pair’s Manage. Provide Liquidity deposits both tokens. Zap Add uses one token you already hold and swaps the other side to the pool ratio. Empty pools need Provide Liquidity.'
 
 export const POOL_LP_HOWTO_WRAP =
   'Pools hold wrapped LUNC (cLUNC). Pick native LUNC as Token to auto-wrap, or wrap first under More → Wrap.'
 
 export const POOL_LP_HOWTO_GAS =
-  'Keep bank LUNC for gas. One-sided add can wrap, swap, and provide in one signing flow — do not skip the gas check.'
+  'Keep bank LUNC for gas. Zap Add can wrap, swap, and provide in one signing flow — do not skip the gas check.'
 
 export const POOL_LP_HOWTO_WITHDRAW =
-  'LP tokens are your pool share. To withdraw: pick LP, Withdraw as one token, enter the amount, review the preview, and sign.'
+  'LP tokens are your pool share. Manage → Withdraw Liquidity for both assets, or Zap Withdraw to exit as one token.'
 
 export const POOL_LP_HOWTO_LIMITS =
   'Optional: place a limit on Trade or Limits. That escrows one token at a price — it is not a pool share and not a rewards program.'
@@ -31,7 +31,7 @@ export const POOL_LP_HOWTO_CREATE_PAIR_FEE =
   'Create Pair (under More) is only for a new market. That page charges a LUNC creation fee plus gas. You do not need it to add to an existing pool.'
 
 export const POOL_LP_HOWTO_RATIO_DONATE =
-  'Retail Add swaps to the pool ratio so extra is not donated. Advanced two-sided can still donate if you type off-ratio amounts.'
+  'Zap Add swaps to the pool ratio so extra is not donated. Provide Liquidity can still donate if you type off-ratio amounts.'
 
 export const POOL_LP_HOWTO_UNWRAP =
   'Unwrapping is not free LUNC out. Use Wrap for fee quotes, and do not send unwrapped LUNC to an exchange without the wrap-page warning.'
@@ -39,7 +39,7 @@ export const POOL_LP_HOWTO_UNWRAP =
 export const POOL_LP_HOWTO_NETWORK = ENVIRONMENT_EXPLAINER
 
 export const POOL_LP_HOWTO_PROVIDE =
-  'Open Pool (header, More on a tablet, or the phone tab). Pick Token, Pair, and Amount → read the impermanent-loss notice and pre-sign summary → Add.'
+  'Open Pool (header, More on a tablet, or the phone tab). Expand Manage on a pair. Choose Provide Liquidity, Withdraw Liquidity, Zap Add, or Zap Withdraw → read the notice and pre-sign summary → confirm.'
 
 export type PoolLpHowtoLink = {
   readonly href: '/wrap' | '/trade' | '/limits' | '/create'

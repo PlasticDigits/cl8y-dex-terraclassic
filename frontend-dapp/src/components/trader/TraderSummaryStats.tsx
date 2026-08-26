@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { TraderIdentity } from '@/components/trader/TraderIdentity'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { StatBox } from '@/components/ui/StatBox'
 import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
@@ -12,6 +13,7 @@ import {
   TRADER_PNL_EM_DASH,
 } from '@/utils/traderPositionDisplay'
 import type { IndexerPosition, IndexerTrader } from '@/types'
+import { TRADER_ADDR_END_CHARS, TRADER_ADDR_START_CHARS } from '@/utils/tokenDisplay'
 import { PnlValue } from './PnlValue'
 
 export type TraderSummaryStatsProps = {
@@ -55,15 +57,17 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
       <div className="shell-panel">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
           <div>
-            <p className="text-sm flex flex-wrap items-center gap-1" style={{ color: 'var(--ink)' }}>
-              <AddressRow
-                address={trader.address}
-                startChars={12}
-                endChars={6}
-                copyAriaLabel="Copy trader address"
-                explorerAriaLabel="View trader address on explorer"
-                data-testid={addressRowTestId ?? 'trader-profile-address-row'}
-              />
+            <p className="text-sm flex flex-wrap items-center gap-2" style={{ color: 'var(--ink)' }}>
+              <TraderIdentity address={trader.address} size={36} data-testid="trader-profile-identity">
+                <AddressRow
+                  address={trader.address}
+                  startChars={TRADER_ADDR_START_CHARS}
+                  endChars={TRADER_ADDR_END_CHARS}
+                  copyAriaLabel="Copy trader address"
+                  explorerAriaLabel="View trader address on explorer"
+                  data-testid={addressRowTestId ?? 'trader-profile-address-row'}
+                />
+              </TraderIdentity>
               {isOwnProfile && (
                 <span className="badge-glass badge-glass-accent ml-2" style={{ color: 'var(--accent)' }}>
                   You

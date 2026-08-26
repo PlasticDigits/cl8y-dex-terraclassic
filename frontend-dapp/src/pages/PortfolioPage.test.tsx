@@ -8,6 +8,13 @@ import * as indexerClient from '@/services/indexer/client'
 import { useWalletStore } from '@/hooks/useWallet'
 import type { IndexerPosition, IndexerTrader } from '@/types'
 
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies({ seed }: { seed: string }) {
+    return <span data-testid="mock-blockies" data-seed={seed} />
+  },
+}))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: {
     playButtonPress: vi.fn(),
@@ -40,7 +47,7 @@ vi.mock('@/hooks/usePortfolioLpBalances', () => ({
   }),
 }))
 
-const WALLET = 'terra1wallet0000000000000000000000000000000'
+const WALLET = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 
 const mockTrader: IndexerTrader = {
   address: WALLET,
@@ -115,6 +122,9 @@ describe('PortfolioPage (component)', () => {
     expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument()
     expect(indexerClient.getTrader).not.toHaveBeenCalled()
     expect(indexerClient.getTraderPositions).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('portfolio-share-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trader-leaderboard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^leaderboard$/i })).not.toBeInTheDocument()
   })
 
   it('shows profile empty state on 404 and still loads positions', async () => {
@@ -150,6 +160,23 @@ describe('PortfolioPage (component)', () => {
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/UST1/)
     expect(screen.getByTestId('trader-total-volume-usd')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-summary-fees')).toHaveTextContent('—')
+    expect(screen.queryByTestId('trader-leaderboard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /trader leaderboard/i })).not.toBeInTheDocument()
+  })
+
+  it('shares the public /trader URL, not /portfolio (GitLab #665 TS-11)', async () => {
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated' })
+    vi.mocked(indexerClient.getTrader).mockResolvedValue(mockTrader)
+    renderPortfolio()
+    const share = await screen.findByTestId('portfolio-share-link')
+    expect(share).toHaveAttribute('aria-label', 'Share public profile link')
+    expect(screen.getByTestId('portfolio-public-profile-link')).toHaveAttribute('href', `/trader/${WALLET}`)
+  })
+
+  it('does not show Share when disconnected', () => {
+    renderPortfolio()
+    expect(screen.queryByTestId('portfolio-share-link')).not.toBeInTheDocument()
+    expect(screen.getByTestId('portfolio-connect-prompt')).toBeInTheDocument()
   })
 
   it('shows market-data outage banner on indexer transport failure', async () => {

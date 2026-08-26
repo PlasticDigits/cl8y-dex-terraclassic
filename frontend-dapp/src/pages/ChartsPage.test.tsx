@@ -107,6 +107,10 @@ describe('ChartsPage (component)', () => {
       price_usd: '0.004928',
       sources: [],
     })
+    vi.mocked(indexerClient.getPair).mockImplementation(async (addr: string) => ({
+      ...mockPair,
+      pair_address: addr,
+    }))
   })
 
   it('shows retail market-data banner when pairs fail with transport errors (GitLab #215 / #666 CS-12)', async () => {
@@ -227,8 +231,8 @@ describe('ChartsPage (component)', () => {
         {
           address:
             pair === pairB.pair_address
-              ? 'terra1walletbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
-              : 'terra1walletaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              ? 'terra1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+              : 'terra1abcdefghijklmnopqrstuvwxyz1234567890abcd',
           total_trades: 2,
           total_volume: '1',
           total_volume_usd: pair === pairB.pair_address ? '50' : '10',
@@ -266,7 +270,7 @@ describe('ChartsPage (component)', () => {
       )
       await waitFor(() => expect(screen.getByTestId('charts-pair-trades')).toHaveTextContent('7'))
       expect(screen.getByTestId('charts-leaderboard-volume').textContent).toMatch(/\$/)
-      expect(screen.queryByText(/walletaaaaaaaa/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/90abcd/i)).not.toBeInTheDocument()
     })
   })
 
@@ -293,6 +297,77 @@ describe('ChartsPage (component)', () => {
       expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
       expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
       expect(screen.getByTestId('token-identity-pair')).toBeInTheDocument()
+    })
+  })
+
+  describe('v2 LP identity (GitLab #664)', () => {
+    const PAIR = 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+
+    it('C1: identity row shows v2 LP when getPair is stamped', async () => {
+      const identityPair: IndexerPair = {
+        ...mockPair,
+        pair_address: PAIR,
+        asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+        asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+        liquidity_usd: '1234.5',
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [identityPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPair).mockResolvedValue(identityPair)
+      renderWithProviders(<ChartsPage />)
+      const chip = await screen.findByTestId('token-identity-v2-lp-usd')
+      expect(chip).toHaveTextContent('v2 LP')
+      expect(chip).toHaveTextContent('$')
+    })
+
+    it('C2: 24h Stats Vol (USD) is still volume_usd, not TVL', async () => {
+      const identityPair: IndexerPair = {
+        ...mockPair,
+        pair_address: PAIR,
+        liquidity_usd: '99999',
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [identityPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPair).mockResolvedValue(identityPair)
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '1',
+        volume_quote: '1',
+        volume_usd: '42.5',
+        trade_count: 2,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      const vol = await screen.findByTestId('charts-pair-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('$'))
+      expect(vol.textContent).toMatch(/42/)
+      expect(vol.textContent).not.toMatch(/99999/)
+      expect(screen.getByTestId('charts-pair-24h-stats')).toBeInTheDocument()
+    })
+
+    it('C3: empty pairs has no identity LP chip', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      })
+      renderWithProviders(<ChartsPage />)
+      await waitFor(() => expect(screen.getByText(/no pairs yet/i)).toBeInTheDocument())
+      expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
     })
   })
 
@@ -406,6 +481,77 @@ describe('ChartsPage (component)', () => {
       const cell = await screen.findByTestId('charts-leaderboard-volume')
       expect(cell).toHaveTextContent('—')
       expect(cell.textContent).not.toMatch(/\$0/)
+    })
+  })
+
+  describe('trader leaderboard identity (GitLab #656)', () => {
+    const ADDR = 'terra1abcdefghijklmnopqrstuvwxyz1234567890abcd'
+    const ADDR_B = 'terra1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0abcdx'
+    const SHORT = 'terr…90abcd'
+
+    function leaderRow(address: string, extra: Record<string, unknown> = {}) {
+      return {
+        address,
+        total_trades: 4,
+        total_volume: '10000000000000000000',
+        total_volume_usd: '711.2',
+        volume_24h: '0',
+        volume_7d: '0',
+        volume_30d: '0',
+        tier_id: null,
+        tier_name: null,
+        registered: false,
+        first_trade_at: null,
+        last_trade_at: null,
+        total_realized_pnl: '0',
+        best_trade_pnl: null,
+        worst_trade_pnl: null,
+        total_fees_paid: '0',
+        ...extra,
+      }
+    }
+
+    it('T-ID-1–3: 4/6 label, blockie, and /trader/{full} href — not 10/6', async () => {
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([leaderRow(ADDR)])
+      renderWithProviders(<ChartsPage />)
+      const chip = await screen.findByTestId('charts-leaderboard-trader')
+      expect(chip).toHaveTextContent(SHORT)
+      expect(chip.textContent).not.toContain(ADDR)
+      expect(chip.textContent).not.toMatch(/terra1abcd/)
+      expect(chip).toHaveAttribute('href', `/trader/${ADDR}`)
+      expect(chip).toHaveAttribute('title', ADDR)
+      expect(chip.closest('table')).toHaveAttribute('aria-label', 'Trader leaderboard')
+      expect(screen.getByTestId('trader-identity-blockie')).toHaveAttribute('data-blockie-seed', ADDR)
+      expect(screen.getByTestId('charts-leaderboard-volume')).toBeInTheDocument()
+      expect(chip.querySelector('img')).toBeNull()
+    })
+
+    it('A1: colliding 4/6 chips keep distinct hrefs', async () => {
+      const collideA = 'terra1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0abcdx'
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([leaderRow(collideA), leaderRow(ADDR_B)])
+      renderWithProviders(<ChartsPage />)
+      const chips = await screen.findAllByTestId('charts-leaderboard-trader')
+      expect(chips).toHaveLength(2)
+      expect(chips[0]).toHaveAttribute('href', `/trader/${collideA}`)
+      expect(chips[1]).toHaveAttribute('href', `/trader/${ADDR_B}`)
+      expect(chips[0]).toHaveTextContent(chips[1].textContent ?? '')
+      const seeds = screen.getAllByTestId('trader-identity-blockie').map((n) => n.getAttribute('data-blockie-seed'))
+      expect(seeds).toEqual([collideA, ADDR_B])
+    })
+
+    it('T-ID-6 / A3 / A5: junk address and logo_url do not link or fetch a PFP', async () => {
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([
+        leaderRow('javascript:alert(1)', { logo_url: 'https://evil.example/p.png' }),
+        leaderRow('not-terra'),
+        leaderRow('TERRA1abcdefghijklmnopqrstuvwxyz1234567890abcd'),
+      ])
+      renderWithProviders(<ChartsPage />)
+      await waitFor(() => expect(indexerClient.getLeaderboard).toHaveBeenCalled())
+      expect(screen.queryByTestId('trader-identity-blockie')).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /trader/i })).not.toBeInTheDocument()
+      expect(document.body.innerHTML).not.toMatch(/javascript:/)
+      expect(document.body.innerHTML).not.toContain('https://evil.example/p.png')
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
   })
 

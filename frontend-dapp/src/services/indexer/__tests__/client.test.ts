@@ -39,6 +39,22 @@ describe('indexer client fetchJson', () => {
     await expect(client.getProtocolVolumeDaily(90 as 7)).rejects.toThrow('Invalid protocol volume daily days')
   })
 
+  it('fetches protocol volume grain series with allowlisted grain+limit (GitLab #668)', async () => {
+    const mockData = { grain: 'daily', limit: 14, timezone: 'UTC', methodology: 'protocol_catalog', series: [] }
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mockData), { status: 200 }))
+    const client = await loadModule()
+    const result = await client.getProtocolVolumeSeries('daily', 14)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/protocol/volume/daily?grain=daily&limit=14'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(result).toEqual(mockData)
+    await expect(client.getProtocolVolumeSeries('daily', 91)).rejects.toThrow('Invalid protocol volume grain or limit')
+    await expect(client.getProtocolVolumeSeries('week' as 'daily', 7)).rejects.toThrow(
+      'Invalid protocol volume grain or limit'
+    )
+  })
+
   it('throws on non-ok response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404, statusText: 'Not Found' }))
     vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404, statusText: 'Not Found' }))

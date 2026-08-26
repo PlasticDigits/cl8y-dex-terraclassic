@@ -4,11 +4,30 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { getPairPaused } from '@/services/terraclassic/pair'
+import { getPairPaused, getPool } from '@/services/terraclassic/pair'
 import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
+import { formatRelativeAge } from '@/utils/formatDate'
+
+const { CLUNC, CUSTC, UST1 } = vi.hoisted(() => ({
+  CLUNC: 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg',
+  CUSTC: 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch',
+  UST1: 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72',
+}))
+
+vi.mock('@/utils/constants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/constants')>()
+  return {
+    ...actual,
+    WRAPPED_NATIVE_PAIRS: {
+      ...actual.WRAPPED_NATIVE_PAIRS,
+      [CLUNC]: 'uluna',
+      [CUSTC]: 'uusd',
+    },
+  }
+})
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -133,14 +152,17 @@ const mockIndexerPair = (pairAddr: string): IndexerPair => ({
   is_active: true,
 })
 
-async function openPoolCardAdvanced(user: ReturnType<typeof userEvent.setup>) {
+async function openPoolManage(
+  user: ReturnType<typeof userEvent.setup>,
+  action?: 'provide' | 'withdraw' | 'zap-add' | 'zap-withdraw'
+) {
   const manage = await screen.findByTestId('pool-row-manage')
   if (manage.getAttribute('aria-expanded') !== 'true') {
     await user.click(manage)
   }
-  const details = await screen.findByTestId('pool-card-advanced')
-  if (!(details as HTMLDetailsElement).open) {
-    await user.click(details.querySelector('summary') as HTMLElement)
+  await screen.findByTestId('pool-manage-actions')
+  if (action) {
+    await user.click(screen.getByTestId(`pool-manage-tab-${action}`))
   }
 }
 
@@ -150,6 +172,13 @@ describe('PoolPage', () => {
     walletSnapshot.address = addr
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getPairPaused).mockResolvedValue({ paused: false })
+    vi.mocked(getPool).mockResolvedValue({
+      assets: [
+        { info: { token: { contract_addr: 'tokenA' } }, amount: '1000000' },
+        { info: { token: { contract_addr: 'tokenB' } }, amount: '2000000' },
+      ],
+      total_share: '2000000',
+    })
     vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
     vi.mocked(indexerClient.getTokens).mockResolvedValue([])
     vi.mocked(indexerClient.getPairs).mockResolvedValue(mockGetPairs)
@@ -182,30 +211,51 @@ describe('PoolPage', () => {
     expect(await screen.findByTestId('pool-pairs-table')).toBeTruthy()
   })
 
-  it('renders one-sided add and withdraw cards (GitLab #533)', () => {
+  it('does not render page-level zap cards until Manage + zap tab (GitLab #660 M1)', async () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
+    expect(await screen.findByTestId('pool-pairs-table')).toBeInTheDocument()
+    expect(screen.queryByTestId('pool-one-sided-add')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pool-one-sided-withdraw')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pool-card-advanced')).not.toBeInTheDocument()
+  })
+
+  it('renders pair-scoped zap add after Manage + Zap Add (GitLab #533 / #660)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+    await openPoolManage(user, 'zap-add')
     expect(screen.getByTestId('pool-one-sided-add')).toBeInTheDocument()
-    expect(screen.getByTestId('pool-one-sided-withdraw')).toBeInTheDocument()
     expect(screen.getByTestId('pool-one-sided-add-submit')).toBeInTheDocument()
     expect(screen.getByTestId('pool-il-risk-notice')).toBeInTheDocument()
     expect(screen.getByTestId('pool-one-sided-add-amount')).toBeInTheDocument()
-    expect(screen.queryByLabelText(/Asset B amount/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/tokenB amount/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Asset A|Asset B/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pool-provide-auto-wrap-a')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Pair$/i)).not.toBeInTheDocument()
   })
 
-  it('U1 disconnected: pickers + IL visible; CTA is Connect Wallet', () => {
+  it('U1 disconnected: zap pickers + IL after Manage; CTA is Connect Wallet', async () => {
+    const user = userEvent.setup()
     walletSnapshot.address = null
     renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+    await openPoolManage(user, 'zap-add')
     expect(screen.getByTestId('pool-il-risk-notice')).toBeInTheDocument()
     expect(screen.getByLabelText(/^Token$/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^Pair$/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Pair$/i)).not.toBeInTheDocument()
     expect(screen.getByTestId('pool-one-sided-add-submit')).toHaveTextContent(/Connect Wallet/i)
+    await openPoolManage(user, 'zap-withdraw')
     expect(screen.getByTestId('pool-one-sided-withdraw-submit')).toHaveTextContent(/Connect Wallet/i)
   })
 
   it('U2 connected with zero holdings: empty token and LP states', async () => {
+    const user = userEvent.setup()
     getTokenBalanceMock.mockResolvedValue('0')
     renderWithProviders(<PoolPage />, { route: '/pool' })
+    await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+    await openPoolManage(user, 'zap-add')
     expect(await screen.findByTestId('pool-one-sided-add-empty-tokens')).toBeInTheDocument()
+    await openPoolManage(user, 'zap-withdraw')
     expect(await screen.findByTestId('pool-one-sided-withdraw-empty-lp')).toBeInTheDocument()
   })
 
@@ -215,6 +265,82 @@ describe('PoolPage', () => {
     await user.click(screen.getByTestId('pool-lp-howto-open'))
     expect(screen.getByTestId('pool-lp-howto-step-two-sided')).toHaveTextContent(/one token/i)
     expect(screen.getByTestId('pool-lp-howto-step-two-sided')).not.toHaveTextContent(/both assets are required/i)
+    expect(screen.getByTestId('pool-lp-howto-step-two-sided')).toHaveTextContent(/Manage/i)
+    expect(screen.getByTestId('pool-lp-howto-step-two-sided')).not.toHaveTextContent(/Advanced/i)
+  })
+
+  describe('pair Manage IA (GitLab #660)', () => {
+    it('M2: four peer actions on a factory row, no Advanced disclosure', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolManage(user)
+      expect(screen.getByTestId('pool-manage-tab-provide')).toBeInTheDocument()
+      expect(screen.getByTestId('pool-manage-tab-withdraw')).toBeInTheDocument()
+      expect(screen.getByTestId('pool-manage-tab-zap-add')).toBeInTheDocument()
+      expect(screen.getByTestId('pool-manage-tab-zap-withdraw')).toBeInTheDocument()
+      expect(screen.queryByTestId('pool-card-advanced')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('pool-one-sided-add')).not.toBeInTheDocument()
+    })
+
+    it('M7: indexer-only row omits zap tabs', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            asset_infos: [{ token: { contract_addr: 't1' } }, { token: { contract_addr: 't2' } }],
+            contract_addr: 'inFactory',
+            liquidity_token: 'lp',
+          },
+        ],
+      })
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [mockIndexerPair('inFactory'), mockIndexerPair('notInFactory')],
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const manages = await screen.findAllByTestId('pool-row-manage')
+      await user.click(manages[1]!)
+      expect(screen.getByTestId('pool-manage-tab-provide')).toBeInTheDocument()
+      expect(screen.queryByTestId('pool-manage-tab-zap-add')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('pool-manage-tab-zap-withdraw')).not.toBeInTheDocument()
+    })
+
+    it('M6: empty pool disables zap and points at Provide Liquidity', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getPool).mockResolvedValue({
+        assets: [
+          { info: { token: { contract_addr: 'tokenA' } }, amount: '0' },
+          { info: { token: { contract_addr: 'tokenB' } }, amount: '0' },
+        ],
+        total_share: '0',
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolManage(user)
+      expect(await screen.findByTestId('pool-manage-empty-pool')).toHaveTextContent(
+        /Empty pool. Use Provide Liquidity/i
+      )
+      expect(screen.getByTestId('pool-manage-tab-zap-add')).toBeDisabled()
+      expect(screen.getByTestId('pool-manage-tab-zap-withdraw')).toBeDisabled()
+      expect(screen.queryByTestId('pool-one-sided-add')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Use Advanced/i)).not.toBeInTheDocument()
+      await user.click(screen.getByTestId('pool-manage-tab-provide'))
+      expect(await screen.findByLabelText('tokenA amount')).toBeInTheDocument()
+    })
+
+    it('T9: switching tabs unmounts the previous form', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolManage(user, 'zap-add')
+      expect(screen.getByTestId('pool-one-sided-add')).toBeInTheDocument()
+      await user.click(screen.getByTestId('pool-manage-tab-provide'))
+      expect(screen.queryByTestId('pool-one-sided-add')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('tokenA amount')).toBeInTheDocument()
+    })
   })
 
   it('shows retail LP how-to and still renders Provide / IL when opened (GitLab #531)', async () => {
@@ -223,10 +349,7 @@ describe('PoolPage', () => {
     expect(screen.getByTestId('pool-lp-howto')).toBeInTheDocument()
     expect(screen.getByTestId('pool-lp-howto-details')).toBeInTheDocument()
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
-    expect(await screen.findByTestId('pool-il-risk-notice')).toBeInTheDocument()
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
     expect(await screen.findByTestId('pool-il-risk-notice-advanced')).toBeInTheDocument()
   })
 
@@ -235,13 +358,9 @@ describe('PoolPage', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    expect(await screen.findByTestId('pool-il-risk-notice')).toBeInTheDocument()
+    await openPoolManage(user, 'provide')
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
-
-    const notice = await screen.findByTestId('pool-il-risk-notice')
+    const notice = await screen.findByTestId('pool-il-risk-notice-advanced')
     expect(notice).toHaveTextContent(/Impermanent loss risk/i)
     expect(notice).toHaveTextContent(/diverge from simply holding/i)
     expect(within(notice).getByRole('link', { name: /Learn more/i })).toHaveAttribute(
@@ -256,20 +375,18 @@ describe('PoolPage', () => {
 
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
     expect(screen.queryByTestId('pool-provide-pre-submit-summary')).not.toBeInTheDocument()
 
-    const aInput = screen.getByLabelText('Asset A amount')
+    const aInput = screen.getByLabelText('tokenA amount')
     await user.type(aInput, '1')
 
     const summary = await screen.findByTestId('pool-provide-pre-submit-summary')
     expect(summary).toHaveTextContent('Provide Liquidity')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-pair')).toBeInTheDocument()
     expect(screen.getByTestId('pool-provide-pre-submit-summary-amount')).toHaveTextContent('1')
-    expect(screen.getByLabelText('Asset B amount')).toHaveValue('2')
+    expect(screen.getByLabelText('tokenB amount')).toHaveValue('2')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-chain')).toBeInTheDocument()
 
     const submitButtons = screen.getAllByRole('button', { name: /^Provide Liquidity$/i })
@@ -283,9 +400,7 @@ describe('PoolPage', () => {
 
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
-    await user.click(withdrawTabs[0]!)
+    await openPoolManage(user, 'withdraw')
 
     expect(screen.queryByTestId('pool-withdraw-pre-submit-summary')).not.toBeInTheDocument()
 
@@ -300,7 +415,7 @@ describe('PoolPage', () => {
     expect(screen.getByTestId('pool-withdraw-pre-submit-summary-chain')).toBeInTheDocument()
 
     await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /^Withdraw Liquidity$/i }).length).toBeGreaterThan(1)
+      expect(screen.getAllByRole('button', { name: /^Withdraw Liquidity$/i }).length).toBeGreaterThanOrEqual(1)
     })
     const submitButtons = screen.getAllByRole('button', { name: /^Withdraw Liquidity$/i })
     const submit = submitButtons[submitButtons.length - 1]!
@@ -313,16 +428,14 @@ describe('PoolPage', () => {
 
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
     expect(await screen.findAllByTestId('pool-add-max-a')).toHaveLength(1)
     expect(await screen.findAllByTestId('pool-add-max-b')).toHaveLength(1)
     const balanceLines = screen.getAllByText(/^Balance:/i)
     expect(balanceLines.length).toBeGreaterThanOrEqual(2)
 
-    const aInput = screen.getByLabelText('Asset A amount')
+    const aInput = screen.getByLabelText('tokenA amount')
     await user.type(aInput, '1')
 
     await waitFor(() => {
@@ -335,12 +448,10 @@ describe('PoolPage', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
-    await user.type(screen.getByLabelText('Asset A amount'), '1')
-    expect(screen.getByLabelText('Asset B amount')).toHaveValue('2')
+    await user.type(screen.getByLabelText('tokenA amount'), '1')
+    expect(screen.getByLabelText('tokenB amount')).toHaveValue('2')
   })
 
   it('auto-fills A when typing B with A empty (#480)', async () => {
@@ -348,12 +459,10 @@ describe('PoolPage', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
-    await user.type(screen.getByLabelText('Asset B amount'), '2')
-    expect(screen.getByLabelText('Asset A amount')).toHaveValue('1')
+    await user.type(screen.getByLabelText('tokenB amount'), '2')
+    expect(screen.getByLabelText('tokenA amount')).toHaveValue('1')
   })
 
   it('Max on A force-syncs B (#480)', async () => {
@@ -361,13 +470,11 @@ describe('PoolPage', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
     await user.click(await screen.findByTestId('pool-add-max-a'))
-    const aVal = (screen.getByLabelText('Asset A amount') as HTMLInputElement).value
-    const bVal = (screen.getByLabelText('Asset B amount') as HTMLInputElement).value
+    const aVal = (screen.getByLabelText('tokenA amount') as HTMLInputElement).value
+    const bVal = (screen.getByLabelText('tokenB amount') as HTMLInputElement).value
     expect(aVal).not.toBe('')
     expect(bVal).not.toBe('')
     expect(Number(bVal) / Number(aVal)).toBeCloseTo(2, 5)
@@ -378,18 +485,16 @@ describe('PoolPage', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
-    const bInput = screen.getByLabelText('Asset B amount')
-    await user.type(screen.getByLabelText('Asset A amount'), '1')
+    const bInput = screen.getByLabelText('tokenB amount')
+    await user.type(screen.getByLabelText('tokenA amount'), '1')
     expect(bInput).toHaveValue('2')
 
     await user.clear(bInput)
     await user.type(bInput, '3')
 
-    expect(screen.getByLabelText('Asset A amount')).toHaveValue('1')
+    expect(screen.getByLabelText('tokenA amount')).toHaveValue('1')
     expect(await screen.findByTestId('pool-provide-ratio-warning')).toBeInTheDocument()
   })
 
@@ -398,9 +503,7 @@ describe('PoolPage', () => {
     renderWithProviders(<PoolPage />, { route: '/pool' })
     await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-    await openPoolCardAdvanced(user)
-    const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
-    await user.click(withdrawTabs[0]!)
+    await openPoolManage(user, 'withdraw')
 
     await user.type(screen.getByLabelText('LP Token Amount'), '1')
 
@@ -416,14 +519,12 @@ describe('PoolPage', () => {
     getTokenBalanceMock.mockImplementation(async (wallet) => (wallet === addr ? '1000000' : '0'))
 
     renderWithProviders(<PoolPage />, { route: '/pool' })
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
-    const aInput = await screen.findByLabelText('Asset A amount')
+    const aInput = await screen.findByLabelText('tokenA amount')
     await user.clear(aInput)
     await user.type(aInput, '2')
-    await user.type(screen.getByLabelText('Asset B amount'), '2')
+    await user.type(screen.getByLabelText('tokenB amount'), '2')
 
     const submit = screen.getByRole('button', { name: /Insufficient balance/i })
     expect(submit).toBeDisabled()
@@ -443,11 +544,9 @@ describe('PoolPage', () => {
     )
 
     renderWithProviders(<PoolPage />, { route: '/pool' })
-    await openPoolCardAdvanced(user)
-    const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-    await user.click(provide[0]!)
+    await openPoolManage(user, 'provide')
 
-    const aInput = await screen.findByLabelText('Asset A amount')
+    const aInput = await screen.findByLabelText('tokenA amount')
     await user.type(aInput, '1')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/allowance A \+ allowance B \+ provide liquidity/)
@@ -524,13 +623,11 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-      await openPoolCardAdvanced(user)
-      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-      await user.click(provide[0]!)
+      await openPoolManage(user, 'provide')
 
       expect(await screen.findByTestId('pool-pair-paused-banner')).toHaveTextContent(/paused by governance/i)
-      const aInput = await screen.findByLabelText('Asset A amount')
-      const bInput = screen.getByLabelText('Asset B amount')
+      const aInput = await screen.findByLabelText('tokenA amount')
+      const bInput = screen.getByLabelText('tokenB amount')
       await user.type(aInput, '1')
       await user.type(bInput, '2')
 
@@ -543,9 +640,7 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-      await openPoolCardAdvanced(user)
-      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
-      await user.click(withdrawTabs[0]!)
+      await openPoolManage(user, 'withdraw')
 
       expect(await screen.findByTestId('pool-pair-paused-banner')).toHaveTextContent(/paused by governance/i)
       const lpInput = screen.getByLabelText('LP Token Amount')
@@ -571,13 +666,11 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-      await openPoolCardAdvanced(user)
-      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-      await user.click(provide[0]!)
+      await openPoolManage(user, 'provide')
 
       expect(await screen.findByTestId('pool-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
-      const aInput = await screen.findByLabelText('Asset A amount')
-      const bInput = screen.getByLabelText('Asset B amount')
+      const aInput = await screen.findByLabelText('tokenA amount')
+      const bInput = screen.getByLabelText('tokenB amount')
       await user.type(aInput, '1')
       await user.type(bInput, '2')
 
@@ -590,9 +683,7 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
 
-      await openPoolCardAdvanced(user)
-      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
-      await user.click(withdrawTabs[0]!)
+      await openPoolManage(user, 'withdraw')
 
       expect(await screen.findByTestId('pool-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
       const lpInput = screen.getByLabelText('LP Token Amount')
@@ -606,18 +697,14 @@ describe('PoolPage', () => {
     async function openProvidePanel(user: ReturnType<typeof userEvent.setup>) {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
-      await openPoolCardAdvanced(user)
-      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
-      await user.click(provide[0]!)
-      await user.type(await screen.findByLabelText('Asset A amount'), '1')
+      await openPoolManage(user, 'provide')
+      await user.type(await screen.findByLabelText('tokenA amount'), '1')
     }
 
     async function openWithdrawPanel(user: ReturnType<typeof userEvent.setup>) {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
-      await openPoolCardAdvanced(user)
-      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
-      await user.click(withdrawTabs[0]!)
+      await openPoolManage(user, 'withdraw')
       await user.type(screen.getByLabelText('LP Token Amount'), '1')
     }
 
@@ -687,9 +774,7 @@ describe('PoolPage', () => {
       expect(screen.getByTestId('token-identity-pair')).toBeInTheDocument()
       expect(screen.getByTestId('token-identity-base-explorer')).toHaveAttribute('rel', 'noopener noreferrer')
 
-      await openPoolCardAdvanced(user)
-      const withdrawTabs = await screen.findAllByRole('button', { name: /Withdraw Liquidity/i })
-      await user.click(withdrawTabs[0]!)
+      await openPoolManage(user, 'withdraw')
       expect(await screen.findByTestId('pool-lp-token-address-row')).toBeInTheDocument()
     })
 
@@ -794,6 +879,85 @@ describe('PoolPage', () => {
       expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'none')
     })
 
+    it('F2/F3: v2 LP USD header calls indexer liquidity_usd and toggles order', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      expect(screen.getByTestId('pool-sort-lp-usd')).toHaveTextContent(/v2 LP USD/)
+      await user.click(screen.getByTestId('pool-sort-lp-usd'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'liquidity_usd', order: 'desc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-lp-usd').closest('th')).toHaveAttribute('aria-sort', 'descending')
+      expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'none')
+      await user.click(screen.getByTestId('pool-sort-lp-usd'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'liquidity_usd', order: 'asc', limit: 20 })
+        )
+      )
+    })
+
+    it('F1/F4/F5/F11: LP USD cell uses JSON or em-dash; never invents TVL from volume', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[0]!, liquidity_usd: undefined, volume_quote_24h: '999999' },
+          { ...catalogPairs()[1]!, liquidity_usd: '1234.5', volume_quote_24h: '1' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-lp-usd')
+      expect(cells[0]).toHaveTextContent(/^\$/)
+      expect(cells[1]).toHaveTextContent('—')
+      expect(indexerClient.getPairs).toHaveBeenCalledWith(
+        expect.objectContaining({ sort: 'volume_24h', order: 'desc', limit: 500 })
+      )
+    })
+
+    it('F4: Infinity/NaN/HTML liquidity_usd renders em-dash as text', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[0]!, liquidity_usd: 'Infinity' },
+          { ...catalogPairs()[1]!, liquidity_usd: '<img onerror=alert(1)>' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-lp-usd')
+      expect(cells[0]).toHaveTextContent('—')
+      expect(cells[1]).toHaveTextContent('—')
+      expect(cells[0].querySelector('img')).toBeNull()
+      expect(cells[1].querySelector('img')).toBeNull()
+      expect(cells[1].innerHTML).not.toMatch(/onerror/i)
+    })
+
+    it('F8: Manage expand panel spans the new column count', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await user.click((await screen.findAllByTestId('pool-row-manage'))[0]!)
+      const panel = await screen.findByTestId('pool-row-manage-panel')
+      expect(panel.querySelector('td')).toHaveAttribute('colspan', '7')
+    })
+
     it('H1: Charts link is same-origin /charts/:pairAddr', async () => {
       vi.mocked(indexerClient.getPairs).mockResolvedValue({
         items: catalogPairs(),
@@ -804,6 +968,201 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       const link = await screen.findAllByTestId('pool-row-charts')
       expect(link[0]).toHaveAttribute('href', `/charts/${UST1_PAIR}`)
+    })
+
+    it('C662: catalog mode Created aria-sort is none until click', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      expect(screen.getByTestId('pool-sort-created').closest('th')).toHaveAttribute('aria-sort', 'none')
+    })
+
+    it('C662: Created header sorts desc then asc without catalog overlay', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await user.click(await screen.findByTestId('pool-sort-created'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'created', order: 'desc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-created').closest('th')).toHaveAttribute('aria-sort', 'descending')
+      await user.click(screen.getByTestId('pool-sort-created'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'created', order: 'asc', limit: 20 })
+        )
+      )
+    })
+
+    it('C662: Created cell shows relative age from created_at', async () => {
+      const createdAt = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [{ ...catalogPairs()[1]!, created_at: createdAt }],
+        total: 1,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cell = await screen.findByTestId('pool-row-created')
+      expect(cell).toHaveTextContent(formatRelativeAge(createdAt))
+      expect(cell).toHaveAttribute('title')
+      expect(cell.getAttribute('title')).not.toBe(createdAt)
+    })
+
+    it('C662: missing or garbage created_at renders em-dash without dumping payload', async () => {
+      const garbage = '<script>alert(1)</script>'
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[1]!, created_at: garbage },
+          { ...catalogPairs()[0]!, pair_address: 'terra1nosecondpair0000000000000000000000001' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-created')
+      expect(cells[0]).toHaveTextContent('—')
+      expect(cells[0]).not.toHaveAttribute('title')
+      expect(cells[0].innerHTML).not.toContain('script')
+      expect(cells[1]).toHaveTextContent('—')
+    })
+
+    it('C662: search mode still uses relevance', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      await user.type(screen.getByLabelText(/^Search$/i), 'UST1')
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(expect.objectContaining({ sort: 'relevance', q: 'UST1' }))
+      )
+    })
+  })
+
+  describe('provide labels + wrap default (GitLab #661)', () => {
+    const PAIR = 'terra1wrapair000000000000000000000000000001'
+    const LP = 'terra1wraplp0000000000000000000000000000001'
+
+    function mockWrapPair(asset0: string, asset1: string) {
+      const pair: IndexerPair = {
+        pair_address: PAIR,
+        asset_0: { symbol: 'x', contract_addr: asset0, denom: null, decimals: 6 },
+        asset_1: { symbol: 'y', contract_addr: asset1, denom: null, decimals: 6 },
+        lp_token: LP,
+        fee_bps: 30,
+        is_active: true,
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({ total: 1, items: [pair], limit: 20, offset: 0 })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            asset_infos: [{ token: { contract_addr: asset0 } }, { token: { contract_addr: asset1 } }],
+            contract_addr: PAIR,
+            liquidity_token: LP,
+          },
+        ],
+      })
+      vi.mocked(getPool).mockResolvedValue({
+        assets: [
+          { info: { token: { contract_addr: asset0 } }, amount: '1000000' },
+          { info: { token: { contract_addr: asset1 } }, amount: '2000000' },
+        ],
+        total_share: '2000000',
+      })
+    }
+
+    async function openProvide(user: ReturnType<typeof userEvent.setup>) {
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolManage(user, 'provide')
+    }
+
+    it('W1/L2: cLUNC leg wrap checkbox is checked; label is native LUNC', async () => {
+      const user = userEvent.setup()
+      mockWrapPair(CLUNC, UST1)
+      await openProvide(user)
+
+      const wrapA = await screen.findByTestId('pool-provide-auto-wrap-a')
+      expect(wrapA).toBeChecked()
+      expect(screen.queryByTestId('pool-provide-auto-wrap-b')).not.toBeInTheDocument()
+      expect(screen.getByTestId('pool-provide-field-label-a')).toHaveTextContent('Terra Luna Classic (LUNC)')
+      expect(screen.getByLabelText('LUNC amount')).toBeInTheDocument()
+      expect(screen.getByTestId('pool-provide-field-label-b')).toHaveTextContent('UST1')
+      expect(screen.getByLabelText('UST1 amount')).toBeInTheDocument()
+      expect(screen.queryByText(/Asset A/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Asset B/i)).not.toBeInTheDocument()
+
+      await waitFor(() => {
+        expect(getTokenBalanceMock).toHaveBeenCalledWith(
+          addr,
+          expect.objectContaining({ native_token: { denom: 'uluna' } })
+        )
+      })
+    })
+
+    it('L3/W4: uncheck wrap switches label and balance to cLUNC', async () => {
+      const user = userEvent.setup()
+      mockWrapPair(CLUNC, UST1)
+      await openProvide(user)
+
+      await user.click(await screen.findByTestId('pool-provide-auto-wrap-a'))
+      expect(screen.getByTestId('pool-provide-auto-wrap-a')).not.toBeChecked()
+      expect(screen.getByTestId('pool-provide-field-label-a')).toHaveTextContent('Wrapped Luna Classic (cLUNC)')
+      expect(screen.getByLabelText('cLUNC amount')).toBeInTheDocument()
+
+      await waitFor(() => {
+        expect(getTokenBalanceMock).toHaveBeenCalledWith(
+          addr,
+          expect.objectContaining({ token: { contract_addr: CLUNC } })
+        )
+      })
+    })
+
+    it('W2: non-wrap pair has no auto-wrap checkbox', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolManage(user, 'provide')
+
+      expect(screen.queryByTestId('pool-provide-auto-wrap-a')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('pool-provide-auto-wrap-b')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('tokenA amount')).toBeInTheDocument()
+      expect(screen.getByLabelText('tokenB amount')).toBeInTheDocument()
+    })
+
+    it('AC8: dual wrap pair defaults both checkboxes on independently', async () => {
+      const user = userEvent.setup()
+      mockWrapPair(CLUNC, CUSTC)
+      await openProvide(user)
+
+      expect(await screen.findByTestId('pool-provide-auto-wrap-a')).toBeChecked()
+      expect(screen.getByTestId('pool-provide-auto-wrap-b')).toBeChecked()
+      expect(screen.getByLabelText('LUNC amount')).toBeInTheDocument()
+      expect(screen.getByLabelText('USTC amount')).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('pool-provide-auto-wrap-b'))
+      expect(screen.getByTestId('pool-provide-auto-wrap-a')).toBeChecked()
+      expect(screen.getByTestId('pool-provide-auto-wrap-b')).not.toBeChecked()
+      expect(screen.getByLabelText('cUSTC amount')).toBeInTheDocument()
     })
   })
 })

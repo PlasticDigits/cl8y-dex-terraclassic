@@ -24,9 +24,10 @@ describe('poolLpHowtoCopy (#531)', () => {
     expect(text).not.toMatch(/qr\s*code/i)
   })
 
-  it('states one-sided provide, wrap, gas, withdraw, and no incentive', () => {
+  it('states zap provide, wrap, gas, withdraw, and no incentive', () => {
     expect(POOL_LP_HOWTO_TWO_SIDED).toMatch(/one token/i)
-    expect(POOL_LP_HOWTO_TWO_SIDED).toMatch(/Advanced/i)
+    expect(POOL_LP_HOWTO_TWO_SIDED).toMatch(/Manage/i)
+    expect(POOL_LP_HOWTO_TWO_SIDED).not.toMatch(/Advanced/i)
     expect(POOL_LP_HOWTO_WRAP).toMatch(/native LUNC/i)
     expect(POOL_LP_HOWTO_WRAP).toMatch(/Wrap/)
     expect(POOL_LP_HOWTO_GAS).toMatch(/gas/i)

@@ -1,6 +1,6 @@
 import { CopyButton } from '@/components/ui/CopyButton'
 import { sounds } from '@/lib/sounds'
-import { getExplorerAddressUrl } from '@/utils/terraExplorer'
+import { getExplorerAddressUrl, isSafeExplorerHref } from '@/utils/terraExplorer'
 
 const menuIconClass = 'w-4 h-4 shrink-0'
 
@@ -35,6 +35,7 @@ type WalletDropdownMenuItemsProps = {
 /** Standard wallet menu rows between the AddressRow header and profile/disconnect (GitLab #185). */
 export function WalletDropdownMenuItems({ address, onClose, onSwitchWallet }: WalletDropdownMenuItemsProps) {
   const explorerUrl = getExplorerAddressUrl(address)
+  const safeExplorerUrl = isSafeExplorerHref(explorerUrl) ? explorerUrl : null
 
   return (
     <>
@@ -44,10 +45,10 @@ export function WalletDropdownMenuItems({ address, onClose, onSwitchWallet }: Wa
         menuLabel="Copy address"
         data-testid="wallet-menu-copy-address"
       />
-      {explorerUrl ? (
+      {safeExplorerUrl ? (
         <a
           role="menuitem"
-          href={explorerUrl}
+          href={safeExplorerUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => {

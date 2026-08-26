@@ -96,7 +96,7 @@ const ALPHA_INV = {
   terraportIncomplete: false,
 }
 
-describe('MigrateTokenPage (#626 / #634)', () => {
+describe('MigrateTokenPage (#626 / #634 / #670)', () => {
   beforeEach(() => {
     mockEnabled.mockReturnValue(true)
     useWalletStore.setState({ address: null, walletType: null, error: null })
@@ -107,21 +107,34 @@ describe('MigrateTokenPage (#626 / #634)', () => {
     loadMigratePairInventory.mockResolvedValue(EMPTY_INV)
   })
 
-  it('P0: env unset → unavailable, no invoice card', () => {
+  it('P0: env unset → unavailable, no invoice card, no Unlock tease', () => {
     mockEnabled.mockReturnValue(false)
     renderWithProviders(<MigrateTokenPage />)
     expect(screen.getByTestId('migrate-token-unavailable')).toBeInTheDocument()
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('migrate-token-why')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Unlock 7 features/i)).not.toBeInTheDocument()
   })
 
-  it('A9 / AC8: heading is Migrate Token and query params do not prefill', () => {
+  it('A9 / AC8 / #670: heading is Migrate Token, why copy shows, query params do not prefill', () => {
     renderWithProviders(<MigrateTokenPage />, {
       route: '/token/migrate?payee=terra1evil&manager=terra1evil&token=terra1evil&addr=terra1evil&pair=terra1terraport',
     })
     expect(screen.getByRole('heading', { name: /migrate token/i })).toBeInTheDocument()
-    expect(screen.getByText(/move an existing token onto this template/i)).toBeInTheDocument()
+    expect(screen.getByTestId('migrate-token-why')).toHaveTextContent(
+      /Unlock 7 features for your token on CL8Y Dex by migrating today/i
+    )
+    const examples = screen.getByTestId('migrate-token-why-examples')
+    expect(examples).toHaveTextContent(/buy and sell tax/i)
+    expect(examples).toHaveTextContent(/Auto liquidity/)
+    expect(examples).toHaveTextContent(/Launch guards/)
+    expect(examples).not.toHaveTextContent(/Minting/)
     expect(screen.queryByText(/VITE_COMMUNITY_MIGRATE_CODE_IDS/)).not.toBeInTheDocument()
     expect(screen.queryByText(/allowlisted CW20/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/50 UST1/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/enable_feature/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/11619/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/cw2/i)).not.toBeInTheDocument()
     expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
     expect(screen.getByTestId('migrate-token-addr')).toHaveValue('')
   })
@@ -142,7 +155,9 @@ describe('MigrateTokenPage (#626 / #634)', () => {
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/tax leftovers/)
+    expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Address stays the same/)
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Terraport/)
+    expect(screen.getByTestId('migrate-token-why')).toBeInTheDocument()
     expect(await screen.findByTestId('migrate-venue-inventory')).toBeInTheDocument()
     expect(screen.getAllByTestId('migrate-venue-other-row')).toHaveLength(2)
     expect(screen.getByText(/ALPHA\/LUNC/)).toBeInTheDocument()
@@ -168,6 +183,7 @@ describe('MigrateTokenPage (#626 / #634)', () => {
     await user.click(screen.getByTestId('migrate-token-load'))
     expect(await screen.findByTestId('migrate-token-cta')).toHaveTextContent(/free/i)
     expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Terraport/)
+    expect(screen.getByTestId('migrate-token-confirm')).toHaveTextContent(/Address stays the same/)
     expect(await screen.findByTestId('migrate-venue-cl8y-empty')).toHaveTextContent(MIGRATE_VENUE_CL8Y_EMPTY)
     expect(screen.getByTestId('migrate-create-pair')).toHaveAttribute('href', '/create')
     expect(screen.getByTestId('migrate-venue-gdex')).toBeInTheDocument()

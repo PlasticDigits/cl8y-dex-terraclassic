@@ -1,10 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { TraderSummaryStats } from './TraderSummaryStats'
 import * as indexerClient from '@/services/indexer/client'
+import * as clipboard from '@/utils/copyToClipboard'
 import type { IndexerPosition, IndexerTrader } from '@/types'
+import { shortenTraderAddress } from '@/utils/tokenDisplay'
+
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies({ seed }: { seed: string }) {
+    return <span data-testid="mock-blockies" data-seed={seed} />
+  },
+}))
 
 vi.mock('@/lib/sounds', () => ({
   sounds: {
@@ -13,6 +23,10 @@ vi.mock('@/lib/sounds', () => ({
     playSuccess: vi.fn(),
     playError: vi.fn(),
   },
+}))
+
+vi.mock('@/utils/copyToClipboard', () => ({
+  copyToClipboard: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
 vi.mock('@/services/indexer/client', async (importOriginal) => {
@@ -179,5 +193,57 @@ describe('TraderSummaryStats Total Volume (GitLab #553)', () => {
   it('zero trades is $0', () => {
     renderSummary(trader({ total_trades: 0, total_volume: '0', total_volume_usd: '0' }))
     expect(screen.getByTestId('trader-total-volume-usd')).toHaveTextContent('$0')
+  })
+})
+
+describe('TraderSummaryStats identity (GitLab #656)', () => {
+  beforeEach(() => {
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
+      price_usd: '0.005',
+      sources: [],
+    })
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub prices — not CEX',
+      tickers: ['ust1'],
+      prices: [{ ticker: 'ust1', price_usd: '0.976' }],
+    })
+    vi.mocked(clipboard.copyToClipboard).mockClear()
+  })
+
+  it('T-ID-4/5 / A8: larger blockie + 4/6 AddressRow; copy is the full bech32', async () => {
+    const user = userEvent.setup()
+    renderSummary(trader(), positions)
+    const identity = screen.getByTestId('trader-profile-identity')
+    expect(identity.querySelector('[data-testid="trader-identity-blockie"]')).toBeTruthy()
+    expect(screen.getByTestId('mock-blockies')).toHaveAttribute('data-seed', ADDR)
+    expect(screen.getByTestId('trader-profile-address-row')).toHaveTextContent(shortenTraderAddress(ADDR))
+    expect(screen.getByTestId('trader-profile-address-row').textContent).not.toContain(ADDR)
+    expect(identity.className).not.toMatch(/card-glass/)
+    await user.click(screen.getByRole('button', { name: /copy trader address/i }))
+    expect(clipboard.copyToClipboard).toHaveBeenCalledWith(ADDR)
+  })
+
+  it('You badge still renders for isOwnProfile', () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <TraderSummaryStats trader={trader()} isOwnProfile />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+    expect(screen.getByText('You')).toBeInTheDocument()
+  })
+
+  it('T-ID-6: invalid address has no blockie and no explorer /trader link', () => {
+    renderSummary(trader({ address: 'javascript:alert(1)' }))
+    expect(screen.queryByTestId('trader-identity-blockie')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trader-profile-address-row-explorer')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /trader/i })).not.toBeInTheDocument()
+    document.querySelectorAll('a[href]').forEach((a) => {
+      expect(a.getAttribute('href')).not.toMatch(/javascript:/i)
+      expect(a.getAttribute('href')).not.toMatch(/\/trader\//)
+    })
   })
 })

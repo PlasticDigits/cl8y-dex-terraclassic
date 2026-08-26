@@ -4,13 +4,13 @@ Plain-language steps for **dex.cl8y.com**. This is **not** financial advice.
 
 The in-app guide lives on **Pool** (`/pool#lp-howto`). You do not need this GitLab page to add liquidity.
 
-Engineering invariants: [`frontend.md` § Retail LUNC liquidity how-to](./frontend.md#retail-lunc-liquidity-howto) and [§ One-sided pool add / withdraw](./frontend.md#pool-one-sided-liquidity). Incident pause/blacklist: [`user-incident-faq.md`](./user-incident-faq.md).
+Engineering invariants: [`frontend.md` § Retail LUNC liquidity how-to](./frontend.md#retail-lunc-liquidity-howto), [§ One-sided pool add / withdraw](./frontend.md#pool-one-sided-liquidity), and [§ Pool Manage IA](./frontend.md#pool-manage-ia). Incident pause/blacklist: [`user-incident-faq.md`](./user-incident-faq.md).
 
 ## Two different actions
 
 People say “provide LUNC liquidity” for two products:
 
-1. **v2 pool LP** — add **one token** you already hold on **Pool** (the other side is swapped to the pool ratio). You receive **LP tokens** (your share). Withdraw on Pool as a single token. Two-sided deposit is **Advanced** (empty pools).
+1. **v2 pool LP** — on **Pool**, expand **Manage** on a pair. **Provide Liquidity** deposits both tokens. **Zap Add** uses **one token** you already hold (the other side is swapped to the pool ratio). You receive **LP tokens** (your share). **Withdraw Liquidity** returns both assets; **Zap Withdraw** exits as one token. Empty pools need Provide Liquidity.
 2. **Maker limits** — escrow one token at a price on **Trade** or **Limits**. That is **not** a pool share.
 
 There is **no** LP or maker incentive program currently. No APR or points.
@@ -25,17 +25,17 @@ Keep **bank LUNC** for gas. Pools hold **wrapped** LUNC (cLUNC), not bank LUNC.
 
 1. Connect your wallet.
 2. Open **Pool** (header, **More** on a tablet, or the phone tab).
-3. Pick **Token** (a holding), **Pair**, and **Amount**. Native LUNC auto-wraps — no checkbox.
-4. Read the impermanent-loss notice and the pre-sign summary, then **Add**.
+3. Expand **Manage** on the pair. Choose **Provide Liquidity**, **Withdraw Liquidity**, **Zap Add**, or **Zap Withdraw**. Native LUNC auto-wraps on Zap Add — no checkbox.
+4. Read the impermanent-loss notice and the pre-sign summary, then confirm.
 5. Keep the **LP tokens**. They are your pool share.
 
-Empty pools cannot use one-sided Add. Use **Advanced** two-sided for the first deposit.
+Empty pools cannot use Zap Add. Use **Provide Liquidity** for the first deposit.
 
-Retail Add swaps to the pool ratio so extra is not donated. **Advanced** two-sided can still donate if amounts are off-ratio.
+Zap Add swaps to the pool ratio so extra is not donated. Provide Liquidity can still donate if amounts are off-ratio.
 
 ## Withdraw
 
-Pool → pick **LP** → **Withdraw as** one token → amount → review the preview → sign.
+Pool → Manage → **Withdraw Liquidity** (both assets) or **Zap Withdraw** (one token) → amount → review the preview → sign.
 
 Unwrapping is **not** free LUNC out. Use **Wrap** for fee quotes. Do not send unwrapped LUNC to an exchange without the wrap-page warning.
 

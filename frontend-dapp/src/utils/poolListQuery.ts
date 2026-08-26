@@ -12,13 +12,21 @@ export const POOL_PAGE_SIZE = 20
 export const POOL_CATALOG_FETCH_LIMIT = 500
 
 /** Sortable table columns that map 1:1 to indexer `sort=` keys (A5). */
-export const POOL_COLUMN_SORTS = ['symbol', 'volume_24h', 'fee', 'created'] as const
+export const POOL_COLUMN_SORTS = ['symbol', 'volume_24h', 'liquidity_usd', 'fee', 'created'] as const
 
 export type PoolColumnSort = (typeof POOL_COLUMN_SORTS)[number]
 
 export type PoolListMode = 'catalog' | 'search' | 'column'
 
-const INDEXER_PAIR_SORTS: readonly IndexerPairSort[] = ['id', 'fee', 'created', 'symbol', 'volume_24h', 'relevance']
+const INDEXER_PAIR_SORTS: readonly IndexerPairSort[] = [
+  'id',
+  'fee',
+  'created',
+  'symbol',
+  'volume_24h',
+  'liquidity_usd',
+  'relevance',
+]
 
 export function isIndexerPairSort(value: string): value is IndexerPairSort {
   return (INDEXER_PAIR_SORTS as readonly string[]).includes(value)

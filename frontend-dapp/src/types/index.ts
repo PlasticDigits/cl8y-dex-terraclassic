@@ -156,6 +156,16 @@ export interface IndexerPair {
   code_id_frozen?: boolean
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
+  /**
+   * Indexer first-seen ISO-8601 UTC (`pairs.created_at`). Optional so old payloads / mocks still type-check.
+   * Not factory CreatePair genesis (GitLab #662).
+   */
+  created_at?: string
+  /**
+   * Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp).
+   * List JOIN and single-pair GET (#655 / #664). Omit / null when unpriced — never invent `$0`.
+   */
+  liquidity_usd?: string | null
 }
 
 /** Paginated response from `GET /api/v1/pairs` */
@@ -166,7 +176,7 @@ export interface IndexerPairsListResponse {
   offset: number
 }
 
-export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'relevance'
+export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'liquidity_usd' | 'relevance'
 
 /** Map indexer pair metadata to on-chain `PairInfo` for pool queries and txs */
 export function indexerAssetToAssetInfo(a: IndexerAssetBrief): AssetInfo {
@@ -439,13 +449,27 @@ export interface IndexerOverview {
 }
 
 export interface ProtocolVolumeDailyPoint {
-  utc_day: string
+  utc_day?: string
+  utc_hour?: string
+  utc_month?: string
   volume_usd: string | null
   trade_count: number
 }
 
 export interface ProtocolVolumeDailyResponse {
-  days: number
+  days?: number
+  grain?: string
+  limit?: number
+  timezone: string
+  methodology: string
+  series: ProtocolVolumeDailyPoint[]
+}
+
+export type ProtocolVolumeGrain = 'hourly' | 'daily' | 'monthly'
+
+export interface ProtocolVolumeSeriesResponse {
+  grain: ProtocolVolumeGrain
+  limit: number
   timezone: string
   methodology: string
   series: ProtocolVolumeDailyPoint[]

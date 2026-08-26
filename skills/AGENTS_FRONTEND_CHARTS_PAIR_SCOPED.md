@@ -47,7 +47,7 @@ Do **not** restore `charts-overview-*` census tiles. Do **not** keep a second vo
 
 ## Do / don’t
 
-- **Do** pass `getLeaderboard(sort, 20, activePairAddr)` from Charts.
+- **Do** pass `pairAddress={activePairAddr}` into [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) (`getLeaderboard(sort, 20, pair)`).
 - **Do** 404 unknown `pair=` **before** aggregation. Empty listed pair → `[]` 200.
 - **Don’t** show Pairs / Tokens / USTC census on Charts.
 - **Don’t** rank a pair board with global `traders.best_trade_pnl`.
