@@ -164,7 +164,7 @@ For Yield Omega DEX QA on a shared server, see [`scripts/qa/README.md`](../scrip
 
 For releases that change **liquidity pool discovery** (indexer-backed list, search, sort, pagination) or **Charts** pair selection, run the dedicated checklist in **`QA_TEMPLATE.md` §23** (Indexer pool list API & Pool/Charts UI). It covers:
 
-- **`GET /api/v1/pairs`** — envelope `{ items, total, limit, offset }`, pagination defaults, `q` / `asset` / `sort` / `order`, `volume_quote_24h`, validation errors
+- **`GET /api/v1/pairs`** — envelope `{ items, total, limit, offset }`, pagination defaults, `q` / `asset` / `sort` / `order`, `volume_quote_24h`, **`created_at`** (RFC3339 first-seen, [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)), validation errors
 - **`GET /api/v1/pairs/{addr}`** — detail response vs list-only fields
 - **Integration tests:** `cd indexer && cargo test --test api_pairs` (requires Postgres and `TEST_DATABASE_URL`)
 - **Pool page** — `VITE_INDEXER_URL`, error handling, total count formatting, UI controls, E2E `frontend-dapp/e2e/pool.spec.ts`

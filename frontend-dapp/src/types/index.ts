@@ -157,6 +157,11 @@ export interface IndexerPair {
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
   /**
+   * Indexer first-seen ISO-8601 UTC (`pairs.created_at`). Optional so old payloads / mocks still type-check.
+   * Not factory CreatePair genesis (GitLab #662).
+   */
+  created_at?: string
+  /**
    * Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp).
    * Single-pair GET (#664); list JOIN is #655. Omit / null when unpriced — never invent `$0`.
    */
