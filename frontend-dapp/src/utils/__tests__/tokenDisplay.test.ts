@@ -7,6 +7,9 @@ import {
   getTokenDisplaySymbol,
   isAddressLike,
   getAddressForBlockie,
+  usablePoolAssetName,
+  formatPoolAssetFieldLabel,
+  poolProvideAmountAriaLabel,
 } from '../tokenDisplay'
 
 describe('shortenAddress', () => {
@@ -113,5 +116,38 @@ describe('getAddressForBlockie', () => {
   it('returns undefined for native_token AssetInfo', () => {
     const info = { native_token: { denom: 'uluna' } }
     expect(getAddressForBlockie(info)).toBeUndefined()
+  })
+})
+
+describe('formatPoolAssetFieldLabel (GitLab #661)', () => {
+  it('uses Name (SYMBOL) when name is distinct and short', () => {
+    expect(formatPoolAssetFieldLabel({ name: 'Terra Luna Classic', symbol: 'LUNC' })).toBe('Terra Luna Classic (LUNC)')
+    expect(formatPoolAssetFieldLabel({ name: 'Wrapped Luna Classic', symbol: 'cLUNC' })).toBe(
+      'Wrapped Luna Classic (cLUNC)'
+    )
+  })
+
+  it('collapses to symbol when name is missing or equals symbol', () => {
+    expect(formatPoolAssetFieldLabel({ name: undefined, symbol: 'UST1' })).toBe('UST1')
+    expect(formatPoolAssetFieldLabel({ name: 'UST1', symbol: 'UST1' })).toBe('UST1')
+    expect(formatPoolAssetFieldLabel({ name: 'ust1', symbol: 'UST1' })).toBe('UST1')
+    expect(formatPoolAssetFieldLabel({ name: '  ', symbol: 'GEMX' })).toBe('GEMX')
+  })
+
+  it('rejects bank denoms, HTML, and long indexer names', () => {
+    expect(usablePoolAssetName('uluna', 'cLUNC')).toBe(false)
+    expect(usablePoolAssetName('uusd', 'USTC')).toBe(false)
+    expect(usablePoolAssetName('<img onerror=alert(1)>', 'GEMX')).toBe(false)
+    expect(usablePoolAssetName('javascript:alert(1)', 'GEMX')).toBe(false)
+    expect(usablePoolAssetName('one two three four five six', 'GEMX')).toBe(false)
+    expect(formatPoolAssetFieldLabel({ name: 'uluna', symbol: 'cLUNC' })).toBe('cLUNC')
+    expect(formatPoolAssetFieldLabel({ name: '<b>hack</b>', symbol: 'GEMX' })).toBe('GEMX')
+  })
+
+  it('builds aria labels from the product ticker', () => {
+    expect(poolProvideAmountAriaLabel('LUNC')).toBe('LUNC amount')
+    expect(poolProvideAmountAriaLabel('cLUNC')).toBe('cLUNC amount')
+    expect(poolProvideAmountAriaLabel('UST1')).toBe('UST1 amount')
+    expect(poolProvideAmountAriaLabel('')).toBe('amount')
   })
 })

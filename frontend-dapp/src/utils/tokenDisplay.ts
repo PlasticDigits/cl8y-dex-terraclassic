@@ -108,3 +108,41 @@ export function getAddressForBlockie(info: AssetInfo): string | undefined {
   if ('token' in info) return info.token.contract_addr
   return undefined
 }
+
+const BANK_DENOM_AS_NAME = new Set(['uluna', 'uusd'])
+const POOL_ASSET_NAME_MAX_WORDS = 5
+const POOL_ASSET_NAME_MAX_CHARS = 48
+
+/**
+ * Indexer `name` is allowed for pool provide labels only when it is short, text-only,
+ * not a bank denom, and not the same as the product ticker (GitLab #661 / #489 / A1).
+ */
+export function usablePoolAssetName(name: string | undefined | null, symbol: string): boolean {
+  if (!name?.trim() || !symbol?.trim()) return false
+  const trimmed = name.trim()
+  if (trimmed.toLowerCase() === symbol.trim().toLowerCase()) return false
+  if (BANK_DENOM_AS_NAME.has(trimmed.toLowerCase())) return false
+  if (/[<>]|javascript:|on\w+\s*=/i.test(trimmed)) return false
+  if (trimmed.length > POOL_ASSET_NAME_MAX_CHARS) return false
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  return words.length > 0 && words.length <= POOL_ASSET_NAME_MAX_WORDS
+}
+
+/**
+ * Visible Advanced provide field label: `{Name} ({SYMBOL})` or `{SYMBOL}`.
+ * Never `UST1 (UST1)`, never `uluna` as the name, never HTML.
+ */
+export function formatPoolAssetFieldLabel(opts: { name?: string | null; symbol: string }): string {
+  const symbol = opts.symbol.trim()
+  if (!symbol) return ''
+  if (usablePoolAssetName(opts.name, symbol)) {
+    return `${opts.name!.trim()} (${symbol})`
+  }
+  return symbol
+}
+
+/** `aria-label` for a provide amount input — product ticker + "amount", never Asset A/B. */
+export function poolProvideAmountAriaLabel(symbol: string): string {
+  const ticker = symbol.trim()
+  return ticker ? `${ticker} amount` : 'amount'
+}

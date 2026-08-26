@@ -42,7 +42,7 @@ Token `token_volume_stats` and trader `volume_24h` / `7d` / `30d` use the same t
 
 ### Protocol pool TVL (GitLab #569)
 
-`total_liquidity_usd` is humanized USD of **priced factory `pair_reserves`** (constant-product legs), using the same catalog as volume (P522-Q + hub USD). It is **not** CoinGecko `liquidity_in_usd` (that field is still mislabeled 24h volume), not `total_volume_*`, not LP supply, and not resting limit-order escrow.
+`total_liquidity_usd` is humanized USD of **priced factory `pair_reserves`** (constant-product legs), using the same catalog as volume (P522-Q + hub USD). It is **not** CoinGecko `liquidity_in_usd` (that field is still mislabeled 24h volume), not `total_volume_*`, not LP supply, and not resting limit-order escrow. The same refresh writes per-pair **`pair_liquidity_usd`** for `GET /api/v1/pairs/{addr}` ([#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664)) and the `/pool` list JOIN ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655)). GET paths read the stamp only — they do not re-sum reserves.
 
 Refresh lives in [`protocol_tvl.rs`](../../indexer/src/indexer/protocol_tvl.rs) and is invoked from `refresh_global_stats` (so a 24h-only volume `INSERT` cannot leave TVL stale) and after hub USD refresh (UST1/USTR marks). History is `global_liquidity_snapshots` (retain ≥ 35 days; prune older). Δ% looks up the snapshot **nearest** to `now()-24h` / `now()-30d` within ±30 minutes. No snapshot, `then = 0`, or overflow → JSON `null` (UI em-dash). After `--fresh` / a young indexer, Δ% stays empty until real snapshots accrue — do not backfill from `liquidity_events` or zeros.
 
@@ -54,7 +54,11 @@ Flash LP that is added and withdrawn inside one snapshot interval can move **cur
 
 `volume_change_{24h,7d,30d}_pct` is **UPDATE-only** on the existing `global_stats_24h` id=1 row after the volume INSERT (`refresh_volume_change_pct` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)). Same `flow_change_pct` as fees vs prior equal windows (`[48h,24h)`, `[14d,7d)`, `[60d,30d)`). Idle current + positive prior → `−100`. Activity + all unpriced → `NULL` (not a fake `$0` then `−100%`). Overflow / `prior ≤ 0` → `NULL`. Never Infinity.
 
-`GET /api/v1/protocol/volume/daily?days=` allowlists `7` \| `30` (else **400**). 60s cache keyed by allowlisted `days` only. Reads `protocol_daily_volume` — **not** `defillama_daily_stats` (Protocol catalog includes gems / wrap / window swaps). Idle day `"0"`; activity+unpriced `null`; missing row treated as idle `"0"`; prune ≥ 35 days. Do not N+1 Llama `GET /defillama/daily` and do not add `from`/`to` to Llama.
+`GET /api/v1/protocol/volume/daily?days=` allowlists `7` \| `30` (else **400**) when `grain` is omitted. 60s cache keyed by allowlisted `days` only. Reads `protocol_daily_volume` — **not** `defillama_daily_stats` (Protocol catalog includes gems / wrap / window swaps). Idle day `"0"`; activity+unpriced `null`; missing row treated as idle `"0"`; prune ≥ 95 days. Do not N+1 Llama `GET /defillama/daily` and do not add `from`/`to` to Llama.
+
+### Protocol volume Hourly / Daily / Monthly (GitLab #668)
+
+`GET /api/v1/protocol/volume/daily?grain=&limit=` allowlists `hourly` \| `daily` \| `monthly` and a capped integer `limit` (hourly ≤ 168, daily ≤ 90, monthly ≤ 24). Unknown / injection / `from` / `to` / over-max → **400**. 60s cache keyed by allowlisted `(grain, limit)` — extra query params must not bust the cache. GET reads `protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume` only (aggregator refresh). Hourly bucket is `[hour, hour+1)` UTC; monthly is a UTC calendar month, not a trailing 30d window. Same idle `"0"` / unpriced `null` contract as #652. Do **not** `SUM` `swap_events` on the request path.
 
 ### Protocol fees (GitLab #586)
 

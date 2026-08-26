@@ -1276,6 +1276,61 @@ describe('TradePage', () => {
       expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
       expect(screen.getByTestId('token-identity-quote')).toHaveAttribute('data-identity-payload', CUSTC)
     })
+
+    describe('v2 LP identity (GitLab #664)', () => {
+      it('T1: priced getPair shows v2 LP $ on the identity row', async () => {
+        mockIdentityFactoryPair()
+        vi.mocked(indexerClient.getPair).mockResolvedValue({
+          ...mockIndexerPair,
+          pair_address: ID_PAIR,
+          asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+          asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+          liquidity_usd: '1234.5',
+        })
+        renderWithProviders(<TradePage />, { route: `/trade/${ID_PAIR}` })
+        const chip = await screen.findByTestId('token-identity-v2-lp-usd')
+        expect(chip).toHaveTextContent('v2 LP')
+        expect(chip).toHaveTextContent('$')
+        expect(screen.getByTestId('trade-pair-select-panel').querySelector('.card-glass')).toBeNull()
+        expect(screen.getByTestId('trade-pair-select-panel').querySelector('[data-testid="stat-box"]')).toBeNull()
+      })
+
+      it('T2: missing / hostile liquidity_usd omits the chip', async () => {
+        mockIdentityFactoryPair()
+        vi.mocked(indexerClient.getPair).mockResolvedValue({
+          ...mockIndexerPair,
+          pair_address: ID_PAIR,
+          liquidity_usd: '<img onerror=alert(1)>',
+        })
+        renderWithProviders(<TradePage />, { route: `/trade/${ID_PAIR}` })
+        await screen.findByTestId('pair-token-links')
+        expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+      })
+
+      it('T5: invert leaves the USD chip and copy payloads unchanged', async () => {
+        const user = userEvent.setup()
+        mockIdentityFactoryPair()
+        vi.mocked(indexerClient.getPair).mockResolvedValue({
+          ...mockIndexerPair,
+          pair_address: ID_PAIR,
+          asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+          asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+          liquidity_usd: '50',
+        })
+        renderWithProviders(<TradePage />, { route: `/trade/${ID_PAIR}` })
+        const chip = await screen.findByTestId('token-identity-v2-lp-usd')
+        const usd = chip.textContent
+        await user.click(screen.getByTestId('trade-pair-invert-pill'))
+        expect(screen.getByTestId('token-identity-v2-lp-usd').textContent).toBe(usd)
+        expect(screen.getByTestId('token-identity-base')).toHaveAttribute('data-identity-payload', UST1)
+      })
+
+      it('T6: invalid deep link has no LP chip', async () => {
+        renderTradeRoutes(['/trade/lilwayne%20babyyy'])
+        await screen.findByTestId('trade-invalid-pair-link-notice')
+        expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+      })
+    })
   })
 
   describe('ticket heading + side chrome (GitLab #563)', () => {

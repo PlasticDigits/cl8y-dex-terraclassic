@@ -178,8 +178,10 @@ Operator rehearsal on mainnet (off-peak) or documented dry-run. Playbook: [`docs
 ### 10. Pool UI — Native Token Liquidity
 
 #### Provide Liquidity
-- [ ] For a pair containing cLUNC or cUSTC: "Use native (auto-wrap)" checkbox appears
-- [ ] Checking the box: provide liquidity using native LUNC/USTC (auto-wraps in same TX)
+- [ ] For a pair containing cLUNC or cUSTC: "Use native (auto-wrap)" checkbox appears **checked** on first paint ([#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661))
+- [ ] Amount fields show **name (symbol)** of the selected input (LUNC when wrap is on, cLUNC when unchecked) — never Asset A/B
+- [ ] Unchecking the box: provide liquidity using wrapped CW20 (three sequential txs / #147 gas gate)
+- [ ] Leaving the box checked: provide liquidity using native LUNC/USTC (auto-wraps in same TX)
 - [ ] Transaction succeeds — LP tokens received
 - [ ] Treasury balance updated correctly from the wrap
 

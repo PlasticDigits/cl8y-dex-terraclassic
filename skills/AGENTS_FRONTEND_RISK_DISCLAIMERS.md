@@ -19,7 +19,7 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 ## Rules of thumb
 
-1. **Do not** make the first-visit risk modal closable via backdrop or Escape without product/legal sign-off; keep **`dismissible={false}`** on that use case.
+1. **Do not** make the first-visit risk modal closable via backdrop or Escape without product/legal sign-off; keep **`dismissible={false}`** on that use case. Connect Wallet overlay dismiss ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D7**) uses the same `Modal` primitive — a global “click outside closes” must not skip this gate. Header **Connect Wallet** must not unmount the risk dialog. Connect Wallet overlay dismiss ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D7**) must not become a global “click outside closes every Modal.”
 2. **Bump `RISK_ACK_VERSION`** when changing disclaimer meaningfully so returning browsers re-run the gate.
 3. **Keep `VITE_PLAYWRIGHT_E2E` off** for real builds and manual QA; it exists only to unblock Playwright against the same dev server command (also skips Legal clickwrap — [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)).
 4. **Edit copy in one place** (`legalCopy.ts`) unless you intentionally split mobile vs desktop tone. **Footer:** `LegalFooterNotice` + `EnvironmentRibbon` render in `footer.app-footer-shell` on **all** breakpoints (mobile footer sits above the bottom tab bar).
@@ -32,6 +32,9 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 ## Related
 
 - **Connected Legal clickwrap (wallet TermsGate, #517):** [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — do not replace this first-visit risk modal with clickwrap; sequence them.
+- **Official CL8Y product links (footer Homepage / Bridge, #663):** [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) — do not splice these into the NFA / Security / Report sentence or into header More.
+- **Connected Legal clickwrap (wallet TermsGate, #517):** [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — do not replace this first-visit risk modal with clickwrap; sequence them. Dismissing Connect **without** connecting must not look like an accepted session ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D8**).
+- Connect Wallet overlay dismiss (labeled Close / backdrop / Escape; must not weaken this gate): [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (**D7**, [#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672))
 - Anti-cognitive-overload retail copy (on-card vs legal): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - **Responsive shell / header:** [`docs/frontend.md` § Responsive shell & header navigation](../docs/frontend.md#responsive-header-navigation), [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab #136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136), [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482), [#483](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483), [#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)).
 - **Production build / maps:** [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md).
