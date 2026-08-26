@@ -23,8 +23,10 @@ describe('poolListQuery (GitLab #547)', () => {
   it('only allows known column sort keys (A5)', () => {
     expect(isPoolColumnSort('volume_24h')).toBe(true)
     expect(isPoolColumnSort('symbol')).toBe(true)
+    expect(isPoolColumnSort('created')).toBe(true)
     expect(isPoolColumnSort('relevance')).toBe(false)
     expect(isPoolColumnSort('__proto__')).toBe(false)
+    expect(isPoolColumnSort('created;drop')).toBe(false)
   })
 
   it('defaults volume/fee/created to desc and name to asc', () => {

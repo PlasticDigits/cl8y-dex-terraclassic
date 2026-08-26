@@ -24,6 +24,7 @@ Pair **symbols are not identity**. Terra Classic has look-alike CW20s. Pool / Tr
 - **Don’t** clone factory/router `AddressRow` onto these pages (`/protocol` only).
 - **Don’t** change Swap confirm, wallet menu, trader header, or LP withdraw `pool-lp-token-address-row` except shared icon/CSS.
 - **Don’t** ship always-on address essays or “use Wrap / UST1 / Swap” banners ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) invariant **9**).
+- **Don’t** pass `liquidityUsd` into `/pool` table `PairTokenLinks` ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) owns that column). Trade / Charts v2 LP chip is [#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664).
 
 ## Invariants
 
@@ -56,6 +57,8 @@ make verify-issue-541
 ```
 
 Vitest: `tokenIdentity.test.ts`, `TokenIdentity.test.tsx`, `TokenIdentity.explorerSafety.test.tsx`, `PairTokenLinks.test.tsx`, scoped Pool / Trade / Charts `#541` describes. Playwright smoke: `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx).
+
+**v2 LP USD chip** on Trade / Charts identity (not Pool rows): [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md), `make verify-issue-664`.
 
 ## Related
 

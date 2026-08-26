@@ -35,4 +35,13 @@ describe('ExpertModeModal', () => {
     await user.click(enableBtn)
     expect(onEnable).not.toHaveBeenCalled()
   })
+
+  it('does not close when the phrase field is clicked (GitLab #672 D4)', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ExpertModeModal isOpen onClose={onClose} onEnable={() => {}} />)
+    await user.click(screen.getByTestId('expert-mode-confirm-input'))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /enable expert mode/i })).toBeVisible()
+  })
 })

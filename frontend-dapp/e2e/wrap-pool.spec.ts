@@ -102,8 +102,9 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
 
     await requirePoolCardWithNativeWrap(pairCard)
 
-    const nativeCheckbox = pairCard.getByText(/auto-wrap/i)
-    await nativeCheckbox.first().click()
+    const nativeCheckbox = pairCard.getByTestId('pool-provide-auto-wrap-a')
+    await expect(nativeCheckbox).toBeVisible()
+    await expect(nativeCheckbox).toBeChecked()
 
     const inputs = pairCard.locator('input[placeholder="0.00"]')
     await inputs.nth(0).fill('0.01')
@@ -124,6 +125,11 @@ test.describe('Pool Transaction Tests — Native Wrapping', () => {
     const pairCard = await gotoWrapPoolLuncCard(page)
     await openPoolCardAdvanced(pairCard)
     await poolProvideExpandButton(pairCard).click()
+
+    const wrapToggle = pairCard.getByTestId('pool-provide-auto-wrap-a')
+    if ((await wrapToggle.count()) > 0) {
+      await wrapToggle.uncheck()
+    }
 
     const inputs = pairCard.locator('input[placeholder="0.00"]')
     await inputs.nth(0).fill('0.01')
