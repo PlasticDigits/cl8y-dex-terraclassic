@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { TokenDisplay, FeeDisplay, PairTokenLinks } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatQuoteVolume24h } from '@/utils/formatAmount'
+import { formatCreatedAtTitle, formatRelativeAge } from '@/utils/formatDate'
 import { chartsPairHref } from '@/utils/chartsPairRoute'
 import type { PoolColumnSort } from '@/utils/poolListQuery'
 import { getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
@@ -229,8 +230,13 @@ function PoolPairRows({
         <td className="py-2 px-2 text-right align-top" data-testid="pool-table-fee">
           {ip.fee_bps != null ? <FeeDisplay feeBps={ip.fee_bps} /> : '—'}
         </td>
-        <td className="py-2 px-2 align-top" style={{ color: 'var(--ink-subtle)' }} data-testid="pool-row-created">
-          —
+        <td
+          className="py-2 px-2 align-top whitespace-nowrap"
+          style={{ color: 'var(--ink-subtle)' }}
+          data-testid="pool-row-created"
+          title={formatCreatedAtTitle(ip.created_at)}
+        >
+          {formatRelativeAge(ip.created_at)}
         </td>
         <td className="py-2 px-2 align-top">
           <FactoryMark badges={badges} />

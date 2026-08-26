@@ -107,3 +107,63 @@ describe('PairTokenLinks (GitLab #541)', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })
+
+describe('PairTokenLinks v2 LP USD (GitLab #664)', () => {
+  beforeEach(() => {
+    vi.mocked(terraExplorer.getExplorerAddressUrl).mockImplementation(
+      (addr: string) => `https://finder.terraclassic.community/columbus-5/address/${addr}`
+    )
+  })
+
+  it('C5: priced stamp renders v2 LP + compact $ next to identity', () => {
+    wrap(<PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} liquidityUsd="1234.5" />)
+    const chip = screen.getByTestId('token-identity-v2-lp-usd')
+    expect(chip).toHaveTextContent('v2 LP')
+    expect(chip).toHaveTextContent('$')
+    expect(chip.querySelector('a')).toBeNull()
+  })
+
+  it('AC5 / A1: missing, hostile, and Infinity omit the chip', () => {
+    const { rerender } = wrap(<PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} />)
+    expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    rerender(
+      <QueryClientProvider client={client}>
+        <PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} liquidityUsd="<img onerror=alert(1)>" />
+      </QueryClientProvider>
+    )
+    expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+    expect(document.body.innerHTML).not.toMatch(/onerror/)
+    rerender(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} liquidityUsd="Infinity" />
+      </QueryClientProvider>
+    )
+    expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+    rerender(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} liquidityUsd="1e+19" />
+      </QueryClientProvider>
+    )
+    expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+  })
+
+  it('AC6: invert does not change the USD chip or identity payloads', () => {
+    wrap(<PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} inverted liquidityUsd="99.5" />)
+    expect(screen.getByTestId('token-identity-v2-lp-usd')).toHaveTextContent('v2 LP')
+    expect(screen.getByTestId('token-identity-base')).toHaveAttribute(
+      'data-identity-payload',
+      MAINNET_UST1_TOKEN_ADDRESS
+    )
+    expect(screen.getByTestId('token-identity-quote')).toHaveAttribute(
+      'data-identity-payload',
+      MAINNET_CUSTC_TOKEN_ADDRESS
+    )
+  })
+
+  it('C4: without liquidityUsd the row matches #541 (no LP chip)', () => {
+    wrap(<PairTokenLinks pairAddress={PAIR} asset0={UST1} asset1={CUSTC} />)
+    expect(screen.getByTestId('pair-token-links')).toBeInTheDocument()
+    expect(screen.queryByTestId('token-identity-v2-lp-usd')).not.toBeInTheDocument()
+  })
+})

@@ -90,11 +90,7 @@ fn push_asset_leg_exact_match(qb: &mut QueryBuilder<'_, Postgres>, alias: &str, 
     qb.push(")");
 }
 
-fn push_pair_symbol_pair_exact_match(
-    qb: &mut QueryBuilder<'_, Postgres>,
-    t0: String,
-    t1: String,
-) {
+fn push_pair_symbol_pair_exact_match(qb: &mut QueryBuilder<'_, Postgres>, t0: String, t1: String) {
     qb.push("((");
     push_asset_leg_exact_match(qb, "a0", t0.clone());
     qb.push(" AND ");
@@ -254,9 +250,11 @@ fn push_pair_list_order_by(
             qb.push(" NULLS LAST, p.id ASC");
         }
         PairListSort::Created => {
-            qb.push("p.created_at_block");
+            // GitLab #662: display clock is `pairs.created_at` (NOT NULL, first-seen).
+            // Do not order by `created_at_block` — discovery never writes it.
+            qb.push("p.created_at");
             qb.push(desc);
-            qb.push(" NULLS LAST, p.id ASC");
+            qb.push(", p.id ASC");
         }
         PairListSort::Symbol => {
             qb.push("(LOWER(a0.symbol) || '/' || LOWER(a1.symbol))");
@@ -347,8 +345,8 @@ pub async fn get_pair_by_address(
 ) -> Result<Option<PairRow>, sqlx::Error> {
     sqlx::query_as::<_, PairRow>("SELECT * FROM pairs WHERE contract_address = $1")
         .bind(contract_address)
-    .fetch_optional(pool)
-    .await
+        .fetch_optional(pool)
+        .await
 }
 
 pub async fn count_pairs(pool: &PgPool) -> Result<i64, sqlx::Error> {

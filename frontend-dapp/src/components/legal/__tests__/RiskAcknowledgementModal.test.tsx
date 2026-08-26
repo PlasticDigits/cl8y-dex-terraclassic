@@ -34,4 +34,14 @@ describe('RiskAcknowledgementModal', () => {
     expect(localStorage.getItem(RISK_ACK_STORAGE_KEY)).toBeTruthy()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+
+  it('has no close control, backdrop, or Escape dismiss (GitLab #138 / #672 D7)', () => {
+    render(<RiskAcknowledgementModal />)
+    expect(screen.getByRole('dialog', { name: /risk acknowledgement/i })).toBeVisible()
+    expect(screen.queryByTestId('modal-close')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('modal-backdrop'))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: /risk acknowledgement/i })).toBeVisible()
+    expect(localStorage.getItem(RISK_ACK_STORAGE_KEY)).toBeNull()
+  })
 })
