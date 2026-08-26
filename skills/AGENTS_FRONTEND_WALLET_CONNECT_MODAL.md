@@ -33,3 +33,4 @@ Use when changing wallet list UI, extension detection in the modal, **Install** 
 - Production build / `tsc -b` hygiene: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
 - Connected header chip (chain logo, not wallet brand): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md)
 - WalletConnect same-device mobile pairing: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566))
+- Legal terms hint after connect matches this list (**not Keplr-only**, no Leap): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658) **L658** / **WC-M12**)

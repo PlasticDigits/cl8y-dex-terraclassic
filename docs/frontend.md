@@ -145,12 +145,12 @@ On a phone, the wallet app is on the **same device** as the browser — a QR-onl
 | **WC-M9** Bounded connect | Cancel / close / timeout abort pending `connect()`, clear `isConnecting`, ignore a late WC session. Header **Cancel** is always visible (not spinner-only). |
 | **WC-M10** Mobile extension WC | Mobile + matching extension absent → **Keplr / Station / Cosmostation** **WalletConnect** row (not Install-only). Injected extension (in-app) stays Extension (**WC-M7**). Keplr: [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554). Station + Cosmostation: [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566). **Leap** stays absent ([#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). |
 | **WC-M11** Android Galaxy intent | `https://…#Intent` templates become `intent://` on Android Chrome. |
-| **WC-M12** Legal next step | After WC without `window.keplr`, hint to open in the Keplr browser. DEX does not implement ADR-036 (**C1**). |
-| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`connectWalletOptions.test.ts`](../frontend-dapp/src/components/wallet/__tests__/connectWalletOptions.test.ts), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts). `make verify-issue-519`. `make verify-issue-554`. `make verify-issue-566`. |
+| **WC-M12** Legal next step | After WC without a keplr-like signer injector, show a **multi-wallet or connected-wallet** hint (not Keplr-only). Hide when `window.keplr`, `station.keplr`, or Cosmostation `providers.keplr` is present. DEX does not implement ADR-036 (**C1** / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)). |
+| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`connectWalletOptions.test.ts`](../frontend-dapp/src/components/wallet/__tests__/connectWalletOptions.test.ts), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts), [`legalKeplrInAppHint.test.ts`](../frontend-dapp/src/utils/__tests__/legalKeplrInAppHint.test.ts). `make verify-issue-519`. `make verify-issue-554`. `make verify-issue-566`. `make verify-issue-658`. |
 
 Implementation: [`walletConnectPairing.ts`](../frontend-dapp/src/utils/walletConnectPairing.ts) (`toAndroidIntentUri` for **WC-M11**), [`walletConnectSession.ts`](../frontend-dapp/src/utils/walletConnectSession.ts), [`walletConnectPairingHook.ts`](../frontend-dapp/src/services/terraclassic/walletConnectPairingHook.ts) (installed from [`main.tsx`](../frontend-dapp/src/main.tsx)), [`WalletConnectPairingModal.tsx`](../frontend-dapp/src/components/wallet/WalletConnectPairingModal.tsx) last in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx), [`connectWalletOptions.ts`](../frontend-dapp/src/components/wallet/connectWalletOptions.ts). Lunc Dash deep link stays `luncdash://wallet_connect?payload=…` (same as cosmes).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)).
 
 ### Connect modal: circular wallet logos {#connect-modal-wallet-logos}
 
@@ -430,7 +430,7 @@ Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [
 
 | Invariant | Meaning |
 |-----------|---------|
-| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. After WalletConnect without `window.keplr`, show the Keplr-browser hint ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) **WC-M12**) — portal signing stays in Legal. |
+| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. After WalletConnect without a keplr-like signer injector, show the DEX-wallet Legal hint — **not Keplr-only** ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658) **WC-M12** / **L658**) — portal signing stays in Legal. |
 | **C2** Property | Status + portal use **`dex.cl8y.com`** (`VITE_LEGAL_PROPERTY` override for staging only). |
 | **C3** Network | `TerraClassic` → API `TERRA_CLASSIC` only. |
 | **C4** Sequence | Risk ack (#138) for anonymous browse; clickwrap after wallet connect. |
@@ -443,9 +443,9 @@ Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [
 
 **Ops (Legal Coolify / admin — cross-repo):** register property `dex.cl8y.com`; add `https://dex.cl8y.com` to Legal API `CORS_ORIGINS` and portal `VITE_REDIRECT_URI_ALLOWLIST`.
 
-**Regression:** `make verify-issue-517` · Vitest `legalClickwrap` / `ConnectedTermsGate` / `viteCsp` · Playwright `e2e/legal-clickwrap-517.spec.ts`.
+**Regression:** `make verify-issue-517` · `make verify-issue-658` · Vitest `legalClickwrap` / `legalKeplrInAppHint` / `ConnectedTermsGate` / `viteCsp` · Playwright `e2e/legal-clickwrap-517.spec.ts`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_CLICKWRAP.md`](../skills/AGENTS_FRONTEND_CLICKWRAP.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_CLICKWRAP.md`](../skills/AGENTS_FRONTEND_CLICKWRAP.md) (**C1–C10**, **L658-1–L658-8**, [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)).
 
 ### Simulated (dev) wallet and `VITE_DEV_MNEMONIC` {#simulated-dev-wallet-and-vite_dev_mnemonic}
 
