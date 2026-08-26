@@ -590,7 +590,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 11.1.1 | Swap page mobile | View /swap on mobile viewport | Layout adapts, all elements usable | | |
 | 11.1.2 | Pool page mobile | View /pool on mobile | Layout adapts | | |
 | 11.1.3 | Charts page mobile | View /charts on mobile | Chart renders, controls accessible | | |
-| 11.1.4 | Tiers page mobile | View /tiers on mobile | Table readable, buttons accessible | | |
+| 11.1.4 | Tiers page mobile | View /tiers at 390×844 and 375×667 (iOS WebKit + Android Chrome). Disconnected then connected. | Each card: **Tier N** one line; **Hold {n} CL8Y** one phrase (e.g. Hold 1 CL8Y / Hold 7.5K CL8Y); `{pct} fee discount` and `{pct} eff. fee*` intact. No empty ~112px Register column when disconnected. Connected: Register ≥44px, correct row. How it works stacked labels readable; Limit place* shown. Light + dark. | | |
 | 11.1.5 | Create pair mobile | View /create on mobile | Form usable | | |
 | 11.1.6 | Trader page mobile | View /trader on mobile | All sections visible and readable | | |
 | 11.1.7 | Navigation mobile | View nav on mobile | Mobile-friendly navigation | | |

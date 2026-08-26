@@ -26,6 +26,7 @@ Do **not** duplicate numeric tier tables in [`docs/deployment-guide.md`](../docs
 - **Pair cache ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)):** `execute_swap` and limit placement cache registry `GetDiscount` for **300s** per `(trader, sender)`; sim reads cache only. Do not assume quotes re-query registry every block within TTL — document **I9** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Constant: `dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`.
 - **Registry outage observability ([GitLab #365](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/365)):** On-chain **fail-closed** to full pair fee when registry `GetDiscount` errors — do not change without ADR. Off-chain: indexer background LCD `config` probe → `GET /api/v1/health/fee-discount` (`fee_discount_registry_ok`, `consecutive_lcd_failures`; no per-trader errors). dApp **Swap and Pool** show a non-blocking amber warning when LCD registration/discount queries fail or indexer health is down. Utility: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts); shared hook: [`useFeeDiscountRegistryStatus.ts`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Invariant **I10** / **I12** in [`docs/reference/fee-discount-tiers.md`](../docs/reference/fee-discount-tiers.md). Integrator decision table: [`docs/integrators.md` § Fee-discount registry outage](../docs/integrators.md#fee-discount-registry-outage). Regression: `make verify-issue-365`.
 - **Pair registry gate ([GitLab #537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537) / [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538), invariant I14):** dApp Swap / Pool / Trade fee chrome and `useLimitOrderMakerFeeRates` must not apply `getTraderDiscount` unless the pair’s `DISCOUNT_REGISTRY` is set and matches `VITE_FEE_DISCOUNT_ADDRESS`. Unwired pair → full `fee_bps` (no strikethrough). Probe: `GetDiscountRegistry` first; LCD raw `discount_registry` fallback for 1.13.x. Frontend: [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts). Playbook: [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md). Verify: `make verify-issue-537` / `make verify-issue-538`. Do **not** invent UI discounts for lookalike tokens **or** unwired pairs.
+- **Phone-width `/tiers` ([GitLab #651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651), invariant I15):** layout-only. Keep **Hold {n} CL8Y** and fee phrases intact at ≤390px; do not reserve an empty Register column. Playbook: [`AGENTS_FRONTEND_TIERS_PHONE.md`](./AGENTS_FRONTEND_TIERS_PHONE.md). Verify: `make verify-issue-651`. Do **not** mix with picker `visualViewport` work ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)).
 
 ## Indexer tier sync (GitLab #364)
 
@@ -57,6 +58,9 @@ make verify-issue-537
 
 # Post-migrate inherit + smart-query-first (#538) — LocalTerra for live create_pair
 make verify-issue-538
+
+# Phone-width /tiers card + How it works (#651) — no contract changes
+make verify-issue-651
 ```
 
 Run **`make check-fee-discount-tier-docs`** (reference job `docs-fee-discount-tiers`; [docs/testing.md § CI](../docs/testing.md#ci)) when `docs/**`, `scripts/deploy-dex-local.sh`, or `tier_fixtures.rs` change.
