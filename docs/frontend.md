@@ -2,7 +2,7 @@
 
 ## Design system
 
-Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
+Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer), [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) Swap flip plate), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
@@ -23,7 +23,7 @@ Global UI invariant ([GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex
 | **C653-7** | New same-file `shell-panel` + `card-glass` class hits fail the check unless allowlisted. No `eval` of page source. |
 | **C653-8** | Light + dark; 375 / 1280: values use `--ink` on `--panel-bg`. No empty-ring tiles. No retail lecture banner. |
 
-Regression: `make verify-issue-653`. Trade workspace still: `make verify-issue-561`.
+Regression: `make verify-issue-653`. Trade workspace still: `make verify-issue-561`. Swap flip plate on the Pay/Receive seam: `make verify-issue-659` ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)).
 
 ## Tech Stack
 
@@ -1024,8 +1024,26 @@ Interactive controls must expose a **visible keyboard focus indicator** when foc
 | Shell & CTAs | `.btn-primary` / `.btn-muted` / `.btn-cta`, `.app-nav-link` (and related triggers), `.wallet-trigger` (+ `.wallet-trigger-connected`), `.network-badge`, `.tab-glass` / `.tab-glass-active`, `.side-control`, `.wallet-option-card`, and dropdown `.app-menu-link` / `.wallet-menu-item` define explicit `:focus-visible` rings; **active** nav rows compose the active `box-shadow` **plus** the outer ring. Buy/Sell side fills ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)) must keep the `.side-control:focus-visible` ring. |
 | Menu backdrops | **`.app-menu-dismiss`** (shell More menu in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx), connected wallet menu in [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)) is a full-viewport **`type="button"`** with an **`aria-label`**; **`:focus-visible`** uses an inset ring ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
 | Swap amount | The prominent pay amount `<input>` uses class **`swap-io-amount-input`** — do **not** strip focus with `focus:outline-none` without replacing it; ring styles sit beside `.swap-io-stack` in `index.css`. |
+| Swap direction | `.swap-direction-btn:focus-visible` uses the same `--focus-ring` mix as `.limit-side-flip-btn`. Do **not** add a bare `:focus` ring ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) **S659-4**). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FOCUS.md`](../skills/AGENTS_FRONTEND_A11Y_FOCUS.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FOCUS.md`](../skills/AGENTS_FRONTEND_A11Y_FOCUS.md). Swap seam plate: [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md).
+
+### Swap direction seam plate {#swap-direction-seam}
+
+Paint-only join between You Pay and You Receive on `/` ([GitLab **#659**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md). `--control-surface` is the wrong token for a control that must **occlude** the 1px `--chrome-border` hairline. The seam stays as IA; only the strip under the button is covered.
+
+| ID | Rule |
+|----|------|
+| **S659-1** | Dark idle: no hairline inside the direction button or across the arrows (375px and 1280px). |
+| **S659-2** | Light: same as S659-1. |
+| **S659-3** | Hover must not re-open the seam. No plate `translate`. Static `.swap-direction-seam::before` stays on the line. |
+| **S659-4** | Keyboard Tab shows `--focus-ring`; mouse click does not leave `:focus-visible`. |
+| **S659-5** | Click still swaps pay/receive identities. `aria-label="Swap pay and receive tokens"` unchanged. Wrap/unwrap on `/` uses this control. |
+| **S659-6** | Pay/Receive hairline remains left and right of the button (stack still reads as two halves). Do **not** delete `.swap-io-card-pay` `border-bottom`. |
+| **S659-7** | `python3 scripts/check_chrome_nesting.py` and `python3 scripts/check_design_tokens.py` stay green. No `*-neo`. No extra `card-glass` around the button. `--swap-direction-surface` is opaque `rgb()` in both themes. |
+| **S659-8** | Wrapper `pointer-events-none`; only the ~40–44px button is `auto`. `z-index` stays 20. Do not cover Settings, legal/risk, or portaled pickers ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)). |
+
+**Regression:** `make verify-issue-659` — Vitest `swapDirectionSeam.test.ts` + token/nesting guards + Playwright `e2e/swap-direction-seam-659.spec.ts` (`PLAYWRIGHT_SKIP_CHAIN=1`, 5 workers). No LocalTerra. Crops: [`docs/qa/issue-659/`](./qa/issue-659/).
 
 ### Portal listboxes (`MenuSelect` / `TokenSelect` / `TokenSearchSelect`) — layout stability {#portal-listbox-layout-stability}
 
