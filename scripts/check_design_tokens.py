@@ -113,6 +113,31 @@ def main() -> int:
     if light_bg0 != "#f4f6fb":
         errors.append(f"theme-light.css --bg-0 must be #f4f6fb (got {light_bg0})")
 
+    # GitLab #659 — Swap flip plate must occlude the Pay/Receive seam (opaque, both themes).
+    opaque_color = re.compile(
+        r"^(?:rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|#[0-9a-fA-F]{6}|"
+        r"rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*1(?:\.0+)?\s*\))$"
+    )
+    for theme_name, theme_css in (("dark", theme_dark), ("light", theme_light)):
+        for token in ("swap-direction-surface", "swap-direction-surface-hover"):
+            val = token_value(theme_css, token)
+            if not val:
+                errors.append(f"theme-{theme_name}.css missing --{token} (#659)")
+            elif not opaque_color.match(" ".join(val.split())):
+                errors.append(
+                    f"theme-{theme_name}.css --{token} must be opaque rgb/hex (#659), got {val}"
+                )
+    if index_css:
+        if "var(--swap-direction-surface)" not in index_css:
+            errors.append("index.css Swap flip plate must use --swap-direction-surface (#659)")
+        btn_block = re.search(r"\.swap-direction-btn\s*\{[^}]+\}", index_css)
+        if btn_block and "--control-surface" in btn_block.group(0):
+            errors.append("index.css .swap-direction-btn must not fill with --control-surface (#659)")
+        if ".swap-direction-btn:focus-visible" not in index_css:
+            errors.append("index.css missing .swap-direction-btn:focus-visible (#659)")
+        if ".swap-direction-seam::before" not in index_css:
+            errors.append("index.css missing static .swap-direction-seam::before occluder (#659)")
+
     if DESIGN_DOC.is_file():
         doc = DESIGN_DOC.read_text()
         if "blue" not in doc.lower() or "gold" not in doc.lower():

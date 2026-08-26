@@ -561,6 +561,7 @@
 | 10.2.14 | Gold hairline only | View nav + warnings (both themes) | Gold = hairline borders/text only — no dirty brown/gold fills ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)) | | |
 | 10.2.15 | Open Graph / Twitter card | `curl -sL` `/` `/trade` `/pool` (no JS) | Same absolute `https://dex.cl8y.com/og-image.png` + `summary_large_image`; `/og-image.png` is 1200×630 community medallion ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) | | |
 | 10.2.16 | One chrome layer / no metric-grid nest | View `/`, `/charts`, `/charts/:pair`, `/trader/:addr`, `/protocol`, `/trade`, `/pool`, `/limits` at 375px + 1280px, light + dark | One `shell-panel*` per region. Metric tiles are flat (no `card-glass` chips inside the section). Swap Pay/Receive stay `card-glass`. Trade chart is a single `shell-panel-strong`. Numbers readable; no empty-ring tiles ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) | | |
+| 10.2.17 | Swap direction seam plate | View `/` dark + light at 375px + 1280px; hover and Tab the flip control | Pay/Receive hairline **stops at** the direction button (does not cross the arrows). Hover does not re-open the line. Keyboard shows a focus ring; click does not leave one. Seam remains left/right of the plate ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)) | | |
 
 ### 10.3 Sound Effects
 
