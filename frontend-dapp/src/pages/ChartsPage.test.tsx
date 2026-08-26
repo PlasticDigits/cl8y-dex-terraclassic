@@ -380,6 +380,77 @@ describe('ChartsPage (component)', () => {
     })
   })
 
+  describe('trader leaderboard identity (GitLab #656)', () => {
+    const ADDR = 'terra1abcdefghijklmnopqrstuvwxyz1234567890abcd'
+    const ADDR_B = 'terra1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0abcdx'
+    const SHORT = 'terr…90abcd'
+
+    function leaderRow(address: string, extra: Record<string, unknown> = {}) {
+      return {
+        address,
+        total_trades: 4,
+        total_volume: '10000000000000000000',
+        total_volume_usd: '711.2',
+        volume_24h: '0',
+        volume_7d: '0',
+        volume_30d: '0',
+        tier_id: null,
+        tier_name: null,
+        registered: false,
+        first_trade_at: null,
+        last_trade_at: null,
+        total_realized_pnl: '0',
+        best_trade_pnl: null,
+        worst_trade_pnl: null,
+        total_fees_paid: '0',
+        ...extra,
+      }
+    }
+
+    it('T-ID-1–3: 4/6 label, blockie, and /trader/{full} href — not 10/6', async () => {
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([leaderRow(ADDR)])
+      renderWithProviders(<ChartsPage />)
+      const chip = await screen.findByTestId('charts-leaderboard-trader')
+      expect(chip).toHaveTextContent(SHORT)
+      expect(chip.textContent).not.toContain(ADDR)
+      expect(chip.textContent).not.toMatch(/terra1abcd/)
+      expect(chip).toHaveAttribute('href', `/trader/${ADDR}`)
+      expect(chip).toHaveAttribute('title', ADDR)
+      expect(chip.closest('table')).toHaveAttribute('aria-label', 'Trader leaderboard')
+      expect(screen.getByTestId('trader-identity-blockie')).toHaveAttribute('data-blockie-seed', ADDR)
+      expect(screen.getByTestId('charts-leaderboard-volume')).toBeInTheDocument()
+      expect(chip.querySelector('img')).toBeNull()
+    })
+
+    it('A1: colliding 4/6 chips keep distinct hrefs', async () => {
+      const collideA = 'terra1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0abcdx'
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([leaderRow(collideA), leaderRow(ADDR_B)])
+      renderWithProviders(<ChartsPage />)
+      const chips = await screen.findAllByTestId('charts-leaderboard-trader')
+      expect(chips).toHaveLength(2)
+      expect(chips[0]).toHaveAttribute('href', `/trader/${collideA}`)
+      expect(chips[1]).toHaveAttribute('href', `/trader/${ADDR_B}`)
+      expect(chips[0]).toHaveTextContent(chips[1].textContent ?? '')
+      const seeds = screen.getAllByTestId('trader-identity-blockie').map((n) => n.getAttribute('data-blockie-seed'))
+      expect(seeds).toEqual([collideA, ADDR_B])
+    })
+
+    it('T-ID-6 / A3 / A5: junk address and logo_url do not link or fetch a PFP', async () => {
+      vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([
+        leaderRow('javascript:alert(1)', { logo_url: 'https://evil.example/p.png' }),
+        leaderRow('not-terra'),
+        leaderRow('TERRA1abcdefghijklmnopqrstuvwxyz1234567890abcd'),
+      ])
+      renderWithProviders(<ChartsPage />)
+      await waitFor(() => expect(indexerClient.getLeaderboard).toHaveBeenCalled())
+      expect(screen.queryByTestId('trader-identity-blockie')).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /trader/i })).not.toBeInTheDocument()
+      expect(document.body.innerHTML).not.toMatch(/javascript:/)
+      expect(document.body.innerHTML).not.toContain('https://evil.example/p.png')
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+  })
+
   describe('pair 24h stats volume (GitLab #565)', () => {
     const ust1Custc: IndexerPair = {
       ...mockPair,

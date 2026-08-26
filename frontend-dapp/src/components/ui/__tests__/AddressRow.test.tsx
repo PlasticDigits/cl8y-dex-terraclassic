@@ -64,4 +64,13 @@ describe('AddressRow', () => {
 
     expect(screen.getByText(shortenAddress(SAMPLE, 12, 6))).toBeInTheDocument()
   })
+
+  it('trader 4/6 chip uses the shared constants (#656)', () => {
+    vi.mocked(terraExplorer.getExplorerAddressUrl).mockReturnValue(null)
+
+    render(<AddressRow address={SAMPLE} startChars={4} endChars={6} />)
+
+    expect(screen.getByText(shortenAddress(SAMPLE, 4, 6))).toBeInTheDocument()
+    expect(screen.queryByText(shortenAddress(SAMPLE, 8, 6))).not.toBeInTheDocument()
+  })
 })

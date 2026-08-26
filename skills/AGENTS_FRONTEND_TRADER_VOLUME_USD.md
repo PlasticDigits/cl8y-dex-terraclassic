@@ -47,3 +47,4 @@ Share [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) / `swap_
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair-detail 24h Vol (USD) (#565)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair-list volume is still raw quote
 - [`AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](./AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md) — rolling `volume_24h` / `7d` / `30d` zero when idle ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577))
+- [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md) — leaderboard / profile 4/6 + blockie (**T-ID-1–T-ID-10**, [#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)); `make verify-issue-656`

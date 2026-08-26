@@ -237,7 +237,7 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 | Invariant | Meaning |
 |-----------|---------|
 | **Single component** | [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) — do not duplicate shorten/copy/explorer markup in feature pages. |
-| **Shorten defaults** | `shortenAddress(address, 8, 6)` when `showFull` is false; override with `startChars` / `endChars` when design needs a different chip (e.g. trader header 12/6). |
+| **Shorten defaults** | `shortenAddress(address, 8, 6)` when `showFull` is false; override with `startChars` / `endChars` when design needs a different chip. **Trader-as-person** surfaces use 4/6 + blockie ([#656](#trader-identity)) — not 12/6. |
 | **Full text mode** | `showFull` shows the entire string with `break-all` (wallet dropdown menu). |
 | **Explorer** | Label and icon link share `getExplorerAddressUrl`; both omitted when the helper returns `null`. |
 | **Aria** | Pass explicit `copyAriaLabel` / `explorerAriaLabel` per surface (wallet, LP token, trader). |
@@ -245,7 +245,28 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 
 **First consumers:** wallet menu (`wallet-menu-address-row`), pool LP token line (`pool-lp-token-address-row`), trader profile header (`trader-profile-address-row`). Pair contract chips on Pool / Trade / Charts use the same primitive via [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) (`token-identity-pair`) — [Token identity](#token-identity) ([#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) · [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
+
+### Trader identity — 4/6 + blockie {#trader-identity}
+
+Retail trader-as-person chrome on Charts **Trader leaderboard**, `/trader/:addr`, and `/portfolio` ([GitLab **#656**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)). Visible label is **first 4 + last 6** of the bech32 plus a **deterministic circular blockie**. Tokens stay [#541](#token-identity); the connected-wallet chip stays [#186](#connected-wallet-chip-network-mobile). Agent playbook: [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
+
+| ID | Meaning |
+|----|---------|
+| **T-ID-1** | Leaderboard Trader cell is `shortenAddress(addr, 4, 6)` (`terr…` + last 6) — not 10/6, not the full bech32 as the visible label. `data-testid="charts-leaderboard-trader"`. |
+| **T-ID-2** | Valid rows show [`TraderBlockie`](../frontend-dapp/src/components/trader/TraderBlockie.tsx) immediately left of the short label. Seed is **lowercase** bech32 via existing `react-blockies`. Same address → same seed. |
+| **T-ID-3** | `Link` `to` is `/trader/{full bech32}` only when `isValidTerraAddress`. `title` / accessible name include the full address. |
+| **T-ID-4** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) header uses a larger blockie of the same family (`data-testid="trader-profile-identity"`). `/portfolio` inherits. |
+| **T-ID-5** | Profile [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) uses `TRADER_ADDR_START_CHARS` / `TRADER_ADDR_END_CHARS` (4/6). Copy is the **full** address. Explorer is `getExplorerAddressUrl` only. |
+| **T-ID-6** | Invalid / non-`terra1` indexer strings: no blockie, no `/trader/` or explorer link ([#430](#terra-classic-block-explorer-urls)). |
+| **T-ID-7** | No new identicon package. No trader `logo_url` / remote PFP. No `GET /api/v1/traders/*` JSON change. Do **not** reuse `TokenLogo`. |
+| **T-ID-8** | Token / pair identity, wallet chip, tape, and order-book owner tooltip are unchanged. |
+| **T-ID-9** | 375px: blockie + 4/6 stay one line (`whitespace-nowrap`). No `card-glass` on the row ([#653](#one-chrome-layer)). |
+| **T-ID-10** | One primitive — [`TraderIdentity`](../frontend-dapp/src/components/trader/TraderIdentity.tsx) / `TraderBlockie`. Do not hand-roll a second PFP. |
+
+4/6 is **not unique**. Collision honesty: `title` / copy / `href` stay the full distinct bech32. Display-only — ranking stays [#553](#charts-trader-leaderboard).
+
+Regression: `make verify-issue-656`.
 
 ### Token identity — Pool / Trade / Charts {#token-identity}
 
@@ -331,7 +352,7 @@ Regression: `make verify-issue-565` · `make verify-issue-564`.
 
 ### Charts trader leaderboard {#charts-trader-leaderboard}
 
-[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Agent playbook: [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md).
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). The **Trader** cell is 4/6 + blockie ([#656](#trader-identity)). Agent playbooks: [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md) · [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
 
 | Control | Source | Display |
 |---------|--------|---------|
@@ -341,7 +362,7 @@ Regression: `make verify-issue-565` · `make verify-issue-564`.
 
 `GET /api/v1/traders/{addr}` and leaderboard still return **`total_volume`** (raw `SUM(offer_amount)`) for integrators — the dApp **must not** render it as Volume. API default sort remains `total_volume`; Charts explicitly requests `total_volume_usd`. Rolling `volume_24h` / `7d` / `30d` stay raw and are not shown on this table.
 
-Regression: `make verify-issue-553`.
+Regression: `make verify-issue-553` · `make verify-issue-656`.
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
@@ -870,11 +891,11 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 | **Read-only** | No signing on portfolio; limits deep-link to **`/trade/{pairAddr}`** and **`/limits`**. |
 | **Outage UX** | `MarketDataServiceOutageBanner` + `RetryError` parity with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) for indexer-backed sections. |
 | **Nav** | `Portfolio` in `PRIMARY_NAV_ITEMS` ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)); wallet menu **My Portfolio** link. |
-| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. |
+| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) (4/6 + blockie header, [#656](#trader-identity)), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. |
 
 **Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`, `make verify-issue-560`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md), [`skills/AGENTS_FRONTEND_HUB_PNL.md`](../skills/AGENTS_FRONTEND_HUB_PNL.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md), [`skills/AGENTS_FRONTEND_HUB_PNL.md`](../skills/AGENTS_FRONTEND_HUB_PNL.md), [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
 
 ### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
 
@@ -1107,10 +1128,11 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 |-----------|---------|
 | Parse or fail | `getTrader` runs `parseIndexerTraderPayload` on raw JSON; invalid shapes throw and become a **React Query error**, not a render-time exception. |
 | **Total Volume (USD) (#553)** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) formats `total_volume_usd` with [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts). Never `formatNum(total_volume)`. Unpriced → `—`. |
+| **Trader identity (#656)** | Header is 4/6 `AddressRow` plus [`TraderBlockie`](../frontend-dapp/src/components/trader/TraderBlockie.tsx). Copy + explorer stay full-bech32 / `getExplorerAddressUrl`. Invalid route params do not paint a PFP. |
 | Route error boundary reset | `/trader` routes use `resetKeys` tied to `useParams().address` so switching between `/trader` and `/trader/:addr` (or between addresses) **clears a prior route error** without a full page reload ([`App.tsx`](../frontend-dapp/src/App.tsx) `TraderRouteShell`). |
 | Deduped React in Vite | [`vite.config.ts`](../frontend-dapp/vite.config.ts) sets `resolve.dedupe` for `react` / `react-dom` to avoid rare **dual-React** dev bundles that surface as `useContext`/`Invalid hook call` when lazy chunks load. |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows); [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md) (4/6 + blockie).
 
 ### Trade page — price chart invariants {#trade-page-price-chart-invariants}
 

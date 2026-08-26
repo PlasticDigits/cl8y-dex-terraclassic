@@ -37,3 +37,4 @@ Use when changing **`WalletButton.tsx`**, **`WalletDropdownMenuItems.tsx`**, **`
 - Responsive header shell (menu stacking **#486**): [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)
 - Native gas gates (same balance hook): [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Keyboard focus: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
+- Trader identity (out of scope for the chip): [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md) ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)) — do not retune 6/6 / 4/4

@@ -1,6 +1,6 @@
 import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   getOverview,
   getPairs,
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { PnlValue } from '@/components/trader/PnlValue'
+import { TraderIdentity } from '@/components/trader/TraderIdentity'
 import {
   formatChartsOverviewCount,
   formatChartsOverviewUstcUsd,
@@ -47,7 +48,6 @@ import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import { filterRetailDiscoveryIndexerPairs, sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
 import { chartsPairHref, getInvalidChartsPairRouteParam, isChartsPairRouteParam } from '@/utils/chartsPairRoute'
-import { shortenAddress } from '@/utils/tokenDisplay'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
 import type { IndexerPair, IndexerPairSort, IndexerTrader } from '@/types'
@@ -741,14 +741,12 @@ export default function ChartsPage() {
                         {i + 1}
                       </td>
                       <td className="py-1.5 px-2">
-                        <Link
-                          to={`/trader/${trader.address}`}
-                          className="hover:underline"
-                          style={{ color: 'var(--mint)' }}
+                        <TraderIdentity
+                          address={trader.address}
+                          linkToProfile
                           onClick={() => sounds.playButtonPress()}
-                        >
-                          {shortenAddress(trader.address, 10, 6)}
-                        </Link>
+                          data-testid="charts-leaderboard-trader"
+                        />
                       </td>
                       <td
                         className="py-1.5 px-2 text-right font-medium"

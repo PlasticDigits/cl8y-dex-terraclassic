@@ -22,7 +22,7 @@ Pair **symbols are not identity**. Terra Classic has look-alike CW20s. Pool / Tr
 - **Don’t** put identity icons inside `PairSearchSelect` / `TokenSearchSelect` option rows.
 - **Don’t** add `/token/:id`, CoinGecko, CMC, Twitter, or indexer `website` / `logo_url` hosts.
 - **Don’t** clone factory/router `AddressRow` onto these pages (`/protocol` only).
-- **Don’t** change Swap confirm, wallet menu, trader header, or LP withdraw `pool-lp-token-address-row` except shared icon/CSS.
+- **Don’t** change Swap confirm, wallet menu, trader header, or LP withdraw `pool-lp-token-address-row` except shared icon/CSS. Trader-as-person chrome is [#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656) ([`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md)) — not `TokenLogo`.
 - **Don’t** ship always-on address essays or “use Wrap / UST1 / Swap” banners ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) invariant **9**).
 
 ## Invariants
@@ -67,3 +67,4 @@ Vitest: `tokenIdentity.test.ts`, `TokenIdentity.test.tsx`, `TokenIdentity.explor
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no address essays
 - [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md) — no Protocol factory/router clone
 - [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](./AGENTS_FRONTEND_NATIVE_TICKERS.md) — visible **LUNC** / **USTC**; copy payload stays `uluna` / `uusd` (**N630-7**, [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630))
+- [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md) — traders ≠ tokens; do not reuse `TokenLogo` as a wallet PFP ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656))

@@ -19,7 +19,7 @@ The design-system sentence used to bless nested `card-glass` inside a page `shel
 - **Do** keep Trade book / chart / ticket / tape as **sibling** `shell-panel*` / `card-glass` cells. Do **not** wrap `PriceChart` (`shell-panel-strong`) in `card-glass` (**L561-1**).
 - **Do** allow **one** inner `card-glass` well for a single table or chart (Protocol oracle history, Protocol hooks table).
 - **Don’t** wrap a grid of 4–11 `card-glass` / default `StatBox` chips in a section panel.
-- **Don’t** wrap every `<tr>` in `card-glass`.
+- **Don’t** wrap every `<tr>` in `card-glass`. Trader leaderboard identity is a flat `Link` + blockie ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)).
 - **Don’t** silently flip `StatBox` default to `flat` — call sites inside a panel pass `variant="flat"`.
 - **Don’t** invent a new color system or gold fills. Tokens stay #488.
 - **Don’t** change overview JSON / indexer semantics while flattening chrome.

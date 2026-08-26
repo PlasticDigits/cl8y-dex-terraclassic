@@ -29,7 +29,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 | [`PortfolioOpenLimitsSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioOpenLimitsSection.tsx) | Wallet-wide limits table; deep-links to `/trade/{pair}` and `/limits` |
 | [`PortfolioLpOverviewSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioLpOverviewSection.tsx) | LP balances; distinct copy from trader positions |
 | [`usePortfolioLpBalances.ts`](../frontend-dapp/src/hooks/usePortfolioLpBalances.ts) | Indexer pair list + capped LCD fan-out |
-| [`TraderSummaryStats.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) | Shared profile + realized P&amp;L cards. **Total Volume (USD)** uses `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). |
+| [`TraderSummaryStats.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) | Shared profile + realized P&amp;L cards. **Total Volume (USD)** uses `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Header identity is 4/6 + blockie ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)). |
 | [`TraderPositionsTable.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) | Positions table; pair links → `/trade/{pairAddr}` |
 | [`TraderPage.tsx`](../frontend-dapp/src/pages/TraderPage.tsx) | Public lookup; reuses shared components |
 | [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) | `Portfolio` in `PRIMARY_NAV_ITEMS` |

@@ -16,8 +16,9 @@ Use when surfacing **bech32 / contract addresses** with copy and explorer afford
 1. **Do not** hand-roll shorten + copy + explorer in pages — import **`AddressRow`** (or extend it if a new layout is needed).
 2. **Network** follows `VITE_NETWORK` / `DEFAULT_NETWORK` inside `getExplorerAddressUrl`; do not pass per-row network overrides.
 3. **`showFull`** for menu / QA surfaces that need the entire bech32 (wallet dropdown); default shortened label elsewhere.
-4. **Custom `startChars` / `endChars`** only when design calls for a denser or longer chip (trader header uses 12/6).
+4. **Custom `startChars` / `endChars`** only when design calls for a denser or longer chip. **Trader-as-person** surfaces use **4/6 + blockie** ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656), [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md)) — do not revert the trader header to 12/6. Defaults stay **8/6** for contracts / LP / protocol rows.
 5. **Tx hashes** are not addresses — keep `TxResultAlert` / `TradesTable` on `getExplorerTxUrl` + `shortenTxHashForDisplay` until a dedicated row primitive is filed.
+6. **Do not** reuse `TokenLogo` or a second identicon for wallets. New trader rows must import `TraderIdentity` / `TraderBlockie`.
 
 ## First consumers (MR scope)
 
@@ -34,6 +35,7 @@ Use when surfacing **bech32 / contract addresses** with copy and explorer afford
 - Limit-order pair chips (if still desired beyond #541 page chrome)
 - `TxResultAlert` tx hash copy (explorer already present)
 - Wallet chip trigger shortening stays separate ([#186](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/186))
+- Trader leaderboard + profile PFP — **done in [#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)** ([`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md))
 
 ## Cross-links
 
@@ -41,3 +43,4 @@ Use when surfacing **bech32 / contract addresses** with copy and explorer afford
 - Explorer URLs: [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md)
 - Wallet chip shell: [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md)
 - Keyboard focus on icon controls: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
+- Trader identity (4/6 + blockie): [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md) ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656))

@@ -35,4 +35,5 @@ Use when adding or changing **“View on explorer”** links for **transactions*
 - Address row (address explorer consumer): [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md) · [#188](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/188)
 - Token identity (Pool / Trade / Charts legs): [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) · [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541) — CW20/pair hrefs only; native denoms are copy-only
 - Wallet chip dropdown (consumer): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md) · [#185](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185) — [docs § Connected wallet dropdown](../docs/frontend.md#connected-wallet-dropdown)
+- Trader identity (profile explorer via AddressRow): [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md) · [#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)
 - Order history tx column: [`AGENTS_FRONTEND_ORDER_HISTORY.md`](./AGENTS_FRONTEND_ORDER_HISTORY.md) (`getExplorerTxUrl` only)
