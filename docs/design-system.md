@@ -2,7 +2,7 @@
 
 Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)). Implementation lives in [`frontend-dapp/src/index.css`](../frontend-dapp/src/index.css) with theme tokens in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) and [`theme-light.css`](../frontend-dapp/src/theme-light.css). Dual theme is toggled via `data-theme` on `<html>`.
 
-**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · chrome nesting: [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) · Open Graph: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
+**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · chrome nesting: [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) · Swap seam plate: [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)) · Open Graph: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
 
 > **Supersedes** the warm amber “Cyberminimalist Glass” identity and the #416 “no blue primary” guardrail. Class names like `*-glass` / `shell-panel` remain; colors are cool navy + blue CTAs + gold brand.
 
@@ -33,6 +33,7 @@ Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitla
 | `--panel-bg`, `--panel-bg-strong`, `--card-bg` | Shell / card surfaces |
 | `--chrome-border`, `--chrome-highlight`, `--chrome-glow` | Shared chrome borders / glows |
 | `--focus-ring` | Keyboard focus ring |
+| `--swap-direction-surface`, `--swap-direction-surface-hover` | Opaque Swap flip plate on the Pay/Receive seam ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)) — **not** `--control-surface` |
 | `--color-positive`, `--color-negative`, `--color-warning` | Semantic chart / status. **Exception (#563):** Buy/Sell **side** controls may use these hues via `--side-buy*` / `--side-sell*` fills. **Not** for primary money CTAs (`btn-primary`). |
 
 Theme files override the above per `data-theme='dark'` | `'light'`.

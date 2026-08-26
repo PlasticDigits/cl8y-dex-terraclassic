@@ -7,7 +7,7 @@
 #   2. Pairing portal z-[10001]; Connect list hides while pairing is open.
 #   3. Cancel / timeout clears isConnecting; late session does not attach.
 #   4. Mobile + no window.keplr offers Keplr WalletConnect, not Install-only.
-#   5. Skills/docs invariants WC-M8–WC-M12 + Legal Keplr-browser hint (C1).
+#   5. Skills/docs invariants WC-M8–WC-M12 + Legal DEX-wallet hint (C1 / #658, not Keplr-only).
 #
 # Refs: skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md,
 #       frontend-dapp/src/utils/walletConnectPairing.ts,
@@ -57,10 +57,11 @@ run_step "frontend: pairing + session + modal + options + useWallet + legal hint
     src/services/terraclassic/__tests__/cosmesPatch127.test.ts \
     src/components/ui/__tests__/CopyButton.test.tsx'
 
-run_step "skill: AGENTS_FRONTEND_WALLETCONNECT_MOBILE WC-M8–WC-M12 + #554" \
+run_step "skill: AGENTS_FRONTEND_WALLETCONNECT_MOBILE WC-M8–WC-M12 + #554 (not Keplr-only)" \
   grep -qE '\*\*WC-M8' skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md && \
   grep -qE '\*\*WC-M12' skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md && \
-  grep -qE '#554' skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md
+  grep -qE '#554' skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md && \
+  grep -qE 'not Keplr-only' skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md
 
 run_step "docs: frontend.md WC-M8–WC-M12" \
   grep -qE '\*\*WC-M8\*\*' docs/frontend.md && \
@@ -73,9 +74,10 @@ run_step "AGENTS.md playbook link #554" \
 run_step "connect-modal skill crosslink #554" \
   grep -qE '#554' skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md
 
-run_step "clickwrap skill WC-M12 / no ADR-036" \
-  grep -qE 'WC-M12|#554' skills/AGENTS_FRONTEND_CLICKWRAP.md && \
-  grep -qE 'ADR-036' skills/AGENTS_FRONTEND_CLICKWRAP.md
+run_step "clickwrap skill WC-M12 / no ADR-036 (not Keplr-only)" \
+  grep -qE 'WC-M12|#554|#658' skills/AGENTS_FRONTEND_CLICKWRAP.md && \
+  grep -qE 'ADR-036' skills/AGENTS_FRONTEND_CLICKWRAP.md && \
+  grep -qE 'not Keplr-only' skills/AGENTS_FRONTEND_CLICKWRAP.md
 
 run_step "code: pairing portal z-[10001] and Layout mounts pairing last" \
   grep -qE 'z-\[10001\]' frontend-dapp/src/components/wallet/WalletConnectPairingModal.tsx && \
@@ -101,7 +103,8 @@ run_step "code: no async auto-redirect in pairing helpers" \
 run_step "QA template Android Chrome #554 cases" \
   grep -qE '1.5.1b' QA_TEMPLATE.md && \
   grep -qE '1.6.1b' QA_TEMPLATE.md && \
-  grep -qE '1.2.11' QA_TEMPLATE.md
+  grep -qE '1.2.11' QA_TEMPLATE.md && \
+  grep -qE '1.2.14' QA_TEMPLATE.md
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
