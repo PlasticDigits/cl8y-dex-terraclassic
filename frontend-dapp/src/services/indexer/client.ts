@@ -483,9 +483,12 @@ export function downloadTextAsFile(filename: string, text: string, mime = 'text/
   URL.revokeObjectURL(url)
 }
 
-/** Get trader leaderboard. Charts Volume tab uses `total_volume_usd` (#553). */
-export async function getLeaderboard(sort = 'total_volume_usd', limit = 50): Promise<IndexerTrader[]> {
+/** Get trader leaderboard. Charts Volume tab uses `total_volume_usd` (#553).
+ * Pass `pair` for pair-scoped ranks on `/charts` (GitLab #666). Omit for DEX-wide (#657). */
+export async function getLeaderboard(sort = 'total_volume_usd', limit = 50, pair?: string): Promise<IndexerTrader[]> {
   const params = new URLSearchParams({ sort, limit: limit.toString() })
+  const pairAddr = pair?.trim()
+  if (pairAddr) params.set('pair', pairAddr)
   return fetchJson<IndexerTrader[]>(`/api/v1/traders/leaderboard?${params}`)
 }
 

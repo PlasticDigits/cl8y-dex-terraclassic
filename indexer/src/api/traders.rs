@@ -37,9 +37,18 @@ pub const VALID_SORTS: &[&str] = &[
     "total_fees_paid",
 ];
 
-// GitLab #280: short TTL cache for the unauthenticated /traders/leaderboard response so
-// a burst can't seq-scan + top-N sort the traders table on every request. Keyed by
-// (sort_by, limit); mirrors the route_solver module-level cache pattern.
+/// Sorts that can be computed from one pair’s `swap_events` / `trader_positions`
+/// (GitLab #666). `best_trade_pnl` has no per-pair store — **400** when `pair=` is set.
+pub const PAIR_SCOPED_SORTS: &[&str] = &[
+    "total_volume",
+    "total_volume_usd",
+    "total_trades",
+    "total_realized_pnl",
+    "worst_trade_pnl",
+];
+
+// GitLab #280 / #666: short TTL cache for the unauthenticated /traders/leaderboard
+// response. Keyed by `{sort}|{limit}|{pair_or_-}`. 404s are not cached.
 const LEADERBOARD_CACHE_TTL: Duration = Duration::from_secs(60);
 const LEADERBOARD_CACHE_MAX_ENTRIES: usize = 64;
 
@@ -123,6 +132,33 @@ impl From<&db_traders::TraderRow> for TraderResponse {
             best_trade_pnl: t.best_trade_pnl.as_ref().map(|v| v.to_string()),
             worst_trade_pnl: t.worst_trade_pnl.as_ref().map(|v| v.to_string()),
             total_fees_paid: t.total_fees_paid.to_string(),
+        }
+    }
+}
+
+impl From<&db_traders::PairLeaderboardRow> for TraderResponse {
+    fn from(r: &db_traders::PairLeaderboardRow) -> Self {
+        Self {
+            address: r.address.clone(),
+            total_trades: r.total_trades,
+            total_volume: r.total_volume.to_string(),
+            total_volume_usd: overview_volume_usd_field(
+                r.total_trades,
+                r.total_volume_usd.as_ref().unwrap_or(&BigDecimal::from(0)),
+            ),
+            // Pair ranks are lifetime-on-this-pair; do not leak global rolling columns.
+            volume_24h: "0".to_string(),
+            volume_7d: "0".to_string(),
+            volume_30d: "0".to_string(),
+            tier_id: r.tier_id,
+            tier_name: r.tier_name.clone(),
+            registered: r.registered,
+            first_trade_at: r.first_trade_at.map(|d| d.to_rfc3339()),
+            last_trade_at: r.last_trade_at.map(|d| d.to_rfc3339()),
+            total_realized_pnl: r.total_realized_pnl.to_string(),
+            best_trade_pnl: None,
+            worst_trade_pnl: None,
+            total_fees_paid: "0".to_string(),
         }
     }
 }
@@ -454,6 +490,9 @@ pub struct LeaderboardQuery {
     pub sort: Option<String>,
     /// Max results (capped at 200)
     pub limit: Option<i64>,
+    /// When set, ranks wallets on this pair **contract address** only (GitLab #666).
+    /// Unknown pair → **404**. `sort=best_trade_pnl` with `pair=` → **400**.
+    pub pair: Option<String>,
 }
 
 #[utoipa::path(
@@ -514,8 +553,9 @@ pub async fn get_trader_limit_placements(
     path = "/api/v1/traders/leaderboard",
     params(LeaderboardQuery),
     responses(
-        (status = 200, description = "Trader leaderboard", body = Vec<TraderResponse>),
-        (status = 400, description = "Invalid sort column"),
+        (status = 200, description = "Trader leaderboard (DEX-wide, or pair-scoped when pair= is set)", body = Vec<TraderResponse>),
+        (status = 400, description = "Invalid sort column, or pair= with a sort that is not pair-scoped"),
+        (status = 404, description = "Unknown pair address (pair= filter)"),
         (status = 500, description = "Internal server error"),
     ),
     tag = "Traders"
@@ -536,7 +576,38 @@ pub async fn leaderboard(
     let sort_by = q.sort.unwrap_or_else(|| "total_volume".to_string());
     let limit = q.limit.unwrap_or(50).clamp(1, 200);
 
-    let cache_key = format!("{sort_by}|{limit}");
+    let pair_filter = q.pair.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    if let Some(pair_addr) = pair_filter {
+        if !PAIR_SCOPED_SORTS.contains(&sort_by.as_str()) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "Invalid sort '{sort_by}' for pair leaderboard. Valid: {}",
+                    PAIR_SCOPED_SORTS.join(", ")
+                ),
+            ));
+        }
+        // Resolve by contract address (not internal pair_id). 404 is not cached as [].
+        let pair_row = db_pairs::get_pair_by_address(&state.pool, pair_addr)
+            .await
+            .map_err(internal_err)?
+            .ok_or_else(|| (StatusCode::NOT_FOUND, "Pair not found".to_string()))?;
+
+        let cache_key = format!("{sort_by}|{limit}|{}", pair_row.contract_address);
+        if let Some(cached) = leaderboard_cache_get(&cache_key) {
+            return Ok(Json(cached));
+        }
+
+        let rows =
+            db_traders::get_leaderboard_for_pair(&state.pool, pair_row.id, &sort_by, limit)
+                .await
+                .map_err(internal_err)?;
+        let resp: Vec<TraderResponse> = rows.iter().map(TraderResponse::from).collect();
+        leaderboard_cache_put(cache_key, resp.clone());
+        return Ok(Json(resp));
+    }
+
+    let cache_key = format!("{sort_by}|{limit}|-");
     if let Some(cached) = leaderboard_cache_get(&cache_key) {
         return Ok(Json(cached));
     }

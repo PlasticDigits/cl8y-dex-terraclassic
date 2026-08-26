@@ -16,7 +16,7 @@ Share [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) / `swap_
 
 | ID | Rule |
 |----|------|
-| **T553-1** | Charts leaderboard **Volume (USD)** is `$` + compact human from `total_volume_usd`. Never pass raw `total_volume` to `formatNum`. Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades === 0`) → `$0`. |
+| **T553-1** | Leaderboard **Volume (USD)** is `$` + compact human from `total_volume_usd`. Never pass raw `total_volume` to `formatNum`. Unpriced (`null` / `"0"` with trades) → `—`. Idle (`total_trades === 0`) → `$0`. On `/charts` the field is **pair-scoped** (`GET …/leaderboard?pair=`, [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)). Unscoped API (no `pair`) stays DEX-wide for #657 / ops. |
 | **T553-2** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) **Total Volume (USD)** uses the same formatter (`formatIndexedVolumeUsd`) on `/trader` and `/portfolio`. |
 | **T553-3** | JSON keeps `total_volume` (raw `SUM(offer_amount)`) for integrators. `total_volume_usd` is a decimal string when priced; JSON `null` when `total_trades > 0` and priced USD is 0 (same contract as overview **C3**). |
 | **T553-4** | Ingest: `upsert_trader` adds `swap_events.volume_usd` when present. Backfill / catalog re-run: [`refresh_trader_total_volume_usd`](../indexer/src/db/queries/traders.rs) `SUM`s the same column (capped for `NUMERIC(38,18)`). |
@@ -39,7 +39,7 @@ Share [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) / `swap_
 
 ## Related
 
-- [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview 24h USD (#548)
+- [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](./AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — Charts board is pair-scoped; unscoped `GET /traders/leaderboard` stays global (#666 / #657)
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — trader summary tiles are flat (#653)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog
 - [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md) — shared `TraderSummaryStats`

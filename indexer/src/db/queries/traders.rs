@@ -123,6 +123,128 @@ pub async fn get_leaderboard(
         .await
 }
 
+/// Pair-scoped leaderboard row (GitLab #666). Lifetime-on-this-pair volume from
+/// `swap_events`; realized P&L from `trader_positions`. Rolling windows and
+/// global best/worst trade extrema are **not** filled here.
+#[derive(Debug, Clone, FromRow)]
+pub struct PairLeaderboardRow {
+    pub address: String,
+    pub total_trades: i64,
+    pub total_volume: BigDecimal,
+    pub total_volume_usd: Option<BigDecimal>,
+    pub first_trade_at: Option<DateTime<Utc>>,
+    pub last_trade_at: Option<DateTime<Utc>>,
+    pub total_realized_pnl: BigDecimal,
+    pub tier_id: Option<i16>,
+    pub tier_name: Option<String>,
+    pub registered: bool,
+}
+
+/// Rank wallets on one indexed pair. `sort_by` is allowlisted by the HTTP layer
+/// (`PAIR_SCOPED_SORTS`). Volume sorts `GROUP BY sender` on `swap_events` for
+/// `pair_id` (uses `idx_swaps_pair_time`). P&L sorts read `trader_positions`
+/// for that pair — never `traders.total_*` (all-pairs).
+pub async fn get_leaderboard_for_pair(
+    pool: &PgPool,
+    pair_id: i32,
+    sort_by: &str,
+    limit: i64,
+) -> Result<Vec<PairLeaderboardRow>, sqlx::Error> {
+    match sort_by {
+        "total_realized_pnl" | "worst_trade_pnl" => {
+            leaderboard_for_pair_pnl(pool, pair_id, sort_by, limit).await
+        }
+        _ => leaderboard_for_pair_volume(pool, pair_id, sort_by, limit).await,
+    }
+}
+
+async fn leaderboard_for_pair_volume(
+    pool: &PgPool,
+    pair_id: i32,
+    sort_by: &str,
+    limit: i64,
+) -> Result<Vec<PairLeaderboardRow>, sqlx::Error> {
+    let order = match sort_by {
+        "total_volume_usd" => "ORDER BY SUM(se.volume_usd) DESC NULLS LAST",
+        "total_trades" => "ORDER BY COUNT(*) DESC",
+        _ => "ORDER BY SUM(se.offer_amount) DESC",
+    };
+    let sql = format!(
+        "SELECT
+            se.sender AS address,
+            COUNT(*)::bigint AS total_trades,
+            COALESCE(SUM(se.offer_amount), 0) AS total_volume,
+            SUM(se.volume_usd) AS total_volume_usd,
+            MIN(se.block_timestamp) AS first_trade_at,
+            MAX(se.block_timestamp) AS last_trade_at,
+            COALESCE(tp.realized_pnl, 0) AS total_realized_pnl,
+            t.tier_id,
+            t.tier_name,
+            COALESCE(t.registered, false) AS registered
+         FROM swap_events se
+         LEFT JOIN traders t ON t.address = se.sender
+         LEFT JOIN trader_positions tp
+           ON tp.trader_address = se.sender AND tp.pair_id = $1
+         WHERE se.pair_id = $1
+         GROUP BY se.sender, tp.realized_pnl, t.tier_id, t.tier_name, t.registered
+         {order}
+         LIMIT $2"
+    );
+    sqlx::query_as::<_, PairLeaderboardRow>(&sql)
+        .bind(pair_id)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+}
+
+async fn leaderboard_for_pair_pnl(
+    pool: &PgPool,
+    pair_id: i32,
+    sort_by: &str,
+    limit: i64,
+) -> Result<Vec<PairLeaderboardRow>, sqlx::Error> {
+    let order = if sort_by == "worst_trade_pnl" {
+        "ORDER BY tp.realized_pnl ASC"
+    } else {
+        "ORDER BY tp.realized_pnl DESC"
+    };
+    let sql = format!(
+        "SELECT
+            tp.trader_address AS address,
+            COALESCE(vol.total_trades, tp.trade_count::bigint) AS total_trades,
+            COALESCE(vol.total_volume, 0) AS total_volume,
+            vol.total_volume_usd,
+            vol.first_trade_at,
+            vol.last_trade_at,
+            tp.realized_pnl AS total_realized_pnl,
+            t.tier_id,
+            t.tier_name,
+            COALESCE(t.registered, false) AS registered
+         FROM trader_positions tp
+         LEFT JOIN (
+           SELECT
+             sender,
+             COUNT(*)::bigint AS total_trades,
+             COALESCE(SUM(offer_amount), 0) AS total_volume,
+             SUM(volume_usd) AS total_volume_usd,
+             MIN(block_timestamp) AS first_trade_at,
+             MAX(block_timestamp) AS last_trade_at
+           FROM swap_events
+           WHERE pair_id = $1
+           GROUP BY sender
+         ) vol ON vol.sender = tp.trader_address
+         LEFT JOIN traders t ON t.address = tp.trader_address
+         WHERE tp.pair_id = $1
+         {order}
+         LIMIT $2"
+    );
+    sqlx::query_as::<_, PairLeaderboardRow>(&sql)
+        .bind(pair_id)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+}
+
 pub async fn update_trader_tier(
     pool: &PgPool,
     address: &str,

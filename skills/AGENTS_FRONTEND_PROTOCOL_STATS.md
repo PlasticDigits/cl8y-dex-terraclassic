@@ -38,13 +38,13 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P569-4** | Same USD catalog as volume: USTC/cUSTC/`uusd` → USTC oracle; LUNC/cLUNC/`uluna` → LUNC; UST1/USTR → `hub_prices`. Never `$1` UST1 or `2.5×` USTR. Oracle/hub down → omit that handle. |
 | **P569-5** | Both legs priced → `h0×usd0 + h1×usd1`. Exactly one catalogued → `2×` that leg (CPAMM). Neither → omit. Omitted ≠ `$0`. Identity is contract/denom (A1); spoof natives skipped. |
 | **P569-6** | Humanize decimals (`humanize_raw_amount` + `fits_numeric_38_18`). Overflow / non-positive → skip the pair. Double-count across pools is correct. |
-| **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Optional UTC-day bar chart (`protocol-volume-daily-chart`) sits under the volume row. Do not headline `unique_traders_24h`. Charts overview strip stays additive-compatible. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
+| **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Optional UTC-day bar chart (`protocol-volume-daily-chart`) sits under the volume row. Do not headline `unique_traders_24h`. `/charts` does not render this census ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)). New overview JSON fields stay optional on `IndexerOverview`. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **P569-8** | Cold start / `--fresh` / indexer younger than 24h/30d → Δ% empty until windows fill. Copy must not claim on-chain 30d genesis TVL. Flash LP inside one snapshot interval may move current TVL; Δ% uses snapshots. |
 
 ## Do / don’t
 
 - **Do** call `getOraclePrice(ticker)` / `getOracleHistory({ ticker })` with an allowlisted ticker.
-- **Do** keep Charts overview strip additive-compatible (new fields optional on `IndexerOverview`).
+- **Do** keep `GET /overview` additive-compatible (new fields optional on `IndexerOverview`). `/charts` must not grow a census strip ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)).
 - **Do** reuse hub / P522-Q helpers for TVL; insert snapshots on successful refresh.
 - **Don’t** restore a second “Recent USTC/USD history” panel.
 - **Don’t** live-scan `swap_events` or `pair_reserves` on `GET /overview`.

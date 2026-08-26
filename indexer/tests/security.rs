@@ -269,6 +269,41 @@ async fn leaderboard_all_documented_sort_columns_accepted() {
 }
 
 #[tokio::test]
+async fn leaderboard_pair_sql_injection_and_best_trade_rejected() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let payloads = [
+        format!(
+            "/api/v1/traders/leaderboard?pair={}&sort=best_trade_pnl",
+            seed.pair_address
+        ),
+        "/api/v1/traders/leaderboard?pair=%27%3B%20DROP%20TABLE%20traders%3B%20--&sort=total_volume_usd"
+            .to_string(),
+        format!(
+            "/api/v1/traders/leaderboard?pair={}&sort=%27%3B%20DROP%20TABLE%20traders%3B%20--",
+            seed.pair_address
+        ),
+        "/api/v1/traders/leaderboard?pair=1%20OR%201%3D1&sort=total_volume_usd".to_string(),
+    ];
+    for path in payloads {
+        let resp = server.get(&path).await;
+        assert!(
+            resp.status_code() == StatusCode::BAD_REQUEST
+                || resp.status_code() == StatusCode::NOT_FOUND,
+            "{path} → {}",
+            resp.status_code()
+        );
+        let body = resp.text();
+        assert!(!body.contains("sqlx"), "{path}");
+        assert!(!body.contains("SELECT"), "{path}");
+        assert!(!body.contains("postgres"), "{path}");
+    }
+}
+
+#[tokio::test]
 async fn trader_trades_limit_capped_at_200() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
