@@ -168,6 +168,13 @@ export default function ChartsPage() {
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
+  const pairLpQuery = useQuery({
+    queryKey: ['indexer-pair-lp-usd', activePairAddr],
+    queryFn: () => getPair(activePairAddr),
+    enabled: !!activePairAddr && isChartsPairRouteParam(activePairAddr),
+    staleTime: 60_000,
+    retry: false,
+  })
   const pairCodeIdFreeze = usePairCodeIdFreeze({
     pairAddress: activePairAddr,
     indexerHintFrozen: activePair?.code_id_frozen === true,
@@ -428,6 +435,9 @@ export default function ChartsPage() {
             asset0={assetInfoFromIndexerBrief(activePair.asset_0)}
             asset1={assetInfoFromIndexerBrief(activePair.asset_1)}
             inverted={pairOrientation.inverted}
+            liquidityUsd={
+              pairLpQuery.data?.pair_address === activePair.pair_address ? pairLpQuery.data.liquidity_usd : undefined
+            }
           />
         ) : null}
         {pairCodeIdFreeze.isFrozen && <PairCodeIdFrozenBanner testId="charts-pair-code-id-frozen-banner" />}

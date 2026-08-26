@@ -161,6 +161,11 @@ export interface IndexerPair {
    * Not factory CreatePair genesis (GitLab #662).
    */
   created_at?: string
+  /**
+   * Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp).
+   * Single-pair GET (#664); list JOIN is #655. Omit / null when unpriced — never invent `$0`.
+   */
+  liquidity_usd?: string | null
 }
 
 /** Paginated response from `GET /api/v1/pairs` */
@@ -444,13 +449,27 @@ export interface IndexerOverview {
 }
 
 export interface ProtocolVolumeDailyPoint {
-  utc_day: string
+  utc_day?: string
+  utc_hour?: string
+  utc_month?: string
   volume_usd: string | null
   trade_count: number
 }
 
 export interface ProtocolVolumeDailyResponse {
-  days: number
+  days?: number
+  grain?: string
+  limit?: number
+  timezone: string
+  methodology: string
+  series: ProtocolVolumeDailyPoint[]
+}
+
+export type ProtocolVolumeGrain = 'hourly' | 'daily' | 'monthly'
+
+export interface ProtocolVolumeSeriesResponse {
+  grain: ProtocolVolumeGrain
+  limit: number
   timezone: string
   methodology: string
   series: ProtocolVolumeDailyPoint[]

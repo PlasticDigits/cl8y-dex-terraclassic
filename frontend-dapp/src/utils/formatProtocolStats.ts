@@ -10,12 +10,33 @@ export function formatProtocolUsd(raw: string | number | null | undefined): stri
   return `$${formatNum(raw, 2)}`
 }
 
-/** Integer census figures: missing / non-finite → em-dash. */
+/** Plain human USD decimal only — scientific / HTML / non-positive → omit the identity chip (#664). */
+const PLAIN_USD = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/
+
+export function formatPairV2LpUsd(raw: string | number | null | undefined): string | null {
+  if (raw == null || raw === '') return null
+  const trimmed = String(raw).trim()
+  if (!PLAIN_USD.test(trimmed) || trimmed.replace('.', '').length > 24) return null
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n <= 0) return null
+  const formatted = formatProtocolUsd(trimmed)
+  return formatted === EM_DASH ? null : formatted
+}
+
+/**
+ * Integer census figures (tokens / pairs / trades). Missing / non-finite /
+ * negative / XSS-like → em-dash. Finite integers under 1000 are locale counts
+ * (`14`, not `14.00`). Compact `K`/`M` only when `abs >= 1e3` (GitLab #667).
+ */
 export function formatProtocolCount(raw: number | string | null | undefined): string {
   if (raw == null || raw === '') return EM_DASH
+  if (typeof raw === 'string' && /[<>]|javascript:/i.test(raw)) return EM_DASH
   const n = typeof raw === 'number' ? raw : Number(raw)
-  if (!Number.isFinite(n)) return EM_DASH
-  return formatNum(n, 4)
+  if (!Number.isFinite(n) || n < 0) return EM_DASH
+  const whole = Math.round(n)
+  if (!Number.isFinite(whole) || whole < 0) return EM_DASH
+  if (Math.abs(whole) >= 1e3) return formatNum(whole, 4)
+  return whole.toLocaleString('en-US')
 }
 
 /** Oracle snapshot: missing / non-finite → em-dash (depeg values still display). */

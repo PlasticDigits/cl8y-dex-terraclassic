@@ -55,7 +55,8 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
         .getByRole('button', { name: /Provide Liquidity/i })
         .first()
         .click()
-      await expect(page.getByText(/Asset A|Amount/i).first()).toBeVisible()
+      await expect(page.getByPlaceholder('0.00').first()).toBeVisible()
+      await expect(page.getByText(/Asset A|Asset B/i)).toHaveCount(0)
       await expect(page.getByTestId('pool-il-risk-notice-advanced')).toBeVisible()
     }
   })

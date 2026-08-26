@@ -90,16 +90,19 @@ export function StatBox({
       {loading ? (
         <Skeleton height="1.25rem" width="60%" />
       ) : (
-        <div className="flex items-baseline justify-between gap-2 min-w-0 flex-wrap">
+        <div className="stat-value-row">
+          {/* GitLab #667: group Δ% with the headline (justify-start / wrap). Never justify-between. */}
           <p
-            className="text-sm font-bold font-heading min-w-0"
+            className={
+              items.length > 0 ? 'text-sm font-bold font-heading shrink-0' : 'text-sm font-bold font-heading min-w-0'
+            }
             style={{ color: color ?? 'var(--ink)' }}
             aria-label={accessibleValue}
           >
             {value}
           </p>
           {items.length > 0 && (
-            <div className="flex items-baseline gap-2 shrink-0">
+            <div className="stat-delta-cluster">
               {items.map((d) => (
                 <span
                   key={`${d.testId ?? d.label}-${d.value}`}
