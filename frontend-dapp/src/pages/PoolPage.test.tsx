@@ -794,6 +794,85 @@ describe('PoolPage', () => {
       expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'none')
     })
 
+    it('F2/F3: v2 LP USD header calls indexer liquidity_usd and toggles order', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      expect(screen.getByTestId('pool-sort-lp-usd')).toHaveTextContent(/v2 LP USD/)
+      await user.click(screen.getByTestId('pool-sort-lp-usd'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'liquidity_usd', order: 'desc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-lp-usd').closest('th')).toHaveAttribute('aria-sort', 'descending')
+      expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'none')
+      await user.click(screen.getByTestId('pool-sort-lp-usd'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'liquidity_usd', order: 'asc', limit: 20 })
+        )
+      )
+    })
+
+    it('F1/F4/F5/F11: LP USD cell uses JSON or em-dash; never invents TVL from volume', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[0]!, liquidity_usd: undefined, volume_quote_24h: '999999' },
+          { ...catalogPairs()[1]!, liquidity_usd: '1234.5', volume_quote_24h: '1' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-lp-usd')
+      expect(cells[0]).toHaveTextContent(/^\$/)
+      expect(cells[1]).toHaveTextContent('—')
+      expect(indexerClient.getPairs).toHaveBeenCalledWith(
+        expect.objectContaining({ sort: 'volume_24h', order: 'desc', limit: 500 })
+      )
+    })
+
+    it('F4: Infinity/NaN/HTML liquidity_usd renders em-dash as text', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[0]!, liquidity_usd: 'Infinity' },
+          { ...catalogPairs()[1]!, liquidity_usd: '<img onerror=alert(1)>' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-lp-usd')
+      expect(cells[0]).toHaveTextContent('—')
+      expect(cells[1]).toHaveTextContent('—')
+      expect(cells[0].querySelector('img')).toBeNull()
+      expect(cells[1].querySelector('img')).toBeNull()
+      expect(cells[1].innerHTML).not.toMatch(/onerror/i)
+    })
+
+    it('F8: Manage expand panel spans the new column count', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await user.click((await screen.findAllByTestId('pool-row-manage'))[0]!)
+      const panel = await screen.findByTestId('pool-row-manage-panel')
+      expect(panel.querySelector('td')).toHaveAttribute('colspan', '7')
+    })
+
     it('H1: Charts link is same-origin /charts/:pairAddr', async () => {
       vi.mocked(indexerClient.getPairs).mockResolvedValue({
         items: catalogPairs(),

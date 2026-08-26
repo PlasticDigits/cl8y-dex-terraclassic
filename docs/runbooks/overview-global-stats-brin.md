@@ -159,6 +159,7 @@ Re-run `EXPLAIN (ANALYZE, BUFFERS)` on the live aggregate periodically if you re
 |-------|---------|
 | `global_stats_24h` | Cross-pair 24h `offer_amount` / `volume_usd` / trade count plus 7d/30d USD, `active_pairs_24h`, `unique_traders_24h` for `/overview` ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) |
 | `pair_volume_24h` | Per-pair quote volume for `GET /pairs?sort=volume_24h` |
+| `pair_liquidity_usd` | Per-pair factory AMM TVL for `GET /pairs?sort=liquidity_usd` ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655)) |
 | `token_volume_stats` | Per-asset rolling windows for token endpoints; idle windows **zeroed** on refresh ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) **D1**, offer-side only) |
 
 Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md) (**Protocol global stats #550**, **Trailing window decay #577**). Agent playbooks: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md), [`skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).

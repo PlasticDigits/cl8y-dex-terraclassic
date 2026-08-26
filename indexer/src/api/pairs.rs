@@ -75,6 +75,9 @@ pub struct PairResponse {
     /// Sum of quote-side amounts in swaps over the last 24h (from indexer). Omitted when unknown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volume_quote_24h: Option<String>,
+    /// Human USD of factory v2 AMM `pair_reserves` (`protocol_pair_tvl`). Omitted when unpriced.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub liquidity_usd: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -100,9 +103,9 @@ pub struct ListPairsQuery {
     pub q: Option<String>,
     /// Filter to pairs that include this token (exact CW20 contract or native denom)
     pub asset: Option<String>,
-    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `relevance` (default `relevance` when `q` is set, else `id`)
+    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `liquidity_usd`, `relevance` (default `relevance` when `q` is set, else `id`)
     pub sort: Option<String>,
-    /// `asc` or `desc`. Default: `asc` for id/fee/created/symbol; `desc` for volume_24h
+    /// `asc` or `desc`. Default: `asc` for id/fee/created/symbol; `desc` for volume_24h / liquidity_usd
     pub order: Option<String>,
 }
 
@@ -113,11 +116,12 @@ fn parse_pair_list_sort(s: Option<&str>) -> Result<db_pairs::PairListSort, (Stat
         Some("created") => Ok(db_pairs::PairListSort::Created),
         Some("symbol") => Ok(db_pairs::PairListSort::Symbol),
         Some("volume_24h") => Ok(db_pairs::PairListSort::Volume24h),
+        Some("liquidity_usd") => Ok(db_pairs::PairListSort::LiquidityUsd),
         Some("relevance") => Ok(db_pairs::PairListSort::Relevance),
         Some(other) => Err((
             StatusCode::BAD_REQUEST,
             format!(
-                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, or relevance",
+                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, liquidity_usd, or relevance",
                 other
             ),
         )),
@@ -131,7 +135,9 @@ fn parse_pair_list_order(
     match order.map(str::trim).filter(|x| !x.is_empty()) {
         None => Ok(matches!(
             sort,
-            db_pairs::PairListSort::Volume24h | db_pairs::PairListSort::Relevance
+            db_pairs::PairListSort::Volume24h
+                | db_pairs::PairListSort::LiquidityUsd
+                | db_pairs::PairListSort::Relevance
         )),
         Some(o) if o.eq_ignore_ascii_case("asc") => Ok(false),
         Some(o) if o.eq_ignore_ascii_case("desc") => Ok(true),
@@ -220,6 +226,7 @@ pub async fn list_pairs(
             continue;
         };
         let volume_quote_24h = row.volume_quote_24h.as_ref().map(volume_quote_to_string);
+        let liquidity_usd = row.liquidity_usd.as_ref().map(bd_plain_string);
         items.push(PairResponse {
             pair_address: p.contract_address.clone(),
             asset_0: AssetBrief::from(a0),
@@ -231,6 +238,7 @@ pub async fn list_pairs(
                 &p.contract_address,
             ),
             volume_quote_24h,
+            liquidity_usd,
         });
     }
 
@@ -273,6 +281,13 @@ pub async fn get_pair(
         .get(&pair.asset_1_id)
         .ok_or_else(|| internal_err("Asset 1 not found"))?;
 
+    let liquidity_usd =
+        crate::db::queries::pair_liquidity::get_pair_liquidity_usd(&state.pool, pair.id)
+            .await
+            .map_err(internal_err)?
+            .as_ref()
+            .map(bd_plain_string);
+
     Ok(Json(PairResponse {
         pair_address: pair.contract_address.clone(),
         asset_0: AssetBrief::from(a0),
@@ -284,6 +299,7 @@ pub async fn get_pair(
             &pair.contract_address,
         ),
         volume_quote_24h: None,
+        liquidity_usd,
     }))
 }
 

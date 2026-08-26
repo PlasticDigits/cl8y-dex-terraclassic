@@ -20,6 +20,9 @@ describe('formatProtocolUsd', () => {
     expect(formatProtocolUsd('')).toBe('—')
     expect(formatProtocolUsd(Number.POSITIVE_INFINITY)).toBe('—')
     expect(formatProtocolUsd(Number.NaN)).toBe('—')
+    expect(formatProtocolUsd('Infinity')).toBe('—')
+    expect(formatProtocolUsd('NaN')).toBe('—')
+    expect(formatProtocolUsd('<img onerror=alert(1)>')).toBe('—')
   })
 })
 

@@ -193,6 +193,7 @@ pub async fn get_token_pairs(
                     &p.contract_address,
                 ),
                 volume_quote_24h: None,
+                liquidity_usd: None,
             });
         }
     }

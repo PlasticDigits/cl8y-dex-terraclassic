@@ -4,7 +4,9 @@
 //! One-sided catalog → `2×` the priced leg (CPAMM). Unpriced / stale / same-asset
 //! / overflow pairs are omitted (not `$0`). Book escrow is not included.
 //!
-//! Computation runs on the aggregator / hub refresh — **not** on GET `/overview`.
+//! Computation runs on the aggregator / hub refresh — **not** on GET `/overview`
+//! or GET `/pairs`. Per-pair stamps land in `pair_liquidity_usd` for the list API
+//! (GitLab #655) and single-pair GET (GitLab #664). Unpriced pairs have no row.
 
 use std::time::Duration;
 
@@ -12,13 +14,13 @@ use bigdecimal::BigDecimal;
 use chrono::Utc;
 use sqlx::PgPool;
 
-use super::hub_usd::{is_stale, pair_tvl, reserves_usable, same_asset, AssetRef, ReservePair};
+use super::hub_usd::{AssetRef, ReservePair, is_stale, pair_tvl, reserves_usable, same_asset};
 use super::oracle::OracleTicker;
 use super::pair_price_usd::{
-    catalog_usd_per_human_identity, fits_numeric_38_18, humanize_raw_amount, HubQuoteUsd,
+    HubQuoteUsd, catalog_usd_per_human_identity, fits_numeric_38_18, humanize_raw_amount,
 };
 use crate::db::queries::liquidity_snapshots::LiquidityRollup;
-use crate::db::queries::{hub_prices, liquidity_snapshots, oracle};
+use crate::db::queries::{hub_prices, liquidity_snapshots, oracle, pair_liquidity};
 
 /// Default book-mirror staleness when env is unset (cadence 10s × 2).
 const DEFAULT_MAX_STALENESS: Duration = Duration::from_secs(20);
@@ -135,6 +137,24 @@ pub fn sum_protocol_tvl(
     out
 }
 
+/// Priced-only stamps for `pair_liquidity_usd` — same `protocol_pair_tvl` as the global sum.
+fn pair_liquidity_stamps(
+    now: chrono::DateTime<Utc>,
+    max_staleness: Duration,
+    quotes: &ProtocolTvlQuotes,
+    pairs: &[ReservePair],
+) -> Vec<(i32, BigDecimal)> {
+    pairs
+        .iter()
+        .filter_map(|pair| {
+            if !pair_usable_for_protocol_tvl(now, max_staleness, pair) {
+                return None;
+            }
+            protocol_pair_tvl(pair, quotes).map(|usd| (pair.pair_id, usd))
+        })
+        .collect()
+}
+
 pub fn max_staleness_from_env() -> Duration {
     std::env::var("BOOK_SNAPSHOT_INTERVAL_MS")
         .ok()
@@ -163,6 +183,11 @@ pub async fn refresh_protocol_liquidity_with_staleness(
     let quotes = load_quotes(pool).await?;
     let pairs = hub_prices::list_reserve_pairs(pool).await?;
     let sum = sum_protocol_tvl(now, max_staleness, &quotes, &pairs);
+    pair_liquidity::replace_stamps(
+        pool,
+        &pair_liquidity_stamps(now, max_staleness, &quotes, &pairs),
+    )
+    .await?;
 
     let then_24h =
         liquidity_snapshots::nearest_snapshot(pool, now - chrono::Duration::hours(24)).await?;

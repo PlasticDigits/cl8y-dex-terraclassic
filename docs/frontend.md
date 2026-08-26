@@ -1048,7 +1048,7 @@ Empty pair browse (Trade / Limits `PairSearchSelect`, Charts pair menu) must not
 | **P534-7** | Swap token combobox empty browse uses the same gem vs economic split (`compareTokenCatalog`). |
 | **P534-8** | Do **not** fold UST1 into the gem set (**U6**). Gems stay faucet/test; economic hubs stay registry + wrap aliases. |
 
-`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers **and** on the `/pool` table **default** ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) **P547-3**). User-chosen `/pool` column sorts (volume, fee, created, name) use indexer `sort`/`order` and are **not** re-ranked by catalog. On production those pages still **omit gems** ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**).
+`GET /api/v1/pairs?sort=volume_24h` remains raw-quote for API clients. The dApp overlays catalog rank on pickers **and** on the `/pool` table **default** ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) **P547-3**). User-chosen `/pool` column sorts (volume, **v2 LP USD**, fee, created, name) use indexer `sort`/`order` and are **not** re-ranked by catalog. On production those pages still **omit gems** ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). **v2 LP USD** is indexer `liquidity_usd` ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655)).
 
 On **production** (`VITE_NETWORK=mainnet`, `VITE_SHOW_TEST_TOKENS` unset) gems are **omitted** from retail discovery rather than ranked last — see [Production hide of test tokens](#production-hide-test-tokens) ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)). LocalTerra still uses P534-1–P534-8 as written.
 
@@ -1806,7 +1806,7 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 | **P547-1** | Primary list is a `<table>` (`data-testid="pool-pairs-table"`), not stacked `PoolCard`. |
 | **P547-2** | Sortable headers: label + caret next to the text; `aria-sort` on the active column. No Sort/Order dropdowns. |
 | **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last on LocalTerra (**P534-1–P534-4**). Production omits gems entirely ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). |
-| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). |
+| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `liquidity_usd`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). **v2 LP USD** is [#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) (**P655-1–P655-8**). |
 | **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
 | **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |
 | **P547-7** | How-to hint **and** `<details>` dismiss together; `#lp-howto` restores (**H531-7**). |
@@ -1814,13 +1814,26 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 | **P547-9** | Default paint does **not** `getPool` / `getPairFeeConfig` per row (A8). Advanced two-sided + I14 LCD fee chrome mount on **Manage** expand (`PoolAdvancedManage`). |
 | **P547-10** | `#489`: no always-on indexer-vs-factory lectures. Engineering notes stay in this file. |
 
+**Invariants (dApp, P655-1–P655-8 — v2 LP USD):**
+
+| ID | Meaning |
+|----|---------|
+| **P655-1** | Column **v2 LP USD** sits immediately after **Vol** (before Fee). `title` is factory AMM pool USD (trailing snapshot), not 24h volume. |
+| **P655-2** | Cell is compact USD via `formatProtocolUsd` or **—**. Never `Infinity` / `NaN` / raw 18-dec / quote volume. |
+| **P655-3** | Value comes from indexer `liquidity_usd` only. Missing field (old indexer) → **—**. Do not derive from `volume_quote_24h` or `GET /hub-prices`. |
+| **P655-4** | Header click uses indexer `sort=liquidity_usd` (first click `order=desc`). Catalog default unchanged (**P547-3**). Search stays `relevance` until cleared. |
+| **P655-5** | USD matches `protocol_pair_tvl` (P522-Q + hub). Never `$1` UST1, `2.5×` USTR, or vFDUSD. |
+| **P655-6** | Unpriced rows are **—** and sort last (NULLS LAST). Not `$0`. |
+| **P655-7** | Default paint stays A8-clean (no per-row LCD). Production still omits gems (**P562-3**). |
+| **P655-8** | Manage expand `colSpan={7}`. No nested `card-glass` per row ([#653](#one-chrome-layer)). |
+
 **Factory set (still O(1) badges):** One React Query for `getAllPairsPaginated(FACTORY_PAIRS_MAX_FOR_POOL_LIST)` (stale time 60s), query key `factoryPairsForPoolList`. Missing factory membership ≠ “safe to hide.” Cap: `FACTORY_PAIRS_MAX_FOR_POOL_LIST` in `pairListBadges.ts`.
 
 **Charts deep link:** `/charts` and `/charts/:pairAddr`. Invalid param: stay on Charts, short notice, no XSS. Unknown valid `terra1`: “Pair not found,” no crash. Helpers: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts).
 
-**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`. Issues: [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
+**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`. Issues: [glab#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655), [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
 
-**Verify:** `make verify-issue-547`.
+**Verify:** `make verify-issue-655` · `make verify-issue-547`. Playbooks: [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md), [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](../skills/AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md).
 
 **Agent workflow (optional):** For reviewable follow-up PRs or merge-ready checks in Cursor, use the **split to PRs** and **babysit** skills from your [Cursor skills](https://docs.cursor.com/context/skills) path (e.g. `~/.cursor/skills-cursor/` on a developer machine).
 

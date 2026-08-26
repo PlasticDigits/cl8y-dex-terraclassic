@@ -175,6 +175,13 @@ async fn t3_unpriced_pair_omitted_not_zero_drag() {
     assert_eq!(rollup.total_liquidity_usd, bd("0"));
     assert_eq!(rollup.priced_pair_count, 0);
     assert!(rollup.unpriced_pair_count >= 1);
+    let leftover: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT liquidity_usd FROM pair_liquidity_usd WHERE pair_id = $1")
+            .bind(pair)
+            .fetch_optional(&pool)
+            .await
+            .expect("leftover stamp");
+    assert!(leftover.is_none(), "unpriced pair must have no rollup row");
 }
 
 #[serial]

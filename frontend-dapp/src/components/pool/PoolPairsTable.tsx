@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { TokenDisplay, FeeDisplay, PairTokenLinks } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { formatQuoteVolume24h } from '@/utils/formatAmount'
+import { formatProtocolUsd } from '@/utils/formatProtocolStats'
 import { chartsPairHref } from '@/utils/chartsPairRoute'
 import type { PoolColumnSort } from '@/utils/poolListQuery'
 import { getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
@@ -114,7 +115,7 @@ export function PoolPairsTable({
 }: PoolPairsTableProps) {
   return (
     <div className="overflow-x-auto" data-testid="pool-pairs-table-wrap">
-      <table className="w-full text-xs min-w-[44rem]" data-testid="pool-pairs-table" aria-label="Liquidity pools">
+      <table className="w-full text-xs min-w-[50rem]" data-testid="pool-pairs-table" aria-label="Liquidity pools">
         <thead>
           <tr className="border-b border-white/10" style={{ color: 'var(--ink-dim)' }}>
             <SortHeader
@@ -133,6 +134,16 @@ export function PoolPairsTable({
               order={order}
               onSort={onSort}
               testId="pool-sort-vol"
+              align="right"
+            />
+            <SortHeader
+              label="v2 LP USD"
+              title="Factory AMM pool USD (trailing snapshot), not 24h volume."
+              sortKey="liquidity_usd"
+              activeSort={activeSort}
+              order={order}
+              onSort={onSort}
+              testId="pool-sort-lp-usd"
               align="right"
             />
             <SortHeader
@@ -167,6 +178,7 @@ export function PoolPairsTable({
             factoryPairAddresses,
           })
           const volumeLabel = formatQuoteVolume24h(ip.volume_quote_24h, ip.asset_1.decimals)
+          const lpUsdLabel = formatProtocolUsd(ip.liquidity_usd)
           const chartsHref = chartsPairHref(ip.pair_address)
           const expanded = expandedAddr === ip.pair_address
           return (
@@ -176,6 +188,7 @@ export function PoolPairsTable({
                 pair={pair}
                 badges={badges}
                 volumeLabel={volumeLabel}
+                lpUsdLabel={lpUsdLabel}
                 chartsHref={chartsHref}
                 expanded={expanded}
                 onToggleManage={onToggleManage}
@@ -193,6 +206,7 @@ function PoolPairRows({
   pair,
   badges,
   volumeLabel,
+  lpUsdLabel,
   chartsHref,
   expanded,
   onToggleManage,
@@ -201,6 +215,7 @@ function PoolPairRows({
   pair: ReturnType<typeof indexerPairToPairInfo>
   badges: PairListBadges
   volumeLabel: string | null
+  lpUsdLabel: string
   chartsHref: string | null
   expanded: boolean
   onToggleManage: (pairAddress: string) => void
@@ -225,6 +240,13 @@ function PoolPairRows({
           data-testid="pool-row-vol"
         >
           {volumeLabel || '—'}
+        </td>
+        <td
+          className="py-2 px-2 text-right font-mono align-top"
+          style={{ color: 'var(--ink)' }}
+          data-testid="pool-row-lp-usd"
+        >
+          {lpUsdLabel}
         </td>
         <td className="py-2 px-2 text-right align-top" data-testid="pool-table-fee">
           {ip.fee_bps != null ? <FeeDisplay feeBps={ip.fee_bps} /> : '—'}
@@ -273,7 +295,7 @@ function PoolPairRows({
       </tr>
       {expanded ? (
         <tr data-testid="pool-row-manage-panel">
-          <td colSpan={6} className="px-2 pb-4 pt-0">
+          <td colSpan={7} className="px-2 pb-4 pt-0">
             <PoolAdvancedManage
               pair={pair}
               volumeQuote24h={ip.volume_quote_24h}

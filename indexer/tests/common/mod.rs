@@ -152,6 +152,7 @@ async fn clean_db_tables(pool: &PgPool) {
             liquidity_events,
             token_volume_stats,
             pair_volume_24h,
+            pair_liquidity_usd,
             global_stats_24h,
             protocol_fee_events,
             protocol_fee_stats_by_source,

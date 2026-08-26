@@ -156,6 +156,8 @@ export interface IndexerPair {
   code_id_frozen?: boolean
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
+  /** Human USD of factory v2 AMM reserves (`protocol_pair_tvl`). Omitted when unpriced (GitLab #655). */
+  liquidity_usd?: string | null
 }
 
 /** Paginated response from `GET /api/v1/pairs` */
@@ -166,7 +168,7 @@ export interface IndexerPairsListResponse {
   offset: number
 }
 
-export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'relevance'
+export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'liquidity_usd' | 'relevance'
 
 /** Map indexer pair metadata to on-chain `PairInfo` for pool queries and txs */
 export function indexerAssetToAssetInfo(a: IndexerAssetBrief): AssetInfo {
