@@ -13,6 +13,10 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { path: '/charts', label: 'Charts' },
 ]
 
+/**
+ * In-app DEX routes only. Official sibling products (Homepage / Bridge) live in the
+ * footer allowlist (`cl8yProductLinks.ts`, GitLab #663) — do not add external origins here.
+ */
 export const MORE_NAV_ITEMS: NavItem[] = [
   { path: '/trader', label: 'Trader', end: false },
   { path: '/protocol', label: 'Protocol' },

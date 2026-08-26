@@ -47,6 +47,11 @@ vi.mock('@/components/payments/PayWithAnyToken', () => ({
 }))
 
 import CreateTokenPage from './CreateTokenPage'
+import {
+  CREATE_TOKEN_DESKTOP_GRID_CLASS,
+  CREATE_TOKEN_PAGE_CLASS,
+  CREATE_TOKEN_UNAVAILABLE_CLASS,
+} from '@/utils/createTokenLayout'
 
 const WALLET = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
 
@@ -165,5 +170,108 @@ describe('CreateTokenPage (#593)', () => {
     const next = await screen.findByTestId('create-token-next-create-pair')
     expect(next).toHaveAttribute('href', '/create')
     expect(next.getAttribute('href')).not.toMatch(/\?/)
+  })
+
+  it('#669 desktop grid contract: uses app-main width, not a 520px chimney', () => {
+    renderWithProviders(<CreateTokenPage />)
+    const page = screen.getByTestId('create-token-page')
+    expect(page.className).toBe(CREATE_TOKEN_PAGE_CLASS)
+    expect(page.className).not.toMatch(/max-w-\[520px\]/)
+    const grid = screen.getByTestId('create-token-desktop-grid')
+    expect(grid.className).toBe(CREATE_TOKEN_DESKTOP_GRID_CLASS)
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(screen.getByTestId('create-token-identity-row').className).toContain('md:grid-cols-')
+    expect(screen.getByTestId('create-token-wallet-row').className).toContain('md:grid-cols-2')
+    expect(screen.getByTestId('create-token-sku-grid').className).toContain('md:grid-cols-2')
+    expect(screen.getByTestId('create-token-tax-row').className).toContain('grid-cols-2')
+  })
+
+  it('#669 phone contract: DOM order Name → Symbol → Decimals → tax → wallets → SKUs → ack', () => {
+    renderWithProviders(<CreateTokenPage />)
+    const ids = [
+      'create-token-name',
+      'create-token-symbol',
+      'create-token-decimals',
+      'create-token-buy-pct',
+      'create-token-sell-pct',
+      'create-token-treasury',
+      'create-token-manager',
+      'create-token-sku-mint_control',
+      'create-token-sku-launch_guards',
+      'create-token-ack',
+    ]
+    const nodes = ids.map((id) => screen.getByTestId(id))
+    for (let i = 0; i < nodes.length - 1; i++) {
+      expect(nodes[i].compareDocumentPosition(nodes[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+  })
+
+  it('#669 unavailable stub stays narrow and has no desktop grid', () => {
+    mockEnabled.mockReturnValue(false)
+    renderWithProviders(<CreateTokenPage />)
+    expect(screen.getByTestId('create-token-unavailable')).toBeInTheDocument()
+    expect(screen.getByTestId('create-token-page').className).toBe(CREATE_TOKEN_UNAVAILABLE_CLASS)
+    expect(screen.queryByTestId('create-token-desktop-grid')).not.toBeInTheDocument()
+  })
+
+  it('#669 SKU toggle reveals matching panels and drops them on uncheck (0 / 50 / 150)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<CreateTokenPage />)
+    const panels: Array<[string, string]> = [
+      ['mint_control', 'create-token-mint-panel'],
+      ['transfer_tax', 'create-token-transfer-panel'],
+      ['split_router', 'create-token-sinks-panel'],
+      ['auto_v2_lp', 'create-token-autolp-panel'],
+      ['exemption_directory', 'create-token-exempt-panel'],
+      ['variable_rates', 'create-token-variable-panel'],
+      ['launch_guards', 'create-token-guards-panel'],
+    ]
+    for (const [, panelId] of panels) {
+      expect(screen.queryByTestId(panelId)).not.toBeInTheDocument()
+    }
+    for (const [skuId, panelId] of panels) {
+      await user.click(screen.getByTestId(`create-token-sku-${skuId}`))
+      expect(screen.getByTestId(panelId)).toBeInTheDocument()
+    }
+    expect(screen.getByTestId('create-token-sku-total')).toHaveTextContent('350 UST1')
+    for (const [skuId, panelId] of panels) {
+      await user.click(screen.getByTestId(`create-token-sku-${skuId}`))
+      expect(screen.queryByTestId(panelId)).not.toBeInTheDocument()
+    }
+    expect(screen.getByTestId('create-token-sku-total')).toHaveTextContent('0 UST1')
+  })
+
+  it('#669 wrong-SKU tap: Extra exemptions only toggles that SKU', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<CreateTokenPage />)
+    await user.click(screen.getByTestId('create-token-sku-exemption_directory'))
+    expect(screen.getByTestId('create-token-exempt-panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('create-token-mint-panel')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('create-token-guards-panel')).not.toBeInTheDocument()
+    expect(screen.getByTestId('create-token-sku-total')).toHaveTextContent('50 UST1')
+  })
+
+  it('#669 ignores ?payee= / ?manager= / ?treasury= (C604-2)', async () => {
+    const spoof = 'terra1yyca08xqdgvjz0psg56z67ejh9xms6l436u8y58m82npdqqhmmtqzjqhh0'
+    useWalletStore.setState({ address: WALLET, walletType: 'keplr', error: null })
+    renderWithProviders(<CreateTokenPage />, {
+      route: `/token/create?payee=${spoof}&manager=${spoof}&treasury=${spoof}`,
+    })
+    expect(await screen.findByTestId('create-token-treasury')).toHaveValue(WALLET)
+    expect(screen.getByTestId('create-token-manager')).toHaveValue(WALLET)
+    expect(screen.getByTestId('create-token-treasury-helper')).toHaveTextContent('connected wallet')
+    expect(screen.getByTestId('create-token-manager-helper')).toHaveTextContent('connected wallet')
+  })
+
+  it('#669 combined 20% + 20% still errors (C605-1)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<CreateTokenPage />)
+    const buy = screen.getByTestId('create-token-buy-pct')
+    const sell = screen.getByTestId('create-token-sell-pct')
+    await user.clear(buy)
+    await user.type(buy, '20')
+    await user.clear(sell)
+    await user.type(sell, '20')
+    expect(screen.getByTestId('create-token-error-combined')).toHaveTextContent(/25\.00/)
   })
 })

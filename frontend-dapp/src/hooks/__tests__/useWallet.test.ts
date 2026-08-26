@@ -174,4 +174,46 @@ describe('useWalletStore', () => {
     expect(useWalletStore.getState().error).toMatch(/didn't respond/i)
     expect(useWalletStore.getState().address).toBeNull()
   })
+
+  it('closeWalletModal hides the dialog without connecting (GitLab #672)', () => {
+    useWalletStore.setState({ walletModalOpen: true, address: null, isConnecting: false })
+    useWalletStore.getState().closeWalletModal()
+    expect(useWalletStore.getState().walletModalOpen).toBe(false)
+    expect(useWalletStore.getState().address).toBeNull()
+    expect(localStorage.getItem(WALLET_STORAGE_KEY)).toBeNull()
+  })
+
+  it('closeWalletModal while connecting cancels and does not attach a session (GitLab #672 D6)', async () => {
+    let resolveConnect!: (value: { address: string; walletType: 'keplr'; connectionType: WalletType }) => void
+    vi.mocked(connectTerraWallet).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveConnect = resolve
+        })
+    )
+
+    const pending = useWalletStore.getState().connect(WalletName.KEPLR, WalletType.WALLETCONNECT)
+    useWalletStore.setState({ walletModalOpen: true })
+    expect(useWalletStore.getState().isConnecting).toBe(true)
+
+    useWalletStore.getState().closeWalletModal()
+    expect(useWalletStore.getState().isConnecting).toBe(false)
+    expect(useWalletStore.getState().walletModalOpen).toBe(false)
+    expect(useWalletStore.getState().address).toBeNull()
+    expect(localStorage.getItem(WALLET_STORAGE_KEY)).toBeNull()
+
+    resolveConnect({
+      address: 'terra1lateconnect',
+      walletType: 'keplr',
+      connectionType: WalletType.WALLETCONNECT,
+    })
+    await pending
+    expect(useWalletStore.getState().address).toBeNull()
+  })
+
+  it('openWalletModal only opens and does not toggle closed (GitLab #672)', () => {
+    useWalletStore.setState({ walletModalOpen: true })
+    useWalletStore.getState().openWalletModal()
+    expect(useWalletStore.getState().walletModalOpen).toBe(true)
+  })
 })
