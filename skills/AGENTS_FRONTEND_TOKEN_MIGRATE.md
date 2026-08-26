@@ -1,6 +1,6 @@
 # Agent playbook: Migrate Token adopt (GitLab #626)
 
-Use when changing `/token/migrate`, the community-tax `migrate` foreign importer, catalog `GetMigrateOrigin` attest, or Terraport/GDEX LP copy after an in-place adopt.
+Use when changing `/token/migrate`, the community-tax `migrate` foreign importer, catalog `GetMigrateOrigin` attest, or Terraport/GDEX LP copy after an in-place adopt. Retail **why** headline + examples (**Unlock {X} features…**) are [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) (**M670-1–M670-8**) — copy only; do not fold SKUs into `MigrateMsg`.
 
 Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/603) (closed; S1–S5 on the close comment). Impl is this page + [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626). Template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) ([`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md)). Create Token [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)). Catalog [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) ([`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md)). F6 pin [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) ([`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md)). ALPHA wrap vs drop [#558](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/558) stays open — this page does **not** replace POL wrap. Post-merge leftover live after !418: [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) ([`AGENTS_POST_MERGE_OPS_628.md`](./AGENTS_POST_MERGE_OPS_628.md); `make verify-issue-628`).
 
@@ -9,10 +9,12 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 | Doc / code | Purpose |
 |------------|---------|
 | [GitLab **#626**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) | Impl + LP gate |
+| [GitLab **#670**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) | Why-copy: Unlock {X} + examples (**M670**) |
 | [`docs/contracts-terraclassic.md` § migrate-adopt](../docs/contracts-terraclassic.md#migrate-adopt-gitlab-626) | Message shape + LP table |
 | [`adopt.rs`](../smartcontracts/contracts/community-tax-token/src/adopt.rs) | Foreign importer |
-| [`MigrateTokenPage.tsx`](../frontend-dapp/src/pages/MigrateTokenPage.tsx) | Retail page — title + one lead sentence; no env-var / 50 UST1 / cw2 essays (**#489**) |
+| [`MigrateTokenPage.tsx`](../frontend-dapp/src/pages/MigrateTokenPage.tsx) | Retail page — title + why headline (`Unlock {X}…`) + one examples paragraph; no env-var / 50 UST1 / cw2 essays (**#489** / **#670**) |
 | [`communityTaxMigrate.ts`](../frontend-dapp/src/utils/communityTaxMigrate.ts) | Verdict + free-profile payload |
+| [`communityTaxMigrateCopy.ts`](../frontend-dapp/src/utils/communityTaxMigrateCopy.ts) | Derived Unlock count + why paragraphs (**M670-1**) |
 | [`community_tokens.rs`](../indexer/src/indexer/community_tokens.rs) | `GetMigrateOrigin` attest |
 
 ## Go / no-go (record before enabling a button)
@@ -39,6 +41,19 @@ Parent design: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 10. **M626-10 — Terraport/GDEX.** Do not `RegisterListedPair` those pair addrs. Honest templates stay 1:1 on external DEX. Extra-debit is CL8Y listed pairs only. Adopt does **not** register existing CL8Y pairs either — Manage catch-up / permissionless register does ([#633](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) **R633-6** / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md)). Adopt leftovers (venue inventory + post-refresh register tool) live on `/token/migrate` ([#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) **M634**).
 11. **M626-11 — already tax.** 11611 / 11619 (or LocalTerra tax store id) are **not** offered as adopt. Same-crate bump stays CMM ops (`MigrateMsg {}`).
 12. **M626-12 — no Swap dump.** After success, link `/token/:addr/manage` only (**C593-11**).
+
+## Invariants **M670-1–M670-8** (migrate why-copy)
+
+Sibling of **M626**. Retail **why** on configured `/token/migrate` only ([#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)). Helper: [`communityTaxMigrateCopy.ts`](../frontend-dapp/src/utils/communityTaxMigrateCopy.ts). Copy-cognitive-load exception: two short why-paragraphs, still no protocol essay ([`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)).
+
+1. **M670-1 — derived X.** Headline is exactly `Unlock {X} features for your token on CL8Y Dex by migrating today`. `X = 1 + COMMUNITY_TAX_SKUS.filter((s) => !s.createOnly).length` (built-in listed-pair buy/sell tax + post-create SKUs). Today **7**. Do not hardcode `7` in three files; do not count `mint_control` / Minting (**C593-5**).
+2. **M670-2 — examples.** Immediate second paragraph (or 3–5 item list) uses retail labels: listed-pair buy/sell tax, Auto liquidity, Launch guards, Extra exemptions, and/or Split treasury. Never Minting. Do not list every SKU (full catalog stays on Create Token / Manage).
+3. **M670-3 — access ≠ auto-enable.** Why copy must not read as “migrate turns on all taxes/SKUs now,” a 50 UST1 invoice, or `enable_feature`. Optional one clause: turn features on later from Manage. Adopt payload stays tax-off / wipe leftover (**M626-8**). No SKUs in `MigrateMsg`.
+4. **M670-4 — unavailable silence.** Env off → `migrate-token-unavailable` only. Do not show Unlock {X} on a page that cannot submit.
+5. **M670-5 — confirm unchanged.** `MIGRATE_LP_CONFIRM` / `_WIPE`, pause-until-governance, Terraport/GDEX 1:1, and “address stays the same” stay on the confirm/success path (**M626-9** / **M634**). The why paragraphs replace the mechanics-only subtitle, not the confirm card.
+6. **M670-6 — chrome.** Heading stays **Migrate Token**. Two plain `<p>` in the existing header (`migrate-token-why`, `migrate-token-why-examples`). No nested `card-glass` feature grid (**#653**). Ink-dim lead color; light + dark; no `*-neo`.
+7. **M670-7 — Create / Manage out of scope.** Create Token **Migrate here** still links here. Do not rewrite Create Token’s SKU fieldset ([#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) or Manage density. Query params still do not prefill (**M626-2** / **M634-7**).
+8. **M670-8 — no e2e-tx.** Playwright smoke only (`e2e/token-create-migrate-copy.spec.ts`, **5** workers). On-chain adopt stays #626 / #634. Do not append code 3 or factory-whitelist 8654 (**M626-3** / **M626-4**).
 
 ## Invariants **M634-1–M634-8** (migrate pair inventory)
 
@@ -84,6 +99,7 @@ make verify-issue-626
 make verify-issue-627
 make verify-issue-628
 make verify-issue-634
+make verify-issue-670
 # LocalTerra live (fail if chain missing):
 VERIFY634_REQUIRE_CHAIN=1 make verify-issue-634
 # or directly:
@@ -103,3 +119,4 @@ LocalTerra (`localterra-634-migrate-inventory.sh`, **M634** live): adopt a facto
 - Offer adopt for 11611/11619 on the retail page.
 - Turn hybrid off (**#596**).
 - Change pair/router wasm.
+- Advertise Minting as a migrate unlock, hardcode Unlock **8**, or claim the adopt tx enables paid SKUs (#670).

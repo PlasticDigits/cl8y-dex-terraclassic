@@ -21,7 +21,10 @@ export type CommunityTaxSkuDef = {
   /** Retail label — never the raw JSON key in a heading. */
   label: string
   hint: string
-  /** MintControl cannot be purchased after instantiate. */
+  /**
+   * MintControl cannot be purchased after instantiate.
+   * `/token/migrate` Unlock {X} excludes `createOnly` SKUs (**M670-1** / #670).
+   */
   createOnly: boolean
 }
 

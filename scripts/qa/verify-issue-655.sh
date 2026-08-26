@@ -51,7 +51,7 @@ source_guards() {
   grep -qE "liquidity_usd" indexer/src/api/pairs.rs
   grep -qE "PairListSort::LiquidityUsd" indexer/src/db/queries/pairs.rs
   grep -qE "LEFT JOIN pair_liquidity_usd" indexer/src/db/queries/pairs.rs
-  grep -qE "pair_liquidity::replace_stamps" indexer/src/indexer/protocol_tvl.rs
+  grep -qE "pair_liquidity_usd::replace_pair_liquidity_usd" indexer/src/indexer/protocol_tvl.rs
   grep -qE "pool-sort-lp-usd" frontend-dapp/src/components/pool/PoolPairsTable.tsx
   grep -qE "formatProtocolUsd" frontend-dapp/src/components/pool/PoolPairsTable.tsx
   grep -qE "colSpan=\{7\}" frontend-dapp/src/components/pool/PoolPairsTable.tsx

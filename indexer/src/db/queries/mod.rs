@@ -10,7 +10,7 @@ pub mod limit_order_lifecycle;
 pub mod liquidity;
 pub mod liquidity_snapshots;
 pub mod oracle;
-pub mod pair_liquidity;
+pub mod pair_liquidity_usd;
 pub mod pair_reserves;
 pub mod pairs;
 pub mod positions;

@@ -1,7 +1,13 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { DESKTOP_HEADER_NAV_ROW_LABELS, TABLET_COMPACT_HEADER_NAV_ROW_LABELS } from '../src/components/common/navItems'
 import { clickDesktopMoreNavItem } from './helpers/desktop-more-nav'
-import { headerConnectButton, headerConnectedWalletButton } from './helpers/wallet-ui'
+import {
+  expectWalletMenuItemHorizontalRow,
+  headerConnectButton,
+  headerConnectedWalletButton,
+  headerWalletMenu,
+  WALLET_MENU_ACTION_NAMES,
+} from './helpers/wallet-ui'
 
 test.describe('Tablet compact header nav (GitLab #136)', () => {
   for (const { width, height, label } of [
@@ -574,12 +580,89 @@ test.describe('Wallet Connection', () => {
     await expect(headerConnectButton(page)).toBeVisible()
   })
 
-  test('wallet modal can be closed with X button', async ({ page }) => {
+  for (const { width, height, label } of [
+    { width: 1280, height: 800, label: 'desktop' },
+    { width: 390, height: 844, label: 'phone' },
+  ] as const) {
+    test(`connected dropdown rows are icon-left + label on one line at ${label} (#671)`, async ({
+      page,
+      connectWallet,
+    }) => {
+      await page.setViewportSize({ width, height })
+      await connectWallet
+      await headerConnectedWalletButton(page).click()
+      const menu = headerWalletMenu(page)
+      await expect(menu).toBeVisible()
+
+      const menuBox = await menu.boundingBox()
+      expect(menuBox, 'wallet menu box').toBeTruthy()
+      expect(menuBox!.x).toBeGreaterThanOrEqual(0)
+      expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(width + 1)
+
+      const headerRow = page.getByTestId('wallet-menu-address-row')
+      await expect(headerRow).toBeVisible()
+      await expect(headerRow).not.toHaveText(/terra1[0-9a-z]{20,}/i)
+
+      const copyItem = page.getByTestId('wallet-menu-copy-address')
+      await expect(copyItem).toBeVisible()
+      await expectWalletMenuItemHorizontalRow(copyItem)
+
+      for (const name of WALLET_MENU_ACTION_NAMES) {
+        const item = page.getByRole('menuitem', { name, exact: true })
+        await expect(item).toBeVisible()
+        await expectWalletMenuItemHorizontalRow(item)
+      }
+
+      const explorer = page.getByRole('menuitem', { name: 'View on explorer' })
+      await expect(explorer).toHaveAttribute('target', '_blank')
+      await expect(explorer).toHaveAttribute('rel', /noopener/)
+    })
+  }
+
+  test('connected dropdown stays readable in light and dark (#671)', async ({ page, connectWallet }) => {
+    await connectWallet
+    for (const theme of ['dark', 'light'] as const) {
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme)
+      await headerConnectedWalletButton(page).click()
+      const menu = headerWalletMenu(page)
+      await expect(menu).toBeVisible()
+      const copy = page.getByTestId('wallet-menu-copy-address')
+      await expect(copy).toBeVisible()
+      const color = await copy.evaluate((el) => getComputedStyle(el).color)
+      expect(color).not.toBe('rgba(0, 0, 0, 0)')
+      await page.getByRole('button', { name: 'Close wallet menu' }).click()
+    }
+  })
+
+  test('wallet modal can be closed with the labeled Close control (GitLab #672)', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
     await headerConnectButton(page).click()
-    await expect(page.getByRole('heading', { name: /Connect Wallet/i })).toBeVisible()
-    await page.getByRole('button', { name: /close modal/i }).click()
-    await expect(page.getByRole('heading', { name: /Connect Wallet/i })).not.toBeVisible()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
+    await page.getByRole('button', { name: /close connect wallet/i }).click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toHaveCount(0)
+  })
+
+  test('wallet modal closes on dimmed backdrop click (GitLab #672 D2)', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    await headerConnectButton(page).click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
+    await page.getByTestId('modal-backdrop').click({ position: { x: 8, y: 8 } })
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toHaveCount(0)
+  })
+
+  test('header Connect Wallet region dismisses, then a second click reopens (GitLab #672 D5)', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    const trigger = headerConnectButton(page)
+    await trigger.click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
+    const box = await trigger.boundingBox()
+    expect(box).toBeTruthy()
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toHaveCount(0)
+    await trigger.click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
   })
 })

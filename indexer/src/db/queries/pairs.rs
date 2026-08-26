@@ -253,9 +253,11 @@ fn push_pair_list_order_by(
             qb.push(" NULLS LAST, p.id ASC");
         }
         PairListSort::Created => {
-            qb.push("p.created_at_block");
+            // GitLab #662: display clock is `pairs.created_at` (NOT NULL, first-seen).
+            // Do not order by `created_at_block` — discovery never writes it.
+            qb.push("p.created_at");
             qb.push(desc);
-            qb.push(" NULLS LAST, p.id ASC");
+            qb.push(", p.id ASC");
         }
         PairListSort::Symbol => {
             qb.push("(LOWER(a0.symbol) || '/' || LOWER(a1.symbol))");

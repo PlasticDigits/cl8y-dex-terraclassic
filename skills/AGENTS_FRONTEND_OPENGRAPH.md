@@ -52,3 +52,4 @@ No LocalTerra, indexer, or wallet work. Manual after Coolify deploy: `curl -sL h
 - Design tokens / brand variants: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488))
 - Production CSP / trust boundaries: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md) ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378))
 - Production build: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
+- In-app Share (not crawler OG): [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665)) — do not add helmet / per-route `og:url` to “fix” share previews

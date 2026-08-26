@@ -5,8 +5,8 @@
 //! / overflow pairs are omitted (not `$0`). Book escrow is not included.
 //!
 //! Computation runs on the aggregator / hub refresh — **not** on GET `/overview`
-//! or GET `/pairs`. Per-pair stamps land in `pair_liquidity_usd` for the list API
-//! (GitLab #655) and single-pair GET (GitLab #664). Unpriced pairs have no row.
+//! or GET `/pairs`. The same pass stamps `pair_liquidity_usd` for single-pair GET
+//! (#664) and the `/pool` list JOIN (#655). Unpriced pairs have no row.
 
 use std::time::Duration;
 
@@ -20,7 +20,8 @@ use super::pair_price_usd::{
     HubQuoteUsd, catalog_usd_per_human_identity, fits_numeric_38_18, humanize_raw_amount,
 };
 use crate::db::queries::liquidity_snapshots::LiquidityRollup;
-use crate::db::queries::{hub_prices, liquidity_snapshots, oracle, pair_liquidity};
+use crate::db::queries::pair_liquidity_usd::PairLiquidityStamp;
+use crate::db::queries::{hub_prices, liquidity_snapshots, oracle, pair_liquidity_usd};
 
 /// Default book-mirror staleness when env is unset (cadence 10s × 2).
 const DEFAULT_MAX_STALENESS: Duration = Duration::from_secs(20);
@@ -109,13 +110,15 @@ pub fn pair_usable_for_protocol_tvl(
     true
 }
 
-pub fn sum_protocol_tvl(
+/// Census sum plus per-pair stamps (unpriced pairs are absent, not `$0`).
+pub fn collect_priced_pair_tvls(
     now: chrono::DateTime<Utc>,
     max_staleness: Duration,
     quotes: &ProtocolTvlQuotes,
     pairs: &[ReservePair],
-) -> ProtocolTvlSum {
+) -> (ProtocolTvlSum, Vec<PairLiquidityStamp>) {
     let mut out = ProtocolTvlSum::default();
+    let mut priced = Vec::new();
     for pair in pairs {
         if !pair_usable_for_protocol_tvl(now, max_staleness, pair) {
             out.unpriced_pair_count += 1;
@@ -123,6 +126,10 @@ pub fn sum_protocol_tvl(
         }
         match protocol_pair_tvl(pair, quotes) {
             Some(tvl) => {
+                priced.push(PairLiquidityStamp {
+                    pair_id: pair.pair_id,
+                    liquidity_usd: tvl.clone(),
+                });
                 out.total_liquidity_usd += tvl;
                 out.priced_pair_count += 1;
             }
@@ -134,25 +141,16 @@ pub fn sum_protocol_tvl(
         out.total_liquidity_usd = crate::indexer::pair_price_usd::ten_pow_i32(20)
             - crate::indexer::pair_price_usd::ten_pow_i32(-18);
     }
-    out
+    (out, priced)
 }
 
-/// Priced-only stamps for `pair_liquidity_usd` — same `protocol_pair_tvl` as the global sum.
-fn pair_liquidity_stamps(
+pub fn sum_protocol_tvl(
     now: chrono::DateTime<Utc>,
     max_staleness: Duration,
     quotes: &ProtocolTvlQuotes,
     pairs: &[ReservePair],
-) -> Vec<(i32, BigDecimal)> {
-    pairs
-        .iter()
-        .filter_map(|pair| {
-            if !pair_usable_for_protocol_tvl(now, max_staleness, pair) {
-                return None;
-            }
-            protocol_pair_tvl(pair, quotes).map(|usd| (pair.pair_id, usd))
-        })
-        .collect()
+) -> ProtocolTvlSum {
+    collect_priced_pair_tvls(now, max_staleness, quotes, pairs).0
 }
 
 pub fn max_staleness_from_env() -> Duration {
@@ -182,12 +180,7 @@ pub async fn refresh_protocol_liquidity_with_staleness(
     let now = Utc::now();
     let quotes = load_quotes(pool).await?;
     let pairs = hub_prices::list_reserve_pairs(pool).await?;
-    let sum = sum_protocol_tvl(now, max_staleness, &quotes, &pairs);
-    pair_liquidity::replace_stamps(
-        pool,
-        &pair_liquidity_stamps(now, max_staleness, &quotes, &pairs),
-    )
-    .await?;
+    let (sum, priced) = collect_priced_pair_tvls(now, max_staleness, &quotes, &pairs);
 
     let then_24h =
         liquidity_snapshots::nearest_snapshot(pool, now - chrono::Duration::hours(24)).await?;
@@ -220,6 +213,7 @@ pub async fn refresh_protocol_liquidity_with_staleness(
     )
     .await?;
     liquidity_snapshots::prune_snapshots(pool, now).await?;
+    pair_liquidity_usd::replace_pair_liquidity_usd(pool, &priced).await?;
     Ok(rollup)
 }
 

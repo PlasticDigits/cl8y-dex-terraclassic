@@ -4,11 +4,30 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import PoolPage from './PoolPage'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { getPairPaused } from '@/services/terraclassic/pair'
+import { getPairPaused, getPool } from '@/services/terraclassic/pair'
 import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
+import { formatRelativeAge } from '@/utils/formatDate'
+
+const { CLUNC, CUSTC, UST1 } = vi.hoisted(() => ({
+  CLUNC: 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg',
+  CUSTC: 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch',
+  UST1: 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72',
+}))
+
+vi.mock('@/utils/constants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/constants')>()
+  return {
+    ...actual,
+    WRAPPED_NATIVE_PAIRS: {
+      ...actual.WRAPPED_NATIVE_PAIRS,
+      [CLUNC]: 'uluna',
+      [CUSTC]: 'uusd',
+    },
+  }
+})
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -189,7 +208,9 @@ describe('PoolPage', () => {
     expect(screen.getByTestId('pool-one-sided-add-submit')).toBeInTheDocument()
     expect(screen.getByTestId('pool-il-risk-notice')).toBeInTheDocument()
     expect(screen.getByTestId('pool-one-sided-add-amount')).toBeInTheDocument()
-    expect(screen.queryByLabelText(/Asset B amount/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/tokenB amount/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Asset A|Asset B/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pool-provide-auto-wrap-a')).not.toBeInTheDocument()
   })
 
   it('U1 disconnected: pickers + IL visible; CTA is Connect Wallet', () => {
@@ -262,14 +283,14 @@ describe('PoolPage', () => {
 
     expect(screen.queryByTestId('pool-provide-pre-submit-summary')).not.toBeInTheDocument()
 
-    const aInput = screen.getByLabelText('Asset A amount')
+    const aInput = screen.getByLabelText('tokenA amount')
     await user.type(aInput, '1')
 
     const summary = await screen.findByTestId('pool-provide-pre-submit-summary')
     expect(summary).toHaveTextContent('Provide Liquidity')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-pair')).toBeInTheDocument()
     expect(screen.getByTestId('pool-provide-pre-submit-summary-amount')).toHaveTextContent('1')
-    expect(screen.getByLabelText('Asset B amount')).toHaveValue('2')
+    expect(screen.getByLabelText('tokenB amount')).toHaveValue('2')
     expect(screen.getByTestId('pool-provide-pre-submit-summary-chain')).toBeInTheDocument()
 
     const submitButtons = screen.getAllByRole('button', { name: /^Provide Liquidity$/i })
@@ -322,7 +343,7 @@ describe('PoolPage', () => {
     const balanceLines = screen.getAllByText(/^Balance:/i)
     expect(balanceLines.length).toBeGreaterThanOrEqual(2)
 
-    const aInput = screen.getByLabelText('Asset A amount')
+    const aInput = screen.getByLabelText('tokenA amount')
     await user.type(aInput, '1')
 
     await waitFor(() => {
@@ -339,8 +360,8 @@ describe('PoolPage', () => {
     const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
     await user.click(provide[0]!)
 
-    await user.type(screen.getByLabelText('Asset A amount'), '1')
-    expect(screen.getByLabelText('Asset B amount')).toHaveValue('2')
+    await user.type(screen.getByLabelText('tokenA amount'), '1')
+    expect(screen.getByLabelText('tokenB amount')).toHaveValue('2')
   })
 
   it('auto-fills A when typing B with A empty (#480)', async () => {
@@ -352,8 +373,8 @@ describe('PoolPage', () => {
     const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
     await user.click(provide[0]!)
 
-    await user.type(screen.getByLabelText('Asset B amount'), '2')
-    expect(screen.getByLabelText('Asset A amount')).toHaveValue('1')
+    await user.type(screen.getByLabelText('tokenB amount'), '2')
+    expect(screen.getByLabelText('tokenA amount')).toHaveValue('1')
   })
 
   it('Max on A force-syncs B (#480)', async () => {
@@ -366,8 +387,8 @@ describe('PoolPage', () => {
     await user.click(provide[0]!)
 
     await user.click(await screen.findByTestId('pool-add-max-a'))
-    const aVal = (screen.getByLabelText('Asset A amount') as HTMLInputElement).value
-    const bVal = (screen.getByLabelText('Asset B amount') as HTMLInputElement).value
+    const aVal = (screen.getByLabelText('tokenA amount') as HTMLInputElement).value
+    const bVal = (screen.getByLabelText('tokenB amount') as HTMLInputElement).value
     expect(aVal).not.toBe('')
     expect(bVal).not.toBe('')
     expect(Number(bVal) / Number(aVal)).toBeCloseTo(2, 5)
@@ -382,14 +403,14 @@ describe('PoolPage', () => {
     const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
     await user.click(provide[0]!)
 
-    const bInput = screen.getByLabelText('Asset B amount')
-    await user.type(screen.getByLabelText('Asset A amount'), '1')
+    const bInput = screen.getByLabelText('tokenB amount')
+    await user.type(screen.getByLabelText('tokenA amount'), '1')
     expect(bInput).toHaveValue('2')
 
     await user.clear(bInput)
     await user.type(bInput, '3')
 
-    expect(screen.getByLabelText('Asset A amount')).toHaveValue('1')
+    expect(screen.getByLabelText('tokenA amount')).toHaveValue('1')
     expect(await screen.findByTestId('pool-provide-ratio-warning')).toBeInTheDocument()
   })
 
@@ -420,10 +441,10 @@ describe('PoolPage', () => {
     const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
     await user.click(provide[0]!)
 
-    const aInput = await screen.findByLabelText('Asset A amount')
+    const aInput = await screen.findByLabelText('tokenA amount')
     await user.clear(aInput)
     await user.type(aInput, '2')
-    await user.type(screen.getByLabelText('Asset B amount'), '2')
+    await user.type(screen.getByLabelText('tokenB amount'), '2')
 
     const submit = screen.getByRole('button', { name: /Insufficient balance/i })
     expect(submit).toBeDisabled()
@@ -447,7 +468,7 @@ describe('PoolPage', () => {
     const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
     await user.click(provide[0]!)
 
-    const aInput = await screen.findByLabelText('Asset A amount')
+    const aInput = await screen.findByLabelText('tokenA amount')
     await user.type(aInput, '1')
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/allowance A \+ allowance B \+ provide liquidity/)
@@ -529,8 +550,8 @@ describe('PoolPage', () => {
       await user.click(provide[0]!)
 
       expect(await screen.findByTestId('pool-pair-paused-banner')).toHaveTextContent(/paused by governance/i)
-      const aInput = await screen.findByLabelText('Asset A amount')
-      const bInput = screen.getByLabelText('Asset B amount')
+      const aInput = await screen.findByLabelText('tokenA amount')
+      const bInput = screen.getByLabelText('tokenB amount')
       await user.type(aInput, '1')
       await user.type(bInput, '2')
 
@@ -576,8 +597,8 @@ describe('PoolPage', () => {
       await user.click(provide[0]!)
 
       expect(await screen.findByTestId('pool-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
-      const aInput = await screen.findByLabelText('Asset A amount')
-      const bInput = screen.getByLabelText('Asset B amount')
+      const aInput = await screen.findByLabelText('tokenA amount')
+      const bInput = screen.getByLabelText('tokenB amount')
       await user.type(aInput, '1')
       await user.type(bInput, '2')
 
@@ -609,7 +630,7 @@ describe('PoolPage', () => {
       await openPoolCardAdvanced(user)
       const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
       await user.click(provide[0]!)
-      await user.type(await screen.findByLabelText('Asset A amount'), '1')
+      await user.type(await screen.findByLabelText('tokenA amount'), '1')
     }
 
     async function openWithdrawPanel(user: ReturnType<typeof userEvent.setup>) {
@@ -883,6 +904,205 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       const link = await screen.findAllByTestId('pool-row-charts')
       expect(link[0]).toHaveAttribute('href', `/charts/${UST1_PAIR}`)
+    })
+
+    it('C662: catalog mode Created aria-sort is none until click', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      expect(screen.getByTestId('pool-sort-created').closest('th')).toHaveAttribute('aria-sort', 'none')
+    })
+
+    it('C662: Created header sorts desc then asc without catalog overlay', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await user.click(await screen.findByTestId('pool-sort-created'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'created', order: 'desc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-created').closest('th')).toHaveAttribute('aria-sort', 'descending')
+      await user.click(screen.getByTestId('pool-sort-created'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'created', order: 'asc', limit: 20 })
+        )
+      )
+    })
+
+    it('C662: Created cell shows relative age from created_at', async () => {
+      const createdAt = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [{ ...catalogPairs()[1]!, created_at: createdAt }],
+        total: 1,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cell = await screen.findByTestId('pool-row-created')
+      expect(cell).toHaveTextContent(formatRelativeAge(createdAt))
+      expect(cell).toHaveAttribute('title')
+      expect(cell.getAttribute('title')).not.toBe(createdAt)
+    })
+
+    it('C662: missing or garbage created_at renders em-dash without dumping payload', async () => {
+      const garbage = '<script>alert(1)</script>'
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[1]!, created_at: garbage },
+          { ...catalogPairs()[0]!, pair_address: 'terra1nosecondpair0000000000000000000000001' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-created')
+      expect(cells[0]).toHaveTextContent('—')
+      expect(cells[0]).not.toHaveAttribute('title')
+      expect(cells[0].innerHTML).not.toContain('script')
+      expect(cells[1]).toHaveTextContent('—')
+    })
+
+    it('C662: search mode still uses relevance', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      await user.type(screen.getByLabelText(/^Search$/i), 'UST1')
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(expect.objectContaining({ sort: 'relevance', q: 'UST1' }))
+      )
+    })
+  })
+
+  describe('provide labels + wrap default (GitLab #661)', () => {
+    const PAIR = 'terra1wrapair000000000000000000000000000001'
+    const LP = 'terra1wraplp0000000000000000000000000000001'
+
+    function mockWrapPair(asset0: string, asset1: string) {
+      const pair: IndexerPair = {
+        pair_address: PAIR,
+        asset_0: { symbol: 'x', contract_addr: asset0, denom: null, decimals: 6 },
+        asset_1: { symbol: 'y', contract_addr: asset1, denom: null, decimals: 6 },
+        lp_token: LP,
+        fee_bps: 30,
+        is_active: true,
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({ total: 1, items: [pair], limit: 20, offset: 0 })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            asset_infos: [{ token: { contract_addr: asset0 } }, { token: { contract_addr: asset1 } }],
+            contract_addr: PAIR,
+            liquidity_token: LP,
+          },
+        ],
+      })
+      vi.mocked(getPool).mockResolvedValue({
+        assets: [
+          { info: { token: { contract_addr: asset0 } }, amount: '1000000' },
+          { info: { token: { contract_addr: asset1 } }, amount: '2000000' },
+        ],
+        total_share: '2000000',
+      })
+    }
+
+    async function openProvide(user: ReturnType<typeof userEvent.setup>) {
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolCardAdvanced(user)
+      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+      await user.click(provide[0]!)
+    }
+
+    it('W1/L2: cLUNC leg wrap checkbox is checked; label is native LUNC', async () => {
+      const user = userEvent.setup()
+      mockWrapPair(CLUNC, UST1)
+      await openProvide(user)
+
+      const wrapA = await screen.findByTestId('pool-provide-auto-wrap-a')
+      expect(wrapA).toBeChecked()
+      expect(screen.queryByTestId('pool-provide-auto-wrap-b')).not.toBeInTheDocument()
+      expect(screen.getByTestId('pool-provide-field-label-a')).toHaveTextContent('Terra Luna Classic (LUNC)')
+      expect(screen.getByLabelText('LUNC amount')).toBeInTheDocument()
+      expect(screen.getByTestId('pool-provide-field-label-b')).toHaveTextContent('UST1')
+      expect(screen.getByLabelText('UST1 amount')).toBeInTheDocument()
+      expect(screen.queryByText(/Asset A/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Asset B/i)).not.toBeInTheDocument()
+
+      await waitFor(() => {
+        expect(getTokenBalanceMock).toHaveBeenCalledWith(
+          addr,
+          expect.objectContaining({ native_token: { denom: 'uluna' } })
+        )
+      })
+    })
+
+    it('L3/W4: uncheck wrap switches label and balance to cLUNC', async () => {
+      const user = userEvent.setup()
+      mockWrapPair(CLUNC, UST1)
+      await openProvide(user)
+
+      await user.click(await screen.findByTestId('pool-provide-auto-wrap-a'))
+      expect(screen.getByTestId('pool-provide-auto-wrap-a')).not.toBeChecked()
+      expect(screen.getByTestId('pool-provide-field-label-a')).toHaveTextContent('Wrapped Luna Classic (cLUNC)')
+      expect(screen.getByLabelText('cLUNC amount')).toBeInTheDocument()
+
+      await waitFor(() => {
+        expect(getTokenBalanceMock).toHaveBeenCalledWith(
+          addr,
+          expect.objectContaining({ token: { contract_addr: CLUNC } })
+        )
+      })
+    })
+
+    it('W2: non-wrap pair has no auto-wrap checkbox', async () => {
+      const user = userEvent.setup()
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalled())
+      await openPoolCardAdvanced(user)
+      const provide = await screen.findAllByRole('button', { name: /Provide Liquidity/i })
+      await user.click(provide[0]!)
+
+      expect(screen.queryByTestId('pool-provide-auto-wrap-a')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('pool-provide-auto-wrap-b')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('tokenA amount')).toBeInTheDocument()
+      expect(screen.getByLabelText('tokenB amount')).toBeInTheDocument()
+    })
+
+    it('AC8: dual wrap pair defaults both checkboxes on independently', async () => {
+      const user = userEvent.setup()
+      mockWrapPair(CLUNC, CUSTC)
+      await openProvide(user)
+
+      expect(await screen.findByTestId('pool-provide-auto-wrap-a')).toBeChecked()
+      expect(screen.getByTestId('pool-provide-auto-wrap-b')).toBeChecked()
+      expect(screen.getByLabelText('LUNC amount')).toBeInTheDocument()
+      expect(screen.getByLabelText('USTC amount')).toBeInTheDocument()
+
+      await user.click(screen.getByTestId('pool-provide-auto-wrap-b'))
+      expect(screen.getByTestId('pool-provide-auto-wrap-a')).toBeChecked()
+      expect(screen.getByTestId('pool-provide-auto-wrap-b')).not.toBeChecked()
+      expect(screen.getByLabelText('cUSTC amount')).toBeInTheDocument()
     })
   })
 })

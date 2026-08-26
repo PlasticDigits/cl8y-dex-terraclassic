@@ -41,7 +41,7 @@ Audience: third-party agents changing the pool list, default rank, Charts deep l
 1. **P547-1** — Primary list is a table (`role`/`<table>`), not stacked `PoolCard`.
 2. **P547-2** — Sortable headers: label + caret; `aria-sort` on the active column; no Order dropdown.
 3. **P547-3** — Default (no search, no column click) is catalog: UST1 hub first, gems last, human 24h volume (**P534-1–P534-4**). Implementation: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, client-paginate 20.
-4. **P547-4** — Column sort uses indexer keys only (`symbol`, `volume_24h`, `liquidity_usd`, `fee`, `created`). Vol format is `formatQuoteVolume24h`. Header stays **Vol** with trailing-24h `title` ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Created cells are `—` until list JSON includes a timestamp. **v2 LP USD** is **P655**.
+4. **P547-4** — Column sort uses indexer keys only (`symbol`, `volume_24h`, `liquidity_usd`, `fee`, `created`). Vol format is `formatQuoteVolume24h`. Header stays **Vol** with trailing-24h `title` ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Created cells show relative age from list `created_at` ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662) **P662-3**); `—` only when missing/invalid. **v2 LP USD** is **P655**.
 5. **P547-5** — Charts href is same-origin `/charts/<pairAddr>`. Invalid bech32 / `javascript:` / HTML → no `Link`.
 6. **P547-6** — No Router-known checkbox or `pool-filter-router`.
 7. **P547-7** — How-to section (hint + details) is dismissible; `#lp-howto` restores (**H531-7**).
@@ -64,17 +64,22 @@ Audience: third-party agents changing the pool list, default rank, Charts deep l
 
 ```bash
 make verify-issue-547
+make verify-issue-547
 make verify-issue-655
+make verify-issue-662
 ```
 
 ## Related
 
+- [`AGENTS_FRONTEND_POOL_CREATED.md`](./AGENTS_FRONTEND_POOL_CREATED.md) — Created relative age from list `created_at` (**P662-1–P662-8**, [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662))
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — catalog overlay; `/pool` default is in scope
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production omits gems from `/pool` too ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — whole-section dismiss
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no header lectures
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — Vol header `title` is trailing 24h, not midnight reset (#576)
 - [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — identity on the table row
+- [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts **v2 LP** chip (#664); do **not** add that chip on `/pool` rows (#655)
 - [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) — I14 on expand, not header
 - [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](./AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md) — list JSON `liquidity_usd` rollup (#655)
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — global pool TVL sum (#569); `/pool` shows the per-pair stamp
+- [`AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](./AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md) — Advanced provide name/symbol + wrap default (#661)

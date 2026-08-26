@@ -2,11 +2,11 @@
 
 ## Design system
 
-Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
+Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer), [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) Swap flip plate), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
-On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary) (including **24h volume** = trailing window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
+On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Documented exception:** configured `/token/migrate` uses **title + two short why-paragraphs** (Unlock {X} headline + examples) so token admins see the template upside before Load ([#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) **M670**; still no env / 50 UST1 / cw2 essay). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary) (including **24h volume** = trailing window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
 
 ### One chrome layer / anti-nesting {#one-chrome-layer}
 
@@ -17,13 +17,13 @@ Global UI invariant ([GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex
 | **C653-1** | Forbidden: `shell-panel*` wrapping another `shell-panel*`, or wrapping a **grid of** `card-glass` / default `StatBox`, for the same region. Metric tiles are content, not a second chrome region. |
 | **C653-2** | Allowlist is short: Swap Pay/Receive `card-glass` (`swap-io-card-*`); a **single** inner well for a table/chart; Trade **sibling** panels (book / chart / ticket / tape). Not a panel-of-panels. |
 | **C653-3** | `StatBox` default remains `card`. Call sites **inside** a panel pass `variant="flat"` (`.stat-flat`: no second radius/border/blur). Do not silently flip the default. |
-| **C653-4** | Flattened metric grids: Charts overview + pair 24h + TWAP, Trader summary + P&L chips, Protocol Global stats / fees / oracle stat chips. Protocol hub prices stay typographic `dl`. Inline Δ% / daily volume chart on Global stats + fees is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) — this ticket only applies `flat`. |
+| **C653-4** | Flattened metric grids: Charts overview + pair 24h + TWAP, Trader summary + P&L chips, Protocol Global stats / fees / oracle stat chips. Protocol hub prices stay typographic `dl`. Inline Δ% / daily volume chart on Global stats + fees is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) — this ticket only applies `flat`. Visual grouping of those Δ% chips with the headline is [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667). |
 | **C653-5** | Swap IO cards stay nested. `PriceChart` stays a single `shell-panel-strong` (**L561-1**). No `PanelResizeHandle`. |
 | **C653-6** | Testids, `title` / `aria-label`, and overview JSON stay. Flatten is chrome + a11y only. |
 | **C653-7** | New same-file `shell-panel` + `card-glass` class hits fail the check unless allowlisted. No `eval` of page source. |
 | **C653-8** | Light + dark; 375 / 1280: values use `--ink` on `--panel-bg`. No empty-ring tiles. No retail lecture banner. |
 
-Regression: `make verify-issue-653`. Trade workspace still: `make verify-issue-561`.
+Regression: `make verify-issue-653`. Trade workspace still: `make verify-issue-561`. Swap flip plate on the Pay/Receive seam: `make verify-issue-659` ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)).
 
 ## Tech Stack
 
@@ -126,7 +126,7 @@ Browser **extension** wallets use the same `window` signals as [`getKeplrLikeExt
 | Regression tests | [`walletExtensionInstall.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletExtensionInstall.test.ts). |
 | **Build gate** | QA checklist item 4: **`npm run build`** and **`npx vitest run`** in `frontend-dapp` must pass on `main` before closing [GitLab #139](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/139). See [Production build — Vite source maps § `tsc -b`](#vite-production-sourcemaps). |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos) · [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (same-device WalletConnect, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)).
+**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) · [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (connect modal layout + install UX + logos + **dismiss #672**) · [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (same-device WalletConnect, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)).
 
 ### WalletConnect same-device mobile pairing {#walletconnect-same-device-mobile}
 
@@ -142,15 +142,15 @@ On a phone, the wallet app is on the **same device** as the browser — a QR-onl
 | **WC-M6** Hook + fallback | Boot installs `globalThis.__CL8Y_WC_PAIRING_MODAL__`. Patched cosmes delegates when the hook handles the URI; vanilla mobile fallback still has Open + Copy if the hook is missing. Requires `patch-package` `postinstall`. |
 | **WC-M7** In-app browser | Opening the dApp inside a wallet’s in-app browser remains a valid alternate connect path (document; not the only fix). |
 | **WC-M8** Pairing foreground | Connect list hides when the pairing hook opens; pairing portal `z-[10001]` above Connect `z-[9999]` so Open / Copy are tappable ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554)). |
-| **WC-M9** Bounded connect | Cancel / close / timeout abort pending `connect()`, clear `isConnecting`, ignore a late WC session. Header **Cancel** is always visible (not spinner-only). |
+| **WC-M9** Bounded connect | Cancel / close / timeout abort pending `connect()`, clear `isConnecting`, ignore a late WC session. Header **Cancel** is always visible (not spinner-only). Overlay Close / backdrop / Escape must take the same cancel path ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D6**). |
 | **WC-M10** Mobile extension WC | Mobile + matching extension absent → **Keplr / Station / Cosmostation** **WalletConnect** row (not Install-only). Injected extension (in-app) stays Extension (**WC-M7**). Keplr: [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554). Station + Cosmostation: [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566). **Leap** stays absent ([#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)). |
 | **WC-M11** Android Galaxy intent | `https://…#Intent` templates become `intent://` on Android Chrome. |
-| **WC-M12** Legal next step | After WC without `window.keplr`, hint to open in the Keplr browser. DEX does not implement ADR-036 (**C1**). |
-| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`connectWalletOptions.test.ts`](../frontend-dapp/src/components/wallet/__tests__/connectWalletOptions.test.ts), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts). `make verify-issue-519`. `make verify-issue-554`. `make verify-issue-566`. |
+| **WC-M12** Legal next step | After WC without a keplr-like signer injector, show a **multi-wallet or connected-wallet** hint (not Keplr-only). Hide when `window.keplr`, `station.keplr`, or Cosmostation `providers.keplr` is present. DEX does not implement ADR-036 (**C1** / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)). |
+| Regression | [`walletConnectPairing.test.ts`](../frontend-dapp/src/utils/__tests__/walletConnectPairing.test.ts), [`walletConnectPairingHook.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/walletConnectPairingHook.test.ts), [`WalletConnectPairingModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletConnectPairingModal.test.tsx), [`connectWalletOptions.test.ts`](../frontend-dapp/src/components/wallet/__tests__/connectWalletOptions.test.ts), [`cosmesPatch127.test.ts`](../frontend-dapp/src/services/terraclassic/__tests__/cosmesPatch127.test.ts), [`legalKeplrInAppHint.test.ts`](../frontend-dapp/src/utils/__tests__/legalKeplrInAppHint.test.ts). `make verify-issue-519`. `make verify-issue-554`. `make verify-issue-566`. `make verify-issue-658`. |
 
 Implementation: [`walletConnectPairing.ts`](../frontend-dapp/src/utils/walletConnectPairing.ts) (`toAndroidIntentUri` for **WC-M11**), [`walletConnectSession.ts`](../frontend-dapp/src/utils/walletConnectSession.ts), [`walletConnectPairingHook.ts`](../frontend-dapp/src/services/terraclassic/walletConnectPairingHook.ts) (installed from [`main.tsx`](../frontend-dapp/src/main.tsx)), [`WalletConnectPairingModal.tsx`](../frontend-dapp/src/components/wallet/WalletConnectPairingModal.tsx) last in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx), [`connectWalletOptions.ts`](../frontend-dapp/src/components/wallet/connectWalletOptions.ts). Lunc Dash deep link stays `luncdash://wallet_connect?payload=…` (same as cosmes).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)).
 
 ### Connect modal: circular wallet logos {#connect-modal-wallet-logos}
 
@@ -168,6 +168,28 @@ Connect Wallet rows show a fixed **32px circular logo** immediately left of the 
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md).
 
+### Connect modal: dismiss overlay {#connect-modal-dismiss}
+
+Retail Connect Wallet (and other dismissible `Modal`s) must be easy to leave ([GitLab #672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672)). The shared [`Modal.tsx`](../frontend-dapp/src/components/ui/Modal.tsx) primitive owns Close, dimmed-page click, Escape, and short-viewport header pinning. Pairing uses the same primitive at `z-[10001]` ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554)). First-visit risk acknowledgement stays **non-dismissible** ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **D1** Labeled Close | Dismissible dialogs show a header **Close** control (`app-modal-close`) with visible **Close** text + decorative X. Accessible name is `aria-label` (**Close** or **Close connect wallet**). Uses `--ink` / `--control-surface` / `--focus-ring` — not `btn-muted` + `--ink-subtle`. In view at ~375px and ~1280px (header is `flex-shrink: 0`; body scrolls). |
+| **D2** Dimmed page | Portal **root** is the dismiss surface (same idea as `app-menu-dismiss`). Backdrop is visual only. Clicks that hit the flex root or backdrop call `onClose`. |
+| **D3** Escape + trap | Escape closes when `dismissible`. Focus stays trapped in the panel while open (including blocking risk). |
+| **D4** Panel is not outside | `stopPropagation` on `.app-modal-panel`. Wallet rows, **Install**, pairing Open / Copy, Expert Mode inputs do **not** dismiss. |
+| **D5** Header toggle | Disconnected header **Connect Wallet** toggles: open → `setWalletModalOpen(true)`; open or connecting → `closeWalletModal()` (`aria-expanded`, `aria-haspopup="dialog"`). In-page CTAs still **only open**. Do not raise header `z-index` above the portal ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181) / **T527-8**). |
+| **D6** In-flight cancel | Close / backdrop / Escape / pairing **Cancel** / header **Cancel** while connecting call `cancelConnection()` (abort WC, bump `connectAttemptId`, clear `isConnecting`) — **WC-M9**. Dismiss does not write `cl8y_wallet_connection` or set `address`. |
+| **D7** Risk gate | [`RiskAcknowledgementModal`](../frontend-dapp/src/components/legal/RiskAcknowledgementModal.tsx) keeps `dismissible={false}`: no X, no backdrop, no Escape. Header Connect must not unmount it. |
+| **D8** Pairing stack + clickwrap | Pairing `z-[10001]` above Connect `z-[9999]`. Dismiss without connect does not skip TermsGate ([#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)). |
+| **D9** Regression | [`Modal.test.tsx`](../frontend-dapp/src/components/ui/__tests__/Modal.test.tsx), [`WalletModal.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletModal.test.tsx), [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx), [`useWallet.test.ts`](../frontend-dapp/src/hooks/__tests__/useWallet.test.ts), [`RiskAcknowledgementModal.test.tsx`](../frontend-dapp/src/components/legal/__tests__/RiskAcknowledgementModal.test.tsx). `make verify-issue-672`. |
+| Short viewport | `.app-modal-panel` `max-height` + `.app-modal-body` scroll; do not clip the header with overflow on a taller-than-viewport panel. Mobile keeps tab-bar portal padding. |
+| No HTML injection | Title and close label are React text — no `dangerouslySetInnerHTML`. |
+
+Implementation: [`Modal.tsx`](../frontend-dapp/src/components/ui/Modal.tsx), [`.app-modal-*` in `index.css`](../frontend-dapp/src/index.css), [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx), [`WalletModal.tsx`](../frontend-dapp/src/components/wallet/WalletModal.tsx), [`useWallet.ts`](../frontend-dapp/src/hooks/useWallet.ts) `closeWalletModal` / `cancelConnection`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](../skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (**D1–D9**, [#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672)) · [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M8–M9**) · [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md).
+
 ### Connected wallet chip — native LUNC balance {#connected-wallet-chip-lunc-balance}
 
 When a wallet is connected, the header chip must show **bank uluna** as human **LUNC** without opening the menu ([GitLab **#140**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140), W3-C1 visual checklist). CW20 escrow balances on trade/swap/pool forms are separate; this surface is the **native gas / buying-power** line retailers expect in the shell.
@@ -175,10 +197,10 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | Invariant | Meaning |
 |-----------|---------|
 | **Query reuse** | [`useNativeUlunaBalance`](../frontend-dapp/src/hooks/useNativeUlunaBalance.ts) — React Query key `['tokenBalance', address, 'uluna']`, same LCD path as swap/pool (`getTokenBalance` + `native_token.denom`). |
-| **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
+| **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with a **truncated** bech32 `AddressRow` (`nowrap`, full string in `title` / copy payload — [#671](#connected-wallet-dropdown)). |
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
-| **Address row** | Connected menu header uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) for full bech32 + inline copy + explorer icon ([#188](#addressrow-primitive)); chip trigger network label: [#186](#connected-wallet-chip-network-mobile). |
+| **Address row** | Connected menu header uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) truncated + `nowrap` icon cluster ([#671](#connected-wallet-dropdown) / [#188](#addressrow-primitive)); chip trigger network label: [#186](#connected-wallet-chip-network-mobile). |
 | **Menu dismiss + Escape** | Connected dropdown uses the same semantic backdrop as shell nav: `type="button"` + `aria-label="Close wallet menu"` + class **`app-menu-dismiss`** ([`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)). **`Escape`** closes the wallet menu via a `window` listener while open; [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) still owns More-menu Esc ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
 | **Dropdown menu items** | Labeled rows **Copy address**, **View on explorer**, **Switch wallet** — [#185](#connected-wallet-dropdown). |
 | **Out of scope (#140 B)** | Remaining AddressRow surfaces: `TxResultAlert` tx copy — [#188](#addressrow-primitive) (wallet header done). Pair + token-leg chips on Pool / Trade / Charts: [#541](#token-identity). Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). Chip network label + mobile layout: [#186](#connected-wallet-chip-network-mobile) — done. |
@@ -202,18 +224,23 @@ The connected header trigger must expose **which chain** the build targets, not 
 
 ### Connected wallet dropdown menu items {#connected-wallet-dropdown}
 
-Labeled menu rows for retailers who expect explicit actions in the wallet chip menu ([GitLab **#185**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185), [#140](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140) scope **B**). Implemented in [`WalletDropdownMenuItems.tsx`](../frontend-dapp/src/components/wallet/WalletDropdownMenuItems.tsx), inserted by [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx) after the `AddressRow` header.
+Labeled menu rows for retailers who expect explicit actions in the wallet chip menu ([GitLab **#185**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185), [#140](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140) scope **B**, layout **[#671](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/671)**). Implemented in [`WalletDropdownMenuItems.tsx`](../frontend-dapp/src/components/wallet/WalletDropdownMenuItems.tsx), inserted by [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx) after the `AddressRow` header.
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Menu order** | Header (`WalletLuncBalance` + `AddressRow`) → **Copy address** → **View on explorer** (if URL) → **Switch wallet** → **Trader profile** → **Disconnect**. |
-| **Copy address** | [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) with `menuLabel="Copy address"` ([#183](#copy-button-primitive)); full bech32 written to clipboard. |
-| **View on explorer** | [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) ([#184](#terra-classic-block-explorer-urls)); omit the row when helper returns `null`. |
+| **Menu order** | Header (`WalletLuncBalance` + `AddressRow`) → **Copy address** → **View on explorer** (if safe URL) → **Switch wallet** → **My Portfolio** → **Trader profile** → **Disconnect**. |
+| **W671-1 Row layout** | Every `.wallet-menu-item` is one horizontal row: `display: inline-flex`, `align-items: center`, `gap: 8px`, `flex-wrap: nowrap`, `justify-content: flex-start`. Icon left, label vertically centered. Do **not** stack the glyph above the label (Tailwind preflight `svg { display: block }`). Do **not** copy Tailwind flex onto each row. |
+| **W671-2 Header address** | Wallet header `AddressRow` uses **`nowrap`** (not `showFull` + `break-all`). Visible label is `shortenAddress` 8/6; `title` / copy / explorer still use the full bech32. Keep labeled copy/explorer rows — do not remove them to "clean up" the header. |
+| **Copy address** | [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) with `menuLabel="Copy address"` ([#183](#copy-button-primitive)); full bech32 written to clipboard. Layout class is **`.wallet-menu-item` only** (no extra `inline-flex` Tailwind). |
+| **View on explorer** | [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) ([#184](#terra-classic-block-explorer-urls)); omit the row when helper returns `null` **or** [`isSafeExplorerHref`](../frontend-dapp/src/utils/terraExplorer.ts) rejects `javascript:` / `data:`. `rel` includes `noopener noreferrer`. |
 | **Switch wallet** | `disconnect()` then `setWalletModalOpen(true)`; connect modal portals while connected (no full-page flow). |
-| **`data-testid`** | `wallet-menu-copy-address`, `wallet-menu-view-explorer`, `wallet-menu-switch-wallet`. |
-| **Regression tests** | [`WalletDropdownMenuItems.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletDropdownMenuItems.test.tsx), [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx), wallet block in [`navigation.spec.ts`](../frontend-dapp/e2e/navigation.spec.ts).
+| **Portfolio / Trader** | Portfolio is [`WALLET_PORTFOLIO_PATH`](../frontend-dapp/src/utils/walletMenuRoutes.ts) (`/portfolio`). Trader is [`traderProfilePath`](../frontend-dapp/src/utils/walletMenuRoutes.ts) (`/trader/{bech32}`) or omitted when the address is not valid `terra` bech32. |
+| **`data-testid`** | `wallet-menu-copy-address`, `wallet-menu-view-explorer`, `wallet-menu-switch-wallet`, `wallet-menu-address-row`. |
+| **W671-7 a11y / stack** | Keep `:focus-visible` on `.wallet-menu-item` / `.copy-button`. First menuitem still receives focus on open; Escape + `app-menu-dismiss` still close. Do not raise `.wallet-menu` `z-index` above modal portals. Icons stay `w-4 h-4`. |
+| **W671-8 tokens** | `--ink*` / `--menu-bg` / `--line`. No `*-neo`. No extra `card-glass` / `shell-panel` inside the menu. Light + dark. |
+| **Regression tests** | [`WalletDropdownMenuItems.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletDropdownMenuItems.test.tsx), [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx), [`walletMenuRoutes.test.ts`](../frontend-dapp/src/utils/__tests__/walletMenuRoutes.test.ts), wallet block in [`navigation.spec.ts`](../frontend-dapp/e2e/navigation.spec.ts). `make verify-issue-671`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) (**W671-1–W671-8**) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md).
 
 ### Copy to clipboard — `CopyButton` primitive {#copy-button-primitive}
 
@@ -221,14 +248,39 @@ Reusable one-click clipboard control for addresses, contract IDs, and tx hashes 
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) only. WalletConnect pairing uses **`buttonLabel`** ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). |
+| **Single API path** | [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) wraps `writeText`; address/tx UI uses [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx). Share URL fallback uses the same helper ([#665](#share-link-button)). WalletConnect pairing uses **`buttonLabel`** ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519)). |
 | **Accessible control** | Button has explicit **`aria-label`**; success/failure is announced in a **`sr-only`** region with **`aria-live="polite"`** and **`aria-atomic="true"`**. |
 | **Retail copy** | Strings live in [`copyButtonCopy.ts`](../frontend-dapp/src/utils/copyButtonCopy.ts); failures use a permission-safe message, not raw `DOMException` text. |
 | **Trim before write** | Whitespace-only `text` fails without calling the clipboard API. |
 | **Feedback window** | Success/error live text clears after **2s** so repeat copies stay screen-reader friendly. |
 | **Regression tests** | [`copyToClipboard.test.ts`](../frontend-dapp/src/utils/__tests__/copyToClipboard.test.ts), [`CopyButton.test.tsx`](../frontend-dapp/src/components/ui/__tests__/CopyButton.test.tsx) (mock `navigator.clipboard`). |
+| **Share fallback (#665)** | [`ShareLinkButton`](#share-link-button) uses this same `copyToClipboard` path when Web Share is missing or fails (non-abort). Do not add a second `navigator.clipboard.writeText` helper. |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md).
+
+### Share link — `ShareLinkButton` primitive {#share-link-button}
+
+In-app **Share** for canonical same-origin profile (and optional pair) URLs ([GitLab **#665**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665)). Mobile-first: prefer `navigator.share` on a user gesture; clipboard via [`copyToClipboard`](../frontend-dapp/src/utils/copyToClipboard.ts) is the fallback. This is **not** per-route Open Graph ([#578](#open-graph-social-cards) **OG-5 / OG-6**).
+
+| ID | Invariant |
+|----|-----------|
+| **TS-1** | Required surface: **`/trader/:address`** when `isValidTerraAddress` is true. Hide Share on empty `/trader` and invalid segments. Do not create `/trader/:pair`. |
+| **TS-2** | Payload is `origin + '/trader/' + address` (or `/trade/` / `/charts/` for the helper). Strip search/hash. Never share `window.location.href`. Prefer the route param, not a pathname splice. |
+| **TS-3** | Prefer `navigator.share({ url, title, text })`. `AbortError` is not a failure toast. Missing share, `canShare === false`, or non-abort errors fall back to `copyToClipboard`. |
+| **TS-4** | AddressRow stays **Copy trader address** (bech32). Share is a distinct control (`aria-label` **Share trader profile link**). |
+| **TS-5** | Visible label **Share**. Clipboard success: **Link copied** (`sharePageLinkCopy.ts`). No how-to lecture, no `VITE_*` / host:port in errors. |
+| **TS-6** | One chrome layer (**C653**): icon/text button on the existing H1 row. No extra `shell-panel*` / `card-glass`. |
+| **TS-7** | Real `<button type="button">`, explicit `aria-label`, `:focus-visible` ring, 44px hit target, `sounds.playButtonPress`, CopyButton live-region pattern. |
+| **TS-8** | No helmet / per-route `og:*`. Share `title`/`text` are static product copy (**CL8Y DEX trader**) plus optional `shortenAddress` — not P&L, volume, or indexer fields. |
+| **TS-9** | Origin is `window.location.origin` of the loaded SPA. Do not hard-code `https://dex.cl8y.com`. Do not read `VITE_PUBLIC_ORIGIN` in the React bundle for this. |
+| **TS-10** | Show Share when the path address is valid, including profile **404** and indexer outage. Hide only when the segment is missing or not a terra address. |
+| **TS-11** | Optional: same primitive on `/trade/:pairAddr` / `/charts/:pairAddr` (validated pair) and `/portfolio` → `/trader/{wallet}` when connected. Do not share `/portfolio`. This change mounts **portfolio**; pair pages stay optional follow-up. |
+| **TS-12** | No new indexer/API, wallet signature, QR library, or third-party share SDK. |
+| **TS-13** | In-app browsers: clipboard fallback; denied clipboard uses `COPY_BUTTON_FAILURE_MESSAGE` (no `DOMException` text). |
+
+Implementation: [`sharePageLink.ts`](../frontend-dapp/src/utils/sharePageLink.ts), [`ShareLinkButton.tsx`](../frontend-dapp/src/components/ui/ShareLinkButton.tsx). `data-testid="trader-share-link"` on the profile; `share-link-button` on the primitive. Regression: `make verify-issue-665`.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md).
 
 ### Address display — `AddressRow` primitive {#addressrow-primitive}
 
@@ -237,15 +289,37 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 | Invariant | Meaning |
 |-----------|---------|
 | **Single component** | [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) — do not duplicate shorten/copy/explorer markup in feature pages. |
-| **Shorten defaults** | `shortenAddress(address, 8, 6)` when `showFull` is false; override with `startChars` / `endChars` when design needs a different chip (e.g. trader header 12/6). |
-| **Full text mode** | `showFull` shows the entire string with `break-all` (wallet dropdown menu). |
-| **Explorer** | Label and icon link share `getExplorerAddressUrl`; both omitted when the helper returns `null`. |
+| **Shorten defaults** | `shortenAddress(address, 8, 6)` when `showFull` is false; override with `startChars` / `endChars` when design needs a different chip. **Trader-as-person** surfaces use 4/6 + blockie ([#656](#trader-identity)) — not 12/6. |
+| **Full text mode** | `showFull` shows the entire string with `break-all` on Pool LP / Protocol hub / other pages that need the whole bech32. **Not** the connected wallet dropdown header. |
+| **Wallet header (#671)** | Connected menu uses `nowrap` (single-line truncated label + icon cluster). Full bech32 stays in `title`, clipboard, and explorer URL. Do not re-enable `showFull` + `break-all` there — it mid-wraps in the 210px panel and orphans copy/explorer icons. |
+| **Explorer** | Label and icon link share `getExplorerAddressUrl` then [`isSafeExplorerHref`](../frontend-dapp/src/utils/terraExplorer.ts); both omitted when the helper returns `null` or a non-http(s) href. |
 | **Aria** | Pass explicit `copyAriaLabel` / `explorerAriaLabel` per surface (wallet, LP token, trader). |
 | **Regression tests** | [`AddressRow.test.tsx`](../frontend-dapp/src/components/ui/__tests__/AddressRow.test.tsx). |
 
 **First consumers:** wallet menu (`wallet-menu-address-row`), pool LP token line (`pool-lp-token-address-row`), trader profile header (`trader-profile-address-row`). Pair contract chips on Pool / Trade / Charts use the same primitive via [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) (`token-identity-pair`) — [Token identity](#token-identity) ([#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) · [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
+
+### Trader identity — 4/6 + blockie {#trader-identity}
+
+Retail trader-as-person chrome on Charts **Trader leaderboard**, `/trader/:addr`, and `/portfolio` ([GitLab **#656**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)). Visible label is **first 4 + last 6** of the bech32 plus a **deterministic circular blockie**. Tokens stay [#541](#token-identity); the connected-wallet chip stays [#186](#connected-wallet-chip-network-mobile). Agent playbook: [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
+
+| ID | Meaning |
+|----|---------|
+| **T-ID-1** | Leaderboard Trader cell is `shortenAddress(addr, 4, 6)` (`terr…` + last 6) — not 10/6, not the full bech32 as the visible label. `data-testid="charts-leaderboard-trader"`. |
+| **T-ID-2** | Valid rows show [`TraderBlockie`](../frontend-dapp/src/components/trader/TraderBlockie.tsx) immediately left of the short label. Seed is **lowercase** bech32 via existing `react-blockies`. Same address → same seed. |
+| **T-ID-3** | `Link` `to` is `/trader/{full bech32}` only when `isValidTerraAddress`. `title` / accessible name include the full address. |
+| **T-ID-4** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) header uses a larger blockie of the same family (`data-testid="trader-profile-identity"`). `/portfolio` inherits. |
+| **T-ID-5** | Profile [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) uses `TRADER_ADDR_START_CHARS` / `TRADER_ADDR_END_CHARS` (4/6). Copy is the **full** address. Explorer is `getExplorerAddressUrl` only. |
+| **T-ID-6** | Invalid / non-`terra1` indexer strings: no blockie, no `/trader/` or explorer link ([#430](#terra-classic-block-explorer-urls)). |
+| **T-ID-7** | No new identicon package. No trader `logo_url` / remote PFP. No `GET /api/v1/traders/*` JSON change. Do **not** reuse `TokenLogo`. |
+| **T-ID-8** | Token / pair identity, wallet chip, tape, and order-book owner tooltip are unchanged. |
+| **T-ID-9** | 375px: blockie + 4/6 stay one line (`whitespace-nowrap`). No `card-glass` on the row ([#653](#one-chrome-layer)). |
+| **T-ID-10** | One primitive — [`TraderIdentity`](../frontend-dapp/src/components/trader/TraderIdentity.tsx) / `TraderBlockie`. Do not hand-roll a second PFP. |
+
+4/6 is **not unique**. Collision honesty: `title` / copy / `href` stay the full distinct bech32. Display-only — ranking stays [#553](#charts-trader-leaderboard).
+
+Regression: `make verify-issue-656`.
 
 ### Token identity — Pool / Trade / Charts {#token-identity}
 
@@ -267,12 +341,22 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 | **T541-6** | Invalid / missing pair address: omit the row (no `terra1` placeholders, no links on #176 / #175). |
 | **T541-7** | No `/token/:id`, no CoinGecko/CMC/website hosts, no identity icons inside picker options, no factory/router `AddressRow` on these pages. |
 | **T541-8** | No always-on address essay or cross-nav banner. Full bech32 is `title` / `aria-label` only. |
+| **T664-1** | `/trade/{pair}` identity row shows compact **v2 LP** + `$` when indexer `liquidity_usd` is priced ([#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664)). |
+| **T664-2** | `/charts/{pair}` identity shows the same chip. Charts 24h **Vol (USD)** stays `volume_usd` (flow, not stock). |
+| **T664-3** | Value comes from existing `getPair` (`GET /api/v1/pairs/{addr}`); no extra `getPool` / overview / hub fetch on Trade first paint. |
+| **T664-4** | Unpriced / hostile / `Infinity` → omit the chip (never fake `$0`). Invert does not change USD (**T541-5**). |
+| **T664-5** | `/pool` table `PairTokenLinks` does **not** take `liquidityUsd` ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) owns the column). |
+| **T664-6** | Invalid / unknown / empty pair: no identity row, no LP chip (**T541-6**). Pair switch must not flash the previous pair’s `$`. |
+| **T664-7** | USD is a text node, never an explorer `href` or copy payload. No `StatBox` / nested `card-glass` in the pair-select panel. |
+| **T664-8** | Same `protocol_pair_tvl` catalog as Protocol Total liquidity — never `$1` UST1, `2.5×` USTR, or vFDUSD. |
+
+**v2 LP chip:** optional `liquidityUsd` on [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) (`data-testid="token-identity-v2-lp-usd"`). Format: [`formatPairV2LpUsd`](../frontend-dapp/src/utils/formatProtocolStats.ts). Label **v2 LP** (not “TVL”). Indexer stamp: `pair_liquidity_usd` written on protocol TVL refresh — GET is a rollup read.
 
 **Helper:** [`tokenIdentityTarget`](../frontend-dapp/src/utils/tokenIdentity.ts) → `{ kind: 'cw20', address, explorerUrl } \| { kind: 'native', denom } \| null`.
 
-**Regression:** `make verify-issue-541` — unit + scoped page tests + Playwright smoke `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx).
+**Regression:** `make verify-issue-541` — unit + scoped page tests + Playwright smoke `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx). **v2 LP:** `make verify-issue-664`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md). Visible native tickers are **LUNC** / **USTC** ([#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630), [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](../skills/AGENTS_FRONTEND_NATIVE_TICKERS.md)); copy payload stays the denom (**T541-4** / **N630-7**).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) · [`skills/AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](../skills/AGENTS_FRONTEND_TRADE_IDENTITY_LP.md). Visible native tickers are **LUNC** / **USTC** ([#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630), [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](../skills/AGENTS_FRONTEND_NATIVE_TICKERS.md)); copy payload stays the denom (**T541-4** / **N630-7**).
 
 ### Charts overview strip {#charts-overview}
 
@@ -331,7 +415,7 @@ Regression: `make verify-issue-565` · `make verify-issue-564`.
 
 ### Charts trader leaderboard {#charts-trader-leaderboard}
 
-[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Agent playbook: [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md).
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) **Trader leaderboard** is the shared [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) (GitLab **[#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657)**). Volume tab is **USD-only** ([GitLab **#553**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). The **Trader** cell is 4/6 + blockie ([#656](#trader-identity)). Agent playbooks: [`skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](../skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md), [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md), [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md). `/trader` hosts the **same global** board ([§ Trader profile](#trader-profile-indexer)). Pair-scoped Charts ranks are [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) (not this component’s default).
 
 | Control | Source | Display |
 |---------|--------|---------|
@@ -339,9 +423,9 @@ Regression: `make verify-issue-565` · `make verify-issue-564`.
 | Rank | `GET /api/v1/traders/leaderboard?sort=total_volume_usd` | `DESC NULLS LAST` so unpriced rows do not rank first. Matches the displayed column (**T553-5**). |
 | **Total Volume (USD)** (`/trader`, `/portfolio`) | same field | Same formatter. `data-testid="trader-total-volume-usd"`. |
 
-`GET /api/v1/traders/{addr}` and leaderboard still return **`total_volume`** (raw `SUM(offer_amount)`) for integrators — the dApp **must not** render it as Volume. API default sort remains `total_volume`; Charts explicitly requests `total_volume_usd`. Rolling `volume_24h` / `7d` / `30d` stay raw and are not shown on this table.
+`GET /api/v1/traders/{addr}` and leaderboard still return **`total_volume`** (raw `SUM(offer_amount)`) for integrators — the dApp **must not** render it as Volume. API default sort remains `total_volume`; Charts and `/trader` explicitly request `total_volume_usd`. Rolling `volume_24h` / `7d` / `30d` stay raw and are not shown on this table. Ranking is unauthenticated indexer order (Sybil / wash is a known limitation — POS-02; no retail banner).
 
-Regression: `make verify-issue-553`.
+Regression: `make verify-issue-553` · `make verify-issue-656` · `make verify-issue-657`.
 
 ### Terra Classic block explorer URLs {#terra-classic-block-explorer-urls}
 
@@ -357,7 +441,7 @@ Network-aware explorer links for transactions and accounts live in [`terraExplor
 | **Single source** | Do not hardcode Finder hosts in components; extend `chainlist.json` + `explorerPathBaseForChainId` if explorers change. |
 | **Galaxy Finder chain-id path (#478)** | Mainnet (`columbus-5`) `explorerUrl` must be `https://finder.terraclassic.community/columbus-5` — Galaxy Finder routes by **chain id**, not the product label `/mainnet`. Do not revert to `/mainnet`. |
 | **Null when unknown** | Missing `explorerUrl` for a chain returns `null` (UI hides the link). |
-| **Null when unsafe** | Tx hash must match 64 hex digits; address must pass Terra bech32 validation — otherwise `null` (no injectable `href`; [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
+| **Null when unsafe** | Tx hash must match 64 hex digits; address must pass Terra bech32 validation — otherwise `null` (no injectable `href`; [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). Menu/AddressRow also gate with [`isSafeExplorerHref`](../frontend-dapp/src/utils/terraExplorer.ts) so a mocked `javascript:` / `data:` URL is omitted ([#671](#connected-wallet-dropdown)). |
 | **Local dev LCD** | `local` uses REST paths on [`NETWORKS.local.terra.lcd`](../frontend-dapp/src/utils/constants.ts) (default `http://localhost:1317`), mirroring tx vs account resources. |
 | **Regression tests** | [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts) — one case per network for **tx** and **address**, plus adversarial-input cases ([#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
 
@@ -370,20 +454,50 @@ Pre-launch legal / UX requirements are tracked in [GitLab #138](https://gitlab.c
 | Surface | Location |
 |---------|----------|
 | Environment strip | [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) lives in the **footer** on all breakpoints — **local**, **testnet**, and **mainnet** builds all show chain context. Desktop/tablet omit duplicate header [`NetworkBadge`](../frontend-dapp/src/components/wallet/NetworkBadge.tsx) for density ([GitLab **#483**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)); wallet chip + footer strip carry network context. Sticky header no longer hosts the ribbon (supersedes under-header seam stacking from [#482](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/482) / [#486](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/486)). |
-| NFA + risk summary | [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts) — reused by the modal and [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) in the **footer on all breakpoints** (footer shell stays visible on mobile above the bottom tab bar, with `EnvironmentRibbon`). Footer includes **Report suspicious activity** → GitLab security template ([#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392), [`SECURITY.md`](../SECURITY.md)). |
+| NFA + risk summary | [`legalCopy.ts`](../frontend-dapp/src/components/legal/legalCopy.ts) — reused by the modal and [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) in the **footer on all breakpoints** (footer shell stays visible on mobile above the bottom tab bar, with `EnvironmentRibbon`). Footer includes **Report suspicious activity** → GitLab security template ([#392](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/392), [`SECURITY.md`](../SECURITY.md)). Official **Homepage** / **Bridge** links are a **separate** footer row ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663), [§ Official CL8Y product links](#official-cl8y-product-links)). |
 | First-visit gate | [`RiskAcknowledgementModal`](../frontend-dapp/src/components/legal/RiskAcknowledgementModal.tsx) — blocking `Modal` (`dismissible={false}`) until the user checks the confirmation and clicks **Continue**; persisted in `localStorage` via [`riskAcknowledgement.ts`](../frontend-dapp/src/utils/riskAcknowledgement.ts). |
 | Playwright | `VITE_PLAYWRIGHT_E2E=true` on the Playwright `webServer` env ([`playwright.config.ts`](../frontend-dapp/playwright.config.ts)) skips the gate so E2E is not blocked; do not set this on user-facing production builds. |
 
 | Invariant | Meaning |
 |-----------|---------|
 | Ack version gate | `RISK_ACK_VERSION` in [`riskAcknowledgement.ts`](../frontend-dapp/src/utils/riskAcknowledgement.ts) must be bumped when risk or NFA copy changes materially so users see the updated gate. |
-| Blocking modal | First-visit modal must remain **non-dismissible** by backdrop, Escape, or header close (only the explicit CTA after checkbox). Regression: [`Modal.test.tsx`](../frontend-dapp/src/components/ui/__tests__/Modal.test.tsx), [`RiskAcknowledgementModal.test.tsx`](../frontend-dapp/src/components/legal/__tests__/RiskAcknowledgementModal.test.tsx). |
+| Blocking modal | First-visit modal must remain **non-dismissible** by backdrop, Escape, or header close (only the explicit CTA after checkbox). Overlay dismiss wiring for Connect Wallet ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D7**) must keep `dismissible={false}` on this modal — do not let a global “click outside closes Modal” skip NFA. Regression: [`Modal.test.tsx`](../frontend-dapp/src/components/ui/__tests__/Modal.test.tsx), [`RiskAcknowledgementModal.test.tsx`](../frontend-dapp/src/components/legal/__tests__/RiskAcknowledgementModal.test.tsx). |
 | E2E vs prod | **`VITE_PLAYWRIGHT_E2E`** is **only** for automated browser tests; production and manual QA should leave it unset so the modal and copy behave as users will see them. |
 | Storage key | `cl8y-dex-risk-ack` — changing the key resets acknowledgement for all users; avoid unless migrating storage intentionally. |
 | NFA footer on navigation | [`RouteContentReadyProvider`](../frontend-dapp/src/contexts/RouteContentReadyContext.tsx) exposes ready only when `readyForPath === pathname` (stale paths never satisfy a new route), then [`RouteContentReadyMarker`](../frontend-dapp/src/components/common/RouteContentReadyMarker.tsx) sets it via context (not `window` events — child `useEffect` runs before parent listeners and previously dropped the signal; [GitLab #138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)). **Do not** use render-phase `setState` in this provider — it can break React Router tab clicks ([GitLab #182](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/182)). Shell tab clicks must also remount lazy routes via **`Outlet key={pathname}`** in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) so Pool/Trade content replaces Swap when the URL changes. Regression: [`RouteContentReadyContext.test.tsx`](../frontend-dapp/src/contexts/__tests__/RouteContentReadyContext.test.tsx), E2E navigation NFA-after-route-change + “navigates to Pool page”. |
 | E2E / unit verification | See [`docs/testing.md` § E2E Tests — GitLab #138 verification](./testing.md#e2e-tests) for the checklist (`npm run test:unit`, hybrid seed re-run, Playwright NFA + Pool nav). Commits **`bd763be`** (cosmes patch test + hybrid seed idempotency), **`f58cce5`** (Outlet remount on tab nav). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md). Official sibling-product footer links: [`skills/AGENTS_FRONTEND_PRODUCT_LINKS.md`](../skills/AGENTS_FRONTEND_PRODUCT_LINKS.md) ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)).
+
+### Official CL8Y product links (footer) {#official-cl8y-product-links}
+
+The shell footer exposes two **official CL8Y products** so traders on `dex.cl8y.com` can reach sibling properties without unofficial links ([GitLab **#663**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)). This repo **does not** implement the Bridge (or GameFi). Link only.
+
+| Product | Label | Canonical URL | Testid |
+|---------|-------|---------------|--------|
+| CL8Y homepage | **Homepage** | `https://cl8y.com/` | `footer-product-home` |
+| CL8Y Bridge | **Bridge** | `https://bridge.cl8y.com/` | `footer-product-bridge` |
+
+Do **not** self-link `https://dex.cl8y.com`. `terms.cl8y.com` is Legal, not a product tile. Header More stays in-app DEX routes ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **P663-1** Footer only | Product `nav` (`aria-label="CL8Y products"`) lives in `footer.app-footer-shell` below the title. Do **not** add these URLs to header More, mobile More, or Swap/Pool banners. |
+| **P663-2** Hardcoded HTTPS allowlist | [`cl8yProductLinks.ts`](../frontend-dapp/src/utils/cl8yProductLinks.ts) pins the two origins. No `VITE_CL8Y_*_URL`. `isAllowedCl8yProductHref` rejects `http:`, `//`, `javascript:`, `data:`, userinfo, query/hash, extra path, lookalikes, and `dex.cl8y.com`. |
+| **P663-3** New tab + noopener | `<a target="_blank" rel="noopener noreferrer">`. No `window.open` of non-allowlisted URLs. No iframe of Bridge. |
+| **P663-4** Separate from legal | Do **not** splice Bridge into the NFA / Security / Report sentence. Labels **Homepage** and **Bridge** (≤ ~5 words); not Security, Report, or Connect Wallet. |
+| **P663-5** LCP + TermsGate | Text only (no footer logo). Product row may paint immediately; [`LegalFooterNotice`](../frontend-dapp/src/components/legal/LegalFooterNotice.tsx) stays deferred until route-ready ([#179](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179)). Footer stays mounted while [`ConnectedTermsGate`](../frontend-dapp/src/components/legal/ConnectedTermsGate.tsx) gates `<Outlet>` ([#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)). |
+| **P663-6** One chrome layer | No `card-glass` / `shell-panel` in the product row ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)). Links wrap; on 375px they sit above `.app-mobile-nav-shell`. Dark + light. |
+| **P663-7** Header brand | Logo + **CL8Y DEX** only. Do **not** reintroduce a “Terra Classic ecosystem” kicker ([#136](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136)). |
+| **P663-8** CSP | Do not add apex/bridge to `connect-src` or change `form-action` / `frame-ancestors`. Linking is navigation, not fetch. |
+
+**Code:** [`cl8yProductLinks.ts`](../frontend-dapp/src/utils/cl8yProductLinks.ts), [`Cl8yProductLinks.tsx`](../frontend-dapp/src/components/common/Cl8yProductLinks.tsx), [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx).
+
+**Regression:** `make verify-issue-663` (Vitest allowlist + component + `LegalFooterNotice`; Playwright `e2e/footer-product-links-663.spec.ts`, 5 workers). Skip E2E with `VERIFY_ISSUE_663_SKIP_E2E=1`.
+
+If a property URL moves, update the allowlist, tests, and this section in the **same** change. A third official product later extends the **same** allowlist — not a new chrome system.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PRODUCT_LINKS.md`](../skills/AGENTS_FRONTEND_PRODUCT_LINKS.md).
 
 ### CL8Y Legal clickwrap (connected TermsGate) {#legal-clickwrap}
 
@@ -400,7 +514,7 @@ Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [
 
 | Invariant | Meaning |
 |-----------|---------|
-| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. After WalletConnect without `window.keplr`, show the Keplr-browser hint ([#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) **WC-M12**) — portal signing stays in Legal. |
+| **C1** SDK only | Use `@plasticdigits/cl8y-clickwrap`; do not fork Terra Classic verify in the DEX. After WalletConnect without a keplr-like signer injector, show the DEX-wallet Legal hint — **not Keplr-only** ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658) **WC-M12** / **L658**) — portal signing stays in Legal. |
 | **C2** Property | Status + portal use **`dex.cl8y.com`** (`VITE_LEGAL_PROPERTY` override for staging only). |
 | **C3** Network | `TerraClassic` → API `TERRA_CLASSIC` only. |
 | **C4** Sequence | Risk ack (#138) for anonymous browse; clickwrap after wallet connect. |
@@ -409,13 +523,13 @@ Wallet-bound, versioned Terms & Conditions for the DEX property are tracked in [
 | **C7** CSP | Legal hosts in `connect-src` without blanket `https:`. |
 | **C8** No admin secrets | Public Legal endpoints only. |
 | **C9** E2E hatch | `VITE_PLAYWRIGHT_E2E` skips gate for Playwright `webServer` only. |
-| **C10** NFA retained | Footer NFA / environment ribbon unchanged. |
+| **C10** NFA retained | Footer NFA / environment ribbon unchanged. Official Homepage / Bridge stay in the footer, outside this gate ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)). |
 
 **Ops (Legal Coolify / admin — cross-repo):** register property `dex.cl8y.com`; add `https://dex.cl8y.com` to Legal API `CORS_ORIGINS` and portal `VITE_REDIRECT_URI_ALLOWLIST`.
 
-**Regression:** `make verify-issue-517` · Vitest `legalClickwrap` / `ConnectedTermsGate` / `viteCsp` · Playwright `e2e/legal-clickwrap-517.spec.ts`.
+**Regression:** `make verify-issue-517` · `make verify-issue-658` · Vitest `legalClickwrap` / `legalKeplrInAppHint` / `ConnectedTermsGate` / `viteCsp` · Playwright `e2e/legal-clickwrap-517.spec.ts`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_CLICKWRAP.md`](../skills/AGENTS_FRONTEND_CLICKWRAP.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_CLICKWRAP.md`](../skills/AGENTS_FRONTEND_CLICKWRAP.md) (**C1–C10**, **L658-1–L658-8**, [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)).
 
 ### Simulated (dev) wallet and `VITE_DEV_MNEMONIC` {#simulated-dev-wallet-and-vite_dev_mnemonic}
 
@@ -693,7 +807,8 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 
 ### Create Token (community tax) {#create-token-community-tax}
 
-Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Identity + wallet helpers: [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604). SKU init + percent taxes: [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605). Routes: `/token/create`, `/token/migrate`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Free listed-template adopt: [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md). Verify: `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605` · `make verify-issue-626` · `make verify-issue-628` · `make verify-issue-634`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
+Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Identity + wallet helpers: [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604). SKU init + percent taxes: [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605). Desktop density: [#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669). Routes: `/token/create`, `/token/migrate`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md) · [`skills/AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md). Free listed-template adopt: [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md). Verify: `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605` · `make verify-issue-669` · `make verify-issue-626` · `make verify-issue-628` · `make verify-issue-634`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
+Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593)). Identity + wallet helpers: [#604](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/604). SKU init + percent taxes: [#605](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/605). Routes: `/token/create`, `/token/migrate`, `/token/:addr/manage`, `/tokens`. Catalog: [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594). Playbook: [`skills/AGENTS_FRONTEND_CREATE_TOKEN.md`](../skills/AGENTS_FRONTEND_CREATE_TOKEN.md). Free listed-template adopt: [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](../skills/AGENTS_FRONTEND_TOKEN_MIGRATE.md). Migrate why-copy: [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) **M670**. Verify: `make verify-issue-593` · `make verify-issue-604` · `make verify-issue-605` · `make verify-issue-626` · `make verify-issue-628` · `make verify-issue-634` · `make verify-issue-670`. Post-merge Coolify + LocalTerra retail: [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) / `make verify-issue-602`.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -705,7 +820,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-6** Manager | Connected wallet vs LCD `manager`. Non-manager read-only. |
 | **C593-7** Unverified admin | `ContractInfo.admin ≠ CMM` banner. |
 | **C593-8** Template | Manage requires `code_id ==` env pin (columbus-5 **11630** after #635; **11626** was the #628 store). After #626 adopt, the same address is that pin and Manage shows tax SKUs (**P11**). 6036/10184/8266/8654 stay hidden. |
-| **M626** Migrate Token | `/token/migrate` is free (no invoice). Source gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default 6036,10184,8266,8654) — not factory whitelist. **Do not append 3** ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)). Create Token links **Migrate here** and stays code-id-free (**M628-7**). Retail lead is one sentence (address stays); no env-var / 50 UST1 / cw2 essay on the card. Launcher stays CMM-only. Post-merge leftovers: [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) / `make verify-issue-628`. |
+| **M626** Migrate Token | `/token/migrate` is free (no invoice). Source gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default 6036,10184,8266,8654) — not factory whitelist. **Do not append 3** ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)). Create Token links **Migrate here** and stays code-id-free (**M628-7**). Retail lead is title + **Unlock {X} features…** headline + one examples paragraph ([#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) **M670-1–M670-8**; X derived, today 7; no Minting; access ≠ auto-enable). No env-var / 50 UST1 / cw2 essay on the card. Confirm still owns LP/pause/Terraport facts. Launcher stays CMM-only. Post-merge leftovers: [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) / `make verify-issue-628`. Verify why-copy: `make verify-issue-670`. |
 | **M634** Migrate inventory | Confirm + success show CL8Y / other-DEX / GDEX venues. Register only factory-verified CL8Y after adopt when pins match. ALPHA/Open Terraport rows always overlay. `#633` owns new Create Pair register + Manage highest-LP. LocalTerra mintable analogue: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh). [#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / `make verify-issue-634`. |
 | **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax on **pair-direct and router-hop** sells (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
 | **C593-10** Payee from env | Never URL. |
@@ -721,6 +836,14 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C605-2** SKU init | Selecting a SKU shows its init fields; unchecking drops those fields from the hook. Free create (0 SKU) still cannot include paid payloads (**C593-12**). |
 | **C605-3** AutoLP create | Auto liquidity at create instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → create blocked for that SKU (no 50 UST1 no-op). `SkimToLp` stays permissionless and is never called from `Transfer`/`Send` (**T592-10**). Pair must be this token’s factory-listed CL8Y pool; skim has a spread floor (**M610**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610)). |
 | **C605-4** VariableRates gate | Without `variable_rates`, instantiate `max_*` must equal the current rate (no CLI headroom). Settings `buy_bps` / `sell_bps` require the SKU (`SkuNotUnlocked`). Not a no-op (audit M-1). Caps stay immutable after create. |
+| **C669-1** Desktop width | Configured `/token/create` is `w-full` (`.app-main` 1080px cap), not a 520px chimney. At 1280×720 and 1440×900, `create-token-page` content width **> 700px** and does not stretch past `.app-main`. Unavailable stub may stay `max-w-[520px]`. [#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669) |
+| **C669-2** Paired rows (`md+`) | Name+Symbol+Decimals share a row; Treasury+Manager share a row; Paid features is a 2-col checkbox grid (`create-token-desktop-grid` / `create-token-sku-grid`). Buy/Sell stay paired. Phone `<md` stacks. Classes: [`createTokenLayout.ts`](../frontend-dapp/src/utils/createTokenLayout.ts). |
+| **C669-3** First viewport | 1280×720, 0 SKUs: Paid features legend is in the first viewport; ack / free CTA or connect prompt in the first two. SKU init panels may extend when checked. |
+| **C669-4** Phone stack | 375×667 / 390×844: single column; no horizontal `document` scroll; bech32 `min-w-0` + `break-all`; SKU/ack tap ≥44px (`min-h-11`). Helpers stay `connected wallet` / `not connected wallet`. |
+| **C669-5** Layout only | Do not change C593 / C604 / C605: env stub, ignore `?payee=` / `?manager=` / `?treasury=`, percent 2 dp + 25% combined, SKU uncheck drops hook keys, PayWithAnyToken launcher payee. |
+| **C669-6** One chrome / copy | Single `shell-panel-strong`. No nested `shell-panel` or SKU `card-glass` (#653). No `*-neo`. Lead + **Migrate here** only — no density banner (#489). |
+| **C669-7** Stable testids | Keep `create-token-*` execute testids. Layout-only: `create-token-desktop-grid`, `create-token-identity-row`, `create-token-wallet-row`, `create-token-sku-grid`, `create-token-features-legend`. Each SKU checkbox maps to that `sku.id` only. No `tabindex` skip of ack. |
+| **C669-8** Sibling pages | Do not widen Swap / Create Pair / Manage / Migrate here. Create Token stays code-id-free on the card (**M628-7**). No `e2e-tx`; Playwright 5 workers. |
 
 ### Max amount / gas reserve {#max-amount-gas-reserve}
 
@@ -820,7 +943,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 | `/charts`       | Pairs overview and per-pair charts (indexer)      |
 | `/portfolio`    | **My Portfolio** — connected wallet summary, open quote positions, wallet-wide open limits, LP overview, recent swaps ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212), phase 2 [**#217**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217)); alias `/my-portfolio` → `/portfolio` |
-| `/trader`       | Trader profile lookup (indexer); optional `/:address` |
+| `/trader`       | Trader profile lookup (indexer); optional `/:address`; global **Leaderboard** last in page content ([#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657)) |
 | `/trade`        | Trade UI — order book, **price chart**, tape, **limit + market** tickets ([GitLab #152](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/152)) |
 | `/trade/:pairAddr` | Same as `/trade` with pair pre-selected       |
 | `/limits`       | Limit order placements, lifecycle, and **wallet history** (fills, cancels, swaps on pair + CSV) — [GitLab **#163**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/163) |
@@ -831,16 +954,16 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 ### Protocol — global USD stats + unified oracle {#protocol-page}
 
-[`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx) is the DEX census + reference-oracle surface ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [**#556**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [**#570**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) / [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) / [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). Page order: title → **Global stats** (`protocol-global-stats`, tiles + optional UTC-day volume chart) → **Protocol fees** (`protocol-fee-stats`) → **DEX hub prices** (`protocol-dex-hub-prices`) → **one** CEX oracle card (`protocol-oracle`) → on-chain contracts (audit, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)) → hook events. Global stats / fees / oracle **stat chips** use `StatBox variant="flat"` ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)). Oracle sources/history and hook events may keep **one** table well.
+[`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx) is the DEX census + reference-oracle surface ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [**#556**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [**#570**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) / [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) / [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) / [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)). Page order: title → **Global stats** (`protocol-global-stats`, tiles + optional UTC-day volume chart) → **Protocol fees** (`protocol-fee-stats`) → **DEX hub prices** (`protocol-dex-hub-prices`) → **one** CEX oracle card (`protocol-oracle`) → on-chain contracts (audit, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)) → hook events. Global stats / fees / oracle **stat chips** use `StatBox variant="flat"` ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)). Oracle sources/history and hook events may keep **one** table well.
 
 | Invariant | Meaning |
 |-----------|---------|
 | **P550-1 Order** | Stats → **fees** (`protocol-fee-stats`, #586) → **DEX hub card** (#556 / #570) → CEX oracle. Do not merge factory/router into stats or fees. Do not clone `AddressRow` onto Swap confirmation. Do not add USTR as a fourth CEX tab. |
-| **PFee-1–PFee-12** + **PFee-13** Fees | Trailing 24h/7d/30d treasury USD with **inline** flow Δ% in the same tile ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). Source + token tables from `GET /api/v1/protocol/fees`. Retail labels include **UST1 mint** / **UST1 redeem** when `ust1_window_configured` ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) / **I614**). Idle `$0`; unpriced `—`; never `Infinity`. Not `traders.total_fees_paid`. Wrap/Unwrap rows appear when ingest sees mapper `notify_deposit` / `unwrap` `fee` ([GitLab #613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)). Testids: `protocol-fee-stats`, `protocol-stat-fees-24h` / `7d` / `30d` (Δ% child `-chg`), `protocol-fees-by-source`, `protocol-fees-by-token`. Flat `StatBox` — no nested `card-glass`. |
+| **PFee-1–PFee-12** + **PFee-13** Fees | Trailing 24h/7d/30d treasury USD with **inline** flow Δ% in the same tile ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). Chips sit with that tile’s USD, not under the next fee label ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)). Source + token tables from `GET /api/v1/protocol/fees`. Retail labels include **UST1 mint** / **UST1 redeem** when `ust1_window_configured` ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) / **I614**). Idle `$0`; unpriced `—`; never `Infinity`. Not `traders.total_fees_paid`. Wrap/Unwrap rows appear when ingest sees mapper `notify_deposit` / `unwrap` `fee` ([GitLab #613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)). Testids: `protocol-fee-stats`, `protocol-stat-fees-24h` / `7d` / `30d` (Δ% child `-chg`), `protocol-fees-by-source`, `protocol-fees-by-token`. Flat `StatBox` — no nested `card-glass`. |
 | **P550-2 Tickers** | Tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3 One card** | Snapshot, sources, and history share one `shell-panel`. Query keys include ticker. |
 | **P550-4 USD headlines** | Volume uses `total_volume_*_usd`. Do **not** present mixed-unit `total_volume_24h` as volume. |
-| **P569-1 Pool TVL** | **Total liquidity** is humanized AMM `pair_reserves` USD (`total_liquidity_usd`), not volume, not CG `liquidity_in_usd`, not book escrow. One cell: USD + inline 24h/30d snapshot Δ% (`protocol-stat-liquidity`; child testids `protocol-stat-liquidity-24h` / `-30d`). |
+| **P569-1 Pool TVL** | **Total liquidity** is humanized AMM `pair_reserves` USD (`total_liquidity_usd`), not volume, not CG `liquidity_in_usd`, not book escrow. One cell: USD + inline 24h/30d snapshot Δ% (`protocol-stat-liquidity`; child testids `protocol-stat-liquidity-24h` / `-30d`). Δ% is visually grouped with the `$` (`justify-start` / wrap), not `justify-between` to the next column ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1**). |
 | **P569-2 Δ%** | 24h/30d liquidity is vs indexer snapshots. Missing / `null` / non-finite → em-dash (`formatProtocolPct`), never `0%` / `Infinity`. |
 | **P550-9 vFDUSD** | Path `vfdusd` returns CEX **FDUSD/USD** (`first-digital-usd` / `FDUSDUSDT`; JSON `quote_asset=FDUSD`, `display_name=FDUSD/USD`). Protocol tab heading is **vFDUSD**; CEX StatBox is **FDUSD reference price**. Not Terra CW20 vFDUSD, not `$1`, not the `/ust1` window rate. Venus **1 vFDUSD Price** is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571) ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). |
 | **V571-1–V571-10** | vFDUSD tab: CEX vs Venus split; indexer `eth_call` only; pin `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`. |
@@ -849,9 +972,8 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).
 
-Volume boxes use **Last 24h / 7d / 30d vol** plus static trailing-window `title` / `aria-label` — not calendar buckets and not a lecture in the lead paragraph ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts)). Each volume tile also shows prior-window flow Δ% (`volume_change_*_pct`). A **UTC calendar-day** bar chart (`protocol-volume-daily-chart`, default 7d / toggle 30d) is additive and must not be read as the trailing tiles ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) **P652-1–P652-7**). Hide the chart when `GET /api/v1/protocol/volume/daily` is missing (old indexer). Do not call `GET /defillama/daily` from this page.
-
-Regression: `make verify-issue-652` · `make verify-issue-550` · `make verify-issue-569` · `make verify-issue-586` · `make verify-issue-614` · `make verify-issue-570` · `make verify-issue-576` · `make verify-issue-571`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md`](../skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md), [`skills/AGENTS_FRONTEND_PROTOCOL_HUB.md`](../skills/AGENTS_FRONTEND_PROTOCOL_HUB.md), [`skills/AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md). Venus redeem: [`skills/AGENTS_INDEXER_VENUS_VFDUSD.md`](../skills/AGENTS_INDEXER_VENUS_VFDUSD.md). Overview TVL / fee / volume-Δ% rollup: [`runbooks/overview-global-stats-brin.md`](./runbooks/overview-global-stats-brin.md).
+Volume boxes use **Last 24h / 7d / 30d vol** plus static trailing-window `title` / `aria-label` — not calendar buckets and not a lecture in the lead paragraph ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts)). Each volume tile also shows prior-window flow Δ% (`volume_change_*_pct`). The Δ% chip sits immediately after (or wrapped under) that tile’s USD — not `justify-between` into the next column’s gutter ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1–P667-4**). Census tiles (tokens / pairs / trades) are integer locale counts (`14`, not `14.00`). A UTC **Hourly / Daily / Monthly** bar chart (`protocol-volume-daily-chart`, default Daily) with a visible USD value axis and pointer/keyboard tooltip is additive and must not be read as the trailing tiles ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) **P652-1–P652-7**, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) **P668-1–P668-8**). Hide the chart when `GET /api/v1/protocol/volume/daily` is missing (old indexer). Do not call `GET /defillama/daily` from this page. Do not mount `PriceChart`. Bar count follows plot width (hourly ≤ 168, daily ≤ 90, monthly ≤ 24).
+Regression: `make verify-issue-668` · `make verify-issue-667` · `make verify-issue-652` · `make verify-issue-550` · `make verify-issue-569` · `make verify-issue-586` · `make verify-issue-614` · `make verify-issue-570` · `make verify-issue-576` · `make verify-issue-571`. Playbook: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md`](../skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md), [`skills/AGENTS_FRONTEND_PROTOCOL_HUB.md`](../skills/AGENTS_FRONTEND_PROTOCOL_HUB.md), [`skills/AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md). Oracle API: [`runbooks/indexer-external-oracle.md`](./runbooks/indexer-external-oracle.md). Venus redeem: [`skills/AGENTS_INDEXER_VENUS_VFDUSD.md`](../skills/AGENTS_INDEXER_VENUS_VFDUSD.md). Overview TVL / fee / volume-Δ% rollup: [`runbooks/overview-global-stats-brin.md`](./runbooks/overview-global-stats-brin.md).
 
 ### My Portfolio (wallet-centric indexer exposure) {#my-portfolio}
 
@@ -870,11 +992,12 @@ Route **`/portfolio`** is the wallet-home surface for indexed trading exposure (
 | **Read-only** | No signing on portfolio; limits deep-link to **`/trade/{pairAddr}`** and **`/limits`**. |
 | **Outage UX** | `MarketDataServiceOutageBanner` + `RetryError` parity with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) for indexer-backed sections. |
 | **Nav** | `Portfolio` in `PRIMARY_NAV_ITEMS` ([`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts)); wallet menu **My Portfolio** link. |
-| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. |
+| **Shared UI** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) (4/6 + blockie header, [#656](#trader-identity)), [`TraderPositionsTable`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) shared with trader profile. **No** global [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) on this route ([#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657) **TL-8**). |
+| **Share public profile (#665)** | When connected, **Share** copies/shares canonical `/trader/{wallet}` — never `/portfolio`. Primitive: [Share link](#share-link-button). |
 
-**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`, `make verify-issue-560`.
+**Tests:** [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx), [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts), [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx), [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx), [`usePortfolioLpBalances.test.ts`](../frontend-dapp/src/hooks/__tests__/usePortfolioLpBalances.test.ts), [`client.test.ts`](../frontend-dapp/src/services/indexer/__tests__/client.test.ts) (`getTraderPositions`, `getTraderLimitPlacements`), [`e2e/portfolio.spec.ts`](../frontend-dapp/e2e/portfolio.spec.ts), indexer [`api_traders.rs`](../indexer/tests/api_traders.rs). Regression: `make verify-issue-551`, `make verify-issue-560`, `make verify-issue-665`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md), [`skills/AGENTS_FRONTEND_HUB_PNL.md`](../skills/AGENTS_FRONTEND_HUB_PNL.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_PORTFOLIO.md`](../skills/AGENTS_FRONTEND_PORTFOLIO.md), [`skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md`](../skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md), [`skills/AGENTS_FRONTEND_HUB_PNL.md`](../skills/AGENTS_FRONTEND_HUB_PNL.md), [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md), [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md).
 
 ### Wallet swap and limit history (indexer) {#wallet-swap-limit-history}
 
@@ -953,6 +1076,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 | Full desktop header | Viewports **`min-width: 1200px`**: all `PRIMARY_NAV_ITEMS` inline; header More lists **`MORE_NAV_ITEMS` only** (same as pre–#136 wide layout). |
 | Nav → controls gap | At full-desktop widths, last nav control (**More**) and `.app-header-theme-group` must keep **≥ ~8px** horizontal gap (wallet connected or not). Desktop/tablet **omit** header [`NetworkBadge`](../frontend-dapp/src/components/wallet/NetworkBadge.tsx) — [`EnvironmentRibbon`](../frontend-dapp/src/components/legal/EnvironmentRibbon.tsx) is the primary network signal; mobile keeps the badge beside the wallet chip ([GitLab **#483**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/483)). |
 | Footer environment ribbon | `.app-env-ribbon` renders inside `footer.app-footer-shell` on **all** viewports (including mobile, above the bottom tab bar). Sticky header is header-only for vertical density. |
+| Official CL8Y product links | Footer **Homepage** + **Bridge** (`https://cl8y.com/` / `https://bridge.cl8y.com/`) — allowlisted HTTPS, new tab. **Not** in header More / [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) ([GitLab **#663**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663), [§ Official CL8Y product links](#official-cl8y-product-links)). |
 | Sticky header clearance | `.app-top-sticky` uses an opaque `var(--bg-0)` background so scrolled page copy cannot bleed through the header card; Trade H1 clears the sticky header by **≥ ~16px** at `scrollY=0`. |
 | Mobile vs header “More” active state | The bottom-tab **More** button highlights only for **`MORE_NAV_ITEMS`** routes; the header **More** trigger uses the expanded tablet list when compact so Pool/Charts/etc. still show an active affordance. |
 | Header brand copy | Sticky header brand is **logo + “CL8Y DEX” title only** — no secondary kicker line (removed [GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136) regression fix; Terra Classic context stays in footer **`CL8Y DEX · Terra Classic`**). Below **`1024px`**, `.app-brand-copy` stays hidden ([GitLab **#52**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/52)). |
@@ -960,7 +1084,7 @@ Layout lives in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx
 
 Constants: `HEADER_FULL_NAV_MIN_WIDTH_PX` (`1200`), `TABLET_COMPACT_HEADER_MAX_WIDTH_PX` (`1199`), and row label tuples `DESKTOP_HEADER_NAV_ROW_LABELS` / `TABLET_COMPACT_HEADER_NAV_ROW_LABELS` for Playwright overlap checks (`frontend-dapp/e2e/navigation.spec.ts`). Footer ribbon placement, sticky header clearance, and nav→theme gap assertions live in the same file (**#483** density + footer ribbon regression).
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md), [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) (environment ribbon), [`skills/AGENTS_FRONTEND_SOUND_MUTE.md`](../skills/AGENTS_FRONTEND_SOUND_MUTE.md) (SFX mute).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](../skills/AGENTS_FRONTEND_RESPONSIVE_HEADER.md), [`skills/AGENTS_FRONTEND_SHELL_NAV.md`](../skills/AGENTS_FRONTEND_SHELL_NAV.md), [`skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](../skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) (environment ribbon), [`skills/AGENTS_FRONTEND_PRODUCT_LINKS.md`](../skills/AGENTS_FRONTEND_PRODUCT_LINKS.md) (footer Homepage / Bridge, #663), [`skills/AGENTS_FRONTEND_SOUND_MUTE.md`](../skills/AGENTS_FRONTEND_SOUND_MUTE.md) (SFX mute).
 
 ### UI sound effects mute {#ui-sound-effects-mute}
 
@@ -993,8 +1117,26 @@ Interactive controls must expose a **visible keyboard focus indicator** when foc
 | Shell & CTAs | `.btn-primary` / `.btn-muted` / `.btn-cta`, `.app-nav-link` (and related triggers), `.wallet-trigger` (+ `.wallet-trigger-connected`), `.network-badge`, `.tab-glass` / `.tab-glass-active`, `.side-control`, `.wallet-option-card`, and dropdown `.app-menu-link` / `.wallet-menu-item` define explicit `:focus-visible` rings; **active** nav rows compose the active `box-shadow` **plus** the outer ring. Buy/Sell side fills ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)) must keep the `.side-control:focus-visible` ring. |
 | Menu backdrops | **`.app-menu-dismiss`** (shell More menu in [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx), connected wallet menu in [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)) is a full-viewport **`type="button"`** with an **`aria-label`**; **`:focus-visible`** uses an inset ring ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
 | Swap amount | The prominent pay amount `<input>` uses class **`swap-io-amount-input`** — do **not** strip focus with `focus:outline-none` without replacing it; ring styles sit beside `.swap-io-stack` in `index.css`. |
+| Swap direction | `.swap-direction-btn:focus-visible` uses the same `--focus-ring` mix as `.limit-side-flip-btn`. Do **not** add a bare `:focus` ring ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) **S659-4**). |
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FOCUS.md`](../skills/AGENTS_FRONTEND_A11Y_FOCUS.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_A11Y_FOCUS.md`](../skills/AGENTS_FRONTEND_A11Y_FOCUS.md). Swap seam plate: [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md).
+
+### Swap direction seam plate {#swap-direction-seam}
+
+Paint-only join between You Pay and You Receive on `/` ([GitLab **#659**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)). Agent playbook: [`skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](../skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md). `--control-surface` is the wrong token for a control that must **occlude** the 1px `--chrome-border` hairline. The seam stays as IA; only the strip under the button is covered.
+
+| ID | Rule |
+|----|------|
+| **S659-1** | Dark idle: no hairline inside the direction button or across the arrows (375px and 1280px). |
+| **S659-2** | Light: same as S659-1. |
+| **S659-3** | Hover must not re-open the seam. No plate `translate`. Static `.swap-direction-seam::before` stays on the line. |
+| **S659-4** | Keyboard Tab shows `--focus-ring`; mouse click does not leave `:focus-visible`. |
+| **S659-5** | Click still swaps pay/receive identities. `aria-label="Swap pay and receive tokens"` unchanged. Wrap/unwrap on `/` uses this control. |
+| **S659-6** | Pay/Receive hairline remains left and right of the button (stack still reads as two halves). Do **not** delete `.swap-io-card-pay` `border-bottom`. |
+| **S659-7** | `python3 scripts/check_chrome_nesting.py` and `python3 scripts/check_design_tokens.py` stay green. No `*-neo`. No extra `card-glass` around the button. `--swap-direction-surface` is opaque `rgb()` in both themes. |
+| **S659-8** | Wrapper `pointer-events-none`; only the ~40–44px button is `auto`. `z-index` stays 20. Do not cover Settings, legal/risk, or portaled pickers ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)). |
+
+**Regression:** `make verify-issue-659` — Vitest `swapDirectionSeam.test.ts` + token/nesting guards + Playwright `e2e/swap-direction-seam-659.spec.ts` (`PLAYWRIGHT_SKIP_CHAIN=1`, 5 workers). No LocalTerra. Crops: [`docs/qa/issue-659/`](./qa/issue-659/).
 
 ### Portal listboxes (`MenuSelect` / `TokenSelect` / `TokenSearchSelect`) — layout stability {#portal-listbox-layout-stability}
 
@@ -1107,10 +1249,28 @@ Trader profile data comes from **`GET /api/v1/traders/:address`** (see [`client.
 |-----------|---------|
 | Parse or fail | `getTrader` runs `parseIndexerTraderPayload` on raw JSON; invalid shapes throw and become a **React Query error**, not a render-time exception. |
 | **Total Volume (USD) (#553)** | [`TraderSummaryStats`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) formats `total_volume_usd` with [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts). Never `formatNum(total_volume)`. Unpriced → `—`. |
+| **Trader identity (#656)** | Header is 4/6 `AddressRow` plus [`TraderBlockie`](../frontend-dapp/src/components/trader/TraderBlockie.tsx). Copy + explorer stay full-bech32 / `getExplorerAddressUrl`. Invalid route params do not paint a PFP. |
+| **Global leaderboard (#657)** | [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) is the **last** page section on `/trader` and `/trader/:address` (including empty lookup, 404, and profile outage). Same four tabs, `getLeaderboard(sort, 20)`, query key `['leaderboard', sort]`, and USD Volume rules as Charts. Trader cells use 4/6 + blockie ([#656](#trader-identity)). Not nested in `app-footer-shell` or Trade History. **Not** on `/portfolio`. Optional `aria-current="page"` when `:address` is in the top 20 — no invented “rank N”. Rows that fail `isValidTerraAddress` are omitted. `data-testid="trader-leaderboard"`. |
 | Route error boundary reset | `/trader` routes use `resetKeys` tied to `useParams().address` so switching between `/trader` and `/trader/:addr` (or between addresses) **clears a prior route error** without a full page reload ([`App.tsx`](../frontend-dapp/src/App.tsx) `TraderRouteShell`). |
+| **Share vs address copy (#665)** | **Share** on the H1 row sends the canonical `/trader/{addr}` URL (Web Share or clipboard). [`AddressRow`](#addressrow-primitive) **Copy trader address** still copies the bech32 only. Share stays visible on 404 / indexer outage when the path is a valid terra address. See [Share link](#share-link-button) (**TS-1–TS-13**). |
 | Deduped React in Vite | [`vite.config.ts`](../frontend-dapp/vite.config.ts) sets `resolve.dedupe` for `react` / `react-dom` to avoid rare **dual-React** dev bundles that surface as `useContext`/`Invalid hook call` when lazy chunks load. |
 
-**Third-party / agent context:** [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
+| ID | Rule |
+|----|------|
+| **TL-1** | Order: search → profile/empty/error/outage → (when loaded) stats → positions → trade history → **leaderboard** → Layout footer. |
+| **TL-2** | Board mounts on both routes when the profile query fails; board errors are independent. |
+| **TL-3** | Tabs / default `total_volume_usd` / limit 20 / 30s refetch / shared React Query key with Charts. |
+| **TL-4** | Volume sorts and displays `total_volume_usd` (**T553-1 / T553-5**). |
+| **TL-5** | One `shell-panel-strong` (**C653-1**). No nested `shell-panel*` or per-row `card-glass`. |
+| **TL-6** | Heading **Leaderboard**. No Sybil lecture, no indexer URL in copy. |
+| **TL-7** | No indexer / contract change. Unscoped `GET /api/v1/traders/leaderboard` only. |
+| **TL-8** | `/portfolio` has no board. Rows link `/trader/{addr}` via `TraderIdentity` (`linkToProfile`). No `dangerouslySetInnerHTML`. |
+| **TL-9** | Highlight current row only when it appears in the page. |
+| **TL-10** | `#126` / `#215` / `#177` unchanged. |
+
+Regression: `make verify-issue-657` · `make verify-issue-656` · `make verify-issue-553` · `make verify-issue-665`. Playwright [`e2e/trader-page.spec.ts`](../frontend-dapp/e2e/trader-page.spec.ts) (5 workers).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](../skills/AGENTS_FRONTEND_TRADER_LEADERBOARD.md); [`skills/AGENTS_FRONTEND_TRADER_IDENTITY.md`](../skills/AGENTS_FRONTEND_TRADER_IDENTITY.md) (4/6 + blockie); [`skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](../skills/AGENTS_FRONTEND_TRADER_VOLUME_USD.md); [`skills/AGENTS_FRONTEND_SHARE_LINK.md`](../skills/AGENTS_FRONTEND_SHARE_LINK.md) (profile Share); [`skills/AGENTS_BUNDLE_DEV_WALLET.md`](../skills/AGENTS_BUNDLE_DEV_WALLET.md) (wallet + local QA); [`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md) (indexer-backed flows).
 
 ### Trade page — price chart invariants {#trade-page-price-chart-invariants}
 
@@ -1764,7 +1924,26 @@ The **Provide Liquidity** card mirrors on-chain `provide_liquidity` math for the
 
 **Ratio warning:** if the two typed amounts are not in the current pool price ratio, the contract still executes, but the **smaller** LP term sets the mint; the excess on the other side is effectively donated to the pool (same as Astroport/TerraSwap behavior). Warning element: `data-testid="pool-provide-ratio-warning"`.
 
-**Auto-fill counterpart ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** on a non-empty pool, editing Asset A or B auto-fills the other side from `floor(edited × reserve_other / reserve_edited)` when the counterpart field is empty. **Max** and **50%** always force-sync the counterpart (`forceSync: true`). Empty pool (both reserves `0`): no auto-fill. After auto-fill, if the user edits the filled side to a different value, the other side is left unchanged so the ratio warning can appear. Native-wrap paths use **net** post-tax amounts for ratio math (`provideRawAdd*` semantics); see [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) and [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
+**Auto-fill counterpart ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** on a non-empty pool, editing either provide amount auto-fills the other side from `floor(edited × reserve_other / reserve_edited)` when the counterpart field is empty. **Max** and **50%** always force-sync the counterpart (`forceSync: true`). Empty pool (both reserves `0`): no auto-fill. After auto-fill, if the user edits the filled side to a different value, the other side is left unchanged so the ratio warning can appear. Native-wrap paths use **net** post-tax amounts for ratio math (`provideRawAdd*` semantics); see [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) and [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
+
+**Provide field labels + wrap default ([#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)):** Advanced two-sided Provide (Manage → `<details data-testid="pool-card-advanced">`) labels each amount with the **selected** input `{Name} ({SYMBOL})` or `{SYMBOL}` — never Asset A/B. Wrap-equivalent legs (cLUNC / cUSTC) default **Use native … (auto-wrap)** **on** at mount (`provideWrapDefaultOn`). Tickers sit in a `normal-case` node so `.label-glass` uppercase does not paint `cLUNC` as `CLUNC`. Uncheck is session-only. Withdraw `receiveWrapped` default is unchanged. Retail one-sided is unchanged (**Z533-1**). Playbook: [`skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md). `make verify-issue-661`.
+
+**Invariants (dApp, P661-1–P661-12):**
+
+| ID | Meaning |
+|----|---------|
+| **P661-1** | Provide visible labels are `{Name} ({SYMBOL})` or `{SYMBOL}`. No Asset A/B (including uppercase CSS). |
+| **P661-2** | Amount `aria-label` is `{product ticker} amount`. |
+| **P661-3** | Known wrap / native / listed CW20 tickers follow **N630**. Never `uluna` / `uusd` as the visible label. |
+| **P661-4** | Name missing or equal to symbol collapses to symbol only. Never `UST1 (UST1)`. HTML / long indexer names dropped. |
+| **P661-5** | cLUNC / cUSTC leg: auto-wrap checkbox checked on first paint. Not persisted. |
+| **P661-6** | Wrap on → native balance + wrap execute + native label. Wrap off → CW20 + `#147` gas gate + CW20 label. |
+| **P661-7** | No native equivalent → no wrap checkbox; labels still name/symbol. |
+| **P661-8** | Dual wrap pair: both checkboxes default on independently. |
+| **P661-9** | Withdraw expected receive / pre-sign stay product tickers. `receiveWrapped` default unchanged. |
+| **P661-10** | Pause, freeze, blacklist, wrap treasury mismatch, IL, pre-sign, counterpart auto-fill, empty-pool no auto-fill still hold. |
+| **P661-11** | Retail one-sided unchanged (no wrap checkbox, no Asset A/B). |
+| **P661-12** | Indexer name/symbol are text. Registry wins. No N+1 LCD on default `/pool` paint (A8). |
 
 **Withdraw receive preview ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** when an LP amount is entered, the withdraw panel shows **expected** underlying tokens at 0% slippage (`pool-withdraw-estimated-receive`) and **minimum** after the selected slippage tolerance (`pool-withdraw-minimum-receive`). Labels use wrapped token symbols when “Receive as wrapped tokens” is checked; otherwise native symbols when unwrap is available.
 
@@ -1794,19 +1973,28 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 | [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) | `/pool` sortable table, catalog default, Charts deep links |
 | [#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) | Pre-sign summary card for provide/withdraw (SEC-I05 F-03) |
 | [#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480) | Provide auto-fill + withdraw receive preview |
+| [#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661) | Advanced provide name/symbol labels + wrap default on |
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
 
-The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + one-sided CTAs + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)).
+The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md); Created age [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662), [`AGENTS_FRONTEND_POOL_CREATED.md`](../skills/AGENTS_FRONTEND_POOL_CREATED.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + one-sided CTAs + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)).
 
-**Invariants (dApp, P547-1–P547-10):**
+**Invariants (dApp, P547-1–P547-10, P662-1–P662-8):**
 
 | ID | Meaning |
 |----|---------|
 | **P547-1** | Primary list is a `<table>` (`data-testid="pool-pairs-table"`), not stacked `PoolCard`. |
 | **P547-2** | Sortable headers: label + caret next to the text; `aria-sort` on the active column. No Sort/Order dropdowns. |
 | **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last on LocalTerra (**P534-1–P534-4**). Production omits gems entirely ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). |
-| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `liquidity_usd`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). **v2 LP USD** is [#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) (**P655-1–P655-8**). |
+| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `liquidity_usd`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created cells show relative age from list JSON `created_at` ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662) **P662-3**); `—` only when the field is missing or unparsable. Sort `created` orders by indexer first-seen `pairs.created_at` (default **desc**), not `created_at_block`. After `--fresh` / DB rebuild every pair looks recent — that caveat lives in this table, not a page lecture ([#489](#retail-copy-cognitive-load)). **v2 LP USD** is [#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) (**P655-1–P655-8**). |
+| **P662-1** | `GET /api/v1/pairs`, `GET /api/v1/pairs/{addr}`, and `GET /api/v1/tokens/{addr}/pairs` share one `PairResponse` with additive RFC3339 `created_at` from `pairs.created_at` (indexer first-seen, not factory genesis). |
+| **P662-2** | `sort=created` is `ORDER BY p.created_at {ASC\|DESC}, p.id ASC`. Default order **desc**. Invalid `sort` still **400**. |
+| **P662-3** | Visible Created cell is `formatRelativeAge` (`N minutes/hours/days/years ago` or `just now`) or `—`. `data-testid="pool-row-created"` stays. Optional `title` is locale absolute time from a parsed instant — never the raw string. |
+| **P662-4** | No per-row LCD / extra indexer GET / interval timer for age (**P547-9**). Format at render from `Date.now()`. |
+| **P662-5** | Catalog default has **no** Created caret. Clicking Created uses indexer sort (no catalog overlay), default desc. Search stays `relevance`. Production still omits gems (**P562-3**). |
+| **P662-6** | Parse ISO-8601 only. HTML, `javascript:`, unix-ms/s, year 0, far-future → `—`. React text children only. |
+| **P662-7** | Do not claim on-chain genesis in UI copy. `#655` LP USD is a different column and must not collide on `created_at`. |
+| **P662-8** | Do not raise `PAIR_LIST_LIMIT_MAX` or rename `volume_quote_24h` for this field. Manage `colSpan` still matches column count. Light + dark; phone table still `overflow-x-auto`. |
 | **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
 | **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |
 | **P547-7** | How-to hint **and** `<details>` dismiss together; `#lp-howto` restores (**H531-7**). |
@@ -1831,9 +2019,9 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 
 **Charts deep link:** `/charts` and `/charts/:pairAddr`. Invalid param: stay on Charts, short notice, no XSS. Unknown valid `terra1`: “Pair not found,” no crash. Helpers: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts).
 
-**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`. Issues: [glab#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655), [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
+**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`, `formatDate.ts`. Issues: [glab#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655), [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
 
-**Verify:** `make verify-issue-655` · `make verify-issue-547`. Playbooks: [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md), [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](../skills/AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md).
+**Verify:** `make verify-issue-655` · `make verify-issue-547` · `make verify-issue-662`. Playbooks: [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md), [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](../skills/AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md), [`AGENTS_FRONTEND_POOL_CREATED.md`](../skills/AGENTS_FRONTEND_POOL_CREATED.md).
 
 **Agent workflow (optional):** For reviewable follow-up PRs or merge-ready checks in Cursor, use the **split to PRs** and **babysit** skills from your [Cursor skills](https://docs.cursor.com/context/skills) path (e.g. `~/.cursor/skills-cursor/` on a developer machine).
 

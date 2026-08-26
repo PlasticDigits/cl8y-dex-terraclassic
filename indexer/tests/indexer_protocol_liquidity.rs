@@ -128,6 +128,14 @@ async fn t1_two_catalogued_legs_sum_humanized() {
     assert_eq!(rollup.total_liquidity_usd, bd("1.1"));
     assert_eq!(rollup.priced_pair_count, 1);
     assert!(rollup.liquidity_change_24h_pct.is_none());
+
+    let stamped: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT liquidity_usd FROM pair_liquidity_usd WHERE pair_id = $1")
+            .bind(pair)
+            .fetch_optional(&pool)
+            .await
+            .expect("stamp");
+    assert_eq!(stamped.as_ref(), Some(&bd("1.1")));
 }
 
 #[serial]
@@ -274,6 +282,15 @@ async fn t6_stale_and_zero_reserves_omitted() {
     .expect("tvl");
     assert_eq!(rollup.total_liquidity_usd, bd("0"));
     assert_eq!(rollup.priced_pair_count, 0);
+
+    let leftover: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM pair_liquidity_usd")
+        .fetch_one(&pool)
+        .await
+        .expect("stamp count");
+    assert_eq!(
+        leftover, 0,
+        "unpriced refresh must drop leftover stamps, not write $0"
+    );
 }
 
 #[serial]

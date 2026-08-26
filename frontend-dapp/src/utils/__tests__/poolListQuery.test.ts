@@ -24,9 +24,11 @@ describe('poolListQuery (GitLab #547)', () => {
     expect(isPoolColumnSort('volume_24h')).toBe(true)
     expect(isPoolColumnSort('liquidity_usd')).toBe(true)
     expect(isPoolColumnSort('symbol')).toBe(true)
+    expect(isPoolColumnSort('created')).toBe(true)
     expect(isPoolColumnSort('relevance')).toBe(false)
     expect(isPoolColumnSort('__proto__')).toBe(false)
     expect(isPoolColumnSort('tvl')).toBe(false)
+    expect(isPoolColumnSort('created;drop')).toBe(false)
   })
 
   it('defaults volume/fee/created/liquidity_usd to desc and name to asc', () => {
