@@ -9,6 +9,7 @@ import { probePairCodeIdFreeze } from '@/services/terraclassic/assetCodeIdFreeze
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerPair } from '@/types'
 import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
+import { formatRelativeAge } from '@/utils/formatDate'
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -804,6 +805,93 @@ describe('PoolPage', () => {
       renderWithProviders(<PoolPage />, { route: '/pool' })
       const link = await screen.findAllByTestId('pool-row-charts')
       expect(link[0]).toHaveAttribute('href', `/charts/${UST1_PAIR}`)
+    })
+
+    it('C662: catalog mode Created aria-sort is none until click', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      expect(screen.getByTestId('pool-sort-created').closest('th')).toHaveAttribute('aria-sort', 'none')
+    })
+
+    it('C662: Created header sorts desc then asc without catalog overlay', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await user.click(await screen.findByTestId('pool-sort-created'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'created', order: 'desc', limit: 20 })
+        )
+      )
+      expect(screen.getByTestId('pool-sort-created').closest('th')).toHaveAttribute('aria-sort', 'descending')
+      await user.click(screen.getByTestId('pool-sort-created'))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(
+          expect.objectContaining({ sort: 'created', order: 'asc', limit: 20 })
+        )
+      )
+    })
+
+    it('C662: Created cell shows relative age from created_at', async () => {
+      const createdAt = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [{ ...catalogPairs()[1]!, created_at: createdAt }],
+        total: 1,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cell = await screen.findByTestId('pool-row-created')
+      expect(cell).toHaveTextContent(formatRelativeAge(createdAt))
+      expect(cell).toHaveAttribute('title')
+      expect(cell.getAttribute('title')).not.toBe(createdAt)
+    })
+
+    it('C662: missing or garbage created_at renders em-dash without dumping payload', async () => {
+      const garbage = '<script>alert(1)</script>'
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[1]!, created_at: garbage },
+          { ...catalogPairs()[0]!, pair_address: 'terra1nosecondpair0000000000000000000000001' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-created')
+      expect(cells[0]).toHaveTextContent('—')
+      expect(cells[0]).not.toHaveAttribute('title')
+      expect(cells[0].innerHTML).not.toContain('script')
+      expect(cells[1]).toHaveTextContent('—')
+    })
+
+    it('C662: search mode still uses relevance', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: catalogPairs(),
+        total: 2,
+        limit: 20,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      await screen.findByTestId('pool-pairs-table')
+      await user.type(screen.getByLabelText(/^Search$/i), 'UST1')
+      await user.click(screen.getByRole('button', { name: 'Search' }))
+      await waitFor(() =>
+        expect(indexerClient.getPairs).toHaveBeenCalledWith(expect.objectContaining({ sort: 'relevance', q: 'UST1' }))
+      )
     })
   })
 })

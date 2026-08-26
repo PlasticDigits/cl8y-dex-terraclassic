@@ -37,6 +37,8 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) | Safety > brevity — keep required ack/footer |
 | [docs/frontend.md § Retail copy & cognitive load](../docs/frontend.md#retail-copy-cognitive-load) | Engineering invariants + cross-links |
 | [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) | `/pool` table; no header lectures ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)) |
+| [`AGENTS_FRONTEND_POOL_CREATED.md`](./AGENTS_FRONTEND_POOL_CREATED.md) | Created age is relative text; first-seen caveat stays in docs ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)) |
+| [`AGENTS_FRONTEND_POOL_CREATED.md`](./AGENTS_FRONTEND_POOL_CREATED.md) | Created age is relative text; first-seen caveat stays in docs ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)) |
 | [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) | Opt-in `/pool` LUNC LP how-to (**H531-1–H531-10**, [#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)) — do not paste `frontend.md` pool math onto the page |
 | [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) | Retail `/pool` one-sided add/withdraw (**Z533-1–Z533-10**, [#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)) — option-less Token/Pair/Amount; wrap implied by the token |
 | [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](./AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) | One-sided zap execution floors (**Z559-1–Z559-4**, [#559](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/559)) — pre-sign min-swap is human units, not raw uints |

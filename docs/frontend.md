@@ -1797,16 +1797,24 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
 
-The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + one-sided CTAs + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)).
+The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md); Created age [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662), [`AGENTS_FRONTEND_POOL_CREATED.md`](../skills/AGENTS_FRONTEND_POOL_CREATED.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + one-sided CTAs + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)).
 
-**Invariants (dApp, P547-1–P547-10):**
+**Invariants (dApp, P547-1–P547-10, P662-1–P662-8):**
 
 | ID | Meaning |
 |----|---------|
 | **P547-1** | Primary list is a `<table>` (`data-testid="pool-pairs-table"`), not stacked `PoolCard`. |
 | **P547-2** | Sortable headers: label + caret next to the text; `aria-sort` on the active column. No Sort/Order dropdowns. |
 | **P547-3** | Default (empty search, no column click) is **catalog rank**: fetch `limit=500` `sort=volume_24h&order=desc`, client `sortIndexerPairsByCatalog`, paginate 20. UST1-hub economic pairs first, gems last on LocalTerra (**P534-1–P534-4**). Production omits gems entirely ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-3**). |
-| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created **cells** show `—` because `GET /api/v1/pairs` list JSON has no timestamp (sort still hits indexer `created`). |
+| **P547-4** | Column sort uses indexer keys (`symbol`, `volume_24h`, `fee`, `created`) with **no** catalog overlay. Vol uses `formatQuoteVolume24h`. Visible header stays **Vol**; `title` discloses trailing 24h ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) **U6**). Created cells show relative age from list JSON `created_at` ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662) **P662-3**); `—` only when the field is missing or unparsable. Sort `created` orders by indexer first-seen `pairs.created_at` (default **desc**), not `created_at_block`. After `--fresh` / DB rebuild every pair looks recent — that caveat lives in this table, not a page lecture ([#489](#retail-copy-cognitive-load)). |
+| **P662-1** | `GET /api/v1/pairs`, `GET /api/v1/pairs/{addr}`, and `GET /api/v1/tokens/{addr}/pairs` share one `PairResponse` with additive RFC3339 `created_at` from `pairs.created_at` (indexer first-seen, not factory genesis). |
+| **P662-2** | `sort=created` is `ORDER BY p.created_at {ASC\|DESC}, p.id ASC`. Default order **desc**. Invalid `sort` still **400**. |
+| **P662-3** | Visible Created cell is `formatRelativeAge` (`N minutes/hours/days/years ago` or `just now`) or `—`. `data-testid="pool-row-created"` stays. Optional `title` is locale absolute time from a parsed instant — never the raw string. |
+| **P662-4** | No per-row LCD / extra indexer GET / interval timer for age (**P547-9**). Format at render from `Date.now()`. |
+| **P662-5** | Catalog default has **no** Created caret. Clicking Created uses indexer sort (no catalog overlay), default desc. Search stays `relevance`. Production still omits gems (**P562-3**). |
+| **P662-6** | Parse ISO-8601 only. HTML, `javascript:`, unix-ms/s, year 0, far-future → `—`. React text children only. |
+| **P662-7** | Do not claim on-chain genesis in UI copy. `#655` LP USD is a different column and must not collide on `created_at`. |
+| **P662-8** | Do not raise `PAIR_LIST_LIMIT_MAX` or rename `volume_quote_24h` for this field. Manage `colSpan` still matches column count. Light + dark; phone table still `overflow-x-auto`. |
 | **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
 | **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |
 | **P547-7** | How-to hint **and** `<details>` dismiss together; `#lp-howto` restores (**H531-7**). |
@@ -1818,9 +1826,9 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 
 **Charts deep link:** `/charts` and `/charts/:pairAddr`. Invalid param: stay on Charts, short notice, no XSS. Unknown valid `terra1`: “Pair not found,” no crash. Helpers: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts).
 
-**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`. Issues: [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112).
+**Code:** `frontend-dapp/src/pages/PoolPage.tsx`, `PoolPairsTable.tsx`, `PoolAdvancedManage.tsx`, `poolListQuery.ts`, `formatDate.ts`. Issues: [glab#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), [glab#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662), [glab#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112). Playbook: [`AGENTS_FRONTEND_POOL_CREATED.md`](../skills/AGENTS_FRONTEND_POOL_CREATED.md).
 
-**Verify:** `make verify-issue-547`.
+**Verify:** `make verify-issue-547` · `make verify-issue-662`.
 
 **Agent workflow (optional):** For reviewable follow-up PRs or merge-ready checks in Cursor, use the **split to PRs** and **babysit** skills from your [Cursor skills](https://docs.cursor.com/context/skills) path (e.g. `~/.cursor/skills-cursor/` on a developer machine).
 

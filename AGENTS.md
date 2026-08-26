@@ -178,6 +178,8 @@ make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + 
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
 make verify-issue-630                    # #630 LUNC/USTC picker labels (registry beats indexer uluna/uusd)
 make verify-issue-651                    # #651 /tiers phone-width cards + How it works (Vitest + docs)
+make verify-issue-662                    # #662 /pool Created relative age from indexer created_at
+make verify-issue-662                    # #662 /pool Created relative age from indexer created_at
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
 make verify-issue-626                    # #626 free listed-template adopt + Terraport/GDEX LP gate
 make verify-issue-627                    # #627 columbus-5 CW20 code 3 adopt+list NO-GO (REPORT + AdoptLegacyLayout)
@@ -363,6 +365,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md](skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) — `/trade` full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell side control (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)); `make verify-issue-563`
 - [skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md](skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) — My open limits Cancel vs stale `●` row / fill lifecycle / `/trade` reachability (**F530-1–F530-8**, [#530](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/530)); `make verify-issue-530`
 - [skills/AGENTS_FRONTEND_POOL_TABLE.md](skills/AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` sortable table, UST1-first catalog default, Charts `/charts/:pairAddr` (**P547-1–P547-10**, [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)); `make verify-issue-547`
+- [skills/AGENTS_FRONTEND_POOL_CREATED.md](skills/AGENTS_FRONTEND_POOL_CREATED.md) — `/pool` Created relative age from indexer first-seen `created_at` (**P662-1–P662-8**, [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)); `make verify-issue-662`
 - [skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md](skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md) — retail how-to for LUNC v2 LP + maker-limit disambiguation; no incentive program ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531))
 - [skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md](skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md) — one-sided pool add/withdraw (auto zap + wrap; **Z533-1–Z533-10**, [#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)); `make verify-issue-533`
 - [skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md](skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) — zap-in/out execution follows floors, not optimistic quotes (**Z559-1–Z559-4**, [#559](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/559)); `make verify-issue-559`

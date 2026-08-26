@@ -156,6 +156,11 @@ export interface IndexerPair {
   code_id_frozen?: boolean
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
+  /**
+   * Indexer first-seen ISO-8601 UTC (`pairs.created_at`). Optional so old payloads / mocks still type-check.
+   * Not factory CreatePair genesis (GitLab #662).
+   */
+  created_at?: string
 }
 
 /** Paginated response from `GET /api/v1/pairs` */

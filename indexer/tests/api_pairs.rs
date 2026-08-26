@@ -1,8 +1,16 @@
 mod common;
 
 use axum_test::TestServer;
+use chrono::{Duration, Utc};
 use serde_json::Value;
 use serial_test::serial;
+
+fn assert_created_at_rfc3339(v: &Value) {
+    let s = v
+        .as_str()
+        .expect("created_at must be an ISO-8601 string (GitLab #662)");
+    chrono::DateTime::parse_from_rfc3339(s).expect("created_at RFC3339");
+}
 
 #[serial]
 #[tokio::test]
@@ -29,6 +37,7 @@ async fn list_pairs_returns_200() {
     assert!(pair["is_active"].as_bool().unwrap());
     assert_eq!(pair["code_id_frozen"].as_bool().unwrap(), false);
     assert!(pair["volume_quote_24h"].is_string());
+    assert_created_at_rfc3339(&pair["created_at"]);
 
     // Pagination, sort, search (same server / DB to avoid parallel seed conflicts)
     let resp = server
@@ -51,6 +60,75 @@ async fn list_pairs_returns_200() {
     resp.assert_status_bad_request();
 
     let resp = server.get("/api/v1/pairs?offset=99999").await;
+    resp.assert_status_bad_request();
+}
+
+/// GitLab #662: list JSON `created_at` + `sort=created` uses `pairs.created_at` (newest first by default).
+#[serial]
+#[tokio::test]
+async fn list_pairs_sort_created_orders_by_created_at() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    let pair_new = "terra1paircontractxyz";
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ($1, $2, $3, 'terra1lptoken2', 30)",
+    )
+    .bind(pair_new)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .expect("insert second pair");
+
+    let old_ts = Utc::now() - Duration::days(400);
+    let new_ts = Utc::now();
+    sqlx::query("UPDATE pairs SET created_at = $1 WHERE contract_address = $2")
+        .bind(old_ts)
+        .bind(&seed.pair_address)
+        .execute(&pool)
+        .await
+        .expect("age seed pair");
+    sqlx::query("UPDATE pairs SET created_at = $1 WHERE contract_address = $2")
+        .bind(new_ts)
+        .bind(pair_new)
+        .execute(&pool)
+        .await
+        .expect("stamp newer pair");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server.get("/api/v1/pairs?sort=created&order=desc").await;
+    resp.assert_status_ok();
+    let desc: Value = resp.json();
+    let desc_items = desc["items"].as_array().unwrap();
+    assert!(desc_items.len() >= 2);
+    assert_eq!(desc_items[0]["pair_address"], pair_new);
+    assert_eq!(desc_items[1]["pair_address"], seed.pair_address);
+    assert_created_at_rfc3339(&desc_items[0]["created_at"]);
+    assert_created_at_rfc3339(&desc_items[1]["created_at"]);
+
+    let resp = server.get("/api/v1/pairs?sort=created&order=asc").await;
+    resp.assert_status_ok();
+    let asc: Value = resp.json();
+    let asc_items = asc["items"].as_array().unwrap();
+    assert_eq!(asc_items[0]["pair_address"], seed.pair_address);
+    assert_eq!(asc_items[1]["pair_address"], pair_new);
+
+    let resp = server.get("/api/v1/pairs?sort=created").await;
+    resp.assert_status_ok();
+    let default: Value = resp.json();
+    let default_items = default["items"].as_array().unwrap();
+    assert_eq!(
+        default_items[0]["pair_address"], pair_new,
+        "sort=created default order is desc (newest first)"
+    );
+
+    let resp = server.get("/api/v1/pairs?sort=created;drop").await;
+    resp.assert_status_bad_request();
+    let resp = server.get("/api/v1/pairs?sort=created_at").await;
     resp.assert_status_bad_request();
 }
 
@@ -115,6 +193,7 @@ async fn get_pair_returns_pair() {
     assert_eq!(body["pair_address"], seed.pair_address);
     assert_eq!(body["asset_0"]["symbol"], "LUNC");
     assert_eq!(body["asset_1"]["symbol"], "USTC");
+    assert_created_at_rfc3339(&body["created_at"]);
 }
 
 #[serial]
@@ -452,7 +531,9 @@ async fn list_pairs_relevance_ordering() {
     assert_eq!(items[0]["pair_address"], seed.pair_address);
 
     // Exact CW20 token address — tier 4.
-    let resp = server.get("/api/v1/pairs?q=terra1ustctoken&sort=relevance").await;
+    let resp = server
+        .get("/api/v1/pairs?q=terra1ustctoken&sort=relevance")
+        .await;
     resp.assert_status_ok();
     let body: Value = resp.json();
     let items = body["items"].as_array().unwrap();
@@ -502,10 +583,10 @@ async fn list_pairs_relevance_ordering() {
 #[serial]
 #[tokio::test]
 async fn pair_api_flags_code_id_frozen() {
-    use std::collections::HashSet;
     use cl8y_dex_indexer::indexer::asset_code_id_freeze::{
         replace_frozen_pair_addresses, snapshot_frozen_pair_addresses,
     };
+    use std::collections::HashSet;
 
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;

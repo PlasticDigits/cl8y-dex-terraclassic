@@ -182,18 +182,7 @@ pub async fn get_token_pairs(
     let mut result = Vec::new();
     for p in &pair_rows {
         if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
-            result.push(super::pairs::PairResponse {
-                pair_address: p.contract_address.clone(),
-                asset_0: super::pairs::AssetBrief::from(a0),
-                asset_1: super::pairs::AssetBrief::from(a1),
-                lp_token: p.lp_token.clone(),
-                fee_bps: p.fee_bps,
-                is_active: true,
-                code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
-                    &p.contract_address,
-                ),
-                volume_quote_24h: None,
-            });
+            result.push(super::pairs::pair_to_response(p, a0, a1, None));
         }
     }
 
