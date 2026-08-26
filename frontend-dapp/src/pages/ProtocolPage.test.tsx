@@ -233,13 +233,42 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(stats).getByTestId('protocol-stat-volume-7d')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-30d')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-tokens')).toBeInTheDocument()
+    expect(within(stats).getByTestId('protocol-stat-tokens')).toHaveTextContent('15')
+    expect(within(stats).getByTestId('protocol-stat-tokens').textContent).not.toMatch(/15\.00/)
     expect(within(stats).getByTestId('protocol-stat-tokens-added')).toBeInTheDocument()
+    expect(within(stats).getByTestId('protocol-stat-volume-24h').querySelector('.stat-value-row')).toBeTruthy()
+    expect(
+      within(stats).getByTestId('protocol-stat-volume-24h').querySelector('.stat-value-row')?.className
+    ).not.toMatch(/justify-between/)
     expect(within(stats).getByTestId('protocol-stat-pairs-added')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-active-pairs')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-trades-24h')).toBeInTheDocument()
     expect(screen.queryByText('999999')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Recent USTC\/USD history/i })).not.toBeInTheDocument()
     expect(screen.getAllByTestId('protocol-oracle')).toHaveLength(1)
+  })
+
+  it('renders census integers without trailing decimals (GitLab #667)', async () => {
+    vi.mocked(indexerClient.getOverview).mockResolvedValue({
+      ...overviewOk,
+      token_count: 14,
+      tokens_added_30d: 8,
+      pairs_added_30d: 7,
+      active_pairs_24h: 5,
+      total_trades_24h: 151,
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const stats = await screen.findByTestId('protocol-global-stats')
+    await waitFor(() => {
+      expect(within(stats).getByTestId('protocol-stat-tokens')).toHaveTextContent('14')
+    })
+    expect(within(stats).getByTestId('protocol-stat-tokens').textContent).not.toMatch(/14\.00/)
+    expect(within(stats).getByTestId('protocol-stat-tokens-added')).toHaveTextContent('8')
+    expect(within(stats).getByTestId('protocol-stat-tokens-added').textContent).not.toMatch(/8\.000/)
+    expect(within(stats).getByTestId('protocol-stat-pairs-added')).toHaveTextContent('7')
+    expect(within(stats).getByTestId('protocol-stat-active-pairs')).toHaveTextContent('5')
+    expect(within(stats).getByTestId('protocol-stat-trades-24h')).toHaveTextContent('151')
+    expect(within(stats).getByTestId('protocol-stat-tokens').querySelector('.stat-delta-cluster')).toBeNull()
   })
 
   it('discloses trailing 24h/7d/30d volume without a lecture banner (GitLab #576)', async () => {

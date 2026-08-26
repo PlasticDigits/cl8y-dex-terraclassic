@@ -62,3 +62,4 @@ Vitest: `TiersPage.test.tsx` plus existing `formatAmount` / `limitOrderFeeSummar
 - [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) — tokens / no `*-neo`
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no fee-trivia banners
 - [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) — do not mix with #632
+- [`AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](./AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md) — `/token/create` desktop density (#669); opposite breakpoint, do not mix

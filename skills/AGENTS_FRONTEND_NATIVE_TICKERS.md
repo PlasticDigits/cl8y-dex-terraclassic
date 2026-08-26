@@ -61,3 +61,4 @@ Vitest: `tokenDisplay.test.ts`, `tokenRegistry.test.ts`, `tokenSearchQuery.test.
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — natives never selectable
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no denom essays
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — `uluna` stays economic
+- [`AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](./AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md) — Manage provide labels use LUNC/cLUNC not Asset A (#661)

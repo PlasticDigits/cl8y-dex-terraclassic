@@ -134,7 +134,7 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {STATS.map((stat) => (
-          <div key={stat.testId} data-testid={stat.testId}>
+          <div key={stat.testId} data-testid={stat.testId} className="min-w-0 overflow-hidden">
             <StatBox
               variant="flat"
               label={stat.label}

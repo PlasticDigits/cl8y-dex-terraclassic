@@ -1,8 +1,8 @@
-# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586)
+# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586 / #652 / #667 / #668)
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -38,7 +38,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P569-4** | Same USD catalog as volume: USTC/cUSTC/`uusd` → USTC oracle; LUNC/cLUNC/`uluna` → LUNC; UST1/USTR → `hub_prices`. Never `$1` UST1 or `2.5×` USTR. Oracle/hub down → omit that handle. |
 | **P569-5** | Both legs priced → `h0×usd0 + h1×usd1`. Exactly one catalogued → `2×` that leg (CPAMM). Neither → omit. Omitted ≠ `$0`. Identity is contract/denom (A1); spoof natives skipped. |
 | **P569-6** | Humanize decimals (`humanize_raw_amount` + `fits_numeric_38_18`). Overflow / non-positive → skip the pair. Double-count across pools is correct. |
-| **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Optional UTC grain bar chart (`protocol-volume-daily-chart`, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668)) sits under the volume row. Do not headline `unique_traders_24h`. Charts overview strip stays additive-compatible. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
+| **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Δ% is visually grouped with its headline (`justify-start` / wrap via `.stat-value-row`), not spaced `justify-between` to the next column ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1**). Optional UTC grain bar chart (`protocol-volume-daily-chart`, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668)) sits under the volume row. Do not headline `unique_traders_24h`. Charts overview strip stays additive-compatible. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **P569-8** | Cold start / `--fresh` / indexer younger than 24h/30d → Δ% empty until windows fill. Copy must not claim on-chain 30d genesis TVL. Flash LP inside one snapshot interval may move current TVL; Δ% uses snapshots. |
 
 ## Do / don’t
@@ -64,7 +64,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | ID | Rule |
 |----|------|
 | **PFee-1** | Fee panel `protocol-fee-stats` sits **after** Global stats and **before** DEX hub. Do not merge factory/router into fees. Do not headline `traders.total_fees_paid` (lifetime mixed-unit, includes spread). |
-| **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD with **inline** flow Δ% vs the prior equal window (same cell; `protocol-stat-fees-*-chg` is a child, not a sibling card). Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. Flat `StatBox` inside `protocol-fee-stats` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
+| **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD with **inline** flow Δ% vs the prior equal window (same cell; `protocol-stat-fees-*-chg` is a child, not a sibling card). Δ% sits immediately after the USD (`justify-start` / wrap), not in the gutter under the next fee label ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1**). Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. Flat `StatBox` inside `protocol-fee-stats` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **PFee-3** | Source table uses retail labels (wrap / unwrap / **UST1 mint** / **UST1 redeem** / AMM swap / book take / limit place), not wasm action strings (`deposit` / `withdraw` / `effective_swap`). Unconfigured wrap mapper **omits** wrap/unwrap. Unconfigured `UST1_WINDOW_ADDRESS` (or missing `ust1_window_configured`) **omits** mint/redeem — not fake idle `$0`. Hide idle `$0` sources. |
 | **PFee-4** | Token table is human units + USD, cap 8 + `other`. Unpriced token shows human + USD `—`. XSS/`javascript:` symbols render as **text**. |
 | **PFee-5** | Hybrid fee = pool `commission_amount` (`swap_amm`) + `limit_order_fills.commission_amount` (`book_take`) — **not both** fill commission and swap `book_commission_amount`. Placement `maker_fee_amount` is `limit_place`. |
@@ -86,8 +86,22 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P652-3** | `GET /api/v1/protocol/volume/daily?days=` allowlist `7` \| `30` else **400** when `grain` is omitted. 60s cache keyed by allowlisted `days`. Reads `protocol_daily_volume` only. Do **not** N+1 Llama `GET /defillama/daily`. Do **not** add `from`/`to` to Llama. Daily prune ≥ 95d so `grain=daily&limit=90` can fill. |
 | **P652-4** | Daily methodology = Protocol catalog (same as overview volume). Includes gems / wrap / window swaps. Idle day → `"0"`; activity + unpriced → `null`. Missing rollup row → idle `"0"`. Newest-last. Alias cap 30 points; grain daily cap **90** (**P668-4**). |
 | **P652-5** | Chart is bars inside `protocol-global-stats` (`protocol-volume-daily-chart`). Hide on 404/501. Do not mount `PriceChart`. Selector is **Hourly / Daily / Monthly** (default Daily) — not `7d` / `30d`. Subtitle names the UTC bucket (hour / calendar day / calendar month). No unique-trader headline. Extended by **P668**. |
-| **P652-6** | Census tiles stay value-only. Old indexer (missing keys / daily route) → tiles still render; Δ% em-dash; chart hidden. |
-| **P652-7** | Verify: `make verify-issue-652`. Keep `verify-issue-550` / `569` / `586` / `576` / `577` / `631` green. Companion chrome pass: [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653). Grain chart: `make verify-issue-668`. |
+| **P652-6** | Census tiles stay value-only. Integers render as locale counts (`14`, not `14.00`); compact `K` only when `abs ≥ 1000` (`formatProtocolCount`, [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-3**). Old indexer (missing keys / daily route) → tiles still render; Δ% em-dash; chart hidden. |
+| **P652-7** | Verify: `make verify-issue-652`. Keep `verify-issue-550` / `569` / `586` / `576` / `577` / `631` green. Companion chrome pass: [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653). Visual grouping: `make verify-issue-667`. Grain chart: `make verify-issue-668`. |
+
+## Invariants (P667 — GitLab #667)
+
+DOM parentage from [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) is not enough: `justify-between` pinned Δ% to the cell’s far right so operators read the chip as the **next** column’s figure. Grouping is layout, not a new stat.
+
+| ID | Rule |
+|----|------|
+| **P667-1** | Value+Δ% row uses `.stat-value-row` (`justify-start` / wrap). Headline first; Δ% cluster immediately after. On wrap, chips go to the next line of the **same** cell, left-aligned under the `$`. Never `justify-between`. Never a sibling card. |
+| **P667-2** | Chip bounding box stays inside its own `protocol-stat-*` tile (`chip.right ≤ tile.right` and, when the neighbor is on the same row, `chip.left < nextTile.left`). Phone 390 / tablet 820 wrap is OK. Liquidity keeps 24h+30d in one `.stat-delta-cluster`. Em-dash (`— 30d`) still groups with its headline. |
+| **P667-3** | `formatProtocolCount` is integer census: finite ≥0 → locale string under 1000 (`14`, not `14.00`); compact `K` only when `abs ≥ 1000`; missing / non-finite / negative / XSS-like → em-dash. Census tiles stay value-only (**P652-6**). |
+| **P667-4** | Verify: `make verify-issue-667`. Keep `verify-issue-652` / `550` / `569` / `586` / `653` green. No overview JSON / indexer / wasm change. No-Δ% `StatBox` call sites (Charts / Trader) stay label+value. |
+
+Do **not** invent a Protocol-only `StatBox` variant. The same value-row class serves fees and any future Δ% tile. Do **not** add a lecture banner about “Δ% is next to the number.”
+
 
 ## Invariants (P668 — GitLab #668)
 
@@ -111,6 +125,7 @@ make verify-issue-613
 make verify-issue-614
 make verify-issue-668
 make verify-issue-652
+make verify-issue-667
 make verify-issue-586
 make verify-issue-569
 make verify-issue-550
@@ -131,5 +146,6 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 - [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — `/ust1` execute; CEX/hub cards are **not** the window rate (**P550-11**). Window treasury fees: **PFee-13** / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)
 - [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — live wrap/window leftovers after !409–!413 ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616))
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays
-- [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — Global stats / fees / oracle chips are `flat` (#653); inline Δ% is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)
+- [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — Global stats / fees / oracle chips are `flat` (#653); inline Δ% parentage is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652); visual grouping is [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576)
+- [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts pair TVL chip reuses **P569** `protocol_pair_tvl` (#664); `/pool` column is #655

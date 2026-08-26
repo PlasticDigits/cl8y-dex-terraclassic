@@ -1,10 +1,10 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
-use super::{build_asset_map, internal_err, AppState};
+use super::{AppState, build_asset_map, internal_err};
 use crate::db::queries::{assets, pairs as db_pairs, volume};
 
 const TOKEN_LIST_LIMIT_DEFAULT: i64 = 200;
@@ -193,6 +193,7 @@ pub async fn get_token_pairs(
                     &p.contract_address,
                 ),
                 volume_quote_24h: None,
+                liquidity_usd: None,
             });
         }
     }

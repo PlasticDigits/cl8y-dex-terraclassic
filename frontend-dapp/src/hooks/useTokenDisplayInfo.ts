@@ -8,13 +8,16 @@ import {
   getTokenLogoURI,
   shortenAddress,
   isAddressLike,
+  usablePoolAssetName,
 } from '@/utils/tokenDisplay'
 import { resolveTrustedTokenLogoUrl } from '@/utils/tokenLogoAllowlist'
-import { registryProductSymbol } from '@/utils/tokenRegistry'
+import { lookupByTokenId, registryProductSymbol } from '@/utils/tokenRegistry'
 
 export interface TokenDisplayInfo {
   displayLabel: string
   symbol: string
+  /** Registry name or short allowlisted indexer name. Formatter collapses when equal to symbol. */
+  name: string | undefined
   addressForBlockie: string | undefined
   logoURI: string | undefined
 }
@@ -68,16 +71,19 @@ export function useTokenDisplayInfo(info: AssetInfo | null): TokenDisplayInfo {
   }, [tokenId, isCw20])
 
   if (!tokenId) {
-    return { displayLabel: '--', symbol: '', addressForBlockie: undefined, logoURI: undefined }
+    return { displayLabel: '--', symbol: '', name: undefined, addressForBlockie: undefined, logoURI: undefined }
   }
 
   const chainSymbol = resolved ?? (isAddressLike(tokenId) ? shortenAddress(tokenId) : tokenId)
   // Registry product tickers (LUNC/USTC/cLUNC/cUSTC/…) beat indexer/on-chain text (#507, #630).
-  const productSymbol = registryProductSymbol(tokenId)
+  const registry = lookupByTokenId(tokenId)
+  const productSymbol = registry?.symbol ?? registryProductSymbol(tokenId)
   const symbol = productSymbol || indexerMeta?.symbol?.trim() || chainSymbol
+  const indexerName = indexerMeta?.name?.trim()
+  const name = registry?.name || (usablePoolAssetName(indexerName, symbol) ? indexerName : undefined)
   const addressForBlockie = isCw20 ? tokenId : undefined
   const rawLogo = indexerMeta?.logo_url?.trim() || (info ? getTokenLogoURI(info) : undefined) || undefined
   const logoURI = resolveTrustedTokenLogoUrl(rawLogo)
 
-  return { displayLabel: symbol, symbol, addressForBlockie, logoURI }
+  return { displayLabel: symbol, symbol, name, addressForBlockie, logoURI }
 }

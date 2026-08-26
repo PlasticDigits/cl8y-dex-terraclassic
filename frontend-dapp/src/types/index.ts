@@ -156,6 +156,11 @@ export interface IndexerPair {
   code_id_frozen?: boolean
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
+  /**
+   * Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp).
+   * Single-pair GET (#664); list JOIN is #655. Omit / null when unpriced — never invent `$0`.
+   */
+  liquidity_usd?: string | null
 }
 
 /** Paginated response from `GET /api/v1/pairs` */
