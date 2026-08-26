@@ -1961,12 +1961,33 @@ Retail **0.5 / 1 / 5%** chips on `/trade` Market and Swap Settings are one contr
 
 ### Tiers Page
 
-The `/tiers` page allows users to:
-- View all available discount tiers with CL8Y requirements
-- See their current CL8Y balance and eligible tiers
-- Register for a tier (sends a `Register` transaction)
-- Deregister from their current tier
-- View their active registration status
+The `/tiers` page is the only retail surface that **registers** a wallet for a fee-discount tier ([I12](./reference/fee-discount-tiers.md)). Holding CL8Y alone does not apply a discount. Canonical minima / bps live in [`docs/reference/fee-discount-tiers.md`](./reference/fee-discount-tiers.md) — do **not** duplicate that numeric ladder here.
+
+The page:
+- Lists **self-register** tiers only (`governance_only: false`, IDs **1–9**; I3)
+- Shows **Hold {human} CL8Y** via `formatTokenAmountAbbrev` at 18 decimals (I12 / [#476](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/476))
+- Shows `{discount}%` + **fee discount** and `{eff}%` + **eff. fee*** from `discount_bps` + factory `default_fee_bps` (I4). Do not apply a wallet `get_discount` to the published ladder. Pair-scoped chrome stays on Swap / Pool / Trade ([#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537) / I14)
+- Shows How it works **Limit place*** from `limit_discount_bps` (I13 / [#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514); tier 9 place = 0)
+- Lets a connected, non-governance wallet **Register** / **Deregister** (msgs and gas unchanged — [#384](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/384))
+
+#### Phone-width card + How it works ([#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651))
+
+QA **11.1.4** is the phone-width `/tiers` checklist. Layout only — do not change execute msgs, `GetTiers` / `GetRegistration`, or invent discounts.
+
+| ID | Rule |
+|----|------|
+| **T651-1** | At ≤390px CSS width (and 375×667), each self-register card shows **Tier N** on one line and **Hold {n} CL8Y** as one unbreakable phrase (`whitespace-nowrap` on `data-testid="tier-hold-{id}"`). Live abbrev is OK (`Hold 7.5K CL8Y`). No `truncate` / ellipsis that hides magnitude. |
+| **T651-2** | Do **not** reserve an empty Register column (`w-28`) when the button is absent. Disconnected and current-tier rows have no dead 112px gap. |
+| **T651-3** | Fee cluster phrases stay intact: `{pct}` + `fee discount` and `{pct}` + `eff. fee*` (`whitespace-nowrap`). No one-word-per-line wrap of `FEE` / `DISCOUNT`. |
+| **T651-4** | When Register is shown, it is a full-width second row on `<md` (`min-h-11` ≥ 44px), `data-testid="register-tier-{id}"`. One button per card; `onRegister(tier_id)` matches that row. `z-index` stays below header Connect / Legal / WalletConnect (`z-[9999]`). |
+| **T651-5** | Connected + registered: **Your Status** shows Active + Deregister; the current card has no Register; other self-register rows still do. Governance 0 / 255 never appear in the self-register list. |
+| **T651-6** | How it works on `<md` is stacked labeled rows (`data-testid="tiers-how-it-works-mobile"`), not a squeezed `grid-cols-5`. Desktop ≥768 keeps the five-column table. **Limit place*** stays visible (I13). |
+| **T651-7** | Display-only: no new indexer / contract surface; LCD fields render as text (no `dangerouslySetInnerHTML`); no ghost disabled Register when disconnected; pending Register disables every row button. |
+| **T651-8** | `btn-primary` / `btn-muted` / `shell-panel-strong`; `var(--ink)` / `--mint` (alias blue). No `*-neo`. No always-on fee-trivia banner ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). Not a `visualViewport` picker issue ([#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)). |
+
+**Verify:** `make verify-issue-651` — Vitest `TiersPage.test.tsx` + docs/skills **T651-1–T651-8**. Playwright `e2e/fee-tiers.spec.ts` phone viewports (390 / 375) when LocalTerra is up (5 workers, no `e2e-tx`).
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TIERS_PHONE.md`](../skills/AGENTS_FRONTEND_TIERS_PHONE.md), [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md).
 
 ## Environment Variables
 
