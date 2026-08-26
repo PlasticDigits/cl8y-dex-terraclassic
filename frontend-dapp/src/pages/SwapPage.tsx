@@ -1517,7 +1517,7 @@ export default function SwapPage() {
               )}
             </div>
 
-            <div className="relative z-20 flex justify-center pointer-events-none -my-5 sm:-my-[22px]">
+            <div className="swap-direction-seam relative z-20 flex justify-center pointer-events-none -my-5 sm:-my-[22px]">
               <button
                 type="button"
                 aria-label="Swap pay and receive tokens"
@@ -1528,7 +1528,7 @@ export default function SwapPage() {
                   setToToken(tmp)
                   setShowImpactConfirm(false)
                 }}
-                className="pointer-events-auto swap-direction-btn w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center transition-all hover:-translate-y-0.5"
+                className="pointer-events-auto swap-direction-btn w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center transition-colors"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path

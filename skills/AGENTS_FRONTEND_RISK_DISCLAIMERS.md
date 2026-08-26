@@ -31,6 +31,8 @@ Use when changing **NFA / risk copy**, **`RiskAcknowledgementModal`**, **`Enviro
 
 ## Related
 
+- **Connected Legal clickwrap (wallet TermsGate, #517):** [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — do not replace this first-visit risk modal with clickwrap; sequence them.
+- **Official CL8Y product links (footer Homepage / Bridge, #663):** [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) — do not splice these into the NFA / Security / Report sentence or into header More.
 - **Connected Legal clickwrap (wallet TermsGate, #517):** [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — do not replace this first-visit risk modal with clickwrap; sequence them. Dismissing Connect **without** connecting must not look like an accepted session ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D8**).
 - Connect Wallet overlay dismiss (labeled Close / backdrop / Escape; must not weaken this gate): [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) (**D7**, [#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672))
 - Anti-cognitive-overload retail copy (on-card vs legal): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))

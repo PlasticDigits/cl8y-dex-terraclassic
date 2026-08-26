@@ -15,7 +15,7 @@ Use when changing **WalletConnect QR / pairing UX**, **Lunc Dash / Galaxy Statio
 | `frontend-dapp/node_modules/@goblinhunt/cosmes/.../QRCodeModal` (via patch) | Desktop QR unchanged; mobile delegates to the hook |
 | Connect list UI | [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) |
 | Clipboard | [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md) — pairing copy uses `CopyButton` `buttonLabel` |
-| Legal after WC | [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — Keplr-browser hint, no ADR-036 |
+| Legal after WC | [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — DEX-wallet hint (**not Keplr-only**, [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)), no ADR-036 |
 
 ## Invariants (WC-M1–WC-M12)
 
@@ -30,7 +30,7 @@ Use when changing **WalletConnect QR / pairing UX**, **Lunc Dash / Galaxy Statio
 9. **WC-M9 — Bounded connect.** Closing Connect, dismissing pairing (Close / backdrop / Escape), header **Cancel**, or the WC timeout must abort pending `controller.connect()`, clear `isConnecting`, and ignore a late session. Header CTA must not stay a spinner-only disabled button. Shared overlay dismiss is [#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D6**.
 10. **WC-M10 — Mobile extension WalletConnect.** When `isWalletConnectMobileClient()` and the matching extension is absent, offer **Keplr / Station / Cosmostation via WalletConnect** — not Install-only. Injected extension (in-app) stays Extension (**WC-M7**). Keplr: [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554). Station + Cosmostation: [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566). **Do not re-add Leap** ([#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)).
 11. **WC-M11 — Android Galaxy intent.** Cosmes `https://…#Intent;…` templates must become `intent://` hrefs on Android. Do not leave Chrome to open the Hexxagon website instead of the app.
-12. **WC-M12 — Legal next step.** After WC connect without `window.keplr`, show **Open this site in the Keplr browser to accept terms.** Do not implement ADR-036 in the DEX (**C1**). Portal signing stays in `cl8y-ecosystem-legal`.
+12. **WC-M12 — Legal next step (not Keplr-only).** After WC connect without a keplr-like signer injector (`window.keplr`, `window.station?.keplr`, or `window.cosmostation?.providers?.keplr`), show a **multi-wallet or connected-wallet** hint (Station, Keplr, Cosmostation, Lunc Dash, Galaxy Station — **not Leap**). Hide the hint when any of those injectors is present. Do not implement ADR-036 in the DEX (**C1** / **L658**). Portal signing stays in `cl8y-ecosystem-legal`. [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658) retargets the #554 Keplr-only sentence.
 
 ## Lunc Dash scheme
 
@@ -51,6 +51,7 @@ Cosmes already used `luncdash://wallet_connect?payload=<encoded wc:>`. Keep that
 make verify-issue-566
 make verify-issue-554
 make verify-issue-519
+make verify-issue-658
 # or:
 bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
   src/utils/__tests__/walletConnectPairing.test.ts \
@@ -72,5 +73,5 @@ Manual: Android Chrome → Connect → Station / Cosmostation / Lunc Dash / Gala
 - Cosmes fork / `postinstall`: [docs/frontend.md § Forked cosmes](../docs/frontend.md#cosmes-fork-patches) · [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Copy primitive: [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md)
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
-- Legal clickwrap (no ADR-036): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md)
+- Legal clickwrap (no ADR-036; **WC-M12** / **L658** not Keplr-only): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
 - Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
