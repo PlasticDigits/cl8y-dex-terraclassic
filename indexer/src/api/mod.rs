@@ -9,6 +9,7 @@ mod community_tax_rank;
 mod community_tokens;
 mod compliance;
 mod defillama;
+mod gt;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use defillama::reset_defillama_cache;
 mod consolidated_stats;
@@ -327,6 +328,10 @@ pub async fn find_pair_by_ticker(
         cg::cg_tickers,
         cg::cg_orderbook,
         cg::cg_historical_trades,
+        gt::gt_latest_block,
+        gt::gt_asset,
+        gt::gt_pair,
+        gt::gt_events,
         cmc::cmc_summary,
         cmc::cmc_assets,
         cmc::cmc_ticker,
@@ -396,6 +401,10 @@ pub async fn find_pair_by_ticker(
         cg::CgOrderbookResponse,
         cg::CgTradeEntry,
         cg::CgHistoricalTradesResponse,
+        gt::GtLatestBlockResponse,
+        gt::GtAssetResponse,
+        gt::GtPairResponse,
+        gt::GtEventsResponse,
         cmc::CmcSummaryEntry,
         cmc::CmcAssetEntry,
         cmc::CmcTickerEntry,
@@ -420,6 +429,7 @@ pub async fn find_pair_by_ticker(
         (name = "Oracle", description = "External USTC/USD and LUNC/USD reference feeds"),
         (name = "DeFiLlama", description = "UTC-day volume/fees for DeFiLlama dimension adapters (GitLab #631)"),
         (name = "CoinGecko", description = "CoinGecko-compatible endpoints"),
+        (name = "GeckoTerminal", description = "Non-EVM Integration API (/gt) — GitLab #646"),
         (name = "CoinMarketCap", description = "CoinMarketCap-compatible endpoints"),
         (name = "Hooks", description = "Post-swap hook execution events"),
     )
@@ -600,6 +610,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             "/api/v1/oracle/history/{ticker}",
             get(oracle::get_oracle_history),
         )
+        .route("/gt/latest-block", get(gt::gt_latest_block))
+        .route("/gt/asset", get(gt::gt_asset))
+        .route("/gt/pair", get(gt::gt_pair))
+        .route("/gt/events", get(gt::gt_events))
         .route("/cg/pairs", get(cg::cg_pairs))
         .route("/cg/tickers", get(cg::cg_tickers))
         // /cg/orderbook + /cmc/orderbook/{market_pair} moved to lcd_heavy_router (#278)

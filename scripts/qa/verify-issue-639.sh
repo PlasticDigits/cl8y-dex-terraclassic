@@ -67,6 +67,7 @@ run_step "docs: form drafts + no new indexer API" \
     test -f docs/listings/forms/coingecko-exchange.md && \
     test -f docs/listings/forms/coingecko-terra-classic-platform.md && \
     test -f docs/listings/forms/coinmarketcap-exchange.md && \
+    test -f docs/listings/forms/geckoterminal.md && \
     grep -qE "L639-3" docs/listings/forms/README.md && \
     grep -qE "listing-venue-catalog-gitlab-639" docs/integrators.md && \
     grep -qE "AGENTS_LISTINGS" docs/integrators.md && \

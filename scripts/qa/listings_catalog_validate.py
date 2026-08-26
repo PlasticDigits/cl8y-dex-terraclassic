@@ -40,6 +40,7 @@ REQUIRED_FORM_PACKS = {
     "coingecko-exchange": "docs/listings/forms/coingecko-exchange.md",
     "coingecko-terra-classic-platform": "docs/listings/forms/coingecko-terra-classic-platform.md",
     "coinmarketcap-exchange": "docs/listings/forms/coinmarketcap-exchange.md",
+    "geckoterminal": "docs/listings/forms/geckoterminal.md",
 }
 FORBIDDEN_PRO_HOSTS = ("api.coingecko.com", "pro-api.coingecko.com")
 PEG_RE = re.compile(r"\$1(?!\S)|peg(?:ged)?\s*(?:to\s*)?\$?1\b", re.I)

@@ -178,7 +178,8 @@
       "agentic": true,
       "priority": 7,
       "form": "https://forms.gle/zBLCAEv69b8YoFxV6",
-      "notes": "Terra Classic is not in GT networks. Non-EVM adapters + form. Not Uniswap-V2 auto-detect. Child vendors under scripts/geckoterminal/ if we go."
+      "form_pack": "docs/listings/forms/geckoterminal.md",
+      "notes": "Terra Classic is not in GT networks. DEX Addition + Non-EVM + form submitted 2026-08-26. Live /gt/ adapters (latest-block, asset, pair, events). /cg/ is CoinGecko exchange shape only."
     },
     {
       "id": "coinpaprika",

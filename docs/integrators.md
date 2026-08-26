@@ -220,7 +220,7 @@ Do **not** treat `/cg/*` or `/cmc/*` as Keplr wallet metadata. Related listing (
 
 ## Listing venue catalog (GitLab #639) {#listing-venue-catalog-gitlab-639}
 
-Places that can list CL8Y DEX stats, tokens, and wallet recognition (Cosmostation, Hexxagon, cosmos/chain-registry, CoinGecko/CMC forms, GeckoTerminal). This is a **catalog + go/no-go** — it does **not** add indexer endpoints. Exchange forms point at `https://indexer.dex.cl8y.com/cg/` and `/cmc/`, not CoinGecko Pro v3.
+Places that can list CL8Y DEX stats, tokens, and wallet recognition (Cosmostation, Hexxagon, cosmos/chain-registry, CoinGecko/CMC forms, GeckoTerminal). The **#639 catalog** does not add indexer endpoints. Exchange forms point at `https://indexer.dex.cl8y.com/cg/` and `/cmc/`, not CoinGecko Pro v3. GeckoTerminal Non-EVM adapters are the **#646** child: `GET /gt/latest-block`, `/gt/asset`, `/gt/pair`, `/gt/events` (`make verify-issue-646`).
 
 Reuse the Keplr permanent-six pins (CL8Y 18, USTR 18, others 6). UST1 is an **unstablecoin** (never `$1`); USTR is not a stablecoin. Skip Coinhall, DexScreener, and LuncScan Telegram as if they were PRs.
 

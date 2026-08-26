@@ -14,5 +14,6 @@ Never point a form at CoinGecko Pro v3 (`api.coingecko.com`). Compliance shape: 
 | [coingecko-exchange.md](./coingecko-exchange.md) | CoinGecko Decentralized Spot Exchange | 4 |
 | [coingecko-terra-classic-platform.md](./coingecko-terra-classic-platform.md) | Add Terra Classic CW20 to `ceramicliberty-com` | 5 |
 | [coinmarketcap-exchange.md](./coinmarketcap-exchange.md) | CMC Add exchange | 6 |
+| [geckoterminal.md](./geckoterminal.md) | GeckoTerminal DEX Addition (Non-EVM) | 7 |
 
 Token listings for UST1 / USTR / wraps wait until the DEX page is visible (**L639-5**: UST1 is an unstablecoin, never `$1`).

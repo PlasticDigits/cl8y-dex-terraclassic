@@ -423,19 +423,16 @@ Recent trades for a specific market pair.
 
 ## GeckoTerminal (On-Chain)
 
-GeckoTerminal (owned by CoinGecko) crawls on-chain data directly from blockchain nodes. It does **not** require a self-hosted API.
+Terra Classic is **not** in GeckoTerminal `GET /api/v2/networks`, so Uniswap-V2 auto-detect is unavailable. Non-EVM listing uses the [Integration API](https://docs.google.com/document/d/1ufjAJUa6rGO9PBGJGwfBMn-XMk9NE0ow3_iMYrS3drk) on **our** indexer ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646)):
 
-### Requirements for GeckoTerminal Listing
+| Path | Notes |
+|------|--------|
+| `GET /gt/latest-block` | `last_indexed_height` |
+| `GET /gt/asset?id=` | CW20 or `uluna` / `uusd` |
+| `GET /gt/pair?id=` | `dexKey` = `cl8y` |
+| `GET /gt/events?fromBlock=&toBlock=` | Swaps + join/exit; gems excluded |
 
-1. **Network support**: Terra Classic must be supported as a network in GeckoTerminal. Check [GeckoTerminal Networks](https://api.geckoterminal.com/api/v2/networks) for current support.
-2. **Factory contract**: GeckoTerminal indexes pool creation events from DEX factory contracts. The factory must emit standard events when pairs are created.
-3. **Swap events**: Swap transactions must emit parseable events with amounts and assets.
-
-### If Terra Classic Is Not Supported
-
-If GeckoTerminal does not support Terra Classic natively, the `/cg/` endpoints above serve as a fallback for CoinGecko to list the DEX. Contact CoinGecko's listing team directly.
-
-**Verified 2026-08-25:** Terra Classic is **not** in `GET https://api.geckoterminal.com/api/v2/networks`. The listing path is Non-EVM adapters + the Google form — see [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) and [`listings/README.md`](./listings/README.md). Do not treat Uniswap-V2 auto-detect as available.
+Base: `https://indexer.dex.cl8y.com/gt`. Do **not** point GeckoTerminal at `/cg/*` (CoinGecko exchange shape). Form pack: [`listings/forms/geckoterminal.md`](./listings/forms/geckoterminal.md). Verify: `make verify-issue-646`.
 
 ---
 
