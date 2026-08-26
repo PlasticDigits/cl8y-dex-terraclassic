@@ -178,6 +178,7 @@ make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + 
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
 make verify-issue-630                    # #630 LUNC/USTC picker labels (registry beats indexer uluna/uusd)
 make verify-issue-651                    # #651 /tiers phone-width cards + How it works (Vitest + docs)
+make verify-issue-665                    # #665 trader profile Share (Web Share + clipboard)
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
 make verify-issue-626                    # #626 free listed-template adopt + Terraport/GDEX LP gate
 make verify-issue-627                    # #627 columbus-5 CW20 code 3 adopt+list NO-GO (REPORT + AdoptLegacyLayout)
@@ -357,6 +358,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md](skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) — compact copy + explorer for pair legs + pair contract on `/pool`, `/trade`, `/charts` (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)); `make verify-issue-541`
 - [skills/AGENTS_FRONTEND_NATIVE_TICKERS.md](skills/AGENTS_FRONTEND_NATIVE_TICKERS.md) — Swap/Pool/Pay/Mint show **LUNC** / **USTC** not `uluna` / `uusd` (**N630-1–N630-8**, [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)); `make verify-issue-630`
 - [skills/AGENTS_FRONTEND_TIERS_PHONE.md](skills/AGENTS_FRONTEND_TIERS_PHONE.md) — `/tiers` phone-width cards + How it works stack (**T651-1–T651-8** / **I15**, [#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)); `make verify-issue-651`
+- [skills/AGENTS_FRONTEND_SHARE_LINK.md](skills/AGENTS_FRONTEND_SHARE_LINK.md) — `/trader/:address` Share (Web Share + clipboard) (**TS-1–TS-13**, [#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665)); `make verify-issue-665`
 - [skills/AGENTS_LIMIT_PRICE_DECIMALS.md](skills/AGENTS_LIMIT_PRICE_DECIMALS.md) — limit-order price band is **human-scale** `raw × 10^(dec0 − dec1)` so UST1/USTR can place (**L20** / [#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529)); `make verify-issue-529`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md](skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) — `/trade` Place limit / Market CTA docks to ticket bottom; Chrome sticky mid-form float (**T527-1–T527-10**, [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527)); `make verify-issue-527`
 - [skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md](skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` desktop CSS grid (no drag-resize), independent tape row, hide book/ticket (**L561-1–L561-12**, [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)); `make verify-issue-561`

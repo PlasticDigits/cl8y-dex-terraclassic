@@ -45,7 +45,8 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 6. Keep **outage** handling aligned with [`TraderPage`](../frontend-dapp/src/pages/TraderPage.tsx) (`isIndexerUnavailableError`, `MarketDataServiceOutageBanner`). LP LCD failures are section-local (`RetryError`), not necessarily full-page outage.
 7. **No unbounded N+1** — use `getTraderLimitPlacements` (preferred) or document caps for any client fan-out ([`portfolioFanOut.ts`](../frontend-dapp/src/utils/portfolioFanOut.ts)). LP fan-out skips invalid bech32 `lp_token` rows and per-pair LCD failures so one bad indexer pair does not fail the whole section ([`usePortfolioLpBalances.ts`](../frontend-dapp/src/hooks/usePortfolioLpBalances.ts)).
 8. **No signing** on portfolio — cancel/claim stays on `/trade` / `/limits`.
-9. Extend **Vitest** + **Playwright** when changing empty states, nav, or API wiring.
+9. **Share** (when present) emits canonical `/trader/{wallet}`, never `/portfolio` ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665) — [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md)).
+10. Extend **Vitest** + **Playwright** when changing empty states, nav, or API wiring.
 
 ## Tests
 
@@ -67,4 +68,5 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 - [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — lifecycle on limit-placements
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — indexer outage banners
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Total Volume (USD) on this shared header ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553))
+- [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) — public `/trader/{wallet}` Share, never `/portfolio` ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))
 - [`docs/frontend.md` § My Portfolio](../docs/frontend.md#my-portfolio)

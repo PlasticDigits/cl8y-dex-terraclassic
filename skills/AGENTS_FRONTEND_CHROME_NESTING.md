@@ -71,3 +71,4 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h / TWAP
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — trader volume USD
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ%
+- [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) — trader Share is a header button, not a nested panel ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))

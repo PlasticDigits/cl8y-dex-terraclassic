@@ -41,3 +41,5 @@ Use when surfacing **bech32 / contract addresses** with copy and explorer afford
 - Explorer URLs: [`AGENTS_FRONTEND_TERRA_EXPLORER.md`](./AGENTS_FRONTEND_TERRA_EXPLORER.md)
 - Wallet chip shell: [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md)
 - Keyboard focus on icon controls: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
+- Profile Share (canonical URL, not bech32): [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))
+- Profile Share (canonical URL, not bech32): [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))
