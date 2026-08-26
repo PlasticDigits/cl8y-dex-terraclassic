@@ -82,6 +82,21 @@ export function getExplorerAddressUrl(address: string): string | null {
   return `${base}${address}`
 }
 
+/**
+ * Defense-in-depth for explorer `<a href>` ([#671](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/671)).
+ * `getExplorerAddressUrl` already returns http(s) or `null`; still omit `javascript:` / `data:`
+ * if a mock or future helper leak would otherwise render a live non-http link.
+ */
+export function isSafeExplorerHref(href: string | null | undefined): href is string {
+  if (!href) return false
+  try {
+    const parsed = new URL(href)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 /** Middle-elided hash for alerts, tables, and other compact tx displays. */
 export function shortenTxHashForDisplay(txHash: string): string {
   return shortenAddress(txHash, 8, 6)
