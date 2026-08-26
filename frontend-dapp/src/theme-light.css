@@ -67,6 +67,9 @@
       rgba(238, 242, 248, 0.98) 100%
     ),
     rgba(255, 255, 255, 0.5);
+  /* Opaque Swap flip plate (#659) — seam mid-stop of --io-stack-bg, not --control-surface. */
+  --swap-direction-surface: rgb(248, 250, 252);
+  --swap-direction-surface-hover: rgb(241, 245, 249);
   --btn-primary-fg: #f8fafc;
   /* Buy/Sell side controls (#563) — darker fg for WCAG on light fills. */
   --side-buy-fg: #166534;
