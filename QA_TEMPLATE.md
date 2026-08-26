@@ -593,6 +593,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 11.1.3 | Charts page mobile | View /charts on mobile | Chart renders, controls accessible | | |
 | 11.1.4 | Tiers page mobile | View /tiers at 390×844 and 375×667 (iOS WebKit + Android Chrome). Disconnected then connected. | Each card: **Tier N** one line; **Hold {n} CL8Y** one phrase (e.g. Hold 1 CL8Y / Hold 7.5K CL8Y); `{pct} fee discount` and `{pct} eff. fee*` intact. No empty ~112px Register column when disconnected. Connected: Register ≥44px, correct row. How it works stacked labels readable; Limit place* shown. Light + dark. | | |
 | 11.1.5 | Create pair mobile | View /create on mobile | Form usable | | |
+| 11.1.10 | Create Token phone ([#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) | View `/token/create` at 375×667 and 390×844. Disconnected then connected. Paste a long treasury bech32. | Single column; Name above Symbol above Decimals; no horizontal `document` scroll; treasury/manager do not overflow the card; SKU/ack tap ≥44px; helpers read `connected wallet` / `not connected wallet`. Light + dark. Do not fold Manage / Migrate. | | |
 | 11.1.6 | Trader page mobile | View /trader on mobile | All sections visible and readable | | |
 | 11.1.7 | Navigation mobile | View nav on mobile | Mobile-friendly navigation | | |
 | 11.1.8 | Wallet modal mobile | Open wallet modal on mobile | Modal fits screen, all options visible | | |
@@ -608,6 +609,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 11.2.4 | 1024px width (small desktop) | Resize to 1024px | Layout correct | | |
 | 11.2.5 | 1440px width (desktop) | Resize to 1440px | Layout correct | | |
 | 11.2.6 | 1920px+ (large desktop) | Resize to 1920px | Content doesn't stretch excessively | | |
+| 11.2.7 | Create Token desktop ([#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) | View `/token/create` at 1280×720 and 1440×900, 0 SKUs. Dark + light. | `create-token-page` width **> 700px** (not a 520px chimney); Name/Symbol/Decimals share a row; Treasury/Manager share a row; Paid features 2-col checkbox grid; Paid features legend in the first viewport; ack/CTA in the first two. Form does not stretch past `.app-main`. Swap / Create Pair stay ticket-width. | | |
 
 ---
 
