@@ -545,6 +545,7 @@
   /* GitLab #652 — Protocol metric cells inside shell-panel (no nested card-glass). */
   .stat-box-flat {
     min-width: 0;
+    overflow: hidden;
   }
 
   /**
@@ -554,6 +555,28 @@
   .stat-flat {
     min-width: 0;
     padding: 0.125rem 0;
+  }
+
+  /**
+   * Value + optional inline Δ% (GitLab #667). Group chips with the headline
+   * (`justify-content: flex-start` + wrap). Do not use `justify-between` — that
+   * pins the % to the cell’s far right and reads as the next column’s figure.
+   */
+  .stat-value-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    column-gap: 0.5rem;
+    row-gap: 0.125rem;
+    min-width: 0;
+  }
+
+  .stat-delta-cluster {
+    display: flex;
+    align-items: baseline;
+    flex-shrink: 0;
+    gap: 0.5rem;
   }
 
   /**

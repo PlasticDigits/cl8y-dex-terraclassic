@@ -561,6 +561,7 @@
 | 10.2.14 | Gold hairline only | View nav + warnings (both themes) | Gold = hairline borders/text only — no dirty brown/gold fills ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)) | | |
 | 10.2.15 | Open Graph / Twitter card | `curl -sL` `/` `/trade` `/pool` (no JS) | Same absolute `https://dex.cl8y.com/og-image.png` + `summary_large_image`; `/og-image.png` is 1200×630 community medallion ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) | | |
 | 10.2.16 | One chrome layer / no metric-grid nest | View `/`, `/charts`, `/charts/:pair`, `/trader/:addr`, `/protocol`, `/trade`, `/pool`, `/limits` at 375px + 1280px, light + dark | One `shell-panel*` per region. Metric tiles are flat (no `card-glass` chips inside the section). Swap Pay/Receive stay `card-glass`. Trade chart is a single `shell-panel-strong`. Numbers readable; no empty-ring tiles ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) | | |
+| 10.2.17 | Protocol Δ% grouped with headline | View `/protocol` at 390 / 820 / 1280, light + dark | Each Global stats / fees Δ% chip sits with its own `$` (immediately after or wrapped under), not in the gutter under the next column’s label. Census tiles show `14` not `14.00`. No nested `card-glass`. ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)) | | |
 
 ### 10.3 Sound Effects
 

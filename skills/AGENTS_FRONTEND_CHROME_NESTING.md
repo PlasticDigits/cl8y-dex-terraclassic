@@ -5,7 +5,7 @@ Audience: third-party agents adding page sections, `StatBox` grids, or `card-gla
 **Issue:** [GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)  
 **Invariants:** [`docs/frontend.md` § One chrome layer](../docs/frontend.md#one-chrome-layer) (**C653-1–C653-8**)  
 **Spec:** [`docs/design-system.md`](../docs/design-system.md) principle **One chrome layer per region**  
-**Related:** [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) Trade application (**L561-1–L561-2**), [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) Protocol inline Δ% (do not restyle Global stats/fees beyond `flat` here), [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) tokens, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) copy density.
+**Related:** [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) Trade application (**L561-1–L561-2**), [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) Protocol inline Δ% (do not restyle Global stats/fees beyond `flat` here), [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) Δ% grouped with headline (layout, not a second chrome layer), [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) tokens, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) copy density.
 
 ## Problem class
 
@@ -42,7 +42,7 @@ The design-system sentence used to bless nested `card-glass` inside a page `shel
 
 | File | Role |
 |------|------|
-| `frontend-dapp/src/components/ui/StatBox.tsx` | `variant` `card` \| `flat` |
+| `frontend-dapp/src/components/ui/StatBox.tsx` | `variant` `card` \| `flat`; Δ% grouping is `.stat-value-row` ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)) |
 | `frontend-dapp/src/index.css` | `.stat-flat` primitive |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Overview + pair 24h + TWAP flat |
 | `frontend-dapp/src/components/trader/TraderSummaryStats.tsx` | Profile + P&L flat |
@@ -70,4 +70,4 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview USD (#548)
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h / TWAP
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — trader volume USD
-- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ%
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ% parentage; [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) owns visual grouping
