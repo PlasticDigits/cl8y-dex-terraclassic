@@ -131,9 +131,9 @@ pub struct ListPairsQuery {
     pub q: Option<String>,
     /// Filter to pairs that include this token (exact CW20 contract or native denom)
     pub asset: Option<String>,
-    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `relevance` (default `relevance` when `q` is set, else `id`)
+    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `liquidity_usd`, `relevance` (default `relevance` when `q` is set, else `id`)
     pub sort: Option<String>,
-    /// `asc` or `desc`. Default: `asc` for id/fee/symbol; `desc` for volume_24h, created, relevance
+    /// `asc` or `desc`. Default: `asc` for id/fee/symbol; `desc` for volume_24h, liquidity_usd, created, relevance
     pub order: Option<String>,
 }
 
@@ -144,11 +144,12 @@ fn parse_pair_list_sort(s: Option<&str>) -> Result<db_pairs::PairListSort, (Stat
         Some("created") => Ok(db_pairs::PairListSort::Created),
         Some("symbol") => Ok(db_pairs::PairListSort::Symbol),
         Some("volume_24h") => Ok(db_pairs::PairListSort::Volume24h),
+        Some("liquidity_usd") => Ok(db_pairs::PairListSort::LiquidityUsd),
         Some("relevance") => Ok(db_pairs::PairListSort::Relevance),
         Some(other) => Err((
             StatusCode::BAD_REQUEST,
             format!(
-                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, or relevance",
+                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, liquidity_usd, or relevance",
                 other
             ),
         )),
@@ -163,6 +164,7 @@ fn parse_pair_list_order(
         None => Ok(matches!(
             sort,
             db_pairs::PairListSort::Volume24h
+                | db_pairs::PairListSort::LiquidityUsd
                 | db_pairs::PairListSort::Relevance
                 | db_pairs::PairListSort::Created
         )),
@@ -253,8 +255,8 @@ pub async fn list_pairs(
             continue;
         };
         let volume_quote_24h = row.volume_quote_24h.as_ref().map(volume_quote_to_string);
-        // List JOIN is #655. This ticket stamps the table and emits the field on single GET.
-        items.push(pair_to_response(p, a0, a1, volume_quote_24h, None));
+        let liquidity_usd = row.liquidity_usd.as_ref().map(bd_plain_string);
+        items.push(pair_to_response(p, a0, a1, volume_quote_24h, liquidity_usd));
     }
 
     Ok(Json(PairListResponse {
@@ -299,7 +301,8 @@ pub async fn get_pair(
     let liquidity_usd = pair_liquidity_usd::get_pair_liquidity_usd(&state.pool, pair.id)
         .await
         .map_err(internal_err)?
-        .map(|v| volume_quote_to_string(&v));
+        .as_ref()
+        .map(bd_plain_string);
 
     Ok(Json(pair_to_response(&pair, a0, a1, None, liquidity_usd)))
 }

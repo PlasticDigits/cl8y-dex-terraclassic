@@ -143,6 +143,7 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub card + `GET /api/v1/hub-prices` (#556)
 - [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — cUSTC/cLUNC wrap `AddressRow` + LUNC column (#570)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for TVL legs
+- [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](./AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md) — `/pool` per-pair TVL stamp (`liquidity_usd`, [#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655))
 - [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — `/ust1` execute; CEX/hub cards are **not** the window rate (**P550-11**). Window treasury fees: **PFee-13** / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)
 - [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — live wrap/window leftovers after !409–!413 ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616))
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays

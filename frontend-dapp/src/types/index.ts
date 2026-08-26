@@ -163,7 +163,7 @@ export interface IndexerPair {
   created_at?: string
   /**
    * Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp).
-   * Single-pair GET (#664); list JOIN is #655. Omit / null when unpriced — never invent `$0`.
+   * List JOIN and single-pair GET (#655 / #664). Omit / null when unpriced — never invent `$0`.
    */
   liquidity_usd?: string | null
 }
@@ -176,7 +176,7 @@ export interface IndexerPairsListResponse {
   offset: number
 }
 
-export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'relevance'
+export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'liquidity_usd' | 'relevance'
 
 /** Map indexer pair metadata to on-chain `PairInfo` for pool queries and txs */
 export function indexerAssetToAssetInfo(a: IndexerAssetBrief): AssetInfo {

@@ -4,9 +4,9 @@
 //! One-sided catalog → `2×` the priced leg (CPAMM). Unpriced / stale / same-asset
 //! / overflow pairs are omitted (not `$0`). Book escrow is not included.
 //!
-//! Computation runs on the aggregator / hub refresh — **not** on GET `/overview`.
-//! The same pass stamps `pair_liquidity_usd` for single-pair GET (#664) and the
-//! `/pool` list JOIN (#655).
+//! Computation runs on the aggregator / hub refresh — **not** on GET `/overview`
+//! or GET `/pairs`. The same pass stamps `pair_liquidity_usd` for single-pair GET
+//! (#664) and the `/pool` list JOIN (#655). Unpriced pairs have no row.
 
 use std::time::Duration;
 

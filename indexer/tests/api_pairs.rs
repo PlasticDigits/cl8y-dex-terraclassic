@@ -40,7 +40,7 @@ async fn list_pairs_returns_200() {
     assert_created_at_rfc3339(&pair["created_at"]);
     assert!(
         pair.get("liquidity_usd").is_none() || pair["liquidity_usd"].is_null(),
-        "list JOIN is #655 — this ticket must not emit list liquidity_usd yet"
+        "unstamped list omits liquidity_usd until pair_liquidity_usd is stamped (#655)"
     );
 
     // Pagination, sort, search (same server / DB to avoid parallel seed conflicts)
