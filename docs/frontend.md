@@ -1855,8 +1855,8 @@ In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP wit
 | Invariant | Meaning |
 |-----------|---------|
 | **H531-1** | Same-origin how-to on `/pool` names **Pool provide/withdraw** and optional **limit maker**. This file is not the only guide. |
-| **H531-2** | States pools use wrapped LUNC; pick native LUNC on Add to auto-wrap **or** `/wrap` first; bank LUNC still required for **gas**. |
-| **H531-3** | Retail Add is **one-sided** (token + pair + amount). Two-sided is **Advanced** (empty-pool bootstrap). Off-ratio Advanced provide still **donates** excess; retail zap does not. |
+| **H531-2** | States pools use wrapped LUNC; pick native LUNC on Zap Add to auto-wrap **or** `/wrap` first; bank LUNC still required for **gas**. |
+| **H531-3** | **Manage** a pair: **Provide Liquidity** (both tokens), **Withdraw Liquidity**, **Zap Add** (one token + amount; pair is the row), **Zap Withdraw**. Empty pools need Provide Liquidity. Off-ratio Provide still **donates** excess; zap does not. |
 | **H531-4** | States there is **no** incentive program currently. No APR / points / farm UI. |
 | **H531-5** | Withdraw via `/pool`; LP tokens are the share. |
 | **H531-6** | Limits (if mentioned) are maker escrow, **not** LP shares; in-app `/trade` or `/limits` only. |
@@ -1867,19 +1867,19 @@ In-product opt-in guide so a new user can add (or correctly attempt) LUNC LP wit
 
 **Code:** [`poolLpHowtoCopy.ts`](../frontend-dapp/src/utils/poolLpHowtoCopy.ts), [`PoolLpHowto.tsx`](../frontend-dapp/src/components/pool/PoolLpHowto.tsx), [`poolLpHowto.ts`](../frontend-dapp/src/utils/poolLpHowto.ts) (`cl8y-dex-pool-lp-howto-section-dismissed`), footer / Portfolio links to `/pool#lp-howto`.
 
-**Verify:** `make verify-issue-531`. One-sided default: `make verify-issue-533` / [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
+**Verify:** `make verify-issue-531`. Zap math: `make verify-issue-533` / [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md). Manage IA: `make verify-issue-660` / [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](../skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md).
 
 ### One-sided pool add / withdraw (Z533) {#pool-one-sided-liquidity}
 
-Retail `/pool` default is **one-sided** zap add/withdraw ([#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)). Two-sided provide/withdraw stays under **Advanced** (empty-pool first deposit / power users).
+Retail `/pool` zap add/withdraw lives under pair **Manage** ([#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533), [#660](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/660)). Two-sided provide/withdraw is a **peer** Manage action (empty-pool first deposit / exact-ratio deposit). Do not hide two-sided under Advanced. Do not put zap on the page above the table.
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Z533-1** | Retail add: Token (wallet `> 0`), Pair (factory), Amount. No wrap checkbox, no second amount, no on-card slippage chips. |
-| **Z533-2** | Retail withdraw: LP (wallet LP `> 0`), token to receive, amount. No “receive wrapped” checkbox. |
+| **Z533-1** | Zap add: Token (wallet `> 0`), Amount. Pair is the expanded Manage row (no second pair picker). No wrap checkbox, no second amount, no on-card slippage chips. |
+| **Z533-2** | Zap withdraw: this pair’s LP, token to receive, amount. No “receive wrapped” checkbox. No other-pair LP picker. |
 | **Z533-3** | Native `uluna` / `uusd` wrap or unwrap automatically. Pools still hold CW20 only. |
 | **Z533-4** | Zap-in targets the **post-swap** pool ratio. Retail must not `provide_liquidity` off-ratio (no silent donate). |
-| **Z533-5** | Empty pool: one-sided disabled. First deposit stays two-sided Advanced (`MINIMUM_LIQUIDITY`). |
+| **Z533-5** | Empty pool: zap disabled. First deposit stays two-sided **Provide Liquidity** (`MINIMUM_LIQUIDITY`). Copy: `Empty pool. Use Provide Liquidity.` |
 | **Z533-6** | Factory pairs only. Pool-only zap swap (`poolOnlyHybridParams`). Same quote snapshot on submit as Swap (#356). |
 | **Z533-7** | Slippage on every leg (`min_return` / `slippage_tolerance` / `min_assets`). Do not pass `slippage_tolerance: null`. Default 5% from Settings (#497). |
 | **Z533-8** | Unwrap **only** the zap-out amount. Never unwrap the rest of the wallet’s cLUNC/cUSTC. |
@@ -1888,9 +1888,28 @@ Retail `/pool` default is **one-sided** zap add/withdraw ([#533](https://gitlab.
 
 **Code:** [`oneSidedLiquidity.ts`](../frontend-dapp/src/utils/oneSidedLiquidity.ts), [`oneSidedLiquidityTx.ts`](../frontend-dapp/src/utils/oneSidedLiquidityTx.ts), [`OneSidedAddCard.tsx`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx), [`OneSidedWithdrawCard.tsx`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx).
 
-**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `make verify-issue-539` / `sg docker -c 'CI=1 make test-e2e'` (wrap-mapper split-fee instantiate is [#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)). Zap execution floors: `make verify-issue-559` / [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](../skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md).
+**Verify:** `make verify-issue-533`. Playwright smoke (5 workers): `frontend-dapp/e2e/pool-one-sided-533.spec.ts`. LocalTerra tx P4–P8 (1 worker): `frontend-dapp/e2e/pool-one-sided-533-tx.spec.ts` via `make verify-issue-539` / `sg docker -c 'CI=1 make test-e2e'` (wrap-mapper split-fee instantiate is [#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)). Zap execution floors: `make verify-issue-559` / [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](../skills/AGENTS_FRONTEND_POOL_ZAP_FLOORS.md). Manage IA: `make verify-issue-660` / [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](../skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md).
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md`](../skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md).
+
+### Pool Manage IA (M660) {#pool-manage-ia}
+
+`/pool` pair **Manage** exposes four peer actions — **Provide Liquidity**, **Withdraw Liquidity**, **Zap Add**, **Zap Withdraw** — without an Advanced disclosure and without page-level Add/Withdraw cards ([#660](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/660)). Playbook: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](../skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md).
+
+| Invariant | Meaning |
+|-----------|---------|
+| **M660-1** | Default `/pool` paint has no `pool-one-sided-add` / `pool-one-sided-withdraw` until Manage is expanded **and** a zap tab is selected. |
+| **M660-2** | Factory Manage shows four peer tabs. None require **Advanced**. |
+| **M660-3** | No `pool-card-advanced` disclosure. |
+| **M660-4** | Zap operates on the expanded pair only. Collapse / other row unmounts the form. |
+| **M660-5** | One action form at a time. Tab accessible names are `Select …` so they do not collide with submit CTAs (**#201**). |
+| **M660-6** | Empty pool: zap tabs disabled; sentence points at **Provide Liquidity**. |
+| **M660-7** | Indexer-only rows omit zap tabs. Factory-only zap (**Z533-6**). |
+| **M660-8** | Pre-sign action matches the selected tab. How-to + docs do not teach “two-sided is Advanced.” |
+
+**Code:** [`PoolAdvancedManage.tsx`](../frontend-dapp/src/components/pool/PoolAdvancedManage.tsx), [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx), [`pool-ui.ts`](../frontend-dapp/e2e/helpers/pool-ui.ts).
+
+**Verify:** `make verify-issue-660`. Also `make verify-issue-531` / `533` / `547` / `559` / `653`.
 
 ### One-sided zap execution floors (Z559) {#pool-one-sided-zap-floors}
 
@@ -1901,7 +1920,7 @@ Retail zap multi-msg legs are sized to the **previous leg’s floor**, not the o
 | **Z559-1** | Execution amounts follow floors (`min_return` / `min_assets`); quotes may be optimistic. Zap-in `provideAsk ≤ swapMinReturn`. Do not `TransferFrom` the quoted ask. |
 | **Z559-2** | Zap-in provide is ratio-trimmed to conservative post-swap reserves (worse fill → higher ask reserve). Leftover stays in the wallet; no silent pre-existing ask spend (**Z533-4**). |
 | **Z559-3** | Zap-out `swapAmount ≤ min_assets[sold]`. Unwrap send ≤ `min(wanted withdrawn, min_assets[wanted]) + swapMinReturn` (**Z533-8**). |
-| **Z559-4** | Pre-sign min-swap is human token units, not raw uints. Conservative LP dust → `Amount too small`. Empty pool still `Empty pool. Use Advanced.` |
+| **Z559-4** | Pre-sign min-swap is human token units, not raw uints. Conservative LP dust → `Amount too small`. Empty pool still `Empty pool. Use Provide Liquidity.` |
 
 **Code:** [`conservativeZapInProvide`](../frontend-dapp/src/utils/oneSidedLiquidity.ts) / [`conservativeZapOutExecution`](../frontend-dapp/src/utils/oneSidedLiquidity.ts), [`quoteOneSidedAdd`](../frontend-dapp/src/utils/oneSidedLiquidityQuote.ts), [`formatHumanMinSwapLine`](../frontend-dapp/src/utils/oneSidedLiquidityCopy.ts).
 
@@ -1926,7 +1945,7 @@ The **Provide Liquidity** card mirrors on-chain `provide_liquidity` math for the
 
 **Auto-fill counterpart ([#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480)):** on a non-empty pool, editing either provide amount auto-fills the other side from `floor(edited × reserve_other / reserve_edited)` when the counterpart field is empty. **Max** and **50%** always force-sync the counterpart (`forceSync: true`). Empty pool (both reserves `0`): no auto-fill. After auto-fill, if the user edits the filled side to a different value, the other side is left unchanged so the ratio warning can appear. Native-wrap paths use **net** post-tax amounts for ratio math (`provideRawAdd*` semantics); see [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) and [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
 
-**Provide field labels + wrap default ([#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)):** Advanced two-sided Provide (Manage → `<details data-testid="pool-card-advanced">`) labels each amount with the **selected** input `{Name} ({SYMBOL})` or `{SYMBOL}` — never Asset A/B. Wrap-equivalent legs (cLUNC / cUSTC) default **Use native … (auto-wrap)** **on** at mount (`provideWrapDefaultOn`). Tickers sit in a `normal-case` node so `.label-glass` uppercase does not paint `cLUNC` as `CLUNC`. Uncheck is session-only. Withdraw `receiveWrapped` default is unchanged. Retail one-sided is unchanged (**Z533-1**). Playbook: [`skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md). `make verify-issue-661`.
+**Provide field labels + wrap default ([#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)):** Two-sided Provide (Manage → **Provide Liquidity** tab) labels each amount with the **selected** input `{Name} ({SYMBOL})` or `{SYMBOL}` — never Asset A/B. Wrap-equivalent legs (cLUNC / cUSTC) default **Use native … (auto-wrap)** **on** at mount (`provideWrapDefaultOn`). Tickers sit in a `normal-case` node so `.label-glass` uppercase does not paint `cLUNC` as `CLUNC`. Uncheck is session-only. Withdraw `receiveWrapped` default is unchanged. Retail one-sided is unchanged (**Z533-1**). Playbook: [`skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md). `make verify-issue-661`.
 
 **Invariants (dApp, P661-1–P661-12):**
 
@@ -1959,7 +1978,7 @@ Before the wallet extension opens on **`/pool`**, provide and withdraw show a **
 | **`data-testid`s** | Provide panel: `pool-provide-pre-submit-summary` with `-action`, `-pair`, `-amount`, `-chain`; withdraw panel: `pool-withdraw-pre-submit-summary` with the same suffixes. |
 | **Compact layout** | Four rows only (no swap-style intro paragraph) — token inputs above already show deposit amounts; the card repeats security anchors. |
 
-Implementation: [`PoolPreSubmitSummary.tsx`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx); wired in [`OneSidedAddCard`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx) / [`OneSidedWithdrawCard`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx) and in [`PoolAdvancedManage.tsx`](../frontend-dapp/src/components/pool/PoolAdvancedManage.tsx) (two-sided Advanced, opened from the table **Manage** expand — [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)).
+Implementation: [`PoolPreSubmitSummary.tsx`](../frontend-dapp/src/components/pool/PoolPreSubmitSummary.tsx); wired in [`OneSidedAddCard`](../frontend-dapp/src/components/pool/OneSidedAddCard.tsx) / [`OneSidedWithdrawCard`](../frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx) and in [`PoolAdvancedManage.tsx`](../frontend-dapp/src/components/pool/PoolAdvancedManage.tsx) (two-sided Provide/Withdraw, opened from the table **Manage** expand — [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) / [#660](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/660)). Zap pre-sign action is **Zap Add** / **Zap Withdraw**, not Provide Liquidity.
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](../skills/AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md), [`skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](../skills/AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md).
 
@@ -1971,13 +1990,14 @@ E2E for pool flows runs with the dev-wallet fixture; Playwright worker count is 
 | [#147](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/147) | CW20/CW20 add LP: native LUNC preflight for three sequential txs (`provideLiquidityNativeGasBalanceGate.ts`) |
 | [#112](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/112) | Pool list: indexer vs factory (badges; Router-known filter removed in #547) |
 | [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547) | `/pool` sortable table, catalog default, Charts deep links |
+| [#660](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/660) | Pair Manage: provide, withdraw, zap add, zap withdraw as peer actions |
 | [#462](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/462) | Pre-sign summary card for provide/withdraw (SEC-I05 F-03) |
 | [#480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/480) | Provide auto-fill + withdraw receive preview |
 | [#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661) | Advanced provide name/symbol labels + wrap default on |
 
 ### Liquidity pools list (indexer vs factory) {#liquidity-pools-list-indexer-vs-factory}
 
-The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md); Created age [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662), [`AGENTS_FRONTEND_POOL_CREATED.md`](../skills/AGENTS_FRONTEND_POOL_CREATED.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + one-sided CTAs + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)).
+The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v1/pairs` ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547), playbook [`AGENTS_FRONTEND_POOL_TABLE.md`](../skills/AGENTS_FRONTEND_POOL_TABLE.md); Created age [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662), [`AGENTS_FRONTEND_POOL_CREATED.md`](../skills/AGENTS_FRONTEND_POOL_CREATED.md)). That order is **not** the on-chain factory’s `pairs` cursor order. Page chrome is **search + live status + table** — no “Liquidity Pools” title, list-source essay, or indexer/factory counts ([#489](#retail-copy-cognitive-load)). Zap add/withdraw is pair-scoped under **Manage** ([#660](#pool-manage-ia)).
 
 **Invariants (dApp, P547-1–P547-10, P662-1–P662-8):**
 
@@ -1998,8 +2018,8 @@ The pool list (`/pool`) is a **sortable table** sourced from indexer `GET /api/v
 | **P547-5** | Every row Charts control is a same-origin `Link` to `/charts/:pairAddr` via `chartsPairHref`. Invalid bech32 / `javascript:` / HTML → no navigation. |
 | **P547-6** | No Router-known checkbox (`pool-filter-router` removed). Missing factory membership is a compact **Factory** / **Indexer** mark, not a list filter. |
 | **P547-7** | How-to hint **and** `<details>` dismiss together; `#lp-howto` restores (**H531-7**). |
-| **P547-8** | No header eligibility essay (`pool-fee-discount-eligibility-note`). Search, one-sided cards, indexer outage banner, and registry-outage warning stay. |
-| **P547-9** | Default paint does **not** `getPool` / `getPairFeeConfig` per row (A8). Advanced two-sided + I14 LCD fee chrome mount on **Manage** expand (`PoolAdvancedManage`). |
+| **P547-8** | No header eligibility essay (`pool-fee-discount-eligibility-note`). Search, indexer outage banner, and registry-outage warning stay. Zap is not page chrome (#660). |
+| **P547-9** | Default paint does **not** `getPool` / `getPairFeeConfig` per row (A8). Four Manage actions + I14 LCD fee chrome mount on **Manage** expand (`PoolAdvancedManage`). |
 | **P547-10** | `#489`: no always-on indexer-vs-factory lectures. Engineering notes stay in this file. |
 
 **Invariants (dApp, P655-1–P655-8 — v2 LP USD):**

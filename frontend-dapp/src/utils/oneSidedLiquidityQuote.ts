@@ -15,7 +15,7 @@ import {
 import { assetInfoLabel, type PairInfo, type PoolResponse } from '@/types'
 import type { SwapOperation } from '@/services/terraclassic/router'
 
-export const ONE_SIDED_EMPTY_POOL_ERROR = 'Empty pool. Use Advanced.'
+export const ONE_SIDED_EMPTY_POOL_ERROR = 'Empty pool. Use Provide Liquidity.'
 export const ONE_SIDED_NO_ROUTE_ERROR = 'No route'
 export const ONE_SIDED_DUST_ERROR = 'Amount too small'
 

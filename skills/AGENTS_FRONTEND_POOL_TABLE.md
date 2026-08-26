@@ -28,9 +28,9 @@ Audience: third-party agents changing the pool list, default rank, Charts deep l
 
 | File | Role |
 |------|------|
-| `frontend-dapp/src/pages/PoolPage.tsx` | Search + one-sided cards + table; no page title |
+| `frontend-dapp/src/pages/PoolPage.tsx` | Search + table; no page title; zap under Manage |
 | `frontend-dapp/src/components/pool/PoolPairsTable.tsx` | Sortable table + Charts `Link` + Manage expand |
-| `frontend-dapp/src/components/pool/PoolAdvancedManage.tsx` | Two-sided Advanced; LCD on expand |
+| `frontend-dapp/src/components/pool/PoolAdvancedManage.tsx` | Four peer actions; LCD on expand |
 | `frontend-dapp/src/utils/poolListQuery.ts` | Catalog window, column sorts, pagination |
 | `frontend-dapp/src/utils/chartsPairRoute.ts` | `/charts/:pairAddr` validation + href |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Reads `:pairAddr`; invalid/unknown notices |
@@ -45,8 +45,8 @@ Audience: third-party agents changing the pool list, default rank, Charts deep l
 5. **P547-5** — Charts href is same-origin `/charts/<pairAddr>`. Invalid bech32 / `javascript:` / HTML → no `Link`.
 6. **P547-6** — No Router-known checkbox or `pool-filter-router`.
 7. **P547-7** — How-to section (hint + details) is dismissible; `#lp-howto` restores (**H531-7**).
-8. **P547-8** — No “Liquidity Pools” `h2`, list-source essay, indexer/factory counts, or header eligibility note. Search + one-sided + outage/registry banners stay.
-9. **P547-9** — Default table paint does not `getPool`/`getPairFeeConfig` per row. I14 fee badge + unregistered CTA on Manage expand.
+8. **P547-8** — No “Liquidity Pools” `h2`, list-source essay, indexer/factory counts, or header eligibility note. Search + outage/registry banners stay. Zap is **not** page chrome (#660).
+9. **P547-9** — Default table paint does not `getPool`/`getPairFeeConfig` per row. I14 fee badge + unregistered CTA + action forms on Manage expand.
 10. **P547-10** — `#489`: no always-on architecture lectures. Factory/Indexer is a compact mark, not a filter.
 
 ## Invariants (P655-1–P655-8)
@@ -75,6 +75,7 @@ make verify-issue-662
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — catalog overlay; `/pool` default is in scope
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production omits gems from `/pool` too ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — whole-section dismiss
+- [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) — four peer Manage actions (#660)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no header lectures
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — Vol header `title` is trailing 24h, not midnight reset (#576)
 - [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — identity on the table row

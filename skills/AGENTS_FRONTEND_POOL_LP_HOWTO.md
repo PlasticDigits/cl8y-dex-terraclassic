@@ -20,14 +20,14 @@ Support already told users they can provide/withdraw v2 LP or place limits, and 
 | [`PortfolioLpOverviewSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioLpOverviewSection.tsx) | **How to add liquidity** next to Manage on Pool |
 | [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) | Opt-in how-to only — no permanent lectures |
 | [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | First-visit strip stays Swap · Trade · Limits |
-| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Retail one-sided cards + Advanced two-sided, IL |
+| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Search + how-to + table; Manage four actions, IL |
 | [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) | Pool folds into **More** below 1200px |
 
 ## Invariants (H531-1–H531-10)
 
 1. **H531-1** — Same-origin `/pool#lp-howto` names Pool provide/withdraw and optional limit maker.
-2. **H531-2** — Wrapped LUNC; pick native LUNC as **Token** on Add to auto-wrap **or** `/wrap`; bank LUNC for gas.
-3. **H531-3** — Retail Add is one token + pair + amount. Two-sided is Advanced (empty pools). Off-ratio Advanced still donates; retail zap does not.
+2. **H531-2** — Wrapped LUNC; pick native LUNC as **Token** on Zap Add to auto-wrap **or** `/wrap`; bank LUNC for gas.
+3. **H531-3** — Manage a pair: **Provide Liquidity** (both tokens), **Withdraw Liquidity**, **Zap Add** (one-sided: one token + amount; pair implicit), **Zap Withdraw**. Empty pools need Provide Liquidity. Off-ratio Provide still donates; zap does not.
 4. **H531-4** — No incentive program. No APR / points / farm chrome.
 5. **H531-5** — Withdraw on `/pool`; LP tokens are the share.
 6. **H531-6** — Limits are maker escrow, not LP. Link `/trade` or `/limits` only.
@@ -66,4 +66,5 @@ Issue: [GitLab **#531**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Provide/withdraw preview: [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md) (`#480`)
 - Wrap enablement: [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) (`#507`)
 - One-sided default: [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) (`#533`)
+- Pair Manage IA: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) (`#660`)
 - Zap execution floors: [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](./AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) (`#559`)

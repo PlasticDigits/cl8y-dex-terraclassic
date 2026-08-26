@@ -22,13 +22,13 @@ test.describe('Pool Page', () => {
       }).toPass({ timeout: 90_000 })
     })
 
-    test('shows one-sided add and a Manage control on the table', async ({ page }) => {
+    test('shows one-sided zap only after Manage, plus a Manage control on the table', async ({ page }) => {
       await page.goto('/pool')
-      await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
+      await expect(page.getByTestId('pool-one-sided-add')).toHaveCount(0)
       await expect(page.getByTestId('pool-row-manage').first()).toBeVisible({ timeout: 90_000 })
     })
 
-    test('shows Provide Liquidity and Withdraw Liquidity under Advanced', async ({ page }) => {
+    test('shows Provide Liquidity and Withdraw Liquidity as Manage peers', async ({ page }) => {
       await page.goto('/pool')
       await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
       await openPoolCardAdvanced(page)

@@ -41,8 +41,8 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
     await expect(page.getByTestId('pool-lp-howto-step-wrap')).toBeVisible()
     await expect(page.getByTestId('pool-lp-howto-step-withdraw')).toBeVisible()
 
-    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
-    await expect(page.getByTestId('pool-il-risk-notice')).toBeVisible()
+    await expect(page.getByTestId('pool-one-sided-add')).toHaveCount(0)
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
 
     const manage = page.getByTestId('pool-row-manage').first()
     const hasPairs = await manage
@@ -133,8 +133,8 @@ test.describe('Retail LUNC LP how-to (GitLab #531)', () => {
     await page.getByTestId('pool-lp-howto-dismiss').click()
     await expect(page.getByTestId('pool-lp-howto-hint')).toHaveCount(0)
     await page.reload()
-    await expect(page.getByTestId('pool-lp-howto')).toBeVisible()
+    await expect(page.getByTestId('pool-lp-howto-restore')).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-lp-howto')).toHaveCount(0)
     await expect(page.getByTestId('pool-lp-howto-hint')).toHaveCount(0)
-    await expect(page.getByTestId('pool-lp-howto-details')).toBeVisible()
   })
 })

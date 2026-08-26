@@ -228,6 +228,7 @@ make verify-issue-646                    # #646 GeckoTerminal /gt/ adapters (Pos
 make verify-issue-640                    # #640 Cosmostation CW20 pack (docs only; no Postgres)
 make verify-issue-641                    # #641 Hexxagon Galaxy Station CW20 pack (docs only; no Postgres)
 make verify-issue-653                    # #653 one chrome layer / anti-nesting (StatBox flat + allowlist)
+make verify-issue-660                    # #660 /pool Manage four peer actions (provide, withdraw, zap add, zap withdraw)
 make verify-issue-659                    # #659 Swap direction seam plate (opaque fill + static occluder)
 make verify-issue-663                    # #663 footer official CL8Y Homepage + Bridge product links
 make verify-issue-664                    # #664 /trade /charts identity v2 LP USD (stamp + chip)
@@ -277,6 +278,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Contracts | `make test-contracts`, `make lint-contracts` |
 | Frontend | `make test-frontend`, `make lint-frontend` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
+| Pool Manage four peer actions | `make verify-issue-660` |
 | Swap direction seam plate | `make verify-issue-659` |
 | Official CL8Y product links (footer) | `make verify-issue-663` |
 | Pool Manage provide labels | `make verify-issue-661` |
@@ -394,6 +396,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md](skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) — `/trade` full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell side control (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)); `make verify-issue-563`
 - [skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md](skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) — My open limits Cancel vs stale `●` row / fill lifecycle / `/trade` reachability (**F530-1–F530-8**, [#530](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/530)); `make verify-issue-530`
 - [skills/AGENTS_FRONTEND_POOL_TABLE.md](skills/AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` sortable table, UST1-first catalog default, Charts `/charts/:pairAddr` (**P547-1–P547-10**, [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)); `make verify-issue-547`
+- [skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md](skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md) — `/pool` Manage four peer actions: provide, withdraw, zap add, zap withdraw (**M660-1–M660-8**, [#660](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/660)); `make verify-issue-660`
 - [skills/AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md](skills/AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md) — `/pool` **v2 LP USD** + `GET /pairs` `liquidity_usd` rollup (**P655-1–P655-8**, [#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655)); `make verify-issue-655`
 - [skills/AGENTS_FRONTEND_POOL_CREATED.md](skills/AGENTS_FRONTEND_POOL_CREATED.md) — `/pool` Created relative age from indexer first-seen `created_at` (**P662-1–P662-8**, [#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)); `make verify-issue-662`
 - [skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md](skills/AGENTS_FRONTEND_POOL_LP_HOWTO.md) — retail how-to for LUNC v2 LP + maker-limit disambiguation; no incentive program ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531))

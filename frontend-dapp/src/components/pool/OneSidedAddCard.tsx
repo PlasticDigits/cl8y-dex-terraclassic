@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
-import { PairSearchSelect } from '@/components/trade/PairSearchSelect'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -31,7 +30,7 @@ import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import { slippagePercentToDecimalString, buildZapInMessages } from '@/utils/oneSidedLiquidityTx'
 import { PAIR_LP_CW20_DECIMALS } from '@/utils/oneSidedLiquidity'
-import { oneSidedAddPreSignAmountLines } from '@/utils/oneSidedLiquidityCopy'
+import { oneSidedAddPreSignAmountLines, ONE_SIDED_ADD_TITLE } from '@/utils/oneSidedLiquidityCopy'
 import { ONE_SIDED_EMPTY_POOL_ERROR, quoteOneSidedAdd } from '@/utils/oneSidedLiquidityQuote'
 import { SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT } from '@/utils/swapRouteSlippage'
 import { sounds } from '@/lib/sounds'
@@ -42,7 +41,7 @@ import { estimateZapInUlunaFeesTotal } from '@/services/terraclassic/transaction
 const POOL_LP_RISK_DOC =
   'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#pool-lp-risk-disclosure'
 
-export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) {
+export function OneSidedAddCard({ pair, factoryPairs }: { pair: PairInfo; factoryPairs: PairInfo[] }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const queryClient = useQueryClient()
@@ -50,31 +49,27 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
   const expertMode = useDexStore((s) => s.expertMode)
 
   const [tokenId, setTokenId] = useState('')
-  const [pairAddr, setPairAddr] = useState('')
   const [amount, setAmount] = useState('')
-  const { discountBps } = useFeeDiscountRegistryStatus(pairAddr || undefined)
+  const { discountBps } = useFeeDiscountRegistryStatus(pair.contract_addr)
 
   const factoryTokens = useMemo(() => getAllTokens(factoryPairs), [factoryPairs])
   const candidates = useMemo(() => retailAddTokenCandidates(factoryTokens), [factoryTokens])
   const holdings = usePositiveWalletTokens(address, candidates)
 
-  const pair = useMemo(() => factoryPairs.find((p) => p.contract_addr === pairAddr) ?? null, [factoryPairs, pairAddr])
-  const pairLabel = pair ? pairInfoMenuLabel(pair, { variant: 'full' }) : ''
-  const legs = pair
-    ? ([assetInfoLabel(pair.asset_infos[0]), assetInfoLabel(pair.asset_infos[1])] as [string, string])
-    : null
+  const pairLabel = pairInfoMenuLabel(pair, { variant: 'full' })
+  const legs = [assetInfoLabel(pair.asset_infos[0]), assetInfoLabel(pair.asset_infos[1])] as [string, string]
 
-  const token0 = legs?.[0] ?? null
-  const token1 = legs?.[1] ?? null
+  const token0 = legs[0]
+  const token1 = legs[1]
   const tradingBlacklist = useTradingBlacklist({
     wallet: address,
     token0,
     token1,
-    pairAddress: pair?.contract_addr,
-    enabled: !!address && !!pair,
+    pairAddress: pair.contract_addr,
+    enabled: !!address,
   })
-  const pairPaused = usePairPaused({ pairAddress: pair?.contract_addr ?? '' })
-  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair?.contract_addr ?? '' })
+  const pairPaused = usePairPaused({ pairAddress: pair.contract_addr })
+  const pairCodeIdFreeze = usePairCodeIdFreeze({ pairAddress: pair.contract_addr })
 
   const decimals = tokenId ? getDecimals(tokenAssetInfo(tokenId)) : 6
   const rawAmount = amount ? toRawAmount(amount, decimals) : '0'
@@ -97,15 +92,13 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
     (wrapMapperConfigQuery.data == null || !wrapTreasuryMatchesEnv(wrapMapperConfigQuery.data))
 
   const poolQuery = useQuery({
-    queryKey: ['pool', pair?.contract_addr],
-    queryFn: () => getPool(pair!.contract_addr),
-    enabled: !!pair,
+    queryKey: ['pool', pair.contract_addr],
+    queryFn: () => getPool(pair.contract_addr),
     staleTime: 15_000,
   })
   const feeQuery = useQuery({
-    queryKey: ['feeConfig', pair?.contract_addr],
-    queryFn: () => getPairFeeConfig(pair!.contract_addr),
-    enabled: !!pair,
+    queryKey: ['feeConfig', pair.contract_addr],
+    queryFn: () => getPairFeeConfig(pair.contract_addr),
     staleTime: 60_000,
   })
 
@@ -113,19 +106,18 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
     queryKey: [
       'one-sided-add-quote',
       tokenId,
-      pair?.contract_addr,
+      pair.contract_addr,
       debouncedRaw,
       slippageTolerance,
       discountBps,
       wrapFeeBps,
       address,
     ],
-    enabled:
-      !!pair && !!tokenId && debouncedRaw !== '0' && !!poolQuery.data && feeQuery.data != null && !poolQuery.isFetching,
+    enabled: !!tokenId && debouncedRaw !== '0' && !!poolQuery.data && feeQuery.data != null && !poolQuery.isFetching,
     queryFn: () =>
       quoteOneSidedAdd({
         tokenId,
-        pair: pair!,
+        pair,
         pairLabel,
         payRaw: debouncedRaw,
         pool: poolQuery.data!,
@@ -214,20 +206,20 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
     onError: () => sounds.playError(),
   })
 
-  const disableReason = !tokenId
-    ? null
-    : wrapBlocked
-      ? wrapMapperConfigQuery.data == null
-        ? 'Wrap config unavailable'
-        : 'Wrap treasury misconfigured'
-      : pairPaused.isPaused
-        ? 'Pair is paused'
-        : pairCodeIdFreeze.isFrozen
-          ? CODE_ID_FROZEN_CTA
-          : tradingBlacklist.blocked
-            ? 'Trading restricted'
-            : emptyPool
-              ? ONE_SIDED_EMPTY_POOL_ERROR
+  const disableReason = emptyPool
+    ? ONE_SIDED_EMPTY_POOL_ERROR
+    : !tokenId
+      ? null
+      : wrapBlocked
+        ? wrapMapperConfigQuery.data == null
+          ? 'Wrap config unavailable'
+          : 'Wrap treasury misconfigured'
+        : pairPaused.isPaused
+          ? 'Pair is paused'
+          : pairCodeIdFreeze.isFrozen
+            ? CODE_ID_FROZEN_CTA
+            : tradingBlacklist.blocked
+              ? 'Trading restricted'
               : insufficient
                 ? 'Insufficient balance'
                 : !gasGate.canAddLiquidity
@@ -244,7 +236,6 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
     addMutation.isPending ||
     (!!address &&
       (!tokenId ||
-        !pair ||
         !amount ||
         !snapshot ||
         !!disableReason ||
@@ -258,8 +249,7 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
         impactBlocked))
 
   return (
-    <div className="shell-panel-strong space-y-3" data-testid="pool-one-sided-add">
-      <h3 className="text-sm font-semibold uppercase tracking-wide font-heading">Add</h3>
+    <div className="card-glass space-y-3 animate-fade-in-up" data-testid="pool-one-sided-add">
       <p
         className="text-[11px] sm:text-xs leading-relaxed"
         style={{ color: 'var(--ink-dim)' }}
@@ -291,19 +281,6 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
           aria-label="Token"
           disabled={!!address && holdings.empty}
           loadingLabel={holdings.loading ? 'Loading tokens…' : 'Select token'}
-        />
-      </div>
-      <div>
-        <label className="label-glass" htmlFor="pool-one-sided-pair">
-          Pair
-        </label>
-        <PairSearchSelect
-          id="pool-one-sided-pair"
-          value={pairAddr}
-          onChange={setPairAddr}
-          factoryPairs={factoryPairs}
-          aria-label="Pair"
-          emptyLabel="No factory pairs"
         />
       </div>
       <div>
@@ -341,14 +318,14 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
           Est. LP ~{snapshot.estimatedLp ? formatTokenAmount(snapshot.estimatedLp, PAIR_LP_CW20_DECIMALS) : '—'}
         </p>
       )}
-      {disableReason && amount && (
+      {disableReason && (amount || emptyPool) && (
         <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }} role="alert">
           {disableReason}
         </p>
       )}
       {snapshot && amount && (
         <PoolPreSubmitSummary
-          actionLabel="Add"
+          actionLabel={ONE_SIDED_ADD_TITLE}
           pairLabel={snapshot.pairLabel}
           amountLines={oneSidedAddPreSignAmountLines(
             amount,
@@ -373,7 +350,7 @@ export function OneSidedAddCard({ factoryPairs }: { factoryPairs: PairInfo[] }) 
       >
         {!address
           ? 'Connect Wallet'
-          : terraBroadcastPendingButtonLabel(addMutation.phase, addMutation.isPending, 'Add', 'Adding…')}
+          : terraBroadcastPendingButtonLabel(addMutation.phase, addMutation.isPending, ONE_SIDED_ADD_TITLE, 'Zapping…')}
       </button>
       <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
       {addMutation.isError && <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to add'} />}

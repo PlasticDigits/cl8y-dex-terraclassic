@@ -1,8 +1,8 @@
 /**
- * Advanced two-sided provide/withdraw for a single pool row (GitLab #547).
+ * Pair-scoped Manage panel (GitLab #547 / #660).
  * Mount only when the table row is expanded so default /pool paint does not
- * N+1 LCD `getPool` / `getPairFeeConfig` (attack A8).
- *
+ * N+1 LCD `getPool` / `getPairFeeConfig` (attack A8 / P547-9).
+ * Four peer actions; zap forms mount only after the user picks a tab (M660-5).
  * Provide field labels use the selected input asset name/symbol (GitLab #661);
  * wrap-equivalent legs default auto-wrap on (`provideWrapDefaultOn`).
  */
@@ -60,20 +60,33 @@ import { isLcdConnectivityError, LCD_CONNECTIVITY_OUTAGE_MESSAGE } from '@/utils
 import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import { USER_INCIDENT_FAQ_HREF } from '@/components/legal/legalCopy'
 import { PAIR_LP_CW20_DECIMALS } from '@/utils/oneSidedLiquidity'
-import { ONE_SIDED_ADVANCED_LABEL } from '@/utils/oneSidedLiquidityCopy'
+import {
+  ONE_SIDED_ADD_TITLE,
+  ONE_SIDED_WITHDRAW_TITLE,
+  POOL_MANAGE_ACTIONS_TESTID,
+  POOL_MANAGE_PROVIDE_LABEL,
+  POOL_MANAGE_WITHDRAW_LABEL,
+} from '@/utils/oneSidedLiquidityCopy'
+import { ONE_SIDED_EMPTY_POOL_ERROR } from '@/utils/oneSidedLiquidityQuote'
+import { OneSidedAddCard } from '@/components/pool/OneSidedAddCard'
+import { OneSidedWithdrawCard } from '@/components/pool/OneSidedWithdrawCard'
 import { useDexStore } from '@/stores/dex'
 import { slippagePercentToDecimalString } from '@/utils/oneSidedLiquidityTx'
 
 const POOL_LP_RISK_DOC =
   'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#pool-lp-risk-disclosure'
 
+type ManageAction = 'provide' | 'withdraw' | 'zap-add' | 'zap-withdraw'
+
 export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   pair,
+  factoryPairs,
   volumeQuote24h,
   quoteDecimals,
   listBadges,
 }: {
   pair: PairInfo
+  factoryPairs: PairInfo[]
   volumeQuote24h?: string
   quoteDecimals?: number
   listBadges: PairListBadges
@@ -81,7 +94,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   const address = useWalletStore((s) => s.address)
   const slippageTolerance = useDexStore((s) => s.slippageTolerance)
   const queryClient = useQueryClient()
-  const [expanded, setExpanded] = useState<'add' | 'remove' | null>(null)
+  const [action, setAction] = useState<ManageAction | null>(null)
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
   const [lpAmount, setLpAmount] = useState('')
@@ -122,6 +135,11 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
     queryFn: () => getPool(pair.contract_addr),
     staleTime: 30_000,
   })
+  const emptyPool =
+    poolQuery.data != null && (poolQuery.data.assets[0].amount === '0' || poolQuery.data.assets[1].amount === '0')
+  const showZapTabs = listBadges.isInFactoryRouterGraph
+  const zapEnabled = showZapTabs && !emptyPool
+  const selectedAction = !zapEnabled && (action === 'zap-add' || action === 'zap-withdraw') ? null : action
 
   const feeQuery = useQuery({
     queryKey: ['feeConfig', pair.contract_addr],
@@ -138,7 +156,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
       if (!address) throw new Error('No address')
       return getTokenBalance(address, tokenAssetInfo(pair.liquidity_token))
     },
-    enabled: !!address && expanded === 'remove',
+    enabled: !!address && selectedAction === 'withdraw',
     refetchInterval: 15_000,
   })
 
@@ -178,7 +196,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
       if (!address) throw new Error('No address')
       return getTokenBalance(address, balanceInfoA)
     },
-    enabled: !!address && expanded === 'add',
+    enabled: !!address && selectedAction === 'provide',
     refetchInterval: 15_000,
   })
   const balanceBQuery = useQuery({
@@ -187,7 +205,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
       if (!address) throw new Error('No address')
       return getTokenBalance(address, balanceInfoB)
     },
-    enabled: !!address && expanded === 'add',
+    enabled: !!address && selectedAction === 'provide',
     refetchInterval: 15_000,
   })
 
@@ -210,7 +228,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   const wrapMapperConfigQuery = useQuery({
     queryKey: ['wrapMapperConfig'],
     queryFn: queryWrapMapperConfig,
-    enabled: expanded === 'add' && (hasNativeOptionA || hasNativeOptionB) && !!WRAP_MAPPER_CONTRACT_ADDRESS,
+    enabled: selectedAction === 'provide' && (hasNativeOptionA || hasNativeOptionB) && !!WRAP_MAPPER_CONTRACT_ADDRESS,
     staleTime: 30_000,
     refetchInterval: 30_000,
   })
@@ -678,462 +696,519 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
         />
       )}
 
-      <details className="mt-2" data-testid="pool-card-advanced" open>
-        <summary className="text-xs cursor-pointer uppercase tracking-wide mb-2" style={{ color: 'var(--ink-subtle)' }}>
-          {ONE_SIDED_ADVANCED_LABEL}
-        </summary>
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={() => {
-              sounds.playButtonPress()
-              setExpanded(expanded === 'add' ? null : 'add')
-            }}
-            className={`tab-glass !text-xs ${expanded === 'add' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
-          >
-            Provide Liquidity
-          </button>
-          <button
-            onClick={() => {
-              sounds.playButtonPress()
-              setExpanded(expanded === 'remove' ? null : 'remove')
-            }}
-            className={`tab-glass !text-xs ${expanded === 'remove' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
-          >
-            Withdraw Liquidity
-          </button>
-        </div>
-
-        {expanded === 'add' && (
-          <div className="card-glass space-y-3 animate-fade-in-up">
-            <p
-              className="text-[11px] sm:text-xs leading-relaxed"
-              style={{ color: 'var(--ink-dim)' }}
-              data-testid="pool-il-risk-notice-advanced"
-              role="note"
-            >
-              <span className="font-semibold" style={{ color: 'var(--ink-subtle)' }}>
-                Impermanent loss risk.
-              </span>{' '}
-              LP value can diverge from simply holding the underlying assets when pool prices move.{' '}
-              <a href={POOL_LP_RISK_DOC} target="_blank" rel="noopener noreferrer" className="underline">
-                Learn more
-              </a>
-            </p>
-            {isPairPaused && (
-              <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
-                <p>
-                  This pair is paused by governance. Provide and withdraw liquidity are unavailable until the pair is
-                  unpaused. LP tokens and pool shares remain in your wallet.
-                </p>
-                <a
-                  className="underline text-[10px]"
-                  href={USER_INCIDENT_FAQ_HREF}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  What happens during an incident?
-                </a>
-              </div>
-            )}
-            {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="pool-pair-code-id-frozen-banner" />}
-            {tradingBlacklist.blocked && tradingBlacklist.message && (
-              <p className="alert-error text-xs" role="alert">
-                {tradingBlacklist.message}
-              </p>
-            )}
-            <div>
-              <label className="label-glass" data-testid="pool-provide-field-label-a">
-                <span className="normal-case">{provideFieldLabelA}</span>
-              </label>
-              {hasNativeOptionA && (
-                <label
-                  className="flex items-center gap-2 text-xs mb-1 cursor-pointer"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={useNativeA}
-                    onChange={(e) => setUseNativeA(e.target.checked)}
-                    className="accent-[var(--cyan)]"
-                    data-testid="pool-provide-auto-wrap-a"
-                  />
-                  Use native {getTokenDisplaySymbol(nativeEquivA!)} (auto-wrap)
-                </label>
-              )}
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amountA}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === '' || /^\d*\.?\d*$/.test(v)) setProvideAmountA(v)
-                }}
-                placeholder="0.00"
-                className="input-glass"
-                aria-label={provideAriaA}
-              />
-              {address && (
-                <AmountBalanceActions
-                  balanceQuery={balanceAQuery}
-                  decimals={decimalsA}
-                  walletConnected={!!address}
-                  showHalf
-                  spendableRaw={maxResultA.spendableRaw}
-                  onMax={() => setProvideAmountA(maxResultA.human, { forceSync: true })}
-                  onHalf={() => {
-                    if (!balanceAQuery.data) return
-                    const half = (BigInt(balanceAQuery.data) / 2n).toString()
-                    setProvideAmountA(fromRawAmount(half, decimalsA), { forceSync: true })
-                  }}
-                  testIdMax="pool-add-max-a"
-                  testIdHalf="pool-add-half-a"
-                />
-              )}
-              {insufficientAddA && (
-                <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
-                  Exceeds wallet balance
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="label-glass" data-testid="pool-provide-field-label-b">
-                <span className="normal-case">{provideFieldLabelB}</span>
-              </label>
-              {hasNativeOptionB && (
-                <label
-                  className="flex items-center gap-2 text-xs mb-1 cursor-pointer"
-                  style={{ color: 'var(--ink-dim)' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={useNativeB}
-                    onChange={(e) => setUseNativeB(e.target.checked)}
-                    className="accent-[var(--cyan)]"
-                    data-testid="pool-provide-auto-wrap-b"
-                  />
-                  Use native {getTokenDisplaySymbol(nativeEquivB!)} (auto-wrap)
-                </label>
-              )}
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amountB}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === '' || /^\d*\.?\d*$/.test(v)) setProvideAmountB(v)
-                }}
-                placeholder="0.00"
-                className="input-glass"
-                aria-label={provideAriaB}
-              />
-              {address && (
-                <AmountBalanceActions
-                  balanceQuery={balanceBQuery}
-                  decimals={decimalsB}
-                  walletConnected={!!address}
-                  showHalf
-                  spendableRaw={maxResultB.spendableRaw}
-                  onMax={() => setProvideAmountB(maxResultB.human, { forceSync: true })}
-                  onHalf={() => {
-                    if (!balanceBQuery.data) return
-                    const half = (BigInt(balanceBQuery.data) / 2n).toString()
-                    setProvideAmountB(fromRawAmount(half, decimalsB), { forceSync: true })
-                  }}
-                  testIdMax="pool-add-max-b"
-                  testIdHalf="pool-add-half-b"
-                />
-              )}
-              {insufficientAddB && (
-                <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
-                  Exceeds wallet balance
-                </p>
-              )}
-            </div>
-            {poolQuery.data && amountA && amountB && (
-              <p className="text-sm" style={{ color: 'var(--ink-dim)' }} aria-live="polite" aria-atomic>
-                {estimatedUserLp == null ? (
-                  <span>Estimated LP: — (amount too small or empty pool below minimum)</span>
-                ) : (
-                  <span>Estimated LP: ~{formatTokenAmount(estimatedUserLp.toString(), LP_DECIMALS)} LP</span>
-                )}
-              </p>
-            )}
-            {poolQuery.data && amountA && amountB && ratioBalanced === false && (
-              <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="pool-provide-ratio-warning">
-                Amounts are not in the current pool price ratio. The contract mints LP from the smaller side; extra
-                tokens on the larger side are effectively donated to the pool.
-              </p>
-            )}
-            {provideLiquidityNativeGasGate.userMessage && (
-              <p
-                className="text-xs font-semibold"
-                style={{
-                  color: provideLiquidityNativeGasGate.tone === 'warning' ? 'var(--ink-dim)' : 'var(--red, #ef4444)',
-                }}
-                role="alert"
-              >
-                {provideLiquidityNativeGasGate.userMessage}
-              </p>
-            )}
-            {amountA && amountB && (
-              <PoolPreSubmitSummary
-                actionLabel="Provide Liquidity"
-                pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
-                amountLines={[`${amountA} ${inputDisplayA.symbol}`, `${amountB} ${inputDisplayB.symbol}`]}
-                data-testid="pool-provide-pre-submit-summary"
-              />
-            )}
+      <div
+        className="flex flex-wrap gap-2 mb-3 mt-2"
+        data-testid={POOL_MANAGE_ACTIONS_TESTID}
+        role="toolbar"
+        aria-label="Pool actions"
+      >
+        <button
+          type="button"
+          data-testid="pool-manage-tab-provide"
+          aria-label={`Select ${POOL_MANAGE_PROVIDE_LABEL}`}
+          aria-pressed={selectedAction === 'provide'}
+          onClick={() => {
+            sounds.playButtonPress()
+            setAction((cur) => (cur === 'provide' ? null : 'provide'))
+          }}
+          className={`tab-glass !text-xs ${selectedAction === 'provide' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+        >
+          {POOL_MANAGE_PROVIDE_LABEL}
+        </button>
+        <button
+          type="button"
+          data-testid="pool-manage-tab-withdraw"
+          aria-label={`Select ${POOL_MANAGE_WITHDRAW_LABEL}`}
+          aria-pressed={selectedAction === 'withdraw'}
+          onClick={() => {
+            sounds.playButtonPress()
+            setAction((cur) => (cur === 'withdraw' ? null : 'withdraw'))
+          }}
+          className={`tab-glass !text-xs ${selectedAction === 'withdraw' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+        >
+          {POOL_MANAGE_WITHDRAW_LABEL}
+        </button>
+        {showZapTabs ? (
+          <>
             <button
+              type="button"
+              data-testid="pool-manage-tab-zap-add"
+              aria-label={`Select ${ONE_SIDED_ADD_TITLE}`}
+              aria-pressed={selectedAction === 'zap-add'}
+              disabled={!zapEnabled}
+              title={!zapEnabled ? ONE_SIDED_EMPTY_POOL_ERROR : undefined}
               onClick={() => {
+                if (!zapEnabled) return
                 sounds.playButtonPress()
-                addMutation.mutate()
+                setAction((cur) => (cur === 'zap-add' ? null : 'zap-add'))
               }}
-              disabled={
-                !address ||
-                !amountA ||
-                !amountB ||
-                addMutation.isPending ||
-                insufficientAdd ||
-                wrapProvideBlocked ||
-                !provideLiquidityNativeGasGate.canAddLiquidity ||
-                tradingBlacklist.blocked ||
-                isLpBlocked
-              }
-              className={`w-full py-2.5 font-semibold text-sm ${
-                !address ||
-                !amountA ||
-                !amountB ||
-                addMutation.isPending ||
-                insufficientAdd ||
-                wrapProvideBlocked ||
-                !provideLiquidityNativeGasGate.canAddLiquidity ||
-                tradingBlacklist.blocked ||
-                isLpBlocked
-                  ? 'btn-disabled !w-full'
-                  : 'btn-primary !w-full'
-              }`}
+              className={`tab-glass !text-xs disabled:opacity-50 disabled:cursor-not-allowed ${selectedAction === 'zap-add' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
             >
-              {!address
-                ? 'Connect Wallet'
-                : isPairPaused
-                  ? 'Pair is paused'
-                  : isPairCodeIdFrozen
-                    ? CODE_ID_FROZEN_CTA
-                    : tradingBlacklist.blocked
-                      ? 'Trading restricted'
-                      : wrapProvideBlocked
-                        ? wrapMapperConfig == null
-                          ? 'Wrap config unavailable'
-                          : 'Wrap treasury misconfigured'
-                        : insufficientAdd
-                          ? 'Insufficient balance'
-                          : !provideLiquidityNativeGasGate.canAddLiquidity &&
-                              provideLiquidityNativeGasGate.tone === 'warning'
-                            ? 'Checking gas balance…'
-                            : !provideLiquidityNativeGasGate.canAddLiquidity
-                              ? 'Not enough LUNC for gas'
-                              : terraBroadcastPendingButtonLabel(
-                                  addMutation.phase,
-                                  addMutation.isPending,
-                                  'Provide Liquidity',
-                                  'Providing Liquidity…'
-                                )}
+              {ONE_SIDED_ADD_TITLE}
             </button>
-            <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
-            {addMutation.isError && (
-              <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to provide liquidity'} />
-            )}
-            {addMutation.isSuccess && (
-              <TxResultAlert type="success" message="Liquidity provided!" txHash={addMutation.data} />
-            )}
-          </div>
-        )}
+            <button
+              type="button"
+              data-testid="pool-manage-tab-zap-withdraw"
+              aria-label={`Select ${ONE_SIDED_WITHDRAW_TITLE}`}
+              aria-pressed={selectedAction === 'zap-withdraw'}
+              disabled={!zapEnabled}
+              title={!zapEnabled ? ONE_SIDED_EMPTY_POOL_ERROR : undefined}
+              onClick={() => {
+                if (!zapEnabled) return
+                sounds.playButtonPress()
+                setAction((cur) => (cur === 'zap-withdraw' ? null : 'zap-withdraw'))
+              }}
+              className={`tab-glass !text-xs disabled:opacity-50 disabled:cursor-not-allowed ${selectedAction === 'zap-withdraw' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+            >
+              {ONE_SIDED_WITHDRAW_TITLE}
+            </button>
+          </>
+        ) : null}
+      </div>
 
-        {expanded === 'remove' && (
-          <div className="card-glass space-y-3 animate-fade-in-up">
-            {isPairPaused && (
-              <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
-                <p>
-                  This pair is paused by governance. Provide and withdraw liquidity are unavailable until the pair is
-                  unpaused. LP tokens and pool shares remain in your wallet.
-                </p>
-                <a
-                  className="underline text-[10px]"
-                  href={USER_INCIDENT_FAQ_HREF}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  What happens during an incident?
-                </a>
-              </div>
-            )}
-            {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="pool-pair-code-id-frozen-banner" />}
-            {tradingBlacklist.blocked && tradingBlacklist.message && (
-              <p className="alert-error text-xs" role="alert">
-                {tradingBlacklist.message}
+      {emptyPool && showZapTabs ? (
+        <p
+          className="text-xs font-semibold mb-3"
+          style={{ color: 'var(--red, #ef4444)' }}
+          role="alert"
+          data-testid="pool-manage-empty-pool"
+        >
+          {ONE_SIDED_EMPTY_POOL_ERROR}
+        </p>
+      ) : null}
+
+      {selectedAction === 'zap-add' && zapEnabled ? <OneSidedAddCard pair={pair} factoryPairs={factoryPairs} /> : null}
+      {selectedAction === 'zap-withdraw' && zapEnabled ? <OneSidedWithdrawCard pair={pair} /> : null}
+
+      {selectedAction === 'provide' && (
+        <div className="card-glass space-y-3 animate-fade-in-up">
+          <p
+            className="text-[11px] sm:text-xs leading-relaxed"
+            style={{ color: 'var(--ink-dim)' }}
+            data-testid="pool-il-risk-notice-advanced"
+            role="note"
+          >
+            <span className="font-semibold" style={{ color: 'var(--ink-subtle)' }}>
+              Impermanent loss risk.
+            </span>{' '}
+            LP value can diverge from simply holding the underlying assets when pool prices move.{' '}
+            <a href={POOL_LP_RISK_DOC} target="_blank" rel="noopener noreferrer" className="underline">
+              Learn more
+            </a>
+          </p>
+          {isPairPaused && (
+            <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
+              <p>
+                This pair is paused by governance. Provide and withdraw liquidity are unavailable until the pair is
+                unpaused. LP tokens and pool shares remain in your wallet.
               </p>
-            )}
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="label-glass" htmlFor={lpTokenAmountInputId}>
-                  LP Token Amount
-                </label>
-                {address && (
-                  <span className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
-                    Balance:{' '}
-                    {lpBalanceQuery.isLoading ? (
-                      <Spinner size="sm" />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sounds.playButtonPress()
-                          setLpAmount(fromRawAmount(lpBalance, LP_DECIMALS))
-                        }}
-                        className="font-mono underline cursor-pointer hover:opacity-80"
-                        style={{ color: 'var(--cyan)' }}
-                        title="Use max balance"
-                      >
-                        {lpBalanceDisplay}
-                      </button>
-                    )}
-                  </span>
-                )}
-              </div>
-              <input
-                id={lpTokenAmountInputId}
-                type="text"
-                inputMode="decimal"
-                value={lpAmount}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === '' || /^\d*\.?\d*$/.test(v)) setLpAmount(v)
-                }}
-                placeholder="0.00"
-                className="input-glass"
-              />
+              <a
+                className="underline text-[10px]"
+                href={USER_INCIDENT_FAQ_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                What happens during an incident?
+              </a>
             </div>
-            <p className="text-xs flex flex-wrap items-center gap-1" style={{ color: 'var(--ink-subtle)' }}>
-              LP Token:{' '}
-              <AddressRow
-                address={pair.liquidity_token}
-                startChars={8}
-                endChars={6}
-                copyAriaLabel="Copy LP token address"
-                explorerAriaLabel="View LP token address on explorer"
-                data-testid="pool-lp-token-address-row"
-              />
+          )}
+          {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="pool-pair-code-id-frozen-banner" />}
+          {tradingBlacklist.blocked && tradingBlacklist.message && (
+            <p className="alert-error text-xs" role="alert">
+              {tradingBlacklist.message}
             </p>
-            {insufficientLp && (
-              <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>
-                Insufficient LP token balance
-              </p>
-            )}
-            {(hasNativeOptionA || hasNativeOptionB) && (
-              <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--ink-dim)' }}>
+          )}
+          <div>
+            <label className="label-glass" data-testid="pool-provide-field-label-a">
+              <span className="normal-case">{provideFieldLabelA}</span>
+            </label>
+            {hasNativeOptionA && (
+              <label
+                className="flex items-center gap-2 text-xs mb-1 cursor-pointer"
+                style={{ color: 'var(--ink-dim)' }}
+              >
                 <input
                   type="checkbox"
-                  checked={receiveWrapped}
-                  onChange={(e) => setReceiveWrapped(e.target.checked)}
+                  checked={useNativeA}
+                  onChange={(e) => setUseNativeA(e.target.checked)}
                   className="accent-[var(--cyan)]"
+                  data-testid="pool-provide-auto-wrap-a"
                 />
-                Receive as wrapped tokens (uncheck to auto-unwrap to native)
+                Use native {getTokenDisplaySymbol(nativeEquivA!)} (auto-wrap)
               </label>
             )}
-            <div>
-              <label className="label-glass">Slippage Tolerance</label>
-              <div className="flex gap-2">
-                {['0.5', '1.0', '2.0'].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      setWithdrawSlippage(val)
-                    }}
-                    className={`tab-glass !text-xs !px-3 !py-1.5 ${
-                      withdrawSlippage === val ? 'tab-glass-active' : 'tab-glass-inactive'
-                    }`}
-                  >
-                    {val}%
-                  </button>
-                ))}
-              </div>
-            </div>
-            {lpAmount && withdrawExpectedAssets && (
-              <div className="text-xs space-y-1" style={{ color: 'var(--ink-dim)' }}>
-                <p data-testid="pool-withdraw-estimated-receive">
-                  Expected receive (0% slippage): ~{formatTokenAmount(withdrawExpectedAssets[0], decimalsA)}{' '}
-                  {withdrawReceiveLabelA} + ~{formatTokenAmount(withdrawExpectedAssets[1], decimalsB)}{' '}
-                  {withdrawReceiveLabelB}
-                </p>
-                {withdrawMinAssets && (
-                  <p data-testid="pool-withdraw-minimum-receive">
-                    Minimum receive ({withdrawSlippage}% slippage): {formatTokenAmount(withdrawMinAssets[0], decimalsA)}{' '}
-                    {withdrawReceiveLabelA} + {formatTokenAmount(withdrawMinAssets[1], decimalsB)}{' '}
-                    {withdrawReceiveLabelB}
-                  </p>
-                )}
-              </div>
-            )}
-            {lpAmount && (
-              <PoolPreSubmitSummary
-                actionLabel="Withdraw Liquidity"
-                pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
-                amountLines={withdrawPreSubmitAmountLines}
-                data-testid="pool-withdraw-pre-submit-summary"
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amountA}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setProvideAmountA(v)
+              }}
+              placeholder="0.00"
+              className="input-glass"
+              aria-label={provideAriaA}
+            />
+            {address && (
+              <AmountBalanceActions
+                balanceQuery={balanceAQuery}
+                decimals={decimalsA}
+                walletConnected={!!address}
+                showHalf
+                spendableRaw={maxResultA.spendableRaw}
+                onMax={() => setProvideAmountA(maxResultA.human, { forceSync: true })}
+                onHalf={() => {
+                  if (!balanceAQuery.data) return
+                  const half = (BigInt(balanceAQuery.data) / 2n).toString()
+                  setProvideAmountA(fromRawAmount(half, decimalsA), { forceSync: true })
+                }}
+                testIdMax="pool-add-max-a"
+                testIdHalf="pool-add-half-a"
               />
             )}
-            <button
-              onClick={() => {
-                sounds.playButtonPress()
-                removeMutation.mutate()
-              }}
-              disabled={
-                !address ||
-                !lpAmount ||
-                insufficientLp ||
-                removeMutation.isPending ||
-                tradingBlacklist.blocked ||
-                isLpBlocked
-              }
-              className={`w-full py-2.5 font-semibold text-sm ${
-                !address ||
-                !lpAmount ||
-                insufficientLp ||
-                removeMutation.isPending ||
-                tradingBlacklist.blocked ||
-                isLpBlocked
-                  ? 'btn-disabled !w-full'
-                  : 'btn-primary !w-full'
-              }`}
-            >
-              {!address
-                ? 'Connect Wallet'
-                : isPairPaused
-                  ? 'Pair is paused'
-                  : isPairCodeIdFrozen
-                    ? CODE_ID_FROZEN_CTA
-                    : tradingBlacklist.blocked
-                      ? 'Trading restricted'
-                      : insufficientLp
-                        ? 'Insufficient LP Balance'
-                        : terraBroadcastPendingButtonLabel(
-                            removeMutation.phase,
-                            removeMutation.isPending,
-                            'Withdraw Liquidity',
-                            'Withdrawing…'
-                          )}
-            </button>
-            <TerraBroadcastPendingLink phase={removeMutation.phase} txHash={removeMutation.pendingTxHash} />
-            {removeMutation.isError && (
-              <TxResultAlert type="error" message={removeMutation.error?.message ?? 'Failed to withdraw liquidity'} />
-            )}
-            {removeMutation.isSuccess && (
-              <TxResultAlert type="success" message="Liquidity withdrawn!" txHash={removeMutation.data} />
+            {insufficientAddA && (
+              <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
+                Exceeds wallet balance
+              </p>
             )}
           </div>
-        )}
-      </details>
+          <div>
+            <label className="label-glass" data-testid="pool-provide-field-label-b">
+              <span className="normal-case">{provideFieldLabelB}</span>
+            </label>
+            {hasNativeOptionB && (
+              <label
+                className="flex items-center gap-2 text-xs mb-1 cursor-pointer"
+                style={{ color: 'var(--ink-dim)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={useNativeB}
+                  onChange={(e) => setUseNativeB(e.target.checked)}
+                  className="accent-[var(--cyan)]"
+                  data-testid="pool-provide-auto-wrap-b"
+                />
+                Use native {getTokenDisplaySymbol(nativeEquivB!)} (auto-wrap)
+              </label>
+            )}
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amountB}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setProvideAmountB(v)
+              }}
+              placeholder="0.00"
+              className="input-glass"
+              aria-label={provideAriaB}
+            />
+            {address && (
+              <AmountBalanceActions
+                balanceQuery={balanceBQuery}
+                decimals={decimalsB}
+                walletConnected={!!address}
+                showHalf
+                spendableRaw={maxResultB.spendableRaw}
+                onMax={() => setProvideAmountB(maxResultB.human, { forceSync: true })}
+                onHalf={() => {
+                  if (!balanceBQuery.data) return
+                  const half = (BigInt(balanceBQuery.data) / 2n).toString()
+                  setProvideAmountB(fromRawAmount(half, decimalsB), { forceSync: true })
+                }}
+                testIdMax="pool-add-max-b"
+                testIdHalf="pool-add-half-b"
+              />
+            )}
+            {insufficientAddB && (
+              <p className="text-xs font-semibold mt-1" style={{ color: 'var(--red, #ef4444)' }}>
+                Exceeds wallet balance
+              </p>
+            )}
+          </div>
+          {poolQuery.data && amountA && amountB && (
+            <p className="text-sm" style={{ color: 'var(--ink-dim)' }} aria-live="polite" aria-atomic>
+              {estimatedUserLp == null ? (
+                <span>Estimated LP: — (amount too small or empty pool below minimum)</span>
+              ) : (
+                <span>Estimated LP: ~{formatTokenAmount(estimatedUserLp.toString(), LP_DECIMALS)} LP</span>
+              )}
+            </p>
+          )}
+          {poolQuery.data && amountA && amountB && ratioBalanced === false && (
+            <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="pool-provide-ratio-warning">
+              Amounts are not in the current pool price ratio. The contract mints LP from the smaller side; extra tokens
+              on the larger side are effectively donated to the pool.
+            </p>
+          )}
+          {provideLiquidityNativeGasGate.userMessage && (
+            <p
+              className="text-xs font-semibold"
+              style={{
+                color: provideLiquidityNativeGasGate.tone === 'warning' ? 'var(--ink-dim)' : 'var(--red, #ef4444)',
+              }}
+              role="alert"
+            >
+              {provideLiquidityNativeGasGate.userMessage}
+            </p>
+          )}
+          {amountA && amountB && (
+            <PoolPreSubmitSummary
+              actionLabel="Provide Liquidity"
+              pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
+              amountLines={[`${amountA} ${displayA.displayLabel}`, `${amountB} ${displayB.displayLabel}`]}
+              data-testid="pool-provide-pre-submit-summary"
+            />
+          )}
+          <button
+            onClick={() => {
+              sounds.playButtonPress()
+              addMutation.mutate()
+            }}
+            disabled={
+              !address ||
+              !amountA ||
+              !amountB ||
+              addMutation.isPending ||
+              insufficientAdd ||
+              wrapProvideBlocked ||
+              !provideLiquidityNativeGasGate.canAddLiquidity ||
+              tradingBlacklist.blocked ||
+              isLpBlocked
+            }
+            className={`w-full py-2.5 font-semibold text-sm ${
+              !address ||
+              !amountA ||
+              !amountB ||
+              addMutation.isPending ||
+              insufficientAdd ||
+              wrapProvideBlocked ||
+              !provideLiquidityNativeGasGate.canAddLiquidity ||
+              tradingBlacklist.blocked ||
+              isLpBlocked
+                ? 'btn-disabled !w-full'
+                : 'btn-primary !w-full'
+            }`}
+          >
+            {!address
+              ? 'Connect Wallet'
+              : isPairPaused
+                ? 'Pair is paused'
+                : isPairCodeIdFrozen
+                  ? CODE_ID_FROZEN_CTA
+                  : tradingBlacklist.blocked
+                    ? 'Trading restricted'
+                    : wrapProvideBlocked
+                      ? wrapMapperConfig == null
+                        ? 'Wrap config unavailable'
+                        : 'Wrap treasury misconfigured'
+                      : insufficientAdd
+                        ? 'Insufficient balance'
+                        : !provideLiquidityNativeGasGate.canAddLiquidity &&
+                            provideLiquidityNativeGasGate.tone === 'warning'
+                          ? 'Checking gas balance…'
+                          : !provideLiquidityNativeGasGate.canAddLiquidity
+                            ? 'Not enough LUNC for gas'
+                            : terraBroadcastPendingButtonLabel(
+                                addMutation.phase,
+                                addMutation.isPending,
+                                'Provide Liquidity',
+                                'Providing Liquidity…'
+                              )}
+          </button>
+          <TerraBroadcastPendingLink phase={addMutation.phase} txHash={addMutation.pendingTxHash} />
+          {addMutation.isError && (
+            <TxResultAlert type="error" message={addMutation.error?.message ?? 'Failed to provide liquidity'} />
+          )}
+          {addMutation.isSuccess && (
+            <TxResultAlert type="success" message="Liquidity provided!" txHash={addMutation.data} />
+          )}
+        </div>
+      )}
+
+      {selectedAction === 'withdraw' && (
+        <div className="card-glass space-y-3 animate-fade-in-up">
+          {isPairPaused && (
+            <div className="alert-error text-xs space-y-2" role="alert" data-testid="pool-pair-paused-banner">
+              <p>
+                This pair is paused by governance. Provide and withdraw liquidity are unavailable until the pair is
+                unpaused. LP tokens and pool shares remain in your wallet.
+              </p>
+              <a
+                className="underline text-[10px]"
+                href={USER_INCIDENT_FAQ_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                What happens during an incident?
+              </a>
+            </div>
+          )}
+          {isPairCodeIdFrozen && <PairCodeIdFrozenBanner testId="pool-pair-code-id-frozen-banner" />}
+          {tradingBlacklist.blocked && tradingBlacklist.message && (
+            <p className="alert-error text-xs" role="alert">
+              {tradingBlacklist.message}
+            </p>
+          )}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="label-glass" htmlFor={lpTokenAmountInputId}>
+                LP Token Amount
+              </label>
+              {address && (
+                <span className="text-xs" style={{ color: 'var(--ink-subtle)' }}>
+                  Balance:{' '}
+                  {lpBalanceQuery.isLoading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playButtonPress()
+                        setLpAmount(fromRawAmount(lpBalance, LP_DECIMALS))
+                      }}
+                      className="font-mono underline cursor-pointer hover:opacity-80"
+                      style={{ color: 'var(--cyan)' }}
+                      title="Use max balance"
+                    >
+                      {lpBalanceDisplay}
+                    </button>
+                  )}
+                </span>
+              )}
+            </div>
+            <input
+              id={lpTokenAmountInputId}
+              type="text"
+              inputMode="decimal"
+              value={lpAmount}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setLpAmount(v)
+              }}
+              placeholder="0.00"
+              className="input-glass"
+            />
+          </div>
+          <p className="text-xs flex flex-wrap items-center gap-1" style={{ color: 'var(--ink-subtle)' }}>
+            LP Token:{' '}
+            <AddressRow
+              address={pair.liquidity_token}
+              startChars={8}
+              endChars={6}
+              copyAriaLabel="Copy LP token address"
+              explorerAriaLabel="View LP token address on explorer"
+              data-testid="pool-lp-token-address-row"
+            />
+          </p>
+          {insufficientLp && (
+            <p className="text-xs font-semibold" style={{ color: 'var(--red, #ef4444)' }}>
+              Insufficient LP token balance
+            </p>
+          )}
+          {(hasNativeOptionA || hasNativeOptionB) && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--ink-dim)' }}>
+              <input
+                type="checkbox"
+                checked={receiveWrapped}
+                onChange={(e) => setReceiveWrapped(e.target.checked)}
+                className="accent-[var(--cyan)]"
+              />
+              Receive as wrapped tokens (uncheck to auto-unwrap to native)
+            </label>
+          )}
+          <div>
+            <label className="label-glass">Slippage Tolerance</label>
+            <div className="flex gap-2">
+              {['0.5', '1.0', '2.0'].map((val) => (
+                <button
+                  key={val}
+                  onClick={() => {
+                    sounds.playButtonPress()
+                    setWithdrawSlippage(val)
+                  }}
+                  className={`tab-glass !text-xs !px-3 !py-1.5 ${
+                    withdrawSlippage === val ? 'tab-glass-active' : 'tab-glass-inactive'
+                  }`}
+                >
+                  {val}%
+                </button>
+              ))}
+            </div>
+          </div>
+          {lpAmount && withdrawExpectedAssets && (
+            <div className="text-xs space-y-1" style={{ color: 'var(--ink-dim)' }}>
+              <p data-testid="pool-withdraw-estimated-receive">
+                Expected receive (0% slippage): ~{formatTokenAmount(withdrawExpectedAssets[0], decimalsA)}{' '}
+                {withdrawReceiveLabelA} + ~{formatTokenAmount(withdrawExpectedAssets[1], decimalsB)}{' '}
+                {withdrawReceiveLabelB}
+              </p>
+              {withdrawMinAssets && (
+                <p data-testid="pool-withdraw-minimum-receive">
+                  Minimum receive ({withdrawSlippage}% slippage): {formatTokenAmount(withdrawMinAssets[0], decimalsA)}{' '}
+                  {withdrawReceiveLabelA} + {formatTokenAmount(withdrawMinAssets[1], decimalsB)} {withdrawReceiveLabelB}
+                </p>
+              )}
+            </div>
+          )}
+          {lpAmount && (
+            <PoolPreSubmitSummary
+              actionLabel="Withdraw Liquidity"
+              pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
+              amountLines={withdrawPreSubmitAmountLines}
+              data-testid="pool-withdraw-pre-submit-summary"
+            />
+          )}
+          <button
+            onClick={() => {
+              sounds.playButtonPress()
+              removeMutation.mutate()
+            }}
+            disabled={
+              !address ||
+              !lpAmount ||
+              insufficientLp ||
+              removeMutation.isPending ||
+              tradingBlacklist.blocked ||
+              isLpBlocked
+            }
+            className={`w-full py-2.5 font-semibold text-sm ${
+              !address ||
+              !lpAmount ||
+              insufficientLp ||
+              removeMutation.isPending ||
+              tradingBlacklist.blocked ||
+              isLpBlocked
+                ? 'btn-disabled !w-full'
+                : 'btn-primary !w-full'
+            }`}
+          >
+            {!address
+              ? 'Connect Wallet'
+              : isPairPaused
+                ? 'Pair is paused'
+                : isPairCodeIdFrozen
+                  ? CODE_ID_FROZEN_CTA
+                  : tradingBlacklist.blocked
+                    ? 'Trading restricted'
+                    : insufficientLp
+                      ? 'Insufficient LP Balance'
+                      : terraBroadcastPendingButtonLabel(
+                          removeMutation.phase,
+                          removeMutation.isPending,
+                          'Withdraw Liquidity',
+                          'Withdrawing…'
+                        )}
+          </button>
+          <TerraBroadcastPendingLink phase={removeMutation.phase} txHash={removeMutation.pendingTxHash} />
+          {removeMutation.isError && (
+            <TxResultAlert type="error" message={removeMutation.error?.message ?? 'Failed to withdraw liquidity'} />
+          )}
+          {removeMutation.isSuccess && (
+            <TxResultAlert type="success" message="Liquidity withdrawn!" txHash={removeMutation.data} />
+          )}
+        </div>
+      )}
     </div>
   )
 })

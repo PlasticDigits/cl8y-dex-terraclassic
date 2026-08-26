@@ -22,5 +22,5 @@ frontend-dapp/src/pages/TradePage.tsx
 # Desktop skeleton mirrors Trade sibling card-glass cells (book / ticket / tape).
 frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx
 
-# Pool advanced provide/withdraw interactive cards.
+# Pool Manage four-action forms (provide / withdraw / zap wells, not nested shell-panel).
 frontend-dapp/src/components/pool/PoolAdvancedManage.tsx

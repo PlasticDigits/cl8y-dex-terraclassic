@@ -87,7 +87,7 @@ if [[ "${VERIFY_ISSUE_531_SKIP_E2E:-}" == "1" ]]; then
   echo "[playwright P1–P3] skipped (VERIFY_ISSUE_531_SKIP_E2E=1)"
 else
   run_step "playwright: P1–P3 + dismiss + no wrap/limits lecture" \
-    bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-lp-howto-531.spec.ts --project=e2e-smoke'
+    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-30660}" PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-30660}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-lp-howto-531.spec.ts --project=e2e-smoke --workers=5'
 fi
 
 echo ""

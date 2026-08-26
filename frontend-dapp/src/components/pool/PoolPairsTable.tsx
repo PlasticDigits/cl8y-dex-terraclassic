@@ -1,4 +1,4 @@
-import type { IndexerPair } from '@/types'
+import type { IndexerPair, PairInfo } from '@/types'
 import { indexerPairToPairInfo } from '@/types'
 import { Link } from 'react-router-dom'
 import { TokenDisplay, FeeDisplay, PairTokenLinks } from '@/components/ui'
@@ -14,6 +14,7 @@ import { PoolAdvancedManage } from '@/components/pool/PoolAdvancedManage'
 
 export type PoolPairsTableProps = {
   pairs: IndexerPair[]
+  factoryPairs: PairInfo[]
   factoryPairAddresses: Set<string>
   /** Active indexer column, or null when catalog default (no column caret active). */
   activeSort: PoolColumnSort | null
@@ -107,6 +108,7 @@ function FactoryMark({ badges }: { badges: PairListBadges }) {
 
 export function PoolPairsTable({
   pairs,
+  factoryPairs,
   factoryPairAddresses,
   activeSort,
   order,
@@ -192,6 +194,7 @@ export function PoolPairsTable({
                 lpUsdLabel={lpUsdLabel}
                 chartsHref={chartsHref}
                 expanded={expanded}
+                factoryPairs={factoryPairs}
                 onToggleManage={onToggleManage}
               />
             </tbody>
@@ -210,6 +213,7 @@ function PoolPairRows({
   lpUsdLabel,
   chartsHref,
   expanded,
+  factoryPairs,
   onToggleManage,
 }: {
   ip: IndexerPair
@@ -219,6 +223,7 @@ function PoolPairRows({
   lpUsdLabel: string
   chartsHref: string | null
   expanded: boolean
+  factoryPairs: PairInfo[]
   onToggleManage: (pairAddress: string) => void
 }) {
   return (
@@ -304,6 +309,7 @@ function PoolPairRows({
           <td colSpan={7} className="px-2 pb-4 pt-0">
             <PoolAdvancedManage
               pair={pair}
+              factoryPairs={factoryPairs}
               volumeQuote24h={ip.volume_quote_24h}
               quoteDecimals={ip.asset_1.decimals}
               listBadges={badges}
