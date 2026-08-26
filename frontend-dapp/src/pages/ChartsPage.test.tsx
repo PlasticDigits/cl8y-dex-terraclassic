@@ -179,6 +179,8 @@ describe('ChartsPage (component)', () => {
       expect(within(trades).getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('4')
       expect(screen.getByTestId('charts-overview-pairs')).toHaveTextContent('13')
       expect(screen.getByTestId('charts-overview-tokens')).toHaveTextContent('12')
+      expect(vol.className).toMatch(/stat-flat/)
+      expect(vol.className).not.toMatch(/card-glass/)
     })
 
     it('F2: unpriced USD with trades shows em dash not 0', async () => {

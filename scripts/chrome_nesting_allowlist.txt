@@ -1,0 +1,26 @@
+# Remaining production TSX files that use both a shell-panel* class and card-glass
+# in the same file (GitLab #653). New hits fail scripts/check_chrome_nesting.py.
+#
+# These are allowlisted interactive / media / single-well exceptions — not metric grids.
+# Metric tiles must use StatBox variant="flat" / .stat-flat.
+
+# Swap Pay/Receive IO cards + settings / pre-submit wells (canonical interactive exception).
+frontend-dapp/src/pages/SwapPage.tsx
+
+# Single hook-events table well inside the Protocol hooks panel.
+frontend-dapp/src/pages/ProtocolPage.tsx
+
+# Oracle sources + history: one table well each (not a stat-chip grid).
+frontend-dapp/src/components/protocol/ProtocolOracleCard.tsx
+
+# Limits place card, my-open list, extra details (interactive blocks).
+frontend-dapp/src/pages/LimitOrdersPage.tsx
+
+# Sub-lg Recent trades cell — sibling region, not a panel-of-stat-chips.
+frontend-dapp/src/pages/TradePage.tsx
+
+# Desktop skeleton mirrors Trade sibling card-glass cells (book / ticket / tape).
+frontend-dapp/src/components/trade/TradePageWorkspaceSkeleton.tsx
+
+# Pool advanced provide/withdraw interactive cards.
+frontend-dapp/src/components/pool/PoolAdvancedManage.tsx

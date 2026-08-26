@@ -61,5 +61,6 @@ Backfill: [`volume::backfill_swap_volume_usd`](../indexer/src/db/queries/volume.
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — pair-list volume badges (#534 / #544)
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — Charts pair 24h Stats **Vol (token)** / TWAP human scale (#564); overview stays USD-only
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Charts leaderboard + trader profile USD (#553)
+- [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — overview tiles are `StatBox variant="flat"` (#653)
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — #215 banner
 - [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)

@@ -15,7 +15,7 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 
 1. **No `*-neo` classes** — renamed to `*-glass` in [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415). Grep `frontend-dapp/src` for `-neo` before merging.
 2. **Buttons:** `btn-primary` (blue CTA), `btn-muted` (secondary/toggle-off).
-3. **Panels:** `shell-panel` / `shell-panel-strong` for page sections; `card-glass` for nested blocks. **One chrome layer per region** — do not wrap `shell-panel*` / `card-glass` in another of the same family for the same visual region ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). Nested `card-glass` inside a page `shell-panel` is OK for distinct inner blocks.
+3. **Panels:** `shell-panel` / `shell-panel-strong` for page sections. **One chrome layer per region** ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) **L561-2**, [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)): do not wrap `shell-panel*` in another `shell-panel*`, and do not drop a **grid of** `card-glass` / default `StatBox` into a section panel. Metric tiles use `StatBox variant="flat"`. Nested `card-glass` is OK **only** for the short allowlist (Swap IO cards; a single table/chart well; Trade sibling panels) — see [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md).
 4. **Tabs/segments:** `tab-glass`, `tab-glass-active`, `tab-glass-inactive` for Limit/Market, slippage, order type. **Exception (#563):** Buy/Sell **side** controls use `side-control` + `side-buy-*` / `side-sell-*` (semantic fills from `--color-positive` / `--color-negative`). Do **not** paint `btn-primary` green/red.
 5. **Tokens:** Use `var(--ink)`, `var(--line)`, `var(--blue)`, `var(--gold)`. Legacy `--mint` / `--accent` **alias blue** — do **not** restore warm amber page fades or a hard-coded Tailwind `primary`/`dex` hex scale.
 6. **Gold vs blue:** CTAs/tabs/focus = blue; brand mark, network chip text, and **hairline gold borders** = gold. Do **not** paint large `--gold-surface` / brown fills on nav, warnings, or page backgrounds — active nav uses `--accent-surface` + gold bottom border ([#488] reopen).
@@ -46,8 +46,10 @@ Use when adding or restyling dApp UI so new work matches cool blue chrome + gold
 ```bash
 rg '-neo' frontend-dapp/src
 python3 scripts/check_design_tokens.py
+python3 scripts/check_chrome_nesting.py
 make lint-frontend
 make verify-issue-578
+make verify-issue-653
 ```
 
-Cross-links: [`docs/design-system.md`](../docs/design-system.md) · [`AGENTS_FRONTEND_OPENGRAPH.md`](./AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md) · [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) · [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (#563 side-fill exception) · QA shots [`docs/qa/issue-488/`](../docs/qa/issue-488/).
+Cross-links: [`docs/design-system.md`](../docs/design-system.md) · [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) · [`AGENTS_FRONTEND_OPENGRAPH.md`](./AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · [`AGENTS_FRONTEND_THEME_TOGGLE.md`](./AGENTS_FRONTEND_THEME_TOGGLE.md) · [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) · [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) · [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (#563 side-fill exception) · QA shots [`docs/qa/issue-488/`](../docs/qa/issue-488/).

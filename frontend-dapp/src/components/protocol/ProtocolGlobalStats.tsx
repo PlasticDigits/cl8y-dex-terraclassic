@@ -100,7 +100,13 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {STATS.map((stat) => (
           <div key={stat.testId} data-testid={stat.testId}>
-            <StatBox label={stat.label} title={stat.title} value={stat.value(overview)} loading={loading} />
+            <StatBox
+              variant="flat"
+              label={stat.label}
+              title={stat.title}
+              value={stat.value(overview)}
+              loading={loading}
+            />
           </div>
         ))}
       </div>

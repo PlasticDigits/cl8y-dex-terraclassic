@@ -2,11 +2,28 @@
 
 ## Design system
 
-Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
+Visual primitives (**QuickSwap-inspired blue + gold**, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)): [`design-system.md`](./design-system.md). Agent playbooks: [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) one chrome layer), [`skills/AGENTS_FRONTEND_THEME_TOGGLE.md`](../skills/AGENTS_FRONTEND_THEME_TOGGLE.md), [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489) docs/skills alignment), [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) social cards). Class-name migration from neo→glass: [#415](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/415).
 
 ### Retail copy & cognitive load {#retail-copy-cognitive-load}
 
 On-card copy stays short: labels ≤ ~5 words, blocking errors ≤ 1 sentence, optional **Docs** link for depth — no instructional paragraphs on primary trade cards ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). **Do not merge** always-on educational blurbs, cross-nav “use Swap/UST1” panels, or gas/burn-tax footers that are not live gates — see playbook invariant **9**. Shared terminology: [`design-system.md` § Terminology glossary](./design-system.md#terminology-glossary) (including **24h volume** = trailing window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Agent playbook: [`skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md). Required risk ack, footer NFA, and trust-boundary warnings stay visible. Retail LUNC LP steps belong in the opt-in `/pool` how-to ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531), [§ Retail LUNC liquidity how-to](#retail-lunc-liquidity-howto)) — do not paste this engineering page onto the dApp.
+
+### One chrome layer / anti-nesting {#one-chrome-layer}
+
+Global UI invariant ([GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653); Trade application **L561-2**). Agent playbook: [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md). Stack: page `--bg-*` → **one** `shell-panel*` per region → content. Mechanical guard: [`scripts/check_chrome_nesting.py`](../scripts/check_chrome_nesting.py) + [`scripts/chrome_nesting_allowlist.txt`](../scripts/chrome_nesting_allowlist.txt).
+
+| ID | Rule |
+|----|------|
+| **C653-1** | Forbidden: `shell-panel*` wrapping another `shell-panel*`, or wrapping a **grid of** `card-glass` / default `StatBox`, for the same region. Metric tiles are content, not a second chrome region. |
+| **C653-2** | Allowlist is short: Swap Pay/Receive `card-glass` (`swap-io-card-*`); a **single** inner well for a table/chart; Trade **sibling** panels (book / chart / ticket / tape). Not a panel-of-panels. |
+| **C653-3** | `StatBox` default remains `card`. Call sites **inside** a panel pass `variant="flat"` (`.stat-flat`: no second radius/border/blur). Do not silently flip the default. |
+| **C653-4** | Flattened metric grids: Charts overview + pair 24h + TWAP, Trader summary + P&L chips, Protocol Global stats / fees / oracle stat chips. Protocol hub prices stay typographic `dl`. Inline Δ% / daily volume chart on Global stats + fees is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) — this ticket only applies `flat`. |
+| **C653-5** | Swap IO cards stay nested. `PriceChart` stays a single `shell-panel-strong` (**L561-1**). No `PanelResizeHandle`. |
+| **C653-6** | Testids, `title` / `aria-label`, and overview JSON stay. Flatten is chrome + a11y only. |
+| **C653-7** | New same-file `shell-panel` + `card-glass` class hits fail the check unless allowlisted. No `eval` of page source. |
+| **C653-8** | Light + dark; 375 / 1280: values use `--ink` on `--panel-bg`. No empty-ring tiles. No retail lecture banner. |
+
+Regression: `make verify-issue-653`. Trade workspace still: `make verify-issue-561`.
 
 ## Tech Stack
 
@@ -259,7 +276,7 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 ### Charts overview strip {#charts-overview}
 
-[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) overview is **USD-only** for 24h volume ([GitLab **#548**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](../skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md). The window is **trailing** `now − 24h`, not a UTC midnight reset ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576); [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts); [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md)). `$0` is an idle window, not a daily close.
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) overview is **USD-only** for 24h volume ([GitLab **#548**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](../skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md). The window is **trailing** `now − 24h`, not a UTC midnight reset ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576); [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts); [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md)). `$0` is an idle window, not a daily close. Overview + pair 24h + TWAP tiles are `StatBox variant="flat"` inside one `shell-panel` ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653) **C653-4**).
 
 | Box | Source | Display |
 |-----|--------|---------|
@@ -277,7 +294,7 @@ Regression: `make verify-issue-548`, `make verify-issue-576`. Trailing-window de
 
 [`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) pair **24h Stats** primary volume is **USD** ([GitLab **#565**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565); leftover from #540 / #544 **AC4**). Secondary **Vol ({symbol})** rows and **TWAP Oracle** use human token / quote-per-base scale ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)). Indexer `GET /api/v1/pairs/{addr}/stats` keeps **raw** `volume_base` / `volume_quote` integers. Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](../skills/AGENTS_FRONTEND_CHARTS_PAIR_STATS.md). On-chain oracle: [`docs/twap-oracle.md`](./twap-oracle.md).
 
-**Layout (#565):** row 1 — Vol (USD), Trades, Price Change, High/Low/Open/Close (USD); row 2 — Vol (base symbol), Vol (quote symbol). Guard: stats render only when `activePair.pair_address === activePairAddr` (`charts-pair-24h-stats`).
+**Layout (#565):** row 1 — Vol (USD), Trades, Price Change, High/Low/Open/Close (USD); row 2 — Vol (base symbol), Vol (quote symbol). Guard: stats render only when `activePair.pair_address === activePairAddr` (`charts-pair-24h-stats`). Tiles are flat (**C653-4**) — no `card-glass` chips inside the section panel.
 
 | Box | Source | Display |
 |-----|--------|---------|
@@ -814,7 +831,7 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 
 ### Protocol — global USD stats + unified oracle {#protocol-page}
 
-[`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx) is the DEX census + reference-oracle surface ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [**#556**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [**#570**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) / [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)). Page order: title → **Global stats** (`protocol-global-stats`) → **Protocol fees** (`protocol-fee-stats`) → **DEX hub prices** (`protocol-dex-hub-prices`) → **one** CEX oracle card (`protocol-oracle`) → on-chain contracts (audit, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)) → hook events.
+[`ProtocolPage.tsx`](../frontend-dapp/src/pages/ProtocolPage.tsx) is the DEX census + reference-oracle surface ([GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [**#556**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [**#570**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) / [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)). Page order: title → **Global stats** (`protocol-global-stats`) → **Protocol fees** (`protocol-fee-stats`) → **DEX hub prices** (`protocol-dex-hub-prices`) → **one** CEX oracle card (`protocol-oracle`) → on-chain contracts (audit, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)) → hook events. Global stats / fees / oracle **stat chips** use `StatBox variant="flat"` ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)); merging Δ% into the USD tiles is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652). Oracle sources/history and hook events may keep **one** table well.
 
 | Invariant | Meaning |
 |-----------|---------|
@@ -1558,7 +1575,7 @@ Desktop `/trade` (`lg`, `min-width: 1024px`) is a **CSS grid** with boolean pane
 | Invariant | Meaning |
 |-----------|---------|
 | **L561-1 Single chart surface** | `PriceChart` `shell-panel-strong` is the only chrome on the chart. No wrapping `card-glass`. |
-| **L561-2 One chrome layer** | Design-system principle: do not box-in-box `shell-panel*` / `card-glass` for the same region. Swap / Pool / Limits / Charts audited; Limits extra book wrapper removed. |
+| **L561-2 One chrome layer** | Applies [§ One chrome layer / anti-nesting](#one-chrome-layer) (**C653**) on `/trade`: sibling panels, not a panel-of-panels. Swap IO cards stay the interactive exception. Metric grids (Charts / Trader / Protocol) use `StatBox variant="flat"` — see [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653). |
 | **L561-3 Independent tape** | Recent trades is a bottom-row panel (`trade-desktop-tape-panel`), not nested in the chart column. Expand/collapse is a button (`trade-desktop-tape-toggle`), not a splitter. |
 | **L561-4 No drag-resize** | No `PanelResizeHandle` in the default layout. P10 asserts handles are absent. |
 | **L561-5 Hide book** | `trade-desktop-book-toggle` hides the book; chart width grows (`3.2fr` vs remaining ticket `1fr`). The ticket must not take the vacated width. Restore control stays visible. |

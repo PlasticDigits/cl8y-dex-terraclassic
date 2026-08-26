@@ -98,6 +98,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div data-testid="protocol-stat-fees-24h">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_24H_LABEL}
             title={TRAILING_24H_FEES_TITLE}
             value={formatProtocolUsd(overview?.total_fees_24h_usd)}
@@ -106,6 +107,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         </div>
         <div data-testid="protocol-stat-fees-24h-chg">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_24H_CHG_LABEL}
             title={TRAILING_24H_FEES_CHG_TITLE}
             value={formatProtocolPct(overview?.fees_change_24h_pct)}
@@ -114,6 +116,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         </div>
         <div data-testid="protocol-stat-fees-7d">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_7D_LABEL}
             title={TRAILING_7D_FEES_TITLE}
             value={formatProtocolUsd(overview?.total_fees_7d_usd)}
@@ -122,6 +125,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         </div>
         <div data-testid="protocol-stat-fees-7d-chg">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_7D_CHG_LABEL}
             title={TRAILING_7D_FEES_CHG_TITLE}
             value={formatProtocolPct(overview?.fees_change_7d_pct)}
@@ -130,6 +134,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         </div>
         <div data-testid="protocol-stat-fees-30d">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_30D_LABEL}
             title={TRAILING_30D_FEES_TITLE}
             value={formatProtocolUsd(overview?.total_fees_30d_usd)}
@@ -138,6 +143,7 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
         </div>
         <div data-testid="protocol-stat-fees-30d-chg">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_30D_CHG_LABEL}
             title={TRAILING_30D_FEES_CHG_TITLE}
             value={formatProtocolPct(overview?.fees_change_30d_pct)}

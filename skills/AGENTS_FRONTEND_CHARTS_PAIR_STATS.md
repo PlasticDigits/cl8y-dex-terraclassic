@@ -87,6 +87,7 @@ Vitest: `chartsPairStats.test.ts`, `ChartsPage.test.tsx` (#565 + #564 blocks), `
 ## Related
 
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview 24h USD (#548)
+- [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — pair 24h / TWAP tiles are flat (#653)
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — trailing 24h copy (#576)
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — leaderboard / profile USD (#553)
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — picker/pool badges ≠ pair Stats (#534 / #544)

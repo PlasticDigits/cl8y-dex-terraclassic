@@ -160,6 +160,15 @@ describe('TraderSummaryStats Total Volume (GitLab #553)', () => {
     expect(box.textContent).not.toMatch(/\dT\b/)
   })
 
+  it('summary metric tiles are flat (GitLab #653)', () => {
+    const { container } = renderSummary(trader())
+    expect(screen.getByTestId('trader-total-volume-usd').className).toMatch(/stat-flat/)
+    expect(screen.getByTestId('trader-total-volume-usd').className).not.toMatch(/card-glass/)
+    expect(screen.getByTestId('trader-summary-realized-pnl').className).not.toMatch(/card-glass/)
+    expect(container.querySelector('.shell-panel .card-glass')).toBeNull()
+    expect(container.querySelector('.shell-panel-strong .card-glass')).toBeNull()
+  })
+
   it('unpriced volume with trades is an em dash, not $0', () => {
     renderSummary(trader({ total_volume_usd: null, total_trades: 4 }))
     const box = screen.getByTestId('trader-total-volume-usd')

@@ -543,6 +543,15 @@
   }
 
   /**
+   * Metric tile inside a page `shell-panel*` (GitLab #653).
+   * Typography + optional Δ%/hint only — no second radius, border, or blur.
+   */
+  .stat-flat {
+    min-width: 0;
+    padding: 0.125rem 0;
+  }
+
+  /**
    * Trade order ticket — money CTA footer (GitLab #527; opacity from #500 / #482).
    * Footer is a flex shrink-0 sibling of the scrollport — not position:sticky/fixed.
    * Do not use missing tokens (e.g. `--card`); underlay with solid `--bg-1`.

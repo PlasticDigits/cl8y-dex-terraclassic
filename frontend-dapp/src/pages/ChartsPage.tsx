@@ -295,6 +295,7 @@ export default function ChartsPage() {
       {(!marketDataDown || overviewQuery.isLoading || overview) && (
         <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatBox
+            variant="flat"
             label={TRAILING_24H_VOLUME_LABEL}
             title={TRAILING_24H_VOLUME_TITLE}
             value={
@@ -304,12 +305,14 @@ export default function ChartsPage() {
             data-testid="charts-overview-volume-usd"
           />
           <StatBox
+            variant="flat"
             label="USTC / USD"
             value={overview ? formatChartsOverviewUstcUsd(overview.ustc_price_usd) : '—'}
             loading={overviewQuery.isLoading}
             data-testid="charts-overview-ustc-usd"
           />
           <StatBox
+            variant="flat"
             label={TRAILING_24H_TRADES_LABEL}
             title={TRAILING_24H_TRADES_TITLE}
             value={overview ? formatChartsOverviewCount(overview.total_trades_24h) : '—'}
@@ -317,12 +320,14 @@ export default function ChartsPage() {
             data-testid="charts-overview-trades"
           />
           <StatBox
+            variant="flat"
             label="Pairs"
             value={overview ? formatChartsOverviewCount(overview.pair_count) : '—'}
             loading={overviewQuery.isLoading}
             data-testid="charts-overview-pairs"
           />
           <StatBox
+            variant="flat"
             label="Tokens"
             value={overview ? formatChartsOverviewCount(overview.token_count) : '—'}
             loading={overviewQuery.isLoading}
@@ -497,13 +502,15 @@ export default function ChartsPage() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox
+              variant="flat"
               label={TRAILING_PAIR_VOL_USD_LABEL}
               value={formatIndexedVolumeUsd(stats.volume_usd, stats.trade_count)}
               data-testid="charts-pair-volume-usd"
               title={TRAILING_24H_VOLUME_TITLE}
             />
-            <StatBox label="Trades" value={stats.trade_count.toLocaleString()} />
+            <StatBox variant="flat" label="Trades" value={stats.trade_count.toLocaleString()} />
             <StatBox
+              variant="flat"
               label="Price Change"
               value={
                 stats.price_change_pct != null
@@ -519,24 +526,28 @@ export default function ChartsPage() {
               }
             />
             <StatBox
+              variant="flat"
               label="High (USD)"
               title="Highest factory USD of 1 human base in the last 24h."
               value={formatPairStatsUsdOhlc(highUsd)}
               data-testid="charts-pair-high-usd"
             />
             <StatBox
+              variant="flat"
               label="Low (USD)"
               title="Lowest factory USD of 1 human base in the last 24h."
               value={formatPairStatsUsdOhlc(lowUsd)}
               data-testid="charts-pair-low-usd"
             />
             <StatBox
+              variant="flat"
               label="Open (USD)"
               title="24h open factory USD of 1 human base."
               value={formatPairStatsUsdOhlc(openUsd)}
               data-testid="charts-pair-open-usd"
             />
             <StatBox
+              variant="flat"
               label="Close (USD)"
               title="24h close factory USD of 1 human base."
               value={formatPairStatsUsdOhlc(closeUsd)}
@@ -545,11 +556,13 @@ export default function ChartsPage() {
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
             <StatBox
+              variant="flat"
               label={`Vol (${activePair.asset_0.symbol})`}
               value={formatChartsPairTokenVolume(stats.volume_base, activePair.asset_0.decimals)}
               data-testid="charts-pair-volume-base"
             />
             <StatBox
+              variant="flat"
               label={`Vol (${activePair.asset_1.symbol})`}
               value={formatChartsPairTokenVolume(stats.volume_quote, activePair.asset_1.decimals)}
               data-testid="charts-pair-volume-quote"
@@ -578,6 +591,7 @@ export default function ChartsPage() {
               const entry = twapQuery.data?.find((e) => e.label === w.label)
               return (
                 <StatBox
+                  variant="flat"
                   key={w.label}
                   label={`TWAP ${w.label}`}
                   title="Pair TWAP in quote per base, not USD."
@@ -591,10 +605,12 @@ export default function ChartsPage() {
           {oracleInfoQuery.data && (
             <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatBox
+                variant="flat"
                 label="Obs count"
                 value={`${oracleInfoQuery.data.observations_stored} / ${oracleInfoQuery.data.observation_cardinality}`}
               />
               <StatBox
+                variant="flat"
                 label="Oldest"
                 value={
                   oracleInfoQuery.data.oldest_observation_timestamp > 0
@@ -603,6 +619,7 @@ export default function ChartsPage() {
                 }
               />
               <StatBox
+                variant="flat"
                 label="Newest"
                 value={
                   oracleInfoQuery.data.newest_observation_timestamp > 0
@@ -610,7 +627,11 @@ export default function ChartsPage() {
                     : '—'
                 }
               />
-              <StatBox label="Buffer size" value={oracleInfoQuery.data.observation_cardinality.toString()} />
+              <StatBox
+                variant="flat"
+                label="Buffer size"
+                value={oracleInfoQuery.data.observation_cardinality.toString()}
+              />
             </div>
           )}
           {twapQuery.isError && (

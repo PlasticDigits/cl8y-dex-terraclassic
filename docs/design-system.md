@@ -2,7 +2,7 @@
 
 Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)). Implementation lives in [`frontend-dapp/src/index.css`](../frontend-dapp/src/index.css) with theme tokens in [`theme-dark.css`](../frontend-dapp/src/theme-dark.css) and [`theme-light.css`](../frontend-dapp/src/theme-light.css). Dual theme is toggled via `data-theme` on `<html>`.
 
-**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · Open Graph: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
+**Agent playbook:** [`skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md`](../skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) · chrome nesting: [`skills/AGENTS_FRONTEND_CHROME_NESTING.md`](../skills/AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) · Open Graph: [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md) ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) · engineering invariants: [`docs/frontend.md`](./frontend.md) · QA checklist: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) §10 · docs alignment companion: [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489).
 
 > **Supersedes** the warm amber “Cyberminimalist Glass” identity and the #416 “no blue primary” guardrail. Class names like `*-glass` / `shell-panel` remain; colors are cool navy + blue CTAs + gold brand.
 
@@ -15,7 +15,7 @@ Authoritative visual spec for the CL8Y DEX frontend ([GitLab #488](https://gitla
 | Token-first | Compose UI from CSS variables (`--ink`, `--line`, `--blue`, `--gold`, `--mint`→blue, …) and `@layer components` primitives. |
 | Gold is not a fill | Do **not** use gold/amber as large dirty-brown backgrounds. Gold = tiny emphasis (borders, text, logo). Active nav uses cool `--accent-surface` + gold bottom border. |
 | Minimal on-card copy | **Anti-cognitive-overload:** labels ≤ ~5 words; errors ≤ 1 short sentence; optional **Docs** link. No `token0`/`token1` or raw bid/ask in retail UI — use symbols + Buy/Sell. Keep blocking errors and required risk ack ([#488] reopen). **Reject** always-on educational, cross-nav (“use Swap/UST1”), and gas/burn-tax trivia under CTAs — page = title + controls + live status + CTA ([`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](../skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) invariant **9**, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)). |
-| One chrome layer per region | Do **not** wrap `shell-panel` / `shell-panel-strong` / `card-glass` in another of the same family for the same visual region. Page background → one section surface → content. Nested `card-glass` inside a page `shell-panel` is OK for distinct inner blocks (Swap IO cards). First applied on `/trade` ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)). |
+| One chrome layer per region | Page `--bg-*` → **one** `shell-panel*` per region → **content**. Do **not** wrap `shell-panel*` in another `shell-panel*`, and do **not** wrap a **grid of** `card-glass` / default `StatBox` for the same region. Metric tiles use `StatBox variant="flat"` / `.stat-flat` (typography only). Nested `card-glass` is **not** a general exception — it is OK **only** on the short allowlist: Swap Pay/Receive IO cards; a **single** table/chart well; Trade **sibling** panels (not a panel-of-panels). `/trade` first applied this on the chart ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) **L561-2**). Repo-wide rule + dApp pass: [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653). `/protocol` Global stats + fees **inline Δ%** stays [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652). |
 | Keyboard focus | Interactive primitives use `:focus-visible` with `var(--focus-ring)` — see [frontend.md § WCAG 2.4.7](./frontend.md#keyboard-focus-visible-wcag-247). |
 
 ## Color & surface tokens
@@ -165,12 +165,18 @@ rg '-neo' frontend-dapp/src && exit 1 || echo OK
 # Tailwind + trade-bootstrap + blue/gold alignment (#488)
 python3 scripts/check_design_tokens.py
 
+# One chrome layer / StatBox flat (#653)
+python3 scripts/check_chrome_nesting.py
+
 # Frontend lint + unit tests
 make lint-frontend
 make test-frontend
 
 # Open Graph / Twitter cards (#578)
 make verify-issue-578
+
+# Anti-nesting pass (#653)
+make verify-issue-653
 ```
 
 Manual matrix (both themes): Swap, Limit, Trade, Pool, Portfolio, Connect Wallet modal — cool navy/slate surfaces, blue CTAs, gold network/brand accents. Connect Wallet rows include circular brand logos ([#490](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/490); [docs/frontend.md § logos](./frontend.md#connect-modal-wallet-logos)).

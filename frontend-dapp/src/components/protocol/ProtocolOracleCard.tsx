@@ -122,14 +122,15 @@ export function ProtocolOracleCard({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <StatBox
+              variant="flat"
               label={cexLabel}
               value={formatProtocolOracleUsd(oracle?.price_usd)}
               loading={priceQuery.isLoading}
             />
             {oracle?.sources?.[0] && (
               <>
-                <StatBox label="Source" value={oracle.sources[0].source} />
-                <StatBox label="Fetched" value={formatDateTime(oracle.sources[0].fetched_at)} />
+                <StatBox variant="flat" label="Source" value={oracle.sources[0].source} />
+                <StatBox variant="flat" label="Fetched" value={formatDateTime(oracle.sources[0].fetched_at)} />
               </>
             )}
           </div>
@@ -174,13 +175,15 @@ export function ProtocolOracleCard({
           {!venusQuery.isError && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <StatBox
+                variant="flat"
                 label="1 vFDUSD Price"
                 value={venusFdusdDisplay(venus?.fdusd_per_vfdusd)}
                 loading={venusQuery.isLoading}
                 data-testid="protocol-oracle-vfdusd-venus-value"
               />
-              <StatBox label="Source" value="Venus" />
+              <StatBox variant="flat" label="Source" value="Venus" />
               <StatBox
+                variant="flat"
                 label="Fetched"
                 value={venus?.fetched_at ? formatDateTime(venus.fetched_at) : '—'}
                 loading={venusQuery.isLoading}
