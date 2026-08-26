@@ -91,6 +91,9 @@
       rgba(14, 18, 28, 0.84) 100%
     ),
     rgba(255, 255, 255, 0.03);
+  /* Opaque Swap flip plate (#659) — dark default; light overrides in theme-light.css. */
+  --swap-direction-surface: rgb(19, 24, 37);
+  --swap-direction-surface-hover: rgb(26, 32, 48);
   --btn-primary-fg: #f8fafc;
   --cursor-default: url('/assets/cursor-default.png') 0 0, default;
   --cursor-pointer: url('/assets/cursor-pointer.png') 3 1, pointer;
@@ -674,15 +677,56 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
+  /* GitLab #659: opaque plate + static seam occluder. The Pay/Receive hairline
+     stays as IA; only the strip under the flip control is covered. Hover must
+     not translate the plate off the seam (S659-3). Do not wrap this control
+     in card-glass / shell-panel (C653-5). */
+  .swap-direction-seam {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .swap-direction-seam::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 0;
+    width: 2.5rem;
+    height: 0.75rem;
+    transform: translate(-50%, -50%);
+    background: var(--swap-direction-surface);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+
+  @media (min-width: 640px) {
+    .swap-direction-seam::before {
+      width: 2.75rem;
+    }
+  }
+
   .swap-direction-btn {
+    position: relative;
+    z-index: 1;
     border: 1px solid color-mix(in srgb, var(--blue) 38%, transparent);
-    background: var(--control-surface);
+    background: var(--swap-direction-surface);
     color: var(--blue);
     box-shadow: var(--shadow-card);
   }
 
   .swap-direction-btn:hover {
-    background: var(--control-surface-hover);
+    background: var(--swap-direction-surface-hover);
+  }
+
+  .swap-direction-btn:focus-visible {
+    outline: none;
+    box-shadow:
+      var(--shadow-card),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
   .tab-glass {
@@ -1054,6 +1098,32 @@
 
   .app-footer-title {
     margin: 0;
+  }
+
+  /* Official CL8Y sibling products (GitLab #663) — text-only, not a second chrome card. */
+  .app-footer-product-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin: 0;
+    max-width: 72ch;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    font-weight: 500;
+    color: var(--ink-subtle);
+  }
+
+  .app-footer-product-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .app-footer-product-link:hover {
+    color: var(--ink);
   }
 
   .app-legal-footer-notice {
@@ -2249,7 +2319,7 @@ input[type='number'] {
     display: grid;
   }
 
-  /* Keep footer (ribbon + NFA) above the bottom tab bar on mobile. */
+  /* Keep footer (ribbon + product links + NFA) above the bottom tab bar on mobile. */
   .app-footer-shell {
     display: block;
     padding: 12px 0 calc(var(--app-mobile-nav-stack) + 16px);
@@ -2262,6 +2332,10 @@ input[type='number'] {
 
   .app-footer-copy {
     text-align: center;
+  }
+
+  .app-footer-product-links {
+    justify-content: center;
   }
 }
 

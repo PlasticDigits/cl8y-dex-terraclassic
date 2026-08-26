@@ -24,6 +24,7 @@ The design-system sentence used to bless nested `card-glass` inside a page `shel
 - **Don’t** invent a new color system or gold fills. Tokens stay #488.
 - **Don’t** change overview JSON / indexer semantics while flattening chrome.
 - **Don’t** implement [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) inline Δ% / daily volume chart in this pass. Consume `flat` there when that issue lands.
+- **Don’t** delete the Swap Pay/Receive hairline or split the IO stack into two floating cards to hide the flip-through-line — that is [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) paint on the existing seam.
 
 ## Invariants
 
@@ -67,7 +68,9 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 - [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) — tokens / primitives (#488)
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` sibling panels (**L561**)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — nested chrome is visual noise (#489)
+- [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) — footer product row is text links, not a nested `card-glass` ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663))
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview USD (#548)
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h / TWAP
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — trader volume USD
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ%
+- [`AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](./AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) — Swap flip plate on the Pay/Receive seam (**S659-1–S659-8**, [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)); do **not** delete the seam to hide the line

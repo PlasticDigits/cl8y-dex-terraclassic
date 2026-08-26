@@ -27,7 +27,7 @@ Use when changing **connected-wallet Legal gating**, **Legal next-step wallet hi
 7. **C7 — CSP:** Production `connect-src` must include Legal API (and terms origin) **without** blanket `https:`.
 8. **C8 — Secrets:** No `ADMIN_TOKEN` or Legal admin credentials in the frontend — public status/latest endpoints only.
 9. **C9 — E2E escape hatch:** `VITE_PLAYWRIGHT_E2E=true` may skip the gate (Playwright `webServer` only). Production / Coolify / manual QA must leave it unset.
-10. **C10 — Footer NFA retained:** `LegalFooterNotice` / `EnvironmentRibbon` stay; clickwrap is acceptance evidence, not a substitute for risk disclosure.
+10. **C10 — Footer NFA retained:** `LegalFooterNotice` / `EnvironmentRibbon` stay; clickwrap is acceptance evidence, not a substitute for risk disclosure. Official Homepage / Bridge stay in the footer outside this gate ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)).
 
 ## Legal wallet hint (L658-1–L658-8)
 
@@ -101,6 +101,7 @@ Manual soft-launch: connect unsigned wallet → portal Terra Classic sign → re
 ## Related
 
 - Risk / NFA first-visit: [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md)
+- Official CL8Y product links (footer Homepage / Bridge): [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663))
 - Trust / CSP: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Soft-launch: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)
 - WalletConnect same-device mobile pairing / Legal hint: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M12**, [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
