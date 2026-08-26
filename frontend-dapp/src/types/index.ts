@@ -444,13 +444,27 @@ export interface IndexerOverview {
 }
 
 export interface ProtocolVolumeDailyPoint {
-  utc_day: string
+  utc_day?: string
+  utc_hour?: string
+  utc_month?: string
   volume_usd: string | null
   trade_count: number
 }
 
 export interface ProtocolVolumeDailyResponse {
-  days: number
+  days?: number
+  grain?: string
+  limit?: number
+  timezone: string
+  methodology: string
+  series: ProtocolVolumeDailyPoint[]
+}
+
+export type ProtocolVolumeGrain = 'hourly' | 'daily' | 'monthly'
+
+export interface ProtocolVolumeSeriesResponse {
+  grain: ProtocolVolumeGrain
+  limit: number
   timezone: string
   methodology: string
   series: ProtocolVolumeDailyPoint[]
