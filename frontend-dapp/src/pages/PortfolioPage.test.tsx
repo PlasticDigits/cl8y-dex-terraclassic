@@ -115,6 +115,8 @@ describe('PortfolioPage (component)', () => {
     expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument()
     expect(indexerClient.getTrader).not.toHaveBeenCalled()
     expect(indexerClient.getTraderPositions).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('trader-leaderboard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^leaderboard$/i })).not.toBeInTheDocument()
   })
 
   it('shows profile empty state on 404 and still loads positions', async () => {
@@ -150,6 +152,8 @@ describe('PortfolioPage (component)', () => {
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/UST1/)
     expect(screen.getByTestId('trader-total-volume-usd')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-summary-fees')).toHaveTextContent('—')
+    expect(screen.queryByTestId('trader-leaderboard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /trader leaderboard/i })).not.toBeInTheDocument()
   })
 
   it('shows market-data outage banner on indexer transport failure', async () => {

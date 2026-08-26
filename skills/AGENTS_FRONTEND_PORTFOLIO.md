@@ -67,4 +67,5 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 - [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — lifecycle on limit-placements
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — indexer outage banners
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Total Volume (USD) on this shared header ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553))
+- [`AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](./AGENTS_FRONTEND_TRADER_LEADERBOARD.md) — global board is **`/trader` only**, not `/portfolio` (**TL-8**, [#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657))
 - [`docs/frontend.md` § My Portfolio](../docs/frontend.md#my-portfolio)
