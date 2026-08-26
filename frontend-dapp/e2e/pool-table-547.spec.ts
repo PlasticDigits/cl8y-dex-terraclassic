@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function gotoPoolTable(page: Page) {
   await page.goto('/pool')
-  await expect(page.getByTestId('pool-one-sided-add')).toBeVisible({ timeout: 90_000 })
+  await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
 }
 
 test.describe('Pool sortable table (GitLab #547)', () => {
@@ -15,7 +15,7 @@ test.describe('Pool sortable table (GitLab #547)', () => {
     await expect(page.getByTestId('pool-lp-howto')).toBeVisible()
     await page.getByTestId('pool-lp-howto-dismiss').click()
     await expect(page.getByTestId('pool-lp-howto-details')).toHaveCount(0)
-    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
+    await expect(page.getByTestId('pool-one-sided-add')).toHaveCount(0)
     await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
   })
 
@@ -47,7 +47,7 @@ test.describe('Pool sortable table (GitLab #547)', () => {
     await expect(wrap).toBeVisible({ timeout: 90_000 })
     const overflow = await wrap.evaluate((el) => getComputedStyle(el).overflowX)
     expect(['auto', 'scroll', 'overlay']).toContain(overflow)
-    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible()
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible()
   })
 
   test('P5 phone 390×844: table + bottom nav Pool', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('Pool sortable table (GitLab #547)', () => {
     const mobileNav = page.locator('nav.app-mobile-nav-shell')
     await mobileNav.getByRole('link', { name: 'Pool' }).click()
     await expect(page).toHaveURL(/\/pool/)
-    await expect(page.getByTestId('pool-one-sided-add')).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByTestId('pool-lp-howto')).toBeVisible({ timeout: 90_000 })
     await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
   })
 

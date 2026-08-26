@@ -3,7 +3,7 @@
 #
 # Proves (unit + docs; Playwright P1–P3 when the frontend can boot):
 #   1. Zap-in/out math (T1–T8) + tx floors (T9–T10 / A7 / A12).
-#   2. Retail add/withdraw cards; Advanced two-sided; LP decimals 18.
+#   2. Retail zap under pair Manage (four peer tabs); LP decimals 18.
 #   3. H531-3 / Z533-1–Z533-10 docs + skill crosslinks.
 #
 # Refs: skills/AGENTS_FRONTEND_POOL_ONE_SIDED.md,
@@ -47,10 +47,11 @@ run_step "frontend: zap math + tx + quote + howto + PoolPage" \
     src/pages/PoolPage.test.tsx \
     src/services/terraclassic/__tests__/transactions.test.ts'
 
-run_step "code: retail cards + Advanced + LP 18 + no null slippage on zap builder" \
+run_step "code: retail zap cards + Manage tabs + LP 18 + no null slippage on zap builder" \
   bash -c 'grep -qE "pool-one-sided-add" frontend-dapp/src/components/pool/OneSidedAddCard.tsx &&
     grep -qE "pool-one-sided-withdraw" frontend-dapp/src/components/pool/OneSidedWithdrawCard.tsx &&
-    grep -qE "pool-card-advanced" frontend-dapp/src/components/pool/PoolAdvancedManage.tsx &&
+    grep -qE "pool-manage-tab-zap-add" frontend-dapp/src/components/pool/PoolAdvancedManage.tsx &&
+    ! grep -qE "pool-card-advanced" frontend-dapp/src/components/pool/PoolAdvancedManage.tsx &&
     grep -qE "PAIR_LP_CW20_DECIMALS" frontend-dapp/src/utils/oneSidedLiquidity.ts &&
     grep -qE "slippage_tolerance: slippage" frontend-dapp/src/utils/oneSidedLiquidityTx.ts &&
     ! grep -qE "slippage_tolerance: null[,}]" frontend-dapp/src/utils/oneSidedLiquidityTx.ts'
@@ -59,10 +60,10 @@ run_step "code: unwrap uses quoted amount (A7) not wallet-balance unwrap in zap-
   bash -c 'grep -qE "unwrapAmountMatchesQuote" frontend-dapp/src/utils/oneSidedLiquidityTx.ts &&
     ! grep -nE "getTokenBalance\\(" frontend-dapp/src/utils/oneSidedLiquidityTx.ts'
 
-run_step "docs: Z533-1–Z533-10 + H531-3 one-sided + user guide" \
+run_step "docs: Z533-1–Z533-10 + H531-3 Manage + user guide" \
   bash -c 'grep -qE "\*\*Z533-1\*\*" docs/frontend.md &&
     grep -qE "\*\*Z533-10\*\*" docs/frontend.md &&
-    grep -qE "Retail Add is \*\*one-sided\*\*" docs/frontend.md &&
+    grep -qE "Zap Add" docs/frontend.md &&
     grep -qE "one token" docs/user-lunc-liquidity.md &&
     grep -qE "pool-one-sided-liquidity" docs/user-lunc-liquidity.md'
 
@@ -85,7 +86,7 @@ if [[ "${VERIFY_ISSUE_533_SKIP_E2E:-}" == "1" ]]; then
   echo "[playwright P1–P3] skipped (VERIFY_ISSUE_533_SKIP_E2E=1)"
 else
   run_step "playwright: P1–P3 one-sided cards (e2e-smoke, 5 workers)" \
-    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-one-sided-533.spec.ts --project=e2e-smoke'
+    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-30660}" PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-30660}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-one-sided-533.spec.ts --project=e2e-smoke --workers=5'
 fi
 
 if [[ "${VERIFY_ISSUE_533_SKIP_E2E:-}" == "1" ]]; then
@@ -93,7 +94,7 @@ if [[ "${VERIFY_ISSUE_533_SKIP_E2E:-}" == "1" ]]; then
   echo "[playwright P4–P8] skipped (VERIFY_ISSUE_533_SKIP_E2E=1)"
 elif make has-localterra >/dev/null 2>&1 && [ -f frontend-dapp/.env.local ]; then
   run_step "playwright: P4–P8 one-sided tx (e2e-tx, 1 worker; GitLab #539)" \
-    bash -c 'CI=1 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-one-sided-533-tx.spec.ts --project=e2e-tx'
+    bash -c 'CI=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-30660}" PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-30660}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-one-sided-533-tx.spec.ts --project=e2e-tx --workers=1'
 else
   echo ""
   echo "[playwright P4–P8] skipped — LocalTerra or frontend-dapp/.env.local not ready (GitLab #539)"

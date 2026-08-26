@@ -1,17 +1,18 @@
 import { formatTokenAmount } from '@/utils/formatAmount'
 
-/** Retail one-sided pool copy (GitLab #533 / #559 / #489). Labels stay ≤ ~5 words. */
+/** Retail zap + pair-manage copy (GitLab #533 / #559 / #489 / #660). Labels stay ≤ ~5 words. */
 
-export const ONE_SIDED_ADD_TITLE = 'Add'
-export const ONE_SIDED_WITHDRAW_TITLE = 'Withdraw'
+export const ONE_SIDED_ADD_TITLE = 'Zap Add'
+export const ONE_SIDED_WITHDRAW_TITLE = 'Zap Withdraw'
 export const ONE_SIDED_TOKEN_LABEL = 'Token'
-export const ONE_SIDED_PAIR_LABEL = 'Pair'
 export const ONE_SIDED_AMOUNT_LABEL = 'Amount'
 export const ONE_SIDED_LP_LABEL = 'LP'
 export const ONE_SIDED_WITHDRAW_AS_LABEL = 'Withdraw as'
-export const ONE_SIDED_ADVANCED_LABEL = 'Advanced'
 
-export const ONE_SIDED_EMPTY_POOL = 'Empty pool needs both tokens.'
+export const POOL_MANAGE_PROVIDE_LABEL = 'Provide Liquidity'
+export const POOL_MANAGE_WITHDRAW_LABEL = 'Withdraw Liquidity'
+export const POOL_MANAGE_ACTIONS_TESTID = 'pool-manage-actions'
+
 export const ONE_SIDED_NO_ROUTE = 'No route.'
 export const ONE_SIDED_DUST = 'Amount too small.'
 export const ONE_SIDED_NO_HOLDINGS = 'No tokens in wallet.'
@@ -24,7 +25,7 @@ export function formatHumanMinSwapLine(minReturnRaw: string, askDecimals: number
   return `min swap ${formatTokenAmount(minReturnRaw, askDecimals)}`
 }
 
-/** Pay line (already human) + human min-swap for Add pre-sign. */
+/** Pay line (already human) + human min-swap for Zap Add pre-sign. */
 export function oneSidedAddPreSignAmountLines(
   payHuman: string,
   minReturnRaw: string,

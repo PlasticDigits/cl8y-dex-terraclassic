@@ -2,14 +2,14 @@
 
 Use when changing **retail `/pool` one-sided liquidity**: pick one wallet token + pair to add, or one wallet LP + token to withdraw as. Wrap/unwrap is implied by the token. Spec, AC, path tests, and attack plan live on [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/533).
 
-`#531` how-to (**H531-3**) is one-sided retail Add; two-sided lives under **Advanced**. `#489` (no always-on essays), `#366` (IL), `#147` / `#213` (gas + native wrap), `#462` (pre-sign), `#497` (5% slippage) still apply.
+`#531` how-to (**H531-3**) describes Manage → four actions. Two-sided **Provide Liquidity** is the empty-pool first deposit. Zap lives on the same toolbar. `#489` (no always-on essays), `#366` (IL), `#147` / `#213` (gas + native wrap), `#462` (pre-sign), `#497` (5% slippage) still apply. Pair-scoped IA: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) (`#660`).
 
 ## Canonical references
 
 | Doc / code | Purpose |
 |------------|---------|
 | [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/533) | Spec: AC1–AC13, T/U/P paths, A1–A20 |
-| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Retail one-sided cards + Advanced two-sided |
+| [`PoolPage.tsx`](../frontend-dapp/src/pages/PoolPage.tsx) | Search + how-to + table; zap lives under pair Manage |
 | [`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts) | `provideLiquidity` / `withdrawLiquidity` |
 | [`router.ts`](../frontend-dapp/src/services/terraclassic/router.ts) | Wrap-in + swap + `unwrap_output` |
 | [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) | Two-sided auto-fill — **not** a zap solver |
@@ -20,11 +20,11 @@ Use when changing **retail `/pool` one-sided liquidity**: pick one wallet token 
 
 ## Invariants (Z533)
 
-1. **Z533-1** — Retail add controls: token (wallet holdings `> 0`), pair (factory), amount. No wrap checkbox, no second amount, no on-card slippage chips.
-2. **Z533-2** — Retail withdraw controls: LP (wallet LP `> 0`), token to receive, amount. No “receive wrapped” checkbox.
+1. **Z533-1** — Zap add controls: token (wallet holdings `> 0`), amount. Pair is the expanded Manage row (no second pair picker). No wrap checkbox, no second amount, no on-card slippage chips.
+2. **Z533-2** — Zap withdraw controls: this pair’s LP, token to receive, amount. No “receive wrapped” checkbox. No other-pair LP picker.
 3. **Z533-3** — Native `uluna` / `uusd` wrap or unwrap automatically. Pools still hold CW20 only. Do not send native into the pair or router.
 4. **Z533-4** — Zap-in targets the **post-swap** pool ratio. Retail must not `provide_liquidity` off-ratio (no silent donate).
-5. **Z533-5** — Empty pool: one-sided disabled. First deposit stays two-sided **Advanced** (`MINIMUM_LIQUIDITY`).
+5. **Z533-5** — Empty pool: zap disabled. First deposit stays two-sided **Provide Liquidity** (`MINIMUM_LIQUIDITY`). Copy: `Empty pool. Use Provide Liquidity.`
 6. **Z533-6** — Factory pairs only. Pool-only zap swap (`poolOnlyHybridParams`). Same quote snapshot on submit as Swap (#356).
 7. **Z533-7** — Slippage on every leg (`min_return` / `slippage_tolerance` / `min_assets`). Stop passing `slippage_tolerance: null`. Default 5% from Settings (#497).
 8. **Z533-8** — Unwrap **only** the zap-out amount. Never unwrap the rest of the wallet’s cLUNC/cUSTC (today’s withdraw loop is the bug).
@@ -35,7 +35,7 @@ Use when changing **retail `/pool` one-sided liquidity**: pick one wallet token 
 
 1. Frontend orchestration on existing messages: optional `wrap_deposit` → pair/router swap → allowances → `provide_liquidity`. Withdraw: LP send → swap other side → optional unwrap of **that** amount.
 2. Off-pair input: `GET /route/solve` into a pair leg then zap, or one-sentence “No route”.
-3. Two-sided provide/withdraw stays under Advanced for empty-pool bootstrap and power users.
+3. Two-sided provide/withdraw is a peer Manage action (empty-pool bootstrap and exact-ratio deposit). Do **not** hide it under Advanced.
 4. Do **not** change pair mint/burn math, fee treasury, or wrap-mapper fee bps in this issue.
 5. Zap fee math must use `useFeeDiscountRegistryStatus(pairAddr)` (**I14** / [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)). An unwired pair charges full `fee_bps` on-chain — do not apply a wallet `get_discount` to the split.
 6. Prefer one `executeTerraContractMulti` when gas fits; rollback both allowances in one multi-msg on provide failure (#147).
@@ -60,6 +60,7 @@ Issue: [GitLab **#533**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 ## Related
 
 - Zap execution floors (quote vs execute): [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](./AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) (`#559` — **Z559-1–Z559-4**; `make verify-issue-559`)
+- Pair Manage IA: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) (`#660` — **M660-1–M660-8**; `make verify-issue-660`)
 - Retail how-to: [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) (`#531` — rewrite H531-3)
 - Two-sided auto-fill / withdraw preview: [`AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md`](./AGENTS_FRONTEND_POOL_PROVIDE_WITHDRAW_PREVIEW.md) (`#480`)
 - Pre-sign: [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md) (`#462`)

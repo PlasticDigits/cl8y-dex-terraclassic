@@ -25,7 +25,7 @@ Reported production failure: columbus-5 UST1/cUSTC one-sided Add reverted `Overf
 1. **Z559-1** — Execution amounts follow floors (`min_return` / `min_assets`); quotes may be optimistic. Zap-in `provideAsk ≤ swapMinReturn`. Do not `TransferFrom` the quoted ask. A fill in `(min_return, quote)` must never CW20-underflow.
 2. **Z559-2** — Zap-in provide is ratio-trimmed to **conservative** post-swap reserves (worse fill → higher ask reserve still `+ swapIn` on the offer side). Leftover offer/ask stays in the wallet. Do not spend pre-existing ask balance to cover a shortfall (**Z533-4**, A-Z2).
 3. **Z559-3** — Zap-out `swapAmount ≤ min_assets[sold]`. Unwrap send ≤ `min(wanted withdrawn, min_assets[wanted]) + swapMinReturn`. Never unwrap quoted `totalWantedCw20` when that exceeds the floor chain (**Z533-8**).
-4. **Z559-4** — Pre-sign min-swap is **human** token units (not raw uints like `500571` next to `200 in`). Conservative LP dust / zero → one-sentence `Amount too small`; CTA blocked. Empty pool still `Empty pool. Use Advanced.`
+4. **Z559-4** — Pre-sign min-swap is **human** token units (not raw uints like `500571` next to `200 in`). Conservative LP dust / zero → one-sentence `Amount too small`; CTA blocked. Empty pool still `Empty pool. Use Provide Liquidity.`
 
 ## Rules of thumb
 
@@ -55,6 +55,7 @@ Issue: [GitLab **#559**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 ## Related
 
 - Parent one-sided flow: [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) (`#533`)
+- Pair Manage IA: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) (`#660`)
 - Copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) (`#489`)
 - Slippage default: [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) (`#497`)
 - Fee-discount chrome: [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) (`#537` / I14)

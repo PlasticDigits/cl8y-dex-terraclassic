@@ -144,8 +144,9 @@ Retail copy terms used across docs and skills ([#489](https://gitlab.com/Plastic
 | Blue primary | CTA / active tab / select-token (`--blue` / `--mint` alias). |
 | Gold accent | Logo, network chip, hairline borders/text only — not large fills. |
 | Docs link | Optional single-word control for optional depth — never replaces blocking errors. |
-| Pool / Provide / Withdraw | v2 AMM LP on `/pool`. Both tokens required. LP tokens = share. |
-| Use native LUNC (auto-wrap) | Pool checkbox: bank LUNC wraps into cLUNC in the provide tx. |
+| Pool / Provide / Withdraw | v2 AMM LP on `/pool`. **Provide Liquidity** needs both tokens. **Zap Add** / **Zap Withdraw** use one token. LP tokens = share. |
+| Zap Add / Zap Withdraw | One-sided zap under pair **Manage** (not page-level Add/Withdraw). Pair is the expanded row. |
+| Use native LUNC (auto-wrap) | Provide Liquidity checkbox: bank LUNC wraps into cLUNC in the provide tx. Zap Add wraps when you pick native LUNC as Token. |
 | Limit (maker) | Resting escrow on `/trade` or `/limits` — **not** pool LP and **not** a farm. |
 | Bid / Ask (book) | Order-book column titles and on-chain side enums only; not retail place-card button copy. |
 | 24h volume | Trailing window (`now − 24h`), not a midnight reset. `$0` means no priced swaps in that window (idle), not a calendar-day close. Same for Protocol **7d** / **30d** (`now − N days`). Playbook: [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](../skills/AGENTS_FRONTEND_TRAILING_WINDOW.md) ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). |

@@ -50,4 +50,4 @@ cd frontend-dapp && npm run test:run -- \
 - Pre-sign summary: [`AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_POOL_SIGNING_CONFIRMATION.md)
 - Docs: [`docs/frontend.md` § Pool provide liquidity](../docs/frontend.md#pool-page--provide-liquidity-ui-invariants)
 - Retail how-to (#531): [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — do not replace auto-fill / IL / ratio gates with the how-to essay
-- One-sided default (#533): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) — Advanced two-sided keeps auto-fill; retail zap does not donate
+- One-sided default (#533): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) — two-sided Provide Liquidity keeps auto-fill; retail zap does not donate. Manage IA: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) (#660)

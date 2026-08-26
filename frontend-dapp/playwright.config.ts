@@ -51,7 +51,7 @@ export default defineConfig({
   },
   webServer: {
     command: dedicatedWebPort
-      ? `VITE_NETWORK=local VITE_DEV_MODE=true npm run dev -- --port ${webPort} --strictPort`
+      ? `VITE_NETWORK=local VITE_DEV_MODE=true npm run dev -- --host 127.0.0.1 --port ${webPort} --strictPort`
       : 'VITE_NETWORK=local VITE_DEV_MODE=true npm run dev',
     port: webPort,
     reuseExistingServer: !dedicatedWebPort,

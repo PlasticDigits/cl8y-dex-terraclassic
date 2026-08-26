@@ -12,8 +12,6 @@ import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { MARKET_DATA_SERVICE_OUTAGE_TITLE, POOL_MARKET_DATA_OUTAGE_LEAD } from '@/utils/marketDataServiceCopy'
 import { RetryError, Skeleton } from '@/components/ui'
 import { PoolLpHowto } from '@/components/pool/PoolLpHowto'
-import { OneSidedAddCard } from '@/components/pool/OneSidedAddCard'
-import { OneSidedWithdrawCard } from '@/components/pool/OneSidedWithdrawCard'
 import { PoolPairsTable } from '@/components/pool/PoolPairsTable'
 import {
   POOL_CATALOG_FETCH_LIMIT,
@@ -118,11 +116,6 @@ export default function PoolPage() {
     <div className="max-w-6xl mx-auto">
       <PoolLpHowto />
 
-      <div className="grid gap-4 mb-6 md:grid-cols-2">
-        <OneSidedAddCard factoryPairs={factoryPairsQuery.data?.pairs ?? []} />
-        <OneSidedWithdrawCard factoryPairs={factoryPairsQuery.data?.pairs ?? []} />
-      </div>
-
       <div className="shell-panel mb-4" role="search" aria-label="Search pools">
         <label htmlFor="pool-search" className="label-glass mb-1 block">
           Search
@@ -180,6 +173,7 @@ export default function PoolPage() {
       {!pairsQuery.isLoading && visiblePairs.length > 0 && !pairsQuery.isError && (
         <PoolPairsTable
           pairs={visiblePairs as IndexerPair[]}
+          factoryPairs={factoryPairsQuery.data?.pairs ?? []}
           factoryPairAddresses={factoryPairAddresses}
           activeSort={activeSort}
           order={order}
