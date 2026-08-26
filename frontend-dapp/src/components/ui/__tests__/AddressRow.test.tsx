@@ -9,9 +9,13 @@ vi.mock('@/utils/copyToClipboard', () => ({
   copyToClipboard: vi.fn().mockResolvedValue({ ok: true }),
 }))
 
-vi.mock('@/utils/terraExplorer', () => ({
-  getExplorerAddressUrl: vi.fn(),
-}))
+vi.mock('@/utils/terraExplorer', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/terraExplorer')>()
+  return {
+    ...actual,
+    getExplorerAddressUrl: vi.fn(),
+  }
+})
 
 import { AddressRow } from '@/components/ui/AddressRow'
 import { shortenAddress } from '@/utils/tokenDisplay'
@@ -63,5 +67,39 @@ describe('AddressRow', () => {
     render(<AddressRow address={SAMPLE} startChars={12} endChars={6} />)
 
     expect(screen.getByText(shortenAddress(SAMPLE, 12, 6))).toBeInTheDocument()
+  })
+
+  it('keeps label and icons on one row when nowrap is set (#671)', () => {
+    vi.mocked(terraExplorer.getExplorerAddressUrl).mockReturnValue(null)
+
+    render(<AddressRow address={SAMPLE} nowrap data-testid="wallet-menu-address-row" />)
+
+    const row = screen.getByTestId('wallet-menu-address-row')
+    expect(row).toHaveClass('flex-nowrap')
+    expect(row).not.toHaveClass('flex-wrap')
+    expect(row).not.toHaveTextContent(SAMPLE)
+    expect(screen.getByText(shortenAddress(SAMPLE, 8, 6))).toHaveClass('truncate')
+    expect(screen.getByText(shortenAddress(SAMPLE, 8, 6))).toHaveAttribute('title', SAMPLE)
+  })
+
+  it('still shows the full string with break-all when showFull is set without nowrap', () => {
+    vi.mocked(terraExplorer.getExplorerAddressUrl).mockReturnValue(null)
+
+    render(<AddressRow address={SAMPLE} showFull />)
+
+    const label = screen.getByText(SAMPLE)
+    expect(label).toHaveClass('break-all')
+    expect(label).not.toHaveClass('truncate')
+  })
+
+  it('renders spoofed HTML as a text node, not markup (#671)', () => {
+    vi.mocked(terraExplorer.getExplorerAddressUrl).mockReturnValue(null)
+    const spoof = '<script>alert(1)</script>'
+
+    const { container } = render(<AddressRow address={spoof} showFull />)
+
+    expect(container.querySelector('script')).toBeNull()
+    expect(screen.getByText(spoof)).toBeInTheDocument()
+    expect(screen.getByTitle(spoof)).toHaveAttribute('title', spoof)
   })
 })

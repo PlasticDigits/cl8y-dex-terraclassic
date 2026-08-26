@@ -7,6 +7,7 @@ import { AddressRow } from '@/components/ui/AddressRow'
 import { shortenAddress } from '@/utils/tokenDisplay'
 import { DEFAULT_NETWORK, NETWORKS } from '@/utils/constants'
 import { getNetworkBadgeCopy, getTerraChainLogoPath } from '@/utils/networkDisplay'
+import { traderProfilePath, WALLET_PORTFOLIO_PATH } from '@/utils/walletMenuRoutes'
 import { WalletChipNetworkIndicator } from './WalletChipNetworkIndicator'
 import { WalletDropdownMenuItems } from './WalletDropdownMenuItems'
 import { WalletLuncBalance } from './WalletLuncBalance'
@@ -53,6 +54,7 @@ export default function WalletButton() {
   }, [showDropdown])
 
   if (address) {
+    const traderHref = traderProfilePath(address)
     return (
       <>
         <div className="wallet-dropdown-wrap">
@@ -99,7 +101,7 @@ export default function WalletButton() {
                   <WalletLuncBalance address={address} />
                   <AddressRow
                     address={address}
-                    showFull
+                    nowrap
                     className="text-xs"
                     copyAriaLabel="Copy wallet address"
                     explorerAriaLabel="View wallet address on explorer"
@@ -114,7 +116,7 @@ export default function WalletButton() {
                   />
                   <Link
                     role="menuitem"
-                    to="/portfolio"
+                    to={WALLET_PORTFOLIO_PATH}
                     onClick={() => {
                       sounds.playButtonPress()
                       closeWalletMenu()
@@ -132,26 +134,28 @@ export default function WalletButton() {
                     </svg>
                     My Portfolio
                   </Link>
-                  <Link
-                    role="menuitem"
-                    to={`/trader/${address}`}
-                    onClick={() => {
-                      sounds.playButtonPress()
-                      closeWalletMenu()
-                    }}
-                    className="wallet-menu-item"
-                    style={{ color: 'var(--ink-dim)' }}
-                  >
-                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    Trader profile
-                  </Link>
+                  {traderHref ? (
+                    <Link
+                      role="menuitem"
+                      to={traderHref}
+                      onClick={() => {
+                        sounds.playButtonPress()
+                        closeWalletMenu()
+                      }}
+                      className="wallet-menu-item"
+                      style={{ color: 'var(--ink-dim)' }}
+                    >
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                      Trader profile
+                    </Link>
+                  ) : null}
                   <button
                     type="button"
                     role="menuitem"

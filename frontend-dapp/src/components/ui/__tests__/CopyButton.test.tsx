@@ -87,8 +87,18 @@ describe('CopyButton', () => {
     )
     const item = screen.getByTestId('wallet-menu-copy')
     expect(item).toHaveAttribute('role', 'menuitem')
+    expect(item).toHaveClass('wallet-menu-item')
+    expect(item.className).not.toMatch(/inline-flex/)
     expect(item).toHaveTextContent('Copy address')
     await user.click(item)
     expect(mockCopyToClipboard).toHaveBeenCalledWith('terra1menu')
+  })
+
+  it('icon-only copy is not a menuitem (GitLab #183 / #671)', () => {
+    render(<CopyButton text="terra1abc" ariaLabel="Copy wallet address" />)
+    const button = screen.getByRole('button', { name: 'Copy wallet address' })
+    expect(button).not.toHaveAttribute('role', 'menuitem')
+    expect(button).toHaveClass('copy-button')
+    expect(button).not.toHaveClass('wallet-menu-item')
   })
 })

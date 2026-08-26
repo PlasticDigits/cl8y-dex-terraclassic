@@ -100,7 +100,7 @@ export function CopyButton({
       <button
         type="button"
         role="menuitem"
-        className={`wallet-menu-item inline-flex items-center gap-2 w-full ${className}`.trim()}
+        className={`wallet-menu-item ${className}`.trim()}
         style={{ color: 'var(--ink-dim)' }}
         aria-label={ariaLabel}
         aria-describedby={liveMessage ? liveId : undefined}

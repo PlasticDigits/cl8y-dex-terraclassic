@@ -1,6 +1,6 @@
 import { CopyButton } from '@/components/ui/CopyButton'
 import { ExplorerLinkIcon } from '@/components/ui/ExplorerLinkIcon'
-import { getExplorerAddressUrl } from '@/utils/terraExplorer'
+import { getExplorerAddressUrl, isSafeExplorerHref } from '@/utils/terraExplorer'
 import { shortenAddress } from '@/utils/tokenDisplay'
 
 export type AddressRowProps = {
@@ -8,6 +8,11 @@ export type AddressRowProps = {
   address: string
   /** When set, show the full address string instead of a shortened label. */
   showFull?: boolean
+  /**
+   * Keep the label + copy/explorer icons on one row (wallet dropdown header, GitLab #671).
+   * Does not change the clipboard / explorer payload. Default wrap stays for Pool / Protocol `showFull`.
+   */
+  nowrap?: boolean
   /** Passed to `shortenAddress` when `showFull` is false (defaults 8 / 6). */
   startChars?: number
   endChars?: number
@@ -22,6 +27,7 @@ export type AddressRowProps = {
 export function AddressRow({
   address,
   showFull = false,
+  nowrap = false,
   startChars,
   endChars,
   className = '',
@@ -30,11 +36,14 @@ export function AddressRow({
   'data-testid': testId = 'address-row',
 }: AddressRowProps) {
   const displayLabel = showFull ? address : shortenAddress(address, startChars ?? 8, endChars ?? 6)
-  const explorerUrl = getExplorerAddressUrl(address)
+  const explorerUrlRaw = getExplorerAddressUrl(address)
+  const explorerUrl = isSafeExplorerHref(explorerUrlRaw) ? explorerUrlRaw : null
+  const wrapClass = nowrap ? 'flex-nowrap' : 'flex-wrap'
+  const labelOverflow = showFull && !nowrap ? 'break-all' : nowrap ? 'truncate' : ''
 
   return (
     <span
-      className={`address-row inline-flex min-w-0 flex-wrap items-center gap-1 ${className}`.trim()}
+      className={`address-row inline-flex min-w-0 items-center gap-1 ${wrapClass} ${className}`.trim()}
       data-testid={testId}
     >
       {explorerUrl ? (
@@ -43,15 +52,12 @@ export function AddressRow({
           target="_blank"
           rel="noopener noreferrer"
           title={address}
-          className={`address-row-label min-w-0 font-mono text-xs underline hover:opacity-80 ${showFull ? 'break-all' : ''}`.trim()}
+          className={`address-row-label min-w-0 font-mono text-xs underline hover:opacity-80 ${labelOverflow}`.trim()}
         >
           {displayLabel}
         </a>
       ) : (
-        <span
-          title={address}
-          className={`address-row-label min-w-0 font-mono text-xs ${showFull ? 'break-all' : ''}`.trim()}
-        >
+        <span title={address} className={`address-row-label min-w-0 font-mono text-xs ${labelOverflow}`.trim()}>
           {displayLabel}
         </span>
       )}

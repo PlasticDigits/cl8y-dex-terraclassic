@@ -23,6 +23,8 @@ vi.mock('@/lib/sounds', () => ({
 }))
 
 import { useWalletStore } from '@/hooks/useWallet'
+import { shortenAddress } from '@/utils/tokenDisplay'
+import { WALLET_PORTFOLIO_PATH } from '@/utils/walletMenuRoutes'
 
 const mockUseWalletStore = vi.mocked(useWalletStore)
 
@@ -51,7 +53,7 @@ describe('WalletButton connected LUNC (GitLab #140)', () => {
     expect(balances[0]).toHaveTextContent('terra1 LUNC')
   })
 
-  it('shows LUNC balance and full address in the dropdown header', async () => {
+  it('shows LUNC balance and truncated address in the dropdown header (#671)', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -59,7 +61,12 @@ describe('WalletButton connected LUNC (GitLab #140)', () => {
       </MemoryRouter>
     )
     await user.click(screen.getByRole('button', { expanded: false }))
-    expect(screen.getByText(ADDR)).toBeInTheDocument()
+    const header = screen.getByTestId('wallet-menu-address-row')
+    expect(header).toHaveClass('flex-nowrap')
+    expect(header).not.toHaveTextContent(ADDR)
+    expect(header).toHaveTextContent(shortenAddress(ADDR, 8, 6))
+    expect(header.querySelector('[title]')).toHaveAttribute('title', ADDR)
+    expect(screen.queryByText(ADDR)).not.toBeInTheDocument()
     expect(screen.getAllByTestId('wallet-lunc-balance-mock').length).toBeGreaterThanOrEqual(2)
   })
 
@@ -167,6 +174,53 @@ describe('WalletButton dropdown affordances (GitLab #185)', () => {
     expect(screen.getByTestId('wallet-menu-copy-address')).toHaveTextContent('Copy address')
     expect(screen.getByRole('menuitem', { name: 'View on explorer' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Switch wallet' })).toBeInTheDocument()
+  })
+
+  it('lays out every menuitem as a wallet-menu-item row in documented order (#671)', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await user.click(screen.getByRole('button', { expanded: false }))
+    const items = screen.getAllByRole('menuitem')
+    expect(items.map((el) => el.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Copy address',
+      'View on explorer',
+      'Switch wallet',
+      'My Portfolio',
+      'Trader profile',
+      'Disconnect',
+    ])
+    for (const el of items) {
+      expect(el).toHaveClass('wallet-menu-item')
+    }
+    expect(screen.getByRole('menuitem', { name: 'My Portfolio' })).toHaveAttribute('href', WALLET_PORTFOLIO_PATH)
+    expect(screen.getByRole('menuitem', { name: 'Trader profile' })).toHaveAttribute('href', `/trader/${ADDR}`)
+  })
+
+  it('renders spoofed address markup as text, not HTML (#671)', async () => {
+    const spoof = '"><img src=x onerror=alert(1)>'
+    mockUseWalletStore.mockReturnValue({
+      address: spoof,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: false,
+      setWalletModalOpen: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+    const user = userEvent.setup()
+    const { container } = render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await user.click(screen.getByRole('button', { expanded: false }))
+    expect(container.querySelector('img[src="x"]')).toBeNull()
+    expect(container.querySelector('script')).toBeNull()
+    expect(screen.getByTestId('wallet-menu-address-row').querySelector('[title]')).toHaveAttribute('title', spoof)
+    expect(screen.queryByRole('menuitem', { name: 'Trader profile' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'My Portfolio' })).toHaveAttribute('href', WALLET_PORTFOLIO_PATH)
   })
 
   it('opens connect modal after Switch wallet', async () => {

@@ -160,6 +160,7 @@
 | 1.8.4e | Risk ack stays blocking (#672 D7 / #138) | Clear risk localStorage → Open app → backdrop / Escape / header Connect | Risk dialog stays; no Close control. | | |
 | 1.8.5 | Connected state display | Connect any wallet | Truncated address, Terra Classic icon, dropdown arrow shown | | |
 | 1.8.6 | Dropdown disconnect | Click connected address → Disconnect option | Dropdown appears, disconnect works | | |
+| 1.8.8 | Connected dropdown row layout (#671) | Connect → open chip menu on desktop and ~390px | Every action is icon-left + label on one line; header address is truncated (not a mid-wrapped 44-char underline); Copy / explorer / switch / portfolio / trader / disconnect still work | | |
 | 1.8.7 | Only one wallet at a time | Connect wallet A → Connect wallet B | First disconnects, second connects | | |
 
 ---

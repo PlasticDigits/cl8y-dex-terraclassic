@@ -1379,10 +1379,21 @@
     text-align: left;
   }
 
+  /* GitLab #671: icon+label on one row. Do not rely on per-row Tailwind — SVG is
+     `display:block` from preflight, so missing flex stacks the glyph above the label. */
   .wallet-menu-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
     width: 100%;
     font: inherit;
     cursor: var(--cursor-pointer);
+  }
+
+  .wallet-menu-item > svg {
+    flex-shrink: 0;
   }
 
   .app-menu-link:focus-visible,

@@ -197,10 +197,10 @@ When a wallet is connected, the header chip must show **bank uluna** as human **
 | Invariant | Meaning |
 |-----------|---------|
 | **Query reuse** | [`useNativeUlunaBalance`](../frontend-dapp/src/hooks/useNativeUlunaBalance.ts) — React Query key `['tokenBalance', address, 'uluna']`, same LCD path as swap/pool (`getTokenBalance` + `native_token.denom`). |
-| **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with the **full** bech32 address. |
+| **Chip + menu** | [`WalletLuncBalance`](../frontend-dapp/src/components/wallet/WalletLuncBalance.tsx) renders on the connected trigger (desktop and mobile widths) and in the dropdown header with a **truncated** bech32 `AddressRow` (`nowrap`, full string in `title` / copy payload — [#671](#connected-wallet-dropdown)). |
 | **Formatting** | Six decimals via [`formatTokenAmount`](../frontend-dapp/src/utils/formatAmount.ts); label suffix **`LUNC`**; loading spinner / **`— LUNC`** on error (no silent hide). |
 | **`data-testid`** | `wallet-lunc-balance` on the balance span for Vitest and Playwright. |
-| **Address row** | Connected menu header uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) for full bech32 + inline copy + explorer icon ([#188](#addressrow-primitive)); chip trigger network label: [#186](#connected-wallet-chip-network-mobile). |
+| **Address row** | Connected menu header uses [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) truncated + `nowrap` icon cluster ([#671](#connected-wallet-dropdown) / [#188](#addressrow-primitive)); chip trigger network label: [#186](#connected-wallet-chip-network-mobile). |
 | **Menu dismiss + Escape** | Connected dropdown uses the same semantic backdrop as shell nav: `type="button"` + `aria-label="Close wallet menu"` + class **`app-menu-dismiss`** ([`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx)). **`Escape`** closes the wallet menu via a `window` listener while open; [`Layout.tsx`](../frontend-dapp/src/components/common/Layout.tsx) still owns More-menu Esc ([GitLab **#187**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/187)). |
 | **Dropdown menu items** | Labeled rows **Copy address**, **View on explorer**, **Switch wallet** — [#185](#connected-wallet-dropdown). |
 | **Out of scope (#140 B)** | Remaining AddressRow surfaces: `TxResultAlert` tx copy — [#188](#addressrow-primitive) (wallet header done). Pair + token-leg chips on Pool / Trade / Charts: [#541](#token-identity). Address explorer URLs: [#184](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/184) — see [Terra Classic block explorer URLs](#terra-classic-block-explorer-urls). Chip network label + mobile layout: [#186](#connected-wallet-chip-network-mobile) — done. |
@@ -224,18 +224,23 @@ The connected header trigger must expose **which chain** the build targets, not 
 
 ### Connected wallet dropdown menu items {#connected-wallet-dropdown}
 
-Labeled menu rows for retailers who expect explicit actions in the wallet chip menu ([GitLab **#185**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185), [#140](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140) scope **B**). Implemented in [`WalletDropdownMenuItems.tsx`](../frontend-dapp/src/components/wallet/WalletDropdownMenuItems.tsx), inserted by [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx) after the `AddressRow` header.
+Labeled menu rows for retailers who expect explicit actions in the wallet chip menu ([GitLab **#185**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/185), [#140](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/140) scope **B**, layout **[#671](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/671)**). Implemented in [`WalletDropdownMenuItems.tsx`](../frontend-dapp/src/components/wallet/WalletDropdownMenuItems.tsx), inserted by [`WalletButton.tsx`](../frontend-dapp/src/components/wallet/WalletButton.tsx) after the `AddressRow` header.
 
 | Invariant | Meaning |
 |-----------|---------|
-| **Menu order** | Header (`WalletLuncBalance` + `AddressRow`) → **Copy address** → **View on explorer** (if URL) → **Switch wallet** → **Trader profile** → **Disconnect**. |
-| **Copy address** | [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) with `menuLabel="Copy address"` ([#183](#copy-button-primitive)); full bech32 written to clipboard. |
-| **View on explorer** | [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) ([#184](#terra-classic-block-explorer-urls)); omit the row when helper returns `null`. |
+| **Menu order** | Header (`WalletLuncBalance` + `AddressRow`) → **Copy address** → **View on explorer** (if safe URL) → **Switch wallet** → **My Portfolio** → **Trader profile** → **Disconnect**. |
+| **W671-1 Row layout** | Every `.wallet-menu-item` is one horizontal row: `display: inline-flex`, `align-items: center`, `gap: 8px`, `flex-wrap: nowrap`, `justify-content: flex-start`. Icon left, label vertically centered. Do **not** stack the glyph above the label (Tailwind preflight `svg { display: block }`). Do **not** copy Tailwind flex onto each row. |
+| **W671-2 Header address** | Wallet header `AddressRow` uses **`nowrap`** (not `showFull` + `break-all`). Visible label is `shortenAddress` 8/6; `title` / copy / explorer still use the full bech32. Keep labeled copy/explorer rows — do not remove them to "clean up" the header. |
+| **Copy address** | [`CopyButton`](../frontend-dapp/src/components/ui/CopyButton.tsx) with `menuLabel="Copy address"` ([#183](#copy-button-primitive)); full bech32 written to clipboard. Layout class is **`.wallet-menu-item` only** (no extra `inline-flex` Tailwind). |
+| **View on explorer** | [`getExplorerAddressUrl`](../frontend-dapp/src/utils/terraExplorer.ts) ([#184](#terra-classic-block-explorer-urls)); omit the row when helper returns `null` **or** [`isSafeExplorerHref`](../frontend-dapp/src/utils/terraExplorer.ts) rejects `javascript:` / `data:`. `rel` includes `noopener noreferrer`. |
 | **Switch wallet** | `disconnect()` then `setWalletModalOpen(true)`; connect modal portals while connected (no full-page flow). |
-| **`data-testid`** | `wallet-menu-copy-address`, `wallet-menu-view-explorer`, `wallet-menu-switch-wallet`. |
-| **Regression tests** | [`WalletDropdownMenuItems.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletDropdownMenuItems.test.tsx), [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx), wallet block in [`navigation.spec.ts`](../frontend-dapp/e2e/navigation.spec.ts).
+| **Portfolio / Trader** | Portfolio is [`WALLET_PORTFOLIO_PATH`](../frontend-dapp/src/utils/walletMenuRoutes.ts) (`/portfolio`). Trader is [`traderProfilePath`](../frontend-dapp/src/utils/walletMenuRoutes.ts) (`/trader/{bech32}`) or omitted when the address is not valid `terra` bech32. |
+| **`data-testid`** | `wallet-menu-copy-address`, `wallet-menu-view-explorer`, `wallet-menu-switch-wallet`, `wallet-menu-address-row`. |
+| **W671-7 a11y / stack** | Keep `:focus-visible` on `.wallet-menu-item` / `.copy-button`. First menuitem still receives focus on open; Escape + `app-menu-dismiss` still close. Do not raise `.wallet-menu` `z-index` above modal portals. Icons stay `w-4 h-4`. |
+| **W671-8 tokens** | `--ink*` / `--menu-bg` / `--line`. No `*-neo`. No extra `card-glass` / `shell-panel` inside the menu. Light + dark. |
+| **Regression tests** | [`WalletDropdownMenuItems.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletDropdownMenuItems.test.tsx), [`WalletButton.test.tsx`](../frontend-dapp/src/components/wallet/__tests__/WalletButton.test.tsx), [`walletMenuRoutes.test.ts`](../frontend-dapp/src/utils/__tests__/walletMenuRoutes.test.ts), wallet block in [`navigation.spec.ts`](../frontend-dapp/e2e/navigation.spec.ts). `make verify-issue-671`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_WALLET_CHIP.md`](../skills/AGENTS_FRONTEND_WALLET_CHIP.md) (**W671-1–W671-8**) · [`skills/AGENTS_FRONTEND_COPY_BUTTON.md`](../skills/AGENTS_FRONTEND_COPY_BUTTON.md) · [`skills/AGENTS_FRONTEND_ADDRESS_ROW.md`](../skills/AGENTS_FRONTEND_ADDRESS_ROW.md) · [`skills/AGENTS_FRONTEND_TERRA_EXPLORER.md`](../skills/AGENTS_FRONTEND_TERRA_EXPLORER.md).
 
 ### Copy to clipboard — `CopyButton` primitive {#copy-button-primitive}
 
@@ -260,8 +265,9 @@ Reusable **shortened or full address + copy + explorer** row for bech32 and cont
 |-----------|---------|
 | **Single component** | [`AddressRow`](../frontend-dapp/src/components/ui/AddressRow.tsx) — do not duplicate shorten/copy/explorer markup in feature pages. |
 | **Shorten defaults** | `shortenAddress(address, 8, 6)` when `showFull` is false; override with `startChars` / `endChars` when design needs a different chip (e.g. trader header 12/6). |
-| **Full text mode** | `showFull` shows the entire string with `break-all` (wallet dropdown menu). |
-| **Explorer** | Label and icon link share `getExplorerAddressUrl`; both omitted when the helper returns `null`. |
+| **Full text mode** | `showFull` shows the entire string with `break-all` on Pool LP / Protocol hub / other pages that need the whole bech32. **Not** the connected wallet dropdown header. |
+| **Wallet header (#671)** | Connected menu uses `nowrap` (single-line truncated label + icon cluster). Full bech32 stays in `title`, clipboard, and explorer URL. Do not re-enable `showFull` + `break-all` there — it mid-wraps in the 210px panel and orphans copy/explorer icons. |
+| **Explorer** | Label and icon link share `getExplorerAddressUrl` then [`isSafeExplorerHref`](../frontend-dapp/src/utils/terraExplorer.ts); both omitted when the helper returns `null` or a non-http(s) href. |
 | **Aria** | Pass explicit `copyAriaLabel` / `explorerAriaLabel` per surface (wallet, LP token, trader). |
 | **Regression tests** | [`AddressRow.test.tsx`](../frontend-dapp/src/components/ui/__tests__/AddressRow.test.tsx). |
 
@@ -389,7 +395,7 @@ Network-aware explorer links for transactions and accounts live in [`terraExplor
 | **Single source** | Do not hardcode Finder hosts in components; extend `chainlist.json` + `explorerPathBaseForChainId` if explorers change. |
 | **Galaxy Finder chain-id path (#478)** | Mainnet (`columbus-5`) `explorerUrl` must be `https://finder.terraclassic.community/columbus-5` — Galaxy Finder routes by **chain id**, not the product label `/mainnet`. Do not revert to `/mainnet`. |
 | **Null when unknown** | Missing `explorerUrl` for a chain returns `null` (UI hides the link). |
-| **Null when unsafe** | Tx hash must match 64 hex digits; address must pass Terra bech32 validation — otherwise `null` (no injectable `href`; [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
+| **Null when unsafe** | Tx hash must match 64 hex digits; address must pass Terra bech32 validation — otherwise `null` (no injectable `href`; [#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). Menu/AddressRow also gate with [`isSafeExplorerHref`](../frontend-dapp/src/utils/terraExplorer.ts) so a mocked `javascript:` / `data:` URL is omitted ([#671](#connected-wallet-dropdown)). |
 | **Local dev LCD** | `local` uses REST paths on [`NETWORKS.local.terra.lcd`](../frontend-dapp/src/utils/constants.ts) (default `http://localhost:1317`), mirroring tx vs account resources. |
 | **Regression tests** | [`terraExplorer.test.ts`](../frontend-dapp/src/utils/__tests__/terraExplorer.test.ts) — one case per network for **tx** and **address**, plus adversarial-input cases ([#430](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/430)). |
 
