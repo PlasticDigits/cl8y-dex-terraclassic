@@ -1592,8 +1592,11 @@
   .app-modal-panel {
     position: relative;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     max-width: 420px;
+    max-height: calc(100dvh - 2rem);
     border: 1px solid var(--line);
     border-radius: 26px;
     overflow: hidden;
@@ -1608,12 +1611,63 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
     padding: 20px 24px 16px;
     border-bottom: 1px solid var(--chrome-border-soft);
   }
 
   .app-modal-header--blocking {
     justify-content: flex-start;
+  }
+
+  .app-modal-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /**
+   * Dismissible header close (GitLab #672). Uses --ink (not --ink-subtle / btn-muted)
+   * so the control stays visible on --panel-bg-strong in dark and light.
+   */
+  .app-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    color: var(--ink);
+    background: var(--control-surface);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .app-modal-close:hover {
+    background: var(--control-surface-hover);
+  }
+
+  .app-modal-close:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  .app-modal-close-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .app-modal-close-label {
+    line-height: 1;
   }
 
   .app-modal-panel--risk {
@@ -2192,6 +2246,10 @@ input[type='number'] {
 
   .app-modal-portal-root {
     padding-bottom: calc(var(--app-mobile-nav-stack) + 16px);
+  }
+
+  .app-modal-panel {
+    max-height: calc(100dvh - var(--app-mobile-nav-stack) - 2rem);
   }
 
   .app-header {

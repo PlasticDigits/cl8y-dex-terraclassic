@@ -183,6 +183,7 @@ make verify-issue-626                    # #626 free listed-template adopt + Ter
 make verify-issue-627                    # #627 columbus-5 CW20 code 3 adopt+list NO-GO (REPORT + AdoptLegacyLayout)
 make verify-issue-628                    # #628 post-merge !418 community-tax migrate leftovers (P3/P7/P11 + 11626/11630)
 make verify-issue-632                    # #632 Keplr in-app / visualViewport token picker
+make verify-issue-672                    # #672 Connect Wallet / Modal dismiss overlay (Vitest + docs)
 make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool (LocalTerra: localterra-634-migrate-inventory.sh)
 make verify-issue-604                    # #604 identity + connected-wallet helpers (Vitest + crates)
 make verify-issue-605                    # #605 SKU init + percent taxes (Vitest + crates)
@@ -303,6 +304,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_SOUND_MUTE.md](skills/AGENTS_FRONTEND_SOUND_MUTE.md) — UI SFX mute toggle + `cl8y-dex-sounds-enabled` persistence (#487)
 - [skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md](skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — anti-cognitive-overload retail copy + terminology (#489); glossary in [`docs/design-system.md`](docs/design-system.md)
 - [skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md](skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) — first-visit NFA / risk modal (#138)
+- [skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md](skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) — Connect Wallet list + logos + dismiss overlay (**D1–D9**, [#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672)); `make verify-issue-672`
 - [skills/AGENTS_FRONTEND_CLICKWRAP.md](skills/AGENTS_FRONTEND_CLICKWRAP.md) — connected Legal TermsGate for `dex.cl8y.com` (**C1–C10**, [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)); `make verify-issue-517`
 - [skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md](skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) — WalletConnect same-device mobile pairing (deep-link + copy, not QR-only; **WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)); `make verify-issue-519` · `make verify-issue-554` · `make verify-issue-566`
 - [skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md](skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) — portal listbox `visualViewport` + in-app chrome inset + coarse/narrow browse-without-IME (**V632-1–V632-8**, [#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`

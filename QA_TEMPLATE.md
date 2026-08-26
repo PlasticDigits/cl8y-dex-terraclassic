@@ -146,9 +146,13 @@
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
 | 1.8.1 | Modal opens on click | Click "Connect Wallet" button | Modal opens with all wallet options | | |
-| 1.8.2 | Modal closes on backdrop click | Open modal → Click outside | Modal closes | | |
-| 1.8.3 | Modal closes on X button | Open modal → Click X | Modal closes | | |
-| 1.8.4 | Modal closes on ESC | Open modal → Press Escape | Modal closes | | |
+| 1.8.2 | Modal closes on backdrop click (#672 D2) | Open modal → Click dimmed page (top / sides / below header) | Modal unmounts (`wallet-connect-modal-portal` gone). Repeat from `/portfolio` and Swap Connect. | | |
+| 1.8.3 | Modal closes on labeled Close (#672 D1) | Open modal → Click header **Close** (375px + 1280px, dark + light) | Close is visible (not clipped). Modal unmounts. | | |
+| 1.8.4 | Modal closes on ESC (#672 D3) | Open modal → Press Escape | Modal closes. Tab cycle stays inside while open. | | |
+| 1.8.4b | Header Connect toggles (#672 D5) | Open from header → Click header **Connect Wallet** again | Dialog closes. Second click reopens. | | |
+| 1.8.4c | Panel click does not close (#672 D4) | Open modal → Click Keplr / **Install** | Dialog stays. Install may open a new tab. | | |
+| 1.8.4d | Connecting dismiss cancels (#672 D6) | Start WalletConnect → Close / backdrop / pairing Cancel / header Cancel | `isConnecting` clears; no address; header shows Connect Wallet again. | | |
+| 1.8.4e | Risk ack stays blocking (#672 D7 / #138) | Clear risk localStorage → Open app → backdrop / Escape / header Connect | Risk dialog stays; no Close control. | | |
 | 1.8.5 | Connected state display | Connect any wallet | Truncated address, Terra Classic icon, dropdown arrow shown | | |
 | 1.8.6 | Dropdown disconnect | Click connected address → Disconnect option | Dropdown appears, disconnect works | | |
 | 1.8.7 | Only one wallet at a time | Connect wallet A → Connect wallet B | First disconnects, second connects | | |
@@ -595,7 +599,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 11.1.5 | Create pair mobile | View /create on mobile | Form usable | | |
 | 11.1.6 | Trader page mobile | View /trader on mobile | All sections visible and readable | | |
 | 11.1.7 | Navigation mobile | View nav on mobile | Mobile-friendly navigation | | |
-| 11.1.8 | Wallet modal mobile | Open wallet modal on mobile | Modal fits screen, all options visible | | |
+| 11.1.8 | Wallet modal mobile (#672 D1) | Open wallet modal at 375×667 (and zoomed desktop) | Header + **Close** stay in view; wallet rows scroll inside the panel; tab-bar padding kept | | |
 | 11.1.9 | Touch interactions | Tap, swipe on mobile | All interactions work with touch | | |
 
 ### 11.2 Breakpoints
