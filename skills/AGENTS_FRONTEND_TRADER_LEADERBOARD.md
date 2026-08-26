@@ -15,13 +15,13 @@ Audience: third-party agents editing `/trader`, `/trader/:address`, Charts **Lea
 ## Do / don’t
 
 - **Do** use [`TraderLeaderboard`](../frontend-dapp/src/components/trader/TraderLeaderboard.tsx) as the last sibling in `TraderPage` (outside `{trader && (…)}`).
-- **Do** share React Query key `['leaderboard', sort]`, `getLeaderboard(sort, 20)`, `refetchInterval: 30_000`.
+- **Do** share React Query key `['leaderboard', sort, pair ?? 'global']`. Global: `getLeaderboard(sort, 20)`. Charts: `getLeaderboard(sort, 20, pair)`.
 - **Do** format Volume with [`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts) on `total_volume_usd`. Unpriced → `—`. Idle (`total_trades === 0`) → `$0`.
-- **Do** keep heading **Leaderboard**, four tabs (Volume / Best Trade / Most Profit / Most Loss), one `shell-panel-strong` (**C653-1**).
+- **Do** keep heading **Leaderboard**. Global has four tabs (Volume / Best Trade / Most Profit / Most Loss). Charts pair board hides **Best Trade** ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) **CS-9**).
 - **Do** skip rows that fail `isValidTerraAddress`. Links are `Link` to `/trader/${encodeURIComponent(addr)}`. Rank `#` is displayed server order — do not re-sort.
 - **Don’t** nest the board in `app-footer-shell`, mobile nav, or Trade History’s panel.
 - **Don’t** add `/portfolio` ranks, rolling 24h/7d/30d columns, `total_fees_paid`, or “you are rank N” when the wallet is not in the top 20.
-- **Don’t** change the indexer API, `#280` TTL, default API sort (`total_volume` raw), or `limit` clamp. Pair-scoped Charts ranks are [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) — this playbook owns the **global** board.
+- **Don’t** change the unscoped indexer API, `#280` TTL, default API sort (`total_volume` raw), or `limit` clamp. Pair-scoped Charts ranks are [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) — pass `pairAddress`; do not fork USD math.
 - **Don’t** claim anti-Sybil (POS-02). Optional docs note only — no retail lecture ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).
 
 ## Invariants (TL-1–TL-10)
@@ -30,7 +30,7 @@ Audience: third-party agents editing `/trader`, `/trader/:address`, Charts **Lea
 |----|------|
 | **TL-1** | Last section of Trader page content: search → profile/empty/error/outage → (when loaded) stats → positions → trade history → **leaderboard** → Layout footer. |
 | **TL-2** | Board on **both** `/trader` and `/trader/:address`, including loading, 404, and profile outage. Own loading / empty / `RetryError`. |
-| **TL-3** | Same product as Charts: four tabs, default `total_volume_usd`, `limit=20`, `refetchInterval: 30_000`, shared query key. |
+| **TL-3** | Default `total_volume_usd`, `limit=20`, `refetchInterval: 30_000`, shared query key including pair (`global` when omitted). Global board has four tabs; Charts pair board hides Best Trade (**CS-9**). |
 | **TL-4** | **T553-1 / T553-5:** never display raw `total_volume` as Volume. |
 | **TL-5** | One chrome layer: one `shell-panel-strong`. No nested `shell-panel*` / per-row `card-glass`. `python3 scripts/check_chrome_nesting.py` stays green. |
 | **TL-6** | Heading **Leaderboard**. No Sybil lecture, no “see also Charts”, no `VITE_*` / host in retail copy. |
@@ -64,5 +64,5 @@ Also keep `make verify-issue-553` and `make verify-issue-653` green. Vitest: `Tr
 - [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md) — wallet-home; no board
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — no Sybil lecture
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — profile outage vs board `RetryError`
-- [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) — future pair-scoped Charts leaderboard (do not implement here)
+- [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) — Charts passes `pairAddress`; hide Best Trade; empty copy is pair-empty
 - [#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665) — trader share-link (separate)

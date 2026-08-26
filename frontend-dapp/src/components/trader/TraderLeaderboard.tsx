@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getLeaderboard } from '@/services/indexer/client'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { PnlValue } from '@/components/trader/PnlValue'
@@ -10,32 +8,35 @@ import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
 import {
   DEFAULT_LEADERBOARD_SORT,
   LEADERBOARD_TABS,
-  TRADER_LEADERBOARD_LIMIT,
-  TRADER_LEADERBOARD_REFETCH_MS,
+  PAIR_LEADERBOARD_TABS,
   filterLeaderboardRows,
   getLeaderboardPnlValue,
   isLeaderboardSort,
   type LeaderboardSort,
 } from './traderLeaderboard'
+import { useTraderLeaderboardQuery } from './useTraderLeaderboardQuery'
 
 export type TraderLeaderboardProps = {
   /** When this wallet appears in the top 20, mark that row current. No invented rank (TL-9). */
   highlightAddress?: string
+  /** Indexed pair contract. Charts #666. Omit for DEX-wide #657. */
+  pairAddress?: string
+  enabled?: boolean
 }
 
 /**
- * Global DEX trader leaderboard (Charts + `/trader`). Unscoped `GET /traders/leaderboard`.
- * Pair-scoped Charts ranks are [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) — do not fork USD math here.
+ * DEX trader leaderboard. Unscoped `GET /traders/leaderboard` on `/trader`.
+ * Charts passes `pairAddress` for pair ranks (#666 CS-7 / CS-14).
  */
-export function TraderLeaderboard({ highlightAddress }: TraderLeaderboardProps) {
+export function TraderLeaderboard({ highlightAddress, pairAddress, enabled = true }: TraderLeaderboardProps) {
+  const pairTrim = pairAddress?.trim() || ''
+  const tabs = pairTrim ? PAIR_LEADERBOARD_TABS : LEADERBOARD_TABS
   const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>(DEFAULT_LEADERBOARD_SORT)
-  const sort: LeaderboardSort = isLeaderboardSort(leaderboardSort) ? leaderboardSort : DEFAULT_LEADERBOARD_SORT
+  const sortAllowed = tabs.some((tab) => tab.key === leaderboardSort)
+  const sort: LeaderboardSort =
+    sortAllowed && isLeaderboardSort(leaderboardSort) ? leaderboardSort : DEFAULT_LEADERBOARD_SORT
 
-  const leaderboardQuery = useQuery({
-    queryKey: ['leaderboard', sort],
-    queryFn: () => getLeaderboard(sort, TRADER_LEADERBOARD_LIMIT),
-    refetchInterval: TRADER_LEADERBOARD_REFETCH_MS,
-  })
+  const leaderboardQuery = useTraderLeaderboardQuery(sort, pairTrim || undefined, enabled)
 
   const rows = filterLeaderboardRows(leaderboardQuery.data)
   const highlight = highlightAddress?.trim().toLowerCase() ?? ''
@@ -47,7 +48,7 @@ export function TraderLeaderboard({ highlightAddress }: TraderLeaderboardProps) 
       </h3>
 
       <div className="flex gap-1 mb-4 flex-wrap" role="tablist" aria-label="Leaderboard sort">
-        {LEADERBOARD_TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
@@ -78,7 +79,7 @@ export function TraderLeaderboard({ highlightAddress }: TraderLeaderboardProps) 
       )}
       {leaderboardQuery.data && rows.length === 0 && !leaderboardQuery.isError && (
         <p className="text-center py-8 text-sm" style={{ color: 'var(--ink-dim)' }}>
-          No traders yet
+          {pairTrim ? 'No traders on this pair yet' : 'No traders yet'}
         </p>
       )}
       {rows.length > 0 && (
@@ -93,7 +94,7 @@ export function TraderLeaderboard({ highlightAddress }: TraderLeaderboardProps) 
                   Trader
                 </th>
                 <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
-                  {LEADERBOARD_TABS.find((t) => t.key === sort)?.label ?? 'Value'}
+                  {tabs.find((t) => t.key === sort)?.label ?? 'Value'}
                 </th>
                 <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
                   Trades

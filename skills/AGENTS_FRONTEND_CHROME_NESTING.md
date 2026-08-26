@@ -33,7 +33,7 @@ The design-system sentence used to bless nested `card-glass` inside a page `shel
 | **C653-1** | One chrome layer per visual region. Forbidden: `shell-panel*` wrapping `shell-panel*`, or wrapping a **grid of** `card-glass` / default `StatBox`. |
 | **C653-2** | Allowlist is short: Swap IO cards; a **single** table/chart well; Trade **sibling** panels. Snapshot: [`scripts/chrome_nesting_allowlist.txt`](../scripts/chrome_nesting_allowlist.txt). |
 | **C653-3** | Metric tiles use `StatBox variant="flat"` / `.stat-flat`: no second radius, border, or blur. Default `StatBox` stays `card`. |
-| **C653-4** | Charts overview + pair 24h + TWAP grids, Trader summary (including P&L chips), Protocol Global stats / fees / oracle stat chips: flat. Hub prices were already typographic `dl`. |
+| **C653-4** | Charts pair 24h + TWAP grids, Trader summary (including P&L chips), Protocol Global stats / fees / oracle stat chips: flat. Hub prices were already typographic `dl`. Charts has **no** DEX-census overview strip ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)). |
 | **C653-5** | Swap Pay/Receive stay `card-glass`. Trade chart stays a single `shell-panel-strong` (**L561-1**). No `PanelResizeHandle`. |
 | **C653-6** | `title` / `aria-label` on StatBox survive a variant change. Testids unchanged. No indexer JSON change. |
 | **C653-7** | Mechanical guard: `python3 scripts/check_chrome_nesting.py` (static regex, no `eval`). New same-file `shell-panel`+`card-glass` hits fail unless allowlisted. |

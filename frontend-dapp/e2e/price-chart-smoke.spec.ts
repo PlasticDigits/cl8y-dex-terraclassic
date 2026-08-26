@@ -31,6 +31,25 @@ test.describe('Price chart Playwright smoke (GitLab #228)', () => {
       await expect(page.getByTestId('charts-market-data-outage-banner')).toHaveCount(0)
     })
 
+    test('pair-scoped layout: Find pair, no DEX census, no Best Trade (GitLab #666)', async ({ page }) => {
+      await page.goto('/charts', { waitUntil: 'domcontentloaded' })
+      await expect(page.getByRole('heading', { name: /charts & analytics/i })).toBeVisible({
+        timeout: 30_000,
+      })
+      const find = page.getByLabel('Filter pairs by symbol or address')
+      await expect(find).toBeVisible()
+      await expect(page.getByTestId('charts-overview-pairs')).toHaveCount(0)
+      await expect(page.getByTestId('charts-overview-tokens')).toHaveCount(0)
+      await expect(page.getByTestId('charts-overview-volume-usd')).toHaveCount(0)
+      await expect(page.getByRole('tab', { name: /best trade/i })).toHaveCount(0)
+      const stats = page.getByTestId('charts-pair-24h-stats')
+      if (await stats.isVisible().catch(() => false)) {
+        const findBox = await find.boundingBox()
+        const statsBox = await stats.boundingBox()
+        expect(findBox && statsBox && findBox.y < statsBox.y).toBeTruthy()
+      }
+    })
+
     test('mobile viewport shows canvas or loading without crash', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto('/charts', { waitUntil: 'domcontentloaded' })

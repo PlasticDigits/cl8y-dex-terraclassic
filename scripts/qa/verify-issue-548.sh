@@ -27,7 +27,7 @@ run_step() {
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  GitLab #548 — Charts overview USD-only + catalog volume_usd"
+echo "  GitLab #548 — Protocol / overview USD-only + catalog volume_usd"
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "docs: invariants + skill + AGENTS crosslinks" \
@@ -36,7 +36,9 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     test -f skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md
     grep -q "Charts overview USD (#548)" docs/indexer-invariants.md
     grep -q "AGENTS_FRONTEND_CHARTS_OVERVIEW" AGENTS.md
-    grep -q "charts-overview-volume-usd" docs/frontend.md
+    grep -q "formatChartsOverviewVolumeUsd" docs/frontend.md
+    grep -q "protocol-global-stats" docs/frontend.md
+    grep -q "charts-pair-scoped" docs/frontend.md
     grep -q "P522-Q catalog" docs/runbooks/indexer-external-oracle.md
     grep -q "volume_usd_for_swap" skills/AGENTS_INDEXER_PAIR_PRICE_USD.md
     grep -q "token_count" skills/AGENTS_INDEXER_VOLUME_PAGINATION.md
@@ -44,11 +46,13 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     test -f indexer/migrations/20260817120000_backfill_swap_volume_usd_catalog.sql
   '
 
-run_step "code: Charts does not format raw total_volume_24h" \
+run_step "code: Protocol formats overview USD; Charts has no census strip" \
   bash -c '
     set -euo pipefail
-    grep -q "formatChartsOverviewVolumeUsd" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "charts-overview-volume-usd" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "formatChartsOverviewVolumeUsd" frontend-dapp/src/utils/chartsOverviewStats.ts
+    grep -q "protocol-stat-volume-24h" frontend-dapp/src/components/protocol/ProtocolGlobalStats.tsx
+    ! grep -q "charts-overview-volume-usd" frontend-dapp/src/pages/ChartsPage.tsx
+    ! grep -q "charts-overview-pairs" frontend-dapp/src/pages/ChartsPage.tsx
     ! grep -qE "formatNum\(overview\.total_volume_24h" frontend-dapp/src/pages/ChartsPage.tsx
     ! grep -q "lg:grid-cols-6" frontend-dapp/src/pages/ChartsPage.tsx
     grep -q "count_pair_leg_assets" indexer/src/api/overview.rs
@@ -57,10 +61,10 @@ run_step "code: Charts does not format raw total_volume_24h" \
     ! grep -q "decimals_factor = BigDecimal::from(1_000_000" indexer/src/indexer/parser.rs
   '
 
-run_step "frontend: overview formatters + Charts strip" \
+run_step "frontend: overview formatters + Protocol Global stats" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/__tests__/chartsOverviewStats.test.ts \
-    src/pages/ChartsPage.test.tsx'
+    src/pages/ProtocolPage.test.tsx'
 
 run_step "indexer lib: pair_price volume catalog + overview field" \
   bash -c 'cd indexer && cargo test --lib pair_price -- --quiet && cargo test --lib idle_dex_sends -- --quiet && cargo test --lib unpriced_activity -- --quiet && cargo test --lib priced_activity -- --quiet'

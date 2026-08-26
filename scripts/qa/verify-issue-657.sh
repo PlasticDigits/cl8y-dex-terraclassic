@@ -54,13 +54,13 @@ run_step "code: shared component last on TraderPage; Charts wrapper; no portfoli
     grep -q "highlightAddress" frontend-dapp/src/pages/TraderPage.tsx
     grep -q "<TraderLeaderboard" frontend-dapp/src/pages/ChartsPage.tsx
     ! grep -q "TraderLeaderboard" frontend-dapp/src/pages/PortfolioPage.tsx
-    grep -q "getLeaderboard(sort, TRADER_LEADERBOARD_LIMIT)" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "getLeaderboard(sort, TRADER_LEADERBOARD_LIMIT)" frontend-dapp/src/components/trader/useTraderLeaderboardQuery.ts
     grep -q "total_volume_usd" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     grep -q "formatIndexedVolumeUsd" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     grep -q "charts-leaderboard-volume" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     grep -q "isValidTerraAddress" frontend-dapp/src/components/trader/traderLeaderboard.ts
-    grep -q "encodeURIComponent" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
-    grep -q "\['leaderboard'" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "to={\`/trader/\${address}\`}" frontend-dapp/src/components/trader/TraderIdentity.tsx
+    grep -q "\['leaderboard'" frontend-dapp/src/components/trader/useTraderLeaderboardQuery.ts
     ! grep -qE "formatNum\(.*total_volume[^_]" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     ! grep -q "dangerouslySetInnerHTML" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     ! grep -q "formatNum(trader.total_volume)" frontend-dapp/src/pages/TraderPage.tsx
@@ -83,8 +83,13 @@ if "Trade History" in tail:
 print("TraderLeaderboard is last content mount")
 PY
 
-run_step "code: no indexer / contract change required" \
-  git diff --quiet origin/main -- indexer smartcontracts
+run_step "code: unscoped leaderboard remains; pair ranks are #666" \
+  bash -c '
+    set -euo pipefail
+    grep -q "get_leaderboard_for_pair" indexer/src/db/queries/traders.rs
+    grep -q "PAIR_SCOPED_SORTS" indexer/src/api/traders.rs
+    grep -qE "fn get_leaderboard|async fn get_leaderboard" indexer/src/db/queries/traders.rs
+  '
 
 run_step "docs: frontend.md TL-1–TL-10 + Charts crosslink" \
   grep -qE '\*\*TL-1\*\*' docs/frontend.md && \

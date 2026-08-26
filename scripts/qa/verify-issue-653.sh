@@ -3,7 +3,7 @@
 #
 # Proves (unit + docs; no chain required):
 #   1. StatBox default stays card-glass; variant=flat does not.
-#   2. Charts overview + Trader summary tiles are flat (testids unchanged).
+#   2. Charts pair 24h + Trader summary tiles are flat (testids unchanged).
 #   3. check_chrome_nesting.py + design tokens green.
 #   4. Docs/skills C653-1–C653-8 + allowlist; no blanket nested-card yes.
 #   5. Swap IO cards still card-glass; Trade chart not wrapped in card-glass.
@@ -43,7 +43,7 @@ run_step "frontend: StatBox card vs flat" \
   bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/components/ui/__tests__/StatBox.test.tsx
 
-run_step "frontend: Charts overview + Trader summary chrome" \
+run_step "frontend: Charts pair 24h + Trader summary chrome" \
   bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/pages/ChartsPage.test.tsx \
     src/components/trader/TraderSummaryStats.test.tsx

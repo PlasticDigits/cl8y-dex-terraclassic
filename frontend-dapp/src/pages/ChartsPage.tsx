@@ -1,7 +1,7 @@
 import { useState, useDeferredValue, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getOverview, getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
+import { getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
@@ -19,18 +19,12 @@ import {
 } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
 import { TraderLeaderboard } from '@/components/trader/TraderLeaderboard'
-import {
-  formatChartsOverviewCount,
-  formatChartsOverviewUstcUsd,
-  formatChartsOverviewVolumeUsd,
-  formatIndexedVolumeUsd,
-} from '@/utils/chartsOverviewStats'
+import { useTraderLeaderboardQuery } from '@/components/trader/useTraderLeaderboardQuery'
+import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
+import { DEFAULT_LEADERBOARD_SORT } from '@/components/trader/traderLeaderboard'
 import { formatChartsPairTokenVolume, formatPairStatsUsdOhlc, formatTwapHumanPrice } from '@/utils/chartsPairStats'
 import {
   CHARTS_PAIR_SORT_VOLUME_LABEL,
-  TRAILING_24H_TRADES_LABEL,
-  TRAILING_24H_TRADES_TITLE,
-  TRAILING_24H_VOLUME_LABEL,
   TRAILING_24H_VOLUME_TITLE,
   TRAILING_PAIR_VOL_USD_LABEL,
 } from '@/utils/trailingWindowCopy'
@@ -82,12 +76,6 @@ export default function ChartsPage() {
     setPairPage(0)
   }, [deferredPairSearch])
 
-  const overviewQuery = useQuery({
-    queryKey: ['indexer-overview'],
-    queryFn: getOverview,
-    refetchInterval: 30_000,
-  })
-
   const pairsQuery = useQuery({
     queryKey: ['indexer-pairs', deferredPairSearch, pairSort, pairOrder, pairPage],
     queryFn: () =>
@@ -108,7 +96,9 @@ export default function ChartsPage() {
   const canPairNext = (pairPage + 1) * PAIR_PAGE_SIZE < pairTotal
 
   const needsPairFetch =
-    !!selectedPairAddr && !(pairItems ?? []).some((p: IndexerPair) => p.pair_address === selectedPairAddr)
+    !!selectedPairAddr &&
+    pairsQuery.isSuccess &&
+    !(pairItems ?? []).some((p: IndexerPair) => p.pair_address === selectedPairAddr)
 
   useEffect(() => {
     if (validRoutePair) setSelectedPairAddr(validRoutePair)
@@ -128,8 +118,6 @@ export default function ChartsPage() {
     retry: false,
   })
 
-  const unknownDeepLink = !!validRoutePair && selectedPairQuery.isError
-
   useEffect(() => {
     if (!selectedPairQuery.isError) return
     if (validRoutePair && selectedPairAddr === validRoutePair) return
@@ -148,6 +136,11 @@ export default function ChartsPage() {
     }
     return filtered
   }, [pairItems, selectedPairQuery.data])
+
+  const unknownDeepLink =
+    !!validRoutePair &&
+    selectedPairQuery.isError &&
+    !pairOptions.some((p: IndexerPair) => p.pair_address === validRoutePair)
 
   const activePairAddr = selectedPairAddr || pairOptions[0]?.pair_address || ''
   const activePair = pairOptions.find((p: IndexerPair) => p.pair_address === activePairAddr)
@@ -169,6 +162,9 @@ export default function ChartsPage() {
     [pairOptions]
   )
 
+  const pairKnown = pairOptions.some((p: IndexerPair) => p.pair_address === activePairAddr)
+  const pairQueriesEnabled = !!activePairAddr && pairKnown && !unknownDeepLink
+
   useEffect(() => {
     if (validRoutePair) return
     if (pairOptions.length === 0) return
@@ -181,14 +177,14 @@ export default function ChartsPage() {
   const statsQuery = useQuery({
     queryKey: ['pair-stats', activePairAddr],
     queryFn: () => getPairStats(activePairAddr),
-    enabled: !!activePairAddr && !unknownDeepLink,
+    enabled: pairQueriesEnabled,
     refetchInterval: 30_000,
   })
 
   const tradesQuery = useQuery({
     queryKey: ['pair-trades', activePairAddr],
     queryFn: () => getTrades(activePairAddr, 50),
-    enabled: !!activePairAddr && !unknownDeepLink,
+    enabled: pairQueriesEnabled,
     refetchInterval: 15_000,
   })
 
@@ -230,10 +226,16 @@ export default function ChartsPage() {
     ]
   )
 
+  const leaderboardQuery = useTraderLeaderboardQuery(
+    DEFAULT_LEADERBOARD_SORT,
+    pairQueriesEnabled ? activePairAddr : undefined,
+    pairQueriesEnabled
+  )
+
   const twapQuery = useQuery({
     queryKey: ['twap-prices', activePairAddr],
     queryFn: () => getTwapPrices(activePairAddr, TWAP_WINDOWS),
-    enabled: !!activePairAddr && !unknownDeepLink,
+    enabled: pairQueriesEnabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
     retry: false,
@@ -242,19 +244,18 @@ export default function ChartsPage() {
   const oracleInfoQuery = useQuery({
     queryKey: ['oracle-info', activePairAddr],
     queryFn: () => getOracleInfo(activePairAddr),
-    enabled: !!activePairAddr && !unknownDeepLink,
+    enabled: pairQueriesEnabled,
     staleTime: 60_000,
     retry: false,
   })
 
-  const overview = overviewQuery.data
   const stats = statsQuery.data
   const highUsd = pairStatsUsdField(stats?.high_usd)
   const lowUsd = pairStatsUsdField(stats?.low_usd)
   const openUsd = pairStatsUsdField(stats?.open_price_usd)
   const closeUsd = pairStatsUsdField(stats?.close_price_usd)
 
-  const marketDataDown = detectMarketDataOutage(overviewQuery, pairsQuery)
+  const marketDataDown = detectMarketDataOutage(pairsQuery, statsQuery, tradesQuery, leaderboardQuery)
 
   return (
     <div className="space-y-4">
@@ -270,54 +271,12 @@ export default function ChartsPage() {
           title={MARKET_DATA_SERVICE_OUTAGE_TITLE}
           lead={CHARTS_MARKET_DATA_OUTAGE_LEAD}
           onRetry={() => {
-            void overviewQuery.refetch()
             void pairsQuery.refetch()
+            void statsQuery.refetch()
+            void tradesQuery.refetch()
+            void leaderboardQuery.refetch()
           }}
         />
-      )}
-
-      {(!marketDataDown || overviewQuery.isLoading || overview) && (
-        <div className="shell-panel grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <StatBox
-            variant="flat"
-            label={TRAILING_24H_VOLUME_LABEL}
-            title={TRAILING_24H_VOLUME_TITLE}
-            value={
-              overview ? formatChartsOverviewVolumeUsd(overview.total_volume_24h_usd, overview.total_trades_24h) : '—'
-            }
-            loading={overviewQuery.isLoading}
-            data-testid="charts-overview-volume-usd"
-          />
-          <StatBox
-            variant="flat"
-            label="USTC / USD"
-            value={overview ? formatChartsOverviewUstcUsd(overview.ustc_price_usd) : '—'}
-            loading={overviewQuery.isLoading}
-            data-testid="charts-overview-ustc-usd"
-          />
-          <StatBox
-            variant="flat"
-            label={TRAILING_24H_TRADES_LABEL}
-            title={TRAILING_24H_TRADES_TITLE}
-            value={overview ? formatChartsOverviewCount(overview.total_trades_24h) : '—'}
-            loading={overviewQuery.isLoading}
-            data-testid="charts-overview-trades"
-          />
-          <StatBox
-            variant="flat"
-            label="Pairs"
-            value={overview ? formatChartsOverviewCount(overview.pair_count) : '—'}
-            loading={overviewQuery.isLoading}
-            data-testid="charts-overview-pairs"
-          />
-          <StatBox
-            variant="flat"
-            label="Tokens"
-            value={overview ? formatChartsOverviewCount(overview.token_count) : '—'}
-            loading={overviewQuery.isLoading}
-            data-testid="charts-overview-tokens"
-          />
-        </div>
       )}
 
       {/* Pair Selector */}
@@ -461,24 +420,7 @@ export default function ChartsPage() {
         )}
       </div>
 
-      {/* Price Chart */}
-      {activePairAddr && (
-        <div className="h-[min(70vh,720px)]">
-          <PriceChart
-            pairAddress={activePairAddr}
-            tapeLastPriceUsd={tapeLastPriceUsd}
-            displayInverted={pairOrientation.inverted}
-            onToggleDisplayInvert={pairOrientation.toggleInverted}
-            pairPillLabel={pairOrientation.pillLabel}
-            invertAriaLabel={pairOrientation.invertAriaLabel}
-            displayBaseSymbol={pairOrientation.displayBase}
-            volumeBaseDecimals={activePair?.asset_0.decimals}
-            volumeQuoteDecimals={activePair?.asset_1.decimals}
-          />
-        </div>
-      )}
-
-      {/* 24h Stats — USD primary; human token vols secondary (GitLab #565). */}
+      {/* 24h Stats sit immediately below Find pair (GitLab #666 CS-3). */}
       {stats && activePair && activePair.pair_address === activePairAddr && (
         <div className="shell-panel" data-testid="charts-pair-24h-stats">
           <h3
@@ -495,7 +437,12 @@ export default function ChartsPage() {
               data-testid="charts-pair-volume-usd"
               title={TRAILING_24H_VOLUME_TITLE}
             />
-            <StatBox variant="flat" label="Trades" value={stats.trade_count.toLocaleString()} />
+            <StatBox
+              variant="flat"
+              label="Trades"
+              value={stats.trade_count.toLocaleString()}
+              data-testid="charts-pair-trades"
+            />
             <StatBox
               variant="flat"
               label="Price Change"
@@ -558,9 +505,26 @@ export default function ChartsPage() {
         </div>
       )}
 
-      {!statsQuery.isLoading && !stats && activePairAddr && (
+      {!statsQuery.isLoading && !stats && pairQueriesEnabled && (
         <div className="shell-panel text-center py-6" style={{ color: 'var(--ink-dim)' }}>
           <p className="text-sm">No trades yet.</p>
+        </div>
+      )}
+
+      {/* Price Chart */}
+      {pairQueriesEnabled && (
+        <div className="h-[min(70vh,720px)]">
+          <PriceChart
+            pairAddress={activePairAddr}
+            tapeLastPriceUsd={tapeLastPriceUsd}
+            displayInverted={pairOrientation.inverted}
+            onToggleDisplayInvert={pairOrientation.toggleInverted}
+            pairPillLabel={pairOrientation.pillLabel}
+            invertAriaLabel={pairOrientation.invertAriaLabel}
+            displayBaseSymbol={pairOrientation.displayBase}
+            volumeBaseDecimals={activePair?.asset_0.decimals}
+            volumeQuoteDecimals={activePair?.asset_1.decimals}
+          />
         </div>
       )}
 
@@ -660,8 +624,7 @@ export default function ChartsPage() {
         )}
       </div>
 
-      {/* Global DEX leaderboard — same component as /trader (#657). Pair-scoped Charts ranks are #666. Trader 4/6 + blockie is #656. */}
-      <TraderLeaderboard />
+      {pairQueriesEnabled ? <TraderLeaderboard pairAddress={activePairAddr} enabled={pairQueriesEnabled} /> : null}
     </div>
   )
 }

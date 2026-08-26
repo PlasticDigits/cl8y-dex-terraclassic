@@ -57,7 +57,7 @@ function trader(overrides: Partial<IndexerTrader> = {}): IndexerTrader {
   }
 }
 
-function renderBoard(highlightAddress?: string) {
+function renderBoard(highlightAddress?: string, pairAddress?: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
@@ -65,7 +65,10 @@ function renderBoard(highlightAddress?: string) {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/trader']}>
         <Routes>
-          <Route path="/trader" element={<TraderLeaderboard highlightAddress={highlightAddress} />} />
+          <Route
+            path="/trader"
+            element={<TraderLeaderboard highlightAddress={highlightAddress} pairAddress={pairAddress} />}
+          />
           <Route path="/trader/:address" element={<div data-testid="trader-profile-stub" />} />
         </Routes>
       </MemoryRouter>
@@ -243,5 +246,15 @@ describe('TraderLeaderboard', () => {
     expect(root.className).toMatch(/shell-panel-strong/)
     expect(root.querySelector('[class*="shell-panel"]')).toBeNull()
     expect(root.innerHTML).not.toMatch(/card-glass/)
+  })
+
+  it('pairAddress hides Best Trade, passes pair, and uses pair-empty copy (GitLab #666 CS-7/CS-9)', async () => {
+    const PAIR = 'terra1pair0000000000000000000000000000ab'
+    vi.mocked(indexerClient.getLeaderboard).mockResolvedValue([])
+    renderBoard(undefined, PAIR)
+    await waitFor(() => expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20, PAIR))
+    expect(screen.queryByRole('tab', { name: /best trade/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /volume \(usd\)/i })).toBeInTheDocument()
+    expect(await screen.findByText(/no traders on this pair yet/i)).toBeInTheDocument()
   })
 })

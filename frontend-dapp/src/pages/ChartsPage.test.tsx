@@ -9,8 +9,6 @@ import * as oracle from '@/services/terraclassic/oracle'
 import type { IndexerPair } from '@/types'
 import {
   CHARTS_PAIR_SORT_VOLUME_LABEL,
-  TRAILING_24H_TRADES_LABEL,
-  TRAILING_24H_TRADES_TITLE,
   TRAILING_24H_VOLUME_LABEL,
   TRAILING_24H_VOLUME_TITLE,
 } from '@/utils/trailingWindowCopy'
@@ -115,8 +113,7 @@ describe('ChartsPage (component)', () => {
     }))
   })
 
-  it('shows retail market-data banner when overview and pairs fail with transport errors (GitLab #215)', async () => {
-    vi.mocked(indexerClient.getOverview).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
+  it('shows retail market-data banner when pairs fail with transport errors (GitLab #215 / #666 CS-12)', async () => {
     vi.mocked(indexerClient.getPairs).mockRejectedValue(new Error('Indexer API error: 502 Bad Gateway'))
     renderWithProviders(<ChartsPage />)
     const banner = await screen.findByTestId('charts-market-data-outage-banner')
@@ -150,110 +147,130 @@ describe('ChartsPage (component)', () => {
       limit: 50,
       offset: 0,
     })
+    vi.mocked(indexerClient.getLeaderboard).mockClear()
     renderWithProviders(<ChartsPage />)
     await waitFor(() => expect(screen.getByText(/no pairs yet/i)).toBeInTheDocument())
     expect(screen.queryByTestId('pair-token-links')).not.toBeInTheDocument()
+    expect(indexerClient.getLeaderboard).not.toHaveBeenCalled()
   })
 
-  describe('overview strip (GitLab #548)', () => {
-    it('F1/F10: one USD volume box, no raw 10,000,000T', async () => {
+  describe('pair-scoped layout (GitLab #666)', () => {
+    it('Find pair is above pair 24h stats; census overview testids are absent', async () => {
+      renderWithProviders(<ChartsPage />)
+      const find = await screen.findByLabelText('Filter pairs by symbol or address')
+      const stats = await screen.findByTestId('charts-pair-24h-stats')
+      expect(find.compareDocumentPosition(stats) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.queryByTestId('charts-overview-pairs')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('charts-overview-tokens')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('charts-overview-volume-usd')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('charts-overview-ustc-usd')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('charts-overview-trades')).not.toBeInTheDocument()
+      expect(indexerClient.getOverview).not.toHaveBeenCalled()
+      expect(indexerClient.getPairStats).toHaveBeenCalledWith(mockPair.pair_address)
+    })
+
+    it('stats volume/trades match pair mock, not a distinct overview payload', async () => {
       vi.mocked(indexerClient.getOverview).mockResolvedValue({
-        total_volume_24h: '10000000000000000000',
-        total_volume_24h_usd: '1234.56',
-        total_trades_24h: 4,
+        total_volume_24h: '0',
+        total_volume_24h_usd: '999999',
+        total_trades_24h: 999,
         pair_count: 13,
         token_count: 12,
         ustc_price_usd: '0.004878',
       })
-      renderWithProviders(<ChartsPage />)
-      const vol = await screen.findByTestId('charts-overview-volume-usd')
-      await waitFor(() => expect(vol).toHaveTextContent('$1.235K'))
-      expect(vol).toHaveTextContent(TRAILING_24H_VOLUME_LABEL)
-      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
-      expect(within(vol).getByText(TRAILING_24H_VOLUME_LABEL)).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
-      expect(within(vol).getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('$1.235K')
-      expect(screen.queryByTestId('charts-overview-volume-raw')).not.toBeInTheDocument()
-      expect(document.body.textContent).not.toMatch(/10,000,000T/)
-      expect(screen.queryByText('24h Volume')).not.toBeInTheDocument()
-      expect(screen.getByTestId('charts-overview-ustc-usd')).toHaveTextContent('$')
-      expect(screen.getByTestId('charts-overview-ustc-usd').textContent).not.toMatch(/\dT\b/)
-      const trades = screen.getByTestId('charts-overview-trades')
-      expect(trades).toHaveTextContent(TRAILING_24H_TRADES_LABEL)
-      expect(trades).toHaveAttribute('title', TRAILING_24H_TRADES_TITLE)
-      expect(within(trades).getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('4')
-      expect(screen.getByTestId('charts-overview-pairs')).toHaveTextContent('13')
-      expect(screen.getByTestId('charts-overview-tokens')).toHaveTextContent('12')
-      expect(vol.className).toMatch(/stat-flat/)
-      expect(vol.className).not.toMatch(/card-glass/)
-    })
-
-    it('F2: unpriced USD with trades shows em dash not 0', async () => {
-      vi.mocked(indexerClient.getOverview).mockResolvedValue({
-        total_volume_24h: '1000',
-        total_volume_24h_usd: '0',
-        total_trades_24h: 4,
-        pair_count: 1,
-        token_count: 2,
-        ustc_price_usd: null,
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '1',
+        volume_quote: '1',
+        volume_usd: '12.5',
+        trade_count: 3,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
       })
       renderWithProviders(<ChartsPage />)
-      const vol = await screen.findByTestId('charts-overview-volume-usd')
-      await waitFor(() => expect(vol).toHaveTextContent('—'))
-      expect(vol.textContent).not.toMatch(/\$0/)
-      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
-    })
-
-    it('F3: idle DEX volume is $0', async () => {
-      vi.mocked(indexerClient.getOverview).mockResolvedValue({
-        total_volume_24h: '0',
-        total_volume_24h_usd: '0',
-        total_trades_24h: 0,
-        pair_count: 1,
-        token_count: 2,
-        ustc_price_usd: null,
-      })
-      renderWithProviders(<ChartsPage />)
-      const vol = await screen.findByTestId('charts-overview-volume-usd')
-      await waitFor(() => expect(vol).toHaveTextContent('$0'))
-      expect(vol).toHaveTextContent(TRAILING_24H_VOLUME_LABEL)
-      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
-    })
-
-    it('F5: missing USTC spot is em dash', async () => {
-      vi.mocked(indexerClient.getOverview).mockResolvedValue({
-        total_volume_24h: '0',
-        total_volume_24h_usd: '0',
-        total_trades_24h: 0,
-        pair_count: 1,
-        token_count: 2,
-        ustc_price_usd: '',
-      })
-      renderWithProviders(<ChartsPage />)
-      const box = await screen.findByTestId('charts-overview-ustc-usd')
-      await waitFor(() => expect(box).toHaveTextContent('—'))
-    })
-
-    it('F9: adversarial USD field does not inject HTML', async () => {
-      vi.mocked(indexerClient.getOverview).mockResolvedValue({
-        total_volume_24h: '1',
-        total_volume_24h_usd: '"><script>alert(1)</script>',
-        total_trades_24h: 1,
-        pair_count: 1,
-        token_count: 2,
-        ustc_price_usd: null,
-      })
-      renderWithProviders(<ChartsPage />)
-      const vol = await screen.findByTestId('charts-overview-volume-usd')
-      await waitFor(() => expect(vol).toHaveTextContent('—'))
-      expect(vol.querySelector('script')).toBeNull()
-      expect(vol).toHaveAttribute('title', TRAILING_24H_VOLUME_TITLE)
-      expect(vol.getAttribute('title')).not.toMatch(/script|alert/i)
+      const vol = await screen.findByTestId('charts-pair-volume-usd')
+      await waitFor(() => expect(vol).toHaveTextContent('$'))
+      expect(vol.textContent).not.toMatch(/999/)
+      expect(screen.getByTestId('charts-pair-trades')).toHaveTextContent('3')
+      expect(screen.queryByText('999')).not.toBeInTheDocument()
     })
 
     it('U7: pair SORT default is Last 24h volume (volume_24h)', async () => {
       renderWithProviders(<ChartsPage />)
-      await screen.findByTestId('charts-overview-volume-usd')
+      await screen.findByLabelText('Filter pairs by symbol or address')
       expect(screen.getByText(CHARTS_PAIR_SORT_VOLUME_LABEL)).toBeInTheDocument()
+    })
+
+    it('pair switch updates stats and leaderboard args together', async () => {
+      const pairB: IndexerPair = {
+        ...mockPair,
+        pair_address: 'terra10y4jzxavk0uw2usy7ezt4dq5h0k64na8c9yz3rq3dk50v7j8mezs89tz96',
+        asset_0: { symbol: 'CCC', contract_addr: 'terra1ccc', denom: null, decimals: 6 },
+        asset_1: { symbol: 'DDD', contract_addr: 'terra1ddd', denom: null, decimals: 6 },
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [mockPair, pairB],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPairStats).mockImplementation(async (addr: string) => ({
+        volume_base: '1',
+        volume_quote: '1',
+        volume_usd: addr === pairB.pair_address ? '99.5' : '1.25',
+        trade_count: addr === pairB.pair_address ? 7 : 1,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+      }))
+      vi.mocked(indexerClient.getLeaderboard).mockImplementation(async (_sort, _limit, pair) => [
+        {
+          address:
+            pair === pairB.pair_address
+              ? 'terra1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+              : 'terra1abcdefghijklmnopqrstuvwxyz1234567890abcd',
+          total_trades: 2,
+          total_volume: '1',
+          total_volume_usd: pair === pairB.pair_address ? '50' : '10',
+          volume_24h: '0',
+          volume_7d: '0',
+          volume_30d: '0',
+          tier_id: null,
+          tier_name: null,
+          registered: false,
+          first_trade_at: null,
+          last_trade_at: null,
+          total_realized_pnl: '0',
+          best_trade_pnl: null,
+          worst_trade_pnl: null,
+          total_fees_paid: '0',
+        },
+      ])
+      const renderAt = (route: string) =>
+        renderWithProviders(
+          <Routes>
+            <Route path="/charts" element={<ChartsPage />} />
+            <Route path="/charts/:pairAddr" element={<ChartsPage />} />
+          </Routes>,
+          { route }
+        )
+      const first = renderAt('/charts')
+      await waitFor(() =>
+        expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20, mockPair.pair_address)
+      )
+      expect(await screen.findByTestId('charts-pair-trades')).toHaveTextContent('1')
+      first.unmount()
+      renderAt(`/charts/${pairB.pair_address}`)
+      await waitFor(() =>
+        expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20, pairB.pair_address)
+      )
+      await waitFor(() => expect(screen.getByTestId('charts-pair-trades')).toHaveTextContent('7'))
+      expect(screen.getByTestId('charts-leaderboard-volume').textContent).toMatch(/\$/)
+      expect(screen.queryByText(/90abcd/i)).not.toBeInTheDocument()
     })
   })
 
@@ -381,16 +398,25 @@ describe('ChartsPage (component)', () => {
 
     it('H3: invalid param shows a notice and does not fetch the junk segment', async () => {
       vi.mocked(indexerClient.getPair).mockClear()
+      vi.mocked(indexerClient.getLeaderboard).mockClear()
+      vi.mocked(indexerClient.getPairStats).mockClear()
       renderCharts('/charts/not-a-terra')
       expect(await screen.findByTestId('charts-invalid-pair-notice')).toBeInTheDocument()
       expect(indexerClient.getPair).not.toHaveBeenCalledWith('not-a-terra')
+      expect(indexerClient.getLeaderboard).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), 'not-a-terra')
+      expect(indexerClient.getPairStats).not.toHaveBeenCalledWith('not-a-terra')
       expect(document.body.innerHTML).not.toMatch(/javascript:/)
     })
 
-    it('H4: unknown but valid terra1 does not crash', async () => {
+    it('H4: unknown but valid terra1 does not crash or fetch the board for that pair', async () => {
       vi.mocked(indexerClient.getPair).mockRejectedValue(new Error('not found'))
+      vi.mocked(indexerClient.getLeaderboard).mockClear()
+      vi.mocked(indexerClient.getPairStats).mockClear()
       renderCharts(`/charts/${DEEP}`)
       expect(await screen.findByTestId('charts-unknown-pair-notice')).toBeInTheDocument()
+      expect(screen.queryByTestId('charts-pair-24h-stats')).not.toBeInTheDocument()
+      expect(indexerClient.getLeaderboard).not.toHaveBeenCalledWith('total_volume_usd', 20, DEEP)
+      expect(indexerClient.getPairStats).not.toHaveBeenCalledWith(DEEP)
     })
   })
 
@@ -419,12 +445,15 @@ describe('ChartsPage (component)', () => {
         },
       ])
       renderWithProviders(<ChartsPage />)
-      await waitFor(() => expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20))
+      await waitFor(() =>
+        expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20, mockPair.pair_address)
+      )
       const cell = await screen.findByTestId('charts-leaderboard-volume')
       expect(cell.textContent).toMatch(/\$/)
       expect(cell.textContent).not.toMatch(/10,000,000T/)
       expect(cell.textContent).not.toMatch(/\dT\b/)
       expect(screen.getByRole('tab', { name: /volume \(usd\)/i })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.queryByRole('tab', { name: /best trade/i })).not.toBeInTheDocument()
     })
 
     it('unpriced leaderboard volume is an em dash, not $0', async () => {

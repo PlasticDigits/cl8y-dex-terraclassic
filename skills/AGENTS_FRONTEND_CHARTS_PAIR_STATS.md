@@ -14,7 +14,7 @@ Indexer already returns human `volume_usd` and raw `volume_base` / `volume_quote
 
 ## UI layout (#565)
 
-[`ChartsPage.tsx`](../frontend-dapp/src/pages/ChartsPage.tsx) **24h Stats** strip (`charts-pair-24h-stats`):
+[`ChartsPage.tsx`](../frontend-dapp/src/pages/ChartsPage.tsx) **24h Stats** strip (`charts-pair-24h-stats`) sits **immediately below Find pair** and **above** `PriceChart` ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666) **CS-3**):
 
 | Row | Boxes |
 |-----|-------|
@@ -23,7 +23,7 @@ Indexer already returns human `volume_usd` and raw `volume_base` / `volume_quote
 
 Render only when `stats && activePair && activePair.pair_address === activePairAddr`.
 
-**TWAP Oracle** section (below stats): `formatTwapHumanPrice` + `charts-twap-5m` / `1h` / `24h`.
+**TWAP Oracle** stays **below** `PriceChart` (layout **CS-3**, [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)): `formatTwapHumanPrice` + `charts-twap-5m` / `1h` / `24h`.
 
 **PriceChart:** pass `volumeBaseDecimals` / `volumeQuoteDecimals` for candle histogram ([#564 **S564-8**]).
 
@@ -86,7 +86,7 @@ Vitest: `chartsPairStats.test.ts`, `ChartsPage.test.tsx` (#565 + #564 blocks), `
 
 ## Related
 
-- [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview 24h USD (#548)
+- [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](./AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — placement below Find pair + pair leaderboard (#666)
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — pair 24h / TWAP tiles are flat (#653)
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — trailing 24h copy (#576)
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — leaderboard / profile USD (#553)

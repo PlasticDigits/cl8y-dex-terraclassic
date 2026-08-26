@@ -364,3 +364,305 @@ async fn trader_profile_rolling_volume_zeros_after_31d_idle() {
     assert!((lifetime_api - lifetime_db).abs() < 0.001);
     assert!(lifetime_api > 0.0);
 }
+
+/// GitLab #666: pair-scoped leaderboard from `swap_events` / `trader_positions`, not `traders.*`.
+#[serial]
+#[tokio::test]
+async fn leaderboard_pair_filter_isolates_volume_and_pnl() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    cl8y_dex_indexer::api::reset_leaderboard_cache();
+
+    let wallet_b = "terra1traderbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let pair_b = "terra1paircontractbbb";
+
+    sqlx::query("UPDATE swap_events SET volume_usd = 10 WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .expect("price pair A swaps");
+
+    let pair_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ($1, $2, $3, 'terra1lptokenb', 30)
+         RETURNING id",
+    )
+    .bind(pair_b)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .fetch_one(&pool)
+    .await
+    .expect("insert pair B");
+
+    sqlx::query(
+        "INSERT INTO traders (address, total_trades, total_volume, total_volume_usd, volume_24h, volume_7d, volume_30d, registered, total_realized_pnl, best_trade_pnl)
+         VALUES ($1, 99, 999999, 9999, 1, 1, 1, true, 888, 777)",
+    )
+    .bind(wallet_b)
+    .execute(&pool)
+    .await
+    .expect("insert whale trader B");
+
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price, volume_usd)
+         VALUES ($1, 2000, NOW(), 'txhashb0', $2, $3, $4, 100, 90, 0.9, 1.5)",
+    )
+    .bind(pair_b_id)
+    .bind(wallet_b)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .expect("insert pair B swap");
+
+    sqlx::query(
+        "INSERT INTO trader_positions
+         (trader_address, pair_id, net_position_quote, avg_entry_price, total_cost_base, realized_pnl, trade_count)
+         VALUES ($1, $2, 1, 1, 1, 100, 5),
+                ($3, $4, 1, 1, 1, 50, 1)",
+    )
+    .bind(&seed.trader_address)
+    .bind(seed.pair_id)
+    .bind(wallet_b)
+    .bind(pair_b_id)
+    .execute(&pool)
+    .await
+    .expect("insert positions");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let pair_a: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_volume_usd&pair={}&limit=20",
+            seed.pair_address
+        ))
+        .await
+        .json();
+    assert_eq!(pair_a.len(), 1);
+    assert_eq!(pair_a[0]["address"], seed.trader_address);
+    assert_eq!(pair_a[0]["total_trades"], 5);
+    let a_usd = pair_a[0]["total_volume_usd"]
+        .as_str()
+        .expect("pair A usd")
+        .parse::<f64>()
+        .unwrap();
+    assert!((a_usd - 50.0).abs() < 1e-8, "pair A usd was {a_usd}");
+    assert!(pair_a.iter().all(|r| r["address"] != wallet_b));
+
+    let pair_b_rows: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_volume_usd&pair={pair_b}&limit=20"
+        ))
+        .await
+        .json();
+    assert_eq!(pair_b_rows.len(), 1);
+    assert_eq!(pair_b_rows[0]["address"], wallet_b);
+    assert_eq!(pair_b_rows[0]["total_trades"], 1);
+    assert!(pair_b_rows.iter().all(|r| r["address"] != seed.trader_address));
+
+    let unscoped: Vec<Value> = server
+        .get("/api/v1/traders/leaderboard?sort=total_volume_usd&limit=20")
+        .await
+        .json();
+    let addrs: Vec<&str> = unscoped
+        .iter()
+        .filter_map(|r| r["address"].as_str())
+        .collect();
+    assert!(addrs.contains(&seed.trader_address.as_str()) || addrs.contains(&wallet_b));
+
+    let pnl_a: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_realized_pnl&pair={}&limit=20",
+            seed.pair_address
+        ))
+        .await
+        .json();
+    assert_eq!(pnl_a[0]["address"], seed.trader_address);
+    assert_eq!(pnl_a[0]["total_realized_pnl"], "100");
+    assert_ne!(pnl_a[0]["total_realized_pnl"], "888");
+
+    let pnl_b: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_realized_pnl&pair={pair_b}&limit=20"
+        ))
+        .await
+        .json();
+    assert_eq!(pnl_b[0]["address"], wallet_b);
+    assert_eq!(pnl_b[0]["total_realized_pnl"], "50");
+}
+
+#[serial]
+#[tokio::test]
+async fn leaderboard_unknown_pair_404_empty_listed_pair_200() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    cl8y_dex_indexer::api::reset_leaderboard_cache();
+
+    let empty_pair = "terra1emptypairxxxxxxxxxxxxxxxxxxxx";
+    sqlx::query(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ($1, $2, $3, 'terra1lpempty', 30)",
+    )
+    .bind(empty_pair)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .expect("empty pair");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let missing = server
+        .get("/api/v1/traders/leaderboard?pair=terra1nosuchpairxxxxxxxx&sort=total_volume_usd")
+        .await;
+    missing.assert_status_not_found();
+    let body = missing.text();
+    assert!(!body.contains("sqlx"));
+    assert!(!body.contains("SELECT"));
+    assert!(!body.contains("postgres"));
+
+    let empty = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?pair={empty_pair}&sort=total_volume_usd"
+        ))
+        .await;
+    empty.assert_status_ok();
+    let rows: Vec<Value> = empty.json();
+    assert!(rows.is_empty());
+}
+
+#[serial]
+#[tokio::test]
+async fn leaderboard_pair_rejects_best_trade_and_injection_sorts() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    cl8y_dex_indexer::api::reset_leaderboard_cache();
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    for sort in &[
+        "best_trade_pnl",
+        "hacked_column",
+        "id",
+        "volume_24h",
+        "%27%3B%20DROP%20TABLE%20traders%3B%20--",
+    ] {
+        let resp = server
+            .get(&format!(
+                "/api/v1/traders/leaderboard?pair={}&sort={}",
+                seed.pair_address, sort
+            ))
+            .await;
+        resp.assert_status_bad_request();
+        let body = resp.text();
+        assert!(!body.contains("sqlx"));
+        assert!(!body.contains("SELECT"));
+    }
+
+    let inj = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?pair={}&sort=total_volume_usd",
+            "%27%3B%20DROP%20TABLE%20traders%3B%20--"
+        ))
+        .await;
+    inj.assert_status_not_found();
+    let inj_body = inj.text();
+    assert!(!inj_body.contains("sqlx"));
+    assert!(!inj_body.contains("postgres"));
+}
+
+#[serial]
+#[tokio::test]
+async fn leaderboard_pair_limit_clamp_and_cache_isolation() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    cl8y_dex_indexer::api::reset_leaderboard_cache();
+
+    let pair_b = "terra1paircachebbbbbbbbbbbbbbbbbbb";
+    let wallet_b = "terra1cachebbbbbbbbbbbbbbbbbbbbbbbb";
+    let pair_b_id: i32 = sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ($1, $2, $3, 'terra1lpcache', 30)
+         RETURNING id",
+    )
+    .bind(pair_b)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .fetch_one(&pool)
+    .await
+    .expect("pair B");
+    sqlx::query(
+        "INSERT INTO traders (address, total_trades, total_volume, volume_24h, volume_7d, volume_30d, registered)
+         VALUES ($1, 1, 1, 0, 0, 0, false)",
+    )
+    .bind(wallet_b)
+    .execute(&pool)
+    .await
+    .expect("wallet B");
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price, volume_usd)
+         VALUES ($1, 3000, NOW(), 'txhashcacheb', $2, $3, $4, 10, 9, 0.9, 3)",
+    )
+    .bind(pair_b_id)
+    .bind(wallet_b)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .expect("swap B");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let capped = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?pair={}&limit=999",
+            seed.pair_address
+        ))
+        .await;
+    capped.assert_status_ok();
+    let capped_rows: Vec<Value> = capped.json();
+    assert!(capped_rows.len() <= 200);
+
+    let zero = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?pair={}&limit=0",
+            seed.pair_address
+        ))
+        .await;
+    zero.assert_status_ok();
+    let zero_rows: Vec<Value> = zero.json();
+    assert!(!zero_rows.is_empty());
+
+    let a: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_volume_usd&pair={}&limit=10",
+            seed.pair_address
+        ))
+        .await
+        .json();
+    let b: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_volume_usd&pair={pair_b}&limit=10"
+        ))
+        .await
+        .json();
+    assert_eq!(a[0]["address"], seed.trader_address);
+    assert_eq!(b[0]["address"], wallet_b);
+
+    cl8y_dex_indexer::api::reset_leaderboard_cache();
+    let a2: Vec<Value> = server
+        .get(&format!(
+            "/api/v1/traders/leaderboard?sort=total_volume_usd&pair={}&limit=10",
+            seed.pair_address
+        ))
+        .await
+        .json();
+    assert_eq!(a2[0]["address"], seed.trader_address);
+}

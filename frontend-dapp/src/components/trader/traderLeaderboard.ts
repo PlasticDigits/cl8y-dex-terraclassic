@@ -1,10 +1,17 @@
 import { isValidTerraAddress } from '@/utils/constants'
 import type { IndexerTrader } from '@/types'
 
-/** Same four tabs as Charts. Volume must request `total_volume_usd` (T553-5 / TL-3). */
+/** Same four tabs as `/trader`. Volume must request `total_volume_usd` (T553-5 / TL-3). */
 export const LEADERBOARD_TABS = [
   { key: 'total_volume_usd', label: 'Volume (USD)' },
   { key: 'best_trade_pnl', label: 'Best Trade' },
+  { key: 'total_realized_pnl', label: 'Most Profit' },
+  { key: 'worst_trade_pnl', label: 'Most Loss' },
+] as const
+
+/** Charts pair board hides Best Trade (CS-9). */
+export const PAIR_LEADERBOARD_TABS = [
+  { key: 'total_volume_usd', label: 'Volume (USD)' },
   { key: 'total_realized_pnl', label: 'Most Profit' },
   { key: 'worst_trade_pnl', label: 'Most Loss' },
 ] as const

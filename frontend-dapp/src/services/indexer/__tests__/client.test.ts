@@ -523,3 +523,26 @@ describe('hub price ticker allowlist (GitLab #556)', () => {
     expect(js).toBeNull()
   })
 })
+
+describe('getLeaderboard pair query (GitLab #666)', () => {
+  it('omits pair when undefined and encodes pair as a query param', async () => {
+    vi.mocked(fetch).mockImplementation(async () => new Response(JSON.stringify([]), { status: 200 }))
+    const client = await loadModule()
+    await client.getLeaderboard('total_volume_usd', 20)
+    const unscoped = String(vi.mocked(fetch).mock.calls.at(-1)?.[0])
+    expect(unscoped).toContain('/api/v1/traders/leaderboard?')
+    expect(unscoped).toContain('sort=total_volume_usd')
+    expect(unscoped).not.toContain('pair=')
+
+    await client.getLeaderboard('total_volume_usd', 20, 'terra1pairabc')
+    const scoped = String(vi.mocked(fetch).mock.calls.at(-1)?.[0])
+    expect(scoped).toContain('pair=terra1pairabc')
+    expect(scoped).not.toMatch(/traders\/leaderboard\/terra1/)
+
+    await client.getLeaderboard('total_volume_usd', 20, "'; DROP TABLE traders;--")
+    const injected = String(vi.mocked(fetch).mock.calls.at(-1)?.[0])
+    expect(injected).toContain('pair=')
+    expect(injected).not.toContain("/leaderboard/'; DROP")
+    expect(injected).not.toMatch(/traders\/leaderboard\/';/)
+  })
+})
