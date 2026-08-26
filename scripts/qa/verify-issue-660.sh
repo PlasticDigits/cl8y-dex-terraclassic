@@ -39,8 +39,9 @@ echo "════════════════════════�
 echo "  GitLab #660 — /pool Manage four peer actions"
 echo "════════════════════════════════════════════════════════════════"
 
-# Dedicated Vite so parallel worktrees do not reuse another checkout on :3000/:5173.
-export PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-30660}"
+# Dedicated Playwright Vite. Default 3173 is in indexer CORS_ORIGINS (deploy-dex-local /
+# e2e-start-indexer). Do not use SKIP_CHAIN — /pool table needs .env.local + LCD proxy.
+export PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}"
 export PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT}"
 
 run_step "frontend: PoolPage + howto copy + zap quote empty-pool" \
@@ -106,7 +107,19 @@ if [[ "${VERIFY_ISSUE_660_SKIP_E2E:-}" == "1" ]]; then
   echo "[playwright T1–T6 / T13] skipped (VERIFY_ISSUE_660_SKIP_E2E=1)"
 else
   run_step "playwright: Manage IA smoke (5 workers)" \
-    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT}" PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-manage-660.spec.ts e2e/pool-one-sided-533.spec.ts --project=e2e-smoke --workers=5'
+    bash -c 'PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT}" PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-manage-660.spec.ts e2e/pool-one-sided-533.spec.ts --project=e2e-smoke --workers=5'
+fi
+
+if [[ "${VERIFY_ISSUE_660_SKIP_E2E:-}" == "1" ]]; then
+  echo ""
+  echo "[playwright T19 tx] skipped (VERIFY_ISSUE_660_SKIP_E2E=1)"
+elif make has-localterra >/dev/null 2>&1 && [ -f frontend-dapp/.env.local ]; then
+  run_step "playwright: T19 two-sided provide + zap-add tx (e2e-tx, 1 worker)" \
+    bash -c 'CI=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT}" PLAYWRIGHT_BASE_URL="${PLAYWRIGHT_BASE_URL}" bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/pool-tx.spec.ts e2e/pool-one-sided-533-tx.spec.ts --grep "provides liquidity|P4 one-sided add with a pair CW20" --project=e2e-tx --workers=1'
+else
+  echo ""
+  echo "[playwright T19 tx] skipped — LocalTerra or frontend-dapp/.env.local not ready"
+  echo "  Provision: make setup-cloud-localterra"
 fi
 
 echo ""

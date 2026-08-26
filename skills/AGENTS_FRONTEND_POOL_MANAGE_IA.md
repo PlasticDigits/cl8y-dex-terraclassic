@@ -46,7 +46,8 @@ Page-level **Add** / **Withdraw** were one-sided zap but looked like ordinary LP
 ## Verify
 
 ```bash
-make verify-issue-660
+# Playwright Vite Origin must be in indexer CORS_ORIGINS (default :3173).
+PLAYWRIGHT_WEB_PORT=3173 make verify-issue-660
 make verify-issue-531
 make verify-issue-533
 make verify-issue-547

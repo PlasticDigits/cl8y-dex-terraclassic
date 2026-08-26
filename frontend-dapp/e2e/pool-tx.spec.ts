@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert, assertLiquidityCtaNotBlocked } from './helpers/chain'
-import { openPoolCardAdvanced, poolProvideExpandButton, poolProvideSubmitButton } from './helpers/pool-ui'
+import { openFirstFactoryManage, poolProvideSubmitButton } from './helpers/pool-ui'
 
 test.describe('Pool Transactions', () => {
   test('provides liquidity', async ({ page, connectWallet, request }) => {
@@ -9,17 +9,8 @@ test.describe('Pool Transactions', () => {
     await page.getByRole('link', { name: 'Pool' }).click()
     await page.waitForURL(/\/pool/)
 
-    await expect(async () => {
-      const panels = await page.locator('.shell-panel-strong').count()
-      expect(panels).toBeGreaterThan(0)
-    }).toPass({ timeout: 90_000 })
-    const pairCard = page
-      .locator('.shell-panel-strong')
-      .filter({ hasText: /In router \(factory\)/ })
-      .first()
-    await openPoolCardAdvanced(pairCard)
-    await expect(poolProvideExpandButton(pairCard)).toBeVisible({ timeout: 90_000 })
-    await poolProvideExpandButton(pairCard).click()
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
+    const pairCard = await openFirstFactoryManage(page, 'provide')
 
     // Fill amounts (human decimal strings; leave headroom vs wallet balances after globalSetup mint)
     const inputs = pairCard.locator('input[placeholder="0.00"]')
