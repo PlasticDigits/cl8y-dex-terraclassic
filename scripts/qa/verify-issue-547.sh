@@ -48,7 +48,8 @@ run_step "frontend: pool table + howto + charts deep link + catalog" \
     src/utils/__tests__/poolLpHowto.test.ts \
     src/utils/__tests__/chartsPairRoute.test.ts \
     src/utils/__tests__/poolListQuery.test.ts \
-    src/utils/__tests__/pairCatalogRank.test.ts'
+    src/utils/__tests__/pairCatalogRank.test.ts \
+    src/utils/__tests__/formatDate.test.ts'
 
 run_step "code: no header lectures / Router-known / PoolCard list" \
   bash -c '! grep -qE "Liquidity Pools" frontend-dapp/src/pages/PoolPage.tsx' && \

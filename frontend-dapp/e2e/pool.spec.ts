@@ -58,7 +58,8 @@ test.describe('Pool Page', () => {
         .getByRole('button', { name: /Provide Liquidity/i })
         .first()
         .click()
-      await expect(page.getByLabel('Asset A amount')).toBeVisible()
+      await expect(page.getByPlaceholder('0.00').first()).toBeVisible()
+      await expect(page.getByText(/Asset A|Asset B/i)).toHaveCount(0)
     })
 
     test('has input fields for both assets', async ({ page }) => {

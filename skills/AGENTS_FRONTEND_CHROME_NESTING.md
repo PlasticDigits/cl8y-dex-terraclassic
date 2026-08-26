@@ -5,7 +5,7 @@ Audience: third-party agents adding page sections, `StatBox` grids, or `card-gla
 **Issue:** [GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)  
 **Invariants:** [`docs/frontend.md` § One chrome layer](../docs/frontend.md#one-chrome-layer) (**C653-1–C653-8**)  
 **Spec:** [`docs/design-system.md`](../docs/design-system.md) principle **One chrome layer per region**  
-**Related:** [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) Trade application (**L561-1–L561-2**), [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) Protocol inline Δ% (do not restyle Global stats/fees beyond `flat` here), [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) tokens, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) copy density.
+**Related:** [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) Trade application (**L561-1–L561-2**), [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) Protocol inline Δ% (do not restyle Global stats/fees beyond `flat` here), [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) Δ% grouped with headline (layout, not a second chrome layer), [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) tokens, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) copy density.
 
 ## Problem class
 
@@ -19,11 +19,12 @@ The design-system sentence used to bless nested `card-glass` inside a page `shel
 - **Do** keep Trade book / chart / ticket / tape as **sibling** `shell-panel*` / `card-glass` cells. Do **not** wrap `PriceChart` (`shell-panel-strong`) in `card-glass` (**L561-1**).
 - **Do** allow **one** inner `card-glass` well for a single table or chart (Protocol oracle history, Protocol hooks table).
 - **Don’t** wrap a grid of 4–11 `card-glass` / default `StatBox` chips in a section panel.
-- **Don’t** wrap every `<tr>` in `card-glass`.
+- **Don’t** wrap every `<tr>` in `card-glass`. Trader leaderboard identity is a flat `Link` + blockie ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)).
 - **Don’t** silently flip `StatBox` default to `flat` — call sites inside a panel pass `variant="flat"`.
 - **Don’t** invent a new color system or gold fills. Tokens stay #488.
 - **Don’t** change overview JSON / indexer semantics while flattening chrome.
 - **Don’t** implement [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) inline Δ% / daily volume chart in this pass. Consume `flat` there when that issue lands.
+- **Don’t** delete the Swap Pay/Receive hairline or split the IO stack into two floating cards to hide the flip-through-line — that is [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659) paint on the existing seam.
 
 ## Invariants
 
@@ -42,10 +43,11 @@ The design-system sentence used to bless nested `card-glass` inside a page `shel
 
 | File | Role |
 |------|------|
-| `frontend-dapp/src/components/ui/StatBox.tsx` | `variant` `card` \| `flat` |
+| `frontend-dapp/src/components/ui/StatBox.tsx` | `variant` `card` \| `flat`; Δ% grouping is `.stat-value-row` ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)) |
 | `frontend-dapp/src/index.css` | `.stat-flat` primitive |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Overview + pair 24h + TWAP flat |
 | `frontend-dapp/src/components/trader/TraderSummaryStats.tsx` | Profile + P&L flat |
+| `frontend-dapp/src/components/trader/TraderLeaderboard.tsx` | One `shell-panel-strong` table (#657 **TL-5**) |
 | `frontend-dapp/src/components/protocol/ProtocolGlobalStats.tsx` | Flat tiles (inline Δ% is #652) |
 | `frontend-dapp/src/components/protocol/ProtocolFeeStats.tsx` | Flat tiles (inline Δ% is #652) |
 | `frontend-dapp/src/components/protocol/ProtocolOracleCard.tsx` | Flat StatBoxes; one table well |
@@ -68,7 +70,14 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` sibling panels (**L561**)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — nested chrome is visual noise (#489)
 - [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) — `/pool` Manage four actions; zap forms are `card-glass` wells, not nested `shell-panel*` (#660 / **C653-1**)
+- [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) — footer product row is text links, not a nested `card-glass` ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663))
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — overview USD (#548)
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h / TWAP
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — trader volume USD
+- [`AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](./AGENTS_FRONTEND_TRADER_LEADERBOARD.md) — `/trader` global board is one `shell-panel-strong` (**TL-5**, [#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657))
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ%
+- [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) — trader Share is a header button, not a nested panel ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))
+- [`AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](./AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) — Swap flip plate on the Pay/Receive seam (**S659-1–S659-8**, [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)); do **not** delete the seam to hide the line
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ% parentage; [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) owns visual grouping
+- [`AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](./AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md) — `/token/create` desktop density (#669); no SKU `card-glass` tiles
+- [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade pair-select panel must not nest `StatBox` / `card-glass` for the v2 LP chip (#664)

@@ -181,7 +181,8 @@ test.describe('One-sided pool add/withdraw tx (GitLab #533 P4–P8 / #559 P9 / #
   test('P8 empty pool: zap disabled; Provide Liquidity still reachable', async ({ page }) => {
     await openFirstFactoryManage(page, 'provide')
     await expect(poolProvideExpandButton(page)).toBeVisible()
-    await expect(page.getByLabel('Asset A amount')).toBeVisible()
+    await expect(page.getByPlaceholder('0.00').first()).toBeVisible()
+    await expect(page.getByText(/Asset A|Asset B/i)).toHaveCount(0)
     await expect(poolProvideSubmitButton(page)).toBeVisible()
     await expect(page.getByTestId('pool-card-advanced')).toHaveCount(0)
   })

@@ -8,7 +8,7 @@ Use when changing **provide liquidity counterpart auto-fill**, **withdraw receiv
 
 | Rule | Behavior |
 |------|----------|
-| Non-empty pool | Editing Asset A or B auto-fills the counterpart from pool ratio when the other field is **empty** (or `.` draft). |
+| Non-empty pool | Editing either provide amount auto-fills the counterpart from pool ratio when the other field is **empty** (or `.` draft). |
 | Max / 50% | Always force-sync counterpart (`forceSync: true`). |
 | Empty pool | Both reserves `0` → **no** auto-fill. |
 | Manual override | After auto-fill, user edits filled side → leave other side unchanged; `pool-provide-ratio-warning` may show. |
@@ -51,3 +51,4 @@ cd frontend-dapp && npm run test:run -- \
 - Docs: [`docs/frontend.md` § Pool provide liquidity](../docs/frontend.md#pool-page--provide-liquidity-ui-invariants)
 - Retail how-to (#531): [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) — do not replace auto-fill / IL / ratio gates with the how-to essay
 - One-sided default (#533): [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) — two-sided Provide Liquidity keeps auto-fill; retail zap does not donate. Manage IA: [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) (#660)
+- Provide labels + wrap default (#661): [`AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](./AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md) — name/symbol fields; wrap defaults on; drop Asset A/B

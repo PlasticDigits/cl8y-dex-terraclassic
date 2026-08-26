@@ -12,10 +12,13 @@ import { TraderPositionsTable } from '@/components/trader/TraderPositionsTable'
 import { PortfolioOpenLimitsSection } from '@/components/portfolio/PortfolioOpenLimitsSection'
 import { PortfolioLpOverviewSection } from '@/components/portfolio/PortfolioLpOverviewSection'
 import { usePortfolioLpBalances } from '@/hooks/usePortfolioLpBalances'
+import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
 import { sounds } from '@/lib/sounds'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { formatDateTime } from '@/utils/formatDate'
 import { PORTFOLIO_OPEN_LIMITS_DEFAULT_LIMIT } from '@/utils/portfolioFanOut'
+import { buildCanonicalShareUrl, traderShareText } from '@/utils/sharePageLink'
+import { SHARE_LINK_ARIA_PORTFOLIO, SHARE_LINK_TITLE } from '@/utils/sharePageLinkCopy'
 
 export default function PortfolioPage() {
   const walletAddr = useWalletStore((s) => s.address)
@@ -54,6 +57,10 @@ export default function PortfolioPage() {
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
   })
+
+  const publicShareUrl = walletAddr
+    ? buildCanonicalShareUrl({ origin: window.location.origin, kind: 'trader', id: walletAddr })
+    : null
 
   const trader = traderQuery.data
   const profileNotFound =
@@ -117,6 +124,15 @@ export default function PortfolioPage() {
             >
               View on Trader page
             </Link>
+            {publicShareUrl ? (
+              <ShareLinkButton
+                url={publicShareUrl}
+                title={SHARE_LINK_TITLE}
+                text={traderShareText(walletAddr)}
+                ariaLabel={SHARE_LINK_ARIA_PORTFOLIO}
+                data-testid="portfolio-share-link"
+              />
+            ) : null}
           </div>
 
           {indexerOutage && (

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { WalletName } from '@goblinhunt/cosmes/wallet'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -250,5 +251,80 @@ describe('WalletModal Android Chrome connect (GitLab #554)', () => {
     } as ReturnType<typeof useWalletStore>)
     render(<WalletModal onClose={() => {}} />)
     expect(screen.getByTestId('wallet-connect-cancel')).toHaveTextContent('Cancel')
+  })
+})
+
+describe('WalletModal dismiss (GitLab #672)', () => {
+  const desktopChrome =
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value: desktopChrome })
+    mockUseWalletStore.mockReturnValue({
+      connect: vi.fn().mockResolvedValue(undefined),
+      connectDev: vi.fn(),
+      isConnecting: false,
+      error: null,
+      cancelConnection: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+    mockSnapshot.mockReturnValue(extensionSnapshot({}))
+    useWalletConnectPairingStore.setState({ isOpen: false, payload: null })
+  })
+
+  it('shows a labeled Close connect wallet control (D1)', () => {
+    render(<WalletModal onClose={() => {}} />)
+    const close = screen.getByRole('button', { name: 'Close connect wallet' })
+    expect(close).toHaveTextContent('Close')
+    expect(close).toBeVisible()
+  })
+
+  it('closes on header Close and on dimmed backdrop (D2)', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<WalletModal onClose={onClose} />)
+    await user.click(screen.getByRole('button', { name: 'Close connect wallet' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    onClose.mockClear()
+    fireEvent.click(screen.getByTestId('modal-backdrop'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not close when a wallet row or Install is clicked (D4)', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const connect = vi.fn().mockResolvedValue(undefined)
+    const store = {
+      connect,
+      connectDev: vi.fn(),
+      isConnecting: false,
+      error: null,
+      cancelConnection: vi.fn(),
+      address: null,
+    }
+    mockUseWalletStore.mockReturnValue(store as ReturnType<typeof useWalletStore>)
+    mockUseWalletStore.getState = () => store as ReturnType<typeof useWalletStore.getState>
+    render(<WalletModal onClose={onClose} />)
+    await user.click(screen.getByRole('button', { name: /^Galaxy Station$/i }))
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByRole('link', { name: /^install$/i })[0])
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('cancels an in-flight connect instead of only hiding the dialog (D6)', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const cancelConnection = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      connect: vi.fn().mockResolvedValue(undefined),
+      connectDev: vi.fn(),
+      isConnecting: true,
+      error: null,
+      cancelConnection,
+    } as ReturnType<typeof useWalletStore>)
+    render(<WalletModal onClose={onClose} />)
+    await user.click(screen.getByRole('button', { name: 'Close connect wallet' }))
+    expect(cancelConnection).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
   })
 })
