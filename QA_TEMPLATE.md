@@ -523,6 +523,7 @@
 | 9.2.4 | Active nav highlight | Navigate to page | Current page nav item highlighted | | |
 | 9.2.5 | Footer content | View footer | "CL8Y DEX · Terra Classic" text | | |
 | 9.2.6 | Header theme toggle (desktop) | View header at ≥768px width | Dark/Light theme toggle in sticky header (not footer) | | |
+| 9.2.7 | Footer official products | View footer on `/` and after Swap → Pool → Trade; 1280px + 375px ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)) | **Homepage** → `https://cl8y.com/` and **Bridge** → `https://bridge.cl8y.com/` in `footer.app-footer-shell` (new tab, `noopener noreferrer`). Not in header/mobile More. Legal NFA / Security / Report still present | | |
 
 ---
 

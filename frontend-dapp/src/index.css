@@ -1100,6 +1100,32 @@
     margin: 0;
   }
 
+  /* Official CL8Y sibling products (GitLab #663) — text-only, not a second chrome card. */
+  .app-footer-product-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    margin: 0;
+    max-width: 72ch;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    font-weight: 500;
+    color: var(--ink-subtle);
+  }
+
+  .app-footer-product-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .app-footer-product-link:hover {
+    color: var(--ink);
+  }
+
   .app-legal-footer-notice {
     margin: 0;
     max-width: 72ch;
@@ -2293,7 +2319,7 @@ input[type='number'] {
     display: grid;
   }
 
-  /* Keep footer (ribbon + NFA) above the bottom tab bar on mobile. */
+  /* Keep footer (ribbon + product links + NFA) above the bottom tab bar on mobile. */
   .app-footer-shell {
     display: block;
     padding: 12px 0 calc(var(--app-mobile-nav-stack) + 16px);
@@ -2306,6 +2332,10 @@ input[type='number'] {
 
   .app-footer-copy {
     text-align: center;
+  }
+
+  .app-footer-product-links {
+    justify-content: center;
   }
 }
 
