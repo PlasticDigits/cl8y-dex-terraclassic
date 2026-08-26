@@ -28,6 +28,7 @@ import {
   MIGRATE_LP_CONFIRM,
   MIGRATE_LP_CONFIRM_WIPE,
 } from '@/utils/communityTaxMigrate'
+import { MIGRATE_WHY_EXAMPLES, MIGRATE_WHY_HEADLINE } from '@/utils/communityTaxMigrateCopy'
 import { loadMigratePairInventory, registerMigrateCl8yPair } from '@/utils/communityTaxMigratePairs'
 import { isManagerWallet } from '@/utils/communityTaxManager'
 import { isCommunityTaxCodeId } from '@/utils/communityTaxRegisterPair'
@@ -183,8 +184,11 @@ export default function MigrateTokenPage() {
     <div className="max-w-[520px] mx-auto" data-testid="migrate-token-page">
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1 uppercase tracking-wide font-heading">Migrate Token</h2>
-        <p className="text-sm" style={{ color: 'var(--ink-dim)' }}>
-          Move an existing token onto this template. Address stays the same.
+        <p className="text-sm" style={{ color: 'var(--ink-dim)' }} data-testid="migrate-token-why">
+          {MIGRATE_WHY_HEADLINE}
+        </p>
+        <p className="text-sm mt-2" style={{ color: 'var(--ink-dim)' }} data-testid="migrate-token-why-examples">
+          {MIGRATE_WHY_EXAMPLES}
         </p>
       </div>
 

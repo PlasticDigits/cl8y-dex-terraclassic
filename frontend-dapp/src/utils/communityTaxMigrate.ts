@@ -2,6 +2,8 @@
  * Free listed-template adopt onto the community tax wasm (GitLab #626).
  * No invoice. Query params never prefill payee / admin / treasury.
  *
+ * Retail why-copy (Unlock {X} + examples) lives in `communityTaxMigrateCopy.ts` (#670).
+ *
  * Source gate is the **migrate code-id allowlist** (`VITE_COMMUNITY_MIGRATE_CODE_IDS`),
  * not factory `AddWhitelistedCodeId`. Factory listing is for pair assets (F6).
  */

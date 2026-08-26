@@ -1,19 +1,20 @@
 use std::collections::HashMap;
 
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
-    build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd, AppState,
+    AppState, build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd,
 };
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
-    candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
+    candles, limit_order_fills, limit_order_lifecycle, liquidity, pair_liquidity_usd,
+    pairs as db_pairs, swap_events,
 };
 
 pub use limit_book_lcd::LimitBookOrderItem;
@@ -75,6 +76,36 @@ pub struct PairResponse {
     /// Sum of quote-side amounts in swaps over the last 24h (from indexer). Omitted when unknown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volume_quote_24h: Option<String>,
+    /// Indexer first-seen clock (`pairs.created_at`), not factory `CreatePair` genesis (GitLab #662).
+    pub created_at: DateTime<Utc>,
+    /// Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp). Omitted when unpriced.
+    /// Single-pair GET (#664) and list JOIN (#655) read `pair_liquidity_usd` — never live TVL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub liquidity_usd: Option<String>,
+}
+
+/// Shared `PairResponse` builder so list / detail / token-pairs stay one shape (GitLab #662).
+pub(crate) fn pair_to_response(
+    pair: &db_pairs::PairRow,
+    a0: &AssetRow,
+    a1: &AssetRow,
+    volume_quote_24h: Option<String>,
+    liquidity_usd: Option<String>,
+) -> PairResponse {
+    PairResponse {
+        pair_address: pair.contract_address.clone(),
+        asset_0: AssetBrief::from(a0),
+        asset_1: AssetBrief::from(a1),
+        lp_token: pair.lp_token.clone(),
+        fee_bps: pair.fee_bps,
+        is_active: true,
+        code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
+            &pair.contract_address,
+        ),
+        volume_quote_24h,
+        created_at: pair.created_at,
+        liquidity_usd,
+    }
 }
 
 #[derive(Serialize, ToSchema)]
@@ -102,7 +133,7 @@ pub struct ListPairsQuery {
     pub asset: Option<String>,
     /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `relevance` (default `relevance` when `q` is set, else `id`)
     pub sort: Option<String>,
-    /// `asc` or `desc`. Default: `asc` for id/fee/created/symbol; `desc` for volume_24h
+    /// `asc` or `desc`. Default: `asc` for id/fee/symbol; `desc` for volume_24h, created, relevance
     pub order: Option<String>,
 }
 
@@ -131,7 +162,9 @@ fn parse_pair_list_order(
     match order.map(str::trim).filter(|x| !x.is_empty()) {
         None => Ok(matches!(
             sort,
-            db_pairs::PairListSort::Volume24h | db_pairs::PairListSort::Relevance
+            db_pairs::PairListSort::Volume24h
+                | db_pairs::PairListSort::Relevance
+                | db_pairs::PairListSort::Created
         )),
         Some(o) if o.eq_ignore_ascii_case("asc") => Ok(false),
         Some(o) if o.eq_ignore_ascii_case("desc") => Ok(true),
@@ -220,18 +253,8 @@ pub async fn list_pairs(
             continue;
         };
         let volume_quote_24h = row.volume_quote_24h.as_ref().map(volume_quote_to_string);
-        items.push(PairResponse {
-            pair_address: p.contract_address.clone(),
-            asset_0: AssetBrief::from(a0),
-            asset_1: AssetBrief::from(a1),
-            lp_token: p.lp_token.clone(),
-            fee_bps: p.fee_bps,
-            is_active: true,
-            code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
-                &p.contract_address,
-            ),
-            volume_quote_24h,
-        });
+        // List JOIN is #655. This ticket stamps the table and emits the field on single GET.
+        items.push(pair_to_response(p, a0, a1, volume_quote_24h, None));
     }
 
     Ok(Json(PairListResponse {
@@ -273,18 +296,12 @@ pub async fn get_pair(
         .get(&pair.asset_1_id)
         .ok_or_else(|| internal_err("Asset 1 not found"))?;
 
-    Ok(Json(PairResponse {
-        pair_address: pair.contract_address.clone(),
-        asset_0: AssetBrief::from(a0),
-        asset_1: AssetBrief::from(a1),
-        lp_token: pair.lp_token,
-        fee_bps: pair.fee_bps,
-        is_active: true,
-        code_id_frozen: crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen(
-            &pair.contract_address,
-        ),
-        volume_quote_24h: None,
-    }))
+    let liquidity_usd = pair_liquidity_usd::get_pair_liquidity_usd(&state.pool, pair.id)
+        .await
+        .map_err(internal_err)?
+        .map(|v| volume_quote_to_string(&v));
+
+    Ok(Json(pair_to_response(&pair, a0, a1, None, liquidity_usd)))
 }
 
 /// When `from` / `to` are omitted, candles are filtered to this many days before `to`.

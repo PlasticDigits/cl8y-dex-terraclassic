@@ -634,12 +634,35 @@ test.describe('Wallet Connection', () => {
     }
   })
 
-  test('wallet modal can be closed with X button', async ({ page }) => {
+  test('wallet modal can be closed with the labeled Close control (GitLab #672)', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
     await headerConnectButton(page).click()
-    await expect(page.getByRole('heading', { name: /Connect Wallet/i })).toBeVisible()
-    await page.getByRole('button', { name: /close modal/i }).click()
-    await expect(page.getByRole('heading', { name: /Connect Wallet/i })).not.toBeVisible()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
+    await page.getByRole('button', { name: /close connect wallet/i }).click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toHaveCount(0)
+  })
+
+  test('wallet modal closes on dimmed backdrop click (GitLab #672 D2)', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    await headerConnectButton(page).click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
+    await page.getByTestId('modal-backdrop').click({ position: { x: 8, y: 8 } })
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toHaveCount(0)
+  })
+
+  test('header Connect Wallet region dismisses, then a second click reopens (GitLab #672 D5)', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    const trigger = headerConnectButton(page)
+    await trigger.click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
+    const box = await trigger.boundingBox()
+    expect(box).toBeTruthy()
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2)
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toHaveCount(0)
+    await trigger.click()
+    await expect(page.getByTestId('wallet-connect-modal-portal')).toBeVisible()
   })
 })

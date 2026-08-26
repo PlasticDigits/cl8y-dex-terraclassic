@@ -14,7 +14,7 @@ vi.mock('../WalletLuncBalance', () => ({
   ),
 }))
 
-vi.mock('./WalletModal', () => ({
+vi.mock('../WalletModal', () => ({
   default: () => null,
 }))
 
@@ -249,15 +249,14 @@ describe('WalletButton dropdown affordances (GitLab #185)', () => {
 
 describe('WalletButton connecting cancel (GitLab #554)', () => {
   it('shows Cancel instead of a disabled spinner', async () => {
-    const cancelConnection = vi.fn()
+    const closeWalletModal = vi.fn()
     mockUseWalletStore.mockReturnValue({
       address: null,
       isConnecting: true,
       disconnect: vi.fn(),
       walletModalOpen: false,
       setWalletModalOpen: vi.fn(),
-      closeWalletModal: vi.fn(),
-      cancelConnection,
+      closeWalletModal,
     } as ReturnType<typeof useWalletStore>)
 
     const user = userEvent.setup()
@@ -270,6 +269,57 @@ describe('WalletButton connecting cancel (GitLab #554)', () => {
     expect(btn).toHaveTextContent('Cancel')
     expect(btn).not.toBeDisabled()
     await user.click(btn)
-    expect(cancelConnection).toHaveBeenCalled()
+    expect(closeWalletModal).toHaveBeenCalled()
+  })
+})
+
+describe('WalletButton header Connect toggle (GitLab #672 D5)', () => {
+  it('opens the dialog on first click and sets aria-expanded', async () => {
+    const setWalletModalOpen = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      address: null,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: false,
+      setWalletModalOpen,
+      closeWalletModal: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    const trigger = screen.getByRole('button', { name: 'Connect wallet' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
+    await user.click(trigger)
+    expect(setWalletModalOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('closes the open dialog when Connect Wallet is clicked again', async () => {
+    const closeWalletModal = vi.fn()
+    const setWalletModalOpen = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      address: null,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: true,
+      setWalletModalOpen,
+      closeWalletModal,
+    } as ReturnType<typeof useWalletStore>)
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    const trigger = screen.getByRole('button', { name: 'Connect wallet' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await user.click(trigger)
+    expect(closeWalletModal).toHaveBeenCalledTimes(1)
+    expect(setWalletModalOpen).not.toHaveBeenCalled()
   })
 })

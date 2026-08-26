@@ -85,6 +85,10 @@ async fn get_token_pairs() {
 
     let body: Vec<Value> = resp.json();
     assert!(!body.is_empty(), "LUNC should have at least one pair");
+    let created = body[0]["created_at"]
+        .as_str()
+        .expect("token-pairs share PairResponse created_at (GitLab #662)");
+    chrono::DateTime::parse_from_rfc3339(created).expect("token-pairs created_at RFC3339");
 }
 
 /// GitLab #577 **D1**: GET token volume_stats 24h is 0 after aging offer swaps past the cutoff.

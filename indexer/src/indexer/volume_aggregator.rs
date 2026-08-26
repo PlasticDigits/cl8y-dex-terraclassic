@@ -87,6 +87,12 @@ pub async fn refresh_all_volume_windows_with_pins(
     if let Err(e) = protocol_volume::refresh_protocol_daily(pool).await {
         fail("protocol utc-day volume", e);
     }
+    if let Err(e) = protocol_volume::refresh_protocol_hourly(pool).await {
+        fail("protocol utc-hour volume", e);
+    }
+    if let Err(e) = protocol_volume::refresh_protocol_monthly(pool).await {
+        fail("protocol utc-month volume", e);
+    }
 }
 
 /// Background refresh for token volumes, pair 24h rollups, and trader rolling windows (~5 min).

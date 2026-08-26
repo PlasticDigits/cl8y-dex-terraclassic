@@ -43,6 +43,7 @@
 | 1.1.13 | Station mobile Chrome WalletConnect (#566) | Android Chrome (no Station extension) → Station | Pairing sheet with **Open Station** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
 | 1.1.14 | Station in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Station browser → Connect | Extension/injected path connects (Ready), not WC | | |
 | 1.1.15 | Station desktop stays Extension (#566 WC-M2) | Desktop Chrome without Station → Station | Extension row + Install (not a desktop WC/QR row) | | |
+| 1.1.16 | Station terms hint is not Keplr-only (#658 WC-M12) | Unsigned Station (extension or WC). Desktop / in-app: hint hidden when `station.keplr` is present. Android Chrome WC with no injector: hint names Station (or the DEX wallet list), not “open Keplr”. Accept still opens the Legal portal | No Keplr-only copy; Leap not named | | |
 
 ### 1.2 Keplr Wallet (Extension)
 
@@ -61,6 +62,7 @@
 | 1.2.11 | Keplr mobile Chrome WalletConnect (#554) | Android Chrome (no extension) → Keplr | Pairing sheet with **Open Keplr** + **Copy pairing link**, not Install-only | | |
 | 1.2.12 | Keplr in-app browser still works (#554 WC-M7) | Open dex.cl8y.com in Keplr browser → Connect | Extension/injected path connects | | |
 | 1.2.13 | Keplr in-app token picker (#632) | Android Keplr browser, compact + large: Swap → tap You Pay / You Receive → immediately tap last visible token; then search and pick | Token selects; URL / nav chrome is **not** activated; list stays above tab bar + wallet chrome; IME opens only after tapping Search | | |
+| 1.2.14 | Multi-wallet terms hint after connect (#658 WC-M12) | Unsigned wallet: Android Chrome WC with no injector vs Keplr/Station/Cosmostation in-app | No injector: hint names Station, Keplr, Cosmostation, Lunc Dash, Galaxy Station **or** the connected wallet — **not** “Keplr browser” / Keplr-only; Leap absent. Injector present: hint hidden. Accept still opens the Legal portal | | |
 
 ### 1.2a Keplr + Ledger Nano (columbus-5 only — GitLab #567)
 
@@ -95,6 +97,7 @@
 | 1.4.11 | Cosmostation mobile Chrome WalletConnect (#566) | Android Chrome (no Cosmostation extension) → Cosmostation | Pairing sheet with **Open Cosmostation** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
 | 1.4.12 | Cosmostation in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Cosmostation browser → Connect | Extension/injected path connects (Ready), not WC | | |
 | 1.4.13 | Cosmostation desktop stays Extension (#566 WC-M2) | Desktop Chrome without Cosmostation → Cosmostation | Extension row + Install (not a desktop WC/QR row) | | |
+| 1.4.14 | Cosmostation terms hint is not Keplr-only (#658) | Unsigned Cosmostation. Injected `providers.keplr` → hint hidden. Android Chrome WC with no injector → hint names Cosmostation or the DEX list, not “open Keplr” | Accept still opens Legal portal | | |
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 
@@ -112,6 +115,7 @@
 | 1.5.8 | LuncDash provide liquidity | Provide → Approve all msgs | Success | | |
 | 1.5.9 | LuncDash withdraw liquidity | Withdraw → Approve | Success | | |
 | 1.5.10 | LuncDash session persistence | Connect → Close browser tab → Reopen | Session resumes or prompts reconnect | | |
+| 1.5.11 | LuncDash terms hint (#658) | Connect LuncDash WC (no injector) while unsigned | Hint names Lunc Dash or the DEX wallet list — **not** Keplr-only; Accept opens Legal portal | | |
 
 ### 1.6 Galaxy Station (WalletConnect – Mobile)
 
@@ -130,6 +134,7 @@
 | 1.6.8 | Galaxy Station provide liquidity | Provide → Approve | Success | | |
 | 1.6.9 | Galaxy Station withdraw liquidity | Withdraw → Approve | Success | | |
 | 1.6.10 | Galaxy Station session persistence | Connect → Close/reopen browser | Session resumes or reconnects | | |
+| 1.6.11 | Galaxy Station terms hint (#658) | Connect Galaxy Station WC (no injector) while unsigned | Hint names Galaxy Station or the DEX wallet list — **not** Keplr-only; Accept opens Legal portal | | |
 
 ### 1.7 Simulated Wallet (Dev Mode Only)
 
@@ -146,9 +151,13 @@
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
 | 1.8.1 | Modal opens on click | Click "Connect Wallet" button | Modal opens with all wallet options | | |
-| 1.8.2 | Modal closes on backdrop click | Open modal → Click outside | Modal closes | | |
-| 1.8.3 | Modal closes on X button | Open modal → Click X | Modal closes | | |
-| 1.8.4 | Modal closes on ESC | Open modal → Press Escape | Modal closes | | |
+| 1.8.2 | Modal closes on backdrop click (#672 D2) | Open modal → Click dimmed page (top / sides / below header) | Modal unmounts (`wallet-connect-modal-portal` gone). Repeat from `/portfolio` and Swap Connect. | | |
+| 1.8.3 | Modal closes on labeled Close (#672 D1) | Open modal → Click header **Close** (375px + 1280px, dark + light) | Close is visible (not clipped). Modal unmounts. | | |
+| 1.8.4 | Modal closes on ESC (#672 D3) | Open modal → Press Escape | Modal closes. Tab cycle stays inside while open. | | |
+| 1.8.4b | Header Connect toggles (#672 D5) | Open from header → Click header **Connect Wallet** again | Dialog closes. Second click reopens. | | |
+| 1.8.4c | Panel click does not close (#672 D4) | Open modal → Click Keplr / **Install** | Dialog stays. Install may open a new tab. | | |
+| 1.8.4d | Connecting dismiss cancels (#672 D6) | Start WalletConnect → Close / backdrop / pairing Cancel / header Cancel | `isConnecting` clears; no address; header shows Connect Wallet again. | | |
+| 1.8.4e | Risk ack stays blocking (#672 D7 / #138) | Clear risk localStorage → Open app → backdrop / Escape / header Connect | Risk dialog stays; no Close control. | | |
 | 1.8.5 | Connected state display | Connect any wallet | Truncated address, Terra Classic icon, dropdown arrow shown | | |
 | 1.8.6 | Dropdown disconnect | Click connected address → Disconnect option | Dropdown appears, disconnect works | | |
 | 1.8.8 | Connected dropdown row layout (#671) | Connect → open chip menu on desktop and ~390px | Every action is icon-left + label on one line; header address is truncated (not a mid-wrapped 44-char underline); Copy / explorer / switch / portfolio / trader / disconnect still work | | |
@@ -524,6 +533,7 @@
 | 9.2.4 | Active nav highlight | Navigate to page | Current page nav item highlighted | | |
 | 9.2.5 | Footer content | View footer | "CL8Y DEX · Terra Classic" text | | |
 | 9.2.6 | Header theme toggle (desktop) | View header at ≥768px width | Dark/Light theme toggle in sticky header (not footer) | | |
+| 9.2.7 | Footer official products | View footer on `/` and after Swap → Pool → Trade; 1280px + 375px ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)) | **Homepage** → `https://cl8y.com/` and **Bridge** → `https://bridge.cl8y.com/` in `footer.app-footer-shell` (new tab, `noopener noreferrer`). Not in header/mobile More. Legal NFA / Security / Report still present | | |
 
 ---
 
@@ -562,6 +572,8 @@
 | 10.2.14 | Gold hairline only | View nav + warnings (both themes) | Gold = hairline borders/text only — no dirty brown/gold fills ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)) | | |
 | 10.2.15 | Open Graph / Twitter card | `curl -sL` `/` `/trade` `/pool` (no JS) | Same absolute `https://dex.cl8y.com/og-image.png` + `summary_large_image`; `/og-image.png` is 1200×630 community medallion ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) | | |
 | 10.2.16 | One chrome layer / no metric-grid nest | View `/`, `/charts`, `/charts/:pair`, `/trader/:addr`, `/protocol`, `/trade`, `/pool`, `/limits` at 375px + 1280px, light + dark | One `shell-panel*` per region. Metric tiles are flat (no `card-glass` chips inside the section). Swap Pay/Receive stay `card-glass`. Trade chart is a single `shell-panel-strong`. Numbers readable; no empty-ring tiles ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) | | |
+| 10.2.17 | Swap direction seam plate | View `/` dark + light at 375px + 1280px; hover and Tab the flip control | Pay/Receive hairline **stops at** the direction button (does not cross the arrows). Hover does not re-open the line. Keyboard shows a focus ring; click does not leave one. Seam remains left/right of the plate ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)) | | |
+| 10.2.17 | Protocol Δ% grouped with headline | View `/protocol` at 390 / 820 / 1280, light + dark | Each Global stats / fees Δ% chip sits with its own `$` (immediately after or wrapped under), not in the gutter under the next column’s label. Census tiles show `14` not `14.00`. No nested `card-glass`. ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)) | | |
 
 ### 10.3 Sound Effects
 
@@ -594,9 +606,10 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 11.1.3 | Charts page mobile | View /charts on mobile | Chart renders, controls accessible | | |
 | 11.1.4 | Tiers page mobile | View /tiers at 390×844 and 375×667 (iOS WebKit + Android Chrome). Disconnected then connected. | Each card: **Tier N** one line; **Hold {n} CL8Y** one phrase (e.g. Hold 1 CL8Y / Hold 7.5K CL8Y); `{pct} fee discount` and `{pct} eff. fee*` intact. No empty ~112px Register column when disconnected. Connected: Register ≥44px, correct row. How it works stacked labels readable; Limit place* shown. Light + dark. | | |
 | 11.1.5 | Create pair mobile | View /create on mobile | Form usable | | |
+| 11.1.10 | Create Token phone ([#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) | View `/token/create` at 375×667 and 390×844. Disconnected then connected. Paste a long treasury bech32. | Single column; Name above Symbol above Decimals; no horizontal `document` scroll; treasury/manager do not overflow the card; SKU/ack tap ≥44px; helpers read `connected wallet` / `not connected wallet`. Light + dark. Do not fold Manage / Migrate. | | |
 | 11.1.6 | Trader page mobile | View /trader on mobile | All sections visible and readable | | |
 | 11.1.7 | Navigation mobile | View nav on mobile | Mobile-friendly navigation | | |
-| 11.1.8 | Wallet modal mobile | Open wallet modal on mobile | Modal fits screen, all options visible | | |
+| 11.1.8 | Wallet modal mobile (#672 D1) | Open wallet modal at 375×667 (and zoomed desktop) | Header + **Close** stay in view; wallet rows scroll inside the panel; tab-bar padding kept | | |
 | 11.1.9 | Touch interactions | Tap, swipe on mobile | All interactions work with touch | | |
 
 ### 11.2 Breakpoints
@@ -609,6 +622,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 11.2.4 | 1024px width (small desktop) | Resize to 1024px | Layout correct | | |
 | 11.2.5 | 1440px width (desktop) | Resize to 1440px | Layout correct | | |
 | 11.2.6 | 1920px+ (large desktop) | Resize to 1920px | Content doesn't stretch excessively | | |
+| 11.2.7 | Create Token desktop ([#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) | View `/token/create` at 1280×720 and 1440×900, 0 SKUs. Dark + light. | `create-token-page` width **> 700px** (not a 520px chimney); Name/Symbol/Decimals share a row; Treasury/Manager share a row; Paid features 2-col checkbox grid; Paid features legend in the first viewport; ack/CTA in the first two. Form does not stretch past `.app-main`. Swap / Create Pair stay ticket-width. | | |
 
 ---
 
@@ -968,6 +982,18 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 21.6.2 | Fee CTA link on pool page | Click Pool unregistered fee CTA | Navigates to /tiers page | | |
 | 21.6.2 | Register with insufficient CL8Y | Attempt tier registration with low balance | Clear error showing required vs actual CL8Y balance | | |
 
+### 21.7 Migrate Token why-copy (GitLab #670)
+
+> Configured `/token/migrate` only. Adopt execute, invoices, and inventory stay [#626](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634).
+
+| # | Test Case | Steps | Expected Result | Status | Notes |
+|---|-----------|-------|-----------------|--------|-------|
+| 21.7.1 | Why headline | More → Migrate Token (or Create Token → Migrate here) with community-tax env on | Heading **Migrate Token**; lead **Unlock 7 features for your token on CL8Y Dex by migrating today** (`migrate-token-why`) before Load | | |
+| 21.7.2 | Examples paragraph | Same screen, first viewport 1280×720 and 375×667 | Second paragraph names ≥3 of: listed-pair buy/sell tax, Auto liquidity, Launch guards, Extra exemptions, Split treasury. No Minting. No horizontal overflow. No nested feature cards | | |
+| 21.7.3 | Access ≠ enable | Read why copy; Load ALPHA (wipe) and a mintable (honest) | Copy does not claim SKUs turn on in the migrate tx or mention 50 UST1 / `enable_feature` / env / cw2. Confirm still has address-stays + LP/pause/Terraport. CTA still **Migrate (free)** | | |
+| 21.7.4 | Light + dark | Toggle theme on `/token/migrate` | Why paragraphs use ink-dim; readable on both | | |
+| 21.7.5 | Unavailable stub | Unset community-tax env | `migrate-token-unavailable` only; no Unlock 7 tease | | |
+| 21.7.6 | After adopt | Existing LocalTerra #634 path → Manage | SKUs still empty + Enable Feature; headline did not imply they are already on | | |
 
 ---
 
@@ -1109,7 +1135,7 @@ Default: UI SFX are **on** (`localStorage` key `cl8y-dex-sounds-enabled` missing
 | 18. Configuration | 19 | | | | |
 | 19. Database Integrity | 7 | | | | |
 | 20. Known Limitations | 8 | | | | |
-| 21. Additional QA Checks | 22 | | | | |
+| 21. Additional QA Checks | 28 | | | | |
 | 22. Multi-Browser & Multi-Device | 16 | | | | |
 | 23. Indexer Pool List & Pool/Charts UI | 29 | | | | |
-| **TOTAL** | **437** | | | | |
+| **TOTAL** | **443** | | | | |

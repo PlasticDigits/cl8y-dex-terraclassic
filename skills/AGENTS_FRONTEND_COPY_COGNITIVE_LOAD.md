@@ -18,6 +18,7 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
    - Restates universal chain facts under every CTA (“You pay network gas…”, “Burn tax may apply…”) unless that fact is a **live blocking gate** for the current action.
    - Surfaces **dev/ops status** as retail chrome (“Mapper Ready”, contract addresses, “Unavailable” health rows) when pause/config failures are already enforced via CTA disable + short error.
    Page chrome = **title + controls + live status (fee/limit/pause) + CTA**. Put depth in docs/`<details>`, not permanent paragraphs. Bad example that was removed from `/wrap`: subtitle + Swap/UST1 blurb + Mapper Ready + gas/burn-tax footer.
+   **Documented exception (#670 / M670):** configured `/token/migrate` is title + two short why-paragraphs (`Unlock {X} features…` + high-value examples) so a token admin sees the template upside before Load. Still no env / 50 UST1 / cw2 / Minting-as-unlock essay. Unavailable stub stays silent. Playbook: [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md).
 
 ## QuickSwap-aligned Limits IA
 
@@ -30,24 +31,32 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`docs/design-system.md`](../docs/design-system.md) § Terminology glossary | Shared retail term definitions |
 | [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) | Token/chrome + copy rules |
 | [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) | Nested cards are visual noise (#653) — metric grids stay flat |
+| [`AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](./AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) | No lecture under the Swap flip; paint-only seam plate (#659) |
 | [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) | Limit place-card order |
 | [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md) | Buy/Sell {base} on `/trade` + `/limits` |
 | [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | Onboarding strip + progressive disclosure |
 | [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) | Single Route row; Swap vs Best Trade disambiguation |
 | [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) | Safety > brevity — keep required ack/footer |
+| [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) | Footer **Homepage** / **Bridge** only — not Swap lecture banners ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)) |
 | [docs/frontend.md § Retail copy & cognitive load](../docs/frontend.md#retail-copy-cognitive-load) | Engineering invariants + cross-links |
 | [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) | `/pool` table; no header lectures ([#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)) |
+| [`AGENTS_FRONTEND_POOL_CREATED.md`](./AGENTS_FRONTEND_POOL_CREATED.md) | Created age is relative text; first-seen caveat stays in docs ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)) |
+| [`AGENTS_FRONTEND_POOL_CREATED.md`](./AGENTS_FRONTEND_POOL_CREATED.md) | Created age is relative text; first-seen caveat stays in docs ([#662](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/662)) |
 | [`AGENTS_FRONTEND_POOL_LP_HOWTO.md`](./AGENTS_FRONTEND_POOL_LP_HOWTO.md) | Opt-in `/pool` LUNC LP how-to (**H531-1–H531-10**, [#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)) — do not paste `frontend.md` pool math onto the page |
 | [`AGENTS_FRONTEND_POOL_ONE_SIDED.md`](./AGENTS_FRONTEND_POOL_ONE_SIDED.md) | Retail `/pool` one-sided add/withdraw (**Z533-1–Z533-10**, [#533](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/533)) — option-less Token/Pair/Amount; wrap implied by the token |
+| [`AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](./AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md) | Advanced provide **name (symbol)** + wrap default on (**P661-1–P661-12**, [#661](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/661)) — no Asset A/B |
 | [`AGENTS_FRONTEND_POOL_ZAP_FLOORS.md`](./AGENTS_FRONTEND_POOL_ZAP_FLOORS.md) | One-sided zap execution floors (**Z559-1–Z559-4**, [#559](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/559)) — pre-sign min-swap is human units, not raw uints |
 | [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) | `/create` Token A/B + Custom contract; no “verified safe” banner ([#542](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)) |
 | [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) | Compact copy + explorer on Pool / Trade / Charts (**T541-1–T541-8**, [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541)) — icon controls, not address essays |
 | [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](./AGENTS_FRONTEND_NATIVE_TICKERS.md) | Picker tickers **LUNC** / **USTC** (**N630-1–N630-8**, [#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630)) — no always-on “uluna means LUNC” essay |
 | [`AGENTS_FRONTEND_TIERS_PHONE.md`](./AGENTS_FRONTEND_TIERS_PHONE.md) | `/tiers` phone cards (**T651-1–T651-8**, [#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)) — keep **Hold {n} CL8Y**; no fee-trivia banner |
+| [`AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](./AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md) | `/token/create` desktop density (**C669-1–C669-8**, [#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) — no “use two columns” banner; lead + **Migrate here** only |
+| [`AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](./AGENTS_FRONTEND_TRADER_LEADERBOARD.md) | `/trader` global **Leaderboard** (**TL-6**, [#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657)) — heading only; no Sybil lecture |
+| [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | `/token/migrate` why-copy exception — two short paragraphs, not a lecture (**M670**, [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)) |
 | [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) | `/protocol` USD stats + one oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) — short reference labels; no TWAP vs CEX essays |
 | [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) | Charts/Protocol/Pool **24h volume** is trailing `now − 24h`, not midnight reset (**W1–W5**, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)) |
 | [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) | Community tax sell/buy hints on every listed-pair swap (**C593-14**, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607)) — short hints only, no router-architecture essay |
 
 ## Shared copy modules
 
-Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`), `trailingWindowCopy.ts` (Charts/Protocol/Pool 24h window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)).
+Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`), `trailingWindowCopy.ts` (Charts/Protocol/Pool 24h window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)), `communityTaxMigrateCopy.ts` (`/token/migrate` Unlock {X} + examples, [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)).

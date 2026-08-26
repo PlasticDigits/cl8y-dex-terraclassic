@@ -47,9 +47,11 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
 run_step "code: UI does not formatNum raw total_volume" \
   bash -c '
     set -euo pipefail
-    grep -q "formatIndexedVolumeUsd" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "charts-leaderboard-volume" frontend-dapp/src/pages/ChartsPage.tsx
-    grep -q "total_volume_usd" frontend-dapp/src/pages/ChartsPage.tsx
+    grep -q "formatIndexedVolumeUsd" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "charts-leaderboard-volume" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "total_volume_usd" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
+    grep -q "TraderLeaderboard" frontend-dapp/src/pages/ChartsPage.tsx
+    ! grep -qE "formatNum\(.*total_volume[^_]" frontend-dapp/src/components/trader/TraderLeaderboard.tsx
     ! grep -qE "formatNum\(.*total_volume[^_]" frontend-dapp/src/pages/ChartsPage.tsx
     ! grep -q "formatNum(trader.total_volume)" frontend-dapp/src/components/trader/TraderSummaryStats.tsx
     grep -q "trader-total-volume-usd" frontend-dapp/src/components/trader/TraderSummaryStats.tsx
@@ -62,6 +64,7 @@ run_step "frontend: USD formatters + leaderboard + profile stats" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/__tests__/chartsOverviewStats.test.ts \
     src/pages/ChartsPage.test.tsx \
+    src/components/trader/TraderLeaderboard.test.tsx \
     src/components/trader/TraderSummaryStats.test.tsx \
     src/services/indexer/traderProfilePayload.test.ts'
 

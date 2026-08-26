@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { AppShellNavLink } from '@/components/common/AppShellNavLink'
+import Cl8yProductLinks from '@/components/common/Cl8yProductLinks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import WalletButton from '@/components/wallet/WalletButton'
 import WalletConnectPairingModal from '@/components/wallet/WalletConnectPairingModal'
@@ -254,6 +255,8 @@ export default function Layout() {
           <EnvironmentRibbon />
           <div className="app-footer-copy">
             <p className="app-footer-title">CL8Y DEX · Terra Classic</p>
+            {/* Product row is text-only and can paint immediately; NFA stays deferred (#179 / #663). */}
+            <Cl8yProductLinks />
             {routeContentReady ? <LegalFooterNotice /> : null}
           </div>
         </div>

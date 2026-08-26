@@ -14,8 +14,7 @@ import { WalletLuncBalance } from './WalletLuncBalance'
 import WalletModal from './WalletModal'
 
 export default function WalletButton() {
-  const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen, closeWalletModal, cancelConnection } =
-    useWalletStore()
+  const { address, isConnecting, disconnect, walletModalOpen, setWalletModalOpen, closeWalletModal } = useWalletStore()
   const [showDropdown, setShowDropdown] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -194,13 +193,15 @@ export default function WalletButton() {
         type="button"
         onClick={() => {
           sounds.playButtonPress()
-          if (isConnecting) {
-            cancelConnection()
+          if (walletModalOpen || isConnecting) {
+            closeWalletModal()
             return
           }
           setWalletModalOpen(true)
         }}
         aria-label={isConnecting ? 'Cancel connecting' : 'Connect wallet'}
+        aria-haspopup="dialog"
+        aria-expanded={walletModalOpen}
         className="btn-primary !px-3 !py-2 sm:!px-4 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <span className="flex items-center gap-2">

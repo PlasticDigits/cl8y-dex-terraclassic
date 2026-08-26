@@ -540,6 +540,11 @@ export default function TradePage() {
             asset0={factoryPair.asset_infos[0]}
             asset1={factoryPair.asset_infos[1]}
             inverted={pairOrientation.inverted}
+            liquidityUsd={
+              indexerPairQuery.data?.pair_address === factoryPair.contract_addr
+                ? indexerPairQuery.data.liquidity_usd
+                : undefined
+            }
           />
         ) : null}
         {showTradeWorkspace && showLegacyGemNotice ? (
