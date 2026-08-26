@@ -26,6 +26,19 @@ describe('indexer client fetchJson', () => {
     expect(result).toEqual(mockData)
   })
 
+  it('fetches protocol volume daily with allowlisted days (GitLab #652)', async () => {
+    const mockData = { days: 7, timezone: 'UTC', methodology: 'protocol_catalog', series: [] }
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mockData), { status: 200 }))
+    const client = await loadModule()
+    const result = await client.getProtocolVolumeDaily(7)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/protocol/volume/daily?days=7'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(result).toEqual(mockData)
+    await expect(client.getProtocolVolumeDaily(90 as 7)).rejects.toThrow('Invalid protocol volume daily days')
+  })
+
   it('throws on non-ok response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404, statusText: 'Not Found' }))
     vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404, statusText: 'Not Found' }))

@@ -26,10 +26,13 @@ mod oracle;
 pub mod orderbook_sim;
 mod overview;
 mod protocol_fees;
+mod protocol_volume;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use overview::reset_overview_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_fees::reset_protocol_fees_cache;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
 mod route_graph;
 mod route_paths;
@@ -311,6 +314,7 @@ pub async fn find_pair_by_ticker(
         traders::leaderboard,
         overview::get_overview,
         protocol_fees::get_protocol_fees,
+        protocol_volume::get_protocol_volume_daily,
         defillama::get_defillama_daily,
         hub_prices::get_hub_prices,
         hub_prices::get_hub_price,
@@ -380,6 +384,8 @@ pub async fn find_pair_by_ticker(
         protocol_fees::ProtocolFeesResponse,
         protocol_fees::ProtocolFeeSourceRow,
         protocol_fees::ProtocolFeeTokenRow,
+        protocol_volume::ProtocolVolumeDailyResponse,
+        protocol_volume::ProtocolVolumeDailyPoint,
         defillama::DefillamaDailyResponse,
         defillama::DefillamaFeeBreakdown,
         defillama::DefillamaMethodology,
@@ -555,6 +561,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/protocol/fees",
             get(protocol_fees::get_protocol_fees),
+        )
+        .route(
+            "/api/v1/protocol/volume/daily",
+            get(protocol_volume::get_protocol_volume_daily),
         )
         .route(
             "/api/v1/defillama/daily",

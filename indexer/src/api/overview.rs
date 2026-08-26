@@ -74,6 +74,10 @@ pub struct OverviewResponse {
     pub fees_change_24h_pct: Option<String>,
     pub fees_change_7d_pct: Option<String>,
     pub fees_change_30d_pct: Option<String>,
+    /// Flow Δ% vs prior equal trailing window (GitLab #652). Additive; `null` until 2×W fills.
+    pub volume_change_24h_pct: Option<String>,
+    pub volume_change_7d_pct: Option<String>,
+    pub volume_change_30d_pct: Option<String>,
 }
 
 /// Map rollup USD + trade count to the overview JSON contract (#548).
@@ -176,6 +180,9 @@ pub async fn get_overview(
         fees_change_24h_pct: global.fees_change_24h_pct.map(|p| p.to_string()),
         fees_change_7d_pct: global.fees_change_7d_pct.map(|p| p.to_string()),
         fees_change_30d_pct: global.fees_change_30d_pct.map(|p| p.to_string()),
+        volume_change_24h_pct: global.volume_change_24h_pct.map(|p| p.to_string()),
+        volume_change_7d_pct: global.volume_change_7d_pct.map(|p| p.to_string()),
+        volume_change_30d_pct: global.volume_change_30d_pct.map(|p| p.to_string()),
     };
 
     if let Ok(mut guard) = overview_cache().lock() {

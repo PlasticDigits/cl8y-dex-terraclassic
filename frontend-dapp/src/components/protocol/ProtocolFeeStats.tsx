@@ -2,11 +2,8 @@ import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError } from '@/components/ui'
 import { formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
 import {
-  PROTOCOL_FEES_24H_CHG_LABEL,
   PROTOCOL_FEES_24H_LABEL,
-  PROTOCOL_FEES_30D_CHG_LABEL,
   PROTOCOL_FEES_30D_LABEL,
-  PROTOCOL_FEES_7D_CHG_LABEL,
   PROTOCOL_FEES_7D_LABEL,
   TRAILING_24H_FEES_CHG_TITLE,
   TRAILING_24H_FEES_TITLE,
@@ -98,50 +95,41 @@ export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsP
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div data-testid="protocol-stat-fees-24h">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_24H_LABEL}
             title={TRAILING_24H_FEES_TITLE}
             value={formatProtocolUsd(overview?.total_fees_24h_usd)}
             loading={loading}
-          />
-        </div>
-        <div data-testid="protocol-stat-fees-24h-chg">
-          <StatBox
-            label={PROTOCOL_FEES_24H_CHG_LABEL}
-            title={TRAILING_24H_FEES_CHG_TITLE}
-            value={formatProtocolPct(overview?.fees_change_24h_pct)}
-            loading={loading}
+            delta={formatProtocolPct(overview?.fees_change_24h_pct)}
+            deltaLabel="24h"
+            deltaTestId="protocol-stat-fees-24h-chg"
+            deltaTitle={TRAILING_24H_FEES_CHG_TITLE}
           />
         </div>
         <div data-testid="protocol-stat-fees-7d">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_7D_LABEL}
             title={TRAILING_7D_FEES_TITLE}
             value={formatProtocolUsd(overview?.total_fees_7d_usd)}
             loading={loading}
-          />
-        </div>
-        <div data-testid="protocol-stat-fees-7d-chg">
-          <StatBox
-            label={PROTOCOL_FEES_7D_CHG_LABEL}
-            title={TRAILING_7D_FEES_CHG_TITLE}
-            value={formatProtocolPct(overview?.fees_change_7d_pct)}
-            loading={loading}
+            delta={formatProtocolPct(overview?.fees_change_7d_pct)}
+            deltaLabel="7d"
+            deltaTestId="protocol-stat-fees-7d-chg"
+            deltaTitle={TRAILING_7D_FEES_CHG_TITLE}
           />
         </div>
         <div data-testid="protocol-stat-fees-30d">
           <StatBox
+            variant="flat"
             label={PROTOCOL_FEES_30D_LABEL}
             title={TRAILING_30D_FEES_TITLE}
             value={formatProtocolUsd(overview?.total_fees_30d_usd)}
             loading={loading}
-          />
-        </div>
-        <div data-testid="protocol-stat-fees-30d-chg">
-          <StatBox
-            label={PROTOCOL_FEES_30D_CHG_LABEL}
-            title={TRAILING_30D_FEES_CHG_TITLE}
-            value={formatProtocolPct(overview?.fees_change_30d_pct)}
-            loading={loading}
+            delta={formatProtocolPct(overview?.fees_change_30d_pct)}
+            deltaLabel="30d"
+            deltaTestId="protocol-stat-fees-30d-chg"
+            deltaTitle={TRAILING_30D_FEES_CHG_TITLE}
           />
         </div>
       </div>

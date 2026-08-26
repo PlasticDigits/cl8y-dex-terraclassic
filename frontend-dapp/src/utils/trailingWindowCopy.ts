@@ -46,12 +46,22 @@ export const POOL_VOL_HEADER_TITLE = 'Quote-side volume in the last 24 hours, no
 export const TRAILING_24H_FEES_TITLE = 'Treasury fees in the last 24 hours, not a midnight reset.'
 export const TRAILING_7D_FEES_TITLE = 'Treasury fees in the last 7 days, not a calendar-week reset.'
 export const TRAILING_30D_FEES_TITLE = 'Treasury fees in the last 30 days, not a calendar-month reset.'
-export const TRAILING_24H_FEES_CHG_TITLE =
+export const TRAILING_24H_FEES_CHG_TITLE = 'Change vs the last 24 hours prior window. Em-dash until both windows fill.'
+export const TRAILING_7D_FEES_CHG_TITLE = 'Change vs the last 7 days prior window. Em-dash until both windows fill.'
+export const TRAILING_30D_FEES_CHG_TITLE = 'Change vs the last 30 days prior window. Em-dash until both windows fill.'
+
+export const TRAILING_24H_VOLUME_CHG_TITLE =
   'Change vs the last 24 hours prior window. Em-dash until both windows fill.'
-export const TRAILING_7D_FEES_CHG_TITLE =
-  'Change vs the last 7 days prior window. Em-dash until both windows fill.'
-export const TRAILING_30D_FEES_CHG_TITLE =
-  'Change vs the last 30 days prior window. Em-dash until both windows fill.'
+export const TRAILING_7D_VOLUME_CHG_TITLE = 'Change vs the last 7 days prior window. Em-dash until both windows fill.'
+export const TRAILING_30D_VOLUME_CHG_TITLE = 'Change vs the last 30 days prior window. Em-dash until both windows fill.'
+
+export const TRAILING_LIQUIDITY_24H_TITLE = 'Change vs the last 24 hours snapshot. Em-dash until the window fills.'
+export const TRAILING_LIQUIDITY_30D_TITLE = 'Change vs the last 30 days snapshot. Em-dash until the window fills.'
+
+export const PROTOCOL_VOLUME_DAILY_LABEL = 'UTC daily vol'
+export const PROTOCOL_VOLUME_DAILY_7D_LABEL = '7d'
+export const PROTOCOL_VOLUME_DAILY_30D_LABEL = '30d'
+export const PROTOCOL_VOLUME_DAILY_TITLE = 'UTC calendar-day priced volume. Not the trailing 24h, 7d, or 30d tiles.'
 
 /** Visible labels that must stay ≤ ~5 words (#489 / W3). */
 export const TRAILING_WINDOW_VISIBLE_LABELS = [
@@ -67,6 +77,9 @@ export const TRAILING_WINDOW_VISIBLE_LABELS = [
   PROTOCOL_FEES_24H_CHG_LABEL,
   PROTOCOL_FEES_7D_CHG_LABEL,
   PROTOCOL_FEES_30D_CHG_LABEL,
+  PROTOCOL_VOLUME_DAILY_LABEL,
+  PROTOCOL_VOLUME_DAILY_7D_LABEL,
+  PROTOCOL_VOLUME_DAILY_30D_LABEL,
   CHARTS_PAIR_SORT_VOLUME_LABEL,
   POOL_VOL_HEADER_LABEL,
 ] as const
@@ -84,6 +97,11 @@ export const TRAILING_WINDOW_TITLES = [
   TRAILING_24H_FEES_CHG_TITLE,
   TRAILING_7D_FEES_CHG_TITLE,
   TRAILING_30D_FEES_CHG_TITLE,
+  TRAILING_24H_VOLUME_CHG_TITLE,
+  TRAILING_7D_VOLUME_CHG_TITLE,
+  TRAILING_30D_VOLUME_CHG_TITLE,
+  TRAILING_LIQUIDITY_24H_TITLE,
+  TRAILING_LIQUIDITY_30D_TITLE,
 ] as const
 
 export function trailingWindowLabelWordCount(label: string): number {

@@ -50,6 +50,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getOverview: vi.fn(),
     getHubPrices: vi.fn(),
     getProtocolFees: vi.fn(),
+    getProtocolVolumeDaily: vi.fn(),
   }
 })
 
@@ -112,6 +113,24 @@ const overviewOk = {
   fees_change_24h_pct: '50',
   fees_change_7d_pct: '0',
   fees_change_30d_pct: null,
+  volume_change_24h_pct: '25',
+  volume_change_7d_pct: '-10',
+  volume_change_30d_pct: null,
+}
+
+const dailyOk = {
+  days: 7,
+  timezone: 'UTC',
+  methodology: 'protocol_catalog',
+  series: [
+    { utc_day: '2026-08-20', volume_usd: '10', trade_count: 1 },
+    { utc_day: '2026-08-21', volume_usd: '20', trade_count: 2 },
+    { utc_day: '2026-08-22', volume_usd: '0', trade_count: 0 },
+    { utc_day: '2026-08-23', volume_usd: null, trade_count: 3 },
+    { utc_day: '2026-08-24', volume_usd: '15', trade_count: 1 },
+    { utc_day: '2026-08-25', volume_usd: '18', trade_count: 1 },
+    { utc_day: '2026-08-26', volume_usd: '22', trade_count: 2 },
+  ],
 }
 
 const feesOk = {
@@ -160,6 +179,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue(feesOk)
+    vi.mocked(indexerClient.getProtocolVolumeDaily).mockResolvedValue(dailyOk)
     vi.mocked(indexerClient.getHubPrices).mockResolvedValue(hubPricesOk)
     mockOracle('ustc', '0.00512')
     vi.mocked(indexerClient.getHookEvents).mockResolvedValue([])
@@ -183,10 +203,12 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(stats.compareDocumentPosition(fees) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(fees.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(hub.compareDocumentPosition(oracle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(stats).getByTestId('protocol-stat-liquidity')).toHaveTextContent('$')
-    expect(within(stats).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('%')
-    expect(within(stats).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('-')
-    expect(within(stats).getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent('+')
+    const liq = within(stats).getByTestId('protocol-stat-liquidity')
+    expect(liq).toHaveTextContent('$')
+    expect(within(liq).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('%')
+    expect(within(liq).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('-')
+    expect(within(liq).getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent('+')
+    expect(stats.querySelector('.card-glass')).toBeNull()
     expect(within(stats).getByTestId('protocol-stat-volume-24h')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-7d')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-30d')).toBeInTheDocument()
@@ -220,8 +242,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(within(vol7d).getByText(PROTOCOL_VOLUME_7D_LABEL)).toHaveAttribute('title', TRAILING_7D_VOLUME_TITLE)
     expect(within(vol30d).getByText(PROTOCOL_VOLUME_30D_LABEL)).toHaveAttribute('title', TRAILING_30D_VOLUME_TITLE)
     expect(stats).toHaveTextContent(/USD volume and pool TVL use the same USTC \/ LUNC \/ hub reference catalog/i)
-    expect(stats.textContent).not.toMatch(/resets at 00:00|calendar-day volume|always-on/i)
+    expect(vol24.textContent).not.toMatch(/resets at 00:00|always-on/i)
     expect(stats.textContent).not.toMatch(/VITE_INDEXER_URL|https?:\/\//i)
+    expect(within(vol24).getByTestId('protocol-stat-volume-24h-chg')).toHaveTextContent('%')
+    expect(within(vol7d).getByTestId('protocol-stat-volume-7d-chg')).toHaveTextContent('%')
+    expect(within(vol30d).getByTestId('protocol-stat-volume-30d-chg')).toHaveTextContent(/—/)
   })
 
   it('defaults to USTC and loads price plus history for that ticker', async () => {
@@ -492,11 +517,15 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const fees = await screen.findByTestId('protocol-fee-stats')
     expect(within(fees).getByTestId('protocol-stat-fees-24h')).toHaveTextContent('$')
-    expect(within(fees).getByTestId('protocol-stat-fees-24h-chg')).toHaveTextContent('+')
+    expect(within(fees).getByTestId('protocol-stat-fees-24h')).toHaveTextContent('+')
+    expect(
+      within(within(fees).getByTestId('protocol-stat-fees-24h')).getByTestId('protocol-stat-fees-24h-chg')
+    ).toHaveTextContent('+')
     expect(within(fees).getByTestId('protocol-stat-fees-7d')).toHaveTextContent('$')
     expect(within(fees).getByTestId('protocol-stat-fees-7d-chg')).toHaveTextContent('0%')
     expect(within(fees).getByTestId('protocol-stat-fees-30d')).toHaveTextContent('$')
     expect(within(fees).getByTestId('protocol-stat-fees-30d-chg')).toHaveTextContent(/—/)
+    expect(fees.querySelector('.card-glass')).toBeNull()
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('AMM swap')
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Book take')
     expect(within(fees).getByTestId('protocol-fees-by-source')).toHaveTextContent('Limit place')
@@ -599,6 +628,65 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const fees = await screen.findByTestId('protocol-fee-stats')
     expect(within(fees).getByTestId('protocol-fees-by-source')).not.toHaveTextContent('UST1 mint')
+  })
+
+  it('inlines volume Δ% and hosts a UTC-day chart (GitLab #652)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const stats = await screen.findByTestId('protocol-global-stats')
+    await waitFor(() => {
+      expect(within(stats).getByTestId('protocol-stat-volume-24h')).toHaveTextContent('$')
+    })
+    expect(within(stats).getByTestId('protocol-stat-volume-24h-chg')).toHaveTextContent('+')
+    expect(await screen.findByTestId('protocol-volume-daily-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar day/)
+    expect(screen.queryByTestId('price-chart')).not.toBeInTheDocument()
+    expect(indexerClient.getProtocolVolumeDaily).toHaveBeenCalledWith(7)
+    await user.click(screen.getByTestId('protocol-volume-daily-30d'))
+    await waitFor(() => {
+      expect(indexerClient.getProtocolVolumeDaily).toHaveBeenCalledWith(30)
+    })
+  })
+
+  it('hides the daily chart when the endpoint is missing (GitLab #652)', async () => {
+    vi.mocked(indexerClient.getProtocolVolumeDaily).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-global-stats')
+    await waitFor(() => {
+      expect(screen.queryByTestId('protocol-volume-daily-chart')).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId('protocol-stat-volume-24h')).toBeInTheDocument()
+  })
+
+  it('old indexer without volume_change keys still renders tiles with em-dash Δ% (GitLab #652)', async () => {
+    const legacy = { ...overviewOk }
+    delete legacy.volume_change_24h_pct
+    delete legacy.volume_change_7d_pct
+    delete legacy.volume_change_30d_pct
+    vi.mocked(indexerClient.getOverview).mockResolvedValue(legacy)
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const vol24 = await screen.findByTestId('protocol-stat-volume-24h')
+    await waitFor(() => {
+      expect(vol24).toHaveTextContent('$')
+    })
+    expect(within(vol24).getByTestId('protocol-stat-volume-24h-chg')).toHaveTextContent(/—/)
+  })
+
+  it('renders XSS volume and daily labels as text (GitLab #652)', async () => {
+    vi.mocked(indexerClient.getOverview).mockResolvedValue({
+      ...overviewOk,
+      total_volume_24h_usd: '"><script>alert(1)</script>',
+      volume_change_24h_pct: 'javascript:alert(1)',
+    })
+    vi.mocked(indexerClient.getProtocolVolumeDaily).mockResolvedValue({
+      ...dailyOk,
+      series: [{ utc_day: '"><script>', volume_usd: 'javascript:', trade_count: 1 }],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const vol24 = await screen.findByTestId('protocol-stat-volume-24h')
+    expect(vol24.querySelector('script')).toBeNull()
+    expect(document.querySelector('script[src="javascript:"]')).toBeNull()
+    expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
   })
 
   it('CEX oracle card still does not claim to be the UST1 window rate (P550-11)', async () => {
