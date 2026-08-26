@@ -29,6 +29,10 @@ async fn list_pairs_returns_200() {
     assert!(pair["is_active"].as_bool().unwrap());
     assert_eq!(pair["code_id_frozen"].as_bool().unwrap(), false);
     assert!(pair["volume_quote_24h"].is_string());
+    assert!(
+        pair.get("liquidity_usd").is_none() || pair["liquidity_usd"].is_null(),
+        "list JOIN is #655 — this ticket must not emit list liquidity_usd yet"
+    );
 
     // Pagination, sort, search (same server / DB to avoid parallel seed conflicts)
     let resp = server
@@ -115,6 +119,49 @@ async fn get_pair_returns_pair() {
     assert_eq!(body["pair_address"], seed.pair_address);
     assert_eq!(body["asset_0"]["symbol"], "LUNC");
     assert_eq!(body["asset_1"]["symbol"], "USTC");
+    assert!(
+        body.get("liquidity_usd").is_none() || body["liquidity_usd"].is_null(),
+        "unstamped single GET must omit liquidity_usd, got {:?}",
+        body.get("liquidity_usd")
+    );
+    assert!(
+        body.get("volume_quote_24h").is_none() || body["volume_quote_24h"].is_null(),
+        "single GET volume_quote_24h stays None"
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn get_pair_liquidity_usd_from_stamp_not_live_reserves() {
+    use bigdecimal::BigDecimal;
+    use std::str::FromStr;
+
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    sqlx::query(
+        "INSERT INTO pair_liquidity_usd (pair_id, liquidity_usd, updated_at)
+         VALUES ($1, $2, NOW())",
+    )
+    .bind(seed.pair_id)
+    .bind(BigDecimal::from_str("1234.5").unwrap())
+    .execute(&pool)
+    .await
+    .expect("stamp");
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get(&format!("/api/v1/pairs/{}", seed.pair_address))
+        .await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["liquidity_usd"], "1234.5");
+    assert!(
+        body.get("volume_quote_24h").is_none() || body["volume_quote_24h"].is_null(),
+        "stamping TVL must not start filling volume_quote_24h on single GET"
+    );
 }
 
 #[serial]
@@ -452,7 +499,9 @@ async fn list_pairs_relevance_ordering() {
     assert_eq!(items[0]["pair_address"], seed.pair_address);
 
     // Exact CW20 token address — tier 4.
-    let resp = server.get("/api/v1/pairs?q=terra1ustctoken&sort=relevance").await;
+    let resp = server
+        .get("/api/v1/pairs?q=terra1ustctoken&sort=relevance")
+        .await;
     resp.assert_status_ok();
     let body: Value = resp.json();
     let items = body["items"].as_array().unwrap();
@@ -502,10 +551,10 @@ async fn list_pairs_relevance_ordering() {
 #[serial]
 #[tokio::test]
 async fn pair_api_flags_code_id_frozen() {
-    use std::collections::HashSet;
     use cl8y_dex_indexer::indexer::asset_code_id_freeze::{
         replace_frozen_pair_addresses, snapshot_frozen_pair_addresses,
     };
+    use std::collections::HashSet;
 
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;

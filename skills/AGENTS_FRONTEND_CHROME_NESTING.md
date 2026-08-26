@@ -76,3 +76,4 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 - [`AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md`](./AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) — Swap flip plate on the Pay/Receive seam (**S659-1–S659-8**, [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)); do **not** delete the seam to hide the line
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` census; #652 owns inline Δ% parentage; [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) owns visual grouping
 - [`AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](./AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md) — `/token/create` desktop density (#669); no SKU `card-glass` tiles
+- [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade pair-select panel must not nest `StatBox` / `card-glass` for the v2 LP chip (#664)

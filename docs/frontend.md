@@ -289,12 +289,22 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 | **T541-6** | Invalid / missing pair address: omit the row (no `terra1` placeholders, no links on #176 / #175). |
 | **T541-7** | No `/token/:id`, no CoinGecko/CMC/website hosts, no identity icons inside picker options, no factory/router `AddressRow` on these pages. |
 | **T541-8** | No always-on address essay or cross-nav banner. Full bech32 is `title` / `aria-label` only. |
+| **T664-1** | `/trade/{pair}` identity row shows compact **v2 LP** + `$` when indexer `liquidity_usd` is priced ([#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664)). |
+| **T664-2** | `/charts/{pair}` identity shows the same chip. Charts 24h **Vol (USD)** stays `volume_usd` (flow, not stock). |
+| **T664-3** | Value comes from existing `getPair` (`GET /api/v1/pairs/{addr}`); no extra `getPool` / overview / hub fetch on Trade first paint. |
+| **T664-4** | Unpriced / hostile / `Infinity` → omit the chip (never fake `$0`). Invert does not change USD (**T541-5**). |
+| **T664-5** | `/pool` table `PairTokenLinks` does **not** take `liquidityUsd` ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) owns the column). |
+| **T664-6** | Invalid / unknown / empty pair: no identity row, no LP chip (**T541-6**). Pair switch must not flash the previous pair’s `$`. |
+| **T664-7** | USD is a text node, never an explorer `href` or copy payload. No `StatBox` / nested `card-glass` in the pair-select panel. |
+| **T664-8** | Same `protocol_pair_tvl` catalog as Protocol Total liquidity — never `$1` UST1, `2.5×` USTR, or vFDUSD. |
+
+**v2 LP chip:** optional `liquidityUsd` on [`PairTokenLinks`](../frontend-dapp/src/components/ui/PairTokenLinks.tsx) (`data-testid="token-identity-v2-lp-usd"`). Format: [`formatPairV2LpUsd`](../frontend-dapp/src/utils/formatProtocolStats.ts). Label **v2 LP** (not “TVL”). Indexer stamp: `pair_liquidity_usd` written on protocol TVL refresh — GET is a rollup read.
 
 **Helper:** [`tokenIdentityTarget`](../frontend-dapp/src/utils/tokenIdentity.ts) → `{ kind: 'cw20', address, explorerUrl } \| { kind: 'native', denom } \| null`.
 
-**Regression:** `make verify-issue-541` — unit + scoped page tests + Playwright smoke `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx).
+**Regression:** `make verify-issue-541` — unit + scoped page tests + Playwright smoke `e2e/token-identity-541.spec.ts` (5 workers, no e2e-tx). **v2 LP:** `make verify-issue-664`.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md). Visible native tickers are **LUNC** / **USTC** ([#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630), [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](../skills/AGENTS_FRONTEND_NATIVE_TICKERS.md)); copy payload stays the denom (**T541-4** / **N630-7**).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md`](../skills/AGENTS_FRONTEND_TOKEN_IDENTITY.md) · [`skills/AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](../skills/AGENTS_FRONTEND_TRADE_IDENTITY_LP.md). Visible native tickers are **LUNC** / **USTC** ([#630](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/630), [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](../skills/AGENTS_FRONTEND_NATIVE_TICKERS.md)); copy payload stays the denom (**T541-4** / **N630-7**).
 
 ### Charts overview strip {#charts-overview}
 

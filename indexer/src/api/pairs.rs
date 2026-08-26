@@ -1,19 +1,20 @@
 use std::collections::HashMap;
 
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
-    build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd, AppState,
+    AppState, build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd,
 };
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
-    candles, limit_order_fills, limit_order_lifecycle, liquidity, pairs as db_pairs, swap_events,
+    candles, limit_order_fills, limit_order_lifecycle, liquidity, pair_liquidity_usd,
+    pairs as db_pairs, swap_events,
 };
 
 pub use limit_book_lcd::LimitBookOrderItem;
@@ -75,6 +76,10 @@ pub struct PairResponse {
     /// Sum of quote-side amounts in swaps over the last 24h (from indexer). Omitted when unknown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volume_quote_24h: Option<String>,
+    /// Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp). Omitted when unpriced.
+    /// Single-pair GET (#664) and list JOIN (#655) read `pair_liquidity_usd` — never live TVL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub liquidity_usd: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -231,6 +236,8 @@ pub async fn list_pairs(
                 &p.contract_address,
             ),
             volume_quote_24h,
+            // List JOIN is #655. This ticket stamps the table and emits the field on single GET.
+            liquidity_usd: None,
         });
     }
 
@@ -273,6 +280,11 @@ pub async fn get_pair(
         .get(&pair.asset_1_id)
         .ok_or_else(|| internal_err("Asset 1 not found"))?;
 
+    let liquidity_usd = pair_liquidity_usd::get_pair_liquidity_usd(&state.pool, pair.id)
+        .await
+        .map_err(internal_err)?
+        .map(|v| volume_quote_to_string(&v));
+
     Ok(Json(PairResponse {
         pair_address: pair.contract_address.clone(),
         asset_0: AssetBrief::from(a0),
@@ -284,6 +296,7 @@ pub async fn get_pair(
             &pair.contract_address,
         ),
         volume_quote_24h: None,
+        liquidity_usd,
     }))
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatPairV2LpUsd,
   formatProtocolCount,
   formatProtocolFdusdOut,
   formatProtocolOracleUsd,
@@ -20,6 +21,25 @@ describe('formatProtocolUsd', () => {
     expect(formatProtocolUsd('')).toBe('—')
     expect(formatProtocolUsd(Number.POSITIVE_INFINITY)).toBe('—')
     expect(formatProtocolUsd(Number.NaN)).toBe('—')
+  })
+})
+
+describe('formatPairV2LpUsd (GitLab #664)', () => {
+  it('returns compact $ for a priced stamp', () => {
+    expect(formatPairV2LpUsd('1234.5')).toMatch(/^\$/)
+    expect(formatPairV2LpUsd('1234.5')).toContain('1.2')
+  })
+
+  it('omits missing, hostile, scientific, and non-positive values', () => {
+    expect(formatPairV2LpUsd(undefined)).toBeNull()
+    expect(formatPairV2LpUsd(null)).toBeNull()
+    expect(formatPairV2LpUsd('')).toBeNull()
+    expect(formatPairV2LpUsd('0')).toBeNull()
+    expect(formatPairV2LpUsd('Infinity')).toBeNull()
+    expect(formatPairV2LpUsd('NaN')).toBeNull()
+    expect(formatPairV2LpUsd('1e+19')).toBeNull()
+    expect(formatPairV2LpUsd('<img onerror=alert(1)>')).toBeNull()
+    expect(formatPairV2LpUsd('javascript:alert(1)')).toBeNull()
   })
 })
 

@@ -131,3 +131,4 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — Global stats / fees / oracle chips are `flat` (#653); inline Δ% parentage is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652); visual grouping is [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576)
+- [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts pair TVL chip reuses **P569** `protocol_pair_tvl` (#664); `/pool` column is #655
