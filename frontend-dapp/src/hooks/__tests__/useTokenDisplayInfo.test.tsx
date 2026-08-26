@@ -63,6 +63,7 @@ describe('useTokenDisplayInfo (GitLab #630)', () => {
     const { result: lunc } = renderDisplay({ native_token: { denom: 'uluna' } }, new Error('down'))
     await waitFor(() => expect(lunc.current.symbol).toBe('LUNC'))
     expect(lunc.current.displayLabel).toBe('LUNC')
+    expect(lunc.current.name).toBe('Terra Luna Classic')
 
     const { result: ustc } = renderDisplay({ native_token: { denom: 'uusd' } }, new Error('down'))
     await waitFor(() => expect(ustc.current.symbol).toBe('USTC'))
@@ -96,6 +97,7 @@ describe('useTokenDisplayInfo (GitLab #630)', () => {
       }),
     ])
     await waitFor(() => expect(clunc.current.symbol).toBe('cLUNC'))
+    expect(clunc.current.name).toBe('Wrapped Luna Classic')
 
     const { result: custc } = renderDisplay({ token: { contract_addr: CUSTC } }, [
       tokenRow({
@@ -153,5 +155,24 @@ describe('useTokenDisplayInfo (GitLab #630)', () => {
 
     const native = tokenRow({ denom: 'uluna', symbol: 'uluna' })
     expect(indexerTokenForId('uluna', [native])?.denom).toBe('uluna')
+  })
+
+  it('registry name wins; HTML indexer name is dropped (#661)', async () => {
+    const { result: lunc } = renderDisplay({ native_token: { denom: 'uluna' } }, [
+      tokenRow({ denom: 'uluna', symbol: 'uluna', name: '<script>x</script>' }),
+    ])
+    await waitFor(() => expect(lunc.current.symbol).toBe('LUNC'))
+    expect(lunc.current.name).toBe('Terra Luna Classic')
+
+    const { result: gem } = renderDisplay({ token: { contract_addr: UNKNOWN_CW20 } }, [
+      tokenRow({
+        contract_address: UNKNOWN_CW20,
+        is_cw20: true,
+        symbol: 'GEMX',
+        name: '<img onerror=alert(1)>',
+      }),
+    ])
+    await waitFor(() => expect(gem.current.symbol).toBe('GEMX'))
+    expect(gem.current.name).toBeUndefined()
   })
 })

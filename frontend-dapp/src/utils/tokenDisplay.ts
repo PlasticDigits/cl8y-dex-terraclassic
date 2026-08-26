@@ -89,6 +89,17 @@ export function shortenAddress(addr: string, startChars = 8, endChars = 6): stri
   return `${addr.slice(0, startChars)}…${addr.slice(-endChars)}`
 }
 
+/** Visible trader chip prefix (GitLab #656). Do not change `shortenAddress` defaults. */
+export const TRADER_ADDR_START_CHARS = 4
+/** Visible trader chip suffix (GitLab #656). */
+export const TRADER_ADDR_END_CHARS = 6
+
+/** 4/6 bech32 chip for trader-as-person surfaces. Defaults stay 8/6 for contracts. */
+export function shortenTraderAddress(addr: string): string {
+  if (!addr) return addr
+  return shortenAddress(addr, TRADER_ADDR_START_CHARS, TRADER_ADDR_END_CHARS)
+}
+
 export function isAddressLike(s: string): boolean {
   return (s.startsWith('terra1') && s.length >= 44) || (s.startsWith('0x') && s.length >= 42)
 }
@@ -96,4 +107,42 @@ export function isAddressLike(s: string): boolean {
 export function getAddressForBlockie(info: AssetInfo): string | undefined {
   if ('token' in info) return info.token.contract_addr
   return undefined
+}
+
+const BANK_DENOM_AS_NAME = new Set(['uluna', 'uusd'])
+const POOL_ASSET_NAME_MAX_WORDS = 5
+const POOL_ASSET_NAME_MAX_CHARS = 48
+
+/**
+ * Indexer `name` is allowed for pool provide labels only when it is short, text-only,
+ * not a bank denom, and not the same as the product ticker (GitLab #661 / #489 / A1).
+ */
+export function usablePoolAssetName(name: string | undefined | null, symbol: string): boolean {
+  if (!name?.trim() || !symbol?.trim()) return false
+  const trimmed = name.trim()
+  if (trimmed.toLowerCase() === symbol.trim().toLowerCase()) return false
+  if (BANK_DENOM_AS_NAME.has(trimmed.toLowerCase())) return false
+  if (/[<>]|javascript:|on\w+\s*=/i.test(trimmed)) return false
+  if (trimmed.length > POOL_ASSET_NAME_MAX_CHARS) return false
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  return words.length > 0 && words.length <= POOL_ASSET_NAME_MAX_WORDS
+}
+
+/**
+ * Visible Advanced provide field label: `{Name} ({SYMBOL})` or `{SYMBOL}`.
+ * Never `UST1 (UST1)`, never `uluna` as the name, never HTML.
+ */
+export function formatPoolAssetFieldLabel(opts: { name?: string | null; symbol: string }): string {
+  const symbol = opts.symbol.trim()
+  if (!symbol) return ''
+  if (usablePoolAssetName(opts.name, symbol)) {
+    return `${opts.name!.trim()} (${symbol})`
+  }
+  return symbol
+}
+
+/** `aria-label` for a provide amount input — product ticker + "amount", never Asset A/B. */
+export function poolProvideAmountAriaLabel(symbol: string): string {
+  const ticker = symbol.trim()
+  return ticker ? `${ticker} amount` : 'amount'
 }

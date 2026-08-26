@@ -49,6 +49,7 @@ run_indexer_lib() {
 run_frontend() {
   bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/communityTaxMigrate.test.ts \
+    src/utils/communityTaxMigrateCopy.test.ts \
     src/pages/MigrateTokenPage.test.tsx \
     src/pages/CreateTokenPage.test.tsx \
     src/components/common/navItems.test.ts

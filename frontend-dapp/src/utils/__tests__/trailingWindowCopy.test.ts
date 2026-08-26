@@ -4,6 +4,9 @@ import {
   composeStatAriaLabel,
   PROTOCOL_VOLUME_DAILY_LABEL,
   PROTOCOL_VOLUME_DAILY_TITLE,
+  PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
+  PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL,
+  PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,
   POOL_VOL_HEADER_TITLE,
   TRAILING_24H_TRADES_TITLE,
   TRAILING_24H_VOLUME_TITLE,
@@ -38,10 +41,14 @@ describe('trailingWindowCopy (GitLab #576)', () => {
     expect(CHARTS_PAIR_SORT_VOLUME_LABEL).toMatch(/last 24h volume/i)
   })
 
-  it('UTC daily chart copy is not a trailing-window lecture (GitLab #652)', () => {
+  it('UTC volume chart copy is calendar grain, not a trailing-window lecture (GitLab #652 / #668)', () => {
     expect(trailingWindowLabelWordCount(PROTOCOL_VOLUME_DAILY_LABEL)).toBeLessThanOrEqual(5)
-    expect(PROTOCOL_VOLUME_DAILY_TITLE).toMatch(/UTC calendar-day/i)
+    expect(trailingWindowLabelWordCount(PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL)).toBeLessThanOrEqual(5)
+    expect(trailingWindowLabelWordCount(PROTOCOL_VOLUME_GRAIN_DAILY_LABEL)).toBeLessThanOrEqual(5)
+    expect(trailingWindowLabelWordCount(PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL)).toBeLessThanOrEqual(5)
+    expect(PROTOCOL_VOLUME_DAILY_TITLE).toMatch(/UTC calendar/i)
     expect(PROTOCOL_VOLUME_DAILY_TITLE).not.toMatch(/https?:|VITE_|guaranteed|settlement/i)
+    expect(PROTOCOL_VOLUME_DAILY_TITLE).not.toMatch(/Last 24h|Last 7d|Last 30d/)
   })
 
   it('composeStatAriaLabel includes the window and the displayed value', () => {

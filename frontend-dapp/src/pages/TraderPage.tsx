@@ -11,6 +11,7 @@ import { TradesTable } from '@/components/ui/TradesTable'
 import { TraderSummaryStats } from '@/components/trader/TraderSummaryStats'
 import { TraderPositionsTable } from '@/components/trader/TraderPositionsTable'
 import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
+import { TraderLeaderboard } from '@/components/trader/TraderLeaderboard'
 import { sounds } from '@/lib/sounds'
 import { isValidTerraAddress } from '@/utils/constants'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
@@ -199,6 +200,9 @@ export default function TraderPage() {
           </div>
         </>
       )}
+
+      {/* Last page section (TL-1). Outside profile gates so empty / 404 / outage still show the board (TL-2). */}
+      <TraderLeaderboard highlightAddress={traderAddr || undefined} />
     </div>
   )
 }

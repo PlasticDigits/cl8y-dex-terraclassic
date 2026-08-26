@@ -29,7 +29,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 | [`PortfolioOpenLimitsSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioOpenLimitsSection.tsx) | Wallet-wide limits table; deep-links to `/trade/{pair}` and `/limits` |
 | [`PortfolioLpOverviewSection.tsx`](../frontend-dapp/src/components/portfolio/PortfolioLpOverviewSection.tsx) | LP balances; distinct copy from trader positions |
 | [`usePortfolioLpBalances.ts`](../frontend-dapp/src/hooks/usePortfolioLpBalances.ts) | Indexer pair list + capped LCD fan-out |
-| [`TraderSummaryStats.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) | Shared profile + realized P&amp;L cards. **Total Volume (USD)** uses `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). |
+| [`TraderSummaryStats.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.tsx) | Shared profile + realized P&amp;L cards. **Total Volume (USD)** uses `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Header identity is 4/6 + blockie ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656)). |
 | [`TraderPositionsTable.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.tsx) | Positions table; pair links → `/trade/{pairAddr}` |
 | [`TraderPage.tsx`](../frontend-dapp/src/pages/TraderPage.tsx) | Public lookup; reuses shared components |
 | [`navItems.ts`](../frontend-dapp/src/components/common/navItems.ts) | `Portfolio` in `PRIMARY_NAV_ITEMS` |
@@ -69,4 +69,5 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — indexer outage banners
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Total Volume (USD) on this shared header ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553))
 - [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) — public `/trader/{wallet}` Share, never `/portfolio` ([#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665))
+- [`AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](./AGENTS_FRONTEND_TRADER_LEADERBOARD.md) — global board is **`/trader` only**, not `/portfolio` (**TL-8**, [#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657))
 - [`docs/frontend.md` § My Portfolio](../docs/frontend.md#my-portfolio)

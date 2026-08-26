@@ -8,6 +8,13 @@ import * as indexerClient from '@/services/indexer/client'
 import { useWalletStore } from '@/hooks/useWallet'
 import type { IndexerPosition, IndexerTrader } from '@/types'
 
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies({ seed }: { seed: string }) {
+    return <span data-testid="mock-blockies" data-seed={seed} />
+  },
+}))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: {
     playButtonPress: vi.fn(),
@@ -116,6 +123,8 @@ describe('PortfolioPage (component)', () => {
     expect(indexerClient.getTrader).not.toHaveBeenCalled()
     expect(indexerClient.getTraderPositions).not.toHaveBeenCalled()
     expect(screen.queryByTestId('portfolio-share-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trader-leaderboard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^leaderboard$/i })).not.toBeInTheDocument()
   })
 
   it('shows profile empty state on 404 and still loads positions', async () => {
@@ -151,6 +160,8 @@ describe('PortfolioPage (component)', () => {
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/UST1/)
     expect(screen.getByTestId('trader-total-volume-usd')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-summary-fees')).toHaveTextContent('—')
+    expect(screen.queryByTestId('trader-leaderboard')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /trader leaderboard/i })).not.toBeInTheDocument()
   })
 
   it('shares the public /trader URL, not /portfolio (GitLab #665 TS-11)', async () => {

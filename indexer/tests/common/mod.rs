@@ -6,7 +6,7 @@ use std::os::unix::io::AsRawFd;
 use std::sync::Once;
 
 use axum::Router;
-use cl8y_dex_indexer::api::{build_router, AppState};
+use cl8y_dex_indexer::api::{AppState, build_router};
 use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::PgPool;
@@ -152,6 +152,7 @@ async fn clean_db_tables(pool: &PgPool) {
             liquidity_events,
             token_volume_stats,
             pair_volume_24h,
+            pair_liquidity_usd,
             global_stats_24h,
             protocol_fee_events,
             protocol_fee_stats_by_source,

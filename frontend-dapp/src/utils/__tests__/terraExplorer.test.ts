@@ -35,9 +35,7 @@ describe('getExplorerTxUrl', () => {
     vi.stubEnv('VITE_NETWORK', 'mainnet')
     vi.resetModules()
     const { getExplorerTxUrl } = await loadExplorerUtils()
-    expect(getExplorerTxUrl(SAMPLE_TX)).toBe(
-      `https://finder.terraclassic.community/columbus-5/tx/${SAMPLE_TX}`
-    )
+    expect(getExplorerTxUrl(SAMPLE_TX)).toBe(`https://finder.terraclassic.community/columbus-5/tx/${SAMPLE_TX}`)
   })
 
   it('uses Finder testnet tx path for testnet builds', async () => {
@@ -132,5 +130,17 @@ describe('getExplorerAddressUrl', () => {
       const { getExplorerAddressUrl } = await loadMainnetExplorer()
       expect(getExplorerAddressUrl('')).toBeNull()
     })
+  })
+})
+
+describe('isSafeExplorerHref (#671)', () => {
+  it('accepts http and https only', async () => {
+    const { isSafeExplorerHref } = await loadExplorerUtils()
+    expect(isSafeExplorerHref('https://finder.example/address/terra1')).toBe(true)
+    expect(isSafeExplorerHref('http://localhost:1317/cosmos/auth/v1beta1/accounts/terra1')).toBe(true)
+    expect(isSafeExplorerHref('javascript:alert(1)')).toBe(false)
+    expect(isSafeExplorerHref('data:text/html,pwned')).toBe(false)
+    expect(isSafeExplorerHref(null)).toBe(false)
+    expect(isSafeExplorerHref('')).toBe(false)
   })
 })

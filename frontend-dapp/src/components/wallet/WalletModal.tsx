@@ -58,7 +58,13 @@ export default function WalletModal({ onClose }: WalletModalProps) {
   }
 
   return (
-    <Modal isOpen={true} onClose={handleClose} title="Connect Wallet" rootTestId="wallet-connect-modal-portal">
+    <Modal
+      isOpen={true}
+      onClose={handleClose}
+      title="Connect Wallet"
+      rootTestId="wallet-connect-modal-portal"
+      closeAriaLabel="Close connect wallet"
+    >
       <div className="px-6 py-4">
         {error && <div className="alert-error mb-4">{error}</div>}
 

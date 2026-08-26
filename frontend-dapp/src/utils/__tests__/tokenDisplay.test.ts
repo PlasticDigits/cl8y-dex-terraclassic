@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { shortenAddress, getTokenDisplaySymbol, isAddressLike, getAddressForBlockie } from '../tokenDisplay'
+import {
+  shortenAddress,
+  shortenTraderAddress,
+  TRADER_ADDR_END_CHARS,
+  TRADER_ADDR_START_CHARS,
+  getTokenDisplaySymbol,
+  isAddressLike,
+  getAddressForBlockie,
+  usablePoolAssetName,
+  formatPoolAssetFieldLabel,
+  poolProvideAmountAriaLabel,
+} from '../tokenDisplay'
 
 describe('shortenAddress', () => {
   it('returns short addresses unchanged', () => {
@@ -22,6 +33,31 @@ describe('shortenAddress', () => {
   it('handles address exactly at threshold', () => {
     const addr = 'terra1abcdef1234'
     expect(shortenAddress(addr, 6, 4)).toBe('terra1…1234')
+  })
+
+  it('keeps 8/6 defaults (not trader 4/6)', () => {
+    const addr = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+    expect(shortenAddress(addr)).toBe('terra16w…vhpax3')
+    expect(shortenAddress(addr)).not.toBe(shortenTraderAddress(addr))
+  })
+})
+
+describe('shortenTraderAddress (GitLab #656)', () => {
+  const addr = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+
+  it('uses 4/6 (terr… + last 6)', () => {
+    expect(TRADER_ADDR_START_CHARS).toBe(4)
+    expect(TRADER_ADDR_END_CHARS).toBe(6)
+    expect(shortenTraderAddress(addr)).toBe('terr…vhpax3')
+    expect(shortenTraderAddress(addr)).toBe(shortenAddress(addr, 4, 6))
+    expect(shortenTraderAddress(addr)).not.toBe(shortenAddress(addr, 10, 6))
+    expect(shortenTraderAddress(addr)).not.toBe(addr)
+  })
+
+  it('returns short strings unchanged and empty without throwing', () => {
+    expect(shortenTraderAddress('')).toBe('')
+    expect(shortenTraderAddress('terr')).toBe('terr')
+    expect(shortenTraderAddress('terra1ab')).toBe('terra1ab')
   })
 })
 
@@ -80,5 +116,38 @@ describe('getAddressForBlockie', () => {
   it('returns undefined for native_token AssetInfo', () => {
     const info = { native_token: { denom: 'uluna' } }
     expect(getAddressForBlockie(info)).toBeUndefined()
+  })
+})
+
+describe('formatPoolAssetFieldLabel (GitLab #661)', () => {
+  it('uses Name (SYMBOL) when name is distinct and short', () => {
+    expect(formatPoolAssetFieldLabel({ name: 'Terra Luna Classic', symbol: 'LUNC' })).toBe('Terra Luna Classic (LUNC)')
+    expect(formatPoolAssetFieldLabel({ name: 'Wrapped Luna Classic', symbol: 'cLUNC' })).toBe(
+      'Wrapped Luna Classic (cLUNC)'
+    )
+  })
+
+  it('collapses to symbol when name is missing or equals symbol', () => {
+    expect(formatPoolAssetFieldLabel({ name: undefined, symbol: 'UST1' })).toBe('UST1')
+    expect(formatPoolAssetFieldLabel({ name: 'UST1', symbol: 'UST1' })).toBe('UST1')
+    expect(formatPoolAssetFieldLabel({ name: 'ust1', symbol: 'UST1' })).toBe('UST1')
+    expect(formatPoolAssetFieldLabel({ name: '  ', symbol: 'GEMX' })).toBe('GEMX')
+  })
+
+  it('rejects bank denoms, HTML, and long indexer names', () => {
+    expect(usablePoolAssetName('uluna', 'cLUNC')).toBe(false)
+    expect(usablePoolAssetName('uusd', 'USTC')).toBe(false)
+    expect(usablePoolAssetName('<img onerror=alert(1)>', 'GEMX')).toBe(false)
+    expect(usablePoolAssetName('javascript:alert(1)', 'GEMX')).toBe(false)
+    expect(usablePoolAssetName('one two three four five six', 'GEMX')).toBe(false)
+    expect(formatPoolAssetFieldLabel({ name: 'uluna', symbol: 'cLUNC' })).toBe('cLUNC')
+    expect(formatPoolAssetFieldLabel({ name: '<b>hack</b>', symbol: 'GEMX' })).toBe('GEMX')
+  })
+
+  it('builds aria labels from the product ticker', () => {
+    expect(poolProvideAmountAriaLabel('LUNC')).toBe('LUNC amount')
+    expect(poolProvideAmountAriaLabel('cLUNC')).toBe('cLUNC amount')
+    expect(poolProvideAmountAriaLabel('UST1')).toBe('UST1 amount')
+    expect(poolProvideAmountAriaLabel('')).toBe('amount')
   })
 })

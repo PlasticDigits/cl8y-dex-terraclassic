@@ -25,6 +25,7 @@ export default function WalletConnectPairingModal() {
       title={`Connect ${payload.name}`}
       zIndexClassName="z-[10001]"
       rootTestId="walletconnect-pairing-portal"
+      closeAriaLabel="Close pairing"
     >
       <div className="walletconnect-pairing px-6 py-4" data-testid="walletconnect-pairing-modal">
         <p className="mb-4 text-sm" style={{ color: 'var(--ink-subtle)' }}>

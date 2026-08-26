@@ -2,6 +2,11 @@ import { parseIndexerTraderPayload } from '@/services/indexer/traderProfilePaylo
 import { normalizeLimitBookPageResponse } from '@/utils/limitBookPagination'
 import { parseProtocolOracleTicker } from '@/utils/protocolOracleTicker'
 import { parseHubPriceTicker } from '@/utils/hubPriceTicker'
+import {
+  isAllowlistedProtocolVolumeLimit,
+  isProtocolVolumeGrain,
+  type ProtocolVolumeGrain,
+} from '@/utils/protocolVolumeGrain'
 import type {
   IndexerPair,
   IndexerPairsListResponse,
@@ -12,6 +17,7 @@ import type {
   IndexerOverview,
   ProtocolFeesResponse,
   ProtocolVolumeDailyResponse,
+  ProtocolVolumeSeriesResponse,
   IndexerTrader,
   IndexerPosition,
   IndexerToken,
@@ -375,6 +381,17 @@ export async function getProtocolVolumeDaily(days: 7 | 30 = 7): Promise<Protocol
   return fetchJson<ProtocolVolumeDailyResponse>(`/api/v1/protocol/volume/daily?days=${days}`)
 }
 
+/** UTC grain series. `grain` + `limit` allowlisted before fetch (GitLab #668). */
+export async function getProtocolVolumeSeries(
+  grain: ProtocolVolumeGrain,
+  limit: number
+): Promise<ProtocolVolumeSeriesResponse> {
+  if (!isProtocolVolumeGrain(grain) || !isAllowlistedProtocolVolumeLimit(grain, limit)) {
+    throw new Error('Invalid protocol volume grain or limit')
+  }
+  return fetchJson<ProtocolVolumeSeriesResponse>(`/api/v1/protocol/volume/daily?grain=${grain}&limit=${limit}`)
+}
+
 /** Cached fee-discount registry LCD probe (GitLab #365). */
 export async function getFeeDiscountHealth(): Promise<{
   configured: boolean
@@ -483,7 +500,7 @@ export function downloadTextAsFile(filename: string, text: string, mime = 'text/
   URL.revokeObjectURL(url)
 }
 
-/** Get trader leaderboard. Charts Volume tab uses `total_volume_usd` (#553). */
+/** Get trader leaderboard. Charts + `/trader` Volume tab uses `total_volume_usd` (#553 / #657). */
 export async function getLeaderboard(sort = 'total_volume_usd', limit = 50): Promise<IndexerTrader[]> {
   const params = new URLSearchParams({ sort, limit: limit.toString() })
   return fetchJson<IndexerTrader[]>(`/api/v1/traders/leaderboard?${params}`)

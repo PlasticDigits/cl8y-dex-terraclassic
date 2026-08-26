@@ -58,10 +58,18 @@ export const TRAILING_30D_VOLUME_CHG_TITLE = 'Change vs the last 30 days prior w
 export const TRAILING_LIQUIDITY_24H_TITLE = 'Change vs the last 24 hours snapshot. Em-dash until the window fills.'
 export const TRAILING_LIQUIDITY_30D_TITLE = 'Change vs the last 30 days snapshot. Em-dash until the window fills.'
 
-export const PROTOCOL_VOLUME_DAILY_LABEL = 'UTC daily vol'
+export const PROTOCOL_VOLUME_DAILY_LABEL = 'UTC volume'
 export const PROTOCOL_VOLUME_DAILY_7D_LABEL = '7d'
 export const PROTOCOL_VOLUME_DAILY_30D_LABEL = '30d'
-export const PROTOCOL_VOLUME_DAILY_TITLE = 'UTC calendar-day priced volume. Not the trailing 24h, 7d, or 30d tiles.'
+export const PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL = 'Hourly'
+export const PROTOCOL_VOLUME_GRAIN_DAILY_LABEL = 'Daily'
+export const PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL = 'Monthly'
+export const PROTOCOL_VOLUME_DAILY_TITLE = 'UTC calendar volume. Not the trailing 24h, 7d, or 30d tiles.'
+export const PROTOCOL_VOLUME_GRAIN_SUBTITLE = {
+  hourly: 'UTC hour',
+  daily: 'UTC calendar day',
+  monthly: 'UTC calendar month',
+} as const
 
 /** Visible labels that must stay ≤ ~5 words (#489 / W3). */
 export const TRAILING_WINDOW_VISIBLE_LABELS = [
@@ -78,8 +86,9 @@ export const TRAILING_WINDOW_VISIBLE_LABELS = [
   PROTOCOL_FEES_7D_CHG_LABEL,
   PROTOCOL_FEES_30D_CHG_LABEL,
   PROTOCOL_VOLUME_DAILY_LABEL,
-  PROTOCOL_VOLUME_DAILY_7D_LABEL,
-  PROTOCOL_VOLUME_DAILY_30D_LABEL,
+  PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL,
+  PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
+  PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,
   CHARTS_PAIR_SORT_VOLUME_LABEL,
   POOL_VOL_HEADER_LABEL,
 ] as const

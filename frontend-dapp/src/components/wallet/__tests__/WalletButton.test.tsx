@@ -14,7 +14,7 @@ vi.mock('../WalletLuncBalance', () => ({
   ),
 }))
 
-vi.mock('./WalletModal', () => ({
+vi.mock('../WalletModal', () => ({
   default: () => null,
 }))
 
@@ -23,6 +23,8 @@ vi.mock('@/lib/sounds', () => ({
 }))
 
 import { useWalletStore } from '@/hooks/useWallet'
+import { shortenAddress } from '@/utils/tokenDisplay'
+import { WALLET_PORTFOLIO_PATH } from '@/utils/walletMenuRoutes'
 
 const mockUseWalletStore = vi.mocked(useWalletStore)
 
@@ -51,7 +53,7 @@ describe('WalletButton connected LUNC (GitLab #140)', () => {
     expect(balances[0]).toHaveTextContent('terra1 LUNC')
   })
 
-  it('shows LUNC balance and full address in the dropdown header', async () => {
+  it('shows LUNC balance and truncated address in the dropdown header (#671)', async () => {
     const user = userEvent.setup()
     render(
       <MemoryRouter>
@@ -59,7 +61,12 @@ describe('WalletButton connected LUNC (GitLab #140)', () => {
       </MemoryRouter>
     )
     await user.click(screen.getByRole('button', { expanded: false }))
-    expect(screen.getByText(ADDR)).toBeInTheDocument()
+    const header = screen.getByTestId('wallet-menu-address-row')
+    expect(header).toHaveClass('flex-nowrap')
+    expect(header).not.toHaveTextContent(ADDR)
+    expect(header).toHaveTextContent(shortenAddress(ADDR, 8, 6))
+    expect(header.querySelector('[title]')).toHaveAttribute('title', ADDR)
+    expect(screen.queryByText(ADDR)).not.toBeInTheDocument()
     expect(screen.getAllByTestId('wallet-lunc-balance-mock').length).toBeGreaterThanOrEqual(2)
   })
 
@@ -169,6 +176,53 @@ describe('WalletButton dropdown affordances (GitLab #185)', () => {
     expect(screen.getByRole('menuitem', { name: 'Switch wallet' })).toBeInTheDocument()
   })
 
+  it('lays out every menuitem as a wallet-menu-item row in documented order (#671)', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await user.click(screen.getByRole('button', { expanded: false }))
+    const items = screen.getAllByRole('menuitem')
+    expect(items.map((el) => el.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Copy address',
+      'View on explorer',
+      'Switch wallet',
+      'My Portfolio',
+      'Trader profile',
+      'Disconnect',
+    ])
+    for (const el of items) {
+      expect(el).toHaveClass('wallet-menu-item')
+    }
+    expect(screen.getByRole('menuitem', { name: 'My Portfolio' })).toHaveAttribute('href', WALLET_PORTFOLIO_PATH)
+    expect(screen.getByRole('menuitem', { name: 'Trader profile' })).toHaveAttribute('href', `/trader/${ADDR}`)
+  })
+
+  it('renders spoofed address markup as text, not HTML (#671)', async () => {
+    const spoof = '"><img src=x onerror=alert(1)>'
+    mockUseWalletStore.mockReturnValue({
+      address: spoof,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: false,
+      setWalletModalOpen: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+    const user = userEvent.setup()
+    const { container } = render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    await user.click(screen.getByRole('button', { expanded: false }))
+    expect(container.querySelector('img[src="x"]')).toBeNull()
+    expect(container.querySelector('script')).toBeNull()
+    expect(screen.getByTestId('wallet-menu-address-row').querySelector('[title]')).toHaveAttribute('title', spoof)
+    expect(screen.queryByRole('menuitem', { name: 'Trader profile' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'My Portfolio' })).toHaveAttribute('href', WALLET_PORTFOLIO_PATH)
+  })
+
   it('opens connect modal after Switch wallet', async () => {
     const disconnect = vi.fn().mockResolvedValue(undefined)
     const setWalletModalOpen = vi.fn()
@@ -195,15 +249,14 @@ describe('WalletButton dropdown affordances (GitLab #185)', () => {
 
 describe('WalletButton connecting cancel (GitLab #554)', () => {
   it('shows Cancel instead of a disabled spinner', async () => {
-    const cancelConnection = vi.fn()
+    const closeWalletModal = vi.fn()
     mockUseWalletStore.mockReturnValue({
       address: null,
       isConnecting: true,
       disconnect: vi.fn(),
       walletModalOpen: false,
       setWalletModalOpen: vi.fn(),
-      closeWalletModal: vi.fn(),
-      cancelConnection,
+      closeWalletModal,
     } as ReturnType<typeof useWalletStore>)
 
     const user = userEvent.setup()
@@ -216,6 +269,57 @@ describe('WalletButton connecting cancel (GitLab #554)', () => {
     expect(btn).toHaveTextContent('Cancel')
     expect(btn).not.toBeDisabled()
     await user.click(btn)
-    expect(cancelConnection).toHaveBeenCalled()
+    expect(closeWalletModal).toHaveBeenCalled()
+  })
+})
+
+describe('WalletButton header Connect toggle (GitLab #672 D5)', () => {
+  it('opens the dialog on first click and sets aria-expanded', async () => {
+    const setWalletModalOpen = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      address: null,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: false,
+      setWalletModalOpen,
+      closeWalletModal: vi.fn(),
+    } as ReturnType<typeof useWalletStore>)
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    const trigger = screen.getByRole('button', { name: 'Connect wallet' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
+    await user.click(trigger)
+    expect(setWalletModalOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('closes the open dialog when Connect Wallet is clicked again', async () => {
+    const closeWalletModal = vi.fn()
+    const setWalletModalOpen = vi.fn()
+    mockUseWalletStore.mockReturnValue({
+      address: null,
+      isConnecting: false,
+      disconnect: vi.fn(),
+      walletModalOpen: true,
+      setWalletModalOpen,
+      closeWalletModal,
+    } as ReturnType<typeof useWalletStore>)
+
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <WalletButton />
+      </MemoryRouter>
+    )
+    const trigger = screen.getByRole('button', { name: 'Connect wallet' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await user.click(trigger)
+    expect(closeWalletModal).toHaveBeenCalledTimes(1)
+    expect(setWalletModalOpen).not.toHaveBeenCalled()
   })
 })
