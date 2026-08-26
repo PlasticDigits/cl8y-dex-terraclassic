@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { type UseQueryResult } from '@tanstack/react-query'
-import { StatBox, RetryError } from '@/components/ui'
+import { StatBox, RetryError, type StatDelta } from '@/components/ui'
 import { formatProtocolCount, formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
 import {
   PROTOCOL_TRADES_24H_LABEL,
@@ -7,11 +8,17 @@ import {
   PROTOCOL_VOLUME_7D_LABEL,
   PROTOCOL_VOLUME_30D_LABEL,
   TRAILING_24H_TRADES_TITLE,
+  TRAILING_24H_VOLUME_CHG_TITLE,
   TRAILING_24H_VOLUME_TITLE,
+  TRAILING_7D_VOLUME_CHG_TITLE,
   TRAILING_7D_VOLUME_TITLE,
+  TRAILING_30D_VOLUME_CHG_TITLE,
   TRAILING_30D_VOLUME_TITLE,
+  TRAILING_LIQUIDITY_24H_TITLE,
+  TRAILING_LIQUIDITY_30D_TITLE,
 } from '@/utils/trailingWindowCopy'
 import type { IndexerOverview } from '@/types'
+import { ProtocolVolumeDailyChart } from './ProtocolVolumeDailyChart'
 
 interface ProtocolGlobalStatsProps {
   overviewQuery: UseQueryResult<IndexerOverview>
@@ -22,39 +29,68 @@ const STATS: Array<{
   label: string
   title?: string
   value: (o: IndexerOverview | undefined) => string
+  deltas?: (o: IndexerOverview | undefined) => StatDelta[]
 }> = [
   {
     testId: 'protocol-stat-liquidity',
     label: 'Total liquidity',
     value: (o) => formatProtocolUsd(o?.total_liquidity_usd),
-  },
-  {
-    testId: 'protocol-stat-liquidity-24h',
-    label: '24h liquidity',
-    value: (o) => formatProtocolPct(o?.liquidity_change_24h_pct),
-  },
-  {
-    testId: 'protocol-stat-liquidity-30d',
-    label: '30d liquidity',
-    value: (o) => formatProtocolPct(o?.liquidity_change_30d_pct),
+    deltas: (o) => [
+      {
+        value: formatProtocolPct(o?.liquidity_change_24h_pct),
+        label: '24h',
+        testId: 'protocol-stat-liquidity-24h',
+        title: TRAILING_LIQUIDITY_24H_TITLE,
+      },
+      {
+        value: formatProtocolPct(o?.liquidity_change_30d_pct),
+        label: '30d',
+        testId: 'protocol-stat-liquidity-30d',
+        title: TRAILING_LIQUIDITY_30D_TITLE,
+      },
+    ],
   },
   {
     testId: 'protocol-stat-volume-24h',
     label: PROTOCOL_VOLUME_24H_LABEL,
     title: TRAILING_24H_VOLUME_TITLE,
     value: (o) => formatProtocolUsd(o?.total_volume_24h_usd),
+    deltas: (o) => [
+      {
+        value: formatProtocolPct(o?.volume_change_24h_pct),
+        label: '24h',
+        testId: 'protocol-stat-volume-24h-chg',
+        title: TRAILING_24H_VOLUME_CHG_TITLE,
+      },
+    ],
   },
   {
     testId: 'protocol-stat-volume-7d',
     label: PROTOCOL_VOLUME_7D_LABEL,
     title: TRAILING_7D_VOLUME_TITLE,
     value: (o) => formatProtocolUsd(o?.total_volume_7d_usd),
+    deltas: (o) => [
+      {
+        value: formatProtocolPct(o?.volume_change_7d_pct),
+        label: '7d',
+        testId: 'protocol-stat-volume-7d-chg',
+        title: TRAILING_7D_VOLUME_CHG_TITLE,
+      },
+    ],
   },
   {
     testId: 'protocol-stat-volume-30d',
     label: PROTOCOL_VOLUME_30D_LABEL,
     title: TRAILING_30D_VOLUME_TITLE,
     value: (o) => formatProtocolUsd(o?.total_volume_30d_usd),
+    deltas: (o) => [
+      {
+        value: formatProtocolPct(o?.volume_change_30d_pct),
+        label: '30d',
+        testId: 'protocol-stat-volume-30d-chg',
+        title: TRAILING_30D_VOLUME_CHG_TITLE,
+      },
+    ],
   },
   { testId: 'protocol-stat-tokens', label: 'Tokens', value: (o) => formatProtocolCount(o?.token_count) },
   {
@@ -83,6 +119,7 @@ const STATS: Array<{
 export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps) {
   const overview = overviewQuery.data
   const loading = overviewQuery.isLoading
+  const [dailyDays, setDailyDays] = useState<7 | 30>(7)
 
   return (
     <div className="shell-panel" data-testid="protocol-global-stats">
@@ -100,10 +137,18 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {STATS.map((stat) => (
           <div key={stat.testId} data-testid={stat.testId}>
-            <StatBox label={stat.label} title={stat.title} value={stat.value(overview)} loading={loading} />
+            <StatBox
+              variant="flat"
+              label={stat.label}
+              title={stat.title}
+              value={stat.value(overview)}
+              loading={loading}
+              deltas={stat.deltas?.(overview)}
+            />
           </div>
         ))}
       </div>
+      <ProtocolVolumeDailyChart days={dailyDays} onDaysChange={setDailyDays} />
     </div>
   )
 }

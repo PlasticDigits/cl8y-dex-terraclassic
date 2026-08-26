@@ -11,6 +11,7 @@ import type {
   IndexerPairStats,
   IndexerOverview,
   ProtocolFeesResponse,
+  ProtocolVolumeDailyResponse,
   IndexerTrader,
   IndexerPosition,
   IndexerToken,
@@ -362,6 +363,16 @@ export async function getProtocolFees(window: '24h' | '7d' | '30d' = '24h'): Pro
     throw new Error('Invalid protocol fee window')
   }
   return fetchJson<ProtocolFeesResponse>(`/api/v1/protocol/fees?window=${window}`)
+}
+
+const PROTOCOL_VOLUME_DAILY_DAYS = new Set([7, 30])
+
+/** UTC-day Protocol volume series. `days` allowlisted — never Llama `from`/`to` / `?ticker=`. */
+export async function getProtocolVolumeDaily(days: 7 | 30 = 7): Promise<ProtocolVolumeDailyResponse> {
+  if (!PROTOCOL_VOLUME_DAILY_DAYS.has(days)) {
+    throw new Error('Invalid protocol volume daily days')
+  }
+  return fetchJson<ProtocolVolumeDailyResponse>(`/api/v1/protocol/volume/daily?days=${days}`)
 }
 
 /** Cached fee-discount registry LCD probe (GitLab #365). */

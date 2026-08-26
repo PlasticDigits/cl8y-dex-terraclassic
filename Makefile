@@ -383,6 +383,12 @@ verify-issue-586:
 	@chmod +x scripts/qa/verify-issue-586.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-586.sh
 
+# GitLab #652 — /protocol inline Δ% + volume prior-window % + UTC-day series.
+.PHONY: verify-issue-652
+verify-issue-652:
+	@chmod +x scripts/qa/verify-issue-652.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-652.sh
+
 # GitLab #631 — DeFiLlama UTC-day volume/fees API + adapter copies.
 .PHONY: verify-issue-631
 verify-issue-631:

@@ -542,6 +542,11 @@
     backdrop-filter: blur(14px);
   }
 
+  /* GitLab #652 — Protocol metric cells inside shell-panel (no nested card-glass). */
+  .stat-box-flat {
+    min-width: 0;
+  }
+
   /**
    * Trade order ticket — money CTA footer (GitLab #527; opacity from #500 / #482).
    * Footer is a flex shrink-0 sibling of the scrollport — not position:sticky/fixed.

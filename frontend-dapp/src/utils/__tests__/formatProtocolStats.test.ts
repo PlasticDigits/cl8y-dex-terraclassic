@@ -5,6 +5,7 @@ import {
   formatProtocolOracleUsd,
   formatProtocolPct,
   formatProtocolUsd,
+  protocolPctToneFromDisplay,
 } from '../formatProtocolStats'
 
 describe('formatProtocolUsd', () => {
@@ -69,5 +70,14 @@ describe('formatProtocolPct', () => {
     expect(formatProtocolPct(Number.NaN)).toBe('—')
     expect(formatProtocolPct('<script>')).toBe('—')
     expect(formatProtocolPct('javascript:alert(1)')).toBe('—')
+  })
+})
+
+describe('protocolPctToneFromDisplay', () => {
+  it('uses semantic tokens, never gold as a fill', () => {
+    expect(protocolPctToneFromDisplay('+12%')).toBe('var(--color-positive)')
+    expect(protocolPctToneFromDisplay('-3%')).toBe('var(--color-negative)')
+    expect(protocolPctToneFromDisplay('0%')).toBe('var(--ink-dim)')
+    expect(protocolPctToneFromDisplay('—')).toBe('var(--ink-dim)')
   })
 })
