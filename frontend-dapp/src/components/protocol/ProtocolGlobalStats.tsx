@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError, type StatDelta } from '@/components/ui'
 import { formatProtocolCount, formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
@@ -119,7 +118,6 @@ const STATS: Array<{
 export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps) {
   const overview = overviewQuery.data
   const loading = overviewQuery.isLoading
-  const [dailyDays, setDailyDays] = useState<7 | 30>(7)
 
   return (
     <div className="shell-panel" data-testid="protocol-global-stats">
@@ -148,7 +146,7 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
           </div>
         ))}
       </div>
-      <ProtocolVolumeDailyChart days={dailyDays} onDaysChange={setDailyDays} />
+      <ProtocolVolumeDailyChart />
     </div>
   )
 }

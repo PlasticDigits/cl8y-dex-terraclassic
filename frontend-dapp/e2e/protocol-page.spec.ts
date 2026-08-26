@@ -29,7 +29,9 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     const dailyChart = page.getByTestId('protocol-volume-daily-chart')
     if (await dailyChart.count()) {
       await expect(dailyChart).toBeVisible()
-      await expect(page.getByTestId('protocol-volume-daily-7d')).toBeVisible()
+      await expect(page.getByTestId('protocol-volume-grain-daily')).toBeVisible()
+      await expect(page.getByTestId('protocol-volume-grain-hourly')).toBeVisible()
+      await expect(page.getByTestId('protocol-volume-grain-monthly')).toBeVisible()
     }
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-custc')).toBeVisible({ timeout: 15_000 })

@@ -54,7 +54,11 @@ Flash LP that is added and withdrawn inside one snapshot interval can move **cur
 
 `volume_change_{24h,7d,30d}_pct` is **UPDATE-only** on the existing `global_stats_24h` id=1 row after the volume INSERT (`refresh_volume_change_pct` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)). Same `flow_change_pct` as fees vs prior equal windows (`[48h,24h)`, `[14d,7d)`, `[60d,30d)`). Idle current + positive prior → `−100`. Activity + all unpriced → `NULL` (not a fake `$0` then `−100%`). Overflow / `prior ≤ 0` → `NULL`. Never Infinity.
 
-`GET /api/v1/protocol/volume/daily?days=` allowlists `7` \| `30` (else **400**). 60s cache keyed by allowlisted `days` only. Reads `protocol_daily_volume` — **not** `defillama_daily_stats` (Protocol catalog includes gems / wrap / window swaps). Idle day `"0"`; activity+unpriced `null`; missing row treated as idle `"0"`; prune ≥ 35 days. Do not N+1 Llama `GET /defillama/daily` and do not add `from`/`to` to Llama.
+`GET /api/v1/protocol/volume/daily?days=` allowlists `7` \| `30` (else **400**) when `grain` is omitted. 60s cache keyed by allowlisted `days` only. Reads `protocol_daily_volume` — **not** `defillama_daily_stats` (Protocol catalog includes gems / wrap / window swaps). Idle day `"0"`; activity+unpriced `null`; missing row treated as idle `"0"`; prune ≥ 95 days. Do not N+1 Llama `GET /defillama/daily` and do not add `from`/`to` to Llama.
+
+### Protocol volume Hourly / Daily / Monthly (GitLab #668)
+
+`GET /api/v1/protocol/volume/daily?grain=&limit=` allowlists `hourly` \| `daily` \| `monthly` and a capped integer `limit` (hourly ≤ 168, daily ≤ 90, monthly ≤ 24). Unknown / injection / `from` / `to` / over-max → **400**. 60s cache keyed by allowlisted `(grain, limit)` — extra query params must not bust the cache. GET reads `protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume` only (aggregator refresh). Hourly bucket is `[hour, hour+1)` UTC; monthly is a UTC calendar month, not a trailing 30d window. Same idle `"0"` / unpriced `null` contract as #652. Do **not** `SUM` `swap_events` on the request path.
 
 ### Protocol fees (GitLab #586)
 
