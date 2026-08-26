@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
-import { WalletName } from '@goblinhunt/cosmes/wallet'
-import { isBrowserWalletExtensionDetected } from '@/services/terraclassic/walletExtensionInstall'
+import { useWalletStore } from '@/hooks/useWallet'
 import { getLegalClickwrapClient, getLegalProperty } from '@/utils/legalClickwrap'
-import { LEGAL_KEPLR_INAPP_HINT, shouldShowLegalKeplrInAppHint } from '@/utils/legalKeplrInAppHint'
+import {
+  hasLegalSignerInjector,
+  legalTermsWalletHint,
+  shouldShowLegalWalletInAppHint,
+} from '@/utils/legalKeplrInAppHint'
 
 /**
- * Next-step copy when Legal Accept still needs `window.keplr` (GitLab #554).
- * Does not implement ADR-036 (C1).
+ * Next-step copy when Legal Accept still needs a signer injector (GitLab #554 / #658).
+ * Does not implement ADR-036 (C1). Plain text — not a wallet-download link.
  */
 export default function LegalKeplrInAppHint({ address }: { address: string }) {
+  const walletType = useWalletStore((s) => s.walletType)
   const [signedLatest, setSignedLatest] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -26,14 +30,14 @@ export default function LegalKeplrInAppHint({ address }: { address: string }) {
     }
   }, [address])
 
-  const hasKeplrExtension = isBrowserWalletExtensionDetected(WalletName.KEPLR)
-  if (!shouldShowLegalKeplrInAppHint({ hasKeplrExtension, signedLatest })) {
+  const hasSignerInjector = hasLegalSignerInjector()
+  if (!shouldShowLegalWalletInAppHint({ hasSignerInjector, signedLatest })) {
     return null
   }
 
   return (
-    <p data-testid="legal-keplr-inapp-hint" className="app-connected-terms-keplr-hint">
-      {LEGAL_KEPLR_INAPP_HINT}
+    <p data-testid="legal-wallet-inapp-hint" className="app-connected-terms-wallet-hint">
+      {legalTermsWalletHint(walletType)}
     </p>
   )
 }

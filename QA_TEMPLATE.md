@@ -43,6 +43,7 @@
 | 1.1.13 | Station mobile Chrome WalletConnect (#566) | Android Chrome (no Station extension) → Station | Pairing sheet with **Open Station** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
 | 1.1.14 | Station in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Station browser → Connect | Extension/injected path connects (Ready), not WC | | |
 | 1.1.15 | Station desktop stays Extension (#566 WC-M2) | Desktop Chrome without Station → Station | Extension row + Install (not a desktop WC/QR row) | | |
+| 1.1.16 | Station terms hint is not Keplr-only (#658 WC-M12) | Unsigned Station (extension or WC). Desktop / in-app: hint hidden when `station.keplr` is present. Android Chrome WC with no injector: hint names Station (or the DEX wallet list), not “open Keplr”. Accept still opens the Legal portal | No Keplr-only copy; Leap not named | | |
 
 ### 1.2 Keplr Wallet (Extension)
 
@@ -61,6 +62,7 @@
 | 1.2.11 | Keplr mobile Chrome WalletConnect (#554) | Android Chrome (no extension) → Keplr | Pairing sheet with **Open Keplr** + **Copy pairing link**, not Install-only | | |
 | 1.2.12 | Keplr in-app browser still works (#554 WC-M7) | Open dex.cl8y.com in Keplr browser → Connect | Extension/injected path connects | | |
 | 1.2.13 | Keplr in-app token picker (#632) | Android Keplr browser, compact + large: Swap → tap You Pay / You Receive → immediately tap last visible token; then search and pick | Token selects; URL / nav chrome is **not** activated; list stays above tab bar + wallet chrome; IME opens only after tapping Search | | |
+| 1.2.14 | Multi-wallet terms hint after connect (#658 WC-M12) | Unsigned wallet: Android Chrome WC with no injector vs Keplr/Station/Cosmostation in-app | No injector: hint names Station, Keplr, Cosmostation, Lunc Dash, Galaxy Station **or** the connected wallet — **not** “Keplr browser” / Keplr-only; Leap absent. Injector present: hint hidden. Accept still opens the Legal portal | | |
 
 ### 1.2a Keplr + Ledger Nano (columbus-5 only — GitLab #567)
 
@@ -95,6 +97,7 @@
 | 1.4.11 | Cosmostation mobile Chrome WalletConnect (#566) | Android Chrome (no Cosmostation extension) → Cosmostation | Pairing sheet with **Open Cosmostation** + **Copy pairing link**, not Install-only; header shows `terra1…` after approve | | |
 | 1.4.12 | Cosmostation in-app browser still works (#566 WC-M7) | Open dex.cl8y.com in Cosmostation browser → Connect | Extension/injected path connects (Ready), not WC | | |
 | 1.4.13 | Cosmostation desktop stays Extension (#566 WC-M2) | Desktop Chrome without Cosmostation → Cosmostation | Extension row + Install (not a desktop WC/QR row) | | |
+| 1.4.14 | Cosmostation terms hint is not Keplr-only (#658) | Unsigned Cosmostation. Injected `providers.keplr` → hint hidden. Android Chrome WC with no injector → hint names Cosmostation or the DEX list, not “open Keplr” | Accept still opens Legal portal | | |
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 
@@ -112,6 +115,7 @@
 | 1.5.8 | LuncDash provide liquidity | Provide → Approve all msgs | Success | | |
 | 1.5.9 | LuncDash withdraw liquidity | Withdraw → Approve | Success | | |
 | 1.5.10 | LuncDash session persistence | Connect → Close browser tab → Reopen | Session resumes or prompts reconnect | | |
+| 1.5.11 | LuncDash terms hint (#658) | Connect LuncDash WC (no injector) while unsigned | Hint names Lunc Dash or the DEX wallet list — **not** Keplr-only; Accept opens Legal portal | | |
 
 ### 1.6 Galaxy Station (WalletConnect – Mobile)
 
@@ -130,6 +134,7 @@
 | 1.6.8 | Galaxy Station provide liquidity | Provide → Approve | Success | | |
 | 1.6.9 | Galaxy Station withdraw liquidity | Withdraw → Approve | Success | | |
 | 1.6.10 | Galaxy Station session persistence | Connect → Close/reopen browser | Session resumes or reconnects | | |
+| 1.6.11 | Galaxy Station terms hint (#658) | Connect Galaxy Station WC (no injector) while unsigned | Hint names Galaxy Station or the DEX wallet list — **not** Keplr-only; Accept opens Legal portal | | |
 
 ### 1.7 Simulated Wallet (Dev Mode Only)
 
@@ -523,6 +528,7 @@
 | 9.2.4 | Active nav highlight | Navigate to page | Current page nav item highlighted | | |
 | 9.2.5 | Footer content | View footer | "CL8Y DEX · Terra Classic" text | | |
 | 9.2.6 | Header theme toggle (desktop) | View header at ≥768px width | Dark/Light theme toggle in sticky header (not footer) | | |
+| 9.2.7 | Footer official products | View footer on `/` and after Swap → Pool → Trade; 1280px + 375px ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)) | **Homepage** → `https://cl8y.com/` and **Bridge** → `https://bridge.cl8y.com/` in `footer.app-footer-shell` (new tab, `noopener noreferrer`). Not in header/mobile More. Legal NFA / Security / Report still present | | |
 
 ---
 
@@ -561,6 +567,8 @@
 | 10.2.14 | Gold hairline only | View nav + warnings (both themes) | Gold = hairline borders/text only — no dirty brown/gold fills ([#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/488)) | | |
 | 10.2.15 | Open Graph / Twitter card | `curl -sL` `/` `/trade` `/pool` (no JS) | Same absolute `https://dex.cl8y.com/og-image.png` + `summary_large_image`; `/og-image.png` is 1200×630 community medallion ([#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)) | | |
 | 10.2.16 | One chrome layer / no metric-grid nest | View `/`, `/charts`, `/charts/:pair`, `/trader/:addr`, `/protocol`, `/trade`, `/pool`, `/limits` at 375px + 1280px, light + dark | One `shell-panel*` per region. Metric tiles are flat (no `card-glass` chips inside the section). Swap Pay/Receive stay `card-glass`. Trade chart is a single `shell-panel-strong`. Numbers readable; no empty-ring tiles ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) | | |
+| 10.2.17 | Swap direction seam plate | View `/` dark + light at 375px + 1280px; hover and Tab the flip control | Pay/Receive hairline **stops at** the direction button (does not cross the arrows). Hover does not re-open the line. Keyboard shows a focus ring; click does not leave one. Seam remains left/right of the plate ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)) | | |
+| 10.2.17 | Protocol Δ% grouped with headline | View `/protocol` at 390 / 820 / 1280, light + dark | Each Global stats / fees Δ% chip sits with its own `$` (immediately after or wrapped under), not in the gutter under the next column’s label. Census tiles show `14` not `14.00`. No nested `card-glass`. ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)) | | |
 
 ### 10.3 Sound Effects
 
