@@ -9,6 +9,8 @@ export interface StatDelta {
   title?: string
 }
 
+export type StatBoxVariant = 'card' | 'flat'
+
 export interface StatBoxProps {
   label: string
   value: string
@@ -19,8 +21,13 @@ export interface StatBoxProps {
   title?: string
   /** Override value accessible name. Defaults to `title + value` when `title` is set. */
   valueAriaLabel?: string
-  /** Default `'card'` keeps Swap/Trade/Charts callers on `card-glass`. */
-  variant?: 'card' | 'flat'
+  /**
+   * Default `card` keeps `card-glass` for isolated tiles.
+   * Use `flat` inside a `shell-panel*` metric grid (GitLab #653) — no second radius/border/blur.
+   */
+  variant?: StatBoxVariant
+  /** Optional second line under the value (hints, not a second chrome layer). */
+  hint?: string
   /** Single Δ% (volume / fees). Prefer `deltas` for liquidity 24h+30d. */
   delta?: string
   deltaLabel?: string
@@ -53,6 +60,7 @@ export function StatBox({
   title,
   valueAriaLabel,
   variant = 'card',
+  hint,
   delta,
   deltaLabel,
   deltaTestId,
@@ -66,10 +74,10 @@ export function StatBox({
     .join(', ')
   const accessibleValue =
     valueAriaLabel ?? (title ? composeStatAriaLabel(title, deltaPhrase ? `${value} ${deltaPhrase}` : value) : undefined)
-  const shell = variant === 'flat' ? 'stat-box-flat py-1 min-w-0' : 'card-glass !p-3'
+  const chrome = variant === 'flat' ? 'stat-flat stat-box-flat py-1 min-w-0' : 'card-glass !p-3'
 
   return (
-    <div className={shell} data-testid={testId} title={title}>
+    <div className={chrome} data-testid={testId} title={title}>
       <p
         className="text-[10px] uppercase tracking-wider font-medium mb-1"
         style={{ color: 'var(--ink-dim)' }}
@@ -111,6 +119,11 @@ export function StatBox({
           )}
         </div>
       )}
+      {hint ? (
+        <p className="text-[10px] mt-1" style={{ color: 'var(--ink-dim)' }}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   )
 }

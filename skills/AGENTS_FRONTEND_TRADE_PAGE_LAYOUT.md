@@ -40,7 +40,7 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 | Id | Rule |
 |----|------|
 | **L561-1** | Desktop chart is a single `PriceChart` `shell-panel-strong` surface — no wrapping `card-glass`. |
-| **L561-2** | Design-system + this skill: one chrome layer per region. Swap / Pool / Limits / Charts audited. |
+| **L561-2** | Applies global [§ One chrome layer](../docs/frontend.md#one-chrome-layer) (**C653**, [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)) on `/trade`: sibling panels, not a panel-of-panels. |
 | **L561-3** | Desktop Recent trades is an independent bottom-row panel, not inside the chart stack. No chart↔tape splitter. |
 | **L561-4** | No `PanelResizeHandle` (or equivalent drag chrome) in the default `/trade` layout. P10 asserts absence. |
 | **L561-5** | Hide Order book → chart expands (`3.2fr`); remaining ticket stays `1fr`. Restore control stays visible. |
@@ -54,12 +54,13 @@ Use when changing **`TradePage.tsx`** sub-desktop grid, Tailwind breakpoints for
 
 **Hide vs unmount:** desktop book/ticket stay mounted (`hidden` + `inert`). Form fields persist across hide/show. Pair switch still updates `pairAddr` on the mounted ticket (**A9**).
 
-**Chrome audit (#561 L2):** Swap nests `card-glass` IO cards inside a page `shell-panel-strong` (allowed distinct blocks). Pool uses `shell-panel*` without wrapping `PriceChart`. Charts mounts `PriceChart` without extra `card-glass`. Limits extra `card-glass` around `OrderBookPanel` was removed.
+**Chrome audit (#561 L2 / #653):** Swap nests `card-glass` IO cards inside a page `shell-panel-strong` (**allowlisted** interactive exception). Pool uses `shell-panel*` without wrapping `PriceChart`. Charts mounts `PriceChart` without extra `card-glass`; Charts **metric** grids are `StatBox variant="flat"` ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)). Limits extra `card-glass` around `OrderBookPanel` was removed. Playbook: [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md).
 
 Verify: `make verify-issue-561`.
 
 ## Related
 
+- One chrome layer / anti-nesting (global): [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) ([#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653))
 - Anti-cognitive-overload retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489))
 - Hard reload / LCP / workspace skeleton: [GitLab **#179**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179), [`AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md`](./AGENTS_FRONTEND_TRADE_INITIAL_LOAD.md) (desktop skeleton + HTML bootstrap follow this layout).
 - **Chart `getPair` Retry after indexer 404:** [GitLab **#177**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/177), [docs/frontend.md § Trade page — chart pair fetch retry](../docs/frontend.md#trade-page-chart-retry), [`AGENTS_FRONTEND_QUERY_RETRY.md`](./AGENTS_FRONTEND_QUERY_RETRY.md).

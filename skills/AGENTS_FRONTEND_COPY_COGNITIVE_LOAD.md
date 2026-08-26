@@ -29,6 +29,7 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 |-----|------|
 | [`docs/design-system.md`](../docs/design-system.md) § Terminology glossary | Shared retail term definitions |
 | [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) | Token/chrome + copy rules |
+| [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) | Nested cards are visual noise (#653) — metric grids stay flat |
 | [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) | Limit place-card order |
 | [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md) | Buy/Sell {base} on `/trade` + `/limits` |
 | [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) | Onboarding strip + progressive disclosure |

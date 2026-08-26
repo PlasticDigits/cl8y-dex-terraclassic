@@ -78,14 +78,15 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
           )}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatBox label="Total Trades" value={trader.total_trades.toLocaleString()} />
+          <StatBox variant="flat" label="Total Trades" value={trader.total_trades.toLocaleString()} />
           <StatBox
+            variant="flat"
             label="Total Volume (USD)"
             value={formatIndexedVolumeUsd(trader.total_volume_usd, trader.total_trades)}
             data-testid="trader-total-volume-usd"
           />
-          <StatBox label="First Trade" value={formatDateTime(trader.first_trade_at)} />
-          <StatBox label="Last Trade" value={formatDateTime(trader.last_trade_at)} />
+          <StatBox variant="flat" label="First Trade" value={formatDateTime(trader.first_trade_at)} />
+          <StatBox variant="flat" label="Last Trade" value={formatDateTime(trader.last_trade_at)} />
         </div>
         <p className="text-xs mt-2" style={{ color: 'var(--ink-dim)' }}>
           Fees are not summed across pairs — each pair uses a different token.
@@ -111,28 +112,21 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
           .
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="card-glass !p-3" data-testid="trader-summary-realized-pnl">
-            <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
-              Total Realized P&L
-            </p>
-            <p
-              className="text-sm font-bold font-heading"
-              style={{
-                color:
-                  pnlUsd.usd == null || pnlUsd.usd === 0
-                    ? 'var(--ink-subtle)'
-                    : pnlUsd.usd > 0
-                      ? 'var(--color-positive)'
-                      : 'var(--color-negative)',
-              }}
-            >
-              {formatSignedUsd(pnlUsd.usd)}
-            </p>
-            <p className="text-[10px] mt-1" style={{ color: 'var(--ink-dim)' }}>
-              {pnlLabel}
-            </p>
-          </div>
-          <div className="card-glass !p-3" data-testid="trader-summary-best-trade">
+          <StatBox
+            variant="flat"
+            label="Total Realized P&L"
+            value={formatSignedUsd(pnlUsd.usd)}
+            color={
+              pnlUsd.usd == null || pnlUsd.usd === 0
+                ? 'var(--ink-subtle)'
+                : pnlUsd.usd > 0
+                  ? 'var(--color-positive)'
+                  : 'var(--color-negative)'
+            }
+            hint={pnlLabel}
+            data-testid="trader-summary-realized-pnl"
+          />
+          <div className="stat-flat" data-testid="trader-summary-best-trade">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
               Best Trade
             </p>
@@ -141,7 +135,7 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
               Not comparable across pairs
             </p>
           </div>
-          <div className="card-glass !p-3" data-testid="trader-summary-worst-trade">
+          <div className="stat-flat" data-testid="trader-summary-worst-trade">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
               Worst Trade
             </p>
@@ -150,17 +144,13 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
               Not comparable across pairs
             </p>
           </div>
-          <div className="card-glass !p-3" data-testid="trader-summary-fees">
-            <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>
-              Total Fees Paid
-            </p>
-            <p className="text-sm font-bold font-heading" style={{ color: 'var(--ink)' }}>
-              {TRADER_PNL_EM_DASH}
-            </p>
-            <p className="text-[10px] mt-1" style={{ color: 'var(--ink-dim)' }}>
-              Mixed tokens — not summed
-            </p>
-          </div>
+          <StatBox
+            variant="flat"
+            label="Total Fees Paid"
+            value={TRADER_PNL_EM_DASH}
+            hint="Mixed tokens — not summed"
+            data-testid="trader-summary-fees"
+          />
         </div>
       </div>
     </>

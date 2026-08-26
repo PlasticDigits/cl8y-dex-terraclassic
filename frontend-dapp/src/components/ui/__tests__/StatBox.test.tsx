@@ -47,4 +47,34 @@ describe('StatBox', () => {
     )
     expect(screen.getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('$1.2K')
   })
+
+  it('default variant keeps card-glass (GitLab #653)', () => {
+    const { container } = render(<StatBox label="Volume" value="1.5K" />)
+    const root = container.firstElementChild
+    expect(root?.className).toMatch(/card-glass/)
+    expect(root?.className).not.toMatch(/stat-flat/)
+  })
+
+  it('flat variant has no card-glass (GitLab #653)', () => {
+    const { container } = render(<StatBox variant="flat" label="Volume" value="1.5K" />)
+    const root = container.firstElementChild
+    expect(root?.className).toMatch(/stat-flat/)
+    expect(root?.className).not.toMatch(/card-glass/)
+  })
+
+  it('flat keeps title and value aria-label (GitLab #653)', () => {
+    render(
+      <StatBox
+        variant="flat"
+        label="Last 24h Vol (USD)"
+        value="$1.2K"
+        title="Priced swaps in the last 24 hours, not a midnight reset."
+      />
+    )
+    expect(screen.getByText('Last 24h Vol (USD)')).toHaveAttribute(
+      'title',
+      'Priced swaps in the last 24 hours, not a midnight reset.'
+    )
+    expect(screen.getByLabelText(/last 24 hours, not a midnight reset/i)).toHaveTextContent('$1.2K')
+  })
 })

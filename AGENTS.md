@@ -218,6 +218,7 @@ make verify-issue-631                    # #631 DeFiLlama UTC-day API + gem/hybr
 make verify-issue-639                    # #639 listing venue catalog (docs only; no Postgres)
 make verify-issue-640                    # #640 Cosmostation CW20 pack (docs only; no Postgres)
 make verify-issue-641                    # #641 Hexxagon Galaxy Station CW20 pack (docs only; no Postgres)
+make verify-issue-653                    # #653 one chrome layer / anti-nesting (StatBox flat + allowlist)
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
 make verify-issue-577                    # #577 token/trader/pair/global 24h rollup decay + stale overview
@@ -261,6 +262,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 |-------|---------|
 | Contracts | `make test-contracts`, `make lint-contracts` |
 | Frontend | `make test-frontend`, `make lint-frontend` |
+| One chrome layer / anti-nesting | `make verify-issue-653` |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Cosmostation CW20 pack | `make verify-issue-640` |
@@ -293,6 +295,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests; never bind-mount `indexer/` for cargo (`make test-indexer-target-ownership`)
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E
 - [skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md](skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) — QuickSwap-inspired blue + gold tokens/primitives (#488); spec [`docs/design-system.md`](docs/design-system.md)
+- [skills/AGENTS_FRONTEND_CHROME_NESTING.md](skills/AGENTS_FRONTEND_CHROME_NESTING.md) — one chrome layer / anti-nesting: no metric-grid `card-glass` inside `shell-panel*` (**C653-1–C653-8**, [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)); `make verify-issue-653`
 - [skills/AGENTS_FRONTEND_OPENGRAPH.md](skills/AGENTS_FRONTEND_OPENGRAPH.md) — static Open Graph / Twitter cards, community medallion `/og-image.png`, allowlisted absolute URLs (**OG-1–OG-8**, [#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)); `make verify-issue-578`
 - [skills/AGENTS_FRONTEND_THEME_TOGGLE.md](skills/AGENTS_FRONTEND_THEME_TOGGLE.md) — dark/light header toggle + bootstrap FOUC notes (#488)
 - [skills/AGENTS_FRONTEND_SOUND_MUTE.md](skills/AGENTS_FRONTEND_SOUND_MUTE.md) — UI SFX mute toggle + `cl8y-dex-sounds-enabled` persistence (#487)
