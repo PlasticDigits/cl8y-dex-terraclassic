@@ -18,6 +18,7 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
    - Restates universal chain facts under every CTA (“You pay network gas…”, “Burn tax may apply…”) unless that fact is a **live blocking gate** for the current action.
    - Surfaces **dev/ops status** as retail chrome (“Mapper Ready”, contract addresses, “Unavailable” health rows) when pause/config failures are already enforced via CTA disable + short error.
    Page chrome = **title + controls + live status (fee/limit/pause) + CTA**. Put depth in docs/`<details>`, not permanent paragraphs. Bad example that was removed from `/wrap`: subtitle + Swap/UST1 blurb + Mapper Ready + gas/burn-tax footer.
+   **Documented exception (#670 / M670):** configured `/token/migrate` is title + two short why-paragraphs (`Unlock {X} features…` + high-value examples) so a token admin sees the template upside before Load. Still no env / 50 UST1 / cw2 / Minting-as-unlock essay. Unavailable stub stays silent. Playbook: [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md).
 
 ## QuickSwap-aligned Limits IA
 
@@ -51,10 +52,11 @@ Rate (“When 1 {base} is worth”) → % chips → Pay → flip → Receive →
 | [`AGENTS_FRONTEND_TIERS_PHONE.md`](./AGENTS_FRONTEND_TIERS_PHONE.md) | `/tiers` phone cards (**T651-1–T651-8**, [#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)) — keep **Hold {n} CL8Y**; no fee-trivia banner |
 | [`AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md`](./AGENTS_FRONTEND_CREATE_TOKEN_LAYOUT.md) | `/token/create` desktop density (**C669-1–C669-8**, [#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669)) — no “use two columns” banner; lead + **Migrate here** only |
 | [`AGENTS_FRONTEND_TRADER_LEADERBOARD.md`](./AGENTS_FRONTEND_TRADER_LEADERBOARD.md) | `/trader` global **Leaderboard** (**TL-6**, [#657](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/657)) — heading only; no Sybil lecture |
+| [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | `/token/migrate` why-copy exception — two short paragraphs, not a lecture (**M670**, [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)) |
 | [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) | `/protocol` USD stats + one oracle card (**P550-1–P550-12**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550)) — short reference labels; no TWAP vs CEX essays |
 | [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) | Charts/Protocol/Pool **24h volume** is trailing `now − 24h`, not midnight reset (**W1–W5**, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)) |
 | [`AGENTS_COMMUNITY_TAX_ROUTER.md`](./AGENTS_COMMUNITY_TAX_ROUTER.md) | Community tax sell/buy hints on every listed-pair swap (**C593-14**, [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607)) — short hints only, no router-architecture essay |
 
 ## Shared copy modules
 
-Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`), `trailingWindowCopy.ts` (Charts/Protocol/Pool 24h window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)).
+Short leads live in `marketDataServiceCopy.ts`, `indexerTradeOutageCopy.ts`, `lcdConnectivity.ts`, `feeDiscountRegistryWarning.ts`, `blacklist.ts` (`describeTradingBlacklistBlock`), `trailingWindowCopy.ts` (Charts/Protocol/Pool 24h window, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)), `communityTaxMigrateCopy.ts` (`/token/migrate` Unlock {X} + examples, [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)).

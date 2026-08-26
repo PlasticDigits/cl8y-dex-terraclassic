@@ -15,6 +15,8 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [`communityTaxCreateForm.ts`](../frontend-dapp/src/utils/communityTaxCreateForm.ts) | Shared form → hook args (#604 / #605) |
 | [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard (lead links **Migrate here** → `/token/migrate`; launcher 11619 stays CMM-only). Desktop density: [`createTokenLayout.ts`](../frontend-dapp/src/utils/createTokenLayout.ts) / [#669](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/669) |
 | [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | `/token/migrate` adopt (**M626**, #626) |
+| [`CreateTokenPage.tsx`](../frontend-dapp/src/pages/CreateTokenPage.tsx) | Wizard (lead links **Migrate here** → `/token/migrate`; launcher 11619 stays CMM-only) |
+| [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | `/token/migrate` adopt (**M626**, #626) + why-copy (**M670**, [#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670)) |
 | [`ManageTokenPage.tsx`](../frontend-dapp/src/pages/ManageTokenPage.tsx) | Manager console |
 | [`communityTaxInvoice.ts`](../frontend-dapp/src/utils/communityTaxInvoice.ts) | Hooks + invoices |
 | [`AGENTS_FRONTEND_PAY_INVOICE.md`](./AGENTS_FRONTEND_PAY_INVOICE.md) | Shared Pay card |
