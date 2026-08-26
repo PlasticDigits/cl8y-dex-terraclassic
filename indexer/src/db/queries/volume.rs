@@ -2,6 +2,9 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
 
+use crate::indexer::pair_price_usd::fits_numeric_38_18;
+use crate::indexer::protocol_fees::flow_change_pct;
+
 /// Operator-visible freshness bound for `global_stats_24h.updated_at` (GitLab #577 **D6**).
 /// Aggregator period is ~5 min; three missed cycles trip a tracing warning. `/overview` still
 /// serves the last rollup — never a live 30d `swap_events` scan on GET (#281 / #333 **V5**).
@@ -56,6 +59,10 @@ pub struct GlobalStats {
     pub fee_event_count_24h: i64,
     pub fee_event_count_7d: i64,
     pub fee_event_count_30d: i64,
+    /// Flow Δ% vs prior equal window (GitLab #652). Same `flow_change_pct` as fees.
+    pub volume_change_24h_pct: Option<BigDecimal>,
+    pub volume_change_7d_pct: Option<BigDecimal>,
+    pub volume_change_30d_pct: Option<BigDecimal>,
 }
 
 /// Rebuild token rolling windows from offer-side `swap_events`, then zero idle rows.
@@ -200,10 +207,143 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // Prior-window Δ% is UPDATE-only so a volume INSERT cannot invent Infinity.
+    // GET still reads the rollup row — never 60d SUM on the request path (#652).
+    refresh_volume_change_pct(pool).await?;
+
     // Liquidity columns are a separate upsert so a 24h-only volume INSERT cannot
     // leave TVL / Δ% stale (#569 H7 / A20). GET still reads the rollup row only.
     crate::indexer::protocol_tvl::refresh_protocol_liquidity(pool).await?;
     Ok(())
+}
+
+fn window_volume_usd(count: i64, priced_sum: Option<BigDecimal>) -> Option<BigDecimal> {
+    if count <= 0 {
+        return Some(BigDecimal::from(0));
+    }
+    match priced_sum {
+        Some(v) if v > BigDecimal::from(0) => Some(v),
+        _ => None,
+    }
+}
+
+fn clamp_volume_usd(v: Option<BigDecimal>) -> Option<BigDecimal> {
+    let v = v?;
+    if v <= BigDecimal::from(0) || !fits_numeric_38_18(&v) {
+        None
+    } else {
+        Some(v)
+    }
+}
+
+/// Persist `volume_change_*_pct` via `flow_change_pct` (same math as fees).
+/// Current idle (`trades=0`) + positive prior → −100. Activity + unpriced → `None`.
+async fn refresh_volume_change_pct(pool: &PgPool) -> Result<(), sqlx::Error> {
+    let now = Utc::now();
+    let c24 = now - chrono::Duration::hours(24);
+    let c48 = now - chrono::Duration::hours(48);
+    let c7 = now - chrono::Duration::days(7);
+    let c14 = now - chrono::Duration::days(14);
+    let c30 = now - chrono::Duration::days(30);
+    let c60 = now - chrono::Duration::days(60);
+
+    #[derive(FromRow)]
+    struct Agg {
+        n24: i64,
+        usd24: Option<BigDecimal>,
+        n7: i64,
+        usd7: Option<BigDecimal>,
+        n30: i64,
+        usd30: Option<BigDecimal>,
+        n24_prior: i64,
+        usd24_prior: Option<BigDecimal>,
+        n7_prior: i64,
+        usd7_prior: Option<BigDecimal>,
+        n30_prior: i64,
+        usd30_prior: Option<BigDecimal>,
+    }
+
+    let agg = sqlx::query_as::<_, Agg>(
+        r#"SELECT
+            COUNT(*) FILTER (WHERE block_timestamp >= $1) AS n24,
+            SUM(volume_usd) FILTER (WHERE block_timestamp >= $1 AND volume_usd IS NOT NULL AND volume_usd > 0) AS usd24,
+            COUNT(*) FILTER (WHERE block_timestamp >= $2) AS n7,
+            SUM(volume_usd) FILTER (WHERE block_timestamp >= $2 AND volume_usd IS NOT NULL AND volume_usd > 0) AS usd7,
+            COUNT(*) FILTER (WHERE block_timestamp >= $3) AS n30,
+            SUM(volume_usd) FILTER (WHERE block_timestamp >= $3 AND volume_usd IS NOT NULL AND volume_usd > 0) AS usd30,
+            COUNT(*) FILTER (WHERE block_timestamp >= $4 AND block_timestamp < $1) AS n24_prior,
+            SUM(volume_usd) FILTER (WHERE block_timestamp >= $4 AND block_timestamp < $1 AND volume_usd IS NOT NULL AND volume_usd > 0) AS usd24_prior,
+            COUNT(*) FILTER (WHERE block_timestamp >= $5 AND block_timestamp < $2) AS n7_prior,
+            SUM(volume_usd) FILTER (WHERE block_timestamp >= $5 AND block_timestamp < $2 AND volume_usd IS NOT NULL AND volume_usd > 0) AS usd7_prior,
+            COUNT(*) FILTER (WHERE block_timestamp >= $6 AND block_timestamp < $3) AS n30_prior,
+            SUM(volume_usd) FILTER (WHERE block_timestamp >= $6 AND block_timestamp < $3 AND volume_usd IS NOT NULL AND volume_usd > 0) AS usd30_prior
+         FROM swap_events
+         WHERE block_timestamp >= $6"#,
+    )
+    .bind(c24)
+    .bind(c7)
+    .bind(c30)
+    .bind(c48)
+    .bind(c14)
+    .bind(c60)
+    .fetch_one(pool)
+    .await?;
+
+    let usd24 = window_volume_usd(agg.n24, clamp_volume_usd(agg.usd24));
+    let usd7 = window_volume_usd(agg.n7, clamp_volume_usd(agg.usd7));
+    let usd30 = window_volume_usd(agg.n30, clamp_volume_usd(agg.usd30));
+    let prior24 = if agg.n24_prior <= 0 {
+        None
+    } else {
+        clamp_volume_usd(agg.usd24_prior)
+    };
+    let prior7 = if agg.n7_prior <= 0 {
+        None
+    } else {
+        clamp_volume_usd(agg.usd7_prior)
+    };
+    let prior30 = if agg.n30_prior <= 0 {
+        None
+    } else {
+        clamp_volume_usd(agg.usd30_prior)
+    };
+
+    let chg24 = flow_change_pct(usd24.as_ref(), prior24.as_ref());
+    let chg7 = flow_change_pct(usd7.as_ref(), prior7.as_ref());
+    let chg30 = flow_change_pct(usd30.as_ref(), prior30.as_ref());
+
+    sqlx::query(
+        r#"UPDATE global_stats_24h SET
+               volume_change_24h_pct = $1,
+               volume_change_7d_pct = $2,
+               volume_change_30d_pct = $3
+           WHERE id = 1"#,
+    )
+    .bind(chg24.as_ref())
+    .bind(chg7.as_ref())
+    .bind(chg30.as_ref())
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, Default, FromRow)]
+struct VolumeChangeRow {
+    volume_change_24h_pct: Option<BigDecimal>,
+    volume_change_7d_pct: Option<BigDecimal>,
+    volume_change_30d_pct: Option<BigDecimal>,
+}
+
+/// O(1) rollup read — used by GET live mode so priors are never 60d-SUM'd on request.
+async fn get_volume_change_rollup(pool: &PgPool) -> Result<VolumeChangeRow, sqlx::Error> {
+    let row = sqlx::query_as::<_, VolumeChangeRow>(
+        "SELECT volume_change_24h_pct, volume_change_7d_pct, volume_change_30d_pct
+         FROM global_stats_24h WHERE id = 1",
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.unwrap_or_default())
 }
 
 /// Refresh protocol fee scalars + breakdown after volume/TVL (GitLab #586).
@@ -359,6 +499,7 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
 
     let liq = super::liquidity_snapshots::get_liquidity_rollup(pool).await?;
     let fees = super::protocol_fees::get_fee_rollup(pool).await?;
+    let vol_chg = get_volume_change_rollup(pool).await?;
     Ok(GlobalStats {
         total_volume_24h: agg.total_volume.unwrap_or_default(),
         total_volume_24h_usd: agg.total_volume_usd.unwrap_or_default(),
@@ -386,6 +527,9 @@ pub async fn get_global_stats_live(pool: &PgPool) -> Result<GlobalStats, sqlx::E
         fee_event_count_24h: fees.fee_event_count_24h,
         fee_event_count_7d: fees.fee_event_count_7d,
         fee_event_count_30d: fees.fee_event_count_30d,
+        volume_change_24h_pct: vol_chg.volume_change_24h_pct,
+        volume_change_7d_pct: vol_chg.volume_change_7d_pct,
+        volume_change_30d_pct: vol_chg.volume_change_30d_pct,
     })
 }
 
@@ -421,6 +565,9 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         fee_event_count_24h: i64,
         fee_event_count_7d: i64,
         fee_event_count_30d: i64,
+        volume_change_24h_pct: Option<BigDecimal>,
+        volume_change_7d_pct: Option<BigDecimal>,
+        volume_change_30d_pct: Option<BigDecimal>,
         updated_at: DateTime<Utc>,
     }
 
@@ -435,6 +582,7 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
                 total_fees_24h_usd, total_fees_7d_usd, total_fees_30d_usd,
                 fees_change_24h_pct, fees_change_7d_pct, fees_change_30d_pct,
                 fee_event_count_24h, fee_event_count_7d, fee_event_count_30d,
+                volume_change_24h_pct, volume_change_7d_pct, volume_change_30d_pct,
                 updated_at
          FROM global_stats_24h WHERE id = 1",
     )
@@ -499,6 +647,9 @@ pub async fn get_global_stats(pool: &PgPool) -> Result<GlobalStats, sqlx::Error>
         fee_event_count_24h: rollup.fee_event_count_24h,
         fee_event_count_7d: rollup.fee_event_count_7d,
         fee_event_count_30d: rollup.fee_event_count_30d,
+        volume_change_24h_pct: rollup.volume_change_24h_pct,
+        volume_change_7d_pct: rollup.volume_change_7d_pct,
+        volume_change_30d_pct: rollup.volume_change_30d_pct,
     })
 }
 

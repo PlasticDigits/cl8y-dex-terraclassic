@@ -542,6 +542,11 @@
     backdrop-filter: blur(14px);
   }
 
+  /* GitLab #652 — Protocol metric cells inside shell-panel (no nested card-glass). */
+  .stat-box-flat {
+    min-width: 0;
+  }
+
   /**
    * Metric tile inside a page `shell-panel*` (GitLab #653).
    * Typography + optional Δ%/hint only — no second radius, border, or blur.

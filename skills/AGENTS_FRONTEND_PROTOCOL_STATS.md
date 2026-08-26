@@ -2,7 +2,7 @@
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -32,13 +32,13 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 
 | ID | Rule |
 |----|------|
-| **P569-1** | **Total liquidity** is humanized AMM pool TVL (`total_liquidity_usd` from `pair_reserves`). Not volume, not CG `liquidity_in_usd`, not raw reserves, not book escrow / parked dust. Testids: `protocol-stat-liquidity`, `protocol-stat-liquidity-24h`, `protocol-stat-liquidity-30d`. |
+| **P569-1** | **Total liquidity** is humanized AMM pool TVL (`total_liquidity_usd` from `pair_reserves`). Not volume, not CG `liquidity_in_usd`, not raw reserves, not book escrow / parked dust. One cell: USD + inline 24h/30d snapshot Δ%. Child testids `protocol-stat-liquidity-24h` / `protocol-stat-liquidity-30d` live on the Δ% nodes ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **P569-2** | 24h/30d Δ% come from indexer snapshots (`liquidity_change_*_pct`). Missing / `null` / non-finite → em-dash (`formatProtocolPct`). Never `0%` / `Infinity` / client `now/then` without a zero guard. |
 | **P569-3** | GET `/overview` stays O(1) rollup. Compute TVL on the aggregator / hub refresh, not on the request path. Snapshot insert is periodic; prune ≥ 35 days. |
 | **P569-4** | Same USD catalog as volume: USTC/cUSTC/`uusd` → USTC oracle; LUNC/cLUNC/`uluna` → LUNC; UST1/USTR → `hub_prices`. Never `$1` UST1 or `2.5×` USTR. Oracle/hub down → omit that handle. |
 | **P569-5** | Both legs priced → `h0×usd0 + h1×usd1`. Exactly one catalogued → `2×` that leg (CPAMM). Neither → omit. Omitted ≠ `$0`. Identity is contract/denom (A1); spoof natives skipped. |
 | **P569-6** | Humanize decimals (`humanize_raw_amount` + `fits_numeric_38_18`). Overflow / non-positive → skip the pair. Double-count across pools is correct. |
-| **P569-7** | Boxes live **inside** `protocol-global-stats`. Keep volume boxes. Do not headline `unique_traders_24h`. Charts overview strip stays additive-compatible. |
+| **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Optional UTC-day bar chart (`protocol-volume-daily-chart`) sits under the volume row. Do not headline `unique_traders_24h`. Charts overview strip stays additive-compatible. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **P569-8** | Cold start / `--fresh` / indexer younger than 24h/30d → Δ% empty until windows fill. Copy must not claim on-chain 30d genesis TVL. Flash LP inside one snapshot interval may move current TVL; Δ% uses snapshots. |
 
 ## Do / don’t
@@ -53,13 +53,16 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 - **Don’t** clone Protocol audit rows onto Swap confirmation.
 - **Don't** title the CEX snapshot **vFDUSD / USD** (tab heading is **vFDUSD**; CEX box is **FDUSD reference price** — [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)).
 - **Don't** backfill 30d Δ% from zeros or `liquidity_events` after `--fresh`.
+- **Don't** treat volume Δ% as liquidity snapshot % or title it “liquidity.”
+- **Don't** call `GET /defillama/daily` from `/protocol` or add Llama `from`/`to`.
+- **Don't** nest `card-glass` inside `protocol-global-stats` / `protocol-fee-stats` metric grids.
 
 ## Invariants (PFee — GitLab #586)
 
 | ID | Rule |
 |----|------|
 | **PFee-1** | Fee panel `protocol-fee-stats` sits **after** Global stats and **before** DEX hub. Do not merge factory/router into fees. Do not headline `traders.total_fees_paid` (lifetime mixed-unit, includes spread). |
-| **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD + flow Δ% vs the prior equal window. Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. |
+| **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD with **inline** flow Δ% vs the prior equal window (same cell; `protocol-stat-fees-*-chg` is a child, not a sibling card). Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. Flat `StatBox` inside `protocol-fee-stats` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **PFee-3** | Source table uses retail labels (wrap / unwrap / **UST1 mint** / **UST1 redeem** / AMM swap / book take / limit place), not wasm action strings (`deposit` / `withdraw` / `effective_swap`). Unconfigured wrap mapper **omits** wrap/unwrap. Unconfigured `UST1_WINDOW_ADDRESS` (or missing `ust1_window_configured`) **omits** mint/redeem — not fake idle `$0`. Hide idle `$0` sources. |
 | **PFee-4** | Token table is human units + USD, cap 8 + `other`. Unpriced token shows human + USD `—`. XSS/`javascript:` symbols render as **text**. |
 | **PFee-5** | Hybrid fee = pool `commission_amount` (`swap_amm`) + `limit_order_fills.commission_amount` (`book_take`) — **not both** fill commission and swap `book_commission_amount`. Placement `maker_fee_amount` is `limit_place`. |
@@ -72,13 +75,26 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **PFee-12** | Verify: `make verify-issue-586`. Wrap ingest attrs: `make verify-issue-613`. Related: `make verify-issue-550` `569` `576` `577`. Post-merge stack: `make verify-issue-590` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). Window mint/redeem: `make verify-issue-614`. |
 | **PFee-13** | UST1 window mint/redeem only from pinned `UST1_WINDOW_ADDRESS` (same terra1 pin rules as wrap; do **not** reuse `WRAP_MAPPER_ADDRESS`). Actions `deposit` → `ust1_mint`, `withdraw` → `ust1_redeem`. Require explicit `fee_amount` + token (`fee_asset` / `fee_denom` / `denom` / `ust1_token`). **Never** infer `ust1_out × fee_total_bps` / `vfdusd_to_treasury × fee_cmm_protocol_bps`. Columbus-5 **11566** crate attrs (`fee_*_bps` / `ust1_out` / `vfdusd_to_treasury`) are **not** a fee amount (fail closed). Same address **11618** ([ust1-window#33](https://gitlab.com/PlasticDigits/ust1-window/-/issues/33)) emits `fee_amount` + `fee_asset` (UST1). Flattened CW20 `send` + hook scopes by reserved `_contract_address` (#285). Price with hub UST1 (**PFee-7**); never vFDUSD/FDUSD / `$1` UST1. `window=` query param stays `24h`\|`7d`\|`30d` (not “ust1-window”). Coolify pin is the **indexer** `UST1_WINDOW_ADDRESS`, not only Vite `VITE_UST1_WINDOW_ADDRESS`. Playbook: [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614-1–I614-8**). |
 
-Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). Do not add a lecture to the Global stats lead.
+## Invariants (P652 — GitLab #652)
+
+| ID | Rule |
+|----|------|
+| **P652-1** | Volume Δ% is **flow** (`flow_change_pct` vs prior equal window `[2W, W)`). Not TVL snapshots. `prior ≤ 0` / unpriced activity / overflow → JSON `null` / UI em-dash. Never Inf. Additive `volume_change_{24h,7d,30d}_pct` on `GET /overview`. |
+| **P652-2** | GET `/overview` stays 60s cache + O(1) rollup. Volume priors are aggregator-only. `OVERVIEW_GLOBAL_STATS_LIVE=1` still must not 60d-SUM volume priors from `swap_events`. |
+| **P652-3** | `GET /api/v1/protocol/volume/daily?days=` allowlist `7` \| `30` else **400**. 60s cache keyed by allowlisted `days`. Reads `protocol_daily_volume` only (prune ≥ 35d). Do **not** N+1 Llama `GET /defillama/daily`. Do **not** add `from`/`to` to Llama. |
+| **P652-4** | Daily methodology = Protocol catalog (same as overview volume). Includes gems / wrap / window swaps. Idle day → `"0"`; activity + unpriced → `null`. Missing rollup row → idle `"0"`. Cap 30 points. Newest-last. |
+| **P652-5** | Chart is bars inside `protocol-global-stats` (`protocol-volume-daily-chart`). Default 7d; 30d toggle. Hide on 404/501. Do not mount `PriceChart`. Copy says **UTC calendar day**. No unique-trader headline. |
+| **P652-6** | Census tiles stay value-only. Old indexer (missing keys / daily route) → tiles still render; Δ% em-dash; chart hidden. |
+| **P652-7** | Verify: `make verify-issue-652`. Keep `verify-issue-550` / `569` / `586` / `576` / `577` / `631` green. Companion chrome pass: [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653). |
+
+Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). The daily chart is a **separate** UTC calendar-day series — do not add a lecture to the Global stats lead.
 
 ## Regression
 
 ```bash
 make verify-issue-613
 make verify-issue-614
+make verify-issue-652
 make verify-issue-586
 make verify-issue-569
 make verify-issue-550

@@ -43,3 +43,11 @@ export function formatProtocolPct(raw: string | number | null | undefined): stri
   const compact = formatNum(n, 4)
   return n > 0 ? `+${compact}%` : `${compact}%`
 }
+
+/** Semantic tone for an already-formatted Δ% (`formatProtocolPct`). Gold is never a fill. */
+export function protocolPctToneFromDisplay(display: string): string {
+  if (display === EM_DASH || display === '0%') return 'var(--ink-dim)'
+  if (display.startsWith('+')) return 'var(--color-positive)'
+  if (display.startsWith('-')) return 'var(--color-negative)'
+  return 'var(--ink-dim)'
+}

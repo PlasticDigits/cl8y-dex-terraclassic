@@ -22,6 +22,15 @@ describe('StatBox', () => {
     expect(valueEl).toHaveStyle({ color: 'var(--color-positive)' })
   })
 
+  it('flat variant omits card-glass and renders inline Δ% (GitLab #652)', () => {
+    const { container } = render(
+      <StatBox variant="flat" label="Last 24h vol" value="$1.2K" delta="+50%" deltaLabel="24h" deltaTestId="vol-chg" />
+    )
+    expect(container.querySelector('.card-glass')).toBeNull()
+    expect(screen.getByTestId('vol-chg')).toHaveTextContent('+50%')
+    expect(screen.getByTestId('vol-chg')).toHaveTextContent('24h')
+  })
+
   it('puts title on the card and label and aria-label on the value (GitLab #576)', () => {
     render(
       <StatBox

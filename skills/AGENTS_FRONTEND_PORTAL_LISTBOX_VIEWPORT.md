@@ -54,3 +54,4 @@ Manual (required — Playwright cannot drive Keplr chrome): Android Keplr in-app
 - Token search: [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) ([#481](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/481))
 - Keyboard APG: [`AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md) ([#244](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244))
 - In-app connect path: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M7**)
+- `/tiers` phone cards: [`AGENTS_FRONTEND_TIERS_PHONE.md`](./AGENTS_FRONTEND_TIERS_PHONE.md) ([#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)) — not a `visualViewport` picker issue

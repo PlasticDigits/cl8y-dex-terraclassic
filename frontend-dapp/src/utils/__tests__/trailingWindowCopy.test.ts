@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   CHARTS_PAIR_SORT_VOLUME_LABEL,
   composeStatAriaLabel,
+  PROTOCOL_VOLUME_DAILY_LABEL,
+  PROTOCOL_VOLUME_DAILY_TITLE,
   POOL_VOL_HEADER_TITLE,
   TRAILING_24H_TRADES_TITLE,
   TRAILING_24H_VOLUME_TITLE,
@@ -34,6 +36,12 @@ describe('trailingWindowCopy (GitLab #576)', () => {
 
   it('sort option stays a trailing 24h label without changing the sort key', () => {
     expect(CHARTS_PAIR_SORT_VOLUME_LABEL).toMatch(/last 24h volume/i)
+  })
+
+  it('UTC daily chart copy is not a trailing-window lecture (GitLab #652)', () => {
+    expect(trailingWindowLabelWordCount(PROTOCOL_VOLUME_DAILY_LABEL)).toBeLessThanOrEqual(5)
+    expect(PROTOCOL_VOLUME_DAILY_TITLE).toMatch(/UTC calendar-day/i)
+    expect(PROTOCOL_VOLUME_DAILY_TITLE).not.toMatch(/https?:|VITE_|guaranteed|settlement/i)
   })
 
   it('composeStatAriaLabel includes the window and the displayed value', () => {

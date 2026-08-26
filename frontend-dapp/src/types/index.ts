@@ -432,6 +432,23 @@ export interface IndexerOverview {
   fees_change_24h_pct?: string | number | null
   fees_change_7d_pct?: string | number | null
   fees_change_30d_pct?: string | number | null
+  /** Flow Δ% vs prior equal window (GitLab #652). Additive; missing → em-dash. */
+  volume_change_24h_pct?: string | number | null
+  volume_change_7d_pct?: string | number | null
+  volume_change_30d_pct?: string | number | null
+}
+
+export interface ProtocolVolumeDailyPoint {
+  utc_day: string
+  volume_usd: string | null
+  trade_count: number
+}
+
+export interface ProtocolVolumeDailyResponse {
+  days: number
+  timezone: string
+  methodology: string
+  series: ProtocolVolumeDailyPoint[]
 }
 
 /** Allowlisted fee source keys from `GET /api/v1/protocol/fees` (GitLab #586 / #614). */

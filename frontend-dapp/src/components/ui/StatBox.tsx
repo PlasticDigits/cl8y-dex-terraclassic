@@ -1,4 +1,13 @@
 import { Skeleton } from './Skeleton'
+import { protocolPctToneFromDisplay } from '@/utils/formatProtocolStats'
+import { composeStatAriaLabel } from '@/utils/trailingWindowCopy'
+
+export interface StatDelta {
+  value: string
+  label: string
+  testId?: string
+  title?: string
+}
 
 export type StatBoxVariant = 'card' | 'flat'
 
@@ -19,6 +28,27 @@ export interface StatBoxProps {
   variant?: StatBoxVariant
   /** Optional second line under the value (hints, not a second chrome layer). */
   hint?: string
+  /** Single Δ% (volume / fees). Prefer `deltas` for liquidity 24h+30d. */
+  delta?: string
+  deltaLabel?: string
+  deltaTestId?: string
+  deltaTitle?: string
+  deltas?: StatDelta[]
+}
+
+function resolvedDeltas(props: StatBoxProps): StatDelta[] {
+  if (props.deltas?.length) return props.deltas
+  if (props.delta != null) {
+    return [
+      {
+        value: props.delta,
+        label: props.deltaLabel ?? '',
+        testId: props.deltaTestId,
+        title: props.deltaTitle,
+      },
+    ]
+  }
+  return []
 }
 
 export function StatBox({
@@ -31,9 +61,21 @@ export function StatBox({
   valueAriaLabel,
   variant = 'card',
   hint,
+  delta,
+  deltaLabel,
+  deltaTestId,
+  deltaTitle,
+  deltas,
 }: StatBoxProps) {
-  const accessibleValue = valueAriaLabel ?? (title ? `${title} ${value}` : undefined)
-  const chrome = variant === 'flat' ? 'stat-flat' : 'card-glass !p-3'
+  const items = resolvedDeltas({ delta, deltaLabel, deltaTestId, deltaTitle, deltas })
+  const deltaPhrase = items
+    .map((d) => [d.value, d.label].filter(Boolean).join(' '))
+    .filter(Boolean)
+    .join(', ')
+  const accessibleValue =
+    valueAriaLabel ?? (title ? composeStatAriaLabel(title, deltaPhrase ? `${value} ${deltaPhrase}` : value) : undefined)
+  const chrome = variant === 'flat' ? 'stat-flat stat-box-flat py-1 min-w-0' : 'card-glass !p-3'
+
   return (
     <div className={chrome} data-testid={testId} title={title}>
       <p
@@ -46,13 +88,36 @@ export function StatBox({
       {loading ? (
         <Skeleton height="1.25rem" width="60%" />
       ) : (
-        <p
-          className="text-sm font-bold font-heading"
-          style={{ color: color ?? 'var(--ink)' }}
-          aria-label={accessibleValue}
-        >
-          {value}
-        </p>
+        <div className="flex items-baseline justify-between gap-2 min-w-0 flex-wrap">
+          <p
+            className="text-sm font-bold font-heading min-w-0"
+            style={{ color: color ?? 'var(--ink)' }}
+            aria-label={accessibleValue}
+          >
+            {value}
+          </p>
+          {items.length > 0 && (
+            <div className="flex items-baseline gap-2 shrink-0">
+              {items.map((d) => (
+                <span
+                  key={`${d.testId ?? d.label}-${d.value}`}
+                  data-testid={d.testId}
+                  className="text-xs font-semibold tabular-nums whitespace-nowrap"
+                  style={{ color: protocolPctToneFromDisplay(d.value) }}
+                  title={d.title}
+                  aria-label={d.title ? composeStatAriaLabel(d.title, `${d.value} ${d.label}`.trim()) : undefined}
+                >
+                  {d.value}
+                  {d.label ? (
+                    <span className="ml-0.5 font-medium" style={{ color: 'var(--ink-dim)' }}>
+                      {d.label}
+                    </span>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       {hint ? (
         <p className="text-[10px] mt-1" style={{ color: 'var(--ink-dim)' }}>

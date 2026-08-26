@@ -48,7 +48,13 @@ Refresh lives in [`protocol_tvl.rs`](../../indexer/src/indexer/protocol_tvl.rs) 
 
 Flash LP that is added and withdrawn inside one snapshot interval can move **current** TVL; Δ% uses snapshots, not mempool. v1 does not add an extra anti-flash filter.
 
-`OVERVIEW_GLOBAL_STATS_LIVE=1` still live-aggregates **volume** over `swap_events`. Liquidity **and fee** columns stay O(1) from the rollup (live mode must not walk 30d snapshots or `SUM` `protocol_fee_events` either).
+`OVERVIEW_GLOBAL_STATS_LIVE=1` still live-aggregates **volume totals** over `swap_events`. Liquidity, fee, and **volume Δ%** columns stay O(1) from the rollup (live mode must not walk 30d snapshots, `SUM` `protocol_fee_events`, or 60d-SUM volume priors).
+
+### Protocol volume Δ% + UTC-day series (GitLab #652)
+
+`volume_change_{24h,7d,30d}_pct` is **UPDATE-only** on the existing `global_stats_24h` id=1 row after the volume INSERT (`refresh_volume_change_pct` in [`volume.rs`](../../indexer/src/db/queries/volume.rs)). Same `flow_change_pct` as fees vs prior equal windows (`[48h,24h)`, `[14d,7d)`, `[60d,30d)`). Idle current + positive prior → `−100`. Activity + all unpriced → `NULL` (not a fake `$0` then `−100%`). Overflow / `prior ≤ 0` → `NULL`. Never Infinity.
+
+`GET /api/v1/protocol/volume/daily?days=` allowlists `7` \| `30` (else **400**). 60s cache keyed by allowlisted `days` only. Reads `protocol_daily_volume` — **not** `defillama_daily_stats` (Protocol catalog includes gems / wrap / window swaps). Idle day `"0"`; activity+unpriced `null`; missing row treated as idle `"0"`; prune ≥ 35 days. Do not N+1 Llama `GET /defillama/daily` and do not add `from`/`to` to Llama.
 
 ### Protocol fees (GitLab #586)
 
