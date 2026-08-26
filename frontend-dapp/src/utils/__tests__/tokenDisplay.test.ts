@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   shortenAddress,
+  shortenTraderAddress,
+  TRADER_ADDR_END_CHARS,
+  TRADER_ADDR_START_CHARS,
   getTokenDisplaySymbol,
   isAddressLike,
   getAddressForBlockie,
@@ -30,6 +33,31 @@ describe('shortenAddress', () => {
   it('handles address exactly at threshold', () => {
     const addr = 'terra1abcdef1234'
     expect(shortenAddress(addr, 6, 4)).toBe('terra1…1234')
+  })
+
+  it('keeps 8/6 defaults (not trader 4/6)', () => {
+    const addr = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+    expect(shortenAddress(addr)).toBe('terra16w…vhpax3')
+    expect(shortenAddress(addr)).not.toBe(shortenTraderAddress(addr))
+  })
+})
+
+describe('shortenTraderAddress (GitLab #656)', () => {
+  const addr = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+
+  it('uses 4/6 (terr… + last 6)', () => {
+    expect(TRADER_ADDR_START_CHARS).toBe(4)
+    expect(TRADER_ADDR_END_CHARS).toBe(6)
+    expect(shortenTraderAddress(addr)).toBe('terr…vhpax3')
+    expect(shortenTraderAddress(addr)).toBe(shortenAddress(addr, 4, 6))
+    expect(shortenTraderAddress(addr)).not.toBe(shortenAddress(addr, 10, 6))
+    expect(shortenTraderAddress(addr)).not.toBe(addr)
+  })
+
+  it('returns short strings unchanged and empty without throwing', () => {
+    expect(shortenTraderAddress('')).toBe('')
+    expect(shortenTraderAddress('terr')).toBe('terr')
+    expect(shortenTraderAddress('terra1ab')).toBe('terra1ab')
   })
 })
 

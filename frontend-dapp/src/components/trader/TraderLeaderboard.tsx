@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { getLeaderboard } from '@/services/indexer/client'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { PnlValue } from '@/components/trader/PnlValue'
+import { TraderIdentity } from '@/components/trader/TraderIdentity'
 import { sounds } from '@/lib/sounds'
 import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
-import { shortenAddress } from '@/utils/tokenDisplay'
 import {
   DEFAULT_LEADERBOARD_SORT,
   LEADERBOARD_TABS,
@@ -121,14 +120,12 @@ export function TraderLeaderboard({ highlightAddress }: TraderLeaderboardProps) 
                       {i + 1}
                     </td>
                     <td className="py-1.5 px-2">
-                      <Link
-                        to={`/trader/${encodeURIComponent(trader.address)}`}
-                        className="hover:underline"
-                        style={{ color: 'var(--mint)' }}
+                      <TraderIdentity
+                        address={trader.address}
+                        linkToProfile
                         onClick={() => sounds.playButtonPress()}
-                      >
-                        {shortenAddress(trader.address, 10, 6)}
-                      </Link>
+                        data-testid="charts-leaderboard-trader"
+                      />
                     </td>
                     <td
                       className="py-1.5 px-2 text-right font-medium"

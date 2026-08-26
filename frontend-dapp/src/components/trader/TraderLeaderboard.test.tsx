@@ -8,6 +8,13 @@ import { filterLeaderboardRows } from './traderLeaderboard'
 import * as indexerClient from '@/services/indexer/client'
 import type { IndexerTrader } from '@/types'
 
+vi.mock('react-blockies', () => ({
+  __esModule: true,
+  default: function MockBlockies({ seed }: { seed: string }) {
+    return <span data-testid="mock-blockies" data-seed={seed} />
+  },
+}))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: {
     playButtonPress: vi.fn(),
@@ -167,7 +174,9 @@ describe('TraderLeaderboard', () => {
     const link = within(table).getByRole('link')
     expect(link).toHaveAttribute('href', `/trader/${ADDR}`)
     expect(link.getAttribute('href')).not.toMatch(/javascript:/)
-    expect(link.textContent).toMatch(/terra1/)
+    expect(link).toHaveAttribute('data-testid', 'charts-leaderboard-trader')
+    expect(link.textContent).not.toBe(ADDR)
+    expect(link.textContent).toMatch(/terr…/)
   })
 
   it('highlights the current address row when it is in the top 20 (TL-9)', async () => {

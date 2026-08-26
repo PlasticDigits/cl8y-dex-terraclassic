@@ -89,6 +89,17 @@ export function shortenAddress(addr: string, startChars = 8, endChars = 6): stri
   return `${addr.slice(0, startChars)}…${addr.slice(-endChars)}`
 }
 
+/** Visible trader chip prefix (GitLab #656). Do not change `shortenAddress` defaults. */
+export const TRADER_ADDR_START_CHARS = 4
+/** Visible trader chip suffix (GitLab #656). */
+export const TRADER_ADDR_END_CHARS = 6
+
+/** 4/6 bech32 chip for trader-as-person surfaces. Defaults stay 8/6 for contracts. */
+export function shortenTraderAddress(addr: string): string {
+  if (!addr) return addr
+  return shortenAddress(addr, TRADER_ADDR_START_CHARS, TRADER_ADDR_END_CHARS)
+}
+
 export function isAddressLike(s: string): boolean {
   return (s.startsWith('terra1') && s.length >= 44) || (s.startsWith('0x') && s.length >= 42)
 }

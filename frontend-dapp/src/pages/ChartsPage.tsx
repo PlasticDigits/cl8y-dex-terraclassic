@@ -660,7 +660,7 @@ export default function ChartsPage() {
         )}
       </div>
 
-      {/* Global DEX leaderboard — same component as /trader (#657). Pair-scoped Charts ranks are #666. */}
+      {/* Global DEX leaderboard — same component as /trader (#657). Pair-scoped Charts ranks are #666. Trader 4/6 + blockie is #656. */}
       <TraderLeaderboard />
     </div>
   )
