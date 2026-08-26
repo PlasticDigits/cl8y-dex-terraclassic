@@ -102,6 +102,7 @@ Manual soft-launch: connect unsigned wallet → portal Terra Classic sign → re
 
 - Risk / NFA first-visit: [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md)
 - Official CL8Y product links (footer Homepage / Bridge): [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663))
+- Connect Wallet dismiss without connecting must not skip this gate ([#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672) **D8**): [`AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md`](./AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md)
 - Trust / CSP: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Soft-launch: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)
 - WalletConnect same-device mobile pairing / Legal hint: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M12**, [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
