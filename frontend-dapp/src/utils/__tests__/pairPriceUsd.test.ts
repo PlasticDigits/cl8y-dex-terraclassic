@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { IndexerPair, IndexerTrade } from '@/types'
 import {
+  displayUsdPriceChangePct,
   pairStatsUsdField,
+  resolveDisplayPairStatsUsdOhlc,
   resolveDisplayTapeLastPriceUsd,
   resolveTapeLastPriceUsd,
   resolveTapePriceUsd,
@@ -158,5 +160,47 @@ describe('pairStatsUsdField', () => {
     expect(pairStatsUsdField('1.02')).toBe('1.02')
     expect(pairStatsUsdField(null)).toBeNull()
     expect(pairStatsUsdField('')).toBeNull()
+  })
+})
+
+describe('resolveDisplayPairStatsUsdOhlc (GitLab #680)', () => {
+  it('keeps factory USD and factory % when not inverted', () => {
+    const out = resolveDisplayPairStatsUsdOhlc({
+      inverted: false,
+      highUsd: '1.02',
+      lowUsd: '0.98',
+      openUsd: '1.00',
+      closeUsd: '1.01',
+      highHuman: '210',
+      lowHuman: '202',
+      openHuman: '206',
+      closeHuman: '208',
+      factoryPriceChangePct: 1.0,
+    })
+    expect(out.highUsd).toBe('1.02')
+    expect(out.lowUsd).toBe('0.98')
+    expect(out.priceChangePct).toBe(1.0)
+  })
+
+  it('inverts via invertUsd and recomputes % — not 1/x of USD and not negated factory %', () => {
+    const out = resolveDisplayPairStatsUsdOhlc({
+      inverted: true,
+      highUsd: '1.02',
+      lowUsd: '0.98',
+      openUsd: '1.00',
+      closeUsd: '1.01',
+      highHuman: '210',
+      lowHuman: '202',
+      openHuman: '206',
+      closeHuman: '208',
+      factoryPriceChangePct: 1.0,
+    })
+    expect(parseFloat(out.openUsd!)).toBeCloseTo(1 / 206, 8)
+    expect(parseFloat(out.closeUsd!)).toBeCloseTo(1.01 / 208, 8)
+    expect(parseFloat(out.highUsd!)).toBeGreaterThanOrEqual(parseFloat(out.lowUsd!))
+    expect(out.priceChangePct).not.toBe(-1)
+    expect(out.priceChangePct).not.toBe(1)
+    expect(out.priceChangePct).toBeCloseTo(displayUsdPriceChangePct(out.openUsd, out.closeUsd)!, 8)
+    expect(parseFloat(out.openUsd!)).not.toBeCloseTo(1, 2)
   })
 })

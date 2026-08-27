@@ -67,6 +67,7 @@ Chrome: `python3 scripts/check_chrome_nesting.py`.
 ## Related
 
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — **C1–C9** apply to `/protocol` + `GET /overview`, not a Charts strip (#548)
+- [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](./AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — UST1/cUSTC hero + `?price=` (#680); deep links still **CS-11**
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h content (#565 / #564); placement is **CS-3**
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Volume USD column (#553); Charts is pair-scoped, unscoped API stays global
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — flat tiles (#653)

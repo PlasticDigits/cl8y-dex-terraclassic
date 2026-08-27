@@ -20,7 +20,7 @@ After #524, **Last** used `invertUsd(price_usd, human)` (USD of the displayed ba
 - **Don’t** call `invertOhlc` / `1/x` on a USD-of-`asset_0` series. `invertOhlc` is **human** book/limit only.
 - **Don’t** scale every historical bar by the *latest* tape human price.
 - **Don’t** change indexer `swap_events.price` / `price_usd`, CG/CMC `last_price`, or on-chain convert-on-submit (**T524-1**, **T524-2**).
-- **Don’t** change default invert rules (**T524-3**). Do not substring-match `cUSTC`.
+- **Don’t** change **Trade** default invert rules (**T524-3** / **C543-3**). Charts default is UST1 USD ([#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)). Do not substring-match `cUSTC`.
 - **Don’t** describe invert as mint/redeem (**U1**).
 - **Don’t** overlay CoinGecko or `GET /oracle/history` onto pair **Price (USD)** charts ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)). Indexer candles already carry as-of quote USD.
 
@@ -51,6 +51,7 @@ Indexer: `candle_human_usd.rs`, `candle_skip_zero_price.rs`.
 ## Related
 
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — pill / ticket / convert-on-submit (#524)
+- [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](./AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — Charts hero + page-wide `?price=` (#680); do not “fix” Charts back to cUSTC USD
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — pair 24h Stats + TWAP human scale; histogram decimals (#564)
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — canvas / Y-axis / setData
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — factory `price_usd` meaning unchanged

@@ -35,7 +35,7 @@ Render only when `stats && activePair && activePair.pair_address === activePairA
 | **P565-2** | Never `formatNum(stats.volume_base)` or `formatNum(stats.volume_quote)`. |
 | **P565-3** | Secondary **Vol ({symbol})** uses [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts) with **that pair’s** `asset_0` / `asset_1` decimals. `charts-pair-volume-base` / `charts-pair-volume-quote`. |
 | **P565-4** | Unpriced / invalid `volume_usd` with `trade_count > 0` → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. |
-| **P565-5** | [#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524) invert does **not** change USD or swap leg decimals on stats. |
+| **P565-5** | Invert does **not** change **Vol (USD)** or swap token-volume values/decimals. Charts [#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680) price tiles follow `?price=`. |
 | **P565-6** | Integrator JSON keeps raw `volume_base` / `volume_quote`. `volume_usd` stays human USD. |
 | **P565-7** | Token vols render only for the selected pair that fetched stats. Hostile strings are text-only. |
 
@@ -60,7 +60,7 @@ Render only when `stats && activePair && activePair.pair_address === activePairA
 - **Do** reuse `formatIndexedVolumeUsd` for USD. **Do** use `formatChartsPairTokenVolume` for token vols (not `formatPairStatsVolume` in Charts UI).
 - **Do** humanize TWAP with `raw × 10^(d0 − d1)` ([`rawLimitPriceToHuman`](../frontend-dapp/src/utils/limitOrderPriceScale.ts)) then [`formatPairPrice`](../frontend-dapp/src/utils/formatAmount.ts).
 - **Do** keep secondary token boxes on row 2 so USD is the default read.
-- **Don’t** `formatNum` raw volume or TWAP. **Don’t** treat TWAP as USD. **Don’t** apply #524 invert to stats USD OHLC / TWAP.
+- **Don’t** `formatNum` raw volume or TWAP. **Don’t** treat TWAP as USD. **Don’t** swap volume values on invert. Charts [#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680) **does** invert display USD OHLC / % / TWAP via `invertUsd` / reciprocal human — never `1/x` factory USD.
 - **Don’t** implement tape Amount (#557), overview strip (#548), or picker badges (#544) here.
 - **Don’t** convert DEX volume with vFDUSD (**X4**).
 
@@ -93,7 +93,8 @@ Vitest: `chartsPairStats.test.ts`, `ChartsPage.test.tsx` (#565 + #564 blocks), `
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — picker/pool badges ≠ pair Stats (#534 / #544)
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog + factory `*_usd` OHLC (#522)
 - [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — volume is not inverted as price (#543)
-- [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert does not reassign stats (#524)
+- [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](./AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — Charts priced-token OHLC / % / TWAP (#680); volume still factory
+- [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert does not reassign **volume** stats (#524 / **P565-5**)
 - [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — identity **v2 LP** is pool stock, not 24h Vol USD (#664)
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — histogram wiring
 - [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md) — same `10^(d0−d1)` scale as TWAP (#529)

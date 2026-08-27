@@ -69,6 +69,9 @@ const mockPair: IndexerPair = {
 
 describe('ChartsPage (component)', () => {
   beforeEach(() => {
+    sessionStorage.clear()
+    vi.mocked(indexerClient.getCandles).mockClear()
+    vi.mocked(indexerClient.getPairStats).mockClear()
     vi.mocked(oracle.getTwapPrices).mockResolvedValue([
       { label: '5m', seconds: 300, price: null },
       { label: '1h', seconds: 3600, price: null },
@@ -859,6 +862,168 @@ describe('ChartsPage (component)', () => {
       await waitFor(() => expect(twap).toHaveTextContent('—'))
       expect(await screen.findByText(/oracle data unavailable for this pair/i)).toBeInTheDocument()
       expect(screen.getByTestId('charts-pair-volume-base')).toBeInTheDocument()
+    })
+  })
+
+  describe('UST1/USD hero + ?price= (GitLab #680)', () => {
+    const HERO = 'terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f'
+    const OTHER = 'terra1pair0000000000000000000000000000000001'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+    const CLUNC = 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg'
+
+    const heroPair: IndexerPair = {
+      ...mockPair,
+      pair_address: HERO,
+      asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+    }
+    const cluncPair: IndexerPair = {
+      ...mockPair,
+      pair_address: 'terra1pair0000000000000000000000000000cl',
+      asset_0: { symbol: 'cLUNC', contract_addr: CLUNC, denom: null, decimals: 6 },
+      asset_1: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+      volume_quote_24h: '999999',
+    }
+    const otherPair: IndexerPair = { ...mockPair, pair_address: OTHER }
+
+    function renderCharts(route: string) {
+      return renderWithProviders(
+        <Routes>
+          <Route path="/charts" element={<ChartsPage />} />
+          <Route path="/charts/:pairAddr" element={<ChartsPage />} />
+        </Routes>,
+        { route }
+      )
+    }
+
+    beforeEach(() => {
+      sessionStorage.clear()
+      vi.mocked(indexerClient.getPairStats).mockResolvedValue({
+        volume_base: '1000000',
+        volume_quote: '206000000',
+        volume_usd: '206',
+        trade_count: 2,
+        high: '206',
+        low: '200',
+        open_price: '206',
+        close_price: '204',
+        price_change_pct: -0.97,
+        high_usd: '1.02',
+        low_usd: '0.98',
+        open_price_usd: '1.00',
+        close_price_usd: '1.01',
+      })
+      vi.mocked(indexerClient.getTrades).mockResolvedValue([
+        {
+          id: 1,
+          pair_address: HERO,
+          block_height: 1,
+          block_timestamp: '2026-08-15T00:00:00Z',
+          tx_hash: 'AA',
+          sender: 'terra1t',
+          offer_asset: 'UST1',
+          ask_asset: 'cUSTC',
+          offer_amount: '1',
+          return_amount: '206',
+          price: '206',
+          price_usd: '1.00',
+        },
+      ])
+    })
+
+    it('C680-1: bare /charts picks UST1/cUSTC and UST1 USD, not catalog volume rank', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [cluncPair, heroPair],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      })
+      renderCharts('/charts')
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(HERO, expect.any(String)))
+      expect(indexerClient.getPairStats).toHaveBeenCalledWith(HERO)
+      expect(await screen.findByTestId('trade-pair-invert-pill')).toHaveTextContent('UST1/cUSTC')
+      const last = await screen.findByTestId('trade-chart-headline-price')
+      await waitFor(() => expect(last.textContent).toMatch(/1(\.0+)?/))
+      expect(last.textContent).not.toMatch(/0\.00[45]/)
+      expect(screen.getByTestId('charts-pair-high-usd')).toHaveTextContent('$1.02')
+    })
+
+    it('C680-2: /charts/{hero} without price uses Charts UST1 USD default, not T524-3', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [heroPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      renderCharts(`/charts/${HERO}`)
+      expect(await screen.findByTestId('trade-pair-invert-pill')).toHaveTextContent('UST1/cUSTC')
+      expect(screen.queryByTestId('trade-pair-invert-pill')).not.toHaveTextContent('cUSTC/UST1')
+    })
+
+    it('C680-3/C680-4: ?price=cUSTC and invert pill flip all price tiles; volume stays', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [heroPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(oracle.getTwapPrices).mockResolvedValue([
+        { label: '5m', seconds: 300, price: '206' },
+        { label: '1h', seconds: 3600, price: '206' },
+        { label: '24h', seconds: 86400, price: '206' },
+      ])
+      renderCharts(`/charts/${HERO}?price=cUSTC`)
+      expect(await screen.findByTestId('trade-pair-invert-pill')).toHaveTextContent('cUSTC/UST1')
+      const high = await screen.findByTestId('charts-pair-high-usd')
+      await waitFor(() => expect(high.textContent).toMatch(/0\.00/))
+      expect(high.textContent).not.toMatch(/\$1\.02/)
+      expect(screen.getByTestId('charts-pair-price-change').textContent).not.toMatch(/-0\.97/)
+      expect(screen.getByTestId('charts-pair-volume-base')).toHaveTextContent(/Vol \(UST1\)/)
+      const beforeVol = screen.getByTestId('charts-pair-volume-usd').textContent
+      await user.click(screen.getByTestId('trade-pair-invert-pill'))
+      expect(await screen.findByTestId('trade-pair-invert-pill')).toHaveTextContent('UST1/cUSTC')
+      expect(screen.getByTestId('charts-pair-high-usd')).toHaveTextContent('$1.02')
+      expect(screen.getByTestId('charts-pair-volume-usd').textContent).toBe(beforeVol)
+    })
+
+    it('C680-5: other pair deep link is kept; bad ?price= is ignored', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [otherPair, heroPair],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getCandles).mockClear()
+      vi.mocked(indexerClient.getPairStats).mockClear()
+      renderCharts(`/charts/${OTHER}?price=cUSTC`)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(OTHER, expect.any(String)))
+      expect(indexerClient.getPairStats).toHaveBeenCalledWith(OTHER)
+      expect(indexerClient.getCandles).not.toHaveBeenCalledWith(HERO, expect.any(String))
+    })
+
+    it('C680-5 hostile pair segment still shows notice and does not fetch', async () => {
+      vi.mocked(indexerClient.getPair).mockClear()
+      vi.mocked(indexerClient.getLeaderboard).mockClear()
+      vi.mocked(indexerClient.getPairStats).mockClear()
+      renderCharts('/charts/<script>?price=<script>')
+      expect(await screen.findByTestId('charts-invalid-pair-notice')).toBeInTheDocument()
+      expect(indexerClient.getPair).not.toHaveBeenCalledWith('<script>')
+      expect(indexerClient.getPairStats).not.toHaveBeenCalledWith('<script>')
+      expect(document.body.innerHTML).not.toMatch(/javascript:/)
+    })
+
+    it('C680-8: missing hero falls back to an economic pair without hanging', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [otherPair],
+        total: 1,
+        limit: 50,
+        offset: 0,
+      })
+      renderCharts('/charts')
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(OTHER, expect.any(String)))
+      expect(screen.queryByText(/loading selected pair/i)).not.toBeInTheDocument()
     })
   })
 })

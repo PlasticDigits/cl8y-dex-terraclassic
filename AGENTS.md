@@ -238,6 +238,7 @@ make verify-issue-664                    # #664 /trade /charts identity v2 LP US
 make verify-issue-657                    # #657 /trader global leaderboard (shared Charts table)
 make verify-issue-671                    # #671 connected wallet dropdown icon+label alignment (Vitest + docs)
 make verify-issue-666                    # #666 /charts pair-scoped 24h stats + leaderboard
+make verify-issue-680                    # #680 /charts UST1/USD hero + ?price= + page-wide invert
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
 make verify-issue-577                    # #577 token/trader/pair/global 24h rollup decay + stale overview
@@ -289,6 +290,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Trade / Charts v2 LP USD | `make verify-issue-664` |
 | Trader page global leaderboard | `make verify-issue-657` |
 | Charts pair-scoped 24h + board | `make verify-issue-666` |
+| Charts UST1/USD hero + `?price=` | `make verify-issue-680` |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
@@ -382,6 +384,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_HUB_PNL.md](skills/AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from `GET /api/v1/hub-prices` (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md](skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape + wallet Amount in/out/Price human scale (**T557-1–T557-11**, [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)); `make verify-issue-557`
 - [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](skills/AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — `/charts` pair-scoped 24h stats + leaderboard (**CS-1–CS-15**, [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)); `make verify-issue-666`
+- [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — `/charts` UST1/cUSTC hero + `?price=` + page-wide invert (**C680-1–C680-9**, [#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)); `make verify-issue-680`
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — `/protocol` + `GET /overview` 24h volume USD-only + catalog `volume_usd` ingest (**C1–C9**, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)); not a Charts census strip; `make verify-issue-548`
 - [skills/AGENTS_FRONTEND_TRAILING_WINDOW.md](skills/AGENTS_FRONTEND_TRAILING_WINDOW.md) — Charts/Protocol/Pool **24h volume** is a trailing window, not a midnight reset (**W1–W5**, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)); `make verify-issue-576`
 - [skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md](skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md) — token/trader/pair/global trailing windows **zero** when swaps leave the cutoff; stale `global_stats_24h.updated_at` is log-only (**D1–D7**, [#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577)); `make verify-issue-577`
