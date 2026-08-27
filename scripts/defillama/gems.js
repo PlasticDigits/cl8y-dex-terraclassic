@@ -39,8 +39,13 @@ const VFDUSD = 'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3
 
 const INDEXER_DAILY_URL = 'https://indexer.dex.cl8y.com/api/v1/defillama/daily'
 
-/** 2026-05-01 00:00:00 UTC — first day dimension adapters may request. */
-const ADAPTER_START = 1777593600
+/**
+ * First UTC day GET /api/v1/defillama/daily returns 200 on Coolify (GitLab #687).
+ * 2026-08-17 00:00:00 UTC. Earlier days 404 — do not move Llama `start` earlier.
+ * Unix seconds for `?timestamp=`; ISO for dimension-adapters `start`.
+ */
+const ADAPTER_START = 1786924800
+const ADAPTER_START_ISO = '2026-08-17'
 
 function isGemAddress(addr) {
   return COLUMBUS5_GEM_ADDRESSES.includes(String(addr || '').toLowerCase())
@@ -58,5 +63,6 @@ module.exports = {
   VFDUSD,
   INDEXER_DAILY_URL,
   ADAPTER_START,
+  ADAPTER_START_ISO,
   isGemAddress,
 }

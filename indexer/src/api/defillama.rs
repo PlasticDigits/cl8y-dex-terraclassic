@@ -1,26 +1,29 @@
-//! `GET /api/v1/defillama/daily` — UTC calendar-day volume/fees (GitLab #631).
+//! `GET /api/v1/defillama/daily` — UTC calendar-day volume/fees (GitLab #631 / #687).
 //!
 //! Single `timestamp` (unix 00:00 UTC). Invalid / unaligned / future → **400**.
-//! Day not rolled → **404**. Idle closed day → `"0"`. Activity + unpriced → `null`.
-//! 60s whole-response cache. Reads `defillama_daily_*` only — no `swap_events` scan.
+//! Day not rolled → **404**. Idle closed day → `"0"`. Volume: any unpriced swap → `null`.
+//! Headline fees: EFee-6 partial priced SUM (one unpriced source does not null wrap).
+//! Headline `null` only when fee activity exists and priced SUM is empty. Per-source
+//! `fees.*` stay fail-closed. 60s whole-response cache. Reads `defillama_daily_*` only.
 //! No range dump (`from`/`to` ignored; timestamp required). GET only.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{internal_err, AppState};
+use super::{AppState, internal_err};
 use crate::db::queries::defillama as daily_q;
 use crate::indexer::defillama::{
-    daily_usd_field_fail_closed, naive_utc_day, parse_utc_day_timestamp, COLUMBUS5_FACTORY,
-    DAILY_ASSET_TICKERS, UST1_ADDRESS, UST1_DECIMALS, USTR_ADDRESS, USTR_DECIMALS,
+    COLUMBUS5_FACTORY, DAILY_ASSET_TICKERS, UST1_ADDRESS, UST1_DECIMALS, USTR_ADDRESS,
+    USTR_DECIMALS, daily_headline_usd, daily_usd_field_fail_closed, naive_utc_day,
+    parse_utc_day_timestamp,
 };
 use crate::indexer::protocol_fees::FeeSource;
 
@@ -110,6 +113,7 @@ fn methodology() -> DefillamaMethodology {
                  Excludes gem pairs (#562), wrap/unwrap, UST1 window, and limit_order_fills."
             .to_string(),
         fees: "PFee/L7 treasury: swap_amm + book_take + limit_place + labeled wrap/window. \
+               Headline is priced SUM (EFee-6 / #687); one unpriced source does not null wrap. \
                spread_amount and community-tax extra-debit are not fees. SSR is 0."
             .to_string(),
         tvl: "On-chain factory Pairs + pair Pool {} raw balances only. \
@@ -269,14 +273,12 @@ pub async fn get_defillama_daily(
     );
 
     let mut fee_events = 0i64;
-    let mut fee_unpriced = 0i64;
     let mut fee_usd = BigDecimal::from(0);
     for r in &fee_rows {
         fee_events += r.event_count;
-        fee_unpriced += r.unpriced_count;
         fee_usd += &r.amount_usd;
     }
-    let daily_fees = daily_usd_field_fail_closed(fee_events, fee_unpriced, &fee_usd);
+    let daily_fees = daily_headline_usd(fee_events, &fee_usd);
 
     let resp = DefillamaDailyResponse {
         date: utc_day.to_string(),
