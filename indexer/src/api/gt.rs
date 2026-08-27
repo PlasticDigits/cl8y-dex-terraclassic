@@ -23,25 +23,12 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, state};
+pub use crate::indexer::listing_exclude::is_excluded_cw20;
+use crate::indexer::listing_exclude::listing_excluded_cw20_binds;
 use crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 
 pub const DEX_KEY: &str = "cl8y";
 const MAX_EVENT_BLOCK_SPAN: i64 = 2_000;
-
-/// Soft-launch / non-economic CW20s — same pins as #562 gems plus ALPHA / USTRIX / SpaceUSD.
-const EXCLUDED_CW20: &[&str] = &[
-    "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94",
-    "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena",
-    "terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr",
-    "terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9",
-    "terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc",
-    "terra12k67cvfs7y7g8lca3qr4g4py6s6j69fu24gze5pjfamfpckv8mps7cymme",
-    "terra17dpnjlpgsnm8muu4msfjra4f2hrptnjp2jdpkka4p0e3px42ayxq0pmc2z",
-    "terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs",
-    "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
-    "terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5",
-    "terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl",
-];
 
 const CL8Y_CW20: &str = "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3";
 const CL8Y_COINGECKO_ID: &str = "ceramicliberty-com";
@@ -259,11 +246,6 @@ pub fn gt_asset_id(asset: &assets::AssetRow) -> Option<String> {
     } else {
         asset.denom.clone()
     }
-}
-
-pub fn is_excluded_cw20(addr: &str) -> bool {
-    let lower = addr.to_ascii_lowercase();
-    EXCLUDED_CW20.iter().any(|a| *a == lower) || COLUMBUS5_GEM_ADDRESSES.iter().any(|a| *a == lower)
 }
 
 fn pair_is_excluded(a0: &assets::AssetRow, a1: &assets::AssetRow) -> bool {
@@ -488,7 +470,7 @@ pub async fn gt_events(
     }
     let to = to.min(latest);
 
-    let excluded: Vec<String> = EXCLUDED_CW20.iter().map(|s| (*s).to_string()).collect();
+    let excluded = listing_excluded_cw20_binds();
 
     let swaps: Vec<EventSwapRow> = sqlx::query_as(
         r#"

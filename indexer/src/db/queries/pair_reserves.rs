@@ -1,9 +1,11 @@
 //! Mirrored v2 pair reserves (GitLab #279 Phase 1a) — current pool state in Postgres so the
 //! hybrid solver can price the pool leg without an LCD call. One row per pair, replaced per snapshot.
 
+use std::collections::HashMap;
+
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use sqlx::FromRow;
+use sqlx::{FromRow, PgPool};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct PairReservesRow {
@@ -67,4 +69,16 @@ where
     .bind(pair_id)
     .fetch_optional(executor)
     .await
+}
+
+/// Set-based reserve snapshots for CG/CMC bid/ask (GitLab #685). No LCD.
+pub async fn get_all_pair_reserves(
+    pool: &PgPool,
+) -> Result<HashMap<i32, PairReservesRow>, sqlx::Error> {
+    let rows = sqlx::query_as::<_, PairReservesRow>(
+        "SELECT pair_id, reserve_0, reserve_1, fee_bps, block_height, snapshot_at FROM pair_reserves",
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().map(|r| (r.pair_id, r)).collect())
 }

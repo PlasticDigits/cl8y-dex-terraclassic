@@ -4,7 +4,7 @@
 **Skill:** [`skills/AGENTS_DEFILLAMA.md`](../skills/AGENTS_DEFILLAMA.md)  
 **Invariants:** [`indexer-invariants.md`](./indexer-invariants.md) row **DeFiLlama UTC-day (#631)**  
 **Adapter copies:** [`scripts/defillama/`](../scripts/defillama/)  
-**Not this ticket:** CoinGecko / CMC crawlers — [`CG_CMC_COMPLIANCE.md`](./CG_CMC_COMPLIANCE.md)
+**Not this ticket:** CoinGecko / CMC crawlers — [`CG_CMC_COMPLIANCE.md`](./CG_CMC_COMPLIANCE.md) ([#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685); skill [`AGENTS_INDEXER_CG_CMC_LISTING.md`](../skills/AGENTS_INDEXER_CG_CMC_LISTING.md))
 
 List **CL8Y DEX** (`https://dex.cl8y.com`) on [DeFiLlama](https://defillama.com) as a Terra Classic Dexs protocol (**TVL**, **spot volume**, **fees/revenue**) and list **UST1** on the **Stablecoins** dashboard as an **unstablecoin**. Publish **USTR** reserve-token volume, fees, and hub price on the same daily API. Llama merges **open-source adapters**. Hosted `/cg/*` and `/cmc/*` do not substitute.
 
@@ -33,7 +33,7 @@ The TVL adapter paginates factory `Pairs { limit: 30, start_after }` and `api.ad
 
 | Include | Exclude |
 |---------|---------|
-| Factory-listed pair pool reserves | Indexer `total_liquidity_usd`, hub marks, CG `liquidity_in_usd` |
+| Factory-listed pair pool reserves | Indexer `total_liquidity_usd`, hub marks, CG `liquidity_in_usd` (listing TVL stamp [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685) — still not Llama TVL) |
 | Soft-launch gem pool locks (default) | LP `liquidity_token` / `total_share` (double-count) |
 | cLUNC / cUSTC as `uluna` / `uusd` (1:1 wrap) | Limit-book escrow, parked dust, CMM treasury, UST1-window inventory, Venus vFDUSD |
 | | Wrap-mapper native `uluna`/`uusd` inventory (pools-only DEX TVL; omit unless Llama asks) |

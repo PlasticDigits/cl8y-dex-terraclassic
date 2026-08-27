@@ -1,16 +1,16 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use bigdecimal::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
     aggregator_snapshot::{self, AggregatorListQuery},
-    build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, listing_timestamps,
-    orderbook_sim, AppState,
+    build_asset_map, consolidated_stats, find_pair_by_ticker, internal_err, listing_spread,
+    listing_timestamps, orderbook_sim, AppState,
 };
 use crate::db::queries::{pairs as db_pairs, swap_events};
+use crate::indexer::listing_exclude::pair_is_listing_excluded;
 
 #[derive(Serialize, Clone, ToSchema)]
 pub struct CgPairResponse {
@@ -70,6 +70,12 @@ pub async fn cg_pairs(
     let mut result = Vec::new();
     for p in &all_pairs {
         if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
+            if pair_is_listing_excluded(
+                a0.contract_address.as_deref(),
+                a1.contract_address.as_deref(),
+            ) {
+                continue;
+            }
             result.push(CgPairResponse {
                 ticker_id: format!("{}_{}", a0.symbol, a1.symbol),
                 base: a0.symbol.clone(),
@@ -103,8 +109,8 @@ pub struct CgTickerResponse {
     pub high: String,
     pub low: String,
     pub pool_id: String,
-    /// Mislabeled 24h `volume_usd` (legacy aggregator field). Protocol pool TVL is
-    /// `GET /api/v1/overview` `total_liquidity_usd` (GitLab #569) — do not treat this as TVL.
+    /// AMM v2 pool TVL from `pair_liquidity_usd` / `protocol_pair_tvl` (GitLab #685).
+    /// Unpriced → `"0"`. Not 24h volume. Llama must not ingest this field.
     pub liquidity_in_usd: String,
     /// CL8Y consolidated hybrid + pool-only attribution (GitLab #189); safe for aggregators to ignore.
     pub cl8y_extensions: consolidated_stats::Cl8yConsolidatedExtensions,
@@ -142,12 +148,6 @@ pub async fn cg_tickers(
         let stats = &row.stats;
         let extensions = row.extensions.clone().expect("extensions loaded");
 
-        let last_price_f = stats
-            .close_price
-            .as_ref()
-            .and_then(|p| p.to_f64())
-            .unwrap_or(0.0);
-
         let base_addr = a0
             .contract_address
             .as_deref()
@@ -159,11 +159,15 @@ pub async fn cg_tickers(
             .or(a1.denom.as_deref())
             .unwrap_or("");
 
-        let liquidity_usd = stats
-            .volume_usd
-            .as_ref()
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "0".to_string()); // not pool TVL; see OverviewResponse.total_liquidity_usd (#569)
+        let fee_bps = row.reserve_fee_bps.or(row.pair.fee_bps).unwrap_or(0);
+        let (bid, ask) = listing_spread::listing_bid_ask(
+            stats.close_price.as_ref(),
+            row.reserve_0.as_ref(),
+            row.reserve_1.as_ref(),
+            a0.decimals,
+            a1.decimals,
+            fee_bps,
+        );
 
         result.push(CgTickerResponse {
             ticker_id: format!("{}_{}", a0.symbol, a1.symbol),
@@ -176,8 +180,8 @@ pub async fn cg_tickers(
                 .unwrap_or_else(|| "0".to_string()),
             base_volume: stats.volume_base.to_string(),
             target_volume: stats.volume_quote.to_string(),
-            bid: format!("{:.18}", last_price_f * 0.999),
-            ask: format!("{:.18}", last_price_f * 1.001),
+            bid,
+            ask,
             high: stats
                 .high
                 .as_ref()
@@ -189,7 +193,7 @@ pub async fn cg_tickers(
                 .map(|l| l.to_string())
                 .unwrap_or_else(|| "0".to_string()),
             pool_id: row.pair.contract_address.clone(),
-            liquidity_in_usd: liquidity_usd,
+            liquidity_in_usd: listing_spread::listing_liquidity_in_usd(row.liquidity_usd.as_ref()),
             cl8y_extensions: extensions,
         });
     }

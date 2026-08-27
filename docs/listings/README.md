@@ -4,7 +4,7 @@ Parent tracker for **places that can list CL8Y DEX stats, tokens, and wallet rec
 
 This ticket does **not** implement a new indexer API. Machine-readable pins: [`catalog.json`](./catalog.json). Agent playbook: [`skills/AGENTS_LISTINGS.md`](../../skills/AGENTS_LISTINGS.md). Verify: `make verify-issue-639`.
 
-Do **not** reopen DeFiLlama adapter work here, and do **not** treat `/cg/*` / `/cmc/*` compliance ([#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224)) as a listing.
+Do **not** reopen DeFiLlama adapter work here. `/cg/*` `/cmc/*` timestamps are [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224); field truth is [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685) ([`AGENTS_INDEXER_CG_CMC_LISTING.md`](../../skills/AGENTS_INDEXER_CG_CMC_LISTING.md)).
 
 **Verified 2026-08-25** against live APIs, official docs, and upstream repos. Agentic means an agent can open the PR, vendor the adapter, or fill the form from pins below. Login/captcha/Telegram/Discord are human gates.
 
@@ -15,7 +15,7 @@ Do **not** reopen DeFiLlama adapter work here, and do **not** treat `/cg/*` / `/
 | **L639-1** | Catalog + go/no-go only. **No** new indexer endpoint here. Children are **one venue per issue**. |
 | **L639-2** | Permanent six CW20s only — same addresses, decimals, and logos as Keplr **K629-2** / **K629-3**. **Exclude** `#562` gems, ALPHA, USTRIX, SpaceUSD, and community-tax templates. |
 | **L639-3** | Exchange forms point at **`https://indexer.dex.cl8y.com/cg/`** and **`/cmc/`**. Never CoinGecko Pro v3 (`api.coingecko.com`). |
-| **L639-4** | Owned surfaces stay on their issues: Llama **#631**, Keplr **#629**, `/cg` `/cmc` shape **#224**. Do not reopen those here. |
+| **L639-4** | Owned surfaces stay on their issues: Llama **#631**, Keplr **#629**, `/cg` `/cmc` timestamps **#224**, field truth **#685**. Do not reopen those here. |
 | **L639-5** | UST1 is an **unstablecoin** (never advertise `$1`). USTR is **not** a stablecoin. Do not invent a second CoinGecko id for CL8Y (`ceramicliberty-com` is BSC-only today). |
 | **L639-6** | Skip Coinhall, DexScreener, LuncScan Telegram, Token Terminal, CMC DexScan, a Leap-owned CW20 repo, and `terra-money/assets`. |
 | **L639-7** | Do **not** open upstream PRs from this repo’s CI. PR venues are operator/agent GitHub work; forms may need a human captcha/login click. |
@@ -52,7 +52,7 @@ Logos: [`tokenlist/images/`](../../tokenlist/images). Keplr pack: [`keplr-contra
 |---------|-------|----------|--------|
 | DeFiLlama TVL / volume / fees + UST1 unstablecoin | [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) / leftover [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) | [Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987), [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) | Route live; leftover is fees `null`/404 vs crawler (`make verify-issue-687`). Close on Llama merge |
 | Keplr Add Token (name + logo) | [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) | [keplr-contract-registry#132](https://github.com/chainapsis/keplr-contract-registry/pull/132) | Pack + `make verify-issue-629`; USTR already live |
-| Self-hosted `/cg/*` `/cmc/*` shape | [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) | [`docs/CG_CMC_COMPLIANCE.md`](../CG_CMC_COMPLIANCE.md) | **API ready**. Submitting the **exchange listing forms** is still open (this ticket’s children). |
+| Self-hosted `/cg/*` `/cmc/*` shape | [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) | [`docs/CG_CMC_COMPLIANCE.md`](../CG_CMC_COMPLIANCE.md) | **Timestamps/wrappers ready** (`#224` stays closed). Field truth is [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685). Submitting the **exchange listing forms** is still open (this ticket’s children). |
 
 ## Agentic go list
 
@@ -120,7 +120,8 @@ Copy [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)
 
 - [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) DeFiLlama — [`docs/DEFILLAMA.md`](../DEFILLAMA.md) · [`skills/AGENTS_DEFILLAMA.md`](../../skills/AGENTS_DEFILLAMA.md)
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) Keplr CW20 — [`keplr-contract-registry/`](./keplr-contract-registry/) · [`skills/AGENTS_KEPLR_CW20_REGISTRY.md`](../../skills/AGENTS_KEPLR_CW20_REGISTRY.md)
-- [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) `/cg` `/cmc` — [`docs/CG_CMC_COMPLIANCE.md`](../CG_CMC_COMPLIANCE.md)
+- [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) `/cg` `/cmc` timestamps — [`docs/CG_CMC_COMPLIANCE.md`](../CG_CMC_COMPLIANCE.md)
+- [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685) `/cg` `/cmc` field truth — [`skills/AGENTS_INDEXER_CG_CMC_LISTING.md`](../../skills/AGENTS_INDEXER_CG_CMC_LISTING.md)
 - [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) gem hide
 - [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640) Cosmostation (archived) — [`cosmostation/`](./cosmostation/) · [`AGENTS_COSMOSTATION.md`](../../skills/AGENTS_COSMOSTATION.md)
 - [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641) Hexxagon — [`hexxagon/`](./hexxagon/) · [`AGENTS_HEXXAGON.md`](../../skills/AGENTS_HEXXAGON.md)

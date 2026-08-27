@@ -22,6 +22,7 @@ pub mod hybrid_orderbook_sim;
 mod hybrid_route_opt;
 pub mod limit_book_lcd;
 pub mod limit_book_price;
+mod listing_spread;
 mod listing_timestamps;
 mod oracle;
 pub mod orderbook_sim;
@@ -69,6 +70,7 @@ use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 use crate::indexer::hub_usd::HubUsdConfig;
+use crate::indexer::listing_exclude::{pair_is_listing_excluded, record_unique_ticker};
 use crate::indexer::oracle::OraclePriceHandles;
 use crate::indexer::venus_vfdusd::SharedVenusVfdusd;
 use crate::lcd::LcdClient;
@@ -150,6 +152,14 @@ pub(crate) fn aggregator_cache_put(key: &str, value: serde_json::Value) {
         let now = Instant::now();
         guard.retain(|_, (_, at)| now.duration_since(*at) <= AGGREGATOR_CACHE_TTL);
         guard.insert(key.to_string(), (value, now));
+    }
+}
+
+/// Integration tests that stamp `pair_liquidity_usd` after a prior `/cg/tickers` GET.
+#[allow(dead_code)]
+pub fn reset_aggregator_cache() {
+    if let Ok(mut guard) = aggregator_cache().lock() {
+        guard.clear();
     }
 }
 
@@ -255,11 +265,24 @@ pub async fn find_pair_by_ticker(
     let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut map = HashMap::new();
+    let mut collisions = std::collections::HashSet::new();
     for p in &all_pairs {
         if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
+            if pair_is_listing_excluded(
+                a0.contract_address.as_deref(),
+                a1.contract_address.as_deref(),
+            ) {
+                continue;
+            }
             let key = format!("{}_{}", a0.symbol, a1.symbol);
-            map.entry(key).or_insert_with(|| p.contract_address.clone());
+            record_unique_ticker(&mut map, &mut collisions, key, p.contract_address.clone());
         }
+    }
+    if !collisions.is_empty() {
+        tracing::warn!(
+            count = collisions.len(),
+            "duplicate CG/CMC ticker_id keys skipped (use pool_id on /cg/pairs)"
+        );
     }
 
     let result = map.get(ticker_id).cloned();

@@ -2,11 +2,9 @@
 
 This document describes the CL8Y DEX's self-hosted market data API endpoints that comply with CoinGecko (CG) and CoinMarketCap (CMC) **exchange listing** specifications. These endpoints enable aggregators, portfolio trackers, and market data platforms to list and track the DEX.
 
-**Not DeFiLlama.** Llama does not poll `/cg/*` or `/cmc/*`. TVL/volume/fees listing is [`docs/DEFILLAMA.md`](./DEFILLAMA.md) (`GET /api/v1/defillama/daily` + on-chain factory adapters, [GitLab #631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)). CG `liquidity_in_usd` is **mislabeled 24h volume** — never publish it as Llama TVL.
+**Not DeFiLlama.** Llama does not poll `/cg/*` or `/cmc/*`. TVL/volume/fees listing is [`docs/DEFILLAMA.md`](./DEFILLAMA.md) (`GET /api/v1/defillama/daily` + on-chain factory adapters, [GitLab #631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)). CG `liquidity_in_usd` is AMM v2 pool TVL from the `pair_liquidity_usd` stamp ([#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)) — still **never** publish it as Llama TVL (Llama reads on-chain `Pool {}` only).
 
-**Canonical sources:** Live handlers in [`indexer/src/api/cg.rs`](../indexer/src/api/cg.rs) and [`cmc.rs`](../indexer/src/api/cmc.rs); OpenAPI (utoipa) on the indexer Swagger UI. When this markdown and code disagree, **code wins** until a doc PR lands — verify with `cargo test` in [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs).
-
-**Last verified:** commit `3e7a175` — GitLab [**#224**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) re-verification (2026-05-30): live indexer at `http://127.0.0.1:3001` + `cargo test --test api_orderbook_lcd_mock --test api_cg --test api_cmc` (29/29); aligned with [Kujira FIN CG](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) + [Openware Peatio CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap). Dependent issues **#210**, **#220**–**#223** closed. CMC orderbook array wrapper: [**#223**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223). Integrator cross-link: [integrators.md § On-chain limit book](./integrators.md#on-chain-limit-book-lcd-proxy).
+**Last verified:** GitLab [**#685**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685) listing field truthfulness (`make verify-issue-685`). `#224` remains the closed spec-matrix pass (timestamps / wrappers). Live handlers in [`indexer/src/api/cg.rs`](../indexer/src/api/cg.rs) and [`cmc.rs`](../indexer/src/api/cmc.rs); OpenAPI (utoipa) on the indexer Swagger UI. When this markdown and code disagree, **code wins** until a doc PR lands.
 
 ## Table of Contents
 
@@ -35,19 +33,19 @@ Keplr **Add Token** name/logo is a different listing: [keplr-contract-registry](
 
 | Endpoint | Official ref | CL8Y path | Match | Notes |
 |----------|--------------|-----------|-------|-------|
-| Pairs | [Kujira FIN CG](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) | `GET /cg/pairs` | Partial | Kujira wraps `{ "pairs": [...] }`; CL8Y returns a **top-level JSON array** (simpler for crawlers). Fields `ticker_id`, `base`, `target`, `pool_id` match. |
-| Tickers | Kujira FIN CG | `GET /cg/tickers` | Partial | Kujira wraps `{ "tickers": [...] }`; CL8Y returns a **top-level array**. Standard volume fields are **consolidated** swap totals; optional `cl8y_extensions` ([#189](#consolidated-hybrid--pool-only-reporting-gitlab-189)). |
+| Pairs | [Kujira FIN CG](https://docs.kujira.app/dapps-and-infrastructure/fin/coingecko-api.md) | `GET /cg/pairs` | Partial | Kujira wraps `{ "pairs": [...] }`; CL8Y returns a **top-level JSON array** (simpler for crawlers). Fields `ticker_id`, `base`, `target`, `pool_id` match. Gems omitted (#685 / **L639-2**). |
+| Tickers | Kujira FIN CG | `GET /cg/tickers` | Partial | Kujira wraps `{ "tickers": [...] }`; CL8Y returns a **top-level array**. `liquidity_in_usd` is AMM TVL stamp (#685). Standard volume fields are **consolidated** swap totals; optional `cl8y_extensions` ([#189](#consolidated-hybrid--pool-only-reporting-gitlab-189)). Gems omitted (**L639-2**). |
 | Orderbook | Kujira FIN CG | `GET /cg/orderbook` | Yes | `timestamp` = JSON **number**, Unix **ms**; `bids`/`asks` = `[price, qty]` strings, sorted. **Hybrid-simulated** depth ([#220](#hybrid-orderbook-simulation)). Query `depth` = **total** levels (Openware split [#221](#amm-orderbook-simulation)), not Kujira per-side semantics. |
 | Historical trades | Kujira FIN CG | `GET /cg/historical_trades` | Yes | `trade_timestamp` = JSON **number**, Unix **seconds**; grouped `buy` / `sell` arrays. |
 | Summary | [Openware CMC](https://openware.com/sdk/2.6/docs/peatio/peatio/coin-market-cap) | `GET /cmc/summary` | Yes | Array of market rows; optional `cl8y_extensions` on summary rows when indexed. |
 | Assets | Openware CMC | `GET /cmc/assets` | Partial | Openware shows array-of-maps; CL8Y returns one **object** keyed by symbol (equivalent data). |
-| Ticker | Openware CMC | `GET /cmc/ticker` | Partial | One **object** keyed by `BASE_QUOTE` (not array-of-maps). |
+| Ticker | Openware CMC | `GET /cmc/ticker` | Partial | One **object** keyed by `BASE_QUOTE` (not array-of-maps). `base_id` / `quote_id` are numeric CMC ids (else `0`); contracts live in `cl8y_*_address`. `isFrozen` is `"1"` when F6-frozen. |
 | Orderbook | Openware CMC | `GET /cmc/orderbook/:market_pair` | Yes | Root **array** with **one** book object ([#223](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223)); `timestamp` = Unix **seconds** (intentional delta: Openware text says ms, CL8Y aligns with `/cmc/trades` seconds — see [#222](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/222)). `/cg/orderbook` remains a **single object** (out of scope for #223). |
 | Trades | Openware CMC | `GET /cmc/trades/:market_pair` | Partial | `timestamp` = Unix **seconds** (Openware example text says ms; CL8Y uses seconds consistently on CMC trade feeds). |
 
 Path prefix: CL8Y serves `/cg/` and `/cmc/` instead of upstream `/api/coingecko/` or `/api/v2/coinmarketcap/` — configure listing forms with your API base + these prefixes.
 
-Agent playbook: [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md). Indexer invariants: [`indexer-invariants.md`](./indexer-invariants.md) (orderbook timestamps, depth, hybrid sim).
+Agent playbook: [`skills/AGENTS_INDEXER_CG_CMC_LISTING.md`](../skills/AGENTS_INDEXER_CG_CMC_LISTING.md) (**L685**, [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)). Depth sim: [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md). Indexer invariants: [`indexer-invariants.md`](./indexer-invariants.md).
 
 ---
 
@@ -110,7 +108,7 @@ Responses are cached **60s** per `(limit, offset)`; stats are loaded with set-ba
     "high": "0.00005500",
     "low": "0.00004900",
     "pool_id": "terra1abc...xyz",
-    "liquidity_in_usd": "0"
+    "liquidity_in_usd": "12345.67"
   }
 ]
 ```
@@ -120,19 +118,21 @@ Responses are cached **60s** per `(limit, offset)`; stats are loaded with set-ba
 | `ticker_id` | string | Pair identifier matching `/cg/pairs` |
 | `base_currency` | string | Contract address (CW20) or denom (native) of base asset |
 | `target_currency` | string | Contract address or denom of target asset |
-| `last_price` | string | Last traded price (target per base) |
+| `last_price` | string | Last traded price (human quote per base) |
 | `base_volume` | string | 24h volume denominated in base asset (raw units) |
 | `target_volume` | string | 24h volume denominated in target asset (raw units) |
-| `bid` | string | Simulated best bid price (last_price * 0.999) |
-| `ask` | string | Simulated best ask price (last_price * 1.001) |
+| `bid` | string | Reserve-implied mid ± pair `fee_bps` when `pair_reserves` exist; otherwise `last_price` both sides (omit-equivalent). **Not** the hybrid book. |
+| `ask` | string | Same rule as `bid` (ask side). |
 | `high` | string | 24h high price |
 | `low` | string | 24h low price |
 | `pool_id` | string | On-chain pair contract address |
-| `liquidity_in_usd` | string | Pool liquidity in USD (requires external price oracle) |
+| `liquidity_in_usd` | string | AMM v2 pool TVL USD from `pair_liquidity_usd` / `protocol_pair_tvl` ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655) / [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)). Unpriced / stale → `"0"`. |
 
 **Notes:**
-- `bid` and `ask` are simulated from the last trade price since AMMs don't have a traditional order book. The spread is set to 0.2% (0.1% each side).
-- `liquidity_in_usd` is `"0"` unless a USD price oracle is configured.
+- `liquidity_in_usd` is **not** 24h volume. Never `$1` UST1, never `2.5×` USTR, never book escrow. Llama must not ingest this field ([#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)).
+- `bid` / `ask` on the **list** path are computed from SQL stamps only (no LCD N+1, no `f64 * 0.999`). Hybrid book best is `/cg/orderbook`.
+- Gem / ALPHA / USTRIX / SpaceUSD pairs are omitted (**L639-2**), lockstep with `/gt`.
+- Duplicate `SYMBOL_SYMBOL` ticker ids are not resolved silently — `/cg/pairs` still lists both `pool_id`s; orderbook/trades for that `ticker_id` return **404**.
 
 **On-chain limit orders:** CG/CMC `orderbook` depth is **hybrid-simulated** (AMM curve walk + resting FIFO limits merged for listing). It is **not** a live CEX L2 feed or guaranteed fill quote. Resting maker orders are also available via indexer `limit-book` and on-chain queries — see [limit-orders.md](./limit-orders.md) (GitLab **#220**).
 
@@ -211,7 +211,7 @@ Returns recent trades for a given pair.
 |-----------|----------|---------|-------------|
 | `ticker_id` | Yes | — | Pair identifier |
 | `type` | No | both | `buy`, `sell`, or omit for both |
-| `limit` | No | 100 | Max trades to return (max 200) |
+| `limit` | No | 100 | Max trades to return (max **500**) |
 
 **Response:**
 
@@ -240,7 +240,7 @@ Returns recent trades for a given pair.
 | `trade_timestamp` | number | Unix timestamp in **seconds** |
 | `type` | string | `"buy"` or `"sell"` |
 
-**Trade direction:** A trade is classified as `"buy"` if the offer asset matches the base asset (trader is buying the target), and `"sell"` if the offer asset matches the target (trader is selling the target for the base).
+**Trade direction:** A trade is `"buy"` when the trader **offers quote** (`asset_1`) to **buy base** (`asset_0`). `"sell"` is offer = base. This matches CEX convention (buy the base). GitLab #685.
 
 ---
 
@@ -280,8 +280,8 @@ Overview of market data for tickers and markets, ranked by 24h quote volume (hig
 | `base_currency` | string | Base asset symbol |
 | `quote_currency` | string | Quote asset symbol |
 | `last_price` | string | Last transacted price |
-| `lowest_ask` | string | Simulated lowest ask price |
-| `highest_bid` | string | Simulated highest bid price |
+| `lowest_ask` | string | Reserve-implied mid ± `fee_bps` (same rule as CG ticker `ask`) |
+| `highest_bid` | string | Reserve-implied mid ± `fee_bps` (same rule as CG ticker `bid`) |
 | `base_volume` | string | 24h volume in base currency (raw units) |
 | `quote_volume` | string | 24h volume in quote currency (raw units) |
 | `price_change_percent_24h` | string | 24h price change percentage |
@@ -331,25 +331,29 @@ Detailed summary for each available currency on the DEX.
 
 ```json
 {
-  "CL8Y_WLUNC": {
+    "CL8Y_WLUNC": {
     "base_id": 0,
     "quote_id": 0,
     "last_price": "0.00005123",
     "base_volume": "1234567890",
     "quote_volume": "63245",
-    "isFrozen": 0
+    "isFrozen": "0",
+    "cl8y_base_address": "terra1cl8y_contract_addr",
+    "cl8y_quote_address": "terra1wlunc_contract_addr"
   }
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `base_id` | number | CMC unified ID of base asset |
-| `quote_id` | number | CMC unified ID of quote asset |
+| `base_id` | number | CMC unified ID of base asset (`assets.cmc_id`, else `0`). **Not** a contract string. |
+| `quote_id` | number | CMC unified ID of quote asset (`assets.cmc_id`, else `0`). **Not** a contract string. |
 | `last_price` | string | Last transacted price |
 | `base_volume` | string | 24h volume in base currency |
 | `quote_volume` | string | 24h volume in quote currency |
-| `isFrozen` | number | `0` = active, `1` = frozen/disabled |
+| `isFrozen` | string | `"0"` = active, `"1"` = F6 `code_id_frozen` ([#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)) |
+| `cl8y_base_address` | string | Additive: CW20 contract or native denom of the base leg |
+| `cl8y_quote_address` | string | Additive: CW20 contract or native denom of the quote leg |
 
 ### `GET /cmc/orderbook/:market_pair`
 
@@ -560,7 +564,7 @@ Use after deploy or indexer release (GitLab **#224**, CMC orderbook array **#223
 | 7 | `/cmc/trades/:pair` | Array of trades; `timestamp` seconds |
 | 8 | Not Pro API v3 | Listing form uses your `/cg` + `/cmc` base URL only |
 | 9 | Simulated book disclosure | Product copy references hybrid-sim vs `limit-book` |
-| 10 | CI | `cd indexer && cargo test --test api_orderbook_lcd_mock --test api_cg --test api_cmc` |
+| 10 | CI | `cd indexer && cargo test --test api_orderbook_lcd_mock --test api_cg --test api_cmc --test api_cg_cmc_listing` · `make verify-issue-685` |
 
 ---
 
@@ -581,6 +585,7 @@ The dApp does **not** add extra token detail to swap confirmation — logos use 
 ## Related References
 
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — volume reconciliation guide (#216)
+- [`skills/AGENTS_INDEXER_CG_CMC_LISTING.md`](../skills/AGENTS_INDEXER_CG_CMC_LISTING.md) — listing field truthfulness ([#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685))
 - [`skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](../skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — agent playbook for CG/CMC depth ([#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224), CMC array wrapper [#223](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/223))
 - [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md) — indexer integration test matrix
 - [`gaps/GAP_1780023683.md`](../gaps/GAP_1780023683.md) — gap matrix (orderbook sim row)
