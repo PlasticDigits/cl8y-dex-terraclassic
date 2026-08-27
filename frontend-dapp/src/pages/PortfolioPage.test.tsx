@@ -6,7 +6,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import PortfolioPage from './PortfolioPage'
 import * as indexerClient from '@/services/indexer/client'
 import { useWalletStore } from '@/hooks/useWallet'
-import type { IndexerPosition, IndexerTrader } from '@/types'
+import type { IndexerPosition, IndexerTrade, IndexerTrader } from '@/types'
 
 vi.mock('react-blockies', () => ({
   __esModule: true,
@@ -186,6 +186,73 @@ describe('PortfolioPage (component)', () => {
     renderPortfolio()
     const banner = await screen.findByTestId('portfolio-market-data-outage-banner')
     expect(banner).toHaveTextContent(/market data service unavailable/i)
+  })
+
+  it('hides gem Open Positions by default and reveals them under Test pairs (GitLab #674)', async () => {
+    const user = userEvent.setup()
+    const gemPosition: IndexerPosition = {
+      pair_address: 'terra1ember-coral',
+      asset_0_symbol: 'EMBER',
+      asset_1_symbol: 'CORAL',
+      asset_0_decimals: 6,
+      asset_1_decimals: 6,
+      asset_0_denom: 'terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94',
+      asset_1_denom: 'terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena',
+      net_position_quote: '9869000',
+      avg_entry_price: '1.01332',
+      total_cost_base: '10000000',
+      realized_pnl: '20150000',
+      trade_count: 3,
+    }
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated' })
+    vi.mocked(indexerClient.getTrader).mockResolvedValue(mockTrader)
+    vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([mockPosition, gemPosition])
+    renderPortfolio()
+    await waitFor(() => expect(screen.getByText(/UST1\/cUSTC/i)).toBeInTheDocument())
+    expect(screen.queryByText(/EMBER\/CORAL/i)).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trader-positions-test-pairs-divider')).not.toBeInTheDocument()
+    const toggle = screen.getByTestId('portfolio-show-test-pairs-input')
+    expect(toggle).not.toBeChecked()
+    await user.click(toggle)
+    expect(screen.getByText(/EMBER\/CORAL/i)).toBeInTheDocument()
+    expect(screen.getByTestId('trader-positions-test-pairs-divider')).toHaveTextContent(/test pairs/i)
+  })
+
+  it('hides gem recent-activity rows until Show test pairs is on (GitLab #674)', async () => {
+    const user = userEvent.setup()
+    const gemTrade: IndexerTrade = {
+      id: 9,
+      pair_address: 'terra1ember-coral',
+      block_height: 1,
+      block_timestamp: '2024-06-01T00:00:00Z',
+      tx_hash: 'AABBCCDD',
+      sender: WALLET,
+      offer_asset: 'terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94',
+      ask_asset: 'terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena',
+      offer_amount: '1000000',
+      return_amount: '1000000',
+      price: '1',
+    }
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated' })
+    vi.mocked(indexerClient.getTrader).mockResolvedValue(mockTrader)
+    vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([mockPosition])
+    vi.mocked(indexerClient.getTraderTrades).mockResolvedValue([gemTrade])
+    renderPortfolio()
+    await waitFor(() => expect(screen.getByText(/UST1\/cUSTC/i)).toBeInTheDocument())
+    expect(
+      screen.queryByText(/terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94/)
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('portfolio-show-test-pairs-input'))
+    expect(screen.getByText(/terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94/)).toBeInTheDocument()
+  })
+
+  it('does not offer the test-pairs toggle when every row is economic (GitLab #674)', async () => {
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated' })
+    vi.mocked(indexerClient.getTrader).mockResolvedValue(mockTrader)
+    vi.mocked(indexerClient.getTraderPositions).mockResolvedValue([mockPosition])
+    renderPortfolio()
+    await waitFor(() => expect(screen.getByText(/UST1\/cUSTC/i)).toBeInTheDocument())
+    expect(screen.queryByTestId('portfolio-show-test-pairs')).not.toBeInTheDocument()
   })
 
   it('opens wallet modal from connect CTA', async () => {

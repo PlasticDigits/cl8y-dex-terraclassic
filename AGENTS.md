@@ -180,6 +180,7 @@ make verify-issue-630                    # #630 LUNC/USTC picker labels (registr
 make verify-issue-661                    # #661 /pool Manage provide name/symbol + wrap default on
 make verify-issue-651                    # #651 /tiers phone-width cards + How it works (Vitest + docs)
 make verify-issue-665                    # #665 trader profile Share (Web Share + clipboard)
+make verify-issue-674                    # #674 /portfolio hide test-gem Open Positions / P&L (Vitest + docs)
 make verify-issue-669                    # #669 /token/create desktop density (Vitest + docs)
 make verify-issue-662                    # #662 /pool Created relative age from indexer created_at
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
@@ -376,6 +377,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PROTOCOL_HUB.md](skills/AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap CW20 identity + LUNC/USD column (**H11–H16**, [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)); `make verify-issue-570`
 - [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md](skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md) — `/portfolio` + `/trader` human-scale P&amp;L / cost / avg entry; mixed totals omitted or USD (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
+- [skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md](skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` hides test-gem Open Positions / P&amp;L / recent activity by default (**P674-1–P674-8**, [#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674)); `make verify-issue-674`
 - [skills/AGENTS_FRONTEND_HUB_PNL.md](skills/AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from `GET /api/v1/hub-prices` (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md](skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape + wallet Amount in/out/Price human scale (**T557-1–T557-11**, [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)); `make verify-issue-557`
 - [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](skills/AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — `/charts` pair-scoped 24h stats + leaderboard (**CS-1–CS-15**, [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)); `make verify-issue-666`
