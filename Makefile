@@ -1059,6 +1059,11 @@ verify-issue-646:
 	@chmod +x scripts/qa/verify-issue-646.sh
 	./scripts/qa/verify-issue-646.sh
 
+.PHONY: verify-issue-684
+verify-issue-684:
+	@chmod +x scripts/qa/verify-issue-684.sh
+	./scripts/qa/verify-issue-684.sh
+
 # GitLab #640 — Cosmostation / Mintscan CW20 pack (chain/terra).
 .PHONY: verify-issue-640
 verify-issue-640:

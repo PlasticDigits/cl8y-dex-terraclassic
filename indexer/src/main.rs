@@ -26,6 +26,9 @@ async fn main() -> anyhow::Result<()> {
     if args.len() > 1 && args[1] == "rebuild-positions" {
         return run_rebuild_positions().await;
     }
+    if args.len() > 1 && args[1] == "backfill-gt-event-reserves" {
+        return run_backfill_gt_event_reserves().await;
+    }
 
     run_server().await
 }
@@ -99,7 +102,28 @@ async fn run_rebuild_positions() -> anyhow::Result<()> {
         .await?;
     sqlx::migrate!().run(&pool).await?;
     let n = indexer::position_tracker::rebuild_all_positions_from_swaps(&pool).await?;
-    tracing::info!(swaps_replayed = n, "rebuilt trader_positions from swap_events");
+    tracing::info!(
+        swaps_replayed = n,
+        "rebuilt trader_positions from swap_events"
+    );
+    Ok(())
+}
+
+async fn run_backfill_gt_event_reserves() -> anyhow::Result<()> {
+    let config = load_config_or_exit();
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.database_url)
+        .await?;
+    sqlx::migrate!().run(&pool).await?;
+    let stats = indexer::gt_event_reserves::backfill_all(&pool).await?;
+    tracing::info!(
+        pairs = stats.pairs,
+        swaps_filled = stats.swaps_filled,
+        liqs_filled = stats.liqs_filled,
+        skipped_ambiguous = stats.skipped_ambiguous,
+        "backfilled /gt/events post-event reserves (GitLab #684)"
+    );
     Ok(())
 }
 

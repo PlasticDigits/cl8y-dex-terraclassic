@@ -70,4 +70,4 @@ Contact: contact@ceramicliberty.com / Telegram @ceramicliberty / https://x.com/c
 - **Do** decline Express unless product pays USD 15,000.
 - **Don’t** submit gems / ALPHA / USTRIX / SpaceUSD as the featured pool (**L639-2**).
 - **Don’t** advertise UST1 as `$1` or USTR as a stablecoin (**L639-5**).
-- GT adapters are live at `https://indexer.dex.cl8y.com/gt` after indexer redeploy (`make verify-issue-646`). Not `/cg/*`.
+- GT adapters are live at `https://indexer.dex.cl8y.com/gt` after indexer redeploy (`make verify-issue-646`). Event `reserves` are post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684), `make verify-issue-684`). Not `/cg/*`.
