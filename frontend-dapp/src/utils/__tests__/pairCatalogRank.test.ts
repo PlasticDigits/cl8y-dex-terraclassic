@@ -5,6 +5,9 @@ import {
   compareHumanQuoteVolumeDesc,
   comparePairCatalog,
   firstCatalogPairAddress,
+  firstEconomicIndexerPairAddress,
+  firstUst1CustcPairAddress,
+  resolveChartsHeroPairAddress,
   isGemSymbol,
   isTestPair,
   sortIndexerPairsByCatalog,
@@ -112,6 +115,19 @@ describe('compareHumanQuoteVolumeDesc', () => {
   it('compares mixed-decimal raw amounts in human units', () => {
     expect(compareHumanQuoteVolumeDesc('1000000', 6, '1000000000000000000', 18)).toBe(0)
     expect(compareHumanQuoteVolumeDesc('2000000', 6, '1000000000000000000', 18)).toBe(-1)
+  })
+})
+
+describe('Charts hero pick (GitLab #680)', () => {
+  it('prefers UST1/cUSTC over cLUNC/UST1 and does not change Trade firstCatalogPairAddress', () => {
+    const cluncUst1 = indexerPair('terra1p-clunc', 'cLUNC', 'UST1', CLUNC, UST1, '999')
+    const ust1Custc = indexerPair('terra1p-hero', 'UST1', 'cUSTC', UST1, CUSTC, '0')
+    const gem = indexerPair('terra1p-gem', 'EMBER', 'CORAL', EMBER, CORAL, '999999')
+    expect(firstUst1CustcPairAddress([cluncUst1, gem, ust1Custc])).toBe(ust1Custc.pair_address)
+    expect(resolveChartsHeroPairAddress([cluncUst1, gem, ust1Custc], 'local')).toBe(ust1Custc.pair_address)
+    expect(firstEconomicIndexerPairAddress([cluncUst1])).toBe(cluncUst1.pair_address)
+    expect(resolveChartsHeroPairAddress([cluncUst1], 'local')).toBe(cluncUst1.pair_address)
+    expect(firstCatalogPairAddress([pairInfo('terra1p-trade', UST1, CUSTC)])).toBe('terra1p-trade')
   })
 })
 

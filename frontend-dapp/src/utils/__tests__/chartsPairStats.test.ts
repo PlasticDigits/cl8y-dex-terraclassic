@@ -75,6 +75,14 @@ describe('formatTwapHumanPrice (GitLab #564)', () => {
     expect(human).not.toMatch(/T$/)
   })
 
+  it('reciprocals when inverted; missing stays em dash (GitLab #680)', () => {
+    expect(formatTwapHumanPrice('206', 6, 6, true)).toMatch(/^0\.00485/)
+    expect(formatTwapHumanPrice('1.05', 6, 6, true)).toMatch(/^0\.952/)
+    expect(formatTwapHumanPrice('1.05', 6, 6, false)).toMatch(/^1\.05/)
+    expect(formatTwapHumanPrice(null, 6, 6, true)).toBe('—')
+    expect(formatTwapHumanPrice(Number.POSITIVE_INFINITY, 6, 6, true)).toBe('—')
+  })
+
   it('returns em dash for missing decimals, non-positive, or junk', () => {
     expect(formatTwapHumanPrice('111', undefined, 18)).toBe('—')
     expect(formatTwapHumanPrice('111', 6, 19)).toBe('—')
@@ -84,6 +92,14 @@ describe('formatTwapHumanPrice (GitLab #564)', () => {
     expect(formatTwapHumanPrice('abc', 6, 6)).toBe('—')
     expect(formatTwapHumanPrice('<script>', 6, 6)).toBe('—')
     expect(formatTwapHumanPrice(null, 6, 6)).toBe('—')
+  })
+
+  it('inverted 6/6 and 6/18 show reciprocal human, not USD (GitLab #680)', () => {
+    const eq = formatTwapHumanPrice('1.05', 6, 6, true)
+    expect(parseFloat(eq)).toBeCloseTo(1 / 1.05, 5)
+    const mixed = formatTwapHumanPrice('111009000000000', 6, 18, true)
+    expect(parseFloat(mixed)).toBeCloseTo(1 / 111.009, 4)
+    expect(formatTwapHumanPrice(null, 6, 6, true)).toBe('—')
   })
 })
 

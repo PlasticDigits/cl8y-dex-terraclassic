@@ -367,6 +367,8 @@ Compact copy + explorer for **both pair legs** and the **pair contract** on `/po
 
 Invariants **CS-1–CS-15** are in the playbook. Regression: `make verify-issue-666`.
 
+Default pair + page-wide priced token: [Charts UST1/USD hero](#charts-ust1-usd-hero) ([#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)).
+
 ### DEX census overview (Protocol, not Charts) {#charts-overview}
 
 `GET /api/v1/overview` remains the integrator + `/protocol` Global stats payload ([GitLab **#548**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)). Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](../skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md). Format 24h volume with [`formatChartsOverviewVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts) on Protocol (`protocol-global-stats` / `protocol-stat-volume-24h`). The window is **trailing** `now − 24h`, not a UTC midnight reset ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576); [`trailingWindowCopy.ts`](../frontend-dapp/src/utils/trailingWindowCopy.ts)). `$0` is an idle window, not a daily close.
@@ -384,8 +386,8 @@ Regression: `make verify-issue-548`, `make verify-issue-576`. Trailing-window de
 | Box | Source | Display |
 |-----|--------|---------|
 | **Last 24h Vol (USD)** | `volume_usd` | `$` + compact human ([`formatIndexedVolumeUsd`](../frontend-dapp/src/utils/chartsOverviewStats.ts)). Unpriced (`null` / `"0"` / invalid with trades) → `—`. Idle (`trade_count === 0` and USD `0`) → `$0`. Trailing-window `title` / `aria-label` (`TRAILING_24H_VOLUME_TITLE`, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). `charts-pair-volume-usd`. |
-| **Vol ({symbol})** (secondary) | raw `volume_base` / `volume_quote` × **that pair’s** `asset_0` / `asset_1` decimals | [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts). Missing / out-of-range decimals → `—`. Never `formatNum(raw)`. Factory order — [#524](#trade-pair-display-invert) invert does not swap legs. `charts-pair-volume-base` / `charts-pair-volume-quote`. |
-| **High/Low/Open/Close (USD)** | factory `*_usd` | [`formatPairStatsUsdOhlc`](../frontend-dapp/src/utils/chartsPairStats.ts). `charts-pair-*-usd`. |
+| **Vol ({symbol})** (secondary) | raw `volume_base` / `volume_quote` × **that pair’s** `asset_0` / `asset_1` decimals | [`formatChartsPairTokenVolume`](../frontend-dapp/src/utils/chartsPairStats.ts). Missing / out-of-range decimals → `—`. Never `formatNum(raw)`. Factory order — invert does not swap legs or decimals (**P565-5** / **C680-6**). `charts-pair-volume-base` / `charts-pair-volume-quote`. |
+| **High/Low/Open/Close (USD)** | factory `*_usd` + human OHLC | Display USD of 1 **priced** token via [`resolveDisplayPairStatsUsdOhlc`](../frontend-dapp/src/utils/pairPriceUsd.ts) (`invertUsd`, High/Low swap). Integrator JSON stays factory. `charts-pair-*-usd`. |
 
 `volume_base` / `volume_quote` stay **raw** in integrator JSON (**P565-6** / **S564-9**). Display `stats.volume_usd` as-is (one notional, **L10**). Do not divide human USD by 1e6. Do not match decimals by symbol.
 
@@ -395,16 +397,16 @@ Regression: `make verify-issue-548`, `make verify-issue-576`. Trailing-window de
 | **P565-2** | Never `formatNum(stats.volume_base)` or `formatNum(stats.volume_quote)`. |
 | **P565-3** | Secondary token vols use `formatChartsPairTokenVolume` with that pair’s leg decimals. |
 | **P565-4** | Unpriced / invalid `volume_usd` with trades → `—`; idle → `$0`. |
-| **P565-5** | [#524](#trade-pair-display-invert) invert does not change USD or swap leg decimals on stats. |
+| **P565-5** | Invert does not change **Vol (USD)** or swap token-volume values/decimals. Charts [#680](#charts-ust1-usd-hero) **price** tiles (USD OHLC / % / TWAP / headings) follow the priced token. |
 | **P565-6** | Integrator JSON keeps raw token volumes; `volume_usd` stays human USD. |
 | **P565-7** | Token vols render only for the selected pair that fetched stats. |
 | **S564-1** | Token vols scale raw sums with **that pair row's** `asset_*.decimals`. UST1 6-dec raw is hundreds, not `385.8M`. |
 | **S564-2** | 18-dec quote volume is tens of thousands (`K` OK). Compact `T` only if **human** ≥ 1e12. |
 | **S564-3** | Equal-decimal pairs (UST1/cUSTC 6/6) are not extra-scaled by 1e6 or 1e12. |
 | **S564-4** | **Vol (USD)** is indexer `volume_usd` via `formatIndexedVolumeUsd`. Do not invent USD in the client. |
-| **S564-5** | TWAP 5m/1h/24h is human factory token1-per-token0: `raw × 10^(d0 − d1)` then `formatPairPrice`. Not USD. |
+| **S564-5** | TWAP JSON / factory meaning is human token1-per-token0: `raw × 10^(d0 − d1)` then `formatPairPrice`. Not USD. Charts [#680](#charts-ust1-usd-hero) may show the reciprocal when `?price=` is the quote leg. |
 | **S564-6** | Same-decimal TWAP is identity in magnitude. |
-| **S564-7** | High/Low/Open/Close (USD) use factory `*_usd` + `formatPairStatsUsdOhlc` (never compact `T`). |
+| **S564-7** | Integrator High/Low/Open/Close (USD) stay factory `*_usd`. Charts display uses `formatPairStatsUsdOhlc` on the **priced-token** USD (never compact `T`; never `1/x` of factory USD). |
 | **S564-8** | Candle histogram scales quote volume by quote decimals (else base by base decimals). Invert does not flip volume (**C543-8**). |
 | **S564-9** | Indexer JSON units unchanged. No human-volume field. CG/CMC raw unchanged. |
 | **S564-10** | Missing / out-of-range decimals (`0…18`) or non-numeric volume/TWAP → `—`. |
@@ -412,7 +414,7 @@ Regression: `make verify-issue-548`, `make verify-issue-576`. Trailing-window de
 
 `data-testid`s: `charts-pair-volume-usd`, `charts-pair-volume-base`, `charts-pair-volume-quote`, `charts-pair-*-usd`, `charts-twap-5m` / `1h` / `24h`.
 
-Regression: `make verify-issue-565` · `make verify-issue-564`.
+Regression: `make verify-issue-565` · `make verify-issue-564` · `make verify-issue-680`.
 
 ### Charts trader leaderboard {#charts-trader-leaderboard}
 
@@ -1318,7 +1320,7 @@ Factory pairs keep a fixed **base/quote** (`asset_0` / `asset_1`). Indexer `#466
 | **T524-7** | Persist invert per `pairAddr` in **sessionStorage** (`cl8y-dex-trade-pair-invert:`). Pair switch re-keys. Cleared storage uses the product default (not another user’s last choice). |
 | **T524-8** | `PairSearchSelect` click still opens search ([#181](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/181)). Invert is not on the combobox. Selected **label text** may follow display order. |
 | **T524-9** | Route stays `/trade/:pairAddr` (factory pair). No second contract. |
-| **T524-10** | `/limits` standalone does **not** silently invert. `/charts` uses the same default + pill. |
+| **T524-10** | `/limits` standalone does **not** silently invert. `/charts` uses the same **pill + `invertUsd` math** but a **Charts product default** (UST1 USD) and a Charts-only storage key ([#680](#charts-ust1-usd-hero)). Do not write Charts visits into `cl8y-dex-trade-pair-invert:`. |
 | **T524-11** | No `token0` / `token1` / `bid` / `ask` / **ORDER TICKET** in retail chrome. Invert `aria-label` names both symbols. Never describe invert as mint/redeem (**U1**, [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508)). |
 
 **Side map (UST1 = `asset_0`, inverted):** display **Buy {other}** → factory **ask**; display **Sell {other}** → factory **bid**. Non-inverted: Buy → bid.
@@ -1329,11 +1331,11 @@ Factory pairs keep a fixed **base/quote** (`asset_0` / `asset_1`). Indexer `#466
 |----|-----------|
 | **C543-1** | Default UST1/USTR invert (pill `USTR/UST1`): Last and candle last-close are USD of 1 USTR (`0.012…` class), not `~1.0`. |
 | **C543-2** | Same pair after switch-side: Last and candles are USD of 1 UST1 (`~$1`), not `1/0.012 ≈ 81`. |
-| **C543-3** | UST1/cUSTC default: Last and candles are USD of 1 cUSTC (`~$0.005` class). Switch-side: both UST1 USD. |
+| **C543-3** | **Trade-only.** `/trade` UST1/cUSTC default: Last and candles are USD of 1 cUSTC (`~$0.005` class). Switch-side: both UST1 USD. **Charts** default is UST1 USD ([#680](#charts-ust1-usd-hero) **C680-2**). |
 | **C543-4** | cLUNC/UST1 factory: Last and candles are USD of 1 cLUNC (`~$0.000047`). Y-axis / last-value must not render `0.00` as the only digits. |
 | **C543-5** | cLUNC/UST1 after switch-side: Last and candles are USD of 1 UST1 (`~$1`), **not** `~21260`. |
 | **C543-6** | Non-UST1 pairs stay factory USD of `asset_0` (no default invert). |
-| **C543-7** | `/trade` and `/charts` share the same series math and pill state. |
+| **C543-7** | `/trade` and `/charts` share `invertUsd` series math and the invert pill. They do **not** share default or `sessionStorage` after [#680](#charts-ust1-usd-hero). |
 | **C543-8** | SMA/RSI follow display USD. Volume unchanged. Invert rewrite → `setData`. |
 | **C543-9** | Empty / all-dropped USD bars use the existing empty state; no `NaN` / `Infinity` / negative axis. |
 
@@ -1341,7 +1343,29 @@ Implementation: [`tradePairDisplayOrientation.ts`](../frontend-dapp/src/utils/tr
 
 **Idle / mark bars ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)):** catalog-quoted pairs may have candles with `trade_count = 0` and zero volume when USTC/LUNC/hub ticks with no swap. Plot the USD OHLC; histogram value stays 0. Do not treat marks as NAV or settlement.
 
-**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](../skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md), [`skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](../skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md), [`skills/AGENTS_INDEXER_CANDLE_USD_MARK.md`](../skills/AGENTS_INDEXER_CANDLE_USD_MARK.md).
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](../skills/AGENTS_FRONTEND_TRADE_PAIR_INVERT.md), [`skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](../skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md), [`skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](../skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md), [`skills/AGENTS_INDEXER_CANDLE_USD_MARK.md`](../skills/AGENTS_INDEXER_CANDLE_USD_MARK.md).
+
+### Charts UST1/USD hero + `?price=` {#charts-ust1-usd-hero}
+
+[`/charts`](../frontend-dapp/src/pages/ChartsPage.tsx) opens **UST1/cUSTC** (retail “UST1/USTC”) as the first chart and prices **USD of 1 UST1** by default ([GitLab **#680**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)). `?price=` names the priced token. **Every** price-facing block follows that token. Indexer / CG/CMC stay factory-oriented. Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](../skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md).
+
+**Resolve on Charts:** valid `?price=` (last key) → Charts session `cl8y-dex-charts-pair-invert:` → Charts product default (**not** inverted). **Trade** keeps storage → **T524-3**. Repeated `price` keys: last wins; hostile / overlong / non-leg values are ignored (not 404, not echoed).
+
+Hero pair is UST1 + **cUSTC wrap** (`isUst1Leg` + `isCustcLeg`). Not native `uusd`. columbus-5 pin: `MAINNET_UST1_CUSTC_PAIR_ADDRESS`. LocalTerra matches env legs. Bare `/charts` only — valid `/charts/:pairAddr` must not snap back.
+
+| ID | Rule |
+|----|------|
+| **C680-1** | Bare `/charts` → UST1/cUSTC when listed + `?price=UST1`. Last + candles are USD of 1 UST1 (`~$1` class). |
+| **C680-2** | `/charts/{ust1custc}` without `price` uses Charts UST1 USD, not **T524-3**. |
+| **C680-3** | `?price=cUSTC` / `USTC` / quote-leg contract prices Last, candles, 24h USD OHLC, %, TWAP, headings, tape Price. Pill matches. |
+| **C680-4** | Invert pill `replace`s `?price=` and all C680-3 rows. |
+| **C680-5** | Other pair deep links stay. Non-leg `price` is ignored. Hostile `pairAddr` → existing notice (**CS-11**). |
+| **C680-6** | Vol (USD) and factory token volumes do not change with invert. |
+| **C680-7** | `/trade` first visit still other-side. Charts does not write `cl8y-dex-trade-pair-invert:`. |
+| **C680-8** | Missing hero → first economic catalog pair; no spinner lock. Gems stay hidden in production (**P562**). |
+| **C680-9** | `invertUsd` per value — never `1/x` factory USD. No CoinGecko stitch. No U1 mint copy. Chrome nesting green. |
+
+Implementation: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts), [`useChartsPairDisplayOrientation`](../frontend-dapp/src/hooks/usePairDisplayOrientation.ts), [`resolveDisplayPairStatsUsdOhlc`](../frontend-dapp/src/utils/pairPriceUsd.ts), [`resolveChartsHeroPairAddress`](../frontend-dapp/src/utils/pairCatalogRank.ts). Charts Share is not wired; `buildCanonicalShareUrl({ kind: 'charts' })` stays path-only (**TS-2**). Regression: `make verify-issue-680`.
 
 ### Trade page — market context (tape, hybrid tag, limit-only book) {#trade-page-market-context}
 

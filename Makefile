@@ -493,6 +493,13 @@ verify-issue-666:
 	@chmod +x scripts/qa/verify-issue-666.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-666.sh
 
+# GitLab #680 — /charts UST1/USD hero + ?price= + page-wide invert.
+verify-issue-680:
+	@chmod +x scripts/qa/verify-issue-680.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-680.sh
+
+.PHONY: verify-issue-680
+
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
 	@chmod +x scripts/qa/verify-issue-576.sh scripts/with-node.sh
