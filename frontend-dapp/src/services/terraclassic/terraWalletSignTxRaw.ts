@@ -206,7 +206,14 @@ export async function signTerraTxRaw(
   return { txRaw, txHash, sequence }
 }
 
-/** Station / LuncDash WC v1 — atomic `post` with no separate sign step. */
+/**
+ * Station / LuncDash WC v1 — atomic `post` with no separate sign step.
+ * The dApp still passes `Fee.gas` + `Fee.amount` into `broadcastTx`. Station mobile
+ * Confirm may ignore that and LCD-simulate (the #679 ~4k LUNC auto-gas). Residual:
+ * keep atomic WC; dApp **Network fee (est.)** is the source of truth. Do not move
+ * Station WC to split `signAmino` here (#519 / #566 / #499). Do not enable
+ * mainnet SEC-E08 (#429).
+ */
 export function isAtomicWalletConnectPost(wallet: ConnectedWallet): boolean {
   return (
     wallet.type === WalletType.WALLETCONNECT && (wallet.id === WalletName.STATION || wallet.id === WalletName.LUNCDASH)

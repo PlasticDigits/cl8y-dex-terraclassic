@@ -15,9 +15,11 @@
  *
  * When adding a retail execute: named constant + `getGasLimitForTx` branch (+ send-inner if
  * CW20 hook) + fixture here + docs row in `docs/frontend.md` § Terra Classic gas limits.
- * Combined wrap+router / unwrap+N-hop envelopes live in {@link RETAIL_COMBINED_ENVELOPE_FIXTURES}
+ * Combined wrap+router / unwrap+N-hop / mixed-hybrid envelopes live in
+ * {@link RETAIL_COMBINED_ENVELOPE_FIXTURES}
  * ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587),
- * [#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)).
+ * [#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599),
+ * [#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)).
  * Playbook: `skills/AGENTS_TERRACLASSIC_GAS.md`.
  */
 
@@ -32,6 +34,8 @@ import {
   UST1_WINDOW_SEND_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  MIXED_HYBRID_ROUTER_HEADROOM_GAS,
+  ROUTER_SWAP_OPS_MIN_GAS_PER_HOP,
 } from '@/utils/constants'
 import {
   ADD_LIQUIDITY_GAS_LIMIT,
@@ -50,6 +54,7 @@ import {
   gasLimitForLimitOrderCancelBatch,
   gasLimitForRouterExecuteSwapOperations,
 } from './terraGas'
+import { gasLimitForHybridParams } from './hybridSwapGas'
 
 export type RetailGasShapeFixture = {
   /** Stable id for CI / docs cross-refs. */
@@ -346,8 +351,46 @@ function routerSendMsg(hops: number, unwrap = false): Record<string, unknown> {
   }
 }
 
+function fourHopHybridFirstPoolRestSend(): Record<string, unknown> {
+  return {
+    send: {
+      msg: b64({
+        execute_swap_operations: {
+          operations: [
+            {
+              terra_swap: {
+                hybrid: {
+                  pool_input: '0',
+                  book_input: '10000000000',
+                  max_maker_fills: 8,
+                  book_start_hint: 1426,
+                },
+              },
+            },
+            { terra_swap: {} },
+            { terra_swap: {} },
+            { terra_swap: {} },
+          ],
+        },
+      }),
+    },
+  }
+}
+
+/** Columbus-5 AB8BE4F7… hop1 book/8 makers + 3 pool hops + mixed headroom (#679). */
+export const SEND_4HOP_HYBRID_FIRST_POOL_REST_GAS =
+  gasLimitForHybridParams({
+    pool_input: '0',
+    book_input: '10000000000',
+    max_maker_fills: 8,
+    book_start_hint: 1426,
+  }) +
+  3 * ROUTER_SWAP_OPS_MIN_GAS_PER_HOP +
+  MIXED_HYBRID_ROUTER_HEADROOM_GAS
+
 /**
- * Combined multi-msg envelopes for wrap + router (#587) and unwrap+≥2hop (#599).
+ * Combined multi-msg envelopes for wrap + router (#587), unwrap+≥2hop (#599),
+ * and mixed hybrid+pool router (#679).
  * `expectedGas` is {@link totalGasLimitForExecuteMsgs} (includes wrap combo when hops ≥ 2;
  * unwrap combo is inside the send-msg envelope via `getGasLimitForTx`).
  */
@@ -406,5 +449,11 @@ export const RETAIL_COMBINED_ENVELOPE_FIXTURES: readonly RetailCombinedEnvelopeF
       gasLimitForRouterExecuteSwapOperations(2) +
       WRAP_ROUTER_COMBO_OVERHEAD_GAS +
       PAY_INVOICE_SEND_GAS_LIMIT,
+  },
+  {
+    id: 'send_4hop_hybrid_first_pool_rest',
+    note: 'cLUNC→USTR mixed hybrid hop1 + pool hops 2–4 (#679 G-AUTO-7)',
+    msgs: [{ msg: fourHopHybridFirstPoolRestSend() }],
+    expectedGas: SEND_4HOP_HYBRID_FIRST_POOL_REST_GAS,
   },
 ]
