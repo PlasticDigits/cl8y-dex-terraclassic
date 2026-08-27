@@ -10,7 +10,7 @@ Use when changing **`/ust1`**, ust1-window CW20 Send client, UST1/vFDUSD metadat
 | [`docs/frontend.md`](../docs/frontend.md) routes table | `/ust1` vs `/mint` |
 | [`Ust1Page.tsx`](../frontend-dapp/src/pages/Ust1Page.tsx) | Deposit / Withdraw UI |
 | [`ust1Window.ts`](../frontend-dapp/src/services/terraclassic/ust1Window.ts) | `effective_swap` + CW20 Send |
-| [`ust1WindowMath.ts`](../frontend-dapp/src/utils/ust1WindowMath.ts) | INV-SWAP-001/002 integer quotes |
+| [`ust1WindowMath.ts`](../frontend-dapp/src/utils/ust1WindowMath.ts) | INV-SWAP-001/002 integer quotes + inverse deposit (#678) |
 | [`ust1WindowGates.ts`](../frontend-dapp/src/utils/ust1WindowGates.ts) | Pause / stale / limit gates |
 | Upstream | [ust1-window](https://gitlab.com/PlasticDigits/ust1-window) `effective_swap`, `Cw20HookMsg::{Deposit,Withdraw}` |
 
@@ -30,6 +30,7 @@ Use when changing **`/ust1`**, ust1-window CW20 Send client, UST1/vFDUSD metadat
 
 ```bash
 make verify-issue-506
+make verify-issue-678
 make lint-frontend
 make test-frontend
 # Playwright CTA gates (LCD mocked; Vite bakes VITE_UST1_* via playwright.config):
@@ -42,6 +43,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-wi
 - Shell nav: [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md)
 - Gas: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Design / copy: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md), [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
+- Swap / Trade UST1 acquire Guide (**U9** / **A678**, [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678)): [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md)
 - Prod Vite / Coolify: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
 - Phase 5 ops (oracle age, pause, inventory): [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](./AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 - Protocol treasury fees for window mint/redeem: [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614-1–I614-8**) + [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **PFee-13** ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)). Indexer pin is `UST1_WINDOW_ADDRESS` (not Vite-only). CEX/hub cards stay **not** the window rate (**P550-11**). Post-merge stack: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)).

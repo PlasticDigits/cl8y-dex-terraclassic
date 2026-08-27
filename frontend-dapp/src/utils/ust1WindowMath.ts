@@ -32,6 +32,34 @@ export function withdrawGrossUst1ToVfdusd(grossUst1: bigint, rate: bigint, feeBp
   return (afterFee * UST1_RATE_SCALE) / rate
 }
 
+function ceilDiv(numerator: bigint, denominator: bigint): bigint {
+  if (denominator <= 0n) throw new Error('Division by zero')
+  return (numerator + denominator - 1n) / denominator
+}
+
+/**
+ * Inverse of INV-SWAP-001: minimum vFDUSD in (ceil) so deposit yields at least `targetUst1`.
+ * Fail closed (`null`) when rate is 0, fee is invalid, or the inverse cannot be verified.
+ * GitLab #678 — Swap/Trade acquire guidance must not invent FX.
+ */
+export function vfdusdInForTargetUst1(targetUst1: bigint, rate: bigint, feeBps: number): bigint | null {
+  if (targetUst1 <= 0n || rate <= 0n) return null
+  if (feeBps < 0 || feeBps >= Number(UST1_BPS_DENOM)) return null
+  const feeMul = UST1_BPS_DENOM - BigInt(feeBps)
+  if (feeMul <= 0n) return null
+  try {
+    const beforeMin = ceilDiv(targetUst1 * UST1_BPS_DENOM, feeMul)
+    let guess = ceilDiv(beforeMin * UST1_RATE_SCALE, rate)
+    for (let i = 0; i < 4; i++) {
+      if (depositVfdusdToUst1(guess, rate, feeBps) >= targetUst1) return guess
+      guess += 1n
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
 export function minVfdusdOutAfterSlippage(
   quotedVfdusdOut: bigint,
   slippageBps: number = UST1_WITHDRAW_MIN_OUT_SLIPPAGE_BPS
