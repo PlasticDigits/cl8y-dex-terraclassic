@@ -279,7 +279,8 @@ async fn idle_ustc_tick_writes_mark_bars() {
     let hub = HubQuoteUsd {
         ust1: Some(bd("1")),
         ustr: Some(bd("0.01")),
-    };
+            ..Default::default()
+        };
 
     let n =
         candle_mark::apply_idle_usd_marks(&pool, &hub_cfg(), now, Some(&bd("0.005")), None, &hub)
@@ -392,6 +393,7 @@ async fn idle_ustr_and_lunc_marks() {
         &HubQuoteUsd {
             ust1: Some(bd("1")),
             ustr: Some(bd("0.01")),
+            ..Default::default()
         },
     )
     .await
@@ -440,6 +442,7 @@ async fn swap_bar_keeps_trade_count_when_marked() {
         &HubQuoteUsd {
             ust1: Some(bd("0.8")),
             ustr: None,
+            ..Default::default()
         },
     )
     .await
@@ -537,6 +540,7 @@ async fn skip_unknown_quote_and_spoof_native_ustr() {
         &HubQuoteUsd {
             ust1: Some(bd("1")),
             ustr: Some(bd("0.01")),
+            ..Default::default()
         },
     )
     .await
@@ -567,6 +571,7 @@ async fn get_candles_includes_mark_bars() {
         &HubQuoteUsd {
             ust1: Some(bd("1")),
             ustr: Some(bd("0.01")),
+            ..Default::default()
         },
     )
     .await

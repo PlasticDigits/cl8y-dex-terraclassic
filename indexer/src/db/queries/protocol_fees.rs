@@ -7,9 +7,10 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool};
 
-use crate::indexer::pair_price_usd::fits_numeric_38_18;
+use crate::db::queries::assets::AssetRow;
+use crate::indexer::pair_price_usd::{fits_numeric_38_18, HubQuoteUsd};
 use crate::indexer::protocol_fees::{
-    flow_change_pct, FeeEventDraft, FeeSource,
+    fee_usd_for_raw, flow_change_pct, FeeEventDraft, FeeSource,
 };
 
 const TOKEN_CAP: i64 = 8;
@@ -92,6 +93,81 @@ fn clamp_usd(v: Option<BigDecimal>) -> Option<BigDecimal> {
     } else {
         Some(v)
     }
+}
+
+/// Fill `protocol_fee_events.fee_usd IS NULL` only, using current P522-Q / hub /
+/// factory economic marks (GitLab #683). Never `UPDATE` a non-null stamp.
+/// As-of backfill — not historical mark-to-market.
+pub async fn backfill_null_fee_usd(
+    pool: &PgPool,
+    ustc_usd: Option<&BigDecimal>,
+    lunc_usd: Option<&BigDecimal>,
+    configured_ustc_denom: Option<&str>,
+    hub: &HubQuoteUsd,
+) -> Result<u64, sqlx::Error> {
+    #[derive(FromRow)]
+    struct NullFee {
+        id: i64,
+        amount_raw: BigDecimal,
+        decimals: i16,
+        symbol: String,
+        denom: Option<String>,
+        is_cw20: bool,
+        contract_address: Option<String>,
+    }
+
+    let rows: Vec<NullFee> = sqlx::query_as(
+        r#"SELECT e.id, e.amount_raw, e.decimals,
+                  a.symbol, a.denom, a.is_cw20, a.contract_address
+           FROM protocol_fee_events e
+           JOIN assets a ON a.id = e.asset_id
+           WHERE e.fee_usd IS NULL"#,
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let mut filled = 0u64;
+    for row in rows {
+        let asset = AssetRow {
+            id: 0,
+            contract_address: row.contract_address,
+            denom: row.denom,
+            is_cw20: row.is_cw20,
+            name: row.symbol.clone(),
+            symbol: row.symbol,
+            decimals: row.decimals,
+            logo_url: None,
+            coingecko_id: None,
+            cmc_id: None,
+            first_seen_block: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let Some(usd) = fee_usd_for_raw(
+            &asset,
+            &row.amount_raw,
+            ustc_usd,
+            lunc_usd,
+            configured_ustc_denom,
+            Some(hub),
+        ) else {
+            continue;
+        };
+        let res = sqlx::query(
+            "UPDATE protocol_fee_events
+             SET fee_usd = $1
+             WHERE id = $2 AND fee_usd IS NULL",
+        )
+        .bind(&usd)
+        .bind(row.id)
+        .execute(pool)
+        .await?;
+        filled += res.rows_affected();
+    }
+    if filled > 0 {
+        tracing::info!(filled, "NULL-only protocol fee USD backfill");
+    }
+    Ok(filled)
 }
 
 /// Rebuild fee scalars on `global_stats_24h` and capped breakdown tables.

@@ -75,4 +75,49 @@ describe('estimateSwapNetworkFee (GitLab #587)', () => {
     })
     expect(est.gasLimit).toBeLessThan(15_000_000)
   })
+
+  it('CW20 4-hop mixed ops match broadcast send envelope (#679)', () => {
+    const hop1 = {
+      pool_input: '0',
+      book_input: '10000000000',
+      max_maker_fills: 8,
+      book_start_hint: 1426,
+    }
+    const ops = [
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: 'terra1a' } },
+          ask_asset_info: { token: { contract_addr: 'terra1b' } },
+          hybrid: hop1,
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: 'terra1b' } },
+          ask_asset_info: { token: { contract_addr: 'terra1c' } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: 'terra1c' } },
+          ask_asset_info: { token: { contract_addr: 'terra1d' } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: 'terra1d' } },
+          ask_asset_info: { token: { contract_addr: 'terra1e' } },
+        },
+      },
+    ]
+    const est = estimateSwapNetworkFee({
+      isDirectWrap: false,
+      needsWrapInput: false,
+      hopCount: 4,
+      cw20RouterOperations: ops,
+    })
+    expect(est.gasLimit).toBe(6_785_500)
+    expect(est.gasLimit).not.toBe(3_810_000)
+    expect(Number(est.feeUluna) / 1_000_000).toBeLessThan(400)
+  })
 })

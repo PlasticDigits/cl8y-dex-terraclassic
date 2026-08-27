@@ -6,6 +6,9 @@ import {
   MAINNET_UST1_TOKEN_ADDRESS,
 } from '@/utils/ust1SecondaryMarket'
 import {
+  CHARTS_PAIR_DISPLAY_INVERT_STORAGE_PREFIX,
+  PAIR_DISPLAY_INVERT_STORAGE_PREFIX,
+  defaultChartsDisplayInverted,
   defaultDisplayInverted,
   displayPairAssets,
   displayPriceToFactoryToken1PerToken0,
@@ -16,12 +19,16 @@ import {
   invertOhlc,
   invertUsd,
   invertUsdNumber,
+  isCustcLeg,
   isUst1Leg,
   pairDisplayInvertAriaLabel,
   pairDisplayPillLabel,
   parseFinitePositive,
+  readChartsStoredPairDisplayInverted,
   readStoredPairDisplayInverted,
+  resolveChartsDisplayInverted,
   resolvePairDisplayInverted,
+  writeChartsStoredPairDisplayInverted,
   writeStoredPairDisplayInverted,
 } from '../tradePairDisplayOrientation'
 
@@ -212,5 +219,29 @@ describe('sessionStorage persistence', () => {
     expect(resolvePairDisplayInverted(a, UST1, CUSTC)).toBe(false)
     expect(resolvePairDisplayInverted(b, UST1, CUSTC)).toBe(true)
     expect(resolvePairDisplayInverted(b, CL8Y, CLUNC)).toBe(false)
+  })
+})
+
+describe('Charts orientation isolation (GitLab #680)', () => {
+  it('Charts default is not inverted on UST1-as-base; Trade default stays inverted', () => {
+    expect(defaultChartsDisplayInverted()).toBe(false)
+    expect(defaultDisplayInverted(UST1, CUSTC)).toBe(true)
+    expect(isCustcLeg(CUSTC)).toBe(true)
+    expect(isCustcLeg({ symbol: 'USTC', denom: 'uusd' })).toBe(false)
+    expect(isUst1Leg({ symbol: 'cUSTC' })).toBe(false)
+    expect(resolveChartsDisplayInverted('terra1pair', UST1, CUSTC, null)).toBe(false)
+    expect(resolvePairDisplayInverted('terra1pair', UST1, CUSTC)).toBe(true)
+  })
+
+  it('valid price match wins; Charts write does not touch the Trade key', () => {
+    const pair = 'terra1paircccccccccccccccccccccccccccccccccccc'
+    writeChartsStoredPairDisplayInverted(pair, true)
+    expect(readChartsStoredPairDisplayInverted(pair)).toBe(true)
+    expect(sessionStorage.getItem(`${CHARTS_PAIR_DISPLAY_INVERT_STORAGE_PREFIX}${pair}`)).toBe('1')
+    expect(sessionStorage.getItem(`${PAIR_DISPLAY_INVERT_STORAGE_PREFIX}${pair}`)).toBeNull()
+    expect(readStoredPairDisplayInverted(pair)).toBeNull()
+    expect(resolvePairDisplayInverted(pair, UST1, CUSTC)).toBe(true)
+    expect(resolveChartsDisplayInverted(pair, UST1, CUSTC, 'asset0')).toBe(false)
+    expect(resolveChartsDisplayInverted(pair, UST1, CUSTC, 'asset1')).toBe(true)
   })
 })

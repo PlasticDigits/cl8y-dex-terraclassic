@@ -1,16 +1,22 @@
 //! Per-pair quote exposure and PnL. Net quote position is clamped to ≥ 0 after sells (`net_quote_after_sell`). See `docs/indexer-invariants.md`.
 //!
-//! Stored amounts are **raw chain NUMERIC** (GitLab **#551**):
+//! Stored amounts are **raw chain NUMERIC** (GitLab **#551**, **#676**):
 //! - `net_position_quote` — raw **quote** (`asset_1`)
 //! - `total_cost_base` / `realized_pnl` — raw **base** (`asset_0`)
 //! - `avg_entry_price` — raw base / raw quote (not human, not USD)
 //!
-//! JSON keeps those raw strings. The dApp scales with `asset_*_decimals` from
-//! `GET /api/v1/traders/{addr}/positions`. Do **not** sum `traders.total_realized_pnl`
-//! across pairs as a single unit.
+//! Columns are **`NUMERIC(78, 18)`**. `NUMERIC(38, 18)` overflows at `|x| ≥ 10^20`
+//! (~100 human 18-decimal tokens). Swap ingest writes `swap_events` first; a
+//! rejected position upsert left `/trades` ahead of `/positions` until rebuild.
+//!
+//! JSON keeps those raw strings (`bd_plain_string`, no `1e+19`). The dApp scales
+//! with `asset_*_decimals` from `GET /api/v1/traders/{addr}/positions`. Do **not**
+//! sum `traders.total_realized_pnl` across pairs as a single unit. Unrealized
+//! mark-to-market is dApp-side (GitLab **#675**) from hub prices vs
+//! `total_cost_base` — not stored here.
 
 use bigdecimal::BigDecimal;
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool};
 
 use crate::db::queries::positions;
 use crate::indexer::pair_price_usd::ten_pow_i32;
@@ -136,6 +142,108 @@ pub async fn update_position_on_swap(
     }
 
     Ok(())
+}
+
+#[derive(Debug, FromRow)]
+struct SwapForPosition {
+    pair_id: i32,
+    pair_asset_0_id: i32,
+    sender: String,
+    offer_asset_id: i32,
+    offer_amount: BigDecimal,
+    return_amount: BigDecimal,
+    spread_amount: Option<BigDecimal>,
+    commission_amount: Option<BigDecimal>,
+}
+
+/// True when any `(sender, pair_id)` swap count ≠ `trader_positions.trade_count`.
+///
+/// Missing position rows count as `0`. Used at poller start so Coolify migrate +
+/// restart heals leftover 18-dec undercounts (GitLab #676).
+pub async fn positions_trade_count_diverges(pool: &PgPool) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT EXISTS (
+            SELECT 1
+            FROM (
+                SELECT sender, pair_id, COUNT(*)::int AS n
+                FROM swap_events
+                GROUP BY sender, pair_id
+            ) s
+            FULL OUTER JOIN trader_positions p
+              ON p.trader_address = s.sender AND p.pair_id = s.pair_id
+            WHERE COALESCE(s.n, 0) IS DISTINCT FROM COALESCE(p.trade_count, 0)
+         )",
+    )
+    .fetch_one(pool)
+    .await
+}
+
+/// Replay every `swap_events` row through [`update_position_on_swap`] (block, id).
+///
+/// Clears `trader_positions` and per-trade `traders` P&L / fee columns first so
+/// a second rebuild is not additive. Source of truth after reorg / overflow skip.
+pub async fn rebuild_all_positions_from_swaps(pool: &PgPool) -> Result<u64, BoxError> {
+    sqlx::query("DELETE FROM trader_positions")
+        .execute(pool)
+        .await?;
+    sqlx::query(
+        "UPDATE traders SET
+            total_realized_pnl = 0,
+            best_trade_pnl = NULL,
+            worst_trade_pnl = NULL,
+            total_fees_paid = 0,
+            updated_at = NOW()",
+    )
+    .execute(pool)
+    .await?;
+
+    let swaps: Vec<SwapForPosition> = sqlx::query_as(
+        "SELECT se.pair_id,
+                p.asset_0_id AS pair_asset_0_id,
+                se.sender,
+                se.offer_asset_id,
+                se.offer_amount,
+                se.return_amount,
+                se.spread_amount,
+                se.commission_amount
+         FROM swap_events se
+         JOIN pairs p ON p.id = se.pair_id
+         ORDER BY se.block_height, se.id",
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let n = swaps.len() as u64;
+    for s in &swaps {
+        update_position_on_swap(
+            pool,
+            s.pair_id,
+            s.pair_asset_0_id,
+            &s.sender,
+            s.offer_asset_id,
+            &s.offer_amount,
+            &s.return_amount,
+            s.spread_amount.as_ref(),
+            s.commission_amount.as_ref(),
+        )
+        .await?;
+    }
+    Ok(n)
+}
+
+/// Rebuild when `/positions` trade_count would disagree with `/trades`.
+///
+/// Returns `true` when a rebuild ran. Idempotent when already aligned.
+pub async fn repair_positions_if_trade_count_mismatch(pool: &PgPool) -> Result<bool, BoxError> {
+    if !positions_trade_count_diverges(pool).await? {
+        return Ok(false);
+    }
+    tracing::warn!(
+        "trader_positions.trade_count diverges from swap_events; rebuilding (GitLab #676)"
+    );
+    let n = rebuild_all_positions_from_swaps(pool).await?;
+    tracing::info!(swaps_replayed = n, "rebuilt trader_positions from swap_events");
+    Ok(true)
 }
 
 #[cfg(test)]

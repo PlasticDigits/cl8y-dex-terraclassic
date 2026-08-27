@@ -24,10 +24,8 @@ import {
 import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
-import {
-  executeCw20AllowanceThen,
-  estimateMarketPairSwapSequenceUlunaFeesTotal,
-} from '@/services/terraclassic/transactions'
+import { executeCw20AllowanceThen } from '@/services/terraclassic/transactions'
+import { estimateTradeMarketNetworkFeeUluna } from '@/services/terraclassic/swapNetworkFee'
 import {
   POOL_ONLY_QUOTE_DISCLOSURE,
   quoteDirectHybridSwap,
@@ -328,9 +326,14 @@ export function TradeMarketOrderPanel({
   )
 
   // Hybrid (GET or Advanced override) reserves hybrid gas; prefer settled solver / manual split params.
+  // Multi-hop market shares the mixed-hop helper (#679) — no second formula.
   const marketGasMin = useMemo(
-    () => estimateMarketPairSwapSequenceUlunaFeesTotal(true, liveHybrid ?? solverHybridForGas ?? undefined),
-    [liveHybrid, solverHybridForGas]
+    () =>
+      estimateTradeMarketNetworkFeeUluna(
+        simQuery.data?.indexerOperations,
+        liveHybrid ?? solverHybridForGas ?? undefined
+      ),
+    [simQuery.data?.indexerOperations, liveHybrid, solverHybridForGas]
   )
 
   const placeNativeGasGate = useMemo(

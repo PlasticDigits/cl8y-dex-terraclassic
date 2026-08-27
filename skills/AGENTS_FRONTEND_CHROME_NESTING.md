@@ -5,7 +5,7 @@ Audience: third-party agents adding page sections, `StatBox` grids, or `card-gla
 **Issue:** [GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)  
 **Invariants:** [`docs/frontend.md` § One chrome layer](../docs/frontend.md#one-chrome-layer) (**C653-1–C653-8**)  
 **Spec:** [`docs/design-system.md`](../docs/design-system.md) principle **One chrome layer per region**  
-**Related:** [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) Trade application (**L561-1–L561-2**), [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) Protocol inline Δ% (do not restyle Global stats/fees beyond `flat` here), [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) Δ% grouped with headline (layout, not a second chrome layer), [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) tokens, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) copy density.
+**Related:** [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561) Trade application (**L561-1–L561-2**), [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) Protocol inline Δ% (do not restyle Global stats/fees beyond `flat` here), [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) Δ% grouped with headline (layout, not a second chrome layer), [#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) liquidity 24h-only + denser UTC x-axis, [#488](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/488) tokens, [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489) copy density.
 
 ## Problem class
 

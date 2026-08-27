@@ -49,7 +49,7 @@ describe('StatBox', () => {
     expect(screen.getByTestId('vol-chg').closest('.stat-value-row')).toBe(row)
   })
 
-  it('keeps two liquidity chips in one cluster after the headline (GitLab #667)', () => {
+  it('keeps multiple deltas in one cluster after the headline (GitLab #667)', () => {
     const { container } = render(
       <StatBox
         variant="flat"

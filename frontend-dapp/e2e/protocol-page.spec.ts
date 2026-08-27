@@ -80,12 +80,8 @@ async function assertProtocolDeltaGeometry(page: Page) {
     liq.getByTestId('protocol-stat-liquidity-24h'),
     page.getByTestId('protocol-stat-volume-24h')
   )
-  await assertChipGroupedWithHeadline(
-    page,
-    liq,
-    liq.getByTestId('protocol-stat-liquidity-30d'),
-    page.getByTestId('protocol-stat-volume-24h')
-  )
+  await expect(liq.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
+  await expect(liq).not.toContainText('30d')
 
   const vol24 = page.getByTestId('protocol-stat-volume-24h')
   const vol7d = page.getByTestId('protocol-stat-volume-7d')
@@ -111,6 +107,24 @@ async function assertProtocolDeltaGeometry(page: Page) {
   expect(tokensText).not.toMatch(/\d+\.000\b/)
 }
 
+/** GitLab #677 — x-axis labels every bar or every 2nd (hourly may widen). */
+async function assertVolumeXAxisDensity(page: Page, grain: 'hourly' | 'daily' | 'monthly') {
+  const chart = page.getByTestId('protocol-volume-daily-chart')
+  if (!(await chart.count())) return
+  const plot = page.getByTestId('protocol-volume-daily-bars')
+  if (!(await plot.count())) return
+  const barCount = await page.locator('[data-testid^="protocol-volume-bar-"]').count()
+  if (barCount === 0) return
+  const labelCount = await page.locator('[data-testid="protocol-volume-chart-xaxis"] text').count()
+  expect(labelCount).toBeGreaterThan(0)
+  expect(labelCount).toBeLessThanOrEqual(barCount)
+  if (grain === 'hourly' && barCount > 12) {
+    expect(labelCount).toBeGreaterThan(5)
+  } else {
+    expect(labelCount).toBeGreaterThanOrEqual(Math.ceil(barCount / 2))
+  }
+}
+
 test.describe('Protocol page (GitLab #550 / #422)', () => {
   test('P1 stats card + oracle card + audit rows', async ({ page }) => {
     await page.goto('/protocol')
@@ -134,7 +148,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     }
     await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
-    await expect(page.getByTestId('protocol-stat-liquidity-30d')).toBeVisible()
+    await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     await expect(page.getByTestId('protocol-stat-volume-24h')).toBeVisible()
     const dailyChart = page.getByTestId('protocol-volume-daily-chart')
     if (await dailyChart.count()) {
@@ -142,6 +156,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
       await expect(page.getByTestId('protocol-volume-grain-daily')).toBeVisible()
       await expect(page.getByTestId('protocol-volume-grain-hourly')).toBeVisible()
       await expect(page.getByTestId('protocol-volume-grain-monthly')).toBeVisible()
+      await assertVolumeXAxisDensity(page, 'daily')
     }
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-custc')).toBeVisible({ timeout: 15_000 })
@@ -209,7 +224,7 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
     await expect(page.getByTestId('protocol-stat-liquidity')).toBeVisible()
     await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
-    await expect(page.getByTestId('protocol-stat-liquidity-30d')).toBeVisible()
+    await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     const phoneFees = page.getByTestId('protocol-fee-stats')
     if (await phoneFees.count()) {
       await expect(phoneFees).toBeVisible()
@@ -247,5 +262,24 @@ test.describe('Protocol Δ% grouping (GitLab #667)', () => {
     await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
     await assertProtocolDeltaGeometry(page)
+  })
+})
+
+test.describe('Protocol leftovers (GitLab #677)', () => {
+  test('Hourly / Daily / Monthly x-axis meets density floor', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/protocol')
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    const chart = page.getByTestId('protocol-volume-daily-chart')
+    if (!(await chart.count())) return
+    await expect(chart).toBeVisible()
+    await assertVolumeXAxisDensity(page, 'daily')
+    await page.getByTestId('protocol-volume-grain-hourly').click()
+    await expect(chart).toContainText(/UTC hour/)
+    await assertVolumeXAxisDensity(page, 'hourly')
+    await page.getByTestId('protocol-volume-grain-monthly').click()
+    await expect(chart).toContainText(/UTC calendar month/)
+    await assertVolumeXAxisDensity(page, 'monthly')
   })
 })

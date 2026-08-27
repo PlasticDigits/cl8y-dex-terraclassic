@@ -107,6 +107,11 @@ export function makersUsedForHybridGas(hybrid: HybridSwapParams | undefined): nu
   return hybrid.max_maker_fills
 }
 
+/**
+ * Quote-driven gas for **one** hop / direct pair `swap`.
+ * `undefined` / unparseable hybrid is the **tx-level** #249 fallback (15M),
+ * not a per-hop addend inside a mixed router msg — that was the #679 46.8M bug.
+ */
 export function gasLimitForHybridParams(hybrid: HybridSwapParams | undefined): number {
   const makers = makersUsedForHybridGas(hybrid)
   if (makers === undefined) return HYBRID_SWAP_GAS_LIMIT

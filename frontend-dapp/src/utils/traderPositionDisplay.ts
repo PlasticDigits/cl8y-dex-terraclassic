@@ -5,6 +5,9 @@ import { classifyQuoteSymbol, type QuoteUsdKind } from '@/utils/pairPriceUsd'
 /** Missing / unscalable display (GitLab #551). Never show raw mixed units as a total. */
 export const TRADER_PNL_EM_DASH = '—'
 
+/** Open quote with no on-DEX buy history (GitLab #675). Never invent a P&L figure. */
+export const NO_COST_BASIS_LABEL = 'No cost basis'
+
 /**
  * USD marks for header realized P&L (GitLab #560).
  * UST1 / USTR / cUSTC come from `GET /api/v1/hub-prices` — never `$1` or `2.5×` USTC.
@@ -63,6 +66,30 @@ export type ScaledPositionDisplay = {
   costBasis: string
   realizedPnl: string
   realizedPnlUsd: number | null
+  /** Hub USD of remaining quote. `null` when the quote leg is unpriced. Closed (`net=0`) is `0`. */
+  markUsd: number | null
+  markLabel: string
+  /**
+   * Unrealized vs on-DEX cost (human base + symbol), {@link NO_COST_BASIS_LABEL}, or em-dash.
+   * One-directional accumulation: realized stays 0; this is mark − cost.
+   */
+  unrealizedPnl: string
+  unrealizedPnlUsd: number | null
+  hasCostBasis: boolean
+}
+
+/**
+ * On-DEX cost exists when the indexer recorded a buy (`total_cost_base` / `avg_entry_price`).
+ * Closed rows (`net=0`) are not "no cost basis" — they simply have no open mark.
+ * Remaining quote with both cost and avg at 0 means the DEX never saw a buy (bridged/minted).
+ */
+export function positionHasOnDexCostBasis(pos: IndexerPosition): boolean {
+  const net = Number(pos.net_position_quote)
+  if (!Number.isFinite(net) || net === 0) return true
+  const cost = Number(pos.total_cost_base)
+  const avg = Number(pos.avg_entry_price)
+  if (!Number.isFinite(cost) || !Number.isFinite(avg)) return false
+  return !(cost === 0 && avg === 0)
 }
 
 /**
@@ -71,6 +98,7 @@ export type ScaledPositionDisplay = {
  * - Net position: quote (`asset_1`) human + symbol
  * - Cost basis / realized P&L: base (`asset_0`) human + symbol
  * - Avg entry: human base per 1 human quote (`raw × 10^(d1 − d0)`), labeled `BASE / QUOTE`
+ * - Mark / unrealized: hub DEX USD of remaining quote vs on-DEX cost (GitLab #675)
  */
 export function formatScaledPosition(pos: IndexerPosition, oracle?: TraderUsdMarks): ScaledPositionDisplay {
   const d0 = parseAssetDecimals(pos.asset_0_decimals)
@@ -82,6 +110,7 @@ export function formatScaledPosition(pos: IndexerPosition, oracle?: TraderUsdMar
   const costHuman = d0 == null ? null : scaleNumericByDecimals(pos.total_cost_base, d0)
   const pnlHuman = d0 == null ? null : scaleNumericByDecimals(pos.realized_pnl, d0)
   const avgHuman = d0 == null || d1 == null ? null : multiplyNumericByTenPow(pos.avg_entry_price, d1 - d0)
+  const mtm = markUnrealizedFromHub(pos, netHuman, costHuman, base, oracle)
 
   return {
     netPosition: formatAmountWithSymbol(netHuman, quote),
@@ -89,6 +118,11 @@ export function formatScaledPosition(pos: IndexerPosition, oracle?: TraderUsdMar
     realizedPnl: formatPnlWithSymbol(pnlHuman, base),
     avgEntry: formatAvgEntry(avgHuman, base, quote),
     realizedPnlUsd: humanAmountToUsd(pnlHuman, pos.asset_0_symbol, pos.asset_0_denom, oracle),
+    markUsd: mtm.markUsd,
+    markLabel: formatUsdAmount(mtm.markUsd),
+    unrealizedPnl: mtm.unrealizedPnl,
+    unrealizedPnlUsd: mtm.unrealizedPnlUsd,
+    hasCostBasis: mtm.hasCostBasis,
   }
 }
 
@@ -126,12 +160,61 @@ export function sumRealizedPnlUsd(
   return { usd, pricedPairs: priced, unpricedPairs: unpriced }
 }
 
+export type UnrealizedPnlUsdSummary = RealizedPnlUsdSummary & {
+  /** Rows with remaining quote but no on-DEX buy history. */
+  noCostBasisPairs: number
+}
+
+/**
+ * Cross-pair unrealized P&L in USD: hub mark of remaining quote minus on-DEX cost USD.
+ * Unpriced / no-basis rows are omitted, not `$0`. Empty positions → `$0`.
+ */
+export function sumUnrealizedPnlUsd(
+  positions: IndexerPosition[] | undefined | null,
+  oracle?: TraderUsdMarks
+): UnrealizedPnlUsdSummary {
+  if (positions == null) {
+    return { usd: null, pricedPairs: 0, unpricedPairs: 0, noCostBasisPairs: 0 }
+  }
+  if (positions.length === 0) {
+    return { usd: 0, pricedPairs: 0, unpricedPairs: 0, noCostBasisPairs: 0 }
+  }
+  let usd = 0
+  let priced = 0
+  let unpriced = 0
+  let noBasis = 0
+  for (const pos of positions) {
+    const row = formatScaledPosition(pos, oracle)
+    if (!row.hasCostBasis) {
+      noBasis += 1
+      continue
+    }
+    if (row.unrealizedPnlUsd == null) {
+      unpriced += 1
+    } else {
+      usd += row.unrealizedPnlUsd
+      priced += 1
+    }
+  }
+  if (priced === 0) {
+    return { usd: null, pricedPairs: 0, unpricedPairs: unpriced, noCostBasisPairs: noBasis }
+  }
+  return { usd, pricedPairs: priced, unpricedPairs: unpriced, noCostBasisPairs: noBasis }
+}
+
 export function formatSignedUsd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return TRADER_PNL_EM_DASH
   const abs = formatNum(Math.abs(n), 2)
   if (n > 0) return `+$${abs}`
   if (n < 0) return `-$${abs}`
   return `$${abs}`
+}
+
+/** Unsigned USD for mark-to-market value (not a signed P&L). */
+export function formatUsdAmount(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return TRADER_PNL_EM_DASH
+  if (n < 0) return `-$${formatNum(Math.abs(n), 2)}`
+  return `$${formatNum(n, 2)}`
 }
 
 function parseNumericParts(raw: string | null | undefined): { neg: boolean; combined: string; fracLen: number } | null {
@@ -186,6 +269,57 @@ export function traderUsdMarksFromHub(
     luncUsd: parsePositiveUsd(cex?.luncUsd),
     ust1Usd: parsePositiveUsd(byTicker.get('ust1')),
     ustrUsd: parsePositiveUsd(byTicker.get('ustr')),
+  }
+}
+
+function markUnrealizedFromHub(
+  pos: IndexerPosition,
+  netHuman: string | null,
+  costHuman: string | null,
+  baseSymbol: string,
+  oracle?: TraderUsdMarks
+): {
+  markUsd: number | null
+  unrealizedPnl: string
+  unrealizedPnlUsd: number | null
+  hasCostBasis: boolean
+} {
+  const hasCostBasis = positionHasOnDexCostBasis(pos)
+  const netN = netHuman == null ? null : Number(netHuman)
+  const quoteUsd = catalogUsd(classifyQuoteSymbol(pos.asset_1_symbol, pos.asset_1_denom), oracle)
+  const baseUsd = catalogUsd(classifyQuoteSymbol(pos.asset_0_symbol, pos.asset_0_denom), oracle)
+
+  let markUsd: number | null = null
+  if (netN != null && Number.isFinite(netN) && netN === 0) {
+    markUsd = 0
+  } else if (netN != null && Number.isFinite(netN) && quoteUsd != null) {
+    const usd = netN * quoteUsd
+    markUsd = Number.isFinite(usd) ? usd : null
+  }
+
+  if (!hasCostBasis) {
+    return { markUsd, unrealizedPnl: NO_COST_BASIS_LABEL, unrealizedPnlUsd: null, hasCostBasis }
+  }
+
+  const costN = costHuman == null ? null : Number(costHuman)
+  if (markUsd == null || costN == null || !Number.isFinite(costN) || baseUsd == null) {
+    return { markUsd, unrealizedPnl: TRADER_PNL_EM_DASH, unrealizedPnlUsd: null, hasCostBasis }
+  }
+
+  const costUsd = costN * baseUsd
+  if (!Number.isFinite(costUsd)) {
+    return { markUsd, unrealizedPnl: TRADER_PNL_EM_DASH, unrealizedPnlUsd: null, hasCostBasis }
+  }
+  const unrealizedPnlUsd = markUsd - costUsd
+  const unrealizedBase = unrealizedPnlUsd / baseUsd
+  if (!Number.isFinite(unrealizedBase) || !Number.isFinite(unrealizedPnlUsd)) {
+    return { markUsd, unrealizedPnl: TRADER_PNL_EM_DASH, unrealizedPnlUsd: null, hasCostBasis }
+  }
+  return {
+    markUsd,
+    unrealizedPnl: formatPnlWithSymbol(String(unrealizedBase), baseSymbol),
+    unrealizedPnlUsd,
+    hasCostBasis,
   }
 }
 

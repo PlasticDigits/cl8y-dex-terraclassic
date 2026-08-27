@@ -9,6 +9,11 @@
 export const MAINNET_UST1_TOKEN_ADDRESS = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
 export const MAINNET_VFDUSD_TOKEN_ADDRESS = 'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'
 export const MAINNET_CUSTC_TOKEN_ADDRESS = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+/**
+ * columbus-5 UST1/cUSTC factory pair (UST1 = asset_0). Charts hero pin (#680).
+ * LocalTerra must match legs from env — do not use this bech32 off mainnet.
+ */
+export const MAINNET_UST1_CUSTC_PAIR_ADDRESS = 'terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f'
 
 export type Ust1SecondaryQuoteLeg = 'vFDUSD' | 'cUSTC'
 

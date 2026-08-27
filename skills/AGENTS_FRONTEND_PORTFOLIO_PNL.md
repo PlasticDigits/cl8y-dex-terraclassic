@@ -23,7 +23,7 @@ For factory `asset_0` = **base**, `asset_1` = **quote**:
 | `avg_entry_price` | raw base / raw quote (not human, not USD) |
 | `traders.total_*` | **mixed** raw sums — not a unit |
 
-JSON **keeps raw strings**. The dApp scales.
+JSON **keeps raw strings**. The dApp scales. Columns are **`NUMERIC(78, 18)`** so 18-dec raw amounts fit ([#676](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/676) **P676-1**).
 
 ## Invariants (P551-1–P551-6)
 
@@ -51,12 +51,16 @@ JSON **keeps raw strings**. The dApp scales.
 3. Frontend: `traderPositionDisplay.test.ts`, `TraderPositionsTable.test.tsx`, `TraderSummaryStats.test.tsx`, `PortfolioPage.test.tsx`
 4. `make verify-issue-551`
 5. Header USD from hub: `make verify-issue-560` ([`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md))
+6. 18-dec persist / `trade_count`: `make verify-issue-676` (**P676**)
 
 ## Related
 
 - [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md) — portfolio shell / APIs
+- [`AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md`](./AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` hides gem P&amp;L by default (**P674**, [#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674)); `make verify-issue-674`
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for tape USD
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD from hub_prices (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))
+- [`AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md`](./AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md) — mark-to-market + unrealized vs on-DEX cost (**P675**, [#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675)); `make verify-issue-675`
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC / LUNC feeds
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — do not `formatNum` mixed raw volume (#548); leaderboard volume USD is #553
 - [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape amounts vs P&amp;L (#557 vs #551)
+- [`AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md`](./AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md) — 18-dec storage + `/positions` vs `/trades` count (**P676-1–P676-8**, [#676](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/676))

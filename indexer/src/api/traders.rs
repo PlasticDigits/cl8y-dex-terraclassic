@@ -14,7 +14,7 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::overview::overview_volume_usd_field;
 use super::pairs::{
-    asset_map_decimals, limit_fill_response_from_row, limit_placement_response,
+    asset_map_decimals, bd_plain_string, limit_fill_response_from_row, limit_placement_response,
     parse_placement_lifecycle_filter, trade_response_from_swap_row, LimitCancellationResponse,
     LimitFillResponse, LimitPlacementResponse,
 };
@@ -179,6 +179,7 @@ pub struct PositionResponse {
     pub asset_0_denom: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub asset_1_denom: Option<String>,
+    /// Raw NUMERIC as a **plain** decimal string (no `1e+19`). GitLab #676 / #557.
     pub net_position_quote: String,
     pub avg_entry_price: String,
     pub total_cost_base: String,
@@ -698,10 +699,10 @@ fn map_trader_position(
         pair_address,
         a0_leg.as_ref(),
         a1_leg.as_ref(),
-        &pos.net_position_quote.to_string(),
-        &pos.avg_entry_price.to_string(),
-        &pos.total_cost_base.to_string(),
-        &pos.realized_pnl.to_string(),
+        &bd_plain_string(&pos.net_position_quote),
+        &bd_plain_string(&pos.avg_entry_price),
+        &bd_plain_string(&pos.total_cost_base),
+        &bd_plain_string(&pos.realized_pnl),
         pos.trade_count,
     )
 }

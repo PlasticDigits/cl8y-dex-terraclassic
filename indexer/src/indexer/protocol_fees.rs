@@ -24,6 +24,7 @@ use chrono::{DateTime, Utc};
 use crate::db::queries::assets::AssetRow;
 use crate::lcd::{Attribute, TxResponse};
 
+use super::economic_usd::{is_gem_address, is_gem_ticker, is_vfdusd_identity};
 use super::pair_price_usd::{
     catalog_usd_per_human_identity, fits_numeric_38_18, humanize_raw_amount, HubQuoteUsd,
 };
@@ -416,7 +417,43 @@ pub fn parse_ust1_window_fees(tx: &TxResponse, pinned_window: &str) -> Vec<Parse
     out
 }
 
-/// Humanize raw fee × P522-Q/hub. Overflow / non-positive / unpriced → `None`.
+/// USD per 1 human unit for a treasury fee token (GitLab #683).
+///
+/// Lookup: P522-Q / hub identity → factory economic mark by **contract** → `None`.
+/// Never prices gems, vFDUSD, or a spoof native `symbol=CL8Y` without the pin contract.
+pub fn fee_usd_per_human(
+    asset: &AssetRow,
+    ustc_usd: Option<&BigDecimal>,
+    lunc_usd: Option<&BigDecimal>,
+    configured_ustc_denom: Option<&str>,
+    hub: Option<&HubQuoteUsd>,
+) -> Option<BigDecimal> {
+    if let Some(usd) = catalog_usd_per_human_identity(
+        &asset.symbol,
+        asset.denom.as_deref(),
+        asset.is_cw20,
+        asset.contract_address.as_deref(),
+        ustc_usd,
+        lunc_usd,
+        configured_ustc_denom,
+        hub,
+    ) {
+        return Some(usd);
+    }
+    if !asset.is_cw20 {
+        return None;
+    }
+    let addr = asset.contract_address.as_deref()?;
+    if is_gem_address(addr) || is_gem_ticker(&asset.symbol) {
+        return None;
+    }
+    if is_vfdusd_identity(&asset.symbol, Some(addr)) {
+        return None;
+    }
+    hub.and_then(|h| h.economic_usd_per_human(addr))
+}
+
+/// Humanize raw fee × P522-Q/hub/economic mark. Overflow / non-positive / unpriced → `None`.
 pub fn fee_usd_for_raw(
     asset: &AssetRow,
     raw: &BigDecimal,
@@ -428,11 +465,8 @@ pub fn fee_usd_for_raw(
     if raw <= &BigDecimal::from(0) {
         return None;
     }
-    let usd_per = catalog_usd_per_human_identity(
-        &asset.symbol,
-        asset.denom.as_deref(),
-        asset.is_cw20,
-        asset.contract_address.as_deref(),
+    let usd_per = fee_usd_per_human(
+        asset,
         ustc_usd,
         lunc_usd,
         configured_ustc_denom,
@@ -1029,5 +1063,119 @@ mod tests {
             attr("fee_asset", UST1),
         ]);
         assert!(parse_ust1_window_fees(&tx, "").is_empty());
+    }
+
+    fn cw20(symbol: &str, contract: &str, decimals: i16) -> crate::db::queries::assets::AssetRow {
+        crate::db::queries::assets::AssetRow {
+            id: 1,
+            contract_address: Some(contract.to_string()),
+            denom: None,
+            is_cw20: true,
+            name: symbol.to_string(),
+            symbol: symbol.to_string(),
+            decimals,
+            logo_url: None,
+            coingecko_id: None,
+            cmc_id: None,
+            first_seen_block: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn native_asset(symbol: &str, denom: &str) -> crate::db::queries::assets::AssetRow {
+        crate::db::queries::assets::AssetRow {
+            id: 2,
+            contract_address: None,
+            denom: Some(denom.to_string()),
+            is_cw20: false,
+            name: symbol.to_string(),
+            symbol: symbol.to_string(),
+            decimals: 6,
+            logo_url: None,
+            coingecko_id: None,
+            cmc_id: None,
+            first_seen_block: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn fee_usd_pinned_cl8y_uses_economic_mark() {
+        let cl8y = crate::config::DEFAULT_HUB_CL8Y_ADDRESS;
+        let asset = cw20("CL8Y-cb", cl8y, 6);
+        let mut hub = HubQuoteUsd::default();
+        hub.economic
+            .insert(cl8y.to_string(), bd("10"));
+        // 1.298 human × $10
+        let usd = fee_usd_for_raw(&asset, &bd("1298000"), None, None, None, Some(&hub)).unwrap();
+        assert_eq!(usd, bd("12.98000"));
+    }
+
+    #[test]
+    fn fee_usd_cl8y_symbol_native_spoof_unpriced() {
+        let spoof = native_asset("CL8Y", "ucl8y");
+        let mut hub = HubQuoteUsd::default();
+        hub.economic.insert(
+            crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
+            bd("10"),
+        );
+        assert!(fee_usd_for_raw(&spoof, &bd("1000000"), None, None, None, Some(&hub)).is_none());
+    }
+
+    #[test]
+    fn fee_usd_missing_mark_or_overflow_is_none() {
+        let cl8y = crate::config::DEFAULT_HUB_CL8Y_ADDRESS;
+        let asset = cw20("CL8Y", cl8y, 6);
+        assert!(fee_usd_for_raw(&asset, &bd("1298000"), None, None, None, None).is_none());
+        let mut hub = HubQuoteUsd::default();
+        hub.economic.insert(cl8y.to_string(), bd("10"));
+        assert!(fee_usd_for_raw(&asset, &bd("0"), None, None, None, Some(&hub)).is_none());
+        // 10^26 raw / 10^6 = 10^20 human × $10 overflows NUMERIC(38,18)
+        assert!(fee_usd_for_raw(
+            &asset,
+            &bd("100000000000000000000000000"),
+            None,
+            None,
+            None,
+            Some(&hub)
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn fee_usd_gem_and_vfdusd_stay_unpriced() {
+        let ember = cw20("EMBER", crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES[0], 6);
+        let mut hub = HubQuoteUsd::default();
+        hub.economic.insert(
+            crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES[0].to_string(),
+            bd("1"),
+        );
+        assert!(fee_usd_for_raw(&ember, &bd("1000000"), None, None, None, Some(&hub)).is_none());
+        let vfd = cw20("vFDUSD", crate::config::DEFAULT_VFDUSD_ADDRESS, 6);
+        hub.economic
+            .insert(crate::config::DEFAULT_VFDUSD_ADDRESS.to_string(), bd("1"));
+        assert!(fee_usd_for_raw(
+            &vfd,
+            &bd("1000000"),
+            Some(&bd("0.998")),
+            None,
+            None,
+            Some(&hub)
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn fee_usd_ust1_still_uses_hub_not_economic() {
+        let ust1 = cw20("UST1", crate::config::DEFAULT_HUB_UST1_ADDRESS, 6);
+        let hub = HubQuoteUsd {
+            ust1: Some(bd("0.97")),
+            ustr: None,
+            ..Default::default()
+        };
+        let usd = fee_usd_for_raw(&ust1, &bd("1000000"), None, None, None, Some(&hub)).unwrap();
+        assert_eq!(usd, bd("0.97"));
     }
 }
