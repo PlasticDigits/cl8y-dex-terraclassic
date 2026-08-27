@@ -1093,6 +1093,10 @@ export default function SwapPage() {
 
   const swapNetworkFeeEstimate = useMemo(() => {
     const cw20HopCount = simData?.indexerOperations?.length ?? route?.length ?? 1
+    const cw20RouterOperations =
+      !isWrapOrUnwrap && !nativeRouteInfo && (simData?.indexerOperations?.length ?? 0) >= 2
+        ? simData?.indexerOperations
+        : undefined
     return estimateSwapNetworkFee({
       isDirectWrap: wrapUnwrapType === 'wrap',
       isDirectUnwrap: wrapUnwrapType === 'unwrap',
@@ -1101,6 +1105,7 @@ export default function SwapPage() {
       hopCount: nativeRouteInfo?.operations?.length ?? (isWrapOrUnwrap ? 1 : nativeSwapHopCount || cw20HopCount),
       cw20DirectPair: !!isDirect && !nativeRouteInfo && !isWrapOrUnwrap,
       cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
+      cw20RouterOperations,
     })
   }, [
     wrapUnwrapType,
@@ -1111,7 +1116,7 @@ export default function SwapPage() {
     isWrapOrUnwrap,
     isDirect,
     bookInputHuman,
-    simData?.indexerOperations?.length,
+    simData?.indexerOperations,
     route?.length,
   ])
 
@@ -1739,6 +1744,13 @@ export default function SwapPage() {
                     data-testid="swap-network-fee-details"
                     className="m-0 col-span-2"
                   />
+                  <p
+                    className="col-span-2 text-[10px] leading-snug"
+                    style={{ color: 'var(--ink-subtle)' }}
+                    data-testid="swap-wallet-fee-note"
+                  >
+                    If your wallet shows a much larger fee, use this Network fee amount instead.
+                  </p>
                   {address &&
                     feeDiscountConfigured &&
                     pairDiscountApplies &&

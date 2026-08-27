@@ -1510,6 +1510,108 @@ describe('SwapPage', () => {
         expect(ammFee).not.toHaveTextContent(/Network fee/i)
       }
     })
+
+    it('4-hop hybrid-first indexer quote shows ~192 LUNC Network fee, not ~108 (#679)', async () => {
+      const user = userEvent.setup()
+      const terraA = 'terra1aa0000000000000000000000000000000001'
+      const terraB = 'terra1bb0000000000000000000000000000000001'
+      const terraC = 'terra1cc0000000000000000000000000000000001'
+      const terraD = 'terra1dd0000000000000000000000000000000001'
+      const terraE = 'terra1ee0000000000000000000000000000000001'
+      const hop1Hybrid = {
+        pool_input: '0',
+        book_input: '10000000000',
+        max_maker_fills: 8,
+        book_start_hint: 1426,
+      }
+      const fourHop = [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+            hybrid: hop1Hybrid,
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraB } },
+            ask_asset_info: { token: { contract_addr: terraC } },
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraC } },
+            ask_asset_info: { token: { contract_addr: terraD } },
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraD } },
+            ask_asset_info: { token: { contract_addr: terraE } },
+          },
+        },
+      ]
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
+      vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
+      vi.mocked(findRoute).mockReturnValue(fourHop as never)
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair_ab',
+            liquidity_token: 'terra1lp1',
+            asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+          },
+          {
+            contract_addr: 'terra1pair_bc',
+            liquidity_token: 'terra1lp2',
+            asset_infos: [{ token: { contract_addr: terraB } }, { token: { contract_addr: terraC } }],
+          },
+          {
+            contract_addr: 'terra1pair_cd',
+            liquidity_token: 'terra1lp3',
+            asset_infos: [{ token: { contract_addr: terraC } }, { token: { contract_addr: terraD } }],
+          },
+          {
+            contract_addr: 'terra1pair_de',
+            liquidity_token: 'terra1lp4',
+            asset_infos: [{ token: { contract_addr: terraD } }, { token: { contract_addr: terraE } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue([terraA, terraE, terraB, terraC, terraD])
+      vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
+        token_in: terraA,
+        token_out: terraE,
+        hops: [
+          { offer_token: terraA, ask_token: terraB },
+          { offer_token: terraB, ask_token: terraC },
+          { offer_token: terraC, ask_token: terraD },
+          { offer_token: terraD, ask_token: terraE },
+        ],
+        router_operations: fourHop,
+        quote_kind: 'indexer_hybrid_lcd',
+        estimated_amount_out: '1000000',
+        intermediate_tokens: [terraA, terraB, terraC, terraD, terraE],
+      })
+      vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByPlaceholderText('0.00'), '1')
+
+      const feeHint = await screen.findByTestId('swap-network-fee')
+      expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
+      expect(feeHint).toHaveTextContent('LUNC')
+      expect(feeHint).not.toHaveTextContent(/~107/)
+      expect(feeHint).not.toHaveTextContent(/~108/)
+      expect(feeHint).toHaveTextContent(/~192/)
+      const route = await screen.findByTestId('swap-route-summary')
+      expect(route.textContent ?? '').toMatch(/→/)
+      expect((route.textContent ?? '').split('→').length).toBeGreaterThanOrEqual(4)
+    })
   })
 
   describe('pair pause disabled swap CTA (SEC-B05 / GitLab #395)', () => {

@@ -16,7 +16,7 @@ After #522, UST1-as-`asset_0` pairs chart **USD of 1 UST1** (~$1). Traders need 
 - **Do** invert **USD candles** with `invertUsd` (`price_usd / human` per bar). `invertOhlc` (`1/x`) is **human** book/limit only — never `1/x` a USD-of-`asset_0` series ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)).
 - **Do** convert display prices with `displayPriceToFactoryToken1PerToken0` and sides with `factorySideFromDisplay` on every place / update-price / crossing gate / market quote+submit path.
 - **Do** keep book **Edit** drafts in factory space; convert at the ticket edge.
-- **Do** key invert by `pairAddr` (`sessionStorage` prefix `cl8y-dex-trade-pair-invert:`).
+- **Do** key **Trade** invert by `pairAddr` (`sessionStorage` prefix `cl8y-dex-trade-pair-invert:`). **Charts** uses `cl8y-dex-charts-pair-invert:` and a UST1-USD default ([#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)). Do not write Charts visits into the Trade key.
 - **Don’t** change indexer `swap_events.price` / `price_usd` or aggregator `last_price`. Additive candle `*_human` fields are **#543** (do not replace factory USD with a reciprocal in storage).
 - **Don’t** reuse `LimitOrderSideFlipButton` as pair invert.
 - **Don’t** invert on `PairSearchSelect` click (search must still open).
@@ -30,7 +30,7 @@ After #522, UST1-as-`asset_0` pairs chart **USD of 1 UST1** (~$1). Traders need 
 | File | Role |
 |------|------|
 | `frontend-dapp/src/utils/tradePairDisplayOrientation.ts` | `isUst1Leg`, `defaultDisplayInverted`, invert math, side/price convert, storage |
-| `frontend-dapp/src/hooks/usePairDisplayOrientation.ts` | One state for `/trade` + `/charts` |
+| `frontend-dapp/src/hooks/usePairDisplayOrientation.ts` | Trade hook unchanged; Charts uses `useChartsPairDisplayOrientation` (#680) |
 | `frontend-dapp/src/utils/pairPriceUsd.ts` | `resolveDisplayTapeLastPriceUsd` (factory USD unchanged) |
 | `frontend-dapp/src/components/charts/priceChartCandles.ts` | `applyChartDisplayInvert` = per-bar `invertUsd` (not `invertOhlc`) after finite USD+human mapping |
 | `frontend-dapp/src/components/charts/priceChartLightweightSeriesSync.ts` | Invert historical rewrite → `setData` (not `update` from oldest) |
@@ -56,6 +56,7 @@ Vitest: `tradePairDisplayOrientation.test.ts`, `pairPriceUsd.test.ts`, `priceCha
 
 ## Related
 
+- [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](./AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — Charts UST1/USD hero + `?price=` ([#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)); **C543-3** is Trade-only
 - [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — USD candles must use `invertUsd`, not `1/x` ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543))
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — indexer USD is time-stamped; no client CoinGecko stitch ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568))
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md)

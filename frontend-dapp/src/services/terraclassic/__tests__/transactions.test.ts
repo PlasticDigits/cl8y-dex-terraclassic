@@ -491,6 +491,35 @@ describe('gas limit selection (tested indirectly)', () => {
     })
     expect(fee.gasLimit).toBe(BigInt(3_058_600))
   })
+
+  it('4-hop mixed hybrid-first + pool rest is 6,785,500 not 46.8M (#679)', async () => {
+    const inner = btoa(
+      JSON.stringify({
+        execute_swap_operations: {
+          operations: [
+            {
+              terra_swap: {
+                hybrid: {
+                  pool_input: '0',
+                  book_input: '10000000000',
+                  max_maker_fills: 8,
+                  book_start_hint: 1426,
+                },
+              },
+            },
+            { terra_swap: {} },
+            { terra_swap: {} },
+            { terra_swap: {} },
+          ],
+        },
+      })
+    )
+    const fee = await getFeeForMsg({ send: { msg: inner } })
+    expect(fee.gasLimit).toBe(BigInt(6_785_500))
+    expect(Number(fee.gasLimit)).toBeGreaterThan(5_026_176)
+    expect(Number(fee.gasLimit)).toBeLessThan(15_000_000)
+    expect(fee.gasLimit).not.toBe(BigInt(46_785_500))
+  })
 })
 
 describe('executeCw20AllowanceThen', () => {

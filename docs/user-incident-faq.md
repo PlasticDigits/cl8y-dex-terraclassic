@@ -6,7 +6,7 @@ This is **not** financial or legal advice. For operator runbooks and on-chain in
 
 How to **add or withdraw LUNC LP** on the dApp (not an incident): [user-lunc-liquidity.md](./user-lunc-liquidity.md) and `/pool#lp-howto` ([#531](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/531)).
 
-Terra Classic network fees on this dApp are paid in **LUNC** (`uluna`). USTC is not used for gas. Swap shows **Network fee (est.) ~X LUNC** on the quote card ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587), [#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)).
+Terra Classic network fees on this dApp are paid in **LUNC** (`uluna`). USTC is not used for gas. Swap shows **Network fee (est.) ~X LUNC** on the quote card ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587), [#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599), [#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)). If Station mobile shows a much larger fee (thousands of LUNC) on Confirm, use the dApp Network fee amount instead — that row matches the signed envelope.
 
 ## Quick summary
 

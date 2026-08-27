@@ -59,6 +59,11 @@ pub async fn run_indexer(
     // Token + trader windows too — do not wait for the 5 min loop (GitLab #577 **D5**).
     volume_aggregator::refresh_all_volume_windows(&pool, true).await;
 
+    // Heal leftover 18-dec undercounts after NUMERIC(38,18) overflow (#676).
+    if let Err(e) = super::position_tracker::repair_positions_if_trade_count_mismatch(&pool).await {
+        tracing::error!("trader_positions rebuild failed: {e}");
+    }
+
     let vol_pool = pool.clone();
     tokio::spawn(async move {
         volume_aggregator::run_volume_refresh_loop(vol_pool).await;

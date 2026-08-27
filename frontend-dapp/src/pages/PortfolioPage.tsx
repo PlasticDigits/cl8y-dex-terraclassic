@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -11,18 +12,26 @@ import { TraderSummaryStats } from '@/components/trader/TraderSummaryStats'
 import { TraderPositionsTable } from '@/components/trader/TraderPositionsTable'
 import { PortfolioOpenLimitsSection } from '@/components/portfolio/PortfolioOpenLimitsSection'
 import { PortfolioLpOverviewSection } from '@/components/portfolio/PortfolioLpOverviewSection'
+import { PortfolioShowTestPairsToggle } from '@/components/portfolio/PortfolioShowTestPairsToggle'
 import { usePortfolioLpBalances } from '@/hooks/usePortfolioLpBalances'
-import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
 import { sounds } from '@/lib/sounds'
 import { isIndexerUnavailableError } from '@/utils/indexerErrors'
 import { formatDateTime } from '@/utils/formatDate'
 import { PORTFOLIO_OPEN_LIMITS_DEFAULT_LIMIT } from '@/utils/portfolioFanOut'
+import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
+import {
+  countTestPositions,
+  shouldOfferPortfolioTestPairsToggle,
+  visiblePortfolioPositions,
+  visiblePortfolioTrades,
+} from '@/utils/portfolioPerformanceFilter'
 import { buildCanonicalShareUrl, traderShareText } from '@/utils/sharePageLink'
 import { SHARE_LINK_ARIA_PORTFOLIO, SHARE_LINK_TITLE } from '@/utils/sharePageLinkCopy'
 
 export default function PortfolioPage() {
   const walletAddr = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
+  const [showTestPairs, setShowTestPairs] = useState(false)
 
   const traderQuery = useQuery({
     queryKey: ['portfolio-trader-profile', walletAddr],
@@ -63,6 +72,16 @@ export default function PortfolioPage() {
     : null
 
   const trader = traderQuery.data
+  const visiblePositions = useMemo(
+    () => visiblePortfolioPositions(positionsQuery.data, showTestPairs),
+    [positionsQuery.data, showTestPairs]
+  )
+  const visibleTrades = useMemo(
+    () => visiblePortfolioTrades(tradesQuery.data, showTestPairs),
+    [tradesQuery.data, showTestPairs]
+  )
+  const offerTestPairsToggle = shouldOfferPortfolioTestPairsToggle(positionsQuery.data, tradesQuery.data)
+  const testPairCount = countTestPositions(positionsQuery.data)
   const profileNotFound =
     traderQuery.isError && !isIndexerUnavailableError(traderQuery.error) && traderQuery.error instanceof Error
       ? traderQuery.error.message.includes('404')
@@ -176,18 +195,28 @@ export default function PortfolioPage() {
           {trader && (
             <TraderSummaryStats
               trader={trader}
-              positions={positionsQuery.data}
+              positions={positionsQuery.data === undefined ? undefined : visiblePositions}
               isOwnProfile
               addressRowTestId="portfolio-address-row"
             />
           )}
 
           <TraderPositionsTable
-            positions={positionsQuery.data}
+            positions={positionsQuery.data === undefined ? undefined : visiblePositions}
             isLoading={positionsQuery.isLoading}
             isError={positionsQuery.isError && !isIndexerUnavailableError(positionsQuery.error)}
             onRetry={() => void positionsQuery.refetch()}
             sectionTestId="portfolio-positions-section"
+            showTestPairDivider={showTestPairs}
+            headerAction={
+              offerTestPairsToggle ? (
+                <PortfolioShowTestPairsToggle
+                  checked={showTestPairs}
+                  onChange={setShowTestPairs}
+                  testPairCount={testPairCount}
+                />
+              ) : null
+            }
           />
 
           <PortfolioOpenLimitsSection
@@ -223,13 +252,13 @@ export default function PortfolioPage() {
             {tradesQuery.isError && !isIndexerUnavailableError(tradesQuery.error) && (
               <RetryError message="Failed to load recent swaps" onRetry={() => void tradesQuery.refetch()} />
             )}
-            {tradesQuery.data && tradesQuery.data.length === 0 && (
+            {tradesQuery.data && visibleTrades.length === 0 && (
               <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>
                 No trades yet.
               </p>
             )}
-            {tradesQuery.data && tradesQuery.data.length > 0 && (
-              <TradesTable trades={tradesQuery.data} formatTimeFn={formatDateTime} ariaLabel="Recent swap activity" />
+            {tradesQuery.data && visibleTrades.length > 0 && (
+              <TradesTable trades={visibleTrades} formatTimeFn={formatDateTime} ariaLabel="Recent swap activity" />
             )}
           </div>
         </>

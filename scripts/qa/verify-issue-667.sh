@@ -58,6 +58,7 @@ run_step "docs: P667 grouping invariant + skills + AGENTS crosslinks" \
     grep -q "#667" docs/design-system.md
     grep -q "verify-issue-667" docs/testing.md
     grep -q "10.2.17" QA_TEMPLATE.md
+    grep -q "24h-only" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md || grep -q "one** 24h chip" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md
   '
 
 run_step "source: StatBox value+Δ% row is grouped, not justify-between" \

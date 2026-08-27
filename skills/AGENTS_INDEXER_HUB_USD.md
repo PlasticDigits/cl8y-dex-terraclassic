@@ -76,4 +76,5 @@ Internal factory economic marks live in `economic_token_marks` (not `GET /hub-pr
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — 2.5× seed is **not** a display oracle
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert still UI-only
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from hub_prices ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))
+- [`AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md`](./AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md) — `/portfolio` + `/trader` mark + unrealized from the same hub ticks ([#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675))
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark bars ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568))

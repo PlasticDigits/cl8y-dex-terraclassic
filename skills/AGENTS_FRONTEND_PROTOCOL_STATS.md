@@ -1,8 +1,8 @@
-# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586 / #652 / #667 / #668)
+# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586 / #652 / #667 / #668 / #677)
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h/30d Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -32,7 +32,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 
 | ID | Rule |
 |----|------|
-| **P569-1** | **Total liquidity** is humanized AMM pool TVL (`total_liquidity_usd` from `pair_reserves`). Not volume, not CG `liquidity_in_usd`, not raw reserves, not book escrow / parked dust. One cell: USD + inline 24h/30d snapshot Δ%. Child testids `protocol-stat-liquidity-24h` / `protocol-stat-liquidity-30d` live on the Δ% nodes ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
+| **P569-1** | **Total liquidity** is humanized AMM pool TVL (`total_liquidity_usd` from `pair_reserves`). Not volume, not CG `liquidity_in_usd`, not raw reserves, not book escrow / parked dust. One cell: USD + **one** inline 24h snapshot Δ% (`protocol-stat-liquidity-24h`). Do **not** render `protocol-stat-liquidity-30d` on this tile ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). `liquidity_change_30d_pct` stays on `GET /overview` for API consumers. |
 | **P569-2** | 24h/30d Δ% come from indexer snapshots (`liquidity_change_*_pct`). Missing / `null` / non-finite → em-dash (`formatProtocolPct`). Never `0%` / `Infinity` / client `now/then` without a zero guard. |
 | **P569-3** | GET `/overview` stays O(1) rollup. Compute TVL on the aggregator / hub refresh, not on the request path. Snapshot insert is periodic; prune ≥ 35 days. |
 | **P569-4** | Same USD catalog as volume: USTC/cUSTC/`uusd` → USTC oracle; LUNC/cLUNC/`uluna` → LUNC; UST1/USTR → `hub_prices`. Never `$1` UST1 or `2.5×` USTR. Oracle/hub down → omit that handle. |
@@ -59,6 +59,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 - **Don't** nest `card-glass` inside `protocol-global-stats` / `protocol-fee-stats` metric grids.
 - **Don't** scan `swap_events` on `GET /protocol/volume/daily` or accept free-form `from`/`to` / over-max `limit`.
 - **Don't** mount `PriceChart` on the Protocol volume census chart, or restore `7d`/`30d` as the grain selector.
+- **Don't** put a 30d Δ% chip back on Total liquidity, or restore `sparseTimeLabelIndexes` / `maxLabels = 5` ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)).
 
 ## Invariants (PFee — GitLab #586)
 
@@ -97,9 +98,9 @@ DOM parentage from [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic
 | ID | Rule |
 |----|------|
 | **P667-1** | Value+Δ% row uses `.stat-value-row` (`justify-start` / wrap). Headline first; Δ% cluster immediately after. On wrap, chips go to the next line of the **same** cell, left-aligned under the `$`. Never `justify-between`. Never a sibling card. |
-| **P667-2** | Chip bounding box stays inside its own `protocol-stat-*` tile (`chip.right ≤ tile.right` and, when the neighbor is on the same row, `chip.left < nextTile.left`). Phone 390 / tablet 820 wrap is OK. Liquidity keeps 24h+30d in one `.stat-delta-cluster`. Em-dash (`— 30d`) still groups with its headline. |
+| **P667-2** | Chip bounding box stays inside its own `protocol-stat-*` tile (`chip.right ≤ tile.right` and, when the neighbor is on the same row, `chip.left < nextTile.left`). Phone 390 / tablet 820 wrap is OK. Liquidity keeps **one** 24h chip in `.stat-delta-cluster` ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). Em-dash (`— 24h`) still groups with its headline. |
 | **P667-3** | `formatProtocolCount` is integer census: finite ≥0 → locale string under 1000 (`14`, not `14.00`); compact `K` only when `abs ≥ 1000`; missing / non-finite / negative / XSS-like → em-dash. Census tiles stay value-only (**P652-6**). |
-| **P667-4** | Verify: `make verify-issue-667`. Keep `verify-issue-652` / `550` / `569` / `586` / `653` green. No overview JSON / indexer / wasm change. No-Δ% `StatBox` call sites (Charts / Trader) stay label+value. |
+| **P667-4** | Verify: `make verify-issue-667`. Keep `verify-issue-652` / `550` / `569` / `586` / `653` / `677` green. No overview JSON / indexer / wasm change. No-Δ% `StatBox` call sites (Charts / Trader) stay label+value. |
 
 Do **not** invent a Protocol-only `StatBox` variant. The same value-row class serves fees and any future Δ% tile. Do **not** add a lecture banner about “Δ% is next to the number.”
 
@@ -115,7 +116,8 @@ Do **not** invent a Protocol-only `StatBox` variant. The same value-row class se
 | **P668-5** | GET `grain=hourly\|daily\|monthly` + integer `limit` (1..=max) else **400**. `from`/`to` → **400**. `days=7\|30` without `grain` stays the #652 alias. Cache 60s keyed only by allowlisted `(grain, limit)` or `days` (extra query junk cannot bust cache). |
 | **P668-6** | GET reads rollup tables only (`protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume`). No `swap_events` SUM. No Llama. Idle `"0"`; activity + unpriced `null`. Missing row → idle `"0"`. Newest-last. |
 | **P668-7** | Hourly bucket `[hour, hour+1)` UTC (`YYYY-MM-DDTHH`). Monthly = UTC calendar month (`YYYY-MM`), not trailing 30d. Aggregator refresh; `--fresh` / young indexer shows idle zeros / available months — **not** a GET-path backfill. Hourly prune ~10d; monthly retain ≥ 24 months. |
-| **P668-8** | XSS strings in period / `volume_usd` render as **text**. Unpriced bars are outlined, not `$0`. No `PriceChart`. No nested `card-glass` around the plot (C653). Verify: `make verify-issue-668`. Keep `verify-issue-652` / `550` / `569` / `586` / `576` / `631` / `653` green. |
+| **P668-8** | XSS strings in period / `volume_usd` render as **text**. Unpriced bars are outlined, not `$0`. No `PriceChart`. No nested `card-glass` around the plot (C653). Verify: `make verify-issue-668`. Keep `verify-issue-652` / `550` / `569` / `586` / `576` / `631` / `653` / `677` green. |
+| **P668-9** | X-axis labels every bar (**step 1**) or every second bar (**step 2**) for Daily and Monthly. Hourly may use a wider step only when step 2 still collides in the fixed viewBox (`HH` vs slot). First and last period stay labeled. No global `maxLabels = 5`. Tooltip still tells the truth on unlabeled hourly bars ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). |
 
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). The volume chart is a **separate** UTC calendar-grain series (hour / day / month) — do not add a lecture to the Global stats lead.
 
@@ -124,6 +126,7 @@ Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar bu
 ```bash
 make verify-issue-613
 make verify-issue-614
+make verify-issue-677
 make verify-issue-668
 make verify-issue-652
 make verify-issue-667
