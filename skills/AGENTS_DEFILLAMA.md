@@ -10,7 +10,7 @@ Audience: third-party agents changing `GET /api/v1/defillama/daily`, the UTC-day
 **Gems:** [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) **#562**  
 **TVL drift:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **P569**
 
-This is **not** a CoinGecko/CMC ticket ([`docs/CG_CMC_COMPLIANCE.md`](../docs/CG_CMC_COMPLIANCE.md), [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224)).
+This is **not** a CoinGecko/CMC ticket ([`docs/CG_CMC_COMPLIANCE.md`](../docs/CG_CMC_COMPLIANCE.md), [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) / [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)).
 
 ## Problem class
 
@@ -37,7 +37,7 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 - **Do** refresh the daily rollup from the existing ~5 min volume loop, not on GET.
 - **Do** keep gem addresses in lockstep: frontend `#562` set, `indexer/src/indexer/defillama.rs`, `scripts/defillama/gems.js`.
 - **Do** pin the dimension adapter host to `https://indexer.dex.cl8y.com` (A18).
-- **Don’t** publish CG `liquidity_in_usd` as Llama TVL (it is mislabeled 24h volume).
+- **Don’t** publish CG `liquidity_in_usd` as Llama TVL (Llama is on-chain `Pool {}` only; CG is indexer USD stamp — [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)).
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** treat `overview.total_volume_24h_usd` as `dailyVolume`.
 - **Don’t** list USTR as `peggedUSD` or invent a UST1 `$1` peg for Llama.
