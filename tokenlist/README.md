@@ -98,3 +98,5 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | ALPHA | Alpha Token | cw20 | ![ALPHA](images/ALPHA.png) |
 | USTRIX | USTRIX Token | cw20 | ![USTRIX](images/USTRIX.png) |
 | SpaceUSD | SpaceUSD Token | cw20 | ![SpaceUSD](images/SPACEUSD.png) |
+| UST1 | UST1 | cw20 | ![UST1](images/UST1.png) |
+| vFDUSD | Venus FDUSD (bridged) | cw20 | ![vFDUSD](images/VFDUSD.png) |

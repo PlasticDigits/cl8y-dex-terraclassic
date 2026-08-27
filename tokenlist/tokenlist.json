@@ -4,7 +4,7 @@
   "version": {
     "major": 1,
     "minor": 0,
-    "patch": 1
+    "patch": 2
   },
   "keywords": ["terra-classic", "cl8y", "dex"],
   "tokens": [
@@ -30,7 +30,7 @@
       "address": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg",
       "type": "cw20",
       "decimals": 6,
-      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png"
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CLUNC.png"
     },
     {
       "symbol": "cUSTC",
@@ -38,7 +38,7 @@
       "address": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
       "type": "cw20",
       "decimals": 6,
-      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USTC.png"
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CUSTC.png"
     },
     {
       "symbol": "CL8Y",
@@ -46,7 +46,8 @@
       "address": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
       "type": "cw20",
       "decimals": 18,
-      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png"
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png",
+      "website": "https://cl8y.com"
     },
     {
       "symbol": "USTR",
