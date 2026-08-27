@@ -33,6 +33,7 @@ import {
   usdAxisTicks,
   type ProtocolUtcMetric,
   type ProtocolVolumeGrain,
+  type ProtocolVolumeSeriesPoint,
 } from '@/utils/protocolVolumeGrain'
 import { isProtocolVolumeSeriesUnavailable, useProtocolUtcSeriesQuery } from './useProtocolVolumeSeriesQuery'
 
@@ -121,7 +122,7 @@ export function ProtocolVolumeDailyChart() {
   }, [applyWidth])
 
   const query = useProtocolUtcSeriesQuery(metric, grain, limit)
-  const series = useMemo(() => query.data?.series ?? [], [query.data?.series])
+  const series = useMemo((): ProtocolVolumeSeriesPoint[] => query.data?.series ?? [], [query.data?.series])
   const peak = useMemo(() => maxPricedUsd(series, metric), [series, metric])
   const ticks = useMemo(() => usdAxisTicks(peak), [peak])
   const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, PLOT_W), [series.length, grain])

@@ -507,6 +507,12 @@ export interface ProtocolFeeSeriesResponse {
   series: ProtocolFeeSeriesPoint[]
 }
 
+/** Volume / liquidity / fees UTC grain series (GitLab #689). */
+export type ProtocolUtcSeriesResponse =
+  | ProtocolVolumeSeriesResponse
+  | ProtocolLiquiditySeriesResponse
+  | ProtocolFeeSeriesResponse
+
 /** Allowlisted fee source keys from `GET /api/v1/protocol/fees` (GitLab #586 / #614). */
 export type ProtocolFeeSourceKey =
   | 'swap_amm'
