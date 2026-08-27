@@ -439,6 +439,12 @@ verify-issue-551:
 	@chmod +x scripts/qa/verify-issue-551.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-551.sh
 
+# GitLab #676 — /positions trade_count on 18-decimal pairs (NUMERIC(78,18) + rebuild).
+.PHONY: verify-issue-676
+verify-issue-676:
+	@chmod +x scripts/qa/verify-issue-676.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-676.sh
+
 # GitLab #557 — human Amount in / Amount out / Price on Charts/Trade/Trader tape + wallet history.
 verify-issue-557:
 	@chmod +x scripts/qa/verify-issue-557.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
@@ -1137,7 +1143,7 @@ help:
 	@echo "Frontend:        make dev | verify-issue-578 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-665 | verify-issue-674 | verify-issue-669 | verify-issue-653 | verify-issue-660 | verify-issue-671 | verify-issue-670 | verify-issue-657 | verify-issue-662 | verify-issue-664 | verify-issue-661 | verify-issue-672 | verify-issue-658 | verify-issue-659 | verify-issue-663 | verify-issue-573 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
 	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only)"
 	@echo "Docs:            scripts/qa/README.md"
 

@@ -79,7 +79,7 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
 2. **Stop** the indexer process.
 3. **Choose recovery:**
    - **Preferred:** Restore Postgres from a snapshot taken **before** the reorg window, then restart indexer, **or**
-   - **Heavy SQL:** Use `--cleanup-derived` from an earlier fork height `H` and accept that `trader_positions` / trader rollups may need a full re-backfill or snapshot (not height-keyed).
+   - **Heavy SQL:** Use `--cleanup-derived` from an earlier fork height `H` and accept that `trader_positions` / trader rollups may need a full re-backfill or snapshot (not height-keyed). After the indexer is back, run **`cl8y-dex-indexer rebuild-positions`** (or wait for poller `repair_positions_if_trade_count_mismatch` — GitLab **#676**, `NUMERIC(78, 18)`). Block replay alone does not rebuild positions for swaps that already exist.
 4. **Reset cursor** if not restoring snapshot: `last_indexed_height` to **at least one block before** the fork point (recovery script or manual `indexer_state` update).
 5. **Restart** and monitor `tracing` logs.
 
