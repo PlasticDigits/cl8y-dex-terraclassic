@@ -9,7 +9,7 @@ use cl8y_dex_indexer::api::reset_defillama_cache;
 use cl8y_dex_indexer::db::queries::defillama as daily_q;
 use cl8y_dex_indexer::db::queries::protocol_fees as fee_q;
 use cl8y_dex_indexer::indexer::defillama::{
-    utc_day_start, COLUMBUS5_FACTORY, COLUMBUS5_GEM_ADDRESSES,
+    ADAPTER_START_UTC_DAY, COLUMBUS5_FACTORY, COLUMBUS5_GEM_ADDRESSES, utc_day_start,
 };
 use cl8y_dex_indexer::indexer::protocol_fees::{FeeEventDraft, FeeSource};
 use cl8y_dex_indexer::indexer::volume_aggregator;
@@ -301,10 +301,12 @@ async fn daily_volume_excludes_gems_fills_wrap_and_window() {
     assert_eq!(body["assets"]["ustr"]["category"], "reserve");
     assert_usd(&body["assets"]["ust1"]["fees_usd"], "0.10");
     assert_usd(&body["assets"]["ustr"]["volume_usd"], "0");
-    assert!(body["methodology"]["tvl"]
-        .as_str()
-        .unwrap()
-        .contains("liquidity_in_usd"));
+    assert!(
+        body["methodology"]["tvl"]
+            .as_str()
+            .unwrap()
+            .contains("liquidity_in_usd")
+    );
 
     let ts1 = day1().timestamp();
     let day1_body: Value = server
@@ -631,4 +633,225 @@ async fn ust1_ustr_asset_volume_fees_and_hub_price() {
     assert_eq!(body["assets"]["ust1"]["peg_type"], "peggedUSD");
     assert_eq!(body["assets"]["ustr"]["peg_type"], Value::Null);
     assert_eq!(body["assets"]["ustr"]["category"], "reserve");
+}
+
+#[serial]
+#[tokio::test]
+async fn mixed_unpriced_source_does_not_null_headline() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let gem_pair = seed_gem_pair(&pool, seed.asset_1_id).await;
+    let d0 = day0() + Duration::hours(2);
+
+    insert_swap(
+        &pool,
+        seed.pair_id,
+        seed.asset_0_id,
+        seed.asset_1_id,
+        d0,
+        "tx-econ-mix",
+        Some("10"),
+    )
+    .await;
+    insert_swap(
+        &pool,
+        gem_pair,
+        seed.asset_1_id,
+        seed.asset_1_id,
+        d0,
+        "tx-gem-mix",
+        Some("999"),
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        d0,
+        "tx-econ-mix",
+        Some("1.5"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_1_id,
+        d0,
+        "tx-wrap-mix",
+        Some("0.25"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::LimitPlace,
+        seed.asset_1_id,
+        d0,
+        "tx-place-unpriced",
+        None,
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        d0,
+        "tx-gem-mix",
+        Some("80"),
+        0,
+    )
+    .await;
+
+    refresh(&pool).await;
+
+    let app = build_test_app(pool.clone()).await;
+    let server = TestServer::new(app);
+    let ts0 = day0().timestamp();
+    let body: Value = server
+        .get(&format!("/api/v1/defillama/daily?timestamp={ts0}"))
+        .await
+        .json();
+
+    assert_usd(&body["volume_usd"], "10");
+    assert_usd(&body["fees"]["swap_amm"], "1.5");
+    assert_usd(&body["fees"]["wrap"], "0.25");
+    assert!(
+        body["fees"]["limit_place"].is_null(),
+        "per-source stays fail-closed: {}",
+        body["fees"]["limit_place"]
+    );
+    assert_usd(&body["daily_fees_usd"], "1.75");
+    assert_usd(&body["daily_revenue_usd"], "1.75");
+    assert_eq!(body["daily_supply_side_revenue_usd"], "0");
+}
+
+#[serial]
+#[tokio::test]
+async fn idle_fees_with_volume_are_zero_not_null() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let d0 = day0() + Duration::hours(1);
+    insert_swap(
+        &pool,
+        seed.pair_id,
+        seed.asset_0_id,
+        seed.asset_1_id,
+        d0,
+        "tx-vol-only",
+        Some("7"),
+    )
+    .await;
+    refresh(&pool).await;
+
+    let app = build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let ts0 = day0().timestamp();
+    let body: Value = server
+        .get(&format!("/api/v1/defillama/daily?timestamp={ts0}"))
+        .await
+        .json();
+    assert_usd(&body["volume_usd"], "7");
+    assert_eq!(body["daily_fees_usd"], "0");
+    assert_eq!(body["fees"]["swap_amm"], "0");
+}
+
+#[serial]
+#[tokio::test]
+async fn adapter_start_day_is_200_prior_is_404() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    wipe_events(&pool).await;
+
+    let start = Utc
+        .timestamp_opt(ADAPTER_START_UTC_DAY, 0)
+        .single()
+        .expect("adapter start");
+    daily_q::refresh_defillama_day(&pool, start).await.unwrap();
+    reset_defillama_cache();
+
+    let app = build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let ok = server
+        .get(&format!(
+            "/api/v1/defillama/daily?timestamp={ADAPTER_START_UTC_DAY}"
+        ))
+        .await;
+    assert_eq!(ok.status_code(), 200);
+    let body: Value = ok.json();
+    assert_eq!(body["daily_fees_usd"], "0");
+    assert_eq!(body["volume_usd"], "0");
+
+    let prior = ADAPTER_START_UTC_DAY - 86_400;
+    let missing = server
+        .get(&format!("/api/v1/defillama/daily?timestamp={prior}"))
+        .await;
+    assert_eq!(missing.status_code(), 404);
+}
+
+#[serial]
+#[tokio::test]
+async fn null_only_fee_usd_backfill_flips_headline() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    wipe_events(&pool).await;
+    let d0 = day0() + Duration::hours(2);
+
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_1_id,
+        d0,
+        "tx-wrap-stamp",
+        Some("0.25"),
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::LimitPlace,
+        seed.asset_1_id,
+        d0,
+        "tx-place-null",
+        None,
+        0,
+    )
+    .await;
+    refresh(&pool).await;
+
+    let app = build_test_app(pool.clone()).await;
+    let server = TestServer::new(app);
+    let ts0 = day0().timestamp();
+    let before: Value = server
+        .get(&format!("/api/v1/defillama/daily?timestamp={ts0}"))
+        .await
+        .json();
+    assert_usd(&before["daily_fees_usd"], "0.25");
+    assert!(before["fees"]["limit_place"].is_null());
+
+    sqlx::query(
+        "UPDATE protocol_fee_events SET fee_usd = 1.0 WHERE fee_usd IS NULL AND tx_hash = 'tx-place-null'",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let wrap_stamp: BigDecimal = sqlx::query_scalar(
+        "SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-wrap-stamp'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(wrap_stamp, bd("0.25"), "C568-1: non-null stamp must stay");
+
+    refresh(&pool).await;
+    let after: Value = server
+        .get(&format!("/api/v1/defillama/daily?timestamp={ts0}"))
+        .await
+        .json();
+    assert_usd(&after["daily_fees_usd"], "1.25");
+    assert_usd(&after["fees"]["limit_place"], "1.0");
+    assert_usd(&after["fees"]["wrap"], "0.25");
 }

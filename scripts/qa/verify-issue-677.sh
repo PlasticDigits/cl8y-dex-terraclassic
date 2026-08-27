@@ -115,11 +115,31 @@ if [ ! -f "$REPO_ROOT/frontend-dapp/.env.local" ]; then
   fi
 fi
 
+# Dedicated Playwright Vite on :30677. A leftover process from a previous
+# leftover/child run makes Playwright fail closed (`reuseExistingServer` is
+# false when PLAYWRIGHT_WEB_PORT is set).
+free_tcp_port() {
+  local port="$1"
+  local pids=""
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -ti ":$port" 2>/dev/null || true)"
+  elif command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser "$port/tcp" 2>/dev/null || true)"
+  fi
+  if [[ -n "${pids// /}" ]]; then
+    echo "[bootstrap] freeing TCP :$port (stale Playwright Vite): $pids"
+    # shellcheck disable=SC2086
+    kill $pids 2>/dev/null || true
+    sleep 1
+  fi
+}
+
 if [[ "${VERIFY_ISSUE_677_SKIP_E2E:-}" == "1" ]]; then
   echo ""
   echo "[playwright e2e-smoke protocol-page (5 workers)] skipped (VERIFY_ISSUE_677_SKIP_E2E=1)"
   ok "playwright e2e-smoke protocol-page (skipped)"
 elif [ -d "$REPO_ROOT/frontend-dapp/node_modules/@playwright/test" ] || [ -d "$REPO_ROOT/frontend-dapp/node_modules/playwright" ]; then
+  free_tcp_port 30677
   run_step "playwright e2e-smoke protocol-page (5 workers)" \
     bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30677 PLAYWRIGHT_BASE_URL=http://127.0.0.1:30677 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 e2e/protocol-page.spec.ts'
 else

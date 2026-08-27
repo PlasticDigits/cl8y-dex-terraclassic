@@ -179,7 +179,7 @@
       "priority": 7,
       "form": "https://forms.gle/zBLCAEv69b8YoFxV6",
       "form_pack": "docs/listings/forms/geckoterminal.md",
-      "notes": "Terra Classic is not in GT networks. DEX Addition + Non-EVM + form submitted 2026-08-26. Live /gt/ adapters (latest-block, asset, pair, events). /cg/ is CoinGecko exchange shape only."
+      "notes": "Terra Classic is not in GT networks. DEX Addition + Non-EVM + form submitted 2026-08-26. Live /gt/ adapters (latest-block, asset, pair, events). Event reserves are post-event AMM state (#684), not the live pair_reserves snapshot. /cg/ is CoinGecko exchange shape only."
     },
     {
       "id": "coinpaprika",

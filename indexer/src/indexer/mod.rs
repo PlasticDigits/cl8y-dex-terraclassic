@@ -1,13 +1,14 @@
 pub mod asset_code_id_freeze;
-pub mod community_tokens;
-pub mod defillama;
-pub mod economic_usd;
 pub mod asset_resolver;
 pub mod block_indexer;
 pub mod book_snapshot;
 pub mod candle_builder;
 pub mod candle_mark;
+pub mod community_tokens;
+pub mod defillama;
+pub mod economic_usd;
 pub mod fee_discount_registry_health;
+pub mod gt_event_reserves;
 pub mod hub_usd;
 pub mod listing_exclude;
 pub mod oracle;

@@ -436,7 +436,7 @@ Terra Classic is **not** in GeckoTerminal `GET /api/v2/networks`, so Uniswap-V2 
 | `GET /gt/pair?id=` | `dexKey` = `cl8y` |
 | `GET /gt/events?fromBlock=&toBlock=` | Swaps + join/exit; gems excluded |
 
-Base: `https://indexer.dex.cl8y.com/gt`. Do **not** point GeckoTerminal at `/cg/*` (CoinGecko exchange shape). Form pack: [`listings/forms/geckoterminal.md`](./listings/forms/geckoterminal.md). Verify: `make verify-issue-646`.
+Base: `https://indexer.dex.cl8y.com/gt`. Do **not** point GeckoTerminal at `/cg/*` (CoinGecko exchange shape). Form pack: [`listings/forms/geckoterminal.md`](./listings/forms/geckoterminal.md). Event `reserves` are post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)), not the live solver snapshot. Verify: `make verify-issue-646` · `make verify-issue-684`.
 
 ---
 

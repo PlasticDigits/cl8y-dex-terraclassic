@@ -73,6 +73,7 @@ Internal factory economic marks live in `economic_token_marks` (not `GET /hub-pr
 - [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts pair TVL chip is the same catalog (#664); never `$1` UST1 / `2.5×` USTR
 - [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — wrap AddressRows + LUNC column ([#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570))
 - [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](./AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — CL8Y / listed-economic fee USD; hub JSON allowlist unchanged ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683))
+- Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — 2.5× seed is **not** a display oracle
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert still UI-only
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from hub_prices ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))
