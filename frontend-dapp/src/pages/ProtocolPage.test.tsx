@@ -627,6 +627,37 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(tokens.querySelector('img')).toBeNull()
   })
 
+  it('CL8Y-cb token row shows human units and a finite $ when amount_usd is set (GitLab #683)', async () => {
+    vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
+      ...feesOk,
+      by_token: [
+        {
+          asset_id: 8,
+          symbol: 'CL8Y-cb',
+          amount_human: '1.298',
+          amount_usd: '12.34',
+          is_other: false,
+        },
+        {
+          asset_id: 9,
+          symbol: 'CL8Y',
+          amount_human: '0.5',
+          amount_usd: null,
+          is_other: false,
+        },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const tokens = await screen.findByTestId('protocol-fees-by-token')
+    expect(tokens).toHaveTextContent('CL8Y-cb')
+    expect(tokens).toHaveTextContent('1.298')
+    // formatProtocolUsd uses 2 sigfigs (`$12.34` → `$12`), not a raw dump.
+    expect(tokens).toHaveTextContent('$12')
+    expect(tokens).toHaveTextContent('—')
+    expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
+    expect(tokens.querySelector('img')).toBeNull()
+  })
+
   it('shows Unwrap and wrap-fee tokens when event_count > 0 (GitLab #613)', async () => {
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue({
       ...feesOk,

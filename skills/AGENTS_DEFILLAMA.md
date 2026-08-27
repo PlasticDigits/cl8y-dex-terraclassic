@@ -71,5 +71,6 @@ Live Coolify (operator, after deploy): yesterday UTC `GET https://indexer.dex.cl
 - [`AGENTS_INTEGRATOR_HYBRID_VOLUME.md`](./AGENTS_INTEGRATOR_HYBRID_VOLUME.md)
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md)
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md)
+- [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](./AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — daily fees inherit stamped CL8Y / economic `fee_usd` ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683))
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) Llama pricing coverage
 - [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) other listing venues — [`AGENTS_LISTINGS.md`](./AGENTS_LISTINGS.md)
