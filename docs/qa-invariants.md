@@ -285,6 +285,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M673-7** | Optional LocalTerra leftover Playwright is `e2e-smoke` at **5 workers** (pool Manage, footer, Charts smoke, trader-page). `e2e-tx` stays **1 worker**. Do not leak a non-3173 `PLAYWRIGHT_WEB_PORT` into children (CORS). |
 | **M673-8** | Playbook + this Q15 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Post-merge !459–!468 leftover verify (invariant Q16) {#post-merge-ops-686}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q16** Post-merge !459–!468 leftover live is checked (Coolify `NUMERIC(78,18)` + `economic_token_marks`, `HUB_CL8Y_ADDRESS`, hub four cells, CL8Y fee USD when a pair exists, frontend rebuild `36d64528+`, children 674–680 / 683) | **`make verify-issue-686`** → children **674, 675, 676, 677, 678, 679, 680, 683** plus leftover probes (**M686-1–M686-8**) | Non-zero exit; fix the failing child or Coolify leftover; do not treat green child docs-only as leftover live; do not reopen #674–#680 / #683 |
+
+**M686** (GitLab **#686** — [`skills/AGENTS_POST_MERGE_OPS_686.md`](../skills/AGENTS_POST_MERGE_OPS_686.md)):
+
+| ID | Rule |
+|----|------|
+| **M686-1** | `make verify-issue-686` runs children **674, 675, 676, 677, 678, 679, 680, 683** plus leftover live (Coolify indexer + frontend). Unit/docs FAILs fail the stack. Live leftover SKIP unless `indexer.dex.cl8y.com` / `dex.cl8y.com` answers (FAIL when `VERIFY686_REQUIRE_LIVE=1` or `VERIFY686_IID=686`). Leftover Playwright SKIP unless LocalTerra is up (FAIL when `VERIFY686_REQUIRE_CHAIN=1`). |
+| **M686-2** | Coolify Postgres has `20260827120000_trader_positions_numeric_78.sql` and `20260827140000_economic_token_marks.sql`, then indexer redeploy. After migrate, UST1/USTR and CL8Y-cb/cUSTC `trade_count` on `/positions` matches `/trades` (else `rebuild-positions`). |
+| **M686-3** | `HUB_CL8Y_ADDRESS` is pinned (columbus-5 CL8Y CW20). NULL CL8Y `fee_usd` backfills once; non-null stamps stay. GET `/hub-prices` stays four cells; extra ticker **400**. |
+| **M686-4** | Live `/protocol` token mix shows CL8Y-cb human + `$` when a qualifying pair exists. Liquidity Δ% is 24h-only. UTC volume x-axis stays dense. |
+| **M686-5** | Coolify frontend rebuild from `36d64528+`. `/portfolio` hide-gems + Mark/Unrealized. `/charts` UST1/USD hero. Swap Quote only / Get UST1. Mixed hybrid Network fee ~192 LUNC is the dApp source of truth. |
+| **M686-6** | Do not reopen #674–#680 / #683 for ops/QA. Do not wait on GitLab CI. Do not turn hybrid off. Do not rewrite non-null `fee_usd` or expand `/hub-prices`. Do not touch #684. |
+| **M686-7** | Optional LocalTerra leftover Playwright is `e2e-smoke` at **5 workers** (portfolio, protocol-page, Charts smoke). `e2e-tx` stays **1 worker**. Do not leak a non-3173 `PLAYWRIGHT_WEB_PORT` into children (CORS). |
+| **M686-8** | Playbook + this Q16 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -304,3 +323,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_625.md`](../skills/AGENTS_POST_MERGE_OPS_625.md) — post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers ([#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625), **Q13**)
 - [`skills/AGENTS_POST_MERGE_OPS_628.md`](../skills/AGENTS_POST_MERGE_OPS_628.md) — post-merge !418 community-tax migrate leftovers ([#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628), **Q14**)
 - [`skills/AGENTS_POST_MERGE_OPS_673.md`](../skills/AGENTS_POST_MERGE_OPS_673.md) — post-merge !437–!458 leftover verify ([#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673), **Q15**)
+- [`skills/AGENTS_POST_MERGE_OPS_686.md`](../skills/AGENTS_POST_MERGE_OPS_686.md) — post-merge !459–!468 leftover verify ([#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686), **Q16**)

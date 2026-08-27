@@ -1,4 +1,4 @@
-# DeFiLlama adapter copies (GitLab #631)
+# DeFiLlama adapter copies (GitLab #631 / leftover #687)
 
 Canonical **in-repo** copies of the three Llama adapters. Upstream PRs live in Llama’s repos; keep this tree in sync when factory pins or the gem list change.
 
@@ -27,14 +27,14 @@ node --test scripts/defillama/tvl/tvlCore.test.js \
 | Factory | `terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea` |
 | Chain | `terra` (Terra Classic) |
 | Slug | `cl8y-dex` |
-| Start | `1777593600` (2026-05-01 00:00 UTC) |
+| Start | `1786924800` / `2026-08-17` (first UTC day GET returns 200; GitLab #687) |
 
 ## Operator notes
 
 - TVL never uses indexer USD or CG `liquidity_in_usd`. Named wrap map only: cLUNC → `uluna`, cUSTC → `uusd`.
 - Volume/fees trust the indexer rollup. TVL stays on-chain if the indexer is wrong (A10).
-- Upstream: [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676) (TVL), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) (volume + fees, draft until Coolify ships the daily route), [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) (UST1 unstablecoin, draft).
-- After Coolify ships the daily route, confirm yesterday UTC, then mark #8987 ready and paste `pnpm test dexs cl8y-dex` / `pnpm test fees cl8y-dex`:
+- Upstream: [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676) (TVL), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) (volume + fees; route is live — leftover is headline `null` / 404 vs crawler, [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)), [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) (UST1 unstablecoin, draft).
+- After indexer #687 ships (partial SUM + `start: "2026-08-17"`), paste `pnpm test dexs cl8y-dex` / `pnpm test fees cl8y-dex` (yesterday + start) on #8987:
 
   `curl -sS "https://indexer.dex.cl8y.com/api/v1/defillama/daily?timestamp=$(date -u -d yesterday +%s | awk '{print int($1/86400)*86400}')"`
 

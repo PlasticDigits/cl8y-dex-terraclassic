@@ -50,7 +50,7 @@ Logos: [`tokenlist/images/`](../../tokenlist/images). Keplr pack: [`keplr-contra
 
 | Surface | Issue | Upstream | Status |
 |---------|-------|----------|--------|
-| DeFiLlama TVL / volume / fees + UST1 unstablecoin | [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) | [Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987), [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) | Adapter copies + skill exist; close on Llama merge |
+| DeFiLlama TVL / volume / fees + UST1 unstablecoin | [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) / leftover [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) | [Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676), [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987), [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) | Route live; leftover is fees `null`/404 vs crawler (`make verify-issue-687`). Close on Llama merge |
 | Keplr Add Token (name + logo) | [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) | [keplr-contract-registry#132](https://github.com/chainapsis/keplr-contract-registry/pull/132) | Pack + `make verify-issue-629`; USTR already live |
 | Self-hosted `/cg/*` `/cmc/*` shape | [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) | [`docs/CG_CMC_COMPLIANCE.md`](../CG_CMC_COMPLIANCE.md) | **API ready**. Submitting the **exchange listing forms** is still open (this ticket’s children). |
 
