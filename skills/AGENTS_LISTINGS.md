@@ -36,7 +36,7 @@ This is the **parent catalog**. It does **not** add indexer APIs.
 2. **Copy the Keplr/Llama skill shape** when a child starts: `docs/listings/<venue>/`, `skills/AGENTS_<VENUE>.md`, `make verify-issue-*`.
 3. **Reuse Keplr decimals and gem exclude.** Close blocked if a child ships gems, wrong decimals, or the BSC CL8Y contract as Classic.
 4. **Leap is chain-registry.** `suggestCW20Token` is per-user; official metadata is Cosmos Directory.
-5. **GeckoTerminal is not Uniswap-V2 auto-detect.** Terra Classic is absent from GT networks. Non-EVM adapters are live at indexer `/gt/*` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646), `make verify-issue-646`). Do not point GT at `/cg/*`.
+5. **GeckoTerminal is not Uniswap-V2 auto-detect.** Terra Classic is absent from GT networks. Non-EVM adapters are live at indexer `/gt/*` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646), `make verify-issue-646`). Event `reserves` are post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684), `make verify-issue-684`). Do not point GT at `/cg/*`.
 6. **Trust Wallet is paid.** Skip unless product asks.
 7. **This repo does not merge GitHub listing PRs.** Export the pack, open the upstream PR, link it on the child issue.
 
@@ -52,6 +52,7 @@ No LocalTerra, indexer, or wallet. Child venue PRs and form submits are operator
 
 - Keplr pack: [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md)
 - DeFiLlama: [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md)
+- GeckoTerminal event reserves: [`AGENTS_INDEXER_GT_EVENT_RESERVES.md`](./AGENTS_INDEXER_GT_EVENT_RESERVES.md) · [#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)
 - Cosmostation (archived): [`AGENTS_COSMOSTATION.md`](./AGENTS_COSMOSTATION.md) · [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)
 - Hexxagon / Galaxy Station: [`AGENTS_HEXXAGON.md`](./AGENTS_HEXXAGON.md) · [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)
 - Retail gem hide: [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) (**#562**)

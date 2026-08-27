@@ -97,6 +97,8 @@ async fn hybrid_swap_attrs_round_trip_to_swap_events_columns() {
         s.pool_return_amount.as_ref(),
         s.book_return_amount.as_ref(),
         s.limit_book_offer_consumed.as_ref(),
+        None,
+        None,
     )
     .await
     .expect("insert_swap");

@@ -68,7 +68,7 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
    ```
 
    - Sets `last_indexed_height` to `H - 1`, clears `last_indexed_block_hash`, truncates `indexer_failed_blocks`.
-   - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs.
+   - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs. That also drops persisted `/gt/events` post-event reserves ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)); replay re-ingests them. Cursor-only rewind must **not** leave future-height reserves on rolled-back rows — use `--cleanup-derived` when canonical txs changed, then `cl8y-dex-indexer backfill-gt-event-reserves` if NULL columns remain.
 
 4. **Restart** the indexer; confirm `last_indexed_height` advances and API pair/candle data matches LCD tip within normal lag.
 5. **Verify** swap count stable on replay (dedup) when **not** using `--cleanup-derived` and txs are unchanged; after cleanup, swaps are re-ingested fresh.

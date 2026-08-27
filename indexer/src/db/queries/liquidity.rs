@@ -46,12 +46,14 @@ pub async fn insert_liquidity_event(
     asset_0_amount: &BigDecimal,
     asset_1_amount: &BigDecimal,
     lp_amount: &BigDecimal,
+    reserve_0: Option<&BigDecimal>,
+    reserve_1: Option<&BigDecimal>,
 ) -> Result<i64, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
         "INSERT INTO liquidity_events
          (pair_id, block_height, block_timestamp, tx_hash, provider, event_type,
-          asset_0_amount, asset_1_amount, lp_amount)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          asset_0_amount, asset_1_amount, lp_amount, reserve_0, reserve_1)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id",
     )
     .bind(pair_id)
@@ -63,6 +65,8 @@ pub async fn insert_liquidity_event(
     .bind(asset_0_amount)
     .bind(asset_1_amount)
     .bind(lp_amount)
+    .bind(reserve_0)
+    .bind(reserve_1)
     .fetch_one(pool)
     .await
 }

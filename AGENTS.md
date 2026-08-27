@@ -232,6 +232,7 @@ make verify-issue-631                    # #631 DeFiLlama UTC-day API + gem/hybr
 make verify-issue-687                    # #687 DeFiLlama fees headline partial SUM + adapter start / 404
 make verify-issue-639                    # #639 listing venue catalog (docs only; no Postgres)
 make verify-issue-646                    # #646 GeckoTerminal /gt/ adapters (Postgres)
+make verify-issue-684                    # #684 /gt/events post-event reserves (Postgres)
 make verify-issue-640                    # #640 Cosmostation CW20 pack (docs only; no Postgres)
 make verify-issue-641                    # #641 Hexxagon Galaxy Station CW20 pack (docs only; no Postgres)
 make verify-issue-653                    # #653 one chrome layer / anti-nesting (StatBox flat + allowlist)
@@ -301,6 +302,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
+| GeckoTerminal `/gt/events` post-event reserves | `make verify-issue-684` |
 | Cosmostation CW20 pack | `make verify-issue-640` |
 | Hexxagon CW20 pack | `make verify-issue-641` |
 | Indexer lib | `cd indexer && cargo test --lib` |
@@ -348,7 +350,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md](skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) — portal listbox `visualViewport` + in-app chrome inset + coarse/narrow browse-without-IME (**V632-1–V632-8**, [#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`
 - [skills/AGENTS_FRONTEND_KEPLR_LEDGER.md](skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) — Keplr + Ledger Nano signing (amino, pre-sign suggest, stall UX) (**K567-1–K567-8**, [#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); `make verify-issue-567`
 - [skills/AGENTS_KEPLR_CW20_REGISTRY.md](skills/AGENTS_KEPLR_CW20_REGISTRY.md) — Keplr Add Token CW20 pack on `cosmos/columbus` (**K629-1–K629-8**, [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)); `make verify-issue-629`
-- [skills/AGENTS_LISTINGS.md](skills/AGENTS_LISTINGS.md) — listing venue catalog + go/no-go for wallets / CG / CMC forms (**L639-1–L639-8**, [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)); `make verify-issue-639`. GeckoTerminal `/gt/`: `make verify-issue-646` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646))
+- [skills/AGENTS_LISTINGS.md](skills/AGENTS_LISTINGS.md) — listing venue catalog + go/no-go for wallets / CG / CMC forms (**L639-1–L639-8**, [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)); `make verify-issue-639`. GeckoTerminal `/gt/`: `make verify-issue-646` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646)). Event reserves: [`AGENTS_INDEXER_GT_EVENT_RESERVES.md`](skills/AGENTS_INDEXER_GT_EVENT_RESERVES.md) (**R684-1–R684-8**, [#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)); `make verify-issue-684`
 - [skills/AGENTS_COSMOSTATION.md](skills/AGENTS_COSMOSTATION.md) — Cosmostation / Mintscan CW20 pack on `chain/terra` (**C640-1–C640-8**, [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)); `make verify-issue-640`
 - [skills/AGENTS_HEXXAGON.md](skills/AGENTS_HEXXAGON.md) — Galaxy Station / Hexxagon CW20 pack (**H641-1–H641-8**, [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)); `make verify-issue-641`
 - [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — single execution-aligned **Route** row on Swap and `/trade` market quote (#158, #302); Trade market GET `/route/solve` default (#501); always-on hybrid (#596)
