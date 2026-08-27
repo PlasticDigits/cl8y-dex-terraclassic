@@ -40,6 +40,10 @@ describe('scaleNumericByDecimals', () => {
     expect(scaleNumericByDecimals('1000000000000000000', 18)).toBe('1')
   })
 
+  it('humanizes 100 USTR (18-dec raw 1e20) from a plain digit string (GitLab #676)', () => {
+    expect(scaleNumericByDecimals('100000000000000000000', 18)).toBe('100')
+  })
+
   it('rejects missing / non-integer decimals', () => {
     expect(scaleNumericByDecimals('1000000', -1)).toBeNull()
     expect(scaleNumericByDecimals('abc', 6)).toBeNull()
@@ -77,6 +81,25 @@ describe('formatScaledPosition', () => {
     expect(d.realizedPnl).toMatch(/\+25 UST1|\+25\.00 UST1/)
     expect(d.avgEntry).toMatch(/UST1 \/ cUSTC/)
     expect(d.avgEntry).not.toMatch(/T$/)
+  })
+
+  it('shows 100 human USTR net from raw 1e20 (GitLab #676)', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1ustr',
+        asset_0_symbol: 'UST1',
+        asset_1_symbol: 'USTR',
+        asset_0_decimals: 6,
+        asset_1_decimals: 18,
+        net_position_quote: '100000000000000000000',
+        total_cost_base: '1000000',
+        avg_entry_price: '0.00000000000001',
+        realized_pnl: '0',
+      })
+    )
+    expect(d.netPosition).toMatch(/100(\.0+)? USTR/)
+    expect(d.netPosition).not.toMatch(/[0-9]T\b/)
+    expect(d.costBasis).toMatch(/1(\.0+)? UST1/)
   })
 
   it('does not compact mixed-decimal avg entry as T', () => {

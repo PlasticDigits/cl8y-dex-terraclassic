@@ -17,7 +17,7 @@ Use when changing the **wallet-centric portfolio** surface, **trader positions**
 | `GET /api/v1/traders/{addr}/trades` | Recent swaps (portfolio uses `limit=100`, no `pair` filter) |
 | `GET /api/v1/pairs` + LCD `balance` | LP overview: capped fan-out (`PORTFOLIO_LP_MAX_PAIRS` = 50, concurrency 5) — see [`portfolioFanOut.ts`](../frontend-dapp/src/utils/portfolioFanOut.ts) |
 
-Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (trader open positions row, trader limit-placements row, **Trader positions human scale #551**). Parser: [`indexer/src/indexer/position_tracker.rs`](../indexer/src/indexer/position_tracker.rs).
+Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (trader open positions row, trader limit-placements row, **Trader positions human scale #551**, **Trader positions 18-decimal storage #676** **P676-1–P676-8**). Parser: [`indexer/src/indexer/position_tracker.rs`](../indexer/src/indexer/position_tracker.rs).
 
 **Out of scope on portfolio:** unrealized / mark-to-market P&amp;L — not in positions API; track separately if product adds spot/oracle ([#217](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217)). **Raw vs human P&amp;L / cost / avg entry** is [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551) — [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md).
 
@@ -63,6 +63,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 
 - [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md) — primary nav / `navItems.ts`
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — human-scale P&amp;L / cost / avg entry (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
+- [`AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md`](./AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md) — 18-dec `NUMERIC(78, 18)` + `trade_count` parity (**P676-1–P676-8**, [#676](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/676)); `make verify-issue-676`
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD from hub_prices (**P560**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
 - [`AGENTS_FRONTEND_ORDER_HISTORY.md`](./AGENTS_FRONTEND_ORDER_HISTORY.md) — pair-scoped history on `/limits` and `/trade`
 - [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — lifecycle on limit-placements
