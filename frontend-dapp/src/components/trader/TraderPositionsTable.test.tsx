@@ -4,6 +4,19 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { TraderPositionsTable } from './TraderPositionsTable'
 import type { IndexerPosition } from '@/types'
 
+const GEM: IndexerPosition = {
+  pair_address: 'terra1ember-coral',
+  asset_0_symbol: 'EMBER',
+  asset_1_symbol: 'CORAL',
+  asset_0_decimals: 6,
+  asset_1_decimals: 6,
+  net_position_quote: '1000000',
+  avg_entry_price: '1',
+  total_cost_base: '1000000',
+  realized_pnl: '0',
+  trade_count: 1,
+}
+
 const UST1_CUSTC: IndexerPosition = {
   pair_address: 'terra1ust1custc',
   asset_0_symbol: 'UST1',
@@ -30,12 +43,20 @@ const MIXED_USTR: IndexerPosition = {
   trade_count: 2,
 }
 
-function renderTable(positions: IndexerPosition[]) {
+function renderTable(positions: IndexerPosition[], extras?: { showTestPairDivider?: boolean }) {
   const router = createMemoryRouter(
     [
       {
         path: '/',
-        element: <TraderPositionsTable positions={positions} isLoading={false} isError={false} onRetry={() => {}} />,
+        element: (
+          <TraderPositionsTable
+            positions={positions}
+            isLoading={false}
+            isError={false}
+            onRetry={() => {}}
+            showTestPairDivider={extras?.showTestPairDivider}
+          />
+        ),
       },
     ],
     { initialEntries: ['/'] }
@@ -80,5 +101,17 @@ describe('TraderPositionsTable (#551)', () => {
     expect(screen.getByTestId('trader-position-cost')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/cUSTC/)
+  })
+
+  it('inserts a Test pairs divider before the first gem row when asked (#674)', () => {
+    renderTable([UST1_CUSTC, GEM], { showTestPairDivider: true })
+    expect(screen.getByTestId('trader-positions-test-pairs-divider')).toHaveTextContent(/test pairs/i)
+    expect(screen.getByRole('link', { name: /EMBER\/CORAL/ })).toBeInTheDocument()
+  })
+
+  it('does not insert the Test pairs divider on /trader by default', () => {
+    renderTable([UST1_CUSTC, GEM])
+    expect(screen.queryByTestId('trader-positions-test-pairs-divider')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /EMBER\/CORAL/ })).toBeInTheDocument()
   })
 })
