@@ -8,7 +8,7 @@
 #   3. Admin pool-only swap on UST1/cUSTC until quote/base is within 0.1% of 1/USTC-USD.
 #      Re-queries reserves immediately before each swap (mint txs can race the pool).
 #      Does not swap UST1/USTR.
-#   4. provide_liquidity on both pairs with receiver = CMM treasury.
+#   4. provide_liquidity on selected pairs (default both) with receiver = CMM treasury.
 #   5. Re-query price + treasury LP balances and fail if checks do not pass.
 #
 # Usage:
@@ -46,6 +46,7 @@ USTR="${UST1_LP_USTR}"
 PAIR_CUSTC="${UST1_LP_PAIR_CUSTC}"
 PAIR_USTR="${UST1_LP_PAIR_USTR}"
 USD_EACH="${UST1_LP_USD_EACH}"
+PAIRS="${UST1_LP_PAIRS:-both}"
 TOLERANCE="${UST1_LP_PRICE_TOLERANCE}"
 USTR_PER="${UST1_LP_USTR_PER_USTC}"
 SWAP_MAX_SPREAD="${UST1_LP_SWAP_MAX_SPREAD:-0.20}"
@@ -55,6 +56,50 @@ BUFFER_BPS="${UST1_LP_MINT_BUFFER_BPS:-50}"
 LCD_TIMEOUT="${UST1_LP_LCD_TIMEOUT:-25}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
+
+case "$PAIRS" in
+  both)
+    DO_CUSTC=1
+    DO_USTR=1
+    SKIP_SWAP=0
+    ;;
+  ustr)
+    DO_CUSTC=0
+    DO_USTR=1
+    SKIP_SWAP=1
+    ;;
+  custc)
+    DO_CUSTC=1
+    DO_USTR=0
+    SKIP_SWAP=0
+    ;;
+  *)
+    die "UST1_LP_PAIRS must be both, ustr, or custc (got $PAIRS)"
+    ;;
+esac
+if [[ "${UST1_LP_SKIP_SWAP:-0}" == "1" ]]; then
+  SKIP_SWAP=1
+fi
+USD_CUSTC="${UST1_LP_USD_CUSTC:-}"
+USD_USTR="${UST1_LP_USD_USTR:-}"
+if [[ -z "$USD_CUSTC" ]]; then
+  if [[ "$DO_CUSTC" == "1" ]]; then USD_CUSTC="$USD_EACH"; else USD_CUSTC=0; fi
+fi
+if [[ -z "$USD_USTR" ]]; then
+  if [[ "$DO_USTR" == "1" ]]; then USD_USTR="$USD_EACH"; else USD_USTR=0; fi
+fi
+if python3 -c "import sys; sys.exit(0 if float('$USD_CUSTC') > 0 else 1)"; then
+  DO_CUSTC=1
+else
+  DO_CUSTC=0
+  SKIP_SWAP=1
+fi
+if python3 -c "import sys; sys.exit(0 if float('$USD_USTR') > 0 else 1)"; then
+  DO_USTR=1
+else
+  DO_USTR=0
+fi
+[[ "$DO_CUSTC" == "1" || "$DO_USTR" == "1" ]] || die "no pair selected (set UST1_LP_PAIRS or USD overrides)"
 
 usage() {
   sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
@@ -279,6 +324,9 @@ build_plan() {
   "ustc_usd": "$USTC_USD",
   "ustr_per_ustc": "$USTR_PER",
   "usd_each": "$USD_EACH",
+  "usd_custc": "$USD_CUSTC",
+  "usd_ustr": "$USD_USTR",
+  "skip_swap": $([[ "$SKIP_SWAP" == "1" ]] && echo true || echo false),
   "tolerance": "$TOLERANCE",
   "fee_bps": $FEE_BPS,
   "buffer_bps": $buffer,
@@ -364,8 +412,9 @@ echo "Factory:   $FACTORY"
 echo "Treasury:  $TREASURY"
 echo "Admin key: $ADMIN_KEY"
 echo "Multisig:  $MSIG_KEY ($MSIG_ADDR)"
-echo "USD each:  $USD_EACH"
+echo "USD each:  $USD_EACH  (cUSTC=$USD_CUSTC USTR=$USD_USTR pairs=$PAIRS)"
 echo "Tolerance: $TOLERANCE"
+echo "SKIP_SWAP: $SKIP_SWAP"
 echo "DRY_RUN:   ${DRY_RUN:-0}"
 echo ""
 
@@ -480,9 +529,19 @@ BAL_USTR="$(cw20_balance "$USTR" "$ADMIN_ADDR")"
 echo "  post-mint admin UST1=$BAL_UST1 cUSTC=$BAL_CUSTC USTR=$BAL_USTR"
 
 echo ""
-echo "[rebalance] UST1/cUSTC only (live reserves, up to $SWAP_MAX_ITERS swaps)"
-execute_rebalance_swaps
-echo "  post-swap price $CUR_PX  target $TARGET"
+if [[ "$SKIP_SWAP" == "1" ]]; then
+  echo "[rebalance] skip UST1/cUSTC swap (UST1_LP_PAIRS=$PAIRS)"
+  SWAP_TX=""
+  POOL_C="$(pool_json "$PAIR_CUSTC")"
+  R0="$(asset_amount_for "$POOL_C" "$UST1")"
+  R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
+  CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
+  echo "  live price $CUR_PX  target $TARGET"
+else
+  echo "[rebalance] UST1/cUSTC only (live reserves, up to $SWAP_MAX_ITERS swaps)"
+  execute_rebalance_swaps
+  echo "  post-swap price $CUR_PX  target $TARGET"
+fi
 
 # Re-size LP against live reserves. Top up if the live swap used a different
 # offer token than the pre-mint plan (inventory stays on admin either way).
@@ -502,7 +561,7 @@ POOL_C="$(pool_json "$PAIR_CUSTC")"
 R0="$(asset_amount_for "$POOL_C" "$UST1")"
 R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
 CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
-if ! rel_err_ok "$CUR_PX" "$TARGET"; then
+if [[ "$SKIP_SWAP" != "1" ]] && ! rel_err_ok "$CUR_PX" "$TARGET"; then
   echo "  peg drifted during LP top-up; one more rebalance pass"
   execute_rebalance_swaps
 fi
@@ -526,9 +585,19 @@ NEED_UST1="$(python3 -c "print(int('$LP_C_UST1') + int('$LP_U_UST1'))")"
   || die "admin inventory short for LP (UST1 $BAL_UST1 need $NEED_UST1; cUSTC $BAL_CUSTC need $LP_C_CUSTC; USTR $BAL_USTR need $LP_U_USTR)"
 
 echo ""
-echo "[provide] $USD_EACH USD each → $TREASURY"
-TX_LP_C="$(provide_to_treasury "UST1/cUSTC" "$PAIR_CUSTC" "$UST1" "$LP_C_UST1" "$CUSTC" "$LP_C_CUSTC")"
-TX_LP_U="$(provide_to_treasury "UST1/USTR" "$PAIR_USTR" "$UST1" "$LP_U_UST1" "$USTR" "$LP_U_USTR")"
+echo "[provide] cUSTC=\$${USD_CUSTC} USTR=\$${USD_USTR} → $TREASURY"
+TX_LP_C="skipped"
+TX_LP_U="skipped"
+if [[ "$DO_CUSTC" == "1" ]]; then
+  TX_LP_C="$(provide_to_treasury "UST1/cUSTC" "$PAIR_CUSTC" "$UST1" "$LP_C_UST1" "$CUSTC" "$LP_C_CUSTC")"
+else
+  echo "  skip provide UST1/cUSTC"
+fi
+if [[ "$DO_USTR" == "1" ]]; then
+  TX_LP_U="$(provide_to_treasury "UST1/USTR" "$PAIR_USTR" "$UST1" "$LP_U_UST1" "$USTR" "$LP_U_USTR")"
+else
+  echo "  skip provide UST1/USTR"
+fi
 
 echo ""
 echo "[verify]"
@@ -537,7 +606,9 @@ POOL_C="$(pool_json "$PAIR_CUSTC")"
 R0="$(asset_amount_for "$POOL_C" "$UST1")"
 R1="$(asset_amount_for "$POOL_C" "$CUSTC")"
 CUR_PX="$(human_px "$R0" "$R1" "$DEC_UST1" "$DEC_CUSTC")"
-if rel_err_ok "$CUR_PX" "$TARGET"; then
+if [[ "$SKIP_SWAP" == "1" ]]; then
+  echo "  SKIP price gate (no cUSTC rebalance this run) live $CUR_PX target $TARGET"
+elif rel_err_ok "$CUR_PX" "$TARGET"; then
   echo "  PASS price $CUR_PX within $TOLERANCE of $TARGET"
 else
   echo "  FAIL price $CUR_PX vs target $TARGET (tol $TOLERANCE)" >&2
@@ -549,17 +620,25 @@ TRE_LP_U1="$(cw20_balance "$LP_USTR" "$TREASURY")"
 ADM_LP_C="$(cw20_balance "$LP_CUSTC" "$ADMIN_ADDR")"
 ADM_LP_U="$(cw20_balance "$LP_USTR" "$ADMIN_ADDR")"
 
-if python3 -c "import sys; sys.exit(0 if int('$TRE_LP_C1') > int('$TRE_LP_C0') else 1)"; then
-  echo "  PASS treasury UST1-CUST-LP $TRE_LP_C0 → $TRE_LP_C1"
+if [[ "$DO_CUSTC" == "1" ]]; then
+  if python3 -c "import sys; sys.exit(0 if int('$TRE_LP_C1') > int('$TRE_LP_C0') else 1)"; then
+    echo "  PASS treasury UST1-CUST-LP $TRE_LP_C0 → $TRE_LP_C1"
+  else
+    echo "  FAIL treasury UST1-CUST-LP did not increase ($TRE_LP_C0 → $TRE_LP_C1)" >&2
+    FAIL=1
+  fi
 else
-  echo "  FAIL treasury UST1-CUST-LP did not increase ($TRE_LP_C0 → $TRE_LP_C1)" >&2
-  FAIL=1
+  echo "  SKIP treasury UST1-CUST-LP (not provided this run) $TRE_LP_C0 → $TRE_LP_C1"
 fi
-if python3 -c "import sys; sys.exit(0 if int('$TRE_LP_U1') > int('$TRE_LP_U0') else 1)"; then
-  echo "  PASS treasury UST1-USTR-LP $TRE_LP_U0 → $TRE_LP_U1"
+if [[ "$DO_USTR" == "1" ]]; then
+  if python3 -c "import sys; sys.exit(0 if int('$TRE_LP_U1') > int('$TRE_LP_U0') else 1)"; then
+    echo "  PASS treasury UST1-USTR-LP $TRE_LP_U0 → $TRE_LP_U1"
+  else
+    echo "  FAIL treasury UST1-USTR-LP did not increase ($TRE_LP_U0 → $TRE_LP_U1)" >&2
+    FAIL=1
+  fi
 else
-  echo "  FAIL treasury UST1-USTR-LP did not increase ($TRE_LP_U0 → $TRE_LP_U1)" >&2
-  FAIL=1
+  echo "  SKIP treasury UST1-USTR-LP (not provided this run) $TRE_LP_U0 → $TRE_LP_U1"
 fi
 if [[ "$ADM_LP_C" == "0" && "$ADM_LP_U" == "0" ]]; then
   echo "  PASS admin holds no leftover LP"
@@ -577,4 +656,4 @@ echo "treasury=$TREASURY"
 if [[ "$FAIL" -ne 0 ]]; then
   die "post-checks failed"
 fi
-echo "OK — rebalance + \$${USD_EACH} LP on both pairs sent to CMM."
+echo "OK — LP sent to CMM (cUSTC=\$${USD_CUSTC} USTR=\$${USD_USTR})."

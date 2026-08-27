@@ -51,6 +51,9 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 | Env | Purpose |
 |-----|---------|
 | `UST1_LP_USD_EACH` | USD per pair (default `5000`) |
+| `UST1_LP_PAIRS` | `both` (default), `ustr`, or `custc` |
+| `UST1_LP_USD_CUSTC` / `UST1_LP_USD_USTR` | Per-pair USD (default from `UST1_LP_USD_EACH` / pairs) |
+| `UST1_LP_SKIP_SWAP=1` | Skip UST1/cUSTC rebalance (implied by `ustr`) |
 | `UST1_LP_PRICE_TOLERANCE` | Rel error vs oracle (default `0.001`) |
 | `UST1_LP_ADMIN_KEY` / `UST1_LP_ADMIN_ADDR` | Hot wallet (default `cl8ydeploy`) |
 | `UST1_LP_USTC_USD` | Skip indexer oracle |
