@@ -1,15 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
 import { TraderIdentity } from '@/components/trader/TraderIdentity'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { StatBox } from '@/components/ui/StatBox'
-import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
-import { getOraclePrice } from '@/services/indexer/client'
+import { useTraderUsdMarks } from '@/hooks/useTraderUsdMarks'
 import { formatIndexedVolumeUsd } from '@/utils/chartsOverviewStats'
 import { formatDateTime } from '@/utils/formatDate'
 import {
   formatSignedUsd,
   sumRealizedPnlUsd,
-  traderUsdMarksFromHub,
+  sumUnrealizedPnlUsd,
   TRADER_PNL_EM_DASH,
 } from '@/utils/traderPositionDisplay'
 import type { IndexerPosition, IndexerTrader } from '@/types'
@@ -23,34 +21,15 @@ export type TraderSummaryStatsProps = {
   addressRowTestId?: string
 }
 
-function parseOracleUsd(priceUsd: string | null | undefined): number | null {
-  if (priceUsd == null || priceUsd === '') return null
-  const n = Number(priceUsd)
-  return Number.isFinite(n) && n > 0 ? n : null
+function usdHint(summary: { pricedPairs: number; unpricedPairs: number }): string {
+  return summary.unpricedPairs > 0 && summary.pricedPairs > 0 ? 'Priced pairs only' : 'USD · hub mark'
 }
 
-/** Indexer trader profile header + aggregate stats (GitLab #212 / #551 / #553 / #560 shared with `/trader`). */
+/** Indexer trader profile header + aggregate stats (GitLab #212 / #551 / #553 / #560 / #675 shared with `/trader`). */
 export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRowTestId }: TraderSummaryStatsProps) {
-  const hubQuery = useProtocolHubPricesQuery()
-  const ustcQuery = useQuery({
-    queryKey: ['oracle-price', 'ustc'],
-    queryFn: () => getOraclePrice('ustc'),
-    staleTime: 60_000,
-  })
-  const luncQuery = useQuery({
-    queryKey: ['oracle-price', 'lunc'],
-    queryFn: () => getOraclePrice('lunc'),
-    staleTime: 60_000,
-  })
-
-  const pnlUsd = sumRealizedPnlUsd(
-    positions,
-    traderUsdMarksFromHub(hubQuery.data, {
-      ustcUsd: parseOracleUsd(ustcQuery.data?.price_usd),
-      luncUsd: parseOracleUsd(luncQuery.data?.price_usd),
-    })
-  )
-  const pnlLabel = pnlUsd.unpricedPairs > 0 && pnlUsd.pricedPairs > 0 ? 'Priced pairs only' : 'USD · realized only'
+  const marks = useTraderUsdMarks()
+  const pnlUsd = sumRealizedPnlUsd(positions, marks)
+  const unrealizedUsd = sumUnrealizedPnlUsd(positions, marks)
 
   return (
     <>
@@ -103,7 +82,8 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
         </h3>
         <p className="text-xs mb-3" style={{ color: 'var(--ink-dim)' }}>
           Per-pair figures use that pair&apos;s tokens. Cross-pair totals are USD or omitted when units differ. Realized
-          only — not on-chain balances or mark-to-market. See{' '}
+          is closed quote sales. Unrealized is the current hub mark of remaining quote minus on-DEX cost — not wallet
+          balances. See{' '}
           <a
             href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/indexer-invariants.md"
             target="_blank"
@@ -115,7 +95,7 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
           </a>
           .
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <StatBox
             variant="flat"
             label="Total Realized P&L"
@@ -127,8 +107,24 @@ export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRow
                   ? 'var(--color-positive)'
                   : 'var(--color-negative)'
             }
-            hint={pnlLabel}
+            hint={usdHint(pnlUsd)}
             data-testid="trader-summary-realized-pnl"
+          />
+          <StatBox
+            variant="flat"
+            label="Total Unrealized P&L"
+            value={formatSignedUsd(unrealizedUsd.usd)}
+            color={
+              unrealizedUsd.usd == null || unrealizedUsd.usd === 0
+                ? 'var(--ink-subtle)'
+                : unrealizedUsd.usd > 0
+                  ? 'var(--color-positive)'
+                  : 'var(--color-negative)'
+            }
+            hint={
+              unrealizedUsd.noCostBasisPairs > 0 ? 'On-DEX cost only · some rows have no basis' : usdHint(unrealizedUsd)
+            }
+            data-testid="trader-summary-unrealized-pnl"
           />
           <div className="stat-flat" data-testid="trader-summary-best-trade">
             <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--ink-dim)' }}>

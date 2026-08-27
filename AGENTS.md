@@ -249,6 +249,7 @@ make verify-issue-556                    # #556 DEX hub USD (cUSTC/UST1/USTR) + 
 make verify-issue-570                    # #570 Protocol hub cUSTC wrap link + LUNC/USD column
 make verify-issue-568                    # #568 time-stamped candle USD + idle mark-to-market
 make verify-issue-560                    # #560 portfolio/trader realized P&L USD from hub prices
+make verify-issue-675                    # #675 portfolio/trader unrealized P&L (hub mark vs on-DEX cost)
 make verify-issue-573                    # #573 post-merge stack !368–!377 (children 557–567)
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
@@ -382,6 +383,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md](skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md) — `/portfolio` + `/trader` human-scale P&amp;L / cost / avg entry; mixed totals omitted or USD (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
 - [skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md](skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` hides test-gem Open Positions / P&amp;L / recent activity by default (**P674-1–P674-8**, [#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674)); `make verify-issue-674`
 - [skills/AGENTS_FRONTEND_HUB_PNL.md](skills/AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from `GET /api/v1/hub-prices` (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
+- [skills/AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md](skills/AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md) — `/portfolio` + `/trader` hub mark + unrealized vs on-DEX cost (**P675-1–P675-8**, [#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675)); `make verify-issue-675`
 - [skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md](skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape + wallet Amount in/out/Price human scale (**T557-1–T557-11**, [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)); `make verify-issue-557`
 - [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](skills/AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — `/charts` pair-scoped 24h stats + leaderboard (**CS-1–CS-15**, [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)); `make verify-issue-666`
 - [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — `/charts` UST1/cUSTC hero + `?price=` + page-wide invert (**C680-1–C680-9**, [#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)); `make verify-issue-680`

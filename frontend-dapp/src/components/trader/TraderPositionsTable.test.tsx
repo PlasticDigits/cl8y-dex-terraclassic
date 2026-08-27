@@ -1,8 +1,21 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { TraderPositionsTable } from './TraderPositionsTable'
 import type { IndexerPosition } from '@/types'
+import type { TraderUsdMarks } from '@/utils/traderPositionDisplay'
+import { NO_COST_BASIS_LABEL } from '@/utils/traderPositionDisplay'
+import * as indexerClient from '@/services/indexer/client'
+
+vi.mock('@/services/indexer/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/indexer/client')>()
+  return {
+    ...actual,
+    getOraclePrice: vi.fn(),
+    getHubPrices: vi.fn(),
+  }
+})
 
 const GEM: IndexerPosition = {
   pair_address: 'terra1ember-coral',
@@ -43,7 +56,13 @@ const MIXED_USTR: IndexerPosition = {
   trade_count: 2,
 }
 
-function renderTable(positions: IndexerPosition[], extras?: { showTestPairDivider?: boolean }) {
+const HUB: TraderUsdMarks = { ust1Usd: 0.976, ustcUsd: 0.00473, ustrUsd: 0.00879 }
+
+function renderTable(
+  positions: IndexerPosition[],
+  extras?: { usdMarks?: TraderUsdMarks; showTestPairDivider?: boolean }
+) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   const router = createMemoryRouter(
     [
       {
@@ -54,6 +73,7 @@ function renderTable(positions: IndexerPosition[], extras?: { showTestPairDivide
             isLoading={false}
             isError={false}
             onRetry={() => {}}
+            usdMarks={extras?.usdMarks}
             showTestPairDivider={extras?.showTestPairDivider}
           />
         ),
@@ -61,10 +81,30 @@ function renderTable(positions: IndexerPosition[], extras?: { showTestPairDivide
     ],
     { initialEntries: ['/'] }
   )
-  return render(<RouterProvider router={router} />)
+  return render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  )
 }
 
 describe('TraderPositionsTable (#551)', () => {
+  beforeEach(() => {
+    vi.mocked(indexerClient.getOraclePrice).mockResolvedValue({
+      ticker: 'ustc',
+      price_usd: '0.005',
+      sources: [],
+    })
+    vi.mocked(indexerClient.getHubPrices).mockResolvedValue({
+      metadata: 'DEX hub prices — not CEX',
+      tickers: ['custc', 'ust1', 'ustr'],
+      prices: [
+        { ticker: 'custc', price_usd: '0.00473' },
+        { ticker: 'ust1', price_usd: '0.976' },
+        { ticker: 'ustr', price_usd: '0.00879' },
+      ],
+    })
+  })
   it('shows human quote amounts with the quote symbol, not compact M', () => {
     renderTable([UST1_CUSTC])
     expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/38\.29 cUSTC/)
@@ -113,5 +153,43 @@ describe('TraderPositionsTable (#551)', () => {
     renderTable([UST1_CUSTC, GEM])
     expect(screen.queryByTestId('trader-positions-test-pairs-divider')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /EMBER\/CORAL/ })).toBeInTheDocument()
+  })
+})
+
+describe('TraderPositionsTable (#675 mark / unrealized)', () => {
+  it('shows hub mark and unrealized beside realized for one-directional accumulation', () => {
+    renderTable(
+      [
+        {
+          ...UST1_CUSTC,
+          net_position_quote: '100000000',
+          total_cost_base: '400000',
+          avg_entry_price: '0.004',
+          realized_pnl: '0',
+        },
+      ],
+      { usdMarks: HUB }
+    )
+    expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/0(\.00)? UST1/)
+    expect(screen.getByTestId('trader-position-mark')).toHaveTextContent(/\$0\.47/)
+    expect(screen.getByTestId('trader-position-unrealized')).toHaveTextContent(/UST1/)
+    expect(screen.getByTestId('trader-position-unrealized').textContent).toMatch(/^\+/)
+  })
+
+  it('labels no on-DEX cost basis instead of a fake P&L', () => {
+    renderTable(
+      [
+        {
+          ...UST1_CUSTC,
+          net_position_quote: '100000000',
+          total_cost_base: '0',
+          avg_entry_price: '0',
+          realized_pnl: '0',
+        },
+      ],
+      { usdMarks: HUB }
+    )
+    expect(screen.getByTestId('trader-position-mark')).toHaveTextContent(/\$0\.47/)
+    expect(screen.getByTestId('trader-position-unrealized')).toHaveTextContent(NO_COST_BASIS_LABEL)
   })
 })

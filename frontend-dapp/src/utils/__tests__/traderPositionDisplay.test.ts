@@ -3,9 +3,13 @@ import type { IndexerPosition } from '@/types'
 import {
   formatScaledPosition,
   formatSignedUsd,
+  formatUsdAmount,
   multiplyNumericByTenPow,
+  NO_COST_BASIS_LABEL,
+  positionHasOnDexCostBasis,
   scaleNumericByDecimals,
   sumRealizedPnlUsd,
+  sumUnrealizedPnlUsd,
   traderUsdMarksFromHub,
   TRADER_PNL_EM_DASH,
 } from '../traderPositionDisplay'
@@ -220,10 +224,182 @@ describe('traderUsdMarksFromHub (GitLab #560)', () => {
   })
 })
 
-describe('formatSignedUsd', () => {
+describe('formatSignedUsd / formatUsdAmount', () => {
   it('prefixes sign outside the dollar', () => {
     expect(formatSignedUsd(38.29)).toMatch(/^\+\$/)
     expect(formatSignedUsd(-1.5)).toMatch(/^-\$/)
     expect(formatSignedUsd(null)).toBe(TRADER_PNL_EM_DASH)
+  })
+
+  it('formats mark as unsigned dollars', () => {
+    expect(formatUsdAmount(0.473)).toMatch(/\$0\.47/)
+    expect(formatUsdAmount(0)).toBe('$0')
+    expect(formatUsdAmount(null)).toBe(TRADER_PNL_EM_DASH)
+  })
+})
+
+const HUB_MARKS = { ust1Usd: 0.976, ustcUsd: 0.00473, ustrUsd: 0.00879 }
+
+describe('unrealized mark-to-market (GitLab #675)', () => {
+  it('treats remaining quote with zero cost/avg as no on-DEX basis', () => {
+    expect(
+      positionHasOnDexCostBasis(
+        pos({
+          pair_address: 'terra1minted',
+          net_position_quote: '100000000',
+          total_cost_base: '0',
+          avg_entry_price: '0',
+        })
+      )
+    ).toBe(false)
+    expect(
+      positionHasOnDexCostBasis(
+        pos({
+          pair_address: 'terra1closed',
+          net_position_quote: '0',
+          total_cost_base: '0',
+          avg_entry_price: '0',
+        })
+      )
+    ).toBe(true)
+    expect(
+      positionHasOnDexCostBasis(
+        pos({
+          pair_address: 'terra1bought',
+          net_position_quote: '100000000',
+          total_cost_base: '400000',
+          avg_entry_price: '0.004',
+        })
+      )
+    ).toBe(true)
+  })
+
+  it('marks remaining quote at hub DEX price and subtracts on-DEX cost', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1acc',
+        net_position_quote: '100000000',
+        total_cost_base: '400000',
+        avg_entry_price: '0.004',
+        realized_pnl: '0',
+      }),
+      HUB_MARKS
+    )
+    // 100 cUSTC × $0.00473 − 0.4 UST1 × $0.976 = $0.473 − $0.3904
+    expect(d.realizedPnlUsd).toBe(0)
+    expect(d.markUsd).toBeCloseTo(0.473, 6)
+    expect(d.markLabel).toMatch(/\$0\.47/)
+    expect(d.unrealizedPnlUsd).toBeCloseTo(0.0826, 6)
+    expect(d.unrealizedPnl).toMatch(/UST1/)
+    expect(d.unrealizedPnl.startsWith('+')).toBe(true)
+    expect(d.hasCostBasis).toBe(true)
+  })
+
+  it('uses hub cUSTC, not CEX USTC, when both exist (wrapped discount)', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1wrap',
+        net_position_quote: '100000000',
+        total_cost_base: '400000',
+        avg_entry_price: '0.004',
+      }),
+      { ust1Usd: 0.976, ustcUsd: 0.00473 }
+    )
+    expect(d.markUsd).toBeCloseTo(100 * 0.00473, 6)
+    expect(d.markUsd).not.toBeCloseTo(100 * 0.005, 6)
+  })
+
+  it('surfaces no cost basis instead of a fake P&L', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1bridged',
+        net_position_quote: '100000000',
+        total_cost_base: '0',
+        avg_entry_price: '0',
+        realized_pnl: '0',
+      }),
+      HUB_MARKS
+    )
+    expect(d.hasCostBasis).toBe(false)
+    expect(d.markUsd).toBeCloseTo(0.473, 6)
+    expect(d.unrealizedPnl).toBe(NO_COST_BASIS_LABEL)
+    expect(d.unrealizedPnlUsd).toBeNull()
+  })
+
+  it('omits GEMX quote marks (not $0) and does not invent unrealized', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1gem',
+        asset_0_symbol: 'UST1',
+        asset_1_symbol: 'GEMX',
+        net_position_quote: '1000000',
+        total_cost_base: '1000000',
+        avg_entry_price: '1',
+      }),
+      HUB_MARKS
+    )
+    expect(d.markUsd).toBeNull()
+    expect(d.markLabel).toBe(TRADER_PNL_EM_DASH)
+    expect(d.unrealizedPnlUsd).toBeNull()
+    expect(d.unrealizedPnl).toBe(TRADER_PNL_EM_DASH)
+  })
+
+  it('closed quote position marks $0 unrealized $0', () => {
+    const d = formatScaledPosition(
+      pos({
+        pair_address: 'terra1flat',
+        net_position_quote: '0',
+        total_cost_base: '0',
+        avg_entry_price: '0',
+        realized_pnl: '1000000',
+      }),
+      HUB_MARKS
+    )
+    expect(d.markUsd).toBe(0)
+    expect(d.unrealizedPnlUsd).toBe(0)
+    expect(d.hasCostBasis).toBe(true)
+  })
+})
+
+describe('sumUnrealizedPnlUsd (GitLab #675)', () => {
+  it('sums priced unrealized and omits no-basis / unknown quotes', () => {
+    const summary = sumUnrealizedPnlUsd(
+      [
+        pos({
+          pair_address: 'a',
+          net_position_quote: '100000000',
+          total_cost_base: '400000',
+          avg_entry_price: '0.004',
+        }),
+        pos({
+          pair_address: 'b',
+          net_position_quote: '100000000',
+          total_cost_base: '0',
+          avg_entry_price: '0',
+        }),
+        pos({
+          pair_address: 'c',
+          asset_1_symbol: 'GEMX',
+          net_position_quote: '1000000',
+          total_cost_base: '1000000',
+          avg_entry_price: '1',
+        }),
+      ],
+      HUB_MARKS
+    )
+    expect(summary.usd).toBeCloseTo(0.0826, 6)
+    expect(summary.pricedPairs).toBe(1)
+    expect(summary.noCostBasisPairs).toBe(1)
+    expect(summary.unpricedPairs).toBe(1)
+  })
+
+  it('empty is $0; pending and all-unpriced are null', () => {
+    expect(sumUnrealizedPnlUsd([]).usd).toBe(0)
+    expect(sumUnrealizedPnlUsd(undefined).usd).toBeNull()
+    expect(
+      sumUnrealizedPnlUsd([
+        pos({ pair_address: 'g', asset_1_symbol: 'GEMX', net_position_quote: '1', total_cost_base: '1' }),
+      ]).usd
+    ).toBeNull()
   })
 })
