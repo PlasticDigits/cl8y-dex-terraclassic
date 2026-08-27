@@ -28,7 +28,7 @@ export interface StatBoxProps {
   variant?: StatBoxVariant
   /** Optional second line under the value (hints, not a second chrome layer). */
   hint?: string
-  /** Single Δ% (volume / fees). Prefer `deltas` for liquidity 24h+30d. */
+  /** Single Δ% (volume / fees). Prefer `deltas` when a tile needs more than one chip. */
   delta?: string
   deltaLabel?: string
   deltaTestId?: string

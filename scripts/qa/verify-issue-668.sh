@@ -46,11 +46,12 @@ run_step "docs: P668 invariants + skills + AGENTS crosslinks" \
     test -f skills/AGENTS_FRONTEND_PROTOCOL_STATS.md
     grep -q "P668-1" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md
     grep -q "P668-8" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md
+    grep -q "P668-9" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md
     grep -q "Protocol volume grain chart (#668)" docs/indexer-invariants.md
     grep -q "protocol_hourly_volume" docs/indexer-invariants.md
     grep -q "GitLab #668" docs/runbooks/overview-global-stats-brin.md
     grep -q "verify-issue-668" AGENTS.md
-    grep -q "P668-1–P668-8" docs/frontend.md
+    grep -q "P668-1–P668-9" docs/frontend.md
     grep -q "Hourly / Daily / Monthly" docs/frontend.md
     test -f indexer/migrations/20260826180000_protocol_volume_hourly_monthly.sql
     grep -q "protocol_hourly_volume" indexer/migrations/20260826180000_protocol_volume_hourly_monthly.sql
@@ -68,6 +69,14 @@ run_step "source: grain allowlist; no Llama N+1; no GET swap_events; no PriceCha
     grep -q protocol-volume-chart-tooltip frontend-dapp/src/components/protocol/ProtocolVolumeDailyChart.tsx
     grep -q getProtocolVolumeSeries frontend-dapp/src/services/indexer/client.ts
     grep -q limitFromPlotWidth frontend-dapp/src/utils/protocolVolumeGrain.ts
+    grep -q timeLabelIndexes frontend-dapp/src/utils/protocolVolumeGrain.ts
+    grep -q timeLabelIndexes frontend-dapp/src/components/protocol/ProtocolVolumeDailyChart.tsx
+    if grep -nE "maxLabels = 5|sparseTimeLabelIndexes" \
+         frontend-dapp/src/utils/protocolVolumeGrain.ts \
+         frontend-dapp/src/components/protocol/ProtocolVolumeDailyChart.tsx 2>/dev/null; then
+      echo "Do not keep a global maxLabels = 5 / sparseTimeLabelIndexes" >&2
+      exit 1
+    fi
     if grep -nE "getDefillamaDaily|/defillama/daily" \
          frontend-dapp/src/components/protocol/ProtocolGlobalStats.tsx \
          frontend-dapp/src/components/protocol/ProtocolVolumeDailyChart.tsx \
@@ -97,11 +106,17 @@ run_step "source: grain allowlist; no Llama N+1; no GET swap_events; no PriceCha
     fi
   '
 
-run_step "indexer lib: grain + days allowlist" \
-  bash -c 'cd indexer && cargo test --lib protocol_volume -- --quiet'
+if [[ "${VERIFY_ISSUE_668_SKIP_INDEXER:-}" == "1" ]]; then
+  echo ""
+  echo "[indexer lib + integration] skipped (VERIFY_ISSUE_668_SKIP_INDEXER=1)"
+  ok "indexer lib + integration (skipped)"
+else
+  run_step "indexer lib: grain + days allowlist" \
+    bash -c 'cd indexer && cargo test --lib protocol_volume -- --quiet'
 
-run_step "indexer integration: volume Δ% + daily alias + grain" \
-  bash -c 'cd indexer && cargo test --test indexer_protocol_volume -- --test-threads=1 --quiet'
+  run_step "indexer integration: volume Δ% + daily alias + grain" \
+    bash -c 'cd indexer && cargo test --test indexer_protocol_volume -- --test-threads=1 --quiet'
+fi
 
 if [[ ! -x "$REPO_ROOT/frontend-dapp/node_modules/.bin/vitest" ]]; then
   SIBLING="$(dirname "$REPO_ROOT")/cl8y-dex-terraclassic/frontend-dapp/node_modules"
