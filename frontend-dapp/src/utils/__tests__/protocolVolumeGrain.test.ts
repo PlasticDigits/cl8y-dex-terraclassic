@@ -93,6 +93,7 @@ describe('protocolVolumeGrain (GitLab #668 / #677)', () => {
     expect(h168.length).toBeGreaterThan(5)
     expect(h168.length).toBeLessThanOrEqual(168)
     expect(timeLabelStep(168, 'hourly')).toBeGreaterThan(2)
+    expect(timeLabelStep(168, 'hourly', 1100)).toBeLessThan(timeLabelStep(168, 'hourly', 260))
   })
 
   it('formats period keys and peak without NaN', () => {

@@ -82,8 +82,8 @@ export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVol
 }
 
 /**
- * ViewBox plot width used by ProtocolVolumeDailyChart (320 − padL 52 − padR 8).
- * Axis collision is computed in viewBox units — the SVG scales uniformly.
+ * Default plot width used when ResizeObserver has not measured yet
+ * (320 − padL 52 − padR 8). Live charts set viewBox width from the panel.
  */
 export const PROTOCOL_VOLUME_AXIS_PLOT_PX = 260
 
@@ -100,7 +100,7 @@ export function estimatedAxisLabelWidthPx(grain: ProtocolVolumeGrain): number {
 /**
  * X-axis step (GitLab #677 / **P668-9**).
  * Daily and Monthly: 1 (every bar) or 2 (every other). Hourly may use a wider
- * step only when step 2 still collides in the fixed viewBox. No global maxLabels=5.
+ * step only when step 2 still collides in the **current** plot width. No global maxLabels=5.
  */
 export function timeLabelStep(
   count: number,

@@ -125,6 +125,17 @@ async function assertVolumeXAxisDensity(page: Page, grain: 'hourly' | 'daily' | 
   }
 }
 
+/** Plot SVG must use the Global stats panel, not a letterboxed 320px canvas. */
+async function assertChartFillsPanel(page: Page) {
+  const stats = page.getByTestId('protocol-global-stats')
+  const plot = page.getByTestId('protocol-volume-daily-bars')
+  if (!(await plot.count())) return
+  const statsBox = await stats.boundingBox()
+  const plotBox = await plot.boundingBox()
+  if (!statsBox || !plotBox) return
+  expect(plotBox.width).toBeGreaterThan(statsBox.width * 0.8)
+}
+
 test.describe('Protocol page (GitLab #550 / #422)', () => {
   test('P1 stats card + oracle card + audit rows', async ({ page }) => {
     await page.goto('/protocol')
@@ -274,6 +285,7 @@ test.describe('Protocol leftovers (GitLab #677)', () => {
     const chart = page.getByTestId('protocol-volume-daily-chart')
     if (!(await chart.count())) return
     await expect(chart).toBeVisible()
+    await assertChartFillsPanel(page)
     await assertVolumeXAxisDensity(page, 'daily')
     await page.getByTestId('protocol-volume-grain-hourly').click()
     await expect(chart).toContainText(/UTC hour/)
@@ -295,6 +307,7 @@ test.describe('Protocol UTC metric toggle (GitLab #689)', () => {
     const chart = page.getByTestId('protocol-volume-daily-chart')
     if (!(await chart.count())) return
     await expect(chart).toBeVisible()
+    await assertChartFillsPanel(page)
     await expect(page.getByTestId('protocol-utc-metric-volume')).toBeVisible()
     await expect(page.getByTestId('protocol-utc-metric-liquidity')).toBeVisible()
     await expect(page.getByTestId('protocol-utc-metric-fees')).toBeVisible()

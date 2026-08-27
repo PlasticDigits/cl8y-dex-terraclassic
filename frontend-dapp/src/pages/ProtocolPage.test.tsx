@@ -778,6 +778,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar day/)
     expect(screen.getByTestId('protocol-volume-chart-yaxis')).toBeInTheDocument()
     const xAxis = screen.getByTestId('protocol-volume-chart-xaxis')
+    expect(screen.getByTestId('protocol-volume-daily-bars')).toHaveClass('w-full')
     const dailyLabels = xAxis.querySelectorAll('text')
     expect(dailyLabels.length).toBeGreaterThanOrEqual(Math.ceil(7 / 2))
     expect(dailyLabels.length).toBeLessThanOrEqual(7)

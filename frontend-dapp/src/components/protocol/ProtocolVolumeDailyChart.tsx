@@ -29,6 +29,7 @@ import {
   PROTOCOL_VOLUME_GRAINS,
   PROTOCOL_VOLUME_GRAIN_MIN,
   PROTOCOL_VOLUME_RESIZE_DEBOUNCE_MS,
+  PROTOCOL_VOLUME_AXIS_PLOT_PX,
   timeLabelIndexes,
   usdAxisTicks,
   type ProtocolUtcMetric,
@@ -67,14 +68,14 @@ const METRIC_EMPTY: Record<ProtocolUtcMetric, string> = {
   fees: PROTOCOL_FEES_EMPTY,
 }
 
-const VIEW_W = 320
 const VIEW_H = 128
 const PAD_L = 52
 const PAD_R = 8
 const PAD_T = 8
 const PAD_B = 22
-const PLOT_W = VIEW_W - PAD_L - PAD_R
 const PLOT_H = VIEW_H - PAD_T - PAD_B
+/** Floor matches the old letterboxed 320×128 canvas so phone still has a plot. */
+const MIN_VIEW_W = PROTOCOL_VOLUME_AXIS_PLOT_PX + PAD_L + PAD_R
 
 function chartAria(metric: ProtocolUtcMetric, grain: ProtocolVolumeGrain): string {
   return `${METRIC_CHART_TITLE[metric]} ${PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}.`
@@ -84,12 +85,16 @@ export function ProtocolVolumeDailyChart() {
   const [metric, setMetric] = useState<ProtocolUtcMetric>('volume')
   const [grain, setGrain] = useState<ProtocolVolumeGrain>('daily')
   const [limit, setLimit] = useState(() => PROTOCOL_VOLUME_GRAIN_MIN.daily)
+  const [viewW, setViewW] = useState(MIN_VIEW_W)
   const plotRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState<number | null>(null)
+  const plotW = Math.max(viewW - PAD_L - PAD_R, 1)
 
   const applyWidth = useCallback(
     (width: number) => {
-      const next = limitFromPlotWidth(width, grain)
+      const nextView = Math.max(MIN_VIEW_W, Math.floor(width))
+      setViewW((prev) => (prev === nextView ? prev : nextView))
+      const next = limitFromPlotWidth(Math.max(width - PAD_L - PAD_R, 0), grain)
       setLimit((prev) => (prev === next ? prev : next))
     },
     [grain]
@@ -125,7 +130,7 @@ export function ProtocolVolumeDailyChart() {
   const series = useMemo((): ProtocolVolumeSeriesPoint[] => query.data?.series ?? [], [query.data?.series])
   const peak = useMemo(() => maxPricedUsd(series, metric), [series, metric])
   const ticks = useMemo(() => usdAxisTicks(peak), [peak])
-  const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, PLOT_W), [series.length, grain])
+  const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, plotW), [series.length, grain, plotW])
   const unavailable = query.isError && isProtocolVolumeSeriesUnavailable(query.error)
   const volumeMissing = metric === 'volume' && unavailable
   const siblingMissing = metric !== 'volume' && unavailable
@@ -151,7 +156,7 @@ export function ProtocolVolumeDailyChart() {
   return (
     <div
       ref={plotRef}
-      className="mt-4 min-w-0"
+      className="mt-4 min-w-0 w-full"
       data-testid="protocol-volume-daily-chart"
       data-protocol-utc-series-chart=""
     >
@@ -217,10 +222,13 @@ export function ProtocolVolumeDailyChart() {
         </p>
       )}
       {showPlot && (
-        <div className="relative min-w-0" data-testid="protocol-volume-plot">
+        <div className="relative min-w-0 w-full" data-testid="protocol-volume-plot">
           <svg
-            viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-            className="w-full h-32"
+            viewBox={`0 0 ${viewW} ${VIEW_H}`}
+            width="100%"
+            height={VIEW_H}
+            preserveAspectRatio="xMinYMid meet"
+            className="block w-full h-32"
             role="img"
             aria-label={chartAria(metric, grain)}
             data-testid="protocol-volume-daily-bars"
@@ -231,7 +239,7 @@ export function ProtocolVolumeDailyChart() {
                 const label = formatProtocolUsd(t)
                 return (
                   <g key={`tick-${i}`}>
-                    <line x1={PAD_L} x2={VIEW_W - PAD_R} y1={y} y2={y} stroke="var(--ink-dim)" strokeOpacity={0.25} />
+                    <line x1={PAD_L} x2={viewW - PAD_R} y1={y} y2={y} stroke="var(--ink-dim)" strokeOpacity={0.25} />
                     <text x={PAD_L - 4} y={y + 3} textAnchor="end" fontSize="8" fill="var(--ink-dim)">
                       {label}
                     </text>
@@ -244,9 +252,9 @@ export function ProtocolVolumeDailyChart() {
               const n = raw == null ? null : Number(raw)
               const priced = n != null && Number.isFinite(n)
               const h = priced && peak > 0 ? Math.max((n / peak) * PLOT_H, n > 0 ? 2 : 0) : 0
-              const slot = PLOT_W / Math.max(series.length, 1)
+              const slot = plotW / Math.max(series.length, 1)
               const x = PAD_L + i * slot
-              const w = Math.max(slot - 3, 2)
+              const w = Math.max(slot * 0.82, 2)
               const period = pointPeriod(p, grain)
               const usd = priced ? formatProtocolUsd(raw) : '—'
               const barLabel = `${period} ${usd}`
@@ -276,7 +284,7 @@ export function ProtocolVolumeDailyChart() {
                 const p = series[idx]
                 if (!p) return null
                 const period = pointPeriod(p, grain)
-                const slot = PLOT_W / Math.max(series.length, 1)
+                const slot = plotW / Math.max(series.length, 1)
                 const x = PAD_L + idx * slot + slot / 2
                 return (
                   <text key={`x-${idx}`} x={x} y={VIEW_H - 6} textAnchor="middle" fontSize="8" fill="var(--ink-dim)">
