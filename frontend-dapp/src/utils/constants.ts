@@ -195,6 +195,22 @@ export const WRAP_ROUTER_COMBO_OVERHEAD_GAS = 400_000
  */
 export const UNWRAP_ROUTER_COMBO_OVERHEAD_GAS = 400_000
 /**
+ * Extra wasm/storage headroom when a router msg **mixes** book-walk hops with
+ * pool-only hops ([GitLab #679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)).
+ *
+ * Naive hop1 quote-driven hybrid (8 makers = 1,785,500) + 3×950k pool floors
+ * = 4,635,500 — **below** columbus-5 `gas_used` **5,026,176**
+ * (`AB8BE4F75E051837BB01C364DEDE6611727E47F0F857AADF04B17C39F360446D`,
+ * height 30121174). The successful manual envelope was **6,785,500**
+ * (~192.20 LUNC at 28.325). This named addend is that gap:
+ * `6_785_500 − (1_785_500 + 3 × 950_000) = 2_150_000`.
+ *
+ * Applied only when **some** hops are book walks and **some** are pool-only
+ * so hybrid-on-every-hop (3,058,600) and pool-only N-hop floors stay put.
+ * Do **not** apply to native wrap+multihop (**H596-7** / #587).
+ */
+export const MIXED_HYBRID_ROUTER_HEADROOM_GAS = 2_150_000
+/**
  * CW20 `send` → wrap-mapper `{ unwrap }` (and router `unwrap_output` add-on).
  *
  * Mainnet columbus-5 LCD `/cosmos/tx/v1beta1/simulate` (signer terra1xsecn…, cLUNC→mapper):

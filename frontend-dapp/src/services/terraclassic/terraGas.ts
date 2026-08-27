@@ -17,10 +17,16 @@ import {
   COMMUNITY_REGISTER_PAIR_GAS_LIMIT,
   WRAP_GAS_LIMIT,
   WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  MIXED_HYBRID_ROUTER_HEADROOM_GAS,
   effectiveGasPriceUluna,
   isPayInvoiceHookInner,
 } from '@/utils/constants'
-import { HYBRID_SWAP_GAS_LIMIT, gasLimitForHybridParams, hybridSwapParamsFromRecord } from './hybridSwapGas'
+import {
+  HYBRID_SWAP_GAS_LIMIT,
+  gasLimitForHybridParams,
+  hybridSwapParamsFromRecord,
+  makersUsedForHybridGas,
+} from './hybridSwapGas'
 
 export { HYBRID_SWAP_GAS_LIMIT }
 export { gasLimitForHybridSwap, gasLimitForHybridParams } from './hybridSwapGas'
@@ -151,15 +157,93 @@ function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
   return e.operations.some((op) => op.terra_swap?.hybrid != null)
 }
 
-function gasLimitForHybridRouterOperations(msg: Record<string, unknown>): number {
-  const e = msg.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
-  if (!e?.operations?.length) return HYBRID_SWAP_GAS_LIMIT
-  let total = 0
-  for (const op of e.operations) {
-    const hybrid = hybridSwapParamsFromRecord(op.terra_swap?.hybrid as Record<string, unknown> | undefined)
-    total += gasLimitForHybridParams(hybrid)
+type RouterOp = { terra_swap?: { hybrid?: unknown } }
+
+function hopHybridRecord(op: RouterOp): Record<string, unknown> | undefined {
+  const hybrid = op.terra_swap?.hybrid
+  if (hybrid == null || typeof hybrid !== 'object') return undefined
+  return hybrid as Record<string, unknown>
+}
+
+function poolOnlyRouterHopGas(hops: number): number {
+  return hops <= 1 ? gasLimitForRouterExecuteSwapOperations(1) : ROUTER_SWAP_OPS_MIN_GAS_PER_HOP
+}
+
+/**
+ * Mixed hybrid + pool router hops ([GitLab #679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)).
+ *
+ * Invariants **G-AUTO-1 / G-AUTO-3**:
+ * - Hops without `hybrid` (or `book_input = 0`) use the pool-only router floor, **not** 15M.
+ * - `gasLimitForHybridParams(undefined)` is **not** summed per empty hop.
+ * - Unparseable hybrid on **every** hop still hits the single 15M #249 fallback.
+ * - `max(router N-hop floor, sum of per-hop pieces)` plus
+ *   {@link MIXED_HYBRID_ROUTER_HEADROOM_GAS} when the path is mixed
+ *   (some book walks, some pool hops).
+ */
+export function gasLimitForHybridRouterOperations(msg: Record<string, unknown>): number {
+  const e = msg.execute_swap_operations as { operations?: RouterOp[] } | undefined
+  const ops = e?.operations
+  if (!ops?.length) return HYBRID_SWAP_GAS_LIMIT
+
+  const hops = ops.length
+  let hasHybridField = false
+  let parseableAny = 0
+  let parseableBookHops = 0
+
+  for (const op of ops) {
+    if (op.terra_swap?.hybrid != null) hasHybridField = true
+    const raw = hopHybridRecord(op)
+    const params = raw ? hybridSwapParamsFromRecord(raw) : undefined
+    const makers = makersUsedForHybridGas(params)
+    if (makers === undefined) continue
+    parseableAny += 1
+    if (makers > 0) parseableBookHops += 1
   }
-  return total
+
+  if (hasHybridField && parseableAny === 0) {
+    return HYBRID_SWAP_GAS_LIMIT
+  }
+
+  let sum = 0
+  for (const op of ops) {
+    const raw = hopHybridRecord(op)
+    const params = raw ? hybridSwapParamsFromRecord(raw) : undefined
+    const makers = makersUsedForHybridGas(params)
+    if (makers !== undefined && makers > 0) {
+      sum += gasLimitForHybridParams(params)
+    } else {
+      sum += poolOnlyRouterHopGas(hops)
+    }
+  }
+
+  const routerFloor = gasLimitForRouterExecuteSwapOperations(hops)
+  let limit = Math.max(routerFloor, sum)
+  if (parseableBookHops > 0 && parseableBookHops < hops) {
+    limit += MIXED_HYBRID_ROUTER_HEADROOM_GAS
+  }
+  return limit
+}
+
+/**
+ * CW20 `send` hook wrapping `execute_swap_operations` — same shape as
+ * {@link executeMultiHopSwap} so Network fee / gate / broadcast share one envelope (#679).
+ */
+export function sendHookExecuteSwapOperationsMsg(
+  operations: Array<{ terra_swap: Record<string, unknown> }>,
+  extras?: { unwrap_output?: boolean }
+): Record<string, unknown> {
+  return {
+    send: {
+      msg: btoa(
+        JSON.stringify({
+          execute_swap_operations: {
+            operations,
+            ...(extras?.unwrap_output ? { unwrap_output: true } : {}),
+          },
+        })
+      ),
+    },
+  }
 }
 
 function unwrapOutputFromExecuteSwapOps(msg: Record<string, unknown>): boolean {
