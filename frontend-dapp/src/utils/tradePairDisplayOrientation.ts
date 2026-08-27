@@ -376,12 +376,7 @@ export function chartsPriceTokenForInverted(
  * Charts orientation: valid `?price=` → Charts session → Charts product default.
  * Never reads or writes the Trade invert key.
  */
-export function resolveChartsDisplayInverted(
-  pairAddr: string,
-  asset0: PairDisplayLeg | null | undefined,
-  asset1: PairDisplayLeg | null | undefined,
-  priceMatch: 'asset0' | 'asset1' | null
-): boolean {
+export function resolveChartsDisplayInverted(pairAddr: string, priceMatch: 'asset0' | 'asset1' | null): boolean {
   if (priceMatch) return chartsInvertedFromPriceMatch(priceMatch)
   const stored = pairAddr ? readChartsStoredPairDisplayInverted(pairAddr) : null
   if (stored != null) return stored

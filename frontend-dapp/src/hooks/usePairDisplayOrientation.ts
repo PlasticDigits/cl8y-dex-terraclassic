@@ -86,8 +86,8 @@ export function useChartsPairDisplayOrientation(args: {
 
   const inverted = useMemo(() => {
     void tick
-    return resolveChartsDisplayInverted(pairAddr, asset0, asset1, priceMatch)
-  }, [pairAddr, asset0, asset1, priceMatch, tick])
+    return resolveChartsDisplayInverted(pairAddr, priceMatch)
+  }, [pairAddr, priceMatch, tick])
 
   const toggleInverted = useCallback(() => {
     const next = !inverted

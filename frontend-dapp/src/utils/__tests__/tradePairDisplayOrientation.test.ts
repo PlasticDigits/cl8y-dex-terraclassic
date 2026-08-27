@@ -229,7 +229,7 @@ describe('Charts orientation isolation (GitLab #680)', () => {
     expect(isCustcLeg(CUSTC)).toBe(true)
     expect(isCustcLeg({ symbol: 'USTC', denom: 'uusd' })).toBe(false)
     expect(isUst1Leg({ symbol: 'cUSTC' })).toBe(false)
-    expect(resolveChartsDisplayInverted('terra1pair', UST1, CUSTC, null)).toBe(false)
+    expect(resolveChartsDisplayInverted('terra1pair', null)).toBe(false)
     expect(resolvePairDisplayInverted('terra1pair', UST1, CUSTC)).toBe(true)
   })
 
@@ -241,7 +241,7 @@ describe('Charts orientation isolation (GitLab #680)', () => {
     expect(sessionStorage.getItem(`${PAIR_DISPLAY_INVERT_STORAGE_PREFIX}${pair}`)).toBeNull()
     expect(readStoredPairDisplayInverted(pair)).toBeNull()
     expect(resolvePairDisplayInverted(pair, UST1, CUSTC)).toBe(true)
-    expect(resolveChartsDisplayInverted(pair, UST1, CUSTC, 'asset0')).toBe(false)
-    expect(resolveChartsDisplayInverted(pair, UST1, CUSTC, 'asset1')).toBe(true)
+    expect(resolveChartsDisplayInverted(pair, 'asset0')).toBe(false)
+    expect(resolveChartsDisplayInverted(pair, 'asset1')).toBe(true)
   })
 })
