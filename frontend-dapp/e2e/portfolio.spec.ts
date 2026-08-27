@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 
-test.describe('Portfolio page (GitLab #212, #217)', () => {
+test.describe('Portfolio page (GitLab #212, #217, #674)', () => {
   test('disconnected visit shows connect prompt', async ({ page }) => {
     await page.goto('/portfolio')
     await page.waitForLoadState('domcontentloaded')
@@ -27,6 +27,13 @@ test.describe('Portfolio page (GitLab #212, #217)', () => {
     await page.locator('header.app-header-shell nav.app-desktop-nav').getByRole('link', { name: 'Portfolio' }).click()
     await expect(page).toHaveURL(/\/portfolio$/)
     await expect(page.getByRole('heading', { name: /my portfolio/i })).toBeVisible()
+  })
+
+  test('disconnected visit does not offer Show test pairs (GitLab #674)', async ({ page }) => {
+    await page.goto('/portfolio')
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByTestId('portfolio-connect-prompt')).toBeVisible()
+    await expect(page.getByTestId('portfolio-show-test-pairs')).toHaveCount(0)
   })
 
   test('/my-portfolio redirects to /portfolio', async ({ page }) => {

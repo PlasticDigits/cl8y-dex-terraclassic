@@ -1,6 +1,6 @@
-import { useState, useDeferredValue, useEffect, useMemo } from 'react'
+import { useState, useDeferredValue, useEffect, useCallback, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
@@ -28,11 +28,23 @@ import {
   TRAILING_24H_VOLUME_TITLE,
   TRAILING_PAIR_VOL_USD_LABEL,
 } from '@/utils/trailingWindowCopy'
-import { pairStatsUsdField, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
-import { usePairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
+import { resolveDisplayPairStatsUsdOhlc, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
+import { useChartsPairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
-import { filterRetailDiscoveryIndexerPairs, sortIndexerPairsByCatalog } from '@/utils/pairCatalogRank'
-import { chartsPairHref, getInvalidChartsPairRouteParam, isChartsPairRouteParam } from '@/utils/chartsPairRoute'
+import {
+  filterRetailDiscoveryIndexerPairs,
+  isUst1CustcIndexerPair,
+  resolveChartsHeroPairAddress,
+  sortIndexerPairsByCatalog,
+} from '@/utils/pairCatalogRank'
+import {
+  chartsPairHref,
+  getInvalidChartsPairRouteParam,
+  isChartsPairRouteParam,
+  isSafeChartsPriceToken,
+  matchChartsPriceParam,
+  parseChartsPriceQuery,
+} from '@/utils/chartsPairRoute'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
 import type { IndexerPair, IndexerPairSort } from '@/types'
@@ -62,9 +74,12 @@ const ORDER_OPTIONS: MenuSelectOption[] = [
 export default function ChartsPage() {
   const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const routeTrimmed = routePair?.trim()
   const validRoutePair = isChartsPairRouteParam(routeTrimmed) ? routeTrimmed : ''
   const invalidRoutePair = getInvalidChartsPairRouteParam(routePair)
+  const isBareCharts = routePair === undefined
+  const priceParam = useMemo(() => parseChartsPriceQuery(searchParams), [searchParams])
   const [selectedPairAddr, setSelectedPairAddr] = useState<string>(validRoutePair)
   const [pairSearch, setPairSearch] = useState('')
   const [pairSort, setPairSort] = useState<IndexerPairSort>('volume_24h')
@@ -104,9 +119,30 @@ export default function ChartsPage() {
     if (validRoutePair) setSelectedPairAddr(validRoutePair)
   }, [validRoutePair])
 
-  const selectPair = (addr: string) => {
+  const replacePriceToken = useCallback(
+    (token: string) => {
+      if (!isSafeChartsPriceToken(token)) return
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.set('price', token)
+          return next
+        },
+        { replace: true }
+      )
+    },
+    [setSearchParams]
+  )
+
+  const selectPair = (addr: string, price?: string | null) => {
     setSelectedPairAddr(addr)
-    const href = chartsPairHref(addr)
+    const nextPair = pairOptions.find((p) => p.pair_address === addr)
+    const carried =
+      price ??
+      (nextPair && matchChartsPriceParam(priceParam, nextPair.asset_0, nextPair.asset_1, addr) ? priceParam : undefined)
+    const href = chartsPairHref(addr, {
+      price: carried && isSafeChartsPriceToken(carried) ? carried : undefined,
+    })
     if (href) navigate(href, { replace: true })
   }
 
@@ -167,12 +203,42 @@ export default function ChartsPage() {
 
   useEffect(() => {
     if (validRoutePair) return
+    if (isBareCharts) return
     if (pairOptions.length === 0) return
     if (!selectedPairAddr) return
     if (pairOptions.some((p) => p.pair_address === selectedPairAddr)) return
     if (needsPairFetch && selectedPairQuery.isLoading) return
     setSelectedPairAddr(pairOptions[0].pair_address)
-  }, [pairOptions, selectedPairAddr, needsPairFetch, selectedPairQuery.isLoading, validRoutePair])
+  }, [pairOptions, selectedPairAddr, needsPairFetch, selectedPairQuery.isLoading, validRoutePair, isBareCharts])
+
+  useEffect(() => {
+    if (!isBareCharts) return
+    if (invalidRoutePair) return
+    if (pairsQuery.isLoading) return
+    if (pairsQuery.isError) return
+    const hero = resolveChartsHeroPairAddress(pairOptions)
+    if (!hero || selectedPairAddr === hero) return
+    const heroPair = pairOptions.find((p) => p.pair_address === hero)
+    const price =
+      heroPair && isUst1CustcIndexerPair(heroPair)
+        ? 'UST1'
+        : isSafeChartsPriceToken(heroPair?.asset_0.symbol ?? '')
+          ? heroPair?.asset_0.symbol
+          : undefined
+    setSelectedPairAddr(hero)
+    const href = chartsPairHref(hero, {
+      price: price && isSafeChartsPriceToken(price) ? price : undefined,
+    })
+    if (href) navigate(href, { replace: true })
+  }, [
+    isBareCharts,
+    invalidRoutePair,
+    pairsQuery.isLoading,
+    pairsQuery.isError,
+    pairOptions,
+    selectedPairAddr,
+    navigate,
+  ])
 
   const statsQuery = useQuery({
     queryKey: ['pair-stats', activePairAddr],
@@ -195,13 +261,27 @@ export default function ChartsPage() {
     retry: false,
   })
 
-  const pairOrientation = usePairDisplayOrientation({
+  const chartsPriceMatch = useMemo(
+    () => matchChartsPriceParam(priceParam, activePair?.asset_0, activePair?.asset_1, activePair?.pair_address),
+    [priceParam, activePair]
+  )
+
+  const pairOrientation = useChartsPairDisplayOrientation({
     pairAddr: activePairAddr,
     asset0: activePair?.asset_0,
     asset1: activePair?.asset_1,
     token0Symbol: activePair?.asset_0.symbol ?? 'Base',
     token1Symbol: activePair?.asset_1.symbol ?? 'Quote',
+    priceMatch: chartsPriceMatch,
+    onPriceTokenChange: replacePriceToken,
   })
+
+  useEffect(() => {
+    if (!activePairAddr || !activePair) return
+    if (chartsPriceMatch) return
+    if (!isSafeChartsPriceToken(pairOrientation.pricedToken)) return
+    replacePriceToken(pairOrientation.pricedToken)
+  }, [activePairAddr, activePair, chartsPriceMatch, pairOrientation.pricedToken, replacePriceToken])
 
   const tapeLastPriceUsd = useMemo(
     () =>
@@ -250,10 +330,23 @@ export default function ChartsPage() {
   })
 
   const stats = statsQuery.data
-  const highUsd = pairStatsUsdField(stats?.high_usd)
-  const lowUsd = pairStatsUsdField(stats?.low_usd)
-  const openUsd = pairStatsUsdField(stats?.open_price_usd)
-  const closeUsd = pairStatsUsdField(stats?.close_price_usd)
+  const displayStatsUsd = resolveDisplayPairStatsUsdOhlc({
+    inverted: pairOrientation.inverted,
+    highUsd: stats?.high_usd,
+    lowUsd: stats?.low_usd,
+    openUsd: stats?.open_price_usd,
+    closeUsd: stats?.close_price_usd,
+    highHuman: stats?.high,
+    lowHuman: stats?.low,
+    openHuman: stats?.open_price,
+    closeHuman: stats?.close_price,
+    factoryPriceChangePct: stats?.price_change_pct,
+  })
+  const highUsd = displayStatsUsd.highUsd
+  const lowUsd = displayStatsUsd.lowUsd
+  const openUsd = displayStatsUsd.openUsd
+  const closeUsd = displayStatsUsd.closeUsd
+  const displayPriceChangePct = displayStatsUsd.priceChangePct
 
   const marketDataDown = detectMarketDataOutage(pairsQuery, statsQuery, tradesQuery, leaderboardQuery)
 
@@ -427,7 +520,8 @@ export default function ChartsPage() {
             className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
             style={{ color: 'var(--ink)' }}
           >
-            24h Stats — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
+            24h Stats —{' '}
+            {indexerPairMenuLabel(activePair, { variant: 'compact', displayInverted: pairOrientation.inverted })}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox
@@ -447,43 +541,44 @@ export default function ChartsPage() {
               variant="flat"
               label="Price Change"
               value={
-                stats.price_change_pct != null
-                  ? `${stats.price_change_pct >= 0 ? '+' : ''}${stats.price_change_pct.toFixed(2)}%`
+                displayPriceChangePct != null
+                  ? `${displayPriceChangePct >= 0 ? '+' : ''}${displayPriceChangePct.toFixed(2)}%`
                   : '—'
               }
               color={
-                stats.price_change_pct != null
-                  ? stats.price_change_pct >= 0
+                displayPriceChangePct != null
+                  ? displayPriceChangePct >= 0
                     ? 'var(--color-positive)'
                     : 'var(--color-negative)'
                   : undefined
               }
+              data-testid="charts-pair-price-change"
             />
             <StatBox
               variant="flat"
               label="High (USD)"
-              title="Highest factory USD of 1 human base in the last 24h."
+              title={`Highest USD of 1 ${pairOrientation.displayBase} in the last 24h.`}
               value={formatPairStatsUsdOhlc(highUsd)}
               data-testid="charts-pair-high-usd"
             />
             <StatBox
               variant="flat"
               label="Low (USD)"
-              title="Lowest factory USD of 1 human base in the last 24h."
+              title={`Lowest USD of 1 ${pairOrientation.displayBase} in the last 24h.`}
               value={formatPairStatsUsdOhlc(lowUsd)}
               data-testid="charts-pair-low-usd"
             />
             <StatBox
               variant="flat"
               label="Open (USD)"
-              title="24h open factory USD of 1 human base."
+              title={`24h open USD of 1 ${pairOrientation.displayBase}.`}
               value={formatPairStatsUsdOhlc(openUsd)}
               data-testid="charts-pair-open-usd"
             />
             <StatBox
               variant="flat"
               label="Close (USD)"
-              title="24h close factory USD of 1 human base."
+              title={`24h close USD of 1 ${pairOrientation.displayBase}.`}
               value={formatPairStatsUsdOhlc(closeUsd)}
               data-testid="charts-pair-close-usd"
             />
@@ -535,7 +630,8 @@ export default function ChartsPage() {
             className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
             style={{ color: 'var(--ink)' }}
           >
-            TWAP Oracle — {indexerPairMenuLabel(activePair, { variant: 'compact' })}
+            TWAP Oracle —{' '}
+            {indexerPairMenuLabel(activePair, { variant: 'compact', displayInverted: pairOrientation.inverted })}
           </h3>
           <div className="grid grid-cols-3 gap-3">
             {TWAP_WINDOWS.map((w) => {
@@ -545,8 +641,13 @@ export default function ChartsPage() {
                   variant="flat"
                   key={w.label}
                   label={`TWAP ${w.label}`}
-                  title="Pair TWAP in quote per base, not USD."
-                  value={formatTwapHumanPrice(entry?.price, activePair.asset_0.decimals, activePair.asset_1.decimals)}
+                  title="Pair TWAP in quote per display base, not USD."
+                  value={formatTwapHumanPrice(
+                    entry?.price,
+                    activePair.asset_0.decimals,
+                    activePair.asset_1.decimals,
+                    pairOrientation.inverted
+                  )}
                   loading={twapQuery.isLoading}
                   data-testid={`charts-twap-${w.label}`}
                 />

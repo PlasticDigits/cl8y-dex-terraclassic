@@ -16,7 +16,7 @@ columbus-5 still has eight noneconomic CW20s (EMBER…PEARL) and ten gem pairs. 
 - **Do** identify gems by **hardcoded columbus-5 addresses** (`COLUMBUS5_GEM_ADDRESSES`, includes QUARTZ/PEARL) **and** `GEM_SYMBOLS`. Do not rely only on Coolify `VITE_TOKEN_*`.
 - **Do** filter tokens/pairs in the shared helpers (`filterRetailDiscoveryTokens` / `filterRetailDiscoveryPairInfos` / `filterRetailDiscoveryIndexerPairs`) so Swap, Trade, Limits, `/pool` (including column sort), Charts, and Create Pair stay consistent.
 - **Do** drop test pairs from the BFS graph and reject `route/solve` hops that include a gem when both endpoints are economic (`shouldRejectGemBridgeQuote` — fail closed, do not sanitize the Route row).
-- **Do** keep `/portfolio`, `/trader`, history, and LP rows showing gem balances. Deep link `/trade/<gem-pair>` may still open (optional one-line “Legacy noneconomic market.”).
+- **Do** keep `/trader`, `/limits` history, and LP rows showing gem balances. `/portfolio` Open Positions / header P&amp;L / Recent activity hide gems by default with **Show test pairs** ([#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674)). Deep link `/trade/<gem-pair>` may still open (optional one-line “Legacy noneconomic market.”).
 - **Don’t** burn, factory-delete, or wipe indexer gem rows.
 - **Don’t** treat UST1 / CL8Y / wrap as gems (**U6** / **P534-8**). Address in the gem set wins over a spoofed `symbol=UST1` (**X1**).
 - **Don’t** rewrite LocalTerra / swarm / Playwright onto UST1 just to hide gems. `VITE_NETWORK=local` still lists them and **Test pairs**.
@@ -51,6 +51,7 @@ Vitest: `pairCatalogRank.issue562.test.ts`, token/pair search filters, PairSearc
 
 ## Related
 
+- [`AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md`](./AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` performance hide + toggle ([#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674))
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — empty-browse rank when gems **are** listed
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap factory gate (#481)
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — Create Pair listed CW20s

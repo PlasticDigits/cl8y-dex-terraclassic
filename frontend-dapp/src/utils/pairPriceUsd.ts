@@ -1,6 +1,6 @@
 import type { IndexerPair, IndexerTrade } from '@/types'
 import { tradeToToken1PerToken0Human } from './limitOrderPriceReference'
-import { invertUsd } from './tradePairDisplayOrientation'
+import { invertUsd, parseFinitePositive } from './tradePairDisplayOrientation'
 
 /** USTR/UST1 client fallback for **pre-#556** indexers only (legacy 2.5× USTC seed).
  * New indexer sends `price_usd` from DEX hub marks — prefer that field. */
@@ -141,4 +141,82 @@ export function resolveDisplayTapeLastPriceUsd(
   const kind = classifyQuoteSymbol(opts.displayBaseSymbol ?? '', opts.displayBaseDenom)
   const catalog = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
   return catalog == null ? null : String(catalog)
+}
+
+export type DisplayPairStatsUsdOhlc = {
+  highUsd: string | null
+  lowUsd: string | null
+  openUsd: string | null
+  closeUsd: string | null
+  priceChangePct: number | null
+}
+
+/**
+ * Display 24h USD OHLC + % for Charts (#680).
+ * Inverted tiles use {@link invertUsd} per field (never `1/x` of factory USD) and
+ * swap High/Low after invert. % is recomputed from display open→close — not
+ * `-(factory price_change_pct)`.
+ */
+export function displayUsdPriceChangePct(
+  openUsd: string | number | null | undefined,
+  closeUsd: string | number | null | undefined
+): number | null {
+  const open = parseFinitePositive(openUsd)
+  const close = parseFinitePositive(closeUsd)
+  if (open == null || close == null) return null
+  const pct = ((close - open) / open) * 100
+  if (!Number.isFinite(pct)) return null
+  return pct
+}
+
+export function resolveDisplayPairStatsUsdOhlc(args: {
+  inverted: boolean
+  highUsd?: string | null
+  lowUsd?: string | null
+  openUsd?: string | null
+  closeUsd?: string | null
+  highHuman?: string | null
+  lowHuman?: string | null
+  openHuman?: string | null
+  closeHuman?: string | null
+  factoryPriceChangePct?: number | null
+}): DisplayPairStatsUsdOhlc {
+  const factoryHigh = pairStatsUsdField(args.highUsd)
+  const factoryLow = pairStatsUsdField(args.lowUsd)
+  const factoryOpen = pairStatsUsdField(args.openUsd)
+  const factoryClose = pairStatsUsdField(args.closeUsd)
+
+  if (!args.inverted) {
+    return {
+      highUsd: factoryHigh,
+      lowUsd: factoryLow,
+      openUsd: factoryOpen,
+      closeUsd: factoryClose,
+      priceChangePct: args.factoryPriceChangePct ?? null,
+    }
+  }
+
+  const invHigh = invertUsd(factoryHigh, args.highHuman)
+  const invLow = invertUsd(factoryLow, args.lowHuman)
+  const invOpen = invertUsd(factoryOpen, args.openHuman)
+  const invClose = invertUsd(factoryClose, args.closeHuman)
+
+  const highN = parseFinitePositive(invHigh)
+  const lowN = parseFinitePositive(invLow)
+  let highUsd = invHigh
+  let lowUsd = invLow
+  if (highN != null && lowN != null) {
+    if (highN < lowN) {
+      highUsd = invLow
+      lowUsd = invHigh
+    }
+  }
+
+  return {
+    highUsd,
+    lowUsd,
+    openUsd: invOpen,
+    closeUsd: invClose,
+    priceChangePct: displayUsdPriceChangePct(invOpen, invClose),
+  }
 }

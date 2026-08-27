@@ -1,10 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
+  chartsPriceTokenForInverted,
   defaultDisplayInverted,
   displayPairAssets,
   pairDisplayInvertAriaLabel,
   pairDisplayPillLabel,
   readStoredPairDisplayInverted,
+  resolveChartsDisplayInverted,
+  writeChartsStoredPairDisplayInverted,
   writeStoredPairDisplayInverted,
   type PairDisplayLeg,
 } from '@/utils/tradePairDisplayOrientation'
@@ -55,6 +58,53 @@ export function usePairDisplayOrientation(args: {
     toggleInverted,
     displayBase,
     displayQuote,
+    pillLabel: pairDisplayPillLabel(displayBase, displayQuote),
+    invertAriaLabel: pairDisplayInvertAriaLabel(displayBase, displayQuote),
+  }
+}
+
+export type ChartsPairDisplayOrientation = PairDisplayOrientation & {
+  pricedToken: string
+}
+
+/**
+ * Charts orientation (#680). Resolve: valid `?price=` match → Charts session →
+ * Charts product default (not inverted). Toggle writes the Charts key only and
+ * asks the page to replace `?price=`.
+ */
+export function useChartsPairDisplayOrientation(args: {
+  pairAddr: string
+  asset0: PairDisplayLeg | null | undefined
+  asset1: PairDisplayLeg | null | undefined
+  token0Symbol: string
+  token1Symbol: string
+  priceMatch: 'asset0' | 'asset1' | null
+  onPriceTokenChange: (token: string) => void
+}): ChartsPairDisplayOrientation {
+  const { pairAddr, asset0, asset1, token0Symbol, token1Symbol, priceMatch, onPriceTokenChange } = args
+  const [tick, setTick] = useState(0)
+
+  const inverted = useMemo(() => {
+    void tick
+    return resolveChartsDisplayInverted(pairAddr, asset0, asset1, priceMatch)
+  }, [pairAddr, asset0, asset1, priceMatch, tick])
+
+  const toggleInverted = useCallback(() => {
+    const next = !inverted
+    if (pairAddr) writeChartsStoredPairDisplayInverted(pairAddr, next)
+    onPriceTokenChange(chartsPriceTokenForInverted(next, asset0, asset1, token0Symbol, token1Symbol))
+    setTick((n) => n + 1)
+  }, [inverted, pairAddr, asset0, asset1, token0Symbol, token1Symbol, onPriceTokenChange])
+
+  const { displayBase, displayQuote } = displayPairAssets(token0Symbol, token1Symbol, inverted)
+  const pricedToken = chartsPriceTokenForInverted(inverted, asset0, asset1, token0Symbol, token1Symbol)
+
+  return {
+    inverted,
+    toggleInverted,
+    displayBase,
+    displayQuote,
+    pricedToken,
     pillLabel: pairDisplayPillLabel(displayBase, displayQuote),
     invertAriaLabel: pairDisplayInvertAriaLabel(displayBase, displayQuote),
   }
