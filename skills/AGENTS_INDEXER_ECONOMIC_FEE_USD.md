@@ -48,3 +48,4 @@ LocalTerra: set `HUB_CL8Y_ADDRESS` to the deployed TCL8Y CW20 (`VITE_CL8Y_TOKEN_
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog unchanged (`CL8Y` symbol still `None`)
 - [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md) — daily fees reuse stamped `fee_usd`
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — gem addr + ticker (#562)
+- Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)

@@ -51,7 +51,25 @@ run_frontend_unit() {
     src/pages/SwapPage.test.tsx
 }
 
+bootstrap_swarm_worktree() {
+  local swarm="packages/localnet-trading-swarm"
+  if [[ -x "$swarm/node_modules/.bin/vitest" ]]; then
+    return 0
+  fi
+  local common main_root
+  common="$(git rev-parse --git-common-dir)"
+  main_root="$(cd "$common/.." && pwd)"
+  if [[ "$main_root" != "$REPO_ROOT" && -x "$main_root/$swarm/node_modules/.bin/vitest" ]]; then
+    ln -sfn "$main_root/$swarm/node_modules" "$REPO_ROOT/$swarm/node_modules"
+    echo "[bootstrap] linked $swarm/node_modules from primary checkout"
+    return 0
+  fi
+  echo "[bootstrap] $swarm node_modules missing — npm ci…"
+  bash "$REPO_ROOT/scripts/with-node.sh" --cwd "$swarm" -- npm ci
+}
+
 run_swarm_unit() {
+  bootstrap_swarm_worktree
   bash scripts/with-node.sh --cwd packages/localnet-trading-swarm -- npm run test:run -- src/gas.test.ts
 }
 
