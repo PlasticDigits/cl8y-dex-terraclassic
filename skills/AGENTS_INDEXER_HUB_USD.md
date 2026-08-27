@@ -59,8 +59,11 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 | `HUB_UST1_ADDRESS` | Columbus-5 tokenlist UST1 |
 | `HUB_USTR_ADDRESS` | Columbus-5 tokenlist USTR |
 | `HUB_USD_TVL_FLOOR` | `100` |
+| `HUB_CL8Y_ADDRESS` | Columbus-5 CL8Y CW20 — **internal fee marks only** ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)). Not a hub-card ticker. |
 
-LocalTerra: set hub addresses to the deployed CW20s in `indexer/.env`.
+LocalTerra: set hub addresses to the deployed CW20s in `indexer/.env`. `HUB_CL8Y_ADDRESS` should match `VITE_CL8Y_TOKEN_ADDRESS` (TCL8Y).
+
+Internal factory economic marks live in `economic_token_marks` (not `GET /hub-prices`). Hub card stays **four** cells (**H11**). Fee ingest reads those marks via `load_quote_usd` → `HubQuoteUsd.economic`. Playbook: [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](./AGENTS_INDEXER_ECONOMIC_FEE_USD.md).
 
 ## Related
 
@@ -69,6 +72,7 @@ LocalTerra: set hub addresses to the deployed CW20s in `indexer/.env`.
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — page order includes DEX hub card; protocol **pool TVL** (#569) sums all priced factory pairs — not `hub_prices.tvl_usd` of one source pool
 - [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts pair TVL chip is the same catalog (#664); never `$1` UST1 / `2.5×` USTR
 - [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — wrap AddressRows + LUNC column ([#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570))
+- [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](./AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — CL8Y / listed-economic fee USD; hub JSON allowlist unchanged ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683))
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — 2.5× seed is **not** a display oracle
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert still UI-only
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from hub_prices ([#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560))

@@ -77,6 +77,7 @@ async fn hub_prices_unknown_ticker_is_400() {
         "/api/v1/hub-prices/javascript:alert(1)",
         "/api/v1/hub-prices/vfdusd",
         "/api/v1/hub-prices/clunc",
+        "/api/v1/hub-prices/cl8y",
     ] {
         let resp = server.get(path).await;
         assert_eq!(resp.status_code(), StatusCode::BAD_REQUEST, "{path}");

@@ -226,6 +226,7 @@ make verify-issue-571                    # #571 /protocol vFDUSD: FDUSD referenc
 make verify-issue-569                    # #569 /protocol total USD pair liquidity + 24h/30d % change
 make verify-issue-655                    # #655 /pool v2 LP USD column + pair_liquidity_usd rollup
 make verify-issue-586                    # #586 /protocol treasury fees 24h/7d/30d + source/token mix
+make verify-issue-683                    # #683 /protocol fee USD for CL8Y + factory-listed economic tokens
 make verify-issue-631                    # #631 DeFiLlama UTC-day API + gem/hybrid/fee exclusions
 make verify-issue-639                    # #639 listing venue catalog (docs only; no Postgres)
 make verify-issue-646                    # #646 GeckoTerminal /gt/ adapters (Postgres)
@@ -380,6 +381,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_VENUS_VFDUSD.md](skills/AGENTS_INDEXER_VENUS_VFDUSD.md) — `/protocol` vFDUSD **FDUSD reference price** + Venus **1 vFDUSD Price** (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
+- [skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md](skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — factory economic fee USD (CL8Y + listed non-gems; hub card stays four cells) (**EFee-1–EFee-8**, [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)); `make verify-issue-683`
 - [skills/AGENTS_FRONTEND_PROTOCOL_HUB.md](skills/AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap CW20 identity + LUNC/USD column (**H11–H16**, [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)); `make verify-issue-570`
 - [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md](skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md) — `/portfolio` + `/trader` human-scale P&amp;L / cost / avg entry; mixed totals omitted or USD (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`

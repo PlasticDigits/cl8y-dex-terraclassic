@@ -277,7 +277,8 @@ mod tests {
             hub: HubQuoteUsd {
                 ust1: Some(bd("0.98")),
                 ustr: Some(bd("0.012")),
-            },
+            ..Default::default()
+        },
         }
     }
 
@@ -353,7 +354,8 @@ mod tests {
             hub: HubQuoteUsd {
                 ust1: Some(bd("1")),
                 ustr: None,
-            },
+            ..Default::default()
+        },
         };
         let tvl_peg = protocol_pair_tvl(&p, &pegged).expect("tvl peg");
         assert_ne!(tvl, tvl_peg);
@@ -456,7 +458,8 @@ mod tests {
             hub: HubQuoteUsd {
                 ust1: None,
                 ustr: Some(bd("1")),
-            },
+            ..Default::default()
+        },
         };
         let tvl = protocol_pair_tvl(&huge, &q);
         if let Some(v) = tvl {

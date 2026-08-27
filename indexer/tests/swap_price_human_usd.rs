@@ -70,7 +70,8 @@ async fn mixed_decimal_ustr_print_persists_human_and_usd() {
     let hub = pair_price_usd::HubQuoteUsd {
         ust1: None,
         ustr: Some(bd("0.01")),
-    };
+            ..Default::default()
+        };
     let price_usd = pair_price_usd::price_usd_for_human_quote_per_base(
         &quote,
         &oriented.price,

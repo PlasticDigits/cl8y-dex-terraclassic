@@ -61,6 +61,8 @@ pub struct HubUsdConfig {
     pub clunc_address: String,
     pub ust1_address: String,
     pub ustr_address: String,
+    /// Official CL8Y CW20 (columbus-5 default). Fee USD keys contract, not ticker (#683).
+    pub cl8y_address: String,
     pub tvl_floor: BigDecimal,
     pub max_staleness: Duration,
 }
@@ -72,6 +74,7 @@ impl HubUsdConfig {
             clunc_address: config.hub_clunc_address.clone(),
             ust1_address: config.hub_ust1_address.clone(),
             ustr_address: config.hub_ustr_address.clone(),
+            cl8y_address: config.hub_cl8y_address.clone(),
             tvl_floor: config.hub_usd_tvl_floor.clone(),
             max_staleness: Duration::from_millis(config.book_snapshot_max_staleness_ms()),
         }
@@ -428,6 +431,7 @@ mod tests {
             clunc_address: "terra1clunc".into(),
             ust1_address: "terra1ust1".into(),
             ustr_address: "terra1ustr".into(),
+            cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
             tvl_floor: bd("100"),
             max_staleness: Duration::from_secs(60),
         }
@@ -496,6 +500,8 @@ mod tests {
         assert!(HubTicker::parse("fdusd").is_none());
         assert!(HubTicker::parse("lunc\u{200b}").is_none());
         assert!(HubTicker::parse("vfdusd").is_none());
+        assert!(HubTicker::parse("cl8y").is_none());
+        assert!(HubTicker::parse("javascript:").is_none());
     }
 
     #[test]
