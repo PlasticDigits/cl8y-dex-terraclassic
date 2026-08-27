@@ -59,6 +59,9 @@ import {
 } from '@/services/terraclassic/wrapMapper'
 import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
 import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
+import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
+import { SWAP_FUNDED_HIGH_IMPACT_PCT, acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
 import {
   assetInfoLabel,
   tokenAssetInfo,
@@ -76,7 +79,7 @@ import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
+import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
@@ -1127,6 +1130,20 @@ export default function SwapPage() {
   const insufficientBalance =
     hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
 
+  const payAcquireGuidance = useSwapPayAcquireGuidance({
+    walletConnected: isWalletConnected,
+    address,
+    hasPositivePay: hasPositiveInputAmount,
+    hasSettledQuote: hasSettledSimQuote,
+    payAsset: fromToken,
+    paySymbol: getTokenDisplaySymbol(fromToken),
+    payDecimals: offerDecimals,
+    payRaw: tryParseBigInt(rawInputAmount),
+    payBalanceRaw: isWalletConnected && balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
+    expectedSlippagePct,
+  })
+  const showQuoteOnly = acquireGuidanceShowsQuoteOnly(payAcquireGuidance, hasSettledSimQuote)
+
   const defaultActionLabel = wrapUnwrapType === 'wrap' ? 'Wrap' : wrapUnwrapType === 'unwrap' ? 'Unwrap' : 'Swap'
   const defaultPendingLabel =
     wrapUnwrapType === 'wrap' ? 'Wrapping…' : wrapUnwrapType === 'unwrap' ? 'Unwrapping…' : 'Swapping…'
@@ -1573,6 +1590,11 @@ export default function SwapPage() {
                   <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
                 )}
               </div>
+              {showQuoteOnly && (
+                <p className="text-xs mt-1" style={{ color: 'var(--ink-subtle)' }} data-testid="swap-quote-only">
+                  Quote only
+                </p>
+              )}
               {showSimReceiveCalculating && (
                 <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                   {simLoadingLabel}
@@ -1653,7 +1675,7 @@ export default function SwapPage() {
                   <span className="font-mono text-xs sm:text-right break-words min-w-0">{swapRouteLine}</span>
                 </div>
               )}
-              {minReceived !== null && (
+              {minReceived !== null && !showQuoteOnly && (
                 <div
                   className="min-w-0 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between"
                   style={{ color: 'var(--ink-dim)' }}
@@ -1677,11 +1699,6 @@ export default function SwapPage() {
               </div>
               {priceImpact !== null && (
                 <>
-                  {(parseSlippagePercent(priceImpact) ?? 0) > 5 && (
-                    <div className="alert-error !text-xs">
-                      High expected slippage! The quoted route deviates significantly from fair cross-rate token prices.
-                    </div>
-                  )}
                   {extremeSlippageWarning && (
                     <div className="alert-error !text-xs" data-testid="swap-extreme-slippage-warning" role="alert">
                       <p className="font-semibold mb-1">Extreme slippage ({priceImpact}%)</p>
@@ -1980,7 +1997,7 @@ export default function SwapPage() {
                 }
                 maxSpreadPercent={slippageTolerance}
                 minReceiveHuman={
-                  minReceived != null && receiveAssetInfo
+                  !showQuoteOnly && minReceived != null && receiveAssetInfo
                     ? formatTokenAmount(minReceived, getDecimals(receiveAssetInfo))
                     : null
                 }
@@ -1990,7 +2007,15 @@ export default function SwapPage() {
             </details>
           )}
           {/* Swap Button */}
-          {showImpactConfirm && !routeSlippageBlocked && (
+          <SwapPayAcquireGuidanceBanner
+            guidance={payAcquireGuidance}
+            testIdPrefix="swap"
+            onReduce={(human) => {
+              setInputAmount(human)
+              setShowImpactConfirm(false)
+            }}
+          />
+          {showImpactConfirm && !routeSlippageBlocked && isWalletConnected && (
             <div className="alert-error mb-3 text-xs">
               <p className="font-semibold mb-1">High expected slippage warning</p>
               <p>{priceImpact}% expected slippage — click again to confirm.</p>
@@ -2003,7 +2028,11 @@ export default function SwapPage() {
                 openWalletModal()
                 return
               }
-              if (priceImpact && (parseSlippagePercent(priceImpact) ?? 0) > 5 && !showImpactConfirm) {
+              if (
+                priceImpact &&
+                (parseSlippagePercent(priceImpact) ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
+                !showImpactConfirm
+              ) {
                 setShowImpactConfirm(true)
                 return
               }

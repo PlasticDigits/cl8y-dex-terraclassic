@@ -50,7 +50,11 @@ import {
   type PairInfo,
 } from '@/types'
 import { getDecimals, toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
-import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
+import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
+import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
+import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
+import { acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
+import { LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT } from '@/utils/limitOrderEscrowBalanceGate'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
@@ -523,6 +527,24 @@ export function TradeMarketOrderPanel({
     rawInputAmount !== debouncedRawInputAmount
   )
 
+  const hasPositivePay = isPositiveDecimalAmount(marketAmountHuman)
+  const payAcquireGuidance = useSwapPayAcquireGuidance({
+    walletConnected: isWalletConnected,
+    address,
+    hasPositivePay,
+    hasSettledQuote: hasSettledSimQuote,
+    payAsset: fromToken,
+    paySymbol: getTokenDisplaySymbol(fromToken),
+    payDecimals: offerDecimals,
+    payRaw: tryParseBigInt(rawInputAmount),
+    payBalanceRaw:
+      isWalletConnected && escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
+    expectedSlippagePct: simQuery.data?.routePreflight
+      ? parseFloat(simQuery.data.routePreflight.worstSpreadPercent)
+      : null,
+  })
+  const showQuoteOnly = acquireGuidanceShowsQuoteOnly(payAcquireGuidance, hasSettledSimQuote)
+
   const canSubmit =
     isWalletConnected &&
     !isPaused &&
@@ -756,18 +778,25 @@ export function TradeMarketOrderPanel({
               )}
             </span>
           </div>
-          <div className="flex justify-between gap-2">
-            <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
-            <span className="font-mono text-right">
-              {showReceiveCalculating ? (
-                <span style={{ color: 'var(--ink-subtle)' }}>—</span>
-              ) : (
-                <>
-                  {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
-                </>
-              )}
-            </span>
-          </div>
+          {showQuoteOnly && (
+            <p data-testid="trade-market-quote-only" style={{ color: 'var(--ink-subtle)' }}>
+              Quote only
+            </p>
+          )}
+          {!showQuoteOnly && (
+            <div className="flex justify-between gap-2">
+              <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
+              <span className="font-mono text-right">
+                {showReceiveCalculating ? (
+                  <span style={{ color: 'var(--ink-subtle)' }}>—</span>
+                ) : (
+                  <>
+                    {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
+                  </>
+                )}
+              </span>
+            </div>
+          )}
           <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
           {simQuery.data.indexerAmountReconciled && (
             <p
@@ -812,14 +841,27 @@ export function TradeMarketOrderPanel({
           offerAmountHuman={marketAmountHuman}
           receiveAmountHuman={receiveHuman}
           maxSpreadPercent={slippageTolerance}
-          minReceiveHuman={minReceived != null && minReceived !== '' ? minReceiveHuman : null}
+          minReceiveHuman={!showQuoteOnly && minReceived != null && minReceived !== '' ? minReceiveHuman : null}
           pairContractAddresses={marketPairContractAddresses}
           chainFullLabel={getNetworkBadgeCopy().fullLabel}
           data-testid="trade-market-pre-submit-summary"
         />
       )}
 
-      <LimitOrderEscrowPlaceGuardMessage gate={inlineGate} data-testid="trade-market-place-guard" />
+      <SwapPayAcquireGuidanceBanner
+        guidance={payAcquireGuidance}
+        testIdPrefix="trade-market"
+        onReduce={(human) => setMarketAmountHuman(human)}
+      />
+      <LimitOrderEscrowPlaceGuardMessage
+        gate={
+          payAcquireGuidance.kind.startsWith('insufficient') &&
+          inlineGate.userMessage === LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT
+            ? { ...inlineGate, userMessage: null }
+            : inlineGate
+        }
+        data-testid="trade-market-place-guard"
+      />
       {!dockSubmit && <TradeMarketSubmitChrome model={submitChromeModel} />}
     </div>
   )
