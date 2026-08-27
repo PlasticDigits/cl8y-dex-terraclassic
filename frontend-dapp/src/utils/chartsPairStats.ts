@@ -1,5 +1,6 @@
 import { formatPairPrice, formatTokenAmount, isPairLegDecimals } from './formatAmount'
 import { rawLimitPriceToHuman } from './limitOrderPriceScale'
+import { formatInvertedDecimal, invertFinitePositive } from './tradePairDisplayOrientation'
 
 /** Cap USD / TWAP display strings (overview **A4** class, GitLab #564). */
 const PAIR_STATS_DISPLAY_CAP = 24
@@ -70,14 +71,22 @@ export function twapRawToDecimalString(raw: string | number | null | undefined):
 export function formatTwapHumanPrice(
   raw: string | number | null | undefined,
   decimals0: unknown,
-  decimals1: unknown
+  decimals1: unknown,
+  inverted = false
 ): string {
   if (!isPairLegDecimals(decimals0) || !isPairLegDecimals(decimals1)) return '—'
   const decimal = twapRawToDecimalString(raw)
   if (decimal == null) return '—'
   try {
     const human = rawLimitPriceToHuman(decimal, decimals0, decimals1)
-    const formatted = formatPairPrice(human, 6)
+    let display: string = human
+    if (inverted) {
+      const inv = invertFinitePositive(human)
+      const formattedInv = inv == null ? null : formatInvertedDecimal(inv)
+      if (formattedInv == null) return '—'
+      display = formattedInv
+    }
+    const formatted = formatPairPrice(display, 6)
     if (!formatted || formatted === '0') return '—'
     if (/[TMBK]$/.test(formatted)) return '—'
     if (formatted.length > PAIR_STATS_DISPLAY_CAP) return '—'

@@ -17,7 +17,7 @@ import {
   PROTOCOL_VOLUME_GRAINS,
   PROTOCOL_VOLUME_GRAIN_MIN,
   PROTOCOL_VOLUME_RESIZE_DEBOUNCE_MS,
-  sparseTimeLabelIndexes,
+  timeLabelIndexes,
   usdAxisTicks,
   type ProtocolVolumeGrain,
 } from '@/utils/protocolVolumeGrain'
@@ -82,7 +82,7 @@ export function ProtocolVolumeDailyChart() {
   const series = useMemo(() => query.data?.series ?? [], [query.data?.series])
   const peak = useMemo(() => maxPricedUsd(series), [series])
   const ticks = useMemo(() => usdAxisTicks(peak), [peak])
-  const xLabels = useMemo(() => sparseTimeLabelIndexes(series.length), [series.length])
+  const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, PLOT_W), [series.length, grain])
   const unavailable = query.isError && isProtocolVolumeSeriesUnavailable(query.error)
   const allNull = series.length > 0 && series.every((p) => p.volume_usd == null)
   const empty = !query.isLoading && (series.length === 0 || allNull)

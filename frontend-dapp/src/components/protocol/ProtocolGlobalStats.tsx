@@ -14,7 +14,6 @@ import {
   TRAILING_30D_VOLUME_CHG_TITLE,
   TRAILING_30D_VOLUME_TITLE,
   TRAILING_LIQUIDITY_24H_TITLE,
-  TRAILING_LIQUIDITY_30D_TITLE,
 } from '@/utils/trailingWindowCopy'
 import type { IndexerOverview } from '@/types'
 import { ProtocolVolumeDailyChart } from './ProtocolVolumeDailyChart'
@@ -40,12 +39,6 @@ const STATS: Array<{
         label: '24h',
         testId: 'protocol-stat-liquidity-24h',
         title: TRAILING_LIQUIDITY_24H_TITLE,
-      },
-      {
-        value: formatProtocolPct(o?.liquidity_change_30d_pct),
-        label: '30d',
-        testId: 'protocol-stat-liquidity-30d',
-        title: TRAILING_LIQUIDITY_30D_TITLE,
       },
     ],
   },
@@ -126,7 +119,7 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
       </h2>
       <p className="text-xs mb-3 max-w-2xl" style={{ color: 'var(--ink-dim)' }}>
         USD volume and pool TVL use the same USTC / LUNC / hub reference catalog. Liquidity is AMM reserves only (not
-        book depth). 24h/30d liquidity is vs indexer snapshots, not on-chain genesis. TVL moves with LP, swaps, and
+        book depth). 24h liquidity is vs indexer snapshots, not on-chain genesis. TVL moves with LP, swaps, and
         reference prices.
       </p>
       {overviewQuery.isError && (

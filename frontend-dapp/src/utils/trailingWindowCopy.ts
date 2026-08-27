@@ -56,6 +56,7 @@ export const TRAILING_7D_VOLUME_CHG_TITLE = 'Change vs the last 7 days prior win
 export const TRAILING_30D_VOLUME_CHG_TITLE = 'Change vs the last 30 days prior window. Em-dash until both windows fill.'
 
 export const TRAILING_LIQUIDITY_24H_TITLE = 'Change vs the last 24 hours snapshot. Em-dash until the window fills.'
+/** Unused on Total liquidity after #677; 30d Δ% stays on GET /overview. */
 export const TRAILING_LIQUIDITY_30D_TITLE = 'Change vs the last 30 days snapshot. Em-dash until the window fills.'
 
 export const PROTOCOL_VOLUME_DAILY_LABEL = 'UTC volume'

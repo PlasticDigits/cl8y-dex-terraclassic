@@ -83,11 +83,17 @@ run_step "source: additive volume Δ%; daily allowlist; no Llama N+1; no GET swa
     fi
   '
 
-run_step "indexer lib: protocol_volume days allowlist + flow_change_pct" \
-  bash -c 'cd indexer && cargo test --lib protocol_volume -- --quiet && cargo test --lib protocol_fees -- flow_change_pct --quiet'
+if [[ "${VERIFY_ISSUE_652_SKIP_INDEXER:-}" == "1" ]]; then
+  echo ""
+  echo "[indexer lib + integration] skipped (VERIFY_ISSUE_652_SKIP_INDEXER=1)"
+  ok "indexer lib + integration (skipped)"
+else
+  run_step "indexer lib: protocol_volume days allowlist + flow_change_pct" \
+    bash -c 'cd indexer && cargo test --lib protocol_volume -- --quiet && cargo test --lib protocol_fees -- flow_change_pct --quiet'
 
-run_step "indexer integration: volume Δ% + daily + overview keys" \
-  bash -c 'cd indexer && cargo test --test indexer_protocol_volume --test api_overview -- --test-threads=1 --quiet'
+  run_step "indexer integration: volume Δ% + daily + overview keys" \
+    bash -c 'cd indexer && cargo test --test indexer_protocol_volume --test api_overview -- --test-threads=1 --quiet'
+fi
 
 if [[ ! -x "$REPO_ROOT/frontend-dapp/node_modules/.bin/vitest" ]]; then
   SIBLING="$(dirname "$REPO_ROOT")/cl8y-dex-terraclassic/frontend-dapp/node_modules"

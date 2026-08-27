@@ -11,7 +11,9 @@
 //!
 //! JSON keeps those raw strings (`bd_plain_string`, no `1e+19`). The dApp scales
 //! with `asset_*_decimals` from `GET /api/v1/traders/{addr}/positions`. Do **not**
-//! sum `traders.total_realized_pnl` across pairs as a single unit.
+//! sum `traders.total_realized_pnl` across pairs as a single unit. Unrealized
+//! mark-to-market is dApp-side (GitLab **#675**) from hub prices vs
+//! `total_cost_base` — not stored here.
 
 use bigdecimal::BigDecimal;
 use sqlx::{FromRow, PgPool};
