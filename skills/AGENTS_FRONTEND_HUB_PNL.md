@@ -46,6 +46,7 @@ Tape Amount in/out/Price is **[#557](https://gitlab.com/PlasticDigits/cl8y-dex-t
 ## Related
 
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — per-pair human scale
+- [`AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md`](./AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` hides gem rows from this USD sum by default ([#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674))
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — hub ingest + Protocol card
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — header volume USD (#553)
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — CEX catalog stays 3 tickers

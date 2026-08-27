@@ -17,6 +17,19 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
   }
 })
 
+const GEM: IndexerPosition = {
+  pair_address: 'terra1ember-coral',
+  asset_0_symbol: 'EMBER',
+  asset_1_symbol: 'CORAL',
+  asset_0_decimals: 6,
+  asset_1_decimals: 6,
+  net_position_quote: '1000000',
+  avg_entry_price: '1',
+  total_cost_base: '1000000',
+  realized_pnl: '0',
+  trade_count: 1,
+}
+
 const UST1_CUSTC: IndexerPosition = {
   pair_address: 'terra1ust1custc',
   asset_0_symbol: 'UST1',
@@ -45,7 +58,10 @@ const MIXED_USTR: IndexerPosition = {
 
 const HUB: TraderUsdMarks = { ust1Usd: 0.976, ustcUsd: 0.00473, ustrUsd: 0.00879 }
 
-function renderTable(positions: IndexerPosition[], usdMarks?: TraderUsdMarks) {
+function renderTable(
+  positions: IndexerPosition[],
+  extras?: { usdMarks?: TraderUsdMarks; showTestPairDivider?: boolean }
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   const router = createMemoryRouter(
     [
@@ -57,7 +73,8 @@ function renderTable(positions: IndexerPosition[], usdMarks?: TraderUsdMarks) {
             isLoading={false}
             isError={false}
             onRetry={() => {}}
-            usdMarks={usdMarks}
+            usdMarks={extras?.usdMarks}
+            showTestPairDivider={extras?.showTestPairDivider}
           />
         ),
       },
@@ -125,6 +142,18 @@ describe('TraderPositionsTable (#551)', () => {
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent('—')
     expect(screen.getByTestId('trader-position-net')).toHaveTextContent(/cUSTC/)
   })
+
+  it('inserts a Test pairs divider before the first gem row when asked (#674)', () => {
+    renderTable([UST1_CUSTC, GEM], { showTestPairDivider: true })
+    expect(screen.getByTestId('trader-positions-test-pairs-divider')).toHaveTextContent(/test pairs/i)
+    expect(screen.getByRole('link', { name: /EMBER\/CORAL/ })).toBeInTheDocument()
+  })
+
+  it('does not insert the Test pairs divider on /trader by default', () => {
+    renderTable([UST1_CUSTC, GEM])
+    expect(screen.queryByTestId('trader-positions-test-pairs-divider')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /EMBER\/CORAL/ })).toBeInTheDocument()
+  })
 })
 
 describe('TraderPositionsTable (#675 mark / unrealized)', () => {
@@ -139,7 +168,7 @@ describe('TraderPositionsTable (#675 mark / unrealized)', () => {
           realized_pnl: '0',
         },
       ],
-      HUB
+      { usdMarks: HUB }
     )
     expect(screen.getByTestId('trader-position-pnl')).toHaveTextContent(/0(\.00)? UST1/)
     expect(screen.getByTestId('trader-position-mark')).toHaveTextContent(/\$0\.47/)
@@ -158,7 +187,7 @@ describe('TraderPositionsTable (#675 mark / unrealized)', () => {
           realized_pnl: '0',
         },
       ],
-      HUB
+      { usdMarks: HUB }
     )
     expect(screen.getByTestId('trader-position-mark')).toHaveTextContent(/\$0\.47/)
     expect(screen.getByTestId('trader-position-unrealized')).toHaveTextContent(NO_COST_BASIS_LABEL)

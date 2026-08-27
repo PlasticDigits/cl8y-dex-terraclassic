@@ -227,7 +227,8 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(liq).toHaveTextContent('$')
     expect(within(liq).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('%')
     expect(within(liq).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('-')
-    expect(within(liq).getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent('+')
+    expect(within(liq).queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
+    expect(liq.textContent).not.toMatch(/30d/)
     expect(stats.querySelector('.card-glass')).toBeNull()
     expect(within(stats).getByTestId('protocol-stat-volume-24h')).toBeInTheDocument()
     expect(within(stats).getByTestId('protocol-stat-volume-7d')).toBeInTheDocument()
@@ -467,7 +468,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.queryByText('undefined')).not.toBeInTheDocument()
     expect(screen.getByTestId('protocol-stat-liquidity')).toHaveTextContent(/—/)
     expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
-    expect(screen.getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent(/—/)
+    expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-fee-stats')).not.toBeInTheDocument()
   })
 
@@ -485,9 +486,22 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const liq = await screen.findByTestId('protocol-stat-liquidity')
     await waitFor(() => expect(liq).toHaveTextContent(/\$0/))
     expect(screen.getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent(/—/)
-    expect(screen.getByTestId('protocol-stat-liquidity-30d')).toHaveTextContent(/—/)
+    expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
     expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
+  })
+
+  it('keeps volume and fee 30d tiles while liquidity stays 24h-only (GitLab #677)', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const liq = await screen.findByTestId('protocol-stat-liquidity')
+    await waitFor(() => {
+      expect(within(liq).getByTestId('protocol-stat-liquidity-24h')).toBeInTheDocument()
+    })
+    expect(within(liq).queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
+    expect(screen.getByTestId('protocol-stat-volume-30d')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-stat-volume-30d-chg')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-stat-fees-30d')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-stat-fees-30d-chg')).toBeInTheDocument()
   })
 
   it('renders DEX hub card for cUSTC / LUNC / UST1 / USTR and never queries CEX ustr', async () => {
@@ -690,6 +704,12 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(await screen.findByTestId('protocol-volume-daily-chart')).toBeInTheDocument()
     expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar day/)
     expect(screen.getByTestId('protocol-volume-chart-yaxis')).toBeInTheDocument()
+    const xAxis = screen.getByTestId('protocol-volume-chart-xaxis')
+    const dailyLabels = xAxis.querySelectorAll('text')
+    expect(dailyLabels.length).toBeGreaterThanOrEqual(Math.ceil(7 / 2))
+    expect(dailyLabels.length).toBeLessThanOrEqual(7)
+    expect(xAxis).toHaveTextContent('08-20')
+    expect(xAxis).toHaveTextContent('08-26')
     expect(screen.queryByTestId('price-chart')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-volume-daily-7d')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-volume-daily-30d')).not.toBeInTheDocument()
@@ -734,6 +754,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       ...overviewOk,
       total_volume_24h_usd: '"><script>alert(1)</script>',
       volume_change_24h_pct: 'javascript:alert(1)',
+      liquidity_change_24h_pct: '<img onerror=alert(1)>',
     })
     vi.mocked(indexerClient.getProtocolVolumeSeries).mockResolvedValue({
       ...seriesOk,
@@ -747,6 +768,44 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const chart = await screen.findByTestId('protocol-volume-daily-chart')
     expect(chart.querySelector('script')).toBeNull()
     expect(chart.closest('.card-glass')).toBeNull()
+    expect(chart.querySelector('a[href]')).toBeNull()
+  })
+
+  it('labels hourly and monthly axes at step 1 or 2 on short series (GitLab #677)', async () => {
+    const user = userEvent.setup()
+    const hourly = Array.from({ length: 12 }, (_, i) => ({
+      utc_hour: `2026-08-26T${String(i).padStart(2, '0')}`,
+      volume_usd: '1',
+      trade_count: 1,
+    }))
+    const monthly = Array.from({ length: 6 }, (_, i) => ({
+      utc_month: `2026-0${i + 1}`,
+      volume_usd: '2',
+      trade_count: 1,
+    }))
+    vi.mocked(indexerClient.getProtocolVolumeSeries).mockImplementation(async (grain) => ({
+      ...seriesOk,
+      grain,
+      series: grain === 'hourly' ? hourly : grain === 'monthly' ? monthly : seriesOk.series,
+    }))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-chart-xaxis')
+    await user.click(screen.getByTestId('protocol-volume-grain-hourly'))
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC hour/)
+    })
+    const hourlyAxis = screen.getByTestId('protocol-volume-chart-xaxis')
+    const hourlyLabels = hourlyAxis.querySelectorAll('text')
+    expect(hourlyLabels.length).toBeGreaterThanOrEqual(Math.ceil(12 / 2))
+    expect(hourlyLabels.length).toBeLessThanOrEqual(12)
+    await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar month/)
+    })
+    const monthlyAxis = screen.getByTestId('protocol-volume-chart-xaxis')
+    const monthlyLabels = monthlyAxis.querySelectorAll('text')
+    expect(monthlyLabels.length).toBeGreaterThanOrEqual(Math.ceil(6 / 2))
+    expect(monthlyLabels.length).toBeLessThanOrEqual(6)
   })
 
   it('shows USD axis, tooltip on hover/focus, and unpriced em-dash (GitLab #668)', async () => {

@@ -11,6 +11,8 @@ import {
 import { getDecimals } from '@/utils/formatAmount'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { lookupByTokenId } from '@/utils/tokenRegistry'
+import { isCustcLeg, isUst1Leg } from '@/utils/tradePairDisplayOrientation'
+import { MAINNET_UST1_CUSTC_PAIR_ADDRESS } from '@/utils/ust1SecondaryMarket'
 
 /**
  * Soft-launch + LocalTerra faucet/test tickers (GitLab #534 / #562).
@@ -332,6 +334,44 @@ export function sortIndexerPairsByCatalog(pairs: IndexerPair[]): IndexerPair[] {
 /** First factory pair for bare `/trade` auto-pick (P534-5 / P562-4). */
 export function firstCatalogPairAddress(pairs: PairInfo[]): string | undefined {
   return sortPairInfosByCatalog(filterRetailDiscoveryPairInfos(pairs))[0]?.contract_addr
+}
+
+export function isUst1CustcIndexerPair(pair: IndexerPair): boolean {
+  const a0 = {
+    symbol: pair.asset_0.symbol,
+    contractAddr: pair.asset_0.contract_addr,
+    denom: pair.asset_0.denom,
+  }
+  const a1 = {
+    symbol: pair.asset_1.symbol,
+    contractAddr: pair.asset_1.contract_addr,
+    denom: pair.asset_1.denom,
+  }
+  return (isUst1Leg(a0) && isCustcLeg(a1)) || (isUst1Leg(a1) && isCustcLeg(a0))
+}
+
+/** First UST1/cUSTC pair in a retail-filtered list. Does not change `/trade` pick. */
+export function firstUst1CustcPairAddress(pairs: readonly IndexerPair[]): string | undefined {
+  return filterRetailDiscoveryIndexerPairs(pairs).find(isUst1CustcIndexerPair)?.pair_address
+}
+
+/** First catalog-sorted economic (or exposed-gem) indexer pair — Charts hero fallback. */
+export function firstEconomicIndexerPairAddress(pairs: readonly IndexerPair[]): string | undefined {
+  return sortIndexerPairsByCatalog(filterRetailDiscoveryIndexerPairs(pairs))[0]?.pair_address
+}
+
+/**
+ * Bare `/charts` hero (#680): UST1/cUSTC when listed, else columbus-5 pin on mainnet,
+ * else first economic catalog pair. Never invent a LocalTerra address.
+ */
+export function resolveChartsHeroPairAddress(
+  pairs: readonly IndexerPair[],
+  network: string = import.meta.env.VITE_NETWORK || 'local'
+): string | undefined {
+  const listed = firstUst1CustcPairAddress(pairs)
+  if (listed) return listed
+  if (network === 'mainnet') return MAINNET_UST1_CUSTC_PAIR_ADDRESS
+  return firstEconomicIndexerPairAddress(pairs)
 }
 
 export function compareTokenCatalog(tokenIdA: string, tokenIdB: string): number {

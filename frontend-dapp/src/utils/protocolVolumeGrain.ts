@@ -1,8 +1,9 @@
 /**
- * Protocol UTC volume chart grain + width clamp (GitLab #668).
+ * Protocol UTC volume chart grain + width clamp (GitLab #668 / #677).
  *
  * Bar count follows plot width, then `[min, max]` per grain. Do not request
  * above the indexer allowlist (hourly 168 / daily 90 / monthly 24).
+ * X-axis labels use step 1 or 2 (hourly may widen when step 2 collides).
  */
 
 export const PROTOCOL_VOLUME_GRAINS = ['hourly', 'daily', 'monthly'] as const
@@ -63,16 +64,53 @@ export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVol
   return point.utc_day ?? ''
 }
 
-/** Sparse X-axis labels — do not label every hourly bar. */
-export function sparseTimeLabelIndexes(count: number, maxLabels = 5): number[] {
+/**
+ * ViewBox plot width used by ProtocolVolumeDailyChart (320 − padL 52 − padR 8).
+ * Axis collision is computed in viewBox units — the SVG scales uniformly.
+ */
+export const PROTOCOL_VOLUME_AXIS_PLOT_PX = 260
+
+/** SVG `fontSize="8"` ≈ 0.6em per glyph, plus a small gap. */
+const AXIS_LABEL_EM_PX = 4.8
+const AXIS_LABEL_PAD_PX = 2
+
+/** Formatted axis width: hourly `HH`, daily `MM-DD`, monthly `YYYY-MM`. */
+export function estimatedAxisLabelWidthPx(grain: ProtocolVolumeGrain): number {
+  const chars = grain === 'hourly' ? 2 : grain === 'daily' ? 5 : 7
+  return chars * AXIS_LABEL_EM_PX + AXIS_LABEL_PAD_PX
+}
+
+/**
+ * X-axis step (GitLab #677 / **P668-9**).
+ * Daily and Monthly: 1 (every bar) or 2 (every other). Hourly may use a wider
+ * step only when step 2 still collides in the fixed viewBox. No global maxLabels=5.
+ */
+export function timeLabelStep(
+  count: number,
+  grain: ProtocolVolumeGrain,
+  plotWidthPx: number = PROTOCOL_VOLUME_AXIS_PLOT_PX
+): number {
+  if (count <= 1) return 1
+  const slot = plotWidthPx / count
+  if (!Number.isFinite(slot) || slot <= 0) return 1
+  const raw = Math.max(1, Math.ceil(estimatedAxisLabelWidthPx(grain) / slot))
+  if (grain === 'hourly') return raw
+  return raw <= 1 ? 1 : 2
+}
+
+/** First and last indexes stay labeled when any labels are shown. */
+export function timeLabelIndexes(
+  count: number,
+  grain: ProtocolVolumeGrain,
+  plotWidthPx: number = PROTOCOL_VOLUME_AXIS_PLOT_PX
+): number[] {
   if (count <= 0) return []
-  if (count <= maxLabels) return Array.from({ length: count }, (_, i) => i)
-  const out: number[] = []
+  if (count === 1) return [0]
+  const step = timeLabelStep(count, grain, plotWidthPx)
   const last = count - 1
-  for (let i = 0; i < maxLabels; i++) {
-    const idx = Math.round((i * last) / (maxLabels - 1))
-    if (out[out.length - 1] !== idx) out.push(idx)
-  }
+  const out: number[] = []
+  for (let i = 0; i <= last; i += step) out.push(i)
+  if (out[out.length - 1] !== last) out.push(last)
   return out
 }
 
