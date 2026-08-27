@@ -5,7 +5,7 @@
  * Test there: `pnpm test dexs cl8y-dex`
  *
  * Version 1 — GET /api/v1/defillama/daily is a UTC calendar-day rollup and
- * cannot be split hourly. Host is pinned (A18).
+ * cannot be split hourly. Host is pinned (A18). `"0"` is valid; JSON null throws.
  *
  * In-repo unit tests use `../dimensions/mapDaily.js`, not this TypeScript file.
  */
@@ -13,28 +13,31 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import {
-  ADAPTER_START,
+  ADAPTER_START_ISO,
   dailyUrl,
   mapVolume,
   METHODOLOGY,
   INDEXER_DAILY_URL,
+  requirePricedUsd,
 } from '../dimensions/mapDaily'
 
 const fetch = async (options: FetchOptions) => {
   const url = dailyUrl(options.startOfDay, INDEXER_DAILY_URL)
   const res = await options.http.get(url)
   const mapped = mapVolume(res)
-  if (mapped.dailyVolume == null) {
-    throw new Error(`cl8y-dex dailyVolume unpriced or missing for ${options.startOfDay}`)
-  }
-  return { dailyVolume: mapped.dailyVolume }
+  const dailyVolume = requirePricedUsd(
+    mapped.dailyVolume,
+    'dailyVolume',
+    options.startOfDay,
+  )
+  return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.TERRA],
-  start: ADAPTER_START,
+  start: ADAPTER_START_ISO,
   methodology: {
     Volume: METHODOLOGY.Volume,
   },

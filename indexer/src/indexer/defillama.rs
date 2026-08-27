@@ -42,8 +42,10 @@ pub fn daily_asset_contract(ticker: &str) -> Option<&'static str> {
     }
 }
 
-/// First UTC day the dimension adapters may request (soft-launch window).
-pub const ADAPTER_START_UTC_DAY: i64 = 1_777_593_600; // 2026-05-01 00:00:00 UTC
+/// First UTC day `GET /api/v1/defillama/daily` returns **200** on Coolify
+/// (2026-08-17 00:00:00 UTC). Earlier days 404. Llama `start` must not precede this
+/// (GitLab #687). Unix seconds; ISO form is `2026-08-17`.
+pub const ADAPTER_START_UTC_DAY: i64 = 1_786_924_800;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ParseDailyError {
@@ -97,8 +99,10 @@ pub fn naive_utc_day(ts: i64) -> Option<NaiveDate> {
     DateTime::from_timestamp(ts, 0).map(|dt| dt.date_naive())
 }
 
-/// Same null / `"0"` contract as overview volume (#548 / #631).
-/// Activity + unpriced → `None` (JSON null). Idle → `"0"`. Never silent zero with trades.
+/// Same null / `"0"` contract as overview volume (#548 / #631) and Llama **headline**
+/// fees (#687 / EFee-6): priced SUM only. Activity + empty priced SUM → `None`.
+/// Idle → `"0"`. Never silent zero when activity exists. Does **not** look at
+/// `unpriced_count` — one unpriced source must not wipe priced wrap/window/hub.
 pub fn daily_usd_field(activity_count: i64, priced_usd: &BigDecimal) -> Option<String> {
     if activity_count <= 0 {
         return Some("0".to_string());
@@ -109,7 +113,13 @@ pub fn daily_usd_field(activity_count: i64, priced_usd: &BigDecimal) -> Option<S
     Some(priced_usd.to_string())
 }
 
-/// Fail-closed aggregate: any unpriced activity in the dimension → null.
+/// Headline `daily_fees_usd` / revenue: EFee-6 partial priced SUM (GitLab #687).
+pub fn daily_headline_usd(activity_count: i64, priced_usd: &BigDecimal) -> Option<String> {
+    daily_usd_field(activity_count, priced_usd)
+}
+
+/// Fail-closed **per source** (and volume): any unpriced row in that grain → null.
+/// Do **not** use this for the whole-day fee headline.
 pub fn daily_usd_field_fail_closed(
     activity_count: i64,
     unpriced_count: i64,
@@ -202,7 +212,18 @@ mod tests {
         );
         assert_eq!(
             daily_usd_field_fail_closed(2, 1, &BigDecimal::from(9)),
-            None
+            None,
+            "per-source grain stays fail-closed"
+        );
+        assert_eq!(
+            daily_headline_usd(2, &BigDecimal::from(9)),
+            Some("9".to_string()),
+            "headline is priced SUM even when some rows are unpriced"
+        );
+        assert_eq!(
+            daily_headline_usd(3, &BigDecimal::from(0)),
+            None,
+            "all-unpriced activity stays JSON null, not \"0\""
         );
     }
 
