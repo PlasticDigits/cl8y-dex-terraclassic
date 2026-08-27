@@ -63,3 +63,4 @@ Closed rows (`net = 0`) are not "no cost basis": mark `$0`, unrealized `$0`.
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — hub ingest
 - [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) — Coolify frontend rebuild
+- Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
