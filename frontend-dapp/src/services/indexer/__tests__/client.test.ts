@@ -55,6 +55,32 @@ describe('indexer client fetchJson', () => {
     )
   })
 
+  it('fetches protocol liquidity and fees grain series with allowlisted grain+limit (GitLab #689)', async () => {
+    const mockLiq = { grain: 'daily', limit: 14, timezone: 'UTC', methodology: 'protocol_catalog', series: [] }
+    const mockFees = { grain: 'hourly', limit: 12, timezone: 'UTC', methodology: 'protocol_catalog', series: [] }
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mockLiq), { status: 200 }))
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mockFees), { status: 200 }))
+    const client = await loadModule()
+    const liq = await client.getProtocolLiquiditySeries('daily', 14)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/protocol/liquidity/daily?grain=daily&limit=14'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(liq).toEqual(mockLiq)
+    const fees = await client.getProtocolFeesSeries('hourly', 12)
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/protocol/fees/daily?grain=hourly&limit=12'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(fees).toEqual(mockFees)
+    await expect(client.getProtocolLiquiditySeries('daily', 91)).rejects.toThrow(
+      'Invalid protocol liquidity grain or limit'
+    )
+    await expect(client.getProtocolFeesSeries('week' as 'daily', 7)).rejects.toThrow(
+      'Invalid protocol fees grain or limit'
+    )
+  })
+
   it('throws on non-ok response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404, statusText: 'Not Found' }))
     vi.mocked(fetch).mockResolvedValueOnce(new Response('Not found', { status: 404, statusText: 'Not Found' }))

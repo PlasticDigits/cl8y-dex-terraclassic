@@ -27,12 +27,18 @@ mod listing_timestamps;
 mod oracle;
 pub mod orderbook_sim;
 mod overview;
+mod protocol_fee_series;
 mod protocol_fees;
+mod protocol_liquidity;
 mod protocol_volume;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use overview::reset_overview_cache;
 #[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_fee_series::reset_protocol_fee_series_cache;
+#[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_fees::reset_protocol_fees_cache;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_liquidity::reset_protocol_liquidity_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
@@ -338,6 +344,8 @@ pub async fn find_pair_by_ticker(
         traders::leaderboard,
         overview::get_overview,
         protocol_fees::get_protocol_fees,
+        protocol_fee_series::get_protocol_fees_daily,
+        protocol_liquidity::get_protocol_liquidity_daily,
         protocol_volume::get_protocol_volume_daily,
         defillama::get_defillama_daily,
         hub_prices::get_hub_prices,
@@ -412,6 +420,10 @@ pub async fn find_pair_by_ticker(
         protocol_fees::ProtocolFeesResponse,
         protocol_fees::ProtocolFeeSourceRow,
         protocol_fees::ProtocolFeeTokenRow,
+        protocol_fee_series::ProtocolFeeSeriesResponse,
+        protocol_fee_series::ProtocolFeeSeriesPoint,
+        protocol_liquidity::ProtocolLiquidityDailyResponse,
+        protocol_liquidity::ProtocolLiquidityDailyPoint,
         protocol_volume::ProtocolVolumeDailyResponse,
         protocol_volume::ProtocolVolumeDailyPoint,
         defillama::DefillamaDailyResponse,
@@ -594,6 +606,14 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/protocol/fees",
             get(protocol_fees::get_protocol_fees),
+        )
+        .route(
+            "/api/v1/protocol/fees/daily",
+            get(protocol_fee_series::get_protocol_fees_daily),
+        )
+        .route(
+            "/api/v1/protocol/liquidity/daily",
+            get(protocol_liquidity::get_protocol_liquidity_daily),
         )
         .route(
             "/api/v1/protocol/volume/daily",

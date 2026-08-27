@@ -1,8 +1,8 @@
-# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586 / #652 / #667 / #668 / #677)
+# Agent playbook: `/protocol` global USD stats + unified oracle (GitLab #550 / #569 / #586 / #652 / #667 / #668 / #677 / #689)
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -121,6 +121,28 @@ Do **not** invent a Protocol-only `StatBox` variant. The same value-row class se
 
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). The volume chart is a **separate** UTC calendar-grain series (hour / day / month) — do not add a lecture to the Global stats lead.
 
+## Invariants (P689 — GitLab #689)
+
+One census chart, exclusive metric. Do **not** overlay Volume + Liquidity + Fees. Do **not** reuse DeFiLlama daily. Do **not** restore a 30d chip on Total liquidity.
+
+| ID | Rule |
+|----|------|
+| **P689-1** | Buttons **Volume / Liquidity / Fees** (default **Volume**) on the existing `protocol-volume-daily-chart` (alias `data-protocol-utc-series-chart`). Grain stays **Hourly / Daily / Monthly** (default Daily). Switching metric **keeps** grain; switching grain resets the tooltip. Fetch **only** the selected metric. |
+| **P689-2** | Trailing tiles unchanged: Last 24h/7d/30d vol, Total liquidity + **one** 24h Δ%, `GET /protocol/fees?window=` 24h/7d/30d. Chart stays inside `protocol-global-stats` — not in `protocol-fee-stats`. |
+| **P689-3** | **Volume / fees** = FLOW: idle JSON `"0"`; activity + all unpriced → `null` (outlined bar, tooltip em-dash). Missing rollup row → idle `"0"`. **Liquidity** = STOCK: last snapshot in the bucket (not SUM, not average). No sample → JSON `null` (not `"0"`). Empty copy **No liquidity yet** / **No fees yet**. Titles **UTC volume** / **UTC liquidity** / **UTC fees**. |
+| **P689-4** | Sibling GETs `GET /api/v1/protocol/liquidity/daily` and `GET /api/v1/protocol/fees/daily`: `grain` + capped `limit` else **400**. `from`/`to`/`window`/`days`/`metric`/`ticker` → **400**. 60s cache keyed only by allowlisted `(grain, limit)`. Volume `days=7\|30` alias stays on the volume path. |
+| **P689-5** | GET reads grain tables only (`protocol_{hourly,daily,monthly}_{liquidity,fees}`). No `SUM` of `protocol_fee_events` / `swap_events`. No snapshot / `pair_reserves` walk. No Llama. Methodology `protocol_catalog`. Newest-last. |
+| **P689-6** | Aggregator downsamples liquidity **before** 35d snapshot prune so Monthly stock retains ≥ 24 months. Hourly prune ~10d; daily ≥ 95d; monthly ≥ 24 months. Fees SUM priced `fee_usd` off GET (PFee sources). |
+| **P689-7** | Old indexer: missing volume route hides the chart (**P652-6**). Missing liquidity/fees route hides that metric’s plot; Volume still works. No nested `card-glass`. No `PriceChart`. XSS period / usd fields render as **text**. |
+| **P689-8** | Verify: `make verify-issue-689`. Keep `verify-issue-668` / `652` / `667` / `677` / `569` / `586` / `576` / `613` / `614` / `683` / `653` / `631` green. |
+
+- **Don't** overlay three series or add a second chart under Protocol fees.
+- **Don't** treat liquidity bars as additive flow (do not document “sum the TVL bars”).
+- **Don't** fill missing liquidity samples with `$0`.
+- **Don't** overload `GET /protocol/fees?window=` with `grain`.
+- **Don't** N+1 `GET /defillama/daily` or add Llama `from`/`to`.
+
+
 ## Regression
 
 ```bash
@@ -128,6 +150,7 @@ make verify-issue-613
 make verify-issue-614
 make verify-issue-677
 make verify-issue-668
+make verify-issue-689
 make verify-issue-652
 make verify-issue-667
 make verify-issue-586

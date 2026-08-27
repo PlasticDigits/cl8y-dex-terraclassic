@@ -212,6 +212,9 @@ pub async fn refresh_protocol_liquidity_with_staleness(
         sum.priced_pair_count,
     )
     .await?;
+    // Grain tables must downsample last-in-bucket **before** the 35d snapshot prune
+    // so Monthly liquidity can retain ≥ 24 months (GitLab #689).
+    crate::db::queries::protocol_liquidity::refresh_protocol_liquidity_rollups(pool).await?;
     liquidity_snapshots::prune_snapshots(pool, now).await?;
     pair_liquidity_usd::replace_pair_liquidity_usd(pool, &priced).await?;
     Ok(rollup)

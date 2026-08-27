@@ -60,12 +60,22 @@ export const TRAILING_LIQUIDITY_24H_TITLE = 'Change vs the last 24 hours snapsho
 export const TRAILING_LIQUIDITY_30D_TITLE = 'Change vs the last 30 days snapshot. Em-dash until the window fills.'
 
 export const PROTOCOL_VOLUME_DAILY_LABEL = 'UTC volume'
+export const PROTOCOL_LIQUIDITY_DAILY_LABEL = 'UTC liquidity'
+export const PROTOCOL_FEES_DAILY_LABEL = 'UTC fees'
+export const PROTOCOL_UTC_METRIC_VOLUME_LABEL = 'Volume'
+export const PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL = 'Liquidity'
+export const PROTOCOL_UTC_METRIC_FEES_LABEL = 'Fees'
 export const PROTOCOL_VOLUME_DAILY_7D_LABEL = '7d'
 export const PROTOCOL_VOLUME_DAILY_30D_LABEL = '30d'
 export const PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL = 'Hourly'
 export const PROTOCOL_VOLUME_GRAIN_DAILY_LABEL = 'Daily'
 export const PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL = 'Monthly'
 export const PROTOCOL_VOLUME_DAILY_TITLE = 'UTC calendar volume. Not the trailing 24h, 7d, or 30d tiles.'
+export const PROTOCOL_LIQUIDITY_DAILY_TITLE = 'UTC calendar liquidity. Not the trailing 24h tile.'
+export const PROTOCOL_FEES_DAILY_TITLE = 'UTC calendar fees. Not the trailing 24h, 7d, or 30d tiles.'
+export const PROTOCOL_VOLUME_EMPTY = 'No volume yet'
+export const PROTOCOL_LIQUIDITY_EMPTY = 'No liquidity yet'
+export const PROTOCOL_FEES_EMPTY = 'No fees yet'
 export const PROTOCOL_VOLUME_GRAIN_SUBTITLE = {
   hourly: 'UTC hour',
   daily: 'UTC calendar day',
@@ -87,6 +97,11 @@ export const TRAILING_WINDOW_VISIBLE_LABELS = [
   PROTOCOL_FEES_7D_CHG_LABEL,
   PROTOCOL_FEES_30D_CHG_LABEL,
   PROTOCOL_VOLUME_DAILY_LABEL,
+  PROTOCOL_LIQUIDITY_DAILY_LABEL,
+  PROTOCOL_FEES_DAILY_LABEL,
+  PROTOCOL_UTC_METRIC_VOLUME_LABEL,
+  PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL,
+  PROTOCOL_UTC_METRIC_FEES_LABEL,
   PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL,
   PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
   PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,

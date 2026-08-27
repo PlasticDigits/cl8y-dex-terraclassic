@@ -18,6 +18,8 @@ import type {
   ProtocolFeesResponse,
   ProtocolVolumeDailyResponse,
   ProtocolVolumeSeriesResponse,
+  ProtocolLiquiditySeriesResponse,
+  ProtocolFeeSeriesResponse,
   IndexerTrader,
   IndexerPosition,
   IndexerToken,
@@ -390,6 +392,28 @@ export async function getProtocolVolumeSeries(
     throw new Error('Invalid protocol volume grain or limit')
   }
   return fetchJson<ProtocolVolumeSeriesResponse>(`/api/v1/protocol/volume/daily?grain=${grain}&limit=${limit}`)
+}
+
+/** UTC liquidity stock series. Allowlisted grain+limit; never Llama `from`/`to` (GitLab #689). */
+export async function getProtocolLiquiditySeries(
+  grain: ProtocolVolumeGrain,
+  limit: number
+): Promise<ProtocolLiquiditySeriesResponse> {
+  if (!isProtocolVolumeGrain(grain) || !isAllowlistedProtocolVolumeLimit(grain, limit)) {
+    throw new Error('Invalid protocol liquidity grain or limit')
+  }
+  return fetchJson<ProtocolLiquiditySeriesResponse>(`/api/v1/protocol/liquidity/daily?grain=${grain}&limit=${limit}`)
+}
+
+/** UTC treasury-fee flow series. Distinct from `GET /protocol/fees?window=` (GitLab #689). */
+export async function getProtocolFeesSeries(
+  grain: ProtocolVolumeGrain,
+  limit: number
+): Promise<ProtocolFeeSeriesResponse> {
+  if (!isProtocolVolumeGrain(grain) || !isAllowlistedProtocolVolumeLimit(grain, limit)) {
+    throw new Error('Invalid protocol fees grain or limit')
+  }
+  return fetchJson<ProtocolFeeSeriesResponse>(`/api/v1/protocol/fees/daily?grain=${grain}&limit=${limit}`)
 }
 
 /** Cached fee-discount registry LCD probe (GitLab #365). */
