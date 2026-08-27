@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useTraderUsdMarks } from '@/hooks/useTraderUsdMarks'
 import { sounds } from '@/lib/sounds'
 import type { IndexerPosition } from '@/types'
-import { formatScaledPosition } from '@/utils/traderPositionDisplay'
+import { formatScaledPosition, NO_COST_BASIS_LABEL, type TraderUsdMarks } from '@/utils/traderPositionDisplay'
 
 export type TraderPositionsTableProps = {
   positions: IndexerPosition[] | undefined
@@ -12,9 +13,11 @@ export type TraderPositionsTableProps = {
   onRetry: () => void
   emptyMessage?: string
   sectionTestId?: string
+  /** Test override. Live table uses {@link useTraderUsdMarks}. */
+  usdMarks?: TraderUsdMarks
 }
 
-/** Open quote positions from `GET /api/v1/traders/{addr}/positions` (GitLab #212 / #551). */
+/** Open quote positions from `GET /api/v1/traders/{addr}/positions` (GitLab #212 / #551 / #675). */
 export function TraderPositionsTable({
   positions,
   isLoading,
@@ -22,14 +25,18 @@ export function TraderPositionsTable({
   onRetry,
   emptyMessage = 'No open positions.',
   sectionTestId = 'trader-positions-section',
+  usdMarks: usdMarksProp,
 }: TraderPositionsTableProps) {
+  const liveMarks = useTraderUsdMarks()
+  const usdMarks = usdMarksProp ?? liveMarks
   return (
     <div className="shell-panel-strong" data-testid={sectionTestId}>
       <h3 className="text-sm font-semibold uppercase tracking-wide mb-1 font-heading" style={{ color: 'var(--ink)' }}>
         Open positions
       </h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-dim)' }}>
-        Net quote exposure per pair, in that pair&apos;s tokens. LP balances are on{' '}
+        Net quote exposure per pair, in that pair&apos;s tokens. Mark is the current hub value of remaining quote.
+        Unrealized is that mark minus on-DEX cost — not wallet balances. LP is on{' '}
         <Link to="/pool" className="underline" style={{ color: 'var(--accent)' }}>
           Pool
         </Link>
@@ -70,6 +77,12 @@ export function TraderPositionsTable({
                   Cost Basis
                 </th>
                 <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                  Mark
+                </th>
+                <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
+                  Unrealized P&L
+                </th>
+                <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
                   Realized P&L
                 </th>
                 <th scope="col" className="text-right py-2 px-2 font-medium uppercase tracking-wider">
@@ -79,7 +92,12 @@ export function TraderPositionsTable({
             </thead>
             <tbody>
               {positions.map((pos) => {
-                const scaled = formatScaledPosition(pos)
+                const scaled = formatScaledPosition(pos, usdMarks)
+                const unrealizedTone = scaled.unrealizedPnl.startsWith('+')
+                  ? 'var(--color-positive)'
+                  : scaled.unrealizedPnl.startsWith('-')
+                    ? 'var(--color-negative)'
+                    : 'var(--ink-subtle)'
                 return (
                   <tr key={pos.pair_address} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="py-1.5 px-2 font-medium" style={{ color: 'var(--ink)' }}>
@@ -115,6 +133,27 @@ export function TraderPositionsTable({
                       title="Human base token spent"
                     >
                       {scaled.costBasis}
+                    </td>
+                    <td
+                      className="py-1.5 px-2 text-right"
+                      style={{ color: 'var(--ink)' }}
+                      data-testid="trader-position-mark"
+                      title="Current hub USD of remaining quote (DEX pool, not CEX)"
+                    >
+                      {scaled.markLabel}
+                    </td>
+                    <td
+                      className="py-1.5 px-2 text-right"
+                      data-testid="trader-position-unrealized"
+                      title={
+                        scaled.hasCostBasis
+                          ? 'Hub mark minus on-DEX cost, in the pair base token'
+                          : 'DEX never recorded a buy for this remaining quote'
+                      }
+                    >
+                      <span className="font-bold font-heading" style={{ color: unrealizedTone }}>
+                        {scaled.hasCostBasis ? scaled.unrealizedPnl : NO_COST_BASIS_LABEL}
+                      </span>
                     </td>
                     <td
                       className="py-1.5 px-2 text-right"

@@ -19,7 +19,7 @@ Use when changing the **wallet-centric portfolio** surface, **trader positions**
 
 Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (trader open positions row, trader limit-placements row, **Trader positions human scale #551**). Parser: [`indexer/src/indexer/position_tracker.rs`](../indexer/src/indexer/position_tracker.rs).
 
-**Out of scope on portfolio:** unrealized / mark-to-market P&amp;L — not in positions API; track separately if product adds spot/oracle ([#217](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/217)). **Raw vs human P&amp;L / cost / avg entry** is [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551) — [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md).
+**Unrealized / mark-to-market** is [#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675) — dApp computes hub mark of remaining quote vs on-DEX cost ([`AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md`](./AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md)). Positions JSON stays raw (no mark fields). **Raw vs human P&amp;L / cost / avg entry** is [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551) — [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md).
 
 ## Frontend map
 
@@ -37,7 +37,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 
 ## Rules of thumb
 
-1. **Do not** treat `net_position_quote` as wallet balance or unrealized P&amp;L — copy must say **indexer quote exposure · realized P&amp;L**.
+1. **Do not** treat `net_position_quote` as wallet balance — copy must say **indexer quote exposure**. Unrealized is hub mark minus on-DEX cost ([#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675)), not the raw net.
 2. **Do not** `formatNum` raw position or trader-total fields — scale with decimals and label the token, or show **—** for mixed-unit totals ([#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551), **P551-1–P551-5**).
 3. **Do not** merge LP balances into the positions table — LP has its own **LP overview** section; pool actions stay on **`/pool`**.
 4. **Do not** accept arbitrary `?addr=` on portfolio without `isValidTerraAddress` and explicit product approval; default is **connected wallet only**.
@@ -51,7 +51,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 ## Tests
 
 - [`PortfolioPage.test.tsx`](../frontend-dapp/src/pages/PortfolioPage.test.tsx)
-- [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts) — human scale + USD totals (#551)
+- [`traderPositionDisplay.test.ts`](../frontend-dapp/src/utils/__tests__/traderPositionDisplay.test.ts) — human scale + USD totals (#551) + mark / unrealized (#675)
 - [`TraderPositionsTable.test.tsx`](../frontend-dapp/src/components/trader/TraderPositionsTable.test.tsx)
 - [`TraderSummaryStats.test.tsx`](../frontend-dapp/src/components/trader/TraderSummaryStats.test.tsx)
 - Scale helper: [`traderPositionDisplay.ts`](../frontend-dapp/src/utils/traderPositionDisplay.ts) (`formatScaledPosition`)
@@ -64,6 +64,7 @@ Position accounting: [`docs/indexer-invariants.md`](../docs/indexer-invariants.m
 - [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md) — primary nav / `navItems.ts`
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — human-scale P&amp;L / cost / avg entry (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header realized P&amp;L USD from hub_prices (**P560**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
+- [`AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md`](./AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md) — per-row mark + unrealized vs on-DEX cost (**P675-1–P675-8**, [#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675)); `make verify-issue-675`
 - [`AGENTS_FRONTEND_ORDER_HISTORY.md`](./AGENTS_FRONTEND_ORDER_HISTORY.md) — pair-scoped history on `/limits` and `/trade`
 - [`AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](./AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — lifecycle on limit-placements
 - [`AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md`](./AGENTS_FRONTEND_MARKET_DATA_OUTAGE.md) — indexer outage banners
