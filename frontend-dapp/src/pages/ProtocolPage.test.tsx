@@ -52,6 +52,8 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getProtocolFees: vi.fn(),
     getProtocolVolumeDaily: vi.fn(),
     getProtocolVolumeSeries: vi.fn(),
+    getProtocolLiquiditySeries: vi.fn(),
+    getProtocolFeesSeries: vi.fn(),
   }
 })
 
@@ -199,6 +201,46 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
           : grain === 'monthly'
             ? [{ utc_month: '2026-08', volume_usd: '100', trade_count: 4 }]
             : seriesOk.series,
+    }))
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockImplementation(async (grain, limit) => ({
+      grain,
+      limit,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series:
+        grain === 'hourly'
+          ? [{ utc_hour: '2026-08-26T12', liquidity_usd: '80', priced_pair_count: 2 }]
+          : grain === 'monthly'
+            ? [{ utc_month: '2026-08', liquidity_usd: '90', priced_pair_count: 2 }]
+            : [
+                { utc_day: '2026-08-20', liquidity_usd: '50', priced_pair_count: 1 },
+                { utc_day: '2026-08-21', liquidity_usd: '60', priced_pair_count: 1 },
+                { utc_day: '2026-08-22', liquidity_usd: null, priced_pair_count: 0 },
+                { utc_day: '2026-08-23', liquidity_usd: '70', priced_pair_count: 1 },
+                { utc_day: '2026-08-24', liquidity_usd: '72', priced_pair_count: 1 },
+                { utc_day: '2026-08-25', liquidity_usd: '74', priced_pair_count: 1 },
+                { utc_day: '2026-08-26', liquidity_usd: '76', priced_pair_count: 1 },
+              ],
+    }))
+    vi.mocked(indexerClient.getProtocolFeesSeries).mockImplementation(async (grain, limit) => ({
+      grain,
+      limit,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series:
+        grain === 'hourly'
+          ? [{ utc_hour: '2026-08-26T12', fees_usd: '1', event_count: 1 }]
+          : grain === 'monthly'
+            ? [{ utc_month: '2026-08', fees_usd: '8', event_count: 4 }]
+            : [
+                { utc_day: '2026-08-20', fees_usd: '1', event_count: 1 },
+                { utc_day: '2026-08-21', fees_usd: '0', event_count: 0 },
+                { utc_day: '2026-08-22', fees_usd: null, event_count: 2 },
+                { utc_day: '2026-08-23', fees_usd: '2', event_count: 1 },
+                { utc_day: '2026-08-24', fees_usd: '2', event_count: 1 },
+                { utc_day: '2026-08-25', fees_usd: '3', event_count: 1 },
+                { utc_day: '2026-08-26', fees_usd: '4', event_count: 2 },
+              ],
     }))
     vi.mocked(indexerClient.getHubPrices).mockResolvedValue(hubPricesOk)
     mockOracle('ustc', '0.00512')
@@ -745,6 +787,10 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.queryByTestId('protocol-volume-daily-7d')).not.toBeInTheDocument()
     expect(screen.queryByTestId('protocol-volume-daily-30d')).not.toBeInTheDocument()
     expect(indexerClient.getProtocolVolumeSeries).toHaveBeenCalledWith('daily', expect.any(Number))
+    expect(indexerClient.getProtocolLiquiditySeries).not.toHaveBeenCalled()
+    expect(indexerClient.getProtocolFeesSeries).not.toHaveBeenCalled()
+    expect(screen.getByTestId('protocol-utc-metric-volume')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC volume/)
     await user.click(screen.getByTestId('protocol-volume-grain-hourly'))
     await waitFor(() => {
       expect(indexerClient.getProtocolVolumeSeries).toHaveBeenCalledWith('hourly', expect.any(Number))
@@ -874,5 +920,107 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const oracle = await screen.findByTestId('protocol-oracle')
     expect(oracle.textContent).not.toMatch(/is the UST1 window|window mint|oracle mint\/redeem/i)
     expect(await screen.findByTestId('protocol-fee-stats')).toBeInTheDocument()
+  })
+
+  it('switches Volume / Liquidity / Fees without changing grain (GitLab #689)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const chart = await screen.findByTestId('protocol-volume-daily-chart')
+    expect(screen.getByTestId('protocol-utc-metric-volume')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-utc-metric-liquidity')).toBeInTheDocument()
+    expect(screen.getByTestId('protocol-utc-metric-fees')).toBeInTheDocument()
+    expect(indexerClient.getProtocolLiquiditySeries).not.toHaveBeenCalled()
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    await waitFor(() => {
+      expect(indexerClient.getProtocolLiquiditySeries).toHaveBeenCalledWith('daily', expect.any(Number))
+    })
+    expect(chart).toHaveTextContent(/UTC liquidity/)
+    expect(chart).toHaveTextContent(/UTC calendar day/)
+    expect(screen.getByTestId('protocol-volume-grain-daily')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
+    await user.click(screen.getByTestId('protocol-utc-metric-fees'))
+    await waitFor(() => {
+      expect(indexerClient.getProtocolFeesSeries).toHaveBeenCalledWith('daily', expect.any(Number))
+    })
+    expect(chart).toHaveTextContent(/UTC fees/)
+    expect(screen.getByTestId('protocol-volume-grain-daily')).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByTestId('protocol-fee-stats')).toBeInTheDocument()
+  })
+
+  it('keeps grain when switching metric after Hourly (GitLab #689)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    await user.click(screen.getByTestId('protocol-volume-grain-hourly'))
+    await waitFor(() => {
+      expect(indexerClient.getProtocolVolumeSeries).toHaveBeenCalledWith('hourly', expect.any(Number))
+    })
+    await user.click(screen.getByTestId('protocol-utc-metric-fees'))
+    await waitFor(() => {
+      expect(indexerClient.getProtocolFeesSeries).toHaveBeenCalledWith('hourly', expect.any(Number))
+    })
+    expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC hour/)
+    expect(screen.queryByTestId('protocol-volume-chart-tooltip')).not.toBeInTheDocument()
+  })
+
+  it('shows No liquidity yet for an all-null stock series (GitLab #689)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
+      grain: 'daily',
+      limit: 7,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series: [
+        { utc_day: '2026-08-20', liquidity_usd: null, priced_pair_count: 0 },
+        { utc_day: '2026-08-21', liquidity_usd: null, priced_pair_count: 0 },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    expect(await screen.findByTestId('protocol-volume-daily-empty')).toHaveTextContent('No liquidity yet')
+    expect(screen.queryByTestId('protocol-volume-daily-bars')).not.toBeInTheDocument()
+  })
+
+  it('hides the liquidity plot on 404 but keeps Volume (GitLab #689)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    expect(await screen.findByTestId('protocol-volume-daily-bars')).toBeInTheDocument()
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    await waitFor(() => {
+      expect(screen.queryByTestId('protocol-volume-daily-bars')).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId('protocol-volume-daily-chart')).toBeInTheDocument()
+    await user.click(screen.getByTestId('protocol-utc-metric-volume'))
+    expect(await screen.findByTestId('protocol-volume-daily-bars')).toBeInTheDocument()
+  })
+
+  it('renders XSS liquidity and fees series as text (GitLab #689)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
+      grain: 'daily',
+      limit: 1,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series: [{ utc_day: '"><img onerror=alert(1)>', liquidity_usd: 'javascript:', priced_pair_count: 1 }],
+    })
+    vi.mocked(indexerClient.getProtocolFeesSeries).mockResolvedValue({
+      grain: 'daily',
+      limit: 1,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series: [{ utc_day: '<script>alert(1)</script>', fees_usd: '"><img onerror=alert(1)>', event_count: 1 }],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    const chart = await screen.findByTestId('protocol-volume-daily-chart')
+    expect(chart.querySelector('script')).toBeNull()
+    expect(chart.querySelector('img')).toBeNull()
+    await user.click(screen.getByTestId('protocol-utc-metric-fees'))
+    expect(screen.getByTestId('protocol-volume-daily-chart').querySelector('script')).toBeNull()
+    expect(screen.getByTestId('protocol-volume-daily-chart').querySelector('a[href]')).toBeNull()
   })
 })

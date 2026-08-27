@@ -2,8 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RetryError } from '@/components/ui'
 import { formatProtocolUsd } from '@/utils/formatProtocolStats'
 import {
+  PROTOCOL_FEES_DAILY_LABEL,
+  PROTOCOL_FEES_DAILY_TITLE,
+  PROTOCOL_FEES_EMPTY,
+  PROTOCOL_LIQUIDITY_DAILY_LABEL,
+  PROTOCOL_LIQUIDITY_DAILY_TITLE,
+  PROTOCOL_LIQUIDITY_EMPTY,
+  PROTOCOL_UTC_METRIC_FEES_LABEL,
+  PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL,
+  PROTOCOL_UTC_METRIC_VOLUME_LABEL,
   PROTOCOL_VOLUME_DAILY_LABEL,
   PROTOCOL_VOLUME_DAILY_TITLE,
+  PROTOCOL_VOLUME_EMPTY,
   PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
   PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL,
   PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,
@@ -14,19 +24,46 @@ import {
   limitFromPlotWidth,
   maxPricedUsd,
   pointPeriod,
+  pointValueUsd,
+  PROTOCOL_UTC_METRICS,
   PROTOCOL_VOLUME_GRAINS,
   PROTOCOL_VOLUME_GRAIN_MIN,
   PROTOCOL_VOLUME_RESIZE_DEBOUNCE_MS,
   timeLabelIndexes,
   usdAxisTicks,
+  type ProtocolUtcMetric,
   type ProtocolVolumeGrain,
 } from '@/utils/protocolVolumeGrain'
-import { isProtocolVolumeSeriesUnavailable, useProtocolVolumeSeriesQuery } from './useProtocolVolumeSeriesQuery'
+import { isProtocolVolumeSeriesUnavailable, useProtocolUtcSeriesQuery } from './useProtocolVolumeSeriesQuery'
 
 const GRAIN_TAB_LABEL: Record<ProtocolVolumeGrain, string> = {
   hourly: PROTOCOL_VOLUME_GRAIN_HOURLY_LABEL,
   daily: PROTOCOL_VOLUME_GRAIN_DAILY_LABEL,
   monthly: PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,
+}
+
+const METRIC_TAB_LABEL: Record<ProtocolUtcMetric, string> = {
+  volume: PROTOCOL_UTC_METRIC_VOLUME_LABEL,
+  liquidity: PROTOCOL_UTC_METRIC_LIQUIDITY_LABEL,
+  fees: PROTOCOL_UTC_METRIC_FEES_LABEL,
+}
+
+const METRIC_CHART_LABEL: Record<ProtocolUtcMetric, string> = {
+  volume: PROTOCOL_VOLUME_DAILY_LABEL,
+  liquidity: PROTOCOL_LIQUIDITY_DAILY_LABEL,
+  fees: PROTOCOL_FEES_DAILY_LABEL,
+}
+
+const METRIC_CHART_TITLE: Record<ProtocolUtcMetric, string> = {
+  volume: PROTOCOL_VOLUME_DAILY_TITLE,
+  liquidity: PROTOCOL_LIQUIDITY_DAILY_TITLE,
+  fees: PROTOCOL_FEES_DAILY_TITLE,
+}
+
+const METRIC_EMPTY: Record<ProtocolUtcMetric, string> = {
+  volume: PROTOCOL_VOLUME_EMPTY,
+  liquidity: PROTOCOL_LIQUIDITY_EMPTY,
+  fees: PROTOCOL_FEES_EMPTY,
 }
 
 const VIEW_W = 320
@@ -38,11 +75,12 @@ const PAD_B = 22
 const PLOT_W = VIEW_W - PAD_L - PAD_R
 const PLOT_H = VIEW_H - PAD_T - PAD_B
 
-function grainAria(grain: ProtocolVolumeGrain): string {
-  return `${PROTOCOL_VOLUME_DAILY_TITLE} ${PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}.`
+function chartAria(metric: ProtocolUtcMetric, grain: ProtocolVolumeGrain): string {
+  return `${METRIC_CHART_TITLE[metric]} ${PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}.`
 }
 
 export function ProtocolVolumeDailyChart() {
+  const [metric, setMetric] = useState<ProtocolUtcMetric>('volume')
   const [grain, setGrain] = useState<ProtocolVolumeGrain>('daily')
   const [limit, setLimit] = useState(() => PROTOCOL_VOLUME_GRAIN_MIN.daily)
   const plotRef = useRef<HTMLDivElement>(null)
@@ -62,6 +100,10 @@ export function ProtocolVolumeDailyChart() {
   }, [grain])
 
   useEffect(() => {
+    setActive(null)
+  }, [metric])
+
+  useEffect(() => {
     const el = plotRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -78,72 +120,108 @@ export function ProtocolVolumeDailyChart() {
     }
   }, [applyWidth])
 
-  const query = useProtocolVolumeSeriesQuery(grain, limit)
+  const query = useProtocolUtcSeriesQuery(metric, grain, limit)
   const series = useMemo(() => query.data?.series ?? [], [query.data?.series])
-  const peak = useMemo(() => maxPricedUsd(series), [series])
+  const peak = useMemo(() => maxPricedUsd(series, metric), [series, metric])
   const ticks = useMemo(() => usdAxisTicks(peak), [peak])
   const xLabels = useMemo(() => timeLabelIndexes(series.length, grain, PLOT_W), [series.length, grain])
   const unavailable = query.isError && isProtocolVolumeSeriesUnavailable(query.error)
-  const allNull = series.length > 0 && series.every((p) => p.volume_usd == null)
+  const volumeMissing = metric === 'volume' && unavailable
+  const siblingMissing = metric !== 'volume' && unavailable
+  const allNull = series.length > 0 && series.every((p) => pointValueUsd(p, metric) == null)
   const empty = !query.isLoading && (series.length === 0 || allNull)
 
-  if (unavailable) return null
+  if (volumeMissing) return null
 
   const tooltip =
     active != null && series[active]
       ? {
           period: pointPeriod(series[active], grain),
-          usd: series[active].volume_usd == null ? '—' : formatProtocolUsd(series[active].volume_usd),
+          usd:
+            pointValueUsd(series[active], metric) == null
+              ? '—'
+              : formatProtocolUsd(pointValueUsd(series[active], metric)),
         }
       : null
 
+  const showPlot = !query.isLoading && !query.isError && !empty && !siblingMissing
+  const showEmpty = !query.isLoading && !query.isError && empty && !siblingMissing
+
   return (
-    <div className="mt-4 min-w-0" data-testid="protocol-volume-daily-chart">
+    <div
+      ref={plotRef}
+      className="mt-4 min-w-0"
+      data-testid="protocol-volume-daily-chart"
+      data-protocol-utc-series-chart=""
+    >
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
         <h3
           className="text-xs font-semibold uppercase tracking-wide"
           style={{ color: 'var(--ink-dim)' }}
-          title={PROTOCOL_VOLUME_DAILY_TITLE}
+          title={METRIC_CHART_TITLE[metric]}
         >
-          {PROTOCOL_VOLUME_DAILY_LABEL}
+          {METRIC_CHART_LABEL[metric]}
         </h3>
-        <div className="flex gap-1" role="tablist" aria-label={grainAria(grain)}>
-          {PROTOCOL_VOLUME_GRAINS.map((g) => (
-            <button
-              key={g}
-              type="button"
-              role="tab"
-              aria-selected={grain === g}
-              data-testid={`protocol-volume-grain-${g}`}
-              className="px-2 py-1 text-xs font-medium rounded-md"
-              style={{
-                color: grain === g ? 'var(--ink)' : 'var(--ink-dim)',
-                background: grain === g ? 'var(--accent-surface)' : 'transparent',
-              }}
-              onClick={() => setGrain(g)}
-            >
-              {GRAIN_TAB_LABEL[g]}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 justify-end">
+          <div className="flex gap-1" role="tablist" aria-label="UTC chart metric">
+            {PROTOCOL_UTC_METRICS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={metric === m}
+                data-testid={`protocol-utc-metric-${m}`}
+                className="px-2 py-1 text-xs font-medium rounded-md"
+                style={{
+                  color: metric === m ? 'var(--ink)' : 'var(--ink-dim)',
+                  background: metric === m ? 'var(--accent-surface)' : 'transparent',
+                }}
+                onClick={() => setMetric(m)}
+              >
+                {METRIC_TAB_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1" role="tablist" aria-label={chartAria(metric, grain)}>
+            {PROTOCOL_VOLUME_GRAINS.map((g) => (
+              <button
+                key={g}
+                type="button"
+                role="tab"
+                aria-selected={grain === g}
+                data-testid={`protocol-volume-grain-${g}`}
+                className="px-2 py-1 text-xs font-medium rounded-md"
+                style={{
+                  color: grain === g ? 'var(--ink)' : 'var(--ink-dim)',
+                  background: grain === g ? 'var(--accent-surface)' : 'transparent',
+                }}
+                onClick={() => setGrain(g)}
+              >
+                {GRAIN_TAB_LABEL[g]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <p className="text-[10px] mb-2" style={{ color: 'var(--ink-dim)' }} title={PROTOCOL_VOLUME_DAILY_TITLE}>
+      <p className="text-[10px] mb-2" style={{ color: 'var(--ink-dim)' }} title={METRIC_CHART_TITLE[metric]}>
         {PROTOCOL_VOLUME_GRAIN_SUBTITLE[grain]}
       </p>
-      {query.isError && <RetryError message="Failed to load volume" onRetry={() => void query.refetch()} />}
+      {query.isError && !unavailable && (
+        <RetryError message={`Failed to load ${metric}`} onRetry={() => void query.refetch()} />
+      )}
       {query.isLoading && <div className="h-32 rounded" style={{ background: 'var(--accent-surface)' }} aria-hidden />}
-      {!query.isLoading && !query.isError && empty && (
+      {showEmpty && (
         <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="protocol-volume-daily-empty">
-          No volume yet
+          {METRIC_EMPTY[metric]}
         </p>
       )}
-      {!query.isLoading && !query.isError && !empty && (
-        <div className="relative min-w-0" ref={plotRef} data-testid="protocol-volume-plot">
+      {showPlot && (
+        <div className="relative min-w-0" data-testid="protocol-volume-plot">
           <svg
             viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
             className="w-full h-32"
             role="img"
-            aria-label={grainAria(grain)}
+            aria-label={chartAria(metric, grain)}
             data-testid="protocol-volume-daily-bars"
           >
             <g data-testid="protocol-volume-chart-yaxis">
@@ -161,14 +239,15 @@ export function ProtocolVolumeDailyChart() {
               })}
             </g>
             {series.map((p, i) => {
-              const n = p.volume_usd == null ? null : Number(p.volume_usd)
+              const raw = pointValueUsd(p, metric)
+              const n = raw == null ? null : Number(raw)
               const priced = n != null && Number.isFinite(n)
               const h = priced && peak > 0 ? Math.max((n / peak) * PLOT_H, n > 0 ? 2 : 0) : 0
               const slot = PLOT_W / Math.max(series.length, 1)
               const x = PAD_L + i * slot
               const w = Math.max(slot - 3, 2)
               const period = pointPeriod(p, grain)
-              const usd = priced ? formatProtocolUsd(p.volume_usd) : '—'
+              const usd = priced ? formatProtocolUsd(raw) : '—'
               const barLabel = `${period} ${usd}`
               return (
                 <rect
@@ -183,7 +262,7 @@ export function ProtocolVolumeDailyChart() {
                   aria-label={barLabel}
                   data-testid={`protocol-volume-bar-${i}`}
                   fill={priced ? 'var(--accent)' : 'transparent'}
-                  stroke={p.volume_usd == null ? 'var(--ink-dim)' : active === i ? 'var(--ink)' : 'none'}
+                  stroke={raw == null ? 'var(--ink-dim)' : active === i ? 'var(--ink)' : 'none'}
                   onMouseEnter={() => setActive(i)}
                   onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(i)}

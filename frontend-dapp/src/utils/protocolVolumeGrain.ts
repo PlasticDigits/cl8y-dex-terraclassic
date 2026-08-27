@@ -50,12 +50,29 @@ export function isAllowlistedProtocolVolumeLimit(grain: ProtocolVolumeGrain, lim
   return Number.isInteger(limit) && limit >= 1 && limit <= PROTOCOL_VOLUME_GRAIN_MAX[grain]
 }
 
+export const PROTOCOL_UTC_METRICS = ['volume', 'liquidity', 'fees'] as const
+export type ProtocolUtcMetric = (typeof PROTOCOL_UTC_METRICS)[number]
+
+export function isProtocolUtcMetric(raw: string): raw is ProtocolUtcMetric {
+  return (PROTOCOL_UTC_METRICS as readonly string[]).includes(raw)
+}
+
 export type ProtocolVolumeSeriesPoint = {
   utc_hour?: string | null
   utc_day?: string | null
   utc_month?: string | null
-  volume_usd: string | null
-  trade_count: number
+  volume_usd?: string | null
+  liquidity_usd?: string | null
+  fees_usd?: string | null
+  trade_count?: number
+  priced_pair_count?: number
+  event_count?: number
+}
+
+export function pointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric = 'volume'): string | null {
+  if (metric === 'liquidity') return point.liquidity_usd ?? null
+  if (metric === 'fees') return point.fees_usd ?? null
+  return point.volume_usd ?? null
 }
 
 export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVolumeGrain): string {
@@ -129,11 +146,15 @@ export function usdAxisTicks(peak: number): number[] {
   return [0, peak * 0.25, peak * 0.5, peak * 0.75, peak]
 }
 
-export function maxPricedUsd(points: Array<{ volume_usd: string | null }>): number {
+export function maxPricedUsd(
+  points: Array<{ volume_usd?: string | null; liquidity_usd?: string | null; fees_usd?: string | null }>,
+  metric: ProtocolUtcMetric = 'volume'
+): number {
   let max = 0
   for (const p of points) {
-    if (p.volume_usd == null || p.volume_usd === '') continue
-    const n = Number(p.volume_usd)
+    const raw = pointValueUsd(p, metric)
+    if (raw == null || raw === '') continue
+    const n = Number(raw)
     if (Number.isFinite(n) && n > max) max = n
   }
   return max

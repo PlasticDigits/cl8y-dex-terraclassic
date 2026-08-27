@@ -101,5 +101,7 @@ describe('protocolVolumeGrain (GitLab #668 / #677)', () => {
     expect(formatPeriodAxisLabel('2026-08', 'monthly')).toBe('2026-08')
     expect(pointPeriod({ utc_hour: '2026-08-26T14', volume_usd: '1', trade_count: 1 }, 'hourly')).toBe('2026-08-26T14')
     expect(maxPricedUsd([{ volume_usd: '10' }, { volume_usd: null }, { volume_usd: 'Infinity' }])).toBe(10)
+    expect(maxPricedUsd([{ liquidity_usd: '20' }, { liquidity_usd: null }], 'liquidity')).toBe(20)
+    expect(maxPricedUsd([{ fees_usd: '3' }, { fees_usd: '0' }], 'fees')).toBe(3)
   })
 })

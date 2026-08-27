@@ -60,6 +60,15 @@ Flash LP that is added and withdrawn inside one snapshot interval can move **cur
 
 `GET /api/v1/protocol/volume/daily?grain=&limit=` allowlists `hourly` \| `daily` \| `monthly` and a capped integer `limit` (hourly ≤ 168, daily ≤ 90, monthly ≤ 24). Unknown / injection / `from` / `to` / over-max → **400**. 60s cache keyed by allowlisted `(grain, limit)` — extra query params must not bust the cache. GET reads `protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume` only (aggregator refresh). Hourly bucket is `[hour, hour+1)` UTC; monthly is a UTC calendar month, not a trailing 30d window. Same idle `"0"` / unpriced `null` contract as #652. Do **not** `SUM` `swap_events` on the request path.
 
+### Protocol UTC liquidity / fees grain (GitLab #689)
+
+`GET /api/v1/protocol/liquidity/daily` and `GET /api/v1/protocol/fees/daily` are sibling series routes (same grain/limit allowlist + 60s `(grain, limit)` cache). `from` / `to` / `window` / `days` / `metric` / `ticker` → **400**. Do **not** overload `GET /protocol/fees?window=`.
+
+- **Liquidity** is **stock**: last `global_liquidity_snapshots` sample in the UTC hour / day / month. Missing sample → JSON `null` (unknown ≠ `$0`). Downsample into `protocol_hourly_liquidity` / `protocol_daily_liquidity` / `protocol_monthly_liquidity` **before** the 35d snapshot prune so Monthly can retain ≥ 24 months. GET must not walk `global_liquidity_snapshots` / `pair_reserves`.
+- **Fees** is **flow**: `SUM` priced `protocol_fee_events.fee_usd` off GET into `protocol_hourly_fees` / `protocol_daily_fees` / `protocol_monthly_fees`. Idle `"0"`; all-unpriced `null`; mixed priced+unpriced → priced SUM. GET must not `SUM` events. Not Llama `defillama_daily_fees`.
+
+Hourly prune ~10d; daily ≥ 95d; monthly ≥ 24 months. Methodology `protocol_catalog`. The `/protocol` chart toggles Volume / Liquidity / Fees on one plot — do not overlay all three.
+
 ### Protocol fees (GitLab #586)
 
 `total_fees_{24h,7d,30d}_usd` and the matching `fees_change_*_pct` / `*_event_count` columns are **UPDATE-only** on the existing `global_stats_24h` id=1 row (`refresh_protocol_fee_stats`). A volume-zero INSERT must not create a fee-only stub. Source / token mix lives in `protocol_fee_stats_by_source` and `protocol_fee_stats_by_token` (top 8 + `other`). Idle windows store `"0"` with `event_count=0`; activity with all unpriced fees stores `NULL` (UI `—`). Δ% vs the prior equal window is `NULL` when `then ≤ 0`.
