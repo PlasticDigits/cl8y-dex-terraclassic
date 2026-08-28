@@ -874,3 +874,202 @@ async fn route_solve_post_oversized_body_returns_413() {
         .await;
     assert_eq!(resp.status_code(), StatusCode::PAYLOAD_TOO_LARGE);
 }
+
+/// GitLab #694 / RE-02: progress shares `lcd_heavy_router` with `/route/solve`.
+#[tokio::test]
+async fn route_solve_progress_lcd_heavy_rate_limit_returns_429() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 5;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let url = format!(
+        "/api/v1/route/solve/progress?token_in={}&token_out={}&amount_in=1000000",
+        seed.pair_address, seed.pair_address
+    );
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server.get(&url).await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "LCD-heavy governor should return 429 on /route/solve/progress when global RATE_LIMIT_RPS=0 (#694)"
+    );
+}
+
+/// GitLab #694: `/route/solve/best` is already on lcd_heavy_router; keep a 429 case.
+#[tokio::test]
+async fn route_solve_best_lcd_heavy_rate_limit_returns_429() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 5;
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let url = format!(
+        "/api/v1/route/solve/best?token_in={}&token_out={}&amount_in=1000000",
+        seed.pair_address, seed.pair_address
+    );
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server.get(&url).await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "LCD-heavy governor should return 429 on /route/solve/best when global RATE_LIMIT_RPS=0 (#694)"
+    );
+}
+
+/// GitLab #694 / RE-03: blacklist-check shares `lcd_heavy_router`.
+#[tokio::test]
+async fn blacklist_check_lcd_heavy_rate_limit_returns_429() {
+    let mock = common::lcd_mock::start_smart_query_data_mock(serde_json::json!({
+        "blocked": false,
+        "wallet_blacklisted": false,
+        "blacklisted_tokens": [],
+        "pair_blacklisted": false,
+        "blacklisted_pairs": [],
+    }))
+    .await;
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let mut config = common::test_config();
+    config.rate_limit_rps = 0;
+    config.rate_limit_lcd_heavy_rps = 5;
+    config.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+    let app = common::build_test_app_with_price_and_config(pool, None, config).await;
+    let server = TestServer::builder()
+        .http_transport()
+        .build(app.into_make_service_with_connect_info::<SocketAddr>());
+
+    let mut saw_429 = false;
+    for _ in 0..80 {
+        let resp = server
+            .get("/api/v1/compliance/blacklist-check?wallet=terra1wallet")
+            .await;
+        if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
+            saw_429 = true;
+            break;
+        }
+    }
+    assert!(
+        saw_429,
+        "LCD-heavy governor should return 429 on blacklist-check when global RATE_LIMIT_RPS=0 (#694)"
+    );
+}
+
+fn csv_addrs(n: usize, prefix: &str) -> String {
+    (0..n)
+        .map(|i| format!("{prefix}{i:02}"))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+/// GitLab #694 / RE-03: 17 tokens → 400 before LCD.
+#[tokio::test]
+async fn blacklist_check_tokens_over_cap_returns_400() {
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "blocked": false }
+        })))
+        .expect(0)
+        .mount(&mock)
+        .await;
+
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let tokens = csv_addrs(cl8y_dex_indexer::api::MAX_BLACKLIST_TOKENS + 1, "terra1tok");
+    let resp = server
+        .get(&format!(
+            "/api/v1/compliance/blacklist-check?wallet=terra1wallet&tokens={tokens}"
+        ))
+        .await;
+    resp.assert_status_bad_request();
+    assert!(resp.text().contains("tokens list exceeds max 16"));
+}
+
+/// GitLab #694 / RE-03: 9 pairs → 400 before LCD.
+#[tokio::test]
+async fn blacklist_check_pairs_over_cap_returns_400() {
+    let mock = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "blocked": false }
+        })))
+        .expect(0)
+        .mount(&mock)
+        .await;
+
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let pairs = csv_addrs(cl8y_dex_indexer::api::MAX_BLACKLIST_PAIRS + 1, "terra1pair");
+    let resp = server
+        .get(&format!(
+            "/api/v1/compliance/blacklist-check?wallet=terra1wallet&pairs={pairs}"
+        ))
+        .await;
+    resp.assert_status_bad_request();
+    assert!(resp.text().contains("pairs list exceeds max 8"));
+}
+
+/// GitLab #694 / RE-03: at-cap lists still query factory; empty lists omitted still 200.
+#[tokio::test]
+async fn blacklist_check_at_cap_and_empty_lists_return_200() {
+    let mock = common::lcd_mock::start_smart_query_data_mock(serde_json::json!({
+        "blocked": false,
+        "wallet_blacklisted": false,
+        "blacklisted_tokens": [],
+        "pair_blacklisted": false,
+        "blacklisted_pairs": [],
+    }))
+    .await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![common::lcd_mock::lcd_base_url(&mock)];
+    let pool = common::setup_pool().await;
+    common::seed_db(&pool).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let tokens = csv_addrs(cl8y_dex_indexer::api::MAX_BLACKLIST_TOKENS, "terra1tok");
+    let pairs = csv_addrs(cl8y_dex_indexer::api::MAX_BLACKLIST_PAIRS, "terra1pair");
+    server
+        .get(&format!(
+            "/api/v1/compliance/blacklist-check?wallet=terra1wallet&tokens={tokens}&pairs={pairs}"
+        ))
+        .await
+        .assert_status_ok();
+    server
+        .get("/api/v1/compliance/blacklist-check?wallet=terra1wallet")
+        .await
+        .assert_status_ok();
+}

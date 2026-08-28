@@ -478,6 +478,25 @@ describe('indexer route/solve timeouts and AbortSignal (#484)', () => {
     expect(url).toContain('max_maker_fills=8')
     expect(url).toContain('trader=terra1trader')
   })
+
+  it('getRouteSolveProgress omits trader and sends discount_bps when known (#694)', async () => {
+    const body = {
+      stage: 'idle',
+      done: 0,
+      total: 0,
+      label: 'Waiting…',
+      cache_hit: false,
+      updated_at_ms: 1,
+    }
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(body), { status: 200 }))
+    const client = await loadModule()
+    await client.getRouteSolveProgress('terra1a', 'terra1b', '1000', {
+      discountBps: 2500,
+    })
+    const url = String(vi.mocked(fetch).mock.calls[0][0])
+    expect(url).toContain('discount_bps=2500')
+    expect(url).not.toContain('trader=')
+  })
 })
 
 describe('oracle ticker allowlist (GitLab #550)', () => {

@@ -248,7 +248,7 @@ Investigate pairs with high `swaps_since_snapshot` and old `snapshot_at` alongsi
 
 ## 5. Blacklist compliance probes
 
-`GET /api/v1/compliance/blacklist-check` proxies factory `BlacklistCheck` on LCD. The indexer **does not** persist probe history in Postgres; use live probes and optional HTTP access logs (if your reverse proxy logs indexer paths).
+`GET /api/v1/compliance/blacklist-check` proxies factory `BlacklistCheck` on LCD. The indexer **does not** persist probe history in Postgres; use live probes and optional HTTP access logs (if your reverse proxy logs indexer paths). Comma-separated **`tokens` max 16** and **`pairs` max 8** after trim ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)); oversize is **400** (not a silent truncate). The route is on the LCD-heavy governor (10 RPS).
 
 ### 5a. Single wallet / token / pair probe
 

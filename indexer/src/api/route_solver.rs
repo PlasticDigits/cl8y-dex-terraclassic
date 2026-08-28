@@ -29,8 +29,11 @@ use crate::hybrid_limits::{MAX_MAKER_FILLS_HARD_CAP, clamp_max_maker_fills};
 pub use hybrid_route_opt::HybridHopJson;
 
 const ROUTE_CACHE_TTL: Duration = Duration::from_secs(12);
+/// TTL for `(trader, sender)` → `discount_bps` so progress polls do not LCD every tick (#694).
+pub const DISCOUNT_BPS_CACHE_TTL: Duration = ROUTE_CACHE_TTL;
 const ROUTE_CACHE_TTL_DISTANT: Duration = Duration::from_secs(90);
 const ROUTE_CACHE_MAX_ENTRIES: usize = 512;
+const DISCOUNT_BPS_CACHE_MAX_ENTRIES: usize = 512;
 /// Default GET hop cap (hybrid-aware routing per ADR 0001 / GitLab #191).
 pub(crate) const GET_DEFAULT_MAX_HOPS: usize = 4;
 /// Legacy pool-only GET escape hatch (`pool_only=true`).
@@ -61,6 +64,10 @@ pub struct SolveRouteParams {
     /// Optional CW20 sender `terra1` address when it differs from `trader` (trusted router execute path).
     #[serde(default)]
     pub sender: Option<String>,
+    /// Progress-only (#694): skip LCD `GetDiscount` when the client already resolved bps.
+    /// Ignored by `/route/solve` quote math. Range `0..=10000`.
+    #[serde(default)]
+    pub discount_bps: Option<u16>,
 }
 
 /// JSON body for [`solve_route_post`]. Uses **first BFS path** (max **4 hops**); does **not** run `global_v1`. See `docs/route-solver.md#api-matrix-get-vs-post`.
@@ -633,7 +640,88 @@ pub(crate) async fn resolve_discount_tier(
     }
 }
 
+struct DiscountBpsCacheEntry {
+    at: Instant,
+    bps: u16,
+}
+
+fn discount_bps_cache() -> &'static Mutex<HashMap<String, DiscountBpsCacheEntry>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, DiscountBpsCacheEntry>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn discount_bps_cache_key(trader: &str, sender: &str) -> String {
+    format!(
+        "{}|{}",
+        trader.trim().to_ascii_lowercase(),
+        sender.trim().to_ascii_lowercase()
+    )
+}
+
+fn discount_bps_cache_get(key: &str) -> Option<u16> {
+    let Ok(guard) = discount_bps_cache().lock() else {
+        return None;
+    };
+    let entry = guard.get(key)?;
+    if entry.at.elapsed() <= DISCOUNT_BPS_CACHE_TTL {
+        Some(entry.bps)
+    } else {
+        None
+    }
+}
+
+fn discount_bps_cache_put(key: &str, bps: u16) {
+    let Ok(mut guard) = discount_bps_cache().lock() else {
+        return;
+    };
+    if guard.len() >= DISCOUNT_BPS_CACHE_MAX_ENTRIES {
+        let now = Instant::now();
+        guard.retain(|_, e| now.duration_since(e.at) <= DISCOUNT_BPS_CACHE_TTL);
+        if guard.len() >= DISCOUNT_BPS_CACHE_MAX_ENTRIES {
+            if let Some(oldest) = guard
+                .iter()
+                .min_by_key(|(_, e)| e.at)
+                .map(|(k, _)| k.clone())
+            {
+                guard.remove(&oldest);
+            }
+        }
+    }
+    guard.insert(
+        key.to_string(),
+        DiscountBpsCacheEntry {
+            at: Instant::now(),
+            bps,
+        },
+    );
+}
+
+/// Clear the `(trader, sender)` discount cache (integration tests).
+#[allow(dead_code)]
+pub fn reset_discount_bps_cache() {
+    if let Ok(mut guard) = discount_bps_cache().lock() {
+        guard.clear();
+    }
+}
+
+/// Validate a client-supplied progress `discount_bps` (0..=10000).
+pub(crate) fn parse_progress_discount_bps(
+    raw: Option<u16>,
+) -> Result<Option<u16>, (StatusCode, String)> {
+    let Some(bps) = raw else {
+        return Ok(None);
+    };
+    if bps > 10_000 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "discount_bps must be between 0 and 10000".to_string(),
+        ));
+    }
+    Ok(Some(bps))
+}
+
 /// On-chain `GetDiscount` discount_bps for mirror grid pricing — matches pair `HybridSimulation` / router sim (#319).
+/// Cached per `(trader, sender)` for [`DISCOUNT_BPS_CACHE_TTL`] so 1 Hz progress polls do not LCD every tick (#694).
 pub(crate) async fn resolve_discount_bps(
     state: &AppState,
     quote_trader: &hybrid_route_opt::QuoteTrader,
@@ -648,6 +736,22 @@ pub(crate) async fn resolve_discount_bps(
         (Some(t), Some(s)) => (t.trim(), s.trim()),
     };
 
+    let cache_key = discount_bps_cache_key(trader, sender);
+    if let Some(bps) = discount_bps_cache_get(&cache_key) {
+        return bps;
+    }
+
+    let bps = resolve_discount_bps_uncached(state, quote_trader, trader, sender).await;
+    discount_bps_cache_put(&cache_key, bps);
+    bps
+}
+
+async fn resolve_discount_bps_uncached(
+    state: &AppState,
+    quote_trader: &hybrid_route_opt::QuoteTrader,
+    trader: &str,
+    sender: &str,
+) -> u16 {
     if let Some(fee_addr) = state
         .fee_discount_address
         .as_deref()
@@ -1087,6 +1191,37 @@ mod quote_trader_tests {
     fn parse_quote_trader_rejects_non_terra() {
         let err = parse_quote_trader(Some("cosmos1bad".into()), None).unwrap_err();
         assert_eq!(err.0, StatusCode::BAD_REQUEST);
+    }
+}
+
+#[cfg(test)]
+mod discount_bps_cache_tests {
+    use super::{
+        discount_bps_cache_get, discount_bps_cache_key, discount_bps_cache_put,
+        parse_progress_discount_bps, reset_discount_bps_cache,
+    };
+    use axum::http::StatusCode;
+
+    #[test]
+    fn parse_progress_discount_bps_accepts_none_and_cap() {
+        assert_eq!(parse_progress_discount_bps(None).unwrap(), None);
+        assert_eq!(parse_progress_discount_bps(Some(0)).unwrap(), Some(0));
+        assert_eq!(parse_progress_discount_bps(Some(10_000)).unwrap(), Some(10_000));
+        let err = parse_progress_discount_bps(Some(10_001)).unwrap_err();
+        assert_eq!(err.0, StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn discount_bps_cache_hit_within_ttl() {
+        reset_discount_bps_cache();
+        let key = discount_bps_cache_key(
+            "terra1discountwallet000000000000000000000",
+            "terra1discountwallet000000000000000000000",
+        );
+        discount_bps_cache_put(&key, 5_000);
+        assert_eq!(discount_bps_cache_get(&key), Some(5_000));
+        reset_discount_bps_cache();
+        assert_eq!(discount_bps_cache_get(&key), None);
     }
 }
 

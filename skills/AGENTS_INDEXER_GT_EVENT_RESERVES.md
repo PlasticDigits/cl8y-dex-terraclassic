@@ -40,7 +40,7 @@ Audience: third-party agents changing indexer `/gt/*`, swap ingest, or `pair_res
 1. **R684-1** — Event `reserves` = AMM `RESERVES` after that event (factory asset_0 / asset_1, decimalized like #646). Not book escrow, donations, wrap inventory, or sweep.
 2. **R684-2** — Hybrid book notional does not move reserves. Book-only swaps keep the previous post-event pair state.
 3. **R684-3** — `GET /gt/events` does not SELECT `pair_reserves`. Solver snapshot loop unchanged.
-4. **R684-4** — GET stays cheap: max 2000-block span, `i64` binds, inverted/oversize range **400**. No history walk to rebuild reserves per request.
+4. **R684-4** — GET stays cheap: max 2000-block span, combined swap+liq ≤ **5000** rows (**A694-1** / [#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)), `i64` binds, inverted/oversize range or over-cap rows → **400**. No history walk to rebuild reserves per request. No `pair_reserves` SELECT.
 5. **R684-5** — Missing columns emit `"0"` / `"0"`. Backfill must invert; copying the tip snapshot onto every row is forbidden.
 6. **R684-6** — Gems stay 404 / omitted. `dexKey` = `cl8y`. Orientation is factory indices, not offer/ask.
 7. **R684-7** — Reorg: `--cleanup-derived` deletes tape rows at `height >= H` (same as other event tables). Cursor-only rewind + `ON CONFLICT DO NOTHING` keeps existing reserves — use cleanup when canonical txs changed.

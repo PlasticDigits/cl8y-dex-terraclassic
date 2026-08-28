@@ -9,6 +9,11 @@
 //! are the persisted post-event AMM `RESERVES` (`swap_events.reserve_*` /
 //! `liquidity_events.reserve_*`, GitLab #684). Missing columns emit `"0"` —
 //! never the live `pair_reserves` snapshot.
+//!
+//! Per-request cost (#694 / RE-01): inclusive block span is still
+//! [`MAX_EVENT_BLOCK_SPAN`]; combined swap+liquidity rows are capped at
+//! [`MAX_GT_EVENT_ROWS`]. Over-cap is **400** (no truncation, no live
+//! `pair_reserves` scan).
 
 use std::collections::HashMap;
 
@@ -28,7 +33,11 @@ use crate::indexer::listing_exclude::listing_excluded_cw20_binds;
 use crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 
 pub const DEX_KEY: &str = "cl8y";
-const MAX_EVENT_BLOCK_SPAN: i64 = 2_000;
+pub const MAX_EVENT_BLOCK_SPAN: i64 = 2_000;
+/// Combined swap + join/exit rows per `/gt/events` window (GitLab #694 / RE-01).
+pub const MAX_GT_EVENT_ROWS: i64 = 5_000;
+/// Stable 400 body when the window's raw event count exceeds [`MAX_GT_EVENT_ROWS`].
+pub const GT_EVENT_ROW_CAP_MSG: &str = "event count exceeds 5000";
 
 const CL8Y_CW20: &str = "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3";
 const CL8Y_COINGECKO_ID: &str = "ceramicliberty-com";
@@ -432,7 +441,7 @@ pub async fn gt_pair(
     params(GtEventsQuery),
     responses(
         (status = 200, description = "Swap and join/exit events in the block range", body = GtEventsResponse),
-        (status = 400, description = "Invalid block range"),
+        (status = 400, description = "Invalid block range or event count exceeds cap"),
     ),
     tag = "GeckoTerminal"
 )]
@@ -471,6 +480,41 @@ pub async fn gt_events(
     let to = to.min(latest);
 
     let excluded = listing_excluded_cw20_binds();
+
+    // RE-01: count before materializing rows so a busy 2k-block window cannot
+    // return unbounded JSON. Do not SELECT pair_reserves here (#684 / #694).
+    let event_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT
+          (SELECT COUNT(*) FROM swap_events se
+           JOIN pairs p ON p.id = se.pair_id
+           JOIN assets a0 ON a0.id = p.asset_0_id
+           JOIN assets a1 ON a1.id = p.asset_1_id
+           WHERE se.block_height >= $1 AND se.block_height <= $2
+             AND LOWER(COALESCE(a0.contract_address, '')) <> ALL($3)
+             AND LOWER(COALESCE(a1.contract_address, '')) <> ALL($3)
+             AND se.price > 0
+             AND se.offer_amount > 0
+             AND se.return_amount > 0)
+        + (SELECT COUNT(*) FROM liquidity_events le
+           JOIN pairs p ON p.id = le.pair_id
+           JOIN assets a0 ON a0.id = p.asset_0_id
+           JOIN assets a1 ON a1.id = p.asset_1_id
+           WHERE le.block_height >= $1 AND le.block_height <= $2
+             AND LOWER(COALESCE(a0.contract_address, '')) <> ALL($3)
+             AND LOWER(COALESCE(a1.contract_address, '')) <> ALL($3)
+             AND le.event_type IN ('add', 'remove'))
+        "#,
+    )
+    .bind(from)
+    .bind(to)
+    .bind(&excluded)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_err)?;
+    if event_count > MAX_GT_EVENT_ROWS {
+        return Err((StatusCode::BAD_REQUEST, GT_EVENT_ROW_CAP_MSG.to_string()));
+    }
 
     let swaps: Vec<EventSwapRow> = sqlx::query_as(
         r#"
@@ -741,5 +785,12 @@ mod unit_tests {
         for addr in COLUMBUS5_GEM_ADDRESSES {
             assert!(is_excluded_cw20(addr), "{addr}");
         }
+    }
+
+    #[test]
+    fn event_row_cap_is_5000() {
+        assert_eq!(MAX_GT_EVENT_ROWS, 5_000);
+        assert_eq!(GT_EVENT_ROW_CAP_MSG, "event count exceeds 5000");
+        assert_eq!(MAX_EVENT_BLOCK_SPAN, 2_000);
     }
 }

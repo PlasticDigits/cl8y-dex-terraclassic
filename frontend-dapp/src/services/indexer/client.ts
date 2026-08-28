@@ -651,6 +651,8 @@ export interface GetRouteSolveOptions {
   sender?: string
   /** React Query (or other) cancellation — aborts the in-flight solve (GitLab #484). */
   signal?: AbortSignal
+  /** Progress-only (#694): skip LCD GetDiscount when the parent quote already resolved bps. */
+  discountBps?: number
 }
 
 /**
@@ -688,7 +690,7 @@ export async function getRouteSolveProgress(
   tokenIn: string,
   tokenOut: string,
   amountIn: string,
-  options?: Pick<GetRouteSolveOptions, 'maxMakerFills' | 'trader' | 'sender' | 'signal'>
+  options?: Pick<GetRouteSolveOptions, 'maxMakerFills' | 'trader' | 'sender' | 'signal' | 'discountBps'>
 ): Promise<IndexerRouteSolveProgress> {
   const sp = new URLSearchParams({
     token_in: tokenIn.trim(),
@@ -698,6 +700,9 @@ export async function getRouteSolveProgress(
   if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
   if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
+  if (options?.discountBps != null && Number.isFinite(options.discountBps)) {
+    sp.set('discount_bps', String(Math.max(0, Math.floor(options.discountBps))))
+  }
   return fetchJson<IndexerRouteSolveProgress>(`/api/v1/route/solve/progress?${sp}`, {
     signal: options?.signal,
   })

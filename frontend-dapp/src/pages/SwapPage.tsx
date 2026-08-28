@@ -351,6 +351,7 @@ export default function SwapPage() {
     feeDiscountRegistryStatus,
     showFeeDiscountRegistryWarning,
     feeDiscountConfigured,
+    discountQuery,
   } = useFeeDiscountRegistryStatus(directPair?.contract_addr)
 
   const balanceQuery = useQuery({
@@ -759,6 +760,7 @@ export default function SwapPage() {
     tokenOut: toToken,
     amountIn: debouncedRawInputAmount,
     trader: quoteTrader?.trader,
+    knownDiscountBps: discountQuery.isSuccess ? (discountQuery.data?.discount_bps ?? 0) : undefined,
     maxMakerFills: debouncedHybridMaxMakers,
   })
 

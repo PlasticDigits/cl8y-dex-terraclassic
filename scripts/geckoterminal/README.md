@@ -9,9 +9,9 @@ Spec: [GeckoTerminal Integration API Standards](https://docs.google.com/document
 | `GET /gt/latest-block` | Last indexed height (not chain tip if ingest lags) |
 | `GET /gt/asset?id=` | CW20 contract or native denom (`uluna` / `uusd`) |
 | `GET /gt/pair?id=` | Factory pair. `dexKey` = `cl8y`. 404 for gems / ALPHA / USTRIX / SpaceUSD |
-| `GET /gt/events?fromBlock=&toBlock=` | Inclusive block range (max 2000). Swaps + join/exit. `reserves` are **post-event AMM state** persisted at ingest ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)), not the live `pair_reserves` snapshot. Missing history emits `"0"`. |
+| `GET /gt/events?fromBlock=&toBlock=` | Inclusive block range (max 2000). Combined swap+join/exit rows ≤ **5000** (`MAX_GT_EVENT_ROWS`); over-cap is **400** ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)). Swaps + join/exit. `reserves` are **post-event AMM state** persisted at ingest ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)), not the live `pair_reserves` snapshot. Missing history emits `"0"`. |
 
-Handlers: [`indexer/src/api/gt.rs`](../../indexer/src/api/gt.rs). Math / backfill: [`indexer/src/indexer/gt_event_reserves.rs`](../../indexer/src/indexer/gt_event_reserves.rs). Form pack: [`docs/listings/forms/geckoterminal.md`](../../docs/listings/forms/geckoterminal.md). Verify: `make verify-issue-646` · `make verify-issue-684`. Skill: [`skills/AGENTS_INDEXER_GT_EVENT_RESERVES.md`](../../skills/AGENTS_INDEXER_GT_EVENT_RESERVES.md).
+Handlers: [`indexer/src/api/gt.rs`](../../indexer/src/api/gt.rs). Math / backfill: [`indexer/src/indexer/gt_event_reserves.rs`](../../indexer/src/indexer/gt_event_reserves.rs). Form pack: [`docs/listings/forms/geckoterminal.md`](../../docs/listings/forms/geckoterminal.md). Verify: `make verify-issue-646` · `make verify-issue-684` · `make verify-issue-694`. Skills: [`AGENTS_INDEXER_GT_EVENT_RESERVES.md`](../../skills/AGENTS_INDEXER_GT_EVENT_RESERVES.md), [`AGENTS_INDEXER_API4_PER_REQUEST.md`](../../skills/AGENTS_INDEXER_API4_PER_REQUEST.md).
 
 After indexer migrate: `cl8y-dex-indexer backfill-gt-event-reserves` (reverse-apply from current `pair_reserves`; never copy the tip onto every historical row).
 

@@ -800,6 +800,40 @@ async fn route_solve_progress_requires_amount_in() {
 
 #[serial]
 #[tokio::test]
+async fn route_solve_progress_trader_reuses_discount_bps_cache() {
+    // GitLab #694 / RE-02: two progress polls with trader set → at most one GetDiscount.
+    cl8y_dex_indexer::api::reset_discount_bps_cache();
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve(&pool).await;
+    let mock = lcd_mock::start_smart_query_data_mock(json!({ "discount_bps": 5000 })).await;
+    let mut cfg = common::test_config();
+    cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
+    cfg.fee_discount_address = Some("terra1feediscount69400000000000000000000".to_string());
+    let app = common::build_test_app_with_price_and_config(pool, None, cfg).await;
+    let server = TestServer::new(app);
+
+    let trader = "terra1discountwallet000000000000000000000";
+    let url = format!(
+        "/api/v1/route/solve/progress?token_in={}&token_out={}&amount_in=1000000&trader={trader}",
+        seed.token_a, seed.token_b
+    );
+    server.get(&url).await.assert_status_ok();
+    server.get(&url).await.assert_status_ok();
+    server.get(&url).await.assert_status_ok();
+
+    let reqs = mock.received_requests().await.expect("request log");
+    let get_discount = reqs
+        .iter()
+        .filter(|r| lcd_mock::smart_query_from_request(r).get("get_discount").is_some())
+        .count();
+    assert_eq!(
+        get_discount, 1,
+        "progress polls inside TTL must reuse discount_bps cache (got {get_discount} GetDiscount calls)"
+    );
+}
+
+#[serial]
+#[tokio::test]
 async fn route_solve_excludes_code_id_frozen_pair() {
     use std::collections::HashSet;
     use cl8y_dex_indexer::indexer::asset_code_id_freeze::{
