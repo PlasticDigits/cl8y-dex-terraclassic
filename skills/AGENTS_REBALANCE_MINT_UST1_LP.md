@@ -17,7 +17,7 @@ Use when deepening **UST1/cUSTC** and **UST1/USTR** with oracle-sized LP sent to
 2. **Mint via DEX 2-of-3 extra minter** (`terra1zlmv2…`) to the admin hot wallet (`cl8ydeploy` by default). Do not use wrap-stack governance for this path.
 3. **Swap UST1/cUSTC only** (pool-only, no book). Do **not** swap UST1/USTR. Re-query reserves after mint before each swap — stale offers overshoot.
 4. **Gate provide** on UST1/cUSTC within **0.1%** of `1 / USTC_USD` (indexer `/api/v1/oracle/price/ustc`) unless `UST1_LP_PAIRS=ustr` / `UST1_LP_SKIP_SWAP=1`. Minted inventory stays on admin if the gate fails; re-run.
-5. **LP receiver is CMM** `terra16j5u6…`. Script must re-query treasury LP balances and fail if they did not increase (only for pairs provided this run).
+5. **LP receiver is CMM** `terra16j5u6…`. Script must re-query treasury LP balances and fail if they did not increase (only for pairs provided this run). After a successful provide, holder-burn leftover UST1 / cUSTC / USTR on the admin wallet (`UST1_LP_BURN_ONLY=1` for a burn-only cleanup).
 6. **USTR = 2.5 × USTC** for **LP sizing only** (`USTR_PER_USTC` in the rebalance script). Not a display oracle ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) hub USD).
 7. Prefer `DRY_RUN=1` before a live broadcast. Live needs `UST1_LP_YES=1` when stdin is not a TTY.
 
@@ -29,6 +29,7 @@ DRY_RUN=1 ./scripts/rebalance-mint-ust1-lp.sh
 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 # one pair only (skips the other provide + cUSTC swap when ustr):
 UST1_LP_USD_EACH=6000 UST1_LP_PAIRS=ustr DRY_RUN=1 ./scripts/rebalance-mint-ust1-lp.sh
+UST1_LP_BURN_ONLY=1 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 ```
 
 ## Related

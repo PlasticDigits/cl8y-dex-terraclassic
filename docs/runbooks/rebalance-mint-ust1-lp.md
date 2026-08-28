@@ -35,6 +35,8 @@ DRY_RUN=1 ./scripts/rebalance-mint-ust1-lp.sh
 # non-interactive:
 read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
+# leftover UST1 / cUSTC / USTR on cl8ydeploy after a successful run:
+UST1_LP_BURN_ONLY=1 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 ```
 
 Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `multisig2`, `multisig_2of3`, `cl8ydeploy`) must share that passphrase.
@@ -45,6 +47,7 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 2. UST1/cUSTC human price within **0.1%** of `1 / USTC_USD`.
 3. CMM treasury **UST1-CUST-LP** and **UST1-USTR-LP** balances increased.
 4. Admin holds **no** leftover LP (provide uses `receiver` = treasury).
+5. Admin leftover **UST1 / cUSTC / USTR** is holder-burned (not sent to CMM). `UST1_LP_BURN_ONLY=1` burns current leftovers without minting or providing.
 
 ## Overrides
 
@@ -58,5 +61,6 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 | `UST1_LP_ADMIN_KEY` / `UST1_LP_ADMIN_ADDR` | Hot wallet (default `cl8ydeploy`) |
 | `UST1_LP_USTC_USD` | Skip indexer oracle |
 | `UST1_LP_YES=1` | Skip interactive confirm |
+| `UST1_LP_BURN_ONLY=1` | Holder-burn leftover UST1/cUSTC/USTR on admin; skip mint/swap/LP |
 | `UST1_LP_SWAP_MAX_SPREAD` | Rebalance swap `max_spread` (default `0.20`) |
 | `UST1_LP_SWAP_MAX_ITERS` | Live rebalance swaps after mint (default `3`) |

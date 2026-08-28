@@ -10,10 +10,12 @@
 #      Does not swap UST1/USTR.
 #   4. provide_liquidity on selected pairs (default both) with receiver = CMM treasury.
 #   5. Re-query price + treasury LP balances and fail if checks do not pass.
+#   6. Holder-burn leftover UST1 / cUSTC / USTR on the admin wallet (not LP).
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/rebalance-mint-ust1-lp.sh
 #   UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
+#   UST1_LP_BURN_ONLY=1 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 #
 # Unlock once (non-interactive):
 #   read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
@@ -299,6 +301,47 @@ provide_to_treasury() {
   broadcast_admin "provide_liquidity $label → treasury" wasm execute "$pair" "$provide"
 }
 
+# Holder CW20 burn (code 10184 mintable). Does not use the 2-of-3 extra minter.
+burn_if_any() {
+  local sym="$1" token="$2" amount="$3"
+  if [[ "$amount" == "0" ]]; then
+    echo "  skip burn $sym (balance 0)"
+    return 0
+  fi
+  local msg
+  msg="$(jq -nc --arg a "$amount" '{burn:{amount:$a}}')"
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    echo "  [DRY_RUN] burn $sym $amount on $token"
+    return 0
+  fi
+  broadcast_admin "burn $sym $amount" wasm execute "$token" "$msg" >/dev/null
+}
+
+burn_admin_inventory() {
+  local fail=0
+  BAL_UST1="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
+  BAL_CUSTC="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
+  BAL_USTR="$(cw20_balance "$USTR" "$ADMIN_ADDR")"
+  echo "[burn] leftover inventory on $ADMIN_ADDR"
+  echo "  before UST1=$BAL_UST1 cUSTC=$BAL_CUSTC USTR=$BAL_USTR"
+  burn_if_any UST1 "$UST1" "$BAL_UST1"
+  burn_if_any cUSTC "$CUSTC" "$BAL_CUSTC"
+  burn_if_any USTR "$USTR" "$BAL_USTR"
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    return 0
+  fi
+  BAL_UST1="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
+  BAL_CUSTC="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
+  BAL_USTR="$(cw20_balance "$USTR" "$ADMIN_ADDR")"
+  if [[ "$BAL_UST1" == "0" && "$BAL_CUSTC" == "0" && "$BAL_USTR" == "0" ]]; then
+    echo "  PASS admin UST1/cUSTC/USTR = 0"
+  else
+    echo "  FAIL leftover inventory remains UST1=$BAL_UST1 cUSTC=$BAL_CUSTC USTR=$BAL_USTR" >&2
+    fail=1
+  fi
+  return "$fail"
+}
+
 rel_err_ok() {
   python3 - "$1" "$2" "$TOLERANCE" <<'PY'
 import sys
@@ -415,6 +458,7 @@ echo "Multisig:  $MSIG_KEY ($MSIG_ADDR)"
 echo "USD each:  $USD_EACH  (cUSTC=$USD_CUSTC USTR=$USD_USTR pairs=$PAIRS)"
 echo "Tolerance: $TOLERANCE"
 echo "SKIP_SWAP: $SKIP_SWAP"
+echo "BURN_ONLY: ${UST1_LP_BURN_ONLY:-0}"
 echo "DRY_RUN:   ${DRY_RUN:-0}"
 echo ""
 
@@ -480,6 +524,22 @@ TRE_LP_C0="$(cw20_balance "$LP_CUSTC" "$TREASURY")"
 TRE_LP_U0="$(cw20_balance "$LP_USTR" "$TREASURY")"
 echo "  admin balances UST1=$BAL_UST1 cUSTC=$BAL_CUSTC USTR=$BAL_USTR"
 echo "  treasury LP    UST1-CUST=$TRE_LP_C0 UST1-USTR=$TRE_LP_U0"
+
+if [[ "${UST1_LP_BURN_ONLY:-0}" == "1" ]]; then
+  if [[ "${DRY_RUN:-0}" != "1" && "${UST1_LP_YES:-0}" != "1" ]]; then
+    if [[ ! -t 0 ]]; then
+      die "refusing live burn without TTY; set UST1_LP_YES=1"
+    fi
+    read -r -p "Broadcast holder burn of leftover UST1/cUSTC/USTR on $ADMIN_ADDR ($TERRAD_HOST_CHAIN_ID)? [y/N] " ans
+    [[ "$ans" == "y" || "$ans" == "Y" ]] || die "aborted"
+  fi
+  echo ""
+  if ! burn_admin_inventory; then
+    die "leftover inventory burn failed"
+  fi
+  echo "OK — admin leftover UST1/cUSTC/USTR burned."
+  exit 0
+fi
 
 PLAN="$(build_plan)"
 
@@ -656,4 +716,8 @@ echo "treasury=$TREASURY"
 if [[ "$FAIL" -ne 0 ]]; then
   die "post-checks failed"
 fi
-echo "OK — LP sent to CMM (cUSTC=\$${USD_CUSTC} USTR=\$${USD_USTR})."
+echo ""
+if ! burn_admin_inventory; then
+  die "post-checks passed but leftover inventory burn failed"
+fi
+echo "OK — LP sent to CMM (cUSTC=\$${USD_CUSTC} USTR=\$${USD_USTR}); leftover inventory burned."
