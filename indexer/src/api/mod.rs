@@ -129,6 +129,12 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 
 #[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
 pub use errors::{LCD_UPSTREAM_GATEWAY_MSG, lcd_gateway_err};
+#[allow(unused_imports)] // re-exported for integration tests (#694)
+pub use compliance::{MAX_BLACKLIST_PAIRS, MAX_BLACKLIST_TOKENS};
+#[allow(unused_imports)] // re-exported for integration tests (#694)
+pub use gt::{GT_EVENT_ROW_CAP_MSG, MAX_EVENT_BLOCK_SPAN, MAX_GT_EVENT_ROWS};
+#[allow(unused_imports)] // re-exported for integration tests (#694)
+pub use route_solver::{DISCOUNT_BPS_CACHE_TTL, reset_discount_bps_cache};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
@@ -522,6 +528,16 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
                     crate::config::ROUTE_SOLVE_POST_BODY_LIMIT_BYTES,
                 )),
         )
+        // Progress can LCD GetDiscount when trader is set (#694 / RE-02).
+        .route(
+            "/api/v1/route/solve/progress",
+            get(route_solve_progress::solve_route_progress),
+        )
+        // Factory BlacklistCheck is a live LCD proxy (#694 / RE-03).
+        .route(
+            "/api/v1/compliance/blacklist-check",
+            get(compliance::blacklist_check),
+        )
         // cg/cmc orderbook endpoints carry the same LCD fanout as the native limit-book
         // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
         .route("/cg/orderbook", get(cg::cg_orderbook))
@@ -534,10 +550,6 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/health/fee-discount",
             get(fee_discount_health::get_fee_discount_health),
-        )
-        .route(
-            "/api/v1/compliance/blacklist-check",
-            get(compliance::blacklist_check),
         )
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
@@ -629,10 +641,6 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             get(hub_prices::get_hub_price),
         )
         .merge(lcd_heavy_router)
-        .route(
-            "/api/v1/route/solve/progress",
-            get(route_solve_progress::solve_route_progress),
-        )
         .route(
             "/api/v1/oracle/price",
             get(oracle::get_oracle_price_catalog),

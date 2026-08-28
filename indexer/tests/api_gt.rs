@@ -698,3 +698,84 @@ async fn gt_events_a8_deleted_height_not_served() {
         .json();
     assert!(swap_events(&body, &seed.pair_address).is_empty());
 }
+
+#[serial]
+#[tokio::test]
+async fn gt_events_rejects_over_row_cap() {
+    let (server, seed, pool) = app_with_seed().await;
+    sqlx::query("DELETE FROM swap_events WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM liquidity_events WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .ok();
+    let over = cl8y_dex_indexer::api::MAX_GT_EVENT_ROWS + 1;
+    sqlx::query(
+        r#"
+        INSERT INTO swap_events
+          (pair_id, block_height, block_timestamp, tx_hash, sender,
+           offer_asset_id, ask_asset_id, offer_amount, return_amount, price, swap_index)
+        SELECT $1, 5000, NOW(), 'txcap694-' || g::text, $2, $3, $4, 1000, 950, 0.95, 0
+        FROM generate_series(1, $5) AS g
+        "#,
+    )
+    .bind(seed.pair_id)
+    .bind(&seed.trader_address)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .bind(over)
+    .execute(&pool)
+    .await
+    .expect("bulk swaps");
+    cl8y_dex_indexer::db::queries::state::set_last_indexed_height(&pool, 5000)
+        .await
+        .unwrap();
+    let resp = server.get("/gt/events?fromBlock=5000&toBlock=5000").await;
+    resp.assert_status_bad_request();
+    assert_eq!(resp.text(), cl8y_dex_indexer::api::GT_EVENT_ROW_CAP_MSG);
+}
+
+#[serial]
+#[tokio::test]
+async fn gt_events_at_row_cap_returns_200() {
+    let (server, seed, pool) = app_with_seed().await;
+    sqlx::query("DELETE FROM swap_events WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .ok();
+    sqlx::query("DELETE FROM liquidity_events WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .ok();
+    let cap = cl8y_dex_indexer::api::MAX_GT_EVENT_ROWS;
+    sqlx::query(
+        r#"
+        INSERT INTO swap_events
+          (pair_id, block_height, block_timestamp, tx_hash, sender,
+           offer_asset_id, ask_asset_id, offer_amount, return_amount, price, swap_index)
+        SELECT $1, 5001, NOW(), 'txatcap694-' || g::text, $2, $3, $4, 1000, 950, 0.95, 0
+        FROM generate_series(1, $5) AS g
+        "#,
+    )
+    .bind(seed.pair_id)
+    .bind(&seed.trader_address)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .bind(cap)
+    .execute(&pool)
+    .await
+    .expect("at-cap swaps");
+    cl8y_dex_indexer::db::queries::state::set_last_indexed_height(&pool, 5001)
+        .await
+        .unwrap();
+    let resp = server.get("/gt/events?fromBlock=5001&toBlock=5001").await;
+    resp.assert_status_ok();
+    let body: Value = resp.json();
+    assert_eq!(body["events"].as_array().unwrap().len() as i64, cap);
+}

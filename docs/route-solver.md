@@ -136,13 +136,13 @@ Cache key components: `solver_version`, `token_in`, `token_out`, **bucketed** `a
 
 **`max_maker_fills` cap (GitLab #379 / #262):** GET `max_maker_fills` is clamped to **`MAX_MAKER_FILLS_HARD_CAP` = 100**, matching on-chain `dex-common::pair`. The prior indexer DB-sim cap of **30** was stale. LocalTerra route-solve latency at cap **100** remains within the **30s** API timeout under typical book depth (same bound as chain execute); abuse requests like `max_maker_fills=4294967295` are clamped before hybrid grid / LCD fanout.
 
-**Rate limits:** `route/solve` and `route/solve/best` are LCD-heavy (**10 RPS** default per IP via `RATE_LIMIT_LCD_HEAVY_RPS`; prod clamps `0` → **10** — [#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363)). Startup **warns** when **both** `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS` are explicitly **0** ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/379)). Sustained burst → **429** (plain text + optional rate-limit headers). LCD upstream failures → **502** `Upstream LCD query failed` (sanitized). `POST /route/solve` bodies larger than **128 KiB** → **413**.
+**Rate limits:** `route/solve`, `route/solve/best`, and **`route/solve/progress`** are LCD-heavy (**10 RPS** default per IP via `RATE_LIMIT_LCD_HEAVY_RPS`; prod clamps `0` → **10** — [#363](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/363), [#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)). Startup **warns** when **both** `RATE_LIMIT_RPS` and `RATE_LIMIT_LCD_HEAVY_RPS` are explicitly **0** ([#379](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/379)). Sustained burst → **429** (plain text + optional rate-limit headers). LCD upstream failures → **502** `Upstream LCD query failed` (sanitized). `POST /route/solve` bodies larger than **128 KiB** → **413**.
 
 ### Progress poll (`GET /api/v1/route/solve/progress`) — GitLab #485
 
-Advisory UI polling while a hybrid solve runs. **Not** a quote — no `estimated_amount_out`. Uses the **same query params** as `GET /api/v1/route/solve` (`token_in`, `token_out`, `amount_in` required, optional `trader`, `sender`, `max_maker_fills`). Progress key matches the hybrid response cache key (solver version + tokens + bucketed amount + maker-fills bucket + `discount_bps`).
+Advisory UI polling while a hybrid solve runs. **Not** a quote — no `estimated_amount_out`. Uses the **same query params** as `GET /api/v1/route/solve` (`token_in`, `token_out`, `amount_in` required, optional `trader`, `sender`, `max_maker_fills`). Optional progress-only **`discount_bps`** skips LCD `GetDiscount` when the client already resolved the wallet discount ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)). Progress key matches the hybrid response cache key (solver version + tokens + bucketed amount + maker-fills bucket + `discount_bps`).
 
-Registered on the **standard API router** (not LCD-heavy), so progress polls do not consume the LCD-heavy rate budget.
+Registered on **`lcd_heavy_router`** (same **10 RPS** as `/route/solve`). `GetDiscount` is cached **12s** per `(trader, sender)` so a 1 Hz poll does not LCD every tick. Progress still does not run hybrid grids.
 
 | Field | Meaning |
 |-------|---------|

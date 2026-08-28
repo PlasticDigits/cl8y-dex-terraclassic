@@ -45,4 +45,4 @@ curl -sf "$INDEXER_URL/api/v1/traders/leaderboard?sort=volume_24h&limit=3" | jq 
 ## Limits
 
 - Indexer Postgres has **successful** swaps only; failed on-chain executes require LCD queries (documented in runbook § 2).
-- Compliance `blacklist-check` is a live LCD proxy — no `compliance_audit` table; optional HTTP access-log grep only.
+- Compliance `blacklist-check` is a live LCD proxy — no `compliance_audit` table; optional HTTP access-log grep only. Comma `tokens` ≤ **16**, `pairs` ≤ **8** ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)); oversize is **400**.

@@ -1082,6 +1082,11 @@ verify-issue-684:
 	@chmod +x scripts/qa/verify-issue-684.sh
 	./scripts/qa/verify-issue-684.sh
 
+.PHONY: verify-issue-694
+verify-issue-694:
+	@chmod +x scripts/qa/verify-issue-694.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-694.sh
+
 # GitLab #685 — CG/CMC listing field truthfulness (TVL stamp, bid/ask, gems, freeze).
 .PHONY: verify-issue-685
 verify-issue-685:

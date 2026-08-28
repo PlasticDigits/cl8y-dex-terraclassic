@@ -5,6 +5,35 @@
 
 export const SIM_QUOTE_PROGRESS_MIN_VISIBLE_MS = 500
 export const SIM_QUOTE_PROGRESS_POLL_MS = 1_000
+/** Cap for consecutive progress-poll backoff (#694 / RE-02). */
+export const SIM_QUOTE_PROGRESS_MAX_BACKOFF_MS = 8_000
+/** Stop scheduling after this many consecutive non-abort failures. */
+export const SIM_QUOTE_PROGRESS_GIVE_UP_AFTER = 8
+
+/** Exponential backoff: 1s → 2s → 4s → 8s (capped). Abort errors must not increment. */
+export function nextProgressPollDelayMs(consecutiveFailures: number): number {
+  if (consecutiveFailures <= 0) return SIM_QUOTE_PROGRESS_POLL_MS
+  const exp = Math.min(consecutiveFailures, 3)
+  return Math.min(SIM_QUOTE_PROGRESS_POLL_MS * 2 ** exp, SIM_QUOTE_PROGRESS_MAX_BACKOFF_MS)
+}
+
+export function shouldStopProgressPolling(consecutiveFailures: number): boolean {
+  return consecutiveFailures >= SIM_QUOTE_PROGRESS_GIVE_UP_AFTER
+}
+
+/**
+ * When the parent quote already resolved discount, omit `trader` so progress
+ * does not LCD `GetDiscount`. Pass `discountBps` so the progress key still matches.
+ */
+export function progressPollTraderParams(args: { knownDiscountBps?: number; trader?: string }): {
+  trader?: string
+  discountBps?: number
+} {
+  if (args.knownDiscountBps != null && Number.isFinite(args.knownDiscountBps)) {
+    return { discountBps: Math.max(0, Math.floor(args.knownDiscountBps)) }
+  }
+  return args.trader?.trim() ? { trader: args.trader.trim() } : {}
+}
 
 export type RouteSolveProgressSnapshot = {
   stage: string
