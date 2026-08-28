@@ -62,6 +62,7 @@ The indexer exposes **no Prometheus `/metrics` endpoint** ([GitLab #200](https:/
 | `VITE_WC_PROJECT_ID` | WalletConnect Cloud project | **Required** for `vite build --mode production`. Do not rely on a shared default in source ([#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378)). |
 | `VITE_INDEXER_URL` | Browser → indexer API | **HTTPS only** on public sites. Pin to operator-controlled origin; see [Security model § Off-chain trust](./security-model.md#off-chain-trust-boundaries-frontend). |
 | `VITE_DEV_MNEMONIC` | Simulated wallet (dev only) | Must **not** be set for staging/production builds unless `VITE_ALLOW_DEV_MNEMONIC=local-only` with explicit operator approval. |
+| `VITE_DEV_MODE` | Simulated Wallet / local-sign feature gate | Must **not** be `true` for `vite build --mode production`. Unset in Coolify / `.env.production`. Staging QA may keep it. The mnemonic local-only escape does not permit this flag ([#695](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/695) / FE-01). |
 
 ## Rotation
 

@@ -283,6 +283,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Pool Manage four peer actions | `make verify-issue-660` |
 | Swap direction seam plate | `make verify-issue-659` |
 | Official CL8Y product links (footer) | `make verify-issue-663` |
+| Production `VITE_DEV_MODE` reject | `make verify-issue-695` |
 | Pool Manage provide labels | `make verify-issue-661` |
 | Trade / Charts v2 LP USD | `make verify-issue-664` |
 | Trader page global leaderboard | `make verify-issue-657` |
@@ -325,6 +326,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PRODUCT_LINKS.md](skills/AGENTS_FRONTEND_PRODUCT_LINKS.md) — footer official CL8Y Homepage + Bridge HTTPS allowlist (**P663-1–P663-8**, [#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)); `make verify-issue-663`
 - [skills/AGENTS_FRONTEND_WALLET_CHIP.md](skills/AGENTS_FRONTEND_WALLET_CHIP.md) — connected wallet chip + dropdown row layout (**W671-1–W671-8**, [#671](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/671)); `make verify-issue-671`
 - [skills/AGENTS_FRONTEND_OPENGRAPH.md](skills/AGENTS_FRONTEND_OPENGRAPH.md) — static Open Graph / Twitter cards, community medallion `/og-image.png`, allowlisted absolute URLs (**OG-1–OG-8**, [#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578)); `make verify-issue-578`
+- [skills/AGENTS_FRONTEND_DEV_MODE_GUARD.md](skills/AGENTS_FRONTEND_DEV_MODE_GUARD.md) — production `vite build` rejects `VITE_DEV_MODE=true` (**D695-1–D695-8**, [#695](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/695) / FE-01); `make verify-issue-695`
 - [skills/AGENTS_FRONTEND_THEME_TOGGLE.md](skills/AGENTS_FRONTEND_THEME_TOGGLE.md) — dark/light header toggle + bootstrap FOUC notes (#488)
 - [skills/AGENTS_FRONTEND_SOUND_MUTE.md](skills/AGENTS_FRONTEND_SOUND_MUTE.md) — UI SFX mute toggle + `cl8y-dex-sounds-enabled` persistence (#487)
 - [skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md](skills/AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — anti-cognitive-overload retail copy + terminology (#489); glossary in [`docs/design-system.md`](docs/design-system.md)
