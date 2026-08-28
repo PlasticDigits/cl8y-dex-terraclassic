@@ -41,6 +41,13 @@ function assertBuildEnvGuards(command: string, mode: string, env: Record<string,
       'VITE_WC_PROJECT_ID is required for production builds. Set it in .env.production or your CI/CD secret store (GitLab #378 / M-10).'
     )
   }
+
+  // Production reject is unconditional — VITE_ALLOW_DEV_MNEMONIC=local-only does not permit this flag (GitLab #695 / FE-01).
+  if (mode === 'production' && env.VITE_DEV_MODE === 'true') {
+    throw new Error(
+      'VITE_DEV_MODE=true is not allowed for production vite builds. Unset VITE_DEV_MODE in Coolify / .env.production (GitLab #695 / FE-01).'
+    )
+  }
 }
 
 function cspDevHosts(): Plugin {

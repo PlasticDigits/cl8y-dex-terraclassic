@@ -12,7 +12,7 @@ Parent remediation: GitLab [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [docs/security-model.md § Off-chain trust](../docs/security-model.md#off-chain-trust-boundaries-frontend--indexer) | Risks, mitigations, out-of-scope items |
 | [docs/frontend.md § Trust boundaries](../docs/frontend.md#frontend-trust-boundaries) | Invariant table |
 | [docs/runbooks/launch-checklist.md § Phase 4](../docs/runbooks/launch-checklist.md) | HTTPS indexer, WC ID, CSP deploy checklist |
-| `frontend-dapp/vite.config.ts` | Mnemonic + WC build guards; production CSP transform |
+| `frontend-dapp/vite.config.ts` | Mnemonic + WC + production `VITE_DEV_MODE` build guards ([#695](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/695)); production CSP transform |
 | `frontend-dapp/src/viteConfig.build.test.ts` | Regression for guards and CSP shape |
 
 ## Verification commands
@@ -31,6 +31,9 @@ cd frontend-dapp && VITE_DEV_MNEMONIC='test test test' npx vite build --mode sta
 
 # Production WC guard (must fail without ID)
 cd frontend-dapp && npx vite build --mode production
+
+# Production Simulated Wallet gate (must fail)
+cd frontend-dapp && VITE_DEV_MODE=true VITE_WC_PROJECT_ID=x npx vite build --mode production
 ```
 
 ## Rules of thumb
@@ -40,11 +43,13 @@ cd frontend-dapp && npx vite build --mode production
 3. **Do not** add more token detail to retail UI beyond the compact [#541](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/541) identity row ([`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md)); logo allowlist + blockie fallback is sufficient. Identity ≠ endorsement. Trader PFPs are generated blockies only — never remote `logo_url` ([#656](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/656), [`AGENTS_FRONTEND_TRADER_IDENTITY.md`](./AGENTS_FRONTEND_TRADER_IDENTITY.md)).
 4. Expert mode: typed confirm on **enable only**; keep **30%** block and **50%** settings max.
 5. Production bundles must not contain dev mnemonic or the shared WC default project ID.
+6. Production `vite build --mode production` must reject `VITE_DEV_MODE=true` ([#695](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/695) / FE-01). The mnemonic local-only escape does not permit that flag.
 
 ## Related
 
 - Production build maps: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
 - Dev wallet: [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
+- Production `VITE_DEV_MODE` reject (#695 / FE-01): [`AGENTS_FRONTEND_DEV_MODE_GUARD.md`](./AGENTS_FRONTEND_DEV_MODE_GUARD.md)
 - Swap route display: [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md)
 - Swap signing confirmation: [`AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md`](./AGENTS_FRONTEND_SWAP_SIGNING_CONFIRMATION.md) (#409 / SEC-D11)
 - Legal clickwrap CSP hosts (#517): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) — add Legal API/portal to `connect-src`, never blanket `https:`
