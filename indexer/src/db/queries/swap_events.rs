@@ -78,14 +78,17 @@ pub async fn insert_swap(
     pool_return_amount: Option<&BigDecimal>,
     book_return_amount: Option<&BigDecimal>,
     limit_book_offer_consumed: Option<&BigDecimal>,
+    reserve_0: Option<&BigDecimal>,
+    reserve_1: Option<&BigDecimal>,
 ) -> Result<Option<i64>, sqlx::Error> {
     sqlx::query_scalar::<_, i64>(
         "INSERT INTO swap_events
          (pair_id, block_height, block_timestamp, tx_hash, sender, receiver,
           offer_asset_id, ask_asset_id, offer_amount, return_amount,
           spread_amount, commission_amount, effective_fee_bps, price, price_usd, volume_usd,
-          pool_return_amount, book_return_amount, limit_book_offer_consumed, swap_index)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          pool_return_amount, book_return_amount, limit_book_offer_consumed, swap_index,
+          reserve_0, reserve_1)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          ON CONFLICT (tx_hash, pair_id, swap_index) DO NOTHING
          RETURNING id",
     )
@@ -109,6 +112,8 @@ pub async fn insert_swap(
     .bind(book_return_amount)
     .bind(limit_book_offer_consumed)
     .bind(swap_index)
+    .bind(reserve_0)
+    .bind(reserve_1)
     .fetch_optional(pool)
     .await
 }

@@ -149,6 +149,28 @@ describe('TraderSummaryStats (#551 / #560)', () => {
     await waitFor(() => expect(screen.getByTestId('trader-summary-realized-pnl')).toHaveTextContent('—'))
     expect(screen.getByTestId('trader-summary-realized-pnl').textContent).not.toMatch(/\$0/)
   })
+
+  it('shows hub unrealized for an open accumulation (GitLab #675)', async () => {
+    renderSummary(trader(), [
+      {
+        pair_address: 'terra1a',
+        asset_0_symbol: 'UST1',
+        asset_1_symbol: 'cUSTC',
+        asset_0_decimals: 6,
+        asset_1_decimals: 6,
+        net_position_quote: '100000000',
+        avg_entry_price: '0.004',
+        total_cost_base: '400000',
+        realized_pnl: '0',
+        trade_count: 1,
+      },
+    ])
+    await waitFor(() => expect(screen.getByTestId('trader-summary-unrealized-pnl')).toHaveTextContent(/\$/))
+    const text = screen.getByTestId('trader-summary-unrealized-pnl').textContent ?? ''
+    expect(text).toMatch(/\+\$0\.08/)
+    expect(screen.getByTestId('trader-summary-realized-pnl')).toHaveTextContent('$0')
+    expect(screen.getByTestId('trader-summary-unrealized-pnl').className).not.toMatch(/card-glass/)
+  })
 })
 
 describe('TraderSummaryStats Total Volume (GitLab #553)', () => {

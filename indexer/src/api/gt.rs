@@ -1,12 +1,19 @@
-//! GeckoTerminal Integration API (`/gt/*`) — GitLab #646.
+//! GeckoTerminal Integration API (`/gt/*`) — GitLab #646 / #684.
 //!
 //! Spec: [Integration API Standards](https://docs.google.com/document/d/1ufjAJUa6rGO9PBGJGwfBMn-XMk9NE0ow3_iMYrS3drk)
 //! (`/latest-block`, `/asset`, `/pair`, `/events`). Base URL submitted as
 //! `https://indexer.dex.cl8y.com/gt`. `dexKey` is `cl8y`.
 //!
 //! Not Uniswap-V2 auto-detect and not `/cg/*`. Gem / ALPHA / USTRIX / SpaceUSD
-//! pairs are omitted from `/pair` and `/events` (**L639-2**). Reserve fields use
-//! the current `pair_reserves` snapshot (not historical reconstruction).
+//! pairs are omitted from `/pair` and `/events` (**L639-2**). Event `reserves`
+//! are the persisted post-event AMM `RESERVES` (`swap_events.reserve_*` /
+//! `liquidity_events.reserve_*`, GitLab #684). Missing columns emit `"0"` —
+//! never the live `pair_reserves` snapshot.
+//!
+//! Per-request cost (#694 / RE-01): inclusive block span is still
+//! [`MAX_EVENT_BLOCK_SPAN`]; combined swap+liquidity rows are capped at
+//! [`MAX_GT_EVENT_ROWS`]. Over-cap is **400** (no truncation, no live
+//! `pair_reserves` scan).
 
 use std::collections::HashMap;
 
@@ -21,25 +28,16 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, pairs as db_pairs, state};
+pub use crate::indexer::listing_exclude::is_excluded_cw20;
+use crate::indexer::listing_exclude::listing_excluded_cw20_binds;
 use crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 
 pub const DEX_KEY: &str = "cl8y";
-const MAX_EVENT_BLOCK_SPAN: i64 = 2_000;
-
-/// Soft-launch / non-economic CW20s — same pins as #562 gems plus ALPHA / USTRIX / SpaceUSD.
-const EXCLUDED_CW20: &[&str] = &[
-    "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94",
-    "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena",
-    "terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr",
-    "terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9",
-    "terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc",
-    "terra12k67cvfs7y7g8lca3qr4g4py6s6j69fu24gze5pjfamfpckv8mps7cymme",
-    "terra17dpnjlpgsnm8muu4msfjra4f2hrptnjp2jdpkka4p0e3px42ayxq0pmc2z",
-    "terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs",
-    "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
-    "terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5",
-    "terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl",
-];
+pub const MAX_EVENT_BLOCK_SPAN: i64 = 2_000;
+/// Combined swap + join/exit rows per `/gt/events` window (GitLab #694 / RE-01).
+pub const MAX_GT_EVENT_ROWS: i64 = 5_000;
+/// Stable 400 body when the window's raw event count exceeds [`MAX_GT_EVENT_ROWS`].
+pub const GT_EVENT_ROW_CAP_MSG: &str = "event count exceeds 5000";
 
 const CL8Y_CW20: &str = "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3";
 const CL8Y_COINGECKO_ID: &str = "ceramicliberty-com";
@@ -81,9 +79,15 @@ pub struct GtPair {
     pub asset0_id: String,
     #[serde(rename = "asset1Id")]
     pub asset1_id: String,
-    #[serde(rename = "createdAtBlockNumber", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "createdAtBlockNumber",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub created_at_block_number: Option<i64>,
-    #[serde(rename = "createdAtBlockTimestamp", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "createdAtBlockTimestamp",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub created_at_block_timestamp: Option<i64>,
     #[serde(rename = "feeBps", skip_serializing_if = "Option::is_none")]
     pub fee_bps: Option<i16>,
@@ -189,6 +193,7 @@ pub struct GtEventsQuery {
 }
 
 #[derive(Clone, FromRow)]
+#[allow(dead_code)]
 struct EventSwapRow {
     id: i64,
     pair_contract: String,
@@ -203,9 +208,12 @@ struct EventSwapRow {
     offer_amount: BigDecimal,
     return_amount: BigDecimal,
     price: BigDecimal,
+    reserve_0: Option<BigDecimal>,
+    reserve_1: Option<BigDecimal>,
 }
 
 #[derive(Clone, FromRow)]
+#[allow(dead_code)]
 struct EventLiqRow {
     id: i64,
     pair_contract: String,
@@ -219,13 +227,26 @@ struct EventLiqRow {
     event_type: String,
     asset_0_amount: BigDecimal,
     asset_1_amount: BigDecimal,
+    reserve_0: Option<BigDecimal>,
+    reserve_1: Option<BigDecimal>,
 }
 
-#[derive(FromRow)]
-struct ReserveSnap {
-    pair_id: i32,
-    reserve_0: BigDecimal,
-    reserve_1: BigDecimal,
+fn event_reserves(
+    r0: Option<&BigDecimal>,
+    r1: Option<&BigDecimal>,
+    dec0: i16,
+    dec1: i16,
+) -> GtReserves {
+    match (r0, r1) {
+        (Some(a), Some(b)) => GtReserves {
+            asset0: format_dec(&decimalize(a, dec0)),
+            asset1: format_dec(&decimalize(b, dec1)),
+        },
+        _ => GtReserves {
+            asset0: "0".into(),
+            asset1: "0".into(),
+        },
+    }
 }
 
 pub fn gt_asset_id(asset: &assets::AssetRow) -> Option<String> {
@@ -236,18 +257,10 @@ pub fn gt_asset_id(asset: &assets::AssetRow) -> Option<String> {
     }
 }
 
-pub fn is_excluded_cw20(addr: &str) -> bool {
-    let lower = addr.to_ascii_lowercase();
-    EXCLUDED_CW20.iter().any(|a| *a == lower)
-        || COLUMBUS5_GEM_ADDRESSES.iter().any(|a| *a == lower)
-}
-
 fn pair_is_excluded(a0: &assets::AssetRow, a1: &assets::AssetRow) -> bool {
-    [a0, a1].iter().any(|a| {
-        a.contract_address
-            .as_deref()
-            .is_some_and(is_excluded_cw20)
-    })
+    [a0, a1]
+        .iter()
+        .any(|a| a.contract_address.as_deref().is_some_and(is_excluded_cw20))
 }
 
 fn ten_pow(decimals: i16) -> BigDecimal {
@@ -280,22 +293,6 @@ fn coin_gecko_id_for(asset: &assets::AssetRow) -> Option<String> {
         return Some(CL8Y_COINGECKO_ID.to_string());
     }
     asset.coingecko_id.clone().filter(|id| !id.is_empty())
-}
-
-fn current_reserves(
-    snaps: &HashMap<i32, (BigDecimal, BigDecimal)>,
-    pair_id: i32,
-    dec0: i16,
-    dec1: i16,
-) -> GtReserves {
-    let (r0, r1) = snaps
-        .get(&pair_id)
-        .cloned()
-        .unwrap_or_else(|| (BigDecimal::zero(), BigDecimal::zero()));
-    GtReserves {
-        asset0: format_dec(&decimalize(&r0, dec0)),
-        asset1: format_dec(&decimalize(&r1, dec1)),
-    }
 }
 
 #[utoipa::path(
@@ -444,7 +441,7 @@ pub async fn gt_pair(
     params(GtEventsQuery),
     responses(
         (status = 200, description = "Swap and join/exit events in the block range", body = GtEventsResponse),
-        (status = 400, description = "Invalid block range"),
+        (status = 400, description = "Invalid block range or event count exceeds cap"),
     ),
     tag = "GeckoTerminal"
 )]
@@ -452,18 +449,12 @@ pub async fn gt_events(
     State(state): State<AppState>,
     Query(q): Query<GtEventsQuery>,
 ) -> Result<Json<GtEventsResponse>, (StatusCode, String)> {
-    let from = q.from_block.ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            "fromBlock is required".into(),
-        )
-    })?;
-    let to = q.to_block.ok_or_else(|| {
-        (
-            StatusCode::BAD_REQUEST,
-            "toBlock is required".into(),
-        )
-    })?;
+    let from = q
+        .from_block
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "fromBlock is required".into()))?;
+    let to = q
+        .to_block
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "toBlock is required".into()))?;
     if from < 0 || to < 0 {
         return Err((StatusCode::BAD_REQUEST, "block numbers must be >= 0".into()));
     }
@@ -488,13 +479,49 @@ pub async fn gt_events(
     }
     let to = to.min(latest);
 
-    let excluded: Vec<String> = EXCLUDED_CW20.iter().map(|s| (*s).to_string()).collect();
+    let excluded = listing_excluded_cw20_binds();
+
+    // RE-01: count before materializing rows so a busy 2k-block window cannot
+    // return unbounded JSON. Do not SELECT pair_reserves here (#684 / #694).
+    let event_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT
+          (SELECT COUNT(*) FROM swap_events se
+           JOIN pairs p ON p.id = se.pair_id
+           JOIN assets a0 ON a0.id = p.asset_0_id
+           JOIN assets a1 ON a1.id = p.asset_1_id
+           WHERE se.block_height >= $1 AND se.block_height <= $2
+             AND LOWER(COALESCE(a0.contract_address, '')) <> ALL($3)
+             AND LOWER(COALESCE(a1.contract_address, '')) <> ALL($3)
+             AND se.price > 0
+             AND se.offer_amount > 0
+             AND se.return_amount > 0)
+        + (SELECT COUNT(*) FROM liquidity_events le
+           JOIN pairs p ON p.id = le.pair_id
+           JOIN assets a0 ON a0.id = p.asset_0_id
+           JOIN assets a1 ON a1.id = p.asset_1_id
+           WHERE le.block_height >= $1 AND le.block_height <= $2
+             AND LOWER(COALESCE(a0.contract_address, '')) <> ALL($3)
+             AND LOWER(COALESCE(a1.contract_address, '')) <> ALL($3)
+             AND le.event_type IN ('add', 'remove'))
+        "#,
+    )
+    .bind(from)
+    .bind(to)
+    .bind(&excluded)
+    .fetch_one(&state.pool)
+    .await
+    .map_err(internal_err)?;
+    if event_count > MAX_GT_EVENT_ROWS {
+        return Err((StatusCode::BAD_REQUEST, GT_EVENT_ROW_CAP_MSG.to_string()));
+    }
 
     let swaps: Vec<EventSwapRow> = sqlx::query_as(
         r#"
         SELECT se.id, p.contract_address AS pair_contract, se.pair_id, p.asset_0_id, p.asset_1_id,
                se.block_height, se.block_timestamp, se.tx_hash, se.sender,
-               se.offer_asset_id, se.offer_amount, se.return_amount, se.price
+               se.offer_asset_id, se.offer_amount, se.return_amount, se.price,
+               se.reserve_0, se.reserve_1
         FROM swap_events se
         JOIN pairs p ON p.id = se.pair_id
         JOIN assets a0 ON a0.id = p.asset_0_id
@@ -521,7 +548,8 @@ pub async fn gt_events(
                le.block_height, le.block_timestamp, le.tx_hash, le.provider,
                le.event_type,
                COALESCE(le.asset_0_amount, 0) AS asset_0_amount,
-               COALESCE(le.asset_1_amount, 0) AS asset_1_amount
+               COALESCE(le.asset_1_amount, 0) AS asset_1_amount,
+               le.reserve_0, le.reserve_1
         FROM liquidity_events le
         JOIN pairs p ON p.id = le.pair_id
         JOIN assets a0 ON a0.id = p.asset_0_id
@@ -539,16 +567,6 @@ pub async fn gt_events(
     .fetch_all(&state.pool)
     .await
     .map_err(internal_err)?;
-
-    let snaps: HashMap<i32, (BigDecimal, BigDecimal)> = sqlx::query_as::<_, ReserveSnap>(
-        "SELECT pair_id, reserve_0, reserve_1 FROM pair_reserves",
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(internal_err)?
-    .into_iter()
-    .map(|r| (r.pair_id, (r.reserve_0, r.reserve_1)))
-    .collect();
 
     let asset_map = super::build_asset_map(&state.pool)
         .await
@@ -586,12 +604,14 @@ pub async fn gt_events(
             RawEvent::Liq(l) => (l.block_height, l.block_timestamp, l.tx_hash.clone()),
         };
         let txn_key = (height, tx_hash.clone());
-        let txn_index = *txn_index_by_block.entry(txn_key.clone()).or_insert_with(|| {
-            let n = next_txn_in_block.entry(height).or_insert(0);
-            let assigned = *n;
-            *n += 1;
-            assigned
-        });
+        let txn_index = *txn_index_by_block
+            .entry(txn_key.clone())
+            .or_insert_with(|| {
+                let n = next_txn_in_block.entry(height).or_insert(0);
+                let assigned = *n;
+                *n += 1;
+                assigned
+            });
         let event_index = {
             let slot = event_index_by_tx.entry(txn_key).or_insert(0);
             let assigned = *slot;
@@ -658,7 +678,12 @@ pub async fn gt_events(
                         asset0_out,
                         asset1_out,
                         price_native: format_dec(&s.price),
-                        reserves: current_reserves(&snaps, s.pair_id, a0.decimals, a1.decimals),
+                        reserves: event_reserves(
+                            s.reserve_0.as_ref(),
+                            s.reserve_1.as_ref(),
+                            a0.decimals,
+                            a1.decimals,
+                        ),
                     },
                 });
             }
@@ -671,7 +696,12 @@ pub async fn gt_events(
                 };
                 let amount0 = format_dec(&decimalize(&l.asset_0_amount, a0.decimals));
                 let amount1 = format_dec(&decimalize(&l.asset_1_amount, a1.decimals));
-                let reserves = current_reserves(&snaps, l.pair_id, a0.decimals, a1.decimals);
+                let reserves = event_reserves(
+                    l.reserve_0.as_ref(),
+                    l.reserve_1.as_ref(),
+                    a0.decimals,
+                    a1.decimals,
+                );
                 let body = if l.event_type == "add" {
                     GtEventBody::Join {
                         txn_id: l.tx_hash,
@@ -721,6 +751,25 @@ mod unit_tests {
     }
 
     #[test]
+    fn missing_event_reserves_emit_zero_not_snapshot() {
+        let z = event_reserves(None, None, 6, 6);
+        assert_eq!(z.asset0, "0");
+        assert_eq!(z.asset1, "0");
+        let raw = BigDecimal::from_str("2000000").unwrap();
+        let filled = event_reserves(Some(&raw), Some(&raw), 6, 6);
+        assert_eq!(filled.asset0, "2");
+        assert_eq!(filled.asset1, "2");
+    }
+
+    #[test]
+    fn decimalize_eighteen_dp_no_scientific() {
+        let raw = BigDecimal::from_str("1000000000000000000").unwrap();
+        let s = format_dec(&decimalize(&raw, 18));
+        assert_eq!(s, "1");
+        assert!(!s.contains('e') && !s.contains('E'));
+    }
+
+    #[test]
     fn excluded_gems_and_spaceusd() {
         assert!(is_excluded_cw20(
             "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94"
@@ -736,5 +785,12 @@ mod unit_tests {
         for addr in COLUMBUS5_GEM_ADDRESSES {
             assert!(is_excluded_cw20(addr), "{addr}");
         }
+    }
+
+    #[test]
+    fn event_row_cap_is_5000() {
+        assert_eq!(MAX_GT_EVENT_ROWS, 5_000);
+        assert_eq!(GT_EVENT_ROW_CAP_MSG, "event count exceeds 5000");
+        assert_eq!(MAX_EVENT_BLOCK_SPAN, 2_000);
     }
 }

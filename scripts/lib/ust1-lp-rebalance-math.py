@@ -205,6 +205,9 @@ def build_plan(inp: dict[str, Any]) -> dict[str, Any]:
     ustc_usd = _d(inp["ustc_usd"])
     ustr_per = _d(inp.get("ustr_per_ustc", USTR_PER_USTC))
     usd_each = _d(inp.get("usd_each", 5000))
+    usd_custc = _d(inp.get("usd_custc", usd_each))
+    usd_ustr = _d(inp.get("usd_ustr", usd_each))
+    skip_swap = bool(inp.get("skip_swap", False))
     tol = _d(inp.get("tolerance", "0.001"))
     fee_bps = int(inp.get("fee_bps", 180))
     buffer_bps = int(inp.get("buffer_bps", 50))
@@ -226,26 +229,31 @@ def build_plan(inp: dict[str, Any]) -> dict[str, Any]:
     cur = human_price(r0, r1, d_ust1, d_custc) if r0 > 0 and r1 > 0 else None
     cur_ustr = human_price(u0, u1, d_ust1, d_ustr) if u0 > 0 and u1 > 0 else None
 
-    swap = (
-        find_rebalance_offer(r0, r1, d_ust1, d_custc, target, fee_bps, tol)
-        if r0 > 0 and r1 > 0
-        else {
-            "needed": False,
-            "offer_token": None,
-            "offer_amount": "0",
-            "expected_return": "0",
-            "current_price": None,
-            "projected_price": str(target),
-            "rel_error": "0",
-        }
-    )
+    idle_swap = {
+        "needed": False,
+        "offer_token": None,
+        "offer_amount": "0",
+        "expected_return": "0",
+        "current_price": None if cur is None else str(cur),
+        "projected_price": str(target),
+        "rel_error": "0" if cur is None else str(rel_error(cur, target)),
+    }
+    swap = idle_swap
+    if not skip_swap and r0 > 0 and r1 > 0:
+        swap = find_rebalance_offer(r0, r1, d_ust1, d_custc, target, fee_bps, tol)
 
     post_r0, post_r1 = r0, r1
     if swap.get("needed") and swap.get("new_r0"):
         post_r0, post_r1 = _i(swap["new_r0"]), _i(swap["new_r1"])
 
-    lp_c0, lp_c1 = lp_raw_for_usd(post_r0, post_r1, d_ust1, d_custc, usd_each, Decimal(1), ustc_usd)
-    lp_u0, lp_u1 = lp_raw_for_usd(u0, u1, d_ust1, d_ustr, usd_each, Decimal(1), ustc_usd * ustr_per)
+    if usd_custc > 0:
+        lp_c0, lp_c1 = lp_raw_for_usd(post_r0, post_r1, d_ust1, d_custc, usd_custc, Decimal(1), ustc_usd)
+    else:
+        lp_c0, lp_c1 = 0, 0
+    if usd_ustr > 0:
+        lp_u0, lp_u1 = lp_raw_for_usd(u0, u1, d_ust1, d_ustr, usd_ustr, Decimal(1), ustc_usd * ustr_per)
+    else:
+        lp_u0, lp_u1 = 0, 0
 
     need_ust1 = lp_c0 + lp_u0
     need_custc = lp_c1
@@ -353,6 +361,27 @@ def _self_test() -> None:
     assert int(out["mint"]["custc"]) > 0
     assert int(out["lp_custc"]["ust1"]) > 0
     assert int(out["lp_ustr"]["ustr"]) > 0
+
+    ustr_only = build_plan(
+        {
+            "ustc_usd": "0.005",
+            "custc_r0": 1_000_000,
+            "custc_r1": 200_000_000,
+            "ustr_r0": 1_000_000,
+            "ustr_r1": "40000000000000000000",
+            "usd_custc": 0,
+            "usd_ustr": 6000,
+            "skip_swap": True,
+            "tolerance": "0.001",
+            "fee_bps": 180,
+            "buffer_bps": 0,
+        }
+    )
+    assert ustr_only["swap"]["needed"] is False
+    assert int(ustr_only["lp_custc"]["ust1"]) == 0
+    assert int(ustr_only["lp_custc"]["custc"]) == 0
+    assert int(ustr_only["lp_ustr"]["ust1"]) > 0
+    assert int(ustr_only["mint"]["custc"]) == 0
     print("self-test ok", file=sys.stderr)
 
 

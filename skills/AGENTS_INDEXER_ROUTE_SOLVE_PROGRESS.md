@@ -17,7 +17,7 @@ Distant CW20 pairs (no direct pool) can take many seconds on cold hybrid `GET /a
 |-----------|---------|
 | **Progress is advisory** | Never a quote. No `estimated_amount_out`. On-chain `min_receive` / `max_spread` remain authoritative. |
 | **Same cache key isolation** | Progress key = hybrid cache key (`solver_version`, tokens, amount bucket, maker-fills bucket, **`discount_bps`**). No tier cross-talk (#283/#324). |
-| **No LCD amplification** | Progress polls do **not** run hybrid grids or router sims. Endpoint is on the **standard** rate-limit router (not LCD-heavy). |
+| **No hybrid-grid LCD** | Progress polls do **not** run hybrid grids or router sims. Endpoint is on **`lcd_heavy_router`** (same 10 RPS as `/route/solve` — [#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)). `GetDiscount` is cached **12s** per `(trader, sender)`. |
 | **Nested solves silent** | Slippage token-price solves (`route_slippage`) pass `progress_key: None`. |
 | **Optimality bounds unchanged** | Do not shrink `MAX_PATH_CANDIDATES` / hop cap / grid without bumping `solver_version` + docs. Empty-book pool-only short-circuit (#493) is allowed without a version bump — see [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) § Empty-book grid short-circuit. |
 | **#484 / #496 still hold** | Progress is display-only; `simQuoteRefetchInterval`, `shouldShowSimReceiveCalculating` (same-key keep-previous vs pay-change loading), `isSubmitQuoteStale` unchanged. |
@@ -54,7 +54,7 @@ GET /api/v1/route/solve/progress?token_in=&token_out=&amount_in=&trader=&max_mak
 - **Do** keep Trade market pair-scoped **Quoting…** for now (Trade uses `GET /route/solve` by default after [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501), but still shows static Quoting… — wiring `useRouteSolveProgress` on `/trade` is an optional follow-up).
 - **Don’t** invent “found better route” claims beyond `optimality_scope`.
 - **Don’t** lower `INDEXER_ROUTE_SOLVE_TIMEOUT_MS` until distant-pair p95 is proven &lt;15s.
-- **Don’t** put progress on the LCD-heavy governor.
+- **Do** keep progress on the LCD-heavy governor (#694). **Don’t** move it back to the global 60 RPS router.
 
 ## Regression checklist
 

@@ -257,6 +257,21 @@ After !437–!458 landed pool/charts/protocol/trader leftover UI on `main` (`8af
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_673.md`](../../skills/AGENTS_POST_MERGE_OPS_673.md). QA invariant **Q15**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-673).
 
+### Post-merge !459–!468 leftover verify (GitLab #686)
+
+After !459–!468 landed portfolio/protocol/charts/gas/fee leftover UI on `main` (`36d64528+`):
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-686` | Children **674–680, 683** plus leftover live / **M686-1–M686-8** / **Q16** |
+| Coolify Postgres | Migrations `20260827120000_trader_positions_numeric_78.sql` + `20260827140000_economic_token_marks.sql`, then indexer redeploy |
+| Live hub | Four cells only; `ticker=cl8y` **400**; `HUB_CL8Y_ADDRESS` pin |
+| Live fees | `/protocol` token mix CL8Y-cb human + `$` when a qualifying pair exists |
+| Frontend | Rebuild from `36d64528+`; `/portfolio` hide-gems + Mark/Unrealized; Charts UST1/USD; Swap Quote only |
+| Disclose | Do **not** reopen #674–#680 / #683; do not expand `/hub-prices`; do not touch #684 |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_686.md`](../../skills/AGENTS_POST_MERGE_OPS_686.md). QA invariant **Q16**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-686).
+
 ### Listed-pair autoregister + migrate inventory (GitLab #633 / #634)
 
 LocalTerra-only live rungs (columbus-5 factory/token migrate and Open/ALPHA LCD stay on [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635) / [#636](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/636)):

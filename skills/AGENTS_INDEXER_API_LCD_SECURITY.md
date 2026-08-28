@@ -33,6 +33,8 @@ These paths use **`RATE_LIMIT_LCD_HEAVY_RPS`** (default **10**) in addition to *
 - `GET /api/v1/pairs/{addr}/limit-book/insert-hints` ([#267](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/267))
 - `GET|POST /api/v1/route/solve`
 - `GET /api/v1/route/solve/best`
+- `GET /api/v1/route/solve/progress` — advisory poll; can LCD `GetDiscount` when `trader` is set ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694))
+- `GET /api/v1/compliance/blacklist-check` — factory `BlacklistCheck` LCD proxy ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694))
 - `GET /cg/orderbook` and `GET /cmc/orderbook/{market_pair}` — same `orderbook_sim` LCD fanout as native book routes ([#278](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/278))
 
 Legitimate frontend polling (e.g. deep book, route preview) should stay under **10 RPS per client IP**; use indexer caches on CG/CMC orderbook paths instead of hammering limit-book.
@@ -62,7 +64,7 @@ cd indexer && cargo test --test security -j 1 -- --test-threads=1
 make lint-indexer-log-secrets
 ```
 
-Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**), global 429 burst, blacklist-check LCD **502** (**#379**), POST route solve oversized body **413** (**#379**), capped list `limit` upper bound (`limit=99999`) and lower bound (`limit=-1` / `limit=0` clamp to **1** — **SEC-F05** / **#431**). Startup log secret guard (**SEC-F13** / **#433**): `cargo test --lib startup::tests` + `make lint-indexer-log-secrets`.
+Key cases in security.rs: sanitized LCD 502 body, LCD-heavy 429 under global limit off (native book + CG/CMC orderbook — **#278**; progress + blacklist-check + `/best` — **#694**), global 429 burst, blacklist-check LCD **502** (**#379**), blacklist `tokens`/`pairs` over-cap **400** (**#694**), POST route solve oversized body **413** (**#379**), capped list `limit` upper bound (`limit=99999`) and lower bound (`limit=-1` / `limit=0` clamp to **1** — **SEC-F05** / **#431**). Startup log secret guard (**SEC-F13** / **#433**): `cargo test --lib startup::tests` + `make lint-indexer-log-secrets`. Per-request cost: [`AGENTS_INDEXER_API4_PER_REQUEST.md`](./AGENTS_INDEXER_API4_PER_REQUEST.md) (`make verify-issue-694`).
 
 Broader SQL-backed list lower-bound sweep: [`api_limit_lower_bound.rs`](../indexer/tests/api_limit_lower_bound.rs) (**#317**). LCD `limit-book` / orderbook `depth` lower bounds: [`api_limit_book_lcd_mock.rs`](../indexer/tests/api_limit_book_lcd_mock.rs), [`api_orderbook_lcd_mock.rs`](../indexer/tests/api_orderbook_lcd_mock.rs).
 

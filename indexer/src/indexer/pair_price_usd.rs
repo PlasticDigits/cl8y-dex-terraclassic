@@ -13,15 +13,36 @@
 //! Unknown quotes → `None` (do not invent a USD). Advisory only — not settlement.
 //! Ops LP seed for UST1/USTR sizing stays in rebalance scripts only — not ingest.
 
+use std::collections::HashMap;
+
 use bigdecimal::BigDecimal;
 
 use crate::db::queries::assets::AssetRow;
 
 /// DEX hub USD for UST1 / USTR quotes at ingest (#556). Missing → do not peg.
+///
+/// `economic` is contract-keyed factory marks for fee USD only (GitLab #683).
+/// Volume / TVL keep the P522-Q catalog and do **not** read this map.
 #[derive(Debug, Clone, Default)]
 pub struct HubQuoteUsd {
     pub ust1: Option<BigDecimal>,
     pub ustr: Option<BigDecimal>,
+    /// Lowercase CW20 contract → USD per 1 human unit. Never keyed by ticker.
+    pub economic: HashMap<String, BigDecimal>,
+}
+
+impl HubQuoteUsd {
+    /// USD per 1 human unit of a factory-listed economic CW20 (contract / A1).
+    pub fn economic_usd_per_human(&self, contract: &str) -> Option<BigDecimal> {
+        let key = contract.trim().to_ascii_lowercase();
+        if key.is_empty() {
+            return None;
+        }
+        self.economic
+            .get(&key)
+            .cloned()
+            .filter(|p| *p > BigDecimal::from(0))
+    }
 }
 
 /// `10^exp` as [`BigDecimal`] (`exp` may be negative).
@@ -430,6 +451,7 @@ mod tests {
         let hub = HubQuoteUsd {
             ust1: None,
             ustr: Some(bd("0.01")),
+            ..Default::default()
         };
         let usd = price_usd_for_human_quote_per_base(&quote, &human, Some(&ustc), None, Some(&hub))
             .unwrap();
@@ -533,6 +555,7 @@ mod tests {
         let hub = HubQuoteUsd {
             ust1: None,
             ustr: Some(bd("0.01")),
+            ..Default::default()
         };
         let usd = volume_usd_for_swap(
             &ustr,
@@ -673,7 +696,8 @@ mod tests {
             Some(&HubQuoteUsd {
                 ust1: None,
                 ustr: Some(bd("0.01")),
-            }),
+            ..Default::default()
+        }),
         )
         .is_none());
     }
@@ -710,6 +734,7 @@ mod tests {
         let hub = HubQuoteUsd {
             ust1: Some(bd("1")),
             ustr: None,
+            ..Default::default()
         };
         let usd = volume_usd_for_swap(
             &ust1,
@@ -734,6 +759,7 @@ mod tests {
         let hub = HubQuoteUsd {
             ust1: None,
             ustr: Some(bd("0.01")),
+            ..Default::default()
         };
         assert!(volume_usd_for_swap(
             &ustr,
@@ -770,6 +796,7 @@ mod tests {
         let hub = HubQuoteUsd {
             ust1: Some(bd("1")),
             ustr: None,
+            ..Default::default()
         };
         assert!(volume_usd_for_swap(
             &ust1,

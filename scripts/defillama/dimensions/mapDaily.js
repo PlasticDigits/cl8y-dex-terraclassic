@@ -1,6 +1,6 @@
 'use strict'
 
-const { INDEXER_DAILY_URL, ADAPTER_START } = require('../gems')
+const { INDEXER_DAILY_URL, ADAPTER_START, ADAPTER_START_ISO } = require('../gems')
 
 function dailyUrl(timestamp, host = INDEXER_DAILY_URL) {
   const ts = Number(timestamp)
@@ -16,6 +16,39 @@ function asNumberOrNull(value) {
   if (value === '0') return 0
   const n = Number(value)
   return Number.isFinite(n) ? n : null
+}
+
+function usdOrZero(value) {
+  return asNumberOrNull(value) ?? 0
+}
+
+/** Throw on JSON null / missing. `"0"` is a valid idle day (GitLab #687). */
+function requirePricedUsd(value, kind, day) {
+  const n = asNumberOrNull(value)
+  if (n == null) {
+    throw new Error(`cl8y-dex ${kind} unpriced or missing for ${day}`)
+  }
+  return n
+}
+
+/**
+ * Llama METRIC groups for fees/cl8y-dex (dimension-adapters#8987).
+ * Null per-source breakdown counts as 0 toward the label (headline is partial SUM).
+ */
+function feeMetricGroups(breakdown) {
+  const b = breakdown || {}
+  const swapFees = usdOrZero(b.swap_amm) + usdOrZero(b.book_take) + usdOrZero(b.limit_place)
+  const wrapFees = usdOrZero(b.wrap) + usdOrZero(b.unwrap)
+  const mintRedeemFees = usdOrZero(b.ust1_mint) + usdOrZero(b.ust1_redeem)
+  const labeled = swapFees + wrapFees + mintRedeemFees
+  return { swapFees, wrapFees, mintRedeemFees, labeled }
+}
+
+/** Residual = headline − labeled. Never add headline then labels (double-count). */
+function feeResidual(dailyFeesUsd, breakdown) {
+  if (dailyFeesUsd == null) return null
+  const { labeled } = feeMetricGroups(breakdown)
+  return dailyFeesUsd > labeled ? dailyFeesUsd - labeled : 0
 }
 
 function mapVolume(json) {
@@ -74,13 +107,28 @@ const BREAKDOWN_METHODOLOGY = {
   ust1_redeem: 'Pinned ust1-window redeem fee (labeled)',
 }
 
+/** Upstream GitHub fees adapter `breakdownMethodology.Fees` keys (METRIC enum). */
+const LLAMA_FEE_METRICS = {
+  SWAP_FEES:
+    'Pair pool commission_amount, limit_order_fills.commission_amount, and maker placement fee to FEE_CONFIG.treasury',
+  DEPOSIT_WITHDRAW_FEES: 'Pinned wrap-mapper wrap/unwrap treasury fee',
+  MINT_REDEEM_FEES: 'Pinned ust1-window mint/redeem fee',
+}
+
 module.exports = {
   ADAPTER_START,
+  ADAPTER_START_ISO,
   INDEXER_DAILY_URL,
   dailyUrl,
   mapVolume,
   mapAsset,
   mapFees,
+  asNumberOrNull,
+  usdOrZero,
+  requirePricedUsd,
+  feeMetricGroups,
+  feeResidual,
   METHODOLOGY,
   BREAKDOWN_METHODOLOGY,
+  LLAMA_FEE_METRICS,
 }

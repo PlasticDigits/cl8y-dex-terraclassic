@@ -475,6 +475,44 @@ export interface ProtocolVolumeSeriesResponse {
   series: ProtocolVolumeDailyPoint[]
 }
 
+export interface ProtocolLiquidityDailyPoint {
+  utc_day?: string
+  utc_hour?: string
+  utc_month?: string
+  liquidity_usd: string | null
+  priced_pair_count?: number
+}
+
+export interface ProtocolLiquiditySeriesResponse {
+  grain: ProtocolVolumeGrain
+  limit: number
+  timezone: string
+  methodology: string
+  series: ProtocolLiquidityDailyPoint[]
+}
+
+export interface ProtocolFeeSeriesPoint {
+  utc_day?: string
+  utc_hour?: string
+  utc_month?: string
+  fees_usd: string | null
+  event_count?: number
+}
+
+export interface ProtocolFeeSeriesResponse {
+  grain: ProtocolVolumeGrain
+  limit: number
+  timezone: string
+  methodology: string
+  series: ProtocolFeeSeriesPoint[]
+}
+
+/** Volume / liquidity / fees UTC grain series (GitLab #689). */
+export type ProtocolUtcSeriesResponse =
+  | ProtocolVolumeSeriesResponse
+  | ProtocolLiquiditySeriesResponse
+  | ProtocolFeeSeriesResponse
+
 /** Allowlisted fee source keys from `GET /api/v1/protocol/fees` (GitLab #586 / #614). */
 export type ProtocolFeeSourceKey =
   | 'swap_amm'

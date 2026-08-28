@@ -1,13 +1,18 @@
-//! Shared CG/CMC aggregator snapshot loading — set-based 24h stats + volume-ranked pagination (GitLab #288).
+//! Shared CG/CMC aggregator snapshot loading — set-based 24h stats + volume-ranked pagination
+//! (GitLab #288) plus `pair_liquidity_usd` / reserve stamps (GitLab #685).
 
 use axum::http::StatusCode;
+use bigdecimal::BigDecimal;
 use serde::Deserialize;
 use sqlx::PgPool;
 use utoipa::{IntoParams, ToSchema};
 
-use crate::db::queries::{assets, pairs as db_pairs, swap_events};
 use crate::db::queries::pairs::PairRow;
 use crate::db::queries::swap_events::PairStats;
+use crate::db::queries::{
+    assets, pair_liquidity_usd, pair_reserves, pairs as db_pairs, swap_events,
+};
+use crate::indexer::listing_exclude::pair_is_listing_excluded;
 
 use super::consolidated_stats;
 
@@ -61,9 +66,15 @@ pub struct AggregatorPairRow {
     pub asset_1: assets::AssetRow,
     pub stats: PairStats,
     pub extensions: Option<consolidated_stats::Cl8yConsolidatedExtensions>,
+    /// AMM v2 TVL stamp (`pair_liquidity_usd`). None = unpriced.
+    pub liquidity_usd: Option<BigDecimal>,
+    pub reserve_0: Option<BigDecimal>,
+    pub reserve_1: Option<BigDecimal>,
+    pub reserve_fee_bps: Option<i16>,
 }
 
 /// Load pairs ranked by 24h quote volume with set-based stats (O(1) queries, not O(pairs)).
+/// Omits gem / ALPHA / USTRIX / SpaceUSD pairs (**L639-2** / #685).
 pub async fn load_aggregator_pairs(
     pool: &PgPool,
     params: AggregatorListParams,
@@ -80,6 +91,8 @@ pub async fn load_aggregator_pairs(
     } else {
         None
     };
+    let tvl_map = pair_liquidity_usd::get_all_pair_liquidity_usd(pool).await?;
+    let reserve_map = pair_reserves::get_all_pair_reserves(pool).await?;
 
     let mut ranked: Vec<AggregatorPairRow> = Vec::new();
     for p in all_pairs {
@@ -87,19 +100,30 @@ pub async fn load_aggregator_pairs(
             (Some(a0), Some(a1)) => (a0.clone(), a1.clone()),
             _ => continue,
         };
+        if pair_is_listing_excluded(
+            a0.contract_address.as_deref(),
+            a1.contract_address.as_deref(),
+        ) {
+            continue;
+        }
 
         let stats = stats_map.get(&p.id).cloned().unwrap_or_default();
         let extensions = hybrid_map.as_ref().map(|m| {
             let b = m.get(&p.id).cloned().unwrap_or_default();
             consolidated_stats::extensions_from_breakdown(&b)
         });
-
+        let pair_id = p.id;
+        let reserves = reserve_map.get(&pair_id);
         ranked.push(AggregatorPairRow {
             pair: p,
             asset_0: a0,
             asset_1: a1,
             stats,
             extensions,
+            liquidity_usd: tvl_map.get(&pair_id).cloned(),
+            reserve_0: reserves.map(|r| r.reserve_0.clone()),
+            reserve_1: reserves.map(|r| r.reserve_1.clone()),
+            reserve_fee_bps: reserves.map(|r| r.fee_bps),
         });
     }
 

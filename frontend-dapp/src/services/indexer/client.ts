@@ -18,6 +18,8 @@ import type {
   ProtocolFeesResponse,
   ProtocolVolumeDailyResponse,
   ProtocolVolumeSeriesResponse,
+  ProtocolLiquiditySeriesResponse,
+  ProtocolFeeSeriesResponse,
   IndexerTrader,
   IndexerPosition,
   IndexerToken,
@@ -392,6 +394,28 @@ export async function getProtocolVolumeSeries(
   return fetchJson<ProtocolVolumeSeriesResponse>(`/api/v1/protocol/volume/daily?grain=${grain}&limit=${limit}`)
 }
 
+/** UTC liquidity stock series. Allowlisted grain+limit; never Llama `from`/`to` (GitLab #689). */
+export async function getProtocolLiquiditySeries(
+  grain: ProtocolVolumeGrain,
+  limit: number
+): Promise<ProtocolLiquiditySeriesResponse> {
+  if (!isProtocolVolumeGrain(grain) || !isAllowlistedProtocolVolumeLimit(grain, limit)) {
+    throw new Error('Invalid protocol liquidity grain or limit')
+  }
+  return fetchJson<ProtocolLiquiditySeriesResponse>(`/api/v1/protocol/liquidity/daily?grain=${grain}&limit=${limit}`)
+}
+
+/** UTC treasury-fee flow series. Distinct from `GET /protocol/fees?window=` (GitLab #689). */
+export async function getProtocolFeesSeries(
+  grain: ProtocolVolumeGrain,
+  limit: number
+): Promise<ProtocolFeeSeriesResponse> {
+  if (!isProtocolVolumeGrain(grain) || !isAllowlistedProtocolVolumeLimit(grain, limit)) {
+    throw new Error('Invalid protocol fees grain or limit')
+  }
+  return fetchJson<ProtocolFeeSeriesResponse>(`/api/v1/protocol/fees/daily?grain=${grain}&limit=${limit}`)
+}
+
 /** Cached fee-discount registry LCD probe (GitLab #365). */
 export async function getFeeDiscountHealth(): Promise<{
   configured: boolean
@@ -627,6 +651,8 @@ export interface GetRouteSolveOptions {
   sender?: string
   /** React Query (or other) cancellation — aborts the in-flight solve (GitLab #484). */
   signal?: AbortSignal
+  /** Progress-only (#694): skip LCD GetDiscount when the parent quote already resolved bps. */
+  discountBps?: number
 }
 
 /**
@@ -664,7 +690,7 @@ export async function getRouteSolveProgress(
   tokenIn: string,
   tokenOut: string,
   amountIn: string,
-  options?: Pick<GetRouteSolveOptions, 'maxMakerFills' | 'trader' | 'sender' | 'signal'>
+  options?: Pick<GetRouteSolveOptions, 'maxMakerFills' | 'trader' | 'sender' | 'signal' | 'discountBps'>
 ): Promise<IndexerRouteSolveProgress> {
   const sp = new URLSearchParams({
     token_in: tokenIn.trim(),
@@ -674,6 +700,9 @@ export async function getRouteSolveProgress(
   if (options?.maxMakerFills != null) sp.set('max_maker_fills', String(options.maxMakerFills))
   if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
   if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
+  if (options?.discountBps != null && Number.isFinite(options.discountBps)) {
+    sp.set('discount_bps', String(Math.max(0, Math.floor(options.discountBps))))
+  }
   return fetchJson<IndexerRouteSolveProgress>(`/api/v1/route/solve/progress?${sp}`, {
     signal: options?.signal,
   })

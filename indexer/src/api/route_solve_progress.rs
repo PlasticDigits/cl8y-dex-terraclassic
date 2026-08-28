@@ -14,7 +14,8 @@ use utoipa::ToSchema;
 use crate::api::AppState;
 use crate::api::best_execution::solver_version_for;
 use crate::api::route_solver::{
-    SolveRouteParams, amount_cache_key, hybrid_cache_key, parse_quote_trader, resolve_discount_bps,
+    SolveRouteParams, amount_cache_key, hybrid_cache_key, parse_progress_discount_bps,
+    parse_quote_trader, resolve_discount_bps,
 };
 use crate::hybrid_limits::clamp_max_maker_fills;
 
@@ -243,7 +244,10 @@ pub async fn solve_route_progress(
     let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
     let max_makers = clamp_max_maker_fills(q.max_maker_fills.unwrap_or(8));
     let bucket = amount_cache_key(amount_u);
-    let discount_bps = resolve_discount_bps(&state, &quote_trader).await;
+    let discount_bps = match parse_progress_discount_bps(q.discount_bps)? {
+        Some(bps) => bps,
+        None => resolve_discount_bps(&state, &quote_trader).await,
+    };
     let solver_version = solver_version_for(&state);
     let tax_identity = crate::api::community_tax_rank::load_tax_rank_snapshot(
         &state,

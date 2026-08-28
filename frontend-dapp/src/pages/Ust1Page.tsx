@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -27,6 +27,7 @@ import {
   type Ust1WindowDirection,
 } from '@/utils/ust1WindowGates'
 import { UST1_WITHDRAW_MIN_OUT_SLIPPAGE_BPS } from '@/utils/ust1WindowMath'
+import { clampUst1DepositPrefillAmount, parseUst1AcquirePrefill } from '@/utils/ust1AcquirePrefill'
 import { lookupByCW20 } from '@/utils/tokenRegistry'
 import { Spinner, RetryError, TokenLogo, TxResultAlert } from '@/components/ui'
 import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
@@ -49,9 +50,11 @@ function tokenLogoProps(address: string, symbol: string) {
 export default function Ust1Page() {
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
   const [direction, setDirection] = useState<Ust1WindowDirection>('deposit')
   const [payHuman, setPayHuman] = useState('')
   const [successTx, setSuccessTx] = useState<string | null>(null)
+  const [prefillApplied, setPrefillApplied] = useState(false)
   const debouncedPayHuman = useDebouncedValue(payHuman, QUOTE_DEBOUNCE_MS)
 
   const windowEnabled = isUst1WindowEnabled()
@@ -65,6 +68,32 @@ export default function Ust1Page() {
     staleTime: 15_000,
     refetchInterval: 30_000,
   })
+
+  useEffect(() => {
+    if (prefillApplied) return
+    const parsed = parseUst1AcquirePrefill(searchParams)
+    if (parsed.direction) setDirection(parsed.direction)
+    if (!parsed.amountHuman) {
+      setPrefillApplied(true)
+      return
+    }
+    if (parsed.direction === 'withdraw') {
+      setPrefillApplied(true)
+      return
+    }
+    if (effectiveQuery.isLoading) return
+    if (effectiveQuery.isError || !effectiveQuery.data) {
+      setPrefillApplied(true)
+      return
+    }
+    const clamped = clampUst1DepositPrefillAmount(
+      parsed.amountHuman,
+      effectiveQuery.data,
+      Math.floor(Date.now() / 1000)
+    )
+    if (clamped) setPayHuman(clamped)
+    setPrefillApplied(true)
+  }, [prefillApplied, searchParams, effectiveQuery.isLoading, effectiveQuery.isError, effectiveQuery.data])
 
   const amountRaw = useMemo(() => {
     if (!isPositiveDecimalAmount(debouncedPayHuman)) return null

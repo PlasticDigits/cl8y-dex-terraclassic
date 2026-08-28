@@ -1,18 +1,21 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use bigdecimal::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
     aggregator_snapshot::{self, AggregatorListQuery},
-    consolidated_stats, find_pair_by_ticker, internal_err, listing_timestamps, orderbook_sim,
-    AppState,
+    consolidated_stats, find_pair_by_ticker, internal_err, listing_spread, listing_timestamps,
+    orderbook_sim, AppState,
 };
 use crate::db::queries::{assets, pairs as db_pairs, swap_events};
+use crate::indexer::asset_code_id_freeze::is_pair_code_id_frozen;
+use crate::indexer::listing_exclude::{
+    is_excluded_cw20, is_listing_economic_asset, pair_is_listing_excluded,
+};
 
 // ---------- /cmc/summary ----------
 
@@ -64,11 +67,15 @@ pub async fn cmc_summary(
         let stats = &row.stats;
         let extensions = row.extensions.clone().expect("extensions loaded");
 
-        let last_price_f = stats
-            .close_price
-            .as_ref()
-            .and_then(|p| p.to_f64())
-            .unwrap_or(0.0);
+        let fee_bps = row.reserve_fee_bps.or(row.pair.fee_bps).unwrap_or(0);
+        let (highest_bid, lowest_ask) = listing_spread::listing_bid_ask(
+            stats.close_price.as_ref(),
+            row.reserve_0.as_ref(),
+            row.reserve_1.as_ref(),
+            a0.decimals,
+            a1.decimals,
+            fee_bps,
+        );
 
         result.push(CmcSummaryEntry {
             trading_pairs: format!("{}_{}", a0.symbol, a1.symbol),
@@ -79,8 +86,8 @@ pub async fn cmc_summary(
                 .as_ref()
                 .map(|p| p.to_string())
                 .unwrap_or_else(|| "0".to_string()),
-            lowest_ask: format!("{:.18}", last_price_f * 1.001),
-            highest_bid: format!("{:.18}", last_price_f * 0.999),
+            lowest_ask,
+            highest_bid,
             base_volume: stats.volume_base.to_string(),
             quote_volume: stats.volume_quote.to_string(),
             price_change_percent_24h: stats
@@ -135,6 +142,13 @@ pub async fn cmc_assets(
 
     let mut map = HashMap::new();
     for a in &all {
+        if a.contract_address.as_deref().is_some_and(is_excluded_cw20) {
+            continue;
+        }
+        let economic = is_listing_economic_asset(a.contract_address.as_deref(), a.denom.as_deref());
+        if map.contains_key(&a.symbol) && !economic {
+            continue;
+        }
         map.insert(
             a.symbol.clone(),
             CmcAssetEntry {
@@ -154,13 +168,16 @@ pub async fn cmc_assets(
 
 #[derive(Serialize, ToSchema)]
 pub struct CmcTickerEntry {
-    pub base_id: String,
-    pub quote_id: String,
+    pub base_id: i32,
+    pub quote_id: i32,
     pub last_price: String,
     pub base_volume: String,
     pub quote_volume: String,
     #[serde(rename = "isFrozen")]
     pub is_frozen: String,
+    /// Additive: contract or native denom (ids stay numeric).
+    pub cl8y_base_address: String,
+    pub cl8y_quote_address: String,
 }
 
 #[utoipa::path(
@@ -189,30 +206,46 @@ pub async fn cmc_ticker(
         .map_err(internal_err)?;
 
     let mut map = HashMap::new();
+    let mut collisions = HashSet::new();
     for row in &rows {
         let a0 = &row.asset_0;
         let a1 = &row.asset_1;
         let stats = &row.stats;
+        if pair_is_listing_excluded(
+            a0.contract_address.as_deref(),
+            a1.contract_address.as_deref(),
+        ) {
+            continue;
+        }
 
-        let base_id = a0
+        let key = format!("{}_{}", a0.symbol, a1.symbol);
+        if collisions.contains(&key) {
+            continue;
+        }
+        if map.contains_key(&key) {
+            map.remove(&key);
+            collisions.insert(key);
+            continue;
+        }
+
+        let base_addr = a0
             .contract_address
             .as_deref()
             .or(a0.denom.as_deref())
             .unwrap_or("")
             .to_string();
-        let quote_id = a1
+        let quote_addr = a1
             .contract_address
             .as_deref()
             .or(a1.denom.as_deref())
             .unwrap_or("")
             .to_string();
 
-        let key = format!("{}_{}", a0.symbol, a1.symbol);
         map.insert(
             key,
             CmcTickerEntry {
-                base_id,
-                quote_id,
+                base_id: listing_spread::listing_cmc_unified_id(a0.cmc_id),
+                quote_id: listing_spread::listing_cmc_unified_id(a1.cmc_id),
                 last_price: stats
                     .close_price
                     .as_ref()
@@ -220,7 +253,13 @@ pub async fn cmc_ticker(
                     .unwrap_or_else(|| "0".to_string()),
                 base_volume: stats.volume_base.to_string(),
                 quote_volume: stats.volume_quote.to_string(),
-                is_frozen: "0".to_string(),
+                is_frozen: if is_pair_code_id_frozen(&row.pair.contract_address) {
+                    "1".to_string()
+                } else {
+                    "0".to_string()
+                },
+                cl8y_base_address: base_addr,
+                cl8y_quote_address: quote_addr,
             },
         );
     }

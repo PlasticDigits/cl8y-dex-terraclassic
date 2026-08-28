@@ -3,6 +3,8 @@
 //! Written by protocol TVL refresh. `GET /api/v1/pairs/{addr}` reads this stamp only —
 //! never `pair_reserves` × oracles × hub on the request path.
 
+use std::collections::HashMap;
+
 use bigdecimal::BigDecimal;
 use sqlx::{FromRow, PgPool};
 
@@ -49,4 +51,22 @@ pub async fn get_pair_liquidity_usd(
             .fetch_optional(pool)
             .await?;
     Ok(row.map(|r| r.liquidity_usd))
+}
+
+/// Set-based stamp map for CG/CMC list paths (GitLab #685). GET never recomputes TVL.
+pub async fn get_all_pair_liquidity_usd(
+    pool: &PgPool,
+) -> Result<HashMap<i32, BigDecimal>, sqlx::Error> {
+    #[derive(FromRow)]
+    struct Row {
+        pair_id: i32,
+        liquidity_usd: BigDecimal,
+    }
+    let rows = sqlx::query_as::<_, Row>("SELECT pair_id, liquidity_usd FROM pair_liquidity_usd")
+        .fetch_all(pool)
+        .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| (r.pair_id, r.liquidity_usd))
+        .collect())
 }

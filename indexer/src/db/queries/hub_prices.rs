@@ -4,6 +4,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
+use crate::indexer::economic_usd::{resolve_economic_marks, EconomicMark};
 use crate::indexer::hub_usd::{
     resolve_hub_usd, resolve_lunc_hub_mark, AssetRef, HubMark, HubTicker, HubUsdConfig,
     HubUsdSnapshot, ReservePair,
@@ -178,7 +179,9 @@ pub async fn get_hub_price(
     .await
 }
 
-/// Quote USD for ingest: UST1/USTR from hub table (not $1 / 2.5×).
+/// Quote USD for ingest: UST1/USTR from hub table (not $1 / 2.5×) plus
+/// factory economic CW20 marks keyed by contract (GitLab #683). Extra
+/// `hub_prices` tickers never leak into GET /hub-prices.
 pub async fn load_quote_usd(pool: &PgPool) -> Result<HubQuoteUsd, sqlx::Error> {
     let rows = get_all_hub_prices(pool).await?;
     let mut hub = HubQuoteUsd::default();
@@ -187,6 +190,19 @@ pub async fn load_quote_usd(pool: &PgPool) -> Result<HubQuoteUsd, sqlx::Error> {
             "ust1" => hub.ust1 = Some(row.price_usd),
             "ustr" => hub.ustr = Some(row.price_usd),
             _ => {}
+        }
+    }
+    let econ_rows: Vec<(String, BigDecimal)> = sqlx::query_as(
+        "SELECT contract_address, price_usd
+         FROM economic_token_marks
+         WHERE price_usd > 0",
+    )
+    .fetch_all(pool)
+    .await?;
+    for (contract, price) in econ_rows {
+        let key = contract.trim().to_ascii_lowercase();
+        if key.starts_with("terra1") && price > BigDecimal::from(0) {
+            hub.economic.insert(key, price);
         }
     }
     Ok(hub)
@@ -231,6 +247,38 @@ async fn insert_mark(
     Ok(())
 }
 
+async fn replace_economic_marks(
+    tx: &mut Transaction<'_, Postgres>,
+    marks: &[EconomicMark],
+) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM economic_token_marks")
+        .execute(&mut **tx)
+        .await?;
+    for mark in marks {
+        if mark.price_usd <= BigDecimal::from(0) || !fits_numeric_38_18(&mark.price_usd) {
+            continue;
+        }
+        let contract = mark.contract_address.trim().to_ascii_lowercase();
+        if !contract.starts_with("terra1") {
+            continue;
+        }
+        sqlx::query(
+            "INSERT INTO economic_token_marks
+                (contract_address, asset_id, price_usd, source_pair_id, source_pair_address, tvl_usd, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+        )
+        .bind(&contract)
+        .bind(mark.asset_id)
+        .bind(&mark.price_usd)
+        .bind(mark.source_pair_id)
+        .bind(&mark.source_pair_address)
+        .bind(&mark.tvl_usd)
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(())
+}
+
 /// Recompute hub USD from indexed `pairs` + `pair_reserves` + USTC/LUNC oracles (no LCD, no swap scan).
 ///
 /// Does **not** rewrite historical `swap_events.price_usd` or candle USD (GitLab #568).
@@ -247,12 +295,35 @@ pub async fn refresh_hub_prices(
     let now = Utc::now();
     let mut snap = resolve_hub_usd(now, cfg, ustc_oracle, &pairs, custc_id);
     snap.lunc = resolve_lunc_hub_mark(lunc_oracle, clunc_id);
+    let economic = resolve_economic_marks(now, cfg, &pairs, &snap);
 
     let mut tx = pool.begin().await?;
     replace_snapshot(&mut tx, &snap).await?;
+    replace_economic_marks(&mut tx, &economic).await?;
     tx.commit().await?;
 
     let hub = load_quote_usd(pool).await.unwrap_or_default();
+    if let Err(e) = crate::db::queries::protocol_fees::backfill_null_fee_usd(
+        pool,
+        ustc_oracle,
+        lunc_oracle,
+        None,
+        &hub,
+    )
+    .await
+    {
+        tracing::warn!("NULL-only protocol fee USD backfill failed: {}", e);
+    } else if let Ok(flags) = crate::db::queries::protocol_fees::get_fee_rollup(pool).await {
+        if let Err(e) = crate::db::queries::protocol_fees::refresh_protocol_fees(
+            pool,
+            flags.wrap_mapper_configured,
+            flags.ust1_window_configured,
+        )
+        .await
+        {
+            tracing::warn!("Protocol fee rollup after economic marks failed: {}", e);
+        }
+    }
     if let Err(e) = crate::indexer::candle_mark::apply_idle_usd_marks(
         pool,
         cfg,

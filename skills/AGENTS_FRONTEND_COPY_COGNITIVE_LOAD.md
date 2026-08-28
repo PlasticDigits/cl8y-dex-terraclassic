@@ -6,7 +6,7 @@ Use when adding or editing **user-visible** strings on the dApp ([GitLab #488](h
 
 1. **Audience = humans.** Agents read `docs/` and `skills/` — do not paste protocol essays onto cards.
 2. **Labels** ≤ ~5 words (`Pay`, `Receive`, `When 1 LUNC is worth`).
-3. **Blocking errors** ≤ 1 short sentence + optional **Docs** link.
+3. **Blocking errors** ≤ 1 short sentence + optional **Docs** / **Guide** control. Swap/Trade unfunded pay is one sentence + `/ust1` or `/wrap` Guide ([#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678) **A678-9**) — not an oracle lecture. Playbook: [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md).
 4. **Never** show `token0`, `token1`, or raw `bid`/`ask` in retail UI — use token **symbols** and **Buy** / **Sell**.
 5. **Keep** safety gates, risk acknowledgement (`NFA_SHORT`), and accurate error *conditions* — only shorten wording.
 6. Prefer progressive disclosure (`<details>Signing details</details>`) over always-on grids.

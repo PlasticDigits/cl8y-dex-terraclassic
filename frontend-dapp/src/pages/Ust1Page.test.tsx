@@ -177,6 +177,29 @@ describe('Ust1Page (#506)', () => {
     expect(screen.queryByTestId('ust1-withdraw-slippage-note')).toBeInTheDocument()
   })
 
+  it('prefills deposit amount from a legal query string (#678)', async () => {
+    renderWithProviders(<Ust1Page />, { route: '/ust1?direction=deposit&amount=10' })
+    await waitFor(() => {
+      expect((screen.getByTestId('ust1-pay-amount') as HTMLInputElement).value).toBe('10')
+    })
+    expect(screen.getByTestId('ust1-tab-deposit')).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('clamps huge prefill amounts to remaining window capacity (#678 A10)', async () => {
+    renderWithProviders(<Ust1Page />, { route: '/ust1?direction=deposit&amount=999999999999999' })
+    await waitFor(() => {
+      const v = (screen.getByTestId('ust1-pay-amount') as HTMLInputElement).value
+      expect(v).not.toBe('')
+      expect(Number(v)).toBeLessThanOrEqual(1000 * 1.02)
+    })
+  })
+
+  it('ignores hostile query amounts (#678 A10)', async () => {
+    renderWithProviders(<Ust1Page />, { route: '/ust1?amount=abc&next=https://evil.example' })
+    await screen.findByTestId('ust1-pay-amount')
+    expect((screen.getByTestId('ust1-pay-amount') as HTMLInputElement).value).toBe('')
+  })
+
   it('quotes receive and submits deposit via window client', async () => {
     const user = userEvent.setup()
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })

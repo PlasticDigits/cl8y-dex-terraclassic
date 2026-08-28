@@ -1,8 +1,9 @@
 /**
- * Protocol UTC volume chart grain + width clamp (GitLab #668).
+ * Protocol UTC volume chart grain + width clamp (GitLab #668 / #677).
  *
  * Bar count follows plot width, then `[min, max]` per grain. Do not request
  * above the indexer allowlist (hourly 168 / daily 90 / monthly 24).
+ * X-axis labels use step 1 or 2 (hourly may widen when step 2 collides).
  */
 
 export const PROTOCOL_VOLUME_GRAINS = ['hourly', 'daily', 'monthly'] as const
@@ -49,12 +50,29 @@ export function isAllowlistedProtocolVolumeLimit(grain: ProtocolVolumeGrain, lim
   return Number.isInteger(limit) && limit >= 1 && limit <= PROTOCOL_VOLUME_GRAIN_MAX[grain]
 }
 
+export const PROTOCOL_UTC_METRICS = ['volume', 'liquidity', 'fees'] as const
+export type ProtocolUtcMetric = (typeof PROTOCOL_UTC_METRICS)[number]
+
+export function isProtocolUtcMetric(raw: string): raw is ProtocolUtcMetric {
+  return (PROTOCOL_UTC_METRICS as readonly string[]).includes(raw)
+}
+
 export type ProtocolVolumeSeriesPoint = {
   utc_hour?: string | null
   utc_day?: string | null
   utc_month?: string | null
-  volume_usd: string | null
-  trade_count: number
+  volume_usd?: string | null
+  liquidity_usd?: string | null
+  fees_usd?: string | null
+  trade_count?: number
+  priced_pair_count?: number
+  event_count?: number
+}
+
+export function pointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric = 'volume'): string | null {
+  if (metric === 'liquidity') return point.liquidity_usd ?? null
+  if (metric === 'fees') return point.fees_usd ?? null
+  return point.volume_usd ?? null
 }
 
 export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVolumeGrain): string {
@@ -63,16 +81,53 @@ export function pointPeriod(point: ProtocolVolumeSeriesPoint, grain: ProtocolVol
   return point.utc_day ?? ''
 }
 
-/** Sparse X-axis labels — do not label every hourly bar. */
-export function sparseTimeLabelIndexes(count: number, maxLabels = 5): number[] {
+/**
+ * Default plot width used when ResizeObserver has not measured yet
+ * (320 − padL 52 − padR 8). Live charts set viewBox width from the panel.
+ */
+export const PROTOCOL_VOLUME_AXIS_PLOT_PX = 260
+
+/** SVG `fontSize="8"` ≈ 0.6em per glyph, plus a small gap. */
+const AXIS_LABEL_EM_PX = 4.8
+const AXIS_LABEL_PAD_PX = 2
+
+/** Formatted axis width: hourly `HH`, daily `MM-DD`, monthly `YYYY-MM`. */
+export function estimatedAxisLabelWidthPx(grain: ProtocolVolumeGrain): number {
+  const chars = grain === 'hourly' ? 2 : grain === 'daily' ? 5 : 7
+  return chars * AXIS_LABEL_EM_PX + AXIS_LABEL_PAD_PX
+}
+
+/**
+ * X-axis step (GitLab #677 / **P668-9**).
+ * Daily and Monthly: 1 (every bar) or 2 (every other). Hourly may use a wider
+ * step only when step 2 still collides in the **current** plot width. No global maxLabels=5.
+ */
+export function timeLabelStep(
+  count: number,
+  grain: ProtocolVolumeGrain,
+  plotWidthPx: number = PROTOCOL_VOLUME_AXIS_PLOT_PX
+): number {
+  if (count <= 1) return 1
+  const slot = plotWidthPx / count
+  if (!Number.isFinite(slot) || slot <= 0) return 1
+  const raw = Math.max(1, Math.ceil(estimatedAxisLabelWidthPx(grain) / slot))
+  if (grain === 'hourly') return raw
+  return raw <= 1 ? 1 : 2
+}
+
+/** First and last indexes stay labeled when any labels are shown. */
+export function timeLabelIndexes(
+  count: number,
+  grain: ProtocolVolumeGrain,
+  plotWidthPx: number = PROTOCOL_VOLUME_AXIS_PLOT_PX
+): number[] {
   if (count <= 0) return []
-  if (count <= maxLabels) return Array.from({ length: count }, (_, i) => i)
-  const out: number[] = []
+  if (count === 1) return [0]
+  const step = timeLabelStep(count, grain, plotWidthPx)
   const last = count - 1
-  for (let i = 0; i < maxLabels; i++) {
-    const idx = Math.round((i * last) / (maxLabels - 1))
-    if (out[out.length - 1] !== idx) out.push(idx)
-  }
+  const out: number[] = []
+  for (let i = 0; i <= last; i += step) out.push(i)
+  if (out[out.length - 1] !== last) out.push(last)
   return out
 }
 
@@ -91,11 +146,15 @@ export function usdAxisTicks(peak: number): number[] {
   return [0, peak * 0.25, peak * 0.5, peak * 0.75, peak]
 }
 
-export function maxPricedUsd(points: Array<{ volume_usd: string | null }>): number {
+export function maxPricedUsd(
+  points: Array<{ volume_usd?: string | null; liquidity_usd?: string | null; fees_usd?: string | null }>,
+  metric: ProtocolUtcMetric = 'volume'
+): number {
   let max = 0
   for (const p of points) {
-    if (p.volume_usd == null || p.volume_usd === '') continue
-    const n = Number(p.volume_usd)
+    const raw = pointValueUsd(p, metric)
+    if (raw == null || raw === '') continue
+    const n = Number(raw)
     if (Number.isFinite(n) && n > max) max = n
   }
   return max

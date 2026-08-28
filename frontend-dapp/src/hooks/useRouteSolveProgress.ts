@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { getRouteSolveProgress } from '@/services/indexer/client'
-import { SIM_QUOTE_PROGRESS_POLL_MS, type RouteSolveProgressSnapshot } from '@/utils/routeSolveProgress'
+import {
+  nextProgressPollDelayMs,
+  progressPollTraderParams,
+  shouldStopProgressPolling,
+  type RouteSolveProgressSnapshot,
+} from '@/utils/routeSolveProgress'
 
 export type UseRouteSolveProgressArgs = {
   /** When false, clears progress and stops polling. */
@@ -10,12 +15,15 @@ export type UseRouteSolveProgressArgs = {
   tokenOut?: string
   amountIn?: string
   trader?: string
+  /** When set (including 0), omit `trader` and pass `discount_bps` (#694). */
+  knownDiscountBps?: number
   maxMakerFills?: number
 }
 
 /**
  * Polls `GET /api/v1/route/solve/progress` ~1 Hz while a sim quote is in flight (GitLab #485).
  * Display-only — does not gate submit or receive amount (#484).
+ * Backs off after consecutive failures; omits `trader` when discount is already known (#694).
  */
 export function useRouteSolveProgress({
   enabled,
@@ -24,6 +32,7 @@ export function useRouteSolveProgress({
   tokenOut,
   amountIn,
   trader,
+  knownDiscountBps,
   maxMakerFills,
 }: UseRouteSolveProgressArgs): {
   progress: RouteSolveProgressSnapshot | null
@@ -59,35 +68,53 @@ export function useRouteSolveProgress({
     abortRef.current = ac
 
     let cancelled = false
+    let consecutiveFailures = 0
+    let pollTimer: number | undefined
+
+    const traderParams = progressPollTraderParams({ knownDiscountBps, trader })
 
     const poll = async () => {
       try {
         const next = await getRouteSolveProgress(tin, tout, amt, {
-          trader,
+          ...traderParams,
           maxMakerFills,
           signal: ac.signal,
         })
         if (!cancelled && !ac.signal.aborted) {
+          consecutiveFailures = 0
           setProgress(next)
         }
-      } catch {
-        // Advisory only — ignore poll failures (outage / abort / 400).
+      } catch (err) {
+        if (ac.signal.aborted || cancelled) return
+        const name = err instanceof Error ? err.name : ''
+        if (name === 'AbortError') return
+        consecutiveFailures += 1
       }
     }
 
-    void poll()
-    const pollId = window.setInterval(() => {
-      void poll()
-    }, SIM_QUOTE_PROGRESS_POLL_MS)
+    const schedule = () => {
+      if (cancelled || shouldStopProgressPolling(consecutiveFailures)) return
+      pollTimer = window.setTimeout(() => {
+        void (async () => {
+          await poll()
+          schedule()
+        })()
+      }, nextProgressPollDelayMs(consecutiveFailures))
+    }
+
+    void (async () => {
+      await poll()
+      schedule()
+    })()
     const tickId = window.setInterval(() => setNowMs(Date.now()), 250)
 
     return () => {
       cancelled = true
-      window.clearInterval(pollId)
+      if (pollTimer != null) window.clearTimeout(pollTimer)
       window.clearInterval(tickId)
       ac.abort()
     }
-  }, [enabled, isFetching, tokenIn, tokenOut, amountIn, trader, maxMakerFills])
+  }, [enabled, isFetching, tokenIn, tokenOut, amountIn, trader, knownDiscountBps, maxMakerFills])
 
   return { progress, fetchStartedAtMs, nowMs }
 }

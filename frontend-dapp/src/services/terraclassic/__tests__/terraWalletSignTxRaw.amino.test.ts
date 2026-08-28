@@ -27,7 +27,7 @@ vi.mock('@goblinhunt/cosmes/client', async (importOriginal) => {
   return { ...actual, Tx: FakeTx }
 })
 
-import { signTerraTxRaw, walletUsesAmino } from '../terraWalletSignTxRaw'
+import { isAtomicWalletConnectPost, signTerraTxRaw, walletUsesAmino } from '../terraWalletSignTxRaw'
 
 const fee = {
   amount: [{ denom: 'uluna', amount: '1' }],
@@ -59,6 +59,35 @@ function keplrWallet(overrides: Record<string, unknown> = {}) {
     signDirect,
   }
 }
+
+describe('isAtomicWalletConnectPost (GitLab #679 residual)', () => {
+  it('keeps Station and LuncDash WalletConnect on atomic post', () => {
+    expect(
+      isAtomicWalletConnectPost({
+        id: WalletName.STATION,
+        type: WalletType.WALLETCONNECT,
+      } as never)
+    ).toBe(true)
+    expect(
+      isAtomicWalletConnectPost({
+        id: WalletName.LUNCDASH,
+        type: WalletType.WALLETCONNECT,
+      } as never)
+    ).toBe(true)
+    expect(
+      isAtomicWalletConnectPost({
+        id: WalletName.STATION,
+        type: WalletType.EXTENSION,
+      } as never)
+    ).toBe(false)
+    expect(
+      isAtomicWalletConnectPost({
+        id: WalletName.KEPLR,
+        type: WalletType.WALLETCONNECT,
+      } as never)
+    ).toBe(false)
+  })
+})
 
 describe('walletUsesAmino (GitLab #567)', () => {
   it('is always true for Station and Cosmostation', () => {

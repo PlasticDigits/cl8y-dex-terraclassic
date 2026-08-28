@@ -26,5 +26,6 @@ Do **not** treat `/cg/*` compliance ([#224](https://gitlab.com/PlasticDigits/cl8
 
 - **Do** use the indexer host above. **Don’t** paste `api.coingecko.com` / Pro v3 paths (**L639-3**).
 - **Do** disclose hybrid-simulated orderbook depth ([#220](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/220)).
-- **Don’t** submit gems or invent a second CoinGecko id for CL8Y.
+- **Don’t** submit gems / ALPHA / USTRIX / SpaceUSD. `/cg/pairs` and `/cg/tickers` omit them ([#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685), **L639-2**).
+- **Don’t** treat `liquidity_in_usd` as 24h volume — it is AMM v2 TVL (`pair_liquidity_usd`). Skill: [`skills/AGENTS_INDEXER_CG_CMC_LISTING.md`](../../../skills/AGENTS_INDEXER_CG_CMC_LISTING.md).
 - **Don’t** reopen DeFiLlama ([#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)) or Keplr ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)) here.

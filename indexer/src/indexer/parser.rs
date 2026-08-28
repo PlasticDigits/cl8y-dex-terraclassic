@@ -23,8 +23,8 @@ use crate::db::queries::{
 use crate::lcd::{Attribute, LcdClient, TxResponse};
 
 use super::{
-    asset_resolver, candle_builder, oracle, pair_discovery, pair_price_usd, position_tracker,
-    protocol_fees, swap_orientation, trader_tracker,
+    asset_resolver, candle_builder, gt_event_reserves, oracle, pair_discovery, pair_price_usd,
+    position_tracker, protocol_fees, swap_orientation, trader_tracker,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -207,6 +207,10 @@ pub struct ParsedSwap {
     pub pool_return_amount: Option<BigDecimal>,
     pub book_return_amount: Option<BigDecimal>,
     pub limit_book_offer_consumed: Option<BigDecimal>,
+    /// Optional pair wasm post-event `RESERVES` (GitLab #684). Taken only from this
+    /// event's runtime-reserved `_contract_address` (GitLab #285).
+    pub reserve_0: Option<BigDecimal>,
+    pub reserve_1: Option<BigDecimal>,
 }
 
 #[derive(Debug, Clone)]
@@ -267,6 +271,8 @@ pub async fn process_block_txs(
     block_time: DateTime<Utc>,
     ustc_price: &oracle::SharedPrice,
 ) -> Result<(), BoxError> {
+    let mut reserve_cache: std::collections::HashMap<i32, (BigDecimal, BigDecimal)> =
+        std::collections::HashMap::new();
     for tx in txs {
         if let Some(ref fee_addr) = config.fee_discount_address {
             if !fee_addr.is_empty() {
@@ -280,7 +286,15 @@ pub async fn process_block_txs(
         let swaps = parse_swaps(tx);
         for swap in &swaps {
             process_swap(
-                pool, lcd, config, swap, height, block_time, &tx.txhash, ustc_price,
+                pool,
+                lcd,
+                config,
+                swap,
+                height,
+                block_time,
+                &tx.txhash,
+                ustc_price,
+                &mut reserve_cache,
             )
             .await?;
         }
@@ -288,8 +302,17 @@ pub async fn process_block_txs(
         let liq_events = parse_liquidity_events(tx);
         let factory_addr = config.factory_address.as_str();
         for liq in &liq_events {
-            process_liquidity_event(pool, lcd, factory_addr, liq, height, block_time, &tx.txhash)
-                .await?;
+            process_liquidity_event(
+                pool,
+                lcd,
+                factory_addr,
+                liq,
+                height,
+                block_time,
+                &tx.txhash,
+                &mut reserve_cache,
+            )
+            .await?;
         }
 
         let lo_fills = parse_limit_order_fills(tx);
@@ -429,6 +452,7 @@ async fn process_swap(
     block_time: DateTime<Utc>,
     tx_hash: &str,
     ustc_price: &oracle::SharedPrice,
+    reserve_cache: &mut std::collections::HashMap<i32, (BigDecimal, BigDecimal)>,
 ) -> Result<(), BoxError> {
     let Some(pair) = pair_discovery::get_or_discover_pair(
         pool,
@@ -513,6 +537,31 @@ async fn process_swap(
         _ => None,
     };
 
+    let post_reserves = if let (Some(r0), Some(r1)) = (&swap.reserve_0, &swap.reserve_1) {
+        Some((r0.clone(), r1.clone()))
+    } else {
+        match gt_event_reserves::resolve_pre_reserves(pool, reserve_cache, pair.id).await? {
+            Some((pre0, pre1)) => {
+                let offer_is_asset_0 = offer_asset_id == pair.asset_0_id;
+                let delta = gt_event_reserves::swap_pool_delta(
+                    offer_is_asset_0,
+                    &swap.offer_amount,
+                    &swap.return_amount,
+                    swap.pool_return_amount.as_ref(),
+                    swap.book_return_amount.as_ref(),
+                    swap.limit_book_offer_consumed.as_ref(),
+                    swap.commission_amount.as_ref(),
+                );
+                gt_event_reserves::apply_delta(&pre0, &pre1, &delta)
+            }
+            None => None,
+        }
+    };
+    let (post_r0, post_r1) = match &post_reserves {
+        Some((a, b)) => (Some(a), Some(b)),
+        None => (None, None),
+    };
+
     let inserted = swap_events::insert_swap(
         pool,
         pair.id,
@@ -535,10 +584,15 @@ async fn process_swap(
         swap.pool_return_amount.as_ref(),
         swap.book_return_amount.as_ref(),
         swap.limit_book_offer_consumed.as_ref(),
+        post_r0,
+        post_r1,
     )
     .await?;
     if inserted.is_none() {
         return Ok(());
+    }
+    if let Some(post) = post_reserves {
+        reserve_cache.insert(pair.id, post);
     }
 
     if let Some(commission) = swap.commission_amount.as_ref() {
@@ -737,6 +791,8 @@ pub fn parse_swaps(tx: &TxResponse) -> Vec<ParsedSwap> {
                     .and_then(|s| s.parse().ok()),
                 limit_book_offer_consumed: wasm_attr_last(attrs, "limit_book_offer_consumed")
                     .and_then(|s| s.parse().ok()),
+                reserve_0: wasm_attr_last(attrs, "reserve_0").and_then(|s| s.parse().ok()),
+                reserve_1: wasm_attr_last(attrs, "reserve_1").and_then(|s| s.parse().ok()),
             });
         }
     }
@@ -1426,6 +1482,8 @@ struct ParsedLiquidityEvent {
     asset_0_amount: BigDecimal,
     asset_1_amount: BigDecimal,
     lp_amount: BigDecimal,
+    reserve_0: Option<BigDecimal>,
+    reserve_1: Option<BigDecimal>,
 }
 
 fn parse_liquidity_events(tx: &TxResponse) -> Vec<ParsedLiquidityEvent> {
@@ -1467,6 +1525,8 @@ fn parse_liquidity_events(tx: &TxResponse) -> Vec<ParsedLiquidityEvent> {
                 asset_0_amount: a0,
                 asset_1_amount: a1,
                 lp_amount: lp,
+                reserve_0: wasm_attr_last(attrs, "reserve_0").and_then(|s| s.parse().ok()),
+                reserve_1: wasm_attr_last(attrs, "reserve_1").and_then(|s| s.parse().ok()),
             });
         }
     }
@@ -1499,6 +1559,7 @@ async fn process_liquidity_event(
     height: i64,
     block_time: DateTime<Utc>,
     tx_hash: &str,
+    reserve_cache: &mut std::collections::HashMap<i32, (BigDecimal, BigDecimal)>,
 ) -> Result<(), BoxError> {
     let Some(pair) =
         pair_discovery::get_or_discover_pair(pool, lcd, factory_addr, &event.pair_address).await?
@@ -1509,6 +1570,26 @@ async fn process_liquidity_event(
     if liquidity::liquidity_event_exists(pool, tx_hash, pair.id, &event.event_type).await? {
         return Ok(());
     }
+
+    let post_reserves = if let (Some(r0), Some(r1)) = (&event.reserve_0, &event.reserve_1) {
+        Some((r0.clone(), r1.clone()))
+    } else {
+        match gt_event_reserves::resolve_pre_reserves(pool, reserve_cache, pair.id).await? {
+            Some((pre0, pre1)) => {
+                let delta = gt_event_reserves::liquidity_delta(
+                    event.event_type == "add",
+                    &event.asset_0_amount,
+                    &event.asset_1_amount,
+                );
+                gt_event_reserves::apply_delta(&pre0, &pre1, &delta)
+            }
+            None => None,
+        }
+    };
+    let (post_r0, post_r1) = match &post_reserves {
+        Some((a, b)) => (Some(a), Some(b)),
+        None => (None, None),
+    };
 
     liquidity::insert_liquidity_event(
         pool,
@@ -1521,8 +1602,13 @@ async fn process_liquidity_event(
         &event.asset_0_amount,
         &event.asset_1_amount,
         &event.lp_amount,
+        post_r0,
+        post_r1,
     )
     .await?;
+    if let Some(post) = post_reserves {
+        reserve_cache.insert(pair.id, post);
+    }
 
     Ok(())
 }
@@ -1670,6 +1756,69 @@ mod tests {
         assert_eq!(swaps[0].offer_amount.to_string(), "100");
         assert_eq!(swaps[0].return_amount.to_string(), "95");
         assert_eq!(swaps[0].swap_index, 0);
+    }
+
+    #[test]
+    fn parse_swaps_reads_optional_reserve_attrs_from_pair_contract() {
+        let tx = wasm_tx(vec![
+            ("_contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+            ("reserve_0", "1000"),
+            ("reserve_1", "2000"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps[0].reserve_0.as_ref().unwrap().to_string(), "1000");
+        assert_eq!(swaps[0].reserve_1.as_ref().unwrap().to_string(), "2000");
+    }
+
+    #[test]
+    fn parse_swaps_ignores_forged_reserve_attrs_on_foreign_contract() {
+        // GitLab #285 / #684 A2: only the pair's runtime-reserved `_contract_address`
+        // scopes attrs. A second wasm event from another contract must not attach.
+        let tx = wasm_tx_multi(vec![
+            vec![
+                ("_contract_address", "terra1pair"),
+                ("action", "swap"),
+                ("sender", "terra1user"),
+                ("offer_amount", "100"),
+                ("return_amount", "95"),
+            ],
+            vec![
+                ("_contract_address", "terra1attacker"),
+                ("action", "swap"),
+                ("sender", "terra1user"),
+                ("offer_amount", "1"),
+                ("return_amount", "1"),
+                ("reserve_0", "999999"),
+                ("reserve_1", "999999"),
+            ],
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps.len(), 2);
+        assert!(swaps[0].reserve_0.is_none());
+        assert!(swaps[0].reserve_1.is_none());
+        assert_eq!(swaps[1].pair_address, "terra1attacker");
+        assert_eq!(swaps[1].reserve_0.as_ref().unwrap().to_string(), "999999");
+    }
+
+    #[test]
+    fn parse_swaps_ignores_non_reserved_contract_address_key() {
+        let tx = wasm_tx(vec![
+            ("contract_address", "terra1forged"),
+            ("_contract_address", "terra1pair"),
+            ("action", "swap"),
+            ("sender", "terra1user"),
+            ("offer_amount", "100"),
+            ("return_amount", "95"),
+            ("reserve_0", "5"),
+            ("reserve_1", "6"),
+        ]);
+        let swaps = parse_swaps(&tx);
+        assert_eq!(swaps[0].pair_address, "terra1pair");
+        assert_eq!(swaps[0].reserve_0.as_ref().unwrap().to_string(), "5");
     }
 
     #[test]
@@ -2164,7 +2313,10 @@ mod tests {
         assert_eq!(p[0].side.as_deref(), Some("bid"));
         assert_eq!(p[0].owner.as_deref(), Some("terra1maker"));
         assert_eq!(
-            p[0].maker_fee_amount.as_ref().map(|x| x.to_string()).as_deref(),
+            p[0].maker_fee_amount
+                .as_ref()
+                .map(|x| x.to_string())
+                .as_deref(),
             Some("2500")
         );
         assert_eq!(

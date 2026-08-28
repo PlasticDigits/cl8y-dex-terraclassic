@@ -36,6 +36,12 @@ const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
  * floors stay in lockstep with `constants.ts`.
  */
 const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
+/**
+ * Keep in sync with `MIXED_HYBRID_ROUTER_HEADROOM_GAS` in
+ * `frontend-dapp/src/utils/constants.ts` (GitLab #679).
+ * Mixed book + pool router hops must not sum 15M per empty hop.
+ */
+const MIXED_HYBRID_ROUTER_HEADROOM_GAS = 2_150_000
 /** Keep in sync with `SWAP_GAS_SAFETY_MARGIN` in `frontend-dapp/src/utils/constants.ts`. */
 const SWAP_GAS_SAFETY_MARGIN = 10_000
 
@@ -90,7 +96,9 @@ function gasLimitForHybridSwap(makersUsed: number): number {
 
 function makersFromHybrid(hybrid: Record<string, unknown> | undefined): number | undefined {
   if (!hybrid) return undefined
+  const pool = String(hybrid.pool_input ?? '0')
   const book = String(hybrid.book_input ?? '0')
+  if (pool === '0' && book === '0') return undefined
   try {
     if (BigInt(book) === 0n) return 0
   } catch {
@@ -107,16 +115,46 @@ function gasForHybridRecord(hybrid: Record<string, unknown> | undefined): number
   return gasLimitForHybridSwap(makers)
 }
 
+function hopHybridRecord(op: { terra_swap?: { hybrid?: unknown } }): Record<string, unknown> | undefined {
+  const hybrid = op.terra_swap?.hybrid
+  if (hybrid == null || typeof hybrid !== 'object') return undefined
+  return hybrid as Record<string, unknown>
+}
+
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
   const poolOnly = gasLimitForRouterExecuteSwapOperations(hops)
   if (!executeSwapOpsUsesHybrid(msg)) return poolOnly
   const e = msg.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
-  let total = 0
-  for (const op of e?.operations ?? []) {
-    total += gasForHybridRecord(op.terra_swap?.hybrid as Record<string, unknown> | undefined)
+  const ops = e?.operations ?? []
+  if (!ops.length) return HYBRID_SWAP_GAS_LIMIT
+
+  let hasHybridField = false
+  let parseableAny = 0
+  let parseableBookHops = 0
+  for (const op of ops) {
+    if (op.terra_swap?.hybrid != null) hasHybridField = true
+    const makers = makersFromHybrid(hopHybridRecord(op))
+    if (makers === undefined) continue
+    parseableAny += 1
+    if (makers > 0) parseableBookHops += 1
   }
-  return Math.max(poolOnly, total)
+  if (hasHybridField && parseableAny === 0) return HYBRID_SWAP_GAS_LIMIT
+
+  let total = 0
+  for (const op of ops) {
+    const makers = makersFromHybrid(hopHybridRecord(op))
+    if (makers !== undefined && makers > 0) {
+      total += gasLimitForHybridSwap(makers)
+    } else {
+      total += hops <= 1 ? gasLimitForRouterExecuteSwapOperations(1) : ROUTER_SWAP_OPS_MIN_GAS_PER_HOP
+    }
+  }
+  let limit = Math.max(poolOnly, total)
+  if (parseableBookHops > 0 && parseableBookHops < hops) {
+    limit += MIXED_HYBRID_ROUTER_HEADROOM_GAS
+  }
+  return limit
 }
 
 export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): number {

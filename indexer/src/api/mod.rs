@@ -22,16 +22,23 @@ pub mod hybrid_orderbook_sim;
 mod hybrid_route_opt;
 pub mod limit_book_lcd;
 pub mod limit_book_price;
+mod listing_spread;
 mod listing_timestamps;
 mod oracle;
 pub mod orderbook_sim;
 mod overview;
+mod protocol_fee_series;
 mod protocol_fees;
+mod protocol_liquidity;
 mod protocol_volume;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use overview::reset_overview_cache;
 #[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_fee_series::reset_protocol_fee_series_cache;
+#[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_fees::reset_protocol_fees_cache;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_liquidity::reset_protocol_liquidity_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
@@ -69,6 +76,7 @@ use crate::config::Config;
 use crate::db::queries::{assets, pairs as db_pairs};
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 use crate::indexer::hub_usd::HubUsdConfig;
+use crate::indexer::listing_exclude::{pair_is_listing_excluded, record_unique_ticker};
 use crate::indexer::oracle::OraclePriceHandles;
 use crate::indexer::venus_vfdusd::SharedVenusVfdusd;
 use crate::lcd::LcdClient;
@@ -121,6 +129,12 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 
 #[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
 pub use errors::{LCD_UPSTREAM_GATEWAY_MSG, lcd_gateway_err};
+#[allow(unused_imports)] // re-exported for integration tests (#694)
+pub use compliance::{MAX_BLACKLIST_PAIRS, MAX_BLACKLIST_TOKENS};
+#[allow(unused_imports)] // re-exported for integration tests (#694)
+pub use gt::{GT_EVENT_ROW_CAP_MSG, MAX_EVENT_BLOCK_SPAN, MAX_GT_EVENT_ROWS};
+#[allow(unused_imports)] // re-exported for integration tests (#694)
+pub use route_solver::{DISCOUNT_BPS_CACHE_TTL, reset_discount_bps_cache};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
@@ -150,6 +164,14 @@ pub(crate) fn aggregator_cache_put(key: &str, value: serde_json::Value) {
         let now = Instant::now();
         guard.retain(|_, (_, at)| now.duration_since(*at) <= AGGREGATOR_CACHE_TTL);
         guard.insert(key.to_string(), (value, now));
+    }
+}
+
+/// Integration tests that stamp `pair_liquidity_usd` after a prior `/cg/tickers` GET.
+#[allow(dead_code)]
+pub fn reset_aggregator_cache() {
+    if let Ok(mut guard) = aggregator_cache().lock() {
+        guard.clear();
     }
 }
 
@@ -255,11 +277,24 @@ pub async fn find_pair_by_ticker(
     let asset_map = build_asset_map(&state.pool).await.map_err(internal_err)?;
 
     let mut map = HashMap::new();
+    let mut collisions = std::collections::HashSet::new();
     for p in &all_pairs {
         if let (Some(a0), Some(a1)) = (asset_map.get(&p.asset_0_id), asset_map.get(&p.asset_1_id)) {
+            if pair_is_listing_excluded(
+                a0.contract_address.as_deref(),
+                a1.contract_address.as_deref(),
+            ) {
+                continue;
+            }
             let key = format!("{}_{}", a0.symbol, a1.symbol);
-            map.entry(key).or_insert_with(|| p.contract_address.clone());
+            record_unique_ticker(&mut map, &mut collisions, key, p.contract_address.clone());
         }
+    }
+    if !collisions.is_empty() {
+        tracing::warn!(
+            count = collisions.len(),
+            "duplicate CG/CMC ticker_id keys skipped (use pool_id on /cg/pairs)"
+        );
     }
 
     let result = map.get(ticker_id).cloned();
@@ -315,6 +350,8 @@ pub async fn find_pair_by_ticker(
         traders::leaderboard,
         overview::get_overview,
         protocol_fees::get_protocol_fees,
+        protocol_fee_series::get_protocol_fees_daily,
+        protocol_liquidity::get_protocol_liquidity_daily,
         protocol_volume::get_protocol_volume_daily,
         defillama::get_defillama_daily,
         hub_prices::get_hub_prices,
@@ -389,6 +426,10 @@ pub async fn find_pair_by_ticker(
         protocol_fees::ProtocolFeesResponse,
         protocol_fees::ProtocolFeeSourceRow,
         protocol_fees::ProtocolFeeTokenRow,
+        protocol_fee_series::ProtocolFeeSeriesResponse,
+        protocol_fee_series::ProtocolFeeSeriesPoint,
+        protocol_liquidity::ProtocolLiquidityDailyResponse,
+        protocol_liquidity::ProtocolLiquidityDailyPoint,
         protocol_volume::ProtocolVolumeDailyResponse,
         protocol_volume::ProtocolVolumeDailyPoint,
         defillama::DefillamaDailyResponse,
@@ -487,6 +528,16 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
                     crate::config::ROUTE_SOLVE_POST_BODY_LIMIT_BYTES,
                 )),
         )
+        // Progress can LCD GetDiscount when trader is set (#694 / RE-02).
+        .route(
+            "/api/v1/route/solve/progress",
+            get(route_solve_progress::solve_route_progress),
+        )
+        // Factory BlacklistCheck is a live LCD proxy (#694 / RE-03).
+        .route(
+            "/api/v1/compliance/blacklist-check",
+            get(compliance::blacklist_check),
+        )
         // cg/cmc orderbook endpoints carry the same LCD fanout as the native limit-book
         // routes (orderbook_sim::simulate_orderbook_cached) — throttle them the same (#278).
         .route("/cg/orderbook", get(cg::cg_orderbook))
@@ -499,10 +550,6 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/health/fee-discount",
             get(fee_discount_health::get_fee_discount_health),
-        )
-        .route(
-            "/api/v1/compliance/blacklist-check",
-            get(compliance::blacklist_check),
         )
         .route("/api/v1/pairs", get(pairs::list_pairs))
         .route("/api/v1/pairs/{addr}", get(pairs::get_pair))
@@ -573,6 +620,14 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             get(protocol_fees::get_protocol_fees),
         )
         .route(
+            "/api/v1/protocol/fees/daily",
+            get(protocol_fee_series::get_protocol_fees_daily),
+        )
+        .route(
+            "/api/v1/protocol/liquidity/daily",
+            get(protocol_liquidity::get_protocol_liquidity_daily),
+        )
+        .route(
             "/api/v1/protocol/volume/daily",
             get(protocol_volume::get_protocol_volume_daily),
         )
@@ -586,10 +641,6 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             get(hub_prices::get_hub_price),
         )
         .merge(lcd_heavy_router)
-        .route(
-            "/api/v1/route/solve/progress",
-            get(route_solve_progress::solve_route_progress),
-        )
         .route(
             "/api/v1/oracle/price",
             get(oracle::get_oracle_price_catalog),

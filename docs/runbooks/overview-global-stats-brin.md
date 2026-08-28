@@ -42,7 +42,7 @@ Token `token_volume_stats` and trader `volume_24h` / `7d` / `30d` use the same t
 
 ### Protocol pool TVL (GitLab #569)
 
-`total_liquidity_usd` is humanized USD of **priced factory `pair_reserves`** (constant-product legs), using the same catalog as volume (P522-Q + hub USD). It is **not** CoinGecko `liquidity_in_usd` (that field is still mislabeled 24h volume), not `total_volume_*`, not LP supply, and not resting limit-order escrow. The same refresh writes per-pair **`pair_liquidity_usd`** for `GET /api/v1/pairs/{addr}` ([#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664)) and the `/pool` list JOIN ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655)). GET paths read the stamp only — they do not re-sum reserves.
+`total_liquidity_usd` is humanized USD of **priced factory `pair_reserves`** (constant-product legs), using the same catalog as volume (P522-Q + hub USD). It is **not** CoinGecko `liquidity_in_usd` (that field is AMM v2 TVL for listing crawlers — [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685) — still never Llama TVL), not `total_volume_*`, not LP supply, and not resting limit-order escrow. The same refresh writes per-pair **`pair_liquidity_usd`** for `GET /api/v1/pairs/{addr}` ([#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664)), the `/pool` list JOIN ([#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655)), and CG `liquidity_in_usd`. GET paths read the stamp only — they do not re-sum reserves.
 
 Refresh lives in [`protocol_tvl.rs`](../../indexer/src/indexer/protocol_tvl.rs) and is invoked from `refresh_global_stats` (so a 24h-only volume `INSERT` cannot leave TVL stale) and after hub USD refresh (UST1/USTR marks). History is `global_liquidity_snapshots` (retain ≥ 35 days; prune older). Δ% looks up the snapshot **nearest** to `now()-24h` / `now()-30d` within ±30 minutes. No snapshot, `then = 0`, or overflow → JSON `null` (UI em-dash). After `--fresh` / a young indexer, Δ% stays empty until real snapshots accrue — do not backfill from `liquidity_events` or zeros.
 
@@ -60,9 +60,20 @@ Flash LP that is added and withdrawn inside one snapshot interval can move **cur
 
 `GET /api/v1/protocol/volume/daily?grain=&limit=` allowlists `hourly` \| `daily` \| `monthly` and a capped integer `limit` (hourly ≤ 168, daily ≤ 90, monthly ≤ 24). Unknown / injection / `from` / `to` / over-max → **400**. 60s cache keyed by allowlisted `(grain, limit)` — extra query params must not bust the cache. GET reads `protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume` only (aggregator refresh). Hourly bucket is `[hour, hour+1)` UTC; monthly is a UTC calendar month, not a trailing 30d window. Same idle `"0"` / unpriced `null` contract as #652. Do **not** `SUM` `swap_events` on the request path.
 
+### Protocol UTC liquidity / fees grain (GitLab #689)
+
+`GET /api/v1/protocol/liquidity/daily` and `GET /api/v1/protocol/fees/daily` are sibling series routes (same grain/limit allowlist + 60s `(grain, limit)` cache). `from` / `to` / `window` / `days` / `metric` / `ticker` → **400**. Do **not** overload `GET /protocol/fees?window=`.
+
+- **Liquidity** is **stock**: last `global_liquidity_snapshots` sample in the UTC hour / day / month. Missing sample → JSON `null` (unknown ≠ `$0`). Downsample into `protocol_hourly_liquidity` / `protocol_daily_liquidity` / `protocol_monthly_liquidity` **before** the 35d snapshot prune so Monthly can retain ≥ 24 months. GET must not walk `global_liquidity_snapshots` / `pair_reserves`.
+- **Fees** is **flow**: `SUM` priced `protocol_fee_events.fee_usd` off GET into `protocol_hourly_fees` / `protocol_daily_fees` / `protocol_monthly_fees`. Idle `"0"`; all-unpriced `null`; mixed priced+unpriced → priced SUM. GET must not `SUM` events. Not Llama `defillama_daily_fees`.
+
+Hourly prune ~10d; daily ≥ 95d; monthly ≥ 24 months. Methodology `protocol_catalog`. The `/protocol` chart toggles Volume / Liquidity / Fees on one plot — do not overlay all three.
+
 ### Protocol fees (GitLab #586)
 
 `total_fees_{24h,7d,30d}_usd` and the matching `fees_change_*_pct` / `*_event_count` columns are **UPDATE-only** on the existing `global_stats_24h` id=1 row (`refresh_protocol_fee_stats`). A volume-zero INSERT must not create a fee-only stub. Source / token mix lives in `protocol_fee_stats_by_source` and `protocol_fee_stats_by_token` (top 8 + `other`). Idle windows store `"0"` with `event_count=0`; activity with all unpriced fees stores `NULL` (UI `—`). Δ% vs the prior equal window is `NULL` when `then ≤ 0`.
+
+Ask-side commissions in factory-listed **economic** CW20s (CL8Y first; display ticker may be **CL8Y-cb**) stamp `fee_usd` from a DEX reserve mark vs an already-priced hub/catalog leg ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)). Marks live in `economic_token_marks` (not GET `/hub-prices`). `SUM(fee_usd)` still skips remaining NULLs (gems / vFDUSD / no qualifying pair). After marks appear, a **NULL-only** backfill fills prior unpriced rows as-of the current mark — never rewrite a non-null stamp. Playbook: [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](../../skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md).
 
 `GET /api/v1/protocol/fees?window=` is allowlisted (`24h` \| `7d` \| `30d`) and 60s-cached. Do **not** overload `window=` with “ust1-window”. A 15-minute stale rollup still **serves** last fee columns — do not fall back to a live 60d event scan.
 

@@ -173,6 +173,7 @@ make verify-issue-581                    # #581 8266 full A-lcd/B-lt suite + lis
 make verify-issue-590                    # #590 post-merge !394–!396 (fees + wrap gas + 8266 A-lcd/B-lt)
 make verify-issue-585                    # #585 F6 freeze: route/solve exclude + dApp banners (Postgres)
 make verify-issue-587                    # #587 wrap+≥2hop LUNC↔USTR gas + Swap Network fee (Vitest)
+make verify-issue-679                    # #679 mixed hybrid+pool router gas + Swap Network fee (Vitest)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
@@ -180,6 +181,7 @@ make verify-issue-630                    # #630 LUNC/USTC picker labels (registr
 make verify-issue-661                    # #661 /pool Manage provide name/symbol + wrap default on
 make verify-issue-651                    # #651 /tiers phone-width cards + How it works (Vitest + docs)
 make verify-issue-665                    # #665 trader profile Share (Web Share + clipboard)
+make verify-issue-674                    # #674 /portfolio hide test-gem Open Positions / P&L (Vitest + docs)
 make verify-issue-669                    # #669 /token/create desktop density (Vitest + docs)
 make verify-issue-662                    # #662 /pool Created relative age from indexer created_at
 make verify-issue-593                    # #593 Create Token + manager console (Vitest + docs)
@@ -187,6 +189,7 @@ make verify-issue-626                    # #626 free listed-template adopt + Ter
 make verify-issue-627                    # #627 columbus-5 CW20 code 3 adopt+list NO-GO (REPORT + AdoptLegacyLayout)
 make verify-issue-628                    # #628 post-merge !418 community-tax migrate leftovers (P3/P7/P11 + 11626/11630)
 make verify-issue-673                    # #673 post-merge !437–!458 leftover verify (children 655–672 + Coolify)
+make verify-issue-686                    # #686 post-merge !459–!468 leftover verify (children 674–680, 683 + Coolify)
 make verify-issue-632                    # #632 Keplr in-app / visualViewport token picker
 make verify-issue-672                    # #672 Connect Wallet / Modal dismiss overlay (Vitest + docs)
 make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool (LocalTerra: localterra-634-migrate-inventory.sh)
@@ -218,14 +221,21 @@ make verify-issue-580                    # #580 CEX FDUSD identity under path vf
 make verify-issue-652                    # #652 /protocol inline Δ% + volume prior-window % + UTC-day series
 make verify-issue-667                    # #667 /protocol Δ% grouped with headline + integer census
 make verify-issue-668                    # #668 /protocol UTC volume chart USD axis + Hourly/Daily/Monthly
+make verify-issue-689                    # #689 /protocol UTC chart Volume / Liquidity / Fees metric toggle
+make verify-issue-677                    # #677 /protocol leftovers: liquidity 24h-only Δ% + denser UTC volume x-axis
 make verify-issue-550                    # #550 /protocol global USD stats + unified oracle card
 make verify-issue-571                    # #571 /protocol vFDUSD: FDUSD reference + Venus 1 vFDUSD Price
 make verify-issue-569                    # #569 /protocol total USD pair liquidity + 24h/30d % change
 make verify-issue-655                    # #655 /pool v2 LP USD column + pair_liquidity_usd rollup
 make verify-issue-586                    # #586 /protocol treasury fees 24h/7d/30d + source/token mix
+make verify-issue-683                    # #683 /protocol fee USD for CL8Y + factory-listed economic tokens
 make verify-issue-631                    # #631 DeFiLlama UTC-day API + gem/hybrid/fee exclusions
+make verify-issue-687                    # #687 DeFiLlama fees headline partial SUM + adapter start / 404
 make verify-issue-639                    # #639 listing venue catalog (docs only; no Postgres)
 make verify-issue-646                    # #646 GeckoTerminal /gt/ adapters (Postgres)
+make verify-issue-684                    # #684 /gt/events post-event reserves (Postgres)
+make verify-issue-694                    # #694 API4 per-request caps: /gt/events rows + progress/blacklist LCD-heavy
+make verify-issue-685                    # #685 CG/CMC listing field truthfulness (Postgres)
 make verify-issue-640                    # #640 Cosmostation CW20 pack (docs only; no Postgres)
 make verify-issue-641                    # #641 Hexxagon Galaxy Station CW20 pack (docs only; no Postgres)
 make verify-issue-653                    # #653 one chrome layer / anti-nesting (StatBox flat + allowlist)
@@ -236,16 +246,19 @@ make verify-issue-664                    # #664 /trade /charts identity v2 LP US
 make verify-issue-657                    # #657 /trader global leaderboard (shared Charts table)
 make verify-issue-671                    # #671 connected wallet dropdown icon+label alignment (Vitest + docs)
 make verify-issue-666                    # #666 /charts pair-scoped 24h stats + leaderboard
+make verify-issue-680                    # #680 /charts UST1/USD hero + ?price= + page-wide invert
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
 make verify-issue-577                    # #577 token/trader/pair/global 24h rollup decay + stale overview
 make verify-issue-522                    # #522 pair Price (USD) human scale + oracle conversion
 make verify-issue-551                    # #551 portfolio/trader P&L human scale + USD totals
+make verify-issue-676                    # #676 /positions 18-dec trade_count + NUMERIC(78,18)
 make verify-issue-557                    # #557 human tape / wallet Amount in/out/Price
 make verify-issue-556                    # #556 DEX hub USD (cUSTC/UST1/USTR) + Protocol DEX card
 make verify-issue-570                    # #570 Protocol hub cUSTC wrap link + LUNC/USD column
 make verify-issue-568                    # #568 time-stamped candle USD + idle mark-to-market
 make verify-issue-560                    # #560 portfolio/trader realized P&L USD from hub prices
+make verify-issue-675                    # #675 portfolio/trader unrealized P&L (hub mark vs on-DEX cost)
 make verify-issue-573                    # #573 post-merge stack !368–!377 (children 557–567)
 cd indexer && cargo test --test api_route_solve -- --test-threads=1
 ```
@@ -279,6 +292,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 |-------|---------|
 | Contracts | `make test-contracts`, `make lint-contracts` |
 | Frontend | `make test-frontend`, `make lint-frontend` |
+| Swap/Trade acquire guidance | `make verify-issue-678` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
 | Pool Manage four peer actions | `make verify-issue-660` |
 | Swap direction seam plate | `make verify-issue-659` |
@@ -288,9 +302,13 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Trade / Charts v2 LP USD | `make verify-issue-664` |
 | Trader page global leaderboard | `make verify-issue-657` |
 | Charts pair-scoped 24h + board | `make verify-issue-666` |
+| Charts UST1/USD hero + `?price=` | `make verify-issue-680` |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
+| API4 per-request caps | `make verify-issue-694` |
+| GeckoTerminal `/gt/events` post-event reserves | `make verify-issue-684` |
+| CG/CMC listing field truth | `make verify-issue-685` |
 | Cosmostation CW20 pack | `make verify-issue-640` |
 | Hexxagon CW20 pack | `make verify-issue-641` |
 | Indexer lib | `cd indexer && cargo test --lib` |
@@ -339,7 +357,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md](skills/AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) — portal listbox `visualViewport` + in-app chrome inset + coarse/narrow browse-without-IME (**V632-1–V632-8**, [#632](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`
 - [skills/AGENTS_FRONTEND_KEPLR_LEDGER.md](skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) — Keplr + Ledger Nano signing (amino, pre-sign suggest, stall UX) (**K567-1–K567-8**, [#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); `make verify-issue-567`
 - [skills/AGENTS_KEPLR_CW20_REGISTRY.md](skills/AGENTS_KEPLR_CW20_REGISTRY.md) — Keplr Add Token CW20 pack on `cosmos/columbus` (**K629-1–K629-8**, [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629)); `make verify-issue-629`
-- [skills/AGENTS_LISTINGS.md](skills/AGENTS_LISTINGS.md) — listing venue catalog + go/no-go for wallets / CG / CMC forms (**L639-1–L639-8**, [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)); `make verify-issue-639`. GeckoTerminal `/gt/`: `make verify-issue-646` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646))
+- [skills/AGENTS_LISTINGS.md](skills/AGENTS_LISTINGS.md) — listing venue catalog + go/no-go for wallets / CG / CMC forms (**L639-1–L639-8**, [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639)); `make verify-issue-639`. GeckoTerminal `/gt/`: `make verify-issue-646` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646)). Event reserves: [`AGENTS_INDEXER_GT_EVENT_RESERVES.md`](skills/AGENTS_INDEXER_GT_EVENT_RESERVES.md) (**R684-1–R684-8**, [#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)); `make verify-issue-684`. API4 row cap: [`AGENTS_INDEXER_API4_PER_REQUEST.md`](skills/AGENTS_INDEXER_API4_PER_REQUEST.md) (**A694-1–A694-8**, [#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)); `make verify-issue-694`. CG/CMC field truth: [`AGENTS_INDEXER_CG_CMC_LISTING.md`](skills/AGENTS_INDEXER_CG_CMC_LISTING.md) (**L685-1–L685-8**, [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685)); `make verify-issue-685`
 - [skills/AGENTS_COSMOSTATION.md](skills/AGENTS_COSMOSTATION.md) — Cosmostation / Mintscan CW20 pack on `chain/terra` (**C640-1–C640-8**, [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)); `make verify-issue-640`
 - [skills/AGENTS_HEXXAGON.md](skills/AGENTS_HEXXAGON.md) — Galaxy Station / Hexxagon CW20 pack (**H641-1–H641-8**, [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)); `make verify-issue-641`
 - [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — single execution-aligned **Route** row on Swap and `/trade` market quote (#158, #302); Trade market GET `/route/solve` default (#501); always-on hybrid (#596)
@@ -366,21 +384,27 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md](skills/AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) — default **Slippage protection** 5% + shared presets (#497)
 - [skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md](skills/AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) — Trade Market + Swap Settings 0.5/1/5% chips stay one aligned group ([#528](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/528))
 - [skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md](skills/AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) — sim `refetchInterval` guard + receive Calculating UX for slow multihop quotes (#484); clear/load You Receive on pay amount/token change (#496)
-- [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485)
+- [skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md](skills/AGENTS_INDEXER_ROUTE_SOLVE_PROGRESS.md) — distant-pair latency + `route/solve/progress` poll (#485); LCD-heavy + discount cache ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694))
+- [skills/AGENTS_INDEXER_API4_PER_REQUEST.md](skills/AGENTS_INDEXER_API4_PER_REQUEST.md) — OWASP API4 per-request caps on `/gt/events`, progress, blacklist-check (**A694-1–A694-8**, [#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694)); `make verify-issue-694`
 - [skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md](skills/AGENTS_INDEXER_EXTERNAL_ORACLE.md) — ticker-scoped USTC/LUNC/CEX-FDUSD (path `vfdusd`) external USD feeds (**X1–X7**, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515) / [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#579](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/579) CoinGecko User-Agent / [#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)); `make verify-issue-515` · `make verify-issue-579` · `make verify-issue-580`
-- [skills/AGENTS_FRONTEND_PROTOCOL_STATS.md](skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` global USD stats + unified oracle card + pool TVL + treasury fees + inline Δ% / UTC grain volume + Δ% grouped with headline (**P550-1–P550-12**, **P569-1–P569-8**, **PFee-1–PFee-13**, **P652-1–P652-7**, **P667-1–P667-4**, **P668-1–P668-8**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#569](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) / [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) / [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) / [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668)); `make verify-issue-550` · `make verify-issue-569` · `make verify-issue-586` · `make verify-issue-614` · `make verify-issue-652` · `make verify-issue-667` · `make verify-issue-668`
+- [skills/AGENTS_FRONTEND_PROTOCOL_STATS.md](skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` global USD stats + unified oracle card + pool TVL + treasury fees + inline Δ% / UTC grain volume + Δ% grouped with headline + liquidity 24h-only / denser x-axis + Volume/Liquidity/Fees metric toggle (**P550-1–P550-12**, **P569-1–P569-8**, **PFee-1–PFee-13**, **P652-1–P652-7**, **P667-1–P667-4**, **P668-1–P668-9**, **P689-1–P689-8**, [#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) / [#569](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) / [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) / [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) / [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) / [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) / [#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) / [#689](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689)); `make verify-issue-550` · `make verify-issue-569` · `make verify-issue-586` · `make verify-issue-614` · `make verify-issue-652` · `make verify-issue-667` · `make verify-issue-668` · `make verify-issue-689` · `make verify-issue-677`
 - [skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md](skills/AGENTS_INDEXER_UST1_WINDOW_FEES.md) — `/protocol` UST1 window mint/redeem treasury fees from pinned `UST1_WINDOW_ADDRESS` `fee_amount` (**I614-1–I614-8**, [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)); `make verify-issue-614`
-- [skills/AGENTS_DEFILLAMA.md](skills/AGENTS_DEFILLAMA.md) — DeFiLlama TVL/volume/fees listing + UTC-day indexer API (**L631-1–L631-9**, [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)); `make verify-issue-631`
+- [skills/AGENTS_DEFILLAMA.md](skills/AGENTS_DEFILLAMA.md) — DeFiLlama TVL/volume/fees listing + UTC-day indexer API (**L631-1–L631-11**, **L687-1–L687-8**, [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) / [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)); `make verify-issue-631` · `make verify-issue-687`
 - [skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md](skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md) — wrap/unwrap protocol-fee ingest from captured mapper `notify_deposit` / `unwrap` `fee` (**I613-1–I613-8**, [#613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)); `make verify-issue-613`
 - [skills/AGENTS_INDEXER_VENUS_VFDUSD.md](skills/AGENTS_INDEXER_VENUS_VFDUSD.md) — `/protocol` vFDUSD **FDUSD reference price** + Venus **1 vFDUSD Price** (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); `make verify-issue-522`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
+- [skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md](skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — factory economic fee USD (CL8Y + listed non-gems; hub card stays four cells) (**EFee-1–EFee-8**, [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)); `make verify-issue-683`
 - [skills/AGENTS_FRONTEND_PROTOCOL_HUB.md](skills/AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap CW20 identity + LUNC/USD column (**H11–H16**, [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)); `make verify-issue-570`
 - [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md](skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md) — `/portfolio` + `/trader` human-scale P&amp;L / cost / avg entry; mixed totals omitted or USD (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
+- [skills/AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md](skills/AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md) — `/positions` 18-dec `NUMERIC(78, 18)` + `trade_count` vs `/trades` (**P676-1–P676-8**, [#676](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/676)); `make verify-issue-676`
+- [skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md](skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` hides test-gem Open Positions / P&amp;L / recent activity by default (**P674-1–P674-8**, [#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674)); `make verify-issue-674`
 - [skills/AGENTS_FRONTEND_HUB_PNL.md](skills/AGENTS_FRONTEND_HUB_PNL.md) — `/portfolio` + `/trader` realized P&amp;L USD from `GET /api/v1/hub-prices` (**P560-1–P560-6**, [#560](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/560)); `make verify-issue-560`
+- [skills/AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md](skills/AGENTS_FRONTEND_PORTFOLIO_UNREALIZED.md) — `/portfolio` + `/trader` hub mark + unrealized vs on-DEX cost (**P675-1–P675-8**, [#675](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/675)); `make verify-issue-675`
 - [skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md](skills/AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape + wallet Amount in/out/Price human scale (**T557-1–T557-11**, [#557](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/557)); `make verify-issue-557`
 - [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](skills/AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — `/charts` pair-scoped 24h stats + leaderboard (**CS-1–CS-15**, [#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)); `make verify-issue-666`
+- [`AGENTS_FRONTEND_CHARTS_UST1_HERO.md`](skills/AGENTS_FRONTEND_CHARTS_UST1_HERO.md) — `/charts` UST1/cUSTC hero + `?price=` + page-wide invert (**C680-1–C680-9**, [#680](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/680)); `make verify-issue-680`
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](skills/AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — `/protocol` + `GET /overview` 24h volume USD-only + catalog `volume_usd` ingest (**C1–C9**, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548)); not a Charts census strip; `make verify-issue-548`
 - [skills/AGENTS_FRONTEND_TRAILING_WINDOW.md](skills/AGENTS_FRONTEND_TRAILING_WINDOW.md) — Charts/Protocol/Pool **24h volume** is a trailing window, not a midnight reset (**W1–W5**, [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)); `make verify-issue-576`
 - [skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md](skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md) — token/trader/pair/global trailing windows **zero** when swaps leave the cutoff; stale `global_stats_24h.updated_at` is log-only (**D1–D7**, [#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577)); `make verify-issue-577`
@@ -429,8 +453,9 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_POST_MERGE_OPS_625.md](skills/AGENTS_POST_MERGE_OPS_625.md) — post-merge !415–!417 tax swarm / e2e-tx / Layer B leftovers (**M625-1–M625-8**, [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)); `make verify-issue-625`
 - [skills/AGENTS_POST_MERGE_OPS_628.md](skills/AGENTS_POST_MERGE_OPS_628.md) — post-merge !418 community-tax migrate leftovers (**M628-1–M628-8**, [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)); `make verify-issue-628`
 - [skills/AGENTS_POST_MERGE_OPS_673.md](skills/AGENTS_POST_MERGE_OPS_673.md) — post-merge !437–!458 leftover verify (**M673-1–M673-8**, [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673)); `make verify-issue-673`
+- [skills/AGENTS_POST_MERGE_OPS_686.md](skills/AGENTS_POST_MERGE_OPS_686.md) — post-merge !459–!468 leftover verify (**M686-1–M686-8**, [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686)); `make verify-issue-686`
 - [skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md](skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md) — dApp + indexer F6 freeze visibility: `route/solve` excludes frozen hops, pair `code_id_frozen`, humanized execute errors (**F585-1–F585-8**, [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)); not a substitute for on-chain pin; `make verify-issue-585`
-- [skills/AGENTS_TERRACLASSIC_GAS.md](skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic fee envelopes; wrap+≥2hop LUNC↔USTR combo ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)); unwrap+≥2hop USTR→USTC combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)); post-merge E9/columbus-5 ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600)); Swap **Network fee (est.) ~X LUNC**; `make verify-issue-587` · `make verify-issue-599` · `make verify-issue-600`
+- [skills/AGENTS_TERRACLASSIC_GAS.md](skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic fee envelopes; wrap+≥2hop LUNC↔USTR combo ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)); mixed hybrid+pool router hops ([#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)); unwrap+≥2hop USTR→USTC combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)); post-merge E9/columbus-5 ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600)); Swap **Network fee (est.) ~X LUNC**; `make verify-issue-587` · `make verify-issue-679` · `make verify-issue-599` · `make verify-issue-600`
 - [skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md](skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) — dApp fee-tier chrome gated on pair `DISCOUNT_REGISTRY` (**I14**, [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)); `make verify-issue-537`
 - [skills/AGENTS_LP_SYMBOL_DIGITS.md](skills/AGENTS_LP_SYMBOL_DIGITS.md) — LP ticker keeps `0-9`, strips non-alnum; factory `UpdateConfig` code IDs + [`scripts/upgrade-518-lp-symbol.sh`](scripts/upgrade-518-lp-symbol.sh) (**F3**, [#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518)); `make verify-issue-518`
 - [skills/AGENTS_ROTATE_FEE_TREASURY.md](skills/AGENTS_ROTATE_FEE_TREASURY.md) — swap/book fees to ustr-cmm CMM (`terra16j5u6…`); factory `SetPairTreasury*` + [`scripts/rotate-fee-treasury.sh`](scripts/rotate-fee-treasury.sh) (**F4**)
@@ -439,6 +464,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_ORDER_STATUS_QUERY.md](skills/AGENTS_ORDER_STATUS_QUERY.md) — on-chain typed `OrderStatus` for vaults/bots ([#505](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/505), invariant **L21**); `ParkedRefund` ≠ park reason
 - [skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md](skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — maker UX for indexer `parked_expired` + `ClaimExpiredLimitOrder` ([#141](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/141); pause blocks claim per [#120](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120) / **L6**)
 - [skills/AGENTS_UST1_WINDOW_UI.md](skills/AGENTS_UST1_WINDOW_UI.md) — `/ust1` oracle vFDUSD↔UST1 mint/redeem (CW20 Send + `effective_swap`); not faucet Mint ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)); protocol mint/redeem fees **PFee-13** / **I614** ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)); `make verify-issue-506` · `make verify-issue-614`
+- [skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md](skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — Swap/Trade unfunded pay + UST1 `/ust1` Guide + quote-only (**A678-1–A678-11**, [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678)); `make verify-issue-678`
 - [skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — post-SL5 Coolify wrap env + cLUNC/cUSTC fee UX ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507))
 - [skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md](skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) — unwrap InstantWithdraw burn tax quotes + exchange-deposit warning (**W8–W11**, [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)); `make verify-issue-512`
 - [skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md](skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — wrap-mapper `fee_wrap_bps` / `fee_unwrap_bps` + unwrap ≈2% all-in retune (**W12–W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); `make verify-issue-516`. Router `unwrap_output` dual-read ([#523](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/523)); `make verify-issue-523`. LocalTerra wrap-mapper instantiate + #533 P4–P8 ([#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)); `make verify-issue-539`

@@ -68,7 +68,7 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
    ```
 
    - Sets `last_indexed_height` to `H - 1`, clears `last_indexed_block_hash`, truncates `indexer_failed_blocks`.
-   - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs.
+   - With `--cleanup-derived`: deletes `swap_events` and other block-height tables for `block_height >= H`, plus `candles` for affected pairs. That also drops persisted `/gt/events` post-event reserves ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)); replay re-ingests them. Cursor-only rewind must **not** leave future-height reserves on rolled-back rows — use `--cleanup-derived` when canonical txs changed, then `cl8y-dex-indexer backfill-gt-event-reserves` if NULL columns remain.
 
 4. **Restart** the indexer; confirm `last_indexed_height` advances and API pair/candle data matches LCD tip within normal lag.
 5. **Verify** swap count stable on replay (dedup) when **not** using `--cleanup-derived` and txs are unchanged; after cleanup, swaps are re-ingested fresh.
@@ -79,7 +79,7 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
 2. **Stop** the indexer process.
 3. **Choose recovery:**
    - **Preferred:** Restore Postgres from a snapshot taken **before** the reorg window, then restart indexer, **or**
-   - **Heavy SQL:** Use `--cleanup-derived` from an earlier fork height `H` and accept that `trader_positions` / trader rollups may need a full re-backfill or snapshot (not height-keyed).
+   - **Heavy SQL:** Use `--cleanup-derived` from an earlier fork height `H` and accept that `trader_positions` / trader rollups may need a full re-backfill or snapshot (not height-keyed). After the indexer is back, run **`cl8y-dex-indexer rebuild-positions`** (or wait for poller `repair_positions_if_trade_count_mismatch` — GitLab **#676**, `NUMERIC(78, 18)`). Block replay alone does not rebuild positions for swaps that already exist.
 4. **Reset cursor** if not restoring snapshot: `last_indexed_height` to **at least one block before** the fork point (recovery script or manual `indexer_state` update).
 5. **Restart** and monitor `tracing` logs.
 

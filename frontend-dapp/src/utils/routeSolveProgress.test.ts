@@ -1,9 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
   formatRouteSolveSearchProgress,
+  nextProgressPollDelayMs,
+  progressPollTraderParams,
   resolveSimQuoteLoadingLabel,
   shouldShowRouteSolveProgress,
+  shouldStopProgressPolling,
+  SIM_QUOTE_PROGRESS_GIVE_UP_AFTER,
+  SIM_QUOTE_PROGRESS_MAX_BACKOFF_MS,
   SIM_QUOTE_PROGRESS_MIN_VISIBLE_MS,
+  SIM_QUOTE_PROGRESS_POLL_MS,
 } from './routeSolveProgress'
 
 describe('formatRouteSolveSearchProgress (#485)', () => {
@@ -50,5 +56,36 @@ describe('resolveSimQuoteLoadingLabel (#485)', () => {
 
   it('uses Quoting… fallback when requested', () => {
     expect(resolveSimQuoteLoadingLabel(true, false, null, 0, 10_000, 'Quoting…')).toBe('Quoting…')
+  })
+})
+
+describe('progress poll backoff (#694)', () => {
+  it('starts at 1 Hz and doubles up to 8s', () => {
+    expect(nextProgressPollDelayMs(0)).toBe(SIM_QUOTE_PROGRESS_POLL_MS)
+    expect(nextProgressPollDelayMs(1)).toBe(2_000)
+    expect(nextProgressPollDelayMs(2)).toBe(4_000)
+    expect(nextProgressPollDelayMs(3)).toBe(SIM_QUOTE_PROGRESS_MAX_BACKOFF_MS)
+    expect(nextProgressPollDelayMs(10)).toBe(SIM_QUOTE_PROGRESS_MAX_BACKOFF_MS)
+  })
+
+  it('stops after consecutive failures', () => {
+    expect(shouldStopProgressPolling(SIM_QUOTE_PROGRESS_GIVE_UP_AFTER - 1)).toBe(false)
+    expect(shouldStopProgressPolling(SIM_QUOTE_PROGRESS_GIVE_UP_AFTER)).toBe(true)
+  })
+})
+
+describe('progressPollTraderParams (#694)', () => {
+  it('omits trader when discount is known', () => {
+    expect(progressPollTraderParams({ knownDiscountBps: 5000, trader: 'terra1abc' })).toEqual({
+      discountBps: 5000,
+    })
+    expect(progressPollTraderParams({ knownDiscountBps: 0, trader: 'terra1abc' })).toEqual({
+      discountBps: 0,
+    })
+  })
+
+  it('keeps trader when discount is not yet known', () => {
+    expect(progressPollTraderParams({ trader: 'terra1abc' })).toEqual({ trader: 'terra1abc' })
+    expect(progressPollTraderParams({})).toEqual({})
   })
 })

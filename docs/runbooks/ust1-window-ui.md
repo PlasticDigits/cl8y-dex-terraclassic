@@ -16,6 +16,7 @@ Upstream contracts: [ust1-window](https://gitlab.com/PlasticDigits/ust1-window) 
 | **U6** | Soft-launch faucet mintables must not include UST1 or vFDUSD. |
 | **U7** | Coolify / prod `VITE_*` must be columbus-5 addresses below — never LocalTerra defaults on `dex.cl8y.com`. |
 | **U8** | CW20 `send` → `{ deposit }` / `{ withdraw }` maps to **`UST1_WINDOW_SEND_GAS_LIMIT` (800k)** in `getGasLimitForTx` (retail inventory **G-RETAIL-1**). |
+| **U9** | Swap / Trade unfunded UST1 pay Guides to **`/ust1?direction=deposit&amount=`** (human vFDUSD from inverse `effective_swap`, clamped to per-tx / rolling remaining). Typed size above remaining capacity must **not** promise a failing mint. `/ust1` ignores hostile query strings and never auto-submits. Identity is `VITE_UST1_TOKEN_ADDRESS`, not the ticker. [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678) **A678**. |
 
 ## Published mainnet addresses (Phase 2)
 
@@ -55,8 +56,10 @@ See [`coolify.env.example`](../../deployments/mainnet-ust1-wrap/coolify.env.exam
 |------|------|
 | [`Ust1Page.tsx`](../../frontend-dapp/src/pages/Ust1Page.tsx) | Deposit / Withdraw UI |
 | [`ust1Window.ts`](../../frontend-dapp/src/services/terraclassic/ust1Window.ts) | LCD `effective_swap` + CW20 Send |
-| [`ust1WindowMath.ts`](../../frontend-dapp/src/utils/ust1WindowMath.ts) | INV-SWAP quote math |
+| [`ust1WindowMath.ts`](../../frontend-dapp/src/utils/ust1WindowMath.ts) | INV-SWAP quote math + inverse deposit (`vfdusdInForTargetUst1`, #678) |
 | [`ust1WindowGates.ts`](../../frontend-dapp/src/utils/ust1WindowGates.ts) | Pause / stale / limit CTA gates |
+| [`ust1AcquirePrefill.ts`](../../frontend-dapp/src/utils/ust1AcquirePrefill.ts) | Swap Guide query parse + clamp |
+| [`swapPayAcquireGuidance.ts`](../../frontend-dapp/src/utils/swapPayAcquireGuidance.ts) | Swap/Trade shortfall helper |
 | [`navItems.ts`](../../frontend-dapp/src/components/common/navItems.ts) | `UST1_NAV_ITEM` + `includeUst1` |
 | [`tokenRegistry.ts`](../../frontend-dapp/src/utils/tokenRegistry.ts) + `tokenlist/` | UST1 / vFDUSD metadata + logos |
 
@@ -64,6 +67,7 @@ See [`coolify.env.example`](../../deployments/mainnet-ust1-wrap/coolify.env.exam
 
 ```bash
 make verify-issue-506
+make verify-issue-678
 # or:
 bash scripts/with-node.sh --cwd frontend-dapp -- npm run test:run -- \
   src/utils/__tests__/ust1WindowMath.test.ts \
@@ -88,6 +92,7 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/ust1-wi
 - Soft-launch faucet (must stay separate): [`soft-launch-faucet.md`](./soft-launch-faucet.md), [`AGENTS_SOFT_LAUNCH_FAUCET.md`](../../skills/AGENTS_SOFT_LAUNCH_FAUCET.md)
 - Shell nav: [`AGENTS_FRONTEND_SHELL_NAV.md`](../../skills/AGENTS_FRONTEND_SHELL_NAV.md)
 - Agent playbook: [`AGENTS_UST1_WINDOW_UI.md`](../../skills/AGENTS_UST1_WINDOW_UI.md)
+- Swap / Trade acquire Guide: [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](../../skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) ([#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678))
 - Phase 5 ops (oracle age, pause, inventory): [`ust1-wrap-production-ops.md`](./ust1-wrap-production-ops.md), [`AGENTS_UST1_WRAP_PRODUCTION_OPS.md`](../../skills/AGENTS_UST1_WRAP_PRODUCTION_OPS.md) ([#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503))
 - Gas inventory: [`AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md)
 - Routes table: [`docs/frontend.md`](../frontend.md)

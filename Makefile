@@ -1,4 +1,4 @@
-.PHONY: front send start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet deploy-mainnet-soft-launch deploy-soft-launch-faucet test-mainnet-soft-launch-defaults dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-indexer-target-ownership test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-503 check-ust1-wrap-ops-health verify-issue-504 verify-issue-514 verify-issue-518 verify-issue-533 verify-issue-559 verify-issue-539 verify-issue-534 verify-issue-562 verify-issue-542 verify-issue-536 verify-issue-582 verify-issue-584 verify-issue-585 verify-issue-587 verify-issue-599 verify-issue-600 verify-issue-589 verify-issue-581 verify-issue-590 verify-issue-537 verify-issue-538 verify-issue-541 verify-issue-664 verify-issue-547 verify-issue-485 verify-issue-515 verify-issue-550 verify-issue-522 verify-issue-551 verify-issue-557 verify-issue-556 verify-issue-560 verify-issue-524 verify-issue-543 verify-issue-548 verify-issue-553 verify-issue-656 verify-issue-564 verify-issue-527 verify-issue-561 verify-issue-563 verify-issue-528 verify-issue-529 verify-issue-530 verify-issue-517 verify-issue-519 verify-issue-554 verify-issue-566 verify-issue-658 verify-issue-567 verify-issue-573 verify-issue-531 verify-issue-501 verify-issue-596 verify-issue-506 verify-issue-512 verify-issue-516 verify-issue-523 verify-issue-508 verify-issue-384 verify-issue-475 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-indexer-postgres test-indexer-integration rebalance-mint-ust1-lp verify-issue-565 verify-issue-666 verify-issue-576 verify-issue-578 verify-issue-579 verify-issue-577 verify-issue-568 verify-issue-569 verify-issue-586 verify-issue-613 verify-issue-614 verify-issue-580 verify-issue-571 verify-issue-570 verify-issue-595 verify-issue-592 verify-issue-601 verify-issue-593 verify-issue-594 verify-issue-602 verify-issue-612 verify-issue-616 verify-issue-606 verify-issue-607 verify-issue-615 verify-issue-608 verify-issue-609 verify-issue-610 verify-issue-620 verify-issue-622 verify-issue-623 verify-issue-653 verify-issue-665 verify-issue-671 verify-issue-668 verify-issue-661 verify-issue-672 verify-issue-663
+.PHONY: front send start stop restart reset build-contracts build-artifacts-cargo build-optimized deploy-local deploy-local-no-build deploy-testnet deploy-mainnet deploy-mainnet-soft-launch deploy-soft-launch-faucet test-mainnet-soft-launch-defaults dev dev-full indexer-dev build-indexer-release fetch-qa-ci-artifacts test-contracts coverage-contracts test-frontend test-frontend-charts test-e2e test-e2e-tx test-e2e-indexer-outage test-charts-integration tests-charts-integration lint check-fee-discount-tier-docs setup-hooks test-commit-msg-hook wait-localterra wait-healthy has-localterra help compose-ps start-qa qa-start stop-qa reset-qa test-qa-fresh-volumes test-qa-verify-deploy test-qa-redeploy-decision test-localterra-host-curl test-has-localterra test-indexer-target-ownership test-setup-postgres test-setup-browser qa-tunnel-help qa-verify-deploy verify-issue-238 verify-issue-245 verify-issue-274 verify-issue-276 verify-issue-285 verify-issue-293 verify-issue-309 verify-issue-313 verify-issue-295 verify-issue-324 verify-issue-503 check-ust1-wrap-ops-health verify-issue-504 verify-issue-514 verify-issue-518 verify-issue-533 verify-issue-559 verify-issue-539 verify-issue-534 verify-issue-562 verify-issue-542 verify-issue-536 verify-issue-582 verify-issue-584 verify-issue-585 verify-issue-587 verify-issue-679 verify-issue-599 verify-issue-600 verify-issue-589 verify-issue-581 verify-issue-590 verify-issue-537 verify-issue-538 verify-issue-541 verify-issue-664 verify-issue-547 verify-issue-485 verify-issue-515 verify-issue-550 verify-issue-522 verify-issue-551 verify-issue-557 verify-issue-556 verify-issue-560 verify-issue-675 verify-issue-524 verify-issue-543 verify-issue-548 verify-issue-553 verify-issue-656 verify-issue-564 verify-issue-527 verify-issue-561 verify-issue-563 verify-issue-528 verify-issue-529 verify-issue-530 verify-issue-517 verify-issue-519 verify-issue-554 verify-issue-566 verify-issue-658 verify-issue-567 verify-issue-573 verify-issue-531 verify-issue-501 verify-issue-596 verify-issue-506 verify-issue-678 verify-issue-512 verify-issue-516 verify-issue-523 verify-issue-508 verify-issue-384 verify-issue-475 swarm-local swarm-launch swarm-stop test-swarm-liquidity swarm-bootstrap-liquidity setup-cloud-localterra setup-indexer-postgres test-indexer-integration rebalance-mint-ust1-lp verify-issue-565 verify-issue-666 verify-issue-576 verify-issue-578 verify-issue-695 verify-issue-579 verify-issue-577 verify-issue-568 verify-issue-569 verify-issue-586 verify-issue-683 verify-issue-613 verify-issue-614 verify-issue-580 verify-issue-571 verify-issue-570 verify-issue-595 verify-issue-592 verify-issue-601 verify-issue-593 verify-issue-594 verify-issue-602 verify-issue-612 verify-issue-616 verify-issue-606 verify-issue-607 verify-issue-615 verify-issue-608 verify-issue-609 verify-issue-610 verify-issue-620 verify-issue-622 verify-issue-623 verify-issue-653 verify-issue-665 verify-issue-671 verify-issue-668 verify-issue-689 verify-issue-677 verify-issue-661 verify-issue-672 verify-issue-663
 # Infrastructure
 start:
 	docker compose up -d
@@ -333,6 +333,12 @@ verify-issue-587:
 	@chmod +x scripts/qa/verify-issue-587.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-587.sh
 
+# GitLab #679 — mixed hybrid+pool router gas + Swap Network fee (hint = broadcast).
+verify-issue-679:
+	@chmod +x scripts/qa/verify-issue-679.sh scripts/qa/verify-issue-475.sh \
+		scripts/qa/verify-issue-587.sh scripts/qa/verify-issue-596.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-679.sh
+
 # GitLab #599 — unwrap+≥2hop USTR→USTC gas combo (taxed uusd InstantWithdraw).
 verify-issue-599:
 	@chmod +x scripts/qa/verify-issue-599.sh scripts/with-node.sh
@@ -383,6 +389,12 @@ verify-issue-586:
 	@chmod +x scripts/qa/verify-issue-586.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-586.sh
 
+# GitLab #683 — /protocol fee USD for CL8Y + factory-listed economic tokens.
+.PHONY: verify-issue-683
+verify-issue-683:
+	@chmod +x scripts/qa/verify-issue-683.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-683.sh
+
 # GitLab #652 — /protocol inline Δ% + volume prior-window % + UTC-day series.
 .PHONY: verify-issue-652
 verify-issue-652:
@@ -400,11 +412,29 @@ verify-issue-668:
 	@chmod +x scripts/qa/verify-issue-668.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-668.sh
 
+# GitLab #689 — /protocol UTC chart Volume / Liquidity / Fees metric toggle.
+.PHONY: verify-issue-689
+verify-issue-689:
+	@chmod +x scripts/qa/verify-issue-689.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-689.sh
+
+# GitLab #677 — /protocol leftovers: liquidity 24h-only Δ% + denser UTC volume x-axis.
+.PHONY: verify-issue-677
+verify-issue-677:
+	@chmod +x scripts/qa/verify-issue-677.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-677.sh
+
 # GitLab #631 — DeFiLlama UTC-day volume/fees API + adapter copies.
 .PHONY: verify-issue-631
 verify-issue-631:
 	@chmod +x scripts/qa/verify-issue-631.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-631.sh
+
+# GitLab #687 — DeFiLlama fees headline partial SUM + adapter start / 404 leftover.
+.PHONY: verify-issue-687
+verify-issue-687:
+	@chmod +x scripts/qa/verify-issue-687.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	./scripts/qa/verify-issue-687.sh
 
 # GitLab #613 — /protocol Wrap/Unwrap ingest from captured wrap-mapper attrs.
 verify-issue-613:
@@ -433,6 +463,12 @@ verify-issue-551:
 	@chmod +x scripts/qa/verify-issue-551.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-551.sh
 
+# GitLab #676 — /positions trade_count on 18-decimal pairs (NUMERIC(78,18) + rebuild).
+.PHONY: verify-issue-676
+verify-issue-676:
+	@chmod +x scripts/qa/verify-issue-676.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-676.sh
+
 # GitLab #557 — human Amount in / Amount out / Price on Charts/Trade/Trader tape + wallet history.
 verify-issue-557:
 	@chmod +x scripts/qa/verify-issue-557.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
@@ -457,6 +493,11 @@ verify-issue-568:
 verify-issue-560:
 	@chmod +x scripts/qa/verify-issue-560.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-560.sh
+
+# GitLab #675 — portfolio/trader unrealized P&L (hub mark vs on-DEX cost).
+verify-issue-675:
+	@chmod +x scripts/qa/verify-issue-675.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-675.sh
 
 # GitLab #524 — /trade + /charts UST1 pair display invert (UI-only).
 verify-issue-524:
@@ -492,6 +533,13 @@ verify-issue-565:
 verify-issue-666:
 	@chmod +x scripts/qa/verify-issue-666.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-666.sh
+
+# GitLab #680 — /charts UST1/USD hero + ?price= + page-wide invert.
+verify-issue-680:
+	@chmod +x scripts/qa/verify-issue-680.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-680.sh
+
+.PHONY: verify-issue-680
 
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
@@ -636,6 +684,12 @@ verify-issue-665:
 	@chmod +x scripts/qa/verify-issue-665.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-665.sh
 
+# GitLab #674 — hide test-gem performance on /portfolio (Show test pairs toggle).
+.PHONY: verify-issue-674
+verify-issue-674:
+	@chmod +x scripts/qa/verify-issue-674.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-674.sh
+
 # GitLab #547 — /pool sortable table, UST1-first catalog default, Charts deep links.
 verify-issue-547:
 	@chmod +x scripts/qa/verify-issue-547.sh scripts/with-node.sh
@@ -698,7 +752,7 @@ verify-issue-605:
 	@chmod +x scripts/qa/verify-issue-605.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-605.sh
 
-.PHONY: verify-issue-604 verify-issue-605 verify-issue-610 verify-issue-626 verify-issue-627 verify-issue-628 verify-issue-633 verify-issue-634 verify-issue-630 verify-issue-632 verify-issue-651 verify-issue-665 verify-issue-671 verify-issue-670 verify-issue-672 verify-issue-669
+.PHONY: verify-issue-604 verify-issue-605 verify-issue-610 verify-issue-626 verify-issue-627 verify-issue-628 verify-issue-633 verify-issue-634 verify-issue-630 verify-issue-632 verify-issue-651 verify-issue-665 verify-issue-674 verify-issue-671 verify-issue-670 verify-issue-672 verify-issue-669
 
 # GitLab #632 — Keplr in-app / visualViewport token picker clearance + browse-without-IME.
 verify-issue-632:
@@ -751,6 +805,12 @@ verify-issue-628:
 verify-issue-673:
 	@chmod +x scripts/qa/verify-issue-673.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-673.sh
+
+# GitLab #686 — post-merge !459–!468 leftover verify (#674–#680, #683).
+.PHONY: verify-issue-686
+verify-issue-686:
+	@chmod +x scripts/qa/verify-issue-686.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-686.sh
 
 # GitLab #594 — community tax indexer catalog.
 verify-issue-594:
@@ -876,6 +936,10 @@ verify-issue-608:
 verify-issue-506:
 	@chmod +x scripts/qa/verify-issue-506.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-506.sh
+
+verify-issue-678:
+	@chmod +x scripts/qa/verify-issue-678.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-678.sh
 
 # GitLab #512 — unwrap InstantWithdraw burn tax quotes + wrap mint fee-only (W8–W11).
 verify-issue-512:
@@ -1019,6 +1083,22 @@ verify-issue-646:
 	@chmod +x scripts/qa/verify-issue-646.sh
 	./scripts/qa/verify-issue-646.sh
 
+.PHONY: verify-issue-684
+verify-issue-684:
+	@chmod +x scripts/qa/verify-issue-684.sh
+	./scripts/qa/verify-issue-684.sh
+
+.PHONY: verify-issue-694
+verify-issue-694:
+	@chmod +x scripts/qa/verify-issue-694.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-694.sh
+
+# GitLab #685 — CG/CMC listing field truthfulness (TVL stamp, bid/ask, gems, freeze).
+.PHONY: verify-issue-685
+verify-issue-685:
+	@chmod +x scripts/qa/verify-issue-685.sh
+	./scripts/qa/verify-issue-685.sh
+
 # GitLab #640 — Cosmostation / Mintscan CW20 pack (chain/terra).
 .PHONY: verify-issue-640
 verify-issue-640:
@@ -1115,11 +1195,11 @@ help:
 	@echo "QA server:       make start-qa | reset-qa | QA_FRESH_VOLUMES=1 make start-qa | QA_FETCH_CI_ARTIFACTS=1 make start-qa | stop-qa | qa-verify-deploy | qa-verify-env-addresses | qa-verify-deploy-config | test-qa-redeploy-decision"
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet | deploy-mainnet-soft-launch"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
-	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-503 | verify-issue-504 | verify-issue-514 | verify-issue-518 | verify-issue-533 | verify-issue-559 | verify-issue-539 | verify-issue-534 | verify-issue-562 | verify-issue-542 | verify-issue-536 | verify-issue-582 | verify-issue-584 | verify-issue-585 | verify-issue-587 | verify-issue-599 | verify-issue-600 | verify-issue-595 | verify-issue-592 | verify-issue-593 | verify-issue-594 | verify-issue-601 | verify-issue-602 | verify-issue-612 | verify-issue-616 | verify-issue-604 | verify-issue-605 | verify-issue-606 | verify-issue-607 | verify-issue-615 | verify-issue-608 | verify-issue-609 | verify-issue-610 | verify-issue-620 | verify-issue-624 | verify-issue-621 | verify-issue-622 | verify-issue-623 | verify-issue-625 | verify-issue-626 | verify-issue-627 | verify-issue-628 | verify-issue-673 | verify-issue-633 | verify-issue-634 | verify-issue-670 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-652 | verify-issue-668 | verify-issue-667 | verify-issue-653 | verify-issue-671 | verify-issue-659 | verify-issue-663 | verify-issue-589 | verify-issue-590 | verify-issue-537 | verify-issue-538 | verify-issue-541 | verify-issue-664 | verify-issue-547 | verify-issue-655 | verify-issue-662 | verify-issue-485 | verify-issue-515 | verify-issue-550 | verify-issue-522 | verify-issue-551 | verify-issue-557 | verify-issue-556 | verify-issue-560 | verify-issue-524 | verify-issue-543 | verify-issue-548 | verify-issue-553 | verify-issue-656 | verify-issue-564 | verify-issue-565 | verify-issue-666 | verify-issue-576 | verify-issue-527 | verify-issue-561 | verify-issue-563 | verify-issue-528 | verify-issue-529 | verify-issue-530 | verify-issue-517 | verify-issue-519 | verify-issue-554 | verify-issue-566 | verify-issue-658 | verify-issue-531 | verify-issue-501 | verify-issue-596 | verify-issue-512 | verify-issue-516 | verify-issue-523 | verify-issue-508 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-398 | verify-issue-408 | verify-issue-399 | verify-issue-400 | verify-issue-435 | verify-issue-437 | verify-issue-438 | verify-issue-407 | verify-issue-429 | verify-issue-567 | verify-issue-570 | verify-issue-571 | verify-issue-580 | verify-issue-550 verify-issue-569 | verify-issue-586 | verify-issue-631 | verify-issue-613 | verify-issue-614 | verify-issue-568 | verify-issue-577 | verify-issue-579 | verify-issue-295 (needs make dev)"
-	@echo "Frontend:        make dev | verify-issue-578 | verify-issue-695 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-665 | verify-issue-669 | verify-issue-653 | verify-issue-660 | verify-issue-671 | verify-issue-670 | verify-issue-657 | verify-issue-662 | verify-issue-664 | verify-issue-661 | verify-issue-672 | verify-issue-658 | verify-issue-659 | verify-issue-663 | verify-issue-573 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
+	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-503 | verify-issue-504 | verify-issue-514 | verify-issue-518 | verify-issue-533 | verify-issue-559 | verify-issue-539 | verify-issue-534 | verify-issue-562 | verify-issue-542 | verify-issue-536 | verify-issue-582 | verify-issue-584 | verify-issue-585 | verify-issue-587 | verify-issue-679 | verify-issue-599 | verify-issue-600 | verify-issue-595 | verify-issue-592 | verify-issue-593 | verify-issue-594 | verify-issue-601 | verify-issue-602 | verify-issue-612 | verify-issue-616 | verify-issue-604 | verify-issue-605 | verify-issue-606 | verify-issue-607 | verify-issue-615 | verify-issue-608 | verify-issue-609 | verify-issue-610 | verify-issue-620 | verify-issue-624 | verify-issue-621 | verify-issue-622 | verify-issue-623 | verify-issue-625 | verify-issue-626 | verify-issue-627 | verify-issue-628 | verify-issue-673 | verify-issue-686 | verify-issue-633 | verify-issue-634 | verify-issue-670 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-652 | verify-issue-668 | verify-issue-689 | verify-issue-667 | verify-issue-653 | verify-issue-671 | verify-issue-659 | verify-issue-663 | verify-issue-589 | verify-issue-590 | verify-issue-537 | verify-issue-538 | verify-issue-541 | verify-issue-664 | verify-issue-547 | verify-issue-655 | verify-issue-662 | verify-issue-485 | verify-issue-515 | verify-issue-550 | verify-issue-522 | verify-issue-551 | verify-issue-557 | verify-issue-556 | verify-issue-560 | verify-issue-524 | verify-issue-543 | verify-issue-548 | verify-issue-553 | verify-issue-656 | verify-issue-564 | verify-issue-565 | verify-issue-666 | verify-issue-576 | verify-issue-527 | verify-issue-561 | verify-issue-563 | verify-issue-528 | verify-issue-529 | verify-issue-530 | verify-issue-517 | verify-issue-519 | verify-issue-554 | verify-issue-566 | verify-issue-658 | verify-issue-531 | verify-issue-501 | verify-issue-596 | verify-issue-512 | verify-issue-516 | verify-issue-523 | verify-issue-508 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-398 | verify-issue-408 | verify-issue-399 | verify-issue-400 | verify-issue-435 | verify-issue-437 | verify-issue-438 | verify-issue-407 | verify-issue-429 | verify-issue-567 | verify-issue-570 | verify-issue-571 | verify-issue-580 | verify-issue-550 verify-issue-569 | verify-issue-586 | verify-issue-683 | verify-issue-631 | verify-issue-687 | verify-issue-684 | verify-issue-685 | verify-issue-613 | verify-issue-614 | verify-issue-568 | verify-issue-577 | verify-issue-579 | verify-issue-295 (needs make dev)"
+	@echo "Frontend:        make dev | verify-issue-678 | verify-issue-578 | verify-issue-695 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-665 | verify-issue-674 | verify-issue-669 | verify-issue-653 | verify-issue-660 | verify-issue-671 | verify-issue-670 | verify-issue-657 | verify-issue-662 | verify-issue-664 | verify-issue-661 | verify-issue-672 | verify-issue-658 | verify-issue-659 | verify-issue-663 | verify-issue-573 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
 	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only)"
 	@echo "Docs:            scripts/qa/README.md"
 

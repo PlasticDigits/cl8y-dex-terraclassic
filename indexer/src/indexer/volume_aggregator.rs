@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use sqlx::PgPool;
 
-use crate::db::queries::{defillama, protocol_volume, traders, volume};
+use crate::db::queries::{defillama, protocol_fee_series, protocol_volume, traders, volume};
 
 /// Refresh token, pair, global, trader, protocol-fee, and DeFiLlama UTC-day windows.
 ///
@@ -92,6 +92,9 @@ pub async fn refresh_all_volume_windows_with_pins(
     }
     if let Err(e) = protocol_volume::refresh_protocol_monthly(pool).await {
         fail("protocol utc-month volume", e);
+    }
+    if let Err(e) = protocol_fee_series::refresh_protocol_fee_series_rollups(pool).await {
+        fail("protocol utc fee series", e);
     }
 }
 
