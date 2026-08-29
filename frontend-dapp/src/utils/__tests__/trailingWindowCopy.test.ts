@@ -35,6 +35,8 @@ describe('trailingWindowCopy (GitLab #576)', () => {
     expect(TRAILING_7D_VOLUME_TITLE).toMatch(/not a calendar-week reset/i)
     expect(TRAILING_30D_VOLUME_TITLE).toMatch(/not a calendar-month reset/i)
     expect(POOL_VOL_HEADER_TITLE).toMatch(/not a midnight reset/i)
+    expect(POOL_VOL_HEADER_TITLE).toMatch(/USD/i)
+    expect(POOL_VOL_HEADER_TITLE).not.toMatch(/quote-side/i)
   })
 
   it('sort option stays a trailing 24h label without changing the sort key', () => {

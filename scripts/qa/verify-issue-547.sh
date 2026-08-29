@@ -64,7 +64,7 @@ run_step "code: catalog default + column sort helpers" \
   grep -qE 'catalogRankAndPaginate' frontend-dapp/src/pages/PoolPage.tsx && \
   grep -qE 'POOL_CATALOG_FETCH_LIMIT' frontend-dapp/src/utils/poolListQuery.ts && \
   grep -qE 'sortIndexerPairsByCatalog' frontend-dapp/src/utils/poolListQuery.ts && \
-  grep -qE 'formatQuoteVolume24h' frontend-dapp/src/components/pool/PoolPairsTable.tsx
+  grep -qE 'formatPairListVolumeUsd' frontend-dapp/src/components/pool/PoolPairsTable.tsx
 
 run_step "code: Charts deep link + Pool row Link" \
   grep -qE 'path="/charts/:pairAddr"' frontend-dapp/src/App.tsx && \

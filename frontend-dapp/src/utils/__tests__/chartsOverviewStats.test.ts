@@ -4,6 +4,7 @@ import {
   formatChartsOverviewUstcUsd,
   formatChartsOverviewVolumeUsd,
   formatIndexedVolumeUsd,
+  formatPairListVolumeUsd,
 } from '../chartsOverviewStats'
 
 describe('formatChartsOverviewVolumeUsd (GitLab #548)', () => {
@@ -76,5 +77,16 @@ describe('formatIndexedVolumeUsd (GitLab #553)', () => {
     expect(formatIndexedVolumeUsd(null, 4)).toBe('—')
     expect(formatIndexedVolumeUsd('0', 4)).toBe('—')
     expect(formatIndexedVolumeUsd('0', 0)).toBe('$0')
+  })
+})
+
+describe('formatPairListVolumeUsd (GitLab #692)', () => {
+  it('shows compact USD or em-dash; idle and hostile never $0 or HTML', () => {
+    expect(formatPairListVolumeUsd('12400')).toMatch(/^\$/)
+    expect(formatPairListVolumeUsd('0')).toBe('—')
+    expect(formatPairListVolumeUsd(undefined)).toBe('—')
+    expect(formatPairListVolumeUsd('Infinity')).toBe('—')
+    expect(formatPairListVolumeUsd('-1')).toBe('—')
+    expect(formatPairListVolumeUsd('<script>alert(1)</script>')).toBe('—')
   })
 })

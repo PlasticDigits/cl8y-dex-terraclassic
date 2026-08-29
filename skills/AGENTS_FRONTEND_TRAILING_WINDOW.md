@@ -41,7 +41,7 @@ Related (do **not** treat as done here): [#548](https://gitlab.com/PlasticDigits
 | `frontend-dapp/src/components/ui/StatBox.tsx` | `title` on card + label; value `aria-label` |
 | `frontend-dapp/src/pages/ChartsPage.tsx` | Pair Vol + SORT label (no DEX census strip) |
 | `frontend-dapp/src/components/protocol/ProtocolGlobalStats.tsx` | 24h / 7d / 30d + trades |
-| `frontend-dapp/src/components/pool/PoolPairsTable.tsx` | Optional Vol header `title`; sort key stays `volume_24h` |
+| `frontend-dapp/src/components/pool/PoolPairsTable.tsx` | Optional Vol header `title`; column sort key is `volume_usd_24h` ([#692](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/692)); catalog fetch still `volume_24h` |
 
 ## Regression
 

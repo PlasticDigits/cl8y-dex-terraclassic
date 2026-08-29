@@ -49,7 +49,8 @@ function idx(
   a0: string,
   a1: string,
   volume: string,
-  decimals1: number
+  decimals1: number,
+  volumeUsd?: string
 ): IndexerPair {
   return {
     pair_address: addr,
@@ -59,6 +60,7 @@ function idx(
     fee_bps: 30,
     is_active: true,
     volume_quote_24h: volume,
+    volume_usd_24h: volumeUsd,
   }
 }
 
@@ -71,10 +73,10 @@ describe('PairSearchSelect catalog + quote volume (GitLab #534)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getPairs).mockResolvedValue({
       items: [
-        idx(ADDR_USTR, 'UST1', 'USTR', UST1, USTR, '19297048000000000000', 18),
-        idx(ADDR_CUSTC, 'UST1', 'cUSTC', UST1, CUSTC, '1000000', 6),
+        idx(ADDR_USTR, 'UST1', 'USTR', UST1, USTR, '19297048000000000000', 18, '19.3'),
+        idx(ADDR_CUSTC, 'UST1', 'cUSTC', UST1, CUSTC, '1000000', 6, '1'),
         idx(ADDR_GEM, 'EMBER', 'CORAL', EMBER, CORAL, '9000000000', 6),
-        idx(ADDR_CLUNC, 'cLUNC', 'UST1', CLUNC, UST1, '2000000', 6),
+        idx(ADDR_CLUNC, 'cLUNC', 'UST1', CLUNC, UST1, '2000000', 6, '2'),
       ],
       total: 4,
       limit: PAIR_SEARCH_RESULT_LIMIT,
@@ -113,7 +115,7 @@ describe('PairSearchSelect catalog + quote volume (GitLab #534)', () => {
     expect(within(listbox).getByText(/Test pairs/i)).toBeInTheDocument()
   })
 
-  it('formats UST1/USTR 18-dec quote volume without a T compact suffix', async () => {
+  it('formats UST1/USTR 24h volume as compact USD, not 18-dec quote T', async () => {
     const user = userEvent.setup()
     renderWithProviders(
       <PairSearchSelect value="" onChange={vi.fn()} factoryPairs={factoryPairs} aria-label="Trading pair" />
@@ -130,6 +132,6 @@ describe('PairSearchSelect catalog + quote volume (GitLab #534)', () => {
     })
     expect(ustrRow.textContent).not.toMatch(/19,297,048T/i)
     expect(ustrRow.textContent).not.toMatch(/\d+T/)
-    expect(ustrRow.textContent).toMatch(/vol\s+19\.3/i)
+    expect(ustrRow.textContent).toMatch(/vol\s+\$/)
   })
 })

@@ -93,7 +93,20 @@ describe('sortIndexerPairsByCatalog (GitLab #534)', () => {
     ])
   })
 
-  it('sorts within a hub by human quote volume so 18-dec USTR does not always beat 6-dec cUSTC', () => {
+  it('sorts within a hub by USD 24h when present so 18-dec USTR does not beat 6-dec cUSTC', () => {
+    const lowUstr = {
+      ...indexerPair('terra1p-ustr', 'UST1', 'USTR', UST1, USTR, '1000000000000000000', 18),
+      volume_usd_24h: '1',
+    }
+    const highCustc = {
+      ...indexerPair('terra1p-custc', 'UST1', 'cUSTC', UST1, CUSTC, '5000000', 6),
+      volume_usd_24h: '5',
+    }
+    const sorted = sortIndexerPairsByCatalog([lowUstr, highCustc])
+    expect(sorted[0].pair_address).toBe(highCustc.pair_address)
+  })
+
+  it('falls back to human quote volume when neither pair has USD', () => {
     const lowUstr = indexerPair('terra1p-ustr', 'UST1', 'USTR', UST1, USTR, '1000000000000000000', 18) // 1 USTR
     const highCustc = indexerPair('terra1p-custc', 'UST1', 'cUSTC', UST1, CUSTC, '5000000', 6) // 5 cUSTC
     const sorted = sortIndexerPairsByCatalog([lowUstr, highCustc])

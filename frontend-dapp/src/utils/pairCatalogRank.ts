@@ -64,6 +64,8 @@ const HUB_RANK: Record<string, number> = {
 export type PairCatalogVolume = {
   raw?: string | null
   quoteDecimals?: number
+  /** Trailing 24h priced USD (`volume_usd_24h`). Preferred within-hub tie-break (#692). */
+  usd?: string | null
 }
 
 export type PairCatalogLegs = {
@@ -255,6 +257,31 @@ export function compareHumanQuoteVolumeDesc(
   return 0
 }
 
+function parseFinitePositiveUsd(raw: string | null | undefined): number | null {
+  if (raw == null || raw === '') return null
+  if (typeof raw !== 'string') return null
+  if (raw.length > 64) return null
+  if (/[<>]/.test(raw)) return null
+  const n = Number.parseFloat(raw)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n
+}
+
+/**
+ * Within-hub USD compare (GitLab #692). Returns null when neither row has priced USD
+ * so callers can fall back to human quote volume.
+ */
+export function compareUsdVolumeDesc(aUsd: string | null | undefined, bUsd: string | null | undefined): number | null {
+  const a = parseFinitePositiveUsd(aUsd)
+  const b = parseFinitePositiveUsd(bUsd)
+  if (a == null && b == null) return null
+  if (a == null) return 1
+  if (b == null) return -1
+  if (a > b) return -1
+  if (a < b) return 1
+  return 0
+}
+
 export function comparePairCatalog(a: PairCatalogLegs, b: PairCatalogLegs): number {
   const aTest = isTestPair(a.symbol0, a.symbol1, a.tokenId0, a.tokenId1) ? 1 : 0
   const bTest = isTestPair(b.symbol0, b.symbol1, b.tokenId0, b.tokenId1) ? 1 : 0
@@ -263,13 +290,17 @@ export function comparePairCatalog(a: PairCatalogLegs, b: PairCatalogLegs): numb
   const hub = pairHubRank(a.symbol0, a.symbol1) - pairHubRank(b.symbol0, b.symbol1)
   if (hub !== 0) return hub
 
-  const vol = compareHumanQuoteVolumeDesc(
-    a.volume?.raw,
-    a.volume?.quoteDecimals,
-    b.volume?.raw,
-    b.volume?.quoteDecimals
-  )
-  if (vol !== 0) return vol
+  const usd = compareUsdVolumeDesc(a.volume?.usd, b.volume?.usd)
+  if (usd != null && usd !== 0) return usd
+  if (usd == null) {
+    const vol = compareHumanQuoteVolumeDesc(
+      a.volume?.raw,
+      a.volume?.quoteDecimals,
+      b.volume?.raw,
+      b.volume?.quoteDecimals
+    )
+    if (vol !== 0) return vol
+  }
 
   const other = otherHubSymbol(a.symbol0, a.symbol1).localeCompare(otherHubSymbol(b.symbol0, b.symbol1))
   if (other !== 0) return other
@@ -310,7 +341,7 @@ export function indexerPairToCatalogLegs(pair: IndexerPair): PairCatalogLegs {
     symbol1: pair.asset_1.symbol,
     tokenId0: pair.asset_0.contract_addr ?? pair.asset_0.denom ?? undefined,
     tokenId1: pair.asset_1.contract_addr ?? pair.asset_1.denom ?? undefined,
-    volume: { raw: pair.volume_quote_24h, quoteDecimals: pair.asset_1.decimals },
+    volume: { raw: pair.volume_quote_24h, quoteDecimals: pair.asset_1.decimals, usd: pair.volume_usd_24h },
     address: pair.pair_address,
   }
 }

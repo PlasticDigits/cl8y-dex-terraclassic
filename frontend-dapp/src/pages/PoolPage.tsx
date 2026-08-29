@@ -27,7 +27,7 @@ export default function PoolPage() {
   const [q, setQ] = useState('')
   const [submittedQ, setSubmittedQ] = useState('')
   const [mode, setMode] = useState<PoolListMode>('catalog')
-  const [columnSort, setColumnSort] = useState<PoolColumnSort>('volume_24h')
+  const [columnSort, setColumnSort] = useState<PoolColumnSort>('volume_usd_24h')
   const [order, setOrder] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(0)
   const [expandedAddr, setExpandedAddr] = useState<string | null>(null)

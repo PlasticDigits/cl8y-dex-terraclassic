@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use super::{
-    AppState, build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd,
+    build_asset_map, consolidated_stats, internal_err, lcd_gateway_err, limit_book_lcd, AppState,
 };
 use crate::db::queries::assets::AssetRow;
 use crate::db::queries::{
@@ -76,6 +76,10 @@ pub struct PairResponse {
     /// Sum of quote-side amounts in swaps over the last 24h (from indexer). Omitted when unknown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volume_quote_24h: Option<String>,
+    /// Human USD of priced swaps over the trailing 24h (`pair_volume_24h.volume_usd` stamp).
+    /// Omitted when unpriced / overflow. `"0"` when idle. List JOIN only — never live SUM (GitLab #692).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_usd_24h: Option<String>,
     /// Indexer first-seen clock (`pairs.created_at`), not factory `CreatePair` genesis (GitLab #662).
     pub created_at: DateTime<Utc>,
     /// Human USD of factory v2 AMM reserves (`protocol_pair_tvl` stamp). Omitted when unpriced.
@@ -91,6 +95,7 @@ pub(crate) fn pair_to_response(
     a1: &AssetRow,
     volume_quote_24h: Option<String>,
     liquidity_usd: Option<String>,
+    volume_usd_24h: Option<String>,
 ) -> PairResponse {
     PairResponse {
         pair_address: pair.contract_address.clone(),
@@ -103,6 +108,7 @@ pub(crate) fn pair_to_response(
             &pair.contract_address,
         ),
         volume_quote_24h,
+        volume_usd_24h,
         created_at: pair.created_at,
         liquidity_usd,
     }
@@ -131,9 +137,9 @@ pub struct ListPairsQuery {
     pub q: Option<String>,
     /// Filter to pairs that include this token (exact CW20 contract or native denom)
     pub asset: Option<String>,
-    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `liquidity_usd`, `relevance` (default `relevance` when `q` is set, else `id`)
+    /// Sort: `id`, `fee`, `created`, `symbol`, `volume_24h`, `volume_usd_24h`, `liquidity_usd`, `relevance` (default `relevance` when `q` is set, else `id`)
     pub sort: Option<String>,
-    /// `asc` or `desc`. Default: `asc` for id/fee/symbol; `desc` for volume_24h, liquidity_usd, created, relevance
+    /// `asc` or `desc`. Default: `asc` for id/fee/symbol; `desc` for volume_24h, volume_usd_24h, liquidity_usd, created, relevance
     pub order: Option<String>,
 }
 
@@ -144,12 +150,13 @@ fn parse_pair_list_sort(s: Option<&str>) -> Result<db_pairs::PairListSort, (Stat
         Some("created") => Ok(db_pairs::PairListSort::Created),
         Some("symbol") => Ok(db_pairs::PairListSort::Symbol),
         Some("volume_24h") => Ok(db_pairs::PairListSort::Volume24h),
+        Some("volume_usd_24h") => Ok(db_pairs::PairListSort::VolumeUsd24h),
         Some("liquidity_usd") => Ok(db_pairs::PairListSort::LiquidityUsd),
         Some("relevance") => Ok(db_pairs::PairListSort::Relevance),
         Some(other) => Err((
             StatusCode::BAD_REQUEST,
             format!(
-                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, liquidity_usd, or relevance",
+                "Invalid sort '{}'. Use id, fee, created, symbol, volume_24h, volume_usd_24h, liquidity_usd, or relevance",
                 other
             ),
         )),
@@ -164,6 +171,7 @@ fn parse_pair_list_order(
         None => Ok(matches!(
             sort,
             db_pairs::PairListSort::Volume24h
+                | db_pairs::PairListSort::VolumeUsd24h
                 | db_pairs::PairListSort::LiquidityUsd
                 | db_pairs::PairListSort::Relevance
                 | db_pairs::PairListSort::Created
@@ -256,7 +264,15 @@ pub async fn list_pairs(
         };
         let volume_quote_24h = row.volume_quote_24h.as_ref().map(volume_quote_to_string);
         let liquidity_usd = row.liquidity_usd.as_ref().map(bd_plain_string);
-        items.push(pair_to_response(p, a0, a1, volume_quote_24h, liquidity_usd));
+        let volume_usd_24h = row.volume_usd_24h.as_ref().map(bd_plain_string);
+        items.push(pair_to_response(
+            p,
+            a0,
+            a1,
+            volume_quote_24h,
+            liquidity_usd,
+            volume_usd_24h,
+        ));
     }
 
     Ok(Json(PairListResponse {
@@ -304,7 +320,14 @@ pub async fn get_pair(
         .as_ref()
         .map(bd_plain_string);
 
-    Ok(Json(pair_to_response(&pair, a0, a1, None, liquidity_usd)))
+    Ok(Json(pair_to_response(
+        &pair,
+        a0,
+        a1,
+        None,
+        liquidity_usd,
+        None,
+    )))
 }
 
 /// When `from` / `to` are omitted, candles are filtered to this many days before `to`.

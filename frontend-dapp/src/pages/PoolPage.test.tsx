@@ -804,6 +804,7 @@ describe('PoolPage', () => {
           fee_bps: 30,
           is_active: true,
           volume_quote_24h: '999999',
+          volume_usd_24h: undefined,
         },
         {
           pair_address: UST1_PAIR,
@@ -813,6 +814,7 @@ describe('PoolPage', () => {
           fee_bps: 30,
           is_active: true,
           volume_quote_24h: '1',
+          volume_usd_24h: '12400',
         },
       ]
     }
@@ -833,7 +835,7 @@ describe('PoolPage', () => {
       )
     })
 
-    it('S2/S3: Vol header calls indexer volume_24h and toggles order', async () => {
+    it('S2/S3: Vol header calls indexer volume_usd_24h and toggles order', async () => {
       const user = userEvent.setup()
       vi.mocked(indexerClient.getPairs).mockResolvedValue({
         items: catalogPairs(),
@@ -848,16 +850,51 @@ describe('PoolPage', () => {
       await user.click(screen.getByTestId('pool-sort-vol'))
       await waitFor(() =>
         expect(indexerClient.getPairs).toHaveBeenCalledWith(
-          expect.objectContaining({ sort: 'volume_24h', order: 'desc', limit: 20 })
+          expect.objectContaining({ sort: 'volume_usd_24h', order: 'desc', limit: 20 })
         )
       )
       expect(screen.getByTestId('pool-sort-vol').closest('th')).toHaveAttribute('aria-sort', 'descending')
       await user.click(screen.getByTestId('pool-sort-vol'))
       await waitFor(() =>
         expect(indexerClient.getPairs).toHaveBeenCalledWith(
-          expect.objectContaining({ sort: 'volume_24h', order: 'asc', limit: 20 })
+          expect.objectContaining({ sort: 'volume_usd_24h', order: 'asc', limit: 20 })
         )
       )
+    })
+
+    it('PVol: Vol cells are compact USD or em-dash; never quote-token fallback', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[0]!, volume_usd_24h: undefined, volume_quote_24h: '19297048000000000000' },
+          { ...catalogPairs()[1]!, volume_usd_24h: '12400' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-vol')
+      expect(cells[0]).toHaveTextContent(/^\$/)
+      expect(cells[0]).not.toHaveTextContent(/19\.3/)
+      expect(cells[1]).toHaveTextContent('—')
+    })
+
+    it('PVol: hostile volume_usd_24h renders em-dash as text', async () => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [
+          { ...catalogPairs()[0]!, volume_usd_24h: 'Infinity' },
+          { ...catalogPairs()[1]!, volume_usd_24h: '<script>alert(1)</script>' },
+        ],
+        total: 2,
+        limit: 500,
+        offset: 0,
+      })
+      renderWithProviders(<PoolPage />, { route: '/pool' })
+      const cells = await screen.findAllByTestId('pool-row-vol')
+      expect(cells[0]).toHaveTextContent('—')
+      expect(cells[1]).toHaveTextContent('—')
+      expect(cells[1].querySelector('script')).toBeNull()
+      expect(cells[1].innerHTML).not.toMatch(/<script/i)
     })
 
     it('S4: Pair header sorts by symbol without catalog overlay', async () => {
@@ -956,6 +993,8 @@ describe('PoolPage', () => {
       await user.click((await screen.findAllByTestId('pool-row-manage'))[0]!)
       const panel = await screen.findByTestId('pool-row-manage-panel')
       expect(panel.querySelector('td')).toHaveAttribute('colspan', '7')
+      expect(panel).not.toHaveTextContent(/quote, indexed/i)
+      expect(screen.getByTestId('pool-manage-24h-vol')).toHaveTextContent(/24h vol \$/)
     })
 
     it('H1: Charts link is same-origin /charts/:pairAddr', async () => {
