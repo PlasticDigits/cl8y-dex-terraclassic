@@ -157,6 +157,11 @@ export interface IndexerPair {
   /** 24h quote-side volume from indexed swaps (raw integer; UI scales by `asset_1.decimals` — GitLab #534) */
   volume_quote_24h?: string
   /**
+   * Trailing 24h priced-swap USD (`pair_volume_24h.volume_usd` stamp, GitLab #692).
+   * Human decimal string. Omit / null when unpriced. `"0"` when idle. Never invent from quote × hub.
+   */
+  volume_usd_24h?: string | null
+  /**
    * Indexer first-seen ISO-8601 UTC (`pairs.created_at`). Optional so old payloads / mocks still type-check.
    * Not factory CreatePair genesis (GitLab #662).
    */
@@ -176,7 +181,15 @@ export interface IndexerPairsListResponse {
   offset: number
 }
 
-export type IndexerPairSort = 'id' | 'fee' | 'created' | 'symbol' | 'volume_24h' | 'liquidity_usd' | 'relevance'
+export type IndexerPairSort =
+  | 'id'
+  | 'fee'
+  | 'created'
+  | 'symbol'
+  | 'volume_24h'
+  | 'volume_usd_24h'
+  | 'liquidity_usd'
+  | 'relevance'
 
 /** Map indexer pair metadata to on-chain `PairInfo` for pool queries and txs */
 export function indexerAssetToAssetInfo(a: IndexerAssetBrief): AssetInfo {

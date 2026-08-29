@@ -49,7 +49,9 @@ import { PairTokenLinks } from '@/components/ui/PairTokenLinks'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { getTokenDisplaySymbol, formatPoolAssetFieldLabel, poolProvideAmountAriaLabel } from '@/utils/tokenDisplay'
 import { provideWrapDefaultOn } from '@/utils/poolProvideWrapDefault'
-import { formatTokenAmount, formatQuoteVolume24h, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import { formatPairListVolumeUsd } from '@/utils/chartsOverviewStats'
+import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
 import { isLpBurnExceedsBalance, withdrawMinAssetAmounts, estimateWithdrawAssetAmounts } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -81,14 +83,12 @@ type ManageAction = 'provide' | 'withdraw' | 'zap-add' | 'zap-withdraw'
 export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   pair,
   factoryPairs,
-  volumeQuote24h,
-  quoteDecimals,
+  volumeUsd24h,
   listBadges,
 }: {
   pair: PairInfo
   factoryPairs: PairInfo[]
-  volumeQuote24h?: string
-  quoteDecimals?: number
+  volumeUsd24h?: string | null
   listBadges: PairListBadges
 }) {
   const address = useWalletStore((s) => s.address)
@@ -123,7 +123,8 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
 
   const displayA = useTokenDisplayInfo(pair.asset_infos[0])
   const displayB = useTokenDisplayInfo(pair.asset_infos[1])
-  const volumeLabel = formatQuoteVolume24h(volumeQuote24h, quoteDecimals ?? getDecimals(pair.asset_infos[1]))
+  const volumeLabel = formatPairListVolumeUsd(volumeUsd24h)
+  const showVolume = volumeLabel !== '—'
 
   const nativeEquivA = useMemo(() => getNativeEquivalent(tokenA), [tokenA])
   const nativeEquivB = useMemo(() => getNativeEquivalent(tokenB), [tokenB])
@@ -592,9 +593,14 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
           <p className="text-xs font-mono mt-1" style={{ color: 'var(--ink-subtle)' }}>
             {pairInfoMenuLabel(pair, { variant: 'full' })}
           </p>
-          {volumeLabel ? (
-            <p className="text-xs mt-1 uppercase tracking-wide" style={{ color: 'var(--ink-dim)' }}>
-              24h vol (quote, indexed): {volumeLabel}
+          {showVolume ? (
+            <p
+              className="text-xs mt-1 uppercase tracking-wide"
+              style={{ color: 'var(--ink-dim)' }}
+              title={POOL_VOL_HEADER_TITLE}
+              data-testid="pool-manage-24h-vol"
+            >
+              24h vol {volumeLabel}
             </p>
           ) : null}
           {listBadges.isInFactoryRouterGraph ? (

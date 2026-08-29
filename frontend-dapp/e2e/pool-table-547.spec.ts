@@ -45,6 +45,16 @@ test.describe('Pool sortable table (GitLab #547)', () => {
     // `sort=liquidity_usd` return 400 and unmount the table (`isLoading` / isError).
   })
 
+  test('PVol Vol column is compact USD or em-dash', async ({ page }) => {
+    await gotoPoolTable(page)
+    await expect(page.getByTestId('pool-pairs-table')).toBeVisible({ timeout: 90_000 })
+    const firstCell = page.getByTestId('pool-row-vol').first()
+    await expect(firstCell).toBeVisible()
+    const text = ((await firstCell.textContent()) ?? '').trim()
+    expect(text === '—' || text.startsWith('$')).toBe(true)
+    expect(text).not.toMatch(/^\d/)
+  })
+
   test('P3 Charts from first row lands on /charts/:pairAddr', async ({ page }) => {
     await gotoPoolTable(page)
     const charts = page.getByTestId('pool-row-charts').first()

@@ -120,25 +120,39 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-/// Rebuild rolling 24h quote-side volume per pair (materialized table for pair list sort).
+/// Rebuild rolling 24h quote-side + USD volume per pair (materialized table for pair list sort).
+/// `volume_usd` is SUM(swap_events.volume_usd) of priced legs only (GitLab #692 / PVol).
+/// Unpriced activity → NULL (do not COALESCE to 0). Overflow ≥ 10^20 → NULL.
+/// Idle pairs (no 24h swaps) zero quote **and** USD (#577 D3).
 pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let cutoff = Utc::now() - chrono::Duration::hours(24);
 
     let mut tx = pool.begin().await?;
     sqlx::query(
-        r#"INSERT INTO pair_volume_24h (pair_id, volume_quote, updated_at)
-           SELECT se.pair_id,
-                  LEAST(
-                    COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0),
-                    POWER(10::numeric, 38) - 1
-                  ),
+        r#"INSERT INTO pair_volume_24h (pair_id, volume_quote, volume_usd, updated_at)
+           SELECT s.pair_id,
+                  s.volume_quote,
+                  CASE
+                    WHEN s.volume_usd IS NULL THEN NULL
+                    WHEN s.volume_usd >= POWER(10::numeric, 20) THEN NULL
+                    ELSE s.volume_usd
+                  END,
                   NOW()
-           FROM swap_events se
-           INNER JOIN pairs p ON p.id = se.pair_id
-           WHERE se.block_timestamp >= $1
-           GROUP BY se.pair_id
+           FROM (
+             SELECT se.pair_id,
+                    LEAST(
+                      COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0),
+                      POWER(10::numeric, 38) - 1
+                    ) AS volume_quote,
+                    SUM(se.volume_usd) FILTER (WHERE se.volume_usd IS NOT NULL AND se.volume_usd > 0) AS volume_usd
+             FROM swap_events se
+             INNER JOIN pairs p ON p.id = se.pair_id
+             WHERE se.block_timestamp >= $1
+             GROUP BY se.pair_id
+           ) s
            ON CONFLICT (pair_id)
              DO UPDATE SET volume_quote = EXCLUDED.volume_quote,
+                          volume_usd = EXCLUDED.volume_usd,
                           updated_at = EXCLUDED.updated_at"#,
     )
     .bind(cutoff)
@@ -147,7 +161,7 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 
     sqlx::query(
         r#"UPDATE pair_volume_24h pv
-           SET volume_quote = 0, updated_at = NOW()
+           SET volume_quote = 0, volume_usd = 0, updated_at = NOW()
            WHERE NOT EXISTS (
              SELECT 1 FROM swap_events se
              WHERE se.pair_id = pv.pair_id AND se.block_timestamp >= $1
@@ -352,8 +366,12 @@ pub async fn refresh_protocol_fee_stats(
     wrap_mapper_configured: bool,
     ust1_window_configured: bool,
 ) -> Result<(), sqlx::Error> {
-    super::protocol_fees::refresh_protocol_fees(pool, wrap_mapper_configured, ust1_window_configured)
-        .await
+    super::protocol_fees::refresh_protocol_fees(
+        pool,
+        wrap_mapper_configured,
+        ust1_window_configured,
+    )
+    .await
 }
 
 /// Recompute `swap_events.volume_usd` from stored amounts + P522-Q catalog + latest oracles

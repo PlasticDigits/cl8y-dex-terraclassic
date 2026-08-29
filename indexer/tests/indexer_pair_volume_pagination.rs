@@ -67,6 +67,18 @@ async fn pair_volume_idle_48h_swaps_zero_after_refresh() {
         bigdecimal::BigDecimal::from(0).normalized(),
         "pair with only 48h-old swaps must zero pair_volume_24h (#577 D3)"
     );
+
+    let usd: Option<bigdecimal::BigDecimal> =
+        sqlx::query_scalar("SELECT volume_usd FROM pair_volume_24h WHERE pair_id = $1")
+            .bind(seed.pair_id)
+            .fetch_one(&pool)
+            .await
+            .expect("usd rollup");
+    assert_eq!(
+        usd.unwrap_or_default().normalized(),
+        bigdecimal::BigDecimal::from(0).normalized(),
+        "idle pairs must also zero volume_usd (#692 / #577 D3)"
+    );
 }
 
 #[serial]
@@ -89,12 +101,12 @@ async fn pair_list_volume_sort_plan_does_not_touch_swap_events() {
 
     let rows: Vec<(String,)> = sqlx::query_as(
         "EXPLAIN (FORMAT TEXT)
-         SELECT p.id, pv.volume_quote
+         SELECT p.id, pv.volume_quote, pv.volume_usd
          FROM pairs p
          INNER JOIN assets a0 ON a0.id = p.asset_0_id
          INNER JOIN assets a1 ON a1.id = p.asset_1_id
          LEFT JOIN pair_volume_24h pv ON pv.pair_id = p.id
-         ORDER BY pv.volume_quote DESC NULLS LAST
+         ORDER BY pv.volume_usd DESC NULLS LAST, pv.volume_quote DESC NULLS LAST
          LIMIT 50 OFFSET 0",
     )
     .fetch_all(&pool)

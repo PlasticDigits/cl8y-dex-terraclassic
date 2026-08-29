@@ -48,16 +48,16 @@ run_step "frontend: catalog rank + volume format + pickers" \
     src/components/trade/__tests__/PairSearchSelect.issue301.test.tsx \
     src/pages/TradePage.test.tsx'
 
-run_step "code: PairSearchSelect uses catalog sort + formatQuoteVolume24h" \
+run_step "code: PairSearchSelect uses catalog sort + USD vol badge" \
   grep -qE 'sortPairInfosByCatalog' frontend-dapp/src/components/trade/PairSearchSelect.tsx && \
-  grep -qE 'formatQuoteVolume24h' frontend-dapp/src/components/trade/PairSearchSelect.tsx && \
+  grep -qE 'formatPairListVolumeUsd' frontend-dapp/src/components/trade/PairSearchSelect.tsx && \
   grep -qE 'Test pairs' frontend-dapp/src/components/trade/PairSearchSelect.tsx && \
   bash -c '! grep -qE "formatNum\(opt.volumeQuote24h" frontend-dapp/src/components/trade/PairSearchSelect.tsx'
 
 run_step "code: Trade auto-pick + Charts catalog rank" \
   grep -qE 'firstCatalogPairAddress' frontend-dapp/src/pages/TradePage.tsx && \
   grep -qE 'sortIndexerPairsByCatalog' frontend-dapp/src/pages/ChartsPage.tsx && \
-  grep -qE 'formatQuoteVolume24h' frontend-dapp/src/components/pool/PoolPairsTable.tsx
+  grep -qE 'formatPairListVolumeUsd' frontend-dapp/src/components/pool/PoolPairsTable.tsx
 
 run_step "code: Swap token empty browse uses compareTokenCatalog" \
   grep -qE 'compareTokenCatalog' frontend-dapp/src/utils/tokenSearchQuery.ts
