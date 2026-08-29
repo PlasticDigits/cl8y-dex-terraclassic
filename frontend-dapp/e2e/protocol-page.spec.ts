@@ -136,6 +136,51 @@ async function assertChartFillsPanel(page: Page) {
   expect(plotBox.width).toBeGreaterThan(statsBox.width * 0.8)
 }
 
+/** GitLab #703 — horizontal Monthly ticks must not overlap (small epsilon). */
+async function assertMonthlyXaxisNoOverlap(page: Page, maxBars: number) {
+  const plot = page.getByTestId('protocol-volume-daily-bars')
+  if (!(await plot.count())) return
+  const barCount = await page.locator('[data-testid^="protocol-volume-bar-"]').count()
+  if (barCount === 0) return
+  expect(barCount).toBeLessThanOrEqual(maxBars)
+  const labels = page.locator('[data-testid="protocol-volume-chart-xaxis"] text')
+  const n = await labels.count()
+  expect(n).toBeGreaterThan(0)
+  const rows = await labels.evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect()
+      const cs = getComputedStyle(el)
+      return {
+        text: (el.textContent ?? '').trim(),
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.bottom,
+        transform: el.getAttribute('transform') ?? '',
+        writingMode: cs.writingMode,
+        cssTransform: cs.transform,
+      }
+    })
+  )
+  const eps = 1
+  for (const row of rows) {
+    expect(row.transform).not.toMatch(/rotate/i)
+    expect(row.cssTransform === 'none' || row.cssTransform === '' || row.cssTransform == null).toBeTruthy()
+    expect(row.writingMode === 'horizontal-tb' || row.writingMode === '' || row.writingMode === 'lr').toBeTruthy()
+    expect(row.text).toMatch(/^\d{2}-\d{2}$/)
+    expect(row.text).not.toMatch(/^\d{4}-/)
+  }
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const a = rows[i]
+      const b = rows[j]
+      const overlapX = a.left < b.right - eps && b.left < a.right - eps
+      const overlapY = a.top < b.bottom - eps && b.top < a.bottom - eps
+      expect(overlapX && overlapY, `Monthly labels "${a.text}" and "${b.text}" overlap`).toBeFalsy()
+    }
+  }
+}
+
 test.describe('Protocol page (GitLab #550 / #422)', () => {
   test('P1 stats card + oracle card + audit rows', async ({ page }) => {
     await page.goto('/protocol')
@@ -359,5 +404,79 @@ test.describe('Protocol UTC metric toggle (GitLab #689)', () => {
     expect(hasGlass).toBeFalsy()
     await page.getByTestId('protocol-utc-metric-liquidity').click()
     await expect(chart).toBeVisible()
+  })
+})
+
+test.describe('Protocol Monthly phone axis (GitLab #703)', () => {
+  test('phone 390×844 Monthly: YY-MM ticks do not overlap', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    const monthlyLimits: number[] = []
+    page.on('request', (req) => {
+      const u = req.url()
+      const m = /grain=monthly&limit=(\d+)/.exec(u)
+      if (m) monthlyLimits.push(Number(m[1]))
+    })
+    await page.goto('/protocol')
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    const chart = page.getByTestId('protocol-volume-daily-chart')
+    if (!(await chart.count())) return
+    await expect(chart).toBeVisible()
+    await page.getByTestId('protocol-volume-grain-monthly').click()
+    await expect(chart).toContainText(/UTC calendar month/)
+    const plot = page.getByTestId('protocol-volume-daily-bars')
+    if (await plot.count()) {
+      await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible({
+        timeout: 15_000,
+      })
+    }
+    if (monthlyLimits.length) {
+      const last = monthlyLimits[monthlyLimits.length - 1]
+      expect(last).toBeGreaterThanOrEqual(6)
+      expect(last).toBeLessThanOrEqual(12)
+    }
+    await assertVolumeXAxisDensity(page, 'monthly')
+    await assertMonthlyXaxisNoOverlap(page, 12)
+    if (await plot.count()) {
+      const bar = page.getByTestId('protocol-volume-bar-0')
+      if (await bar.count()) {
+        await bar.hover()
+        const tip = page.getByTestId('protocol-volume-chart-tooltip')
+        await expect(tip).toBeVisible()
+        await expect(tip).toContainText(/\d{4}-\d{2}/)
+      }
+      const volBars = await page.locator('[data-testid^="protocol-volume-bar-"]').count()
+      await page.getByTestId('protocol-utc-metric-liquidity').click()
+      await expect(chart).toContainText(/UTC calendar/)
+      if (await page.getByTestId('protocol-volume-daily-bars').count()) {
+        await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible()
+        expect(await page.locator('[data-testid^="protocol-volume-bar-"]').count()).toBe(volBars)
+        await assertMonthlyXaxisNoOverlap(page, 12)
+      }
+      await page.getByTestId('protocol-utc-metric-fees').click()
+      await expect(chart).toContainText(/UTC calendar/)
+      if (await page.getByTestId('protocol-volume-daily-bars').count()) {
+        await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible()
+        await assertMonthlyXaxisNoOverlap(page, 12)
+      }
+    }
+  })
+
+  test('tablet 820 Monthly: ticks do not overlap', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 })
+    await page.goto('/protocol')
+    await page.waitForLoadState('domcontentloaded')
+    await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
+    const chart = page.getByTestId('protocol-volume-daily-chart')
+    if (!(await chart.count())) return
+    await page.getByTestId('protocol-volume-grain-monthly').click()
+    await expect(chart).toContainText(/UTC calendar month/)
+    if (await page.getByTestId('protocol-volume-daily-bars').count()) {
+      await expect(page.locator('[data-testid="protocol-volume-chart-xaxis"] text').first()).toBeVisible({
+        timeout: 15_000,
+      })
+    }
+    await assertVolumeXAxisDensity(page, 'monthly')
+    await assertMonthlyXaxisNoOverlap(page, 24)
   })
 })

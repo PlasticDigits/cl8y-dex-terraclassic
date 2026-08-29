@@ -287,7 +287,15 @@ export function ProtocolVolumeDailyChart() {
                 const slot = plotW / Math.max(series.length, 1)
                 const x = PAD_L + idx * slot + slot / 2
                 return (
-                  <text key={`x-${idx}`} x={x} y={VIEW_H - 6} textAnchor="middle" fontSize="8" fill="var(--ink-dim)">
+                  <text
+                    key={`x-${idx}`}
+                    x={x}
+                    y={VIEW_H - 6}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fill="var(--ink-dim)"
+                    style={{ transform: 'none' }}
+                  >
                     {formatPeriodAxisLabel(period, grain)}
                   </text>
                 )

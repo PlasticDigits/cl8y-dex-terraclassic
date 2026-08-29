@@ -2,7 +2,7 @@
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#703**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) (phone Monthly last 12 UTC months + `YY-MM` axis; no rotated ticks) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -112,12 +112,12 @@ Do **not** invent a Protocol-only `StatBox` variant. The same value-row class se
 | **P668-1** | Visible **USD value axis** (`formatProtocolUsd` ticks, including `$0`). Bars stay a UTC **time** series (vertical). Do **not** rotate into a horizontal-bar USD category chart. Never Inf / `NaN` / raw `uluna` on the axis. |
 | **P668-2** | Pointer **and** keyboard focus on a bar show an in-document tooltip: UTC period + USD (unpriced → em-dash). Not SVG `<title>`-only. Tooltip is text (no `innerHTML` / `eval` / `javascript:` URLs). |
 | **P668-3** | Selector **Hourly / Daily / Monthly** (default Daily). Trailing Last 24h / 7d / 30d tiles are unchanged (#576). Labels ≤ ~5 words (#489). |
-| **P668-4** | `limit` follows plot width (`ResizeObserver`, ~12px slot), clamped per grain: hourly **12–168**, daily **7–90**, monthly **6–24**. Debounce resize; query key is `(grain, limit)`. Client rejects non-allowlisted grain/limit **before** fetch. |
+| **P668-4** | `limit` follows plot width (`ResizeObserver`, ~12px slot), clamped per grain: hourly **12–168**, daily **7–90**, monthly **6–24**. Monthly on phone-width plots requests **≤ 12** (drop to **6** if 12 × `YY-MM` still collides); desktop 1280 may still request **24**. Do not use the 12px bar slot as the only monthly cap ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) **P703-2**). Debounce resize; query key is `(grain, limit)`. Client rejects non-allowlisted grain/limit **before** fetch. |
 | **P668-5** | GET `grain=hourly\|daily\|monthly` + integer `limit` (1..=max) else **400**. `from`/`to` → **400**. `days=7\|30` without `grain` stays the #652 alias. Cache 60s keyed only by allowlisted `(grain, limit)` or `days` (extra query junk cannot bust cache). |
 | **P668-6** | GET reads rollup tables only (`protocol_hourly_volume` / `protocol_daily_volume` / `protocol_monthly_volume`). No `swap_events` SUM. No Llama. Idle `"0"`; activity + unpriced `null`. Missing row → idle `"0"`. Newest-last. |
 | **P668-7** | Hourly bucket `[hour, hour+1)` UTC (`YYYY-MM-DDTHH`). Monthly = UTC calendar month (`YYYY-MM`), not trailing 30d. Aggregator refresh; `--fresh` / young indexer shows idle zeros / available months — **not** a GET-path backfill. Hourly prune ~10d; monthly retain ≥ 24 months. |
 | **P668-8** | XSS strings in period / `volume_usd` render as **text**. Unpriced bars are outlined, not `$0`. No `PriceChart`. No nested `card-glass` around the plot (C653). Verify: `make verify-issue-668`. Keep `verify-issue-652` / `550` / `569` / `586` / `576` / `631` / `653` / `677` green. |
-| **P668-9** | X-axis labels every bar (**step 1**) or every second bar (**step 2**) for Daily and Monthly. Hourly may use a wider step only when step 2 still collides in the **current plot width**. The SVG viewBox width follows the Global stats panel (`ResizeObserver`) — do **not** letterbox a fixed 320×128 canvas (that left ~⅔ of the panel empty and packed hourly `HH` labels). First and last period stay labeled. No global `maxLabels = 5`. Tooltip still tells the truth on unlabeled hourly bars ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). |
+| **P668-9** | X-axis labels every bar (**step 1**) or every second bar (**step 2**) for Daily and Monthly. Hourly may use a wider step only when step 2 still collides in the **current plot width**. Monthly on phone is fewer bars + `YY-MM` axis text — **do not rotate** tick text (`transform="rotate(…)"`, CSS `writing-mode`, `textPath`) ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) **P703-1** / **P703-3**). The SVG viewBox width follows the Global stats panel (`ResizeObserver`) — do **not** letterbox a fixed 320×128 canvas (that left ~⅔ of the panel empty and packed hourly `HH` labels). First and last period stay labeled. No global `maxLabels = 5`. Tooltip still tells the truth on unlabeled hourly bars ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)). |
 
 Trailing 24h / 7d / 30d **volume labels** are a trailing window, not calendar buckets ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576), [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md)). The volume chart is a **separate** UTC calendar-grain series (hour / day / month) — do not add a lecture to the Global stats lead.
 
@@ -142,12 +142,32 @@ One census chart, exclusive metric. Do **not** overlay Volume + Liquidity + Fees
 - **Don't** overload `GET /protocol/fees?window=` with `grain`.
 - **Don't** N+1 `GET /defillama/daily` or add Llama `from`/`to`.
 
+## Invariants (P703 — GitLab #703)
+
+Phone Monthly x-axis overlap. Do **not** reopen [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) / [#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) / [#689](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689). Do **not** lower indexer monthly retain or GET `limit` max below 24. Maps 1:1 to AC **M1–M8**.
+
+| ID | Rule |
+|----|------|
+| **P703-1** | Phone 390×844 Monthly: x-axis labels stay **horizontal** and **do not overlap**. No `rotate` / `writing-mode` / `textPath` on tick text. Readable without tilting the device. |
+| **P703-2** | Phone Monthly requests **≤ 12** and **≥ 6** newest UTC calendar months (newest-last `limit`). Desktop 1280 Monthly may still show up to **24**. Tablet 820: no overlap (12 or 24 if labels fit). Indexer GET max stays 24. |
+| **P703-3** | Monthly **axis** is 2-digit year (`YY-MM`, e.g. `26-08`). Tooltip + bar `aria-label` keep full `YYYY-MM` + USD (unpriced → em-dash). Century wrap (`99` vs `00`) is OK on the axis. |
+| **P703-4** | Hourly / Daily unchanged (**P668-9**; daily `MM-DD`, hourly `HH`). Trailing Last 24h/7d/30d tiles unchanged ([#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576)). Grain default Daily. Metric default Volume. Subtitle stays `UTC calendar month` (≤ ~5 words; no “last 12 months” lecture). |
+| **P703-5** | Volume / Liquidity / Fees share the same monthly `limit` and axis rules. Switching metric does not refetch a different month count. 404/501 volume still hides the chart; sibling 404 hides that metric only. |
+| **P703-6** | Client still reject-lists grain/limit before fetch. Phone cap is an integer in `[6, 24]`. Indexer GET monthly max **24**, `from`/`to` **400**, 60s cache, rollup-only — **unchanged**. Do not add a range API to select last 12 months. |
+| **P703-7** | XSS period / usd fields stay **text**. No `PriceChart`, Llama `GET /defillama/daily`, nested `card-glass`, or `7d`/`30d` grain. Ticks are not links. |
+| **P703-8** | Verify: `make verify-issue-703`. Keep `verify-issue-677` / `668` / `689` / `652` / `667` / `653` green. Playwright phone Monthly collision + Vitest grain helper. |
+
+- **Don't** rotate or skew SVG tick text to pack 24 × `YYYY-MM` on 390px.
+- **Don't** treat phone “12 months” as trailing 365d or Llama daily — still UTC calendar months from rollup tables.
+- **Don't** restore global `maxLabels = 5` or widen Monthly step past 2; drop bar count to 6 instead.
+
 
 ## Regression
 
 ```bash
 make verify-issue-613
 make verify-issue-614
+make verify-issue-703
 make verify-issue-677
 make verify-issue-668
 make verify-issue-689
@@ -177,7 +197,7 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 - [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — live wrap/window leftovers after !409–!413 ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616))
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — #489; Protocol stays short “reference” labels, not TWAP vs CEX essays
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — Global stats / fees / oracle chips are `flat` (#653); inline Δ% parentage is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652); visual grouping is [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)
-- [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576)
+- [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576). Phone Monthly UTC chart is last 6–12 calendar months + `YY-MM` ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703))
 - [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts pair TVL chip reuses **P569** `protocol_pair_tvl` (#664); `/pool` column is #655
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
