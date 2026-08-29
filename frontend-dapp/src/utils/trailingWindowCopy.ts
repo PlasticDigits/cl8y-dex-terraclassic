@@ -41,7 +41,7 @@ export const TRAILING_7D_VOLUME_TITLE = 'Priced swaps in the last 7 days, not a 
 
 export const TRAILING_30D_VOLUME_TITLE = 'Priced swaps in the last 30 days, not a calendar-month reset.'
 
-export const POOL_VOL_HEADER_TITLE = 'Quote-side volume in the last 24 hours, not a midnight reset.'
+export const POOL_VOL_HEADER_TITLE = 'Priced USD volume in the last 24 hours, not a midnight reset.'
 
 export const TRAILING_24H_FEES_TITLE = 'Treasury fees in the last 24 hours, not a midnight reset.'
 export const TRAILING_7D_FEES_TITLE = 'Treasury fees in the last 7 days, not a calendar-week reset.'

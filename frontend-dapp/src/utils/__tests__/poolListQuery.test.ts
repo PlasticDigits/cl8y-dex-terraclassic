@@ -5,6 +5,7 @@ import {
   defaultOrderForPoolSort,
   filterPoolIndexerPairs,
   isPoolColumnSort,
+  POOL_VOL_USD_SORT,
 } from '@/utils/poolListQuery'
 
 function pair(addr: string, s0: string, s1: string, volume: string): IndexerPair {
@@ -21,7 +22,9 @@ function pair(addr: string, s0: string, s1: string, volume: string): IndexerPair
 
 describe('poolListQuery (GitLab #547)', () => {
   it('only allows known column sort keys (A5)', () => {
-    expect(isPoolColumnSort('volume_24h')).toBe(true)
+    expect(isPoolColumnSort('volume_usd_24h')).toBe(true)
+    expect(POOL_VOL_USD_SORT).toBe('volume_usd_24h')
+    expect(isPoolColumnSort('volume_24h')).toBe(false)
     expect(isPoolColumnSort('liquidity_usd')).toBe(true)
     expect(isPoolColumnSort('symbol')).toBe(true)
     expect(isPoolColumnSort('created')).toBe(true)
@@ -32,7 +35,7 @@ describe('poolListQuery (GitLab #547)', () => {
   })
 
   it('defaults volume/fee/created/liquidity_usd to desc and name to asc', () => {
-    expect(defaultOrderForPoolSort('volume_24h')).toBe('desc')
+    expect(defaultOrderForPoolSort('volume_usd_24h')).toBe('desc')
     expect(defaultOrderForPoolSort('liquidity_usd')).toBe('desc')
     expect(defaultOrderForPoolSort('fee')).toBe('desc')
     expect(defaultOrderForPoolSort('created')).toBe('desc')

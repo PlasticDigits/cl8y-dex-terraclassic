@@ -11,10 +11,13 @@ export const POOL_PAGE_SIZE = 20
  */
 export const POOL_CATALOG_FETCH_LIMIT = 500
 
-/** Sortable table columns that map 1:1 to indexer `sort=` keys (A5). */
-export const POOL_COLUMN_SORTS = ['symbol', 'volume_24h', 'liquidity_usd', 'fee', 'created'] as const
+/** Sortable table columns that map 1:1 to indexer `sort=` keys (A5). Vol uses USD (#692). */
+export const POOL_COLUMN_SORTS = ['symbol', 'volume_usd_24h', 'liquidity_usd', 'fee', 'created'] as const
 
 export type PoolColumnSort = (typeof POOL_COLUMN_SORTS)[number]
+
+/** `/pool` Vol header `sort=` (USD 24h). Prefer this over a `sortKey="…"` literal (gitleaks). */
+export const POOL_VOL_USD_SORT: PoolColumnSort = POOL_COLUMN_SORTS[1]
 
 export type PoolListMode = 'catalog' | 'search' | 'column'
 
@@ -24,6 +27,7 @@ const INDEXER_PAIR_SORTS: readonly IndexerPairSort[] = [
   'created',
   'symbol',
   'volume_24h',
+  'volume_usd_24h',
   'liquidity_usd',
   'relevance',
 ]

@@ -32,6 +32,14 @@ export function formatIndexedVolumeUsd(usd: string | null | undefined, trades: n
 }
 
 /**
+ * `/pool` Vol + pair-search badge: compact USD or **—**.
+ * Idle `"0"`, missing, unpriced, and hostile strings all render as em-dash (never `$0`, never quote-token).
+ */
+export function formatPairListVolumeUsd(usd: string | null | undefined): string {
+  return formatIndexedVolumeUsd(usd, 1)
+}
+
+/**
  * Charts overview 24h volume: `$` + compact human USD.
  *
  * - Unpriced / missing / invalid → `—` (never `$0` when trades > 0).

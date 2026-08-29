@@ -16,12 +16,13 @@ pub struct PairRow {
     pub updated_at: DateTime<Utc>,
 }
 
-/// One row from the paginated pair list (24h quote volume + AMM TVL rollups).
+/// One row from the paginated pair list (24h quote + USD volume + AMM TVL rollups).
 #[derive(Debug, Clone, FromRow)]
 pub struct PairListRow {
     #[sqlx(flatten)]
     pub pair: PairRow,
     pub volume_quote_24h: Option<BigDecimal>,
+    pub volume_usd_24h: Option<BigDecimal>,
     pub liquidity_usd: Option<BigDecimal>,
 }
 
@@ -33,6 +34,8 @@ pub enum PairListSort {
     Created,
     Symbol,
     Volume24h,
+    /// Human USD of trailing 24h priced swaps (`pair_volume_24h.volume_usd`, GitLab #692).
+    VolumeUsd24h,
     /// Human USD of factory AMM reserves (`pair_liquidity_usd` rollup, GitLab #655).
     LiquidityUsd,
     /// Match-quality tiers when `q` is set; falls back to 24h volume when `q` is empty.
@@ -269,6 +272,11 @@ fn push_pair_list_order_by(
             qb.push(desc);
             qb.push(", p.id ASC");
         }
+        PairListSort::VolumeUsd24h => {
+            qb.push("pv.volume_usd");
+            qb.push(desc);
+            qb.push(" NULLS LAST, p.id ASC");
+        }
         PairListSort::LiquidityUsd => {
             qb.push("pl.liquidity_usd");
             qb.push(desc);
@@ -300,6 +308,7 @@ pub async fn list_pairs_filtered(
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
         "SELECT p.id, p.contract_address, p.asset_0_id, p.asset_1_id, p.lp_token, p.fee_bps, p.hooks,
                 p.created_at_block, p.created_at, p.updated_at, pv.volume_quote AS volume_quote_24h,
+                pv.volume_usd AS volume_usd_24h,
                 pl.liquidity_usd
          FROM pairs p
          INNER JOIN assets a0 ON a0.id = p.asset_0_id

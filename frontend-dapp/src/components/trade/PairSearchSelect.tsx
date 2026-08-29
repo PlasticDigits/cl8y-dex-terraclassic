@@ -15,7 +15,7 @@ import {
   isPairSearchQueryReady,
   PAIR_SEARCH_RESULT_LIMIT,
 } from '@/utils/pairSearchQuery'
-import { formatQuoteVolume24h, getDecimals } from '@/utils/formatAmount'
+import { formatPairListVolumeUsd } from '@/utils/chartsOverviewStats'
 import {
   filterRetailDiscoveryIndexerPairs,
   filterRetailDiscoveryPairInfos,
@@ -47,8 +47,7 @@ export interface PairSearchSelectProps {
 type PairSearchOption = {
   value: string
   label: string
-  volumeQuote24h?: string
-  quoteDecimals?: number
+  volumeUsd24h?: string | null
   isTestPair?: boolean
 }
 
@@ -56,8 +55,7 @@ function indexerPairToOption(p: IndexerPair, variant: PairMenuLabelVariant): Pai
   return {
     value: p.pair_address,
     label: indexerPairMenuLabel(p, { variant }),
-    volumeQuote24h: p.volume_quote_24h,
-    quoteDecimals: p.asset_1.decimals,
+    volumeUsd24h: p.volume_usd_24h,
     isTestPair: isTestPair(
       p.asset_0.symbol,
       p.asset_1.symbol,
@@ -73,8 +71,7 @@ function factoryPairToOption(p: PairInfo, variant: PairMenuLabelVariant, volume?
   return {
     value: p.contract_addr,
     label: pairInfoMenuLabel(p, { variant }),
-    volumeQuote24h: volume?.raw ?? undefined,
-    quoteDecimals: volume?.quoteDecimals ?? getDecimals(p.asset_infos[1]),
+    volumeUsd24h: volume?.usd ?? undefined,
     isTestPair: isTestPair(sym0, sym1, id0, id1),
   }
 }
@@ -181,7 +178,11 @@ export function PairSearchSelect({
   const catalogEmptyOptions = useMemo(() => {
     const volumeByAddress = new Map<string, PairCatalogVolume>()
     for (const [addr, p] of indexerByAddress) {
-      volumeByAddress.set(addr, { raw: p.volume_quote_24h, quoteDecimals: p.asset_1.decimals })
+      volumeByAddress.set(addr, {
+        raw: p.volume_quote_24h,
+        quoteDecimals: p.asset_1.decimals,
+        usd: p.volume_usd_24h,
+      })
     }
     return sortPairInfosByCatalog(filterRetailDiscoveryPairInfos(factoryPairs), volumeByAddress)
       .slice(0, PAIR_SEARCH_RESULT_LIMIT)
@@ -442,7 +443,8 @@ export function PairSearchSelect({
                 const isActive = index === activeIndex
                 const showTestDivider =
                   !debouncedSearch && opt.isTestPair && (index === 0 || !options[index - 1]?.isTestPair)
-                const volLabel = formatQuoteVolume24h(opt.volumeQuote24h, opt.quoteDecimals ?? 6, 3)
+                const volLabel = formatPairListVolumeUsd(opt.volumeUsd24h)
+                const showVol = volLabel !== '—'
                 return (
                   <li key={opt.value} role="none">
                     {showTestDivider ? (
@@ -478,11 +480,11 @@ export function PairSearchSelect({
                       }}
                     >
                       <span className="truncate text-left">{opt.label}</span>
-                      {volLabel ? (
+                      {showVol ? (
                         <span
                           className="shrink-0 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded"
                           style={{ color: 'var(--ink-dim)', background: 'var(--surface-muted)' }}
-                          title="24h quote volume (human units of the quote token)"
+                          title="Priced USD volume in the last 24 hours"
                         >
                           vol {volLabel}
                         </span>

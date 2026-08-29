@@ -3,11 +3,11 @@ import { indexerPairToPairInfo } from '@/types'
 import { Link } from 'react-router-dom'
 import { TokenDisplay, FeeDisplay, PairTokenLinks } from '@/components/ui'
 import { sounds } from '@/lib/sounds'
-import { formatQuoteVolume24h } from '@/utils/formatAmount'
 import { formatProtocolUsd } from '@/utils/formatProtocolStats'
+import { formatPairListVolumeUsd } from '@/utils/chartsOverviewStats'
 import { formatCreatedAtTitle, formatRelativeAge } from '@/utils/formatDate'
 import { chartsPairHref } from '@/utils/chartsPairRoute'
-import type { PoolColumnSort } from '@/utils/poolListQuery'
+import { POOL_VOL_USD_SORT, type PoolColumnSort } from '@/utils/poolListQuery'
 import { getPairListBadges, type PairListBadges } from '@/utils/pairListBadges'
 import { POOL_VOL_HEADER_LABEL, POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
 import { PoolAdvancedManage } from '@/components/pool/PoolAdvancedManage'
@@ -132,7 +132,7 @@ export function PoolPairsTable({
             <SortHeader
               label={POOL_VOL_HEADER_LABEL}
               title={POOL_VOL_HEADER_TITLE}
-              sortKey="volume_24h"
+              sortKey={POOL_VOL_USD_SORT}
               activeSort={activeSort}
               order={order}
               onSort={onSort}
@@ -180,7 +180,7 @@ export function PoolPairsTable({
             pairAddress: ip.pair_address,
             factoryPairAddresses,
           })
-          const volumeLabel = formatQuoteVolume24h(ip.volume_quote_24h, ip.asset_1.decimals)
+          const volumeLabel = formatPairListVolumeUsd(ip.volume_usd_24h)
           const lpUsdLabel = formatProtocolUsd(ip.liquidity_usd)
           const chartsHref = chartsPairHref(ip.pair_address)
           const expanded = expandedAddr === ip.pair_address
@@ -219,7 +219,7 @@ function PoolPairRows({
   ip: IndexerPair
   pair: ReturnType<typeof indexerPairToPairInfo>
   badges: PairListBadges
-  volumeLabel: string | null
+  volumeLabel: string
   lpUsdLabel: string
   chartsHref: string | null
   expanded: boolean
@@ -245,7 +245,7 @@ function PoolPairRows({
           style={{ color: 'var(--ink)' }}
           data-testid="pool-row-vol"
         >
-          {volumeLabel || '—'}
+          {volumeLabel}
         </td>
         <td
           className="py-2 px-2 text-right font-mono align-top"
@@ -310,8 +310,7 @@ function PoolPairRows({
             <PoolAdvancedManage
               pair={pair}
               factoryPairs={factoryPairs}
-              volumeQuote24h={ip.volume_quote_24h}
-              quoteDecimals={ip.asset_1.decimals}
+              volumeUsd24h={ip.volume_usd_24h}
               listBadges={badges}
             />
           </td>
