@@ -58,4 +58,4 @@ make test-frontend
 - Ticket footer must not cover chips: [`AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](./AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`)
 - Design tokens / `tab-glass*`: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) (`#488`)
 - Focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md) (`#144`)
-- Ticket flatten (chips under Advanced on `/trade` Market): [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) (`#693`)
+- Ticket flatten (chips under Advanced on `/trade` Market): [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) (`#693`). Coolify leftover: [#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702)

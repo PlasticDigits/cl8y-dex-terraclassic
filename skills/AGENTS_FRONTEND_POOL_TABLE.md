@@ -83,6 +83,6 @@ make verify-issue-662
 - [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts **v2 LP** chip (#664); do **not** add that chip on `/pool` rows (#655)
 - [`AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](./AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) — I14 on expand, not header
 - [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](./AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md) — list JSON `liquidity_usd` rollup (#655)
-- [`AGENTS_INDEXER_PAIR_VOLUME_USD.md`](./AGENTS_INDEXER_PAIR_VOLUME_USD.md) — list JSON `volume_usd_24h` + `/pool` Vol (#692)
+- [`AGENTS_INDEXER_PAIR_VOLUME_USD.md`](./AGENTS_INDEXER_PAIR_VOLUME_USD.md) — list JSON `volume_usd_24h` + `/pool` Vol (#692). Coolify leftover: [#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701). Coolify leftover: [`AGENTS_POST_MERGE_OPS_701.md`](./AGENTS_POST_MERGE_OPS_701.md) ([#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701))
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — global pool TVL sum (#569); `/pool` shows the per-pair stamp
 - [`AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md`](./AGENTS_FRONTEND_POOL_PROVIDE_LABELS.md) — Advanced provide name/symbol + wrap default (#661)

@@ -272,6 +272,50 @@ After !459–!468 landed portfolio/protocol/charts/gas/fee leftover UI on `main`
 
 Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_686.md`](../../skills/AGENTS_POST_MERGE_OPS_686.md). QA invariant **Q16**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-686).
 
+### Production `VITE_DEV_MODE` reject (GitLab #695)
+
+Local/docs gate (no Coolify required): `make verify-issue-695`. Coolify leftover (unset production flag + rebuild) is [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698). Do not reopen #695 for ops.
+
+### Post-merge !474/!475 leftover verify (GitLab #698)
+
+After !475 (#694 API4) and !474 (#695 FE-01) landed on `main` (`3c4060ab+` / `489268eb+`). [#699](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/699) / [#700](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/700) are duplicates of #698.
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-698` | Children **694, 695** plus leftover live / **M698-1–M698-8** / **Q17** |
+| Coolify indexer | Redeploy; blacklist 17 tokens → **400**; `/gt/events` bounded; progress JSON `stage` |
+| Coolify frontend | Rebuild with `VITE_DEV_MODE` **unset**; no Simulated Wallet chrome |
+| Audit | Close RE-01/02/03 / FE-01 in `audits/INTERNAL_GROK46_1787908099.md` only after prod evidence |
+| Disclose | Do **not** reopen #694 / #695; do not fail-open blacklist |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_698.md`](../../skills/AGENTS_POST_MERGE_OPS_698.md). QA invariant **Q17**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-698).
+
+### Post-merge !477 leftover verify (GitLab #701)
+
+After !477 (#692 `/pool` Vol USD) landed on `main` (`f4fa6788`):
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-701` | Child **692** plus leftover live / **M701-1–M701-8** / **Q18** |
+| Coolify Postgres | Migration `20260829120000_pair_volume_24h_usd.sql`, then indexer redeploy |
+| Live pairs | `volume_usd_24h` present; list ≈ stats; `sort=volume_usd` **400** |
+| Frontend | `/pool` Vol `$…` or **—**; no quote-token Vol |
+| Disclose | Do **not** reopen #692; do not N+1 `/stats` |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_701.md`](../../skills/AGENTS_POST_MERGE_OPS_701.md). QA invariant **Q18**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-701).
+
+### Post-merge !476 leftover verify (GitLab #702)
+
+After !476 (#693 `/trade` flatten) landed on `main` (`e6ddbf1d`):
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-702` | Children **693, 563, 653** plus leftover live / **M702-1–M702-8** / **Q19** |
+| Frontend | Rebuild; Market default; compact tabs; heading logo; slippage under Advanced |
+| Disclose | Do **not** reopen #693; do not restyle `/limits` place card |
+
+Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_702.md`](../../skills/AGENTS_POST_MERGE_OPS_702.md). QA invariant **Q19**: [`docs/qa-invariants.md`](../../docs/qa-invariants.md#post-merge-ops-702).
+
 ### Listed-pair autoregister + migrate inventory (GitLab #633 / #634)
 
 LocalTerra-only live rungs (columbus-5 factory/token migrate and Open/ALPHA LCD stay on [#635](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/635) / [#636](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/636)):

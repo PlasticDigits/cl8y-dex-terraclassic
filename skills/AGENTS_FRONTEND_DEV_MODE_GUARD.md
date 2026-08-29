@@ -34,6 +34,7 @@ Parent audit: **FE-01** (`INTERNAL_GROK46_1787908099` / `INTERNAL_KIMIK3_1785897
 2. **Do not** change CSP, WalletConnect, or clickwrap in this ticket.
 3. Staging QA that needs Simulated Wallet uses **non-production** Vite mode. Production stays blocked.
 4. A production bundle with the flag and **no** mnemonic still ships Simulated Wallet chrome — that is the phishing / wrong-network surface this guard closes.
+5. **Hermetic `loadConfigFromFile`** — `vite.config.ts` `loadEnv` reads `.env.local` (`VITE_DEV_MODE=true` after `deploy-local` / leftover worktree copy). Tests that want the production *allow* path must keep `process.env.VITE_DEV_MODE` set to `''` or `'false'` (Vite does not overwrite existing keys). `delete process.env.VITE_DEV_MODE` lets dotenv re-inject `true` and the D695-1 reject fires. Local `vite build --mode production` with that `.env.local` **should** fail — that is not a Coolify false positive. Leftover: [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698).
 
 ## Verification
 
@@ -41,7 +42,7 @@ Parent audit: **FE-01** (`INTERNAL_GROK46_1787908099` / `INTERNAL_KIMIK3_1785897
 make verify-issue-695
 ```
 
-No LocalTerra, indexer, or wallet work. Manual Coolify check (record on #695): production env has `VITE_DEV_MODE` unset.
+No LocalTerra, indexer, or wallet work. Manual Coolify check (record on leftover [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698)): production env has `VITE_DEV_MODE` unset. Playbook: [`AGENTS_POST_MERGE_OPS_698.md`](./AGENTS_POST_MERGE_OPS_698.md). Do **not** reopen #695 for ops/QA.
 
 Attack-path smoke (must fail):
 

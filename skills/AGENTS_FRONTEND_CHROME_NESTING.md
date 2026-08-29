@@ -68,7 +68,7 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 
 - [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) — tokens / primitives (#488)
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` sibling panels (**L561**)
-- [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) — inner ticket flatten: no Side/Market/Limit `TicketSection` ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693))
+- [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) — inner ticket flatten: no Side/Market/Limit `TicketSection` ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)). Coolify leftover: [#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — nested chrome is visual noise (#489)
 - [`AGENTS_FRONTEND_POOL_MANAGE_IA.md`](./AGENTS_FRONTEND_POOL_MANAGE_IA.md) — `/pool` Manage four actions; zap forms are `card-glass` wells, not nested `shell-panel*` (#660 / **C653-1**)
 - [`AGENTS_FRONTEND_PRODUCT_LINKS.md`](./AGENTS_FRONTEND_PRODUCT_LINKS.md) — footer product row is text links, not a nested `card-glass` ([#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663))

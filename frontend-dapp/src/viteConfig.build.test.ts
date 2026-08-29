@@ -105,7 +105,11 @@ describe('vite.config production source maps', () => {
   })
 
   it('loads production config when VITE_DEV_MODE is unset or false (GitLab #695)', async () => {
-    delete process.env.VITE_DEV_MODE
+    // Vite loadEnv fills VITE_* from .env.local (LocalTerra / leftover worktree copy often
+    // has VITE_DEV_MODE=true). process.env wins only when the key stays set — deleting it
+    // lets dotenv re-inject `true` and the production reject fires. Empty string is not
+    // === 'true' (GitLab #698 leftover / D695 hermetic loadConfigFromFile).
+    process.env.VITE_DEV_MODE = ''
     const unset = await loadConfigFromFile({ command: 'build', mode: 'production' }, viteConfigPath)
     expect(unset?.config.build?.sourcemap).toBe(false)
 

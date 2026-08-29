@@ -54,7 +54,7 @@ GET /api/v1/route/solve/progress?token_in=&token_out=&amount_in=&trader=&max_mak
 - **Do** keep Trade market pair-scoped **Quoting…** for now (Trade uses `GET /route/solve` by default after [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501), but still shows static Quoting… — wiring `useRouteSolveProgress` on `/trade` is an optional follow-up).
 - **Don’t** invent “found better route” claims beyond `optimality_scope`.
 - **Don’t** lower `INDEXER_ROUTE_SOLVE_TIMEOUT_MS` until distant-pair p95 is proven &lt;15s.
-- **Do** keep progress on the LCD-heavy governor (#694). **Don’t** move it back to the global 60 RPS router.
+- **Do** keep progress on the LCD-heavy governor (#694). **Don’t** move it back to the global 60 RPS router. Coolify leftover: [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698) ([`AGENTS_POST_MERGE_OPS_698.md`](./AGENTS_POST_MERGE_OPS_698.md)).
 
 ## Regression checklist
 

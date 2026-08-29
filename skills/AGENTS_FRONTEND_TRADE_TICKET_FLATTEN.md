@@ -26,7 +26,7 @@ Styling / IA only. **Do not** change escrow mapping, quote payloads, hybrid alwa
 4. **T693-4 Flatten** — No `TicketSection` / `TicketStat` on this ticket. No **Side** title. No **Top buy** / **Top sell**. Buy/Sell radiogroup is a direct child of the ticket scroll. One **Market** + Docs or **Limit** + Docs line (`trade-order-mode-docs`). No inner `<h3>Market</h3>`.
 5. **T693-5 Advanced Market** — Default path: Pay + Max + one expected-receive line + blocking errors (pause, freeze, blacklist, tax extra-debit, quote error, book-exceeds-pay). Slippage chips (`trade-market-slippage-*`), min-after-slippage, Route extras, pre-submit card live under **Advanced** (open). Closed Advanced still applies store slippage (default **5%**) to `max_spread`.
 6. **T693-6 Advanced Limit** — Default path: price + Pay + Receive + invalid buy/sell alert. Expiry, % chips + ref/USD, pre-submit fee card under Advanced. `/limits` place card stays Limit-only with chips next to the price input.
-7. **T693-7 Behavior unchanged** — Bid escrows token1; ask token0. Click Buy still `onSideChange('bid')`. Quotes GET `/route/solve` (typed book → POST). Hybrid always on (#596). Footer dock (#527). One ticket mount (#178). Hidden ticket stays `inert`.
+7. **T693-7 Behavior unchanged** — Bid escrows token1; ask token0. Click Buy still `onSideChange('bid')`. Quotes GET `/route/solve` (typed book → POST). Hybrid always on (#596). Footer dock (#527) stays a sibling footer — leftover Playwright clips T527-1 overlap to **visible** `trade-order-ticket-scroll` when Advanced is open ([#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702)). One ticket mount (#178). Hidden ticket stays `inert`.
 8. **T693-8 Docs** — this playbook + `docs/frontend.md` + `docs/design-system.md` + QA **10.2.19**. Verify: `make verify-issue-693`.
 
 ## Rules of thumb
@@ -47,7 +47,7 @@ python3 scripts/check_design_tokens.py
 python3 scripts/check_chrome_nesting.py
 ```
 
-Issue: [GitLab **#693**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693) (AC **T1–T11**, attack **A1–A11**).
+Issue: [GitLab **#693**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693) (AC **T1–T11**, attack **A1–A11**). Coolify leftover: [#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702) — [`AGENTS_POST_MERGE_OPS_702.md`](./AGENTS_POST_MERGE_OPS_702.md). Do **not** reopen #693 for ops/QA.
 
 ## Related
 

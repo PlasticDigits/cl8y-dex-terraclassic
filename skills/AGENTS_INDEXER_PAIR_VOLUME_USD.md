@@ -58,6 +58,10 @@ make verify-issue-692
 
 Playwright pool-table uses dedicated Vite `:3173` (indexer CORS). Do not leak a different `PLAYWRIGHT_WEB_PORT`.
 
+Coolify leftover migrate + live list↔stats is [#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701) — [`AGENTS_POST_MERGE_OPS_701.md`](./AGENTS_POST_MERGE_OPS_701.md). Do **not** reopen this issue for ops/QA.
+
+Coolify leftover migrate + live list↔stats is [#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701) — [`AGENTS_POST_MERGE_OPS_701.md`](./AGENTS_POST_MERGE_OPS_701.md). Do **not** reopen #692 for ops/QA.
+
 Related: `make verify-issue-547` · `make verify-issue-655` · `make verify-issue-534` · `make verify-issue-576`.
 
 ## Related

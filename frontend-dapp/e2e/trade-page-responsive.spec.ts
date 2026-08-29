@@ -169,6 +169,16 @@ function boxesIntersect(a: Box, b: Box): boolean {
   return !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y)
 }
 
+/** Visible intersection of `el` with the ticket scrollport (GitLab #693 / #702). */
+function boxVisibleInScrollport(scroll: Box, el: Box): Box | null {
+  const x = Math.max(el.x, scroll.x)
+  const y = Math.max(el.y, scroll.y)
+  const r = Math.min(el.x + el.width, scroll.x + scroll.width)
+  const b = Math.min(el.y + el.height, scroll.y + scroll.height)
+  if (r <= x || b <= y) return null
+  return { x, y, width: r - x, height: b - y }
+}
+
 function footerIsOpaque(el: Element): boolean {
   const s = getComputedStyle(el)
   const hasImage = s.backgroundImage !== 'none' && s.backgroundImage.length > 0
@@ -186,29 +196,40 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await openTradeLimitAdvanced(page)
 
     const card = page.getByTestId('trade-order-ticket-card')
+    const scroll = page.getByTestId('trade-order-ticket-scroll')
     const submit = page.getByTestId('trade-limit-submit')
     const footer = page.getByTestId('trade-ticket-submit-footer')
     await expect(submit).toBeVisible()
 
     const cardBox = await card.boundingBox()
+    const scrollBox = await scroll.boundingBox()
     const submitBox = await submit.boundingBox()
     expect(cardBox, 'ticket card').toBeTruthy()
+    expect(scrollBox, 'ticket scrollport').toBeTruthy()
     expect(submitBox, 'Place limit').toBeTruthy()
     expect(Math.abs(submitBox!.y + submitBox!.height - (cardBox!.y + cardBox!.height))).toBeLessThanOrEqual(8)
 
     const receive = page.getByTestId('limit-order-receive-field')
     const expiryChip = page.getByRole('button', { name: 'No expiry' }).first()
     const payChip = page.getByTestId('limit-order-escrow-frac-25')
+    // Limit expiry lives under Advanced (#693). At 1280×720 scroll-top those controls may
+    // overflow the sibling scrollport; layout boxes then overlap the docked footer in
+    // document coordinates. T527-1 applies to visible scrollport content (#702 leftover).
     for (const loc of [receive, expiryChip]) {
-      await expect(loc).toBeVisible()
+      await expect(loc).toBeAttached()
       const box = await loc.boundingBox()
       expect(box, 'form control box').toBeTruthy()
-      expect(boxesIntersect(submitBox!, box!), 'Place limit must not overlap Receive/Expiry').toBe(false)
+      const vis = boxVisibleInScrollport(scrollBox!, box!)
+      if (!vis) continue
+      expect(boxesIntersect(submitBox!, vis), 'Place limit must not overlap visible Receive/Expiry').toBe(false)
     }
     if ((await payChip.count()) > 0) {
       const box = await payChip.boundingBox()
       if (box) {
-        expect(boxesIntersect(submitBox!, box), 'Place limit must not overlap Pay % chips').toBe(false)
+        const vis = boxVisibleInScrollport(scrollBox!, box)
+        if (vis) {
+          expect(boxesIntersect(submitBox!, vis), 'Place limit must not overlap visible Pay % chips').toBe(false)
+        }
       }
     }
 
@@ -221,12 +242,16 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
       'A5: footer stays inside the ticket card'
     ).toBe(true)
 
-    const expiryHit = await expiryChip.evaluate((el) => {
-      const r = el.getBoundingClientRect()
-      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
-      return Boolean(hit?.closest('[data-testid="trade-limit-submit"]'))
-    })
-    expect(expiryHit, 'A1: Expiry chip hit must not land on Place limit').toBe(false)
+    const expiryBox = await expiryChip.boundingBox()
+    const expiryVisible = expiryBox ? boxVisibleInScrollport(scrollBox!, expiryBox) : null
+    if (expiryVisible) {
+      const expiryHit = await expiryChip.evaluate((el) => {
+        const r = el.getBoundingClientRect()
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return Boolean(hit?.closest('[data-testid="trade-limit-submit"]'))
+      })
+      expect(expiryHit, 'A1: visible Expiry chip hit must not land on Place limit').toBe(false)
+    }
   })
 
   test('P2 desktop: footer stays docked after scrolling the ticket body', async ({ page }) => {

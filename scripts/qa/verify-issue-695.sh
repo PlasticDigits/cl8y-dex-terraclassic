@@ -52,6 +52,8 @@ run_step "code: test names the production reject (DEV_MODE throw does not mentio
     frontend-dapp/src/viteConfig.build.test.ts && \
   grep -qE 'still rejects production VITE_DEV_MODE when local-only mnemonic escape is set' \
     frontend-dapp/src/viteConfig.build.test.ts && \
+  grep -qE "process.env.VITE_DEV_MODE = ''" frontend-dapp/src/viteConfig.build.test.ts && \
+  grep -qE 'lets dotenv re-inject' frontend-dapp/src/viteConfig.build.test.ts && \
   bash -c '! grep -A2 "VITE_DEV_MODE=true is not allowed" frontend-dapp/vite.config.ts | grep -qiE "mnemonic|seed|BIP39"'
 
 run_step "code: LocalTerra / Vitest / Playwright keep VITE_DEV_MODE=true" \

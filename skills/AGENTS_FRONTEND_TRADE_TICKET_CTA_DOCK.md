@@ -34,7 +34,7 @@ Prefer `flex` + `shrink-0`. Do **not** use `position: fixed` or a portal footer.
 
 ## Invariants (T527-1–T527-10)
 
-1. **T527-1 Dock, do not float** — at ticket scroll-top on Chromium, the CTA bottom edge aligns with the ticket card bottom (≤ 8px). It must not intersect Pay % chips, Receive, or Expiry.
+1. **T527-1 Dock, do not float** — at ticket scroll-top on Chromium, the CTA bottom edge aligns with the ticket card bottom (≤ 8px). It must not intersect **visible** Pay % chips, Receive, or Expiry inside the scrollport. After #693, Limit expiry under Advanced may overflow at ~1280×720; clip Playwright boxes to `trade-order-ticket-scroll` ([#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702)). Do **not** restyle the footer to “fix” overflow layout-box overlap.
 2. **T527-2 Shared footer** — Limit + Market share `trade-ticket-submit-footer`. Do not leave Market as a second in-flow button.
 3. **T527-3 Keep `#348` visibility** — desktop ~1280×720 and tablet chart\|ticket row: money CTA visible without scrolling the ticket body.
 4. **T527-4 Keep `#500`** — opaque `var(--bg-1)` under `var(--panel-bg-strong)`; guards stay in normal flow **above** the footer; footer holds CTA + pending link + tx alerts only.

@@ -24,6 +24,8 @@ Request-count governors (`RATE_LIMIT_RPS=60`, `RATE_LIMIT_LCD_HEAVY_RPS=10`) mis
 | **A694-7** | dApp progress omits `trader` when the parent quote already resolved discount (`discount_bps` query param). Back off after consecutive poll failures. Do not rewrite `refetchInterval`s. |
 | **A694-8** | Gem exclusion (**L639-2**), hybrid solve cache isolation, and Peer-IP governors stay. No new write APIs. No per-swap FoT math. |
 
+Coolify leftover live (blacklist 400 / bounded `/gt/events` / progress) is [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698) — [`AGENTS_POST_MERGE_OPS_698.md`](./AGENTS_POST_MERGE_OPS_698.md). Do **not** reopen #694 for ops/QA.
+
 ## Code map
 
 | Concern | Location |
@@ -50,3 +52,5 @@ Request-count governors (`RATE_LIMIT_RPS=60`, `RATE_LIMIT_LCD_HEAVY_RPS=10`) mis
 make setup-indexer-postgres   # if indexer/.env missing
 make verify-issue-694
 ```
+
+Coolify leftover (live 400 / LCD-heavy / FE-01 bundle) is [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698) — [`AGENTS_POST_MERGE_OPS_698.md`](./AGENTS_POST_MERGE_OPS_698.md). Do **not** reopen this issue for ops/QA.
