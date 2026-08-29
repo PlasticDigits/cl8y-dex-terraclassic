@@ -57,6 +57,17 @@ function mockTradeDesktopLayout(matchesDesktop: boolean) {
   })
 }
 
+async function selectTradeLimitTab(user: ReturnType<typeof userEvent.setup>) {
+  const tab = await screen.findByTestId('trade-order-tab-limit')
+  await user.click(tab)
+  expect(tab).toHaveAttribute('aria-selected', 'true')
+}
+
+async function openTradeLimitAdvanced(user: ReturnType<typeof userEvent.setup>) {
+  await selectTradeLimitTab(user)
+  await user.click(screen.getByText('Advanced', { selector: 'summary' }))
+}
+
 const mockIndexerPair: IndexerPair = {
   pair_address: PAIR,
   asset_0: { symbol: 'AAA', contract_addr: 'terra1aaa0000000000000000000000000000001', denom: null, decimals: 6 },
@@ -286,7 +297,7 @@ describe('TradePage', () => {
     expect(window.localStorage.getItem(TRADE_TICKET_VISIBLE_KEY)).toBe('0')
 
     useWalletStore.setState({ walletModalOpen: false })
-    fireEvent.click(screen.getByTestId('trade-limit-submit'))
+    fireEvent.click(screen.getByTestId('trade-market-submit'))
     expect(useWalletStore.getState().walletModalOpen).toBe(false)
 
     expect(bookToggle).toBeVisible()
@@ -412,8 +423,43 @@ describe('TradePage', () => {
     expect(screen.getByTestId('trade-order-tab-limit')).toBeInTheDocument()
   })
 
-  it('limit tab shows pre-submit summary before Place limit (GitLab #157, #461)', async () => {
+  it('fresh /trade/:pair defaults to Market (GitLab #693 T1)', async () => {
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    const marketTab = await screen.findByTestId('trade-order-tab-market')
+    expect(marketTab).toHaveAttribute('aria-selected', 'true')
+    expect(marketTab).toHaveClass('trade-order-text-tab')
+    expect(marketTab).not.toHaveClass('tab-glass')
+    expect(screen.getByTestId('trade-order-tab-limit')).not.toHaveClass('tab-glass')
+    expect(await screen.findByTestId('trade-market-submit')).toBeInTheDocument()
+    expect(screen.queryByTestId('limit-order-price-input')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-market-slippage-presets')).not.toBeInTheDocument()
+    expect(screen.queryByText('Top buy')).not.toBeInTheDocument()
+    expect(screen.queryByText('Top sell')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Side$/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-order-mode-docs')).toHaveTextContent(/^Market/)
+    expect(
+      within(screen.getByTestId('trade-order-mode-docs')).getByRole('link', { name: /^Docs$/i })
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('trade-ticket-heading-logo')).toBeInTheDocument()
+    const header = screen.getByTestId('trade-ticket-header')
+    expect(header.getAttribute('style') ?? '').not.toMatch(/251,\s*146,\s*60/)
+  })
+
+  it('Limit tab shows price / Pay / Place limit and unmounts Market (GitLab #693 T2)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await selectTradeLimitTab(user)
+    expect(await screen.findByTestId('limit-order-price-input')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-limit-submit')).toBeInTheDocument()
+    expect(screen.queryByTestId('trade-market-submit')).not.toBeInTheDocument()
+    expect(screen.getByTestId('trade-order-mode-docs')).toHaveTextContent(/^Limit/)
+    expect(screen.queryByTestId('trade-market-slippage-presets')).not.toBeInTheDocument()
+  })
+
+  it('limit tab shows pre-submit summary under Advanced (GitLab #157, #461, #693 T9)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await openTradeLimitAdvanced(user)
     const summary = await screen.findByTestId('trade-limit-pre-submit-summary')
     expect(summary.textContent).toMatch(/Action/i)
     expect(summary.textContent).toMatch(/Pay/i)
@@ -424,15 +470,19 @@ describe('TradePage', () => {
   })
 
   it('keeps disconnected ticket wallet CTAs actionable', async () => {
+    const user = userEvent.setup()
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
-
+    expect(await screen.findByTestId('trade-market-submit')).not.toHaveAttribute('disabled')
+    await selectTradeLimitTab(user)
     expect(await screen.findByTestId('trade-limit-submit')).not.toHaveAttribute('disabled')
     expect(screen.getByTestId('trade-cancel-submit')).not.toHaveAttribute('disabled')
   })
 
   it('keeps limit place guards in document flow above ticket footer (GitLab #500 / #527)', async () => {
+    const user = userEvent.setup()
     mockTradeDesktopLayout(true)
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await selectTradeLimitTab(user)
 
     const footer = await screen.findByTestId('trade-ticket-submit-footer')
     const guards = screen.getByTestId('trade-limit-inline-guards')
@@ -472,6 +522,7 @@ describe('TradePage', () => {
     const user = userEvent.setup()
     mockTradeDesktopLayout(true)
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await selectTradeLimitTab(user)
 
     const footer = await screen.findByTestId('trade-ticket-submit-footer')
     expect(footer).toContainElement(screen.getByTestId('trade-limit-submit'))
@@ -503,7 +554,9 @@ describe('TradePage', () => {
       },
     ])
 
+    const user = userEvent.setup()
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
+    await selectTradeLimitTab(user)
 
     const footer = await screen.findByTestId('trade-ticket-submit-footer')
     const anchor = await screen.findByTestId('trade-ticket-placements-anchor')
@@ -972,11 +1025,14 @@ describe('TradePage', () => {
   })
 
   it('shows pause banner and disables limit actions when pair is paused (GitLab #87 / #199)', async () => {
+    const user = userEvent.setup()
     vi.mocked(getPairPaused).mockResolvedValue({ paused: true })
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     const banner = await screen.findByText(/Pair paused/i)
     expect(banner).toBeInTheDocument()
+    expect(await screen.findByTestId('trade-market-submit')).toBeDisabled()
+    await selectTradeLimitTab(user)
 
     const placeBtns = screen.getAllByTestId('trade-limit-submit')
     expect(placeBtns.length).toBeGreaterThan(0)
@@ -986,10 +1042,12 @@ describe('TradePage', () => {
   })
 
   it('shows freeze banner and disables limit actions when pair is code-id frozen (GitLab #585)', async () => {
+    const user = userEvent.setup()
     vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: true, verdict: 'frozen' })
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
     expect(await screen.findByTestId('trade-pair-code-id-frozen-banner')).toHaveTextContent(/quotes can still appear/i)
+    await selectTradeLimitTab(user)
 
     const placeBtns = screen.getAllByTestId('trade-limit-submit')
     expect(placeBtns.length).toBeGreaterThan(0)
@@ -1004,11 +1062,13 @@ describe('TradePage', () => {
       ['pair', pairBlacklistedResponse(PAIR)],
       ['token', tokenBlacklistedResponse('terra1aaa0000000000000000000000000000001')],
     ] as const)('shows %s blacklist alert copy and disables limit Place CTA', async (_variant, resp) => {
+      const user = userEvent.setup()
       vi.mocked(useTradingBlacklist).mockReturnValue(tradingBlacklistHookResult(resp))
       renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })
 
       const alert = await screen.findByRole('alert')
       expect(alert).toHaveTextContent(describeTradingBlacklistBlock(resp))
+      await selectTradeLimitTab(user)
 
       const placeBtns = screen.getAllByTestId('trade-limit-submit')
       expect(placeBtns.length).toBeGreaterThan(0)
@@ -1151,6 +1211,7 @@ describe('TradePage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy cUSTC')
       })
+      await selectTradeLimitTab(user)
       const priceInput = screen.getByTestId('limit-order-price-input')
       await user.clear(priceInput)
       await user.type(priceInput, '0.00485')
@@ -1347,7 +1408,7 @@ describe('TradePage', () => {
       expect(within(header).queryByText(/Connect wallet/i)).not.toBeInTheDocument()
       expect(within(header).queryByText(/terra1/i)).not.toBeInTheDocument()
       const footer = screen.getByTestId('trade-ticket-submit-footer')
-      expect(within(footer).getByTestId('trade-limit-submit')).toHaveTextContent(/Connect Wallet/i)
+      expect(within(footer).getByTestId('trade-market-submit')).toHaveTextContent(/Connect Wallet/i)
     })
 
     it('does not show truncated address in ticket header when connected', async () => {
@@ -1388,7 +1449,7 @@ describe('TradePage', () => {
       }
     )
 
-    it('long ticker wraps; invert stays clickable and Limit/Market tabs stay tab-glass', async () => {
+    it('long ticker wraps; invert stays clickable and Limit/Market tabs stay compact text (#693 T3)', async () => {
       const long = 'SUPERLONGTOKENSYMBOL24XX'
       const longPair: IndexerPair = {
         ...mockIndexerPair,
@@ -1414,9 +1475,10 @@ describe('TradePage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy UST1')
       })
-      expect(screen.getByTestId('trade-order-tab-limit')).toHaveClass('tab-glass')
-      expect(screen.getByTestId('trade-order-tab-market')).toHaveClass('tab-glass')
-      expect(screen.getByTestId('trade-limit-submit')).toHaveClass('btn-primary')
+      expect(screen.getByTestId('trade-order-tab-limit')).toHaveClass('trade-order-text-tab')
+      expect(screen.getByTestId('trade-order-tab-market')).toHaveClass('trade-order-text-tab')
+      expect(screen.getByTestId('trade-order-tab-limit')).not.toHaveClass('tab-glass')
+      expect(screen.getByTestId('trade-market-submit')).toHaveClass('btn-primary')
     })
 
     it('Buy control is green and Sell is red; click updates heading verb', async () => {

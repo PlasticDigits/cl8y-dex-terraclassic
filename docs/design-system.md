@@ -117,7 +117,7 @@ Labels use `.label-glass`: uppercase, `text-xs`, semibold, wide tracking.
 | `card-glass` | Nested content blocks | Order ticket, swap IO rows |
 | `btn-primary` | Primary CTA (blue gradient) | Optional `btn-cta` |
 | `btn-muted` | Secondary / toggle-off | Mode toggles |
-| `tab-glass*` | Segmented controls | Limit/Market, slippage, order type — **not** Buy/Sell side |
+| `tab-glass*` | Segmented controls | Slippage presets, order type on `/limits` — **not** Buy/Sell side and **not** `/trade` Market/Limit text tabs ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)) |
 | `side-control` + `side-buy-*` / `side-sell-*` | Buy/Sell side radiogroup | `/trade` + `/limits` only ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)) |
 | `input-glass` / `label-glass` | Fields | Always associate `htmlFor` |
 | `badge-glass-accent` | Brand/gold chips | Cool surface + gold border/text |
@@ -129,7 +129,7 @@ Default `/limits` place card (#488 reopen): **rate** (“When 1 {token0} is wort
 
 Default `/` Swap card: centered Pay → flip → Receive → CTA; route + min-received on card; verbose trade/signing details behind progressive disclosure. Cool flip control (no brown).
 
-Default `/trade` ticket sections (#489): short titles only — **Side**, **Limit**, **Market** — no “Maker side / Choose direction / Resting order” essays. Action panels use cool blue wash (not amber). Buy/Sell **side** controls use green/red semantic fills; Limit/Market tabs stay blue `tab-glass*` ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563); [`skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md)).
+Default `/trade` ticket (#489 / [#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)): compact Market/Limit text tabs, no nested **Side** / **Market** / **Limit** cards, no “Maker side / Choose direction / Resting order” essays. Heading wash is a clamped token accent (never leftover orange). Buy/Sell **side** controls use green/red semantic fills; `/trade` Limit/Market tabs are compact underlined text, not blue `tab-glass*` ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563) **T563-6** amended by #693; [`skills/AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](../skills/AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md)).
 
 ## Terminology glossary
 

@@ -67,6 +67,7 @@ Verify: `make verify-issue-561`.
 
 - Limit **Bid / Ask** side control (order ticket): [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md)
 - Ticket heading + Buy/Sell colors (no compact wallet chip): [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) ([#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563))
+- Ticket flatten / Market default / compact tabs / logo wash: [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693))
 - Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
 - User-facing error strings (`getErrorMessage`, `RetryError`): [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md); trade outage banner copy: [`../frontend-dapp/src/utils/indexerTradeOutageCopy.ts`](../frontend-dapp/src/utils/indexerTradeOutageCopy.ts) ([GitLab **#164**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/164), [**#174**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/174))
 - Responsive header / nav: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md)

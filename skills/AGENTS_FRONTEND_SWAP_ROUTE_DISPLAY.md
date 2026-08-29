@@ -8,7 +8,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 
 - The dApp shows **one** human-readable **Route** (`TOKEN_A → TOKEN_B → …`) per active quote — no standalone “quote source” strip and no paired `Route (indexer)` / `Route` labels.
 - **Swap** (`/`): the row lives in the **trade summary** card alongside **Expected slippage** (route-based when indexer provides `slippage_percent` — GitLab **#293**) and **Min received** (`data-testid="swap-route-summary"`).
-- **Trade market** (`/trade`): the row lives inside the market quote card (`data-testid="trade-market-quote"`) when `marketRouteLine` is truthy (`data-testid="trade-market-route-summary"`). GitLab **#302** — mirrors swap layout.
+- **Trade market** (`/trade`): the row lives under **Advanced** (`data-testid="trade-market-quote-extras"`) when `marketRouteLine` is truthy (`data-testid="trade-market-route-summary"`). The default Market path keeps one expected-receive line (`trade-market-quote`). GitLab **#302** / **#693**.
 - **Execution-aligned path:** Display must match submit on each surface:
   - **Swap:** `SwapPage` `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`.
   - **Trade market:** `TradeMarketOrderPanel` `swapMutation` uses `indexerOperations` via `swapOpsRequireRouter` → `executeMultiHopSwap`, else pair `swap` with hybrid params.
@@ -33,7 +33,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 | **Swap** direct-hybrid amount reconciliation (#471) | [`directHybridQuote.ts`](../frontend-dapp/src/utils/directHybridQuote.ts) — wallet `hybrid_simulation` receive + slippage; `data-testid="swap-direct-hybrid-amount-reconciled"` when indexer `estimated_amount_out` disagreed; Trade market: `trade-market-amount-reconciled` |
 | **Swap** submit (must stay in sync with display) | Same file — `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`; `deriveSwapSubmitRouteSource` mirrors those branches; pay amount and quote fields from `useSubmitAlignedSimQuote` (**#356**) |
 | **Swap Settings — retail vs Advanced (#413)** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — default panel: slippage, transaction deadline, Expert Mode (`#swap-slippage-settings`). Integrator controls (hybrid book leg, indexer route check) live in collapsible **Advanced** via [`SwapAdvancedSettings.tsx`](../frontend-dapp/src/components/swap/SwapAdvancedSettings.tsx); collapsed by default; expand persisted in `localStorage` ([`swapSettingsAdvanced.ts`](../frontend-dapp/src/utils/swapSettingsAdvanced.ts)). `data-testid`s: `swap-advanced-settings`, `swap-advanced-settings-toggle`, `swap-expert-mode-toggle`. Default slippage **5%** + presets: [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) (#497). |
-| **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote"` |
+| **Trade market** route row | [`frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) — `data-testid="trade-market-route-summary"` inside `data-testid="trade-market-quote-extras"` (Advanced, #693) |
 | **Trade market** quote source ([#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501), [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)) | Same file — always [`quoteCw20ViaRouteSolve`](../frontend-dapp/src/utils/cw20RouteSolveQuote.ts) → `GET /route/solve` + wallet sim when the manual book is empty. Advanced typed book leg: [`quoteDirectHybridSwap`](../frontend-dapp/src/utils/directHybridQuote.ts) (`POST` + LCD) — **no pool-only fallback** when manual book &gt; 0 ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418)). **No hybrid opt-out.** Manual split lives under collapsible **Advanced** (`trade-market-advanced-toggle`). |
 | **Shared GET quote helper (#501)** | [`cw20RouteSolveQuote.ts`](../frontend-dapp/src/utils/cw20RouteSolveQuote.ts) — used by Swap default + Trade market default |
 | **Swap direct hybrid quote ([#418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418), [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596))** | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) — hybrid always on; manual book leg uses same `quoteDirectHybridSwap` helper; no hybrid checkbox |
@@ -48,7 +48,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 
 | Condition | Route line |
 |-----------|------------|
-| Amount &gt; 0, quote loaded (`simQuery.data`) | Row may render (parent `trade-market-quote` visible) |
+| Amount &gt; 0, quote loaded (`simQuery.data`) | Row may render (parent `trade-market-quote-extras` visible when Advanced is open) |
 | Hybrid on + indexer returns `router_operations` (≥2 hops) | Multihop path (≥3 symbols), same precedence as Swap |
 | Hybrid GET failed or pool-only quote (no `indexerOperations`) | Direct `PAY → RECEIVE` via `isDirect` branch |
 | `marketRouteLine` is `null` | Row hidden (no `trade-market-route-summary` in DOM) — e.g. missing from/to tokens |
@@ -92,7 +92,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 ### Trade market (`/trade/:pairAddr` → Market tab)
 
-8. Open `/trade/<pairAddr>` → **Market** tab → enter amount `1` (Advanced collapsed) → confirm **`trade-market-route-summary`** is visible with a **Route** label inside **`trade-market-quote`**. Network: quote should hit **`GET /api/v1/route/solve`**, not POST, when book leg is empty (#501). Confirm **no** `trade-market-hybrid-toggle` (#596).
+8. Open `/trade/<pairAddr>` → **Market** tab → enter amount `1` (Advanced collapsed) → confirm **`trade-market-quote`** shows expected receive only. Expand **Advanced** → confirm **`trade-market-route-summary`** is visible with a **Route** label inside **`trade-market-quote-extras`** ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)). Network: quote should hit **`GET /api/v1/route/solve`**, not POST, when book leg is empty (#501). Confirm **no** `trade-market-hybrid-toggle` (#596).
 8b. **Advanced override:** Expand **Advanced** (`trade-market-advanced-toggle`) → type a book leg → quote uses **`POST /route/solve`** with that split; empty book again returns to GET.
 8. **Multihop:** On a pair where indexer GET returns **≥ 2 hops**, confirm the route shows **≥ 3** token symbols and matches a small on-chain market submit hop count.
 9. **Indexer outage / pool-only fallback:** Abort `GET /route/solve` (or stop indexer), amount set → quote card shows; route line is direct `PAY → RECEIVE` (or row absent only when `marketRouteLine` is null per table above). There is **no** Advanced uncheck for best execution (#596).

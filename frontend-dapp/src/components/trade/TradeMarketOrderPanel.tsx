@@ -34,9 +34,7 @@ import {
 } from '@/utils/directHybridQuote'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
-import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import { sounds } from '@/lib/sounds'
-import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
 import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
 import { Spinner } from '@/components/ui'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
@@ -581,6 +579,7 @@ export function TradeMarketOrderPanel({
   const submitChromeModel = useMemo<TradeMarketSubmitChromeModel>(
     () => ({
       canSubmit,
+      disabled: isWalletConnected ? !canSubmit : isPaused,
       label: submitLabel,
       onClick: () => {
         if (!interactive) return
@@ -596,6 +595,7 @@ export function TradeMarketOrderPanel({
     }),
     [
       canSubmit,
+      isPaused,
       submitLabel,
       interactive,
       isWalletConnected,
@@ -619,32 +619,7 @@ export function TradeMarketOrderPanel({
   if (!selectedPair) return null
 
   return (
-    <div className="space-y-3 border-t border-white/10 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide">Market</h3>
-      <p className="text-[10px] leading-snug" style={{ color: 'var(--ink-dim)' }}>
-        Taker swap at {slippageTolerance}% {SLIPPAGE_PROTECTION_LABEL.toLowerCase()}. Best pool/book split by default.{' '}
-        <a
-          className="underline hover:opacity-80"
-          href={`${DOCS_GITLAB_BASE}/limit-orders.md`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Docs
-        </a>
-      </p>
-      <SlippageProtectionPresets
-        selectedPercent={slippageTolerance}
-        onSelect={(v) => {
-          sounds.playButtonPress()
-          setSlippageTolerance(v)
-        }}
-        chipClassName={TRADE_SLIPPAGE_PRESET_CLASS}
-        groupTestId="trade-market-slippage-presets"
-        presetTestIdPrefix="trade-market-slippage-preset-"
-        labelClassName="text-[10px]"
-        labelStyle={{ color: 'var(--ink-dim)' }}
-        showColon
-      />
+    <div className="space-y-3">
       <LimitOrderEscrowAmountField
         compact
         escrowLabel={getTokenDisplaySymbol(fromToken || '—')}
@@ -665,6 +640,51 @@ export function TradeMarketOrderPanel({
         </p>
       )}
 
+      {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
+        <div
+          className="flex items-center gap-2 text-[10px]"
+          style={{ color: 'var(--ink-dim)' }}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="trade-market-quoting"
+        >
+          <Spinner />
+          Quoting…
+        </div>
+      )}
+      {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
+        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
+          {humanizeUserFacingErrorFromUnknown(simQuery.error)}
+        </p>
+      )}
+      {liveSplit?.bookExceedsPay && (
+        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
+          Book leg cannot exceed pay amount
+        </p>
+      )}
+      {simQuery.data && rawInputAmount !== '0' && (
+        <div className="flex justify-between gap-2 text-[10px]" data-testid="trade-market-quote">
+          <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
+          <span className="font-mono text-right" data-testid="trade-market-expected-receive">
+            {showReceiveCalculating ? (
+              <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
+                Quoting…
+              </span>
+            ) : (
+              <>
+                {receiveHuman} {getTokenDisplaySymbol(toToken)}
+              </>
+            )}
+          </span>
+        </div>
+      )}
+      {showQuoteOnly && simQuery.data && rawInputAmount !== '0' && (
+        <p data-testid="trade-market-quote-only" className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
+          Quote only
+        </p>
+      )}
+
       <div data-testid="trade-market-advanced" data-open={advancedOpen ? 'true' : 'false'}>
         <button
           type="button"
@@ -678,6 +698,19 @@ export function TradeMarketOrderPanel({
         </button>
         {advancedOpen && (
           <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
+            <SlippageProtectionPresets
+              selectedPercent={slippageTolerance}
+              onSelect={(v) => {
+                sounds.playButtonPress()
+                setSlippageTolerance(v)
+              }}
+              chipClassName={TRADE_SLIPPAGE_PRESET_CLASS}
+              groupTestId="trade-market-slippage-presets"
+              presetTestIdPrefix="trade-market-slippage-preset-"
+              labelClassName="text-[10px]"
+              labelStyle={{ color: 'var(--ink-dim)' }}
+              showColon
+            />
             <div className="space-y-2">
               <p
                 className="text-[10px] leading-snug"
@@ -738,118 +771,76 @@ export function TradeMarketOrderPanel({
                 />
               </div>
             </div>
+            {simQuery.data && rawInputAmount !== '0' && (
+              <div className="space-y-1 text-[10px]" data-testid="trade-market-quote-extras">
+                {!showQuoteOnly && (
+                  <div className="flex justify-between gap-2">
+                    <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
+                    <span className="font-mono text-right">
+                      {showReceiveCalculating ? (
+                        <span style={{ color: 'var(--ink-subtle)' }}>—</span>
+                      ) : (
+                        <>
+                          {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                )}
+                <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
+                {simQuery.data.indexerAmountReconciled && (
+                  <p
+                    data-testid="trade-market-amount-reconciled"
+                    style={{ color: 'var(--color-warning, #f59e0b)' }}
+                    role="status"
+                  >
+                    {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
+                  </p>
+                )}
+                {indexerHybridExec.show && (
+                  <div className="pt-1 border-t border-white/10">
+                    <p className="font-semibold uppercase tracking-wide text-[10px]">{indexerHybridExec.title}</p>
+                    <p
+                      style={{ color: indexerHybridExec.degraded ? 'var(--color-warning, #f59e0b)' : 'var(--ink-dim)' }}
+                    >
+                      {indexerHybridExec.line}
+                    </p>
+                  </div>
+                )}
+                {simQuery.data.routePreflight && (
+                  <p style={{ color: 'var(--ink-dim)' }}>
+                    Worst hop spread (sim): {simQuery.data.routePreflight.worstSpreadPercent}%
+                  </p>
+                )}
+                {marketRouteLine && (
+                  <div
+                    data-testid="trade-market-route-summary"
+                    className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between pt-1 border-t border-white/10"
+                    style={{ color: 'var(--ink-dim)' }}
+                  >
+                    <span className="uppercase text-[10px] tracking-wide font-medium shrink-0">Route</span>
+                    <span className="font-mono text-[10px] sm:text-right break-words min-w-0">{marketRouteLine}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
+              <SwapPreSubmitSummary
+                actionLabel="Market swap"
+                offerSymbol={getTokenDisplaySymbol(fromToken)}
+                receiveSymbol={getTokenDisplaySymbol(toToken)}
+                offerAmountHuman={marketAmountHuman}
+                receiveAmountHuman={receiveHuman}
+                maxSpreadPercent={slippageTolerance}
+                minReceiveHuman={!showQuoteOnly && minReceived != null && minReceived !== '' ? minReceiveHuman : null}
+                pairContractAddresses={marketPairContractAddresses}
+                chainFullLabel={getNetworkBadgeCopy().fullLabel}
+                data-testid="trade-market-pre-submit-summary"
+              />
+            )}
           </div>
         )}
       </div>
-
-      {(simQuery.isLoading || showReceiveCalculating) && rawInputAmount !== '0' && (
-        <div
-          className="flex items-center gap-2 text-[10px]"
-          style={{ color: 'var(--ink-dim)' }}
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          data-testid="trade-market-quoting"
-        >
-          <Spinner />
-          Quoting…
-        </div>
-      )}
-      {simQuery.isError && rawInputAmount !== '0' && !showReceiveCalculating && (
-        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-quote-error">
-          {humanizeUserFacingErrorFromUnknown(simQuery.error)}
-        </p>
-      )}
-      {liveSplit?.bookExceedsPay && (
-        <p className="text-[10px] alert-error" role="alert" data-testid="trade-market-book-exceeds-pay">
-          Book leg cannot exceed pay amount
-        </p>
-      )}
-      {simQuery.data && rawInputAmount !== '0' && (
-        <div className="card-glass !p-2 space-y-1 text-[10px]" data-testid="trade-market-quote">
-          <div className="flex justify-between gap-2">
-            <span style={{ color: 'var(--ink-dim)' }}>Expected receive</span>
-            <span className="font-mono text-right" data-testid="trade-market-expected-receive">
-              {showReceiveCalculating ? (
-                <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }}>
-                  Quoting…
-                </span>
-              ) : (
-                <>
-                  {receiveHuman} {getTokenDisplaySymbol(toToken)}
-                </>
-              )}
-            </span>
-          </div>
-          {showQuoteOnly && (
-            <p data-testid="trade-market-quote-only" style={{ color: 'var(--ink-subtle)' }}>
-              Quote only
-            </p>
-          )}
-          {!showQuoteOnly && (
-            <div className="flex justify-between gap-2">
-              <span style={{ color: 'var(--ink-dim)' }}>Min. after slippage</span>
-              <span className="font-mono text-right">
-                {showReceiveCalculating ? (
-                  <span style={{ color: 'var(--ink-subtle)' }}>—</span>
-                ) : (
-                  <>
-                    {minReceiveHuman} {getTokenDisplaySymbol(toToken)}
-                  </>
-                )}
-              </span>
-            </div>
-          )}
-          <p style={{ color: 'var(--ink-subtle)' }}>{simQuery.data.quoteDisclosure}</p>
-          {simQuery.data.indexerAmountReconciled && (
-            <p
-              data-testid="trade-market-amount-reconciled"
-              style={{ color: 'var(--color-warning, #f59e0b)' }}
-              role="status"
-            >
-              {DIRECT_HYBRID_AMOUNT_RECONCILED_COPY}
-            </p>
-          )}
-          {indexerHybridExec.show && (
-            <div className="pt-1 border-t border-white/10">
-              <p className="font-semibold uppercase tracking-wide text-[10px]">{indexerHybridExec.title}</p>
-              <p style={{ color: indexerHybridExec.degraded ? 'var(--color-warning, #f59e0b)' : 'var(--ink-dim)' }}>
-                {indexerHybridExec.line}
-              </p>
-            </div>
-          )}
-          {simQuery.data.routePreflight && (
-            <p style={{ color: 'var(--ink-dim)' }}>
-              Worst hop spread (sim): {simQuery.data.routePreflight.worstSpreadPercent}%
-            </p>
-          )}
-          {marketRouteLine && (
-            <div
-              data-testid="trade-market-route-summary"
-              className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between pt-1 border-t border-white/10"
-              style={{ color: 'var(--ink-dim)' }}
-            >
-              <span className="uppercase text-[10px] tracking-wide font-medium shrink-0">Route</span>
-              <span className="font-mono text-[10px] sm:text-right break-words min-w-0">{marketRouteLine}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {simQuery.data && rawInputAmount !== '0' && fromToken && toToken && !showReceiveCalculating && (
-        <SwapPreSubmitSummary
-          actionLabel="Market swap"
-          offerSymbol={getTokenDisplaySymbol(fromToken)}
-          receiveSymbol={getTokenDisplaySymbol(toToken)}
-          offerAmountHuman={marketAmountHuman}
-          receiveAmountHuman={receiveHuman}
-          maxSpreadPercent={slippageTolerance}
-          minReceiveHuman={!showQuoteOnly && minReceived != null && minReceived !== '' ? minReceiveHuman : null}
-          pairContractAddresses={marketPairContractAddresses}
-          chainFullLabel={getNetworkBadgeCopy().fullLabel}
-          data-testid="trade-market-pre-submit-summary"
-        />
-      )}
 
       <SwapPayAcquireGuidanceBanner
         guidance={payAcquireGuidance}

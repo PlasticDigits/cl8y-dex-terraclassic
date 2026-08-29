@@ -1,4 +1,16 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+async function openTradeLimitTicket(page: Page) {
+  const limitTab = page.getByTestId('trade-order-tab-limit')
+  await expect(limitTab).toBeVisible({ timeout: 90_000 })
+  await limitTab.click()
+  await expect(page.getByTestId('trade-limit-submit')).toBeVisible()
+}
+
+async function openTradeLimitAdvanced(page: Page) {
+  await openTradeLimitTicket(page)
+  await page.locator('summary', { hasText: 'Advanced' }).first().click()
+}
 
 /**
  * Needs the same LocalTerra + LCD + indexer stack as other Playwright suites
@@ -44,6 +56,7 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
 
     const workspace = page.getByTestId('trade-desktop-workspace')
     await expect(workspace).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitTicket(page)
 
     const submit = page.getByTestId('trade-limit-submit')
     await expect(submit).toBeVisible()
@@ -63,6 +76,7 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
 
     const workspace = page.getByTestId('trade-desktop-workspace')
     await expect(workspace).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitTicket(page)
 
     const footer = page.getByTestId('trade-ticket-submit-footer')
     const guards = page.getByTestId('trade-limit-inline-guards')
@@ -107,6 +121,7 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     })
     expect(hitFooter, 'pointer hit on Place limit must land in the ticket footer').toBe(true)
 
+    await page.locator('summary', { hasText: 'Advanced' }).first().click()
     const expiry = page.locator('#trade-ticket-expiry-dt')
     await expect(expiry).toBeAttached()
     await expiry.evaluate((el) => {
@@ -168,6 +183,7 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
     await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitAdvanced(page)
 
     const card = page.getByTestId('trade-order-ticket-card')
     const submit = page.getByTestId('trade-limit-submit')
@@ -218,6 +234,7 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
     await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitTicket(page)
 
     const scroll = page.getByTestId('trade-order-ticket-scroll')
     const card = page.getByTestId('trade-order-ticket-card')
@@ -254,6 +271,7 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await page.waitForLoadState('networkidle')
     const ticketCol = page.getByTestId('trade-sub-lg-ticket-col')
     await expect(ticketCol).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitTicket(page)
     const submit = ticketCol.getByTestId('trade-limit-submit')
     await expect(submit).toBeVisible()
     const colBox = await ticketCol.boundingBox()
@@ -266,6 +284,7 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
     await expect(page.getByTestId('trade-sub-lg-workspace')).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitAdvanced(page)
 
     const submit = page.getByTestId('trade-limit-submit')
     await expect(submit).toBeAttached()
@@ -284,8 +303,8 @@ test.describe('Trade ticket money-CTA dock (GitLab #527)', () => {
     await page.goto('/trade')
     await page.waitForLoadState('networkidle')
     await expect(page.getByTestId('trade-desktop-workspace')).toBeVisible({ timeout: 90_000 })
+    await openTradeLimitAdvanced(page)
 
-    await page.locator('summary', { hasText: 'Advanced' }).first().click()
     const expiry = page.locator('#trade-ticket-expiry-dt')
     await expiry.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
     await page.waitForTimeout(50)

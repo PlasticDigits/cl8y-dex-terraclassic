@@ -240,6 +240,7 @@ make verify-issue-685                    # #685 CG/CMC listing field truthfulnes
 make verify-issue-640                    # #640 Cosmostation CW20 pack (docs only; no Postgres)
 make verify-issue-641                    # #641 Hexxagon Galaxy Station CW20 pack (docs only; no Postgres)
 make verify-issue-653                    # #653 one chrome layer / anti-nesting (StatBox flat + allowlist)
+make verify-issue-693                    # #693 /trade ticket Market default + flatten + token wash
 make verify-issue-660                    # #660 /pool Manage four peer actions (provide, withdraw, zap add, zap withdraw)
 make verify-issue-659                    # #659 Swap direction seam plate (opaque fill + static occluder)
 make verify-issue-663                    # #663 footer official CL8Y Homepage + Bridge product links
@@ -295,6 +296,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Frontend | `make test-frontend`, `make lint-frontend` |
 | Swap/Trade acquire guidance | `make verify-issue-678` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
+| Trade ticket Market default + flatten | `make verify-issue-693` |
 | Pool Manage four peer actions | `make verify-issue-660` |
 | Swap direction seam plate | `make verify-issue-659` |
 | Official CL8Y product links (footer) | `make verify-issue-663` |
@@ -426,6 +428,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md](skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) — `/trade` Place limit / Market CTA docks to ticket bottom; Chrome sticky mid-form float (**T527-1–T527-10**, [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527)); `make verify-issue-527`
 - [skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md](skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` desktop CSS grid (no drag-resize), independent tape row, hide book/ticket (**L561-1–L561-12**, [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)); `make verify-issue-561`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md](skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) — `/trade` full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell side control (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)); `make verify-issue-563`
+- [skills/AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md](skills/AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) — `/trade` ticket **Market** default, compact text tabs, heading logo + clamped wash, flatten Side/mode cards, slippage in Advanced (**T693-1–T693-8**, [#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)); `make verify-issue-693`
 - [skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md](skills/AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) — My open limits Cancel vs stale `●` row / fill lifecycle / `/trade` reachability (**F530-1–F530-8**, [#530](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/530)); `make verify-issue-530`
 - [skills/AGENTS_FRONTEND_POOL_TABLE.md](skills/AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` sortable table, UST1-first catalog default, Charts `/charts/:pairAddr` (**P547-1–P547-10**, [#547](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/547)); `make verify-issue-547`
 - [skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md](skills/AGENTS_FRONTEND_POOL_MANAGE_IA.md) — `/pool` Manage four peer actions: provide, withdraw, zap add, zap withdraw (**M660-1–M660-8**, [#660](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/660)); `make verify-issue-660`

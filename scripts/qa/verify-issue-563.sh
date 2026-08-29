@@ -4,7 +4,7 @@
 # Proves (unit + docs; no chain required):
 #   1. Full heading, no truncate, no compact wallet chip (disconnected + connected).
 #   2. Footer Connect Wallet + header wallet stay; Place/Market stay btn-primary.
-#   3. Buy/Sell use side-buy/side-sell; Limit/Market stay tab-glass; /limits compact matches.
+#   3. Buy/Sell use side-buy/side-sell; Limit/Market are compact text tabs (#693); /limits compact matches.
 #   4. Radiogroup keyboard + bid=Buy mapping (A1); heading is a text node (A2).
 #   5. Docs/skills T563-1–T563-8 crosslinked; AGENTS playbook present.
 #
@@ -75,9 +75,10 @@ run_step "code: side-buy/side-sell + bid still onSideChange bid (A1 / A8)" \
     grep -qE "idPrefix=\"limit-orders\"" frontend-dapp/src/pages/LimitOrdersPage.tsx && \
     grep -qE "idPrefix=\"trade-ticket\"" frontend-dapp/src/components/trade/TradeOrderTicket.tsx'
 
-run_step "code: Limit/Market tabs stay tab-glass; CTA stays btn-primary (T563-6)" \
-  bash -c 'grep -qE "tab-glass-active" frontend-dapp/src/components/trade/TradeOrderTicket.tsx && \
+run_step "code: Limit/Market tabs are compact text (#693); CTA stays btn-primary (T563-6)" \
+  bash -c 'grep -qE "trade-order-text-tab" frontend-dapp/src/components/trade/TradeOrderTicket.tsx && \
     grep -qE "trade-order-tab-limit" frontend-dapp/src/components/trade/TradeOrderTicket.tsx && \
+    ! grep -qE "tab-glass-active" frontend-dapp/src/components/trade/TradeOrderTicket.tsx && \
     grep -qE "TRADE_MONEY_CTA_CLASS" frontend-dapp/src/components/trade/TradeOrderTicket.tsx && \
     grep -qE "btn-primary btn-cta" frontend-dapp/src/utils/tradeMoneyCta.ts'
 

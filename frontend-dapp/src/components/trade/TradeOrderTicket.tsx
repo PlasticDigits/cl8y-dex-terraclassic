@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect, useId, useRef, useCallback } from 'react'
-import type { ReactNode } from 'react'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
@@ -20,8 +19,7 @@ import {
 } from '@/services/terraclassic/transactions'
 import { getTraderLimitPlacements } from '@/services/indexer/client'
 import { sounds } from '@/lib/sounds'
-import { TxResultAlert, Spinner } from '@/components/ui'
-import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { Spinner, TokenLogo, TxResultAlert } from '@/components/ui'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
 import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
@@ -45,7 +43,11 @@ import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrder
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
 import { LimitOrderMyPlacementsPanel } from '@/components/trade/LimitOrderMyPlacementsPanel'
 import { LimitOrderPreSubmitSummary } from '@/components/trade/LimitOrderPreSubmitSummary'
-import { LimitOrderSideFlipButton, LimitOrderPriceInputWithContext } from '@/components/trade/LimitOrderPriceField'
+import {
+  LimitOrderSideFlipButton,
+  LimitOrderPriceInputWithContext,
+  LimitOrderPriceDeviationChrome,
+} from '@/components/trade/LimitOrderPriceField'
 import { LimitOrderReceiveField } from '@/components/trade/LimitOrderReceiveField'
 import { useLimitOrderMakerFeeRates } from '@/hooks/useLimitOrderMakerFeeRates'
 import { useTradeBestBookPrices } from '@/hooks/useTradeBestBookPrices'
@@ -70,6 +72,10 @@ import {
 import { tradeDirectionSideLabels } from '@/utils/tradeDirectionSideLabels'
 import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 import { PairDisplayInvertIconButton } from '@/components/trade/PairDisplayInvertControls'
+import { TerraBroadcastPendingLink } from '@/components/ui/TerraBroadcastPendingLink'
+import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
+import { useTokenHeadingWash } from '@/hooks/useTokenHeadingWash'
+import { DOCS_GITLAB_BASE } from '@/utils/constants'
 import {
   displayPriceToFactoryToken1PerToken0,
   displaySideFromFactory,
@@ -78,57 +84,7 @@ import {
   invertFinitePositive,
 } from '@/utils/tradePairDisplayOrientation'
 
-function TicketSection({
-  title,
-  children,
-  tone = 'default',
-}: {
-  /** Short label only (≤ ~5 words). Omit for chrome-only wrappers (#489). */
-  title?: string
-  children: ReactNode
-  tone?: 'default' | 'action' | 'manage'
-}) {
-  // Cool blue action wash — not warm amber/orange (#488 / #489)
-  const borderColor =
-    tone === 'action'
-      ? 'color-mix(in srgb, var(--blue) 28%, var(--line))'
-      : tone === 'manage'
-        ? 'rgba(148, 163, 184, 0.16)'
-        : 'var(--line)'
-  return (
-    <section
-      className="rounded-2xl border p-3 space-y-3"
-      style={{
-        borderColor,
-        background:
-          tone === 'action'
-            ? 'linear-gradient(180deg, color-mix(in srgb, var(--blue) 8%, transparent), rgba(255, 255, 255, 0.02))'
-            : 'rgba(255, 255, 255, 0.025)',
-      }}
-    >
-      {title ? (
-        <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink)' }}>
-          {title}
-        </h3>
-      ) : null}
-      {children}
-    </section>
-  )
-}
-
-function TicketStat({ label, value, tone }: { label: string; value: ReactNode; tone?: 'bid' | 'ask' }) {
-  const color = tone === 'bid' ? 'var(--color-positive)' : tone === 'ask' ? 'var(--color-negative)' : 'var(--ink)'
-  return (
-    <div className="rounded-xl border border-white/10 px-2.5 py-2" style={{ background: 'rgba(255,255,255,0.025)' }}>
-      <div className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-subtle)' }}>
-        {label}
-      </div>
-      <div className="mt-0.5 font-mono text-[11px] tabular-nums truncate" style={{ color }}>
-        {value}
-      </div>
-    </div>
-  )
-}
+const TRADE_MODE_DOCS_HREF = `${DOCS_GITLAB_BASE}/limit-orders.md`
 
 export type TradeOrderTicketProps = {
   pairAddr: string
@@ -198,7 +154,7 @@ function TradeOrderTicketContent({
   const [highlightPlacementOrderId, setHighlightPlacementOrderId] = useState<number | null>(null)
 
   const [side, setSide] = useState<'bid' | 'ask'>('bid')
-  const [orderTab, setOrderTab] = useState<'limit' | 'market'>('limit')
+  const [orderTab, setOrderTab] = useState<'limit' | 'market'>('market')
   const [marketSubmitChrome, setMarketSubmitChrome] = useState<TradeMarketSubmitChromeModel | null>(null)
   const orderTypeTabBaseId = useId()
   const limitOrderTabId = `${orderTypeTabBaseId}-limit-tab`
@@ -229,6 +185,17 @@ function TradeOrderTicketContent({
   const [editHintAfterOrderId, setEditHintAfterOrderId] = useState<number | null>(null)
 
   const selectedPair = useMemo(() => pairs.find((p) => p.contract_addr === pairAddr), [pairs, pairAddr])
+  const displayBaseAsset = useMemo(
+    () => (selectedPair ? (displayInverted ? selectedPair.asset_infos[1] : selectedPair.asset_infos[0]) : null),
+    [selectedPair, displayInverted]
+  )
+  const headingToken = useTokenDisplayInfo(displayBaseAsset)
+  const headingTokenId = displayBaseAsset
+    ? 'token' in displayBaseAsset
+      ? displayBaseAsset.token.contract_addr
+      : displayBaseAsset.native_token.denom
+    : ''
+  const headingWashCss = useTokenHeadingWash(headingTokenId, headingToken.logoURI)
 
   const { refToken1PerToken0, refSource, refResolutionLoading, refResolutionError } = useLimitOrderPriceRefBundle({
     pairAddr,
@@ -354,7 +321,7 @@ function TradeOrderTicketContent({
   })
   const isTradeBlocked = isPaused || isPairCodeIdFrozen || tradingBlacklist.blocked
 
-  const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddr, limitPriceScale)
+  const { bestBid, bestAsk } = useTradeBestBookPrices(pairAddr, limitPriceScale)
   const limitBookQuery = useLimitBookInfinite(pairAddr, factorySide)
   const placeInsertHintAfter = useMemo(() => {
     const { orders, hasMore } = flattenLimitBookPages(limitBookQuery.data?.pages)
@@ -655,6 +622,7 @@ function TradeOrderTicketContent({
     setLastIndexedOrderId(null)
     setCancelOrderId('')
     setHighlightPlacementOrderId(null)
+    setOrderTab('limit')
     focusLimitPriceField()
   }
 
@@ -713,30 +681,30 @@ function TradeOrderTicketContent({
     side === 'bid'
       ? { verb: 'Buy', receive: displayBase, pay: displayQuote, tone: 'bid' as const }
       : { verb: 'Sell', receive: displayQuote, pay: displayBase, tone: 'ask' as const }
-  const formatBookHead = (raw: string | null | undefined) => {
-    if (bestBookLoading) return '…'
-    if (raw == null) return '—'
-    if (!displayInverted) return raw
-    const inv = invertFinitePositive(raw)
-    return inv == null ? '—' : String(inv)
-  }
-  const bestBidLabel = formatBookHead(displayInverted ? bestAsk : bestBid)
-  const bestAskLabel = formatBookHead(displayInverted ? bestBid : bestAsk)
   const handleToggleDisplayInvert = () => {
     onToggleDisplayInvert?.()
   }
+  const headingLogoBlockieSeed =
+    displayBaseAsset && 'native_token' in displayBaseAsset ? displayBaseAsset.native_token.denom : undefined
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden card-glass !p-0" data-testid="trade-order-ticket-card">
       <div
         className="shrink-0 p-4 border-b border-white/10"
-        style={{
-          background:
-            'radial-gradient(circle at 20% 0%, rgba(251, 146, 60, 0.18), transparent 34%), rgba(255,255,255,0.025)',
-        }}
+        style={{ background: headingWashCss }}
         data-testid="trade-ticket-header"
       >
         <div className="flex items-start gap-2 min-w-0">
+          {selectedPair ? (
+            <span className="shrink-0 mt-0.5" data-testid="trade-ticket-heading-logo">
+              <TokenLogo
+                addressForBlockie={headingToken.addressForBlockie}
+                blockieSeed={headingLogoBlockieSeed}
+                logoURI={headingToken.logoURI}
+                size={22}
+              />
+            </span>
+          ) : null}
           <h3
             className="trade-ticket-heading min-w-0 flex-1 text-base font-semibold font-heading"
             style={{ color: 'var(--ink)' }}
@@ -779,27 +747,7 @@ function TradeOrderTicketContent({
         )}
 
         {selectedPair && pairAddr.startsWith('terra1') && (
-          <div
-            className="grid grid-cols-2 gap-1 rounded-2xl border border-white/10 p-1"
-            style={{ background: 'rgba(255,255,255,0.025)' }}
-            role="tablist"
-            aria-label="Order type"
-          >
-            <button
-              type="button"
-              id={limitOrderTabId}
-              role="tab"
-              aria-selected={orderTab === 'limit'}
-              aria-controls={limitOrderPanelId}
-              data-testid="trade-order-tab-limit"
-              className={`tab-glass !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'limit' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
-              onClick={() => {
-                sounds.playButtonPress()
-                setOrderTab('limit')
-              }}
-            >
-              Limit
-            </button>
+          <div className="trade-order-text-tabs" role="tablist" aria-label="Order type">
             <button
               type="button"
               id={marketOrderTabId}
@@ -807,7 +755,7 @@ function TradeOrderTicketContent({
               aria-selected={orderTab === 'market'}
               aria-controls={marketOrderPanelId}
               data-testid="trade-order-tab-market"
-              className={`tab-glass !text-xs !px-3 !py-2 w-full justify-center ${orderTab === 'market' ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+              className="trade-order-text-tab"
               onClick={() => {
                 sounds.playButtonPress()
                 setOrderTab('market')
@@ -815,91 +763,121 @@ function TradeOrderTicketContent({
             >
               Market
             </button>
+            <button
+              type="button"
+              id={limitOrderTabId}
+              role="tab"
+              aria-selected={orderTab === 'limit'}
+              aria-controls={limitOrderPanelId}
+              data-testid="trade-order-tab-limit"
+              className="trade-order-text-tab"
+              onClick={() => {
+                sounds.playButtonPress()
+                setOrderTab('limit')
+              }}
+            >
+              Limit
+            </button>
           </div>
         )}
 
-        <TicketSection title="Side">
-          <LimitOrderBidAskSideSelector
-            idPrefix="trade-ticket"
-            compact
-            side={side}
-            onSideChange={handleSideChange}
-            bidLabel={directionBidLabel}
-            askLabel={directionAskLabel}
-          />
-          {selectedPair && pairAddr.startsWith('terra1') && (
-            <div className="grid grid-cols-2 gap-2">
-              <TicketStat label="Top buy" value={bestBidLabel} tone="bid" />
-              <TicketStat label="Top sell" value={bestAskLabel} tone="ask" />
-            </div>
-          )}
-        </TicketSection>
+        <LimitOrderBidAskSideSelector
+          idPrefix="trade-ticket"
+          compact
+          side={side}
+          onSideChange={handleSideChange}
+          bidLabel={directionBidLabel}
+          askLabel={directionAskLabel}
+        />
+
+        {selectedPair && pairAddr.startsWith('terra1') && (
+          <div className="flex items-baseline gap-2" data-testid="trade-order-mode-docs">
+            <span className="text-xs font-semibold" style={{ color: 'var(--ink)' }}>
+              {orderTab === 'market' ? 'Market' : 'Limit'}
+            </span>
+            <a
+              className="text-[10px] underline hover:opacity-80"
+              href={TRADE_MODE_DOCS_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Docs
+            </a>
+          </div>
+        )}
 
         {orderTab === 'market' && selectedPair && (
           <div role="tabpanel" id={marketOrderPanelId} aria-labelledby={marketOrderTabId}>
-            <TicketSection title="Market" tone="action">
-              <TradeMarketOrderPanel
-                pairAddr={pairAddr}
-                selectedPair={selectedPair}
-                pairs={pairs}
-                side={factorySide}
-                isPaused={isTradeBlocked}
-                dockSubmit
-                interactive={interactive}
-                onSubmitChromeChange={setMarketSubmitChrome}
-              />
-            </TicketSection>
+            <TradeMarketOrderPanel
+              pairAddr={pairAddr}
+              selectedPair={selectedPair}
+              pairs={pairs}
+              side={factorySide}
+              isPaused={isTradeBlocked}
+              dockSubmit
+              interactive={interactive}
+              onSubmitChromeChange={setMarketSubmitChrome}
+            />
           </div>
         )}
 
         {orderTab === 'limit' && (
-          <div role="tabpanel" id={limitOrderPanelId} aria-labelledby={limitOrderTabId}>
-            <TicketSection title="Limit" tone="action">
-              <LimitOrderPriceInputWithContext
+          <div role="tabpanel" id={limitOrderPanelId} aria-labelledby={limitOrderTabId} className="space-y-3">
+            <LimitOrderPriceInputWithContext
+              side={side}
+              price={price}
+              onPriceChange={setPrice}
+              inputId={limitPriceInputId}
+              refToken1PerToken0={displayRef}
+              refSource={refSource}
+              tapeHeadlineUsd={tapeHeadlineUsd}
+              token0Label={displayBase}
+              token1Label={displayQuote}
+              compact
+              showDeviationChrome={false}
+            />
+            <LimitOrderEscrowAmountField
+              compact
+              escrowLabel={sideAction.pay}
+              escrowDecimals={escrowDecimals}
+              amountHuman={amountHuman}
+              onAmountChange={onLimitAmountInputChange}
+              balanceQuery={escrowBalanceQuery}
+              onMax={onLimitAmountMax}
+              walletConnected={isWalletConnected}
+              maxContext="limit_place"
+              assetIsNativeUluna={escrowToken === 'uluna'}
+              escrowUsdNotionalApprox={escrowUsdNotionalApprox}
+            />
+            <LimitOrderSideFlipButton compact onFlip={() => handleSideChange(side === 'bid' ? 'ask' : 'bid')} />
+            <LimitOrderReceiveField
+              compact
+              receiveLabel={sideAction.receive}
+              receiveAmountHuman={expectedReceiveHuman}
+              receiveDecimals={receiveDecimals}
+              receiveBalanceQuery={receiveBalanceQuery}
+              walletConnected={isWalletConnected}
+              receiveUsdNotionalApprox={receiveUsdNotionalApprox}
+            />
+            <LimitOrderAdvancedLimitSettings
+              compact
+              open={limitAdvancedOpen}
+              onOpenChange={setLimitAdvancedOpen}
+              maxSteps={maxSteps}
+              onMaxStepsChange={setMaxSteps}
+              expiresAt={expiresAt}
+              onExpiresAtChange={setExpiresAt}
+              idPrefix="trade-ticket"
+            >
+              <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
+              <LimitOrderPriceDeviationChrome
                 side={side}
                 price={price}
                 onPriceChange={setPrice}
-                inputId={limitPriceInputId}
                 refToken1PerToken0={displayRef}
-                refSource={refSource}
                 tapeHeadlineUsd={tapeHeadlineUsd}
-                token0Label={displayBase}
-                token1Label={displayQuote}
                 compact
-              />
-              <LimitOrderEscrowAmountField
-                compact
-                escrowLabel={sideAction.pay}
-                escrowDecimals={escrowDecimals}
-                amountHuman={amountHuman}
-                onAmountChange={onLimitAmountInputChange}
-                balanceQuery={escrowBalanceQuery}
-                onMax={onLimitAmountMax}
-                walletConnected={isWalletConnected}
-                maxContext="limit_place"
-                assetIsNativeUluna={escrowToken === 'uluna'}
-                escrowUsdNotionalApprox={escrowUsdNotionalApprox}
-              />
-              <LimitOrderSideFlipButton compact onFlip={() => handleSideChange(side === 'bid' ? 'ask' : 'bid')} />
-              <LimitOrderReceiveField
-                compact
-                receiveLabel={sideAction.receive}
-                receiveAmountHuman={expectedReceiveHuman}
-                receiveDecimals={receiveDecimals}
-                receiveBalanceQuery={receiveBalanceQuery}
-                walletConnected={isWalletConnected}
-                receiveUsdNotionalApprox={receiveUsdNotionalApprox}
-              />
-              <LimitOrderExpiryField compact value={expiresAt} onChange={setExpiresAt} idPrefix="trade-ticket" />
-              <LimitOrderAdvancedLimitSettings
-                compact
-                open={limitAdvancedOpen}
-                onOpenChange={setLimitAdvancedOpen}
-                maxSteps={maxSteps}
-                onMaxStepsChange={setMaxSteps}
-                expiresAt={expiresAt}
-                onExpiresAtChange={setExpiresAt}
-                idPrefix="trade-ticket"
+                includeInvalidAlert={false}
               />
               {selectedPair && pairAddr.startsWith('terra1') && (
                 <LimitOrderPreSubmitSummary
@@ -919,21 +897,21 @@ function TradeOrderTicketContent({
                   data-testid="trade-limit-pre-submit-summary"
                 />
               )}
-              {editContext && (
-                <p
-                  className="text-[10px] leading-snug rounded-lg border border-white/10 px-2.5 py-2"
-                  style={{ color: 'var(--ink-dim)' }}
-                  data-testid="trade-limit-edit-context"
-                >
-                  Editing <span className="font-mono">#{editContext.orderId}</span>
-                  {priceOnlyEdit
-                    ? ' — update price only.'
-                    : editNonPriceChanged
-                      ? ` — ${LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE}`
-                      : ' — adjust price to update.'}
-                </p>
-              )}
-            </TicketSection>
+            </LimitOrderAdvancedLimitSettings>
+            {editContext && (
+              <p
+                className="text-[10px] leading-snug rounded-lg border border-white/10 px-2.5 py-2"
+                style={{ color: 'var(--ink-dim)' }}
+                data-testid="trade-limit-edit-context"
+              >
+                Editing <span className="font-mono">#{editContext.orderId}</span>
+                {priceOnlyEdit
+                  ? ' — update price only.'
+                  : editNonPriceChanged
+                    ? ` — ${LIMIT_EDIT_NON_PRICE_CHANGE_MESSAGE}`
+                    : ' — adjust price to update.'}
+              </p>
+            )}
             {/*
               Validation / place guards stay in normal document flow above the ticket footer
               (GitLab #500 / #527 T527-4). Footer chrome must not host blocking banners.

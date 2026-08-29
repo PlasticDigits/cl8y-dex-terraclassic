@@ -140,37 +140,44 @@ describe('TradeMarketOrderPanel slippage presets (GitLab #528)', () => {
     useDexStore.setState({ slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT })
   })
 
-  it('renders one aligned group; fresh store defaults 5% active', () => {
+  async function openAdvanced(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByTestId('trade-market-advanced-toggle'))
+  }
+
+  it('hides chips on the default Market path; aligned group appears under Advanced (#693 T8)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderPanel()
+    expect(screen.queryByTestId('trade-market-slippage-presets')).not.toBeInTheDocument()
+    await openAdvanced(user)
     expect(screen.getByTestId('trade-market-slippage-presets')).toBeInTheDocument()
     expect(screen.getByTestId('trade-market-slippage-preset-0.5')).toBeInTheDocument()
     expect(screen.getByTestId('trade-market-slippage-preset-1')).toBeInTheDocument()
     expect(screen.getByTestId('trade-market-slippage-preset-5')).toHaveClass('tab-glass-active')
-    expect(screen.getByText(/Taker swap at 5% slippage protection/i)).toBeInTheDocument()
     expect(screen.getAllByTestId('trade-market-slippage-presets')).toHaveLength(1)
   })
 
-  it('updates the store, lead copy, and active chip on click (and plays press sound)', async () => {
+  it('updates the store and active chip on click (and plays press sound)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderPanel()
+    await openAdvanced(user)
 
     await user.click(screen.getByTestId('trade-market-slippage-preset-0.5'))
     expect(useDexStore.getState().slippageTolerance).toBe(0.5)
     expect(screen.getByTestId('trade-market-slippage-preset-0.5')).toHaveClass('tab-glass-active')
     expect(screen.getByTestId('trade-market-slippage-preset-5')).toHaveClass('tab-glass-inactive')
-    expect(screen.getByText(/Taker swap at 0.5% slippage protection/i)).toBeInTheDocument()
     expect(sounds.playButtonPress).toHaveBeenCalled()
 
     await user.click(screen.getByTestId('trade-market-slippage-preset-1'))
     expect(useDexStore.getState().slippageTolerance).toBe(1)
-    expect(screen.getByText(/Taker swap at 1% slippage protection/i)).toBeInTheDocument()
 
     await user.click(screen.getByTestId('trade-market-slippage-preset-5'))
     expect(useDexStore.getState().slippageTolerance).toBe(5)
   })
 
-  it('still renders chips when paused or disconnected (not the money CTA)', () => {
+  it('still renders chips when paused or disconnected (not the money CTA)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderPanel({ isPaused: true, address: null })
+    await openAdvanced(user)
     expect(screen.getByTestId('trade-market-slippage-preset-0.5')).toBeEnabled()
     expect(screen.getByTestId('trade-market-submit')).toBeInTheDocument()
   })
@@ -178,6 +185,7 @@ describe('TradeMarketOrderPanel slippage presets (GitLab #528)', () => {
   it('submits max_spread "0.005" after selecting 0.5% (default snapshot stays 0.05)', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderPanel()
+    await openAdvanced(user)
 
     await user.click(screen.getByTestId('trade-market-slippage-preset-0.5'))
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')

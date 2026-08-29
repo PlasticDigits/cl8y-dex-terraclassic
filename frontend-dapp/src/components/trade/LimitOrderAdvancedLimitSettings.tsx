@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   LIMIT_ORDER_MAX_ADJUST_STEPS_PRESET_TIERS,
   clampLimitOrderMaxAdjustSteps,
@@ -32,6 +32,8 @@ type Props = {
   onExpiresAtChange: (n: number | null) => void
   idPrefix: string
   compact?: boolean
+  /** Extra Advanced body (e.g. `/trade` expiry + price chips + pre-submit, #693). */
+  children?: ReactNode
 }
 
 /**
@@ -46,6 +48,7 @@ export function LimitOrderAdvancedLimitSettings({
   onExpiresAtChange,
   idPrefix,
   compact,
+  children,
 }: Props) {
   const sm = compact ? 'text-[10px] leading-snug' : 'text-xs'
   const presetBtn = 'px-1.5 py-0.5 rounded border border-white/10 text-[10px] uppercase tracking-wide hover:bg-white/5'
@@ -142,6 +145,7 @@ export function LimitOrderAdvancedLimitSettings({
           idPrefix={`${idPrefix}-adv`}
           compact={compact}
         />
+        {children}
       </div>
     </details>
   )
