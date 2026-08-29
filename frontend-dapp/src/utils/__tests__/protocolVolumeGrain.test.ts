@@ -14,7 +14,7 @@ import {
   usdAxisTicks,
 } from '../protocolVolumeGrain'
 
-describe('protocolVolumeGrain (GitLab #668 / #677)', () => {
+describe('protocolVolumeGrain (GitLab #668 / #677 / #703)', () => {
   it('allowlists grain and rejects injection', () => {
     expect(isProtocolVolumeGrain('hourly')).toBe(true)
     expect(isProtocolVolumeGrain('daily')).toBe(true)
@@ -41,6 +41,16 @@ describe('protocolVolumeGrain (GitLab #668 / #677)', () => {
     expect(wide).toBeLessThanOrEqual(PROTOCOL_VOLUME_GRAIN_MAX.daily)
     expect(limitFromPlotWidth(1280, 'hourly')).toBeLessThanOrEqual(168)
     expect(limitFromPlotWidth(1280, 'monthly')).toBe(24)
+  })
+
+  it('caps phone monthly at ≤12 so YY-MM ticks fit (GitLab #703)', () => {
+    const phone = limitFromPlotWidth(320, 'monthly')
+    expect(phone).toBeLessThanOrEqual(12)
+    expect(phone).toBeGreaterThanOrEqual(PROTOCOL_VOLUME_GRAIN_MIN.monthly)
+    expect(Number.isInteger(phone)).toBe(true)
+    expect(limitFromPlotWidth(260, 'monthly')).toBe(PROTOCOL_VOLUME_GRAIN_MIN.monthly)
+    expect(limitFromPlotWidth(1280, 'monthly')).toBe(24)
+    expect(limitFromPlotWidth(728, 'monthly')).toBe(24)
   })
 
   it('rejects non-allowlisted limits before fetch', () => {
@@ -99,8 +109,13 @@ describe('protocolVolumeGrain (GitLab #668 / #677)', () => {
   it('formats period keys and peak without NaN', () => {
     expect(formatPeriodAxisLabel('2026-08-26T14', 'hourly')).toBe('14')
     expect(formatPeriodAxisLabel('2026-08-26', 'daily')).toBe('08-26')
-    expect(formatPeriodAxisLabel('2026-08', 'monthly')).toBe('2026-08')
+    expect(formatPeriodAxisLabel('2026-08', 'monthly')).toBe('26-08')
+    expect(formatPeriodAxisLabel('26-08', 'monthly')).toBe('26-08')
+    expect(formatPeriodAxisLabel('', 'monthly')).toBe('—')
+    expect(formatPeriodAxisLabel('<script>alert(1)</script>', 'monthly')).toBe('<scri')
+    expect(formatPeriodAxisLabel('javascript:', 'monthly')).toBe('javas')
     expect(pointPeriod({ utc_hour: '2026-08-26T14', volume_usd: '1', trade_count: 1 }, 'hourly')).toBe('2026-08-26T14')
+    expect(pointPeriod({ utc_month: '2026-08', volume_usd: '1', trade_count: 1 }, 'monthly')).toBe('2026-08')
     expect(maxPricedUsd([{ volume_usd: '10' }, { volume_usd: null }, { volume_usd: 'Infinity' }])).toBe(10)
     expect(maxPricedUsd([{ liquidity_usd: '20' }, { liquidity_usd: null }], 'liquidity')).toBe(20)
     expect(maxPricedUsd([{ fees_usd: '3' }, { fees_usd: '0' }], 'fees')).toBe(3)

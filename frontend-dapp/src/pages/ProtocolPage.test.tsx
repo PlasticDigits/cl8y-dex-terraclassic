@@ -191,6 +191,9 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue(feesOk)
     vi.mocked(indexerClient.getProtocolVolumeDaily).mockResolvedValue(dailyOk)
+    vi.mocked(indexerClient.getProtocolVolumeSeries).mockClear()
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockClear()
+    vi.mocked(indexerClient.getProtocolFeesSeries).mockClear()
     vi.mocked(indexerClient.getProtocolVolumeSeries).mockImplementation(async (grain, limit) => ({
       ...seriesOk,
       grain,
@@ -849,6 +852,33 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(chart.querySelector('a[href]')).toBeNull()
   })
 
+  it('renders XSS utc_month as text on the monthly axis (GitLab #703)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getProtocolVolumeSeries).mockImplementation(async (grain) => ({
+      ...seriesOk,
+      grain,
+      series:
+        grain === 'monthly'
+          ? [{ utc_month: '"><script>alert(1)</script>', volume_usd: 'javascript:', trade_count: 1 }]
+          : seriesOk.series,
+    }))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar month/)
+    })
+    const chart = screen.getByTestId('protocol-volume-daily-chart')
+    expect(chart.querySelector('script')).toBeNull()
+    expect(document.querySelector('script[src="javascript:"]')).toBeNull()
+    const axis = screen.getByTestId('protocol-volume-chart-xaxis')
+    expect(axis.querySelector('a[href]')).toBeNull()
+    await user.hover(screen.getByTestId('protocol-volume-bar-0'))
+    const tip = await screen.findByTestId('protocol-volume-chart-tooltip')
+    expect(tip.querySelector('script')).toBeNull()
+    expect(tip.textContent).toMatch(/script/)
+  })
+
   it('labels hourly and monthly axes at step 1 or 2 on short series (GitLab #677)', async () => {
     const user = userEvent.setup()
     const hourly = Array.from({ length: 12 }, (_, i) => ({
@@ -884,6 +914,68 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const monthlyLabels = monthlyAxis.querySelectorAll('text')
     expect(monthlyLabels.length).toBeGreaterThanOrEqual(Math.ceil(6 / 2))
     expect(monthlyLabels.length).toBeLessThanOrEqual(6)
+    expect(monthlyAxis).toHaveTextContent('26-01')
+    expect(monthlyAxis).toHaveTextContent('26-06')
+    expect(monthlyAxis.textContent).not.toMatch(/2026-0/)
+    const monthBar = screen.getByTestId('protocol-volume-bar-0')
+    await user.hover(monthBar)
+    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('2026-01')
+  })
+
+  it('keeps monthly axis YY-MM and tooltip YYYY-MM (GitLab #703)', async () => {
+    const user = userEvent.setup()
+    const monthlyVol = Array.from({ length: 6 }, (_, i) => ({
+      utc_month: `2026-0${i + 1}`,
+      volume_usd: '2',
+      trade_count: 1,
+    }))
+    const monthlyLiq = Array.from({ length: 6 }, (_, i) => ({
+      utc_month: `2026-0${i + 1}`,
+      liquidity_usd: '80',
+      priced_pair_count: 1,
+    }))
+    vi.mocked(indexerClient.getProtocolVolumeSeries).mockImplementation(async (grain, limit) => {
+      if (grain === 'monthly') {
+        expect(limit).toBeGreaterThanOrEqual(6)
+        expect(limit).toBeLessThanOrEqual(24)
+      }
+      return {
+        ...seriesOk,
+        grain,
+        limit,
+        series: grain === 'monthly' ? monthlyVol : seriesOk.series,
+      }
+    })
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockImplementation(async (grain, limit) => ({
+      grain,
+      limit,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series: grain === 'monthly' ? monthlyLiq : [],
+    }))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-chart-xaxis')
+    await user.click(screen.getByTestId('protocol-volume-grain-monthly'))
+    await waitFor(() => {
+      expect(screen.getByTestId('protocol-volume-daily-chart')).toHaveTextContent(/UTC calendar month/)
+    })
+    const monthlyAxis = screen.getByTestId('protocol-volume-chart-xaxis')
+    expect(monthlyAxis).toHaveTextContent('26-01')
+    expect(monthlyAxis.textContent).not.toMatch(/2026-/)
+    const xTexts = monthlyAxis.querySelectorAll('text')
+    xTexts.forEach((el) => {
+      expect(el.getAttribute('transform')).toBeNull()
+      expect(el.getAttribute('style') ?? '').not.toMatch(/rotate/i)
+    })
+    await user.hover(screen.getByTestId('protocol-volume-bar-0'))
+    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent(/2026-01/)
+    const volMonthly = vi.mocked(indexerClient.getProtocolVolumeSeries).mock.calls.filter((c) => c[0] === 'monthly')
+    const monthlyLimit = volMonthly[volMonthly.length - 1][1]
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    await waitFor(() => {
+      expect(indexerClient.getProtocolLiquiditySeries).toHaveBeenCalledWith('monthly', monthlyLimit)
+    })
+    expect(document.querySelectorAll('[data-testid^="protocol-volume-bar-"]').length).toBe(6)
   })
 
   it('shows USD axis, tooltip on hover/focus, and unpriced em-dash (GitLab #668)', async () => {

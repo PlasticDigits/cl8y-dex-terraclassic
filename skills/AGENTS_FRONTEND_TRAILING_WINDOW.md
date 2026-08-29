@@ -31,7 +31,7 @@ Related (do **not** treat as done here): [#548](https://gitlab.com/PlasticDigits
 - **Don’t** switch to calendar-day volume to make the number hit `$0` (desyncs CG/CMC, pair stats, and every cutoff test).
 - **Don’t** add a help `?` overlay or lecture paragraph.
 - **Don’t** change `GET /api/v1/overview` field semantics in this issue.
-- **Don’t** retitle the Protocol UTC grain chart (Hourly / Daily / Monthly, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) / [#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)) as Last 24h/7d/30d — that chart is calendar buckets, not the trailing tiles. X-axis density is **P668-9**.
+- **Don’t** retitle the Protocol UTC grain chart (Hourly / Daily / Monthly, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) / [#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) / [#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703)) as Last 24h/7d/30d — that chart is calendar buckets, not the trailing tiles. X-axis density is **P668-9**; phone Monthly is last 6–12 months + `YY-MM` (**P703-1–P703-4**).
 
 ## Canonical code
 

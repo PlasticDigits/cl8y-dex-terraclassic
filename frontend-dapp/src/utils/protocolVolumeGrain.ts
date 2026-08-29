@@ -1,9 +1,11 @@
 /**
- * Protocol UTC volume chart grain + width clamp (GitLab #668 / #677).
+ * Protocol UTC volume chart grain + width clamp (GitLab #668 / #677 / #703).
  *
  * Bar count follows plot width, then `[min, max]` per grain. Do not request
  * above the indexer allowlist (hourly 168 / daily 90 / monthly 24).
+ * Monthly on narrow plots caps at 12 (or 6) so horizontal `YY-MM` ticks fit.
  * X-axis labels use step 1 or 2 (hourly may widen when step 2 collides).
+ * Do not rotate tick text.
  */
 
 export const PROTOCOL_VOLUME_GRAINS = ['hourly', 'daily', 'monthly'] as const
@@ -24,6 +26,12 @@ export const PROTOCOL_VOLUME_GRAIN_MIN: Record<ProtocolVolumeGrain, number> = {
 /** Plot pixels per bar including gap. ~10–14px keeps phone bars readable. */
 export const PROTOCOL_VOLUME_BAR_SLOT_PX = 12
 
+/**
+ * Preferred monthly bar count on plots too narrow for 24 × `YY-MM` (GitLab #703).
+ * Drop to `PROTOCOL_VOLUME_GRAIN_MIN.monthly` (6) when 12 still collides.
+ */
+export const PROTOCOL_VOLUME_MONTHLY_NARROW_MAX = 12
+
 export const PROTOCOL_VOLUME_RESIZE_DEBOUNCE_MS = 160
 
 export function isProtocolVolumeGrain(raw: string): raw is ProtocolVolumeGrain {
@@ -37,10 +45,31 @@ export function clampProtocolVolumeLimit(grain: ProtocolVolumeGrain, n: number):
   return Math.min(max, Math.max(min, Math.floor(n)))
 }
 
+/**
+ * Monthly `limit` so horizontal `YY-MM` ticks do not overlap, including the
+ * adjacent last-two labels that `timeLabelIndexes` always keeps (GitLab #703).
+ * Slot math alone still yields 24 months on a ~260–320px phone plot.
+ */
+function monthlyLimitForPlotWidth(widthPx: number): number {
+  const slotBased = clampProtocolVolumeLimit('monthly', Math.floor(widthPx / PROTOCOL_VOLUME_BAR_SLOT_PX))
+  const labelW = estimatedAxisLabelWidthPx('monthly')
+  const fits = (n: number) => n >= 1 && widthPx / n >= labelW
+  if (fits(PROTOCOL_VOLUME_GRAIN_MAX.monthly)) {
+    return Math.min(slotBased, PROTOCOL_VOLUME_GRAIN_MAX.monthly)
+  }
+  if (fits(PROTOCOL_VOLUME_MONTHLY_NARROW_MAX)) {
+    return Math.min(slotBased, PROTOCOL_VOLUME_MONTHLY_NARROW_MAX)
+  }
+  return PROTOCOL_VOLUME_GRAIN_MIN.monthly
+}
+
 /** Derive allowlisted `limit` from plot width. */
 export function limitFromPlotWidth(widthPx: number, grain: ProtocolVolumeGrain): number {
   if (!Number.isFinite(widthPx) || widthPx <= 0) {
     return PROTOCOL_VOLUME_GRAIN_MIN[grain]
+  }
+  if (grain === 'monthly') {
+    return monthlyLimitForPlotWidth(widthPx)
   }
   const slots = Math.floor(widthPx / PROTOCOL_VOLUME_BAR_SLOT_PX)
   return clampProtocolVolumeLimit(grain, slots)
@@ -91,9 +120,9 @@ export const PROTOCOL_VOLUME_AXIS_PLOT_PX = 260
 const AXIS_LABEL_EM_PX = 4.8
 const AXIS_LABEL_PAD_PX = 2
 
-/** Formatted axis width: hourly `HH`, daily `MM-DD`, monthly `YYYY-MM`. */
+/** Formatted axis width: hourly `HH`, daily `MM-DD`, monthly `YY-MM` (#703). */
 export function estimatedAxisLabelWidthPx(grain: ProtocolVolumeGrain): number {
-  const chars = grain === 'hourly' ? 2 : grain === 'daily' ? 5 : 7
+  const chars = grain === 'hourly' ? 2 : 5
   return chars * AXIS_LABEL_EM_PX + AXIS_LABEL_PAD_PX
 }
 
@@ -131,12 +160,27 @@ export function timeLabelIndexes(
   return out
 }
 
+/**
+ * Axis tick text. Monthly is `YY-MM` (GitLab #703); tooltip / `aria-label`
+ * keep the full period via `pointPeriod`. Fail-closed to a short string —
+ * never throw on malformed / XSS-like `utc_month`.
+ */
 export function formatPeriodAxisLabel(period: string, grain: ProtocolVolumeGrain): string {
   if (grain === 'hourly') {
     const t = period.indexOf('T')
     return t >= 0 ? period.slice(t + 1) : period
   }
   if (grain === 'daily' && period.length >= 10) return period.slice(5)
+  if (grain === 'monthly') {
+    const m = /^(\d{2}|\d{4})-(\d{2})$/.exec(period.trim())
+    if (m) {
+      const yy = m[1].length === 4 ? m[1].slice(2) : m[1]
+      return `${yy}-${m[2]}`
+    }
+    const compact = period.replace(/\s+/g, ' ').trim()
+    if (!compact) return '—'
+    return compact.length > 5 ? compact.slice(0, 5) : compact
+  }
   return period
 }
 
