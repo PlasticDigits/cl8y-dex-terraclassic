@@ -12,7 +12,7 @@ Issue **#528 is implemented** (shared `SlippageProtectionPresets`). `#497` defau
 | [`docs/frontend.md` § Slippage protection preset alignment](../docs/frontend.md#slippage-protection-preset-align) | Invariants **S528-1–S528-10** |
 | [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) | Default 5%, `[0.5, 1.0, 5.0]`, `max_spread` mapping |
 | [`SlippageProtectionPresets.tsx`](../frontend-dapp/src/components/common/SlippageProtectionPresets.tsx) | Shared label-above + `grid-cols-3` group |
-| [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) | Trade Market: three chips, `TRADE_SLIPPAGE_PRESET_CLASS` |
+| [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) | Trade Market: three chips under **Advanced** ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)), `TRADE_SLIPPAGE_PRESET_CLASS` |
 | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) | Settings: same group; Custom sibling **outside** the group |
 | [`tradeMoneyCta.ts`](../frontend-dapp/src/utils/tradeMoneyCta.ts) | `TRADE_SLIPPAGE_PRESET_CLASS` (`min-h-11`, `#417`) |
 | [`slippageProtectionCopy.ts`](../frontend-dapp/src/utils/slippageProtectionCopy.ts) | Label, default, presets, Custom sanitize |
@@ -58,4 +58,4 @@ make test-frontend
 - Ticket footer must not cover chips: [`AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md`](./AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) (`#527`)
 - Design tokens / `tab-glass*`: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) (`#488`)
 - Focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md) (`#144`)
-- Touch targets: [`AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md`](./AGENTS_FRONTEND_TRADE_ONBOARDING_IA.md) (`#417`)
+- Ticket flatten (chips under Advanced on `/trade` Market): [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) (`#693`)

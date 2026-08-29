@@ -30,7 +30,7 @@ Styling only. **Do not** change escrow mapping, quote payloads, or on-chain `sid
 3. **T563-3 Connect paths stay** — disconnected users connect via shell header **and** ticket footer **Connect Wallet** (`TRADE_MONEY_CTA_CLASS`). Do not add a fourth connect path. Removing the chip must not remove the only connect path when the header is scrolled off (**A3**).
 4. **T563-4 Invert stays** — `trade-ticket-pair-invert` remains `shrink-0` and tappable. Heading + side labels use the **displayed** base after invert (#524). Colors still follow **bid=Buy / ask=Sell**, not “green means token0”.
 5. **T563-5 Semantic side colors** — Buy reads green (`side-buy-idle` / `side-buy-selected`); Sell reads red (`side-sell-*`). Selected vs idle is distinguishable without color (`aria-checked` + stronger fill / font-weight). Idle Sell must not look like `alert-error`. Selected Buy must not look like a success toast. Contrast on **dark and light**. `:focus-visible` rings stay on `.side-control`.
-6. **T563-6 Shared component** — `/trade` (`idPrefix="trade-ticket"`) and `/limits` (`idPrefix="limit-orders"`, compact) share `LimitOrderBidAskSideSelector`. Limit/Market tabs stay `tab-glass*`. Place/Market CTAs stay `btn-primary` (blue). Order-book Bid/Ask column colors unchanged.
+6. **T563-6 Shared component** — `/trade` (`idPrefix="trade-ticket"`) and `/limits` (`idPrefix="limit-orders"`, compact) share `LimitOrderBidAskSideSelector`. `/trade` Limit/Market tabs are compact underlined text (`.trade-order-text-tab`, [#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)) — not `tab-glass*`. Place/Market CTAs stay `btn-primary` (blue). Order-book Bid/Ask column colors unchanged.
 7. **T563-7 Behavior unchanged** — radiogroup + Arrow/Home/End (#153). `side === 'bid'` still escrows token1; `ask` escrows token0. Parents still clear/re-apply amounts on side change (#155). Click Buy still `onSideChange('bid')` (**A1** — a green/red swap is a fund-direction bug).
 8. **T563-8 Docs** — this playbook + `docs/frontend.md` + `docs/design-system.md`. Verify: `make verify-issue-563`.
 
@@ -40,7 +40,7 @@ Styling only. **Do not** change escrow mapping, quote payloads, or on-chain `sid
 2. **Connected identity lives in the header wallet control** — do not replace the chip with a static address the dApp does not own (**A4**).
 3. **Theme tokens** — `--side-buy-*` / `--side-sell-*` in `theme-dark.css` / `theme-light.css` (hue from `--color-positive` / `--color-negative`). A `data-theme` flip must not leave white-on-white side buttons (**A7**).
 4. **Do not paint primary money CTAs green/red.** Side controls only.
-5. **Do not restyle Limit vs Market tabs** to match Buy/Sell.
+5. **Do not restyle Limit vs Market tabs** to match Buy/Sell. `#693` already moved those tabs to compact underlined text — do not revert them to `tab-glass*` or paint them green/red.
 
 ## Verify
 
@@ -61,4 +61,5 @@ Issue: [GitLab **#563**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Design tokens: [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md)
 - Focus rings: [`AGENTS_FRONTEND_A11Y_FOCUS.md`](./AGENTS_FRONTEND_A11Y_FOCUS.md)
 - Trade desktop workspace (hide ticket / one mount): [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) ([#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561))
+- Ticket flatten / Market default / logo wash: [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693))
 - Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))

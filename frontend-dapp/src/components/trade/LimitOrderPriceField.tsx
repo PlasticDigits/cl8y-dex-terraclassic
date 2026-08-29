@@ -50,6 +50,111 @@ export type LimitOrderPriceInputWithContextProps = {
   token0Label: string
   token1Label: string
   compact?: boolean
+  /**
+   * When false, hide % chips + ref/USD context (moved under `/trade` Advanced, #693).
+   * Invalid buy/sell alert stays on the default path. `/limits` keeps the default true.
+   */
+  showDeviationChrome?: boolean
+}
+
+type DeviationChromeProps = {
+  side: 'bid' | 'ask'
+  price: string
+  onPriceChange: (v: string) => void
+  refToken1PerToken0: number | null
+  tapeHeadlineUsd: string | null | undefined
+  compact?: boolean
+  /** When false, omit the invalid alert (parent already shows it). */
+  includeInvalidAlert?: boolean
+}
+
+/** % chips + ref / USD. Used on `/limits` next to the price input, or under `/trade` Advanced (#693). */
+export function LimitOrderPriceDeviationChrome({
+  side,
+  price,
+  onPriceChange,
+  refToken1PerToken0: ref,
+  tapeHeadlineUsd,
+  compact,
+  includeInvalidAlert = true,
+}: DeviationChromeProps) {
+  const chipsUnavailableId = useId()
+  const limit = parsePositivePriceHuman(price)
+  const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
+  const invalid = ref != null && limit != null && side ? isLimitPriceDirectionInvalid(side, limit, ref) : false
+  const usd = ref != null && limit != null ? anchorUsdForLimitPrice(limit, ref, tapeHeadlineUsd) : null
+  const activeChip = matchingLimitPriceDeviationChip(side, limit, ref)
+  const chipsDisabled = ref == null || !(ref > 0)
+  const extremeValidDeviation = !invalid && dev != null && Math.abs(dev) >= 50
+
+  return (
+    <>
+      <div
+        className="mt-2 flex flex-wrap gap-2"
+        role="group"
+        aria-label="Limit price deviation from reference"
+        data-testid="limit-order-price-deviation-chips"
+      >
+        {LIMIT_PRICE_DEVIATION_CHIP_PRESETS.map((pct) => {
+          const isActive = activeChip === pct
+          return (
+            <button
+              key={pct}
+              type="button"
+              className={`limit-pct-chip${isActive ? ' limit-pct-chip-active' : ''}`}
+              disabled={chipsDisabled}
+              aria-pressed={isActive}
+              aria-describedby={chipsDisabled ? chipsUnavailableId : undefined}
+              data-testid={`limit-order-price-chip-${pct}`}
+              onClick={() => {
+                if (ref == null || !(ref > 0)) return
+                onPriceChange(limitPriceFromRefDeviationChip(side, ref, pct))
+              }}
+            >
+              {formatLimitPriceDeviationChipLabel(side, pct)}
+            </button>
+          )
+        })}
+      </div>
+      {chipsDisabled && (
+        <span id={chipsUnavailableId} className="sr-only">
+          Reference price unavailable — deviation chips disabled
+        </span>
+      )}
+      <div
+        className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 ${compact ? 'text-[10px]' : 'text-xs'}`}
+        style={{ color: 'var(--ink-dim)' }}
+        data-testid="limit-order-price-context"
+      >
+        {ref != null && ref > 0 && (
+          <span className="tabular-nums" style={{ color: 'var(--ink-subtle)' }}>
+            Ref {formatNum(ref, 6)}
+          </span>
+        )}
+        {dev != null && limit != null && (
+          <span
+            className="tabular-nums font-medium"
+            style={{
+              color: invalid
+                ? 'var(--color-negative, #ef4444)'
+                : extremeValidDeviation
+                  ? 'var(--color-warning, #e8b84a)'
+                  : 'var(--ink)',
+            }}
+          >
+            {dev > 0 ? '+' : ''}
+            {dev.toFixed(1)}%
+          </span>
+        )}
+        {includeInvalidAlert && invalid && (
+          <span className="font-medium" style={{ color: 'var(--color-negative, #ef4444)' }} role="alert">
+            Invalid {side === 'bid' ? 'buy' : 'sell'}
+          </span>
+        )}
+        {usd != null && Number.isFinite(usd) && <span className="tabular-nums opacity-80">≈ ${formatNum(usd, 4)}</span>}
+      </div>
+    </>
+  )
 }
 
 export function LimitOrderPriceInputWithContext({
@@ -63,17 +168,11 @@ export function LimitOrderPriceInputWithContext({
   token0Label,
   token1Label,
   compact,
+  showDeviationChrome = true,
 }: LimitOrderPriceInputWithContextProps) {
   void _refSource
-  const chipsUnavailableId = useId()
   const limit = parsePositivePriceHuman(price)
-  const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
   const invalid = ref != null && limit != null && side ? isLimitPriceDirectionInvalid(side, limit, ref) : false
-  const usd = ref != null && limit != null ? anchorUsdForLimitPrice(limit, ref, tapeHeadlineUsd) : null
-  const activeChip = matchingLimitPriceDeviationChip(side, limit, ref)
-  const chipsDisabled = ref == null || !(ref > 0)
-
-  const extremeValidDeviation = !invalid && dev != null && Math.abs(dev) >= 50
 
   return (
     <div className="space-y-1.5">
@@ -97,72 +196,27 @@ export function LimitOrderPriceInputWithContext({
             {token1Label}
           </span>
         </div>
-        <div
-          className="mt-2 flex flex-wrap gap-2"
-          role="group"
-          aria-label="Limit price deviation from reference"
-          data-testid="limit-order-price-deviation-chips"
-        >
-          {LIMIT_PRICE_DEVIATION_CHIP_PRESETS.map((pct) => {
-            const isActive = activeChip === pct
-            return (
-              <button
-                key={pct}
-                type="button"
-                className={`limit-pct-chip${isActive ? ' limit-pct-chip-active' : ''}`}
-                disabled={chipsDisabled}
-                aria-pressed={isActive}
-                aria-describedby={chipsDisabled ? chipsUnavailableId : undefined}
-                data-testid={`limit-order-price-chip-${pct}`}
-                onClick={() => {
-                  if (ref == null || !(ref > 0)) return
-                  onPriceChange(limitPriceFromRefDeviationChip(side, ref, pct))
-                }}
-              >
-                {formatLimitPriceDeviationChipLabel(side, pct)}
-              </button>
-            )
-          })}
-        </div>
-        {chipsDisabled && (
-          <span id={chipsUnavailableId} className="sr-only">
-            Reference price unavailable — deviation chips disabled
-          </span>
+        {invalid && (
+          <p
+            className="mt-1.5 text-[10px] font-medium"
+            style={{ color: 'var(--color-negative, #ef4444)' }}
+            role="alert"
+            data-testid="limit-order-price-invalid"
+          >
+            Invalid {side === 'bid' ? 'buy' : 'sell'}
+          </p>
         )}
-        <div
-          className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 ${compact ? 'text-[10px]' : 'text-xs'}`}
-          style={{ color: 'var(--ink-dim)' }}
-          data-testid="limit-order-price-context"
-        >
-          {ref != null && ref > 0 && (
-            <span className="tabular-nums" style={{ color: 'var(--ink-subtle)' }}>
-              Ref {formatNum(ref, 6)}
-            </span>
-          )}
-          {dev != null && limit != null && (
-            <span
-              className="tabular-nums font-medium"
-              style={{
-                color: invalid
-                  ? 'var(--color-negative, #ef4444)'
-                  : extremeValidDeviation
-                    ? 'var(--color-warning, #e8b84a)'
-                    : 'var(--ink)',
-              }}
-            >
-              {dev > 0 ? '+' : ''}
-              {dev.toFixed(1)}%
-            </span>
-          )}
-          {invalid && (
-            <span className="font-medium" style={{ color: 'var(--color-negative, #ef4444)' }} role="alert">
-              Invalid {side === 'bid' ? 'buy' : 'sell'}
-            </span>
-          )}
-          {usd != null && Number.isFinite(usd) && (
-            <span className="tabular-nums opacity-80">≈ ${formatNum(usd, 4)}</span>
-          )}
-        </div>
+        {showDeviationChrome && (
+          <LimitOrderPriceDeviationChrome
+            side={side}
+            price={price}
+            onPriceChange={onPriceChange}
+            refToken1PerToken0={ref}
+            tapeHeadlineUsd={tapeHeadlineUsd}
+            compact={compact}
+            includeInvalidAlert={false}
+          />
+        )}
       </div>
     </div>
   )

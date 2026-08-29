@@ -8,7 +8,13 @@ import { TRADE_MONEY_CTA_CLASS } from '@/utils/tradeMoneyCta'
 export const TRADE_TICKET_SUBMIT_FOOTER_TESTID = 'trade-ticket-submit-footer'
 
 export type TradeMarketSubmitChromeModel = {
+  /** True when a connected wallet can execute the swap (amount + gates). */
   canSubmit: boolean
+  /**
+   * Footer button disabled. Disconnected **Connect Wallet** stays clickable unless
+   * the pair is blocked (pause/freeze/blacklist) — same as Limit (**T563-3** / #693 A1).
+   */
+  disabled: boolean
   label: string
   onClick: () => void
   phase: TerraBroadcastPhase | null
@@ -38,7 +44,7 @@ export function TradeMarketSubmitChrome({ model }: { model: TradeMarketSubmitChr
       <button
         type="button"
         className={TRADE_MONEY_CTA_CLASS}
-        disabled={!model.canSubmit}
+        disabled={model.disabled}
         data-testid="trade-market-submit"
         onClick={model.onClick}
       >

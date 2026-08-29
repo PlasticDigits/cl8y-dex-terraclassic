@@ -143,7 +143,8 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
 
     await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
-    expect(await screen.findByTestId('trade-market-quote')).toHaveTextContent(/limit book \+ pool/i)
+    expect(await screen.findByTestId('trade-market-quote')).toBeInTheDocument()
+    expect(screen.getByTestId('trade-market-expected-receive')).toBeInTheDocument()
   })
 
   it('has no hybrid opt-out toggle; Advanced still quotes via GET (#596)', async () => {
@@ -167,7 +168,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
 
     await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled())
     expect(indexerClient.postRouteSolve).not.toHaveBeenCalled()
-    expect(await screen.findByTestId('trade-market-quote')).toHaveTextContent(/limit book \+ pool/i)
+    expect(await screen.findByTestId('trade-market-quote-extras')).toHaveTextContent(/limit book \+ pool/i)
   })
 
   it('submits GET solver hybrid with max_maker_fills submit cap (#501 / #249)', async () => {
@@ -288,6 +289,7 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
 
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    await openAdvanced(user)
 
     expect(await screen.findByTestId('trade-market-pre-submit-summary')).toBeInTheDocument()
     expect(screen.getByTestId('swap-confirm-action')).toHaveTextContent('Market swap')
@@ -314,10 +316,11 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
 
     await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
     await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    await openAdvanced(user)
 
-    const quoteCard = await screen.findByTestId('trade-market-quote')
-    expect(quoteCard).toHaveTextContent(/Estimated output from limit book \+ pool/i)
-    expect(quoteCard).not.toHaveTextContent(/Pattern C|hybrid_simulation|GitLab #/i)
+    const extras = await screen.findByTestId('trade-market-quote-extras')
+    expect(extras).toHaveTextContent(/Estimated output from limit book \+ pool/i)
+    expect(extras).not.toHaveTextContent(/Pattern C|hybrid_simulation|GitLab #/i)
   })
 
   it('surfaces hybrid min return copy in Advanced (#419 / #501 / #596)', async () => {

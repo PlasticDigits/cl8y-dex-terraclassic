@@ -47,6 +47,7 @@ async function openTradeMarket(page: Page, request: Parameters<typeof skipIfLcdU
   const marketTab = page.getByTestId('trade-order-tab-market')
   await expect(marketTab).toBeVisible({ timeout: 90_000 })
   await marketTab.click()
+  await page.getByTestId('trade-market-advanced-toggle').click()
   await expect(page.getByTestId(TRADE.p05)).toBeVisible({ timeout: 90_000 })
 }
 
@@ -230,6 +231,7 @@ test.describe('Slippage protection preset alignment (GitLab #528)', () => {
     await page.getByTestId('trade-order-tab-limit').click()
     await expect(page.getByTestId('trade-order-tab-limit')).toHaveAttribute('aria-selected', 'true')
     await page.getByTestId('trade-order-tab-market').click()
+    await page.getByTestId('trade-market-advanced-toggle').click()
     await expect(page.getByTestId(TRADE.p1)).toHaveClass(/tab-glass-active/)
     await assertAlignedGroup(page, TRADE)
   })

@@ -873,6 +873,44 @@
     text-overflow: clip;
   }
 
+  /* Compact Market/Limit text tabs (#693). Selected = underline + aria-selected, not tab-glass pills. */
+  .trade-order-text-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .trade-order-text-tab {
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0.125rem 0.125rem 0.2rem;
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    color: var(--ink-subtle);
+    cursor: pointer;
+    width: auto;
+  }
+
+  .trade-order-text-tab[aria-selected='true'] {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+
+  .trade-order-text-tab:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+    border-radius: 2px;
+  }
+
   .badge-glass {
     @apply inline-flex items-center px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide;
     border: 1px solid var(--chrome-border);

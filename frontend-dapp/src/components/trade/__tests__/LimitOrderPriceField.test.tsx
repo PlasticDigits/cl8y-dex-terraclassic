@@ -137,4 +137,24 @@ describe('LimitOrderPriceInputWithContext', () => {
     expect(screen.getByTestId('limit-order-price-chip-0')).toBeDisabled()
     expect(screen.getByTestId('limit-order-price-chip-10')).toBeDisabled()
   })
+
+  it('hides deviation chips when showDeviationChrome is false (#693)', () => {
+    render(
+      <LimitOrderPriceInputWithContext
+        side="ask"
+        price="3"
+        onPriceChange={vi.fn()}
+        inputId="price"
+        refToken1PerToken0={3}
+        refSource="tape"
+        tapeHeadlineUsd="1"
+        token0Label="AAA"
+        token1Label="BBB"
+        showDeviationChrome={false}
+      />
+    )
+    expect(screen.queryByTestId('limit-order-price-deviation-chips')).not.toBeInTheDocument()
+    expect(screen.getByTestId('limit-order-price-input')).toBeInTheDocument()
+    expect(screen.getByText('Invalid sell')).toBeInTheDocument()
+  })
 })
