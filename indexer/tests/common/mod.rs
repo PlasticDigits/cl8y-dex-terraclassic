@@ -112,6 +112,10 @@ pub async fn setup_pool() -> PgPool {
 
 /// Cross-process lock for shared `dex_indexer_test` (parallel `cargo test` / agents).
 /// Hold the returned file for the whole mutation window — `clean_db` only locks during TRUNCATE.
+///
+/// Do **not** call this after [`setup_pool`] (or anything that uses
+/// `hold_test_db_lock_for_process`): Linux `flock` is per file description, so a
+/// second `open` + `LOCK_EX` on the same inode deadlocks.
 pub fn lock_shared_test_db() -> std::fs::File {
     acquire_shared_test_db_lock()
 }

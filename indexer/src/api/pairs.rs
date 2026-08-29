@@ -342,7 +342,7 @@ pub struct CandleQuery {
     pub from: Option<String>,
     /// End time (RFC 3339). Omitted: current UTC.
     pub to: Option<String>,
-    /// Max results (capped at 1000)
+    /// Max results (capped at 1000). Default 200 **newest** bars in the window; JSON is oldest→newest (#705).
     pub limit: Option<i64>,
 }
 
@@ -423,6 +423,7 @@ pub async fn get_pair_candles(
         .unwrap_or(now);
     let limit = q.limit.unwrap_or(200).clamp(1, 1000);
 
+    // Newest-N inside `[from, to]`, chronological on the wire (GitLab #705).
     let rows = candles::get_candles(&state.pool, pair.id, &interval, from, to, limit)
         .await
         .map_err(internal_err)?;

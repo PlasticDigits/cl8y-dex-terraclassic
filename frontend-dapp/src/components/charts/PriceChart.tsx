@@ -257,7 +257,7 @@ export default function PriceChart({
                     sounds.playButtonPress()
                     setInterval_(iv)
                   }}
-                  className={`tab-glass !text-[10px] !px-2 !py-1 ${interval === iv ? 'tab-glass-active' : 'tab-glass-inactive'}`}
+                  className={`tab-glass price-chart-interval !text-[10px] !px-2 !py-1 ${interval === iv ? 'tab-glass-active' : 'tab-glass-inactive'}`}
                 >
                   {iv}
                 </button>
@@ -296,6 +296,7 @@ export default function PriceChart({
         >
           <PriceChartLightweightCanvas
             key={pairAddress}
+            interval={interval}
             candlePoints={chartPoints}
             volumePoints={volumePoints}
             sma7Points={sma7Points}

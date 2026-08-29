@@ -77,6 +77,27 @@ describe('indexerCandlesToChartPoints', () => {
     assertAllFiniteOHLC(pts)
   })
 
+  it('maps newest-first JSON to non-decreasing time (#705)', () => {
+    const newer = row({
+      open_time: '2026-08-29T12:00:00.000Z',
+      open: '3',
+      close: '3',
+      high: '3',
+      low: '3',
+    })
+    const older = row({
+      open_time: '2026-08-20T00:00:00.000Z',
+      open: '1',
+      close: '1',
+      high: '1',
+      low: '1',
+    })
+    const pts = indexerCandlesToChartPoints([newer, older])
+    expect(pts).toHaveLength(2)
+    expect(Number(pts[0].time)).toBeLessThan(Number(pts[1].time))
+    assertAllFiniteOHLC(pts)
+  })
+
   it('drops non-numeric open or close', () => {
     expect(indexerCandlesToChartPoints([row({ open: 'abc', close: '1' })])).toEqual([])
     expect(indexerCandlesToChartPoints([row({ open: '1', close: 'xyz' })])).toEqual([])

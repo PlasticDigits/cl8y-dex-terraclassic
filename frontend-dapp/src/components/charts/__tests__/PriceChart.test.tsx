@@ -101,17 +101,46 @@ describe('PriceChart', () => {
     expect(attribution).toHaveTextContent(/charting by tradingview/i)
   })
 
-  it('updates aria-live summary when switching 1h to 15m (GitLab #214)', async () => {
+  it('updates aria-live summary when switching 1h to 15m (GitLab #214 / #705)', async () => {
     const user = userEvent.setup()
     vi.mocked(indexerClient.getCandles).mockImplementation((_pair, interval) =>
-      Promise.resolve([candle({ close: interval === '15m' ? '1.15' : '1.09' })])
+      Promise.resolve([
+        candle({
+          open_time: interval === '15m' ? '2026-08-29T12:00:00.000Z' : '2026-08-20T00:00:00.000Z',
+          close: interval === '15m' ? '1.15' : '1.09',
+        }),
+      ])
     )
     renderWithProviders(<PriceChart pairAddress={pairA} tapeLastPriceUsd="1.5" />)
     await waitFor(() => expect(screen.getByText(/price chart\. interval 1h\./i)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '1h candle interval' })).toHaveClass(
+      'price-chart-interval',
+      'tab-glass-active'
+    )
+    expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveClass(
+      'price-chart-interval',
+      'tab-glass-inactive'
+    )
     await user.click(screen.getByRole('button', { name: '15m candle interval' }))
     await waitFor(() => expect(screen.getByText(/price chart\. interval 15m\./i)).toBeInTheDocument())
     expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: '1h candle interval' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: '15m candle interval' })).toHaveClass(
+      'price-chart-interval',
+      'tab-glass-active'
+    )
+    expect(screen.getByRole('button', { name: '1h candle interval' })).not.toHaveClass('tab-glass-active')
+  })
+
+  it('pressed interval chip keeps price-chart-interval under light theme (GitLab #705)', async () => {
+    document.documentElement.dataset.theme = 'light'
+    renderWithProviders(<PriceChart pairAddress={pairA} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: '1h candle interval' })).toBeInTheDocument())
+    const pressed = screen.getByRole('button', { name: '1h candle interval' })
+    expect(pressed).toHaveClass('price-chart-interval', 'tab-glass-active')
+    expect(pressed.className).not.toMatch(/-neo/)
+    expect(pressed.className).not.toMatch(/btn-primary/)
+    document.documentElement.removeAttribute('data-theme')
   })
 
   it('shows loading then renders chart chrome when data resolves', async () => {

@@ -31,7 +31,7 @@ Inverted UST1/cUSTC (`invertUsd` = quote USD) became a horizontal line at today�
 ## Do / don’t
 
 - **Do** call `apply_idle_usd_marks` after `hub_prices` snapshot replace (book-snapshot cadence + current USTC/LUNC handles).
-- **Do** keep GET `/candles` a materialized read (limit 1–1000, 90d default). Do not join `oracle_prices ⋈ swap_events` on GET.
+- **Do** keep GET `/candles` a materialized read (newest-N then ASC, limit 1–1000, 90d default — [#705](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/705)). Do not join `oracle_prices ⋈ swap_events` on GET.
 - **Do** merge mark USD with `merge_candle_ohlc` (`open` unchanged in an in-progress bucket).
 - **Don’t** restore `backfill_usd_from_hub` (full-table rewrite every ~10s).
 - **Don’t** add `ustr` / `ust1` / `custc` to CEX `OracleTicker`.
@@ -66,6 +66,7 @@ make verify-issue-515
 ```
 
 Indexer: `cargo test --lib pair_price_usd` and `cargo test --test candle_usd_mark --test api_hub_prices --test candle_human_usd -- --test-threads=1`.  
+`candle_usd_mark` `isolated_db` uses `setup_pool` (process flock) + `clean_db_holding` only — never `lock_shared_test_db` after `setup_pool` (nested `open`+`LOCK_EX` deadlocks).  
 Frontend: `priceChartCandles.test.ts` (varying as-of quote USD; latest human ≠ historical human).
 
 ## Related
@@ -75,3 +76,4 @@ Frontend: `priceChartCandles.test.ts` (varying as-of quote USD; latest human ≠
 - [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — `invertUsd` per bar
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — default invert UST1-as-base
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — CEX catalog stays 3 tickers
+- [`AGENTS_INDEXER_CANDLES_NEWEST_N.md`](./AGENTS_INDEXER_CANDLES_NEWEST_N.md) — GET newest-N; do not sparsify marks to “fix” 15m cutoff

@@ -134,19 +134,19 @@ fn invert(close: &BigDecimal, close_human: &BigDecimal) -> f64 {
     f64_bd(close) / f64_bd(close_human)
 }
 
-/// Hold the shared test-DB flock for the whole test so sibling cargo processes cannot
-/// TRUNCATE `pairs` mid-mark upsert (FK `candles_pair_id_fkey`).
-async fn isolated_db() -> (sqlx::PgPool, std::fs::File) {
+/// Truncate the shared test DB. `setup_pool` already holds the process-wide flock
+/// (`hold_test_db_lock_for_process`); do not call `lock_shared_test_db` after that —
+/// a second `open` + `LOCK_EX` on the same inode deadlocks (Linux flock is per fd).
+async fn isolated_db() -> sqlx::PgPool {
     let pool = common::setup_pool().await;
-    let lock = common::lock_shared_test_db();
     common::clean_db_holding(&pool).await;
-    (pool, lock)
+    pool
 }
 
 #[serial]
 #[tokio::test]
 async fn hub_refresh_does_not_rewrite_historical_usd() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
 
     let past = Utc::now() - Duration::hours(3);
@@ -222,7 +222,7 @@ async fn hub_refresh_does_not_rewrite_historical_usd() {
 #[serial]
 #[tokio::test]
 async fn two_ingest_stamps_keep_as_of_quote_usd() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
     let human = bd("200");
     let t0 = Utc::now() - Duration::hours(5);
@@ -273,7 +273,7 @@ async fn two_ingest_stamps_keep_as_of_quote_usd() {
 #[serial]
 #[tokio::test]
 async fn idle_ustc_tick_writes_mark_bars() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
     let now = Utc::now();
     let hub = HubQuoteUsd {
@@ -334,7 +334,7 @@ async fn idle_ustc_tick_writes_mark_bars() {
 #[serial]
 #[tokio::test]
 async fn idle_ustr_and_lunc_marks() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
 
     let clunc = insert_cw20(&pool, "terra1clunc568", "cLUNC", "cLUNC", 6).await;
@@ -417,7 +417,7 @@ async fn idle_ustr_and_lunc_marks() {
 #[serial]
 #[tokio::test]
 async fn swap_bar_keeps_trade_count_when_marked() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
     let now = Utc::now();
     let human = bd("200");
@@ -469,7 +469,7 @@ async fn swap_bar_keeps_trade_count_when_marked() {
 #[serial]
 #[tokio::test]
 async fn oracle_down_writes_no_usd_marks() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
     hub_prices::refresh_hub_prices(&pool, &hub_cfg(), None, None)
         .await
@@ -490,7 +490,7 @@ async fn oracle_down_writes_no_usd_marks() {
 #[serial]
 #[tokio::test]
 async fn skip_unknown_quote_and_spoof_native_ustr() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let gem = insert_cw20(&pool, "terra1gemx568", "GEMX", "GEMX", 6).await;
     let other = insert_cw20(&pool, "terra1gemy568", "GEMY", "GEMY", 6).await;
     let gem_pair = insert_pair(&pool, "terra1gempair568", gem, other).await;
@@ -560,7 +560,7 @@ async fn skip_unknown_quote_and_spoof_native_ustr() {
 #[serial]
 #[tokio::test]
 async fn get_candles_includes_mark_bars() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
     candle_mark::apply_idle_usd_marks(
         &pool,
@@ -607,7 +607,7 @@ async fn get_candles_includes_mark_bars() {
 #[serial]
 #[tokio::test]
 async fn repair_restores_as_of_ustc_oracle() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
     let t0 = Utc::now() - Duration::hours(2);
     let open_time = candle_builder::truncate_to_interval(t0, "1h");
@@ -680,7 +680,7 @@ async fn repair_restores_as_of_ustc_oracle() {
 #[serial]
 #[tokio::test]
 async fn clunc_ust1_factory_usd_still_tracks_human() {
-    let (pool, _lock) = isolated_db().await;
+    let pool = isolated_db().await;
     let _trio = seed_hub_trio(&pool).await;
     let clunc = insert_cw20(&pool, "terra1cluncust1568", "cLUNC", "cLUNC", 6).await;
     let ust1: i32 = sqlx::query_scalar("SELECT id FROM assets WHERE contract_address = $1")
