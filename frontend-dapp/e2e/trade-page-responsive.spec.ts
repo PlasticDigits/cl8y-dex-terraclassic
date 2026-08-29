@@ -121,6 +121,7 @@ test.describe('Trade page responsive layout (GitLab #146)', () => {
     })
     expect(hitFooter, 'pointer hit on Place limit must land in the ticket footer').toBe(true)
 
+    await page.locator('summary', { hasText: 'Advanced' }).first().click()
     const expiry = page.locator('#trade-ticket-expiry-dt')
     await expect(expiry).toBeAttached()
     await expiry.evaluate((el) => {
