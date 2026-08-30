@@ -4,6 +4,7 @@ import {
   bookWalkScanOverheadGas,
   gasLimitForHybridSwap,
   gasLimitForHybridParams,
+  gasLimitForGreedyParams,
   maxMakerFillsForSubmit,
 } from '../hybridSwapGas'
 import { MAX_SCAN_STEPS, MAX_EXPIRED_PARKS_PER_SWAP } from '../hybridBookWalkLimits'
@@ -66,5 +67,20 @@ describe('maxMakerFillsForSubmit', () => {
   it('adds buffer but does not exceed cap', () => {
     expect(maxMakerFillsForSubmit(8, 2)).toBe(4)
     expect(maxMakerFillsForSubmit(8, undefined)).toBe(8)
+  })
+})
+
+describe('gasLimitForGreedyParams (GitLab #708 / G13)', () => {
+  it('budgets a book walk, not the 600k pool-only envelope', () => {
+    const g = gasLimitForGreedyParams({ max_maker_fills: 8 })
+    expect(g).toBe(gasLimitForHybridSwap({ makersUsed: 8, hasPoolLeg: true }))
+    expect(g).toBeGreaterThan(840_000)
+    expect(g).toBeLessThanOrEqual(HYBRID_SWAP_GAS_LIMIT)
+  })
+
+  it('clamps oversize fills to MAX_MAKER_FILLS_HARD_CAP', () => {
+    const capped = gasLimitForGreedyParams({ max_maker_fills: 10_000 })
+    const atCap = gasLimitForGreedyParams({ max_maker_fills: 100 })
+    expect(capped).toBe(atCap)
   })
 })

@@ -264,12 +264,17 @@ fn execute_swap_operations(
         },
     )?;
 
-    let (first_hybrid, first_min_return) = match &first_op {
+    let (first_hybrid, first_greedy, first_min_return) = match &first_op {
         SwapOperation::TerraSwap {
-            hybrid, min_return, ..
-        } => (hybrid.clone(), *min_return),
-        SwapOperation::NativeSwap { .. } => (None, None),
+            hybrid,
+            greedy,
+            min_return,
+            ..
+        } => (hybrid.clone(), greedy.clone(), *min_return),
+        SwapOperation::NativeSwap { .. } => (None, None, None),
     };
+    validate_greedy_hop_mutex(&first_hybrid, &first_greedy)?;
+    validate_greedy_hop_execute_slippage_floor(&first_greedy, first_min_return)?;
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
@@ -279,6 +284,7 @@ fn execute_swap_operations(
         deadline: None,
         trader: Some(sender.to_string()),
         hybrid: first_hybrid,
+        greedy: first_greedy,
     };
 
     let send_msg = SubMsg::reply_on_success(
@@ -438,14 +444,19 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     SWAP_STATE.save(deps.storage, &state)?;
 
-    let (hop_hybrid, hop_min_return) = match &next_op {
+    let (hop_hybrid, hop_greedy, hop_min_return) = match &next_op {
         SwapOperation::TerraSwap {
-            hybrid, min_return, ..
-        } => (hybrid.clone(), *min_return),
-        SwapOperation::NativeSwap { .. } => (None, None),
+            hybrid,
+            greedy,
+            min_return,
+            ..
+        } => (hybrid.clone(), greedy.clone(), *min_return),
+        SwapOperation::NativeSwap { .. } => (None, None, None),
     };
+    validate_greedy_hop_mutex(&hop_hybrid, &hop_greedy)?;
     validate_hybrid_declared_split_for_no_belief(hop_output, &hop_hybrid)?;
     validate_hybrid_hop_execute_slippage_floor(&hop_hybrid, hop_min_return)?;
+    validate_greedy_hop_execute_slippage_floor(&hop_greedy, hop_min_return)?;
 
     let swap_msg = pair::Cw20HookMsg::Swap {
         belief_price: None,
@@ -455,6 +466,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         deadline: None,
         trader: Some(state.sender.to_string()),
         hybrid: hop_hybrid,
+        greedy: hop_greedy,
     };
 
     let send_msg = SubMsg::reply_on_success(
@@ -548,6 +560,26 @@ fn validate_hybrid_hop_execute_slippage_floor(
     Ok(())
 }
 
+fn validate_greedy_hop_mutex(
+    hybrid: &Option<pair::HybridSwapParams>,
+    greedy: &Option<pair::GreedySwapParams>,
+) -> Result<(), ContractError> {
+    pair::resolve_swap_hybrid_mode(hybrid.clone(), greedy.clone())
+        .map_err(|reason| ContractError::Std(cosmwasm_std::StdError::generic_err(reason)))?;
+    Ok(())
+}
+
+fn validate_greedy_hop_execute_slippage_floor(
+    greedy: &Option<pair::GreedySwapParams>,
+    min_return: Option<Uint128>,
+) -> Result<(), ContractError> {
+    if greedy.is_some() {
+        max_spread::validate_hybrid_book_requires_slippage_floor(Uint128::one(), None, min_return)
+            .map_err(hybrid_book_slippage_floor_router_error)?;
+    }
+    Ok(())
+}
+
 fn hybrid_pool_leg_router_error(e: CheckMaxSpreadError) -> ContractError {
     match e {
         CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
@@ -611,6 +643,7 @@ fn query_simulate_swap_operations(
                 offer_asset_info,
                 ask_asset_info,
                 hybrid,
+                greedy,
                 ..
             } => {
                 let pair_response: dex_common::factory::PairResponse =
@@ -621,9 +654,23 @@ fn query_simulate_swap_operations(
                         },
                     )?;
 
-                let hybrid_params = match hybrid {
-                    None => pair::pool_only_hybrid_params(current_amount),
-                    Some(h) => {
+                if hybrid.is_some() && greedy.is_some() {
+                    return Err(cosmwasm_std::StdError::generic_err(
+                        "cannot set both hybrid and greedy on a hop",
+                    ));
+                }
+
+                let (sim_hybrid, sim_greedy) = match (hybrid, greedy) {
+                    (_, Some(g)) => {
+                        if g.max_maker_fills == 0 {
+                            return Err(cosmwasm_std::StdError::generic_err(
+                                "max_maker_fills must be > 0 for greedy",
+                            ));
+                        }
+                        (None, Some(g.clone()))
+                    }
+                    (None, None) => (Some(pair::pool_only_hybrid_params(current_amount)), None),
+                    (Some(h), None) => {
                         if h.pool_input.checked_add(h.book_input)? != current_amount {
                             return Err(cosmwasm_std::StdError::generic_err(
                                 "hybrid pool_input + book_input must equal simulated offer amount for this hop",
@@ -634,7 +681,7 @@ fn query_simulate_swap_operations(
                             &Some(h.clone()),
                         )
                         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
-                        h.clone()
+                        (Some(h.clone()), None)
                     }
                 };
                 let sim: pair::HybridSimulationResponse = deps.querier.query_wasm_smart(
@@ -644,7 +691,8 @@ fn query_simulate_swap_operations(
                             info: offer_asset_info.clone(),
                             amount: current_amount,
                         },
-                        hybrid: hybrid_params,
+                        hybrid: sim_hybrid,
+                        greedy: sim_greedy,
                         trader: trader.clone(),
                         sender: sender.clone(),
                         belief_price: None,

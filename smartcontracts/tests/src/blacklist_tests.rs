@@ -172,6 +172,7 @@ fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -196,6 +197,7 @@ fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -273,6 +275,7 @@ fn wallet_blacklist_blocks_swap_lp_limits_and_unban_restores() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -365,6 +368,7 @@ fn token_blacklist_blocks_swap_both_directions() {
             to: None,
             deadline: None,
             hybrid,
+            greedy: None,
             trader: None,
         })
         .unwrap()
@@ -431,6 +435,7 @@ fn swap_b_to_c_on_pair(
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -471,6 +476,7 @@ fn pair_blacklist_blocks_target_pair_but_not_unrelated_control_pair() {
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -524,6 +530,7 @@ fn pair_blacklist_blocks_swap_and_lp() {
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -555,6 +562,7 @@ fn router_multihop_rejects_blacklisted_wallet() {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
             hybrid: None,
+            greedy: None,
             min_return: None,
         }],
         max_spread: Decimal::one(),
@@ -678,6 +686,7 @@ fn factory_blacklist_query_error_blocks_swap() {
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -743,6 +752,7 @@ fn blacklisted_maker_resting_limit_not_filled_taker_can_still_swap() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();

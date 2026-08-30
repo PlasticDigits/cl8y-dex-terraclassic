@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
-use dex_common::pair::HybridSwapParams;
+use dex_common::pair::{GreedySwapParams, HybridSwapParams};
 use dex_common::types::AssetInfo;
 
 #[cw_serde]
@@ -21,6 +21,9 @@ pub enum SwapOperation {
         ask_asset_info: AssetInfo,
         /// Pattern C: per-hop book vs pool split (None = 100% pool, TerraSwap-compatible default).
         hybrid: Option<HybridSwapParams>,
+        /// Opt-in greedy book-first on this hop (GitLab #708). Mutually exclusive with `hybrid`.
+        #[serde(default)]
+        greedy: Option<GreedySwapParams>,
         /// Per-hop minimum net ask output when this hop has `book_input > 0` without `belief_price`.
         #[serde(default)]
         min_return: Option<Uint128>,

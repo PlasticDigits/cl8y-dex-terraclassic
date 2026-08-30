@@ -17,10 +17,12 @@ Router and pair legacy `Simulation` queries were pool-only while Pattern C execu
 
 - CosmWasm queries do not persist book expiry cleanup; simulation skips expired orders without unlinking storage, matching execute only when the visible walk is unchanged.
 - `max_spread` / `belief_price` checks on execute use hybrid **total** gross output (pool gross + book net to taker) for the no-belief denominator; belief path uses full input vs book net + pool gross. Shared implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, GitLab **#197**).
+- **Greedy book-first ([GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)):** opt-in `greedy: { max_maker_fills, book_start_hint }` on pair `Swap` / router `TerraSwap`. Distinct from Pattern C (`HybridSwapParams`). **`hybrid: None` stays pool-only (G1)** — not greedy-by-default. Official dApp remains on `GET /route/solve`. Invariants **G1–G14**: [`skills/AGENTS_GREEDY_BOOK_FIRST.md`](../../skills/AGENTS_GREEDY_BOOK_FIRST.md).
 
 ## Links
 
 - [ADR 0002 — global best execution](./0002-global-best-execution-route-solver.md) (GitLab #209)
 - [GitLab #238 — hybrid sim fee-discount parity](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)
+- [GitLab #708 — greedy book-first](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)
 - `docs/limit-orders.md`
-- `docs/contracts-security-audit.md` (L8)
+- `docs/contracts-security-audit.md` (L8, G1–G14)

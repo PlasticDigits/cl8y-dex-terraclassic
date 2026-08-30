@@ -154,7 +154,7 @@ pub fn taker_fee_bps(effective_fee_bps: u16) -> u16 {
 }
 
 /// Result of matching the limit book against a taker budget.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BookMatchResult {
     /// Net ask-side output to the taker (after taker commission on each fill).
     pub return_net: Uint128,
@@ -168,6 +168,8 @@ pub struct BookMatchResult {
     pub expired_parks_skipped: u32,
     /// Book walk stopped because [`MAX_SCAN_STEPS`] was reached before `max_maker_fills` or list end.
     pub scan_steps_capped: bool,
+    /// Greedy stop reason when the walk used [`GreedyPoolRef`] (GitLab #708).
+    pub greedy_stop: Option<dex_common::pair::GreedyStopReason>,
     /// Sum of taker-side commission sent to treasury (denominated in the ask asset).
     pub commission_total: Uint128,
     /// Offer-token payouts per maker (deduped by owner; aggregated in `execute_swap`).
@@ -198,13 +200,15 @@ pub fn maker_payout_transfer_messages(
 }
 
 /// Read-only book match for hybrid simulation (no storage mutation, no CW20 msgs).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BookSimulateResult {
     pub return_net: Uint128,
     pub offer_consumed: Uint128,
     pub makers_used: u32,
     /// Same flag as [`BookMatchResult::scan_steps_capped`] for quote/execute parity.
     pub scan_steps_capped: bool,
+    /// Same greedy stop as execute when the sim walk used [`crate::greedy::GreedyPoolRef`].
+    pub greedy_stop: Option<dex_common::pair::GreedyStopReason>,
     /// Taker commission total in the ask asset (same basis as [`BookMatchResult::commission_total`]).
     pub commission_total: Uint128,
 }
@@ -1447,6 +1451,7 @@ pub fn match_bids(
     _treasury: &Addr,
     effective_fee_bps: u16,
     blacklist_gate: Option<&TradeBlacklistGate>,
+    greedy_pool: Option<crate::greedy::GreedyPoolRef>,
 ) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1458,6 +1463,7 @@ pub fn match_bids(
     let mut expired_parks_skipped = 0u32;
     let mut scan_steps = 0u32;
     let mut scan_steps_capped = false;
+    let mut greedy_stopped_worse = false;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
     let mut token1_escrow_sub_total = Uint128::zero();
@@ -1571,6 +1577,20 @@ pub fn match_bids(
             continue;
         }
 
+        if let Some(pool) = greedy_pool {
+            match crate::greedy::bid_beats_residual_pool(order.price, taker_bps, &pool)? {
+                crate::greedy::GreedyBeats::Skip => {
+                    cur = next_ptr;
+                    continue;
+                }
+                crate::greedy::GreedyBeats::No => {
+                    greedy_stopped_worse = true;
+                    break;
+                }
+                crate::greedy::GreedyBeats::Yes => {}
+            }
+        }
+
         makers_used += 1;
 
         let commission = cost
@@ -1619,6 +1639,14 @@ pub fn match_bids(
         expired_parks,
         expired_parks_skipped,
         scan_steps_capped,
+        greedy_stop: crate::greedy::greedy_stop_after_walk(
+            greedy_pool.is_some(),
+            greedy_stopped_worse,
+            scan_steps_capped,
+            makers_used,
+            cap,
+            token0_left,
+        ),
         commission_total,
         maker_payouts,
         fill_events,
@@ -1640,6 +1668,7 @@ pub fn match_asks(
     _treasury: &Addr,
     effective_fee_bps: u16,
     blacklist_gate: Option<&TradeBlacklistGate>,
+    greedy_pool: Option<crate::greedy::GreedyPoolRef>,
 ) -> Result<BookMatchResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1651,6 +1680,7 @@ pub fn match_asks(
     let mut expired_parks_skipped = 0u32;
     let mut scan_steps = 0u32;
     let mut scan_steps_capped = false;
+    let mut greedy_stopped_worse = false;
     let mut maker_payouts: BTreeMap<Addr, Uint128> = BTreeMap::new();
     let mut fill_events: Vec<Event> = Vec::new();
     let mut token0_escrow_sub_total = Uint128::zero();
@@ -1764,6 +1794,20 @@ pub fn match_asks(
             continue;
         }
 
+        if let Some(pool) = greedy_pool {
+            match crate::greedy::ask_beats_residual_pool(order.price, taker_bps, &pool)? {
+                crate::greedy::GreedyBeats::Skip => {
+                    cur = next_ptr;
+                    continue;
+                }
+                crate::greedy::GreedyBeats::No => {
+                    greedy_stopped_worse = true;
+                    break;
+                }
+                crate::greedy::GreedyBeats::Yes => {}
+            }
+        }
+
         makers_used += 1;
 
         // Fee on token0 output to taker (same denomination as net and treasury).
@@ -1813,6 +1857,14 @@ pub fn match_asks(
         expired_parks,
         expired_parks_skipped,
         scan_steps_capped,
+        greedy_stop: crate::greedy::greedy_stop_after_walk(
+            greedy_pool.is_some(),
+            greedy_stopped_worse,
+            scan_steps_capped,
+            makers_used,
+            cap,
+            token1_left,
+        ),
         commission_total,
         maker_payouts,
         fill_events,
@@ -1820,6 +1872,7 @@ pub fn match_asks(
 }
 
 /// Read-only bid match for hybrid quotes.
+#[allow(clippy::too_many_arguments)]
 pub fn simulate_match_bids(
     storage: &dyn Storage,
     now: u64,
@@ -1828,6 +1881,7 @@ pub fn simulate_match_bids(
     book_start_hint: Option<u64>,
     effective_fee_bps: u16,
     blacklist_gate: Option<&TradeBlacklistGate>,
+    greedy_pool: Option<crate::greedy::GreedyPoolRef>,
 ) -> Result<BookSimulateResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1837,6 +1891,7 @@ pub fn simulate_match_bids(
     let mut makers_used: u32 = 0;
     let mut scan_steps = 0u32;
     let mut scan_steps_capped = false;
+    let mut greedy_stopped_worse = false;
     let mut cur = resolve_match_start_hint(storage, book_start_hint, LimitOrderSide::Bid)?;
     while makers_used < cap {
         if !book_walk_step(&mut scan_steps) {
@@ -1917,6 +1972,19 @@ pub fn simulate_match_bids(
             cur = order.next;
             continue;
         }
+        if let Some(pool) = greedy_pool {
+            match crate::greedy::bid_beats_residual_pool(order.price, taker_bps, &pool)? {
+                crate::greedy::GreedyBeats::Skip => {
+                    cur = next_ptr;
+                    continue;
+                }
+                crate::greedy::GreedyBeats::No => {
+                    greedy_stopped_worse = true;
+                    break;
+                }
+                crate::greedy::GreedyBeats::Yes => {}
+            }
+        }
         makers_used += 1;
         let commission = cost
             .checked_mul(Uint128::new(taker_bps as u128))?
@@ -1934,11 +2002,20 @@ pub fn simulate_match_bids(
         offer_consumed: token0_budget.checked_sub(token0_left)?,
         makers_used,
         scan_steps_capped,
+        greedy_stop: crate::greedy::greedy_stop_after_walk(
+            greedy_pool.is_some(),
+            greedy_stopped_worse,
+            scan_steps_capped,
+            makers_used,
+            cap,
+            token0_left,
+        ),
         commission_total,
     })
 }
 
 /// Read-only ask match for hybrid quotes.
+#[allow(clippy::too_many_arguments)]
 pub fn simulate_match_asks(
     storage: &dyn Storage,
     now: u64,
@@ -1947,6 +2024,7 @@ pub fn simulate_match_asks(
     book_start_hint: Option<u64>,
     effective_fee_bps: u16,
     blacklist_gate: Option<&TradeBlacklistGate>,
+    greedy_pool: Option<crate::greedy::GreedyPoolRef>,
 ) -> Result<BookSimulateResult, ContractError> {
     let cap = max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP);
     let taker_bps = taker_fee_bps(effective_fee_bps);
@@ -1956,6 +2034,7 @@ pub fn simulate_match_asks(
     let mut makers_used: u32 = 0;
     let mut scan_steps = 0u32;
     let mut scan_steps_capped = false;
+    let mut greedy_stopped_worse = false;
     let mut cur = resolve_match_start_hint(storage, book_start_hint, LimitOrderSide::Ask)?;
     while makers_used < cap {
         if !book_walk_step(&mut scan_steps) {
@@ -2037,6 +2116,19 @@ pub fn simulate_match_asks(
             cur = order.next;
             continue;
         }
+        if let Some(pool) = greedy_pool {
+            match crate::greedy::ask_beats_residual_pool(order.price, taker_bps, &pool)? {
+                crate::greedy::GreedyBeats::Skip => {
+                    cur = next_ptr;
+                    continue;
+                }
+                crate::greedy::GreedyBeats::No => {
+                    greedy_stopped_worse = true;
+                    break;
+                }
+                crate::greedy::GreedyBeats::Yes => {}
+            }
+        }
         makers_used += 1;
         let commission = fill_t0
             .checked_mul(Uint128::new(taker_bps as u128))?
@@ -2054,6 +2146,14 @@ pub fn simulate_match_asks(
         offer_consumed: token1_budget.checked_sub(token1_left)?,
         makers_used,
         scan_steps_capped,
+        greedy_stop: crate::greedy::greedy_stop_after_walk(
+            greedy_pool.is_some(),
+            greedy_stopped_worse,
+            scan_steps_capped,
+            makers_used,
+            cap,
+            token1_left,
+        ),
         commission_total,
     })
 }
@@ -2845,6 +2945,7 @@ mod limit_price_band_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -2917,6 +3018,7 @@ mod book_start_hint_side_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -2973,6 +3075,7 @@ mod book_start_hint_side_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3013,8 +3116,17 @@ mod book_start_hint_side_tests {
             None,
         )
         .unwrap();
-        let sim = simulate_match_bids(storage, 1, Uint128::new(10_000), 8, Some(ask_id), 30, None)
-            .unwrap();
+        let sim = simulate_match_bids(
+            storage,
+            1,
+            Uint128::new(10_000),
+            8,
+            Some(ask_id),
+            30,
+            None,
+            None,
+        )
+        .unwrap();
         assert!(sim.makers_used >= 1);
         assert!(sim.return_net > Uint128::zero());
     }
@@ -3065,6 +3177,7 @@ mod aggregation_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3107,6 +3220,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
             None,
         )
         .unwrap();
@@ -3164,6 +3278,7 @@ mod aggregation_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3206,6 +3321,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
             None,
         )
         .unwrap_err();
@@ -3257,6 +3373,7 @@ mod aggregation_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3291,6 +3408,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
             None,
         )
         .unwrap();
@@ -3354,6 +3472,7 @@ mod aggregation_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3393,6 +3512,7 @@ mod aggregation_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
             None,
         )
         .unwrap();
@@ -3435,6 +3555,7 @@ mod aggregation_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
         assert_eq!(exec.makers_used, 5);
@@ -3451,7 +3572,7 @@ mod aggregation_tests {
         for _ in 0..5 {
             insert_bid(storage2, price, escrow, owner.clone(), None, 256, None).unwrap();
         }
-        let sim = simulate_match_bids(storage2, 1, budget, 8, None, 30, None).unwrap();
+        let sim = simulate_match_bids(storage2, 1, budget, 8, None, 30, None, None).unwrap();
         assert_eq!(sim.makers_used, exec.makers_used);
         assert_eq!(sim.offer_consumed, exec.offer_consumed);
         assert_eq!(sim.return_net, exec.return_net);
@@ -3637,6 +3758,7 @@ mod proptest_limits {
                 &Addr::unchecked("treasury"),
                 30,
                 None,
+                None
             )
             .unwrap();
             prop_assert!(result.makers_used <= cap);
@@ -3679,6 +3801,7 @@ mod proptest_limits {
                 &Addr::unchecked("treasury"),
                 30,
                 None,
+                None
             )
             .unwrap();
             prop_assert!(result.makers_used <= cap);
@@ -3728,6 +3851,7 @@ mod proptest_limits {
                 &Addr::unchecked("treasury"),
                 30,
                 None,
+                None
             ).unwrap();
             assert_escrow_matches_lists(storage);
         }
@@ -3773,6 +3897,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
             None,
         )
         .unwrap();
@@ -3834,6 +3959,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3874,6 +4000,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
 
@@ -3909,6 +4036,7 @@ mod expired_park_cap_tests {
             &Addr::unchecked("recv"),
             &Addr::unchecked("treasury"),
             30,
+            None,
             None,
         )
         .unwrap();
@@ -3955,10 +4083,11 @@ mod expired_park_cap_tests {
             &Addr::unchecked("treasury"),
             30,
             None,
+            None,
         )
         .unwrap();
-        let sim =
-            simulate_match_bids(storage, exp, Uint128::new(50_000), 8, None, 30, None).unwrap();
+        let sim = simulate_match_bids(storage, exp, Uint128::new(50_000), 8, None, 30, None, None)
+            .unwrap();
 
         assert!(exec.scan_steps_capped);
         assert_eq!(sim.scan_steps_capped, exec.scan_steps_capped);

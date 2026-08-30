@@ -51,16 +51,16 @@ function countSwapHops(msg: Record<string, unknown>): number {
 }
 
 function innerSwapUsesHybrid(inner: Record<string, unknown>): boolean {
-  const sw = inner.swap as { hybrid?: unknown } | undefined
-  return !!(sw && sw.hybrid != null)
+  const sw = inner.swap as { hybrid?: unknown; greedy?: unknown } | undefined
+  return !!(sw && (sw.hybrid != null || sw.greedy != null))
 }
 
 function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
   const e = msg.execute_swap_operations as
-    | { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> }
+    | { operations?: Array<{ terra_swap?: { hybrid?: unknown; greedy?: unknown } }> }
     | undefined
   if (!e?.operations) return false
-  return e.operations.some((op) => op.terra_swap?.hybrid != null)
+  return e.operations.some((op) => op.terra_swap?.hybrid != null || op.terra_swap?.greedy != null)
 }
 
 function gasLimitForExecuteSwapOperations(hops: number): number {
@@ -115,6 +115,31 @@ function gasForHybridRecord(hybrid: Record<string, unknown> | undefined): number
   return gasLimitForHybridSwap(makers)
 }
 
+function makersFromGreedy(greedy: Record<string, unknown> | undefined): number | undefined {
+  if (!greedy) return undefined
+  const fills = Number(greedy.max_maker_fills ?? 0)
+  if (!Number.isFinite(fills) || fills < 1) return undefined
+  return Math.min(100, Math.floor(fills))
+}
+
+function hopGreedyRecord(op: { terra_swap?: { greedy?: unknown } }): Record<string, unknown> | undefined {
+  const greedy = op.terra_swap?.greedy
+  if (greedy == null || typeof greedy !== 'object') return undefined
+  return greedy as Record<string, unknown>
+}
+
+function gasForGreedyRecord(greedy: Record<string, unknown> | undefined): number {
+  const makers = makersFromGreedy(greedy)
+  if (makers === undefined) return HYBRID_SWAP_GAS_LIMIT
+  return gasLimitForHybridSwap(makers)
+}
+
+function hopBookMakers(op: { terra_swap?: { hybrid?: unknown; greedy?: unknown } }): number | undefined {
+  const greedyMakers = makersFromGreedy(hopGreedyRecord(op))
+  if (greedyMakers !== undefined) return greedyMakers
+  return makersFromHybrid(hopHybridRecord(op))
+}
+
 function hopHybridRecord(op: { terra_swap?: { hybrid?: unknown } }): Record<string, unknown> | undefined {
   const hybrid = op.terra_swap?.hybrid
   if (hybrid == null || typeof hybrid !== 'object') return undefined
@@ -125,7 +150,9 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
   const poolOnly = gasLimitForRouterExecuteSwapOperations(hops)
   if (!executeSwapOpsUsesHybrid(msg)) return poolOnly
-  const e = msg.execute_swap_operations as { operations?: Array<{ terra_swap?: { hybrid?: unknown } }> } | undefined
+  const e = msg.execute_swap_operations as {
+    operations?: Array<{ terra_swap?: { hybrid?: unknown; greedy?: unknown } }>
+  } | undefined
   const ops = e?.operations ?? []
   if (!ops.length) return HYBRID_SWAP_GAS_LIMIT
 
@@ -133,8 +160,8 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   let parseableAny = 0
   let parseableBookHops = 0
   for (const op of ops) {
-    if (op.terra_swap?.hybrid != null) hasHybridField = true
-    const makers = makersFromHybrid(hopHybridRecord(op))
+    if (op.terra_swap?.hybrid != null || op.terra_swap?.greedy != null) hasHybridField = true
+    const makers = hopBookMakers(op)
     if (makers === undefined) continue
     parseableAny += 1
     if (makers > 0) parseableBookHops += 1
@@ -143,6 +170,11 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
 
   let total = 0
   for (const op of ops) {
+    const greedy = hopGreedyRecord(op)
+    if (greedy) {
+      total += gasForGreedyRecord(greedy)
+      continue
+    }
     const makers = makersFromHybrid(hopHybridRecord(op))
     if (makers !== undefined && makers > 0) {
       total += gasLimitForHybridSwap(makers)
@@ -163,8 +195,9 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
   }
   if ('swap' in executeMsg) {
     if (innerSwapUsesHybrid(executeMsg as Record<string, unknown>)) {
-      const hybrid = (executeMsg.swap as { hybrid?: Record<string, unknown> }).hybrid
-      return gasForHybridRecord(hybrid)
+      const sw = executeMsg.swap as { hybrid?: Record<string, unknown>; greedy?: Record<string, unknown> }
+      if (sw?.greedy) return gasForGreedyRecord(sw.greedy)
+      return gasForHybridRecord(sw?.hybrid)
     }
     return gasLimitForExecuteSwapOperations(1)
   }
@@ -190,7 +223,9 @@ export function getGasLimitForExecuteMsg(executeMsg: Record<string, unknown>): n
         }
         if ('swap' in inner) {
           if (innerSwapUsesHybrid(inner)) {
-            return gasForHybridRecord((inner.swap as { hybrid?: Record<string, unknown> }).hybrid)
+            const sw = inner.swap as { hybrid?: Record<string, unknown>; greedy?: Record<string, unknown> }
+            if (sw?.greedy) return gasForGreedyRecord(sw.greedy)
+            return gasForHybridRecord(sw?.hybrid)
           }
           return gasLimitForExecuteSwapOperations(1)
         }

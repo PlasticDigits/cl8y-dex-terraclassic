@@ -34,6 +34,7 @@ fn try_swap_a_to_b(
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
