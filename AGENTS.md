@@ -263,6 +263,7 @@ make verify-issue-557                    # #557 human tape / wallet Amount in/ou
 make verify-issue-556                    # #556 DEX hub USD (cUSTC/UST1/USTR) + Protocol DEX card
 make verify-issue-570                    # #570 Protocol hub cUSTC wrap link + LUNC/USD column
 make verify-issue-568                    # #568 time-stamped candle USD + idle mark-to-market
+make verify-issue-705                    # #705 GET /candles newest-N + interval refit + chip contrast
 make verify-issue-560                    # #560 portfolio/trader realized P&L USD from hub prices
 make verify-issue-675                    # #675 portfolio/trader unrealized P&L (hub mark vs on-DEX cost)
 make verify-issue-573                    # #573 post-merge stack !368–!377 (children 557–567)
@@ -323,6 +324,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Cosmostation CW20 pack | `make verify-issue-640` |
 | Hexxagon CW20 pack | `make verify-issue-641` |
 | Indexer lib | `cd indexer && cargo test --lib` |
+| Charts newest-N candles + interval chip | `make verify-issue-705` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
 Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need Postgres + `indexer/.env` — Cloud Agent: `make setup-indexer-postgres` (Postgres-only); full stack: [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
@@ -409,6 +411,8 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md](skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — factory economic fee USD (CL8Y + listed non-gems; hub card stays four cells) (**EFee-1–EFee-8**, [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)); `make verify-issue-683`
 - [skills/AGENTS_FRONTEND_PROTOCOL_HUB.md](skills/AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap CW20 identity + LUNC/USD column (**H11–H16**, [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)); `make verify-issue-570`
 - [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
+- [skills/AGENTS_INDEXER_CANDLES_NEWEST_N.md](skills/AGENTS_INDEXER_CANDLES_NEWEST_N.md) — GET `/candles` newest-N + interval `fitContent` + chart-interval chip (**C705-1–C705-8**, [#705](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/705)); `make verify-issue-705`
+- [skills/AGENTS_FRONTEND_PRICE_CHART.md](skills/AGENTS_FRONTEND_PRICE_CHART.md) — Price (USD) lightweight-charts canvas, interval switch, zoom (#148 / #336 / #705)
 - [skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md](skills/AGENTS_FRONTEND_PORTFOLIO_PNL.md) — `/portfolio` + `/trader` human-scale P&amp;L / cost / avg entry; mixed totals omitted or USD (**P551-1–P551-6**, [#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)); `make verify-issue-551`
 - [skills/AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md](skills/AGENTS_INDEXER_TRADER_POSITIONS_DECIMALS.md) — `/positions` 18-dec `NUMERIC(78, 18)` + `trade_count` vs `/trades` (**P676-1–P676-8**, [#676](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/676)); `make verify-issue-676`
 - [skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md](skills/AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` hides test-gem Open Positions / P&amp;L / recent activity by default (**P674-1–P674-8**, [#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674)); `make verify-issue-674`

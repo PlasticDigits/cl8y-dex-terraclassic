@@ -60,6 +60,11 @@ const {
     if (options) createChartOptionCalls.push(options)
     const panes: ReturnType<typeof makePane>[] = [makePane()]
 
+    const timeScaleApi = {
+      fitContent: vi.fn(),
+      getVisibleLogicalRange: vi.fn(() => ({ from: 0, to: 10 })),
+    }
+
     const chart: LwChartMock = {
       remove: vi.fn(),
       addPane: vi.fn(() => {
@@ -96,10 +101,7 @@ const {
           createPriceLine: vi.fn(),
         }
       }),
-      timeScale: () => ({
-        fitContent: vi.fn(),
-        getVisibleLogicalRange: vi.fn(() => ({ from: 0, to: 10 })),
-      }),
+      timeScale: () => timeScaleApi,
       applyOptions: vi.fn((options?: Record<string, unknown>) => {
         if (options) applyOptionsCalls.push({ options })
       }),

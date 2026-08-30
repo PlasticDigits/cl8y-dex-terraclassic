@@ -21,6 +21,8 @@ export interface PriceChartLightweightCanvasProps {
   showSma7: boolean
   showSma25: boolean
   showRsi: boolean
+  /** Interval chip value. `fitContent` after interval `setData` only (#705); not on 30s refetch (#336). */
+  interval?: string
 }
 
 /** TradingView lightweight-charts (open-source); not the hosted TradingView widget product. */
@@ -33,6 +35,7 @@ export function PriceChartLightweightCanvas({
   showSma7,
   showSma25,
   showRsi,
+  interval = '1h',
 }: PriceChartLightweightCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -67,6 +70,9 @@ export function PriceChartLightweightCanvas({
   const previousSma7PointsRef = useRef<IndicatorLinePoint[]>([])
   const previousSma25PointsRef = useRef<IndicatorLinePoint[]>([])
   const previousRsiPointsRef = useRef<IndicatorLinePoint[]>([])
+  const intervalRef = useRef(interval)
+  const fittedIntervalRef = useRef<string | null>(null)
+  intervalRef.current = interval
   const [chartModelReady, setChartModelReady] = useState(false)
 
   useEffect(() => {
@@ -160,6 +166,7 @@ export function PriceChartLightweightCanvas({
       previousVolumePointsRef.current = volumePointsRef.current
 
       chart.timeScale().fitContent()
+      fittedIntervalRef.current = intervalRef.current
 
       chartRef.current = chart
 
@@ -214,6 +221,7 @@ export function PriceChartLightweightCanvas({
       previousSma7PointsRef.current = []
       previousSma25PointsRef.current = []
       previousRsiPointsRef.current = []
+      fittedIntervalRef.current = null
       lcRef.current = null
       if (chart) {
         chart.remove()
@@ -259,6 +267,9 @@ export function PriceChartLightweightCanvas({
 
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return
+    const prevFirst = previousCandlePointsRef.current[0]?.time
+    const nextFirst = candlePoints[0]?.time
+    const intervalChanged = interval !== fittedIntervalRef.current
     candleSeriesRef.current.applyOptions({
       priceFormat: usdCandlePriceFormatFromPoints(candlePoints),
     })
@@ -299,7 +310,14 @@ export function PriceChartLightweightCanvas({
     } else {
       previousRsiPointsRef.current = []
     }
-  }, [candlePoints, volumePoints, sma7Points, sma25Points, rsiPoints])
+    // Interval switch: fit once after the new series `setData`. Placeholder rows keep the
+    // previous first-bar time, so we wait until the new interval payload arrives. Sliding
+    // newest-N windows change first-bar time at the same interval — do not fit (#336).
+    if (intervalChanged && candlePoints.length > 0 && prevFirst !== nextFirst) {
+      chartRef.current?.timeScale().fitContent()
+      fittedIntervalRef.current = interval
+    }
+  }, [candlePoints, volumePoints, sma7Points, sma25Points, rsiPoints, interval])
 
   return (
     <div

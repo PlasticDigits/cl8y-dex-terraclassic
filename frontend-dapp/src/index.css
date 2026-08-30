@@ -792,6 +792,40 @@
       0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
   }
 
+  /* Chart interval chips (#705): stronger blue than generic 14% tab-glass-active wash. */
+  .price-chart-interval.tab-glass-active {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--blue) 42%, transparent),
+      color-mix(in srgb, var(--blue) 16%, rgba(255, 255, 255, 0.04))
+    );
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--blue) 55%, var(--chrome-border));
+    box-shadow:
+      inset 0 1px 0 var(--chrome-highlight),
+      0 0 0 1px color-mix(in srgb, var(--blue) 28%, transparent),
+      0 12px 26px rgba(8, 12, 24, 0.2);
+  }
+
+  .price-chart-interval.tab-glass.tab-glass-active:focus-visible {
+    border-color: color-mix(in srgb, var(--blue) 55%, var(--chrome-border));
+    box-shadow:
+      inset 0 1px 0 var(--chrome-highlight),
+      0 0 0 1px color-mix(in srgb, var(--blue) 28%, transparent),
+      0 12px 26px rgba(8, 12, 24, 0.2),
+      0 0 0 2px color-mix(in srgb, var(--focus-ring) 28%, transparent);
+  }
+
+  :root[data-theme='light'] .price-chart-interval.tab-glass-active {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--blue) 28%, white),
+      color-mix(in srgb, var(--blue) 12%, white)
+    );
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--blue) 50%, var(--chrome-border));
+  }
+
   /* Buy/Sell side controls (#563): semantic fills; not tab-glass blue; not btn-primary. */
   .side-control {
     @apply inline-flex items-center font-medium uppercase tracking-wide transition-colors;

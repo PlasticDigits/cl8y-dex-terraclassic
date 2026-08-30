@@ -201,7 +201,7 @@ export async function getAllPairsPaged(maxPairs = 5000, pageSize = 100): Promise
   return out
 }
 
-/** Get OHLCV candles for a pair. */
+/** Get OHLCV candles for a pair. Indexer returns the newest `limit` bars, oldest→newest (#705). */
 export async function getCandles(
   pairAddr: string,
   interval = '1h',
