@@ -8,6 +8,7 @@ function norm(s: string): string {
   return s.trim()
 }
 
+import { CHUNK_LOAD_ROUTE_MESSAGE, isChunkLoadErrorMessage } from './chunkLoadError'
 import { INDEXER_RATE_LIMIT_RETRY_MESSAGE } from './marketDataServiceCopy'
 import {
   buildWrongNetworkConnectError,
@@ -66,8 +67,8 @@ export function tryHumanizeFetchLikeMessage(message: string): string | null {
   const m = norm(message)
   if (!m) return null
 
-  if (/dynamically imported module|importing a module script failed|chunkloaderror|loading chunk \d+ failed/i.test(m)) {
-    return 'This page could not load. You may be offline or the app was updated — check your connection and try again.'
+  if (isChunkLoadErrorMessage(m)) {
+    return CHUNK_LOAD_ROUTE_MESSAGE
   }
 
   if (/failed to fetch|networkerror when attempting to fetch|load failed|net::err_/i.test(m)) {

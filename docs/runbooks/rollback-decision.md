@@ -96,7 +96,7 @@ VITE_INDEXER_URL=https://<staging-indexer> npm run build
 
 - Static rollback does **not** undo user transactions broadcast during the bad window.
 - `VITE_*` are **baked in at build time** — rolling back without matching env reproduces the old bug if env was the root cause; verify env file against [deploy trace](../templates/deploy-trace.md).
-- Browser cache may serve stale `index.html` — use cache-bust headers or CDN purge.
+- Browser cache may serve stale `index.html` — HTML is `Cache-Control: no-cache, must-revalidate` ([`docker/frontend/nginx.conf`](../../docker/frontend/nginx.conf)). If a CDN ignores that, purge `/` and `/index.html` (not hashed JS). Long-lived tabs after a Coolify roll recover via one-shot document reload ([GitLab **#706**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706), [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](../../skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md)); a 404 of a **new** hash must not be cached as `immutable`.
 
 ### Recovery verification
 

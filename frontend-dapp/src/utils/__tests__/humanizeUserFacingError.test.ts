@@ -50,6 +50,15 @@ describe('tryHumanizeFetchLikeMessage', () => {
     ).toMatch(/could not load/)
   })
 
+  it('maps Firefox and Safari production chunk strings before generic fetch (GitLab #706)', () => {
+    expect(
+      tryHumanizeFetchLikeMessage(
+        'error loading dynamically imported module: https://dex.cl8y.com/assets/PoolPage-BrgV5Tp1.js'
+      )
+    ).toMatch(/could not load/)
+    expect(tryHumanizeFetchLikeMessage('Importing a module script failed.')).toMatch(/could not load/)
+  })
+
   it('maps Failed to fetch', () => {
     expect(tryHumanizeFetchLikeMessage('TypeError: Failed to fetch')).toMatch(/Network request failed/)
   })

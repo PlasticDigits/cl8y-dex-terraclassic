@@ -24,7 +24,8 @@ export interface LazyRouteProps {
 
 /**
  * Route-scoped Suspense + ErrorBoundary. "Try Again" bumps the lazy import attempt so
- * `import()` runs again after offline chunk failures (GitLab #172).
+ * `import()` runs again after offline chunk failures (GitLab #172). Online stale-hash
+ * 404s one-shot reload the document before painting Page unavailable (GitLab #706).
  */
 export function LazyRoute({ loader, resetKeys, fallback }: LazyRouteProps) {
   const [loadAttempt, setLoadAttempt] = useState(0)
