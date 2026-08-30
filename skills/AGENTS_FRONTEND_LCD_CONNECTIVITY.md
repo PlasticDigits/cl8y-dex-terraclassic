@@ -29,7 +29,7 @@ Use when the Terra **LCD** is unavailable and the dApp shows frozen spinners, mi
 
 ## Related
 
-- **Lazy route chunks (offline `import()`, not LCD):** [GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172), [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
+- **Lazy route chunks (offline `import()` / stale Coolify hash, not LCD):** [GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172) / [**#706**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706), [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
 
 - Retail error funnel: [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)
 - Trade indexer outage: [docs/frontend.md § Trade page — indexer outage banner](../docs/frontend.md#trade-page-indexer-outage-banner)

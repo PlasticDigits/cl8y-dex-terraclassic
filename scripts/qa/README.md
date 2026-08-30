@@ -276,6 +276,19 @@ Agent playbook: [`skills/AGENTS_POST_MERGE_OPS_686.md`](../../skills/AGENTS_POST
 
 Local/docs gate (no Coolify required): `make verify-issue-695`. Coolify leftover (unset production flag + rebuild) is [#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698). Do not reopen #695 for ops.
 
+### Stale lazy-chunk reload after Coolify (GitLab #706)
+
+Long-lived tab after a frontend image replace: hashed `PoolPage-*.js` 404s; **Try Again** cannot fetch a new shell. One-shot document reload + nginx 404 `no-store`. Offline Try Again stays [#172](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172).
+
+| Step | Expected |
+| ---- | -------- |
+| `make verify-issue-706` | Classifier + reload helper + LazyRoute + nginx greps / **L706-1–L706-8** |
+| Optional docker | HTML `no-cache`; hashed JS `immutable`; missing JS 404 `no-store` |
+| Optional Playwright | `e2e/stale-chunk-reload-706.spec.ts` at 5 workers |
+| Coolify leftover | After rebuild: leave Swap open across the roll, click Pool → one reload, page loads |
+
+Agent playbook: [`skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](../../skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
+
 ### Post-merge !474/!475 leftover verify (GitLab #698)
 
 After !475 (#694 API4) and !474 (#695 FE-01) landed on `main` (`3c4060ab+` / `489268eb+`). [#699](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/699) / [#700](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/700) are duplicates of #698.

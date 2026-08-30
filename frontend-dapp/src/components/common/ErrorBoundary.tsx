@@ -1,7 +1,15 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { humanizeUserFacingError } from '@/utils/humanizeUserFacingError'
-import { CHUNK_LOAD_ROUTE_HEADLINE, isChunkLoadError, sanitizeChunkLoadTechnicalDetail } from '@/utils/chunkLoadError'
+import {
+  CHUNK_LOAD_ROUTE_HEADLINE,
+  CHUNK_LOAD_UPDATING_MESSAGE,
+  isChunkLoadError,
+  reloadOnceOnStaleChunk,
+  reloadSameOriginDocument,
+  sanitizeChunkLoadTechnicalDetail,
+  wouldAutoReloadOnStaleChunk,
+} from '@/utils/chunkLoadError'
 
 function errorBoundaryFriendlyCopy(error: Error | null): ReactNode {
   const rawMsg = error?.message?.trim() ?? ''
@@ -35,6 +43,8 @@ function errorBoundaryFriendlyCopy(error: Error | null): ReactNode {
 interface ErrorBoundaryState {
   hasError: boolean
   error: Error | null
+  /** First paint of a recoverable stale-chunk miss — do not flash Page unavailable (#706). */
+  staleChunkReloading: boolean
 }
 
 export type ErrorBoundaryResetKey = string | number | boolean | null | undefined
@@ -60,32 +70,56 @@ export interface ErrorBoundaryProps {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
-    this.state = { hasError: false, error: null }
+    this.state = { hasError: false, error: null, staleChunkReloading: false }
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error }
+    return {
+      hasError: true,
+      error,
+      staleChunkReloading: wouldAutoReloadOnStaleChunk(error),
+    }
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Unhandled error:', error, errorInfo)
+    if (!this.state.staleChunkReloading) return
+    if (!reloadOnceOnStaleChunk(error)) {
+      this.setState({ staleChunkReloading: false })
+    }
   }
 
   componentDidUpdate(prevProps: ErrorBoundaryProps) {
     const { resetKeys } = this.props
     if (!this.state.hasError || !resetKeys?.length) return
     if (!errorBoundaryResetKeysEqual(prevProps.resetKeys, resetKeys)) {
-      this.setState({ hasError: false, error: null })
+      this.setState({ hasError: false, error: null, staleChunkReloading: false })
     }
   }
 
   private handleRetry = () => {
     this.props.onRetry?.()
-    this.setState({ hasError: false, error: null })
+    this.setState({ hasError: false, error: null, staleChunkReloading: false })
+  }
+
+  private handleReloadApp = () => {
+    reloadSameOriginDocument()
   }
 
   render() {
     if (this.state.hasError) {
+      if (this.state.staleChunkReloading) {
+        return (
+          <div
+            className="flex items-center justify-center py-24"
+            data-testid="stale-chunk-updating"
+            style={{ color: 'var(--ink-dim)' }}
+          >
+            <span className="text-sm uppercase tracking-wide font-medium">{CHUNK_LOAD_UPDATING_MESSAGE}</span>
+          </div>
+        )
+      }
+
       const chunkLoad = isChunkLoadError(this.state.error)
       const headline = this.props.isRoute && chunkLoad ? CHUNK_LOAD_ROUTE_HEADLINE : 'Something went wrong'
 
@@ -100,9 +134,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 {headline}
               </h2>
               {errorBoundaryFriendlyCopy(this.state.error)}
-              <button type="button" onClick={this.handleRetry} className="btn-primary btn-cta">
-                Try Again
-              </button>
+              <div className="flex flex-wrap gap-3 justify-center">
+                {chunkLoad ? (
+                  <button
+                    type="button"
+                    onClick={this.handleReloadApp}
+                    className="btn-primary btn-cta"
+                    data-testid="route-error-reload-app"
+                  >
+                    Reload app
+                  </button>
+                ) : null}
+                <button type="button" onClick={this.handleRetry} className="btn-primary btn-cta">
+                  Try Again
+                </button>
+              </div>
             </div>
           </div>
         )
@@ -121,10 +167,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               type="button"
               onClick={() => {
                 if (chunkLoad) {
-                  window.location.reload()
+                  reloadSameOriginDocument()
                   return
                 }
-                this.setState({ hasError: false, error: null })
+                this.setState({ hasError: false, error: null, staleChunkReloading: false })
                 window.location.href = '/'
               }}
               className="btn-primary btn-cta"

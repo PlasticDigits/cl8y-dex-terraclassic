@@ -16,7 +16,7 @@ Use when adding or changing **operator criteria** for rollback vs hotfix during 
 ## Rules of thumb
 
 1. **Classify blast radius first** — on-chain fund risk → pause before off-chain rollback.
-2. **Frontend rollback** restores static artifacts; it does **not** undo user txs.
+2. **Frontend rollback** restores static artifacts; it does **not** undo user txs. Stale hashed lazy chunks after a Coolify roll are recovered client-side ([#706](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706), [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md)) — purge HTML if a CDN ignores `no-cache` on `/index.html`.
 3. **Indexer rollback** may need paired `down.sql` under `indexer/migrations/revert/` — see [docs/testing.md § Manual rollback SQL](../docs/testing.md).
 4. **Contract migrate-back** requires prior `code_id` on chain + compatible state — prefer pause + forward-fix when uncertain.
 5. **Chain dependency** has no operator chain rollback — failover LCD/RPC and pause trading until network patch.

@@ -612,21 +612,29 @@ Regression: [`lcdConnectivity.test.ts`](../frontend-dapp/src/utils/__tests__/lcd
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md`](../skills/AGENTS_FRONTEND_LCD_CONNECTIVITY.md); error copy funnel: [`skills/AGENTS_FRONTEND_USER_ERRORS.md`](../skills/AGENTS_FRONTEND_USER_ERRORS.md).
 
-### Lazy route chunks (offline navigation) {#lazy-route-chunks}
+### Lazy route chunks (offline navigation + stale Coolify deploy) {#lazy-route-chunks}
 
 When the app is already loaded and the trader navigates to a route whose JS chunk is not cached (e.g. **Charts**, **Pool**), going offline must not strand them behind a full-screen crash with a broken **Try Again** ([GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172), W11-C3).
+
+A **long-lived tab after a Coolify frontend roll** is a different failure: the in-memory shell still names `PoolPage-<oldhash>.js` (or any other lazy page) which the new nginx image deleted. **Try Again** re-imports the same dead URL. The tab must **one-shot document-reload** to pick up a new `index.html` ([GitLab **#706**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706), **L706-1–L706-8**).
 
 | Invariant | Meaning |
 |-----------|---------|
 | Route-scoped shell | Every lazy page uses [`LazyRoute`](../frontend-dapp/src/components/common/LazyRoute.tsx): route-level [`ErrorBoundary`](../frontend-dapp/src/components/common/ErrorBoundary.tsx) (`isRoute`, `data-testid="route-error-boundary"`) inside [`Layout`](../frontend-dapp/src/components/common/Layout.tsx) — header/nav stay visible. |
-| Retry re-imports | **Try Again** calls `onRetry`, which bumps `loadAttempt` so `React.lazy(loader)` and `<Page key={loadAttempt} />` run a fresh `import()` (not just `setState` on the boundary). |
-| Chunk classifier | [`isChunkLoadError`](../frontend-dapp/src/utils/chunkLoadError.ts) / [`humanizeOffChainError`](../frontend-dapp/src/utils/humanizeOffChainError.ts) recognize `Failed to fetch dynamically imported module`, `Loading chunk N failed`, etc. |
-| Retail copy | Chunk failures show headline **`Page unavailable`** and humanized body copy (offline / stale deploy); technical details scrub dev-server URLs via [`sanitizeChunkLoadTechnicalDetail`](../frontend-dapp/src/utils/chunkLoadError.ts). |
+| Retry re-imports | **Try Again** calls `onRetry`, which bumps `loadAttempt` so `React.lazy(loader)` and `<Page key={loadAttempt} />` run a fresh `import()` (not just `setState` on the boundary). Offline / transient miss path ([#172](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172)). |
+| One-shot stale reload (**L706-1**) | Online `isChunkLoadError` calls [`reloadOnceOnStaleChunk`](../frontend-dapp/src/utils/chunkLoadError.ts): set `sessionStorage` `cl8y-dex-stale-chunk-reload`, then `window.location.reload()`. First paint is **Updating…** (`stale-chunk-updating`), not **Page unavailable**. Successful lazy mount ([`RouteContentReadyMarker`](../frontend-dapp/src/components/common/RouteContentReadyMarker.tsx)) **clears** the key. |
+| Guarded second failure (**L706-2**) | If the chunk 404s again after that reload, **do not** loop. Route card shows **Reload app** (`data-testid="route-error-reload-app"`) **and** **Try Again**. |
+| Offline (**L706-3**) | `navigator.onLine === false`: no auto-reload, no storage write. Same **Page unavailable** + **Try Again** as #172. |
+| Non-chunk errors (**L706-4**) | Render/logic/contract errors **must not** `location.reload()`. |
+| Chunk classifier (**L706-5**) | [`isChunkLoadError`](../frontend-dapp/src/utils/chunkLoadError.ts) / [`humanizeOffChainError`](../frontend-dapp/src/utils/humanizeOffChainError.ts) recognize Chrome `Failed to fetch dynamically imported module`, Firefox `error loading dynamically imported module`, Safari `Importing a module script failed`, and `Loading chunk N failed`. Not indexer `Failed to fetch`. Technical details scrub hashed production URLs via [`sanitizeChunkLoadTechnicalDetail`](../frontend-dapp/src/utils/chunkLoadError.ts). |
+| Retail copy | Chunk failures show headline **`Page unavailable`** and humanized body copy (offline / stale deploy); auto-reload uses **Updating…** instead of flashing the card. |
+| Same-origin only (**L706-6**) | Reload never assigns the failed module URL. No service worker. Do not eagerly import every page ([#179](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/179)). CSP unchanged. |
+| nginx cache (**L706-7**) | Hashed **200** JS/CSS: `public, immutable`. HTML / SPA routes: `no-cache, must-revalidate` (not `immutable`). Missing `*.js`: **404** `no-store` (not SPA HTML). [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf). |
 | App-level fallback | Root [`ErrorBoundary`](../frontend-dapp/src/App.tsx) still wraps the tree; chunk errors at app depth offer **Reload App** (`location.reload()`). |
 | Trader `resetKeys` | `/trader/:address` passes `resetKeys` so navigation clears a prior route error ([GitLab **#126**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/126)). |
 | Trade route fallback | `/trade` and `/trade/:pairAddr` pass `fallback={<TradePageRouteFallback />}` so the Suspense boundary paints a workspace skeleton, not only the generic spinner — see [§ Trade page — initial load / LCP](#trade-page-initial-load). |
 
-Regression: [`chunkLoadError.test.ts`](../frontend-dapp/src/utils/__tests__/chunkLoadError.test.ts), [`LazyRoute.test.tsx`](../frontend-dapp/src/components/common/__tests__/LazyRoute.test.tsx).
+Regression: [`chunkLoadError.test.ts`](../frontend-dapp/src/utils/__tests__/chunkLoadError.test.ts), [`LazyRoute.test.tsx`](../frontend-dapp/src/components/common/__tests__/LazyRoute.test.tsx), [`ErrorBoundary.test.tsx`](../frontend-dapp/src/components/common/__tests__/ErrorBoundary.test.tsx), E2E [`stale-chunk-reload-706.spec.ts`](../frontend-dapp/e2e/stale-chunk-reload-706.spec.ts). **`make verify-issue-706`**.
 
 **Third-party / agent context:** [`skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](../skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md).
 
