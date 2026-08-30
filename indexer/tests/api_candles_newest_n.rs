@@ -104,6 +104,38 @@ async fn default_15m_returns_newest_200_chronological() {
 
 #[serial]
 #[tokio::test]
+async fn coarse_intervals_still_return_newest_not_oldest() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    sqlx::query("DELETE FROM candles WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let newest = (Utc::now() - Duration::minutes(2)).trunc_subsecs(0);
+    // 4h: 90d window holds >200 bars. 1d/1w stay under the default 200 cap.
+    insert_series(&pool, seed.pair_id, "4h", newest, 250, 240).await;
+    insert_series(&pool, seed.pair_id, "1d", newest, 80, 1440).await;
+    // 10 weekly bars ≈ 9 weeks, inside the 90-day default window.
+    insert_series(&pool, seed.pair_id, "1w", newest, 10, 10080).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let base = format!("/api/v1/pairs/{}/candles", seed.pair_address);
+
+    for (iv, expect_len) in [("4h", 200usize), ("1d", 80), ("1w", 10)] {
+        let resp = server.get(&format!("{base}?interval={iv}")).await;
+        resp.assert_status_ok();
+        let body: Vec<Value> = resp.json();
+        assert_eq!(body.len(), expect_len, "{iv} row count");
+        let times: Vec<_> = body.iter().map(|r| parse_open_time(&r["open_time"])).collect();
+        assert_strictly_increasing(&times);
+        assert_eq!(times.last().copied(), Some(newest), "{iv} last must be newest");
+    }
+}
+
+#[serial]
+#[tokio::test]
 async fn limit_10_is_newest_10_ascending() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
@@ -362,4 +394,30 @@ async fn cross_pair_candles_do_not_leak() {
     let last = parse_open_time(&body.last().unwrap()["open_time"]);
     assert_eq!(last, newest_a);
     assert_ne!(last, newest_b);
+}
+
+#[serial]
+#[tokio::test]
+async fn negative_and_zero_limit_clamp_to_one_newest() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+    sqlx::query("DELETE FROM candles WHERE pair_id = $1")
+        .bind(seed.pair_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let newest = (Utc::now() - Duration::minutes(2)).trunc_subsecs(0);
+    insert_series(&pool, seed.pair_id, "15m", newest, 20, 15).await;
+
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let base = format!("/api/v1/pairs/{}/candles?interval=15m", seed.pair_address);
+
+    for limit in ["-1", "0"] {
+        let resp = server.get(&format!("{base}&limit={limit}")).await;
+        resp.assert_status_ok();
+        let body: Vec<Value> = resp.json();
+        assert_eq!(body.len(), 1, "limit={limit}");
+        assert_eq!(parse_open_time(&body[0]["open_time"]), newest);
+    }
 }

@@ -56,3 +56,4 @@ Indexer: `candle_human_usd.rs`, `candle_skip_zero_price.rs`.
 - [`AGENTS_FRONTEND_PRICE_CHART.md`](./AGENTS_FRONTEND_PRICE_CHART.md) — canvas / Y-axis / setData
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — factory `price_usd` meaning unchanged
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — indexer candle USD is time-stamped; idle oracle/hub ticks write `trade_count=0` bars; do not stitch CoinGecko on the client ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568))
+- [`AGENTS_INDEXER_CANDLES_NEWEST_N.md`](./AGENTS_INDEXER_CANDLES_NEWEST_N.md) — GET `/candles` is newest-N chronological; invert still per bar, never `1/x` on USD ([#705](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/705))

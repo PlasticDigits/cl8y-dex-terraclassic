@@ -53,6 +53,8 @@ run_step "docs: invariants + skills + AGENTS crosslinks" \
     grep -q "price-chart-interval" docs/frontend.md
     grep -q "AGENTS_INDEXER_CANDLES_NEWEST_N" skills/AGENTS_FRONTEND_PRICE_CHART.md
     grep -q "AGENTS_INDEXER_CANDLES_NEWEST_N" skills/AGENTS_INDEXER_CANDLE_USD_MARK.md
+    grep -q "AGENTS_INDEXER_CANDLES_NEWEST_N" skills/AGENTS_FRONTEND_USD_CANDLE_INVERT.md
+    grep -q "AGENTS_INDEXER_CANDLES_NEWEST_N" skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md
     grep -q "price-chart-interval" skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md
   '
 

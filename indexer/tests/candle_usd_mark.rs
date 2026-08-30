@@ -562,6 +562,18 @@ async fn skip_unknown_quote_and_spoof_native_ustr() {
 async fn get_candles_includes_mark_bars() {
     let pool = isolated_db().await;
     let trio = seed_hub_trio(&pool).await;
+    let old_open = candle_builder::truncate_to_interval(Utc::now() - Duration::hours(5), "1h");
+    sqlx::query(
+        "INSERT INTO candles (pair_id, interval, open_time, open, high, low, close,
+                             volume_base, volume_quote, trade_count)
+         VALUES ($1, '1h', $2, 1, 1.1, 0.9, 1.05, 100, 100, 1)",
+    )
+    .bind(trio.ust1_custc_pair)
+    .bind(old_open)
+    .execute(&pool)
+    .await
+    .unwrap();
+
     candle_mark::apply_idle_usd_marks(
         &pool,
         &hub_cfg(),
@@ -587,8 +599,10 @@ async fn get_candles_includes_mark_bars() {
         .await;
     assert_eq!(resp.status_code(), StatusCode::OK);
     let body: serde_json::Value = resp.json();
-    assert!(!body.as_array().unwrap().is_empty());
-    assert_eq!(body[0]["trade_count"], 0);
+    let rows = body.as_array().expect("candles array");
+    assert!(rows.len() >= 2, "old swap bar + current mark");
+    assert_eq!(rows.last().unwrap()["trade_count"], 0);
+    assert!(rows.iter().any(|r| r["trade_count"] == 1));
 
     let junk = server
         .get(&format!(

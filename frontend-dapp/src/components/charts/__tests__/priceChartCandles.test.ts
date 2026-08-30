@@ -98,6 +98,39 @@ describe('indexerCandlesToChartPoints', () => {
     assertAllFiniteOHLC(pts)
   })
 
+  it('newest-N rows still invertUsd per bar, not 1/x (#705 / #543)', () => {
+    const newer = row({
+      open_time: '2026-08-29T12:00:00.000Z',
+      open: '1.06',
+      high: '1.08',
+      low: '1.04',
+      close: '1.06',
+      open_human: '86.48',
+      high_human: '88',
+      low_human: '84',
+      close_human: '86.48',
+    })
+    const older = row({
+      open_time: '2026-08-20T00:00:00.000Z',
+      open: '0.000047',
+      high: '0.000048',
+      low: '0.000046',
+      close: '0.000047',
+      open_human: '0.000047',
+      high_human: '0.000048',
+      low_human: '0.000046',
+      close_human: '0.000047',
+    })
+    const factory = indexerCandlesToFactoryPoints([newer, older])
+    const inv = applyChartDisplayInvert(factory, true)
+    expect(inv).toHaveLength(2)
+    expect(Number(inv[0].time)).toBeLessThan(Number(inv[1].time))
+    expect(inv[0].close).toBeCloseTo(0.000047 / 0.000047, 8)
+    expect(inv[1].close).toBeCloseTo(1.06 / 86.48, 8)
+    expect(inv[1].close).not.toBeCloseTo(1 / 1.06, 3)
+    expect(inv[1].close).toBeCloseTo(invertUsdNumber(1.06, 86.48)!, 10)
+  })
+
   it('drops non-numeric open or close', () => {
     expect(indexerCandlesToChartPoints([row({ open: 'abc', close: '1' })])).toEqual([])
     expect(indexerCandlesToChartPoints([row({ open: '1', close: 'xyz' })])).toEqual([])
