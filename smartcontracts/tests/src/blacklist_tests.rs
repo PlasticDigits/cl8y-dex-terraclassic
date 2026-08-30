@@ -8,7 +8,8 @@ use dex_common::blacklist::BlacklistCheck;
 use dex_common::factory::ExecuteMsg as FactoryExecuteMsg;
 use dex_common::limit_placement::LimitOrderPlacementItem;
 use dex_common::pair::{
-    pool_only_hybrid_params, Cw20HookMsg, ExecuteMsg, HybridSwapParams, LimitOrderSide,
+    greedy_swap_params, pool_only_hybrid_params, Cw20HookMsg, ExecuteMsg, HybridSwapParams,
+    LimitOrderSide,
 };
 use dex_common::types::Asset;
 
@@ -807,4 +808,160 @@ fn blacklisted_maker_resting_limit_not_filled_taker_can_still_swap() {
         }),
         "blacklist park emits reason=blacklisted"
     );
+}
+
+/// **L19** / **#710** — blacklisted maker's better bid is not paid on greedy; taker still completes via pool.
+#[test]
+fn greedy_blacklist_maker_better_bid_not_filled() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    let maker = env.user.clone();
+    let taker = cosmwasm_std::Addr::unchecked("taker_greedy_bl_maker");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &maker,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let bid_escrow = Uint128::new(50_000);
+    app.execute_contract(
+        maker.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: bid_escrow,
+            msg: batch_place_msg(
+                LimitOrderSide::Bid,
+                Decimal::from_ratio(2u128, 1u128),
+                bid_escrow,
+            ),
+        },
+        &[],
+    )
+    .unwrap();
+
+    let maker_token_a_before = query_cw20_balance(&app, &env.token_a, &maker);
+    blacklist_wallet(&mut app, &env, &maker);
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: None,
+        greedy: Some(greedy_swap_params(8, None)),
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker,
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(10_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+
+    let maker_token_a_after = query_cw20_balance(&app, &env.token_a, &maker);
+    assert_eq!(
+        maker_token_a_after, maker_token_a_before,
+        "blacklisted maker must not receive offer-token payout from greedy"
+    );
+    assert!(
+        !res.events.iter().any(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_fill")
+        }),
+        "greedy must not emit limit_order_fill for a blacklisted maker"
+    );
+    let parked: Option<dex_common::pair::ExpiredLimitRefundResponse> = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &dex_common::pair::QueryMsg::ExpiredLimitRefund { order_id: 1 },
+        )
+        .unwrap();
+    assert!(parked.is_some(), "blacklisted maker order should park");
+}
+
+/// **L19** / **#710** — blacklisted taker greedy swap rejects; book unchanged.
+#[test]
+fn greedy_blacklist_taker_rejects() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    setup_liquid_pool(&mut app, &env);
+
+    let maker = env.user.clone();
+    let taker = cosmwasm_std::Addr::unchecked("taker_greedy_bl_taker");
+    transfer_tokens(&mut app, &env.token_a, &maker, &taker, Uint128::new(80_000));
+    let bid_escrow = Uint128::new(40_000);
+    app.execute_contract(
+        maker.clone(),
+        env.token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: env.pair.to_string(),
+            amount: bid_escrow,
+            msg: batch_place_msg(
+                LimitOrderSide::Bid,
+                Decimal::from_ratio(2u128, 1u128),
+                bid_escrow,
+            ),
+        },
+        &[],
+    )
+    .unwrap();
+    let remaining_before = {
+        let lo: dex_common::pair::LimitOrderResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::LimitOrder { order_id: 1 },
+            )
+            .unwrap();
+        lo.remaining
+    };
+    blacklist_wallet(&mut app, &env, &taker);
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: None,
+        greedy: Some(greedy_swap_params(8, None)),
+        trader: None,
+    })
+    .unwrap();
+    let err = app
+        .execute_contract(
+            taker,
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(10_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(is_blacklisted_err(err.root_cause()));
+    let remaining_after: dex_common::pair::LimitOrderResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &dex_common::pair::QueryMsg::LimitOrder { order_id: 1 },
+        )
+        .unwrap();
+    assert_eq!(remaining_after.remaining, remaining_before);
 }

@@ -2432,7 +2432,7 @@ fn simulate_hybrid_swap_with_fee(
     deps: Deps,
     env: &Env,
     input_amount: Uint128,
-    hybrid: &HybridSwapParams,
+    hybrid: Option<&HybridSwapParams>,
     greedy: Option<&GreedySwapParams>,
     offer_asset_info: &AssetInfo,
     effective_fee_bps: u16,
@@ -2451,15 +2451,10 @@ fn simulate_hybrid_swap_with_fee(
             greedy_stop: None,
         });
     }
-    let mode = resolve_swap_hybrid_mode(
-        if greedy.is_some() {
-            None
-        } else {
-            Some(hybrid.clone())
-        },
-        greedy.cloned(),
-    )
-    .map_err(|reason| ContractError::InvalidHybridParams { reason })?;
+    // Same mutex as execute (**G7** / **G11** / #709). Do not dummy-out hybrid
+    // when greedy is set — that quoted greedy while Swap rejected both fields.
+    let mode = resolve_swap_hybrid_mode(hybrid.cloned(), greedy.cloned())
+        .map_err(|reason| ContractError::InvalidHybridParams { reason })?;
     let (pool_leg, book_leg, max_makers, book_hint, greedy_enabled) = match &mode {
         SwapHybridMode::PoolOnly => (input_amount, Uint128::zero(), 0u32, None, false),
         SwapHybridMode::Declared(h) => {
@@ -2630,7 +2625,7 @@ fn simulate_hybrid_swap(
     deps: Deps,
     env: &Env,
     input_amount: Uint128,
-    hybrid: &HybridSwapParams,
+    hybrid: Option<&HybridSwapParams>,
     greedy: Option<&GreedySwapParams>,
     offer_asset_info: &AssetInfo,
     trader: Option<&str>,
@@ -2670,19 +2665,12 @@ fn query_hybrid_simulation(
     sender: Option<String>,
     belief_price: Option<Decimal>,
 ) -> StdResult<HybridSimulationResponse> {
-    let dummy = dex_common::pair::pool_only_hybrid_params(offer_asset.amount);
-    let (hybrid_ref, greedy_ref): (&HybridSwapParams, Option<&GreedySwapParams>) =
-        match (&hybrid, &greedy) {
-            (_, Some(_)) => (&dummy, greedy.as_ref()),
-            (Some(h), None) => (h, None),
-            (None, None) => (&dummy, None),
-        };
     simulate_hybrid_swap(
         deps,
         env,
         offer_asset.amount,
-        hybrid_ref,
-        greedy_ref,
+        hybrid.as_ref(),
+        greedy.as_ref(),
         &offer_asset.info,
         trader.as_deref(),
         sender.as_deref(),
@@ -2763,8 +2751,10 @@ fn query_hybrid_reverse_simulation(
             deps,
             env,
             offer,
-            &scale_hybrid_template(&hybrid, offer)
-                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+            Some(
+                &scale_hybrid_template(&hybrid, offer)
+                    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+            ),
             None,
             &offer_info,
             effective_fee_bps,

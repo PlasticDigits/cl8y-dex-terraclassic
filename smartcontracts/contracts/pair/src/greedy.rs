@@ -1,4 +1,4 @@
-//! Greedy book-first vs residual pool comparison (GitLab #708 / **G3**).
+//! Greedy book-first vs residual pool comparison (GitLab #708 / **G3**, leftovers #709).
 //!
 //! **Beats (pinned):** a live maker is taken only when the taker's **net ask per 1 offer
 //! (Decimal rate)** at that maker's executable price (after book taker commission) is **strictly
@@ -7,8 +7,11 @@
 //! maker "beat" the pool — rates avoid that artifact while matching the 1-unit *marginal* intent
 //! (**G3**). Unpriceable makers (`price == 0`, no inverse) are **skipped** (**L18** / **L20**),
 //! not treated as a stop.
+//!
+//! Pool-spot overflow (`Decimal::checked_from_ratio` fails when `output/input` ≳ 3.4×10²⁰) is
+//! **Skip**, not a VM panic (**A7** / #709). Equal Decimal rates are a stop (`No`), not Skip.
 
-use cosmwasm_std::{Decimal, Uint128, Uint256};
+use cosmwasm_std::{Decimal, Uint128};
 use dex_common::pair::GreedyStopReason;
 
 use crate::error::ContractError;
@@ -30,55 +33,23 @@ pub enum GreedyBeats {
     Skip,
 }
 
-fn u256(x: Uint128) -> Uint256 {
-    Uint256::from(x)
-}
-
-fn ceil_div_u256(numerator: Uint256, denominator: Uint256) -> Uint256 {
-    let d = numerator / denominator;
-    if d * denominator < numerator {
-        d + Uint256::one()
-    } else {
-        d
-    }
-}
-
 fn try_price_inverse(price: Decimal) -> Option<Decimal> {
     Decimal::one().checked_div(price).ok()
 }
 
-/// Net ask from dumping `offer` into the constant-product pool (same rounding as execute).
-pub fn constant_product_net_out(
-    input_reserve: Uint128,
-    output_reserve: Uint128,
-    offer: Uint128,
-    fee_bps: u16,
-) -> Result<Uint128, ContractError> {
-    if offer.is_zero() || input_reserve.is_zero() || output_reserve.is_zero() {
-        return Ok(Uint128::zero());
-    }
-    let k = u256(input_reserve).checked_mul(u256(output_reserve))?;
-    let new_input = input_reserve.checked_add(offer)?;
-    let new_output = Uint128::try_from(ceil_div_u256(k, u256(new_input))).map_err(|_| {
-        ContractError::InvariantViolation {
-            reason: format!("greedy pool new_output exceeds u128: {k} / {new_input}"),
-        }
-    })?;
-    let gross = output_reserve.saturating_sub(new_output);
-    let fee_numerator = gross.checked_mul(Uint128::new(fee_bps as u128))?;
-    let commission = fee_numerator.checked_div(Uint128::new(10000))?;
-    Ok(gross.checked_sub(commission)?)
-}
-
+/// Pool net rate after `effective_fee_bps`. Zero reserves or an unrepresentable
+/// `output/input` Decimal (overflow of `from_ratio`) → `None` so the caller **Skips**
+/// rather than panicking (**A7** / **L18** / **L20**).
 fn pool_spot_net(pool: &GreedyPoolRef) -> Option<Decimal> {
     if pool.input_reserve.is_zero() || pool.output_reserve.is_zero() {
         return None;
     }
-    let spot = Decimal::from_ratio(pool.output_reserve, pool.input_reserve);
-    let keep = Decimal::from_ratio(
+    let spot = Decimal::checked_from_ratio(pool.output_reserve, pool.input_reserve).ok()?;
+    let keep = Decimal::checked_from_ratio(
         (10_000u16.saturating_sub(pool.pool_fee_bps)) as u128,
         10_000u128,
-    );
+    )
+    .ok()?;
     spot.checked_mul(keep).ok()
 }
 
@@ -143,7 +114,10 @@ pub fn greedy_taker_bps(pool: &GreedyPoolRef) -> u16 {
     taker_fee_bps(pool.pool_fee_bps)
 }
 
-/// Classify why a greedy walk ended (**G3** stop reasons).
+/// Classify why a greedy walk ended (**G3** stop reasons, #709 remainder).
+///
+/// Priority: worse → scan_cap → filled (offer gone, makers>0) → empty (makers==0)
+/// → max_makers (at cap with offer left) → remainder_to_pool (makers>0, offer left).
 pub fn greedy_stop_after_walk(
     greedy: bool,
     stopped_worse: bool,
@@ -170,7 +144,7 @@ pub fn greedy_stop_after_walk(
     if makers_used >= cap {
         return Some(GreedyStopReason::MaxMakers);
     }
-    Some(GreedyStopReason::Empty)
+    Some(GreedyStopReason::RemainderToPool)
 }
 
 #[cfg(test)]
@@ -205,12 +179,63 @@ mod tests {
     }
 
     #[test]
-    fn equal_is_not_strictly_better() {
+    fn zero_price_bid_is_skip_not_stop() {
         let p = pool(1_000_000, 1_000_000, 0);
-        // Zero fee, 1:1 pool unit net = 0 (ceil_div k/(r+1) → gross 0) or 1.
-        // Use a bid whose unit net equals pool unit net when both are 0 → No or Skip.
         let beats = bid_beats_residual_pool(Decimal::zero(), 0, &p).unwrap();
         assert_eq!(beats, GreedyBeats::Skip);
+    }
+
+    #[test]
+    fn equal_bid_rate_is_stop_not_skip() {
+        let p = pool(1_000_000, 1_000_000, 0);
+        let beats = bid_beats_residual_pool(Decimal::one(), 0, &p).unwrap();
+        assert_eq!(beats, GreedyBeats::No);
+    }
+
+    #[test]
+    fn equal_ask_rate_is_stop_not_skip() {
+        let p = pool(1_000_000, 1_000_000, 0);
+        let beats = ask_beats_residual_pool(Decimal::one(), 0, &p).unwrap();
+        assert_eq!(beats, GreedyBeats::No);
+    }
+
+    #[test]
+    fn better_ask_beats_flat_pool() {
+        let p = pool(1_000_000, 1_000_000, 30);
+        let taker = greedy_taker_bps(&p);
+        // Ask price 0.5 token1/token0 → 2 token0 per token1, beats ~0.997 pool.
+        let beats = ask_beats_residual_pool(Decimal::percent(50), taker, &p).unwrap();
+        assert_eq!(beats, GreedyBeats::Yes);
+    }
+
+    #[test]
+    fn zero_reserves_skip() {
+        let empty_in = pool(0, 1_000_000, 30);
+        let empty_out = pool(1_000_000, 0, 30);
+        assert_eq!(
+            bid_beats_residual_pool(Decimal::from_ratio(2u128, 1u128), 0, &empty_in).unwrap(),
+            GreedyBeats::Skip
+        );
+        assert_eq!(
+            bid_beats_residual_pool(Decimal::from_ratio(2u128, 1u128), 0, &empty_out).unwrap(),
+            GreedyBeats::Skip
+        );
+    }
+
+    #[test]
+    fn pool_spot_overflow_is_skip_not_panic() {
+        // `Decimal::from_ratio` panics when numerator * 10^18 overflows Uint128
+        // (~output/input ≳ 3.4×10²⁰). checked_from_ratio → Skip (**A7**).
+        let p = GreedyPoolRef {
+            input_reserve: Uint128::new(1),
+            output_reserve: Uint128::MAX,
+            pool_fee_bps: 0,
+        };
+        assert!(pool_spot_net(&p).is_none());
+        let beats = bid_beats_residual_pool(Decimal::from_ratio(2u128, 1u128), 0, &p).unwrap();
+        assert_eq!(beats, GreedyBeats::Skip);
+        let ask = ask_beats_residual_pool(Decimal::percent(50), 0, &p).unwrap();
+        assert_eq!(ask, GreedyBeats::Skip);
     }
 
     #[test]
@@ -234,6 +259,10 @@ mod tests {
         assert_eq!(
             greedy_stop_after_walk(true, false, false, 0, 8, Uint128::new(1)),
             Some(GreedyStopReason::Empty)
+        );
+        assert_eq!(
+            greedy_stop_after_walk(true, false, false, 2, 8, Uint128::new(1)),
+            Some(GreedyStopReason::RemainderToPool)
         );
         assert_eq!(
             greedy_stop_after_walk(false, true, false, 0, 8, Uint128::new(1)),

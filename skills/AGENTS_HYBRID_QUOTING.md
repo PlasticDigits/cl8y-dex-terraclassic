@@ -56,6 +56,8 @@ cd smartcontracts && cargo test -p cl8y-dex-tests hybrid_wrong_side_book_start_h
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_spread
 cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
 make verify-issue-708   # #708 greedy book-first (G1–G14; multitest + gas)
+make verify-issue-709   # #709 query mutex + remainder_to_pool + pool_spot overflow
+make verify-issue-710   # #710 tax / pause / blacklist / AfterSwap L7
 make verify-issue-501   # #501 Trade GET default + docs/skills drift (unit); VERIFY_ISSUE_501_CHAIN=1 for Playwright
 make verify-issue-596   # #596 no hybrid opt-out on Swap/Trade; GET always-on (unit + docs)
 cd frontend-dapp && npm test -- src/utils/cw20RouteSolveQuote.test.ts

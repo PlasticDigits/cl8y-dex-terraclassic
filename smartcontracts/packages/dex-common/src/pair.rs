@@ -125,19 +125,23 @@ pub fn greedy_swap_params(max_maker_fills: u32, book_start_hint: Option<u64>) ->
 
 /// Why a greedy book walk stopped (wasm attr `greedy_stop`, **G3**).
 ///
-/// Wire names are stable snake_case (`"worse_than_pool"`, …).
+/// Wire names are stable snake_case (`"worse_than_pool"`, …). Pattern C JSON
+/// omits this field (**G14**). `empty` means **no maker was filled**; a book
+/// fill with leftover offer uses `remainder_to_pool` (**#709**).
 #[cw_serde]
 pub enum GreedyStopReason {
-    /// Next live maker does not strictly beat the residual 1-unit pool net.
+    /// Next live maker does not strictly beat the residual pool spot.
     WorseThanPool,
     /// Hit caller/hard `max_maker_fills` with offer still remaining.
     MaxMakers,
     /// Hit [`MAX_SCAN_STEPS`] before fills or a price stop.
     ScanCap,
-    /// No live same-side maker was filled (empty, all worse, all skipped).
+    /// No live same-side maker was filled (empty book, all worse, all skipped).
     Empty,
     /// Entire offer was consumed on the book.
     Filled,
+    /// At least one maker filled; leftover offer goes to the AMM (**G9**, #709).
+    RemainderToPool,
 }
 
 impl GreedyStopReason {
@@ -149,6 +153,7 @@ impl GreedyStopReason {
             Self::ScanCap => "scan_cap",
             Self::Empty => "empty",
             Self::Filled => "filled",
+            Self::RemainderToPool => "remainder_to_pool",
         }
     }
 }
@@ -568,9 +573,11 @@ pub enum QueryMsg {
     HybridSimulation {
         offer_asset: Asset,
         /// Declared Pattern C split. Omit (or `null`) when `greedy` is set (**G2** / **G11**).
+        /// Setting **both** `hybrid` and `greedy` errors — same mutex as execute (**G11** / #709).
         #[serde(default)]
         hybrid: Option<HybridSwapParams>,
-        /// Opt-in greedy book-first quote (same rule as execute, GitLab #708 / **G7**).
+        /// Opt-in greedy book-first quote. Uses the same `resolve_swap_hybrid_mode` as execute
+        /// (**G7** / **G11**, GitLab #708 / #709). Do not send together with `hybrid`.
         #[serde(default)]
         greedy: Option<GreedySwapParams>,
         /// When set, CL8Y fee-tier discount is applied (same math as execute). Omit for undiscounted quotes.
@@ -881,6 +888,10 @@ mod greedy_swap_mode_tests {
         assert_eq!(GreedyStopReason::ScanCap.as_attr(), "scan_cap");
         assert_eq!(GreedyStopReason::Empty.as_attr(), "empty");
         assert_eq!(GreedyStopReason::Filled.as_attr(), "filled");
+        assert_eq!(
+            GreedyStopReason::RemainderToPool.as_attr(),
+            "remainder_to_pool"
+        );
     }
 
     #[test]
