@@ -13,6 +13,7 @@ Greedy is an **opt-in** on-chain walk: fill live same-side makers that **strictl
 | **G1** | `hybrid: None` and `greedy: None` is **pool-only**. The book is not read. Do not flip this to greedy-by-default (owner note on #708 is a **follow-up**, not this MR). |
 | **G2** | Caller does **not** pass `pool_input` / `book_input` on greedy. Only `max_maker_fills` + optional `book_start_hint`. |
 | **G3** | Stop when the next **priceable** live maker's **net Decimal rate** (price after book taker commission) does **not strictly beat** the pool spot `output/input` after `effective_fee_bps`. Equal is a stop. Integer 1-raw-unit CP dumps floor to 0 on large reserves — rates match the 1-unit *marginal* intent. Unpriceable makers (`price == 0`, no inverse) are skipped (**L18** / **L20**), not a stop. |
+| **G4** | Not the solver. Do **not** search interior splits, grids, or multi-hop on-chain. Greedy ≤ indexer `GET /route/solve`; greedy ≥ pool-only when the book strictly beats the pool (modulo fees/dust). Official dApp stays on the solver. |
 | **G5** | `max_maker_fills == 0` **rejects**. Oversize **clamps** to `MAX_MAKER_FILLS_HARD_CAP` (100). |
 | **G6** | `book_start_hint` is caller-supplied; missing/stale/wrong-side → head (**L17**). |
 | **G7** | Quote = execute: `HybridSimulation` with `greedy` uses the same matcher as execute. |
