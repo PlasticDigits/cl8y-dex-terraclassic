@@ -76,6 +76,7 @@ pub mod blacklist_guard;
 pub mod contract;
 pub mod discount_cache;
 pub mod error;
+pub mod greedy;
 pub mod hybrid_reverse;
 pub mod limit_batch_withdraw;
 pub mod limit_book_clean;

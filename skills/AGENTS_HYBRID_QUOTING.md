@@ -12,7 +12,7 @@ You are changing **swap quotes**, **router simulation**, **indexer route solve**
    - **Rust:** `dex_common::pair::pool_only_hybrid_params(offer_amount)` (forward), `pool_only_hybrid_template()` (reverse ratio template).
    - **TypeScript:** `poolOnlyHybridParams(offerAmount)` / `poolOnlyHybridTemplate()` in [`frontend-dapp/src/services/terraclassic/poolOnlyHybrid.ts`](../frontend-dapp/src/services/terraclassic/poolOnlyHybrid.ts).
 4. **Router** `simulate_swap_operations`: `terra_swap.hybrid: null` still means pool-only on-chain — router maps that to `pool_only_hybrid_params` per hop.
-5. **Book-inclusive quotes:** non-zero `book_input`; must match execute `HybridSwapParams` for the same snapshot (queries do not park expired orders). **`book_start_hint`** must be same-side as the simulated matcher leg (**L17**, [GitLab **#272**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) — see [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md).
+5. **Book-inclusive quotes:** non-zero `book_input`; must match execute `HybridSwapParams` for the same snapshot (queries do not park expired orders). **`book_start_hint`** must be same-side as the simulated matcher leg (**L17**, [GitLab **#272**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) — see [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md). **Greedy book-first ([GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708))** is a separate opt-in (`greedy`, not Pattern C `book_input=offer`); `hybrid: None` stays pool-only (**G1**). Official dApp does **not** switch off `/route/solve` onto greedy — [`AGENTS_GREEDY_BOOK_FIRST.md`](./AGENTS_GREEDY_BOOK_FIRST.md).
 6. **Frontend hybrid quote = execute ([GitLab #418](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/418), [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501)):**
    - **Default (Swap + Trade market):** CW20↔CW20 quotes use indexer **`GET /route/solve`** via [`quoteCw20ViaRouteSolve`](../frontend-dapp/src/utils/cw20RouteSolveQuote.ts); submit uses solver `hybrid` from `indexerOperations` (`hybridFromSingleHopIndexerOps`). Wallet `simulate_swap_operations` is authoritative for receive.
    - **Advanced manual book leg:** When the user types a positive book amount, quotes use indexer `POST /route/solve` and/or wallet LCD `hybrid_simulation` with the **same** `pool_input` / `book_input` / `max_maker_fills` — never pool-only `simulateSwap` while that override is configured. Shared helper: [`directHybridQuote.ts`](../frontend-dapp/src/utils/directHybridQuote.ts). **Indexer POST branch must reconcile receive + slippage to wallet `hybrid_simulation`** (GitLab [#471](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/471)).
@@ -55,6 +55,9 @@ cd smartcontracts && cargo test -p cl8y-dex-pair book_start_hint_side_tests
 cd smartcontracts && cargo test -p cl8y-dex-tests hybrid_wrong_side_book_start_hint
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_order_tests::hybrid_max_spread
 cd smartcontracts && cargo test -p cl8y-dex-tests test_swap_max_spread
+make verify-issue-708   # #708 greedy book-first (G1–G14; multitest + gas)
+make verify-issue-709   # #709 query mutex + remainder_to_pool + pool_spot overflow
+make verify-issue-710   # #710 tax / pause / blacklist / AfterSwap L7
 make verify-issue-501   # #501 Trade GET default + docs/skills drift (unit); VERIFY_ISSUE_501_CHAIN=1 for Playwright
 make verify-issue-596   # #596 no hybrid opt-out on Swap/Trade; GET always-on (unit + docs)
 cd frontend-dapp && npm test -- src/utils/cw20RouteSolveQuote.test.ts

@@ -11,8 +11,8 @@ import {
   SWAP_GAS_SAFETY_MARGIN,
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
 } from '@/utils/constants'
-import type { HybridSwapParams } from '@/types'
-import { MAX_EXPIRED_PARKS_PER_SWAP, MAX_SCAN_STEPS } from './hybridBookWalkLimits'
+import type { GreedySwapParams, HybridSwapParams } from '@/types'
+import { MAX_EXPIRED_PARKS_PER_SWAP, MAX_MAKER_FILLS_HARD_CAP, MAX_SCAN_STEPS } from './hybridBookWalkLimits'
 
 function gasLimitForPoolOnlySingleHop(): number {
   const hopCount = 1
@@ -122,6 +122,27 @@ export function gasLimitForHybridParams(hybrid: HybridSwapParams | undefined): n
     hasPoolLeg = true
   }
   return gasLimitForHybridSwap({ makersUsed: makers, hasPoolLeg })
+}
+
+/** Parse greedy hook/router field. `max_maker_fills < 1` is unparseable (on-chain reject **G5**). */
+export function greedySwapParamsFromRecord(greedy: Record<string, unknown> | undefined): GreedySwapParams | undefined {
+  if (!greedy || typeof greedy !== 'object') return undefined
+  const maxFills = Number(greedy.max_maker_fills ?? 0)
+  if (!Number.isFinite(maxFills) || maxFills < 1) return undefined
+  return {
+    max_maker_fills: Math.floor(maxFills),
+    book_start_hint:
+      greedy.book_start_hint === null || greedy.book_start_hint === undefined ? null : Number(greedy.book_start_hint),
+  }
+}
+
+/**
+ * Greedy walks the live book then the pool (**G9**), so budget makers + pool leg.
+ * Unmapped greedy must not fall through to 600k pool-only (**G13** / #475).
+ */
+export function gasLimitForGreedyParams(greedy: GreedySwapParams): number {
+  const makers = Math.min(MAX_MAKER_FILLS_HARD_CAP, Math.max(1, greedy.max_maker_fills))
+  return gasLimitForHybridSwap({ makersUsed: makers, hasPoolLeg: true })
 }
 
 /** Align on-chain cap with quote + buffer without exceeding the UI/indexer cap (GitLab #249). */
