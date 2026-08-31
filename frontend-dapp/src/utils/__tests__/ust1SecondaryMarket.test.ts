@@ -24,12 +24,16 @@ describe('ust1SecondaryMarket (#508)', () => {
     expect(resolvesUst1SecondaryTokens('', '', 'cUSTC')?.quote).toBe(MAINNET_CUSTC_TOKEN_ADDRESS)
   })
 
-  it('builds Trade/Swap paths matching real routes (no fake query params)', () => {
+  it('builds Trade/Swap paths matching real routes (Swap query from/to, #711)', () => {
     expect(ust1SecondaryTradePath()).toBe('/trade')
     expect(ust1SecondaryTradePath('terra1pairaddrxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')).toBe(
       '/trade/terra1pairaddrxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
     )
-    expect(ust1SecondarySwapPath()).toBe('/')
+    const swapPath = ust1SecondarySwapPath()
+    expect(swapPath.startsWith('/?')).toBe(true)
+    const q = new URLSearchParams(swapPath.slice(1))
+    expect(q.get('from')).toBe(MAINNET_UST1_TOKEN_ADDRESS)
+    expect(q.get('to')).toBe(MAINNET_VFDUSD_TOKEN_ADDRESS)
     expect(isUst1SecondaryPairConfigured()).toBe(false)
   })
 

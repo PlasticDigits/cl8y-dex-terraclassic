@@ -1,0 +1,241 @@
+/**
+ * Swap deep-link query params (GitLab #711).
+ *
+ * Inbound aliases (Uniswap / Pancake / Terra DEX). First key family with a
+ * non-empty value wins; within a family, the last repeated key wins (same as
+ * Charts `?price=`). Hostile / overlong / wrong-chain values are ignored.
+ * Factory-gate + retail gem hide happen in {@link applySwapQueryParams}.
+ *
+ * Never concatenates user strings into URLs — outbound helpers use `URLSearchParams`.
+ */
+
+import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
+import { isRetailHiddenTestToken } from '@/utils/pairCatalogRank'
+import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
+import { lookupTokenIdByProductTicker } from '@/utils/tokenRegistry'
+
+export const SWAP_QUERY_VALUE_MAX_LEN = 80
+export const SWAP_QUERY_AMOUNT_MAX_CHARS = 24
+
+/** Pay-side keys, Uniswap-first then Terra / generic. Case-insensitive names. */
+export const SWAP_QUERY_PAY_KEYS = [
+  'inputCurrency',
+  'from',
+  'tokenIn',
+  'token_in',
+  'sellToken',
+  'currencyIn',
+  'inToken',
+  'pay',
+  'offer',
+] as const
+
+/** Receive-side keys. `to` is the Terra DEX token, not Uniswap `recipient`. */
+export const SWAP_QUERY_RECEIVE_KEYS = [
+  'outputCurrency',
+  'to',
+  'tokenOut',
+  'token_out',
+  'buyToken',
+  'currencyOut',
+  'outToken',
+  'receive',
+  'ask',
+] as const
+
+/** Optional You Pay human amount. Swap is pay-driven — no reverse quote. */
+export const SWAP_QUERY_AMOUNT_KEYS = ['exactAmount', 'amount', 'value', 'amountIn'] as const
+
+export type SwapQueryParse = {
+  payId: string | null
+  receiveId: string | null
+  payAmountHuman: string | null
+}
+
+export type AppliedSwapQuery = {
+  payId: string
+  receiveId: string
+  payAmountHuman: string | null
+}
+
+export type ApplySwapQueryOptions = {
+  /** Override production gem hide. Default: {@link isRetailHiddenTestToken}. */
+  isHiddenToken?: (tokenId: string) => boolean
+}
+
+function looksHostileSwapQueryValue(raw: string): boolean {
+  const t = raw.trim()
+  if (!t || t.length > SWAP_QUERY_VALUE_MAX_LEN) return true
+  if (/[<>"'`\\/?#\s]/.test(t)) return true
+  const lower = t.toLowerCase()
+  if (
+    lower.startsWith('javascript:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('http:') ||
+    lower.startsWith('https:') ||
+    lower.startsWith('//')
+  ) {
+    return true
+  }
+  if (lower.startsWith('0x')) return true
+  if (lower.startsWith('ibc/')) return true
+  if (lower.startsWith('factory/')) return true
+  return false
+}
+
+function toSearchParams(search: string | URLSearchParams | null | undefined): URLSearchParams {
+  if (search == null) return new URLSearchParams()
+  if (typeof search === 'string') {
+    return new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+  }
+  return search
+}
+
+/** Last non-empty value for a case-insensitive key name. */
+function lastNonEmptyForKey(params: URLSearchParams, key: string): string | null {
+  const want = key.toLowerCase()
+  let last: string | null = null
+  for (const [k, v] of params.entries()) {
+    if (k.toLowerCase() !== want) continue
+    const trimmed = v.trim()
+    if (trimmed) last = trimmed
+  }
+  return last
+}
+
+/** First alias family with a non-empty value; last repeat within that family. */
+function firstFamilyValue(params: URLSearchParams, keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const v = lastNonEmptyForKey(params, key)
+    if (v) return v
+  }
+  return null
+}
+
+/**
+ * Resolve a query value to an execute id (`uluna` / `uusd` / checksummed `terra1`).
+ * Tickers are case-insensitive. Unknown / hostile → `null` (never echo).
+ */
+export function resolveSwapQueryTokenValue(raw: string | null | undefined): string | null {
+  if (raw == null) return null
+  const trimmed = raw.trim()
+  if (!trimmed || looksHostileSwapQueryValue(trimmed)) return null
+  const lower = trimmed.toLowerCase()
+  if (lower === 'uluna' || lower === 'uusd') return lower
+  if (lower === 'eth' || lower === 'bnb' || lower === 'weth') return null
+  if (lower === 'ust') return 'uusd'
+  const fromTicker = lookupTokenIdByProductTicker(trimmed)
+  if (fromTicker) return fromTicker
+  if (lower.startsWith('terra1')) {
+    if (!isValidTerraBech32Address(trimmed)) return null
+    return trimmed
+  }
+  return null
+}
+
+function parseAmountValue(raw: string | null): string | null {
+  if (raw == null) return null
+  const trimmed = raw.trim()
+  if (!trimmed || trimmed.length > SWAP_QUERY_AMOUNT_MAX_CHARS) return null
+  if (!isPositiveDecimalAmount(trimmed)) return null
+  return trimmed
+}
+
+/**
+ * Parse search into resolved ids + optional pay amount. Does **not** factory-gate
+ * or hide gems — call {@link applySwapQueryParams} before setting Swap state.
+ */
+export function parseSwapQueryParams(search: string | URLSearchParams | null | undefined): SwapQueryParse {
+  const params = toSearchParams(search)
+  const payRaw = firstFamilyValue(params, SWAP_QUERY_PAY_KEYS)
+  const receiveRaw = firstFamilyValue(params, SWAP_QUERY_RECEIVE_KEYS)
+  const amountRaw = firstFamilyValue(params, SWAP_QUERY_AMOUNT_KEYS)
+  return {
+    payId: resolveSwapQueryTokenValue(payRaw),
+    receiveId: resolveSwapQueryTokenValue(receiveRaw),
+    payAmountHuman: parseAmountValue(amountRaw),
+  }
+}
+
+function canonicalFactoryTokenId(factoryTokenIds: readonly string[], id: string): string | null {
+  const lower = id.trim().toLowerCase()
+  if (!lower) return null
+  const hit = factoryTokenIds.find((t) => t.trim().toLowerCase() === lower)
+  return hit ?? null
+}
+
+function otherDefault(defaults: readonly [string, string], taken: string): string {
+  const t = taken.trim().toLowerCase()
+  const a = defaults[0]
+  const b = defaults[1]
+  if (a.trim().toLowerCase() === t) return b
+  return a
+}
+
+/**
+ * Factory-gate + gem hide + same-token / one-sided defaults.
+ * Pay and receive always differ when `defaults` are two distinct ids.
+ */
+export function applySwapQueryParams(
+  search: string | URLSearchParams | null | undefined,
+  factoryTokenIds: readonly string[],
+  defaults: readonly [string, string],
+  options?: ApplySwapQueryOptions
+): AppliedSwapQuery {
+  const isHidden = options?.isHiddenToken ?? isRetailHiddenTestToken
+  const parsed = parseSwapQueryParams(search)
+
+  const allow = (id: string | null): string | null => {
+    if (!id) return null
+    const canon = canonicalFactoryTokenId(factoryTokenIds, id)
+    if (!canon) return null
+    if (isHidden(canon)) return null
+    return canon
+  }
+
+  let pay = allow(parsed.payId)
+  let receive = allow(parsed.receiveId)
+
+  if (pay && receive && pay.trim().toLowerCase() === receive.trim().toLowerCase()) {
+    receive = null
+  }
+
+  if (!pay && !receive) {
+    return { payId: defaults[0], receiveId: defaults[1], payAmountHuman: parsed.payAmountHuman }
+  }
+  if (pay && !receive) {
+    receive = otherDefault(defaults, pay)
+    if (receive.trim().toLowerCase() === pay.trim().toLowerCase()) {
+      receive = defaults[1]
+    }
+  } else if (receive && !pay) {
+    pay = otherDefault(defaults, receive)
+    if (pay.trim().toLowerCase() === receive.trim().toLowerCase()) {
+      pay = defaults[0]
+    }
+  }
+
+  if (pay && receive && pay.trim().toLowerCase() === receive.trim().toLowerCase()) {
+    return { payId: defaults[0], receiveId: defaults[1], payAmountHuman: parsed.payAmountHuman }
+  }
+
+  return {
+    payId: pay ?? defaults[0],
+    receiveId: receive ?? defaults[1],
+    payAmountHuman: parsed.payAmountHuman,
+  }
+}
+
+/**
+ * First-party Swap href (`/?from=&to=`). Bech32 / native denoms only — not display tickers.
+ */
+export function swapDeepLinkPath(payId: string, receiveId: string, amountHuman?: string | null): string {
+  const q = new URLSearchParams()
+  q.set('from', payId)
+  q.set('to', receiveId)
+  const amount = amountHuman?.trim()
+  if (amount && isPositiveDecimalAmount(amount) && amount.length <= SWAP_QUERY_AMOUNT_MAX_CHARS) {
+    q.set('exactAmount', amount)
+  }
+  return `/?${q.toString()}`
+}

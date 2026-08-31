@@ -56,7 +56,7 @@ test.describe('Swap token select visual viewport clearance (GitLab #632)', () =>
     )
     expect(clearance.bottom).toBeGreaterThan(0)
     expect(clearance.bottom).toBeLessThanOrEqual(clearance.reserved + 1)
-    // Swap is the site root (`/`); `/swap` redirects there.
+    // Swap is the site root (`/`); `/swap` redirects there (search preserved, #711).
     expect(clearance.href).toMatch(/^\/(swap\/?)?$/)
   }
 

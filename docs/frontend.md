@@ -912,9 +912,36 @@ The frontend uses TerraSwap-compatible message names:
 
 | Route           | Description                                       |
 |-----------------|---------------------------------------------------|
-| `/`             | Swap interface — select tokens, enter amount, swap|
+| `/`             | Swap interface — select tokens, enter amount, swap. Query aliases on `/` and `/swap` ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711), [§ Swap query params](#swap-query-params)) |
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
+
+### Swap query params {#swap-query-params}
+
+[`SwapPage`](../frontend-dapp/src/pages/SwapPage.tsx) honors share/aggregator query strings on **`/`** ([GitLab **#711**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711)). **`/swap`** and **`/swap/`** redirect to `{ pathname: '/', search, hash }` via [`SwapAliasRedirect`](../frontend-dapp/src/components/common/SwapAliasRedirect.tsx) — the Swap tab stays `{ path: '/', end: true }`. Nginx SPA `try_files` already serves `/swap`; no rewrite required.
+
+Parser: [`swapQueryParams.ts`](../frontend-dapp/src/utils/swapQueryParams.ts). First key family with a non-empty value wins; last repeated key within a family wins (same as Charts `?price=`).
+
+| Role | Keys (case-insensitive names) |
+|------|-------------------------------|
+| Pay | `inputCurrency`, `from`, `tokenIn`, `token_in`, `sellToken`, `currencyIn`, `inToken`, `pay`, `offer` |
+| Receive | `outputCurrency`, `to`, `tokenOut`, `token_out`, `buyToken`, `currencyOut`, `outToken`, `receive`, `ask` |
+| Pay amount (optional) | `exactAmount`, `amount`, `value`, `amountIn` |
+
+| Invariant | Meaning |
+|-----------|---------|
+| **Q711-1** | `/swap` preserves `search` + `hash` on redirect to `/`. Do not mount a second Swap page at `/swap`. |
+| **Q711-2** | Apply only factory/wrap ids from `getAllTokens(pairs)` (#481). Unlisted `terra1` is ignored. |
+| **Q711-3** | Bech32 checksum (#382). Hostile / overlong / `javascript:` / `0x` / `ETH` / `ibc/` / `factory/` → ignore that side; never echo raw strings. |
+| **Q711-4** | Production gem hide (#562). `?showGems=1` has no effect (**X8**). |
+| **Q711-5** | `LUNC`/`uluna` → `uluna`; `USTC`/`UST`/`uusd` → `uusd`; hub tickers via registry. Display still **LUNC** / **USTC** (#630). |
+| **Q711-6** | Legal human amount prefills You Pay (≤ 24 chars, `isPositiveDecimalAmount`). No reverse quote. Never auto-submit; #678 quote-only / 5–30–99 / Expert / blacklist / pause / freeze still apply. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize` (#596). |
+| **Q711-7** | Apply once per search after tokens load. Query wins over `defaultRetailSwapTokenPair`. User picker/flip is not re-forced. |
+| **Q711-8** | No `/create?a=&b=` (**C542-11**). Trade stays `/trade/:pairAddr`. UST1 Swap links are AMM, not mint/redeem (**U1**). Silent fail-closed (#489). |
+
+First-party hrefs: `/?from=<id>&to=<id>` (`swapDeepLinkPath`, `ust1SecondarySwapPath`). Uniswap names are inbound-only.
+
+Regression: `make verify-issue-711`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](../skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md).
 
 ### Create pair — listed CW20 picker + custom paste {#create-pair-token-picker}
 

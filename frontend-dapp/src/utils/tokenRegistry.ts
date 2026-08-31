@@ -135,6 +135,23 @@ export function lookupByTokenId(tokenId: string): TokenRegistryEntry | undefined
 }
 
 /**
+ * Product ticker → execute id for Swap deep links (#711). Case-insensitive.
+ * `LUNC`/`uluna` → `uluna`; wrap / hub CW20s use env overlay then published columbus-5.
+ * Unknown tickers (including gems and EVM names) → `undefined`.
+ */
+export function lookupTokenIdByProductTicker(raw: string): string | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  const upper = trimmed.toUpperCase()
+  if (upper === 'LUNC' || upper === 'ULUNA') return 'uluna'
+  if (upper === 'USTC' || upper === 'UUSD') return 'uusd'
+  for (const [id, sym] of Object.entries(CW20_MAP)) {
+    if (sym.toUpperCase() === upper) return id
+  }
+  return undefined
+}
+
+/**
  * Static product ticker for known natives (`uluna`→LUNC, `uusd`→USTC) and listed CW20s
  * (cLUNC / cUSTC / UST1 / …). Undefined for unknown bank denoms (fail closed, GitLab #630).
  */

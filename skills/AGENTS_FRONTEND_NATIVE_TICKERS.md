@@ -56,6 +56,7 @@ Vitest: `tokenDisplay.test.ts`, `tokenRegistry.test.ts`, `tokenSearchQuery.test.
 ## Related
 
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap combobox / factory gate
+- [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — query tickers resolve to `uluna`/`uusd`; UI still shows LUNC/USTC ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711))
 - [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — copy/explorer payloads
 - [`AGENTS_MAINNET_WRAP_ENABLEMENT.md`](./AGENTS_MAINNET_WRAP_ENABLEMENT.md) — wrap env + cLUNC/cUSTC
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — natives never selectable
