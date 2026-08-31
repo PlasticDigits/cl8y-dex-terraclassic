@@ -4,6 +4,7 @@ import {
   lookupByCW20,
   lookupByTokenId,
   lookupByAssetInfo,
+  lookupTokenIdByProductTicker,
   registryProductSymbol,
   TOKENS,
 } from '../tokenRegistry'
@@ -67,6 +68,20 @@ describe('lookupByTokenId', () => {
 
   it('returns undefined for unknown', () => {
     expect(lookupByTokenId('xyz')).toBeUndefined()
+  })
+})
+
+describe('lookupTokenIdByProductTicker (GitLab #711)', () => {
+  it('maps native and hub tickers to execute ids', () => {
+    expect(lookupTokenIdByProductTicker('LUNC')).toBe('uluna')
+    expect(lookupTokenIdByProductTicker('lunc')).toBe('uluna')
+    expect(lookupTokenIdByProductTicker('USTC')).toBe('uusd')
+    expect(lookupTokenIdByProductTicker('CL8Y')).toBe(
+      'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+    )
+    expect(lookupTokenIdByProductTicker('cLUNC')?.startsWith('terra1')).toBe(true)
+    expect(lookupTokenIdByProductTicker('RUBY')).toBeUndefined()
+    expect(lookupTokenIdByProductTicker('ETH')).toBeUndefined()
   })
 })
 

@@ -22,7 +22,7 @@ Audience: third-party agents touching `/create`, token pickers, or `tokenlist.js
 - **Don’t** offer native `uluna` / `uusd` / LUNC / USTC. `tokenAssetInfo` would encode them as `native_token`; factory rejects natives.
 - **Don’t** use tokenlist `decimals` for any amount math. Create Pair sends no amounts.
 - **Don’t** add “verified safe” / “governance-audited token” copy. Listed = in our published catalog only.
-- **Don’t** add `/create?a=&b=` query prefill (phishing aid).
+- **Don’t** add `/create?a=&b=` query prefill (phishing aid). Swap deep links are a **different** surface ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711) / [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md)).
 - **Don’t** change factory `CreatePair`, whitelist, pair-creation fee, or LP ticker rules.
 
 ## Canonical code

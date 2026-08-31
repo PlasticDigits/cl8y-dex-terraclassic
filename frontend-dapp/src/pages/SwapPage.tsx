@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useId } from 'react'
+import { useState, useEffect, useCallback, useMemo, useId, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
@@ -46,6 +47,7 @@ import {
   isRetailHiddenTestToken,
   shouldRejectGemBridgeQuote,
 } from '@/utils/pairCatalogRank'
+import { applySwapQueryParams } from '@/utils/swapQueryParams'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import {
@@ -231,16 +233,32 @@ export default function SwapPage() {
     [allTokens]
   )
 
+  const [searchParams] = useSearchParams()
+  const swapQueryKey = searchParams.toString()
+  const appliedSwapQueryKeyRef = useRef<string | null>(null)
+
   useEffect(() => {
+    // Wait for factory pairs, not wrap-native-only getAllTokens([]). Stamping the
+    // apply-once ref against wrap natives drops a listed CW20 until the next
+    // search-string change (GitLab #711 AC1).
+    if (!pairsQuery.isSuccess) return
     const pair = defaultRetailSwapTokenPair(allTokens)
     if (!pair) return
     const [econFrom, econTo] = pair
+    if (appliedSwapQueryKeyRef.current !== swapQueryKey) {
+      appliedSwapQueryKeyRef.current = swapQueryKey
+      const applied = applySwapQueryParams(searchParams, allTokens, pair)
+      setFromToken(applied.payId)
+      setToToken(applied.receiveId)
+      if (applied.payAmountHuman != null) setInputAmount(applied.payAmountHuman)
+      return
+    }
     const fromHidden = !fromToken || isRetailHiddenTestToken(fromToken)
     const toHidden = !toToken || isRetailHiddenTestToken(toToken)
     if (!fromHidden && !toHidden) return
     if (fromHidden) setFromToken(econFrom)
     if (toHidden) setToToken(fromHidden ? econTo : fromToken === econTo ? econFrom : econTo)
-  }, [allTokens, fromToken, toToken])
+  }, [allTokens, fromToken, toToken, searchParams, swapQueryKey, pairsQuery.isSuccess])
 
   useEffect(() => {
     const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))

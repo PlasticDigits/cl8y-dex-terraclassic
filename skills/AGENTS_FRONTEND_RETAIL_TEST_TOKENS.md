@@ -54,6 +54,7 @@ Vitest: `pairCatalogRank.issue562.test.ts`, token/pair search filters, PairSearc
 - [`AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md`](./AGENTS_FRONTEND_PORTFOLIO_TEST_PAIRS.md) — `/portfolio` performance hide + toggle ([#674](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/674))
 - [`AGENTS_FRONTEND_PAIR_CATALOG_RANK.md`](./AGENTS_FRONTEND_PAIR_CATALOG_RANK.md) — empty-browse rank when gems **are** listed
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — Swap factory gate (#481)
+- [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap `?from=` still cannot force a gem on production (**Q711-4**, [#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711))
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — Create Pair listed CW20s
 - [`AGENTS_FRONTEND_POOL_TABLE.md`](./AGENTS_FRONTEND_POOL_TABLE.md) — `/pool` catalog
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — displayed hops = executed hops

@@ -19,13 +19,14 @@ Use when changing **header / mobile nav links**, **`Layout.tsx` routing UX**, or
 2. **Do not** remove **`key={location.pathname}`** from `<Outlet />` — without it, URL/active nav can update while the prior lazy page (e.g. Swap) stays mounted ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
 3. **Do not** add render-phase `setState` in `RouteContentReadyProvider` when `pathname` changes; `readyForPath === pathname` already prevents stale footer ready state ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138)).
 4. Keep route lists in **`navItems.ts`** only; extend Playwright when adding primary tabs at full-desktop width.
-5. **Swap route is `/`** (label “Swap”), not `/swap` — catch-all `*` redirects unknown paths to `/`.
+5. **Swap route is `/`** (label “Swap”). **`/swap` and `/swap/` redirect to `/` while preserving `search` and `hash`** ([GitLab **#711**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711)). Catch-all `*` still sends other unknown paths to `/` (query dropped). Do not mount `SwapPage` at `/swap` — tab `end: true` would go inactive.
 
 ## Related
 
 - My Portfolio route: [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md) ([GitLab **#212**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/212))
 - Responsive header density: [`AGENTS_FRONTEND_RESPONSIVE_HEADER.md`](./AGENTS_FRONTEND_RESPONSIVE_HEADER.md) ([GitLab **#136**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/136))
 - NFA footer / route ready gate: [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) ([GitLab **#138**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138))
+- Swap query params (`/swap?from=`): [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) ([GitLab **#711**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711))
 - Lazy route chunks: [`AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md`](./AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md) ([GitLab **#172**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/172) offline Try Again; [**#706**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706) stale Coolify hash)
 - Soft-launch Mint / faucet: [`AGENTS_SOFT_LAUNCH_FAUCET.md`](./AGENTS_SOFT_LAUNCH_FAUCET.md) ([GitLab **#473**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/473)) — Mint is a **conditional** More item (F11), not a primary tab
 - UST1 oracle window: [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) ([GitLab **#506**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)) — label **UST1**, never **Mint**; conditional More item (`includeUst1`, **U1**/**U2**)

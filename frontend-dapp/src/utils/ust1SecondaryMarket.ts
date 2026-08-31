@@ -77,11 +77,20 @@ export function ust1SecondaryTradePath(pairAddress?: string): string {
 }
 
 /**
- * Swap CTA target for `/ust1` secondary-market links.
- * SwapPage does not yet honor token query params — keep the home Swap route only.
+ * Swap CTA target for `/ust1` secondary-market links (GitLab #711).
+ * Uses `/?from=<ust1>&to=<quote>` so Swap honors the pair after factory gate.
+ * AMM ≠ mint/redeem (**U1**).
  */
 export function ust1SecondarySwapPath(): string {
-  return '/'
+  const tokens = resolvesUst1SecondaryTokens(
+    import.meta.env.VITE_UST1_TOKEN_ADDRESS || '',
+    import.meta.env.VITE_VFDUSD_TOKEN_ADDRESS || ''
+  )
+  if (!tokens) return '/'
+  const q = new URLSearchParams()
+  q.set('from', tokens.ust1)
+  q.set('to', tokens.quote)
+  return `/?${q.toString()}`
 }
 
 /** True when copy would violate U1 (case-insensitive substring match). */

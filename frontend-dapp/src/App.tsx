@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import Layout from './components/common/Layout'
+import { SwapAliasRedirect } from './components/common/SwapAliasRedirect'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { LazyRoute } from './components/common/LazyRoute'
 import { TradePageRouteFallback } from './components/trade/TradePageRouteFallback'
@@ -78,6 +79,8 @@ export default function App() {
                   element={<LazyRoute loader={() => import('./pages/ManageTokenPage')} />}
                 />
               </Route>
+              <Route path="/swap" element={<SwapAliasRedirect />} />
+              <Route path="/swap/" element={<SwapAliasRedirect />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
