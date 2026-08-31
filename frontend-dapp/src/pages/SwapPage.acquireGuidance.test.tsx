@@ -56,6 +56,11 @@ vi.mock('@/services/terraclassic/pair', () => ({
     commission_amount: '3000',
   }),
   swap: vi.fn().mockResolvedValue('txhash123'),
+  reverseSimulateSwap: vi.fn().mockResolvedValue({
+    offer_amount: '1000000',
+    spread_amount: '100',
+    commission_amount: '3000',
+  }),
   getPool: vi.fn().mockResolvedValue({
     assets: [
       { info: { token: { contract_addr: UST1 } }, amount: '1000000000000' },
@@ -173,8 +178,16 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '50000')
-    expect(await screen.findByTestId('swap-you-receive')).not.toHaveTextContent('0.00')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '50000')
+    await waitFor(() => {
+      const receive = screen.getByTestId('swap-you-receive')
+      if (receive.tagName === 'INPUT') {
+        expect((receive as HTMLInputElement).value).not.toMatch(/^0(\.0+)?$/)
+        expect((receive as HTMLInputElement).value).toMatch(/\d/)
+      } else {
+        expect(receive).not.toHaveTextContent('0.00')
+      }
+    })
     expect(await screen.findByTestId('swap-quote-only')).toHaveTextContent(/quote only/i)
     expect(screen.getByRole('button', { name: /connect wallet/i })).toBeEnabled()
     expect(screen.queryByText(/Min Received/i)).not.toBeInTheDocument()
@@ -187,7 +200,7 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '50000')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '50000')
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /insufficient balance/i })).toBeDisabled()
     })
@@ -204,7 +217,7 @@ describe('SwapPage acquire guidance (GitLab #678)', () => {
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '500')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '500')
     const guide = await screen.findByTestId('swap-acquire-guide')
     expect(screen.getByTestId('swap-acquire-message')).toHaveTextContent(/Deposit about/)
     expect(guide).toHaveAttribute('href', expect.stringMatching(/^\/ust1\?direction=deposit&amount=/))

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getInvalidTradePairRouteParam,
   getTradePageInvalidLinkNotice,
+  getTradePageTicketPrefill,
   getTradePageUnknownPairNotice,
   getUnknownTradePairRouteParam,
   isKnownFactoryTradePair,
@@ -22,6 +23,10 @@ describe('tradePairRoute', () => {
     expect(getTradePageInvalidLinkNotice(null)).toBeNull()
     expect(getTradePageUnknownPairNotice(undefined)).toBeNull()
     expect(getTradePageInvalidLinkNotice({ unknownPair: UNKNOWN_FORMAT })).toBeNull()
+    expect(getTradePageTicketPrefill({ ticketAmount: '1.5', ticketSide: 'ask' })).toEqual({
+      amountHuman: '1.5',
+      side: 'ask',
+    })
   })
 
   it('accepts valid terra1 pair addresses', () => {

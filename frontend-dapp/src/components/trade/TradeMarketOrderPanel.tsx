@@ -115,6 +115,7 @@ export function TradeMarketOrderPanel({
   dockSubmit = false,
   interactive = true,
   onSubmitChromeChange,
+  initialAmountHuman = null,
 }: {
   pairAddr: string
   selectedPair: PairInfo | undefined
@@ -126,6 +127,7 @@ export function TradeMarketOrderPanel({
   /** When false, ignore submit / wallet-open (hidden desktop ticket, GitLab #561). */
   interactive?: boolean
   onSubmitChromeChange?: (model: TradeMarketSubmitChromeModel | null) => void
+  initialAmountHuman?: string | null
 }) {
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
@@ -137,7 +139,9 @@ export function TradeMarketOrderPanel({
   const bookLegInputId = useId()
   const maxMakersInputId = useId()
 
-  const [marketAmountHuman, setMarketAmountHuman] = useState('')
+  const [marketAmountHuman, setMarketAmountHuman] = useState(() =>
+    initialAmountHuman && isPositiveDecimalAmount(initialAmountHuman) ? initialAmountHuman : ''
+  )
   /** Always-on best execution (#596). Typed book leg overrides via POST. */
   const [bookInputHuman, setBookInputHuman] = useState('')
   const [hybridMaxMakers, setHybridMaxMakers] = useState(8)

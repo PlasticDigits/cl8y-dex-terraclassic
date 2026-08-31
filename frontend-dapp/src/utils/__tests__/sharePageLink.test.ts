@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { COPY_BUTTON_FAILURE_MESSAGE } from '@/utils/copyButtonCopy'
-import { buildCanonicalShareUrl, isShareAbortError, shareOrCopyPageLink, traderShareText } from '@/utils/sharePageLink'
-import { SHARE_LINK_TITLE } from '@/utils/sharePageLinkCopy'
+import {
+  buildCanonicalShareUrl,
+  buildCanonicalSwapShareUrl,
+  isShareAbortError,
+  shareOrCopyPageLink,
+  swapShareText,
+  traderShareText,
+} from '@/utils/sharePageLink'
+import { SHARE_LINK_TITLE, SHARE_LINK_TITLE_SWAP } from '@/utils/sharePageLinkCopy'
 
 const TRADER = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 const PAIR = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
@@ -124,5 +131,37 @@ describe('shareOrCopyPageLink', () => {
     const result = await shareOrCopyPageLink(payload, { copy })
     expect(result).toEqual({ outcome: 'copy-failed', message: COPY_BUTTON_FAILURE_MESSAGE })
     expect(result.outcome === 'copy-failed' && result.message).not.toMatch(/DOMException|NotAllowedError/)
+  })
+})
+
+describe('buildCanonicalSwapShareUrl (#713)', () => {
+  const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+
+  it('builds origin + /?from=&to= and drops leftover search/hash (A2)', () => {
+    expect(
+      buildCanonicalSwapShareUrl({
+        origin: `https://dex.example.test/swap?recipient=evil&wc=1#frag`,
+        payId: 'uluna',
+        receiveId: UST1,
+        amountHuman: '1.5',
+        exactField: 'output',
+      })
+    ).toBe(`https://dex.example.test/?from=uluna&to=${UST1}&exactAmount=1.5&exactField=output`)
+  })
+
+  it('rejects hostile ids and never concatenates location.href leftovers', () => {
+    expect(
+      buildCanonicalSwapShareUrl({
+        origin: 'https://dex.example.test',
+        payId: 'javascript:alert(1)',
+        receiveId: 'uluna',
+      })
+    ).toBeNull()
+    expect(buildCanonicalSwapShareUrl({ origin: 'javascript:alert(1)', payId: 'uluna', receiveId: 'uusd' })).toBeNull()
+  })
+
+  it('share title is static product copy plus resolved symbols (A11)', () => {
+    expect(swapShareText('uluna', 'uusd')).toBe(`${SHARE_LINK_TITLE_SWAP} LUNC → USTC`)
+    expect(swapShareText('uluna', 'uusd')).not.toMatch(/script|from=/i)
   })
 })

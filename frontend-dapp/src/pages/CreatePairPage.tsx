@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { toastErrorMessage, useOptionalToast } from '@/contexts/toastContextState'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -12,6 +13,7 @@ import { sounds } from '@/lib/sounds'
 import { TxResultAlert } from '@/components/ui'
 import { CreatePairTokenField } from '@/components/create/CreatePairTokenField'
 import { getCreatePairCw20Addresses, sameCreatePairAddress } from '@/utils/createPairTokenCatalog'
+import { canonicalCreatePairSearch, parseCreatePairQuery } from '@/utils/createPairQuery'
 import { getTerraAddressInputError } from '@/utils/terraAddressValidation'
 import { UST1_CREATE_PAIR_SECONDARY_NOTICE } from '@/utils/ust1SecondaryMarket'
 
@@ -40,9 +42,23 @@ function useCodeIdCheck(tokenAddr: string) {
 export default function CreatePairPage() {
   const address = useWalletStore((s) => s.address)
   const toastApi = useOptionalToast()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tokenA, setTokenA] = useState('')
   const [tokenB, setTokenB] = useState('')
   const catalog = useMemo(() => getCreatePairCw20Addresses(), [])
+  const appliedCreateQueryRef = useRef(false)
+
+  useEffect(() => {
+    if (appliedCreateQueryRef.current) return
+    appliedCreateQueryRef.current = true
+    const parsed = parseCreatePairQuery(searchParams, catalog)
+    if (parsed.tokenA) setTokenA(parsed.tokenA)
+    if (parsed.tokenB) setTokenB(parsed.tokenB)
+    const canonical = canonicalCreatePairSearch(parsed)
+    if (canonical.toString() !== searchParams.toString()) {
+      setSearchParams(canonical, { replace: true })
+    }
+  }, [catalog, searchParams, setSearchParams])
 
   const checkA = useCodeIdCheck(tokenA)
   const checkB = useCodeIdCheck(tokenB)

@@ -17,7 +17,7 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
+import { simulateSwap, swap, getPool, reverseSimulateSwap } from '@/services/terraclassic/pair'
 import { quoteDirectHybridSwap, DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import {
@@ -47,7 +47,21 @@ import {
   isRetailHiddenTestToken,
   shouldRejectGemBridgeQuote,
 } from '@/utils/pairCatalogRank'
-import { applySwapQueryParams } from '@/utils/swapQueryParams'
+import {
+  applySwapQueryParams,
+  canonicalSwapSearch,
+  parseSwapExactField,
+  swapSearchEquals,
+} from '@/utils/swapQueryParams'
+import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
+import {
+  buildCanonicalSwapShareUrl,
+  resolveNavigatorCanShare,
+  resolveNavigatorShare,
+  swapShareText,
+} from '@/utils/sharePageLink'
+import { SHARE_LINK_ARIA_SWAP, SHARE_LINK_TITLE_SWAP } from '@/utils/sharePageLinkCopy'
+import { useCoarseNarrowViewport } from '@/hooks/useCoarseNarrowViewport'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import {
@@ -198,8 +212,10 @@ export default function SwapPage() {
   const swapHybridBookLegAmountInputId = useId()
   const swapHybridMaxMakersInputId = useId()
   const swapYouPayAmountInputId = useId()
+  const swapYouReceiveAmountInputId = useId()
 
   const [inputAmount, setInputAmount] = useState('')
+  const [exactField, setExactField] = useState<'input' | 'output'>('input')
   const [fromToken, setFromToken] = useState<string>('')
   const taxSell = useCommunityTaxSellBps(fromToken.startsWith('terra1') ? fromToken : null)
   const [toToken, setToToken] = useState<string>('')
@@ -233,9 +249,10 @@ export default function SwapPage() {
     [allTokens]
   )
 
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const swapQueryKey = searchParams.toString()
   const appliedSwapQueryKeyRef = useRef<string | null>(null)
+  const coarseNarrowViewport = useCoarseNarrowViewport()
 
   useEffect(() => {
     const pair = defaultRetailSwapTokenPair(allTokens)
@@ -247,6 +264,7 @@ export default function SwapPage() {
       setFromToken(applied.payId)
       setToToken(applied.receiveId)
       if (applied.payAmountHuman != null) setInputAmount(applied.payAmountHuman)
+      setExactField(parseSwapExactField(searchParams) === 'output' ? 'output' : 'input')
       return
     }
     const fromHidden = !fromToken || isRetailHiddenTestToken(fromToken)
@@ -389,9 +407,45 @@ export default function SwapPage() {
   })
 
   const offerDecimals = offerAssetInfo ? getDecimals(offerAssetInfo) : 6
-  const rawInputAmount = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
+  const receiveDecimals = receiveAssetInfo ? getDecimals(receiveAssetInfo) : 6
+  const typedPayRaw = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
   const debouncedInputAmount = useDebouncedValue(inputAmount, SIM_QUOTE_DEBOUNCE_MS)
-  const debouncedRawInputAmount = debouncedInputAmount ? toRawAmount(debouncedInputAmount, offerDecimals) : '0'
+  const debouncedTypedPayRaw = debouncedInputAmount ? toRawAmount(debouncedInputAmount, offerDecimals) : '0'
+
+  useEffect(() => {
+    if (!fromToken || !toToken) return
+    if (isRetailHiddenTestToken(fromToken) || isRetailHiddenTestToken(toToken)) return
+    const fromOk = allTokens.some((t) => t.trim().toLowerCase() === fromToken.trim().toLowerCase())
+    const toOk = allTokens.some((t) => t.trim().toLowerCase() === toToken.trim().toLowerCase())
+    if (!fromOk || !toOk) return
+    const canonical = canonicalSwapSearch({
+      payId: fromToken,
+      receiveId: toToken,
+      amountHuman: debouncedInputAmount,
+      exactField: exactField === 'output' ? 'output' : null,
+    })
+    if (swapSearchEquals(canonical, searchParams)) return
+    appliedSwapQueryKeyRef.current = canonical.toString()
+    setSearchParams(canonical, { replace: true })
+  }, [allTokens, fromToken, toToken, debouncedInputAmount, exactField, searchParams, setSearchParams])
+
+  const canReverseQuote = Boolean(directPair) && isDirect && !isWrapOrUnwrap && !nativeRouteInfo
+  const reverseQuoteActive = exactField === 'output' && canReverseQuote && isPositiveDecimalAmount(debouncedInputAmount)
+  const reverseAskRaw =
+    reverseQuoteActive && receiveAssetInfo ? toRawAmount(debouncedInputAmount, receiveDecimals) : '0'
+
+  const reverseQuery = useQuery({
+    queryKey: ['reverseSimulation', directPair?.contract_addr, toToken, reverseAskRaw],
+    queryFn: () => reverseSimulateSwap(directPair!.contract_addr, receiveAssetInfo!, reverseAskRaw),
+    enabled: reverseQuoteActive && reverseAskRaw !== '0' && !!directPair && !!receiveAssetInfo,
+    placeholderData: keepPreviousData,
+    refetchInterval: simQuoteRefetchInterval,
+  })
+
+  const reverseOfferRaw = reverseQuery.data?.offer_amount ?? null
+  const reverseQuoteReady = reverseQuoteActive && !!reverseOfferRaw && reverseOfferRaw !== '0'
+  const rawInputAmount = reverseQuoteReady ? reverseOfferRaw : typedPayRaw
+  const debouncedRawInputAmount = reverseQuoteReady ? reverseOfferRaw : debouncedTypedPayRaw
 
   const needsWrapCheck = isWrapOrUnwrap ? wrapUnwrapType === 'wrap' : (nativeRouteInfo?.needsWrapInput ?? false)
   const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
@@ -749,7 +803,7 @@ export default function SwapPage() {
       }
       throw new Error('No route found')
     },
-    enabled: hasRoute && isPositiveDecimalAmount(debouncedInputAmount),
+    enabled: hasRoute && isPositiveDecimalAmount(debouncedInputAmount) && (!reverseQuoteActive || reverseQuoteReady),
     // Skip interval while fetching so slow multi-hop quotes are not cancel/restarted (#484).
     refetchInterval: simQuoteRefetchInterval,
   })
@@ -1253,6 +1307,34 @@ export default function SwapPage() {
     setShowSettings((prev) => !prev)
   }, [])
 
+  const swapShareUrl = useMemo(() => {
+    if (!fromToken || !toToken) return null
+    if (isRetailHiddenTestToken(fromToken) || isRetailHiddenTestToken(toToken)) return null
+    if (typeof window === 'undefined') return null
+    return buildCanonicalSwapShareUrl({
+      origin: window.location.origin,
+      payId: fromToken,
+      receiveId: toToken,
+      amountHuman: debouncedInputAmount,
+      exactField: exactField === 'output' ? 'output' : null,
+    })
+  }, [fromToken, toToken, debouncedInputAmount, exactField])
+
+  const reversePayHuman = reverseQuoteReady && reverseOfferRaw ? formatTokenAmount(reverseOfferRaw, offerDecimals) : ''
+  const payInputValue = reverseQuoteActive ? reversePayHuman : inputAmount
+  const quotedReceiveHuman =
+    simData && outputAmount && receiveAssetInfo ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo)) : ''
+  const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
+  const showReversePayCalculating = reverseQuoteActive && !reverseQuoteReady && isPositiveDecimalAmount(inputAmount)
+
+  const applyTypedAmount = (value: string, field: 'input' | 'output') => {
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setExactField(field)
+      setInputAmount(value)
+      setShowImpactConfirm(false)
+    }
+  }
+
   const handleOpenSettings = useCallback(() => {
     sounds.playButtonPress()
     setShowSettings(true)
@@ -1316,12 +1398,25 @@ export default function SwapPage() {
           {/* Header */}
           <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
             <h2 className="text-lg font-semibold uppercase tracking-wide font-heading">Swap</h2>
-            <button
-              onClick={handleToggleSettings}
-              className="btn-muted !text-[11px] sm:!text-xs !px-2.5 sm:!px-3 !py-1"
-            >
-              Settings
-            </button>
+            <div className="flex items-center gap-2">
+              {swapShareUrl ? (
+                <ShareLinkButton
+                  url={swapShareUrl}
+                  title={SHARE_LINK_TITLE_SWAP}
+                  text={swapShareText(fromToken, toToken)}
+                  ariaLabel={SHARE_LINK_ARIA_SWAP}
+                  data-testid="swap-share-link"
+                  canShare={coarseNarrowViewport ? resolveNavigatorCanShare() : () => false}
+                  share={coarseNarrowViewport ? resolveNavigatorShare() : undefined}
+                />
+              ) : null}
+              <button
+                onClick={handleToggleSettings}
+                className="btn-muted !text-[11px] sm:!text-xs !px-2.5 sm:!px-3 !py-1"
+              >
+                Settings
+              </button>
+            </div>
           </div>
 
           {indexerOutage && (
@@ -1520,17 +1615,13 @@ export default function SwapPage() {
                 id={swapYouPayAmountInputId}
                 type="text"
                 inputMode="decimal"
-                value={inputAmount}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === '' || /^\d*\.?\d*$/.test(v)) {
-                    setInputAmount(v)
-                    setShowImpactConfirm(false)
-                  }
-                }}
+                value={showReversePayCalculating ? '' : payInputValue}
+                onChange={(e) => applyTypedAmount(e.target.value, 'input')}
                 placeholder="0.00"
                 className="swap-io-amount-input w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent"
                 style={{ color: 'var(--ink)' }}
+                data-testid="swap-you-pay-amount"
+                aria-busy={showReversePayCalculating || undefined}
               />
               {isWalletConnected && (
                 <AmountBalanceActions
@@ -1539,8 +1630,12 @@ export default function SwapPage() {
                   walletConnected={isWalletConnected}
                   showBalance={!!offerAssetInfo}
                   spendableRaw={payMaxResult.spendableRaw}
-                  onMax={() => setInputAmount(payMaxResult.human)}
+                  onMax={() => {
+                    setExactField('input')
+                    setInputAmount(payMaxResult.human)
+                  }}
                   onFraction={(human) => {
+                    setExactField('input')
                     setInputAmount(human)
                     setShowImpactConfirm(false)
                   }}
@@ -1582,7 +1677,13 @@ export default function SwapPage() {
 
             <div className="card-glass swap-io-card-receive !px-4 !pt-6 !pb-4 sm:!px-5 sm:!pt-7 sm:!pb-5">
               <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                <span className="label-glass !mb-0 sm:pt-1">You Receive</span>
+                {canReverseQuote ? (
+                  <label htmlFor={swapYouReceiveAmountInputId} className="label-glass !mb-0 sm:pt-1">
+                    You Receive
+                  </label>
+                ) : (
+                  <span className="label-glass !mb-0 sm:pt-1">You Receive</span>
+                )}
                 <TokenSearchSelect
                   value={toToken}
                   tokens={discoveryTokens}
@@ -1596,21 +1697,36 @@ export default function SwapPage() {
                   disabled={allTokens.length === 0}
                 />
               </div>
-              <div
-                className="text-[1.75rem] sm:text-2xl font-medium"
-                style={{ color: 'var(--ink)' }}
-                data-testid="swap-you-receive"
-              >
-                {showSimReceiveCalculating ? (
-                  <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }} aria-hidden="true">
-                    {simLoadingLabel}
-                  </span>
-                ) : simData && outputAmount && receiveAssetInfo ? (
-                  formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
-                ) : (
-                  <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
-                )}
-              </div>
+              {canReverseQuote ? (
+                <input
+                  id={swapYouReceiveAmountInputId}
+                  type="text"
+                  inputMode="decimal"
+                  value={reverseQuoteActive ? inputAmount : showSimReceiveCalculating ? '' : receiveInputValue}
+                  onChange={(e) => applyTypedAmount(e.target.value, 'output')}
+                  placeholder="0.00"
+                  className="swap-io-amount-input w-full text-[1.75rem] sm:text-2xl font-medium bg-transparent"
+                  style={{ color: 'var(--ink)' }}
+                  data-testid="swap-you-receive"
+                  aria-busy={showSimReceiveCalculating && !reverseQuoteActive ? true : undefined}
+                />
+              ) : (
+                <div
+                  className="text-[1.75rem] sm:text-2xl font-medium"
+                  style={{ color: 'var(--ink)' }}
+                  data-testid="swap-you-receive"
+                >
+                  {showSimReceiveCalculating ? (
+                    <span className="animate-pulse" style={{ color: 'var(--ink-subtle)' }} aria-hidden="true">
+                      {simLoadingLabel}
+                    </span>
+                  ) : quotedReceiveHuman ? (
+                    quotedReceiveHuman
+                  ) : (
+                    <span style={{ color: 'var(--ink-subtle)' }}>0.00</span>
+                  )}
+                </div>
+              )}
               {showQuoteOnly && (
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-subtle)' }} data-testid="swap-quote-only">
                   Quote only
@@ -2017,7 +2133,7 @@ export default function SwapPage() {
               <SwapPreSubmitSummary
                 offerSymbol={getTokenDisplaySymbol(fromToken)}
                 receiveSymbol={getTokenDisplaySymbol(toToken)}
-                offerAmountHuman={inputAmount}
+                offerAmountHuman={reverseQuoteActive ? reversePayHuman : inputAmount}
                 receiveAmountHuman={
                   outputAmount && receiveAssetInfo
                     ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))

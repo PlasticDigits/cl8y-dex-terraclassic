@@ -36,7 +36,7 @@ run_step "frontend: parser + alias redirect + SwapPage RTL + ust1 path" \
     src/components/common/__tests__/SwapAliasRedirect.test.tsx \
     src/pages/SwapPage.queryParams.test.tsx'
 
-run_step "frontend: Create Pair still has no query prefill (C542-11)" \
+run_step "frontend: Create Pair C542-11 listed prefill + hostile ignore" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/pages/CreatePairPage.test.tsx -t "C542-11"'
 

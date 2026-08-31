@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { expectPayTokenListPopulated, payTokenTrigger } from './helpers/token-select'
+import { readSwapYouReceiveAmount } from './helpers/swap-ui'
 
 test.describe('Swap Page', () => {
   test.describe('Without wallet', () => {
@@ -65,7 +66,7 @@ test.describe('Swap Page', () => {
     test('accepts numeric input in You Pay field', async ({ page, connectWallet }) => {
       await connectWallet
       await page.waitForLoadState('networkidle')
-      const input = page.getByPlaceholder('0.00').first()
+      const input = page.getByTestId('swap-you-pay-amount')
       await input.fill('100')
       await expect(input).toHaveValue('100')
     })
@@ -73,7 +74,7 @@ test.describe('Swap Page', () => {
     test('clears amount on empty input', async ({ page, connectWallet }) => {
       await connectWallet
       await page.waitForLoadState('networkidle')
-      const input = page.getByPlaceholder('0.00').first()
+      const input = page.getByTestId('swap-you-pay-amount')
       await input.fill('100')
       await expect(input).toHaveValue('100')
       await input.fill('')
@@ -86,12 +87,13 @@ test.describe('Swap Page', () => {
 
       await expectPayTokenListPopulated(page)
 
-      const input = page.getByPlaceholder('0.00').first()
+      const input = page.getByTestId('swap-you-pay-amount')
       await input.fill('1000')
 
       await expect(async () => {
-        const outputText = await page.getByText('You Receive').locator('..').textContent()
+        const outputText = await readSwapYouReceiveAmount(page)
         expect(outputText).toBeTruthy()
+        expect(outputText).not.toMatch(/^0(\.0+)?$/)
       }).toPass({ timeout: 10000 })
     })
   })

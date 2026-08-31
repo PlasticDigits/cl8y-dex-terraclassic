@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
 import { listedCreatePairAddress } from '@/utils/createPairTokenCatalog'
 import { getTerraAddressInputError } from '@/utils/terraAddressValidation'
@@ -34,7 +34,13 @@ export function CreatePairTokenField({
   const comboboxId = useId()
   const customId = useId()
   const customPanelId = useId()
-  const [customOpen, setCustomOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(() => Boolean(value && !listedCreatePairAddress(catalog, value)))
+
+  useEffect(() => {
+    if (value && !listedCreatePairAddress(catalog, value)) {
+      setCustomOpen(true)
+    }
+  }, [value, catalog])
 
   const tokens = [...catalog]
   const excludeListed = excludeToken ? listedCreatePairAddress(tokens, excludeToken) : undefined

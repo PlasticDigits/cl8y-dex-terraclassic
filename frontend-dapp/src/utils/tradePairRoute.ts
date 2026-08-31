@@ -4,6 +4,9 @@ import { isValidTerraAddress } from '@/utils/constants'
 export type TradePageLocationState = {
   invalidPair?: string
   unknownPair?: string
+  /** Optional Market ticket prefill from `/trade?from=&to=&amount=&side=` (#713). Never auto-Place. */
+  ticketAmount?: string
+  ticketSide?: 'bid' | 'ask'
 }
 
 export function getTradePageInvalidLinkNotice(state: unknown): string | null {
@@ -14,6 +17,14 @@ export function getTradePageInvalidLinkNotice(state: unknown): string | null {
 export function getTradePageUnknownPairNotice(state: unknown): string | null {
   const s = state as TradePageLocationState | null | undefined
   return s?.unknownPair ?? null
+}
+
+export function getTradePageTicketPrefill(state: unknown): { amountHuman: string | null; side: 'bid' | 'ask' | null } {
+  const s = state as TradePageLocationState | null | undefined
+  return {
+    amountHuman: s?.ticketAmount?.trim() || null,
+    side: s?.ticketSide === 'ask' || s?.ticketSide === 'bid' ? s.ticketSide : null,
+  }
 }
 
 /** Whether a `/trade/:pairAddr` route segment is a pair contract address. */

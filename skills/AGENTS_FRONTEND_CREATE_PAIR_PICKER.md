@@ -4,7 +4,7 @@ Audience: third-party agents touching `/create`, token pickers, or `tokenlist.js
 
 **Issue:** [GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)  
 **Invariants:** [`docs/frontend.md` § Create pair listed CW20 picker](../docs/frontend.md#create-pair-token-picker) (**C542-1–C542-11**)  
-**Related:** [#382](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382) checksum, [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) code-ID ≠ safety, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) logo allowlist, [#481](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/481) Swap search (wrong universe), [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) UST1 AMM ≠ mint, [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) economic-first sort, [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) Create Token → `/create` copy-address only (**P402-5** / **C542-11**)
+**Related:** [#382](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/382) checksum, [#376](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/376) code-ID ≠ safety, [#378](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/378) logo allowlist, [#481](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/481) Swap search (wrong universe), [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) UST1 AMM ≠ mint, [#534](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/534) economic-first sort, [#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602) Create Token → `/create` copy-address (**P402-5**), [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) `/create?a=&b=` prefill
 
 ## Problem class
 
@@ -22,7 +22,7 @@ Audience: third-party agents touching `/create`, token pickers, or `tokenlist.js
 - **Don’t** offer native `uluna` / `uusd` / LUNC / USTC. `tokenAssetInfo` would encode them as `native_token`; factory rejects natives.
 - **Don’t** use tokenlist `decimals` for any amount math. Create Pair sends no amounts.
 - **Don’t** add “verified safe” / “governance-audited token” copy. Listed = in our published catalog only.
-- **Don’t** add `/create?a=&b=` query prefill (phishing aid). Swap deep links are a **different** surface ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711) / [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md)).
+- **Do** honor checksummed `/create?a=&b=` (and `tokenA`/`token_a`) prefill ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) **Q713-6** / **C542-11**). Hostile / native / bad checksum ignored per side. **No** auto-submit. Swap deep links stay a **different** universe ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711)).
 - **Don’t** change factory `CreatePair`, whitelist, pair-creation fee, or LP ticker rules.
 
 ## Canonical code
@@ -51,4 +51,5 @@ Playwright (when `make has-localterra`): `e2e/create-pair-picker-542.spec.ts`, `
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production does not append gems (**P562-5**, [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562))
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — Create Pair notice (**U1**)
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — short labels (#489)
-- [`AGENTS_FRONTEND_A11Y_FORM_LABELS.md`](./AGENTS_FRONTEND_A11Y_FORM_LABELS.md) — `useId` / `htmlFor` / `aria-label` (#143)
+- [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap inbound parse (#711)
+- [`AGENTS_FRONTEND_SWAP_URL_SYNC.md`](./AGENTS_FRONTEND_SWAP_URL_SYNC.md) — `/create?a=&b=` prefill (#713)

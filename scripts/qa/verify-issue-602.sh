@@ -8,7 +8,7 @@
 #   3. P402-1/2 live Coolify pins 11611 + canonical launcher address (not unused 11612).
 #   4. P402-3 columbus-5 launcher CreateToken (code 11622); factory does not list sisters.
 #   5. P402-4 LocalTerra community-tax smoke when chain is up.
-#   6. P402-5 /create has no query prefill; Create Token next-link is /create.
+#   6. P402-5 Create Token next-link is /create (copy-address); Create Pair /create?a=&b= prefill is #713.
 #   7. P402-6 extra-debit Max + attested_cmm default catalog.
 #
 # VERIFY602_SKIP_CHILDREN=1 — docs + live + source only.
@@ -96,15 +96,11 @@ run_p402_5_source() {
   set -euo pipefail
   grep -qE 'to="/create"' frontend-dapp/src/pages/CreateTokenPage.tsx
   if grep -nE 'to=\{`/create\?' frontend-dapp/src/pages/CreateTokenPage.tsx; then
-    echo "Create Token next-link must not prefill /create query" >&2
-    return 1
-  fi
-  if grep -nE 'useSearchParams' frontend-dapp/src/pages/CreatePairPage.tsx; then
-    echo "Create Pair must not read URL search params (#542 / P402-5)" >&2
+    echo "Create Token next-link must not prefill /create query until Create Token opts in" >&2
     return 1
   fi
   grep -qE 'create-token-next-create-pair' frontend-dapp/src/pages/CreateTokenPage.tsx
-  grep -qE 'does not prefill Token A/B from /create query' frontend-dapp/src/pages/CreatePairPage.test.tsx
+  grep -qE 'C542-11' frontend-dapp/src/pages/CreatePairPage.test.tsx
 }
 
 run_p402_6_source() {
@@ -194,7 +190,7 @@ run_e2e_smoke() {
 echo ""
 echo "── first pass ──"
 run_step "docs: Q9 M602-1–M602-8 + skill + AGENTS crosslinks" run_docs
-run_step "source: P402-5 /create copy-address only (no query prefill)" run_p402_5_source
+run_step "source: P402-5 /create copy-address only (Create Token does not emit query)" run_p402_5_source
 run_step "source: P402-6 extra-debit Max + attested_cmm default" run_p402_6_source
 
 if [[ "${VERIFY602_SKIP_CHILDREN:-}" == "1" ]]; then
@@ -236,7 +232,7 @@ fi
 echo ""
 echo "── retest ──"
 run_step "retest docs: Q9 M602" run_docs
-run_step "retest source: P402-5 /create no query prefill" run_p402_5_source
+run_step "retest source: P402-5 /create copy-address only" run_p402_5_source
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"

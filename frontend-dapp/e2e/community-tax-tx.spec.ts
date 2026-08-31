@@ -47,7 +47,7 @@ import {
 } from './helpers/limit-e2e'
 import { fetchTxJson, readTxHashFromAlertLink, txJsonHasWasmAction, txJsonWasmAttrForAction } from './helpers/lcd'
 import { openPoolCardAdvanced, poolProvideExpandButton, poolProvideSubmitButton } from './helpers/pool-ui'
-import { openSwapSettingsAndSetSlippage, swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import { openSwapSettingsAndSetSlippage, readSwapYouReceiveAmount } from './helpers/swap-ui'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
 import { toRawAmount } from './helpers/community-tax-e2e'
 
@@ -131,7 +131,7 @@ test.describe('Community-tax pair e2e-tx (GitLab #622)', () => {
     await waitForSwapQuoteReady(page)
     await expect(page.getByTestId('swap-sell-tax-extra')).toContainText(BUY_TAX_HINT)
 
-    const youReceiveText = ((await swapYouReceiveAmountDisplay(page).textContent()) ?? '').trim()
+    const youReceiveText = await readSwapYouReceiveAmount(page)
     expect(youReceiveText).not.toMatch(/^0(\.0+)?$/)
 
     const userBefore = await queryCw20Balance(request, ctx.token, E2E_DEV_WALLET)

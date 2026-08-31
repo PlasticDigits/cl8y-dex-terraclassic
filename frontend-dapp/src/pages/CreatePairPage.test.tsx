@@ -220,15 +220,25 @@ describe('CreatePairPage', () => {
     expect((combo as HTMLInputElement).value.length).toBeLessThanOrEqual(TOKEN_SEARCH_MAX_QUERY_LENGTH)
   })
 
-  it('P402-5 / C542-11: does not prefill Token A/B from /create query', async () => {
+  it('P402-5 / C542-11: listed /create?a=&b= prefills Token A/B and does not auto-submit', async () => {
+    const [a, b] = getCreatePairCw20Options()
+    expect(a && b).toBeTruthy()
+    renderWithProviders(<CreatePairPage />, { route: `/create?a=${a.address}&b=${b.address}` })
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select token A' })).toHaveValue(a.symbol)
+    })
+    expect(screen.getByRole('combobox', { name: 'Select token B' })).toHaveValue(b.symbol)
+    expect(screen.getByRole('button', { name: /Create Pair/i })).toBeEnabled()
+    expect(createPair).not.toHaveBeenCalled()
+  })
+
+  it('C542-11: hostile and native /create query values are ignored', async () => {
     const user = userEvent.setup()
-    renderWithProviders(<CreatePairPage />, { route: `/create?a=${VALID_A}&b=${VALID_B}` })
+    renderWithProviders(<CreatePairPage />, { route: '/create?a=javascript:alert(1)&b=uluna' })
     await openCustom(user, 'Token A')
     await openCustom(user, 'Token B')
     expect(screen.getByLabelText(/Token A Contract Address/i)).toHaveValue('')
     expect(screen.getByLabelText(/Token B Contract Address/i)).toHaveValue('')
-    expect(screen.queryByDisplayValue(VALID_A)).not.toBeInTheDocument()
-    expect(screen.queryByDisplayValue(VALID_B)).not.toBeInTheDocument()
   })
 
   it('C2: native LUNC / USTC / uluna are not selectable options', async () => {

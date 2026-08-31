@@ -43,13 +43,26 @@ export const SWAP_QUERY_RECEIVE_KEYS = [
   'ask',
 ] as const
 
-/** Optional You Pay human amount. Swap is pay-driven — no reverse quote. */
+/** Optional independent-field human amount. */
 export const SWAP_QUERY_AMOUNT_KEYS = ['exactAmount', 'amount', 'value', 'amountIn'] as const
+
+/** Uniswap `exactField` / `independentField`. Only `output` is special; else pay-sided. */
+export const SWAP_QUERY_EXACT_FIELD_KEYS = ['exactField', 'independentField'] as const
+
+export type SwapExactField = 'output'
+
+export type CanonicalSwapSearchInput = {
+  payId: string
+  receiveId: string
+  amountHuman?: string | null
+  exactField?: SwapExactField | null
+}
 
 export type SwapQueryParse = {
   payId: string | null
   receiveId: string | null
   payAmountHuman: string | null
+  exactField: SwapExactField | null
 }
 
 export type AppliedSwapQuery = {
@@ -141,8 +154,47 @@ function parseAmountValue(raw: string | null): string | null {
   return trimmed
 }
 
+function parseExactFieldValue(raw: string | null): SwapExactField | null {
+  if (raw == null) return null
+  const trimmed = raw.trim().toLowerCase()
+  if (trimmed === 'output') return 'output'
+  return null
+}
+
+/** Inbound `exactField=output` (and Uniswap `independentField=output`). Other values → pay-sided. */
+export function parseSwapExactField(search: string | URLSearchParams | null | undefined): SwapExactField | null {
+  const params = toSearchParams(search)
+  return parseExactFieldValue(firstFamilyValue(params, SWAP_QUERY_EXACT_FIELD_KEYS))
+}
+
 /**
- * Parse search into resolved ids + optional pay amount. Does **not** factory-gate
+ * First-party outbound search: `from` / `to` plus optional `exactAmount` / `exactField=output`.
+ * Uniswap aliases are inbound-only. Empty / illegal amount is omitted.
+ */
+export function canonicalSwapSearch(input: CanonicalSwapSearchInput): URLSearchParams {
+  const q = new URLSearchParams()
+  q.set('from', input.payId)
+  q.set('to', input.receiveId)
+  const amount = input.amountHuman?.trim()
+  if (amount && isPositiveDecimalAmount(amount) && amount.length <= SWAP_QUERY_AMOUNT_MAX_CHARS) {
+    q.set('exactAmount', amount)
+  }
+  if (input.exactField === 'output') {
+    q.set('exactField', 'output')
+  }
+  return q
+}
+
+/** True when two search strings encode the same canonical Swap query (order-sensitive `URLSearchParams`). */
+export function swapSearchEquals(
+  a: string | URLSearchParams | null | undefined,
+  b: string | URLSearchParams | null | undefined
+): boolean {
+  return toSearchParams(a).toString() === toSearchParams(b).toString()
+}
+
+/**
+ * Parse search into resolved ids + optional amount + exactField. Does **not** factory-gate
  * or hide gems — call {@link applySwapQueryParams} before setting Swap state.
  */
 export function parseSwapQueryParams(search: string | URLSearchParams | null | undefined): SwapQueryParse {
@@ -154,6 +206,7 @@ export function parseSwapQueryParams(search: string | URLSearchParams | null | u
     payId: resolveSwapQueryTokenValue(payRaw),
     receiveId: resolveSwapQueryTokenValue(receiveRaw),
     payAmountHuman: parseAmountValue(amountRaw),
+    exactField: parseExactFieldValue(firstFamilyValue(params, SWAP_QUERY_EXACT_FIELD_KEYS)),
   }
 }
 
@@ -229,13 +282,12 @@ export function applySwapQueryParams(
 /**
  * First-party Swap href (`/?from=&to=`). Bech32 / native denoms only — not display tickers.
  */
-export function swapDeepLinkPath(payId: string, receiveId: string, amountHuman?: string | null): string {
-  const q = new URLSearchParams()
-  q.set('from', payId)
-  q.set('to', receiveId)
-  const amount = amountHuman?.trim()
-  if (amount && isPositiveDecimalAmount(amount) && amount.length <= SWAP_QUERY_AMOUNT_MAX_CHARS) {
-    q.set('exactAmount', amount)
-  }
+export function swapDeepLinkPath(
+  payId: string,
+  receiveId: string,
+  amountHuman?: string | null,
+  exactField?: SwapExactField | null
+): string {
+  const q = canonicalSwapSearch({ payId, receiveId, amountHuman, exactField })
   return `/?${q.toString()}`
 }

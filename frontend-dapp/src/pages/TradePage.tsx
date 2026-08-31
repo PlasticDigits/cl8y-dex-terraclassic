@@ -40,6 +40,7 @@ import { getErrorMessage } from '@/utils/humanizeUserFacingError'
 import {
   getInvalidTradePairRouteParam,
   getTradePageInvalidLinkNotice,
+  getTradePageTicketPrefill,
   getTradePageUnknownPairNotice,
   getUnknownTradePairRouteParam,
   isKnownFactoryTradePair,
@@ -48,6 +49,7 @@ import {
   shouldAutoPickDefaultTradePair,
   shouldShowTradeWorkspace,
 } from '@/utils/tradePairRoute'
+import { parseTradeTicketPrefill, resolveTradePairFromQuery } from '@/utils/tradeQueryResolve'
 import { prefetchTradePairWorkspace } from '@/utils/tradePairPrefetch'
 import { isTradePairWorkspaceQuery } from '@/utils/tradePairWorkspaceFetching'
 import { assetInfoLabel, type IndexerPair } from '@/types'
@@ -149,6 +151,7 @@ export default function TradePage() {
   const invalidRoutePair = useMemo(() => getInvalidTradePairRouteParam(routePair), [routePair])
   const invalidLinkNotice = getTradePageInvalidLinkNotice(location.state)
   const unknownPairNotice = getTradePageUnknownPairNotice(location.state)
+  const ticketPrefill = getTradePageTicketPrefill(location.state)
   const [pairAddr, setPairAddr] = useState('')
 
   const clearLinkNotices = useCallback(() => {
@@ -221,6 +224,19 @@ export default function TradePage() {
     ) {
       return
     }
+    const resolved = resolveTradePairFromQuery(location.search, pairs)
+    if (resolved) {
+      const ticket = parseTradeTicketPrefill(location.search)
+      setPairAddr(resolved)
+      navigate(`/trade/${resolved}`, {
+        replace: true,
+        state:
+          ticket.amountHuman || ticket.side
+            ? { ticketAmount: ticket.amountHuman ?? undefined, ticketSide: ticket.side ?? undefined }
+            : null,
+      })
+      return
+    }
     const first = firstCatalogPairAddress(pairs)
     if (first) {
       setPairAddr(first)
@@ -236,6 +252,7 @@ export default function TradePage() {
     pendingDeepLinkPair,
     invalidLinkNotice,
     unknownPairNotice,
+    location.search,
   ])
 
   useEffect(() => {
@@ -436,6 +453,8 @@ export default function TradePage() {
       limitBookDraft={limitBookDraft}
       onLimitBookDraftConsumed={onLimitBookDraftConsumed}
       interactive={!isTradeDesktopLayout || ticketVisible}
+      initialMarketAmount={ticketPrefill.amountHuman}
+      initialSide={ticketPrefill.side}
     />
   )
 

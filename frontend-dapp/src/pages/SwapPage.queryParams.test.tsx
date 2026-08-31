@@ -33,6 +33,11 @@ vi.mock('@/services/terraclassic/pair', () => ({
     commission_amount: '3000',
   }),
   swap: vi.fn().mockResolvedValue('txhash123'),
+  reverseSimulateSwap: vi.fn().mockResolvedValue({
+    offer_amount: '1000000',
+    spread_amount: '100',
+    commission_amount: '3000',
+  }),
   getPool: vi.fn().mockResolvedValue({
     assets: [
       { info: { native_token: { denom: 'uluna' } }, amount: '1000000' },
@@ -158,9 +163,37 @@ describe('SwapPage query params (GitLab #711)', () => {
   it('AC6: exactAmount prefills You Pay and does not auto-submit', async () => {
     renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}&exactAmount=1.5` })
     await waitForSwapReady()
-    expect(screen.getByPlaceholderText('0.00')).toHaveValue('1.5')
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('1.5')
     expect(screen.getByRole('button', { name: /connect wallet/i })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /^swap$/i })).not.toBeInTheDocument()
+  })
+
+  it('Q713-4: exactField=output prefills You Receive on a direct pair; execute stays quote-only', async () => {
+    renderWithProviders(<SwapPage />, {
+      route: `/?from=uluna&to=${UST1}&exactAmount=1.5&exactField=output`,
+    })
+    await waitForSwapReady()
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
+    })
+    expect(screen.getByRole('button', { name: /connect wallet/i })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /^swap$/i })).not.toBeInTheDocument()
+  })
+
+  it('AC3: user picker after deep link is not snapped back; URL rewrites to from/to', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />, { route: `/?inputCurrency=uluna&outputCurrency=${UST1}` })
+    await waitForSwapReady()
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-share-link')).toBeInTheDocument()
+    })
+    await user.click(screen.getByRole('combobox', { name: 'Select token you receive' }))
+    await screen.findByRole('listbox', { name: 'Select token you receive' })
+    await user.click(screen.getByRole('option', { name: /USTC/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('USTC')
+    })
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('LUNC')
   })
 
   it('AC7: user can change receive after apply; query is not re-forced', async () => {

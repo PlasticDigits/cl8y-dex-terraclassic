@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { COLUMBUS5_GEM_ADDRESSES, isGemTokenId } from '@/utils/pairCatalogRank'
 import {
   applySwapQueryParams,
+  canonicalSwapSearch,
+  parseSwapExactField,
   parseSwapQueryParams,
   resolveSwapQueryTokenValue,
   swapDeepLinkPath,
@@ -105,6 +107,7 @@ describe('parseSwapQueryParams (#711)', () => {
       payId: 'uluna',
       receiveId: 'uusd',
       payAmountHuman: null,
+      exactField: null,
     })
   })
 
@@ -166,7 +169,7 @@ describe('applySwapQueryParams (#711)', () => {
 
   it('T6: LUNC / UST1 tickers', () => {
     const ust1 = lookupTokenIdByProductTicker('UST1') ?? MAINNET_UST1_TOKEN_ADDRESS
-    expect(apply('from=LUNC&to=UST1')).toEqual({
+    expect(apply('from=LUNC&to=UST1', { factory: [...FACTORY, ust1] })).toEqual({
       payId: 'uluna',
       receiveId: ust1,
       payAmountHuman: null,
@@ -187,7 +190,10 @@ describe('applySwapQueryParams (#711)', () => {
 
   it('T11: wrap pair uluna → cLUNC', () => {
     const clunc = lookupTokenIdByProductTicker('cLUNC') ?? CLUNC
-    expect(apply(`from=uluna&to=${clunc}`)).toMatchObject({ payId: 'uluna', receiveId: clunc })
+    expect(apply(`from=uluna&to=${clunc}`, { factory: [...FACTORY, clunc] })).toMatchObject({
+      payId: 'uluna',
+      receiveId: clunc,
+    })
   })
 
   it('A5 / AC8: production gem hide ignores gem address and ticker', () => {
@@ -221,12 +227,42 @@ describe('applySwapQueryParams (#711)', () => {
   })
 })
 
-describe('swapDeepLinkPath (#711)', () => {
+describe('canonicalSwapSearch / exactField (#713)', () => {
+  it('writes from/to; omits empty amount; exactField=output only when output', () => {
+    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd' }).toString()).toBe('from=uluna&to=uusd')
+    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '1.5' }).toString()).toBe(
+      'from=uluna&to=uusd&exactAmount=1.5'
+    )
+    expect(
+      canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '', exactField: 'output' }).toString()
+    ).toBe('from=uluna&to=uusd&exactField=output')
+    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '1e18' }).toString()).toBe(
+      'from=uluna&to=uusd'
+    )
+    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '9'.repeat(40) }).toString()).toBe(
+      'from=uluna&to=uusd'
+    )
+  })
+
+  it('parses exactField=output and independentField=output; ignores input / junk', () => {
+    expect(parseSwapExactField('exactField=output')).toBe('output')
+    expect(parseSwapExactField('independentField=output')).toBe('output')
+    expect(parseSwapQueryParams('exactField=output&exactAmount=1').exactField).toBe('output')
+    expect(parseSwapExactField('exactField=input')).toBeNull()
+    expect(parseSwapExactField('exactField=pay')).toBeNull()
+    expect(parseSwapExactField('exactField=<script>')).toBeNull()
+  })
+})
+
+describe('swapDeepLinkPath (#711 / #713)', () => {
   it('builds from/to via URLSearchParams (no string concat)', () => {
     expect(swapDeepLinkPath(MAINNET_UST1_TOKEN_ADDRESS, MAINNET_VFDUSD_TOKEN_ADDRESS)).toBe(
       `/?from=${encodeURIComponent(MAINNET_UST1_TOKEN_ADDRESS)}&to=${encodeURIComponent(MAINNET_VFDUSD_TOKEN_ADDRESS)}`
     )
     expect(swapDeepLinkPath('uluna', 'uusd', '1.5')).toBe('/?from=uluna&to=uusd&exactAmount=1.5')
     expect(swapDeepLinkPath('uluna', 'uusd', '1e18')).toBe('/?from=uluna&to=uusd')
+    expect(swapDeepLinkPath('uluna', 'uusd', '1', 'output')).toBe(
+      '/?from=uluna&to=uusd&exactAmount=1&exactField=output'
+    )
   })
 })

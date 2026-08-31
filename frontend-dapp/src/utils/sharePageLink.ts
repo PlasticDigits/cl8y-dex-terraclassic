@@ -1,7 +1,9 @@
 import { isValidTerraAddress } from '@/utils/constants'
 import { copyToClipboard, type CopyToClipboardResult } from '@/utils/copyToClipboard'
-import { SHARE_LINK_TITLE } from '@/utils/sharePageLinkCopy'
-import { shortenAddress } from '@/utils/tokenDisplay'
+import { isRetailHiddenTestToken } from '@/utils/pairCatalogRank'
+import { SHARE_LINK_TITLE, SHARE_LINK_TITLE_SWAP } from '@/utils/sharePageLinkCopy'
+import { canonicalSwapSearch, type SwapExactField } from '@/utils/swapQueryParams'
+import { getTokenDisplaySymbol, shortenAddress } from '@/utils/tokenDisplay'
 
 export const SHARE_PAGE_KINDS = ['trader', 'trade', 'charts'] as const
 export type SharePageKind = (typeof SHARE_PAGE_KINDS)[number]
@@ -57,6 +59,60 @@ export function buildCanonicalShareUrl(input: { origin: string; kind: SharePageK
 
 export function traderShareText(address: string): string {
   return `${SHARE_LINK_TITLE} ${shortenAddress(address.trim())}`
+}
+
+function originOnly(originRaw: string): URL | null {
+  const trimmed = originRaw.trim()
+  if (!trimmed) return null
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+  if (parsed.username || parsed.password) return null
+  return new URL(parsed.origin)
+}
+
+function isShareableSwapTokenId(id: string): boolean {
+  const trimmed = id.trim()
+  if (!trimmed) return false
+  if (isRetailHiddenTestToken(trimmed)) return false
+  const lower = trimmed.toLowerCase()
+  if (lower === 'uluna' || lower === 'uusd') return true
+  return isValidTerraAddress(trimmed)
+}
+
+/**
+ * Canonical Swap share URL: `{origin}/?from=&to=` (+ amount / exactField). Never `window.location.href`.
+ * Path is `/`, hash empty, Uniswap leftover keys dropped (TS-2 exception for Swap search).
+ */
+export function buildCanonicalSwapShareUrl(input: {
+  origin: string
+  payId: string
+  receiveId: string
+  amountHuman?: string | null
+  exactField?: SwapExactField | null
+}): string | null {
+  if (!isShareableSwapTokenId(input.payId) || !isShareableSwapTokenId(input.receiveId)) return null
+  const base = originOnly(input.origin)
+  if (!base) return null
+  base.pathname = '/'
+  base.search = canonicalSwapSearch({
+    payId: input.payId.trim(),
+    receiveId: input.receiveId.trim(),
+    amountHuman: input.amountHuman,
+    exactField: input.exactField,
+  }).toString()
+  base.hash = ''
+  return base.href
+}
+
+export function swapShareText(payId: string, receiveId: string): string {
+  const pay = getTokenDisplaySymbol(payId.trim()) || 'token'
+  const receive = getTokenDisplaySymbol(receiveId.trim()) || 'token'
+  return `${SHARE_LINK_TITLE_SWAP} ${pay} → ${receive}`
 }
 
 export function isShareAbortError(err: unknown): boolean {

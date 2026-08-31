@@ -32,8 +32,14 @@ describe('ust1SecondaryMarket (#508)', () => {
     const swapPath = ust1SecondarySwapPath()
     expect(swapPath.startsWith('/?')).toBe(true)
     const q = new URLSearchParams(swapPath.slice(1))
-    expect(q.get('from')).toBe(MAINNET_UST1_TOKEN_ADDRESS)
-    expect(q.get('to')).toBe(MAINNET_VFDUSD_TOKEN_ADDRESS)
+    const tokens = resolvesUst1SecondaryTokens(
+      import.meta.env.VITE_UST1_TOKEN_ADDRESS || '',
+      import.meta.env.VITE_VFDUSD_TOKEN_ADDRESS || ''
+    )
+    expect(q.get('from')).toBe(tokens?.ust1)
+    expect(q.get('to')).toBe(tokens?.quote)
+    expect(q.get('from')).toMatch(/^terra1/)
+    expect(q.get('to')).toMatch(/^terra1/)
     expect(isUst1SecondaryPairConfigured()).toBe(false)
   })
 
