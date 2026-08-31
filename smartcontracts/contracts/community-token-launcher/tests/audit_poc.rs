@@ -409,6 +409,7 @@ fn swap_hook() -> Binary {
         deadline: None,
         trader: None,
         hybrid: None,
+        greedy: None,
     })
     .unwrap()
 }
@@ -422,6 +423,7 @@ fn swap_hook_trader(trader: &str) -> Binary {
         deadline: None,
         trader: Some(trader.into()),
         hybrid: None,
+        greedy: None,
     })
     .unwrap()
 }

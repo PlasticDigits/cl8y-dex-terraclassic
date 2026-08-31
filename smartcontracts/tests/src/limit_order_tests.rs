@@ -10,11 +10,13 @@ use dex_common::limit_placement::{
     LimitLadderDistribution, LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::{
-    pool_only_hybrid_params, pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg,
-    ExpiredLimitParkReason, ExpiredLimitRefundResponse, HybridReverseSimulationResponse,
-    HybridSimulationResponse, HybridSwapParams, LimitCleanConfigResponse, LimitOrderConfigResponse,
-    LimitOrderResponse, LimitOrderSide, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
-    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
+    greedy_simulation_undiscounted, greedy_swap_params, pool_only_hybrid_params,
+    pool_only_hybrid_template, Cw20HookMsg, ExecuteMsg, ExpiredLimitParkReason,
+    ExpiredLimitRefundResponse, GreedyStopReason, GreedySwapParams,
+    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
+    LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
+    PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
+    MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -169,6 +171,7 @@ fn hybrid_swap_a_to_b(
             max_maker_fills,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -205,6 +208,7 @@ fn hybrid_swap_b_to_a(
             max_maker_fills,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -320,6 +324,7 @@ fn swap_a_to_b_hybrid(
         to: None,
         deadline: None,
         hybrid,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -351,6 +356,7 @@ fn swap_b_to_a_hybrid(
         to: None,
         deadline: None,
         hybrid,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -365,6 +371,93 @@ fn swap_b_to_a_hybrid(
         &[],
     )
     .unwrap();
+}
+
+fn greedy_swap_a_to_b(
+    app: &mut App,
+    pair: &cosmwasm_std::Addr,
+    sender: &cosmwasm_std::Addr,
+    token_a: &cosmwasm_std::Addr,
+    amount: Uint128,
+    greedy: GreedySwapParams,
+    min_return: Option<Uint128>,
+) -> AppResponse {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return,
+        to: None,
+        deadline: None,
+        hybrid: None,
+        greedy: Some(greedy),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        sender.clone(),
+        token_a.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: pair.to_string(),
+            amount,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap()
+}
+
+fn greedy_swap_b_to_a(
+    app: &mut App,
+    pair: &cosmwasm_std::Addr,
+    sender: &cosmwasm_std::Addr,
+    token_b: &cosmwasm_std::Addr,
+    amount: Uint128,
+    greedy: GreedySwapParams,
+    min_return: Option<Uint128>,
+) -> AppResponse {
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return,
+        to: None,
+        deadline: None,
+        hybrid: None,
+        greedy: Some(greedy),
+        trader: None,
+    })
+    .unwrap();
+    app.execute_contract(
+        sender.clone(),
+        token_b.clone(),
+        &cw20::Cw20ExecuteMsg::Send {
+            contract: pair.to_string(),
+            amount,
+            msg: swap_msg,
+        },
+        &[],
+    )
+    .unwrap()
+}
+
+fn query_greedy_sim(
+    app: &App,
+    pair: &cosmwasm_std::Addr,
+    offer_token: &cosmwasm_std::Addr,
+    amount: Uint128,
+    greedy: GreedySwapParams,
+) -> HybridSimulationResponse {
+    app.wrap()
+        .query_wasm_smart(
+            pair.to_string(),
+            &greedy_simulation_undiscounted(
+                Asset {
+                    info: asset_info_token(offer_token),
+                    amount,
+                },
+                greedy,
+            ),
+        )
+        .unwrap()
 }
 
 fn query_limit(app: &App, pair: &cosmwasm_std::Addr, order_id: u64) -> LimitOrderResponse {
@@ -470,6 +563,7 @@ fn hybrid_swap_emits_limit_order_fill_events() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -562,6 +656,7 @@ fn hybrid_swap_accepts_max_maker_fills_at_hard_cap() {
             max_maker_fills: MAX_MAKER_FILLS_HARD_CAP,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -696,6 +791,7 @@ fn hybrid_book_fill_uses_taker_discounted_effective_fee_bps() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -852,7 +948,8 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
                         info: asset_info_token(&env.token_a),
                         amount: total_in,
                     },
-                    hybrid: hybrid.clone(),
+                    hybrid: Some(hybrid.clone()),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -872,6 +969,7 @@ fn hybrid_simulation_matches_execute_with_fee_discount() {
             to: None,
             deadline: None,
             hybrid: Some(hybrid),
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -1007,6 +1105,7 @@ fn hybrid_swap_two_makers_emits_two_fill_events() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -1340,6 +1439,7 @@ fn match_asks_skips_zero_cost_fill_sub_unity_price() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -1375,12 +1475,13 @@ fn match_asks_skips_zero_cost_fill_sub_unity_price() {
                     info: asset_info_token(&env.token_b),
                     amount: swap_in,
                 },
-                hybrid: HybridSwapParams {
+                hybrid: Some(HybridSwapParams {
                     pool_input: Uint128::zero(),
                     book_input: swap_in,
                     max_maker_fills: 8,
                     book_start_hint: None,
-                },
+                }),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -1642,6 +1743,7 @@ fn match_bids_skips_zero_cost_fill_sub_unity_price() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -1771,6 +1873,7 @@ fn expired_bid_parked_on_hybrid_walk_claim_refunds_maker() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -2162,6 +2265,7 @@ fn hybrid_walk_pool_only_swap_has_no_expired_park_attrs() {
         to: None,
         deadline: None,
         hybrid: Some(pool_only_hybrid_params(pool_in)),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -2359,7 +2463,8 @@ fn hybrid_simulation_matches_execute_with_expired_park_cap() {
                     info: asset_info_token(&env.token_a),
                     amount: hybrid.book_input,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -2492,6 +2597,7 @@ fn claim_expired_limit_order_blocked_while_pair_paused_then_succeeds_after_unpau
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -2781,6 +2887,7 @@ fn hybrid_split_mismatch_rejected() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -2829,6 +2936,7 @@ fn hybrid_max_maker_zero_with_book_rejected() {
             max_maker_fills: 0,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -2907,6 +3015,7 @@ fn pause_blocks_swap_and_place_cancel_refunds_escrow() {
         to: None,
         deadline: None,
         hybrid: None,
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -3054,6 +3163,7 @@ fn fifo_two_bids_same_price_older_filled_first() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -3171,7 +3281,8 @@ fn hybrid_pool_and_book_legs_one_swap() {
                     info: asset_info_token(&env.token_a),
                     amount: total_in,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -3192,6 +3303,7 @@ fn hybrid_pool_and_book_legs_one_swap() {
             to: None,
             deadline: None,
             hybrid: Some(hybrid),
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3269,7 +3381,8 @@ fn hybrid_swap_rejects_min_return_above_net_output() {
                     info: asset_info_token(&env.token_a),
                     amount: total_in,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -3285,6 +3398,7 @@ fn hybrid_swap_rejects_min_return_above_net_output() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -3358,7 +3472,8 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
                     info: asset_info_token(&env.token_a),
                     amount: total_in,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -3395,6 +3510,7 @@ fn hybrid_max_spread_exact_tolerance_succeeds() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -3456,6 +3572,7 @@ fn hybrid_max_spread_tighter_than_simulation_rejected() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -3524,6 +3641,7 @@ fn hybrid_belief_price_max_spread_rejects_shortfall_on_total_output() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -3595,7 +3713,8 @@ fn hybrid_hook_commission_includes_pool_and_book() {
                     info: asset_info_token(&env.token_a),
                     amount: total_in,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -3612,6 +3731,7 @@ fn hybrid_hook_commission_includes_pool_and_book() {
             to: None,
             deadline: None,
             hybrid: Some(hybrid),
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3679,7 +3799,8 @@ fn pool_only_hook_commission_unchanged() {
                     info: asset_info_token(&env.token_a),
                     amount: offer,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -3695,6 +3816,7 @@ fn pool_only_hook_commission_unchanged() {
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -4032,6 +4154,7 @@ fn hybrid_no_belief_book_far_below_pool_rejected() {
             max_maker_fills: 1,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -4102,6 +4225,7 @@ fn hybrid_pure_book_requires_slippage_floor_without_belief() {
             max_maker_fills: 1,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -4134,6 +4258,7 @@ fn hybrid_pure_book_requires_slippage_floor_without_belief() {
             max_maker_fills: 1,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -4194,6 +4319,7 @@ fn hybrid_no_belief_dust_pool_leg_rejected() {
             max_maker_fills: 1,
             book_start_hint: None,
         }),
+        greedy: None,
         trader: None,
     })
     .unwrap();
@@ -4289,6 +4415,7 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
         offer_asset_info: asset_info_token(&env.token_a),
         ask_asset_info: asset_info_token(&env.token_b),
         hybrid: None,
+        greedy: None,
         min_return: None,
     };
     let sim_none: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
@@ -4313,6 +4440,7 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
             max_maker_fills: 8,
             book_start_hint: None,
         }),
+        greedy: None,
         min_return: None,
     };
     let sim_hybrid: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
@@ -4339,7 +4467,8 @@ fn router_simulate_swap_hybrid_matches_pool_when_book_empty() {
                     info: asset_info_token(&env.token_a),
                     amount: offer,
                 },
-                hybrid: dex_common::pair::pool_only_hybrid_params(offer),
+                hybrid: Some(dex_common::pair::pool_only_hybrid_params(offer)),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -4371,6 +4500,7 @@ fn router_single_hop_forwards_hybrid_to_pair() {
                 max_maker_fills: 8,
                 book_start_hint: None,
             }),
+            greedy: None,
             min_return: Some(Uint128::one()),
         }],
         max_spread: Decimal::one(),
@@ -4431,12 +4561,14 @@ fn router_two_hop_first_leg_hybrid_matches_simulate() {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
             hybrid: Some(hop1_hybrid),
+            greedy: None,
             min_return: hop1_min,
         },
         cl8y_dex_router::msg::SwapOperation::TerraSwap {
             offer_asset_info: asset_info_token(&env.token_b),
             ask_asset_info: asset_info_token(&abc.token_c),
             hybrid: None,
+            greedy: None,
             min_return: None,
         },
     ];
@@ -4559,6 +4691,7 @@ fn router_three_hop_two_legs_hybrid_matches_simulate() {
         offer_asset_info: asset_info_token(&env.token_a),
         ask_asset_info: asset_info_token(&env.token_b),
         hybrid: Some(hop1_hybrid.clone()),
+        greedy: None,
         min_return: None,
     }];
     let offer_b = router_simulate_amount(&app, &env.router, offer_a, &hop1_only);
@@ -4569,12 +4702,14 @@ fn router_three_hop_two_legs_hybrid_matches_simulate() {
             offer_asset_info: asset_info_token(&env.token_a),
             ask_asset_info: asset_info_token(&env.token_b),
             hybrid: Some(hop1_hybrid.clone()),
+            greedy: None,
             min_return: router_hop_min_return(&Some(hop1_hybrid.clone())),
         },
         cl8y_dex_router::msg::SwapOperation::TerraSwap {
             offer_asset_info: asset_info_token(&env.token_b),
             ask_asset_info: asset_info_token(&abc.token_c),
             hybrid: Some(hop2_hybrid.clone()),
+            greedy: None,
             min_return: router_hop_min_return(&Some(hop2_hybrid)),
         },
     ];
@@ -4587,6 +4722,7 @@ fn router_three_hop_two_legs_hybrid_matches_simulate() {
             offer_asset_info: asset_info_token(&abc.token_c),
             ask_asset_info: asset_info_token(&abcd.token_d),
             hybrid: None,
+            greedy: None,
             min_return: None,
         },
     ];
@@ -4743,7 +4879,8 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                         info: asset_info_token(&env.token_a),
                         amount: hrev.offer_amount,
                     },
-                    hybrid: fwd_hybrid,
+                    hybrid: Some(fwd_hybrid),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -4779,7 +4916,8 @@ fn hybrid_reverse_sim_minimal_offer_invariant() {
                             info: asset_info_token(&env.token_a),
                             amount: less,
                         },
-                        hybrid: fwd_lo_hybrid,
+                        hybrid: Some(fwd_lo_hybrid),
+                        greedy: None,
                         trader: None,
                         sender: None,
                         belief_price: None,
@@ -4822,7 +4960,8 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                     info: asset_info_token(&env.token_a),
                     amount: offer,
                 },
-                hybrid: hybrid.clone(),
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -4838,7 +4977,8 @@ fn hybrid_forward_sim_matches_execute_when_book_empty() {
                     info: asset_info_token(&env.token_a),
                     amount: offer,
                 },
-                hybrid: dex_common::pair::pool_only_hybrid_params(offer),
+                hybrid: Some(dex_common::pair::pool_only_hybrid_params(offer)),
+                greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -5887,6 +6027,7 @@ fn batch_claim_expired_two_orders_one_tx() {
                 max_maker_fills: 8,
                 book_start_hint: None,
             }),
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -7041,6 +7182,7 @@ fn limit_placement_shifted_discount_swap_fee_unchanged_514() {
         to: None,
         deadline: None,
         hybrid: Some(pool_only_hybrid_params(swap_in)),
+        greedy: None,
         trader: Some(maker.to_string()),
     })
     .unwrap();
@@ -7078,4 +7220,961 @@ fn limit_placement_shifted_discount_swap_fee_unchanged_514() {
         unreg_escrow.checked_sub(expected_unreg_fee).unwrap(),
         "unregistered placement stays 90 bps"
     );
+}
+
+/// GitLab #708 — greedy book-first (**G1–G11**, **G14** Pattern C unchanged).
+mod greedy_book_first_708 {
+    use super::*;
+
+    fn fund_taker_a(app: &mut App, env: &TestEnv, taker: &Addr, amount: Uint128) {
+        transfer_tokens(app, &env.token_a, &env.user, taker, amount);
+    }
+
+    fn fund_taker_b(app: &mut App, env: &TestEnv, taker: &Addr, amount: Uint128) {
+        transfer_tokens(app, &env.token_b, &env.user, taker, amount);
+    }
+
+    fn seeded_pool(app: &mut App) -> (TestEnv, Addr) {
+        let env = setup_full_env(app);
+        provide_liquidity(
+            app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let taker = Addr::unchecked("taker_708");
+        (env, taker)
+    }
+
+    /// **G1** — `hybrid: None` never reads the book even when a better bid rests.
+    #[test]
+    fn g1_pool_only_skips_better_bid() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(200_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(200_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let before = query_limit(&app, &env.pair, bid_id);
+        swap_a_to_b_hybrid(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(50_000),
+            None,
+        );
+        let after = query_limit(&app, &env.pair, bid_id);
+        assert_eq!(
+            after.remaining, before.remaining,
+            "G1: pool-only must not fill the book"
+        );
+    }
+
+    /// Empty book → remainder to pool (**G9**), `greedy_stop=empty`.
+    #[test]
+    fn greedy_empty_book_rolls_to_pool() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let offer = Uint128::new(40_000);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "greedy_stop"),
+            Some("empty".into())
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "limit_book_offer_consumed"),
+            Some("0".into())
+        );
+        assert!(query_cw20_balance(&app, &env.token_b, &taker) > Uint128::zero());
+    }
+
+    /// Better bid fills, leftover offer → AMM (**G3** / **G9**).
+    #[test]
+    fn greedy_better_bid_then_pool_remainder() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(200_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(8_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let offer = Uint128::new(80_000);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        let consumed: u128 =
+            wasm_attr_in_action_event(&res.events, "swap", "limit_book_offer_consumed")
+                .unwrap()
+                .parse()
+                .unwrap();
+        assert!(
+            consumed > 0 && consumed < offer.u128(),
+            "consumed={consumed} offer={}",
+            offer.u128()
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "greedy_stop"),
+            Some("remainder_to_pool".into())
+        );
+        let _ = bid_id;
+        assert!(query_cw20_balance(&app, &env.token_b, &taker) > Uint128::zero());
+    }
+
+    /// Equal-or-worse maker (spot 1:1) is a stop, not a fill (**G3**).
+    #[test]
+    fn greedy_worse_or_equal_bid_does_not_fill() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(100_000),
+            Decimal::percent(50),
+        );
+        let before = query_limit(&app, &env.pair, bid_id);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(40_000),
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        let after = query_limit(&app, &env.pair, bid_id);
+        assert_eq!(after.remaining, before.remaining);
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "greedy_stop"),
+            Some("worse_than_pool".into())
+        );
+    }
+
+    /// Prefix of better makers, then a worse level stops the walk (**G3**).
+    #[test]
+    fn greedy_mixed_prefix_stops_at_worse() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(200_000));
+        let better = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(80_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let worse = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(100_000),
+            Decimal::percent(50),
+        );
+        let worse_before = query_limit(&app, &env.pair, worse);
+        greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(80_000),
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        let worse_after = query_limit(&app, &env.pair, worse);
+        assert_eq!(worse_after.remaining, worse_before.remaining);
+        let better_gone: Result<LimitOrderResponse, _> = app.wrap().query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::LimitOrder { order_id: better },
+        );
+        assert!(
+            better_gone.is_err() || better_gone.as_ref().unwrap().remaining < Uint128::new(80_000)
+        );
+    }
+
+    /// Declared `book_input = offer` fills an equal-price bid; greedy does not (**G11** / **G3**).
+    #[test]
+    fn greedy_does_not_match_declared_full_book_on_equal_price() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(200_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(80_000),
+            Decimal::percent(50),
+        );
+        let before = query_limit(&app, &env.pair, bid_id);
+        let offer = Uint128::new(20_000);
+        swap_a_to_b_hybrid(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            Some(HybridSwapParams {
+                pool_input: Uint128::zero(),
+                book_input: offer,
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }),
+        );
+        let after_declared = query_limit(&app, &env.pair, bid_id);
+        assert!(after_declared.remaining < before.remaining);
+
+        let bid2 = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(80_000),
+            Decimal::percent(50),
+        );
+        let before2 = query_limit(&app, &env.pair, bid2);
+        greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        let after_greedy = query_limit(&app, &env.pair, bid2);
+        assert_eq!(after_greedy.remaining, before2.remaining);
+    }
+
+    /// Ask side: cheaper-than-pool ask fills (**G10** reuse `match_asks`).
+    #[test]
+    fn greedy_better_ask_fills() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_b(&mut app, &env, &taker, Uint128::new(80_000));
+        let ask_id = place_ask(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_a,
+            Uint128::new(80_000),
+            Decimal::percent(50),
+        );
+        greedy_swap_b_to_a(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_b,
+            Uint128::new(20_000),
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        let after = query_limit(&app, &env.pair, ask_id);
+        assert!(after.remaining < Uint128::new(80_000));
+    }
+
+    #[test]
+    fn greedy_max_maker_fills_one_stops() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(200_000));
+        let _first = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(80_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let second = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(80_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let second_before = query_limit(&app, &env.pair, second);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(80_000),
+            greedy_swap_params(1, None),
+            Some(Uint128::one()),
+        );
+        assert_eq!(
+            query_limit(&app, &env.pair, second).remaining,
+            second_before.remaining
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "greedy_stop"),
+            Some("max_makers".into())
+        );
+    }
+
+    /// **G5** — `max_maker_fills == 0` rejects.
+    #[test]
+    fn greedy_zero_max_maker_fills_rejected() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(20_000));
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
+            to: None,
+            deadline: None,
+            hybrid: None,
+            greedy: Some(greedy_swap_params(0, None)),
+            trader: None,
+        })
+        .unwrap();
+        let err = app
+            .execute_contract(
+                taker.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(
+            msg.contains("max_maker_fills")
+                || msg.contains("InvalidHybrid")
+                || msg.contains("Invalid hybrid"),
+            "{msg}"
+        );
+    }
+
+    /// **G5** — oversize clamps (execute does not panic).
+    #[test]
+    fn greedy_oversize_max_maker_fills_clamps() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(20_000));
+        greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(10_000),
+            greedy_swap_params(10_000, None),
+            Some(Uint128::one()),
+        );
+    }
+
+    /// **G6** / **L17** — wrong-side hint falls back to head and still fills a better bid.
+    #[test]
+    fn greedy_wrong_side_hint_falls_back_to_head() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(40_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let ask_id = place_ask(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_a,
+            Uint128::new(10_000),
+            Decimal::one(),
+        );
+        greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(10_000),
+            greedy_swap_params(8, Some(ask_id)),
+            Some(Uint128::one()),
+        );
+        assert!(query_limit(&app, &env.pair, bid_id).remaining < Uint128::new(40_000));
+        assert!(
+            query_limit(&app, &env.pair, ask_id).remaining > Uint128::zero(),
+            "wrong-side ask must not be drained"
+        );
+    }
+
+    /// **G8** — greedy execute without `belief_price` or `min_return` reverts.
+    #[test]
+    fn greedy_requires_slippage_floor() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(20_000));
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::percent(1)),
+            min_return: None,
+            to: None,
+            deadline: None,
+            hybrid: None,
+            greedy: Some(greedy_swap_params(8, None)),
+            trader: None,
+        })
+        .unwrap();
+        let res = app.execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(5_000),
+                msg: swap_msg,
+            },
+            &[],
+        );
+        assert!(res.is_err());
+        let msg = res.unwrap_err().root_cause().to_string();
+        assert!(
+            msg.contains("belief_price") || msg.contains("min_return"),
+            "{msg}"
+        );
+    }
+
+    /// **G7** — HybridSimulation greedy quote matches execute net.
+    #[test]
+    fn greedy_simulation_matches_execute() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let _ = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(30_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let offer = Uint128::new(20_000);
+        let greedy = greedy_swap_params(8, None);
+        let sim = query_greedy_sim(&app, &env.pair, &env.token_a, offer, greedy.clone());
+        assert!(sim.greedy_stop.is_some());
+        let before = query_cw20_balance(&app, &env.token_b, &taker);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            greedy,
+            Some(Uint128::one()),
+        );
+        let after = query_cw20_balance(&app, &env.token_b, &taker);
+        assert_eq!(after.checked_sub(before).unwrap(), sim.return_amount);
+        let exec_stop = wasm_attr_in_action_event(&res.events, "swap", "greedy_stop");
+        assert_eq!(
+            exec_stop,
+            sim.greedy_stop.as_ref().map(|s| s.as_attr().to_string()),
+            "G7: query greedy_stop must match execute"
+        );
+    }
+
+    /// **G11** / **#709** — pair `HybridSimulation` with both fields errors (same family as execute).
+    #[test]
+    fn greedy_query_both_hybrid_and_greedy_errors() {
+        let mut app = App::default();
+        let (env, _) = seeded_pool(&mut app);
+        let offer = Uint128::new(5_000);
+        let err = app
+            .wrap()
+            .query_wasm_smart::<HybridSimulationResponse>(
+                env.pair.to_string(),
+                &QueryMsg::HybridSimulation {
+                    offer_asset: Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: offer,
+                    },
+                    hybrid: Some(pool_only_hybrid_params(offer)),
+                    greedy: Some(greedy_swap_params(8, None)),
+                    trader: None,
+                    sender: None,
+                    belief_price: None,
+                },
+            )
+            .unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(
+            msg.contains("both hybrid and greedy")
+                || msg.contains("InvalidHybrid")
+                || msg.contains("Invalid hybrid"),
+            "{msg}"
+        );
+    }
+
+    /// **G11** / **#709** — router `SimulateSwapOperations` hop with both fields errors.
+    #[test]
+    fn greedy_router_sim_both_hybrid_and_greedy_errors() {
+        let mut app = App::default();
+        let (env, _) = seeded_pool(&mut app);
+        let offer = Uint128::new(5_000);
+        let err = app
+            .wrap()
+            .query_wasm_smart::<cl8y_dex_router::msg::SimulateSwapOperationsResponse>(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::SimulateSwapOperations {
+                    offer_amount: offer,
+                    operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+                        offer_asset_info: asset_info_token(&env.token_a),
+                        ask_asset_info: asset_info_token(&env.token_b),
+                        hybrid: Some(pool_only_hybrid_params(offer)),
+                        greedy: Some(greedy_swap_params(8, None)),
+                        min_return: None,
+                    }],
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(msg.contains("both hybrid and greedy"), "{msg}");
+    }
+
+    /// **#709** — better bid that consumes the whole offer → `greedy_stop=filled`.
+    #[test]
+    fn greedy_full_book_consume_is_filled() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let _ = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(200_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let offer = Uint128::new(10_000);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "greedy_stop"),
+            Some("filled".into())
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "limit_book_offer_consumed"),
+            Some(offer.to_string())
+        );
+    }
+
+    /// **L6** / **#710** — paused pair rejects greedy execute; query still quotes; unpause fills.
+    #[test]
+    fn greedy_paused_execute_rejects_then_unpause_fills() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(40_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &FactoryExecuteMsg::SetPairPaused {
+                pair: env.pair.to_string(),
+                paused: true,
+            },
+            &[],
+        )
+        .unwrap();
+        let paused: PausedResponse = app
+            .wrap()
+            .query_wasm_smart(env.pair.to_string(), &QueryMsg::IsPaused {})
+            .unwrap();
+        assert!(paused.paused);
+
+        let sim = query_greedy_sim(
+            &app,
+            &env.pair,
+            &env.token_a,
+            Uint128::new(10_000),
+            greedy_swap_params(8, None),
+        );
+        assert!(sim.return_amount > Uint128::zero());
+
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
+            to: None,
+            deadline: None,
+            hybrid: None,
+            greedy: Some(greedy_swap_params(8, None)),
+            trader: None,
+        })
+        .unwrap();
+        let err = app
+            .execute_contract(
+                taker.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let msg = err.root_cause().to_string();
+        assert!(msg.contains("paused") || msg.contains("Paused"), "{msg}");
+
+        let pool_only_err = app
+            .execute_contract(
+                taker.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(5_000),
+                    msg: to_json_binary(&Cw20HookMsg::Swap {
+                        belief_price: None,
+                        max_spread: Some(Decimal::one()),
+                        min_return: None,
+                        to: None,
+                        deadline: None,
+                        hybrid: None,
+                        greedy: None,
+                        trader: None,
+                    })
+                    .unwrap(),
+                },
+                &[],
+            )
+            .unwrap_err();
+        let pmsg = pool_only_err.root_cause().to_string();
+        assert!(pmsg.contains("paused") || pmsg.contains("Paused"), "{pmsg}");
+
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &FactoryExecuteMsg::SetPairPaused {
+                pair: env.pair.to_string(),
+                paused: false,
+            },
+            &[],
+        )
+        .unwrap();
+        greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            Uint128::new(10_000),
+            greedy_swap_params(8, None),
+            Some(Uint128::one()),
+        );
+        assert!(query_limit(&app, &env.pair, bid_id).remaining < Uint128::new(40_000));
+    }
+
+    /// **L7** / **#710** — AfterSwap / wasm return is book net + pool net; query does not park.
+    #[test]
+    fn greedy_afterswap_return_is_book_plus_pool() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(200_000));
+        let bid_id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(8_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+        let remaining_before = query_limit(&app, &env.pair, bid_id).remaining;
+        let offer = Uint128::new(80_000);
+        let greedy = greedy_swap_params(8, None);
+        let sim = query_greedy_sim(&app, &env.pair, &env.token_a, offer, greedy.clone());
+        assert!(sim.book_return_amount > Uint128::zero());
+        assert!(sim.pool_return_amount > Uint128::zero());
+        assert_eq!(
+            sim.return_amount,
+            sim.book_return_amount
+                .checked_add(sim.pool_return_amount)
+                .unwrap()
+        );
+        assert_eq!(
+            sim.commission_amount,
+            sim.pool_commission_amount
+                .checked_add(sim.book_commission_amount)
+                .unwrap()
+        );
+        assert_eq!(
+            query_limit(&app, &env.pair, bid_id).remaining,
+            remaining_before,
+            "query must not fill or park"
+        );
+        let parked: Option<ExpiredLimitRefundResponse> = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::ExpiredLimitRefund { order_id: bid_id },
+            )
+            .unwrap();
+        assert!(parked.is_none(), "query must not park the live bid");
+
+        let tre_b_before = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        let res = greedy_swap_a_to_b(
+            &mut app,
+            &env.pair,
+            &taker,
+            &env.token_a,
+            offer,
+            greedy,
+            Some(Uint128::one()),
+        );
+        let wasm_return: u128 = wasm_attr_in_action_event(&res.events, "swap", "return_amount")
+            .expect("return_amount")
+            .parse()
+            .unwrap();
+        assert_eq!(wasm_return, sim.return_amount.u128());
+        let book_c: u128 = wasm_attr_in_action_event(&res.events, "swap", "book_commission_amount")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let pool_c: u128 = wasm_attr_in_action_event(&res.events, "swap", "commission_amount")
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(sim.commission_amount.u128(), pool_c + book_c);
+        assert!(book_c > 0);
+        let tre_b_after = query_cw20_balance(&app, &env.token_b, &env.treasury);
+        assert_eq!(
+            tre_b_after.checked_sub(tre_b_before).unwrap(),
+            sim.commission_amount
+        );
+        assert_eq!(
+            wasm_attr_in_action_event(&res.events, "swap", "greedy_stop"),
+            Some("remainder_to_pool".into())
+        );
+    }
+
+    /// **A9** / **A14** / **#710** — pair-direct greedy `trader: Some(whale)` does not steal that wallet's fee tier.
+    #[test]
+    fn greedy_pair_direct_trader_spoof_does_not_steal_fee_tier() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(80_000));
+        let _ = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(40_000),
+            Decimal::from_ratio(2u128, 1u128),
+        );
+
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let fd_code_id = app.store_code(fee_discount_contract());
+        let cl8y = create_cw20_token_with_decimals(
+            &mut app,
+            cw20_code_id,
+            &env.user,
+            "CL8Y",
+            "CL8Y",
+            18,
+            Uint128::new(1_000_000_000_000_000_000_000u128),
+        );
+        let fd = app
+            .instantiate_contract(
+                fd_code_id,
+                env.governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: env.governance.to_string(),
+                    cl8y_token: cl8y.to_string(),
+                },
+                &[],
+                "fd_greedy_spoof",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            fd.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+                tier_id: 1,
+                min_cl8y_balance: Uint128::zero(),
+                discount_bps: 5000,
+                limit_discount_bps: None,
+                governance_only: false,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &FactoryExecuteMsg::SetDiscountRegistry {
+                pair: env.pair.to_string(),
+                registry: Some(fd.to_string()),
+            },
+            &[],
+        )
+        .unwrap();
+        transfer_tokens(
+            &mut app,
+            &cl8y,
+            &env.user,
+            &env.user,
+            Uint128::new(1_000_000_000_000_000_000u128),
+        );
+        app.execute_contract(
+            env.user.clone(),
+            fd,
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 1 },
+            &[],
+        )
+        .unwrap();
+
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
+            to: None,
+            deadline: None,
+            hybrid: None,
+            greedy: Some(greedy_swap_params(8, None)),
+            trader: Some(env.user.to_string()),
+        })
+        .unwrap();
+        let res = app
+            .execute_contract(
+                taker.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(10_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap();
+        let eff = wasm_attr_last(&res.events, "effective_fee_bps")
+            .expect("effective_fee_bps")
+            .parse::<u16>()
+            .unwrap();
+        assert_eq!(
+            eff, 30,
+            "pair-direct greedy must use authenticated sender fee, not spoofed whale tier"
+        );
+    }
+
+    /// **G11** — mutex: both `hybrid` and `greedy` rejected.
+    #[test]
+    fn greedy_and_hybrid_mutex() {
+        let mut app = App::default();
+        let (env, taker) = seeded_pool(&mut app);
+        fund_taker_a(&mut app, &env, &taker, Uint128::new(20_000));
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
+            to: None,
+            deadline: None,
+            hybrid: Some(pool_only_hybrid_params(Uint128::new(5_000))),
+            greedy: Some(greedy_swap_params(8, None)),
+            trader: None,
+        })
+        .unwrap();
+        let err = app
+            .execute_contract(
+                taker.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(5_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(
+            msg.contains("both hybrid and greedy")
+                || msg.contains("InvalidHybrid")
+                || msg.contains("Invalid hybrid"),
+            "{msg}"
+        );
+    }
+
+    /// **G14** — Pattern C pool-only sim JSON omits `greedy_stop`.
+    #[test]
+    fn pattern_c_sim_omits_greedy_stop() {
+        let mut app = App::default();
+        let (env, _) = seeded_pool(&mut app);
+        let sim: HybridSimulationResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &QueryMsg::HybridSimulation {
+                    offer_asset: Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: Uint128::new(10_000),
+                    },
+                    hybrid: Some(pool_only_hybrid_params(Uint128::new(10_000))),
+                    greedy: None,
+                    trader: None,
+                    sender: None,
+                    belief_price: None,
+                },
+            )
+            .unwrap();
+        assert!(sim.greedy_stop.is_none());
+        let json = to_json_binary(&sim).unwrap();
+        let s = String::from_utf8(json.to_vec()).unwrap();
+        assert!(
+            !s.contains("greedy_stop"),
+            "Pattern C JSON must omit greedy_stop: {s}"
+        );
+        let _ = GreedyStopReason::Empty;
+        let _ = MAX_MAKER_FILLS_HARD_CAP;
+    }
 }

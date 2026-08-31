@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use dex_common::factory::{PairResponse, QueryMsg as FactoryQuery};
-use dex_common::pair::{Cw20HookMsg, QueryMsg as PairQuery};
+use dex_common::pair::{greedy_swap_params, Cw20HookMsg, QueryMsg as PairQuery};
 use dex_common::types::{AssetInfo, PairInfo};
 
 use crate::msg::{
@@ -356,6 +356,7 @@ fn swap_hook() -> Binary {
         deadline: None,
         trader: None,
         hybrid: None,
+        greedy: None,
     })
     .unwrap()
 }
@@ -369,6 +370,35 @@ fn swap_hook_trader(trader: &str) -> Binary {
         deadline: None,
         trader: Some(trader.into()),
         hybrid: None,
+        greedy: None,
+    })
+    .unwrap()
+}
+
+fn greedy_swap_hook() -> Binary {
+    to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: None,
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        trader: None,
+        hybrid: None,
+        greedy: Some(greedy_swap_params(8, None)),
+    })
+    .unwrap()
+}
+
+fn greedy_swap_hook_trader(trader: &str) -> Binary {
+    to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: None,
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        trader: Some(trader.into()),
+        hybrid: None,
+        greedy: Some(greedy_swap_params(8, None)),
     })
     .unwrap()
 }
@@ -528,6 +558,87 @@ fn sell_extra_debit_on_swap_send() {
     assert_eq!(
         balance(&e.app, &e.token, e.treasury.as_str()),
         treas_before + tax
+    );
+}
+
+/// **#710** — greedy `Send+Swap` still extra-debits the CW20 `from` (tax must not skip greedy serde).
+#[test]
+fn greedy_sell_extra_debit_on_swap_send() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    let treas_before = balance(&e.app, &e.token, e.treasury.as_str());
+    let amount = 1_000_000u128;
+    let tax = amount * 500 / 10_000;
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: greedy_swap_hook(),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount - tax
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treas_before + tax
+    );
+}
+
+/// **A9** / **#710** — pair-direct greedy `trader: Some(victim)` extra-debits `from`, not the victim.
+#[test]
+fn greedy_pair_direct_trader_spoof_extra_debits_from() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let victim = Addr::unchecked("whale_victim");
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: victim.to_string(),
+                amount: Uint128::new(100_000),
+            },
+            &[],
+        )
+        .unwrap();
+    let victim_before = balance(&e.app, &e.token, victim.as_str());
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let amount = 1_000_000u128;
+    let tax = amount * 500 / 10_000;
+    e.app
+        .execute_contract(
+            e.user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(amount),
+                msg: greedy_swap_hook_trader(victim.as_str()),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount - tax,
+        "pair-direct extra-debits from"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, victim.as_str()),
+        victim_before,
+        "spoofed trader must not be extra-debited"
     );
 }
 
@@ -2399,6 +2510,65 @@ fn router_sell_extra_debits_authenticated_trader() {
         &e.pair,
         1_000_000,
         Some(swap_hook_trader(e.user.as_str())),
+    );
+    assert_eq!(p.kind, TaxKind::Sell);
+    assert_eq!(p.debit, Uint128::new(1_000_000));
+    assert_eq!(p.credit, Uint128::new(1_000_000));
+    assert_eq!(p.tax, Uint128::new(50_000));
+    assert_eq!(p.hop_trader.as_ref(), Some(&e.user));
+    assert_eq!(p.hop_trader_debit, Some(Uint128::new(50_000)));
+}
+
+/// **T592-13** / **#710** — official-router greedy hop extra-debits authenticated `trader`, not the router.
+#[test]
+fn greedy_router_sell_extra_debits_authenticated_trader() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    fund_router(&mut e, 1_000_000);
+    let router = Addr::unchecked("router");
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    let treasury_before = balance(&e.app, &e.token, e.treasury.as_str());
+
+    e.app
+        .execute_contract(
+            router.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Send {
+                contract: e.pair.to_string(),
+                amount: Uint128::new(1_000_000),
+                msg: greedy_swap_hook_trader(e.user.as_str()),
+            },
+            &[],
+        )
+        .unwrap();
+
+    assert_eq!(
+        balance(&e.app, &e.token, router.as_str()),
+        0,
+        "router debited declared amount only"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + 1_000_000,
+        "pair inbound 1:1"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - 50_000,
+        "trader extra-debit 5%"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treasury_before + 50_000
+    );
+
+    let p = preview(
+        &e,
+        &router,
+        &e.pair,
+        1_000_000,
+        Some(greedy_swap_hook_trader(e.user.as_str())),
     );
     assert_eq!(p.kind, TaxKind::Sell);
     assert_eq!(p.debit, Uint128::new(1_000_000));

@@ -101,6 +101,100 @@ pub fn pool_only_hybrid_template() -> HybridSwapParams {
     }
 }
 
+/// Opt-in greedy book-first swap ([GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)).
+///
+/// Caller supplies only a maker cap and optional `book_start_hint` — **no** `pool_input` /
+/// `book_input` (**G2**). Distinct JSON from [`HybridSwapParams`] so a declared split cannot
+/// deserialize as greedy (**G11** / **A10**). `hybrid: None` on `Swap` stays pool-only (**G1**).
+#[cw_serde]
+pub struct GreedySwapParams {
+    /// Stop after touching this many distinct maker orders (clamped to [`MAX_MAKER_FILLS_HARD_CAP`]).
+    pub max_maker_fills: u32,
+    /// Optional live same-side order id; missing/stale/wrong-side → head (**L17** / **G6**).
+    #[serde(default)]
+    pub book_start_hint: Option<u64>,
+}
+
+/// Construct greedy params (does not clamp; pair/router clamp on execute/query).
+pub fn greedy_swap_params(max_maker_fills: u32, book_start_hint: Option<u64>) -> GreedySwapParams {
+    GreedySwapParams {
+        max_maker_fills,
+        book_start_hint,
+    }
+}
+
+/// Why a greedy book walk stopped (wasm attr `greedy_stop`, **G3**).
+///
+/// Wire names are stable snake_case (`"worse_than_pool"`, …). Pattern C JSON
+/// omits this field (**G14**). `empty` means **no maker was filled**; a book
+/// fill with leftover offer uses `remainder_to_pool` (**#709**).
+#[cw_serde]
+pub enum GreedyStopReason {
+    /// Next live maker does not strictly beat the residual pool spot.
+    WorseThanPool,
+    /// Hit caller/hard `max_maker_fills` with offer still remaining.
+    MaxMakers,
+    /// Hit [`MAX_SCAN_STEPS`] before fills or a price stop.
+    ScanCap,
+    /// No live same-side maker was filled (empty book, all worse, all skipped).
+    Empty,
+    /// Entire offer was consumed on the book.
+    Filled,
+    /// At least one maker filled; leftover offer goes to the AMM (**G9**, #709).
+    RemainderToPool,
+}
+
+impl GreedyStopReason {
+    /// Wasm `greedy_stop=…` attribute value.
+    pub fn as_attr(&self) -> &'static str {
+        match self {
+            Self::WorseThanPool => "worse_than_pool",
+            Self::MaxMakers => "max_makers",
+            Self::ScanCap => "scan_cap",
+            Self::Empty => "empty",
+            Self::Filled => "filled",
+            Self::RemainderToPool => "remainder_to_pool",
+        }
+    }
+}
+
+/// Resolved swap path after `hybrid` / `greedy` mutex (**G1**, **G11**).
+#[derive(Clone, Debug, PartialEq)]
+pub enum SwapHybridMode {
+    /// `hybrid: None` and `greedy: None` — book skipped (**G1**).
+    PoolOnly,
+    /// Pattern C caller-declared split.
+    Declared(HybridSwapParams),
+    /// Greedy book-first; remainder to the pool (**G9**).
+    Greedy(GreedySwapParams),
+}
+
+/// Pick exactly one of declared hybrid, greedy, or pool-only.
+///
+/// `max_maker_fills == 0` on greedy is rejected (**G5**). Oversize fills are clamped, not panicked.
+pub fn resolve_swap_hybrid_mode(
+    hybrid: Option<HybridSwapParams>,
+    greedy: Option<GreedySwapParams>,
+) -> Result<SwapHybridMode, String> {
+    match (hybrid, greedy) {
+        (Some(_), Some(_)) => Err(
+            "cannot set both hybrid and greedy; use greedy for book-first or hybrid for a declared split"
+                .into(),
+        ),
+        (None, None) => Ok(SwapHybridMode::PoolOnly),
+        (None, Some(g)) => {
+            if g.max_maker_fills == 0 {
+                return Err("max_maker_fills must be > 0 for greedy".into());
+            }
+            Ok(SwapHybridMode::Greedy(GreedySwapParams {
+                max_maker_fills: g.max_maker_fills.min(MAX_MAKER_FILLS_HARD_CAP),
+                book_start_hint: g.book_start_hint,
+            }))
+        }
+        (Some(h), None) => Ok(SwapHybridMode::Declared(h)),
+    }
+}
+
 /// Which side of the book the maker is on.
 ///
 /// **Price** is always **token1 per token0** (output token1 per 1 unit of token0), matching pool pricing.
@@ -391,7 +485,11 @@ pub enum Cw20HookMsg {
         /// is a trusted router before honoring this field.
         trader: Option<String>,
         /// Pattern C: optional split between limit book and pool (see [`HybridSwapParams`]).
+        /// `None` together with `greedy: None` is pool-only (**G1** / GitLab #708).
         hybrid: Option<HybridSwapParams>,
+        /// Opt-in greedy book-first (GitLab #708). Mutually exclusive with `hybrid`.
+        #[serde(default)]
+        greedy: Option<GreedySwapParams>,
     },
     /// Place multiple limits in one CW20 `send` (same side; amounts must sum to `send` amount).
     PlaceLimitOrderBatch {
@@ -474,7 +572,14 @@ pub enum QueryMsg {
     #[returns(HybridSimulationResponse)]
     HybridSimulation {
         offer_asset: Asset,
-        hybrid: HybridSwapParams,
+        /// Declared Pattern C split. Omit (or `null`) when `greedy` is set (**G2** / **G11**).
+        /// Setting **both** `hybrid` and `greedy` errors — same mutex as execute (**G11** / #709).
+        #[serde(default)]
+        hybrid: Option<HybridSwapParams>,
+        /// Opt-in greedy book-first quote. Uses the same `resolve_swap_hybrid_mode` as execute
+        /// (**G7** / **G11**, GitLab #708 / #709). Do not send together with `hybrid`.
+        #[serde(default)]
+        greedy: Option<GreedySwapParams>,
         /// When set, CL8Y fee-tier discount is applied (same math as execute). Omit for undiscounted quotes.
         trader: Option<String>,
         /// CW20 sender for discount lookup when `trader` differs (e.g. trusted router). Defaults to `trader`.
@@ -499,7 +604,20 @@ pub enum QueryMsg {
 pub fn hybrid_simulation_undiscounted(offer_asset: Asset, hybrid: HybridSwapParams) -> QueryMsg {
     QueryMsg::HybridSimulation {
         offer_asset,
-        hybrid,
+        hybrid: Some(hybrid),
+        greedy: None,
+        trader: None,
+        sender: None,
+        belief_price: None,
+    }
+}
+
+/// Undiscounted greedy book-first quote (GitLab #708 / **G7**).
+pub fn greedy_simulation_undiscounted(offer_asset: Asset, greedy: GreedySwapParams) -> QueryMsg {
+    QueryMsg::HybridSimulation {
+        offer_asset,
+        hybrid: None,
+        greedy: Some(greedy),
         trader: None,
         sender: None,
         belief_price: None,
@@ -529,7 +647,8 @@ pub fn hybrid_simulation_with_trader(
 ) -> QueryMsg {
     QueryMsg::HybridSimulation {
         offer_asset,
-        hybrid,
+        hybrid: Some(hybrid),
+        greedy: None,
         trader: Some(trader),
         sender,
         belief_price: None,
@@ -596,6 +715,10 @@ pub struct HybridSimulationResponse {
     pub pool_return_amount: Uint128,
     /// Offer-side amount matched on the book (same attr as execute `limit_book_offer_consumed`).
     pub limit_book_offer_consumed: Uint128,
+    /// Greedy walk stop reason when the quote used `greedy` (GitLab #708). Omitted on Pattern C
+    /// / pool-only quotes so existing JSON stays unchanged (`skip_serializing_if`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub greedy_stop: Option<GreedyStopReason>,
 }
 
 #[cw_serde]
@@ -688,5 +811,126 @@ mod expired_limit_park_reason_tests {
         }"#;
         let msg: PairInstantiateMsg = from_json(json).unwrap();
         assert!(msg.discount_registry.is_none());
+    }
+}
+
+#[cfg(test)]
+mod greedy_swap_mode_tests {
+    use super::*;
+    use cosmwasm_std::{from_json, to_json_binary, Uint128};
+
+    #[test]
+    fn g1_none_none_is_pool_only() {
+        let mode = resolve_swap_hybrid_mode(None, None).unwrap();
+        assert_eq!(mode, SwapHybridMode::PoolOnly);
+    }
+
+    #[test]
+    fn g11_both_hybrid_and_greedy_rejected() {
+        let err = resolve_swap_hybrid_mode(
+            Some(pool_only_hybrid_params(Uint128::new(10))),
+            Some(greedy_swap_params(8, None)),
+        )
+        .unwrap_err();
+        assert!(err.contains("both hybrid and greedy"));
+    }
+
+    #[test]
+    fn g5_greedy_zero_max_maker_fills_rejected() {
+        let err = resolve_swap_hybrid_mode(None, Some(greedy_swap_params(0, None))).unwrap_err();
+        assert!(err.contains("max_maker_fills must be > 0"));
+    }
+
+    #[test]
+    fn g5_greedy_oversize_clamps_not_panic() {
+        let mode =
+            resolve_swap_hybrid_mode(None, Some(greedy_swap_params(10_000, Some(3)))).unwrap();
+        match mode {
+            SwapHybridMode::Greedy(g) => {
+                assert_eq!(g.max_maker_fills, MAX_MAKER_FILLS_HARD_CAP);
+                assert_eq!(g.book_start_hint, Some(3));
+            }
+            other => panic!("expected greedy, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a10_declared_json_does_not_deserialize_as_greedy() {
+        let declared = br#"{
+            "pool_input": "10",
+            "book_input": "5",
+            "max_maker_fills": 8,
+            "book_start_hint": null
+        }"#;
+        let h: HybridSwapParams = from_json(declared).unwrap();
+        assert_eq!(h.pool_input, Uint128::new(10));
+        assert_eq!(h.book_input, Uint128::new(5));
+        let greedy_err = from_json::<GreedySwapParams>(declared);
+        assert!(
+            greedy_err.is_err(),
+            "extra pool_input/book_input must not be greedy"
+        );
+    }
+
+    #[test]
+    fn g2_greedy_json_has_no_pool_or_book_input() {
+        let g = greedy_swap_params(8, None);
+        let json = String::from_utf8(to_json_binary(&g).unwrap().to_vec()).unwrap();
+        assert!(!json.contains("pool_input"));
+        assert!(!json.contains("book_input"));
+        assert!(json.contains("max_maker_fills"));
+    }
+
+    #[test]
+    fn greedy_stop_reason_wire_names() {
+        assert_eq!(GreedyStopReason::WorseThanPool.as_attr(), "worse_than_pool");
+        assert_eq!(GreedyStopReason::MaxMakers.as_attr(), "max_makers");
+        assert_eq!(GreedyStopReason::ScanCap.as_attr(), "scan_cap");
+        assert_eq!(GreedyStopReason::Empty.as_attr(), "empty");
+        assert_eq!(GreedyStopReason::Filled.as_attr(), "filled");
+        assert_eq!(
+            GreedyStopReason::RemainderToPool.as_attr(),
+            "remainder_to_pool"
+        );
+    }
+
+    #[test]
+    fn swap_hook_omitted_greedy_defaults_none() {
+        let json = br#"{
+            "swap": {
+                "belief_price": null,
+                "max_spread": "0.01",
+                "to": null,
+                "deadline": null,
+                "trader": null,
+                "hybrid": null
+            }
+        }"#;
+        // Wrap as the hook enum object `{ "swap": { ... } }`.
+        let hook: Cw20HookMsg = from_json(json).unwrap();
+        match hook {
+            Cw20HookMsg::Swap { greedy, hybrid, .. } => {
+                assert!(greedy.is_none());
+                assert!(hybrid.is_none());
+            }
+            other => panic!("expected Swap, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn g14_pattern_c_response_omits_greedy_stop() {
+        let resp = HybridSimulationResponse {
+            return_amount: Uint128::new(1),
+            spread_amount: Uint128::zero(),
+            commission_amount: Uint128::zero(),
+            pool_commission_amount: Uint128::zero(),
+            book_commission_amount: Uint128::zero(),
+            book_return_amount: Uint128::zero(),
+            pool_return_amount: Uint128::new(1),
+            limit_book_offer_consumed: Uint128::zero(),
+            greedy_stop: None,
+        };
+        let s = String::from_utf8(to_json_binary(&resp).unwrap().to_vec()).unwrap();
+        assert!(!s.contains("greedy_stop"), "{s}");
     }
 }

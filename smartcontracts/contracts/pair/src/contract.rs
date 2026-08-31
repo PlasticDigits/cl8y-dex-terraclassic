@@ -40,8 +40,9 @@ use dex_common::oracle::{
 };
 use dex_common::pair::clamp_max_batch_rungs;
 use dex_common::pair::{
-    validate_limit_order_price, HybridReverseSimulationResponse, HybridSimulationResponse,
-    HybridSwapParams, LimitOrderSide, LP_TOKEN_DECIMALS, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
+    resolve_swap_hybrid_mode, validate_limit_order_price, GreedyStopReason, GreedySwapParams,
+    HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams, LimitOrderSide,
+    SwapHybridMode, LP_TOKEN_DECIMALS, MAX_PAIR_ASSET_DECIMALS_BOOTSTRAP,
 };
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
@@ -802,6 +803,7 @@ fn execute_receive(
             deadline,
             trader,
             hybrid,
+            greedy,
         } => {
             assert_deadline(&env, deadline)?;
             execute_swap(
@@ -816,6 +818,7 @@ fn execute_receive(
                 to,
                 trader,
                 hybrid,
+                greedy,
             )
         }
         Cw20HookMsg::PlaceLimitOrderBatch { side, orders } => execute_place_limit_orders_batch(
@@ -960,14 +963,18 @@ fn execute_swap(
     to: Option<String>,
     trader: Option<String>,
     hybrid: Option<HybridSwapParams>,
+    greedy: Option<GreedySwapParams>,
 ) -> Result<Response, ContractError> {
     if input_amount.is_zero() {
         return Err(ContractError::ZeroAmount {});
     }
 
-    let (pool_leg, book_leg, max_makers, book_hint) = match &hybrid {
-        None => (input_amount, Uint128::zero(), 0u32, None),
-        Some(h) => {
+    let mode = resolve_swap_hybrid_mode(hybrid, greedy)
+        .map_err(|reason| ContractError::InvalidHybridParams { reason })?;
+
+    let (pool_leg, book_leg, max_makers, book_hint, greedy_enabled) = match &mode {
+        SwapHybridMode::PoolOnly => (input_amount, Uint128::zero(), 0u32, None, false),
+        SwapHybridMode::Declared(h) => {
             if h.pool_input.checked_add(h.book_input)? != input_amount {
                 return Err(ContractError::HybridSplitMismatch {});
             }
@@ -1008,6 +1015,23 @@ fn execute_swap(
                 h.book_input,
                 h.max_maker_fills,
                 h.book_start_hint,
+                false,
+            )
+        }
+        SwapHybridMode::Greedy(g) => {
+            // G8: greedy always intends book contact (even if the book is empty).
+            max_spread::validate_hybrid_book_requires_slippage_floor(
+                input_amount,
+                belief_price,
+                min_return,
+            )
+            .map_err(book_hybrid_slippage_floor_pair_error)?;
+            (
+                Uint128::zero(),
+                input_amount,
+                g.max_maker_fills,
+                g.book_start_hint,
+                true,
             )
         }
     };
@@ -1068,9 +1092,20 @@ fn execute_swap(
     let mut book_expired_parks = 0u32;
     let mut book_expired_parks_skipped = 0u32;
     let mut book_scan_steps_capped = false;
+    let mut book_greedy_stop: Option<GreedyStopReason> = None;
     let querier = deps.querier;
     let blacklist_gate =
         blacklist_guard::TradeBlacklistGate::from_parts(querier, &pair_info, &env.contract.address);
+
+    let greedy_pool = if greedy_enabled {
+        Some(crate::greedy::GreedyPoolRef {
+            input_reserve,
+            output_reserve,
+            pool_fee_bps: effective_fee_bps,
+        })
+    } else {
+        None
+    };
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -1087,6 +1122,7 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
                 Some(&blacklist_gate),
+                greedy_pool,
             )?;
             book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
                 book_match.fill_events,
@@ -1099,6 +1135,7 @@ fn execute_swap(
             book_expired_parks = book_match.expired_parks;
             book_expired_parks_skipped = book_match.expired_parks_skipped;
             book_scan_steps_capped = book_match.scan_steps_capped;
+            book_greedy_stop = book_match.greedy_stop;
         } else {
             let book_match = orderbook::match_asks(
                 deps.storage,
@@ -1113,6 +1150,7 @@ fn execute_swap(
                 &fee_config.treasury,
                 effective_fee_bps,
                 Some(&blacklist_gate),
+                greedy_pool,
             )?;
             book_fill_events = crate::tx_swap_index::stamp_swap_index_on_fill_events(
                 book_match.fill_events,
@@ -1125,6 +1163,7 @@ fn execute_swap(
             book_expired_parks = book_match.expired_parks;
             book_expired_parks_skipped = book_match.expired_parks_skipped;
             book_scan_steps_capped = book_match.scan_steps_capped;
+            book_greedy_stop = book_match.greedy_stop;
         }
     }
 
@@ -1327,6 +1366,9 @@ fn execute_swap(
         }
         if book_scan_steps_capped {
             resp = resp.add_attribute("scan_steps_capped", "true");
+        }
+        if let Some(stop) = book_greedy_stop {
+            resp = resp.add_attribute("greedy_stop", stop.as_attr());
         }
     }
 
@@ -2239,6 +2281,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::HybridSimulation {
             offer_asset,
             hybrid,
+            greedy,
             trader,
             sender,
             belief_price,
@@ -2247,6 +2290,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &env,
             offer_asset,
             hybrid,
+            greedy,
             trader,
             sender,
             belief_price,
@@ -2383,11 +2427,13 @@ fn scale_hybrid_template(
 /// and reuse the result. This keeps reverse-sim search loops from re-querying the
 /// discount registry per iteration, so simulation query gas stays bounded
 /// (GitLab #238 guardrail). For one-shot forward quotes use `simulate_hybrid_swap`.
+#[allow(clippy::too_many_arguments)]
 fn simulate_hybrid_swap_with_fee(
     deps: Deps,
     env: &Env,
     input_amount: Uint128,
-    hybrid: &HybridSwapParams,
+    hybrid: Option<&HybridSwapParams>,
+    greedy: Option<&GreedySwapParams>,
     offer_asset_info: &AssetInfo,
     effective_fee_bps: u16,
     belief_price: Option<Decimal>,
@@ -2402,39 +2448,61 @@ fn simulate_hybrid_swap_with_fee(
             book_return_amount: Uint128::zero(),
             pool_return_amount: Uint128::zero(),
             limit_book_offer_consumed: Uint128::zero(),
+            greedy_stop: None,
         });
     }
-    if hybrid.pool_input.checked_add(hybrid.book_input)? != input_amount {
-        return Err(ContractError::HybridSplitMismatch {});
-    }
-    if hybrid.book_input > Uint128::zero() && hybrid.max_maker_fills == 0 {
-        return Err(ContractError::InvalidHybridParams {
-            reason: "max_maker_fills must be > 0 when book_input > 0".into(),
-        });
-    }
-    if belief_price.is_none() {
-        max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
+    // Same mutex as execute (**G7** / **G11** / #709). Do not dummy-out hybrid
+    // when greedy is set — that quoted greedy while Swap rejected both fields.
+    let mode = resolve_swap_hybrid_mode(hybrid.cloned(), greedy.cloned())
+        .map_err(|reason| ContractError::InvalidHybridParams { reason })?;
+    let (pool_leg, book_leg, max_makers, book_hint, greedy_enabled) = match &mode {
+        SwapHybridMode::PoolOnly => (input_amount, Uint128::zero(), 0u32, None, false),
+        SwapHybridMode::Declared(h) => {
+            if h.pool_input.checked_add(h.book_input)? != input_amount {
+                return Err(ContractError::HybridSplitMismatch {});
+            }
+            if h.book_input > Uint128::zero() && h.max_maker_fills == 0 {
+                return Err(ContractError::InvalidHybridParams {
+                    reason: "max_maker_fills must be > 0 when book_input > 0".into(),
+                });
+            }
+            if belief_price.is_none() {
+                max_spread::validate_declared_hybrid_pool_leg_for_no_belief(
+                    input_amount,
+                    h.pool_input,
+                    h.book_input,
+                )
+                .map_err(|e| match e {
+                    CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
+                        pool_input,
+                        min_pool_input,
+                        book_input,
+                    } => ContractError::InsufficientPoolLegForHybrid {
+                        pool_input: pool_input.to_string(),
+                        min_pool_input: min_pool_input.to_string(),
+                        book_input: book_input.to_string(),
+                    },
+                    other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!(
+                        "{other:?}"
+                    ))),
+                })?;
+            }
+            (
+                h.pool_input,
+                h.book_input,
+                h.max_maker_fills,
+                h.book_start_hint,
+                false,
+            )
+        }
+        SwapHybridMode::Greedy(g) => (
+            Uint128::zero(),
             input_amount,
-            hybrid.pool_input,
-            hybrid.book_input,
-        )
-        .map_err(|e| match e {
-            CheckMaxSpreadError::InsufficientPoolLegForBookHybrid {
-                pool_input,
-                min_pool_input,
-                book_input,
-            } => ContractError::InsufficientPoolLegForHybrid {
-                pool_input: pool_input.to_string(),
-                min_pool_input: min_pool_input.to_string(),
-                book_input: book_input.to_string(),
-            },
-            other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
-        })?;
-    }
-    let pool_leg = hybrid.pool_input;
-    let book_leg = hybrid.book_input;
-    let max_makers = hybrid.max_maker_fills;
-    let book_hint = hybrid.book_start_hint;
+            g.max_maker_fills,
+            g.book_start_hint,
+            true,
+        ),
+    };
 
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let (reserve_a, reserve_b) = RESERVES.load(deps.storage)?;
@@ -2454,9 +2522,20 @@ fn simulate_hybrid_swap_with_fee(
     let mut book_return_net = Uint128::zero();
     let mut book_commission_total = Uint128::zero();
     let mut offer_consumed_by_book = Uint128::zero();
+    let mut greedy_stop: Option<GreedyStopReason> = None;
     let querier = deps.querier;
     let blacklist_gate =
         blacklist_guard::TradeBlacklistGate::from_parts(querier, &pair_info, &env.contract.address);
+
+    let greedy_pool = if greedy_enabled {
+        Some(crate::greedy::GreedyPoolRef {
+            input_reserve,
+            output_reserve,
+            pool_fee_bps: effective_fee_bps,
+        })
+    } else {
+        None
+    };
 
     if book_leg > Uint128::zero() {
         if offer_token_addr == token_a_addr {
@@ -2468,10 +2547,12 @@ fn simulate_hybrid_swap_with_fee(
                 book_hint,
                 effective_fee_bps,
                 Some(&blacklist_gate),
+                greedy_pool,
             )?;
             book_return_net = book_sim.return_net;
             offer_consumed_by_book = book_sim.offer_consumed;
             book_commission_total = book_sim.commission_total;
+            greedy_stop = book_sim.greedy_stop;
         } else {
             let book_sim = orderbook::simulate_match_asks(
                 deps.storage,
@@ -2481,10 +2562,12 @@ fn simulate_hybrid_swap_with_fee(
                 book_hint,
                 effective_fee_bps,
                 Some(&blacklist_gate),
+                greedy_pool,
             )?;
             book_return_net = book_sim.return_net;
             offer_consumed_by_book = book_sim.offer_consumed;
             book_commission_total = book_sim.commission_total;
+            greedy_stop = book_sim.greedy_stop;
         }
     }
 
@@ -2530,6 +2613,7 @@ fn simulate_hybrid_swap_with_fee(
         book_return_amount: book_return_net,
         pool_return_amount: return_amount,
         limit_book_offer_consumed: offer_consumed_by_book,
+        greedy_stop,
     })
 }
 
@@ -2541,7 +2625,8 @@ fn simulate_hybrid_swap(
     deps: Deps,
     env: &Env,
     input_amount: Uint128,
-    hybrid: &HybridSwapParams,
+    hybrid: Option<&HybridSwapParams>,
+    greedy: Option<&GreedySwapParams>,
     offer_asset_info: &AssetInfo,
     trader: Option<&str>,
     sender: Option<&str>,
@@ -2562,17 +2647,20 @@ fn simulate_hybrid_swap(
         env,
         input_amount,
         hybrid,
+        greedy,
         offer_asset_info,
         effective_fee_bps,
         belief_price,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn query_hybrid_simulation(
     deps: Deps,
     env: &Env,
     offer_asset: Asset,
-    hybrid: HybridSwapParams,
+    hybrid: Option<HybridSwapParams>,
+    greedy: Option<GreedySwapParams>,
     trader: Option<String>,
     sender: Option<String>,
     belief_price: Option<Decimal>,
@@ -2581,7 +2669,8 @@ fn query_hybrid_simulation(
         deps,
         env,
         offer_asset.amount,
-        &hybrid,
+        hybrid.as_ref(),
+        greedy.as_ref(),
         &offer_asset.info,
         trader.as_deref(),
         sender.as_deref(),
@@ -2662,8 +2751,11 @@ fn query_hybrid_reverse_simulation(
             deps,
             env,
             offer,
-            &scale_hybrid_template(&hybrid, offer)
-                .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+            Some(
+                &scale_hybrid_template(&hybrid, offer)
+                    .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?,
+            ),
+            None,
             &offer_info,
             effective_fee_bps,
             belief_price,

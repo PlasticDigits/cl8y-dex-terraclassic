@@ -158,6 +158,7 @@ fn swap_a_to_b_hybrid(
         to: None,
         deadline: None,
         hybrid: Some(hybrid),
+        greedy: None,
         trader: None,
     })
     .unwrap();

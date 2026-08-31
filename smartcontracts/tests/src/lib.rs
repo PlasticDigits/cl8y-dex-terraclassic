@@ -464,6 +464,7 @@ mod helpers {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -489,6 +490,7 @@ mod helpers {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2056,6 +2058,7 @@ mod pair_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2108,6 +2111,7 @@ mod pair_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2201,7 +2205,10 @@ mod pair_tests {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(1_000),
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(
+                        1_000,
+                    ))),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -2323,6 +2330,7 @@ mod router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -2542,6 +2550,7 @@ mod fee_discount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2603,6 +2612,7 @@ mod fee_discount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2650,6 +2660,7 @@ mod fee_discount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2723,6 +2734,7 @@ mod fee_discount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2836,6 +2848,7 @@ mod fee_discount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -2902,6 +2915,7 @@ mod fee_discount_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -3057,6 +3071,7 @@ mod fee_discount_tests {
             to: None,
             deadline: None,
             hybrid: Some(dex_common::pair::pool_only_hybrid_params(amount)),
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3233,7 +3248,8 @@ mod fee_discount_tests {
                         info: asset_info_token(&env.token_a),
                         amount,
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(amount),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(amount)),
+                    greedy: None,
                     trader: Some(env.user.to_string()),
                     sender: None,
                     belief_price: None,
@@ -3356,6 +3372,7 @@ mod pair_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3401,6 +3418,7 @@ mod pair_coverage_tests {
             to: Some(receiver.to_string()),
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3433,6 +3451,7 @@ mod pair_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3722,6 +3741,7 @@ mod pair_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3770,6 +3790,7 @@ mod pair_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -3910,6 +3931,7 @@ mod pair_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -4003,7 +4025,10 @@ mod pair_coverage_tests {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(1_000),
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1_000)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(
+                        1_000,
+                    ))),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -4037,6 +4062,7 @@ mod pair_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -4321,7 +4347,10 @@ mod pair_coverage_tests {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(10_000),
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(10_000)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(
+                        10_000,
+                    ))),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -5891,6 +5920,7 @@ mod router_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        greedy: None,
                         min_return: None,
                     }],
                     trader: None,
@@ -5925,6 +5955,7 @@ mod router_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        greedy: None,
                         min_return: None,
                     }],
                     trader: None,
@@ -5954,6 +5985,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -6003,6 +6035,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -6030,6 +6063,7 @@ mod router_coverage_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -6156,12 +6190,14 @@ mod router_coverage_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -6291,6 +6327,7 @@ mod router_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        greedy: None,
                         min_return: None,
                     }],
                     trader: None,
@@ -6308,6 +6345,7 @@ mod router_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_b),
                         ask_asset_info: asset_info_token(&token_c),
                         hybrid: None,
+                        greedy: None,
                         min_return: None,
                     }],
                     trader: None,
@@ -6323,12 +6361,14 @@ mod router_coverage_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: Some(rejecting_min),
                 },
             ],
@@ -7394,7 +7434,8 @@ mod fuzz_tests {
                             info: asset_info_token(&env.token_a),
                             amount: Uint128::new(swap_amount),
                         },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount))),
+                    greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -7831,7 +7872,8 @@ mod fuzz_tests {
                             info: asset_info_token(&env.token_a),
                             amount: Uint128::new(swap_amount),
                         },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount))),
+                    greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -7888,6 +7930,7 @@ mod fuzz_tests {
                 to: None,
                 deadline: None,
             hybrid: None,
+                greedy: None,
                 trader: None,
             })
             .unwrap();
@@ -8013,6 +8056,7 @@ mod security_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -8100,6 +8144,7 @@ mod security_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -8309,6 +8354,7 @@ mod security_tests {
                     to: None,
                     deadline: None,
                     hybrid: None,
+                    greedy: None,
                     trader: None,
                 })
                 .unwrap();
@@ -8372,6 +8418,7 @@ mod security_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -8944,6 +8991,7 @@ mod deadline_tests {
             to: None,
             deadline: Some(deadline),
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -8991,6 +9039,7 @@ mod deadline_tests {
             to: None,
             deadline: Some(deadline),
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -9093,6 +9142,7 @@ mod deadline_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -9252,6 +9302,7 @@ mod audit_invariant_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -9311,6 +9362,7 @@ mod audit_invariant_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -9354,6 +9406,7 @@ mod audit_invariant_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -9409,6 +9462,7 @@ mod audit_invariant_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -9479,6 +9533,7 @@ mod audit_invariant_tests {
             to: None,
             deadline: Some(deadline),
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -10392,6 +10447,7 @@ mod line_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -10581,7 +10637,10 @@ mod line_coverage_tests {
                         info: asset_info_token(&fake_token),
                         amount: Uint128::new(1000),
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(1000)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(
+                        1000,
+                    ))),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -10640,6 +10699,7 @@ mod line_coverage_tests {
                         offer_asset_info: asset_info_token(&env.token_a),
                         ask_asset_info: asset_info_token(&env.token_b),
                         hybrid: None,
+                        greedy: None,
                         min_return: None,
                     }],
                     max_spread: cosmwasm_std::Decimal::one(),
@@ -10921,6 +10981,7 @@ mod line_coverage_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -11249,7 +11310,8 @@ mod additional_fuzz_tests {
                             info: asset_info_token(&env1.token_a),
                             amount: Uint128::new(swap_amount),
                         },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(swap_amount))),
+                    greedy: None,
                 trader: None,
                 sender: None,
                 belief_price: None,
@@ -11268,6 +11330,7 @@ mod additional_fuzz_tests {
                             offer_asset_info: asset_info_token(&env1.token_a),
                             ask_asset_info: asset_info_token(&env1.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
                         }],
                 trader: None,
@@ -11322,6 +11385,7 @@ mod additional_fuzz_tests {
                     to: None,
                     deadline: None,
             hybrid: None,
+                    greedy: None,
                     trader: None,
                 },
             )
@@ -11347,6 +11411,7 @@ mod additional_fuzz_tests {
                     to: None,
                     deadline: None,
             hybrid: None,
+                    greedy: None,
                     trader: None,
                 }).unwrap();
                 app.execute_contract(
@@ -11819,6 +11884,7 @@ mod new_feature_tests {
                 offer_asset_info: asset_info_token(&tokens[i]),
                 ask_asset_info: asset_info_token(&tokens[i + 1]),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             })
             .collect();
@@ -11858,6 +11924,7 @@ mod new_feature_tests {
                 offer_asset_info: asset_info_token(&tokens[i]),
                 ask_asset_info: asset_info_token(&tokens[i + 1]),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             })
             .collect();
@@ -12248,6 +12315,7 @@ mod new_feature_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -12632,7 +12700,10 @@ mod fee_treasury_tests {
                         info: asset_info_token(&env.token_a),
                         amount: Uint128::new(100_000),
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(
+                        100_000,
+                    ))),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -12659,7 +12730,10 @@ mod fee_treasury_tests {
                         info: asset_info_token(&env.token_b),
                         amount: Uint128::new(100_000),
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(Uint128::new(100_000)),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(Uint128::new(
+                        100_000,
+                    ))),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: None,
@@ -12852,6 +12926,7 @@ mod dust_amount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -13009,6 +13084,7 @@ mod dust_amount_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -13175,7 +13251,8 @@ mod sec_c01_swap_boundary_tests {
                         info: asset_info_token(offer_token),
                         amount: offer_amount,
                     },
-                    hybrid: dex_common::pair::pool_only_hybrid_params(offer_amount),
+                    hybrid: Some(dex_common::pair::pool_only_hybrid_params(offer_amount)),
+                    greedy: None,
                     trader: None,
                     sender: None,
                     belief_price: Some(Decimal::one()),
@@ -13223,6 +13300,7 @@ mod sec_c01_swap_boundary_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -13509,18 +13587,21 @@ mod router_hop_tests {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&token_c),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&token_c),
                             ask_asset_info: asset_info_token(&token_d),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                     ],
@@ -13539,18 +13620,21 @@ mod router_hop_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_c),
                     ask_asset_info: asset_info_token(&token_d),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -13700,18 +13784,21 @@ mod router_hop_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_c),
                     ask_asset_info: asset_info_token(&token_d),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -13905,6 +13992,7 @@ mod reentrancy_tests {
             to: None,
             deadline: None,
             hybrid: None,
+            greedy: None,
             trader: None,
         })
         .unwrap();
@@ -14246,6 +14334,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -14302,6 +14391,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -14354,6 +14444,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -14458,12 +14549,14 @@ mod wrap_router_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&token_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -14515,6 +14608,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -14568,6 +14662,7 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -14692,12 +14787,14 @@ mod wrap_router_tests {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&env.lunc_c),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                     ],
@@ -14714,12 +14811,14 @@ mod wrap_router_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&env.lunc_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -14979,12 +15078,14 @@ mod wrap_router_tests {
                             offer_asset_info: asset_info_token(&token_a),
                             ask_asset_info: asset_info_token(&token_b),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&token_b),
                             ask_asset_info: asset_info_token(&lunc_c),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                     ],
@@ -15006,12 +15107,14 @@ mod wrap_router_tests {
                     offer_asset_info: asset_info_token(&token_a),
                     ask_asset_info: asset_info_token(&token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&token_b),
                     ask_asset_info: asset_info_token(&lunc_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -15150,12 +15253,14 @@ mod wrap_router_tests {
                             offer_asset_info: asset_info_token(&env.token_a),
                             ask_asset_info: asset_info_token(&env.token_b),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                         cl8y_dex_router::msg::SwapOperation::TerraSwap {
                             offer_asset_info: asset_info_token(&env.token_b),
                             ask_asset_info: asset_info_token(&env.lunc_c),
                             hybrid: None,
+                            greedy: None,
                             min_return: None,
                         },
                     ],
@@ -15180,12 +15285,14 @@ mod wrap_router_tests {
                     offer_asset_info: asset_info_token(&env.token_a),
                     ask_asset_info: asset_info_token(&env.token_b),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
                 cl8y_dex_router::msg::SwapOperation::TerraSwap {
                     offer_asset_info: asset_info_token(&env.token_b),
                     ask_asset_info: asset_info_token(&env.lunc_c),
                     hybrid: None,
+                    greedy: None,
                     min_return: None,
                 },
             ],
@@ -15337,12 +15444,14 @@ mod wrap_router_tests {
                 offer_asset_info: asset_info_token(&env.token_a),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             },
             cl8y_dex_router::msg::SwapOperation::TerraSwap {
                 offer_asset_info: asset_info_token(&env.token_b),
                 ask_asset_info: asset_info_token(&env.lunc_c),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             },
         ];
@@ -16151,6 +16260,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&env.lunc_c),
                 ask_asset_info: asset_info_token(&env.token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -16240,6 +16350,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&env.token_b),
                 ask_asset_info: asset_info_token(&env.lunc_c),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -16502,6 +16613,7 @@ mod wrap_integration_tests {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&ustc_c),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
@@ -19045,6 +19157,7 @@ mod ustr_cmm_d8b0afd_tests {
                 offer_asset_info: asset_info_token(&lunc_c),
                 ask_asset_info: asset_info_token(&token_b),
                 hybrid: None,
+                greedy: None,
                 min_return: None,
             }],
             max_spread: cosmwasm_std::Decimal::one(),
