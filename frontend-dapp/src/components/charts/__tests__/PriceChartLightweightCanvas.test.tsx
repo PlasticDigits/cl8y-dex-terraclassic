@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ComponentProps } from 'react'
 import { StrictMode } from 'react'
 import { render, waitFor } from '@testing-library/react'
-import { CandlestickSeries, createChart, HistogramSeries, LineSeries } from 'lightweight-charts'
+import { CandlestickSeries, createChart, HistogramSeries, LineSeries, type Time } from 'lightweight-charts'
 import { PriceChartLightweightCanvas } from '../PriceChartLightweightCanvas'
-import { chartBundleFromCandles } from '@/test/chartTestFixtures'
+import { chartBundleFromCandles, chartTimeUtc, makeChartCandlePoints } from '@/test/chartTestFixtures'
 import { lwChartTestDouble } from '@/test/lightweightChartsJsdomMock'
 
 function setElementClientSize(el: HTMLElement, width: number, height: number) {
@@ -460,6 +460,158 @@ describe('PriceChartLightweightCanvas createChart contract (stub, GitLab #227)',
     )
 
     await waitFor(() => expect(lwChartTestDouble.seriesSpies[0]!.update).toHaveBeenCalled())
+    expect(fitContent).not.toHaveBeenCalled()
+  })
+
+  it('interval setData calls fitContent once (GitLab #705)', async () => {
+    const hourly = chartBundleFromCandles(12)
+    const fifteenStart = chartTimeUtc(2026, 8, 28)
+    const fifteenPoints = makeChartCandlePoints(12, fifteenStart)
+    const fifteen = {
+      candlePoints: fifteenPoints,
+      volumePoints: fifteenPoints.map((p, i) => ({ time: p.time, value: 10 + i, color: '#22c55e' })),
+      sma7Points: hourly.sma7Points,
+      sma25Points: hourly.sma25Points,
+      rsiPoints: hourly.rsiPoints,
+    }
+
+    const { rerender } = render(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          interval="1h"
+          candlePoints={hourly.candlePoints}
+          volumePoints={hourly.volumePoints}
+          sma7Points={hourly.sma7Points}
+          sma25Points={hourly.sma25Points}
+          rsiPoints={hourly.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+    await waitFor(() => expect(lwChartTestDouble.lastChart()).toBeDefined())
+
+    const chart = lwChartTestDouble.lastChart()!
+    const fitContent = chart.timeScale().fitContent
+    vi.mocked(fitContent).mockClear()
+    vi.mocked(lwChartTestDouble.seriesSpies[0]!.setData).mockClear()
+
+    rerender(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          interval="15m"
+          candlePoints={fifteen.candlePoints}
+          volumePoints={fifteen.volumePoints}
+          sma7Points={fifteen.sma7Points}
+          sma25Points={fifteen.sma25Points}
+          rsiPoints={fifteen.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies[0]!.setData).toHaveBeenCalled())
+    expect(fitContent).toHaveBeenCalled()
+  })
+
+  it('sliding newest-N window on the same interval does not call fitContent (GitLab #705 / #336)', async () => {
+    const bundle = chartBundleFromCandles(12)
+    const slid = {
+      candlePoints: [
+        ...bundle.candlePoints.slice(1),
+        {
+          ...bundle.candlePoints[bundle.candlePoints.length - 1]!,
+          time: (Number(bundle.candlePoints[bundle.candlePoints.length - 1]!.time) + 3600) as Time,
+        },
+      ],
+      volumePoints: bundle.volumePoints.slice(1),
+      sma7Points: bundle.sma7Points,
+      sma25Points: bundle.sma25Points,
+      rsiPoints: bundle.rsiPoints,
+    }
+
+    const { rerender } = render(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          interval="15m"
+          candlePoints={bundle.candlePoints}
+          volumePoints={bundle.volumePoints}
+          sma7Points={bundle.sma7Points}
+          sma25Points={bundle.sma25Points}
+          rsiPoints={bundle.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+    await waitFor(() => expect(lwChartTestDouble.lastChart()).toBeDefined())
+
+    const chart = lwChartTestDouble.lastChart()!
+    const fitContent = chart.timeScale().fitContent
+    vi.mocked(fitContent).mockClear()
+    vi.mocked(lwChartTestDouble.seriesSpies[0]!.setData).mockClear()
+
+    rerender(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          interval="15m"
+          candlePoints={slid.candlePoints}
+          volumePoints={slid.volumePoints}
+          sma7Points={slid.sma7Points}
+          sma25Points={slid.sma25Points}
+          rsiPoints={slid.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies[0]!.setData).toHaveBeenCalled())
+    expect(fitContent).not.toHaveBeenCalled()
+  })
+
+  it('placeholder interval click with unchanged first bar does not fit until new payload (GitLab #705)', async () => {
+    const hourly = chartBundleFromCandles(12)
+    const { rerender } = render(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          interval="1h"
+          candlePoints={hourly.candlePoints}
+          volumePoints={hourly.volumePoints}
+          sma7Points={hourly.sma7Points}
+          sma25Points={hourly.sma25Points}
+          rsiPoints={hourly.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+    await waitFor(() => expect(lwChartTestDouble.lastChart()).toBeDefined())
+    const fitContent = lwChartTestDouble.lastChart()!.timeScale().fitContent
+    vi.mocked(fitContent).mockClear()
+
+    rerender(
+      <div style={{ width: 640, height: 400 }}>
+        <PriceChartLightweightCanvas
+          interval="15m"
+          candlePoints={hourly.candlePoints}
+          volumePoints={hourly.volumePoints}
+          sma7Points={hourly.sma7Points}
+          sma25Points={hourly.sma25Points}
+          rsiPoints={hourly.rsiPoints}
+          showSma7={false}
+          showSma25={false}
+          showRsi={false}
+        />
+      </div>
+    )
+
     expect(fitContent).not.toHaveBeenCalled()
   })
 

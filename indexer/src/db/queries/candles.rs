@@ -74,6 +74,11 @@ pub async fn upsert_candle(
     Ok(())
 }
 
+/// Latest `limit` bars in `[from, to]`, returned oldest→newest (GitLab #705).
+///
+/// Retail charts need **now**, not the start of the 90-day window. Fine intervals
+/// (`1m`/`5m`/`15m`) are dense after idle marks (#568), so `ORDER BY open_time ASC
+/// LIMIT n` previously returned the oldest N and dropped the current bucket.
 pub async fn get_candles(
     pool: &PgPool,
     pair_id: i32,
@@ -83,10 +88,13 @@ pub async fn get_candles(
     limit: i64,
 ) -> Result<Vec<CandleRow>, sqlx::Error> {
     sqlx::query_as::<_, CandleRow>(
-        "SELECT * FROM candles
-         WHERE pair_id = $1 AND interval = $2 AND open_time >= $3 AND open_time <= $4
-         ORDER BY open_time ASC
-         LIMIT $5",
+        "SELECT * FROM (
+             SELECT * FROM candles
+              WHERE pair_id = $1 AND interval = $2 AND open_time >= $3 AND open_time <= $4
+              ORDER BY open_time DESC
+              LIMIT $5
+         ) AS newest
+         ORDER BY open_time ASC",
     )
     .bind(pair_id)
     .bind(interval)

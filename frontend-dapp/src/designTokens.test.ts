@@ -83,4 +83,17 @@ describe('design token alignment (GitLab #488 blue+gold)', () => {
     expect(heading).not.toContain('ellipsis')
     expect(heading).not.toContain('truncate')
   })
+
+  it('chart interval active chip is stronger than 14% tab-glass wash (#705)', () => {
+    const css = readFileSync(join(repoRoot, 'frontend-dapp/src/index.css'), 'utf8')
+    expect(css).toContain('.price-chart-interval.tab-glass-active')
+    expect(css).toContain(":root[data-theme='light'] .price-chart-interval.tab-glass-active")
+    expect(css).toContain('.price-chart-interval.tab-glass.tab-glass-active:focus-visible')
+    const intervalActive = /\.price-chart-interval\.tab-glass-active\s*\{[^}]+\}/.exec(css)?.[0] ?? ''
+    expect(intervalActive).toContain('var(--blue)')
+    expect(intervalActive).not.toContain('0.14')
+    expect(intervalActive).not.toContain('--gold')
+    expect(intervalActive).not.toContain('btn-primary')
+    expect(css).not.toMatch(/price-chart-interval[^{]*-neo/)
+  })
 })
