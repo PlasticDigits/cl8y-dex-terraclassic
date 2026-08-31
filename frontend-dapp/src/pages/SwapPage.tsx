@@ -2159,6 +2159,7 @@ export default function SwapPage() {
             guidance={payAcquireGuidance}
             testIdPrefix="swap"
             onReduce={(human) => {
+              setExactField('input')
               setInputAmount(human)
               setShowImpactConfirm(false)
             }}
