@@ -40,6 +40,11 @@ vi.mock('@/services/terraclassic/pair', () => ({
     commission_amount: '3000',
   }),
   swap: vi.fn().mockResolvedValue('txhash123'),
+  reverseSimulateSwap: vi.fn().mockResolvedValue({
+    offer_amount: '1000000',
+    spread_amount: '100',
+    commission_amount: '3000',
+  }),
   getPairPaused: vi.fn().mockResolvedValue({ paused: false }),
   getPool: vi.fn().mockResolvedValue({
     assets: [
@@ -300,7 +305,7 @@ describe('SwapPage', () => {
 
     await openSwapSettingsWithAdvanced(user)
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
     expect(screen.queryByText(/pool-only simulation/i)).not.toBeInTheDocument()
@@ -476,7 +481,7 @@ describe('SwapPage', () => {
       screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
     ).not.toBeInTheDocument()
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/Quote may change before submit/i)
@@ -525,7 +530,7 @@ describe('SwapPage', () => {
       screen.queryByRole('checkbox', { name: /Route part of input through the limit book/i })
     ).not.toBeInTheDocument()
     // Leave book leg amount empty (Swap empty = book_input 0).
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(() => expect(simulateSwap).toHaveBeenCalled())
 
     expect(screen.queryByTestId('swap-execution-summary')).not.toBeInTheDocument()
@@ -584,13 +589,15 @@ describe('SwapPage', () => {
 
     await openSwapSettingsWithAdvanced(user)
     await user.type(screen.getByPlaceholderText('0.0'), '0.01')
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     await waitFor(() => expect(simulateHybridSwap).toHaveBeenCalled())
     const reconciled = await screen.findByTestId('swap-direct-hybrid-amount-reconciled')
     expect(reconciled).toHaveTextContent(/Receive amount adjusted/i)
     expect(screen.queryByText(/9\.999/)).not.toBeInTheDocument()
-    expect(screen.getAllByText('5.000').length).toBeGreaterThan(0)
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('5.000')
+    })
   })
 
   it('shows market-data outage banner when sim fails with indexer transport error (GitLab #241)', async () => {
@@ -624,7 +631,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     const banner = await screen.findByTestId('swap-market-data-outage-banner')
     expect(banner).toHaveTextContent(/market data service unavailable/i)
@@ -664,7 +671,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     const retry = await screen.findByTestId('swap-quote-retry-error')
     expect(retry).toHaveTextContent(/wait a moment and try again/i)
@@ -710,7 +717,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     expect(await screen.findByTestId('swap-market-data-outage-banner')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
@@ -751,7 +758,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     expect(screen.queryByTestId('swap-market-data-outage-banner')).not.toBeInTheDocument()
@@ -801,7 +808,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     expect(await screen.findByTestId('swap-route-summary')).toBeInTheDocument()
     expect(await screen.findByTestId('swap-route-source-client-fallback')).toHaveTextContent(/client graph/i)
@@ -862,7 +869,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     await screen.findByTestId('swap-route-summary')
     expect(screen.queryByTestId('swap-route-source-client-fallback')).not.toBeInTheDocument()
@@ -938,7 +945,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     const routeSummary = await screen.findByTestId('swap-route-summary')
     expect(routeSummary).toHaveTextContent(terraEvil)
@@ -1021,7 +1028,7 @@ describe('SwapPage', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     // Wallet-aligned slippage (return vs spot) rounds to 100% for this arb-sized gap.
     expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('100.00%')
@@ -1081,7 +1088,7 @@ describe('SwapPage', () => {
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-      await user.type(screen.getByPlaceholderText('0.00'), aboveSafeInt)
+      await user.type(screen.getByTestId('swap-you-pay-amount'), aboveSafeInt)
       await waitFor(() => expect(simulateSwap).toHaveBeenCalled())
 
       expect(screen.queryByRole('button', { name: 'Enter Amount' })).not.toBeInTheDocument()
@@ -1135,7 +1142,7 @@ describe('SwapPage', () => {
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-      const payInput = screen.getByPlaceholderText('0.00')
+      const payInput = screen.getByTestId('swap-you-pay-amount')
       await user.type(payInput, '1')
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
@@ -1144,11 +1151,25 @@ describe('SwapPage', () => {
 
       expect(screen.getByRole('button', { name: /Calculating/i })).toBeDisabled()
       // #496: You Receive must not keep the prior amount looking current while pay amount is pending.
-      expect(screen.getByTestId('swap-you-receive')).toHaveTextContent(/Calculating/i)
+      const receive = screen.getByTestId('swap-you-receive')
+      if (receive.tagName === 'INPUT') {
+        expect(receive).toHaveValue('')
+        expect(receive).toHaveAttribute('aria-busy', 'true')
+      } else {
+        expect(receive).toHaveTextContent(/Calculating/i)
+      }
 
       await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
-      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).not.toHaveTextContent(/Calculating/i))
+      await waitFor(() => {
+        const settled = screen.getByTestId('swap-you-receive')
+        if (settled.tagName === 'INPUT') {
+          expect(settled).not.toHaveAttribute('aria-busy')
+          expect(settled).not.toHaveValue('')
+        } else {
+          expect(settled).not.toHaveTextContent(/Calculating/i)
+        }
+      })
     })
 
     it('disables Swap with Calculating… while book leg differs from debounced hybrid quote (#360)', async () => {
@@ -1189,7 +1210,7 @@ describe('SwapPage', () => {
 
       await openSwapSettingsWithAdvanced(user)
 
-      const payInput = screen.getByPlaceholderText('0.00')
+      const payInput = screen.getByTestId('swap-you-pay-amount')
       await user.type(payInput, '10')
       const bookInput = screen.getByPlaceholderText('0.0')
       await user.type(bookInput, '2')
@@ -1237,7 +1258,7 @@ describe('SwapPage', () => {
 
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
       return { user }
     }
 
@@ -1288,7 +1309,7 @@ describe('SwapPage', () => {
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
 
-      const payInput = screen.getByPlaceholderText('0.00')
+      const payInput = screen.getByTestId('swap-you-pay-amount')
       await user.type(payInput, '1')
       await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), {
         timeout: 5000,
@@ -1374,7 +1395,7 @@ describe('SwapPage', () => {
 
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
       return { user }
     }
 
@@ -1495,7 +1516,7 @@ describe('SwapPage', () => {
 
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
       const feeHint = await screen.findByTestId('swap-network-fee')
       expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
@@ -1600,7 +1621,7 @@ describe('SwapPage', () => {
 
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
       const feeHint = await screen.findByTestId('swap-network-fee')
       expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
@@ -1645,7 +1666,7 @@ describe('SwapPage', () => {
 
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
       return { user }
     }
 
@@ -1702,7 +1723,7 @@ describe('SwapPage', () => {
 
       renderWithProviders(<SwapPage />)
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-      await user.type(screen.getByPlaceholderText('0.00'), '1')
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
       expect(await screen.findByTestId('swap-pre-submit-summary')).toBeInTheDocument()
       expect(screen.getByTestId('swap-confirm-action')).toHaveTextContent('Swap')

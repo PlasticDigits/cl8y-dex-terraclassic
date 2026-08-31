@@ -107,11 +107,14 @@ export type TradeOrderTicketProps = {
   limitBookDraftKey?: number
   limitBookDraft?: LimitBookTicketDraft | null
   onLimitBookDraftConsumed?: () => void
-  /**
-   * When false (desktop ticket column hidden), ignore submit / wallet-open from this tree (GitLab #561 A2).
+  /** When false (desktop ticket column hidden), ignore submit / wallet-open from this tree (GitLab #561 A2).
    * Ticket stays mounted so form state survives hide/show.
    */
   interactive?: boolean
+  /** Optional Market amount from `/trade?from=&to=&amount=` (#713). Never auto-Place. */
+  initialMarketAmount?: string | null
+  /** Optional Buy/Sell from `side=buy|sell` (#713). */
+  initialSide?: 'bid' | 'ask' | null
 }
 
 type TradeOrderTicketContentProps = TradeOrderTicketProps & {
@@ -138,6 +141,8 @@ function TradeOrderTicketContent({
   limitBookDraft,
   onLimitBookDraftConsumed,
   interactive = true,
+  initialMarketAmount = null,
+  initialSide = null,
 }: TradeOrderTicketContentProps) {
   const address = useWalletStore((s) => s.address)
   const openWalletModalStore = useWalletStore((s) => s.openWalletModal)
@@ -153,7 +158,7 @@ function TradeOrderTicketContent({
   const placementsAnchorRef = useRef<HTMLDivElement>(null)
   const [highlightPlacementOrderId, setHighlightPlacementOrderId] = useState<number | null>(null)
 
-  const [side, setSide] = useState<'bid' | 'ask'>('bid')
+  const [side, setSide] = useState<'bid' | 'ask'>(initialSide === 'ask' ? 'ask' : 'bid')
   const [orderTab, setOrderTab] = useState<'limit' | 'market'>('market')
   const [marketSubmitChrome, setMarketSubmitChrome] = useState<TradeMarketSubmitChromeModel | null>(null)
   const orderTypeTabBaseId = useId()
@@ -817,6 +822,7 @@ function TradeOrderTicketContent({
               dockSubmit
               interactive={interactive}
               onSubmitChromeChange={setMarketSubmitChrome}
+              initialAmountHuman={initialMarketAmount}
             />
           </div>
         )}

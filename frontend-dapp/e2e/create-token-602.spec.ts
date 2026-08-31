@@ -46,15 +46,20 @@ test.describe('Create Token post-merge QA (GitLab #602)', () => {
     await expect(page.getByTestId('create-token-pay-copy')).toContainText('50 UST1')
   })
 
-  test('P402-5: /create?a=&b= does not prefill Token A/B', async ({ page }) => {
+  test('P402-5 / #713: /create?a=&b= prefills Token A/B and does not auto-submit', async ({ page }) => {
     await page.goto(`/create?a=${QUERY_A}&b=${QUERY_B}`)
     await expect(page.getByRole('heading', { name: /create trading pair/i })).toBeVisible({
       timeout: 20_000,
     })
-    await page.getByTestId('create-pair-custom-toggle-token-a').click()
-    await page.getByTestId('create-pair-custom-toggle-token-b').click()
-    await expect(page.getByTestId('create-pair-custom-address-token-a')).toHaveValue('')
-    await expect(page.getByTestId('create-pair-custom-address-token-b')).toHaveValue('')
+    for (const side of ['token-a', 'token-b'] as const) {
+      const toggle = page.getByTestId(`create-pair-custom-toggle-${side}`)
+      if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
+        await toggle.click()
+      }
+    }
+    await expect(page.getByTestId('create-pair-custom-address-token-a')).toHaveValue(QUERY_A)
+    await expect(page.getByTestId('create-pair-custom-address-token-b')).toHaveValue(QUERY_B)
+    await expect(page.getByRole('button', { name: /Create Pair/i })).toBeVisible()
   })
 
   test('P402-4: /tokens catalog page is reachable when Create Token is configured', async ({ page }) => {

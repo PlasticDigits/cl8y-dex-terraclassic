@@ -167,7 +167,7 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M602-3** | **P402-2.** Coolify indexer `COMMUNITY_TAX_CODE_ID` + `COMMUNITY_TOKEN_LAUNCHER` + `CMM_GOVERNANCE_ADDR`. `GET /api/v1/community-tokens` is `{ configured: true, … }` (empty list OK). |
 | **M602-4** | **P402-3.** Free create lives on `terra126pr5…` (store `33F6A49F…` / instantiate `041E3C43…`; now code **11622**). **11612** unused. Do not whitelist 11612 / 11613 / 11614 / 11620 / 11622. |
 | **M602-5** | **P402-4.** LocalTerra in-repo launcher smoke + UI: free create, paid SKU via #595, Manage Save 50 UST1, non-manager read-only, Unverified admin. |
-| **M602-6** | **P402-5.** `/create` is copy-address + link only — no query prefill (**C542-11**). |
+| **M602-6** | **P402-5.** Create Token next-link may stay `/create` (copy-address). Create Pair honors checksummed `/create?a=&b=` prefill ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) **C542-11**). |
 | **M602-7** | **P402-6.** Swap/Trade Max is extra-debit. Catalog lists without a pair; default `attested_cmm` only. Do not reopen #593 / #594 unless **C593** / **I594** is wrong. |
 | **M602-8** | Playbook + this Q9 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 

@@ -227,6 +227,30 @@ describe('TradePage', () => {
     window.localStorage.clear()
   })
 
+  it('resolves /trade?from=&to= to the unique factory pair path (#713)', async () => {
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    vi.mocked(factory.getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: PAIR,
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ native_token: { denom: 'uluna' } }, { token: { contract_addr: UST1 } }],
+        },
+      ],
+    })
+    const router = renderTradeRoutes([`/trade?from=uluna&to=${UST1}`])
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    })
+  })
+
+  it('ignores /trade?from=uluna&to=uluna and auto-picks (#713 T15)', async () => {
+    const router = renderTradeRoutes(['/trade?from=uluna&to=uluna'])
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/trade/${PAIR}`)
+    })
+  })
+
   it('shows first-visit onboarding strip until dismissed (GitLab #417)', async () => {
     const user = userEvent.setup()
     renderWithProviders(<TradePage />, { route: `/trade/${PAIR}` })

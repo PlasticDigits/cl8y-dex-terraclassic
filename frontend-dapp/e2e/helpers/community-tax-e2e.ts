@@ -11,7 +11,7 @@ import { requireCommunityTaxTxPins, type CommunityTaxTxPins } from './community-
 import { E2E_DEV_WALLET } from './fee-discount-quote-e2e'
 import { lcdRequestGet } from './lcd-docker-fallback'
 import { gotoPoolCardBySymbol } from './pool-nav'
-import { clickSwapSubmit, enableExpertModeForSwap, swapActionPanel, swapYouReceiveAmountDisplay } from './swap-ui'
+import { clickSwapSubmit, enableExpertModeForSwap, swapActionPanel, readSwapYouReceiveAmount } from './swap-ui'
 
 /** Node-safe copies — do not import `formatAmount` / `taxPreviewMaxSpend` (they pull `import.meta.env`). */
 export const SELL_TAX_EXTRA_HINT = 'Sell tax extra'
@@ -200,13 +200,12 @@ export function assertMaxIsExtraDebit(params: {
 
 export async function waitForSwapQuoteReady(page: Page): Promise<void> {
   const panel = swapActionPanel(page)
-  const youReceive = swapYouReceiveAmountDisplay(page)
   // "..." / "Calculating..." is the in-flight placeholder (#484). Zero and
   // ellipsis both mean the quote is not ready — leftover #625 buy P0.
   await expect(async () => {
     const calculating = panel.getByRole('button', { name: /^(Calculating|Searching)/ })
     expect(await calculating.count()).toBe(0)
-    const text = ((await youReceive.textContent()) ?? '').trim()
+    const text = await readSwapYouReceiveAmount(page)
     expect(text, 'You Receive still placeholder').not.toMatch(/^(\.\.\.|…|Calculating)/i)
     expect(text, 'You Receive still zero').not.toMatch(/^0(\.0+)?$/)
     const n = Number.parseFloat(

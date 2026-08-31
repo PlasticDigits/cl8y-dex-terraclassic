@@ -304,6 +304,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Frontend | `make test-frontend`, `make lint-frontend` |
 | Swap/Trade acquire guidance | `make verify-issue-678` |
 | Swap query params (`/` / `/swap`) | `make verify-issue-711` |
+| Swap URL sync / reverse / Share / Create+Trade prefill | `make verify-issue-713` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
 | Trade ticket Market default + flatten | `make verify-issue-693` |
 | Pool Manage four peer actions | `make verify-issue-660` |
@@ -492,6 +493,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_UST1_WINDOW_UI.md](skills/AGENTS_UST1_WINDOW_UI.md) — `/ust1` oracle vFDUSD↔UST1 mint/redeem (CW20 Send + `effective_swap`); not faucet Mint ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)); protocol mint/redeem fees **PFee-13** / **I614** ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)); `make verify-issue-506` · `make verify-issue-614`
 - [skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md](skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — Swap/Trade unfunded pay + UST1 `/ust1` Guide + quote-only (**A678-1–A678-11**, [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678)); `make verify-issue-678`
 - [skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md](skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap `/` + `/swap` Uniswap/Terra query aliases (**Q711-1–Q711-8**, [#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711)); `make verify-issue-711`
+- [skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md](skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md) — Swap URL rewrite, reverse quotes, Share, Create/Trade prefill (**Q713-1–Q713-10**, [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)); `make verify-issue-713`
 - [skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — post-SL5 Coolify wrap env + cLUNC/cUSTC fee UX ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507))
 - [skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md](skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) — unwrap InstantWithdraw burn tax quotes + exchange-deposit warning (**W8–W11**, [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)); `make verify-issue-512`
 - [skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md](skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — wrap-mapper `fee_wrap_bps` / `fee_unwrap_bps` + unwrap ≈2% all-in retune (**W12–W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); `make verify-issue-516`. Router `unwrap_output` dual-read ([#523](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/523)); `make verify-issue-523`. LocalTerra wrap-mapper instantiate + #533 P4–P8 ([#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)); `make verify-issue-539`

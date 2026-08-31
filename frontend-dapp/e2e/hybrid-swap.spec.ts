@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable } from './helpers/chain'
 import { assertHybridSwapCtaNotBlocked, requireDualCwPair, requireHybridControlsVisible } from './helpers/hybrid-e2e'
-import { clickSwapSubmit, openSwapAdvancedSettings, swapActionPanel } from './helpers/swap-ui'
+import { clickSwapSubmit, openSwapAdvancedSettings, swapActionPanel, readSwapYouReceiveAmount } from './helpers/swap-ui'
 import {
   assetInfoLabel,
   fetchTxJson,
@@ -159,8 +159,11 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
 
     await enableExpertModeForSwap(page)
 
-    const receiveLine = page.locator('.swap-io-card-receive').getByText(/\d/)
-    await expect(receiveLine.first()).toBeVisible({ timeout: 30_000 })
+    await expect(async () => {
+      const text = await readSwapYouReceiveAmount(page)
+      expect(text).toMatch(/\d/)
+      expect(text).not.toMatch(/^0(\.0+)?$/)
+    }).toPass({ timeout: 30_000 })
     const screenshot = await page.screenshot({ fullPage: false })
     await testInfo.attach('hybrid-swap-quote-before-submit', { body: screenshot, contentType: 'image/png' })
 

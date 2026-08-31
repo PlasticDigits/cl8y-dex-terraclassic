@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable, assertTxResultAlert, assertSwapCtaNotBlocked } from './helpers/chain'
-import { clickSwapSubmit, swapActionPanel, swapYouReceiveAmountDisplay } from './helpers/swap-ui'
+import { clickSwapSubmit, swapActionPanel, readSwapYouReceiveAmount } from './helpers/swap-ui'
 import { expectAtLeastTwoPayTokenOptions } from './helpers/token-select'
 import { headerConnectedWalletButton } from './helpers/wallet-ui'
 
@@ -38,8 +38,11 @@ test.describe('Terra broadcast confirming TX link', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.001')
 
-    const youReceiveAmount = swapYouReceiveAmountDisplay(page)
-    await expect(youReceiveAmount).not.toHaveText('0.00', { timeout: 15000 })
+    await expect(async () => {
+      const text = await readSwapYouReceiveAmount(page)
+      expect(text).not.toBe('0.00')
+      expect(text).not.toContain('Calculating')
+    }).toPass({ timeout: 15000 })
 
     const swapPanel = swapActionPanel(page)
 

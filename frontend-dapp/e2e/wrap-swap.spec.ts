@@ -4,7 +4,7 @@ import {
   clickSwapSubmit,
   openSwapSettingsAndSetSlippage,
   swapActionPanel,
-  swapYouReceiveAmountDisplay,
+  readSwapYouReceiveAmount,
 } from './helpers/swap-ui'
 import { requireTokenInCombobox } from './helpers/wrap-e2e'
 import {
@@ -115,9 +115,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
@@ -137,9 +136,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 20000 })
@@ -193,9 +191,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 20000 })
@@ -235,9 +232,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 20000 })
@@ -268,9 +264,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
@@ -289,9 +284,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     const input = page.getByRole('textbox', { name: 'You Pay' })
     await input.fill('0.0001')
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })
@@ -351,9 +345,8 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
       await expect(page.getByTestId('swap-route-summary')).toBeVisible()
     }).toPass({ timeout: 30_000 })
 
-    const receiveField = swapYouReceiveAmountDisplay(page)
     await expect(async () => {
-      const text = await receiveField.textContent()
+      const text = await readSwapYouReceiveAmount(page)
       expect(text).not.toBe('0.00')
       expect(text).not.toContain('Calculating')
     }).toPass({ timeout: 15000 })

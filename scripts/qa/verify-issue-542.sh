@@ -64,10 +64,12 @@ run_step "code: Create Pair uses catalog + TokenSearchSelect + custom paste + sa
     grep -qE "Custom contract" frontend-dapp/src/components/create/CreatePairTokenField.tsx &&
     grep -qE "createPair\\(" frontend-dapp/src/pages/CreatePairPage.tsx'
 
-run_step "code: no query prefill; factory createPair unchanged" \
-  bash -c '! grep -qE "searchParams|useSearchParams|URLSearchParams" frontend-dapp/src/pages/CreatePairPage.tsx &&
+run_step "code: factory createPair unchanged; catalog still bundled (C542-11 HTTP)" \
+  bash -c '
     grep -qE "tokenAssetInfo\\(tokenA\\)" frontend-dapp/src/services/terraclassic/factory.ts &&
-    grep -qE "create_pair" frontend-dapp/src/services/terraclassic/factory.ts'
+    grep -qE "create_pair" frontend-dapp/src/services/terraclassic/factory.ts &&
+    ! grep -qE "fetch\\(.*tokenlist|GET /api/v1/tokens" frontend-dapp/src/pages/CreatePairPage.tsx frontend-dapp/src/utils/createPairTokenCatalog.ts
+  '
 
 run_step "docs: C542-1–C542-11 + address validation + tokenlist note" \
   bash -c 'grep -qE "create-pair-token-picker" docs/frontend.md &&

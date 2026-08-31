@@ -40,6 +40,11 @@ vi.mock('@/services/terraclassic/pair', () => ({
     commission_amount: '3000',
   }),
   swap: vi.fn().mockResolvedValue('txhash123'),
+  reverseSimulateSwap: vi.fn().mockResolvedValue({
+    offer_amount: '1000000',
+    spread_amount: '100',
+    commission_amount: '3000',
+  }),
   getPool: vi.fn().mockResolvedValue({
     assets: [
       { info: { token: { contract_addr: 'tokenA' } }, amount: '1000000' },
@@ -155,7 +160,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     const banner = await screen.findByTestId('swap-fee-discount-registry-warning')
     expect(banner).toHaveTextContent(FEE_DISCOUNT_REGISTRY_WARNING_TEXT)
@@ -174,7 +179,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     expect(await screen.findByTestId('swap-fee-discount-registry-warning')).toHaveTextContent(
       FEE_DISCOUNT_REGISTRY_WARNING_TEXT
@@ -191,7 +196,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
@@ -208,7 +213,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
     expect(screen.queryByTestId('swap-fee-discount-registry-warning')).not.toBeInTheDocument()
@@ -224,7 +229,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
     await user.click(screen.getByText(/trade details/i))
 
@@ -248,7 +253,7 @@ describe('SwapPage fee-discount registry outage banner (GitLab #374)', () => {
 
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
-    await user.type(screen.getByPlaceholderText('0.00'), '1')
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
     await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled(), { timeout: 5000 })
     await user.click(screen.getByText(/trade details/i))
 

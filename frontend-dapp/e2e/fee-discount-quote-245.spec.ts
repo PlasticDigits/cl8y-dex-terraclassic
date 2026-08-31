@@ -2,6 +2,7 @@ import { test, expect } from './fixtures/dev-wallet'
 import { skipIfLcdUnreachable } from './helpers/chain'
 import { E2E_DEV_WALLET, captureRouterSimulateQuote, submitTxButtonWithRetry } from './helpers/fee-discount-quote-e2e'
 import { requireDualCwPair } from './helpers/hybrid-e2e'
+import { readSwapYouReceiveAmount } from './helpers/swap-ui'
 import {
   assetInfoLabel,
   fetchTxJson,
@@ -82,7 +83,7 @@ test.describe('CL8Y fee-discount quote parity (GitLab #245)', () => {
       { timeout: 120_000 }
     )
     const routerSimPromise = captureRouterSimulateQuote(page, { requireTrader: E2E_DEV_WALLET })
-    await page.getByPlaceholder('0.00').first().fill('0.001')
+    await page.getByTestId('swap-you-pay-amount').fill('0.001')
 
     const routeResp = await routeSolvePromise
     expect(routeResp.url()).toContain(E2E_DEV_WALLET)
@@ -90,7 +91,9 @@ test.describe('CL8Y fee-discount quote parity (GitLab #245)', () => {
     expect(quoted.trader).toBe(E2E_DEV_WALLET)
 
     await expect(page.getByTestId('swap-route-summary')).toBeVisible({ timeout: 60_000 })
-    const receive = page.locator('.swap-io-card-receive').getByText(/\d/)
-    await expect(receive.first()).toBeVisible({ timeout: 30_000 })
+    await expect(async () => {
+      const text = await readSwapYouReceiveAmount(page)
+      expect(text).toMatch(/\d/)
+    }).toPass({ timeout: 30_000 })
   })
 })

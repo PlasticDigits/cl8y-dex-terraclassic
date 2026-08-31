@@ -266,7 +266,7 @@ In-app **Share** for canonical same-origin profile (and optional pair) URLs ([Gi
 | ID | Invariant |
 |----|-----------|
 | **TS-1** | Required surface: **`/trader/:address`** when `isValidTerraAddress` is true. Hide Share on empty `/trader` and invalid segments. Do not create `/trader/:pair`. |
-| **TS-2** | Payload is `origin + '/trader/' + address` (or `/trade/` / `/charts/` for the helper). Strip search/hash. Never share `window.location.href`. Prefer the route param, not a pathname splice. |
+| **TS-2** | Payload is `origin + '/trader/' + address` (or `/trade/` / `/charts/` for the helper). Strip search/hash. **Exception (Swap, [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)):** share `{origin}/?from=&to=` via `buildCanonicalSwapShareUrl` — still never `window.location.href`. Prefer the route param, not a pathname splice. |
 | **TS-3** | Prefer `navigator.share({ url, title, text })`. `AbortError` is not a failure toast. Missing share, `canShare === false`, or non-abort errors fall back to `copyToClipboard`. |
 | **TS-4** | AddressRow stays **Copy trader address** (bech32). Share is a distinct control (`aria-label` **Share trader profile link**). |
 | **TS-5** | Visible label **Share**. Clipboard success: **Link copied** (`sharePageLinkCopy.ts`). No how-to lecture, no `VITE_*` / host:port in errors. |
@@ -275,7 +275,7 @@ In-app **Share** for canonical same-origin profile (and optional pair) URLs ([Gi
 | **TS-8** | No helmet / per-route `og:*`. Share `title`/`text` are static product copy (**CL8Y DEX trader**) plus optional `shortenAddress` — not P&L, volume, or indexer fields. |
 | **TS-9** | Origin is `window.location.origin` of the loaded SPA. Do not hard-code `https://dex.cl8y.com`. Do not read `VITE_PUBLIC_ORIGIN` in the React bundle for this. |
 | **TS-10** | Show Share when the path address is valid, including profile **404** and indexer outage. Hide only when the segment is missing or not a terra address. |
-| **TS-11** | Optional: same primitive on `/trade/:pairAddr` / `/charts/:pairAddr` (validated pair) and `/portfolio` → `/trader/{wallet}` when connected. Do not share `/portfolio`. This change mounts **portfolio**; pair pages stay optional follow-up. |
+| **TS-11** | Optional: same primitive on `/trade/:pairAddr` / `/charts/:pairAddr` (validated pair) and `/portfolio` → `/trader/{wallet}` when connected. Do not share `/portfolio`. Swap header Share is required ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) **Q713-5**). |
 | **TS-12** | No new indexer/API, wallet signature, QR library, or third-party share SDK. |
 | **TS-13** | In-app browsers: clipboard fallback; denied clipboard uses `COPY_BUTTON_FAILURE_MESSAGE` (no `DOMException` text). |
 
@@ -839,7 +839,7 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **M634** Migrate inventory | Confirm + success show CL8Y / other-DEX / GDEX venues. Register only factory-verified CL8Y after adopt when pins match. ALPHA/Open Terraport rows always overlay. `#633` owns new Create Pair register + Manage highest-LP. LocalTerra mintable analogue: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh). [#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / `make verify-issue-634`. |
 | **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax on **pair-direct and router-hop** sells (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. |
 | **C593-10** Payee from env | Never URL. |
-| **C593-11** No Swap dump | Not auto-listed (#562). After create, `/create` is copy-address + link only — no query prefill (**C542-11** / **P402-5**). |
+| **C593-11** No Swap dump | Not auto-listed (#562). After create, Create Token may still copy-address to `/create`; `/create?a=<cw20>` prefill is allowed after [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) (**C542-11** / **P402-5**). Prefill is not a substitute for reading the picker. |
 | **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 launcher `terra126pr5…` (code **11622**). |
 | **C593-13** Instantiate caps | `max_buy + max_sell + max_transfer ≤ 2500`. Do not default each max to 2500. |
 | **C593-14** Listed-pair tax copy | Create/Manage: buy/sell applies on every listed-pair swap. Swap/Trade: `Sell tax extra` / `Buy tax applies`. [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) / [`AGENTS_COMMUNITY_TAX_ROUTER.md`](../skills/AGENTS_COMMUNITY_TAX_ROUTER.md). |
@@ -912,7 +912,7 @@ The frontend uses TerraSwap-compatible message names:
 
 | Route           | Description                                       |
 |-----------------|---------------------------------------------------|
-| `/`             | Swap interface — select tokens, enter amount, swap. Query aliases on `/` and `/swap` ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711), [§ Swap query params](#swap-query-params)) |
+| `/`             | Swap interface — select tokens, enter amount, swap. Query aliases + URL rewrite / reverse quotes / Share ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711) / [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713), [§ Swap query params](#swap-query-params)) |
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
 
@@ -926,22 +926,40 @@ Parser: [`swapQueryParams.ts`](../frontend-dapp/src/utils/swapQueryParams.ts). F
 |------|-------------------------------|
 | Pay | `inputCurrency`, `from`, `tokenIn`, `token_in`, `sellToken`, `currencyIn`, `inToken`, `pay`, `offer` |
 | Receive | `outputCurrency`, `to`, `tokenOut`, `token_out`, `buyToken`, `currencyOut`, `outToken`, `receive`, `ask` |
-| Pay amount (optional) | `exactAmount`, `amount`, `value`, `amountIn` |
+| Amount (optional) | `exactAmount`, `amount`, `value`, `amountIn` |
+| Independent field (optional) | `exactField`, `independentField` (`output` only; else pay-sided) |
 
 | Invariant | Meaning |
 |-----------|---------|
 | **Q711-1** | `/swap` preserves `search` + `hash` on redirect to `/`. Do not mount a second Swap page at `/swap`. |
 | **Q711-2** | Apply only factory/wrap ids from `getAllTokens(pairs)` (#481). Unlisted `terra1` is ignored. |
 | **Q711-3** | Bech32 checksum (#382). Hostile / overlong / `javascript:` / `0x` / `ETH` / `ibc/` / `factory/` → ignore that side; never echo raw strings. |
-| **Q711-4** | Production gem hide (#562). `?showGems=1` has no effect (**X8**). |
+| **Q711-4** | Production gem hide (#562). `?showGems=1` has no effect (**X8**). Rewrite and Share never emit gem ids. |
 | **Q711-5** | `LUNC`/`uluna` → `uluna`; `USTC`/`UST`/`uusd` → `uusd`; hub tickers via registry. Display still **LUNC** / **USTC** (#630). |
-| **Q711-6** | Legal human amount prefills You Pay (≤ 24 chars, `isPositiveDecimalAmount`). No reverse quote. Never auto-submit; #678 quote-only / 5–30–99 / Expert / blacklist / pause / freeze still apply. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize` (#596). |
-| **Q711-7** | Apply once per search after tokens load. Query wins over `defaultRetailSwapTokenPair`. User picker/flip is not re-forced. |
-| **Q711-8** | No `/create?a=&b=` (**C542-11**). Trade stays `/trade/:pairAddr`. UST1 Swap links are AMM, not mint/redeem (**U1**). Silent fail-closed (#489). |
+| **Q711-6** | Legal human amount (≤ 24 chars, `isPositiveDecimalAmount`) prefills the independent field. `exactField=output` on a **direct factory pair** makes You Receive independent; You Pay is `reverseSimulateSwap` offer; **broadcast stays offer-in + min received**. Multihop / wrap-mapper: ignore output field (pay-sided, silent #489). Never auto-submit; #678 quote-only / 5–30–99 / Expert / blacklist / pause / freeze still apply. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize` (#596). |
+| **Q711-7** | Apply inbound search once after tokens load. Then picker / flip / amount **write** canonical `/?from=&to=` via `setSearchParams({ replace: true })` (debounced amount). Incoming aliases disappear from the bar. User picker is not snapped back to the inbound query. |
+| **Q711-8** | UST1 Swap links are AMM, not mint/redeem (**U1**). Silent fail-closed (#489). Create Pair query prefill and Trade `?from=&to=` resolve are [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) (**Q713** / **C542-11**). |
 
-First-party hrefs: `/?from=<id>&to=<id>` (`swapDeepLinkPath`, `ust1SecondarySwapPath`). Uniswap names are inbound-only.
+First-party hrefs: `/?from=<id>&to=<id>` (`canonicalSwapSearch`, `swapDeepLinkPath`, `ust1SecondarySwapPath`). Uniswap names are inbound-only.
 
-Regression: `make verify-issue-711`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](../skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md).
+### Swap URL sync, reverse quotes, Share, Create/Trade prefill {#swap-url-sync}
+
+Follow-up to #711 ([GitLab **#713**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)). One product surface: shareable DEX URLs. Helpers: [`swapQueryParams.ts`](../frontend-dapp/src/utils/swapQueryParams.ts), [`createPairQuery.ts`](../frontend-dapp/src/utils/createPairQuery.ts), [`tradeQueryResolve.ts`](../frontend-dapp/src/utils/tradeQueryResolve.ts), [`buildCanonicalSwapShareUrl`](../frontend-dapp/src/utils/sharePageLink.ts).
+
+| ID | Rule |
+|----|------|
+| **Q713-1** | Picker / flip / amount update the bar to canonical `from`/`to` (`exactAmount` / `exactField` when set) with **replace**, not push. Amount debounce is `SIM_QUOTE_DEBOUNCE_MS` (350). |
+| **Q713-2** | Inbound Uniswap aliases still apply (#711), then rewrite to first-party keys. |
+| **Q713-3** | Write follows live state; apply does not fight a later picker change. |
+| **Q713-4** | Direct-pair reverse quote uses `reverseSimulateSwap` only. `GET /route/solve` stays offer-in. Execute is still offer-in + min received. |
+| **Q713-5** | Swap header **Share** (`data-testid="swap-share-link"`) next to Settings — no new `shell-panel*` (**C653**). Coarse+narrow: Web Share; else copy **Link copied**. Abort silent. Payload from resolved ids only. |
+| **Q713-6** | `/create?a=&b=` (aliases `tokenA`/`token_a`, `tokenB`/`token_b`) prefills catalog or checksum custom. Hostile / native ignored per side. **No** auto-submit. Catalog still has no runtime HTTP. |
+| **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Ambiguous / missing / same-token: ignore. `/trade/:pairAddr` stays canonical. Ticket not auto-placed. |
+| **Q713-8** | Production cannot share or rewrite a gem. `?showGems=1` still ignored. |
+| **Q713-9** | Canonical compare breaks apply↔write loops. Share/rewrite use `URL` + `URLSearchParams` only. |
+| **Q713-10** | No lecture banners when a field is ignored (#489). No `localStorage` persistence. No indexer exact-out solver. |
+
+Regression: `make verify-issue-713` and `make verify-issue-711`. Playbooks: [`skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md`](../skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md), [`skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](../skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md).
 
 ### Create pair — listed CW20 picker + custom paste {#create-pair-token-picker}
 
@@ -959,7 +977,7 @@ Regression: `make verify-issue-711`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_QUE
 | **C542-8** | Swap / Mint / Trade pickers stay on their own universes (factory graph / faucet). Do **not** feed this catalog into Swap. |
 | **C542-9** | Logos via `resolveTrustedTokenLogoUrl`; symbols/names text-only; search query capped at 128. |
 | **C542-10** | UST1 AMM ≠ oracle notice stays ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) **U1**). |
-| **C542-11** | Catalog is the bundled repo [`tokenlist/tokenlist.json`](../tokenlist/tokenlist.json) (plus env overlays). Soft-launch `VITE_TOKEN_*` gems append **only** when `retailExposeTestTokens()` ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-5**). **No** runtime HTTP for the list. Do **not** use tokenlist `decimals` for amounts. No `/create?a=&b=` query prefill. |
+| **C542-11** | Catalog is the bundled repo [`tokenlist/tokenlist.json`](../tokenlist/tokenlist.json) (plus env overlays). Soft-launch `VITE_TOKEN_*` gems append **only** when `retailExposeTestTokens()` ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-5**). **No** runtime HTTP for the list. Do **not** use tokenlist `decimals` for amounts. **`/create?a=&b=` (and `tokenA`/`token_a`, `tokenB`/`token_b`) may prefill** listed CW20s or checksummed custom paste ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) **Q713-6**). Hostile / native / bad checksum ignored per side. **No** auto-submit. |
 
 Helper: [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options` / `buildCreatePairCw20Options`). UI: [`CreatePairTokenField`](../frontend-dapp/src/components/create/CreatePairTokenField.tsx) reuses [`TokenSearchSelect`](../frontend-dapp/src/components/trade/TokenSearchSelect.tsx) **control** with catalog ids — not `getAllTokens(pairs)`.
 

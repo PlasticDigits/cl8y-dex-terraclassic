@@ -42,7 +42,7 @@ Child playbooks: [`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TO
 | **M602-3** | **P402-2.** Coolify indexer has `COMMUNITY_TAX_CODE_ID`, `COMMUNITY_TOKEN_LAUNCHER`, `CMM_GOVERNANCE_ADDR`. `GET https://indexer.dex.cl8y.com/api/v1/community-tokens` returns `{ configured: true, … }` (empty `items` is OK until a launcher create is ingested). |
 | **M602-4** | **P402-3.** Columbus-5 free create lives on **11614** (store + instantiate txs above). **11612** is unused. Do **not** whitelist 11612 / 11613 / 11614 on the factory. |
 | **M602-5** | **P402-4.** LocalTerra: in-repo launcher smoke (`localterra-community-tax-smoke.sh`) plus UI — free create, paid SKU via `PayWithAnyToken`, Manage Save flat 50 UST1, non-manager read-only, Unverified admin when admin ≠ CMM. |
-| **M602-6** | **P402-5.** After create, `/create` is copy-address + link only. No `/create?a=&b=` query prefill (**C542-11**). |
+| **M602-6** | **P402-5.** After create, Create Token may still copy-address to `/create`. Create Pair honors `/create?a=&b=` prefill ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) **C542-11**). |
 | **M602-7** | **P402-6.** Swap/Trade Max on the tax template is extra-debit (not 100% balance). Indexer list shows a token **without** a pair; default list is `attested_cmm` only. |
 | **M602-8** | This playbook + **Q9** + child skills stay crosslinked. Do not wait for GitHub Actions; GitLab CI may be quota-blocked — local `make verify-issue-*` is the gate. |
 

@@ -2,9 +2,17 @@ import { expect, type Locator, type Page } from '@playwright/test'
 
 import { assertSwapCtaNotBlocked } from './chain'
 
-/** Matches the simulated output field in {@link SwapPage} (`swap-io-card-receive`). */
+/** You Receive amount: editable input on direct pairs (#713), otherwise a quote display. */
 export function swapYouReceiveAmountDisplay(page: Page) {
-  return page.locator('.swap-io-card-receive div.font-medium').first()
+  return page.getByTestId('swap-you-receive')
+}
+
+/** Human amount currently shown in You Receive (input value or display text). */
+export async function readSwapYouReceiveAmount(page: Page): Promise<string> {
+  const el = swapYouReceiveAmountDisplay(page)
+  const tag = await el.evaluate((n) => n.tagName.toLowerCase())
+  if (tag === 'input' || tag === 'textarea') return (await el.inputValue()).trim()
+  return ((await el.textContent()) ?? '').trim()
 }
 
 /** Primary swap panel in main (heading "Swap" is inside it). */
