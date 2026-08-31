@@ -238,6 +238,10 @@ export default function SwapPage() {
   const appliedSwapQueryKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
+    // Wait for factory pairs, not wrap-native-only getAllTokens([]). Stamping the
+    // apply-once ref against wrap natives drops a listed CW20 until the next
+    // search-string change (GitLab #711 AC1).
+    if (!pairsQuery.isSuccess) return
     const pair = defaultRetailSwapTokenPair(allTokens)
     if (!pair) return
     const [econFrom, econTo] = pair
@@ -254,7 +258,7 @@ export default function SwapPage() {
     if (!fromHidden && !toHidden) return
     if (fromHidden) setFromToken(econFrom)
     if (toHidden) setToToken(fromHidden ? econTo : fromToken === econTo ? econFrom : econTo)
-  }, [allTokens, fromToken, toToken, searchParams, swapQueryKey])
+  }, [allTokens, fromToken, toToken, searchParams, swapQueryKey, pairsQuery.isSuccess])
 
   useEffect(() => {
     const cw20Tokens = allTokens.filter((tokenId) => tokenId.startsWith('terra1'))
