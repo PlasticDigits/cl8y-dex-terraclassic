@@ -135,6 +135,32 @@ describe('SwapPage query params (GitLab #711)', () => {
     expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1')
   })
 
+  it('AC1: waits for factory pairs so wrap natives do not drop a listed CW20', async () => {
+    const factoryPairs = [
+      {
+        contract_addr: 'terra1pair00000000000000000000000000000001',
+        liquidity_token: 'terra1lp000000000000000000000000000000001',
+        asset_infos: [{ native_token: { denom: 'uluna' } }, { token: { contract_addr: UST1 } }],
+      },
+    ]
+    let resolvePairs: (value: { pairs: typeof factoryPairs }) => void = () => {}
+    vi.mocked(getAllPairsPaginated).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePairs = resolve
+        })
+    )
+    vi.mocked(getAllTokens).mockImplementation((pairs: { asset_infos?: unknown[] }[] = []) =>
+      pairs.length === 0 ? ['uluna', 'uusd'] : ['uluna', 'uusd', UST1, LISTED]
+    )
+    renderWithProviders(<SwapPage />, { route: `/?from=uluna&to=${UST1}` })
+    expect(screen.getByText(/loading pairs/i)).toBeInTheDocument()
+    resolvePairs({ pairs: factoryPairs })
+    await waitForSwapReady()
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('LUNC')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('UST1')
+  })
+
   it('AC2: Uniswap inputCurrency / outputCurrency', async () => {
     renderWithProviders(<SwapPage />, { route: `/?inputCurrency=uusd&outputCurrency=${UST1}` })
     await waitForSwapReady()

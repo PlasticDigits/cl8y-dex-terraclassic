@@ -35,6 +35,12 @@ export interface HybridSwapParams {
   book_start_hint?: number | null
 }
 
+/** Opt-in greedy book-first (GitLab #708). No `pool_input` / `book_input` (**G2** / **G11**). */
+export interface GreedySwapParams {
+  max_maker_fills: number
+  book_start_hint?: number | null
+}
+
 /** Pair `hybrid_simulation` / `hybrid_reverse_simulation` (only quote paths; GitLab #190). */
 export interface HybridSimulationResponse {
   return_amount: string
@@ -42,6 +48,8 @@ export interface HybridSimulationResponse {
   commission_amount: string
   book_return_amount: string
   pool_return_amount: string
+  /** Greedy walk stop when the quote used `greedy` (#708). Omitted on Pattern C / pool-only. */
+  greedy_stop?: string | null
 }
 
 /** `hybrid_reverse_simulation` — `return_amount` is the required offer (`offer_amount` on chain). */

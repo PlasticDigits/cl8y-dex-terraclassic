@@ -102,6 +102,7 @@ mod tests {
             offer_asset_info: token("token_a"),
             ask_asset_info: token("token_b"),
             hybrid: None,
+            greedy: None,
             min_return: None,
         }]
     }

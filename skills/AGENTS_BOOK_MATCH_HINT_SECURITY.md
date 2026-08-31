@@ -35,6 +35,7 @@ When the book head is a long **expired** prefix, a head-only hybrid walk can hit
 - Implementation: [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs) — `resolve_match_start_hint`, `order_on_match_side`
 - Related insert hints (**L14**, #256/#265): [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md)
 - Hybrid quoting parity (**L8**): [`skills/AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md)
+- Greedy book-first (`greedy.book_start_hint`, **G6** / [#708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)): same **L17** fallback — [`AGENTS_GREEDY_BOOK_FIRST.md`](./AGENTS_GREEDY_BOOK_FIRST.md)
 
 ## Tests to run after changes
 

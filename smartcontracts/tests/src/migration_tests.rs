@@ -472,7 +472,8 @@ fn snapshot_pair(app: &App, env: &MigrationEnv) -> PairSnapshot {
             env.pair.to_string(),
             &QueryMsg::HybridSimulation {
                 offer_asset: offer,
-                hybrid: pool_only_hybrid_params(Uint128::new(10_000)),
+                hybrid: Some(pool_only_hybrid_params(Uint128::new(10_000))),
+                greedy: None,
                 trader: Some(env.user.to_string()),
                 sender: None,
                 belief_price: None,

@@ -84,7 +84,7 @@ ensure_clickwrap_package() {
   fi
   if clickwrap_is_stub; then
     echo "[bootstrap] installing @plasticdigits/cl8y-clickwrap from GitLab npm (not a pass-through stub)"
-    bash scripts/with-node.sh --cwd frontend-dapp -- npm install @plasticdigits/cl8y-clickwrap@0.1.0 --no-save
+    bash scripts/with-node.sh --cwd frontend-dapp -- npm install @plasticdigits/cl8y-clickwrap@0.1.1 --no-save
   fi
 }
 

@@ -211,6 +211,7 @@ fn execute_skim(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         deadline: None,
         trader: None,
         hybrid: Some(pool_only_hybrid_params(half)),
+        greedy: None,
     })?;
 
     let send = WasmMsg::Execute {
