@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
 
-const { UST1, LISTED } = vi.hoisted(() => ({
+const { UST1, LISTED, USTR } = vi.hoisted(() => ({
   UST1: 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72',
   LISTED: 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v',
+  USTR: 'terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv',
 }))
 
 vi.mock('react-blockies', () => ({
@@ -104,7 +107,7 @@ function seedFactoryTokens() {
       },
     ],
   })
-  vi.mocked(getAllTokens).mockReturnValue(['uluna', 'uusd', UST1, LISTED])
+  vi.mocked(getAllTokens).mockReturnValue(['uluna', 'uusd', UST1, LISTED, USTR])
   vi.mocked(findRoute).mockReturnValue([
     {
       terra_swap: {
@@ -242,5 +245,48 @@ describe('SwapPage query params (GitLab #711)', () => {
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
     expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
     expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('LUNC')
+  })
+
+  it('QS-1: /?from=UST1&to=USTR selects those tokens (mixed case inbound)', async () => {
+    renderWithProviders(<SwapPage />, { route: '/?from=ust1&to=USTR' })
+    await waitForSwapReady()
+    expect(screen.getByRole('combobox', { name: 'Select token you pay' })).toHaveValue('UST1')
+    expect(screen.getByRole('combobox', { name: 'Select token you receive' })).toHaveValue('USTR')
+  })
+
+  it('QS-2 / SH-1: bech32 inbound rewrites to symbols; Share shows logos and live aria-label', async () => {
+    function SearchProbe() {
+      const loc = useLocation()
+      return <span data-testid="swap-search-probe">{loc.search}</span>
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    render(
+      <MemoryRouter initialEntries={[`/?from=uluna&to=${UST1}`]}>
+        <QueryClientProvider client={queryClient}>
+          <SearchProbe />
+          <SwapPage />
+        </QueryClientProvider>
+      </MemoryRouter>
+    )
+    await waitForSwapReady()
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-search-probe').textContent).toMatch(/from=LUNC/)
+      expect(screen.getByTestId('swap-search-probe').textContent).toMatch(/to=UST1/)
+    })
+    const share = screen.getByTestId('swap-share-link')
+    expect(share).toHaveAttribute('aria-label', 'Share LUNC to UST1 swap link')
+    expect(share).toHaveTextContent('Share')
+    expect(share.querySelectorAll('img')).toHaveLength(2)
+  })
+
+  it('SH-1: flip updates Share aria-label', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />, { route: '/?from=LUNC&to=UST1' })
+    await waitForSwapReady()
+    await waitFor(() => {
+      expect(screen.getByTestId('swap-share-link')).toHaveAttribute('aria-label', 'Share LUNC to UST1 swap link')
+    })
+    await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
+    expect(screen.getByTestId('swap-share-link')).toHaveAttribute('aria-label', 'Share UST1 to LUNC swap link')
   })
 })

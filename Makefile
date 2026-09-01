@@ -1139,6 +1139,12 @@ verify-issue-713:
 	@chmod +x scripts/qa/verify-issue-713.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-713.sh
 
+# GitLab #715 — tokenlist unique symbols, Swap from=/to= symbols, Share logos.
+.PHONY: verify-issue-715
+verify-issue-715:
+	@chmod +x scripts/qa/verify-issue-715.sh scripts/qa/tokenlist_unique_symbols.py scripts/with-node.sh
+	./scripts/qa/verify-issue-715.sh
+
 # GitLab #629 — Keplr CW20 contract-registry pack (columbus-5 name/logo).
 .PHONY: verify-issue-629
 verify-issue-629:
@@ -1270,7 +1276,7 @@ help:
 	@echo "Contracts:       make build-optimized | deploy-local | deploy-local-no-build | deploy-testnet | deploy-mainnet | deploy-mainnet-soft-launch"
 	@echo "QA artifacts:    make fetch-qa-ci-artifacts | make build-indexer-release (INDEXER_QA_BIN)"
 	@echo "Cloud Agent:     make setup-cloud-agent-env | setup-cloud-localterra | setup-indexer-postgres | test-setup-cloud-agent-env | test-indexer-integration | verify-issue-324 | verify-issue-503 | verify-issue-504 | verify-issue-514 | verify-issue-518 | verify-issue-533 | verify-issue-559 | verify-issue-539 | verify-issue-534 | verify-issue-562 | verify-issue-542 | verify-issue-536 | verify-issue-582 | verify-issue-584 | verify-issue-585 | verify-issue-587 | verify-issue-679 | verify-issue-708 | verify-issue-709 | verify-issue-710 | verify-issue-599 | verify-issue-600 | verify-issue-595 | verify-issue-592 | verify-issue-593 | verify-issue-594 | verify-issue-601 | verify-issue-602 | verify-issue-612 | verify-issue-616 | verify-issue-604 | verify-issue-605 | verify-issue-606 | verify-issue-607 | verify-issue-615 | verify-issue-608 | verify-issue-609 | verify-issue-610 | verify-issue-620 | verify-issue-624 | verify-issue-621 | verify-issue-622 | verify-issue-623 | verify-issue-625 | verify-issue-626 | verify-issue-627 | verify-issue-628 | verify-issue-673 | verify-issue-686 | verify-issue-698 | verify-issue-701 | verify-issue-702 | verify-issue-706 | verify-issue-633 | verify-issue-634 | verify-issue-670 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-652 | verify-issue-668 | verify-issue-689 | verify-issue-667 | verify-issue-653 | verify-issue-671 | verify-issue-659 | verify-issue-663 | verify-issue-589 | verify-issue-590 | verify-issue-537 | verify-issue-538 | verify-issue-541 | verify-issue-664 | verify-issue-547 | verify-issue-655 | verify-issue-692 | verify-issue-662 | verify-issue-485 | verify-issue-515 | verify-issue-550 | verify-issue-522 | verify-issue-551 | verify-issue-557 | verify-issue-556 | verify-issue-560 | verify-issue-524 | verify-issue-543 | verify-issue-548 | verify-issue-553 | verify-issue-656 | verify-issue-564 | verify-issue-565 | verify-issue-666 | verify-issue-576 | verify-issue-527 | verify-issue-561 | verify-issue-563 | verify-issue-528 | verify-issue-529 | verify-issue-530 | verify-issue-517 | verify-issue-519 | verify-issue-554 | verify-issue-566 | verify-issue-658 | verify-issue-531 | verify-issue-501 | verify-issue-596 | verify-issue-512 | verify-issue-516 | verify-issue-523 | verify-issue-508 | verify-issue-365 | verify-issue-369 | verify-issue-391 | verify-issue-397 | verify-issue-398 | verify-issue-408 | verify-issue-399 | verify-issue-400 | verify-issue-435 | verify-issue-437 | verify-issue-438 | verify-issue-407 | verify-issue-429 | verify-issue-567 | verify-issue-570 | verify-issue-571 | verify-issue-580 | verify-issue-550 verify-issue-569 | verify-issue-586 | verify-issue-683 | verify-issue-631 | verify-issue-687 | verify-issue-684 | verify-issue-685 | verify-issue-613 | verify-issue-614 | verify-issue-568 | verify-issue-705 | verify-issue-577 | verify-issue-579 | verify-issue-295 (needs make dev)"
-	@echo "Frontend:        make dev | verify-issue-678 | verify-issue-711 | verify-issue-713 | verify-issue-578 | verify-issue-695 | verify-issue-706 | verify-issue-693 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-665 | verify-issue-674 | verify-issue-669 | verify-issue-653 | verify-issue-660 | verify-issue-671 | verify-issue-670 | verify-issue-657 | verify-issue-662 | verify-issue-664 | verify-issue-661 | verify-issue-672 | verify-issue-658 | verify-issue-659 | verify-issue-663 | verify-issue-573 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
+	@echo "Frontend:        make dev | verify-issue-678 | verify-issue-711 | verify-issue-713 | verify-issue-715 | verify-issue-578 | verify-issue-695 | verify-issue-706 | verify-issue-693 | verify-issue-629 | verify-issue-639 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-665 | verify-issue-674 | verify-issue-669 | verify-issue-653 | verify-issue-660 | verify-issue-671 | verify-issue-670 | verify-issue-657 | verify-issue-662 | verify-issue-664 | verify-issue-661 | verify-issue-672 | verify-issue-658 | verify-issue-659 | verify-issue-663 | verify-issue-573 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-295 (needs make dev)"
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
@@ -1409,6 +1415,10 @@ check-design-tokens:
 	python3 scripts/check_design_tokens.py
 	python3 scripts/check_chrome_nesting.py
 
+.PHONY: check-tokenlist-unique-symbols
+check-tokenlist-unique-symbols:
+	python3 scripts/qa/tokenlist_unique_symbols.py
+
 check-launch-monitoring-docs:
 	python3 scripts/check_launch_monitoring_docs.py
 
@@ -1519,7 +1529,7 @@ dev-full: start wait-healthy build-optimized deploy-local
 # Combined
 test: test-contracts test-frontend
 
-lint: lint-contracts lint-frontend lint-indexer-log-secrets lint-log-secrets check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-suspicious-activity-queries-docs check-anomaly-signals-docs check-incident-comms-templates-docs check-incident-template-docs check-pool-triage-docs check-rollback-decision-docs check-deploy-trace-docs check-wasm-migration-rollback-docs check-deploy-config-docs check-deploy-env-addresses-docs check-factory-address-docs check-test-evidence-gate-docs check-exploit-replay-matrix-docs check-key-custody-docs check-governance-multisig-docs check-governance-key-rotation-docs check-design-tokens check-launch-monitoring-docs verify-commit-messages
+lint: lint-contracts lint-frontend lint-indexer-log-secrets lint-log-secrets check-fee-discount-tier-docs check-user-incident-faq-docs check-emergency-commands-docs check-launch-go-no-go-docs check-governance-emergency-rehearsal-docs check-ibc-hooks-deploy-docs check-extension-fee-guard-docs check-blacklist-decision-docs check-suspicious-activity-queries-docs check-anomaly-signals-docs check-incident-comms-templates-docs check-incident-template-docs check-pool-triage-docs check-rollback-decision-docs check-deploy-trace-docs check-wasm-migration-rollback-docs check-deploy-config-docs check-deploy-env-addresses-docs check-factory-address-docs check-test-evidence-gate-docs check-exploit-replay-matrix-docs check-key-custody-docs check-governance-multisig-docs check-governance-key-rotation-docs check-design-tokens check-tokenlist-unique-symbols check-launch-monitoring-docs verify-commit-messages
 
 # Git hooks
 setup-hooks:

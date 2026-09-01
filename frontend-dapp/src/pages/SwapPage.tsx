@@ -54,13 +54,15 @@ import {
   swapSearchEquals,
 } from '@/utils/swapQueryParams'
 import { ShareLinkButton } from '@/components/ui/ShareLinkButton'
+import { SwapSharePairLabel } from '@/components/swap/SwapSharePairLabel'
 import {
   buildCanonicalSwapShareUrl,
   resolveNavigatorCanShare,
   resolveNavigatorShare,
+  swapShareAriaLabel,
   swapShareText,
 } from '@/utils/sharePageLink'
-import { SHARE_LINK_ARIA_SWAP, SHARE_LINK_TITLE_SWAP } from '@/utils/sharePageLinkCopy'
+import { SHARE_LINK_TITLE_SWAP } from '@/utils/sharePageLinkCopy'
 import { useCoarseNarrowViewport } from '@/hooks/useCoarseNarrowViewport'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
@@ -1408,7 +1410,8 @@ export default function SwapPage() {
                   url={swapShareUrl}
                   title={SHARE_LINK_TITLE_SWAP}
                   text={swapShareText(fromToken, toToken)}
-                  ariaLabel={SHARE_LINK_ARIA_SWAP}
+                  ariaLabel={swapShareAriaLabel(fromToken, toToken)}
+                  buttonContent={<SwapSharePairLabel payId={fromToken} receiveId={toToken} />}
                   data-testid="swap-share-link"
                   canShare={coarseNarrowViewport ? resolveNavigatorCanShare() : () => false}
                   share={coarseNarrowViewport ? resolveNavigatorShare() : undefined}

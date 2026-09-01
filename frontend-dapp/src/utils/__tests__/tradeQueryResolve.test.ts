@@ -23,6 +23,8 @@ describe('resolveTradePairFromQuery (#713)', () => {
     expect(resolveTradePairFromQuery(`from=uluna&to=${UST1}`, pairs)).toBe(PAIR)
     expect(resolveTradePairFromQuery(`from=${UST1}&to=uluna`, pairs)).toBe(PAIR)
     expect(resolveTradePairFromQuery(`inputCurrency=uluna&outputCurrency=${UST1}`, pairs)).toBe(PAIR)
+    expect(resolveTradePairFromQuery('from=LUNC&to=UST1', pairs)).toBe(PAIR)
+    expect(resolveTradePairFromQuery('from=ust1&to=lunc', pairs)).toBe(PAIR)
   })
 
   it('ignores missing, same-token, hostile, and open-redirect values (T15 / A7)', () => {

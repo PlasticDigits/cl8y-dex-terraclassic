@@ -12,8 +12,8 @@ test.describe('Swap URL sync (GitLab #713)', () => {
     await expect(payTokenTrigger(page)).toContainText(/LUNC/i)
     await expect(receiveTokenTrigger(page)).toContainText(/USTC/i)
     const url = new URL(page.url())
-    expect(url.search).toMatch(/from=uluna/)
-    expect(url.search).toMatch(/to=uusd/)
+    expect(url.search).toMatch(/from=LUNC/)
+    expect(url.search).toMatch(/to=USTC/)
     expect(url.search).not.toMatch(/inputCurrency/)
   })
 
@@ -22,7 +22,7 @@ test.describe('Swap URL sync (GitLab #713)', () => {
     await page.waitForLoadState('networkidle')
     await waitForPayTokenTriggerEnabled(page, 90_000)
     await expect(page.getByTestId('swap-share-link')).toBeVisible()
-    await expect(page.getByTestId('swap-share-link')).toHaveAttribute('aria-label', /share swap/i)
+    await expect(page.getByTestId('swap-share-link')).toHaveAttribute('aria-label', /Share LUNC to USTC swap link/i)
   })
 
   test('/create?a=&b= does not auto-submit Create Pair', async ({ page }) => {

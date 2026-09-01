@@ -1,0 +1,12 @@
+{
+  "tokens": [
+    {
+      "symbol": "Uѕt1",
+      "name": "Cyrillic homograph",
+      "address": "terra1ggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/UST1.png"
+    }
+  ]
+}

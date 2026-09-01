@@ -114,4 +114,22 @@ describe('ShareLinkButton', () => {
     })
     expect(screen.queryByText(/DOMException/i)).not.toBeInTheDocument()
   })
+
+  it('Swap override renders buttonContent without dropping type=button or copy', async () => {
+    const user = userEvent.setup()
+    renderShare({
+      buttonContent: (
+        <span>
+          Share <span data-testid="swap-share-logo-slot">pair</span>
+        </span>
+      ),
+      'data-testid': 'swap-share-link',
+    })
+    const button = screen.getByTestId('swap-share-link')
+    expect(button).toHaveAttribute('type', 'button')
+    expect(button).toHaveAttribute('aria-label', 'Share trader profile link')
+    expect(screen.getByTestId('swap-share-logo-slot')).toHaveTextContent('pair')
+    await user.click(button)
+    expect(mockCopyToClipboard).toHaveBeenCalledWith(CANONICAL)
+  })
 })

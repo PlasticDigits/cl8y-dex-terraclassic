@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { sounds } from '@/lib/sounds'
 import { COPY_BUTTON_FAILURE_MESSAGE } from '@/utils/copyButtonCopy'
 import { copyToClipboard } from '@/utils/copyToClipboard'
@@ -20,6 +20,8 @@ export type ShareLinkButtonProps = {
   text: string
   ariaLabel: string
   buttonLabel?: string
+  /** Swap (#715): `Share` + pair logos. Default (Trader / Portfolio) stays the string **Share**. */
+  buttonContent?: ReactNode
   className?: string
   'data-testid'?: string
   share?: ShareFn
@@ -46,6 +48,7 @@ export function ShareLinkButton({
   text,
   ariaLabel,
   buttonLabel = SHARE_LINK_BUTTON_LABEL,
+  buttonContent,
   className = '',
   'data-testid': testId = 'share-link-button',
   share: shareProp,
@@ -108,7 +111,7 @@ export function ShareLinkButton({
       onClick={() => void handleClick()}
     >
       {shareIcon}
-      {buttonLabel}
+      {buttonContent ?? buttonLabel}
       <span id={liveId} className="sr-only" aria-live="polite" aria-atomic="true">
         {liveMessage}
       </span>

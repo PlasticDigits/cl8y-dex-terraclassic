@@ -1493,11 +1493,26 @@
   }
 
   .share-link-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     min-height: 44px;
     min-width: 44px;
     padding-inline: 12px;
     text-transform: none;
     letter-spacing: 0;
+  }
+
+  .share-link-button__pair {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .share-link-button__arrow {
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--ink-dim);
   }
 
   .share-link-button:focus-visible {

@@ -5,6 +5,8 @@
  * (ust1-window). Never describe Trade/Swap as mint or redeem.
  */
 
+import { swapDeepLinkPath } from '@/utils/swapQueryParams'
+
 /** columbus-5 anchors from issue #508 — override via Vite env when present. */
 export const MAINNET_UST1_TOKEN_ADDRESS = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
 export const MAINNET_VFDUSD_TOKEN_ADDRESS = 'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'
@@ -77,8 +79,8 @@ export function ust1SecondaryTradePath(pairAddress?: string): string {
 }
 
 /**
- * Swap CTA target for `/ust1` secondary-market links (GitLab #711).
- * Uses `/?from=<ust1>&to=<quote>` so Swap honors the pair after factory gate.
+ * Swap CTA target for `/ust1` secondary-market links (GitLab #711 / #715).
+ * Uses `/?from=UST1&to=vFDUSD` (symbols when unique) so Swap honors the pair after factory gate.
  * AMM ≠ mint/redeem (**U1**).
  */
 export function ust1SecondarySwapPath(): string {
@@ -87,10 +89,7 @@ export function ust1SecondarySwapPath(): string {
     import.meta.env.VITE_VFDUSD_TOKEN_ADDRESS || ''
   )
   if (!tokens) return '/'
-  const q = new URLSearchParams()
-  q.set('from', tokens.ust1)
-  q.set('to', tokens.quote)
-  return `/?${q.toString()}`
+  return swapDeepLinkPath(tokens.ust1, tokens.quote)
 }
 
 /** True when copy would violate U1 (case-insensitive substring match). */

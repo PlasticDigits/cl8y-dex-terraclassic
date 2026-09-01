@@ -115,6 +115,13 @@ export function swapShareText(payId: string, receiveId: string): string {
   return `${SHARE_LINK_TITLE_SWAP} ${pay} → ${receive}`
 }
 
+/** Accessible name for Swap Share — text only; logos stay decorative (alt=""). */
+export function swapShareAriaLabel(payId: string, receiveId: string): string {
+  const pay = getTokenDisplaySymbol(payId.trim()) || 'token'
+  const receive = getTokenDisplaySymbol(receiveId.trim()) || 'token'
+  return `Share ${pay} to ${receive} swap link`
+}
+
 export function isShareAbortError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false
   const name = 'name' in err ? String((err as { name?: unknown }).name) : ''

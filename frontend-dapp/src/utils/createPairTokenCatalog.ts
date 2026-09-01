@@ -7,16 +7,10 @@
  * (Create Pair sends no amounts).
  */
 import publishedTokenlist from '../../../tokenlist/tokenlist.json'
-import {
-  CL8Y_TOKEN_ADDRESS,
-  LUNC_C_TOKEN_ADDRESS,
-  SOFT_LAUNCH_MINTABLE_TOKENS,
-  UST1_TOKEN_ADDRESS,
-  USTC_C_TOKEN_ADDRESS,
-  VFDUSD_TOKEN_ADDRESS,
-} from '@/utils/constants'
+import { SOFT_LAUNCH_MINTABLE_TOKENS } from '@/utils/constants'
 import { compareTokenCatalog, retailExposeTestTokens } from '@/utils/pairCatalogRank'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
+import { overlayOrPublishedAddress, tokenlistViteOverlays } from '@/utils/tokenlistQueryCatalog'
 
 export type CreatePairCw20Option = {
   address: string
@@ -46,11 +40,6 @@ function isCatalogCw20Address(addr: string): boolean {
   return trimmed.length > 0 && isValidTerraBech32Address(trimmed)
 }
 
-function overlayOrPublished(symbol: string, published: string, overlays: Readonly<Record<string, string>>): string {
-  const overlay = (overlays[symbol] ?? '').trim()
-  return overlay || published.trim()
-}
-
 /**
  * Build the Create Pair picker universe from a bundled tokenlist + env overlays + optional gems.
  * Drops natives, empty/invalid bech32, and duplicate addresses (lowercase).
@@ -63,7 +52,7 @@ export function buildCreatePairCw20Options(input: CreatePairCatalogInput): Creat
     const denom = token.denom?.trim().toLowerCase() ?? ''
     if (denom && NATIVE_DENOMS.has(denom)) continue
     const published = token.address?.trim() ?? ''
-    const address = overlayOrPublished(token.symbol, published, input.overlays)
+    const address = overlayOrPublishedAddress(token.symbol, published, input.overlays)
     if (!isCatalogCw20Address(address)) continue
     rows.push({
       address,
@@ -99,13 +88,7 @@ export function getCreatePairCw20Options(): CreatePairCw20Option[] {
   const published = publishedTokenlist as { tokens: readonly CreatePairTokenlistRow[] }
   return buildCreatePairCw20Options({
     tokenlistTokens: published.tokens,
-    overlays: {
-      cLUNC: LUNC_C_TOKEN_ADDRESS,
-      cUSTC: USTC_C_TOKEN_ADDRESS,
-      UST1: UST1_TOKEN_ADDRESS,
-      vFDUSD: VFDUSD_TOKEN_ADDRESS,
-      CL8Y: CL8Y_TOKEN_ADDRESS,
-    },
+    overlays: tokenlistViteOverlays(),
     gems: retailExposeTestTokens()
       ? SOFT_LAUNCH_MINTABLE_TOKENS.map((t) => ({
           symbol: t.symbol,

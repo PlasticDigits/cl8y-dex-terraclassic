@@ -57,6 +57,12 @@ describe('resolveSwapQueryTokenValue (#711)', () => {
     expect(resolveSwapQueryTokenValue('cUSTC')).toBe(lookupTokenIdByProductTicker('cUSTC'))
     expect(resolveSwapQueryTokenValue('vFDUSD')).toBe(lookupTokenIdByProductTicker('vFDUSD'))
     expect(resolveSwapQueryTokenValue('USTR')).toBe(USTR)
+    expect(resolveSwapQueryTokenValue('SpaceUSD')).toBe(
+      'terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl'
+    )
+    expect(resolveSwapQueryTokenValue('spaceusd')).toBe(
+      'terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl'
+    )
     expect(resolveSwapQueryTokenValue(MAINNET_UST1_TOKEN_ADDRESS)).toBe(MAINNET_UST1_TOKEN_ADDRESS)
   })
 
@@ -227,20 +233,20 @@ describe('applySwapQueryParams (#711)', () => {
   })
 })
 
-describe('canonicalSwapSearch / exactField (#713)', () => {
-  it('writes from/to; omits empty amount; exactField=output only when output', () => {
-    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd' }).toString()).toBe('from=uluna&to=uusd')
+describe('canonicalSwapSearch / exactField (#713 / #715)', () => {
+  it('writes tokenlist symbols when unique; omits empty amount; exactField=output only when output', () => {
+    expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd' }).toString()).toBe('from=LUNC&to=USTC')
     expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '1.5' }).toString()).toBe(
-      'from=uluna&to=uusd&exactAmount=1.5'
+      'from=LUNC&to=USTC&exactAmount=1.5'
     )
     expect(
       canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '', exactField: 'output' }).toString()
-    ).toBe('from=uluna&to=uusd&exactField=output')
+    ).toBe('from=LUNC&to=USTC&exactField=output')
     expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '1e18' }).toString()).toBe(
-      'from=uluna&to=uusd'
+      'from=LUNC&to=USTC'
     )
     expect(canonicalSwapSearch({ payId: 'uluna', receiveId: 'uusd', amountHuman: '9'.repeat(40) }).toString()).toBe(
-      'from=uluna&to=uusd'
+      'from=LUNC&to=USTC'
     )
   })
 
@@ -254,15 +260,15 @@ describe('canonicalSwapSearch / exactField (#713)', () => {
   })
 })
 
-describe('swapDeepLinkPath (#711 / #713)', () => {
-  it('builds from/to via URLSearchParams (no string concat)', () => {
-    expect(swapDeepLinkPath(MAINNET_UST1_TOKEN_ADDRESS, MAINNET_VFDUSD_TOKEN_ADDRESS)).toBe(
-      `/?from=${encodeURIComponent(MAINNET_UST1_TOKEN_ADDRESS)}&to=${encodeURIComponent(MAINNET_VFDUSD_TOKEN_ADDRESS)}`
-    )
-    expect(swapDeepLinkPath('uluna', 'uusd', '1.5')).toBe('/?from=uluna&to=uusd&exactAmount=1.5')
-    expect(swapDeepLinkPath('uluna', 'uusd', '1e18')).toBe('/?from=uluna&to=uusd')
-    expect(swapDeepLinkPath('uluna', 'uusd', '1', 'output')).toBe(
-      '/?from=uluna&to=uusd&exactAmount=1&exactField=output'
-    )
+describe('swapDeepLinkPath (#711 / #713 / #715)', () => {
+  it('builds from/to via URLSearchParams with tokenlist symbols when unique', () => {
+    expect(swapDeepLinkPath(MAINNET_UST1_TOKEN_ADDRESS, MAINNET_VFDUSD_TOKEN_ADDRESS)).toBe('/?from=UST1&to=vFDUSD')
+    expect(swapDeepLinkPath('uluna', 'uusd', '1.5')).toBe('/?from=LUNC&to=USTC&exactAmount=1.5')
+    expect(swapDeepLinkPath('uluna', 'uusd', '1e18')).toBe('/?from=LUNC&to=USTC')
+    expect(swapDeepLinkPath('uluna', 'uusd', '1', 'output')).toBe('/?from=LUNC&to=USTC&exactAmount=1&exactField=output')
+  })
+
+  it('keeps unlisted factory bech32 (no invented ticker)', () => {
+    expect(swapDeepLinkPath('uluna', LISTED)).toBe(`/?from=LUNC&to=${encodeURIComponent(LISTED)}`)
   })
 })
