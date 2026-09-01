@@ -18,7 +18,7 @@ Audience: third-party agents touching Swap routing, share/aggregator deep links,
 | **Q711-2** | A resolved id applies only if it is in `getAllTokens(pairs)` (factory + wrap natives). Unlisted CW20s are not injected or quoted. |
 | **Q711-3** | `terra1…` must pass `isValidTerraBech32Address`. Hostile / overlong / `javascript:` / `data:` / `http(s):` / `//` / `0x` / `ibc/` / `factory/` / `ETH`/`BNB`/`WETH` → ignore that side. Never echo the raw string into the combobox. |
 | **Q711-4** | Production hides gems (`isRetailHiddenTestToken`). Never honor `?showGems=1` (**X8**). LocalTerra / `VITE_SHOW_TEST_TOKENS=true` may apply factory-listed gems. |
-| **Q711-5** | Tickers: `LUNC`/`uluna` → `uluna`; `USTC`/`UST`/`uusd` → `uusd`; `CL8Y`/`UST1`/`cLUNC`/`cUSTC`/`vFDUSD`/`USTR` via registry. Display stays LUNC/USTC (**#630**). Spoofed `symbol=UST1` on a gem address does not win (**X1**). |
+| **Q711-5** | Tickers: unique bundled `tokenlist.json` symbols (ASCII fold) plus `uluna`/`uusd` and inbound-only `UST` → `uusd` ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). Display stays LUNC/USTC (**#630**). Spoofed `symbol=UST1` on a gem address does not win (**X1**). |
 | **Q711-6** | Optional amount: `exactAmount` / `amount` / `value` / `amountIn` when `isPositiveDecimalAmount` and ≤ 24 chars. `exactField=output` on a **direct pair** is a reverse quote ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)); execute stays offer-in. Never auto-submit, auto-connect, or skip #678 / 5–30–99 / blacklist / pause / freeze. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize`. |
 | **Q711-7** | Apply inbound search once after `allTokens` is ready. Then write canonical `/?from=&to=` on picker/flip/amount (`replace`). Query wins over `defaultRetailSwapTokenPair`. Picker / flip afterward is not re-forced from the **inbound** string. |
 | **Q711-8** | Create Pair `/create?a=&b=` prefill and Trade `?from=&to=` resolve are **#713** (**C542-11** / **Q713-6/7**). A Swap deep link to UST1 is AMM, not mint/redeem (**U1**). No lecture banner when a link is ignored (**#489**). |
@@ -33,7 +33,7 @@ First key family with a non-empty value wins; last repeated key within a family 
 | Receive | `outputCurrency`, `to`, `tokenOut`, `token_out`, `buyToken`, `currencyOut`, `outToken`, `receive`, `ask` |
 | Amount | `exactAmount`, `amount`, `value`, `amountIn` |
 
-First-party outbound links use `/?from=&to=` with `uluna` / `uusd` / bech32 (`swapDeepLinkPath` / `ust1SecondarySwapPath`). Uniswap names are inbound-only.
+First-party outbound links use `/?from=&to=` with unique tokenlist symbols when known (`LUNC` / `UST1`), else `uluna` / `uusd` / bech32 (`swapDeepLinkPath` / `ust1SecondarySwapPath`). Uniswap names are inbound-only.
 
 ## Canonical code
 
@@ -43,8 +43,9 @@ First-party outbound links use `/?from=&to=` with `uluna` / `uusd` / bech32 (`sw
 | `frontend-dapp/src/components/common/SwapAliasRedirect.tsx` | `/swap` → `/` preserving search + hash |
 | `frontend-dapp/src/App.tsx` | Alias routes **before** `*` |
 | `frontend-dapp/src/pages/SwapPage.tsx` | Apply once via `useSearchParams` |
-| `frontend-dapp/src/utils/ust1SecondaryMarket.ts` | `ust1SecondarySwapPath()` → `/?from=<ust1>&to=<quote>` |
-| `frontend-dapp/src/utils/tokenRegistry.ts` | `lookupTokenIdByProductTicker` |
+| `frontend-dapp/src/utils/ust1SecondaryMarket.ts` | `ust1SecondarySwapPath()` → `/?from=UST1&to=vFDUSD` when unique |
+| `frontend-dapp/src/utils/tokenlistQueryCatalog.ts` | Bundled symbol ↔ execute id (#715) |
+| `frontend-dapp/src/utils/tokenRegistry.ts` | Display registry; ticker lookup delegates to tokenlist |
 
 ## Do / don’t
 
@@ -60,6 +61,7 @@ First-party outbound links use `/?from=&to=` with `uluna` / `uusd` / bech32 (`sw
 make verify-issue-711
 make verify-issue-678
 make verify-issue-542
+make verify-issue-715
 ```
 
 Vitest: `swapQueryParams.test.ts`, `SwapAliasRedirect.test.tsx`, `SwapPage.queryParams.test.tsx`, `ust1SecondaryMarket.test.ts`, `tokenRegistry.test.ts`.  
@@ -74,5 +76,6 @@ Playwright (when Vite + factory tokens): `e2e/swap-query-params.spec.ts` plus ex
 - [`AGENTS_FRONTEND_TOKEN_SEARCH.md`](./AGENTS_FRONTEND_TOKEN_SEARCH.md) — factory-gated picker (#481)
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — `/create?a=&b=` prefill (#713)
 - [`AGENTS_FRONTEND_SWAP_URL_SYNC.md`](./AGENTS_FRONTEND_SWAP_URL_SYNC.md) — rewrite, reverse quotes, Share, Trade resolve
+- [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — tokenlist unique symbols + Share logos (#715)
 - [`AGENTS_FRONTEND_NATIVE_TICKERS.md`](./AGENTS_FRONTEND_NATIVE_TICKERS.md) — display LUNC/USTC
 - [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — ignore `pool_only` / `hybrid_optimize`

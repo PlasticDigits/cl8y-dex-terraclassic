@@ -12,8 +12,8 @@ test.describe('Swap URL sync (GitLab #713)', () => {
     await expect(payTokenTrigger(page)).toContainText(/LUNC/i)
     await expect(receiveTokenTrigger(page)).toContainText(/USTC/i)
     const url = new URL(page.url())
-    expect(url.search).toMatch(/from=uluna/)
-    expect(url.search).toMatch(/to=uusd/)
+    expect(url.search).toMatch(/from=LUNC/)
+    expect(url.search).toMatch(/to=USTC/)
     expect(url.search).not.toMatch(/inputCurrency/)
   })
 

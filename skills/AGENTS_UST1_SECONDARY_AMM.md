@@ -45,7 +45,7 @@ VERIFY508_MAINNET=1 make verify-issue-508     # read-only pair presence
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — retail copy; keep secondary-market wording short
 - `/ust1` UI track: [#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)
 - Swap / Trade acquire must Guide to `/ust1`, never “Swap vFDUSD to mint” ([#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678)): [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md)
-- Swap AMM deep links (`ust1SecondarySwapPath` → `/?from=&to=`): [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711))
+- Swap AMM deep links (`ust1SecondarySwapPath` → `/?from=UST1&to=vFDUSD`): [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711) / [#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715))
 - Pair Price (USD) for UST1/cUSTC and UST1/USTR: [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) ([#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522))
 - Oracle rebalance + $5k LP to CMM: [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md)
 - Trade/Charts other-side display invert: [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524))

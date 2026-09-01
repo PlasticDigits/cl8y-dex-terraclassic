@@ -1,0 +1,20 @@
+{
+  "tokens": [
+    {
+      "symbol": "UST1",
+      "name": "UST1",
+      "address": "terra1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/UST1.png"
+    },
+    {
+      "symbol": "ust1",
+      "name": "ust1 phish",
+      "address": "terra1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/UST1.png"
+    }
+  ]
+}

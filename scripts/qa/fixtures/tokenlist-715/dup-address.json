@@ -1,0 +1,20 @@
+{
+  "tokens": [
+    {
+      "symbol": "ALPHA",
+      "name": "Alpha",
+      "address": "terra1ccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/ALPHA.png"
+    },
+    {
+      "symbol": "BETA",
+      "name": "Beta same address",
+      "address": "terra1CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/ALPHA.png"
+    }
+  ]
+}

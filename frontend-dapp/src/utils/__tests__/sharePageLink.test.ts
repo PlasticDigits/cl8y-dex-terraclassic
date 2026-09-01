@@ -5,6 +5,7 @@ import {
   buildCanonicalSwapShareUrl,
   isShareAbortError,
   shareOrCopyPageLink,
+  swapShareAriaLabel,
   swapShareText,
   traderShareText,
 } from '@/utils/sharePageLink'
@@ -137,7 +138,7 @@ describe('shareOrCopyPageLink', () => {
 describe('buildCanonicalSwapShareUrl (#713)', () => {
   const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
 
-  it('builds origin + /?from=&to= and drops leftover search/hash (A2)', () => {
+  it('builds origin + /?from=&to= with tokenlist symbols and drops leftover search/hash (A2 / #715)', () => {
     expect(
       buildCanonicalSwapShareUrl({
         origin: `https://dex.example.test/swap?recipient=evil&wc=1#frag`,
@@ -146,7 +147,7 @@ describe('buildCanonicalSwapShareUrl (#713)', () => {
         amountHuman: '1.5',
         exactField: 'output',
       })
-    ).toBe(`https://dex.example.test/?from=uluna&to=${UST1}&exactAmount=1.5&exactField=output`)
+    ).toBe('https://dex.example.test/?from=LUNC&to=UST1&exactAmount=1.5&exactField=output')
   })
 
   it('rejects hostile ids and never concatenates location.href leftovers', () => {
@@ -163,5 +164,6 @@ describe('buildCanonicalSwapShareUrl (#713)', () => {
   it('share title is static product copy plus resolved symbols (A11)', () => {
     expect(swapShareText('uluna', 'uusd')).toBe(`${SHARE_LINK_TITLE_SWAP} LUNC → USTC`)
     expect(swapShareText('uluna', 'uusd')).not.toMatch(/script|from=/i)
+    expect(swapShareAriaLabel('uluna', UST1)).toBe('Share LUNC to UST1 swap link')
   })
 })

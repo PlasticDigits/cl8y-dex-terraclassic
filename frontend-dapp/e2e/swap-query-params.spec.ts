@@ -28,8 +28,8 @@ test.describe('Swap query params (GitLab #711)', () => {
     await expect(receiveTokenTrigger(page)).toContainText(/USTC/i)
     const url = new URL(page.url())
     expect(url.pathname).toBe('/')
-    expect(url.search).toMatch(/from=uluna/)
-    expect(url.search).toMatch(/to=uusd/)
+    expect(url.search).toMatch(/from=LUNC/)
+    expect(url.search).toMatch(/to=USTC/)
     await expect(page.getByRole('link', { name: 'Swap' }).first()).toHaveAttribute('aria-current', 'page')
   })
 

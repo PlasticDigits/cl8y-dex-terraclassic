@@ -266,10 +266,10 @@ In-app **Share** for canonical same-origin profile (and optional pair) URLs ([Gi
 | ID | Invariant |
 |----|-----------|
 | **TS-1** | Required surface: **`/trader/:address`** when `isValidTerraAddress` is true. Hide Share on empty `/trader` and invalid segments. Do not create `/trader/:pair`. |
-| **TS-2** | Payload is `origin + '/trader/' + address` (or `/trade/` / `/charts/` for the helper). Strip search/hash. **Exception (Swap, [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)):** share `{origin}/?from=&to=` via `buildCanonicalSwapShareUrl` — still never `window.location.href`. Prefer the route param, not a pathname splice. |
+| **TS-2** | Payload is `origin + '/trader/' + address` (or `/trade/` / `/charts/` for the helper). Strip search/hash. **Exception (Swap, [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) / [#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)):** share `{origin}/?from=&to=` via `buildCanonicalSwapShareUrl` using unique tokenlist symbols when known — still never `window.location.href`. Prefer the route param, not a pathname splice. |
 | **TS-3** | Prefer `navigator.share({ url, title, text })`. `AbortError` is not a failure toast. Missing share, `canShare === false`, or non-abort errors fall back to `copyToClipboard`. |
 | **TS-4** | AddressRow stays **Copy trader address** (bech32). Share is a distinct control (`aria-label` **Share trader profile link**). |
-| **TS-5** | Visible label **Share**. Clipboard success: **Link copied** (`sharePageLinkCopy.ts`). No how-to lecture, no `VITE_*` / host:port in errors. |
+| **TS-5** | Visible label **Share**. Swap (#715) may append decorative pair logos; Trader / Portfolio stay text-only. Clipboard success: **Link copied** (`sharePageLinkCopy.ts`). No how-to lecture, no `VITE_*` / host:port in errors. |
 | **TS-6** | One chrome layer (**C653**): icon/text button on the existing H1 row. No extra `shell-panel*` / `card-glass`. |
 | **TS-7** | Real `<button type="button">`, explicit `aria-label`, `:focus-visible` ring, 44px hit target, `sounds.playButtonPress`, CopyButton live-region pattern. |
 | **TS-8** | No helmet / per-route `og:*`. Share `title`/`text` are static product copy (**CL8Y DEX trader**) plus optional `shortenAddress` — not P&L, volume, or indexer fields. |
@@ -912,7 +912,7 @@ The frontend uses TerraSwap-compatible message names:
 
 | Route           | Description                                       |
 |-----------------|---------------------------------------------------|
-| `/`             | Swap interface — select tokens, enter amount, swap. Query aliases + URL rewrite / reverse quotes / Share ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711) / [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713), [§ Swap query params](#swap-query-params)) |
+| `/`             | Swap interface — select tokens, enter amount, swap. Query aliases + URL rewrite / reverse quotes / Share ([#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711) / [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) / [#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715), [§ Swap query params](#swap-query-params)) |
 | `/pool`         | View pools, provide/withdraw liquidity            |
 | `/create`       | Create a new token pair via the Factory           |
 
@@ -935,12 +935,12 @@ Parser: [`swapQueryParams.ts`](../frontend-dapp/src/utils/swapQueryParams.ts). F
 | **Q711-2** | Apply only factory/wrap ids from `getAllTokens(pairs)` (#481). Unlisted `terra1` is ignored. |
 | **Q711-3** | Bech32 checksum (#382). Hostile / overlong / `javascript:` / `0x` / `ETH` / `ibc/` / `factory/` → ignore that side; never echo raw strings. |
 | **Q711-4** | Production gem hide (#562). `?showGems=1` has no effect (**X8**). Rewrite and Share never emit gem ids. |
-| **Q711-5** | `LUNC`/`uluna` → `uluna`; `USTC`/`UST`/`uusd` → `uusd`; hub tickers via registry. Display still **LUNC** / **USTC** (#630). |
+| **Q711-5** | Inbound tickers: unique bundled [`tokenlist.json`](../tokenlist/tokenlist.json) symbols (ASCII fold) plus `uluna`/`uusd` and inbound-only `UST` → `uusd` ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). Display still **LUNC** / **USTC** (#630). LCD `token_info.symbol` does not win (**X1**). |
 | **Q711-6** | Legal human amount (≤ 24 chars, `isPositiveDecimalAmount`) prefills the independent field. `exactField=output` on a **direct factory pair** makes You Receive independent; You Pay is `reverseSimulateSwap` offer; **broadcast stays offer-in + min received**. Multihop / wrap-mapper: ignore output field (pay-sided, silent #489). Never auto-submit; #678 quote-only / 5–30–99 / Expert / blacklist / pause / freeze still apply. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize` (#596). |
 | **Q711-7** | Apply inbound search once after tokens load. Then picker / flip / amount **write** canonical `/?from=&to=` via `setSearchParams({ replace: true })` (debounced amount). Incoming aliases disappear from the bar. User picker is not snapped back to the inbound query. |
 | **Q711-8** | UST1 Swap links are AMM, not mint/redeem (**U1**). Silent fail-closed (#489). Create Pair query prefill and Trade `?from=&to=` resolve are [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) (**Q713** / **C542-11**). |
 
-First-party hrefs: `/?from=<id>&to=<id>` (`canonicalSwapSearch`, `swapDeepLinkPath`, `ust1SecondarySwapPath`). Uniswap names are inbound-only.
+First-party hrefs: `/?from=<symbol-or-id>&to=<symbol-or-id>` (`canonicalSwapSearch`, `swapDeepLinkPath`, `ust1SecondarySwapPath`) — unique tokenlist symbols when known (`LUNC`, `UST1`), else denom / bech32 ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). Uniswap names are inbound-only.
 
 ### Swap URL sync, reverse quotes, Share, Create/Trade prefill {#swap-url-sync}
 
@@ -952,14 +952,34 @@ Follow-up to #711 ([GitLab **#713**](https://gitlab.com/PlasticDigits/cl8y-dex-t
 | **Q713-2** | Inbound Uniswap aliases still apply (#711), then rewrite to first-party keys. |
 | **Q713-3** | Write follows live state; apply does not fight a later picker change. |
 | **Q713-4** | Direct-pair reverse quote uses `reverseSimulateSwap` only. `GET /route/solve` stays offer-in. Execute is still offer-in + min received. |
-| **Q713-5** | Swap header **Share** (`data-testid="swap-share-link"`) next to Settings — no new `shell-panel*` (**C653**). Coarse+narrow: Web Share; else copy **Link copied**. Abort silent. Payload from resolved ids only. |
+| **Q713-5** | Swap header **Share** (`data-testid="swap-share-link"`) next to Settings — no new `shell-panel*` (**C653**). Visible label is **Share {pay logo} → {receive logo}** ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715) **SH-1**). Coarse+narrow: Web Share; else copy **Link copied**. Abort silent. Payload from resolved ids only. |
 | **Q713-6** | `/create?a=&b=` (aliases `tokenA`/`token_a`, `tokenB`/`token_b`) prefills catalog or checksum custom. Hostile / native ignored per side. **No** auto-submit. Catalog still has no runtime HTTP. |
 | **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Ambiguous / missing / same-token: ignore. `/trade/:pairAddr` stays canonical. Ticket not auto-placed. |
 | **Q713-8** | Production cannot share or rewrite a gem. `?showGems=1` still ignored. |
 | **Q713-9** | Canonical compare breaks apply↔write loops. Share/rewrite use `URL` + `URLSearchParams` only. |
 | **Q713-10** | No lecture banners when a field is ignored (#489). No `localStorage` persistence. No indexer exact-out solver. |
 
-Regression: `make verify-issue-713` and `make verify-issue-711`. Playbooks: [`skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md`](../skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md), [`skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](../skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md).
+Regression: `make verify-issue-713`, `make verify-issue-711`, and `make verify-issue-715`. Playbooks: [`skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md`](../skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md), [`skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](../skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md), [`skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](../skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md).
+
+### Swap tokenlist symbols + Share logos {#swap-tokenlist-symbols}
+
+Follow-up to #711 / #713 ([GitLab **#715**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). One product surface: **human swap links**. Bundled [`tokenlist/tokenlist.json`](../tokenlist/tokenlist.json) is the unique-symbol source of truth for query encode/decode. Helper: [`tokenlistQueryCatalog.ts`](../frontend-dapp/src/utils/tokenlistQueryCatalog.ts). CI: [`scripts/qa/tokenlist_unique_symbols.py`](../scripts/qa/tokenlist_unique_symbols.py).
+
+| ID | Rule |
+|----|------|
+| **TL-1** | Case-insensitive unique `symbol` (ASCII fold). Unique native denom / CW20 address (lowercase). Empty, whitespace, and non-ASCII tickers fail CI. Do not skip duplicates at runtime. |
+| **TL-2** | [`tokenlist/README.md`](../tokenlist/README.md) documents uniqueness and Swap/Share encoding. Gems stay out of the JSON. |
+| **QS-1** | `/?from=UST1&to=USTR` (any published casing) selects those factory tokens after apply. |
+| **QS-2** | `terra1` / `uluna` / `uusd` still apply; rewrite prefers published symbols (`from=LUNC&to=UST1`). |
+| **QS-3** | Unlisted factory CW20 stays bech32 outbound (no invented ticker). |
+| **QS-4** | Hostile / gem / spoofed ticker ignored per side; never echo; `?showGems=1` inert. No LCD symbol lookup (**X1**). |
+| **QS-5** | `/swap` preserves search on redirect. `/trade?from=&to=` still resolves to `/trade/{uniquePair}`. |
+| **QS-6** | Deep links and Share URLs use symbols when unique. Overlay execute ids still share as `UST1`. Execute stays offer-in. |
+| **SH-1** | Swap Share visible chrome: **Share {pay TokenLogo} → {receive TokenLogo}**. `aria-label` includes both display symbols. Logos `alt=""`. |
+| **SH-2** | Trader / Portfolio Share stay text **Share**. No extra chrome (**C653**). |
+| **SH-3** | Share URL is `{origin}/?from=&to=` via `URLSearchParams`, never `window.location.href`, never a gem. |
+
+Regression: `make verify-issue-715` (also `make verify-issue-711` / `make verify-issue-713`). Playbook: [`skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](../skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md).
 
 ### Create pair — listed CW20 picker + custom paste {#create-pair-token-picker}
 

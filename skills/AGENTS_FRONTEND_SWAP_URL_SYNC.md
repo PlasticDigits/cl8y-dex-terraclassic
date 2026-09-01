@@ -20,7 +20,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 | **Q713-2** | Uniswap aliases still apply, then rewrite to `from`/`to` (aliases leave the bar). |
 | **Q713-3** | Write follows live state. Apply does not snap the user back to the inbound query. |
 | **Q713-4** | `exactField=output` on a **direct factory pair**: You Receive is independent; You Pay is `reverseSimulateSwap` offer; execute is still offer-in + min received. Multihop / wrap-mapper: ignore output field (pay-sided, silent **#489**). No indexer exact-out. |
-| **Q713-5** | Swap header **Share** next to Settings (`data-testid="swap-share-link"`). No new `shell-panel*` / `card-glass` (**C653**). Coarse+narrow: Web Share; else `copyToClipboard` (**Link copied**). `AbortError` silent. Never `window.location.href`. |
+| **Q713-5** | Swap header **Share** next to Settings (`data-testid="swap-share-link"`). Visible **Share {pay logo} → {receive logo}** ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). No new `shell-panel*` / `card-glass` (**C653**). Coarse+narrow: Web Share; else `copyToClipboard` (**Link copied**). `AbortError` silent. Never `window.location.href`. |
 | **Q713-6** | `/create?a=&b=` prefills catalog or checksum custom. Hostile / native ignored per side. No auto-submit. No runtime HTTP catalog. |
 | **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Zero or multiple matches → ignore. Path stays canonical. Ticket not auto-placed. |
 | **Q713-8** | Production cannot share or rewrite a gem. Never honor `?showGems=1`. |
@@ -53,6 +53,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 ```bash
 make verify-issue-713
 make verify-issue-711
+make verify-issue-715
 make verify-issue-542
 make verify-issue-665
 make verify-issue-678
@@ -62,6 +63,7 @@ python3 scripts/check_chrome_nesting.py
 ## Related
 
 - [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — inbound parse (**Q711**)
+- [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — unique tickers + symbol encode + Share logos (#715)
 - [`AGENTS_FRONTEND_SHARE_LINK.md`](./AGENTS_FRONTEND_SHARE_LINK.md) — TS-2 Swap exception
 - [`AGENTS_FRONTEND_CREATE_PAIR_PICKER.md`](./AGENTS_FRONTEND_CREATE_PAIR_PICKER.md) — C542-11 prefill
 - [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — reverse quote is not a submit bypass

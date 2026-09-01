@@ -12,7 +12,7 @@
 import { isPositiveDecimalAmount } from '@/utils/decimalAmountInput'
 import { isRetailHiddenTestToken } from '@/utils/pairCatalogRank'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
-import { lookupTokenIdByProductTicker } from '@/utils/tokenRegistry'
+import { executeIdToQueryToken, queryTokenToExecuteId } from '@/utils/tokenlistQueryCatalog'
 
 export const SWAP_QUERY_VALUE_MAX_LEN = 80
 export const SWAP_QUERY_AMOUNT_MAX_CHARS = 24
@@ -127,18 +127,19 @@ function firstFamilyValue(params: URLSearchParams, keys: readonly string[]): str
 
 /**
  * Resolve a query value to an execute id (`uluna` / `uusd` / checksummed `terra1`).
- * Tickers are case-insensitive. Unknown / hostile → `null` (never echo).
+ * Order: hostile / EVM → native denom → `UST` alias → unique tokenlist symbol → terra1.
+ * Unknown / hostile → `null` (never echo). LCD `token_info.symbol` is not consulted (**X1**).
  */
 export function resolveSwapQueryTokenValue(raw: string | null | undefined): string | null {
   if (raw == null) return null
   const trimmed = raw.trim()
   if (!trimmed || looksHostileSwapQueryValue(trimmed)) return null
   const lower = trimmed.toLowerCase()
-  if (lower === 'uluna' || lower === 'uusd') return lower
   if (lower === 'eth' || lower === 'bnb' || lower === 'weth') return null
+  if (lower === 'uluna' || lower === 'uusd') return lower
   if (lower === 'ust') return 'uusd'
-  const fromTicker = lookupTokenIdByProductTicker(trimmed)
-  if (fromTicker) return fromTicker
+  const fromList = queryTokenToExecuteId(trimmed)
+  if (fromList) return fromList
   if (lower.startsWith('terra1')) {
     if (!isValidTerraBech32Address(trimmed)) return null
     return trimmed
@@ -169,12 +170,13 @@ export function parseSwapExactField(search: string | URLSearchParams | null | un
 
 /**
  * First-party outbound search: `from` / `to` plus optional `exactAmount` / `exactField=output`.
- * Uniswap aliases are inbound-only. Empty / illegal amount is omitted.
+ * Unique tokenlist symbols when known (`LUNC`, `UST1`); else execute id. Uniswap aliases
+ * are inbound-only. Empty / illegal amount is omitted.
  */
 export function canonicalSwapSearch(input: CanonicalSwapSearchInput): URLSearchParams {
   const q = new URLSearchParams()
-  q.set('from', input.payId)
-  q.set('to', input.receiveId)
+  q.set('from', executeIdToQueryToken(input.payId))
+  q.set('to', executeIdToQueryToken(input.receiveId))
   const amount = input.amountHuman?.trim()
   if (amount && isPositiveDecimalAmount(amount) && amount.length <= SWAP_QUERY_AMOUNT_MAX_CHARS) {
     q.set('exactAmount', amount)
@@ -280,7 +282,7 @@ export function applySwapQueryParams(
 }
 
 /**
- * First-party Swap href (`/?from=&to=`). Bech32 / native denoms only — not display tickers.
+ * First-party Swap href (`/?from=&to=`). Prefers unique tokenlist symbols (#715).
  */
 export function swapDeepLinkPath(
   payId: string,

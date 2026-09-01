@@ -12,7 +12,7 @@ Audience: third-party agents touching `/create`, token pickers, or `tokenlist.js
 
 ## Do / don’t
 
-- **Do** build options with [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options`). Bundle `tokenlist/tokenlist.json`; overlay `VITE_*` wrap / UST1 / CL8Y addresses; append `SOFT_LAUNCH_MINTABLE_TOKENS` only when `retailExposeTestTokens()` **and** those env addresses are set ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-5**).
+- **Do** build options with [`createPairTokenCatalog.ts`](../frontend-dapp/src/utils/createPairTokenCatalog.ts) (`getCreatePairCw20Options`). Bundle `tokenlist/tokenlist.json`; overlay `VITE_*` wrap / UST1 / CL8Y addresses via shared [`tokenlistQueryCatalog.ts`](../frontend-dapp/src/utils/tokenlistQueryCatalog.ts); append `SOFT_LAUNCH_MINTABLE_TOKENS` only when `retailExposeTestTokens()` **and** those env addresses are set ([#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562) **P562-5**). Duplicate tickers are a **CI** failure ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715) **TL-1**), not a runtime skip.
 - **Do** keep a **Custom contract** paste path. Paste still runs #382 format + checksum before submit.
 - **Do** keep `useCodeIdCheck` on both listed and pasted addresses. Listed ≠ skip whitelist.
 - **Do** compare A/B case-insensitively (`sameCreatePairAddress`).
@@ -53,3 +53,4 @@ Playwright (when `make has-localterra`): `e2e/create-pair-picker-542.spec.ts`, `
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — short labels (#489)
 - [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap inbound parse (#711)
 - [`AGENTS_FRONTEND_SWAP_URL_SYNC.md`](./AGENTS_FRONTEND_SWAP_URL_SYNC.md) — `/create?a=&b=` prefill (#713)
+- [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — unique tokenlist symbols (#715)

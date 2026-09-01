@@ -1,0 +1,20 @@
+{
+  "tokens": [
+    {
+      "symbol": "SpaceUSD",
+      "name": "SpaceUSD Token",
+      "address": "terra1eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png"
+    },
+    {
+      "symbol": "SPACEUSD",
+      "name": "SPACEUSD collide",
+      "address": "terra1fffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/SPACEUSD.png"
+    }
+  ]
+}

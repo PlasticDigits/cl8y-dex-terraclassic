@@ -21,7 +21,7 @@ This is **not** Open Graph. Crawlers still see the static `index.html` card ([#5
 - **Do** prefer `navigator.share` on a user gesture. Treat `AbortError` as cancel (no error live text, no clipboard).
 - **Do** fall back to `copyToClipboard` when share is missing, `canShare` is false, or share throws a non-abort error.
 - **Do** keep AddressRow **Copy trader address** as bech32-only.
-- **Don’t** share `window.location.href` (query/hash / WC URI leak). **Swap exception ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)):** share canonical `/?from=&to=` via `buildCanonicalSwapShareUrl` — still not `location.href`.
+- **Don’t** share `window.location.href` (query/hash / WC URI leak). **Swap exception ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) / [#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)):** share canonical `/?from=&to=` via `buildCanonicalSwapShareUrl` (tokenlist symbols when unique) — still not `location.href`. Swap visible chrome may include decorative pair logos; Trader / Portfolio stay the word **Share**.
 - **Don’t** hard-code `https://dex.cl8y.com` or read `VITE_PUBLIC_ORIGIN` in the React bundle for this.
 - **Don’t** put P&L, volume, or indexer fields in share `title`/`text`. Static **CL8Y DEX trader** + optional `shortenAddress`. Swap title is **CL8Y DEX swap** plus resolved symbols.
 - **Don’t** wrap Share in a new `shell-panel*` / `card-glass` (**C653**).
@@ -56,3 +56,4 @@ Vitest covers URL build, abort vs fallback, TraderPage presence, AddressRow stil
 - Portfolio: [`AGENTS_FRONTEND_PORTFOLIO.md`](./AGENTS_FRONTEND_PORTFOLIO.md)
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)
 - Swap Share / URL sync: [`AGENTS_FRONTEND_SWAP_URL_SYNC.md`](./AGENTS_FRONTEND_SWAP_URL_SYNC.md) ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713))
+- Swap tokenlist symbols / Share logos: [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715))

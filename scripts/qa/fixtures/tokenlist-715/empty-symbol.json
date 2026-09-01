@@ -1,0 +1,12 @@
+{
+  "tokens": [
+    {
+      "symbol": "   ",
+      "name": "Blank",
+      "address": "terra1ddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/CL8Y.png"
+    }
+  ]
+}

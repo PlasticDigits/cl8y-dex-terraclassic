@@ -4,6 +4,14 @@ Community-maintained token list for the CL8Y DEX on Terra Classic.
 
 Create Pair picker reads this list (**CW20 only** — natives are never selectable). See [`docs/frontend.md` § Create pair listed CW20 picker](../docs/frontend.md#create-pair-token-picker) ([GitLab **#542**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/542)).
 
+Swap `from=` / `to=` / Share URLs use the same bundled symbols ([GitLab **#715**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715) / [`docs/frontend.md` § Swap tokenlist symbols](../docs/frontend.md#swap-tokenlist-symbols)). Example: `/?from=UST1&to=USTR`. Natives encode as `LUNC` / `USTC`. Factory tokens with no row here stay checksummed `terra1` in the bar.
+
+## Symbol uniqueness (CI)
+
+Every `symbol` must be unique **case-insensitively** (`UST1` and `ust1` cannot both exist). Native `denom` and CW20 `address` must be unique when compared lowercase. Empty, whitespace-only, and non-ASCII tickers are invalid (homograph defense).
+
+Checker: [`scripts/qa/tokenlist_unique_symbols.py`](../scripts/qa/tokenlist_unique_symbols.py) (`make verify-issue-715`, also `make check-tokenlist-unique-symbols`). Do **not** skip duplicates at runtime. Soft-launch gems do **not** belong in this file.
+
 **Raw token list URL:**
 ```
 https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/tokenlist.json
@@ -55,7 +63,7 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `symbol` | Yes | Ticker symbol (e.g. `LUNC`) |
+| `symbol` | Yes | Unique ticker (ASCII letters/digits; published casing, e.g. `cLUNC`, `SpaceUSD`). Swap `from=`/`to=` uses this string. |
 | `name` | Yes | Full token name |
 | `type` | Yes | `native` or `cw20` |
 | `denom` | Native only | On-chain denomination (e.g. `uluna`, `uusd`) |
