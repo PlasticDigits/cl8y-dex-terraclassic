@@ -10,6 +10,7 @@ This is the **design/home map**. It does **not** add a `FeeSource`, migration CH
 **Window ingest pattern:** [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614**)  
 **Catalog ≠ fees:** [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**I594**)  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **Fee-ledger home #1213**)  
+**Marketing pointers (not a fee service):** [`PlasticDigits/cl8y-marketing` `strategy/fee-ledger-home.md`](https://git.cl8y.com/PlasticDigits/cl8y-marketing/src/branch/main/strategy/fee-ledger-home.md) and [`research/snapshots/README.md`](https://git.cl8y.com/PlasticDigits/cl8y-marketing/src/branch/main/research/snapshots/README.md) — companion [PR #7](https://git.cl8y.com/PlasticDigits/cl8y-marketing/pulls/7) until merged.  
 **Verify:** `make verify-issue-1213`
 
 ## Owned children (do not reopen ingest here)
@@ -65,3 +66,4 @@ Docs-only. Child ingest tickets keep `make verify-issue-586` / `make verify-issu
 - [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) — catalog only
 - [`docs/audits/factory-treasury-bank-send.md`](../docs/audits/factory-treasury-bank-send.md) — item 11 until #1209
 - [`docs/qa/issue-1213/README.md`](../docs/qa/issue-1213/README.md)
+- Marketing `strategy/fee-ledger-home.md` — pointer table only; do **not** implement wasm parsers there

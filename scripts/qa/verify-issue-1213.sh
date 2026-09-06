@@ -60,7 +60,9 @@ run_step "skill: home map + L1213-1–L1213-8 + children" \
     grep -qE "stay \*\*closed\*\*" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md && \
     grep -qE "O\(1\) rollup" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md && \
     grep -qE "issues/1204" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md && \
-    grep -qE "issues/1202" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md
+    grep -qE "issues/1202" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md && \
+    grep -qE "strategy/fee-ledger-home" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md && \
+    grep -qE "research/snapshots/README" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md
   '
 
 run_step "docs: invariants + audit item 11 + QA" \
@@ -75,6 +77,7 @@ run_step "docs: invariants + audit item 11 + QA" \
     grep -qE "1213" docs/audits/factory-treasury-bank-send.md && \
     grep -qE "L1213-1" docs/qa/issue-1213/README.md && \
     grep -qE "does \*\*not\*\* implement" docs/qa/issue-1213/README.md && \
+    grep -qE "strategy/fee-ledger-home" docs/qa/issue-1213/README.md && \
     grep -qE "verify-issue-1213" docs/testing.md && \
     grep -qE "AGENTS_INDEXER_FEE_LEDGER_HOME" docs/testing.md && \
     grep -qE "AGENTS_INDEXER_FEE_LEDGER_HOME" docs/README.md

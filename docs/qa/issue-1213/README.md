@@ -21,6 +21,7 @@ This epic does **not** implement `FeeSource` parsers. Ingest lives on [#1209](ht
 2. SKU/settings invoices → **#1210**, not marketing #4.
 3. Cohort split → **#1211**, not marketing #5.
 4. Do **not** reopen the closed marketing trackers for implement work.
+5. Marketing pointer map: `PlasticDigits/cl8y-marketing` `strategy/fee-ledger-home.md` (companion PR #7 until merged).
 
 ## Out of scope here
 
