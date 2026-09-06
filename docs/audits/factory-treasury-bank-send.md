@@ -23,7 +23,7 @@ Review of native **uluna** pair-creation fees forwarded to `config.treasury` via
 | 8 | **Reentrancy** — refund `BankMsg::Send` to `info.sender` | PASS | Bank sends are terminal (no `reply`); CosmWasm actor model blocks cross-tx reentrancy. |
 | 9 | **Governance fee change** — `SetPairCreationFee` governance-only | PASS | `create_pair_charges_fee_to_treasury_and_gov_can_set_it`. |
 | 10 | **Governance treasury rotation** — subsequent `CreatePair` uses updated treasury | PASS | `create_pair_fee_bank_send_adversarial_paths` (GitLab #313). |
-| 11 | **Indexer** — pair creation indexing does not rely on bank events | PASS | Indexer has no `create_pair` / pair-creation fee parser; pairs indexed via wasm instantiate / factory registry events. |
+| 11 | **Indexer** — pair creation indexing does not rely on bank events | PASS | Pairs indexed via wasm instantiate / factory registry (not bank events). Treasury census (`pair_creation` on `GET /protocol/fees`) is **[#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209)** — this audit does not implement ingest. Home map: [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213) / [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md). |
 
 ## Test plan mapping
 
@@ -63,4 +63,6 @@ make verify-issue-313   # optional bundled check
 
 - [`docs/security-model.md`](../security-model.md) — pair-creation fee paragraph
 - [`docs/contracts-security-audit.md`](../contracts-security-audit.md) — invariant **F2**
+- [`skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md`](../../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) — fee-ledger home (**L1213**); pair-creation ingest is [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209)
 - [`make verify-issue-276`](../../Makefile) — #276 regression bundle
+- [`make verify-issue-1213`](../../Makefile) — #1213 home-map docs (no ingest)

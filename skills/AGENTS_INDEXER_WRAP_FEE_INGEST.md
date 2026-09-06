@@ -45,6 +45,7 @@ Treasury `wrap_deposit` / `instant_withdraw` are **not** fees (`amount` is gross
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** treat `wrap_mapper_configured: true` with `event_count: 0` as done.
 - **Don’t** implement UST1 window mint/redeem here (#614).
+- **Don’t** implement pair_creation / SKU invoices / cohort split here — home is [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213) / [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1213**); ingest children #1209 / #1210 / #1211.
 
 ## Key files
 
@@ -72,6 +73,7 @@ Optional LocalTerra capture (not required when fixtures match ustr-cmm): `make s
 
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — **PFee-6** points here
 - [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) — window mint/redeem sibling ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614))
+- [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) — remaining ingest home (**L1213**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213))
 - [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — post-merge stack child ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616))
 - [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — ingest ≠ query-time bps
 - [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) — W8–W11

@@ -45,3 +45,4 @@ make verify-issue-624
 - Treat 11612/11613 instantiates as catalog tokens.
 - Treat a catalog / wasm event as on-chain `MANAGER_EXEMPT` without the token already in catalog ([#609](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/609) **E609** / **I594-3**).
 - Bind-mount `indexer/` into root Docker to run cargo.
+- Treat catalog `sku_unlock` / `settings_fee` events as protocol-fee truth. Treasury USD on `GET /protocol/fees` is [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210); home map [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1213**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)).
