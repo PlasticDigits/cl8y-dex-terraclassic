@@ -79,6 +79,7 @@ VERIFY614_REQUIRE_LIVE=1 make verify-issue-614
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — **PFee-13** points here
 - [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — `/ust1` execute; CEX/hub cards are **not** the window rate
 - [`AGENTS_INDEXER_WRAP_FEE_INGEST.md`](./AGENTS_INDEXER_WRAP_FEE_INGEST.md) — wrap/unwrap sibling
+- [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) — remaining ingest home (**L1213**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); do **not** add pair_creation / invoices here
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — hub UST1 USD
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — stamp USD at ingest (#568)
 - [`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md) — stack child; do **not** reopen #614 for ops/QA
