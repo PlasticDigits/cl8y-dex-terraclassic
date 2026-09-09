@@ -1030,6 +1030,25 @@ rebalance-mint-ust1-lp:
 	@chmod +x scripts/rebalance-mint-ust1-lp.sh scripts/lib/ust1-lp-rebalance-math.py
 	./scripts/rebalance-mint-ust1-lp.sh
 
+# Columbus-5: rebalance cLUNC/cUSTC to LUNC+USTC oracles, mint $10k LP in rungs, send to CMM.
+# DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + CLUNC_LP_YES=1 (or TTY confirm).
+.PHONY: rebalance-mint-clunc-custc-lp
+rebalance-mint-clunc-custc-lp:
+	@chmod +x scripts/rebalance-mint-clunc-custc-lp.sh scripts/lib/clunc-custc-lp-math.py
+	./scripts/rebalance-mint-clunc-custc-lp.sh
+
+# Columbus-5: mint 50 UST1/hour, best-solver swap to cLUNC, burn (or send to CMM) until $2500.
+# DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + UST1_CLUNC_YES=1 (or TTY confirm).
+.PHONY: mint-swap-burn-ust1-clunc test-ust1-clunc-buyback
+mint-swap-burn-ust1-clunc:
+	@chmod +x scripts/mint-swap-burn-ust1-clunc.sh scripts/lib/ust1-clunc-buyback-math.py
+	./scripts/mint-swap-burn-ust1-clunc.sh
+
+test-ust1-clunc-buyback:
+	@chmod +x scripts/qa/test-ust1-clunc-buyback.sh scripts/mint-swap-burn-ust1-clunc.sh \
+		scripts/lib/ust1-clunc-buyback-math.py
+	./scripts/qa/test-ust1-clunc-buyback.sh
+
 # GitLab #508 — UST1 secondary AMM create+seed tooling / Path B waiver (U1–U7).
 # Optional: VERIFY508_LOCAL=1 (LocalTerra fixture) VERIFY508_MAINNET=1 (live pair presence).
 verify-issue-508:
@@ -1285,7 +1304,7 @@ help:
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
-	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only)"
+	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-mint-clunc-custc-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:
