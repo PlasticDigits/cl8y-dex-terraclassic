@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# Hourly mint 50 UST1 → indexer best-solver swap to cLUNC → holder-burn (or
-# transfer to CMM) until $2500 USD of LUNC (cLUNC @ LUNC oracle) is delivered.
+# Hourly mint 50 UST1 → indexer best-solver swap to cLUNC → holder-burn until
+# CMM bank uluna × LUNC oracle is $2500.
 #
 # Flow (each tick):
-#   1. Price CMM native uluna (wrap custody, informational) and campaign progress.
-#   2. Stop when campaign USD >= UST1_CLUNC_TARGET_USD (default 2500).
+#   1. Price CMM bank uluna at the indexer LUNC oracle (cLUNC CW20 is not counted).
+#   2. Stop when that USD >= UST1_CLUNC_TARGET_USD (default 2500).
 #   3. 2-of-3 extra-minter mint of 50 UST1 → admin (top-up only).
 #   4. GET /api/v1/route/solve/best UST1→cLUNC and execute router ops.
-#   5. Holder-burn the cLUNC received (default) or CW20-transfer it to CMM.
-#      Does not unwrap (unwrap InstantWithdraw would drain CMM wrap custody).
+#   5. Holder-burn the cLUNC received. Does not unwrap (that would drain CMM
+#      wrap custody). The tick does not raise bank uluna; DEX premium vs wrap
+#      is meant to pull third-party WrapDeposit (native LUNC into CMM).
+#   6. Live default: sleep 1h and repeat until CMM bank uluna USD hits target.
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/mint-swap-burn-ust1-clunc.sh
 #   UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
-#   UST1_CLUNC_LOOP=1 UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
-#   UST1_CLUNC_DEST=cmm UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
+#   UST1_CLUNC_LOOP=0 UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
 #
 # Unlock once (non-interactive):
 #   read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
@@ -60,7 +61,7 @@ HTTP_UA="cl8y-dex-ops/ust1-clunc-buyback (+https://gitlab.com/PlasticDigits/cl8y
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -73,12 +74,67 @@ case "$DEST" in
   *) die "UST1_CLUNC_DEST must be burn or cmm (got $DEST)" ;;
 esac
 
+# Live default: keep running until CMM bank uluna USD >= target. Dry-run is one tick.
+if [[ -z "${UST1_CLUNC_LOOP:-}" ]]; then
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    UST1_CLUNC_LOOP=0
+  else
+    UST1_CLUNC_LOOP=1
+  fi
+fi
+
 lcd_b64() {
   if [[ "$(uname)" == Darwin ]]; then
     printf '%s' "$1" | base64 | tr -d '\n'
   else
     printf '%s' "$1" | base64 -w0
   fi
+}
+
+lcd_smart_try() {
+  local contract="$1" msg="$2" raw
+  raw="$(curl -sS --connect-timeout 10 --max-time "$LCD_TIMEOUT" -H "User-Agent: $HTTP_UA" \
+    "${LCD_URL}/cosmwasm/wasm/v1/contract/${contract}/smart/$(lcd_b64 "$msg")" 2>/dev/null || true)"
+  if ! jq -e '(.data != null) and ((.code // 0) == 0)' >/dev/null <<<"$raw" 2>/dev/null; then
+    return 1
+  fi
+  if [[ "$(jq -r '.data | type' <<<"$raw")" == "string" ]]; then
+    jq -r '.data | @base64d | fromjson' <<<"$raw"
+  else
+    jq '.data' <<<"$raw"
+  fi
+}
+
+# Sequential pair hybrid_simulation (same as dApp #334 hop floors). Prints JSON string array.
+sim_hop_returns() {
+  local quote_json="$1" current="$2"
+  local n i pair offer_info hybrid book msg sim ret
+  n="$(jq -r '.router_operations | length' <<<"$quote_json")"
+  local -a rets=()
+  for ((i = 0; i < n; i++)); do
+    pair="$(jq -r ".hops[$i].pair // empty" <<<"$quote_json")"
+    offer_info="$(jq -c ".router_operations[$i].terra_swap.offer_asset_info" <<<"$quote_json")"
+    hybrid="$(jq -c ".router_operations[$i].terra_swap.hybrid // null" <<<"$quote_json")"
+    book="$(jq -r 'if type=="object" then (.book_input // "0") else "0" end' <<<"$hybrid")"
+    if [[ "$hybrid" == "null" ]]; then
+      hybrid="$(jq -nc --arg a "$current" '{pool_input:$a,book_input:"0",max_maker_fills:1,book_start_hint:null}')"
+    fi
+    msg="$(jq -nc --argjson info "$offer_info" --arg amt "$current" --argjson hy "$hybrid" --arg t "$ADMIN_ADDR" \
+      '{hybrid_simulation:{offer_asset:{info:$info,amount:$amt},hybrid:$hy,trader:$t,sender:$t}}')"
+    ret="0"
+    if [[ -n "$pair" ]] && sim="$(lcd_smart_try "$pair" "$msg")"; then
+      ret="$(jq -r '.return_amount // "0"' <<<"$sim")"
+    fi
+    if [[ -z "$ret" || "$ret" == "null" ]]; then
+      ret="0"
+    fi
+    echo "  hop $((i + 1)) pair=$pair book=$book sim_return=$ret" >&2
+    rets+=("$ret")
+    if [[ "$ret" != "0" ]]; then
+      current="$ret"
+    fi
+  done
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "${rets[@]}"
 }
 
 lcd_smart() {
@@ -270,24 +326,42 @@ ensure_unlocked() {
 
 print_header() {
   echo "=============================================="
-  echo "UST1 → cLUNC best-solver buyback"
+  echo "UST1 → cLUNC best-solver buyback → burn"
   echo "=============================================="
   echo "Router:     $ROUTER"
   echo "Treasury:   $TREASURY"
   echo "Admin key:  $ADMIN_KEY ($ADMIN_ADDR)"
   echo "Multisig:   $MSIG_KEY ($MSIG_ADDR)"
   echo "Mint/tick:  $MINT_HUMAN UST1"
-  echo "Target USD: $TARGET_USD"
+  echo "Target USD: $TARGET_USD  (CMM bank uluna × LUNC oracle)"
   echo "Dest:       $DEST"
-  echo "Interval:   ${INTERVAL_SEC}s  LOOP=${UST1_CLUNC_LOOP:-0}"
+  echo "Interval:   ${INTERVAL_SEC}s  LOOP=${UST1_CLUNC_LOOP}"
   echo "Slippage:   ${SLIP}%"
   echo "DRY_RUN:    ${DRY_RUN:-0}"
   echo "State:      $STATE_FILE"
 }
 
+refresh_cmm_uluna() {
+  local price="$1"
+  CMM_ULUNA="$(lcd_bank "$TREASURY" "uluna")"
+  CMM_ULUNA_USD="$(python3 "$MATH_PY" usd --raw "$CMM_ULUNA" --decimals 6 --price "$price")"
+}
+
+stop_if_target() {
+  local remain
+  remain="$(python3 "$MATH_PY" remaining --current "$CMM_ULUNA_USD" --target "$TARGET_USD")"
+  echo "  CMM bank uluna=$CMM_ULUNA  USD=\$${CMM_ULUNA_USD}  (uluna × LUNC oracle)"
+  echo "  remain \$${remain}  target=\$${TARGET_USD}"
+  if python3 "$MATH_PY" progress --current "$CMM_ULUNA_USD" --target "$TARGET_USD"; then
+    echo "OK — CMM bank uluna target reached (\$${CMM_ULUNA_USD} >= \$${TARGET_USD})."
+    return 10
+  fi
+  return 0
+}
+
 one_tick() {
   local lunc_usd mint_raw have need quote est min_recv hops hook_json hook_b64 send_msg
-  local before after delta cmm_clunc cmm_uluna cmm_uluna_usd cmm_clunc_usd campaign_usd
+  local before after delta hop_returns
   local state burned_raw burned_usd rounds
 
   echo ""
@@ -300,27 +374,10 @@ one_tick() {
   burned_usd="$(jq -r '.burned_usd // "0"' <<<"$state")"
   rounds="$(jq -r '.rounds // 0' <<<"$state")"
 
-  cmm_uluna="$(lcd_bank "$TREASURY" "uluna")"
-  cmm_clunc="$(cw20_balance "$CLUNC" "$TREASURY")"
-  cmm_uluna_usd="$(python3 "$MATH_PY" usd --raw "$cmm_uluna" --decimals 6 --price "$lunc_usd")"
-  cmm_clunc_usd="$(python3 "$MATH_PY" usd --raw "$cmm_clunc" --decimals "$DEC_CLUNC" --price "$lunc_usd")"
-
+  refresh_cmm_uluna "$lunc_usd"
   echo "[progress]"
-  echo "  CMM wrap-custody uluna=$cmm_uluna  (~\$${cmm_uluna_usd})  — not the campaign target"
-  echo "  CMM cLUNC CW20=$cmm_clunc  (~\$${cmm_clunc_usd})"
-  echo "  burned this campaign raw=$burned_raw  usd=\$${burned_usd}  rounds=$rounds"
-
-  if [[ "$DEST" == "cmm" ]]; then
-    campaign_usd="$cmm_clunc_usd"
-  else
-    campaign_usd="$burned_usd"
-  fi
-  echo "  campaign USD=\$${campaign_usd}  target=\$${TARGET_USD}  dest=$DEST"
-
-  if python3 "$MATH_PY" progress --current "$campaign_usd" --target "$TARGET_USD"; then
-    echo "OK — target reached (\$${campaign_usd} >= \$${TARGET_USD})."
-    return 10
-  fi
+  echo "  burned this campaign raw=$burned_raw  usd=\$${burned_usd}  rounds=$rounds  (telemetry only)"
+  stop_if_target || return $?
 
   mint_raw="$(python3 "$MATH_PY" mint-raw --human "$MINT_HUMAN" --decimals "$DEC_UST1")"
   have="$(cw20_balance "$UST1" "$ADMIN_ADDR")"
@@ -349,6 +406,10 @@ one_tick() {
   [[ "$min_recv" != "0" ]] || die "min_receive is 0 (quote too small for slippage $SLIP%)"
   echo "  min_receive=$min_recv (${SLIP}% floor of $est)"
 
+  echo "[hop-sim] pair hybrid_simulation for #334 book min_return"
+  hop_returns="$(sim_hop_returns "$quote" "$mint_raw")"
+  echo "  hop_returns=$hop_returns"
+
   before="$(cw20_balance "$CLUNC" "$ADMIN_ADDR")"
   local qfile
   qfile="$(mktemp "${TMPDIR:-/tmp}/ust1-clunc-quote.XXXXXX.json")"
@@ -358,15 +419,22 @@ one_tick() {
     --amount "$mint_raw" \
     --router "$ROUTER" \
     --max-spread "$MAX_SPREAD" \
-    --min-receive "$min_recv")"
+    --min-receive "$min_recv" \
+    --slip "$SLIP" \
+    --hop-returns "$hop_returns")"
   rm -f "$qfile"
   hook_b64="$(lcd_b64 "$hook_json")"
   send_msg="$(jq -nc --arg c "$ROUTER" --arg a "$mint_raw" --arg m "$hook_b64" \
     '{send:{contract:$c,amount:$a,msg:$m}}')"
+  echo "  hop min_return=$(jq -c '[.execute_swap_operations.operations[].terra_swap.min_return // null]' <<<"$hook_json")"
 
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     echo "  [DRY_RUN] would swap $mint_raw UST1 via router ($hops hops, min $min_recv cLUNC)"
-    echo "  [DRY_RUN] would $DEST received cLUNC"
+    if [[ "$DEST" == "cmm" ]]; then
+      echo "  [DRY_RUN] would transfer received cLUNC to CMM"
+    else
+      echo "  [DRY_RUN] would burn received cLUNC"
+    fi
     return 0
   fi
 
@@ -381,15 +449,15 @@ one_tick() {
   echo "  received cLUNC=$delta (~\$${delta_usd})"
 
   if [[ "$DEST" == "cmm" ]]; then
-    local xfer
+    local xfer cmm_clunc_before cmm_clunc_after
+    cmm_clunc_before="$(cw20_balance "$CLUNC" "$TREASURY")"
     xfer="$(jq -nc --arg r "$TREASURY" --arg a "$delta" '{transfer:{recipient:$r,amount:$a}}')"
     [[ "$ADMIN_ADDR" != "$TREASURY" ]] || die "refusing to transfer from CMM to itself"
     broadcast_admin "transfer cLUNC $delta → CMM" wasm execute "$CLUNC" "$xfer" >/dev/null
-    local cmm_after
-    cmm_after="$(cw20_balance "$CLUNC" "$TREASURY")"
-    python3 -c "import sys; sys.exit(0 if int('$cmm_after') > int('$cmm_clunc') else 1)" \
-      || die "CMM cLUNC did not increase ($cmm_clunc → $cmm_after)"
-    echo "  CMM cLUNC $cmm_clunc → $cmm_after"
+    cmm_clunc_after="$(cw20_balance "$CLUNC" "$TREASURY")"
+    python3 -c "import sys; sys.exit(0 if int('$cmm_clunc_after') > int('$cmm_clunc_before') else 1)" \
+      || die "CMM cLUNC did not increase ($cmm_clunc_before → $cmm_clunc_after)"
+    echo "  CMM cLUNC $cmm_clunc_before → $cmm_clunc_after (stop is still bank uluna only)"
   else
     [[ "$ADMIN_ADDR" != "$TREASURY" ]] || die "refusing to burn on CMM treasury"
     [[ "$CLUNC" != "$UST1" ]] || die "refusing to burn UST1 as cLUNC"
@@ -406,6 +474,8 @@ one_tick() {
     save_state "$burned_raw" "$burned_usd" "$rounds"
     echo "  campaign burned_usd=\$${burned_usd} rounds=$rounds"
   fi
+  refresh_cmm_uluna "$lunc_usd"
+  stop_if_target || return $?
   return 0
 }
 
@@ -431,7 +501,7 @@ if [[ "${DRY_RUN:-0}" != "1" && "${UST1_CLUNC_YES:-0}" != "1" ]]; then
   [[ "$ans" == "y" || "$ans" == "Y" ]] || die "aborted"
 fi
 
-if [[ "${UST1_CLUNC_LOOP:-0}" == "1" ]]; then
+if [[ "${UST1_CLUNC_LOOP}" == "1" ]]; then
   trap 'echo; echo "stopped."; exit 0' INT TERM
   while true; do
     set +e

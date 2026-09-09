@@ -1037,8 +1037,8 @@ rebalance-mint-clunc-custc-lp:
 	@chmod +x scripts/rebalance-mint-clunc-custc-lp.sh scripts/lib/clunc-custc-lp-math.py
 	./scripts/rebalance-mint-clunc-custc-lp.sh
 
-# Columbus-5: mint 50 UST1/hour, best-solver swap to cLUNC, burn (or send to CMM) until $2500.
-# DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + UST1_CLUNC_YES=1 (or TTY confirm).
+# Columbus-5: mint 50 UST1/hour, best-solver swap to cLUNC, burn until CMM bank uluna × oracle is $2500.
+# DRY_RUN=1 skips txs (one tick). Live loops hourly: TERRAD_HOST_KEYRING_PASS + UST1_CLUNC_YES=1.
 .PHONY: mint-swap-burn-ust1-clunc test-ust1-clunc-buyback
 mint-swap-burn-ust1-clunc:
 	@chmod +x scripts/mint-swap-burn-ust1-clunc.sh scripts/lib/ust1-clunc-buyback-math.py

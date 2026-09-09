@@ -77,6 +77,13 @@ def remaining_usd(current_usd: str, target_usd: str) -> Decimal:
     return rem if rem > 0 else Decimal(0)
 
 
+def add_usd(*parts: str) -> Decimal:
+    total = sum((_d(p) for p in parts), Decimal(0))
+    if total < 0:
+        raise ValueError("usd sum negative")
+    return total.quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+
+
 def _hybrid_nonzero(h: Any) -> bool:
     if not isinstance(h, dict):
         return False
@@ -127,18 +134,58 @@ def normalize_router_operations(ops: list[Any]) -> list[dict[str, Any]]:
     return out
 
 
+def _hop_book_input(ts: dict[str, Any]) -> int:
+    hybrid = ts.get("hybrid")
+    if not isinstance(hybrid, dict):
+        return 0
+    try:
+        return int(str(hybrid.get("book_input") or "0"))
+    except (TypeError, ValueError):
+        return 0
+
+
+def attach_book_hop_min_returns(
+    ops: list[Any],
+    slip_percent: str,
+    hop_returns: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Router execute uses belief_price=None; book hops need per-hop min_return (#334)."""
+    out = normalize_router_operations(ops)
+    for i, op in enumerate(out):
+        ts = op["terra_swap"]
+        if _hop_book_input(ts) <= 0:
+            continue
+        existing = ts.get("min_return")
+        if existing not in (None, "", "0"):
+            continue
+        hop_out = 0
+        if hop_returns is not None and i < len(hop_returns):
+            try:
+                hop_out = int(str(hop_returns[i] or "0"))
+            except (TypeError, ValueError):
+                hop_out = 0
+        if hop_out > 0:
+            floor = min_receive(hop_out, slip_percent)
+            ts["min_return"] = str(floor if floor > 0 else 1)
+        else:
+            ts["min_return"] = "1"
+    return out
+
+
 def build_execute_hook(
     ops: list[Any],
     max_spread: str,
     minimum_receive: str,
     *,
     to: str | None = None,
+    slip_percent: str = "5",
+    hop_returns: list[str] | None = None,
 ) -> dict[str, Any]:
     if int(minimum_receive) <= 0:
         raise ValueError("minimum_receive")
     inner: dict[str, Any] = {
         "execute_swap_operations": {
-            "operations": normalize_router_operations(ops),
+            "operations": attach_book_hop_min_returns(ops, slip_percent, hop_returns),
             "max_spread": str(max_spread),
             "minimum_receive": str(minimum_receive),
             "to": to,
@@ -176,6 +223,9 @@ def self_test() -> None:
     assert not progress_met("2499.99", "2500")
     assert remaining_usd("100", "2500") == Decimal("2400")
     assert remaining_usd("3000", "2500") == Decimal("0")
+    assert add_usd("243.22", "10.85") == Decimal("254.07000000")
+    assert not progress_met(str(add_usd("243.22", "10.85")), "2500")
+    assert progress_met(str(add_usd("2400", "100")), "2500")
 
     pool_only = [
         {
@@ -206,6 +256,12 @@ def self_test() -> None:
     hnorm = normalize_router_operations(hybrid)
     assert hnorm[0]["terra_swap"]["hybrid"]["book_input"] == "100"
     assert hnorm[0]["terra_swap"]["hybrid"]["book_start_hint"] == 12
+    attached = attach_book_hop_min_returns(hybrid, "5")
+    assert attached[0]["terra_swap"]["min_return"] == "1"
+    attached_sim = attach_book_hop_min_returns(hybrid, "5", ["1000000"])
+    assert attached_sim[0]["terra_swap"]["min_return"] == "950000"
+    pool_attached = attach_book_hop_min_returns(pool_only, "5", ["1000000"])
+    assert "min_return" not in pool_attached[0]["terra_swap"]
 
     try:
         normalize_router_operations(
@@ -262,12 +318,18 @@ def main() -> int:
     p.add_argument("--current", required=True)
     p.add_argument("--target", required=True)
 
+    p = sub.add_parser("add-usd")
+    p.add_argument("--a", required=True)
+    p.add_argument("--b", required=True)
+
     p = sub.add_parser("send-msg")
     p.add_argument("--quote-file", required=True)
     p.add_argument("--amount", required=True)
     p.add_argument("--router", required=True)
     p.add_argument("--max-spread", required=True)
     p.add_argument("--min-receive", required=True)
+    p.add_argument("--slip", default="5")
+    p.add_argument("--hop-returns", default="")
     p.add_argument("--to", default="")
 
     args = parser.parse_args()
@@ -291,15 +353,26 @@ def main() -> int:
     if args.cmd == "remaining":
         print(remaining_usd(args.current, args.target))
         return 0
+    if args.cmd == "add-usd":
+        print(add_usd(args.a, args.b))
+        return 0
     if args.cmd == "send-msg":
         with open(args.quote_file, encoding="utf-8") as fh:
             quote = json.load(fh)
         ops = quote.get("router_operations")
+        hop_returns = None
+        if args.hop_returns:
+            parsed = json.loads(args.hop_returns)
+            if not isinstance(parsed, list):
+                raise ValueError("hop-returns must be a JSON array")
+            hop_returns = [str(x) for x in parsed]
         hook = build_execute_hook(
             ops,
             args.max_spread,
             args.min_receive,
             to=args.to or None,
+            slip_percent=args.slip,
+            hop_returns=hop_returns,
         )
         # CosmWasm send.msg is binary; the shell base64-encodes this JSON.
         json.dump(hook, sys.stdout, separators=(",", ":"))

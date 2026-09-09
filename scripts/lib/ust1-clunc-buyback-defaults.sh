@@ -15,11 +15,11 @@
 : "${UST1_CLUNC_SIGNER1:=multisig1}"
 : "${UST1_CLUNC_SIGNER2:=multisig2}"
 
-# Hot wallet that receives minted UST1, executes the solver swap, then burns or sends.
+# Hot wallet that receives minted UST1, executes the solver swap, then burns.
 : "${UST1_CLUNC_ADMIN_KEY:=cl8ydeploy}"
 : "${UST1_CLUNC_ADMIN_ADDR:=terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv}"
 
-# 50 UST1 / hour until $2500 of cLUNC (LUNC oracle) is burned or sitting on CMM.
+# 50 UST1 / hour; burn cLUNC until CMM bank uluna × LUNC oracle is $2500.
 : "${UST1_CLUNC_MINT_HUMAN:=50}"
 : "${UST1_CLUNC_TARGET_USD:=2500}"
 : "${UST1_CLUNC_INTERVAL_SEC:=3600}"

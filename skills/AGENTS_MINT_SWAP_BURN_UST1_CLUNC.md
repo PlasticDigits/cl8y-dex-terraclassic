@@ -1,13 +1,13 @@
 # Agent playbook: hourly UST1 mint → best-solver cLUNC burn
 
-Use when running or changing the **50 UST1 / hour** mint → indexer **best solver** swap to **cLUNC** → holder-burn (or CMM transfer) until **$2500** of LUNC.
+Use when running or changing the **50 UST1 / hour** mint → indexer **best solver** swap to **cLUNC** → **holder-burn** until CMM **bank `uluna` × LUNC oracle** is **$2500**.
 
 ## Canonical references
 
 | Doc / script | Purpose |
 |--------------|---------|
 | [`docs/runbooks/mint-swap-burn-ust1-clunc.md`](../docs/runbooks/mint-swap-burn-ust1-clunc.md) | Operator runbook |
-| [`scripts/mint-swap-burn-ust1-clunc.sh`](../scripts/mint-swap-burn-ust1-clunc.sh) | Host terrad: 2-of-3 mint → `/route/solve/best` → burn or CMM |
+| [`scripts/mint-swap-burn-ust1-clunc.sh`](../scripts/mint-swap-burn-ust1-clunc.sh) | Host terrad: 2-of-3 mint → `/route/solve/best` → burn |
 | [`scripts/lib/ust1-clunc-buyback-defaults.sh`](../scripts/lib/ust1-clunc-buyback-defaults.sh) | Columbus-5 router / token / treasury anchors |
 | [`scripts/lib/ust1-clunc-buyback-math.py`](../scripts/lib/ust1-clunc-buyback-math.py) | Mint raw, min-receive, USD, send-hook (`self-test`) |
 
@@ -15,10 +15,10 @@ Use when running or changing the **50 UST1 / hour** mint → indexer **best solv
 
 1. **Unlock once** — prompt or `TERRAD_HOST_KEYRING_PASS`. Never commit it. File-keyring keys share one passphrase.
 2. **Mint via DEX 2-of-3 extra minter** (`terra1zlmv2…`) to the admin hot wallet (`cl8ydeploy` by default). Do not mint cLUNC (wrap-mapper is its extra minter).
-3. **Execute indexer `GET /api/v1/route/solve/best`** ops as-is (hybrid hops included). Do **not** attach greedy (`G4`). `minimum_receive` uses **pre-tax** `estimated_amount_out`, not `estimated_amount_out_net`.
-4. **Never unwrap.** CMM is wrap custody; InstantWithdraw would drain CMM `uluna` and pay burn tax. Default dest is CW20 **burn** of the tick’s cLUNC delta. `UST1_CLUNC_DEST=cmm` transfers that delta to CMM instead.
-5. **Stop on campaign USD**, not CMM wrap-backing `uluna` (that stock is already the wrap float). Burn dest uses `$HOME/.cl8y-dex/ust1-clunc-buyback-state.json`. CMM dest uses CMM’s **cLUNC CW20** × LUNC oracle.
-6. Prefer `DRY_RUN=1` before a live broadcast. Live needs `UST1_CLUNC_YES=1` when stdin is not a TTY. `UST1_CLUNC_LOOP=1` sleeps 1h between ticks and retries a failed tick rather than exiting.
+3. **Execute indexer `GET /api/v1/route/solve/best`** ops as-is (hybrid hops included). Do **not** attach greedy (`G4`). `minimum_receive` uses **pre-tax** `estimated_amount_out`, not `estimated_amount_out_net`. Router hops with `book_input > 0` need per-hop `min_return` (#334) — indexer omits it; this script LCD-sims each hop and attaches a 5% floor (fallback `1`).
+4. **Never unwrap.** CMM is wrap custody; InstantWithdraw would drain CMM `uluna` and pay burn tax. Default dest **holder-burns** the tick’s cLUNC delta. The tick does **not** raise bank `uluna`; third-party wrap deposits are expected to.
+5. **Stop on CMM bank `uluna` × LUNC oracle only.** Do not add cLUNC CW20. Do not stop on burned USD. Live default **loops hourly** until that USD ≥ `$UST1_CLUNC_TARGET_USD` (2500). Dry-run is one tick.
+6. Prefer `DRY_RUN=1` before a live broadcast. Live needs `UST1_CLUNC_YES=1` when stdin is not a TTY. A tick `die` in loop mode sleeps and retries rather than exiting.
 
 ## Quick commands
 
@@ -26,8 +26,7 @@ Use when running or changing the **50 UST1 / hour** mint → indexer **best solv
 python3 scripts/lib/ust1-clunc-buyback-math.py self-test
 DRY_RUN=1 ./scripts/mint-swap-burn-ust1-clunc.sh
 UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
-UST1_CLUNC_YES=1 UST1_CLUNC_LOOP=1 ./scripts/mint-swap-burn-ust1-clunc.sh
-UST1_CLUNC_DEST=cmm UST1_CLUNC_YES=1 DRY_RUN=1 ./scripts/mint-swap-burn-ust1-clunc.sh
+UST1_CLUNC_LOOP=0 UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
 ```
 
 ## Related
