@@ -51,7 +51,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 1. **C605-1 — percent.** Retail tax fields are percent with exactly 2 decimal places (`2.50` → **250** bps). Empty → 0. Reject `2.501`, `1e2`, trailing junk. Combined cap 25.00%. Manage placeholders show `1.00` for `buy_bps: 100`, never raw bps. No hidden bps mode.
 2. **C605-2 — SKU init.** Checkbox reveals init fields; uncheck hides and drops those keys from the hook. Wallet-to-wallet → `transfer_bps`. Split treasury → 1–4 sinks summing 100.00%. Extra exemptions → `initial_exempt` (≤20, no protocol addrs). Change rates later → explicit `max_*` ≥ current, combined ≤ 25.00%, immutable copy. Launch guards → explicit `trading_enabled` (UI default **off**). Mint cap is human-scale. Free create still cannot include paid payloads (**C593-12**).
-3. **C605-3 — AutoLP.** Create with Auto liquidity instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → block the SKU (do not take 50 UST1). Manage bind is settings batch + sister `UpdateConfig` after bind. Pair must be this token’s factory-listed CL8Y pool; skim has a floor (**M610-1–M610-8**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610), [`AGENTS_COMMUNITY_TAX_AUTOLP.md`](./AGENTS_COMMUNITY_TAX_AUTOLP.md)). `SkimToLp` is never called from token transfer (**T592-10**). No pair/router FoT math. Audit **H-1**: do not charge for a discarded sister.
+3. **C605-3 — AutoLP.** Create with Auto liquidity instantiates+binds the sister when launcher `autolp_code_id` is set. Unset → block the SKU (do not take 50 UST1). Manage bind is settings batch + sister `UpdateConfig` after bind. Include `settings.autolp` only when sister `GetConfig` differs; do not default blank threshold to raw `1` or blank recipient to the connected wallet (**T592-4** / [#1237](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1237)). Pair must be this token’s factory-listed CL8Y pool; skim has a floor (**M610-1–M610-8**, [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610), [`AGENTS_COMMUNITY_TAX_AUTOLP.md`](./AGENTS_COMMUNITY_TAX_AUTOLP.md)). `SkimToLp` is never called from token transfer (**T592-10**). No pair/router FoT math. Audit **H-1**: do not charge for a discarded sister.
 4. **C605-4 — VariableRates gate (audit M-1).** Keep the paid SKU. Without it, instantiate `max_*` equals current rates (no CLI headroom). Settings `buy_bps` / `sell_bps` require the SKU. Do not leave `require_variable_or_free_profile` as `Ok(())`. Manage buy/sell stay locked until unlock.
 
 ## Verify
@@ -64,6 +64,7 @@ make verify-issue-669
 make verify-issue-606
 make verify-issue-607
 make verify-issue-610
+make verify-issue-1237
 make verify-issue-602
 make verify-issue-612
 make verify-issue-616

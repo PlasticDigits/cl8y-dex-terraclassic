@@ -11,9 +11,9 @@ use dex_common::pair::{greedy_swap_params, Cw20HookMsg, QueryMsg as PairQuery};
 use dex_common::types::{AssetInfo, PairInfo};
 
 use crate::msg::{
-    ConfigResponse, ExecuteMsg, FeaturesResponse, InstantiateMsg, InvoiceHookMsg, IsExemptResponse,
-    LaunchGuardsConfig, MintInit, QueryMsg, SettingsBatch, Sink, SinkKind, Sku, TaxKind,
-    TaxPreviewResponse, INVOICE_UST1,
+    AutoLpConfig, ConfigResponse, ExecuteMsg, FeaturesResponse, InstantiateMsg, InvoiceHookMsg,
+    IsExemptResponse, LaunchGuardsConfig, MintInit, QueryMsg, SettingsBatch, Sink, SinkKind, Sku,
+    TaxKind, TaxPreviewResponse, INVOICE_UST1,
 };
 
 const GENESIS: u128 = 1_000_000_000;
@@ -34,6 +34,14 @@ fn cw20_base_contract() -> Box<dyn Contract<Empty>> {
         cw20_base::contract::execute,
         cw20_base::contract::instantiate,
         cw20_base::contract::query,
+    ))
+}
+
+fn autolp_contract() -> Box<dyn Contract<Empty>> {
+    Box::new(ContractWrapper::new(
+        cl8y_community_tax_autolp::contract::execute,
+        cl8y_community_tax_autolp::contract::instantiate,
+        cl8y_community_tax_autolp::contract::query,
     ))
 }
 
@@ -2877,5 +2885,384 @@ fn non_manager_still_pays_sell_on_registered_pair() {
     assert_eq!(
         balance(&e.app, &e.token, e.user.as_str()),
         user_before - amount - tax
+    );
+}
+
+fn send_settings(
+    e: &mut EnvTok,
+    batch: SettingsBatch,
+) -> Result<cw_multi_test::AppResponse, String> {
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.ust1.clone(),
+            &Cw20ExecuteMsg::Send {
+                contract: e.token.to_string(),
+                amount: Uint128::new(INVOICE_UST1),
+                msg: to_json_binary(&InvoiceHookMsg::UpdateSettings { settings: batch }).unwrap(),
+            },
+            &[],
+        )
+        .map_err(|err| err.root_cause().to_string())
+}
+
+fn assert_noop_settings(err: String) {
+    assert!(
+        err.contains("identical")
+            || err.contains("No-op")
+            || err.contains("empty")
+            || err.contains("NoOp"),
+        "expected NoOpSettings, got {err}"
+    );
+}
+
+fn autolp_cfg(e: &EnvTok, autolp: &Addr) -> cl8y_community_tax_autolp::msg::ConfigResponse {
+    e.app
+        .wrap()
+        .query_wasm_smart(
+            autolp,
+            &cl8y_community_tax_autolp::msg::QueryMsg::GetConfig {},
+        )
+        .unwrap()
+}
+
+/// Paid path: sister `UpdateConfig` sender is this token, so AutoLP `manager` is the token.
+fn bind_autolp(e: &mut EnvTok, threshold: u128, recipient: Addr) -> Addr {
+    let code = e.app.store_code(autolp_contract());
+    let autolp = e
+        .app
+        .instantiate_contract(
+            code,
+            e.manager.clone(),
+            &cl8y_community_tax_autolp::msg::InstantiateMsg {
+                token: e.token.to_string(),
+                manager: e.token.to_string(),
+                factory: e.factory.to_string(),
+                router: None,
+                pair: Some(e.pair.to_string()),
+                quote_token: None,
+                threshold: Uint128::new(threshold),
+                lp_recipient: recipient.to_string(),
+                skim_max_spread: None,
+                skim_min_return: None,
+            },
+            &[],
+            "autolp",
+            None,
+        )
+        .unwrap();
+    e.app
+        .execute_contract(
+            Addr::unchecked("launcher"),
+            e.token.clone(),
+            &ExecuteMsg::BindAutolp {
+                autolp: autolp.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+    autolp
+}
+
+fn bind_manager_autolp(e: &mut EnvTok, threshold: u128) -> Addr {
+    let recipient = e.manager.clone();
+    bind_autolp(e, threshold, recipient)
+}
+
+fn identical_autolp_batch(e: &EnvTok, threshold: u128, recipient: &Addr) -> AutoLpConfig {
+    AutoLpConfig {
+        pair: Some(e.pair.to_string()),
+        threshold: Uint128::new(threshold),
+        lp_recipient: recipient.to_string(),
+        skim_max_spread: None,
+        skim_min_return: None,
+    }
+}
+
+#[test]
+fn settings_empty_batch_is_noop() {
+    let mut e = clean(vec![], None);
+    let err = send_settings(&mut e, SettingsBatch::default()).unwrap_err();
+    assert_noop_settings(err);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
+#[test]
+fn identical_launch_guards_is_noop() {
+    let mut e = clean(vec![Sku::LaunchGuards], None);
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            launch_guards: Some(LaunchGuardsConfig {
+                max_wallet: None,
+                cooldown_blocks: 0,
+                trading_enabled: false,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_noop_settings(err);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
+#[test]
+fn identical_minter_is_noop() {
+    let mut e = clean(
+        vec![Sku::MintControl],
+        Some(MintInit {
+            minter: "manager".into(),
+            cap: None,
+        }),
+    );
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            minter: Some("manager".into()),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_noop_settings(err);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
+#[test]
+fn identical_autolp_is_noop_no_cmm_credit() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let before = autolp_cfg(&e, &autolp);
+    let batch = identical_autolp_batch(&e, 1_000_000, &e.manager);
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(batch),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_noop_settings(err);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+    let after = autolp_cfg(&e, &autolp);
+    assert_eq!(after.pair, before.pair);
+    assert_eq!(after.threshold, before.threshold);
+    assert_eq!(after.lp_recipient, before.lp_recipient);
+}
+
+#[test]
+fn omitted_autolp_pair_does_not_clear_and_is_noop_when_equal() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let recipient = e.manager.to_string();
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(AutoLpConfig {
+                pair: None,
+                threshold: Uint128::new(1_000_000),
+                lp_recipient: recipient,
+                skim_max_spread: None,
+                skim_min_return: None,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_noop_settings(err);
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+    assert_eq!(autolp_cfg(&e, &autolp).pair, Some(e.pair.clone()));
+}
+
+#[test]
+fn identical_autolp_with_buy_bps_delta_invoices_without_sister_write() {
+    let mut e = clean(vec![Sku::AutoV2Lp, Sku::VariableRates], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let before = autolp_cfg(&e, &autolp);
+    let batch = identical_autolp_batch(&e, 1_000_000, &e.manager);
+    send_settings(
+        &mut e,
+        SettingsBatch {
+            buy_bps: Some(100),
+            autolp: Some(batch),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), INVOICE_UST1);
+    let token_cfg: ConfigResponse = e
+        .app
+        .wrap()
+        .query_wasm_smart(&e.token, &QueryMsg::GetConfig {})
+        .unwrap();
+    assert_eq!(token_cfg.buy_bps, 100);
+    let after = autolp_cfg(&e, &autolp);
+    assert_eq!(after.pair, before.pair);
+    assert_eq!(after.threshold, before.threshold);
+    assert_eq!(after.lp_recipient, before.lp_recipient);
+    assert_eq!(after.skim_max_spread, before.skim_max_spread);
+}
+
+#[test]
+fn autolp_threshold_delta_invoices_and_updates_sister() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let pair = e.pair.to_string();
+    let recipient = e.manager.to_string();
+    send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(AutoLpConfig {
+                pair: Some(pair),
+                threshold: Uint128::new(2_000_000),
+                lp_recipient: recipient,
+                skim_max_spread: None,
+                skim_min_return: None,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), INVOICE_UST1);
+    let after = autolp_cfg(&e, &autolp);
+    assert_eq!(after.threshold, Uint128::new(2_000_000));
+    assert_eq!(after.pair, Some(e.pair.clone()));
+}
+
+#[test]
+fn autolp_new_listed_pair_invoices_and_sets_sister() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let pair_code = e.app.store_code(mock_pair_contract());
+    let pair2 = e
+        .app
+        .instantiate_contract(
+            pair_code,
+            e.manager.clone(),
+            &MockPairInit {
+                token: e.token.to_string(),
+                other: "quote_token".into(),
+                factory: e.factory.to_string(),
+            },
+            &[],
+            "pair2",
+            None,
+        )
+        .unwrap();
+    e.app
+        .execute_contract(
+            e.manager.clone(),
+            e.factory.clone(),
+            &MockFactoryExec::Set {
+                pair: pair2.to_string(),
+                token: e.token.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
+    let pair2_s = pair2.to_string();
+    let recipient = e.manager.to_string();
+    send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(AutoLpConfig {
+                pair: Some(pair2_s),
+                threshold: Uint128::new(1_000_000),
+                lp_recipient: recipient,
+                skim_max_spread: None,
+                skim_min_return: None,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), INVOICE_UST1);
+    assert_eq!(autolp_cfg(&e, &autolp).pair, Some(pair2));
+}
+
+#[test]
+fn unbound_autolp_settings_reverts_fee_not_kept() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let batch = identical_autolp_batch(&e, 1, &e.manager);
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(batch),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert!(
+        err.to_string().contains("not bound") || err.to_string().contains("AutoLP"),
+        "{}",
+        err
+    );
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
+#[test]
+fn autolp_sku_off_reverts_fee_not_kept() {
+    let mut e = clean(vec![], None);
+    let batch = identical_autolp_batch(&e, 1, &e.manager);
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(batch),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert!(err.to_string().contains("not unlocked"));
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+}
+
+#[test]
+fn autolp_fake_pair_reverts_fee_not_kept() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let fake = e.user.to_string();
+    let recipient = e.manager.to_string();
+    let err = send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(AutoLpConfig {
+                pair: Some(fake),
+                threshold: Uint128::new(1_000_000),
+                lp_recipient: recipient,
+                skim_max_spread: None,
+                skim_min_return: None,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), 0);
+    assert_eq!(autolp_cfg(&e, &autolp).pair, Some(e.pair.clone()));
+    let _ = err;
+}
+
+#[test]
+fn autolp_skim_delta_invoices() {
+    let mut e = clean(vec![Sku::AutoV2Lp], None);
+    let autolp = bind_manager_autolp(&mut e, 1_000_000);
+    let pair = e.pair.to_string();
+    let recipient = e.manager.to_string();
+    send_settings(
+        &mut e,
+        SettingsBatch {
+            autolp: Some(AutoLpConfig {
+                pair: Some(pair),
+                threshold: Uint128::new(1_000_000),
+                lp_recipient: recipient,
+                skim_max_spread: Some(cosmwasm_std::Decimal::percent(2)),
+                skim_min_return: None,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(balance(&e.app, &e.ust1, e.cmm.as_str()), INVOICE_UST1);
+    assert_eq!(
+        autolp_cfg(&e, &autolp).skim_max_spread,
+        cosmwasm_std::Decimal::percent(2)
     );
 }

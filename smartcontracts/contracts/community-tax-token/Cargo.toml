@@ -24,3 +24,4 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
+cl8y-community-tax-autolp = { path = "../community-tax-autolp", features = ["library"] }

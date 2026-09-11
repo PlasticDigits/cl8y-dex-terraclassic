@@ -24,7 +24,7 @@ Product decision (2026-08-23): `pair` must be factory-listed **and** have the ta
 3. **M610-3 — skim floor.** `SkimToLp` always sets `max_spread` (default **100 bps**, hard cap **200 bps**). Optional manager `skim_min_return`. Never leave both `None`. Permissionless caller cannot pass or loosen the floor. Manager cannot set `skim_max_spread` above 200 bps. `UpdateConfig { skim_min_return: 0 }` clears a leftover hostile absolute floor (seed-path `#625` / **C623-8**).
 4. **M610-4 — floor revert keeps tax.** Swap that violates `max_spread` / `min_return` reverts the tx. Tax stays on AutoLP. `SKIMMING` rolls back with the tx.
 5. **M610-5 — T592-10 unchanged.** `SkimToLp` stays permissionless and is **never** called from token `Transfer` / `Send` or pair `AfterSwap`. Do not add pair/router FoT math (**H-01**).
-6. **M610-6 — merge.** Omitted `UpdateConfig` fields keep their previous values (including pair, factory, floor).
+6. **M610-6 — merge.** Omitted `UpdateConfig` fields keep their previous values (including pair, factory, floor). Token `UpdateSettings.autolp` dirty-detects via sister `GetConfig` and must **not** emit `UpdateConfig` (or re-`register_listed_pair`) when the effective config is unchanged (**T592-4** / [#1237](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1237)).
 7. **M610-7 — reject on set.** Fake pair / wrong listed pair revert on instantiate or `UpdateConfig`, not only on skim. `poc_autolp_manager_can_skim_to_fake_pair` is inverted.
 8. **M610-8 — reentrancy residual.** `SKIMMING` is true for the swap submsg (pair hook calling `SkimToLp` → `Reentrancy`). Reply clears the lock **before** provide messages. A listed pair's provide hook could call `SkimToLp` again in the same tx. Factory+token-side listing is what keeps that pair in the CL8Y set.
 
@@ -34,6 +34,7 @@ Live LocalTerra `SkimToLp` vs a factory pair (floor + fake-pair reject) is the n
 
 ```bash
 make verify-issue-610
+make verify-issue-1237
 make verify-issue-616
 make verify-issue-620
 make verify-issue-623

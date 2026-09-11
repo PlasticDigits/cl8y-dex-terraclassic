@@ -97,6 +97,26 @@ export async function queryCommunityTaxTokenInfo(
   return queryContract(requireCommunityTaxTokenAddr(addr), { token_info: {} })
 }
 
+export type AutoLpConfigResponse = {
+  token: string
+  manager: string
+  factory: string
+  router: string | null
+  pair: string | null
+  quote_token: string | null
+  threshold: string
+  lp_recipient: string
+  skim_max_spread: string
+  skim_min_return: string | null
+  skimming: boolean
+}
+
+/** Sister `GetConfig` for Manage Token AutoLP dirty compare (**T592-4** / #1237). */
+export async function queryAutoLpConfig(autolp: string): Promise<AutoLpConfigResponse> {
+  if (!isValidTerraBech32Address(autolp)) throw new Error('Invalid AutoLP address')
+  return queryContract<AutoLpConfigResponse>(autolp, { get_config: {} })
+}
+
 export async function queryCommunityTaxExemptions(addr: string): Promise<{
   protocol: string[]
   manager: string[]
