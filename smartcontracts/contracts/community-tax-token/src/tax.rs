@@ -145,11 +145,13 @@ fn require_hop_trader(
 /// Launch guards (`trading_enabled`, cooldown, `max_wallet`) use this so exemption
 /// is tax-only and does not disable **T592-11**.
 ///
-/// - **Sell** — `Send` to a registered listed pair whose hook is `Cw20HookMsg::Swap`
-///   **and** (`from` is not protocol-exempt **or** `from` is the official router).
-///   Pair-direct extra-debits `from`. Router hop extra-debits the authenticated
-///   `Swap.trader` (official router already passes the user; **H-01** / no FoT).
-///   Pair is credited exactly `amount` (inbound 1:1 / **T592-1**).
+/// - **Sell** — `Send` **or `SendFrom`** to a registered listed pair whose hook is
+///   `Cw20HookMsg::Swap` **and** (`from` is not protocol-exempt **or** `from` is
+///   the official router). Pair-direct extra-debits `from` (owner). Router hop
+///   extra-debits the authenticated `Swap.trader` (official router already
+///   passes the user; **H-01** / no FoT). Pair is credited exactly `amount`
+///   (inbound 1:1 / **T592-1**). **A-allow (#1228):** `SendFrom` allowance
+///   covers `TaxPreview.debit`, not declared `amount`.
 /// - **Buy** — `Transfer`/`Send` **from** a registered listed pair **or** the official
 ///   router to a non-protocol-exempt recipient. Debit `amount`; trader + sinks = `amount`.
 ///   Pair→router stays 1:1. Pair→EOA `Transfer` is also withdraw / limit refund (same

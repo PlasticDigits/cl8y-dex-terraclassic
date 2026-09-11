@@ -1,4 +1,5 @@
-//! Multi-test coverage for GitLab #592 (T592-1–T592-13), #607 (R607), and #608 (H608-1–H608-8).
+//! Multi-test coverage for GitLab #592 (T592-1–T592-13), #607 (R607), #608 (H608-1–H608-8),
+//! and #1228 (A-allow SendFrom allowance).
 
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
@@ -445,6 +446,96 @@ fn settings_batch(e: &mut EnvTok, settings: SettingsBatch) {
         .unwrap();
 }
 
+fn spender() -> Addr {
+    Addr::unchecked("spender")
+}
+
+fn allowance(e: &EnvTok, owner: &Addr, spender: &Addr) -> u128 {
+    let r: cw20::AllowanceResponse = e
+        .app
+        .wrap()
+        .query_wasm_smart(
+            &e.token,
+            &QueryMsg::Allowance {
+                owner: owner.to_string(),
+                spender: spender.to_string(),
+            },
+        )
+        .unwrap();
+    r.allowance.u128()
+}
+
+fn increase_allowance(e: &mut EnvTok, owner: Addr, spender: &Addr, amount: u128) {
+    e.app
+        .execute_contract(
+            owner,
+            e.token.clone(),
+            &ExecuteMsg::IncreaseAllowance {
+                spender: spender.to_string(),
+                amount: Uint128::new(amount),
+                expires: None,
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+fn unlisted_pair(e: &mut EnvTok) -> Addr {
+    let pair_code = e.app.store_code(mock_pair_contract());
+    e.app
+        .instantiate_contract(
+            pair_code,
+            e.manager.clone(),
+            &MockPairInit {
+                token: e.token.to_string(),
+                other: "quote_token".into(),
+                factory: e.factory.to_string(),
+            },
+            &[],
+            "unlisted-pair",
+            None,
+        )
+        .unwrap()
+}
+
+fn snapshot_sell_balances(e: &EnvTok) -> (u128, u128, u128) {
+    (
+        balance(&e.app, &e.token, e.user.as_str()),
+        balance(&e.app, &e.token, e.pair.as_str()),
+        balance(&e.app, &e.token, e.treasury.as_str()),
+    )
+}
+
+fn assert_sell_balances_unchanged(e: &EnvTok, before: (u128, u128, u128)) {
+    assert_eq!(balance(&e.app, &e.token, e.user.as_str()), before.0);
+    assert_eq!(balance(&e.app, &e.token, e.pair.as_str()), before.1);
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), before.2);
+}
+
+fn try_send_from_swap(
+    e: &mut EnvTok,
+    spender: Addr,
+    owner: Addr,
+    contract: Addr,
+    amount: u128,
+    msg: Binary,
+) -> Result<(), String> {
+    e.app
+        .execute_contract(
+            spender,
+            e.token.clone(),
+            &ExecuteMsg::SendFrom {
+                owner: owner.to_string(),
+                contract: contract.to_string(),
+                amount: Uint128::new(amount),
+                msg,
+            },
+            &[],
+        )
+        .map(|_| ())
+        .map_err(|err| err.root_cause().to_string())
+}
+
 fn preview(
     e: &EnvTok,
     from: &Addr,
@@ -640,6 +731,407 @@ fn greedy_pair_direct_trader_spoof_extra_debits_from() {
         victim_before,
         "spoofed trader must not be extra-debited"
     );
+}
+
+// --- #1228 / A-allow: SendFrom listed-pair Sell allowance covers TaxPreview.debit ---
+
+#[test]
+fn send_from_listed_sell_allowance_amount_reverts() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let spender = spender();
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    increase_allowance(&mut e, user.clone(), &spender, amount);
+    let before = snapshot_sell_balances(&e);
+    let allow_before = allowance(&e, &user, &spender);
+    let msg = try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair,
+        amount,
+        swap_hook(),
+    )
+    .unwrap_err();
+    assert!(
+        msg.to_lowercase().contains("allowance") || msg.to_lowercase().contains("overflow"),
+        "expected insufficient allowance, got {msg}"
+    );
+    assert_sell_balances_unchanged(&e, before);
+    assert_eq!(allowance(&e, &user, &spender), allow_before);
+}
+
+#[test]
+fn send_from_listed_sell_allowance_debit_minus_one_reverts() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &user, &pair, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Sell);
+    let debit = p.debit.u128();
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, debit - 1);
+    let before = snapshot_sell_balances(&e);
+    let allow_before = allowance(&e, &user, &spender);
+    let msg = try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair,
+        amount,
+        swap_hook(),
+    )
+    .unwrap_err();
+    assert!(
+        msg.to_lowercase().contains("allowance") || msg.to_lowercase().contains("overflow"),
+        "expected insufficient allowance, got {msg}"
+    );
+    assert_sell_balances_unchanged(&e, before);
+    assert_eq!(allowance(&e, &user, &spender), allow_before);
+}
+
+#[test]
+fn send_from_listed_sell_allowance_debit_succeeds() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &user, &pair, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Sell);
+    assert_eq!(p.credit, Uint128::new(amount));
+    let debit = p.debit.u128();
+    assert_eq!(debit, amount + p.tax.u128());
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, debit);
+    let (user_before, pair_before, treas_before) = snapshot_sell_balances(&e);
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair,
+        amount,
+        swap_hook(),
+    )
+    .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - debit,
+        "TaxPreview.debit must equal owner balance delta"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treas_before + p.tax.u128()
+    );
+    assert_eq!(allowance(&e, &user, &spender), 0);
+}
+
+#[test]
+fn send_from_listed_sell_second_pull_after_exact_debit_reverts() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &user, &pair, amount, Some(swap_hook()));
+    let debit = p.debit.u128();
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, debit);
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair.clone(),
+        amount,
+        swap_hook(),
+    )
+    .unwrap();
+    assert_eq!(allowance(&e, &user, &spender), 0);
+    let before = snapshot_sell_balances(&e);
+    let msg = try_send_from_swap(&mut e, spender.clone(), user.clone(), pair, 1, swap_hook())
+        .unwrap_err();
+    assert!(
+        msg.to_lowercase().contains("allowance") || msg.to_lowercase().contains("overflow"),
+        "expected second SendFrom to revert, got {msg}"
+    );
+    assert_sell_balances_unchanged(&e, before);
+}
+
+#[test]
+fn send_from_listed_sell_unlimited_allowance_extra_debits() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &user, &pair, amount, Some(swap_hook()));
+    let debit = p.debit.u128();
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, Uint128::MAX.u128());
+    let (user_before, pair_before, treas_before) = snapshot_sell_balances(&e);
+    try_send_from_swap(&mut e, spender, user, pair, amount, swap_hook()).unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - debit
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treas_before + p.tax.u128()
+    );
+}
+
+#[test]
+fn send_from_unregistered_pair_allowance_is_amount() {
+    let mut e = clean(vec![], None);
+    let other = unlisted_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let p = preview(&e, &user, &other, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Honest);
+    assert_eq!(p.debit, Uint128::new(amount));
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, amount);
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    let other_before = balance(&e.app, &e.token, other.as_str());
+    let other_s = other.to_string();
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        other,
+        amount,
+        swap_hook(),
+    )
+    .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, other_s.as_str()),
+        other_before + amount
+    );
+    assert_eq!(allowance(&e, &user, &spender), 0);
+}
+
+#[test]
+fn transfer_from_listed_pair_allowance_is_amount() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &user, &pair, amount, None);
+    assert_eq!(p.kind, TaxKind::Honest);
+    assert_eq!(p.debit, Uint128::new(amount));
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, amount);
+    let (user_before, pair_before, treas_before) = snapshot_sell_balances(&e);
+    e.app
+        .execute_contract(
+            spender.clone(),
+            e.token.clone(),
+            &ExecuteMsg::TransferFrom {
+                owner: user.to_string(),
+                recipient: pair.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), treas_before);
+    assert_eq!(allowance(&e, &user, &spender), 0);
+}
+
+#[test]
+fn send_from_pair_direct_trader_spoof_extra_debits_owner() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let victim = Addr::unchecked("whale_victim");
+    let user = e.user.clone();
+    e.app
+        .execute_contract(
+            user.clone(),
+            e.token.clone(),
+            &ExecuteMsg::Transfer {
+                recipient: victim.to_string(),
+                amount: Uint128::new(100_000),
+            },
+            &[],
+        )
+        .unwrap();
+    let amount = 1_000_000u128;
+    let pair = e.pair.clone();
+    let p = preview(
+        &e,
+        &user,
+        &pair,
+        amount,
+        Some(swap_hook_trader(victim.as_str())),
+    );
+    assert_eq!(p.kind, TaxKind::Sell);
+    let debit = p.debit.u128();
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, debit);
+    let victim_before = balance(&e.app, &e.token, victim.as_str());
+    let user_before = balance(&e.app, &e.token, e.user.as_str());
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair,
+        amount,
+        swap_hook_trader(victim.as_str()),
+    )
+    .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - debit,
+        "pair-direct SendFrom extra-debits owner"
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, victim.as_str()),
+        victim_before,
+        "spoofed trader must not be extra-debited"
+    );
+    assert_eq!(allowance(&e, &user, &spender), 0);
+}
+
+#[test]
+fn send_from_directory_exempt_owner_allowance_is_amount() {
+    let mut e = clean(vec![Sku::ExemptionDirectory], None);
+    register_listed_pair(&mut e);
+    let user_s = e.user.to_string();
+    settings_batch(
+        &mut e,
+        SettingsBatch {
+            add_exempt: Some(vec![user_s]),
+            ..Default::default()
+        },
+    );
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &user, &pair, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Honest);
+    assert_eq!(p.debit, Uint128::new(amount));
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, amount);
+    let (user_before, pair_before, treas_before) = snapshot_sell_balances(&e);
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair,
+        amount,
+        swap_hook(),
+    )
+    .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), treas_before);
+    assert_eq!(allowance(&e, &user, &spender), 0);
+}
+
+#[test]
+fn send_from_manager_role_listed_sell_allowance_is_amount() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let manager = e.manager.clone();
+    let pair = e.pair.clone();
+    let p = preview(&e, &manager, &pair, amount, Some(swap_hook()));
+    assert_eq!(p.kind, TaxKind::Honest);
+    assert_eq!(p.debit, Uint128::new(amount));
+    let spender = spender();
+    increase_allowance(&mut e, manager.clone(), &spender, amount);
+    let mgr_before = balance(&e.app, &e.token, e.manager.as_str());
+    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+    let treas_before = balance(&e.app, &e.token, e.treasury.as_str());
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        manager.clone(),
+        pair,
+        amount,
+        swap_hook(),
+    )
+    .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.manager.as_str()),
+        mgr_before - amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(balance(&e.app, &e.token, e.treasury.as_str()), treas_before);
+    assert_eq!(allowance(&e, &manager, &spender), 0);
+}
+
+#[test]
+fn send_from_greedy_swap_same_debit_as_swap() {
+    let mut e = clean(vec![], None);
+    register_listed_pair(&mut e);
+    let amount = 1_000_000u128;
+    let user = e.user.clone();
+    let pair = e.pair.clone();
+    let p_swap = preview(&e, &user, &pair, amount, Some(swap_hook()));
+    let p_greedy = preview(&e, &user, &pair, amount, Some(greedy_swap_hook()));
+    assert_eq!(p_greedy.kind, TaxKind::Sell);
+    assert_eq!(p_greedy.debit, p_swap.debit);
+    let debit = p_greedy.debit.u128();
+    let spender = spender();
+    increase_allowance(&mut e, user.clone(), &spender, debit);
+    let (user_before, pair_before, treas_before) = snapshot_sell_balances(&e);
+    try_send_from_swap(
+        &mut e,
+        spender.clone(),
+        user.clone(),
+        pair,
+        amount,
+        greedy_swap_hook(),
+    )
+    .unwrap();
+    assert_eq!(
+        balance(&e.app, &e.token, e.user.as_str()),
+        user_before - debit
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.pair.as_str()),
+        pair_before + amount
+    );
+    assert_eq!(
+        balance(&e.app, &e.token, e.treasury.as_str()),
+        treas_before + p_greedy.tax.u128()
+    );
+    assert_eq!(allowance(&e, &user, &spender), 0);
 }
 
 #[test]
