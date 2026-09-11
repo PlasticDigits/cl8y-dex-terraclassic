@@ -57,6 +57,11 @@ pub enum ContractError {
     )]
     BookHybridRequiresSlippageFloor { book_input: String },
 
+    #[error(
+        "Invalid belief_price {belief_price}: must be strictly positive and produce expected_return >= 1 raw unit"
+    )]
+    InvalidBeliefPrice { belief_price: String },
+
     #[error("Min return assertion: expected at least {minimum}, received {actual}")]
     MinReturnAssertion { minimum: String, actual: String },
 

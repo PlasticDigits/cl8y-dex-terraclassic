@@ -15,6 +15,11 @@
 //! GitLab #307: when both legs are present on the no-belief path, require a **material** pool
 //! leg (`pool_input` share of `offer_amount` and `pool_net_return > 0`) before applying the
 //! #273 book shortfall — otherwise reject (dust pool legs make the reference rate unstable).
+//!
+//! [#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230): a present `belief_price`
+//! must be strictly positive and must produce `expected_return >= 1` raw unit. Zero panics in
+//! CosmWasm `Decimal` division; a dust-floor belief used to skip both the L9 shortfall check and
+//! the #307 material-pool floor. Invalid belief is a contract error, never `Ok` and never a VM abort.
 
 use cosmwasm_std::{Decimal, Uint128};
 
@@ -65,20 +70,59 @@ pub fn validate_declared_hybrid_pool_leg_for_no_belief(
     Ok(())
 }
 
-/// When `book_input > 0` on execute without `belief_price`, callers must supply a hard output
-/// floor via pair `min_return` (GitLab #334 / #273 direction 3).
+/// When `book_input > 0` on execute without a **usable** `belief_price`, callers must supply a
+/// hard output floor via pair `min_return` (GitLab #334 / #273 direction 3).
+///
+/// Zero `belief_price` does not satisfy G8 ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230));
+/// dust-floor values (non-zero `bp` whose `offer / bp` floors to 0) are rejected later in
+/// [`check_max_spread`] / [`expected_return_from_belief`].
 pub fn validate_hybrid_book_requires_slippage_floor(
     book_input: Uint128,
     belief_price: Option<Decimal>,
     min_return: Option<Uint128>,
 ) -> Result<(), CheckMaxSpreadError> {
-    if book_input.is_zero() || belief_price.is_some() {
+    if book_input.is_zero() {
+        return Ok(());
+    }
+    if let Some(bp) = belief_price {
+        if bp.is_zero() {
+            return Err(CheckMaxSpreadError::InvalidBeliefPrice { belief_price: bp });
+        }
         return Ok(());
     }
     if min_return.is_some_and(|m| !m.is_zero()) {
         return Ok(());
     }
     Err(CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input })
+}
+
+/// Reciprocal `1 / belief_price` for the L9 belief path.
+///
+/// Rejects zero (CosmWasm `Decimal` division panics) and reciprocal underflow to 0.
+pub fn belief_price_reciprocal(belief_price: Decimal) -> Result<Decimal, CheckMaxSpreadError> {
+    if belief_price.is_zero() {
+        return Err(CheckMaxSpreadError::InvalidBeliefPrice { belief_price });
+    }
+    let inv = Decimal::one() / belief_price;
+    if inv.is_zero() {
+        return Err(CheckMaxSpreadError::InvalidBeliefPrice { belief_price });
+    }
+    Ok(inv)
+}
+
+/// Expected ask output `floor(offer_amount * (1 / belief_price))`.
+///
+/// Fail-closed when that product is 0 raw units (dust-floor belief).
+pub fn expected_return_from_belief(
+    belief_price: Decimal,
+    offer_amount: Uint128,
+) -> Result<Uint128, CheckMaxSpreadError> {
+    let inv = belief_price_reciprocal(belief_price)?;
+    let expected_return = offer_amount * inv;
+    if expected_return.is_zero() {
+        return Err(CheckMaxSpreadError::InvalidBeliefPrice { belief_price });
+    }
+    Ok(expected_return)
 }
 
 /// Leg amounts passed into the spread check after book + pool settlement.
@@ -214,6 +258,10 @@ pub enum CheckMaxSpreadError {
     BookHybridRequiresSlippageFloor {
         book_input: Uint128,
     },
+    /// `belief_price` is zero or floors `offer / belief_price` to 0 raw units (#1230).
+    InvalidBeliefPrice {
+        belief_price: Decimal,
+    },
 }
 
 /// Returns `Ok(())` when spread is within tolerance; `Err` when it strictly exceeds `max_spread`.
@@ -225,7 +273,7 @@ pub fn check_max_spread(
     let max_allowed = max_spread.unwrap_or_else(default_max_spread);
 
     if let Some(bp) = belief_price {
-        let expected_return = inputs.offer_amount * (Decimal::one() / bp);
+        let expected_return = expected_return_from_belief(bp, inputs.offer_amount)?;
         let actual_return = inputs
             .book_net_return
             .checked_add(inputs.pool_net_return)
@@ -242,9 +290,7 @@ pub fn check_max_spread(
             Uint128::zero()
         };
 
-        if expected_return > Uint128::zero()
-            && Decimal::from_ratio(spread, expected_return) > max_allowed
-        {
+        if Decimal::from_ratio(spread, expected_return) > max_allowed {
             return Err(CheckMaxSpreadError::SpreadExceeded(MaxSpreadViolation {
                 max_allowed,
                 actual: Decimal::from_ratio(spread, expected_return),
@@ -568,6 +614,93 @@ mod tests {
         )
         .unwrap();
         validate_hybrid_book_requires_slippage_floor(Uint128::zero(), None, None).unwrap();
+        assert!(matches!(
+            validate_hybrid_book_requires_slippage_floor(
+                Uint128::new(10_000),
+                Some(Decimal::zero()),
+                None
+            )
+            .unwrap_err(),
+            CheckMaxSpreadError::InvalidBeliefPrice { .. }
+        ));
+        assert!(matches!(
+            validate_hybrid_book_requires_slippage_floor(
+                Uint128::new(10_000),
+                Some(Decimal::zero()),
+                Some(Uint128::new(1))
+            )
+            .unwrap_err(),
+            CheckMaxSpreadError::InvalidBeliefPrice { .. }
+        ));
+    }
+
+    #[test]
+    fn belief_price_zero_is_err_not_panic() {
+        let inputs = MaxSpreadInputs::pool_only(
+            Uint128::new(100),
+            Uint128::new(90),
+            Uint128::new(10),
+            Uint128::new(1),
+        );
+        let err = check_max_spread(Some(Decimal::zero()), Some(Decimal::percent(1)), &inputs)
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            CheckMaxSpreadError::InvalidBeliefPrice { belief_price } if belief_price.is_zero()
+        ));
+    }
+
+    #[test]
+    fn belief_price_reciprocal_underflow_is_err() {
+        use std::str::FromStr;
+        // Decimal atomics > 10^36 ⇒ 1/bp floors to 0.
+        let bp = Decimal::from_str("1000000000000000001").unwrap();
+        assert!(belief_price_reciprocal(bp).is_err());
+        let inputs = MaxSpreadInputs::pool_only(
+            Uint128::new(1_000),
+            Uint128::new(90),
+            Uint128::new(10),
+            Uint128::new(1),
+        );
+        assert!(matches!(
+            check_max_spread(Some(bp), Some(Decimal::one()), &inputs).unwrap_err(),
+            CheckMaxSpreadError::InvalidBeliefPrice { .. }
+        ));
+    }
+
+    #[test]
+    fn belief_price_dust_floor_expected_return_is_err() {
+        // offer=1, bp=2 ⇒ floor(1 * 1/2) = 0, but 1/bp != 0.
+        let bp = Decimal::from_ratio(Uint128::new(2), Uint128::new(1));
+        assert!(!belief_price_reciprocal(bp).unwrap().is_zero());
+        let inputs = MaxSpreadInputs::pool_only(
+            Uint128::one(),
+            Uint128::new(90),
+            Uint128::new(10),
+            Uint128::new(1),
+        );
+        assert!(matches!(
+            check_max_spread(Some(bp), Some(Decimal::one()), &inputs).unwrap_err(),
+            CheckMaxSpreadError::InvalidBeliefPrice { .. }
+        ));
+        // Small offer, larger bp, healthy actual return, 100% max_spread still reject.
+        let offer = Uint128::new(1000);
+        let bp_dust = Decimal::from_ratio(Uint128::new(1001), Uint128::one());
+        let err = check_max_spread(
+            Some(bp_dust),
+            Some(Decimal::one()),
+            &MaxSpreadInputs::pool_only(
+                offer,
+                Uint128::new(900),
+                Uint128::new(10),
+                Uint128::new(5),
+            ),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            err,
+            CheckMaxSpreadError::InvalidBeliefPrice { .. }
+        ));
     }
 
     #[test]

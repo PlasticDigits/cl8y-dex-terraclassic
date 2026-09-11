@@ -19,7 +19,7 @@ Leftovers from [!480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/m
 | **G5** | `max_maker_fills == 0` **rejects**. Oversize **clamps** to `MAX_MAKER_FILLS_HARD_CAP` (100). |
 | **G6** | `book_start_hint` is caller-supplied; missing/stale/wrong-side → head (**L17**). A **live same-side** stale hint starts there; greedy **stop** can then dump the whole offer to the AMM (integrator risk, not auto-fallback to a better head). |
 | **G7** | Quote = execute: pair `HybridSimulation` and execute both call `resolve_swap_hybrid_mode(hybrid, greedy)` with **both** fields. Queries are read-only (no parks, no AfterSwap). |
-| **G8** | Greedy execute (and router greedy hops) require `belief_price` or `min_return` (same floor as pure-book hybrid). |
+| **G8** | Greedy execute (and router greedy hops) require a **usable** `belief_price` (strictly positive, `expected_return >= 1`) or `min_return` (same floor as pure-book hybrid). Zero / dust-floor belief is not a floor ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)). |
 | **G9** | Unfilled offer after the walk goes to the AMM. Wasm `greedy_stop=remainder_to_pool` when makers were filled and offer remains (not `empty`). |
 | **G10** | Reuse `match_bids` / `match_asks` / `simulate_match_*` — do not fork a second walker. |
 | **G11** | New serde shape `GreedySwapParams`. Do **not** overload Pattern C `pool_input=0, book_input=offer`. Setting both `hybrid` and `greedy` **rejects** on pair query, pair execute, router sim, and router execute. |

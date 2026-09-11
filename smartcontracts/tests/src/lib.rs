@@ -1351,8 +1351,8 @@ mod factory_tests {
                 &mut app,
                 cw20_code_id,
                 &user,
-                &format!("Satellite {}", i),
-                &format!("SAT{}", i),
+                &format!("Satellite {i}"),
+                &format!("SAT{i}"),
                 initial,
             );
             let resp = app
@@ -1438,8 +1438,8 @@ mod factory_tests {
                 &mut app,
                 cw20_code_id,
                 &user,
-                &format!("Satellite {}", i),
-                &format!("SAT{}", i),
+                &format!("Satellite {i}"),
+                &format!("SAT{i}"),
                 initial,
             );
             app.execute_contract(
@@ -2009,7 +2009,7 @@ mod factory_tests {
 #[cfg(test)]
 mod pair_tests {
     use super::helpers::*;
-    use cosmwasm_std::{to_json_binary, Uint128};
+    use cosmwasm_std::{to_json_binary, Decimal, Uint128};
     use cw_multi_test::{App, Executor};
 
     #[test]
@@ -2133,6 +2133,139 @@ mod pair_tests {
             .root_cause()
             .to_string()
             .contains("Max spread assertion"));
+    }
+
+    #[test]
+    fn test_swap_belief_price_zero_is_contract_error() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: Some(Decimal::zero()),
+            max_spread: Some(Decimal::one()),
+            min_return: None,
+            to: None,
+            deadline: None,
+            hybrid: None,
+            greedy: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(1_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        let msg = err.root_cause().to_string();
+        assert!(
+            msg.contains("Invalid belief_price"),
+            "zero belief_price must be a contract error, got: {msg}"
+        );
+        assert!(
+            !msg.to_lowercase().contains("panic"),
+            "must not VM-abort: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_swap_belief_price_zero_hybrid_simulation_is_query_error() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        let err = app
+            .wrap()
+            .query_wasm_smart::<dex_common::pair::HybridSimulationResponse>(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::HybridSimulation {
+                    offer_asset: dex_common::types::Asset {
+                        info: asset_info_token(&env.token_a),
+                        amount: Uint128::new(1_000),
+                    },
+                    hybrid: None,
+                    greedy: None,
+                    trader: None,
+                    sender: None,
+                    belief_price: Some(Decimal::zero()),
+                },
+            )
+            .unwrap_err();
+
+        let msg = err.to_string();
+        assert!(
+            msg.contains("Invalid belief_price"),
+            "simulation with belief_price 0 must be StdError, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_swap_belief_price_dust_floor_rejected_even_at_max_spread_one() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+
+        // offer=1000, bp=1001 ⇒ floor(1000 / 1001) = 0; pool fill is still > 0.
+        let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
+            belief_price: Some(Decimal::from_ratio(Uint128::new(1001), Uint128::one())),
+            max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::new(1)),
+            to: None,
+            deadline: None,
+            hybrid: None,
+            greedy: None,
+            trader: None,
+        })
+        .unwrap();
+
+        let err = app
+            .execute_contract(
+                env.user.clone(),
+                env.token_a.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(1_000),
+                    msg: swap_msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+
+        let msg = err.root_cause().to_string();
+        assert!(
+            msg.contains("Invalid belief_price"),
+            "dust-floor belief must not skip L9 even with min_return + 100% max_spread, got: {msg}"
+        );
     }
 
     #[test]
@@ -3392,8 +3525,7 @@ mod pair_coverage_tests {
         let msg = err.root_cause().to_string().to_lowercase();
         assert!(
             msg.contains("zero"),
-            "Expected zero-amount error, got: {}",
-            msg
+            "Expected zero-amount error, got: {msg}"
         );
     }
 
@@ -3677,8 +3809,7 @@ mod pair_coverage_tests {
         let msg = err.root_cause().to_string().to_lowercase();
         assert!(
             msg.contains("zero"),
-            "Expected zero-amount error, got: {}",
-            msg
+            "Expected zero-amount error, got: {msg}"
         );
     }
 
@@ -4037,8 +4168,7 @@ mod pair_coverage_tests {
             .unwrap_err();
         assert!(
             err.to_string().contains("Insufficient liquidity"),
-            "empty pool hybrid sim should fail closed: {}",
-            err
+            "empty pool hybrid sim should fail closed: {err}"
         );
     }
 
@@ -5016,8 +5146,8 @@ mod factory_coverage_tests {
                 &mut app,
                 cw20_code_id,
                 &user,
-                &format!("Satellite {}", i),
-                &format!("SAT{}", i),
+                &format!("Satellite {i}"),
+                &format!("SAT{i}"),
                 initial,
             );
             app.execute_contract(
@@ -5304,8 +5434,8 @@ mod factory_coverage_tests {
                 &mut app,
                 cw20_code_id,
                 &user,
-                &format!("Satellite {}", i),
-                &format!("SAT{}", i),
+                &format!("Satellite {i}"),
+                &format!("SAT{i}"),
                 initial,
             );
             app.execute_contract(
@@ -5403,8 +5533,8 @@ mod factory_coverage_tests {
                 &mut app,
                 cw20_code_id,
                 &user,
-                &format!("Satellite {}", i),
-                &format!("SAT{}", i),
+                &format!("Satellite {i}"),
+                &format!("SAT{i}"),
                 initial,
             );
             app.execute_contract(
@@ -6011,8 +6141,7 @@ mod router_coverage_tests {
         let msg = err.root_cause().to_string().to_lowercase();
         assert!(
             msg.contains("minimum receive") || msg.contains("minimum_receive"),
-            "Expected minimum receive error, got: {}",
-            msg
+            "Expected minimum receive error, got: {msg}"
         );
     }
 
@@ -6395,8 +6524,7 @@ mod router_coverage_tests {
         let s = err.root_cause().to_string();
         assert!(
             s.contains("Min return assertion"),
-            "router hop min_return above actual output must fail on pair, got: {}",
-            s
+            "router hop min_return above actual output must fail on pair, got: {s}"
         );
     }
 
@@ -6745,8 +6873,7 @@ mod hook_coverage_tests {
             .join(";");
         assert!(
             attrs.contains("skipped") && attrs.contains("burn_token"),
-            "attrs={}",
-            attrs
+            "attrs={attrs}"
         );
     }
 
@@ -6817,8 +6944,7 @@ mod hook_coverage_tests {
             .join(";");
         assert!(
             attrs.contains("skipped") && attrs.contains("tax_token"),
-            "attrs={}",
-            attrs
+            "attrs={attrs}"
         );
     }
 
@@ -6901,8 +7027,7 @@ mod hook_coverage_tests {
             .join(";");
         assert!(
             attrs.contains("skipped") && attrs.contains("tax_amount"),
-            "attrs={}",
-            attrs
+            "attrs={attrs}"
         );
     }
 
@@ -6966,8 +7091,7 @@ mod hook_coverage_tests {
         let s = err.root_cause().to_string();
         assert!(
             s.contains("does not match caller") || s.contains("PairSenderMismatch"),
-            "expected pair/sender mismatch rejection, got: {}",
-            s
+            "expected pair/sender mismatch rejection, got: {s}"
         );
     }
 
@@ -8084,9 +8208,7 @@ mod security_tests {
         // The attacker should not profit — fees make sandwich unprofitable
         assert!(
             attacker_total_after <= attacker_total_before,
-            "Sandwich attack should not be profitable: before={}, after={}",
-            attacker_total_before,
-            attacker_total_after
+            "Sandwich attack should not be profitable: before={attacker_total_before}, after={attacker_total_after}"
         );
 
         // Verify conservation
@@ -8306,9 +8428,7 @@ mod security_tests {
 
         assert!(
             total_after <= total_before,
-            "Flash provide+swap+withdraw should not be profitable: before={}, after={}",
-            total_before,
-            total_after
+            "Flash provide+swap+withdraw should not be profitable: before={total_before}, after={total_after}"
         );
     }
 
@@ -8684,8 +8804,7 @@ mod oracle_tests {
 
         assert!(
             (twap_f - 1.0).abs() < 0.05,
-            "TWAP should be close to 1.0 for equal pool, got {}",
-            twap_f
+            "TWAP should be close to 1.0 for equal pool, got {twap_f}"
         );
     }
 
@@ -11730,8 +11849,7 @@ mod sweep_tests {
         let err_str = err.root_cause().to_string();
         assert!(
             err_str.contains("not found") || err_str.contains("not registered"),
-            "Expected pair-not-found error, got: {}",
-            err_str
+            "Expected pair-not-found error, got: {err_str}"
         );
     }
 }
@@ -16286,9 +16404,7 @@ mod wrap_integration_tests {
         let user_b_after = query_cw20_balance(&app, &env.token_b, &env.user);
         assert!(
             user_b_after > user_b_before,
-            "User should receive token_b: before={}, after={}",
-            user_b_before,
-            user_b_after
+            "User should receive token_b: before={user_b_before}, after={user_b_after}"
         );
 
         let treasury_native_after = app
@@ -16298,9 +16414,7 @@ mod wrap_integration_tests {
             .amount;
         assert!(
             treasury_native_after > treasury_native_before,
-            "Treasury should gain native: before={}, after={}",
-            treasury_native_before,
-            treasury_native_after
+            "Treasury should gain native: before={treasury_native_before}, after={treasury_native_after}"
         );
     }
 
@@ -16380,9 +16494,7 @@ mod wrap_integration_tests {
             .amount;
         assert!(
             user_native_after > user_native_before,
-            "User should receive native uluna: before={}, after={}",
-            user_native_before,
-            user_native_after
+            "User should receive native uluna: before={user_native_before}, after={user_native_after}"
         );
     }
 
@@ -16643,9 +16755,7 @@ mod wrap_integration_tests {
             .amount;
         assert!(
             user_uusd_after > user_uusd_before,
-            "User should receive native uusd: before={}, after={}",
-            user_uusd_before,
-            user_uusd_after
+            "User should receive native uusd: before={user_uusd_before}, after={user_uusd_after}"
         );
     }
 
@@ -16688,9 +16798,7 @@ mod wrap_integration_tests {
         let lp_after = query_cw20_balance(&app, &env.lp_token, &env.user);
         assert!(
             lp_after > lp_before,
-            "User should receive LP tokens: before={}, after={}",
-            lp_before,
-            lp_after
+            "User should receive LP tokens: before={lp_before}, after={lp_after}"
         );
     }
 
@@ -16784,9 +16892,7 @@ mod wrap_integration_tests {
             .amount;
         assert!(
             native_after > native_before,
-            "User should receive native after unwrap: before={}, after={}",
-            native_before,
-            native_after
+            "User should receive native after unwrap: before={native_before}, after={native_after}"
         );
     }
 
@@ -17666,8 +17772,7 @@ mod wrap_security_tests {
                     msg.contains("overflow")
                         || msg.contains("Overflow")
                         || msg.contains("too large"),
-                    "Should fail cleanly with overflow, got: {}",
-                    msg
+                    "Should fail cleanly with overflow, got: {msg}"
                 );
             }
         }
