@@ -1182,6 +1182,12 @@ verify-issue-1213:
 	@chmod +x scripts/qa/verify-issue-1213.sh
 	./scripts/qa/verify-issue-1213.sh
 
+# git.cl8y.com #1231 — Observe query checked_from_ratio skip (no VM panic).
+.PHONY: verify-issue-1231
+verify-issue-1231:
+	@chmod +x scripts/qa/verify-issue-1231.sh
+	./scripts/qa/verify-issue-1231.sh
+
 .PHONY: verify-issue-646
 verify-issue-646:
 	@chmod +x scripts/qa/verify-issue-646.sh
