@@ -47,7 +47,7 @@ export function ProtocolDexHubPrices({ query }: ProtocolDexHubPricesProps) {
           const wrapName = wrapAriaName(ticker)
           return (
             <div key={ticker} data-testid={`protocol-dex-hub-${ticker}`}>
-              <dt className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
+              <dt className="text-xs tracking-wide mb-1" style={{ color: 'var(--ink-dim)' }}>
                 {HUB_PRICE_TICKER_LABEL[ticker]} / USD
               </dt>
               <dd

@@ -346,7 +346,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
 
   it('defaults to USTC and loads price plus history for that ticker', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
-    expect(await screen.findByRole('heading', { name: /USTC \/ USD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'USTC / USD' })).toBeInTheDocument()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
     expect(indexerClient.getOracleHistory).toHaveBeenCalledWith({ ticker: 'ustc', limit: 48 })
     expect(screen.getByTestId('protocol-oracle-tab-ustc')).toHaveAttribute('aria-selected', 'true')
@@ -358,9 +358,9 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   it('clicking LUNC refetches that ticker and updates the heading', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
-    await screen.findByRole('heading', { name: /USTC \/ USD/i })
+    await screen.findByRole('heading', { name: 'USTC / USD' })
     await user.click(screen.getByTestId('protocol-oracle-tab-lunc'))
-    expect(await screen.findByRole('heading', { name: /LUNC \/ USD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'LUNC / USD' })).toBeInTheDocument()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('lunc')
     expect(indexerClient.getOracleHistory).toHaveBeenCalledWith({ ticker: 'lunc', limit: 48 })
     expect(screen.getByText('Reference price')).toBeInTheDocument()
@@ -375,15 +375,17 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       sources: [{ source: 'test', price_usd: t === 'vfdusd' ? '0.87' : '0.00512', fetched_at: '2026-01-01T00:00:00Z' }],
     }))
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
-    await screen.findByRole('heading', { name: /USTC \/ USD/i })
+    await screen.findByRole('heading', { name: 'USTC / USD' })
     await user.click(screen.getByTestId('protocol-oracle-tab-vfdusd'))
-    expect(await screen.findByRole('heading', { name: /^vFDUSD$/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'vFDUSD' })).toBeInTheDocument()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('vfdusd')
     expect(indexerClient.getOracleHistory).toHaveBeenCalledWith({ ticker: 'vfdusd', limit: 48 })
     expect(await screen.findByText('FDUSD reference price')).toBeInTheDocument()
     expect(screen.queryByText('Reference price')).not.toBeInTheDocument()
     const venus = await screen.findByTestId('protocol-oracle-vfdusd-venus')
-    expect(within(venus).getByRole('heading', { name: /1 vFDUSD Price/i })).toBeInTheDocument()
+    expect(within(venus).getByRole('heading', { name: '1 vFDUSD Price' })).toBeInTheDocument()
+    expect(within(venus).getByRole('heading', { name: '1 vFDUSD Price' })).not.toHaveClass('uppercase')
+    expect(within(venus).getByText('1 vFDUSD Price', { selector: 'p' })).not.toHaveClass('uppercase')
     await waitFor(() => {
       expect(screen.getByTestId('protocol-oracle-vfdusd-venus-value')).toHaveTextContent(/0\.023/)
     })
@@ -400,11 +402,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
 
   it('rejects fdusd / XSS / path tickers and does not show Venus', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=fdusd' })
-    expect(await screen.findByRole('heading', { name: /USTC \/ USD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'USTC / USD' })).toBeInTheDocument()
     expect(screen.queryByTestId('protocol-oracle-vfdusd-venus')).not.toBeInTheDocument()
 
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=<img src=x onerror=alert(1)>' })
-    expect(await screen.findAllByRole('heading', { name: /USTC \/ USD/i })).toBeTruthy()
+    expect(await screen.findAllByRole('heading', { name: 'USTC / USD' })).toBeTruthy()
 
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=javascript:alert(1)' })
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
@@ -456,9 +458,9 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const ustc = screen.getByTestId('protocol-oracle-tab-ustc')
     ustc.focus()
     await user.keyboard('{ArrowRight}')
-    expect(await screen.findByRole('heading', { name: /LUNC \/ USD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'LUNC / USD' })).toBeInTheDocument()
     await user.keyboard('{ArrowRight}')
-    expect(await screen.findByRole('heading', { name: /^vFDUSD$/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'vFDUSD' })).toBeInTheDocument()
     expect(await screen.findByTestId('protocol-oracle-vfdusd-venus')).toBeInTheDocument()
   })
 
@@ -471,11 +473,11 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
 
   it('opens ?ticker=lunc and rejects unknown query values', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=lunc' })
-    expect(await screen.findByRole('heading', { name: /LUNC \/ USD/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'LUNC / USD' })).toBeInTheDocument()
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('lunc')
 
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=btc' })
-    expect(await screen.findAllByRole('heading', { name: /USTC \/ USD/i })).toBeTruthy()
+    expect(await screen.findAllByRole('heading', { name: 'USTC / USD' })).toBeTruthy()
 
     renderWithProviders(<ProtocolPage />, { route: '/protocol?ticker=../ustc' })
     expect(indexerClient.getOraclePrice).toHaveBeenCalledWith('ustc')
@@ -580,6 +582,41 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('ust1')
     expect(indexerClient.getOraclePrice).not.toHaveBeenCalledWith('custc')
     expect(screen.getByTestId('protocol-oracle-tabs').querySelectorAll('[role="tab"]')).toHaveLength(3)
+  })
+
+  it('preserves mixed-case product tickers on hub dts and oracle chrome (#1240)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const hub = await screen.findByTestId('protocol-dex-hub-prices')
+    const custcDt = within(hub).getByText('cUSTC / USD')
+    expect(custcDt).toBeInTheDocument()
+    expect(custcDt).not.toHaveClass('uppercase')
+    expect(within(hub).queryByText('CUSTC / USD')).not.toBeInTheDocument()
+    expect(within(hub).getByText('LUNC / USD')).not.toHaveClass('uppercase')
+    expect(within(hub).getByText('UST1 / USD')).not.toHaveClass('uppercase')
+    expect(within(hub).getByText('USTR / USD')).not.toHaveClass('uppercase')
+    expect(within(hub).getByRole('heading', { name: /DEX hub prices/i })).toHaveClass('uppercase')
+
+    const oracle = screen.getByTestId('protocol-oracle')
+    const ustcHeading = within(oracle).getByRole('heading', { name: 'USTC / USD' })
+    expect(ustcHeading).not.toHaveClass('uppercase')
+    expect(screen.queryByRole('heading', { name: 'cUSTC / USD' })).not.toBeInTheDocument()
+    const vfdusdTab = screen.getByTestId('protocol-oracle-tab-vfdusd')
+    expect(vfdusdTab.textContent).toBe('vFDUSD')
+    expect(vfdusdTab).not.toHaveClass('uppercase')
+    expect(screen.getByTestId('protocol-oracle-tab-ustc').textContent).toBe('USTC')
+    expect(screen.getByTestId('protocol-oracle-tab-lunc').textContent).toBe('LUNC')
+
+    await user.click(vfdusdTab)
+    const vfdusdHeading = await screen.findByRole('heading', { name: 'vFDUSD' })
+    expect(vfdusdHeading).not.toHaveClass('uppercase')
+    expect(screen.queryByRole('heading', { name: 'VFDUSD' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'vFDUSD / USD' })).not.toBeInTheDocument()
+    expect(await screen.findByText('FDUSD reference price')).toBeInTheDocument()
+    const venus = await screen.findByTestId('protocol-oracle-vfdusd-venus')
+    expect(within(venus).getByRole('heading', { name: '1 vFDUSD Price' })).not.toHaveClass('uppercase')
+    expect(within(venus).getByText('1 vFDUSD Price', { selector: 'p' })).not.toHaveClass('uppercase')
+    expect(oracle).toHaveTextContent(/CEX FDUSD reference and Venus redeem rate — not settlement/)
   })
 
   it('null hub prices render em-dash, not $0 or $1', async () => {
