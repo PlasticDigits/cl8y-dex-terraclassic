@@ -177,6 +177,7 @@ make verify-issue-679                    # #679 mixed hybrid+pool router gas + S
 make verify-issue-708                    # #708 greedy book-first swap (multitest + gas + docs)
 make verify-issue-709                    # #709 greedy query mutex + remainder_to_pool + pool_spot overflow
 make verify-issue-710                    # #710 greedy tax / pause / blacklist / AfterSwap L7
+make verify-issue-1227                   # #1227 UpdateLimitOrderPrice equal-price FIFO (keep order_id)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
@@ -332,6 +333,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Cosmostation CW20 pack | `make verify-issue-640` |
 | Hexxagon CW20 pack | `make verify-issue-641` |
 | Indexer lib | `cd indexer && cargo test --lib` |
+| Limit reprice FIFO | `make verify-issue-1227` |
 | Charts newest-N candles + interval chip | `make verify-issue-705` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
@@ -447,6 +449,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_TIERS_PHONE.md](skills/AGENTS_FRONTEND_TIERS_PHONE.md) — `/tiers` phone-width cards + How it works stack (**T651-1–T651-8** / **I15**, [#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)); `make verify-issue-651`
 - [skills/AGENTS_FRONTEND_SHARE_LINK.md](skills/AGENTS_FRONTEND_SHARE_LINK.md) — `/trader/:address` Share (Web Share + clipboard) (**TS-1–TS-13**, [#665](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/665)); `make verify-issue-665`
 - [skills/AGENTS_LIMIT_PRICE_DECIMALS.md](skills/AGENTS_LIMIT_PRICE_DECIMALS.md) — limit-order price band is **human-scale** `raw × 10^(dec0 − dec1)` so UST1/USTR can place (**L20** / [#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529)); `make verify-issue-529`
+- [skills/AGENTS_LIMIT_ORDER_REPRICE_FIFO.md](skills/AGENTS_LIMIT_ORDER_REPRICE_FIFO.md) — `UpdateLimitOrderPrice` keeps `order_id` but joins the equal-price **tail** (**L23** / **R1227-1–R1227-8**, [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227)); `make verify-issue-1227`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md](skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) — `/trade` Place limit / Market CTA docks to ticket bottom; Chrome sticky mid-form float (**T527-1–T527-10**, [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527)); `make verify-issue-527`
 - [skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md](skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` desktop CSS grid (no drag-resize), independent tape row, hide book/ticket (**L561-1–L561-12**, [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)); `make verify-issue-561`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md](skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) — `/trade` full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell side control (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)); `make verify-issue-563`

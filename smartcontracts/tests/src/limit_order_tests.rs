@@ -15,8 +15,8 @@ use dex_common::pair::{
     ExpiredLimitRefundResponse, GreedyStopReason, GreedySwapParams,
     HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
     LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
-    PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
-    MAX_MAKER_FILLS_HARD_CAP,
+    OrderStatusResponse, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
 
@@ -464,6 +464,53 @@ fn query_limit(app: &App, pair: &cosmwasm_std::Addr, order_id: u64) -> LimitOrde
     app.wrap()
         .query_wasm_smart(pair.to_string(), &QueryMsg::LimitOrder { order_id })
         .unwrap()
+}
+
+fn query_status(app: &App, pair: &cosmwasm_std::Addr, order_id: u64) -> OrderStatusResponse {
+    app.wrap()
+        .query_wasm_smart(pair.to_string(), &QueryMsg::OrderStatus { order_id })
+        .unwrap()
+}
+
+fn query_book_head(app: &App, pair: &cosmwasm_std::Addr, side: LimitOrderSide) -> Option<u64> {
+    app.wrap()
+        .query_wasm_smart(pair.to_string(), &QueryMsg::OrderBookHead { side })
+        .unwrap()
+}
+
+fn walk_book_ids(app: &App, pair: &cosmwasm_std::Addr, side: LimitOrderSide) -> Vec<u64> {
+    let mut ids = Vec::new();
+    let mut cur = query_book_head(app, pair, side);
+    while let Some(id) = cur {
+        ids.push(id);
+        cur = query_limit(app, pair, id).next;
+    }
+    ids
+}
+
+fn fill_event_order_ids(events: &[cosmwasm_std::Event]) -> Vec<u64> {
+    events
+        .iter()
+        .filter(|e| {
+            e.attributes
+                .iter()
+                .any(|a| a.key == "action" && a.value == "limit_order_fill")
+        })
+        .filter_map(|e| {
+            e.attributes
+                .iter()
+                .find(|a| a.key == "order_id")
+                .and_then(|a| a.value.parse().ok())
+        })
+        .collect()
+}
+
+fn events_include_cw20_transfer(events: &[cosmwasm_std::Event]) -> bool {
+    events.iter().any(|e| {
+        e.attributes
+            .iter()
+            .any(|a| a.key == "action" && (a.value == "transfer" || a.value == "send"))
+    })
 }
 
 #[test]
@@ -3232,6 +3279,672 @@ fn update_limit_order_price_changes_price_not_remaining() {
     assert_eq!(after.order_id, order_id);
     assert_eq!(after.remaining, before.remaining);
     assert_eq!(after.price, new_price);
+}
+
+/// GitLab #1227 — B (older id) reprices onto A's price and must not leapfrog A (T1, T8, T10, AC7).
+#[test]
+fn fifo_bids_after_update_limit_order_price_fills_earlier_arrival() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let alice = cosmwasm_std::Addr::unchecked("alice_reprice_fifo");
+    let bob = cosmwasm_std::Addr::unchecked("bob_reprice_fifo");
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &alice,
+        Uint128::new(2_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &bob,
+        Uint128::new(2_000_000),
+    );
+
+    let p = Decimal::one();
+    let p_other = Decimal::from_ratio(99u128, 100u128);
+    let id_b = place_bid(
+        &mut app,
+        &env.pair,
+        &bob,
+        &env.token_b,
+        Uint128::new(100_000),
+        p_other,
+    );
+    let id_a = place_bid(
+        &mut app,
+        &env.pair,
+        &alice,
+        &env.token_b,
+        Uint128::new(100_000),
+        p,
+    );
+    assert!(id_b < id_a);
+    let rem_b_before = query_limit(&app, &env.pair, id_b).remaining;
+    let rem_a_before = query_status(&app, &env.pair, id_a)
+        .remaining
+        .expect("alice active remaining");
+
+    let upd = app
+        .execute_contract(
+            bob.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::UpdateLimitOrderPrice {
+                order_id: id_b,
+                price: p,
+                hint_after_order_id: Some(id_a),
+                max_adjust_steps: 32,
+            },
+            &[],
+        )
+        .unwrap();
+    assert!(
+        !events_include_cw20_transfer(&upd.events),
+        "price relink must not move CW20"
+    );
+    assert_eq!(query_limit(&app, &env.pair, id_b).remaining, rem_b_before);
+    let b_after = query_limit(&app, &env.pair, id_b);
+    assert_eq!(
+        query_book_head(&app, &env.pair, LimitOrderSide::Bid),
+        Some(id_a)
+    );
+    assert_eq!(b_after.prev, Some(id_a));
+    assert!(b_after.next.is_none());
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_reprice_fifo");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(200_000),
+    );
+
+    let hybrid = HybridSwapParams {
+        pool_input: Uint128::zero(),
+        book_input: Uint128::new(50_000),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let sim: HybridSimulationResponse = app
+        .wrap()
+        .query_wasm_smart(
+            env.pair.to_string(),
+            &QueryMsg::HybridSimulation {
+                offer_asset: Asset {
+                    info: asset_info_token(&env.token_a),
+                    amount: Uint128::new(50_000),
+                },
+                hybrid: Some(hybrid.clone()),
+                greedy: None,
+                trader: None,
+                sender: None,
+                belief_price: None,
+            },
+        )
+        .unwrap();
+    assert!(sim.book_return_amount > Uint128::zero());
+
+    let res = {
+        let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+            belief_price: None,
+            max_spread: Some(Decimal::one()),
+            min_return: Some(Uint128::one()),
+            to: None,
+            deadline: None,
+            hybrid: Some(hybrid),
+            greedy: None,
+            trader: None,
+        })
+        .unwrap();
+        app.execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(50_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap()
+    };
+    assert_eq!(fill_event_order_ids(&res.events), vec![id_a]);
+    let rem_a = query_status(&app, &env.pair, id_a)
+        .remaining
+        .expect("alice still active");
+    let lo_b = query_limit(&app, &env.pair, id_b);
+    assert_eq!(
+        rem_a,
+        rem_a_before.checked_sub(Uint128::new(50_000)).unwrap()
+    );
+    assert_eq!(lo_b.remaining, rem_b_before);
+
+    // T8: next take still drains A before B (keep size below A's leftover so A stays on book).
+    swap_a_to_b_hybrid(
+        &mut app,
+        &env.pair,
+        &taker,
+        &env.token_a,
+        Uint128::new(10_000),
+        Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(10_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+    );
+    let rem_a = query_status(&app, &env.pair, id_a)
+        .remaining
+        .expect("alice still active after T8");
+    let lo_b = query_limit(&app, &env.pair, id_b);
+    assert!(rem_a < rem_a_before.checked_sub(Uint128::new(50_000)).unwrap());
+    assert_eq!(lo_b.remaining, rem_b_before);
+}
+
+/// Regression: LimitOrder query after inserting a better bid in front of a worse rest (batch path).
+#[test]
+fn fifo_after_update_limit_order_price_better_bid_second_is_queryable() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let worse = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        Decimal::from_ratio(99u128, 100u128),
+    );
+    let better = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        Decimal::one(),
+    );
+    assert!(worse < better);
+    let lo = query_limit(&app, &env.pair, better);
+    assert_eq!(lo.order_id, better);
+    assert_eq!(
+        query_book_head(&app, &env.pair, LimitOrderSide::Bid),
+        Some(better)
+    );
+}
+
+/// GitLab #1227 T2 — ask-side twin of equal-price relink FIFO.
+#[test]
+fn fifo_asks_after_update_limit_order_price_fills_earlier_arrival() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let alice = cosmwasm_std::Addr::unchecked("alice_ask_reprice");
+    let bob = cosmwasm_std::Addr::unchecked("bob_ask_reprice");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &alice,
+        Uint128::new(2_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &bob,
+        Uint128::new(2_000_000),
+    );
+
+    let p = Decimal::one();
+    let id_b = place_ask(
+        &mut app,
+        &env.pair,
+        &bob,
+        &env.token_a,
+        Uint128::new(100_000),
+        Decimal::from_ratio(101u128, 100u128),
+    );
+    let id_a = place_ask(
+        &mut app,
+        &env.pair,
+        &alice,
+        &env.token_a,
+        Uint128::new(100_000),
+        p,
+    );
+    assert!(id_b < id_a);
+    let rem_b = query_limit(&app, &env.pair, id_b).remaining;
+
+    app.execute_contract(
+        bob.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_b,
+            price: p,
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Ask),
+        vec![id_a, id_b]
+    );
+    assert_eq!(query_limit(&app, &env.pair, id_b).remaining, rem_b);
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_ask_reprice");
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &taker,
+        Uint128::new(200_000),
+    );
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::zero(),
+            book_input: Uint128::new(50_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        greedy: None,
+        trader: None,
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            taker,
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: Uint128::new(50_000),
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap();
+    assert_eq!(fill_event_order_ids(&res.events), vec![id_a]);
+    assert_eq!(query_limit(&app, &env.pair, id_b).remaining, rem_b);
+}
+
+/// GitLab #1227 T4/T5 — better price still heads; worse price stays behind.
+#[test]
+fn fifo_after_update_limit_order_price_respects_price_priority() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let id_a = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::one(),
+    );
+    let id_b = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(50_000),
+        Decimal::from_ratio(99u128, 100u128),
+    );
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_b,
+            price: Decimal::from_ratio(101u128, 100u128),
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+        vec![id_b, id_a],
+        "better bid must be the new head"
+    );
+
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_b,
+            price: Decimal::from_ratio(90u128, 100u128),
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+        vec![id_a, id_b],
+        "worse bid must sort behind A"
+    );
+}
+
+/// GitLab #1227 T6 — leave and rejoin P at the tail, not the original slot.
+#[test]
+fn fifo_after_update_limit_order_price_middle_returns_at_tail() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let p = Decimal::one();
+    let id_a = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p,
+    );
+    let id_b = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p,
+    );
+    let id_c = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p,
+    );
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+        vec![id_a, id_b, id_c]
+    );
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_b,
+            price: Decimal::from_ratio(99u128, 100u128),
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_b,
+            price: p,
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+        vec![id_a, id_c, id_b]
+    );
+}
+
+/// GitLab #1227 T7 / AC5 — same-price update is a no-op (no free bump).
+#[test]
+fn fifo_after_update_limit_order_price_same_price_does_not_bump() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let p = Decimal::one();
+    let id_a = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p,
+    );
+    let id_b = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p,
+    );
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_a,
+            price: p,
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+        vec![id_a, id_b]
+    );
+}
+
+/// GitLab #1227 A1 — grind P'→P→P'→P cannot climb to the head.
+#[test]
+fn fifo_after_update_limit_order_price_repeat_cannot_grind_head() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let p = Decimal::one();
+    let p2 = Decimal::from_ratio(99u128, 100u128);
+    let id_a = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p,
+    );
+    let id_b = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        p2,
+    );
+    for _ in 0..3 {
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::UpdateLimitOrderPrice {
+                order_id: id_b,
+                price: p,
+                hint_after_order_id: None,
+                max_adjust_steps: 32,
+            },
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+            vec![id_a, id_b]
+        );
+        app.execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::UpdateLimitOrderPrice {
+                order_id: id_b,
+                price: p2,
+                hint_after_order_id: None,
+                max_adjust_steps: 32,
+            },
+            &[],
+        )
+        .unwrap();
+    }
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id_b,
+            price: p,
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        walk_book_ids(&app, &env.pair, LimitOrderSide::Bid),
+        vec![id_a, id_b]
+    );
+}
+
+/// GitLab #1227 A3 / AC6 — failed relink is all-or-nothing (order stays at old price).
+#[test]
+fn fifo_after_update_limit_order_price_steps_exceeded_is_atomic() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let mut ids = Vec::new();
+    for i in 0..6u128 {
+        ids.push(place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(5_000),
+            Decimal::from_ratio(100u128 - i, 100u128),
+        ));
+    }
+    let head = ids[0];
+    let old = query_limit(&app, &env.pair, head);
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.pair.clone(),
+            &ExecuteMsg::UpdateLimitOrderPrice {
+                order_id: head,
+                price: Decimal::from_ratio(90u128, 100u128),
+                hint_after_order_id: None,
+                max_adjust_steps: 1,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let s = err.root_cause().to_string();
+    assert!(
+        s.contains("max adjust steps") || s.contains("Limit order insert"),
+        "{s}"
+    );
+    let still = query_limit(&app, &env.pair, head);
+    assert_eq!(still.price, old.price);
+    assert_eq!(still.remaining, old.remaining);
+    assert_eq!(
+        query_book_head(&app, &env.pair, LimitOrderSide::Bid),
+        Some(head)
+    );
+}
+
+/// GitLab #1227 A4 — non-owner cannot relink.
+#[test]
+fn fifo_after_update_limit_order_price_non_owner_rejected() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+    let id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        Uint128::new(20_000),
+        Decimal::one(),
+    );
+    let stranger = cosmwasm_std::Addr::unchecked("not_owner");
+    app.execute_contract(
+        stranger,
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id: id,
+            price: Decimal::from_ratio(99u128, 100u128),
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .unwrap_err();
+    assert_eq!(query_limit(&app, &env.pair, id).price, Decimal::one());
 }
 
 #[test]

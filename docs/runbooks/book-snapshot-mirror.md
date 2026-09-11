@@ -8,7 +8,7 @@ GitLab [#322](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_item
 
 1. Reads latest block height (best-effort).
 2. For every row in `pairs`, queries LCD for pool reserves, fee config, and the full resting book (bid + ask FIFO walks).
-3. Upserts `pair_reserves` and atomically replaces `resting_limit_orders` per pair.
+3. Upserts `pair_reserves` and atomically replaces `resting_limit_orders` per pair. Resting rows store **`walk_index`** from that head→tail walk so equal-price FIFO after `UpdateLimitOrderPrice` is not rebuilt from `order_id` ([#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227) / **L23**).
 
 Per-pair LCD failures are logged and skipped; the pair keeps its last good snapshot.
 
@@ -46,9 +46,11 @@ Fixed four calls per pair: `pool`, `get_fee_config`, `order_book_head` (bid), `o
 
 - Unit: `cargo test -p cl8y-dex-indexer book_snapshot::tests`
 - Integration (Postgres): `cargo test -p cl8y-dex-indexer --test book_snapshot_loop`
+- Reprice FIFO mirror: `cargo test -p cl8y-dex-indexer --test db_orderbook_mirror resting_book_walk_index_preserves_reprice_fifo`
 
 ## Related
 
 - Phase 1a schema: [#279](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/279)
 - Phase 1c consumer: [#319](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/319)
+- Equal-price FIFO after reprice: [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227); skill [`AGENTS_LIMIT_ORDER_REPRICE_FIFO.md`](../../skills/AGENTS_LIMIT_ORDER_REPRICE_FIFO.md)
 - Indexer invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md)
