@@ -3241,6 +3241,84 @@ fn fifo_two_bids_same_price_older_filled_first() {
     assert_eq!(lo_b.remaining, rem_after_place);
 }
 
+/// GitLab #1227 / AC3 — ask twin of equal-price new-placement FIFO.
+#[test]
+fn fifo_two_asks_same_price_older_filled_first() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let alice = Addr::unchecked("alice_fifo_ask");
+    let bob = Addr::unchecked("bob_fifo_ask");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &alice,
+        Uint128::new(2_000_000),
+    );
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &bob,
+        Uint128::new(2_000_000),
+    );
+
+    let id_alice = place_ask(
+        &mut app,
+        &env.pair,
+        &alice,
+        &env.token_a,
+        Uint128::new(100_000),
+        Decimal::one(),
+    );
+    let id_bob = place_ask(
+        &mut app,
+        &env.pair,
+        &bob,
+        &env.token_a,
+        Uint128::new(100_000),
+        Decimal::one(),
+    );
+    assert!(id_alice < id_bob);
+
+    let taker = Addr::unchecked("taker_fifo_ask");
+    transfer_tokens(
+        &mut app,
+        &env.token_b,
+        &env.user,
+        &taker,
+        Uint128::new(200_000),
+    );
+    let res = hybrid_swap_b_to_a(
+        &mut app,
+        &env,
+        &taker,
+        Uint128::new(50_000),
+        8,
+        Some(Uint128::one()),
+    );
+    assert_eq!(count_limit_order_fill_events(&res.events), 1);
+    let rem_after_place = Uint128::new(100_000)
+        .checked_sub(Uint128::new(100_000).multiply_ratio(15u128, 10_000u128))
+        .unwrap();
+    assert_eq!(
+        query_limit(&app, &env.pair, id_alice).remaining,
+        rem_after_place.checked_sub(Uint128::new(50_000)).unwrap()
+    );
+    assert_eq!(
+        query_limit(&app, &env.pair, id_bob).remaining,
+        rem_after_place
+    );
+}
+
 #[test]
 fn update_limit_order_price_changes_price_not_remaining() {
     let mut app = App::default();

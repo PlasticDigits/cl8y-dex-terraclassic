@@ -60,4 +60,5 @@ Indexer (Postgres): `resting_book_walk_index_preserves_reprice_fifo` in `db_orde
 - [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md) — **L14** / **L17** hints cannot invert FIFO
 - [`AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](./AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md) — Edit still one tx, same id (**T11**)
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — **L8** sim = execute
+- [`AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](./AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — CG/CMC synthetic depth is **not** the on-chain FIFO walk
 - [`docs/runbooks/book-snapshot-mirror.md`](../docs/runbooks/book-snapshot-mirror.md) — snapshot walk order

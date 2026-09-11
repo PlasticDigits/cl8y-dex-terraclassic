@@ -41,7 +41,7 @@ echo "════════════════════════�
 echo "  Forgejo #1227 — UpdateLimitOrderPrice equal-price FIFO"
 echo "════════════════════════════════════════════════════════════════"
 
-export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
+export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH:-}"
 
 run_step "pair unit: fifo_after_update_limit_order_price" \
   bash -c 'cd smartcontracts && cargo test -p cl8y-dex-pair --lib fifo_after_update_limit_order_price -- --quiet'
@@ -49,11 +49,17 @@ run_step "pair unit: fifo_after_update_limit_order_price" \
 run_step "pair unit: fifo_bid_after_update_limit_order_price_joins_equal_price_tail" \
   bash -c 'cd smartcontracts && cargo test -p cl8y-dex-pair --lib fifo_bid_after_update_limit_order_price_joins_equal_price_tail -- --quiet'
 
+run_step "pair unit: fifo_ask_after_update_limit_order_price_joins_equal_price_tail" \
+  bash -c 'cd smartcontracts && cargo test -p cl8y-dex-pair --lib fifo_ask_after_update_limit_order_price_joins_equal_price_tail -- --quiet'
+
 run_step "integration: fifo after UpdateLimitOrderPrice (T1–T10 / A1–A4)" \
   bash -c 'cd smartcontracts && cargo test -p cl8y-dex-tests after_update_limit_order_price -- --quiet'
 
 run_step "integration: fifo_two_bids_same_price_older_filled_first (T3)" \
   bash -c 'cd smartcontracts && cargo test -p cl8y-dex-tests fifo_two_bids_same_price_older_filled_first -- --quiet'
+
+run_step "integration: fifo_two_asks_same_price_older_filled_first (AC3)" \
+  bash -c 'cd smartcontracts && cargo test -p cl8y-dex-tests fifo_two_asks_same_price_older_filled_first -- --quiet'
 
 run_step "integration: update_limit_order_price_changes_price_not_remaining (#247)" \
   bash -c 'cd smartcontracts && cargo test -p cl8y-dex-tests update_limit_order_price_changes_price_not_remaining -- --quiet'
@@ -72,11 +78,12 @@ run_step "docs: L23 + ordering + skill" \
     rg -q "AGENTS_LIMIT_ORDER_REPRICE_FIFO" skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md
     rg -q "AGENTS_LIMIT_ORDER_REPRICE_FIFO" skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md
     rg -q "AGENTS_LIMIT_ORDER_REPRICE_FIFO" skills/AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md
+    rg -q "AGENTS_LIMIT_ORDER_REPRICE_FIFO" skills/AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md
     rg -q "walk_index" indexer/src/db/queries/resting_orders.rs
     rg -q "RELINK_EQUAL_PRICE_SORT_ID" smartcontracts/contracts/pair/src/orderbook.rs
   '
 
-if [[ "${VERIFY1227_INDEXER:-0}" == "1" ]]; then
+if [[ "${VERIFY1227_INDEXER:-0}" == "1" || -f "$REPO_ROOT/indexer/.env" ]]; then
   run_step "indexer: resting_book_walk_index_preserves_reprice_fifo" \
     bash -c 'cd indexer && cargo test --test db_orderbook_mirror resting_book_walk_index_preserves_reprice_fifo -- --test-threads=1 --quiet'
 fi

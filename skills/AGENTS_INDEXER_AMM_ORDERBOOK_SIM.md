@@ -11,6 +11,7 @@ GitLab **#220** (hybrid merge), **#210** (AMM pool leg), **#222** / **#224** (li
 | `orderbook_sim.rs` | Pool **curve walk** + cache + LCD pool/fee; calls hybrid merge when enabled |
 | `hybrid_orderbook_sim.rs` | **Merge** pool levels + limit LCD levels for listing APIs |
 | Pair `limit-book` / `limit_book_lcd.rs` | On-chain **FIFO** resting orders (integrator + dApp) |
+| `resting_orders.walk_index` / `db_orderbook_sim` | Live book walk after `UpdateLimitOrderPrice` (**L23** / [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227)) — not CG/CMC synthetic depth |
 | `tests/common/lcd_mock.rs` | Wiremock **LCD HTTP** — use `start_pool_query_mock` (empty book) or `start_hybrid_orderbook_mock` |
 
 ## Normative spec
@@ -63,3 +64,5 @@ cd indexer && cargo test --test api_orderbook_lcd_mock -- --test-threads=1
 ```
 
 Unit tests: `hybrid_orderbook_sim.rs`, `orderbook_sim.rs` `#[cfg(test)]`, `listing_timestamps.rs` (ms/s skew). Integration: `tests/api_orderbook_lcd_mock.rs` (wiremock LCD + Postgres; asserts numeric timestamps per **#222**).
+
+On-chain reprice FIFO (`walk_index`, **L23**): [`AGENTS_LIMIT_ORDER_REPRICE_FIFO.md`](./AGENTS_LIMIT_ORDER_REPRICE_FIFO.md).
