@@ -382,6 +382,34 @@ def _self_test() -> None:
     assert int(ustr_only["lp_custc"]["custc"]) == 0
     assert int(ustr_only["lp_ustr"]["ust1"]) > 0
     assert int(ustr_only["mint"]["custc"]) == 0
+
+    # Swap-only (no LP): mint covers the UST1/cUSTC offer, not USTR or provide legs.
+    swap_only = build_plan(
+        {
+            "ustc_usd": str(ustc),
+            "custc_r0": r0,
+            "custc_r1": r1,
+            "ustr_r0": 0,
+            "ustr_r1": 0,
+            "bal_ust1": 0,
+            "bal_custc": 0,
+            "bal_ustr": 0,
+            "usd_custc": 0,
+            "usd_ustr": 0,
+            "skip_swap": False,
+            "tolerance": "0.001",
+            "fee_bps": 180,
+            "buffer_bps": 0,
+        }
+    )
+    assert swap_only["swap"]["needed"] is True
+    assert swap_only["swap"]["offer_token"] == "ust1"
+    assert int(swap_only["lp_custc"]["ust1"]) == 0
+    assert int(swap_only["lp_custc"]["custc"]) == 0
+    assert int(swap_only["lp_ustr"]["ust1"]) == 0
+    assert int(swap_only["lp_ustr"]["ustr"]) == 0
+    assert int(swap_only["mint"]["ust1"]) == int(swap_only["swap"]["offer_amount"])
+    assert int(swap_only["mint"]["ustr"]) == 0
     print("self-test ok", file=sys.stderr)
 
 

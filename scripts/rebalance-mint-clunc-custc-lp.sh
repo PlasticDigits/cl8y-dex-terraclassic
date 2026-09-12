@@ -3,7 +3,13 @@
 # rungs ($200 → $500 → $2k → $5k → $10k, $5k each side at the end), send LP to
 # the CMM treasury, then holder-burn leftover cLUNC/cUSTC on the ops wallet.
 #
-# Flow (each rung):
+# No-rebalance mode (keep a cLUNC premium so LUNC inflows stay attractive):
+#   CLUNC_LP_SKIP_SWAP=1 CLUNC_LP_ADD_USD=10000
+#   or: ./scripts/mint-clunc-custc-lp.sh
+#   Adds ~$10k oracle TVL at the live pool ratio. Does not swap. USD legs are
+#   not 50/50 while the pool is off peg. Refuses an empty pool.
+#
+# Flow (each rung, rebalance mode):
 #   1. Fetch indexer oracles, cross-check live CEX (CoinGecko/Binance/KuCoin/MEXC).
 #   2. Pool-only swap until human cUSTC-per-cLUNC is within 0.1% of LUNC_USD/USTC_USD.
 #   3. Mint (primary minter) or wrap native to cover the TVL delta.
@@ -17,6 +23,7 @@
 #   CLUNC_LP_YES=1 ./scripts/rebalance-mint-clunc-custc-lp.sh
 #   CLUNC_LP_BURN_ONLY=1 CLUNC_LP_YES=1 ./scripts/rebalance-mint-clunc-custc-lp.sh
 #   CLUNC_LP_MINT_MODE=wrap  # treasury WrapDeposit instead of unbacked mint
+#   DRY_RUN=1 ./scripts/mint-clunc-custc-lp.sh  # $5k+$5k at live ratio, no swap
 #
 # Unlock once (non-interactive):
 #   read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
@@ -57,12 +64,14 @@ PROVIDE_SLIP="${CLUNC_LP_PROVIDE_SLIPPAGE:-0.005}"
 BUFFER_BPS="${CLUNC_LP_MINT_BUFFER_BPS:-50}"
 LCD_TIMEOUT="${CLUNC_LP_LCD_TIMEOUT:-25}"
 GAS_RESERVE_ULUNA="${CLUNC_LP_GAS_RESERVE_ULUNA:-2000000000}"
+SKIP_SWAP="${CLUNC_LP_SKIP_SWAP:-0}"
+FORCE_ADD_USD="${CLUNC_LP_ADD_USD:-}"
 HTTP_UA="cl8y-dex-ops/clunc-custc-lp (+https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -335,6 +344,7 @@ fetch_oracles_ok() {
 
 plan_step() {
   local target_usd="$1"
+  local force_add="${2:-}"
   python3 "$MATH_PY" <<EOF
 {
   "mode": "plan-step",
@@ -350,7 +360,9 @@ plan_step() {
   "r0": "$R0",
   "r1": "$R1",
   "bal_clunc": "$BAL_CLUNC",
-  "bal_custc": "$BAL_CUSTC"
+  "bal_custc": "$BAL_CUSTC",
+  "skip_swap": $([[ "$SKIP_SWAP" == "1" ]] && echo true || echo false),
+  "force_add_usd": $([[ -n "$force_add" ]] && echo "\"$force_add\"" || echo null)
 }
 EOF
 }
@@ -404,6 +416,11 @@ fund_inventory() {
 
 execute_rebalance_swaps() {
   local i token amt live
+  if [[ "$SKIP_SWAP" == "1" ]]; then
+    refresh_pool
+    echo "  skip rebalance (CLUNC_LP_SKIP_SWAP=1); live price $CUR_PX"
+    return 0
+  fi
   for ((i = 1; i <= SWAP_MAX_ITERS; i++)); do
     refresh_pool
     if rel_err_ok "$CUR_PX" "$TARGET_PX"; then
@@ -459,13 +476,22 @@ burn_admin_wrap() {
 }
 
 echo "=============================================="
-echo "Rebalance + mint cLUNC/cUSTC LP → CMM"
+if [[ "$SKIP_SWAP" == "1" ]]; then
+  echo "Mint cLUNC/cUSTC LP at live ratio → CMM (NO rebalance)"
+else
+  echo "Rebalance + mint cLUNC/cUSTC LP → CMM"
+fi
 echo "=============================================="
 echo "Pair:       $PAIR"
 echo "Treasury:   $TREASURY"
 echo "Admin key:  $ADMIN_KEY ($ADMIN_ADDR)"
 echo "Minter key: $MINTER_KEY ($MINTER_ADDR)"
-echo "Rungs USD:  $RUNGS"
+if [[ -n "$FORCE_ADD_USD" ]]; then
+  echo "Add USD:    $FORCE_ADD_USD (at live pool ratio)"
+else
+  echo "Rungs USD:  $RUNGS"
+fi
+echo "Skip swap:  $SKIP_SWAP"
 echo "Tolerance:  $TOLERANCE"
 echo "Mint mode:  $MINT_MODE"
 echo "BURN_ONLY:  ${CLUNC_LP_BURN_ONLY:-0}"
@@ -541,6 +567,27 @@ USTC_USD="$(jq -r '.ustc_usd' <<<"$ORACLE_JSON")"
 TARGET_PX="$(jq -r '.target_custc_per_clunc' <<<"$ORACLE_JSON")"
 [[ -n "$LUNC_USD" && -n "$USTC_USD" && "$LUNC_USD" != "null" ]] || die "empty oracle"
 
+if [[ "$SKIP_SWAP" == "1" ]]; then
+  [[ "$R0" != "0" && "$R1" != "0" ]] \
+    || die "CLUNC_LP_SKIP_SWAP=1 needs a live pool ratio (empty cLUNC/cUSTC reserves)"
+fi
+if python3 -c "from decimal import Decimal; import sys; sys.exit(0 if Decimal('$CUR_PX') > Decimal('$TARGET_PX') else 1)"; then
+  echo "  cLUNC premium vs oracle: live cUSTC/cLUNC $CUR_PX > $TARGET_PX (LUNC inflows stay attractive)"
+else
+  echo "  WARN cLUNC is not at a premium vs oracle ($CUR_PX vs $TARGET_PX); skip-swap will not create one"
+fi
+START_PX="$CUR_PX"
+START_TVL="$(python3 - "$R0" "$R1" "$DEC_CLUNC" "$DEC_CUSTC" "$LUNC_USD" "$USTC_USD" <<'PY'
+import sys
+from decimal import Decimal
+r0, r1, d0, d1, lunc, ustc = sys.argv[1:]
+h0 = Decimal(r0) / (Decimal(10) ** int(d0))
+h1 = Decimal(r1) / (Decimal(10) ** int(d1))
+print(h0 * Decimal(lunc) + h1 * Decimal(ustc))
+PY
+)"
+echo "  live TVL \$$START_TVL  price $START_PX"
+
 if [[ "${DRY_RUN:-0}" != "1" ]]; then
   prompt_keyring_pass
   TERRAD_HOST_KEY="$ADMIN_KEY"
@@ -574,8 +621,21 @@ if [[ "${CLUNC_LP_BURN_ONLY:-0}" == "1" ]]; then
 fi
 
 echo ""
-echo "[plan] all rungs against current pool"
-PLAN="$(python3 "$MATH_PY" <<EOF
+if [[ -n "$FORCE_ADD_USD" ]]; then
+  python3 -c "from decimal import Decimal; v=Decimal('$FORCE_ADD_USD'); raise SystemExit(0 if v > 0 else 1)" \
+    || die "CLUNC_LP_ADD_USD must be positive (got $FORCE_ADD_USD)"
+  echo "[plan] add \$${FORCE_ADD_USD} oracle TVL at live ratio (no rungs)"
+  PLAN="$(plan_step "$FORCE_ADD_USD" "$FORCE_ADD_USD")"
+  echo "$PLAN" | jq '{
+    skip_swap, clunc_premium, already_on_peg, add_usd,
+    current_custc_per_clunc, target_custc_per_clunc,
+    price_preserved, swap, lp, mint, wrap_native
+  }'
+  [[ "$(jq -r '.swap.needed' <<<"$PLAN")" != "true" ]] \
+    || die "planner wanted a swap despite CLUNC_LP_SKIP_SWAP / ADD_USD"
+else
+  echo "[plan] all rungs against current pool"
+  PLAN="$(python3 "$MATH_PY" <<EOF
 {
   "mode": "plan-rungs",
   "lunc_usd": "$LUNC_USD",
@@ -590,20 +650,22 @@ PLAN="$(python3 "$MATH_PY" <<EOF
   "r1": "$R1",
   "bal_clunc": "$BAL_CLUNC",
   "bal_custc": "$BAL_CUSTC",
-  "rungs": "$RUNGS"
+  "rungs": "$RUNGS",
+  "skip_swap": $([[ "$SKIP_SWAP" == "1" ]] && echo true || echo false)
 }
 EOF
 )"
-echo "$PLAN" | jq '{
-  rungs,
-  totals,
-  final,
-  steps: [.steps[] | {target_usd, add_usd, already_on_peg, swap, lp, mint, wrap_native}]
-}'
+  echo "$PLAN" | jq '{
+    rungs,
+    totals,
+    final,
+    steps: [.steps[] | {target_usd, add_usd, already_on_peg, clunc_premium, skip_swap, swap, lp, mint, wrap_native}]
+  }'
+fi
 
 if [[ "$MINT_MODE" == "wrap" ]]; then
-  NEED_ULUNA="$(jq -r '.totals.uluna' <<<"$PLAN")"
-  NEED_UUSD="$(jq -r '.totals.uusd' <<<"$PLAN")"
+  NEED_ULUNA="$(jq -r '.wrap_native.uluna // .totals.uluna' <<<"$PLAN")"
+  NEED_UUSD="$(jq -r '.wrap_native.uusd // .totals.uusd' <<<"$PLAN")"
   HAVE_ULUNA="$(lcd_bank "$ADMIN_ADDR" uluna)"
   HAVE_UUSD="$(lcd_bank "$ADMIN_ADDR" uusd)"
   echo "  wrap native need uluna=$NEED_ULUNA (have $HAVE_ULUNA, gas reserve $GAS_RESERVE_ULUNA)"
@@ -616,7 +678,11 @@ fi
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo ""
-  echo "DRY_RUN complete (no txs). Live run re-queries oracles + reserves on each rung."
+  if [[ -n "$FORCE_ADD_USD" ]]; then
+    echo "DRY_RUN complete (no txs). Live run re-queries oracles + reserves before the add."
+  else
+    echo "DRY_RUN complete (no txs). Live run re-queries oracles + reserves on each rung."
+  fi
   echo "Re-run without DRY_RUN=1 to broadcast."
   exit 0
 fi
@@ -625,18 +691,30 @@ if [[ "${CLUNC_LP_YES:-0}" != "1" ]]; then
   if [[ ! -t 0 ]]; then
     die "refusing live broadcast without TTY; set CLUNC_LP_YES=1"
   fi
-  read -r -p "Broadcast mint/wrap / rebalance / LP-to-treasury / leftover burn on $TERRAD_HOST_CHAIN_ID? [y/N] " ans
+  if [[ "$SKIP_SWAP" == "1" ]]; then
+    read -r -p "Broadcast mint/wrap / LP-to-treasury / leftover burn (NO pair swap) on $TERRAD_HOST_CHAIN_ID? [y/N] " ans
+  else
+    read -r -p "Broadcast mint/wrap / rebalance / LP-to-treasury / leftover burn on $TERRAD_HOST_CHAIN_ID? [y/N] " ans
+  fi
   [[ "$ans" == "y" || "$ans" == "Y" ]] || die "aborted"
 fi
 
-IFS=',' read -r -a RUNG_ARR <<<"$RUNGS"
+if [[ -n "$FORCE_ADD_USD" ]]; then
+  RUNG_ARR=("$FORCE_ADD_USD")
+else
+  IFS=',' read -r -a RUNG_ARR <<<"$RUNGS"
+fi
 RUNG_N=${#RUNG_ARR[@]}
 FAIL=0
 
 for idx in "${!RUNG_ARR[@]}"; do
   CURRENT_TARGET_USD="${RUNG_ARR[$idx]// /}"
   echo ""
-  echo "========== rung $((idx + 1))/$RUNG_N  target \$${CURRENT_TARGET_USD} =========="
+  if [[ -n "$FORCE_ADD_USD" ]]; then
+    echo "========== add \$${CURRENT_TARGET_USD} at live ratio =========="
+  else
+    echo "========== rung $((idx + 1))/$RUNG_N  target \$${CURRENT_TARGET_USD} =========="
+  fi
   ORACLE_JSON="$(fetch_oracles_ok)" || die "oracle refresh failed on rung $CURRENT_TARGET_USD"
   LUNC_USD="$(jq -r '.lunc_usd' <<<"$ORACLE_JSON")"
   USTC_USD="$(jq -r '.ustc_usd' <<<"$ORACLE_JSON")"
@@ -648,12 +726,21 @@ for idx in "${!RUNG_ARR[@]}"; do
 
   refresh_pool
   refresh_balances
-  LIVE="$(plan_step "$CURRENT_TARGET_USD")"
+  PX_BEFORE="$CUR_PX"
+  if [[ -n "$FORCE_ADD_USD" ]]; then
+    LIVE="$(plan_step "$CURRENT_TARGET_USD" "$FORCE_ADD_USD")"
+  else
+    LIVE="$(plan_step "$CURRENT_TARGET_USD")"
+  fi
   ADD_USD="$(jq -r '.add_usd' <<<"$LIVE")"
   LP0="$(jq -r '.lp.clunc' <<<"$LIVE")"
   LP1="$(jq -r '.lp.custc' <<<"$LIVE")"
   echo "  post-swap TVL \$$(jq -r '.post_swap_tvl_usd' <<<"$LIVE")  add \$$ADD_USD"
-  echo "  LP legs raw cLUNC=$LP0 cUSTC=$LP1"
+  echo "  LP legs raw cLUNC=$LP0 cUSTC=$LP1  usd $(jq -c '{clunc:.lp.clunc_usd,custc:.lp.custc_usd}' <<<"$LIVE")"
+  if [[ "$SKIP_SWAP" == "1" ]]; then
+    [[ "$(jq -r '.swap.needed' <<<"$LIVE")" != "true" ]] \
+      || die "planner wanted a swap despite CLUNC_LP_SKIP_SWAP=1"
+  fi
 
   if [[ "$LP0" == "0" && "$LP1" == "0" ]]; then
     echo "  skip provide (already at or above \$${CURRENT_TARGET_USD})"
@@ -661,13 +748,18 @@ for idx in "${!RUNG_ARR[@]}"; do
     fund_inventory clunc "$LP0"
     fund_inventory custc "$LP1"
     refresh_pool
-    if ! rel_err_ok "$CUR_PX" "$TARGET_PX"; then
+    if [[ "$SKIP_SWAP" != "1" ]] && ! rel_err_ok "$CUR_PX" "$TARGET_PX"; then
       echo "  peg drifted during mint; rebalance again"
       execute_rebalance_swaps
     fi
     refresh_pool
     refresh_balances
-    LIVE="$(plan_step "$CURRENT_TARGET_USD")"
+    PX_BEFORE="$CUR_PX"
+    if [[ -n "$FORCE_ADD_USD" ]]; then
+      LIVE="$(plan_step "$CURRENT_TARGET_USD" "$FORCE_ADD_USD")"
+    else
+      LIVE="$(plan_step "$CURRENT_TARGET_USD")"
+    fi
     LP0="$(jq -r '.lp.clunc' <<<"$LIVE")"
     LP1="$(jq -r '.lp.custc' <<<"$LIVE")"
     if [[ "$LP0" == "0" && "$LP1" == "0" ]]; then
@@ -684,6 +776,12 @@ for idx in "${!RUNG_ARR[@]}"; do
       gt "$TRE_AFTER" "$TRE_BEFORE" \
         || die "treasury LP did not increase ($TRE_BEFORE → $TRE_AFTER)"
       echo "  PASS treasury LP $TRE_BEFORE → $TRE_AFTER"
+      refresh_pool
+      if [[ "$SKIP_SWAP" == "1" ]]; then
+        rel_err_ok "$CUR_PX" "$PX_BEFORE" \
+          || die "pool price moved $PX_BEFORE → $CUR_PX (wanted to keep live ratio)"
+        echo "  PASS price preserved $PX_BEFORE → $CUR_PX"
+      fi
     fi
   fi
 
@@ -711,44 +809,75 @@ gt "$TRE_LP1" "$TRE_LP0" || {
 }
 
 echo ""
-echo "[verify] final TVL vs \$10000 (\$5k each side)"
+echo "[verify] final TVL and price"
 refresh_pool
-FINAL="$(python3 - "$R0" "$R1" "$DEC_CLUNC" "$DEC_CUSTC" "$LUNC_USD" "$USTC_USD" "$TARGET_PX" "$TOLERANCE" <<'PY'
+FINAL="$(python3 - "$R0" "$R1" "$DEC_CLUNC" "$DEC_CUSTC" "$LUNC_USD" "$USTC_USD" \
+  "$TARGET_PX" "$TOLERANCE" "$START_PX" "$START_TVL" "${FORCE_ADD_USD:-}" "$SKIP_SWAP" <<'PY'
 import json, sys
 from decimal import Decimal
-r0, r1, d0, d1, lunc, ustc, target, tol = sys.argv[1:]
+r0, r1, d0, d1, lunc, ustc, target, tol, start_px, start_tvl, force_add, skip = sys.argv[1:]
 r0, r1, d0, d1 = int(r0), int(r1), int(d0), int(d1)
 lunc, ustc, target, tol = map(Decimal, (lunc, ustc, target, tol))
+start_px, start_tvl = Decimal(start_px), Decimal(start_tvl)
 h0 = Decimal(r0) / (Decimal(10) ** d0)
 h1 = Decimal(r1) / (Decimal(10) ** d1)
 px = h1 / h0
 tvl = h0 * lunc + h1 * ustc
 side0 = h0 * lunc
 side1 = h1 * ustc
+added = tvl - start_tvl
+price_vs_start = abs(px - start_px) / start_px if start_px > 0 else Decimal(1)
+if skip == "1":
+    price_ok = price_vs_start <= tol
+    if force_add:
+        want = Decimal(force_add)
+        tvl_ok = added >= want * Decimal("0.97")
+    else:
+        tvl_ok = tvl >= Decimal("9800")
+    sides_ok = True
+else:
+    price_ok = abs(px - target) / target <= tol
+    tvl_ok = tvl >= Decimal("9800")
+    sides_ok = abs(side0 - Decimal(5000)) <= Decimal(250) and abs(side1 - Decimal(5000)) <= Decimal(250)
 print(json.dumps({
   "price": str(px),
+  "start_price": str(start_px),
   "tvl_usd": str(tvl),
+  "start_tvl_usd": str(start_tvl),
+  "added_usd": str(added),
   "clunc_usd": str(side0),
   "custc_usd": str(side1),
-  "price_ok": abs(px - target) / target <= tol,
-  "tvl_ok": tvl >= Decimal("9800"),
-  "sides_ok": abs(side0 - Decimal(5000)) <= Decimal(250) and abs(side1 - Decimal(5000)) <= Decimal(250),
+  "price_ok": price_ok,
+  "tvl_ok": tvl_ok,
+  "sides_ok": sides_ok,
+  "skip_swap": skip == "1",
 }))
 PY
 )"
 echo "$FINAL" | jq .
-[[ "$(jq -r '.price_ok' <<<"$FINAL")" == "true" ]] || {
-  echo "  FAIL final price off peg" >&2
-  FAIL=1
-}
-[[ "$(jq -r '.tvl_ok' <<<"$FINAL")" == "true" ]] || {
-  echo "  FAIL final TVL below \$9800" >&2
-  FAIL=1
-}
-[[ "$(jq -r '.sides_ok' <<<"$FINAL")" == "true" ]] || {
-  echo "  FAIL sides not within \$250 of \$5k" >&2
-  FAIL=1
-}
+if [[ "$SKIP_SWAP" == "1" ]]; then
+  [[ "$(jq -r '.price_ok' <<<"$FINAL")" == "true" ]] || {
+    echo "  FAIL final price moved vs start (wanted to keep live ratio)" >&2
+    FAIL=1
+  }
+  [[ "$(jq -r '.tvl_ok' <<<"$FINAL")" == "true" ]] || {
+    echo "  FAIL TVL add below 97% of requested (or below \$9800 in rung mode)" >&2
+    FAIL=1
+  }
+else
+  [[ "$(jq -r '.price_ok' <<<"$FINAL")" == "true" ]] || {
+    echo "  FAIL final price off peg" >&2
+    FAIL=1
+  }
+  [[ "$(jq -r '.tvl_ok' <<<"$FINAL")" == "true" ]] || {
+    echo "  FAIL final TVL below \$9800" >&2
+    FAIL=1
+  }
+  [[ "$(jq -r '.sides_ok' <<<"$FINAL")" == "true" ]] || {
+    echo "  FAIL sides not within \$250 of \$5k" >&2
+    FAIL=1
+  }
+fi
 
 if [[ "$FAIL" -ne 0 ]]; then
   die "post-checks failed (leftover wrap not burned)"
@@ -758,4 +887,8 @@ echo ""
 if ! burn_admin_wrap; then
   die "post-checks passed but leftover wrap burn failed"
 fi
-echo "OK — cLUNC/cUSTC LP sent to CMM (rungs $RUNGS); leftover cLUNC/cUSTC burned."
+if [[ -n "$FORCE_ADD_USD" ]]; then
+  echo "OK — cLUNC/cUSTC LP sent to CMM (added \$${FORCE_ADD_USD} at live ratio); leftover cLUNC/cUSTC burned."
+else
+  echo "OK — cLUNC/cUSTC LP sent to CMM (rungs $RUNGS); leftover cLUNC/cUSTC burned."
+fi

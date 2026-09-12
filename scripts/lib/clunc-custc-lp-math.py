@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Plan cLUNC/cUSTC oracle rebalance + stepwise USD TVL LP.
 
-Used by scripts/rebalance-mint-clunc-custc-lp.sh.
+Used by scripts/rebalance-mint-clunc-custc-lp.sh (on-peg rungs) and
+scripts/mint-clunc-custc-lp.sh (skip_swap + force_add_usd at live ratio).
 Price is human cUSTC per cLUNC = LUNC_USD / USTC_USD (both 6dp wraps).
+cLUNC is at a premium when live cUSTC-per-cLUNC > oracle (encourages LUNC inflows).
 """
 from __future__ import annotations
 
@@ -286,6 +288,9 @@ def plan_step(inp: dict[str, Any]) -> dict[str, Any]:
     bal0 = _i(inp.get("bal_clunc", 0))
     bal1 = _i(inp.get("bal_custc", 0))
 
+    if skip_swap and (r0 <= 0 or r1 <= 0):
+        raise RuntimeError("skip_swap needs a live cLUNC/cUSTC pool ratio (empty reserves)")
+
     target = target_custc_per_clunc(lunc_usd, ustc_usd)
     cur = human_price(r0, r1, d0, d1) if r0 > 0 and r1 > 0 else None
     swap = {
@@ -294,7 +299,7 @@ def plan_step(inp: dict[str, Any]) -> dict[str, Any]:
         "offer_amount": "0",
         "expected_return": "0",
         "current_price": None if cur is None else str(cur),
-        "projected_price": str(target),
+        "projected_price": str(target if not skip_swap else (cur if cur is not None else target)),
         "rel_error": "0" if cur is None else str(rel_error(cur, target)),
     }
     if not skip_swap and r0 > 0 and r1 > 0:
@@ -309,9 +314,15 @@ def plan_step(inp: dict[str, Any]) -> dict[str, Any]:
         if post_r0 > 0 and post_r1 > 0
         else Decimal(0)
     )
-    add_usd = target_usd - post_tvl
-    if add_usd < 0:
-        add_usd = Decimal(0)
+    force_add_raw = inp.get("force_add_usd")
+    if force_add_raw not in (None, ""):
+        add_usd = _d(force_add_raw)
+        if add_usd < 0:
+            add_usd = Decimal(0)
+    else:
+        add_usd = target_usd - post_tvl
+        if add_usd < 0:
+            add_usd = Decimal(0)
 
     lp0, lp1 = (
         lp_raw_for_usd(post_r0, post_r1, d0, d1, add_usd, lunc_usd, ustc_usd)
@@ -334,6 +345,22 @@ def plan_step(inp: dict[str, Any]) -> dict[str, Any]:
     wrap0 = wrap_native_for_cw20(mint0, fee_wrap_bps)
     wrap1 = wrap_native_for_cw20(mint1, fee_wrap_bps)
 
+    lp0_usd = human_from_raw(lp0, d0) * lunc_usd
+    lp1_usd = human_from_raw(lp1, d1) * ustc_usd
+    post_px = (
+        human_price(post_r0, post_r1, d0, d1) if post_r0 > 0 and post_r1 > 0 else None
+    )
+    after_r0 = post_r0 + lp0
+    after_r1 = post_r1 + lp1
+    after_px = (
+        human_price(after_r0, after_r1, d0, d1) if after_r0 > 0 and after_r1 > 0 else None
+    )
+    price_preserved = bool(
+        skip_swap
+        and post_px is not None
+        and after_px is not None
+        and within_tolerance(after_px, post_px, tol)
+    )
     side = target_usd / Decimal(2)
     return {
         "lunc_usd": str(lunc_usd),
@@ -342,16 +369,21 @@ def plan_step(inp: dict[str, Any]) -> dict[str, Any]:
         "current_custc_per_clunc": None if cur is None else str(cur),
         "current_rel_error": None if cur is None else str(rel_error(cur, target)),
         "already_on_peg": bool(cur is not None and within_tolerance(cur, target, tol)),
+        "clunc_premium": bool(cur is not None and cur > target),
+        "skip_swap": skip_swap,
         "target_usd": str(target_usd),
         "each_side_usd": str(side),
         "post_swap_tvl_usd": str(post_tvl),
         "add_usd": str(add_usd),
         "swap": swap,
+        "price_preserved": price_preserved,
         "lp": {
             "clunc": str(lp0),
             "custc": str(lp1),
             "clunc_human": str(human_from_raw(lp0, d0)),
             "custc_human": str(human_from_raw(lp1, d1)),
+            "clunc_usd": str(lp0_usd),
+            "custc_usd": str(lp1_usd),
         },
         "mint": {"clunc": str(mint0), "custc": str(mint1)},
         "wrap_native": {"uluna": str(wrap0), "uusd": str(wrap1)},
@@ -695,6 +727,81 @@ def _self_test() -> None:
     # Last rung is $10k, $5k each side.
     assert abs(_d(full["final"]["clunc_usd"]) - Decimal(5000)) < Decimal(150)
     assert abs(_d(full["final"]["custc_usd"]) - Decimal(5000)) < Decimal(150)
+
+    # skip_swap + force_add_usd: keep the live ratio (cLUNC premium), add $10k TVL.
+    prem_r0, prem_r1 = 4_823_672_118, 60_000_000
+    prem_cur = human_price(prem_r0, prem_r1, 6, 6)
+    assert prem_cur > target
+    noswap = plan_step(
+        {
+            "lunc_usd": str(lunc),
+            "ustc_usd": str(ustc),
+            "r0": prem_r0,
+            "r1": prem_r1,
+            "bal_clunc": 0,
+            "bal_custc": 0,
+            "target_usd": "10000",
+            "force_add_usd": "10000",
+            "skip_swap": True,
+            "fee_bps": 180,
+            "buffer_bps": 50,
+            "tolerance": "0.001",
+        }
+    )
+    assert noswap["skip_swap"] is True
+    assert noswap["clunc_premium"] is True
+    assert noswap["swap"]["needed"] is False
+    assert noswap["price_preserved"] is True
+    assert _d(noswap["add_usd"]) == Decimal(10000)
+    lp0n, lp1n = _i(noswap["lp"]["clunc"]), _i(noswap["lp"]["custc"])
+    assert lp0n > 0 and lp1n > 0
+    after_px = human_price(prem_r0 + lp0n, prem_r1 + lp1n, 6, 6)
+    assert within_tolerance(after_px, prem_cur, Decimal("0.001"))
+    added_usd = _d(noswap["lp"]["clunc_usd"]) + _d(noswap["lp"]["custc_usd"])
+    assert abs(added_usd - Decimal(10000)) / Decimal(10000) < Decimal("0.02")
+    # Off-peg pro-rata: USD legs are not $5k/$5k.
+    assert abs(_d(noswap["lp"]["clunc_usd"]) - Decimal(5000)) > Decimal(50)
+
+    try:
+        plan_step(
+            {
+                "lunc_usd": str(lunc),
+                "ustc_usd": str(ustc),
+                "r0": 0,
+                "r1": 0,
+                "target_usd": "10000",
+                "force_add_usd": "10000",
+                "skip_swap": True,
+            }
+        )
+        raise AssertionError("empty pool skip_swap")
+    except RuntimeError:
+        pass
+
+    # Swap-only (no LP): force_add_usd=0 mints the rebalance offer only.
+    rebal_only = plan_step(
+        {
+            "lunc_usd": str(lunc),
+            "ustc_usd": str(ustc),
+            "r0": r0,
+            "r1": r1,
+            "bal_clunc": 0,
+            "bal_custc": 0,
+            "target_usd": "0",
+            "force_add_usd": "0",
+            "skip_swap": False,
+            "fee_bps": 180,
+            "buffer_bps": 0,
+            "tolerance": "0.001",
+        }
+    )
+    assert rebal_only["swap"]["needed"] is True
+    assert rebal_only["swap"]["offer_token"] == "custc"
+    assert _d(rebal_only["add_usd"]) == Decimal(0)
+    assert _i(rebal_only["lp"]["clunc"]) == 0
+    assert _i(rebal_only["lp"]["custc"]) == 0
+    assert _i(rebal_only["mint"]["custc"]) == _i(rebal_only["swap"]["offer_amount"])
+    assert _i(rebal_only["mint"]["clunc"]) == 0
 
     crashed = fetch_oracles({"indexer": "http://127.0.0.1:1", "max_age_sec": 1})
     assert crashed["ok"] is False
