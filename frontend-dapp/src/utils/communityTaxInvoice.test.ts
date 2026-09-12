@@ -3,6 +3,7 @@ import {
   buildCreateTokenInvoice,
   buildEnableFeatureInvoice,
   buildSettingsBatchInvoice,
+  buildAutolpSettingsDelta,
   settingsBatchIsEmpty,
   uniqueCommunityTaxSkus,
 } from './communityTaxInvoice'
@@ -166,5 +167,17 @@ describe('communityTaxInvoice (#593)', () => {
     }
     expect(ct.buy_bps).toBe(250)
     expect(ct.sinks.map((s) => s.bps)).toEqual([7000, 3000])
+  })
+
+  it('#1237 AutoLP equal to sister does not attach; blank is not default 1/wallet', () => {
+    const sister = { pair: TOKEN, threshold: '1000000', lp_recipient: MANAGER }
+    expect(
+      buildAutolpSettingsDelta({ pair: TOKEN, thresholdHuman: '1', lpRecipient: MANAGER }, sister, 6)
+    ).toBeUndefined()
+    expect(buildAutolpSettingsDelta({ pair: TOKEN, thresholdHuman: '', lpRecipient: '' }, sister, 6)).toBeUndefined()
+    expect(buildAutolpSettingsDelta({ pair: '', thresholdHuman: '', lpRecipient: '' }, sister, 6)).toBeUndefined()
+    const delta = buildAutolpSettingsDelta({ pair: '', thresholdHuman: '2', lpRecipient: '' }, sister, 6)
+    expect(delta).toEqual({ pair: undefined, threshold: '2000000', lp_recipient: MANAGER })
+    expect(settingsBatchIsEmpty({ autolp: delta })).toBe(false)
   })
 })

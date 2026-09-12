@@ -18,7 +18,8 @@
 //!   `amount`. Pair→router stays 1:1 (**T592-1**).
 //! - **T592-4** — SKU unlock and settings batch each cost exactly **50 UST1**, forwarded
 //!   to CMM treasury. Wrong token / wrong amount / no-op / unactivated SKU → revert,
-//!   fee not kept. EnableFeature is never mixed into a settings batch.
+//!   fee not kept. AutoLP no-op is sister `GetConfig` identity (not "key present").
+//!   Identical `minter` is also a no-op. EnableFeature is never mixed into a settings batch.
 //!   Official SKU unlock is manager → launcher → token (`origin.launcher` payer
 //!   is authorized for EnableFeature only; **T606-1–T606-4**).
 //! - **T592-5** — Manager-only config; wasm admin is **not** an execute path. Launcher

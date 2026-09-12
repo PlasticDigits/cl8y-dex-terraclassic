@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -77,6 +78,19 @@ vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   registerListedPair: vi.fn(),
   queryCommunityTaxIsExempt: vi.fn().mockResolvedValue({ address: '', protocol: true, manager: false }),
   queryCommunityTaxTokenInfo: vi.fn().mockResolvedValue({ name: 'Demo', symbol: 'DEMO', decimals: 6 }),
+  queryAutoLpConfig: vi.fn().mockResolvedValue({
+    pair: null,
+    threshold: '1000000',
+    lp_recipient: MANAGER,
+    skim_max_spread: '0.01',
+    skim_min_return: null,
+    token: TOKEN,
+    manager: TOKEN,
+    factory: MANAGER,
+    router: null,
+    quote_token: null,
+    skimming: false,
+  }),
 }))
 
 vi.mock('@/utils/communityTaxRegisterPair', async (importOriginal) => {
@@ -89,8 +103,10 @@ vi.mock('@/utils/communityTaxRegisterPair', async (importOriginal) => {
 })
 
 vi.mock('@/components/payments/PayWithAnyToken', () => ({
-  PayWithAnyToken: ({ invoice }: { invoice: { invoiceAmount: string } }) => (
-    <div data-testid="pay-with-any-token">{invoice.invoiceAmount}</div>
+  PayWithAnyToken: ({ invoice }: { invoice: { invoiceAmount: string; hookMsg: string } }) => (
+    <div data-testid="pay-with-any-token" data-hook={invoice.hookMsg}>
+      {invoice.invoiceAmount}
+    </div>
   ),
 }))
 
@@ -292,5 +308,78 @@ describe('ManageTokenPage (#593)', () => {
     })
     renderManage(MANAGER)
     expect(await screen.findByTestId('unverified-admin-banner')).toBeInTheDocument()
+  })
+
+  async function mockBoundAutolp() {
+    const { queryCommunityTaxConfig, queryCommunityTaxFeatures, queryAutoLpConfig } =
+      await import('@/services/terraclassic/communityTaxToken')
+    vi.mocked(queryCommunityTaxFeatures).mockResolvedValue({
+      mint_control: false,
+      transfer_tax: false,
+      split_router: false,
+      auto_v2_lp: true,
+      exemption_directory: false,
+      variable_rates: true,
+      launch_guards: false,
+    })
+    vi.mocked(queryCommunityTaxConfig).mockResolvedValue({
+      manager: MANAGER,
+      treasury: MANAGER,
+      buy_bps: 100,
+      sell_bps: 100,
+      transfer_bps: 0,
+      max_buy_bps: 1000,
+      max_sell_bps: 1000,
+      max_transfer_bps: 500,
+      factory: MANAGER,
+      router: null,
+      ust1: MANAGER,
+      cmm_treasury: MANAGER,
+      autolp: TOKEN,
+      sinks: [],
+      launch_guards: null,
+      mint_revoked: false,
+    })
+    vi.mocked(queryAutoLpConfig).mockResolvedValue({
+      pair: TOKEN,
+      threshold: '1000000',
+      lp_recipient: MANAGER,
+      skim_max_spread: '0.01',
+      skim_min_return: null,
+      token: TOKEN,
+      manager: TOKEN,
+      factory: MANAGER,
+      router: null,
+      quote_token: null,
+      skimming: false,
+    })
+  }
+
+  it('#1237 equal AutoLP fields do not enable Save', async () => {
+    await mockBoundAutolp()
+    const user = userEvent.setup()
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-autolp-pair')).toBeInTheDocument()
+    await user.type(screen.getByTestId('manage-autolp-pair'), TOKEN)
+    await user.type(screen.getByTestId('manage-autolp-threshold'), '1')
+    await user.type(screen.getByTestId('manage-autolp-recipient'), MANAGER)
+    expect(screen.getByTestId('manage-save-disabled')).toBeDisabled()
+    expect(screen.queryByTestId('pay-with-any-token')).not.toBeInTheDocument()
+  })
+
+  it('#1237 threshold delta builds a 50 UST1 autolp invoice', async () => {
+    await mockBoundAutolp()
+    const user = userEvent.setup()
+    renderManage(MANAGER)
+    expect(await screen.findByTestId('manage-autolp-threshold')).toBeInTheDocument()
+    await user.type(screen.getByTestId('manage-autolp-threshold'), '2')
+    const pay = await screen.findByTestId('pay-with-any-token')
+    expect(pay).toHaveTextContent('50000000')
+    const hook = JSON.parse(atob(pay.getAttribute('data-hook')!)) as {
+      update_settings: { settings: { autolp?: { threshold: string; pair?: string }; buy_bps?: number } }
+    }
+    expect(hook.update_settings.settings.autolp?.threshold).toBe('2000000')
+    expect(hook.update_settings.settings.autolp?.pair).toBeUndefined()
+    expect(hook.update_settings.settings.buy_bps).toBeUndefined()
   })
 })
