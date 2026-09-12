@@ -12,7 +12,8 @@
 //!   `amount` (no inbound FoT). **A-allow (#1228):** `SendFrom` deducts
 //!   `TaxPreview.debit` from remaining allowance (pair-direct Sell =
 //!   `amount + tax`); insufficient allowance reverts before balances move.
-//!   `TransferFrom` stays 1:1 (**T592-7**). Live 11611/11619 need store+migrate.
+//!   `TransferFrom` stays 1:1 (**T592-7**). Live ALPHA 11630 is cw2 1.0.0 until
+//!   store+migrate to **1.1.0** (#1246). Keep 11630 listed until Refresh.
 //! - **T592-3** — Buy tax is an **outbound split** when `from` is a registered listed
 //!   pair **or** the official router (router→user). Debit `amount`; trader + sinks =
 //!   `amount`. Pair→router stays 1:1 (**T592-1**).

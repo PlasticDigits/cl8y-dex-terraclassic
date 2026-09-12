@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# GitLab #584 — order-enforcing factory 1.9.0 then pair 1.15.0 migrate (invariant F6).
+# GitLab #584 / #1246 — order-enforcing factory ≥1.9.0 then pair cw2 migrate (F6).
 #
 # Opposite of #514: factory MUST be ≥1.9.0 (IsCodeIdWhitelisted live) before any
-# pair 1.15.0 migrate. Pair-first freezes every gated write until factory catches up.
+# pair migrate. Pair-first freezes every gated write until factory catches up.
+# Current pair target is UPGRADE582_PAIR_VERSION (1.17.0). Columbus-5 factory is
+# already 1.10.0 / 11629; use UPGRADE582_SKIP_FACTORY_MIGRATE=1.
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/upgrade-582-code-id-pin.sh

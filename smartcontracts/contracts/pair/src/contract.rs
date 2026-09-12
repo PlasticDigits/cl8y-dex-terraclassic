@@ -47,7 +47,9 @@ use dex_common::pair::{
 use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
-const CONTRACT_VERSION: &str = "1.15.0";
+/// Columbus-5 listed pairs are already cw2 1.16.0 (greedy #712 / store 11639).
+/// Same-version migrate is rejected; this bump is for #1227/#1230/#1231 (#1246).
+const CONTRACT_VERSION: &str = "1.17.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
