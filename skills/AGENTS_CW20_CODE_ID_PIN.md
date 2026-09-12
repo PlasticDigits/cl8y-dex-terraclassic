@@ -34,8 +34,8 @@ Factory/pair **F6** (this pin) is not faucet **F6** (deploy key remains primary 
 
 | Contract | cw2 |
 |----------|-----|
-| Factory | **1.9.0** |
-| Pair | **1.15.0** |
+| Factory | **1.10.0** (F6 floor **1.9.0**) |
+| Pair | **1.17.0** (columbus-5 listed fleet was 1.16.0; 1.15.0 is the F6 pin floor) |
 
 ## Operator sequence (factory/pair wasm upgrade)
 

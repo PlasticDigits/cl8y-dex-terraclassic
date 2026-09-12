@@ -51,8 +51,8 @@ run_docs() {
   rg -q "RefreshPairAssetCodeIds" smartcontracts/contracts/factory/src/contract.rs
   rg -q "AGENTS_CW20_CODE_ID_PIN" AGENTS.md
   test -f skills/AGENTS_CW20_CODE_ID_PIN.md
-  rg -q 'const CONTRACT_VERSION: &str = "1.9.0"' smartcontracts/contracts/factory/src/contract.rs
-  rg -q 'const CONTRACT_VERSION: &str = "1.15.0"' smartcontracts/contracts/pair/src/contract.rs
+  rg -q 'const CONTRACT_VERSION: &str = "1.10.0"' smartcontracts/contracts/factory/src/contract.rs
+  rg -q 'const CONTRACT_VERSION: &str = "1.17.0"' smartcontracts/contracts/pair/src/contract.rs
   rg -q "Listed-asset wasm admin inventory" docs/runbooks/cw20-whitelist-policy.md
   rg -q "582" docs/security-model.md
   rg -q "F6" docs/exploit-replay-matrix.md

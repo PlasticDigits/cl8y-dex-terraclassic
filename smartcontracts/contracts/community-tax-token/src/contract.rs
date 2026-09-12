@@ -27,7 +27,9 @@ use crate::state::{
 use crate::tax::{self, is_protocol_exempt};
 
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-tax-token";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Dedicated cw2 (workspace package stays 1.0.0 so AutoLP/launcher are not bumped).
+/// ALPHA on columbus-5 is 1.0.0; same-version migrate is rejected (#1246).
+pub(crate) const CONTRACT_VERSION: &str = "1.1.0";
 
 pub fn instantiate(
     mut deps: DepsMut,

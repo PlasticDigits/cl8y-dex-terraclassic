@@ -48,7 +48,7 @@ pub const ALPHA_SELL_BPS: u16 = 100;
 const WIPE_NAMESPACES: &[&[u8]] = &[b"tax_map", b"tax_info", b"whale_info"];
 const BALANCE_NAMESPACE: &[u8] = b"balance";
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-tax-token";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const CONTRACT_VERSION: &str = crate::contract::CONTRACT_VERSION;
 
 pub fn is_allowed_source_cw2(name: &str) -> bool {
     ALLOWED_SOURCE_CW2.contains(&name)
