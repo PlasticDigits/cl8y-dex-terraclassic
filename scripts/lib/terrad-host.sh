@@ -102,20 +102,45 @@ terrad_host_exec() {
 
 # Prompt once for an encrypted file keyring (generate-only + 2 signer unlocks
 # would otherwise ask 3×). No-op when already set, or when backend is not file.
+# Always write the banner to /dev/tty when possible — callers often capture
+# terrad stderr, which hid terrad's own "Enter keyring passphrase" prompt.
 terrad_host_ensure_keyring_pass() {
   terrad_host_resolve_keyring_backend
   [[ "$TERRAD_HOST_KEYRING_BACKEND" == "file" ]] || return 0
   if [[ -n "${TERRAD_HOST_KEYRING_PASS:-}" ]]; then
     return 0
   fi
-  if [[ ! -t 0 ]]; then
-    echo "ERROR: file keyring is encrypted and TERRAD_HOST_KEYRING_PASS is unset (stdin is not a TTY)." >&2
+  local tty=""
+  if [[ -r /dev/tty && -w /dev/tty ]]; then
+    tty=/dev/tty
+  elif [[ -t 0 ]]; then
+    tty=""
+  else
+    echo "ERROR: file keyring is encrypted and TERRAD_HOST_KEYRING_PASS is unset (no TTY)." >&2
     echo "  Unlock once for this shell, then re-run:" >&2
     echo "    read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS" >&2
     return 1
   fi
-  read -rs -p "terrad keyring passphrase: " TERRAD_HOST_KEYRING_PASS
-  echo >&2
+  local banner
+  banner="$(cat <<'EOF'
+==============================================================
+KEYRING: type the terrad file-keyring passphrase NOW (no echo).
+It is reused for gas simulation and every later tx in this run.
+Store/simulate can then sit silent for several minutes — that is
+not another password prompt.
+==============================================================
+terrad keyring passphrase: 
+EOF
+)"
+  if [[ -n "$tty" ]]; then
+    printf '%s' "$banner" >"$tty"
+    read -rs TERRAD_HOST_KEYRING_PASS <"$tty"
+    printf '\n' >"$tty"
+  else
+    printf '%s' "$banner" >&2
+    read -rs TERRAD_HOST_KEYRING_PASS
+    echo >&2
+  fi
   export TERRAD_HOST_KEYRING_PASS
   if [[ -z "$TERRAD_HOST_KEYRING_PASS" ]]; then
     echo "ERROR: empty passphrase" >&2
@@ -133,6 +158,8 @@ terrad_host_tx() {
     echo '{"txhash":"DRY_RUN_TX","code":0}'
     return 0
   fi
+  terrad_host_ensure_keyring_pass
+  echo "  signer: ${TERRAD_HOST_KEY}  (passphrase captured; gas sim can be silent for minutes)" >&2
   local attempts="${TERRAD_HOST_TX_RETRIES:-6}"
   local delay="${TERRAD_HOST_TX_RETRY_DELAY_SEC:-4}"
   local i out st err

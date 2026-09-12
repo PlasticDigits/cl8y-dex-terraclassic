@@ -6,11 +6,20 @@
 # Current pair target is UPGRADE582_PAIR_VERSION (1.17.0). Columbus-5 factory is
 # already 1.10.0 / 11629; use UPGRADE582_SKIP_FACTORY_MIGRATE=1.
 #
+# Keys: cl8ydeploy stores wasm (permissionless). Columbus-5 UpdateConfig,
+# factory/pair migrate, and Refresh are DEX 2-of-3 via
+# scripts/multisig-2of3-host-tx.sh (not TERRAD_HOST_KEY=cl8ydeploy).
+# The script prompts once for the file-keyring passphrase up front.
+#
 # Usage:
 #   DRY_RUN=1 ./scripts/upgrade-582-code-id-pin.sh
 #   UPGRADE582_LOCAL=1 ./scripts/upgrade-582-code-id-pin.sh
 #   UPGRADE582_PROBE_ONLY=1 ./scripts/upgrade-582-code-id-pin.sh   # columbus-5 read-only
 #   ./scripts/upgrade-582-code-id-pin.sh
+#   # resume after a successful store (do not re-store):
+#   UPGRADE582_SKIP_STORE=1 UPGRADE582_PAIR_CODE_ID=11664 \
+#     UPGRADE582_FACTORY_CODE_ID=11665 UPGRADE582_SKIP_FACTORY_MIGRATE=1 \
+#     ./scripts/upgrade-582-code-id-pin.sh
 #
 # Optional:
 #   UPGRADE582_SKIP_STORE=1 + UPGRADE582_FACTORY_CODE_ID / UPGRADE582_PAIR_CODE_ID
@@ -95,6 +104,29 @@ broadcast_and_wait() {
   [[ -n "$tx_hash" ]] || upgrade582_die "no txhash from: $label"
   echo "    tx: $tx_hash" >&2
   terrad_host_wait_tx_inclusion "$tx_hash"
+  printf '%s' "$tx_hash"
+}
+
+# Factory UpdateConfig / wasm migrate / Refresh: LocalTerra uses the store key;
+# columbus-5 uses DEX 2-of-3 (cl8ydeploy is Unauthorized).
+gov_tx() {
+  local label="$1"
+  shift
+  echo "  → $label" >&2
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    echo "    DRY_RUN skip: 2-of-3 $*" >&2
+    echo "dry-run"
+    return 0
+  fi
+  if [[ "${UPGRADE582_LOCAL:-0}" == "1" ]]; then
+    broadcast_and_wait "$label" "$@"
+    return 0
+  fi
+  echo "    DEX 2-of-3 (not cl8ydeploy). Passphrase already captured unless this is the first sign." >&2
+  local out tx_hash
+  out="$("$SCRIPT_DIR/multisig-2of3-host-tx.sh" "$@" | tee /dev/stderr)"
+  tx_hash="$(printf '%s' "$out" | awk '/^OK / { print $2 }' | tail -1)"
+  [[ -n "$tx_hash" ]] || upgrade582_die "no txhash from 2-of-3: $label"
   printf '%s' "$tx_hash"
 }
 
@@ -193,7 +225,12 @@ echo "[1] preflight"
 [[ -n "$FACTORY" ]] || upgrade582_die "set UPGRADE582_FACTORY_ADDRESS or FACTORY_ADDRESS"
 if [[ "${UPGRADE582_SKIP_STORE:-0}" != "1" && "${UPGRADE582_PROBE_ONLY:-0}" != "1" ]]; then
   need_wasm "$PAIR_WASM"
-  need_wasm "$FACTORY_WASM"
+  if [[ "${UPGRADE582_SKIP_FACTORY_MIGRATE:-0}" != "1" ]]; then
+    need_wasm "$FACTORY_WASM"
+  fi
+fi
+if [[ "${DRY_RUN:-0}" != "1" && "${UPGRADE582_PROBE_ONLY:-0}" != "1" ]]; then
+  terrad_host_ensure_keyring_pass
 fi
 if [[ "${UPGRADE582_SKIP_STORE:-0}" == "1" && "${UPGRADE582_PROBE_ONLY:-0}" != "1" ]]; then
   [[ -n "${UPGRADE582_FACTORY_CODE_ID:-}" && -n "${UPGRADE582_PAIR_CODE_ID:-}" ]] \
@@ -223,7 +260,13 @@ if [[ "${UPGRADE582_SKIP_STORE:-0}" == "1" ]]; then
   echo "  reuse pair=$PAIR_CODE factory=$FACTORY_CODE"
 else
   PAIR_CODE="$(store_code "$PAIR_WASM" pair)"
-  FACTORY_CODE="$(store_code "$FACTORY_WASM" factory)"
+  if [[ "${UPGRADE582_SKIP_FACTORY_MIGRATE:-0}" == "1" ]]; then
+    FACTORY_CODE="$(upgrade582_contract_info_code_id "$FACTORY" || true)"
+    [[ -n "$FACTORY_CODE" ]] || FACTORY_CODE="${UPGRADE582_FACTORY_CODE_ID:-0}"
+    echo "  skip factory store (UPGRADE582_SKIP_FACTORY_MIGRATE=1); live factory code_id=$FACTORY_CODE"
+  else
+    FACTORY_CODE="$(store_code "$FACTORY_WASM" factory)"
+  fi
 fi
 
 echo ""
@@ -231,7 +274,7 @@ echo "[3] migrate factory → $FACTORY_CODE (must reach cw2 ≥ ${UPGRADE582_MIN
 if [[ "${UPGRADE582_SKIP_FACTORY_MIGRATE:-0}" == "1" ]]; then
   echo "  skipped (UPGRADE582_SKIP_FACTORY_MIGRATE=1)"
 else
-  broadcast_and_wait "migrate factory" wasm migrate "$FACTORY" "$FACTORY_CODE" '{}' >/dev/null
+  gov_tx "migrate factory" wasm migrate "$FACTORY" "$FACTORY_CODE" '{}' >/dev/null
 fi
 
 echo ""
@@ -250,7 +293,7 @@ else
     echo "  already pair_code_id=$PAIR_CODE"
   else
     update_msg="$(jq -nc --argjson id "$PAIR_CODE" '{update_config:{pair_code_id:$id}}')"
-    broadcast_and_wait "UpdateConfig pair_code_id" wasm execute "$FACTORY" "$update_msg" >/dev/null
+    gov_tx "UpdateConfig pair_code_id" wasm execute "$FACTORY" "$update_msg" >/dev/null
     if [[ "${DRY_RUN:-0}" != "1" || -n "${UPGRADE582_DRY_QUERY:-}" ]]; then
       after_pair_code="$(upgrade582_factory_pair_code_id || true)"
       [[ "$after_pair_code" == "$PAIR_CODE" ]] \
@@ -277,7 +320,7 @@ else
         continue
       fi
     fi
-    if ! broadcast_and_wait "migrate $pair" wasm migrate "$pair" "$PAIR_CODE" '{}' >/dev/null; then
+    if ! gov_tx "migrate $pair" wasm migrate "$pair" "$PAIR_CODE" '{}' >/dev/null; then
       upgrade582_die "pair migrate failed at $pair — stopping (do not claim success; retry is safe)"
     fi
   done
@@ -309,7 +352,7 @@ if [[ "${UPGRADE582_REFRESH:-0}" == "1" ]]; then
       echo "    DRY_RUN: parsing fixture has_more=false (set UPGRADE582_FORCE_REFRESH_TX_JSON to inject events)"
     else
       refresh_tx=""
-      if ! refresh_tx="$(broadcast_and_wait "RefreshPairAssetCodeIdsBatch" wasm execute "$FACTORY" "$refresh_msg")"; then
+      if ! refresh_tx="$(gov_tx "RefreshPairAssetCodeIdsBatch" wasm execute "$FACTORY" "$refresh_msg")"; then
         echo "ERROR: batch refresh reverted (likely one unlisted live id)." >&2
         upgrade582_print_batch_refresh_skip
         exit 1

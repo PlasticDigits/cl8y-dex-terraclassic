@@ -348,6 +348,8 @@ CMM migrate (admin $CMM; signer $CMM_GOV / ustr-cmm — NOT DEX 2-of-3):
     --gas auto --gas-adjustment 1.4 --gas-prices 28.325uluna
   # AutoLP instances: same, code $AUTOLP_CODE  msg '{"factory":"$FACTORY"}' if pre-#610
   # 0 token / AutoLP instances as of 2026-08-24 — no CMM migrate required.
+  # ALPHA 11630 (terra1x6e64…zysuxz) CMM-admin migrate: ./scripts/upgrade-1246-alpha.sh
+
 
 Launcher pins (done 2026-08-24 on 11622): GetConfig token_code_id=$TOKEN_CODE autolp_code_id=$AUTOLP_CODE.
 
