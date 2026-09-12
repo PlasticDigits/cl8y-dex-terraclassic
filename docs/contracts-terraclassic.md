@@ -373,7 +373,7 @@ In-repo **Option A** template: `cl8y-community-tax-token` + `cl8y-community-toke
 
 | Path | Tax |
 |------|-----|
-| `Send` to a `RegisterListedPair` pair with `Cw20HookMsg::Swap` from a **non-exempt** address | **Sell** extra-debit (`debit = amount + tax`, pair credit = `amount`) |
+| `Send` / `SendFrom` to a `RegisterListedPair` pair with `Cw20HookMsg::Swap` from a **non-exempt** address | **Sell** extra-debit (`debit = amount + tax`, pair credit = `amount`). **A-allow ([#1228](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1228)):** `SendFrom` allowance must cover `TaxPreview.debit`; insufficient allowance reverts before balances move |
 | `Send` to a listed pair with `Cw20HookMsg::Swap` from the official `config.router` | **Sell** — router debit = `amount`; authenticated `Swap.trader` extra-debit = tax (**T592-13** / [#607](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/607) improved option 2). Missing trader fail-closes |
 | `Transfer` / `Send` **from** a listed pair to a non-protocol-exempt address | **Buy** outbound split (pair debit = `amount`) — also withdraw / limit refund |
 | `Transfer` / `Send` **from** the official router to a non-protocol-exempt address | **Buy** outbound split. Pair→router stays 1:1 (**T592-1**) |

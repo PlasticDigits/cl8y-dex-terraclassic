@@ -5,10 +5,14 @@
 //! - **T592-1** — Inbound `Transfer`/`Send`/`TransferFrom`/`SendFrom` to pair, router,
 //!   this contract, AutoLP, or other protocol-exempt addresses credits **exactly**
 //!   `amount` (no inbound FoT). Pair/router wasm is unchanged (**H-01**).
-//! - **T592-2** — Sell tax is **extra-debit** on `Send` + pair `Cw20HookMsg::Swap`.
-//!   Pair-direct: seller (`from`) is debited `amount + tax`. Official-router hop:
-//!   router is debited `amount`, authenticated `Swap.trader` is extra-debited `tax`.
-//!   Pair is credited `amount` (no inbound FoT).
+//! - **T592-2** — Sell tax is **extra-debit** on `Send` **or `SendFrom`** + pair
+//!   `Cw20HookMsg::Swap`. Pair-direct: seller (`from` / owner) is debited
+//!   `amount + tax`. Official-router hop: router is debited `amount`,
+//!   authenticated `Swap.trader` is extra-debited `tax`. Pair is credited
+//!   `amount` (no inbound FoT). **A-allow (#1228):** `SendFrom` deducts
+//!   `TaxPreview.debit` from remaining allowance (pair-direct Sell =
+//!   `amount + tax`); insufficient allowance reverts before balances move.
+//!   `TransferFrom` stays 1:1 (**T592-7**). Live 11611/11619 need store+migrate.
 //! - **T592-3** — Buy tax is an **outbound split** when `from` is a registered listed
 //!   pair **or** the official router (router→user). Debit `amount`; trader + sinks =
 //!   `amount`. Pair→router stays 1:1 (**T592-1**).
