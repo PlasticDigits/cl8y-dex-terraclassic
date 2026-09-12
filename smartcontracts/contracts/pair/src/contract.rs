@@ -349,6 +349,8 @@ fn oracle_update(
     // panicking `Decimal::from_ratio` abort the tx. Since oracle_update runs on the swap AND
     // withdraw paths, that panic would brick the pair and lock LP funds. Degrade gracefully:
     // skip this observation instead of panicking. reserve_a/reserve_b are already non-zero here.
+    // Observe query extrapolation uses the same constructors (#1231); do not revert execute to
+    // from_ratio.
     let (price_a, price_b) = match (
         Decimal::checked_from_ratio(reserve_b, reserve_a),
         Decimal::checked_from_ratio(reserve_a, reserve_b),
@@ -421,8 +423,22 @@ fn oracle_observe_single(
             return Ok((latest_obs.price_a_cumulative, latest_obs.price_b_cumulative));
         }
         let dt = target - latest_obs.timestamp;
-        let price_a = Decimal::from_ratio(reserve_b, reserve_a);
-        let price_b = Decimal::from_ratio(reserve_a, reserve_b);
+        // git.cl8y.com #1231: `Decimal::from_ratio` panics when the spot ratio cannot
+        // be a Decimal (`u128::MAX / 1e18`). `oracle_update` already skips (#465);
+        // Observe still extrapolated from live `RESERVES` and aborted the VM on
+        // the indexer "now" path (`seconds_ago == 0`). Same checked constructors
+        // and skip policy as execute: do not clamp to Decimal::MAX (TWAP bias).
+        // Query `price_times_dt` overflow stays a typed Oracle error (#1224 execute
+        // brick is out of scope).
+        let (price_a, price_b) = match (
+            Decimal::checked_from_ratio(reserve_b, reserve_a),
+            Decimal::checked_from_ratio(reserve_a, reserve_b),
+        ) {
+            (Ok(a), Ok(b)) => (a, b),
+            _ => {
+                return Ok((latest_obs.price_a_cumulative, latest_obs.price_b_cumulative));
+            }
+        };
         let delta_a = price_times_dt(price_a, dt).map_err(|e| ContractError::Oracle {
             reason: e.to_string(),
         })?;
@@ -3052,5 +3068,339 @@ mod oracle_overflow_tests {
             Uint128::new(1_000_000),
         );
         assert!(res.is_ok());
+    }
+}
+
+/// git.cl8y.com #1231 — Observe forward-extrapolation must not panic on an
+/// unrepresentable reserve ratio after #465 skipped the execute sample.
+#[cfg(test)]
+mod oracle_observe_overflow_tests {
+    use super::{oracle_observe_single, oracle_update, query};
+    use crate::msg::QueryMsg;
+    use crate::state::{OracleState, OBSERVATIONS, ORACLE_STATE, RESERVES};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use cosmwasm_std::{from_json, Storage, Timestamp, Uint128};
+    use dex_common::oracle::{Observation, ObserveResponse};
+
+    const LAST_TS: u64 = 100;
+    const LAST_CUM_A: u128 = 7;
+    const LAST_CUM_B: u128 = 11;
+
+    fn seed_latest(storage: &mut dyn Storage, ts: u64, cum_a: Uint128, cum_b: Uint128) {
+        ORACLE_STATE
+            .save(
+                storage,
+                &OracleState {
+                    cardinality: 1,
+                    index: 0,
+                    cardinality_initialized: 1,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                storage,
+                0,
+                &Observation {
+                    timestamp: ts,
+                    price_a_cumulative: cum_a,
+                    price_b_cumulative: cum_b,
+                },
+            )
+            .unwrap();
+    }
+
+    fn latest(storage: &dyn Storage) -> Observation {
+        OBSERVATIONS.load(storage, 0).unwrap()
+    }
+
+    fn state(storage: &dyn Storage) -> OracleState {
+        ORACLE_STATE.load(storage).unwrap()
+    }
+
+    #[test]
+    fn observe_extreme_ratio_skips_extrapolate_instead_of_panicking() {
+        let mut deps = mock_dependencies();
+        seed_latest(
+            &mut deps.storage,
+            LAST_TS,
+            Uint128::new(LAST_CUM_A),
+            Uint128::new(LAST_CUM_B),
+        );
+        let obs = latest(&deps.storage);
+        let st = state(&deps.storage);
+        let res = oracle_observe_single(
+            &deps.storage,
+            LAST_TS + 50,
+            0,
+            &st,
+            &obs,
+            Uint128::one(),
+            Uint128::MAX,
+        );
+        let (cum_a, cum_b) = res.expect("extreme Observe must not panic/err");
+        assert_eq!(cum_a, Uint128::new(LAST_CUM_A));
+        assert_eq!(cum_b, Uint128::new(LAST_CUM_B));
+    }
+
+    #[test]
+    fn observe_reciprocal_extreme_ratio_skips_extrapolate() {
+        let mut deps = mock_dependencies();
+        seed_latest(
+            &mut deps.storage,
+            LAST_TS,
+            Uint128::new(LAST_CUM_A),
+            Uint128::new(LAST_CUM_B),
+        );
+        let obs = latest(&deps.storage);
+        let st = state(&deps.storage);
+        let res = oracle_observe_single(
+            &deps.storage,
+            LAST_TS + 50,
+            0,
+            &st,
+            &obs,
+            Uint128::MAX,
+            Uint128::one(),
+        );
+        let (cum_a, cum_b) = res.expect("reciprocal extreme Observe must not panic/err");
+        assert_eq!(cum_a, Uint128::new(LAST_CUM_A));
+        assert_eq!(cum_b, Uint128::new(LAST_CUM_B));
+    }
+
+    #[test]
+    fn observe_zero_reserve_returns_last_cumulatives() {
+        let mut deps = mock_dependencies();
+        seed_latest(
+            &mut deps.storage,
+            LAST_TS,
+            Uint128::new(LAST_CUM_A),
+            Uint128::new(LAST_CUM_B),
+        );
+        let obs = latest(&deps.storage);
+        let st = state(&deps.storage);
+        let res = oracle_observe_single(
+            &deps.storage,
+            LAST_TS + 50,
+            0,
+            &st,
+            &obs,
+            Uint128::zero(),
+            Uint128::new(1_000_000),
+        )
+        .unwrap();
+        assert_eq!(res, (Uint128::new(LAST_CUM_A), Uint128::new(LAST_CUM_B)));
+    }
+
+    #[test]
+    fn observe_balanced_reserves_still_extrapolate() {
+        let mut deps = mock_dependencies();
+        seed_latest(
+            &mut deps.storage,
+            LAST_TS,
+            Uint128::new(LAST_CUM_A),
+            Uint128::new(LAST_CUM_B),
+        );
+        let obs = latest(&deps.storage);
+        let st = state(&deps.storage);
+        let (cum_a, cum_b) = oracle_observe_single(
+            &deps.storage,
+            LAST_TS + 100,
+            0,
+            &st,
+            &obs,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        )
+        .unwrap();
+        assert_ne!(
+            (cum_a, cum_b),
+            (obs.price_a_cumulative, obs.price_b_cumulative),
+            "balanced dt>0 must still advance cumulatives"
+        );
+        assert!(cum_a > obs.price_a_cumulative);
+        assert!(cum_b > obs.price_b_cumulative);
+    }
+
+    #[test]
+    fn observe_target_equals_latest_skips_ratio_math() {
+        let mut deps = mock_dependencies();
+        seed_latest(
+            &mut deps.storage,
+            LAST_TS,
+            Uint128::new(LAST_CUM_A),
+            Uint128::new(LAST_CUM_B),
+        );
+        let obs = latest(&deps.storage);
+        let st = state(&deps.storage);
+        let (cum_a, cum_b) = oracle_observe_single(
+            &deps.storage,
+            LAST_TS,
+            0,
+            &st,
+            &obs,
+            Uint128::one(),
+            Uint128::MAX,
+        )
+        .unwrap();
+        assert_eq!(cum_a, Uint128::new(LAST_CUM_A));
+        assert_eq!(cum_b, Uint128::new(LAST_CUM_B));
+    }
+
+    #[test]
+    fn observe_historical_interpolation_ignores_extreme_spot() {
+        let mut deps = mock_dependencies();
+        ORACLE_STATE
+            .save(
+                &mut deps.storage,
+                &OracleState {
+                    cardinality: 2,
+                    index: 1,
+                    cardinality_initialized: 2,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                0,
+                &Observation {
+                    timestamp: 100,
+                    price_a_cumulative: Uint128::new(1_000),
+                    price_b_cumulative: Uint128::new(1_000),
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                1,
+                &Observation {
+                    timestamp: 200,
+                    price_a_cumulative: Uint128::new(2_000),
+                    price_b_cumulative: Uint128::new(2_000),
+                },
+            )
+            .unwrap();
+        let latest_obs = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        let st = ORACLE_STATE.load(&deps.storage).unwrap();
+        // block_time=300, seconds_ago=150 → target=150, between stored obs.
+        let (cum_a, cum_b) = oracle_observe_single(
+            &deps.storage,
+            300,
+            150,
+            &st,
+            &latest_obs,
+            Uint128::one(),
+            Uint128::MAX,
+        )
+        .unwrap();
+        assert_eq!(cum_a, Uint128::new(1_500));
+        assert_eq!(cum_b, Uint128::new(1_500));
+    }
+
+    #[test]
+    fn query_observe_extreme_ratio_returns_json_not_vm_panic() {
+        let mut deps = mock_dependencies();
+        seed_latest(
+            &mut deps.storage,
+            LAST_TS,
+            Uint128::new(LAST_CUM_A),
+            Uint128::new(LAST_CUM_B),
+        );
+        RESERVES
+            .save(&mut deps.storage, &(Uint128::one(), Uint128::MAX))
+            .unwrap();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(LAST_TS + 50);
+        let bin = query(
+            deps.as_ref(),
+            env,
+            QueryMsg::Observe {
+                seconds_ago: vec![0],
+            },
+        )
+        .expect("Observe query must not VM-panic or StdError on extreme ratio");
+        let resp: ObserveResponse = from_json(bin).unwrap();
+        assert_eq!(resp.price_a_cumulatives, vec![Uint128::new(LAST_CUM_A)]);
+        assert_eq!(resp.price_b_cumulatives, vec![Uint128::new(LAST_CUM_B)]);
+        let after = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        assert_eq!(after.timestamp, LAST_TS);
+        assert_eq!(after.price_a_cumulative, Uint128::new(LAST_CUM_A));
+        assert_eq!(after.price_b_cumulative, Uint128::new(LAST_CUM_B));
+    }
+
+    #[test]
+    fn query_observe_mixed_seconds_ago_extreme_spot_no_panic() {
+        let mut deps = mock_dependencies();
+        ORACLE_STATE
+            .save(
+                &mut deps.storage,
+                &OracleState {
+                    cardinality: 2,
+                    index: 1,
+                    cardinality_initialized: 2,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                0,
+                &Observation {
+                    timestamp: 100,
+                    price_a_cumulative: Uint128::new(1_000),
+                    price_b_cumulative: Uint128::new(1_000),
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                1,
+                &Observation {
+                    timestamp: 200,
+                    price_a_cumulative: Uint128::new(2_000),
+                    price_b_cumulative: Uint128::new(2_000),
+                },
+            )
+            .unwrap();
+        RESERVES
+            .save(&mut deps.storage, &(Uint128::one(), Uint128::MAX))
+            .unwrap();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(300);
+        let bin = query(
+            deps.as_ref(),
+            env,
+            QueryMsg::Observe {
+                seconds_ago: vec![0, 150],
+            },
+        )
+        .unwrap();
+        let resp: ObserveResponse = from_json(bin).unwrap();
+        assert_eq!(
+            resp.price_a_cumulatives,
+            vec![Uint128::new(2_000), Uint128::new(1_500)]
+        );
+        assert_eq!(
+            resp.price_b_cumulatives,
+            vec![Uint128::new(2_000), Uint128::new(1_500)]
+        );
+    }
+
+    #[test]
+    fn oracle_update_extreme_ratio_still_skips() {
+        let mut deps = mock_dependencies();
+        seed_latest(&mut deps.storage, LAST_TS, Uint128::zero(), Uint128::zero());
+        let res = oracle_update(
+            &mut deps.storage,
+            LAST_TS + 100,
+            Uint128::one(),
+            Uint128::MAX,
+        );
+        assert!(res.is_ok(), "execute skip (#465) must stay Ok: {res:?}");
+        let after = latest(&deps.storage);
+        assert_eq!(after.timestamp, LAST_TS);
     }
 }

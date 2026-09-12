@@ -66,7 +66,7 @@ export function ProtocolOracleCard({
   return (
     <div className="shell-panel" data-testid="protocol-oracle">
       <h2
-        className="text-sm font-semibold uppercase tracking-wide mb-3 font-heading"
+        className="text-sm font-semibold tracking-wide mb-3 font-heading"
         style={{ color: 'var(--ink)' }}
         id="protocol-oracle-heading"
       >
@@ -95,7 +95,7 @@ export function ProtocolOracleCard({
               aria-selected={active}
               tabIndex={active ? 0 : -1}
               data-testid={`protocol-oracle-tab-${value}`}
-              className={`flex-1 min-w-[5.5rem] py-2.5 text-sm font-semibold uppercase tracking-wide ${
+              className={`flex-1 min-w-[5.5rem] py-2.5 text-sm font-semibold tracking-wide ${
                 active ? 'btn-primary' : ''
               }`}
               style={
@@ -163,10 +163,7 @@ export function ProtocolOracleCard({
 
       {isVfdusd && (
         <div className="mb-4" data-testid="protocol-oracle-vfdusd-venus">
-          <h3
-            className="text-xs font-semibold uppercase tracking-wide mb-2 font-heading"
-            style={{ color: 'var(--ink-dim)' }}
-          >
+          <h3 className="text-xs font-semibold tracking-wide mb-2 font-heading" style={{ color: 'var(--ink-dim)' }}>
             1 vFDUSD Price
           </h3>
           {venusQuery.isError && (
@@ -177,6 +174,7 @@ export function ProtocolOracleCard({
               <StatBox
                 variant="flat"
                 label="1 vFDUSD Price"
+                preserveLabelCase
                 value={venusFdusdDisplay(venus?.fdusd_per_vfdusd)}
                 loading={venusQuery.isLoading}
                 data-testid="protocol-oracle-vfdusd-venus-value"

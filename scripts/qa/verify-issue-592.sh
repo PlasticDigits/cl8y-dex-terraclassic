@@ -60,6 +60,8 @@ run_docs() {
   rg -q "NO-GO" cw20-codeid-audits/codeids/community-tax-token/REPORT.md
   rg -q "INVOICE_UST1" smartcontracts/contracts/community-tax-token/src/msg.rs
   rg -q "T592-7" smartcontracts/contracts/community-tax-token/src/tax.rs
+  rg -q "A-allow" skills/AGENTS_COMMUNITY_TAX_CW20.md
+  rg -q "preview.debit" smartcontracts/contracts/community-tax-token/src/contract.rs
   # Pair/router must not grow FoT math in this crate set.
   test -d smartcontracts/contracts/community-tax-token
   test -d smartcontracts/contracts/community-token-launcher

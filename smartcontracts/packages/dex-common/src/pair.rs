@@ -205,8 +205,9 @@ pub fn resolve_swap_hybrid_mode(
 ///   **token1 → token0** (taker pays token1, receives token0 from asks’ escrow).
 ///
 /// **Composite sort key** (total order, no duplicate keys):
-/// - Bids: descending `price`, then ascending `order_id` (better bids first; FIFO at same price).
-/// - Asks: ascending `price`, then ascending `order_id` (better asks first; FIFO at same price).
+/// - Bids: descending `price`, then arrival at that price (new places ≈ ascending `order_id`;
+///   `UpdateLimitOrderPrice` joins the equal-price tail while keeping the storage id — **L23** / #1227).
+/// - Asks: ascending `price`, then arrival at that price (same tie-break).
 #[cw_serde]
 pub enum LimitOrderSide {
     Bid,

@@ -16,7 +16,11 @@ if [[ -d smartcontracts ]] && command -v cargo >/dev/null 2>&1; then
 
   echo ""
   echo ">> cargo clippy"
-  if ! (cd smartcontracts && cargo clippy -- -D warnings); then
+  # rustc 1.88 promotes clippy::uninlined_format_args on historical pair/dex-common.
+  # Allow that style lint so -D warnings can stay on without churning pair/router
+  # wasm (H-01 / #1228). Specific clippy::uninlined_format_args allow comes after
+  # -D warnings so it wins.
+  if ! (cd smartcontracts && cargo clippy -- -D warnings -A clippy::uninlined_format_args); then
     echo "FAIL: cargo clippy"
     CHECKS_PASSED=false
   fi

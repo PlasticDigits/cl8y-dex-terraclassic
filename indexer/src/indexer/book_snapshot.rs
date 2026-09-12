@@ -115,6 +115,8 @@ pub async fn snapshot_single_pair(
         .await?;
     let fee_bps = fee_resp.fee_config.fee_bps as i16;
 
+    // Concat LCD DLL walks (best price first, then arrival-at-price). Replace
+    // assigns `walk_index` from this slice so sim does not re-sort by `order_id` (#1227).
     let mut orders = Vec::new();
     for side in ["bid", "ask"] {
         let side_orders = walk_resting_book_side(lcd, addr, side).await?;

@@ -33,7 +33,10 @@
 //
 // 4. **Overflow** — Cumulative values use Uint128 with checked arithmetic.
 //    At extreme prices or very long windows (years), overflow is possible
-//    but handled gracefully with errors.
+//    but handled gracefully with errors. Spot `Decimal::from_ratio` that
+//    cannot fit `Decimal::MAX` is skipped (execute `#465`, Observe `#1231`)
+//    rather than panicking or clamping. Execute `price_times_dt` overflow
+//    after a representable ratio is #1224 (out of Observe scope).
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, StdError, StdResult, Uint128};

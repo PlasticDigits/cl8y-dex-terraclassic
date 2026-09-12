@@ -7,9 +7,11 @@
 //! Price is always **token1 per token0** (same basis as pool pricing).
 //!
 //! - **Bids** (makers escrow token1; matched on taker **token0 → token1**):
-//!   Walk best-first: **descending** `price`, then **ascending** `order_id` (FIFO at same price).
+//!   Walk best-first: **descending** `price`, then **arrival at that price**. New placements
+//!   use ascending `order_id`. `UpdateLimitOrderPrice` keeps the storage id but joins the
+//!   equal-price **tail** (`RELINK_EQUAL_PRICE_SORT_ID`) — **L23** / #1227.
 //! - **Asks** (makers escrow token0; matched on taker **token1 → token0**):
-//!   Walk best-first: **ascending** `price`, then **ascending** `order_id` (FIFO at same price).
+//!   Walk best-first: **ascending** `price`, then the same arrival-at-price FIFO.
 //!
 //! ## Zero-cost fill skip (GitLab #470 / L18)
 //!
@@ -249,7 +251,19 @@ fn escrow_sub_pending_token0(
     Ok(())
 }
 
+/// Positioning key for equal-price FIFO on **relink** (`UpdateLimitOrderPrice`).
+///
+/// New placements still compare by the real `order_id` (lower id closer to the head).
+/// Relink keeps that storage id for cancel/edit (#247) but treats the node as a **new
+/// arrival at the destination price**, so it joins the tail of the equal-price run
+/// instead of leapfrogging makers who have been quoting that price longer (#1227).
+/// `reserve_order_id_block` never assigns `u64::MAX` (overflow reverts).
+pub const RELINK_EQUAL_PRICE_SORT_ID: u64 = u64::MAX;
+
 /// `true` if order `a` should be closer to the bid head than `b` (better bid first).
+/// Equal-price tie-break is ascending `order_id` for **new placements**. Relink
+/// passes [`RELINK_EQUAL_PRICE_SORT_ID`] as `a_id` so the node sorts after every
+/// existing same-price resters.
 pub fn bid_before(a_price: Decimal, a_id: u64, b_price: Decimal, b_id: u64) -> bool {
     a_price > b_price || (a_price == b_price && a_id < b_id)
 }
@@ -1154,6 +1168,7 @@ fn link_bid_order_at_id(
     mut order: LimitOrder,
     hint_after: Option<u64>,
     max_adjust_steps: u32,
+    sort_id: u64,
 ) -> Result<(), ContractError> {
     let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let mut steps: u32 = 0;
@@ -1167,7 +1182,7 @@ fn link_bid_order_at_id(
             None,
             hint_after,
             order.price,
-            id,
+            sort_id,
             max_steps,
             &mut steps,
         )?
@@ -1206,6 +1221,7 @@ fn link_ask_order_at_id(
     mut order: LimitOrder,
     hint_after: Option<u64>,
     max_adjust_steps: u32,
+    sort_id: u64,
 ) -> Result<(), ContractError> {
     let max_steps = max_adjust_steps.min(MAX_ADJUST_STEPS_HARD_CAP);
     let mut steps: u32 = 0;
@@ -1219,7 +1235,7 @@ fn link_ask_order_at_id(
             None,
             hint_after,
             order.price,
-            id,
+            sort_id,
             max_steps,
             &mut steps,
         )?
@@ -1253,6 +1269,10 @@ fn link_ask_order_at_id(
 }
 
 /// Re-sort an existing order at `new_price` without changing its id or escrow.
+///
+/// Equal-price FIFO is **arrival at the quoted price** (#1227): after unlink, insert
+/// as a new arrival (tail of the destination price group). Same-price updates are
+/// a no-op so they cannot bump ahead of later resters at that level.
 pub fn relink_limit_order_price(
     storage: &mut dyn Storage,
     id: u64,
@@ -1261,15 +1281,29 @@ pub fn relink_limit_order_price(
     max_adjust_steps: u32,
 ) -> Result<(), ContractError> {
     // Price band is enforced in `execute_update_limit_order_price` with pair decimals (#529).
+    let existing = ORDERS.load(storage, id)?;
+    if existing.price == new_price {
+        return Ok(());
+    }
     let mut order = detach_limit_order_from_book(storage, id)?;
     order.price = new_price;
     match order.side {
-        LimitOrderSide::Bid => {
-            link_bid_order_at_id(storage, id, order, hint_after, max_adjust_steps)
-        }
-        LimitOrderSide::Ask => {
-            link_ask_order_at_id(storage, id, order, hint_after, max_adjust_steps)
-        }
+        LimitOrderSide::Bid => link_bid_order_at_id(
+            storage,
+            id,
+            order,
+            hint_after,
+            max_adjust_steps,
+            RELINK_EQUAL_PRICE_SORT_ID,
+        ),
+        LimitOrderSide::Ask => link_ask_order_at_id(
+            storage,
+            id,
+            order,
+            hint_after,
+            max_adjust_steps,
+            RELINK_EQUAL_PRICE_SORT_ID,
+        ),
     }
 }
 
@@ -2595,6 +2629,258 @@ mod tests {
         assert!(lo.next.is_none());
     }
 
+    fn walk_side_ids(storage: &dyn Storage, side: LimitOrderSide) -> Vec<u64> {
+        let mut ids = Vec::new();
+        let mut cur = query_head(storage, side).unwrap();
+        while let Some(id) = cur {
+            ids.push(id);
+            cur = load_order_response(storage, id).unwrap().next;
+        }
+        ids
+    }
+
+    /// GitLab #1227 — relink onto an occupied price joins the tail, not by preserved id.
+    #[test]
+    fn fifo_bid_after_update_limit_order_price_joins_equal_price_tail() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let older = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let later = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        assert!(older < later);
+        relink_limit_order_price(storage, older, Decimal::one(), None, 256).unwrap();
+        assert_eq!(
+            walk_side_ids(storage, LimitOrderSide::Bid),
+            vec![later, older],
+            "later arrival at P must stay ahead of the older-id jumper"
+        );
+        let pending = PENDING_ESCROW_TOKEN1.may_load(storage).unwrap().unwrap();
+        assert_eq!(pending, Uint128::new(200));
+
+        let filled = match_bids(
+            storage,
+            1,
+            Uint128::new(50),
+            8,
+            None,
+            "pair",
+            "t0",
+            "t1",
+            &Addr::unchecked("recv"),
+            &Addr::unchecked("treasury"),
+            30,
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(filled.makers_used, 1);
+        let later_after = load_order_response(storage, later).unwrap();
+        let older_after = load_order_response(storage, older).unwrap();
+        assert!(later_after.remaining < Uint128::new(100));
+        assert_eq!(older_after.remaining, Uint128::new(100));
+    }
+
+    #[test]
+    fn fifo_ask_after_update_limit_order_price_joins_equal_price_tail() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let older = insert_ask(
+            storage,
+            Decimal::from_ratio(101u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let later = insert_ask(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        assert!(older < later);
+        relink_limit_order_price(storage, older, Decimal::one(), None, 256).unwrap();
+        assert_eq!(
+            walk_side_ids(storage, LimitOrderSide::Ask),
+            vec![later, older]
+        );
+    }
+
+    #[test]
+    fn fifo_after_update_limit_order_price_same_price_is_noop() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let a = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let b = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        assert!(a < b);
+        let before = walk_side_ids(storage, LimitOrderSide::Bid);
+        relink_limit_order_price(storage, a, Decimal::one(), None, 256).unwrap();
+        assert_eq!(walk_side_ids(storage, LimitOrderSide::Bid), before);
+        assert_eq!(before, vec![a, b]);
+    }
+
+    #[test]
+    fn fifo_after_update_limit_order_price_better_price_is_new_head() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let worse = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let mid = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        relink_limit_order_price(
+            storage,
+            worse,
+            Decimal::from_ratio(101u128, 100u128),
+            None,
+            256,
+        )
+        .unwrap();
+        assert_eq!(
+            walk_side_ids(storage, LimitOrderSide::Bid),
+            vec![worse, mid]
+        );
+    }
+
+    #[test]
+    fn batch_insert_better_bid_after_worse_is_loadable() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("alice_reprice_fifo");
+        let worse = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let better = insert_bid_with_id_for_batch(
+            storage,
+            worse + 1,
+            Decimal::one(),
+            Uint128::new(100),
+            o,
+            None,
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        assert_eq!(better.id, worse + 1);
+        let lo = load_order_response(storage, better.id).unwrap();
+        assert_eq!(lo.remaining, Uint128::new(100));
+        assert_eq!(
+            query_head(storage, LimitOrderSide::Bid).unwrap(),
+            Some(better.id)
+        );
+    }
+
+    #[test]
+    fn fifo_after_update_limit_order_price_hint_cannot_jump_equal_price() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+        let o = Addr::unchecked("owner");
+        let older = insert_bid(
+            storage,
+            Decimal::from_ratio(99u128, 100u128),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let a = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        let c = insert_bid(
+            storage,
+            Decimal::one(),
+            Uint128::new(100),
+            o.clone(),
+            None,
+            256,
+            None,
+        )
+        .unwrap();
+        // Hint at A (first at P) must not insert the jumper before A or between A and C.
+        relink_limit_order_price(storage, older, Decimal::one(), Some(a), 256).unwrap();
+        assert_eq!(
+            walk_side_ids(storage, LimitOrderSide::Bid),
+            vec![a, c, older]
+        );
+    }
+
     /// GitLab #265 — near-miss hint (new better than hint): prev walk finds slot under tight cap.
     #[test]
     fn insert_bid_near_miss_hint_toward_head_succeeds_under_cap() {
@@ -3666,21 +3952,82 @@ mod proptest_limits {
             price_den: u128,
             amt: u128,
         },
+        /// Relink a live order by walk index (#1227 / #424).
+        Reprice {
+            index: u8,
+            price_num: u128,
+            price_den: u128,
+        },
     }
 
     fn op_strategy() -> impl Strategy<Value = Op> {
         prop_oneof![
-            (1u128..=500u128, 1u128..=100u128, 1u128..=50_000u128).prop_map(|(n, d, a)| Op::Bid {
+            4 => (1u128..=500u128, 1u128..=100u128, 1u128..=50_000u128).prop_map(|(n, d, a)| Op::Bid {
                 price_num: n,
                 price_den: d,
                 amt: a,
             }),
-            (1u128..=500u128, 1u128..=100u128, 1u128..=50_000u128).prop_map(|(n, d, a)| Op::Ask {
+            4 => (1u128..=500u128, 1u128..=100u128, 1u128..=50_000u128).prop_map(|(n, d, a)| Op::Ask {
                 price_num: n,
                 price_den: d,
                 amt: a,
+            }),
+            2 => (0u8..=20u8, 1u128..=500u128, 1u128..=100u128).prop_map(|(i, n, d)| Op::Reprice {
+                index: i,
+                price_num: n,
+                price_den: d,
             }),
         ]
+    }
+
+    fn collect_live_ids(storage: &dyn Storage) -> Vec<(u64, LimitOrderSide)> {
+        let mut ids = Vec::new();
+        let mut cur = HEAD_BID.may_load(storage).unwrap().flatten();
+        while let Some(id) = cur {
+            ids.push((id, LimitOrderSide::Bid));
+            cur = ORDERS.load(storage, id).unwrap().next;
+        }
+        let mut cur = HEAD_ASK.may_load(storage).unwrap().flatten();
+        while let Some(id) = cur {
+            ids.push((id, LimitOrderSide::Ask));
+            cur = ORDERS.load(storage, id).unwrap().next;
+        }
+        ids
+    }
+
+    /// Equal-price nodes must appear in non-decreasing arrival-at-price generation (#1227).
+    fn assert_equal_price_arrival_fifo(
+        storage: &dyn Storage,
+        arrival_seq: &std::collections::HashMap<u64, u64>,
+    ) {
+        for (head, side) in [
+            (
+                HEAD_BID.may_load(storage).unwrap().flatten(),
+                LimitOrderSide::Bid,
+            ),
+            (
+                HEAD_ASK.may_load(storage).unwrap().flatten(),
+                LimitOrderSide::Ask,
+            ),
+        ] {
+            let mut cur = head;
+            let mut prev_price: Option<Decimal> = None;
+            let mut prev_seq: Option<u64> = None;
+            while let Some(id) = cur {
+                let o = ORDERS.load(storage, id).unwrap();
+                assert_eq!(o.side, side);
+                let seq = *arrival_seq.get(&id).expect("arrival seq for live id");
+                if prev_price == Some(o.price) {
+                    assert!(
+                        prev_seq.expect("prev seq") <= seq,
+                        "repriced/new node {id} sat ahead of an earlier same-price arrival"
+                    );
+                }
+                prev_price = Some(o.price);
+                prev_seq = Some(seq);
+                cur = o.next;
+            }
+        }
     }
 
     proptest! {
@@ -3691,11 +4038,13 @@ mod proptest_limits {
             let mut deps = mock_dependencies();
             let storage = deps.as_mut().storage;
             let owner = Addr::unchecked("maker");
+            let mut arrival_seq: std::collections::HashMap<u64, u64> = std::collections::HashMap::new();
+            let mut next_seq = 1u64;
             for op in ops {
                 match op {
                     Op::Bid { price_num, price_den, amt } => {
                         let price = Decimal::from_ratio(price_num, price_den);
-                        insert_bid(
+                        let id = insert_bid(
                             storage,
                             price,
                             Uint128::new(amt),
@@ -3704,10 +4053,12 @@ mod proptest_limits {
                             256,
                             None,
                         ).unwrap();
+                        arrival_seq.insert(id, next_seq);
+                        next_seq += 1;
                     }
                     Op::Ask { price_num, price_den, amt } => {
                         let price = Decimal::from_ratio(price_num, price_den);
-                        insert_ask(
+                        let id = insert_ask(
                             storage,
                             price,
                             Uint128::new(amt),
@@ -3716,9 +4067,25 @@ mod proptest_limits {
                             256,
                             None,
                         ).unwrap();
+                        arrival_seq.insert(id, next_seq);
+                        next_seq += 1;
+                    }
+                    Op::Reprice { index, price_num, price_den } => {
+                        let live = collect_live_ids(storage);
+                        if !live.is_empty() {
+                            let id = live[index as usize % live.len()].0;
+                            let new_price = Decimal::from_ratio(price_num, price_den);
+                            let old_price = ORDERS.load(storage, id).unwrap().price;
+                            relink_limit_order_price(storage, id, new_price, None, 256).unwrap();
+                            if old_price != new_price {
+                                arrival_seq.insert(id, next_seq);
+                                next_seq += 1;
+                            }
+                        }
                     }
                 }
                 assert_escrow_matches_lists(storage);
+                assert_equal_price_arrival_fifo(storage, &arrival_seq);
             }
         }
 
