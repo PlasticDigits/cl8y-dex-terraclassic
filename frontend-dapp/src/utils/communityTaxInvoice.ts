@@ -11,6 +11,7 @@ import {
   skuInvoiceUst1RawString,
   type CommunityTaxSkuId,
 } from '@/utils/communityTaxSku'
+import { toRawAmount } from '@/utils/formatAmount'
 
 export type CreateTokenHookArgs = {
   name: string
@@ -122,6 +123,48 @@ export type SettingsBatchFields = {
   launch_guards?: { max_wallet?: string; cooldown_blocks: number; trading_enabled: boolean }
   minter?: string
   revoke_mint?: boolean
+}
+
+export type AutoLpSisterConfig = {
+  pair: string | null
+  threshold: string
+  lp_recipient: string
+}
+
+export type AutoLpDraft = {
+  pair: string
+  thresholdHuman: string
+  lpRecipient: string
+}
+
+function sameTerraAddr(a: string, b: string | null | undefined): boolean {
+  if (!b) return false
+  return a.trim().toLowerCase() === b.trim().toLowerCase()
+}
+
+/**
+ * Manage Token AutoLP dirty compare vs sister `GetConfig` (**T592-4** / #1237).
+ * Blank fields are omitted (not defaulted to raw `1` or the connected wallet).
+ * Returns `undefined` when nothing would change on the sister.
+ */
+export function buildAutolpSettingsDelta(
+  draft: AutoLpDraft,
+  sister: AutoLpSisterConfig,
+  decimals: number
+): SettingsBatchFields['autolp'] | undefined {
+  const pairTrim = draft.pair.trim()
+  const thTrim = draft.thresholdHuman.trim()
+  const recipTrim = draft.lpRecipient.trim()
+  const pairDelta = pairTrim.length > 0 && !sameTerraAddr(pairTrim, sister.pair)
+  const thresholdRaw = thTrim ? toRawAmount(thTrim, decimals) : null
+  const thresholdDelta = thresholdRaw != null && thresholdRaw !== String(sister.threshold)
+  const recipientDelta = recipTrim.length > 0 && !sameTerraAddr(recipTrim, sister.lp_recipient)
+  if (!pairDelta && !thresholdDelta && !recipientDelta) return undefined
+  return {
+    pair: pairDelta ? pairTrim : undefined,
+    threshold: thresholdDelta && thresholdRaw != null ? thresholdRaw : sister.threshold,
+    lp_recipient: recipientDelta ? recipTrim : sister.lp_recipient,
+  }
 }
 
 export function settingsBatchIsEmpty(batch: SettingsBatchFields): boolean {

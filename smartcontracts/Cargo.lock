@@ -139,6 +139,7 @@ dependencies = [
 name = "cl8y-community-tax-token"
 version = "1.0.0"
 dependencies = [
+ "cl8y-community-tax-autolp",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",

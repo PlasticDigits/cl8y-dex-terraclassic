@@ -15,6 +15,7 @@ import {
   queryCommunityTaxTokenInfo,
   registerListedPair,
   skimAutoLp,
+  queryAutoLpConfig,
   type CommunityTaxFeaturesResponse,
 } from '@/services/terraclassic/communityTaxToken'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
@@ -37,6 +38,7 @@ import { toRawAmount } from '@/utils/formatAmount'
 import {
   buildEnableFeatureInvoice,
   buildSettingsBatchInvoice,
+  buildAutolpSettingsDelta,
   settingsBatchIsEmpty,
   type SettingsBatchFields,
 } from '@/utils/communityTaxInvoice'
@@ -92,6 +94,11 @@ export default function ManageTokenPage() {
 
   const cfg = configQuery.data
   const feats = featuresQuery.data
+  const autolpQuery = useQuery({
+    queryKey: ['communityTaxAutolp', cfg?.autolp],
+    queryFn: () => queryAutoLpConfig(cfg!.autolp!),
+    enabled: Boolean(isCommunityTaxEnabled() && tokenOk && feats?.auto_v2_lp && cfg?.autolp),
+  })
   const isManager = isManagerWallet(address, cfg?.manager)
   const codeMismatch = infoQuery.data && COMMUNITY_TAX_CODE_ID > 0 && infoQuery.data.code_id !== COMMUNITY_TAX_CODE_ID
   const unverifiedAdmin =
@@ -148,14 +155,22 @@ export default function ManageTokenPage() {
       }
     }
   }
-  if (feats?.auto_v2_lp && cfg?.autolp && (autolpPair.trim() || autolpThreshold.trim() || autolpRecipient.trim())) {
-    const recip = autolpRecipient.trim() || address || ''
-    if (recip && !getTerraAddressInputError(recip)) {
-      settings.autolp = {
-        pair: autolpPair.trim() || undefined,
-        threshold: autolpThreshold.trim() ? toRawAmount(autolpThreshold.trim(), decimals) : '1',
-        lp_recipient: recip,
-      }
+  if (feats?.auto_v2_lp && cfg?.autolp && autolpQuery.data) {
+    const delta = buildAutolpSettingsDelta(
+      { pair: autolpPair, thresholdHuman: autolpThreshold, lpRecipient: autolpRecipient },
+      {
+        pair: autolpQuery.data.pair,
+        threshold: autolpQuery.data.threshold,
+        lp_recipient: autolpQuery.data.lp_recipient,
+      },
+      decimals
+    )
+    if (
+      delta &&
+      !getTerraAddressInputError(delta.lp_recipient) &&
+      (!delta.pair || !getTerraAddressInputError(delta.pair))
+    ) {
+      settings.autolp = delta
     }
   }
 
@@ -464,9 +479,10 @@ export default function ManageTokenPage() {
             <input
               className="input-glass w-full"
               disabled={!isManager || !cfg?.autolp}
-              placeholder="This token's CL8Y factory pair"
+              placeholder={autolpQuery.data?.pair || "This token's CL8Y factory pair"}
               value={autolpPair}
               onChange={(e) => setAutolpPair(e.target.value)}
+              data-testid="manage-autolp-pair"
             />
             <input
               className="input-glass w-full"
@@ -474,13 +490,15 @@ export default function ManageTokenPage() {
               placeholder="Threshold (human)"
               value={autolpThreshold}
               onChange={(e) => setAutolpThreshold(e.target.value)}
+              data-testid="manage-autolp-threshold"
             />
             <input
               className="input-glass w-full"
               disabled={!isManager || !cfg?.autolp}
-              placeholder="LP recipient"
+              placeholder={autolpQuery.data?.lp_recipient || 'LP recipient'}
               value={autolpRecipient}
               onChange={(e) => setAutolpRecipient(e.target.value)}
+              data-testid="manage-autolp-recipient"
             />
           </div>
         )}

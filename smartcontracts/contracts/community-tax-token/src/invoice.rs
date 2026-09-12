@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_json_binary, Addr, DepsMut, Env, Response, Uint128, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Decimal, DepsMut, Env, Response, Uint128, WasmMsg};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 use crate::error::ContractError;
@@ -335,6 +335,9 @@ pub fn validate_sinks(
     Ok(out)
 }
 
+/// Compare `autolp` to sister `GetConfig` (**T592-4** / #1237). Pair / threshold /
+/// recipient / skim live on the sister; the token only stores the binding.
+/// Omitted `pair` / skim fields merge (**M610-6**) and are not a change.
 fn apply_autolp_settings(
     deps: &mut DepsMut,
     cfg: &mut Config,
@@ -350,7 +353,66 @@ fn apply_autolp_settings(
             "AutoLP contract not bound; enable AutoV2Lp via launcher",
         ))
     })?;
-    // Pair/threshold/recipient live on the AutoLP sister; token only tracks binding.
+
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "snake_case")]
+    enum SisterQuery {
+        GetConfig {},
+    }
+    #[derive(serde::Deserialize)]
+    struct SisterConfigView {
+        pair: Option<Addr>,
+        threshold: Uint128,
+        lp_recipient: Addr,
+        skim_max_spread: Decimal,
+        skim_min_return: Option<Uint128>,
+    }
+    let current: SisterConfigView = deps
+        .querier
+        .query_wasm_smart(sister.to_string(), &SisterQuery::GetConfig {})?;
+
+    let mut pair_out: Option<String> = None;
+    if let Some(ref pair) = autolp.pair {
+        let incoming = deps.api.addr_validate(pair)?;
+        if current.pair.as_ref() != Some(&incoming) {
+            pair_out = Some(incoming.to_string());
+        }
+    }
+    let threshold_out = if autolp.threshold != current.threshold {
+        Some(autolp.threshold)
+    } else {
+        None
+    };
+    let lp_recipient_out = if recipient != current.lp_recipient {
+        Some(recipient.to_string())
+    } else {
+        None
+    };
+    let skim_max_out = match autolp.skim_max_spread {
+        Some(s) if s != current.skim_max_spread => Some(s),
+        _ => None,
+    };
+    let skim_min_out = match autolp.skim_min_return {
+        None => None,
+        Some(m) => {
+            let effective = if m.is_zero() { None } else { Some(m) };
+            if effective != current.skim_min_return {
+                Some(m)
+            } else {
+                None
+            }
+        }
+    };
+
+    if pair_out.is_none()
+        && threshold_out.is_none()
+        && lp_recipient_out.is_none()
+        && skim_max_out.is_none()
+        && skim_min_out.is_none()
+    {
+        return Ok(None);
+    }
+
     *changed = true;
     #[derive(serde::Serialize)]
     struct SisterUpdate {
@@ -359,7 +421,7 @@ fn apply_autolp_settings(
         quote_token: Option<String>,
         threshold: Option<Uint128>,
         lp_recipient: Option<String>,
-        skim_max_spread: Option<cosmwasm_std::Decimal>,
+        skim_max_spread: Option<Decimal>,
         skim_min_return: Option<Uint128>,
     }
     #[derive(serde::Serialize)]
@@ -370,13 +432,13 @@ fn apply_autolp_settings(
         contract_addr: sister.to_string(),
         msg: to_json_binary(&SisterExec {
             update_config: SisterUpdate {
-                pair: autolp.pair,
+                pair: pair_out,
                 router: None,
                 quote_token: None,
-                threshold: Some(autolp.threshold),
-                lp_recipient: Some(recipient.to_string()),
-                skim_max_spread: autolp.skim_max_spread,
-                skim_min_return: autolp.skim_min_return,
+                threshold: threshold_out,
+                lp_recipient: lp_recipient_out,
+                skim_max_spread: skim_max_out,
+                skim_min_return: skim_min_out,
             },
         })?,
         funds: vec![],
@@ -427,25 +489,27 @@ fn apply_mint_settings(
     }
     if let Some(minter) = &batch.minter {
         let addr = deps.api.addr_validate(minter)?;
+        let mut mint_changed = false;
         TOKEN_INFO.update(deps.storage, |mut info| -> Result<_, ContractError> {
             match &mut info.mint {
+                Some(m) if m.minter == addr => {}
                 Some(m) => {
-                    if m.minter != addr {
-                        m.minter = addr.clone();
-                    } else {
-                        return Ok(info);
-                    }
+                    m.minter = addr.clone();
+                    mint_changed = true;
                 }
                 None => {
                     info.mint = Some(MinterData {
                         minter: addr.clone(),
                         cap: None,
                     });
+                    mint_changed = true;
                 }
             }
             Ok(info)
         })?;
-        *changed = true;
+        if mint_changed {
+            *changed = true;
+        }
     }
     Ok(())
 }
