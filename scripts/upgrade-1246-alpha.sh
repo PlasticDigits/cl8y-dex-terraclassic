@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
-# Forgejo #1246 — columbus-5 ALPHA (11630) store + whitelist + trading smoke.
+# Forgejo #1246 — columbus-5 ALPHA (11630) store + whitelist + CMM migrate + Refresh.
 #
-# ALPHA terra1x6e64…zysuxz is the only 11630 instance. Wasm admin is the CMM
-# treasury (not an EOA). Live CMM (11564 / treasury 0.2.1) has no execute that
-# emits WasmMsg::Migrate, so this script cannot MsgMigrateContract ALPHA.
-# Store + AddWhitelistedCodeId (keep 11630) + launcher token_code_id +
-# RegisterListedPair / Refresh after a later CMM migrate.
-#
-# Do NOT whitelist 8654 / launcher / AutoLP. Do not store launcher or AutoLP.
+# ALPHA terra1x6e64…zysuxz wasm admin is CMM (not an EOA). Do not
+# `wasm migrate` ALPHA. After CMM is treasury 0.2.2, DEX 2-of-3 executes
+# `migrate_owned_contract` on CMM. Refresh only when ALPHA LCD code_id is 11666.
+# Keep 11630 listed until Refresh. Do NOT whitelist 8654 / launcher / AutoLP.
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/upgrade-1246-alpha.sh
 #   UPGRADE1246_WHITELIST=1 ./scripts/upgrade-1246-alpha.sh
-#   UPGRADE1246_SKIP_STORE=1 UPGRADE1246_TOKEN_CODE_ID=<n> \
-#     UPGRADE1246_WHITELIST=1 ./scripts/upgrade-1246-alpha.sh
-#   UPGRADE1246_REFRESH=1   # after ALPHA live code_id == TOKEN_CODE
+#   UPGRADE1246_SKIP_STORE=1 UPGRADE1246_TOKEN_CODE_ID=11666 \
+#     UPGRADE1246_SKIP_WHITELIST=1 UPGRADE1246_SKIP_LAUNCHER_CONFIG=1 \
+#     UPGRADE1246_STORE_CMM=1 UPGRADE1246_REFRESH=1 \
+#     ./scripts/upgrade-1246-alpha.sh
 #
-# Keys: cl8ydeploy stores + RegisterListedPair. DEX 2-of-3 whitelist / Refresh /
-# launcher UpdateConfig.
+# Keys: cl8ydeploy stores token + treasury. DEX 2-of-3: whitelist, launcher,
+# CMM wasm migrate, MigrateOwnedContract, Refresh.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -42,6 +40,8 @@ NEVER_LIST="8654 11612 11613 11614 11620 11621 11622 11633 11628 11629"
 FACTORY="${UPGRADE1246_FACTORY_ADDRESS:-${FACTORY_ADDRESS:-$UST1_OPS_FACTORY}}"
 LAUNCHER="${UPGRADE1246_LAUNCHER_ADDRESS:-terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze}"
 CMM="${UPGRADE1246_CMM:-$UST1_OPS_TREASURY}"
+CMM_MIN_CW2="${UPGRADE1246_CMM_MIN_CW2:-0.2.2}"
+TREASURY_WASM="${UPGRADE1246_TREASURY_WASM:-$REPO_ROOT/../ustr-cmm/contracts/artifacts/treasury.wasm}"
 DEX_GOV="${UPGRADE1246_DEX_GOVERNANCE:-$UST1_OPS_DEX_GOVERNANCE}"
 LCD_URL="${LCD_URL:-${TERRA_LCD_URL:-$UST1_OPS_LCD_URL}}"
 LCD_URL="${LCD_URL%/}"
@@ -101,6 +101,39 @@ gov_tx() {
   tx_hash="$(printf '%s' "$out" | awk '/^OK / { print $2 }' | tail -1)"
   [[ -n "$tx_hash" ]] || upgrade1246_die "no txhash from 2-of-3: $label"
   printf '%s' "$tx_hash"
+}
+
+upgrade1246_cw2_version() {
+  local addr="$1"
+  local key_b64 json data ver
+  if [[ "$(uname)" == Darwin ]]; then
+    key_b64="$(printf 'contract_info' | base64 | tr -d '\n')"
+  else
+    key_b64="$(printf 'contract_info' | base64 -w0)"
+  fi
+  json="$(localterra_lcd_curl "$LCD_URL" "/cosmwasm/wasm/v1/contract/${addr}/raw/${key_b64}" || true)"
+  data="$(printf '%s' "$json" | jq -r '.data // empty')"
+  [[ -n "$data" ]] || return 1
+  ver="$(printf '%s' "$data" | base64 -d 2>/dev/null | jq -r '.version // empty')"
+  [[ -n "$ver" ]] || return 1
+  printf '%s' "$ver"
+}
+
+upgrade1246_assert_treasury_wasm_022() {
+  local wasm="$1"
+  [[ -f "$wasm" ]] || upgrade1246_die "missing $wasm — optimizer in ustr-cmm/contracts (not cargo wasm; refuse the Aug 2026 0.2.1 artifact)"
+  python3 - "$wasm" <<'PY' || upgrade1246_die "refusing $wasm — wasm must embed cw2 0.2.2 (stale 0.2.1 artifact is not storeable)"
+import sys
+from pathlib import Path
+data = Path(sys.argv[1]).read_bytes()
+if b"0.2.2" not in data:
+    sys.exit(1)
+PY
+}
+
+upgrade1246_refresh_alpha_code() {
+  INFO="$(upgrade611_lcd_contract_info "$LCD_URL" "$ALPHA" || true)"
+  ALPHA_CODE="$(printf '%s' "$INFO" | jq -r '.contract_info.code_id // empty')"
 }
 
 alpha_factory_pairs() {
@@ -178,7 +211,10 @@ else
   LAUNCHER_AUTOLP="$(printf '%s' "$LCFG" | jq -r '.autolp_code_id // empty')"
   echo "  launcher token_code_id=$LAUNCHER_TOKEN autolp_code_id=$LAUNCHER_AUTOLP"
   CMM_INFO="$(upgrade611_lcd_contract_info "$LCD_URL" "$CMM" || true)"
-  echo "  CMM code_id=$(printf '%s' "$CMM_INFO" | jq -r '.contract_info.code_id // empty') admin=$(printf '%s' "$CMM_INFO" | jq -r '.contract_info.admin // empty')"
+  CMM_CODE_LIVE="$(printf '%s' "$CMM_INFO" | jq -r '.contract_info.code_id // empty')"
+  CMM_ADMIN="$(printf '%s' "$CMM_INFO" | jq -r '.contract_info.admin // empty')"
+  CMM_CW2="$(upgrade1246_cw2_version "$CMM" || true)"
+  echo "  CMM code_id=$CMM_CODE_LIVE admin=$CMM_ADMIN cw2=$CMM_CW2"
 fi
 
 echo ""
@@ -247,10 +283,51 @@ fi
 
 echo ""
 echo "[5] CMM migrate ALPHA → $TOKEN_CODE"
-echo "  ALPHA admin is CMM $CMM. CMM treasury ExecuteMsg has no WasmMsg::Migrate."
-echo "  2-of-3 cannot sign MsgMigrateContract for a CMM-admin instance."
-echo "  leftover: ustr-cmm ExecuteMsg that emits WasmMsg::Migrate { contract: ALPHA, new_code_id: $TOKEN_CODE, msg: {} }"
-echo "  signer of that CMM execute is DEX 2-of-3 ($DEX_GOV), then re-run with UPGRADE1246_REFRESH=1."
+echo "  ALPHA admin is CMM $CMM. Do not wasm migrate ALPHA; 2-of-3 ($DEX_GOV) executes migrate_owned_contract."
+if [[ "${DRY_RUN:-0}" == "1" && -z "${UPGRADE1246_DRY_QUERY:-}" ]]; then
+  echo "  DRY_RUN: skip CMM store/migrate/execute"
+  echo "    leftover until live CMM cw2 is $CMM_MIN_CW2: store optimizer treasury.wasm, 2-of-3 wasm migrate CMM, then migrate_owned_contract"
+else
+  if [[ -n "${ALPHA_ADMIN:-}" && "$ALPHA_ADMIN" != "$CMM" ]]; then
+    upgrade1246_die "ALPHA admin is $ALPHA_ADMIN not CMM $CMM"
+  fi
+  if [[ "${ALPHA_CODE:-}" == "$TOKEN_CODE" ]]; then
+    echo "  ALPHA already code_id=$TOKEN_CODE"
+  else
+    CMM_CW2="${CMM_CW2:-$(upgrade1246_cw2_version "$CMM" || true)}"
+    if [[ "$CMM_CW2" != "$CMM_MIN_CW2" ]]; then
+      echo "  CMM cw2=$CMM_CW2 (want $CMM_MIN_CW2)"
+      CMM_NEW_CODE="${UPGRADE1246_CMM_CODE_ID:-}"
+      if [[ -z "$CMM_NEW_CODE" && "${UPGRADE1246_STORE_CMM:-0}" == "1" ]]; then
+        upgrade1246_assert_treasury_wasm_022 "$TREASURY_WASM"
+        local_tx="$(broadcast_and_wait "store treasury 0.2.2" wasm store "$TREASURY_WASM")"
+        CMM_NEW_CODE="$(terrad_host_code_id_from_store_tx "$local_tx")"
+        [[ -n "$CMM_NEW_CODE" ]] || upgrade1246_die "could not parse treasury code_id"
+        echo "    treasury code_id: $CMM_NEW_CODE" >&2
+      fi
+      if [[ -z "$CMM_NEW_CODE" ]]; then
+        upgrade1246_die "CMM still $CMM_CW2. Optimizer ustr-cmm/contracts → artifacts/treasury.wasm (must embed 0.2.2; refuse Aug 2026 0.2.1 file), then:
+  UPGRADE1246_SKIP_STORE=1 UPGRADE1246_TOKEN_CODE_ID=$TOKEN_CODE \\
+    UPGRADE1246_SKIP_WHITELIST=1 UPGRADE1246_SKIP_LAUNCHER_CONFIG=1 \\
+    UPGRADE1246_STORE_CMM=1 UPGRADE1246_REFRESH=1 $0
+or set UPGRADE1246_CMM_CODE_ID=<T> after a manual store"
+      fi
+      gov_tx "migrate CMM → $CMM_NEW_CODE" wasm migrate "$CMM" "$CMM_NEW_CODE" '{}' >/dev/null
+      CMM_CW2="$(upgrade1246_cw2_version "$CMM" || true)"
+      [[ "$CMM_CW2" == "$CMM_MIN_CW2" ]] || upgrade1246_die "CMM cw2=$CMM_CW2 after migrate, want $CMM_MIN_CW2"
+    fi
+    OWNED="$(jq -nc --arg c "$ALPHA" --argjson id "$TOKEN_CODE" \
+      '{migrate_owned_contract:{contract:$c,new_code_id:$id}}')"
+    gov_tx "MigrateOwnedContract ALPHA → $TOKEN_CODE" wasm execute "$CMM" "$OWNED" >/dev/null
+    for i in 1 2 3 4 5 6; do
+      upgrade1246_refresh_alpha_code
+      [[ "$ALPHA_CODE" == "$TOKEN_CODE" ]] && break
+      sleep 2
+    done
+    [[ "$ALPHA_CODE" == "$TOKEN_CODE" ]] \
+      || upgrade1246_die "ALPHA still code_id=$ALPHA_CODE after MigrateOwnedContract (want $TOKEN_CODE)"
+  fi
+fi
 if [[ "${UPGRADE1246_REFRESH:-0}" == "1" ]]; then
   if [[ "${DRY_RUN:-0}" != "1" && -n "${ALPHA_CODE:-}" && "$ALPHA_CODE" != "$TOKEN_CODE" ]]; then
     upgrade1246_die "UPGRADE1246_REFRESH=1 but ALPHA live code_id=$ALPHA_CODE want $TOKEN_CODE (CMM migrate first)"
@@ -327,6 +404,6 @@ else
 fi
 
 echo ""
-echo "OK token=$TOKEN_CODE ALPHA=$ALPHA keep_listed=$OLD_TOKEN_CODE"
-echo "CMM migrate leftover until ustr-cmm can WasmMsg::Migrate ALPHA."
-echo "Then: UPGRADE1246_SKIP_STORE=1 UPGRADE1246_TOKEN_CODE_ID=$TOKEN_CODE UPGRADE1246_WHITELIST=1 UPGRADE1246_REFRESH=1 $0"
+echo "OK token=$TOKEN_CODE ALPHA=$ALPHA keep_listed=$OLD_TOKEN_CODE ALPHA_code=${ALPHA_CODE:-}"
+echo "CMM cw2 want $CMM_MIN_CW2 then MigrateOwnedContract; Refresh only when ALPHA LCD is $TOKEN_CODE."
+echo "Resume: UPGRADE1246_SKIP_STORE=1 UPGRADE1246_TOKEN_CODE_ID=$TOKEN_CODE UPGRADE1246_SKIP_WHITELIST=1 UPGRADE1246_SKIP_LAUNCHER_CONFIG=1 UPGRADE1246_STORE_CMM=1 UPGRADE1246_REFRESH=1 $0"
