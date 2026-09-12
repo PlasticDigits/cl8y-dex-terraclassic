@@ -1102,6 +1102,18 @@ test-clunc-custc-lp:
 		scripts/rebalance-mint-clunc-custc-lp.sh scripts/lib/clunc-custc-lp-math.py
 	./scripts/qa/test-clunc-custc-lp.sh
 
+# Columbus-5: create cLUNC/USDT pair if missing and seed $1k+$1k (mint cLUNC, never mint USDT) → CMM.
+# DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + CLUNC_USDT_YES=1 (or TTY confirm).
+.PHONY: mint-clunc-usdt-lp test-clunc-usdt-lp
+mint-clunc-usdt-lp:
+	@chmod +x scripts/mint-clunc-usdt-lp.sh scripts/lib/clunc-usdt-lp-math.py
+	./scripts/mint-clunc-usdt-lp.sh
+
+test-clunc-usdt-lp:
+	@chmod +x scripts/qa/test-clunc-usdt-lp.sh scripts/mint-clunc-usdt-lp.sh \
+		scripts/lib/clunc-usdt-lp-defaults.sh scripts/lib/clunc-usdt-lp-math.py
+	./scripts/qa/test-clunc-usdt-lp.sh
+
 # Columbus-5: mint 50 UST1/hour, best-solver swap to cLUNC, burn until CMM bank uluna × oracle is $2500.
 # DRY_RUN=1 skips txs (one tick). Live loops hourly: TERRAD_HOST_KEYRING_PASS + UST1_CLUNC_YES=1.
 .PHONY: mint-swap-burn-ust1-clunc test-ust1-clunc-buyback
@@ -1375,7 +1387,7 @@ help:
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
-	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
+	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:
