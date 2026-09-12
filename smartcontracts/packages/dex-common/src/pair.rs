@@ -586,6 +586,7 @@ pub enum QueryMsg {
         /// CW20 sender for discount lookup when `trader` differs (e.g. trusted router). Defaults to `trader`.
         sender: Option<String>,
         /// When set, skip the no-belief material pool-leg guard (same as execute `belief_price`).
+        /// Zero and reciprocal-underflow values error on this query ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)).
         #[serde(default)]
         belief_price: Option<Decimal>,
     },
@@ -596,6 +597,7 @@ pub enum QueryMsg {
         trader: Option<String>,
         sender: Option<String>,
         /// When set, skip the no-belief material pool-leg guard (same as execute `belief_price`).
+        /// Zero and reciprocal-underflow values error on this query ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)).
         #[serde(default)]
         belief_price: Option<Decimal>,
     },

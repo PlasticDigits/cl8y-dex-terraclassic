@@ -7,8 +7,9 @@
  * - `total_gross_out = pool_gross + book_return_net` (book net is 0 for pool-only hops).
  * - No-belief hybrid with both legs: `book_shortfall = max(0, pool_net * book_input / pool_input - book_net)`.
  * - No-belief hybrid with `book_input > 0` and `pool_input > 0`: `pool_input` must be ≥ 10% of offer (min 1 raw unit).
- * - No-belief hybrid with `book_input > 0`: requires `belief_price` or pair/router `min_return` ([#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334)).
+ * - No-belief hybrid with `book_input > 0`: requires a **usable** `belief_price` (`> 0`) or pair/router `min_return` ([#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334); zero belief is invalid, [#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)).
  * - A hop **fails** on-chain if `spread_cmp / total_gross_out > max_spread` (strict `>`), same as the contract.
+ * - Retail dApp does not send `belief_price`. On-chain L9 rejects zero / dust-floor belief when integrators set it.
  */
 
 /** Parse a non-negative decimal string (e.g. `"0.01"`) into `mantissa / 10^scale`. */
@@ -43,14 +44,25 @@ export type HybridNoBeliefMaterialPoolReject =
   | { kind: 'insufficient_pool_leg'; poolInput: bigint; minPoolInput: bigint; bookInput: bigint }
   | { kind: 'zero_pool_net'; poolInput: bigint; bookInput: bigint }
 
-/** Mirrors `validate_hybrid_book_requires_slippage_floor` on pair execute (GitLab #334). */
+/** True when `belief_price` is a strictly positive decimal (G8 / #1230). */
+export function isUsableBeliefPrice(beliefPrice?: string | null): boolean {
+  if (beliefPrice == null || beliefPrice === '') return false
+  try {
+    const { mantissa } = parseDecimalStringToScaled(beliefPrice)
+    return mantissa > 0n
+  } catch {
+    return false
+  }
+}
+
+/** Mirrors `validate_hybrid_book_requires_slippage_floor` on pair execute (GitLab #334 / #1230). */
 export function hybridBookRequiresSlippageFloor(
   bookInput: bigint,
   beliefPrice?: string | null,
   minReturn?: string | null
 ): boolean {
   if (bookInput === 0n) return false
-  if (beliefPrice != null && beliefPrice !== '') return false
+  if (isUsableBeliefPrice(beliefPrice)) return false
   if (minReturn == null || minReturn === '') return true
   try {
     return BigInt(minReturn) === 0n

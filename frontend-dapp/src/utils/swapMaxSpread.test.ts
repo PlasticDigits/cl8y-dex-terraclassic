@@ -94,6 +94,8 @@ describe('swapMaxSpread', () => {
     expect(hybridBookRequiresSlippageFloor(1000n, null, '0')).toBe(true)
     expect(hybridBookRequiresSlippageFloor(1000n, null, '1')).toBe(false)
     expect(hybridBookRequiresSlippageFloor(1000n, '1.0', null)).toBe(false)
+    expect(hybridBookRequiresSlippageFloor(1000n, '0', null)).toBe(true)
+    expect(hybridBookRequiresSlippageFloor(1000n, '0.0', '1')).toBe(false)
     expect(hybridBookRequiresSlippageFloor(0n, null, null)).toBe(false)
   })
 

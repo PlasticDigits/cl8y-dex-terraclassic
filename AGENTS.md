@@ -178,6 +178,7 @@ make verify-issue-1222                   # #1222 retail gas envelope vs wallet a
 make verify-issue-708                    # #708 greedy book-first swap (multitest + gas + docs)
 make verify-issue-709                    # #709 greedy query mutex + remainder_to_pool + pool_spot overflow
 make verify-issue-710                    # #710 greedy tax / pause / blacklist / AfterSwap L7
+make verify-issue-1230                   # #1230 reject zero / dust-floor belief_price (L9)
 make verify-issue-1227                   # #1227 UpdateLimitOrderPrice equal-price FIFO (keep order_id)
 make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
@@ -341,6 +342,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Indexer lib | `cd indexer && cargo test --lib` |
 | Limit reprice FIFO | `make verify-issue-1227` |
 | Charts newest-N candles + interval chip | `make verify-issue-705` |
+| Invalid `belief_price` L9 (zero / dust-floor) | `make verify-issue-1230` |
 | Observe query extreme-ratio skip | `make verify-issue-1231` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
@@ -393,6 +395,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_HEXXAGON.md](skills/AGENTS_HEXXAGON.md) — Galaxy Station / Hexxagon CW20 pack (**H641-1–H641-8**, [#641](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/641)); `make verify-issue-641`
 - [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) — single execution-aligned **Route** row on Swap and `/trade` market quote (#158, #302); Trade market GET `/route/solve` default (#501); always-on hybrid (#596)
 - [skills/AGENTS_HYBRID_QUOTING.md](skills/AGENTS_HYBRID_QUOTING.md) — hybrid quote = execute; Swap + Trade market share `quoteCw20ViaRouteSolve` (#418, #501); regression `make verify-issue-501`
+- [skills/AGENTS_MAX_SPREAD_HYBRID.md](skills/AGENTS_MAX_SPREAD_HYBRID.md) — unified L9 `max_spread` / `belief_price` (zero and dust-floor reject, [#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)); `make verify-issue-1230`
 - [skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md](skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — official dApp never opts out of best-execution hybrid (**H596-1–H596-8**, [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)); `make verify-issue-596`
 - [skills/AGENTS_FRONTEND_PAY_INVOICE.md](skills/AGENTS_FRONTEND_PAY_INVOICE.md) — reusable pay-with-any-token invoice card (**I595-1–I595-14**, [#595](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/595)); `make verify-issue-595`
 - [skills/AGENTS_COMMUNITY_TAX_CW20.md](skills/AGENTS_COMMUNITY_TAX_CW20.md) — community tax CW20 template + launcher + AutoLP (**T592-1–T592-13**, [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592); **O601-1–O601-7**, [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601); **A-allow** SendFrom allowance [#1228](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1228)); `make verify-issue-592` · `make verify-issue-601` · `make verify-issue-1228`

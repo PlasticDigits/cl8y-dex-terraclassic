@@ -17,6 +17,7 @@ import type {
 } from '@/types'
 import { tokenAssetInfo } from '@/types'
 import { scaleHumanLimitPriceForChain, type LimitPriceDecimals } from '@/utils/limitOrderPriceScale'
+import { isUsableBeliefPrice } from '@/utils/swapMaxSpread'
 
 export type { LimitPriceDecimals }
 
@@ -131,6 +132,11 @@ export async function swap(
   to?: string,
   options?: DirectSwapOptions
 ): Promise<string> {
+  if (beliefPrice != null && beliefPrice !== '') {
+    if (!isUsableBeliefPrice(beliefPrice)) {
+      throw new Error('Invalid belief_price: must be strictly positive and produce expected_return >= 1 raw unit')
+    }
+  }
   const hybrid = options?.hybrid
   const swapMsg = btoa(
     JSON.stringify({

@@ -360,6 +360,12 @@ verify-issue-710:
 	@chmod +x scripts/qa/verify-issue-710.sh
 	./scripts/qa/verify-issue-710.sh
 
+# Forgejo #1230 — reject zero / dust-floor belief_price in check_max_spread (L9).
+.PHONY: verify-issue-1230
+verify-issue-1230:
+	@chmod +x scripts/qa/verify-issue-1230.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1230.sh
+
 # GitLab #599 — unwrap+≥2hop USTR→USTC gas combo (taxed uusd InstantWithdraw).
 verify-issue-599:
 	@chmod +x scripts/qa/verify-issue-599.sh scripts/with-node.sh

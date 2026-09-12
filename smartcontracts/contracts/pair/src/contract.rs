@@ -369,12 +369,12 @@ fn oracle_update(
     let new_cum_a = last_cum_a
         .checked_add(delta_a)
         .map_err(|e| ContractError::Oracle {
-            reason: format!("price_a overflow: {}", e),
+            reason: format!("price_a overflow: {e}"),
         })?;
     let new_cum_b = last_cum_b
         .checked_add(delta_b)
         .map_err(|e| ContractError::Oracle {
-            reason: format!("price_b overflow: {}", e),
+            reason: format!("price_b overflow: {e}"),
         })?;
 
     let new_index = if state.cardinality_initialized < state.cardinality {
@@ -942,6 +942,11 @@ fn assert_max_spread(
                 book_input: book_input.to_string(),
             }
         }
+        CheckMaxSpreadError::InvalidBeliefPrice { belief_price } => {
+            ContractError::InvalidBeliefPrice {
+                belief_price: belief_price.to_string(),
+            }
+        }
     })
 }
 
@@ -950,6 +955,11 @@ fn book_hybrid_slippage_floor_pair_error(e: CheckMaxSpreadError) -> ContractErro
         CheckMaxSpreadError::BookHybridRequiresSlippageFloor { book_input } => {
             ContractError::BookHybridRequiresSlippageFloor {
                 book_input: book_input.to_string(),
+            }
+        }
+        CheckMaxSpreadError::InvalidBeliefPrice { belief_price } => {
+            ContractError::InvalidBeliefPrice {
+                belief_price: belief_price.to_string(),
             }
         }
         other => ContractError::Std(cosmwasm_std::StdError::generic_err(format!("{other:?}"))),
@@ -1205,7 +1215,7 @@ fn execute_swap(
         let new_k = u256(new_input_reserve).checked_mul(u256(new_output_reserve))?;
         if new_k < k {
             return Err(ContractError::InvariantViolation {
-                reason: format!("k decreased: {} -> {}", k, new_k),
+                reason: format!("k decreased: {k} -> {new_k}"),
             });
         }
         if new_k - k >= u256(new_input_reserve) {
@@ -1227,8 +1237,7 @@ fn execute_swap(
         if commission_remainder >= Uint128::new(10000) {
             return Err(ContractError::InvariantViolation {
                 reason: format!(
-                    "commission rounding exceeds 1 token: remainder={}",
-                    commission_remainder
+                    "commission rounding exceeds 1 token: remainder={commission_remainder}"
                 ),
             });
         }
@@ -1690,7 +1699,7 @@ fn execute_provide_liquidity(
         // Sanity: isqrt rounding — lp^2 <= product < (lp+1)^2
         if u256(lp).checked_mul(u256(lp))? > product {
             return Err(ContractError::InvariantViolation {
-                reason: format!("isqrt too large: {}^2 > {}", lp, product),
+                reason: format!("isqrt too large: {lp}^2 > {product}"),
             });
         }
         let next = u256(lp) + Uint256::one();
@@ -1711,13 +1720,13 @@ fn execute_provide_liquidity(
         let rem_a = numerator_a - u256(lp_a).checked_mul(u256(reserve_a))?;
         if rem_a >= u256(reserve_a) {
             return Err(ContractError::InvariantViolation {
-                reason: format!("LP-A floor rounding exceeds 1 token: rem={}", rem_a),
+                reason: format!("LP-A floor rounding exceeds 1 token: rem={rem_a}"),
             });
         }
         let rem_b = numerator_b - u256(lp_b).checked_mul(u256(reserve_b))?;
         if rem_b >= u256(reserve_b) {
             return Err(ContractError::InvariantViolation {
-                reason: format!("LP-B floor rounding exceeds 1 token: rem={}", rem_b),
+                reason: format!("LP-B floor rounding exceeds 1 token: rem={rem_b}"),
             });
         }
 
@@ -1893,13 +1902,13 @@ fn execute_withdraw_liquidity(
     let rem_a = numerator_a - u256(amount_a).checked_mul(u256(total_supply))?;
     if rem_a >= u256(total_supply) {
         return Err(ContractError::InvariantViolation {
-            reason: format!("withdraw-A floor rounding exceeds 1 token: rem={}", rem_a),
+            reason: format!("withdraw-A floor rounding exceeds 1 token: rem={rem_a}"),
         });
     }
     let rem_b = numerator_b - u256(amount_b).checked_mul(u256(total_supply))?;
     if rem_b >= u256(total_supply) {
         return Err(ContractError::InvariantViolation {
-            reason: format!("withdraw-B floor rounding exceeds 1 token: rem={}", rem_b),
+            reason: format!("withdraw-B floor rounding exceeds 1 token: rem={rem_b}"),
         });
     }
 
@@ -1972,7 +1981,7 @@ fn execute_withdraw_liquidity(
         .add_attribute("withdrawn_share", lp_amount)
         .add_attribute(
             "refund_assets",
-            format!("{}, {}", refund_asset_a, refund_asset_b),
+            format!("{refund_asset_a}, {refund_asset_b}"),
         ))
 }
 
@@ -2061,10 +2070,7 @@ fn execute_increase_observation_cardinality(
 ) -> Result<Response, ContractError> {
     if new_cardinality > MAX_OBSERVATION_CARDINALITY {
         return Err(ContractError::Oracle {
-            reason: format!(
-                "cardinality exceeds maximum ({})",
-                MAX_OBSERVATION_CARDINALITY
-            ),
+            reason: format!("cardinality exceeds maximum ({MAX_OBSERVATION_CARDINALITY})"),
         });
     }
 
@@ -2466,6 +2472,12 @@ fn simulate_hybrid_swap_with_fee(
             limit_book_offer_consumed: Uint128::zero(),
             greedy_stop: None,
         });
+    }
+    // #1230: zero / reciprocal-underflow belief must error on query (not VM-panic, not skip #307).
+    // Dust-floor `offer * (1/bp) == 0` is enforced on execute via `check_max_spread` (reverse
+    // search probes small offers and must not reject a legal belief).
+    if let Some(bp) = belief_price {
+        max_spread::belief_price_reciprocal(bp).map_err(book_hybrid_slippage_floor_pair_error)?;
     }
     // Same mutex as execute (**G7** / **G11** / #709). Do not dummy-out hybrid
     // when greedy is set — that quoted greedy while Swap rejected both fields.

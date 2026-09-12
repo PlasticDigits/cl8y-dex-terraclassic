@@ -351,6 +351,11 @@ describe('swap', () => {
     })
   })
 
+  it('rejects zero belief_price before encoding the swap msg (#1230)', async () => {
+    await expect(swap(WALLET_ADDR, TOKEN_A, PAIR_ADDR, '1000', '0')).rejects.toThrow(/Invalid belief_price/)
+    expect(mockedExecute).not.toHaveBeenCalled()
+  })
+
   it('omits optional params when not provided', async () => {
     mockedExecute.mockResolvedValueOnce('txhash_swap2')
 
