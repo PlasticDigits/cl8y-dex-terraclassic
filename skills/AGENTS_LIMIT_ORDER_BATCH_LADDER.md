@@ -69,6 +69,7 @@ cd frontend-dapp && npx playwright test e2e/limit-orders-tx.spec.ts --project=e2
 - Limit place/cancel E2E: [`AGENTS_E2E_LIMIT_ORDERS_TX.md`](./AGENTS_E2E_LIMIT_ORDERS_TX.md)
 - Placement gas presets: [`AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md)
 - Terra gas / two-tx sequences: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
+- Reprice FIFO at the quoted price (**L23** / [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227)): [`AGENTS_LIMIT_ORDER_REPRICE_FIFO.md`](./AGENTS_LIMIT_ORDER_REPRICE_FIFO.md) — a later `UpdateLimitOrderPrice` on one rung joins the destination equal-price **tail**; do not invert #266 batch id assignment
 
 ## GitLab
 

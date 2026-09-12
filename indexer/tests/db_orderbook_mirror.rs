@@ -3,8 +3,8 @@
 mod common;
 
 use bigdecimal::BigDecimal;
-use serial_test::serial;
 use cl8y_dex_indexer::db::queries::{pair_reserves, resting_orders};
+use serial_test::serial;
 use std::str::FromStr;
 
 fn bd(s: &str) -> BigDecimal {
@@ -16,9 +16,16 @@ async fn pair_reserves_upsert_replaces_snapshot() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
 
-    pair_reserves::upsert_pair_reserves(&pool, seed.pair_id, &bd("1000000"), &bd("2000000"), 30, Some(123))
-        .await
-        .unwrap();
+    pair_reserves::upsert_pair_reserves(
+        &pool,
+        seed.pair_id,
+        &bd("1000000"),
+        &bd("2000000"),
+        30,
+        Some(123),
+    )
+    .await
+    .unwrap();
     let row = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
         .await
         .unwrap()
@@ -29,9 +36,16 @@ async fn pair_reserves_upsert_replaces_snapshot() {
     assert_eq!(row.block_height, Some(123));
 
     // A second upsert replaces the prior snapshot in place.
-    pair_reserves::upsert_pair_reserves(&pool, seed.pair_id, &bd("1500000"), &bd("2000000"), 25, Some(456))
-        .await
-        .unwrap();
+    pair_reserves::upsert_pair_reserves(
+        &pool,
+        seed.pair_id,
+        &bd("1500000"),
+        &bd("2000000"),
+        25,
+        Some(456),
+    )
+    .await
+    .unwrap();
     let row = pair_reserves::get_pair_reserves(&pool, seed.pair_id)
         .await
         .unwrap()
@@ -57,21 +71,22 @@ async fn resting_book_replace_and_walk_order() {
     let pool = common::setup_pool().await;
     let seed = common::seed_db(&pool).await;
 
-    let mk = |order_id: i64, side: &str, price: &str, rem: &str| resting_orders::RestingOrderInput {
-        order_id,
-        side: side.to_string(),
-        price: bd(price),
-        remaining: bd(rem),
-        owner: Some("terra1maker".to_string()),
-        expires_at: None,
-    };
+    let mk =
+        |order_id: i64, side: &str, price: &str, rem: &str| resting_orders::RestingOrderInput {
+            order_id,
+            side: side.to_string(),
+            price: bd(price),
+            remaining: bd(rem),
+            owner: Some("terra1maker".to_string()),
+            expires_at: None,
+        };
 
     let orders = vec![
-        mk(1, "bid", "1.00", "100"),
         mk(2, "bid", "1.05", "100"), // higher bid -> first
-        mk(3, "bid", "1.05", "100"), // same price, later id -> after #2 (FIFO)
-        mk(4, "ask", "1.20", "100"),
+        mk(3, "bid", "1.05", "100"), // same price, later arrival -> after #2
+        mk(1, "bid", "1.00", "100"),
         mk(5, "ask", "1.10", "100"), // lower ask -> first
+        mk(4, "ask", "1.20", "100"),
     ];
     resting_orders::replace_pair_resting_orders(&pool, seed.pair_id, Some(10), &orders)
         .await
@@ -96,9 +111,14 @@ async fn resting_book_replace_and_walk_order() {
     );
 
     // A fresh snapshot wholesale-replaces the prior book.
-    resting_orders::replace_pair_resting_orders(&pool, seed.pair_id, Some(11), &[mk(9, "bid", "0.9", "50")])
-        .await
-        .unwrap();
+    resting_orders::replace_pair_resting_orders(
+        &pool,
+        seed.pair_id,
+        Some(11),
+        &[mk(9, "bid", "0.9", "50")],
+    )
+    .await
+    .unwrap();
     let bids = resting_orders::get_pair_resting_book(&pool, seed.pair_id, "bid")
         .await
         .unwrap();
@@ -106,6 +126,45 @@ async fn resting_book_replace_and_walk_order() {
         bids.iter().map(|o| o.order_id).collect::<Vec<_>>(),
         vec![9],
         "replace wipes the prior snapshot"
+    );
+}
+
+/// GitLab #1227: an older `order_id` that arrived later at the same price must not sort first.
+#[tokio::test]
+async fn resting_book_walk_index_preserves_reprice_fifo() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_db(&pool).await;
+
+    let mk = |order_id: i64, side: &str, price: &str| resting_orders::RestingOrderInput {
+        order_id,
+        side: side.to_string(),
+        price: bd(price),
+        remaining: bd("100"),
+        owner: Some("terra1maker".to_string()),
+        expires_at: None,
+    };
+
+    // DLL walk: later-placed id 102 at P, then older id 50 that relinked onto P.
+    resting_orders::replace_pair_resting_orders(
+        &pool,
+        seed.pair_id,
+        Some(10),
+        &[
+            mk(102, "bid", "1.05"),
+            mk(50, "bid", "1.05"),
+            mk(7, "ask", "1.10"),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let bids = resting_orders::get_pair_resting_book(&pool, seed.pair_id, "bid")
+        .await
+        .unwrap();
+    assert_eq!(
+        bids.iter().map(|o| o.order_id).collect::<Vec<_>>(),
+        vec![102, 50],
+        "must not rebuild equal-price FIFO from order_id ASC"
     );
 }
 

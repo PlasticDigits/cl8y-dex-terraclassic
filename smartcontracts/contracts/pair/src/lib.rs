@@ -52,6 +52,8 @@
 //! - **Bounded work:** Placement insert position is found by a linear walk
 //!   from the book head capped by `max_adjust_steps` (see `orderbook`).
 //!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.
+//! - **Reprice FIFO (L23 / #1227):** `UpdateLimitOrderPrice` keeps `order_id` and
+//!   escrow; a real price change joins the equal-price **tail**. Match walks the DLL.
 //! - **Queries:** `HybridSimulation` / `HybridReverseSimulation` are the only
 //!   swap quote paths. Use [`dex_common::pair::pool_only_hybrid_params`] for
 //!   pool-only quotes (`book_input = 0`). Optional `trader` / `sender` apply

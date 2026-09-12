@@ -28,6 +28,9 @@ pub struct RestingOrderInput {
 }
 
 /// Replace a pair's entire materialized resting book with `orders` (caller owns the transaction).
+/// `orders` must already be in on-chain DLL walk order (head → tail, bids then asks as provided).
+/// `walk_index` is the insert position so equal-price FIFO after reprice is not rebuilt from
+/// `order_id` (#1227).
 pub async fn replace_pair_resting_orders_in_tx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     pair_id: i32,
@@ -38,11 +41,11 @@ pub async fn replace_pair_resting_orders_in_tx(
         .bind(pair_id)
         .execute(&mut **tx)
         .await?;
-    for o in orders {
+    for (walk_index, o) in orders.iter().enumerate() {
         sqlx::query(
             "INSERT INTO resting_limit_orders
-                (pair_id, order_id, side, price, remaining, owner, expires_at, block_height, snapshot_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+                (pair_id, order_id, side, price, remaining, owner, expires_at, block_height, snapshot_at, walk_index)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)",
         )
         .bind(pair_id)
         .bind(o.order_id)
@@ -52,6 +55,7 @@ pub async fn replace_pair_resting_orders_in_tx(
         .bind(&o.owner)
         .bind(o.expires_at)
         .bind(block_height)
+        .bind(walk_index as i32)
         .execute(&mut **tx)
         .await?;
     }
@@ -72,9 +76,10 @@ pub async fn replace_pair_resting_orders(
     Ok(())
 }
 
-/// A pair's resting book for one side, in walk order: best price first (bids DESC, asks ASC), then
-/// FIFO by `order_id`. `side` is `"bid"` or `"ask"` (a controlled value — only the sort direction
-/// is interpolated, no caller input reaches the SQL).
+/// A pair's resting book for one side, in on-chain DLL walk order (snapshot `walk_index`).
+/// New placements still happen to be ascending `order_id` at equal price; after
+/// `UpdateLimitOrderPrice` the preserved id may be older than neighbors (#1227).
+/// `side` is `"bid"` or `"ask"` (a controlled value — no caller input reaches the SQL).
 pub async fn get_pair_resting_book<'e, E>(
     executor: E,
     pair_id: i32,
@@ -83,16 +88,14 @@ pub async fn get_pair_resting_book<'e, E>(
 where
     E: sqlx::Executor<'e, Database = sqlx::Postgres>,
 {
-    let price_dir = if side == "bid" { "DESC" } else { "ASC" };
-    let sql = format!(
+    sqlx::query_as::<_, RestingOrderRow>(
         "SELECT pair_id, order_id, side, price, remaining, owner, expires_at
          FROM resting_limit_orders
          WHERE pair_id = $1 AND side = $2
-         ORDER BY price {price_dir}, order_id ASC"
-    );
-    sqlx::query_as::<_, RestingOrderRow>(&sql)
-        .bind(pair_id)
-        .bind(side)
-        .fetch_all(executor)
-        .await
+         ORDER BY walk_index ASC",
+    )
+    .bind(pair_id)
+    .bind(side)
+    .fetch_all(executor)
+    .await
 }
