@@ -1,6 +1,7 @@
 # Trusted Woodpecker PR/main gate. Forgejo branch protection requires
 # context `ci/woodpecker/pr/woodpecker`. Functional cargo/frontend/indexer
 # jobs stay on the local Make matrix until a follow-up ports GitLab CI.
+# Merge recipe: docs/runbooks/forgejo-pr-merge.md (never force_merge).
 #
 # Digest-pinned images. Do not float tags.
 

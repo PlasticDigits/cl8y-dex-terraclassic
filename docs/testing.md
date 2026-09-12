@@ -599,6 +599,8 @@ Use coverage to find **untested business logic**, not as a vanity metric — see
 | “CI green on main” | **GitLab pipeline green** (security + Phase-1/2a functional test + artifact jobs) **and** local automation checklist for the Phase-2 row not yet hosted (Playwright E2E) |
 | Supply-chain local mirror | `make audit-smartcontracts`, `make audit-indexer`, `make audit-frontend`, `make gitleaks-detect` — see [supply-chain-security.md](./supply-chain-security.md) |
 
+**Forgejo (source of truth):** `main` requires status context `ci/woodpecker/pr/woodpecker` from [`.woodpecker.yaml`](../.woodpecker.yaml). Merge recipe (dismiss CODEOWNERS `@code/maintainers` self-request if the only member cannot approve their own PR; never `force_merge`): [runbooks/forgejo-pr-merge.md](./runbooks/forgejo-pr-merge.md) ([#1247](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1247)). Local gitleaks: `./scripts/ci/gitleaks-scan-tracked.sh`.
+
 **Agents:** For GitLab-hosted gates use [docs/supply-chain-security.md](./supply-chain-security.md) and [`skills/AGENTS_SUPPLY_CHAIN_SECURITY.md`](../skills/AGENTS_SUPPLY_CHAIN_SECURITY.md). For the full portable checklist (contracts, frontend, indexer, E2E) use [`.github/workflows/README.md`](../.github/workflows/README.md) and the relevant `skills/AGENTS_*.md` playbook.
 
 ### GitLab CI jobs (hosted)
