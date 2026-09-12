@@ -46,8 +46,12 @@ Factory/pair **F6** (this pin) is not faucet **F6** (deploy key remains primary 
 # LocalTerra after make deploy-local:
 UPGRADE582_LOCAL=1 ./scripts/upgrade-582-code-id-pin.sh
 
-# columbus-5 (governance / wasm-admin key):
+# columbus-5 (store = cl8ydeploy; UpdateConfig + pair migrate = DEX 2-of-3):
 ./scripts/upgrade-582-code-id-pin.sh
+# resume after store (pair already 11664 / factory store skipped):
+# UPGRADE582_SKIP_STORE=1 UPGRADE582_PAIR_CODE_ID=11664 \
+#   UPGRADE582_FACTORY_CODE_ID=11665 UPGRADE582_SKIP_FACTORY_MIGRATE=1 \
+#   ./scripts/upgrade-582-code-id-pin.sh
 ```
 
 The script: probes `GET /cosmwasm/wasm/v1/contract/{addr}` for factory + every listed asset → stores wasm → migrates **factory 1.9.0** → asserts cw2 + `IsCodeIdWhitelisted` (parseable boolean; LCD flakes are retried, not treated as empty pins) → **`UpdateConfig { pair_code_id }`** so new `CreatePair` instantiates pair 1.15.0 → paginates `pairs` at `limit: 30` with `start_after` = last `asset_infos` → migrates each pair (skips addrs already on the target code id — retry-safe after RPC RST) → reconciles `GetPairCount` → smoke `GetAssetCodeIds` + `HybridSimulation` (queries are **ungated**; a quote is not “pair is tradable”). Optional `UPGRADE582_REFRESH=1` loops `RefreshPairAssetCodeIdsBatch` until wasm `has_more=false`.

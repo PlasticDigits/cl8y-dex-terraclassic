@@ -66,6 +66,9 @@ run_greps() {
   rg -q '/cosmwasm/wasm/v1/contract/' scripts/upgrade-582-code-id-pin.sh scripts/lib/upgrade-582-code-id-pin.sh
   rg -q 'PAIR_MIGRATE_BEGIN' scripts/upgrade-582-code-id-pin.sh
   rg -q 'UPDATE_CONFIG_BEGIN' scripts/upgrade-582-code-id-pin.sh
+  rg -q 'gov_tx' scripts/upgrade-582-code-id-pin.sh
+  rg -q 'multisig-2of3-host-tx' scripts/upgrade-582-code-id-pin.sh
+  rg -q 'terrad_host_ensure_keyring_pass' scripts/upgrade-582-code-id-pin.sh
   rg -q 'update_config' scripts/upgrade-582-code-id-pin.sh
   rg -q 'pair_code_id' scripts/upgrade-582-code-id-pin.sh
   rg -q 'already code_id' scripts/upgrade-582-code-id-pin.sh

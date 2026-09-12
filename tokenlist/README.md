@@ -68,7 +68,7 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | `type` | Yes | `native` or `cw20` |
 | `denom` | Native only | On-chain denomination (e.g. `uluna`, `uusd`) |
 | `address` | CW20 only | Contract address on Terra Classic |
-| `decimals` | Yes | On-chain decimal places (usually `6`; **CL8Y and USTR are 18**) |
+| `decimals` | Yes | On-chain decimal places (usually `6`; **CL8Y, USTR, and USDT are 18**) |
 | `logoURI` | Yes | GitLab raw URL to the image in `tokenlist/images/` |
 | `website` | No | Project website |
 
@@ -108,3 +108,4 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | SpaceUSD | SpaceUSD Token | cw20 | ![SpaceUSD](images/SPACEUSD.png) |
 | UST1 | UST1 | cw20 | ![UST1](images/UST1.png) |
 | vFDUSD | Venus FDUSD (bridged) | cw20 | ![vFDUSD](images/VFDUSD.png) |
+| USDT | Tether USD | cw20 | ![USDT](images/USDT.png) |

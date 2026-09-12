@@ -295,6 +295,12 @@ verify-issue-584:
 		scripts/qa/test-upgrade-582-refresh-events.sh
 	./scripts/qa/verify-issue-584.sh
 
+# Forgejo #1246 — ALPHA tax-token store + whitelist + trading smoke (CMM migrate leftover).
+.PHONY: verify-issue-1246
+verify-issue-1246:
+	@chmod +x scripts/qa/test-upgrade-1246-alpha.sh scripts/upgrade-1246-alpha.sh
+	./scripts/qa/test-upgrade-1246-alpha.sh
+
 # GitLab #585 — F6 freeze visibility on dApp + indexer route/solve.
 verify-issue-585:
 	@chmod +x scripts/qa/verify-issue-585.sh scripts/with-node.sh

@@ -91,6 +91,13 @@ export const TOKENS: TokenRegistryEntry[] = [
     type: 'cw20',
     logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/VFDUSD.png',
   },
+  {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    decimals: 18,
+    type: 'cw20',
+    logoURI: 'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USDT.png',
+  },
 ]
 
 // Allowlist only — unknown bank/IBC denoms stay raw (GitLab #630).
@@ -105,6 +112,7 @@ const CW20_MAP: Record<string, string> = {
   terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz: 'ALPHA',
   terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5: 'USTRIX',
   terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl: 'SpaceUSD',
+  terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4: 'USDT',
 }
 
 if (LUNC_C_TOKEN_ADDRESS) CW20_MAP[LUNC_C_TOKEN_ADDRESS.toLowerCase()] = 'cLUNC'
