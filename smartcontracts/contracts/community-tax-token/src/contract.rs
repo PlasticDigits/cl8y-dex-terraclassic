@@ -430,8 +430,26 @@ fn execute_send_from(
 ) -> Result<Response, ContractError> {
     let owner_addr = deps.api.addr_validate(&owner)?;
     let to = deps.api.addr_validate(&contract)?;
-    deduct_allowance(deps.storage, &owner_addr, &info.sender, &env.block, amount)?;
     let self_addr = env.contract.address.clone();
+    // #1228 / T592-2 / A-allow: classify before deduct. Pair-direct Sell extra-debits
+    // the owner (`TaxPreview.debit` = amount + tax). Other kinds deduct the same
+    // owner debit `apply_transfer` will take. Insufficient allowance reverts before
+    // balances move. TransferFrom stays 1:1 (`amount` only — T592-7).
+    let preview = tax::preview(
+        deps.as_ref(),
+        &self_addr,
+        &owner_addr,
+        &to,
+        amount,
+        Some(&msg),
+    )?;
+    deduct_allowance(
+        deps.storage,
+        &owner_addr,
+        &info.sender,
+        &env.block,
+        preview.debit,
+    )?;
     let (credit, _tax, _kind, resp) =
         tax::apply_transfer(deps, &env, &self_addr, &owner_addr, &to, amount, Some(&msg))?;
     Ok(resp
