@@ -2,7 +2,7 @@
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#703**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) (phone Monthly last 12 UTC months + `YY-MM` axis; no rotated ticks) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#703**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) (phone Monthly last 12 UTC months + `YY-MM` axis; no rotated ticks) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees) · [**#1240**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) (mixed-case hub/oracle tickers)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -27,6 +27,21 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 | **P550-10** | **X4** is P522-Q catalog (#548 / #556): USTC/LUNC oracles plus hub USD for UST1/USTR. Do **not** convert DEX volume **or TVL** with vFDUSD/FDUSD. Overview `ustc_price_usd` stays the USTC ticker; hub fields are additive. |
 | **P550-11** | Feeds labeled **reference**. Not TWAP (Charts), not UST1 window (`/ust1`). |
 | **P550-12** | Factory/router `AddressRow` stay on `/protocol` only (#378). |
+
+## Invariants (P1240 — mixed-case tickers)
+
+Retail must tell **cUSTC (wrap hub)** from **USTC (CEX)** and **vFDUSD** from **FDUSD** at a glance. Source maps already have the right strings; do not flatten them with `text-transform: uppercase`.
+
+| ID | Rule |
+|----|------|
+| **P1240-1** | Hub `<dt>` ticker lines omit `uppercase`. Visible text equals `HUB_PRICE_TICKER_LABEL[ticker] / USD` character-for-character: `cUSTC / USD`, `LUNC / USD`, `UST1 / USD`, `USTR / USD`. Card H2 **DEX hub prices** may stay uppercase. |
+| **P1240-2** | Oracle tabs show map labels **USTC**, **LUNC**, **vFDUSD** (never `VFDUSD`). Tab buttons omit `uppercase`. |
+| **P1240-3** | Oracle H2 is **USTC / USD**, **LUNC / USD**, or **vFDUSD** per #571 (vFDUSD heading has no `/ USD`). H2 omits `uppercase`. |
+| **P1240-4** | Venus heading and StatBox label **1 vFDUSD Price** keep mixed-case `vFDUSD` (`preserveLabelCase` on that StatBox). |
+| **P1240-5** | CEX vs hub identity unchanged: wrap hub is **cUSTC**; CEX tab is **USTC**; hub **LUNC** still has cLUNC wrap `AddressRow`; oracle **LUNC** still loads CEX sources/history. Do not retitle CEX USTC as cUSTC or hub LUNC as cLUNC. |
+| **P1240-6** | Disclaimers and `?ticker=` allowlist unchanged (**P550-2**, **P550-11**). No new CEX tickers. Ticker maps stay as-is (ids `custc` / `ustc` / `vfdusd`). |
+| **P1240-7** | RTL asserts exact casing (no `/i` on `vFDUSD` / `cUSTC` product tickers). Keyboard / deep-link / 502 tests stay green. |
+| **P1240-8** | No indexer, hub-price, or Venus API change. `uppercase` may remain on non-ticker chrome (page H1, **DEX hub prices**, **On-chain contracts**, table SOURCE / USD / TIME, StatBox labels that are not tickers). |
 
 ## Invariants (P569)
 
@@ -53,6 +68,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 - **Don’t** hardcode vFDUSD `$1` or peg UST1 at `$1`.
 - **Don’t** clone Protocol audit rows onto Swap confirmation.
 - **Don't** title the CEX snapshot **vFDUSD / USD** (tab heading is **vFDUSD**; CEX box is **FDUSD reference price** — [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)).
+- **Don't** apply Tailwind `uppercase` to ticker-bearing hub `<dt>`s, oracle H2/tabs, or Venus `1 vFDUSD Price` ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240**). Chrome-only headings may stay uppercase.
 - **Don't** backfill 30d Δ% from zeros or `liquidity_events` after `--fresh`.
 - **Don't** treat volume Δ% as liquidity snapshot % or title it “liquidity.”
 - **Don't** call `GET /defillama/daily` from `/protocol` or add Llama `from`/`to`.
@@ -180,6 +196,7 @@ make verify-issue-550
 make verify-issue-556   # hub card still after fees
 make verify-issue-515   # catalog still catalogs; X4
 make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
+make verify-issue-1240  # mixed-case cUSTC / vFDUSD (no CSS uppercase)
 ```
 
 ## Related
@@ -191,7 +208,7 @@ make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
 - [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) — pair_creation / invoices / cohort home (**L1213**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); do not add those sources on the census ticket
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub card + `GET /api/v1/hub-prices` (#556)
 - [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](./AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — factory economic fee marks (CL8Y + listed non-gems, [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683))
-- [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — cUSTC/cLUNC wrap `AddressRow` + LUNC column (#570)
+- [`AGENTS_FRONTEND_PROTOCOL_HUB.md`](./AGENTS_FRONTEND_PROTOCOL_HUB.md) — cUSTC/cLUNC wrap `AddressRow` + LUNC column (#570); mixed-case hub `<dt>` **P1240**
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — P522-Q catalog used for TVL legs
 - [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](./AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md) — `/pool` per-pair TVL stamp (`liquidity_usd`, [#655](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/655))
 - [`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md) — `/ust1` execute; CEX/hub cards are **not** the window rate (**P550-11**). Window treasury fees: **PFee-13** / [#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)

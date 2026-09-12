@@ -4,7 +4,7 @@ Audience: third-party agents touching `/protocol` DEX hub prices, `GET /api/v1/h
 
 **Issue:** [GitLab **#570**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)  
 **Parent hub USD:** [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) (**H1–H16**)  
-**Protocol layout:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-1**)  
+**Protocol layout:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-1**, **P1240** mixed-case tickers)  
 **Token identity / explorer:** [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) (**T541-2**)  
 **Verify:** `make verify-issue-570`
 
@@ -31,6 +31,7 @@ The Protocol **DEX hub prices** card showed cUSTC / UST1 / USTR. UST1 and USTR h
 - **Don’t** add a fourth CEX tab or `getOraclePrice('ustr'|'ust1'|'custc')`.
 - **Don’t** rank a factory pair to fill cUSTC/LUNC `source_pair`.
 - **Don’t** match `symbol === 'cUSTC'` / `'LUNC'`. Identity is contract.
+- **Don’t** apply `uppercase` to hub `<dt>` ticker lines — visible **cUSTC / USD** must stay mixed-case ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240-1**). Card H2 **DEX hub prices** may stay uppercase.
 - **Don’t** retarget `volume_usd`, UST1/USTR ranking, Charts USD, `/ust1`, or portfolio P&L (LUNC P&L stays CEX per **P560-3**).
 - **Don’t** clone hub AddressRows onto Swap / Trade / Charts (#541).
 
@@ -48,5 +49,6 @@ LocalTerra: set hub wraps to deployed CW20s in `indexer/.env` and `frontend-dapp
 
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — ranking H1–H10
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — CEX catalog stays 3 tickers
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — page order **P550-1**; mixed-case tickers **P1240**
 - [`AGENTS_FRONTEND_ADDRESS_ROW.md`](./AGENTS_FRONTEND_ADDRESS_ROW.md) — copy + explorer primitive
 - [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) — native copy-only

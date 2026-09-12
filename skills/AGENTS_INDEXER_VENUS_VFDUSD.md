@@ -35,7 +35,7 @@ GET /api/v1/oracle/price/{ticker}/venus → Venus snapshot; ticker must be vfdus
 
 ## Do / don’t
 
-- **Do** keep tab chip **vFDUSD**. Heading on that tab is **vFDUSD** (no `/ USD`).
+- **Do** keep tab chip **vFDUSD**. Heading on that tab is **vFDUSD** (no `/ USD`). Mixed-case `v` must survive CSS — do not `uppercase` the tab, H2, or Venus **1 vFDUSD Price** ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240-2–P1240-4**).
 - **Do** mock BSC in tests (`wiremock`); do not require live BSC for `make verify-issue-571`.
 - **Don’t** hardcode 1 vFDUSD = 1 FDUSD or `$1`.
 - **Don’t** send `exchangeRateCurrent` as a transaction (`eth_call` only).
@@ -51,7 +51,7 @@ make verify-issue-515
 
 ## Related
 
-- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-9** rewritten)
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-9** rewritten; **P1240** mixed-case chrome)
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md)
 - [`docs/runbooks/indexer-external-oracle.md`](../docs/runbooks/indexer-external-oracle.md)
 - [`docs/frontend.md`](../docs/frontend.md) § Protocol
