@@ -755,6 +755,8 @@ Retail **human amount** fields (Swap **You Pay**, Settings **book leg amount**, 
 
 ### Terra Classic gas limits (router `execute_swap_operations`) {#terra-classic-gas-limits}
 
+Post-#679/#587 remaining-gap census (hint vs broadcast vs wallet vs measured `gas_used`): [ADR 0004](./adr/0004-terraclassic-retail-gas-census.md) ([#1222](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1222), **G-CENSUS-1–G-CENSUS-8**). Decision: **Stay** — no envelope retune in that MR. Verify: `make verify-issue-1222`.
+
 The dApp does **not** LCD-simulate every swap before broadcast. All contract executes flow through **`broadcastTerraExecuteContracts`** ([`terraBroadcast.ts`](../frontend-dapp/src/services/terraclassic/terraBroadcast.ts)), which builds **`MsgExecuteContract`** messages, sets **Cosmos `Fee.gas`** via [`terraGas.ts`](../frontend-dapp/src/services/terraclassic/terraGas.ts) + [`constants.ts`](../frontend-dapp/src/utils/constants.ts), then signs/broadcasts/polls. **`executeTerraContract`** / **`executeTerraContractMulti`** are thin wrappers; CW20 allowance-first retail paths use **`executeCw20AllowanceThen`** / **`placeLimitOrderWithAllowance`** ([GitLab #127](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/127)). **Underestimating gas causes on-chain `out of gas` after the wallet signs** (users still pay fees for failed txs).
 
 **Formula (pool-only `execute_swap_operations`, no hybrid hop):** for `hops = max(operations.length, 1)`,

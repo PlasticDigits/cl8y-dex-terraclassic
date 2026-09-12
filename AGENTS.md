@@ -174,9 +174,11 @@ make verify-issue-590                    # #590 post-merge !394–!396 (fees + w
 make verify-issue-585                    # #585 F6 freeze: route/solve exclude + dApp banners (Postgres)
 make verify-issue-587                    # #587 wrap+≥2hop LUNC↔USTR gas + Swap Network fee (Vitest)
 make verify-issue-679                    # #679 mixed hybrid+pool router gas + Swap Network fee (Vitest)
+make verify-issue-1222                   # #1222 retail gas envelope vs wallet auto-fee census (docs/ADR)
 make verify-issue-708                    # #708 greedy book-first swap (multitest + gas + docs)
 make verify-issue-709                    # #709 greedy query mutex + remainder_to_pool + pool_spot overflow
 make verify-issue-710                    # #710 greedy tax / pause / blacklist / AfterSwap L7
+make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
@@ -327,6 +329,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
+| Retail gas census (docs) | `make verify-issue-1222` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
 | API4 per-request caps | `make verify-issue-694` |
 | GeckoTerminal `/gt/events` post-event reserves | `make verify-issue-684` |
@@ -335,6 +338,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Hexxagon CW20 pack | `make verify-issue-641` |
 | Indexer lib | `cd indexer && cargo test --lib` |
 | Charts newest-N candles + interval chip | `make verify-issue-705` |
+| Observe query extreme-ratio skip | `make verify-issue-1231` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
 Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need Postgres + `indexer/.env` — Cloud Agent: `make setup-indexer-postgres` (Postgres-only); full stack: [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
@@ -487,8 +491,9 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_POST_MERGE_OPS_701.md](skills/AGENTS_POST_MERGE_OPS_701.md) — post-merge !477 leftover verify (**M701-1–M701-8**, [#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701)); `make verify-issue-701`
 - [skills/AGENTS_POST_MERGE_OPS_702.md](skills/AGENTS_POST_MERGE_OPS_702.md) — post-merge !476 leftover verify (**M702-1–M702-8**, [#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702)); `make verify-issue-702`
 - [skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md](skills/AGENTS_FRONTEND_CODE_ID_FREEZE.md) — dApp + indexer F6 freeze visibility: `route/solve` excludes frozen hops, pair `code_id_frozen`, humanized execute errors (**F585-1–F585-8**, [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)); not a substitute for on-chain pin; `make verify-issue-585`
-- [skills/AGENTS_TERRACLASSIC_GAS.md](skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic fee envelopes; wrap+≥2hop LUNC↔USTR combo ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)); mixed hybrid+pool router hops ([#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)); unwrap+≥2hop USTR→USTC combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)); post-merge E9/columbus-5 ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600)); greedy book-first gas (**G13**, [#708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)); Swap **Network fee (est.) ~X LUNC**; `make verify-issue-587` · `make verify-issue-679` · `make verify-issue-599` · `make verify-issue-600` · `make verify-issue-708` · `make verify-issue-709` · `make verify-issue-710`
+- [skills/AGENTS_TERRACLASSIC_GAS.md](skills/AGENTS_TERRACLASSIC_GAS.md) — Terra Classic fee envelopes; wrap+≥2hop LUNC↔USTR combo ([#587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587)); mixed hybrid+pool router hops ([#679](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/679)); unwrap+≥2hop USTR→USTC combo ([#599](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/599)); post-merge E9/columbus-5 ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600)); greedy book-first gas (**G13**, [#708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)); remaining-gap census **Stay** ([#1222](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1222), **G-CENSUS-1–G-CENSUS-8**, [ADR 0004](docs/adr/0004-terraclassic-retail-gas-census.md)); Swap **Network fee (est.) ~X LUNC**; `make verify-issue-587` · `make verify-issue-679` · `make verify-issue-599` · `make verify-issue-600` · `make verify-issue-708` · `make verify-issue-709` · `make verify-issue-710` · `make verify-issue-1222`
 - [skills/AGENTS_GREEDY_BOOK_FIRST.md](skills/AGENTS_GREEDY_BOOK_FIRST.md) — opt-in greedy book-first pair/router swap (**G1–G14**, [#708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)); query mutex + `remainder_to_pool` + A7 overflow ([#709](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/709)); tax/pause/blacklist/L7 ([#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710)); `make verify-issue-708` · `make verify-issue-709` · `make verify-issue-710`
+- [skills/AGENTS_TWAP_OBSERVE_RATIO.md](skills/AGENTS_TWAP_OBSERVE_RATIO.md) — Observe query `checked_from_ratio` skip (**O1231-1–O1231-6**, [#1231](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1231)); execute `#465` unchanged; `make verify-issue-1231`
 - [skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md](skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md) — dApp fee-tier chrome gated on pair `DISCOUNT_REGISTRY` (**I14**, [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)); `make verify-issue-537`
 - [skills/AGENTS_LP_SYMBOL_DIGITS.md](skills/AGENTS_LP_SYMBOL_DIGITS.md) — LP ticker keeps `0-9`, strips non-alnum; factory `UpdateConfig` code IDs + [`scripts/upgrade-518-lp-symbol.sh`](scripts/upgrade-518-lp-symbol.sh) (**F3**, [#518](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/518)); `make verify-issue-518`
 - [skills/AGENTS_ROTATE_FEE_TREASURY.md](skills/AGENTS_ROTATE_FEE_TREASURY.md) — swap/book fees to ustr-cmm CMM (`terra16j5u6…`); factory `SetPairTreasury*` + [`scripts/rotate-fee-treasury.sh`](scripts/rotate-fee-treasury.sh) (**F4**)

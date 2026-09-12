@@ -143,6 +143,16 @@ pool's liquidity depth.
    block using the current reserves, but the accuracy degrades. High-value
    consumers should run a **keeper** that pokes the pair periodically.
 
+   When the live reserve ratio cannot be a CosmWasm `Decimal`
+   (`u128::MAX / 1e18`), **execute** skips the sample ([#465](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/465)) and **Observe**
+   does not extrapolate: it returns the last stored cumulatives instead of
+   panicking ([#1231](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1231)
+   **O1231-1**). That is a missed sample (the gap contributes 0 to the
+   integral), not a clamp to `Decimal::MAX`. Historical in-window
+   interpolation does not recompute spot. `price_times_dt` overflow on
+   execute after a representable ratio is [#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224), not this query path.
+   Agent playbook: [`skills/AGENTS_TWAP_OBSERVE_RATIO.md`](../skills/AGENTS_TWAP_OBSERVE_RATIO.md).
+
 4. **Arithmetic-mean sensitivity.** This oracle is an **arithmetic** mean of
    raw `reserve_b / reserve_a`. A short spike still weights by time, but it
    is **not** the geometric-mean (Uniswap v3-style tick) construction. Short
@@ -245,7 +255,7 @@ fn get_safe_price(pair: Addr, window: u32, band_feed: Addr) -> Result<Decimal> {
 |------|---------|
 | `packages/dex-common/src/oracle.rs` | Arithmetic cumulative Decimal (`price_times_dt`, `compute_twap_price`), observation types, response types |
 | `contracts/pair/src/state.rs` | `OracleState`, `OBSERVATIONS` ring buffer storage |
-| `contracts/pair/src/contract.rs` | `oracle_update` (hot path), `oracle_observe_single` (query), `IncreaseObservationCardinality` execute |
+| `contracts/pair/src/contract.rs` | `oracle_update` (hot path, `#465` checked ratio skip), `oracle_observe_single` (query, `#1231` skip-extrapolate), `IncreaseObservationCardinality` execute |
 | `packages/dex-common/src/pair.rs` | `Observe` and `OracleInfo` query message definitions |
 | `frontend-dapp/src/services/terraclassic/oracle.ts` | LCD `observe` → raw Decimal string |
 | `frontend-dapp/src/utils/chartsPairStats.ts` | Human TWAP display (`formatTwapHumanPrice`) |
