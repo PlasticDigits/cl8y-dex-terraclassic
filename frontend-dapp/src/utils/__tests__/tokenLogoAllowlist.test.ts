@@ -3,6 +3,7 @@ import { isAllowedTokenLogoHost, resolveAllowedTokenLogoUri } from '@/utils/toke
 
 describe('tokenLogoAllowlist', () => {
   it('allows known logo CDN hosts', () => {
+    expect(isAllowedTokenLogoHost('git.cl8y.com')).toBe(true)
     expect(isAllowedTokenLogoHost('gitlab.com')).toBe(true)
     expect(isAllowedTokenLogoHost('raw.githubusercontent.com')).toBe(true)
     expect(isAllowedTokenLogoHost('assets.coingecko.com')).toBe(true)

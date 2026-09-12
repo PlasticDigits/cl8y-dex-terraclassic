@@ -8,6 +8,12 @@ describe('tokenLogoAllowlist (GitLab #378)', () => {
     expect(resolveTrustedTokenLogoUrl(url)).toBe(url)
   })
 
+  it('allows Forgejo raw tokenlist images (source of truth; GitLab mirror can lag)', () => {
+    const url = 'https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/USDT.png'
+    expect(isTrustedTokenLogoUrl(url)).toBe(true)
+    expect(resolveTrustedTokenLogoUrl(url)).toBe(url)
+  })
+
   it('rejects untrusted hosts (phishing logos)', () => {
     const evil = 'https://evil.example/logo.png'
     expect(isTrustedTokenLogoUrl(evil)).toBe(false)

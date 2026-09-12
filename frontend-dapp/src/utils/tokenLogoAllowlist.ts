@@ -1,5 +1,6 @@
 /** Hostnames allowed for remote token logo `<img src>` (GitLab #378 / M-09). */
 export const TOKEN_LOGO_ALLOWED_HOSTS = [
+  'git.cl8y.com',
   'gitlab.com',
   'raw.githubusercontent.com',
   'assets.coingecko.com',

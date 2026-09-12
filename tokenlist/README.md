@@ -14,7 +14,7 @@ Checker: [`scripts/qa/tokenlist_unique_symbols.py`](../scripts/qa/tokenlist_uniq
 
 **Raw token list URL:**
 ```
-https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/tokenlist.json
+https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/tokenlist.json
 ```
 
 ## Adding a New Token
@@ -41,7 +41,7 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
   "denom": "uluna",
   "type": "native",
   "decimals": 6,
-  "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/LUNC.png"
+  "logoURI": "https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/LUNC.png"
 }
 ```
 
@@ -54,7 +54,7 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
   "address": "terra1...",
   "type": "cw20",
   "decimals": 6,
-  "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/MYTOKEN.png",
+  "logoURI": "https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/MYTOKEN.png",
   "website": "https://mytoken.com"
 }
 ```
@@ -69,7 +69,7 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | `denom` | Native only | On-chain denomination (e.g. `uluna`, `uusd`) |
 | `address` | CW20 only | Contract address on Terra Classic |
 | `decimals` | Yes | On-chain decimal places (usually `6`; **CL8Y, USTR, and USDT are 18**) |
-| `logoURI` | Yes | GitLab raw URL to the image in `tokenlist/images/` |
+| `logoURI` | Yes | Forgejo raw URL to the image in `tokenlist/images/` |
 | `website` | No | Project website |
 
 ### 3. Submit your merge request

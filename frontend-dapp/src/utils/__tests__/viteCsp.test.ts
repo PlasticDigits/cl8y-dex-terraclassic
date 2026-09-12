@@ -55,6 +55,11 @@ describe('viteCsp production policy', () => {
     expect(csp).not.toMatch(/connect-src[^;]*\shttps:\s/)
   })
 
+  it('img-src allows Forgejo tokenlist hosts (GitLab mirror can lag new PNGs)', () => {
+    const csp = buildProductionCspMetaContent({})
+    expect(csp).toMatch(/img-src[^;]*https:\/\/git\.cl8y\.com/)
+  })
+
   it('documents dev exception separately', () => {
     expect(DEV_CSP_META_CONTENT).toContain('https:')
     expect(DEV_CSP_META_CONTENT).toContain('http://127.0.0.1:*')
