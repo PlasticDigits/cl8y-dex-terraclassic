@@ -11,6 +11,7 @@ LocalTerra reused QA market: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENT
 | Doc / code | Purpose |
 |------------|---------|
 | [GitLab **#592**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) | On-chain design |
+| [Forgejo **#1228**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1228) | **A-allow** — `SendFrom` listed-pair Sell allowance = `TaxPreview.debit` |
 | [GitLab **#626**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | Free listed-template adopt + Terraport/GDEX LP gate |
 | [GitLab **#633**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md) **R633** | Factory/dApp/AutoLP listed-pair register + manager role skip. LocalTerra: [`localterra-633-autoregister.sh`](../scripts/qa/localterra-633-autoregister.sh) |
 | [GitLab **#634**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M634** | Migrate page venue inventory + post-refresh CL8Y register (never Terraport/GDEX). LocalTerra: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh) |
@@ -58,7 +59,7 @@ Smoke: [`scripts/qa/localterra-community-tax-smoke.sh`](../scripts/qa/localterra
 ## Invariants **T592-1–T592-13**
 
 1. **T592-1 — inbound 1:1.** Transfers **to** pair, router, this token, AutoLP, or other protocol-exempt addresses credit exactly `amount`. Classic inbound FoT still fails `fee_on_transfer_creates_reserve_imbalance`.
-2. **T592-2 — sell extra-debit.** `Send` to a registered listed pair with `Cw20HookMsg::Swap` debits `amount + tax` economically and credits the pair `amount`. Pair-direct: extra-debit `from`. Official-router hop: debit router `amount`, extra-debit authenticated `Swap.trader`.
+2. **T592-2 — sell extra-debit.** `Send` **or `SendFrom`** to a registered listed pair with `Cw20HookMsg::Swap` debits `amount + tax` economically and credits the pair `amount`. Pair-direct: extra-debit `from` (owner). Official-router hop: debit router `amount`, extra-debit authenticated `Swap.trader`. **A-allow ([#1228](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1228)):** `SendFrom` `deduct_allowance` uses `TaxPreview.debit` (pair-direct Sell = `amount + tax`). Allowance equal to declared `amount` **reverts** before balances move. Do **not** skip sell tax on `SendFrom` (spender-shaped evasion). `TransferFrom` stays 1:1 (**T592-7**). Live **11611** / **11619** inherit the hole until store + migrate (ops, not this crate ticket). `make verify-issue-1228`.
 3. **T592-3 — buy outbound split.** `Transfer`/`Send` **from** a registered listed pair **or** the official router **to a non-protocol-exempt `to`** debits `amount`; trader + sinks = `amount`. Pair→router stays 1:1.
 4. **T592-4 — invoices.** SKU unlock and settings batch are each **exactly 50 UST1** (`50000000`). Forwarded to CMM treasury. Wrong token / wrong amount / no-op / unactivated SKU → revert, fee not kept. AutoLP no-op is sister `GetConfig` identity (pair / threshold / `lp_recipient` / skim), not "key present" ([#1237](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1237)). Identical `minter` is also a no-op. Do not mix `EnableFeature` into a settings batch. Official post-create SKU unlock is manager → **launcher** → token: `origin.launcher` is authorized for `EnableFeature` only (**T606-1–T606-4**, [#606](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/606)). `UpdateSettings` stays manager-only.
 5. **T592-5 — CMM wasm admin.** Launcher `Instantiate { admin: cmm_governance }`. Manager cannot migrate or `UpdateAdmin`. Rogue instantiate with another admin is not catalog-promoted (`GetLauncherOrigin`). Listed-template adopt (#626) stamps CMM via `MsgUpdateAdmin` in the same ops bundle and writes `GetMigrateOrigin`.
@@ -91,6 +92,7 @@ Token-only extra-debit sell + outbound buy. `SetPairHooks` stays governance-only
 
 ```bash
 make verify-issue-592
+make verify-issue-1228
 make verify-issue-604
 make verify-issue-605
 make verify-issue-606
@@ -114,6 +116,7 @@ Do **not** `AddWhitelistedCodeId` until `cw20-codeid-audits/codeids/<id>/REPORT.
 
 ## Do not
 
+- Deduct `SendFrom` allowance on declared `amount` for pair-direct Sell (must use `TaxPreview.debit`).
 - Credit the pair `amount * (1 - sell_bps)` (inbound FoT).
 - Call `SkimToLp` from taxed `Transfer`/`Send`.
 - Charge settings fees on `Mint` or `SkimToLp`.
