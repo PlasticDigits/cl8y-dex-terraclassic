@@ -26,6 +26,12 @@ export interface StatBoxProps {
    * Use `flat` inside a `shell-panel*` metric grid (GitLab #653) — no second radius/border/blur.
    */
   variant?: StatBoxVariant
+  /**
+   * Skip `text-transform: uppercase` on the label. Use when the label interpolates a
+   * mixed-case product ticker (`cUSTC`, `vFDUSD`) so CSS cannot flatten it (#1240).
+   * Chrome-only labels stay the default.
+   */
+  preserveLabelCase?: boolean
   /** Optional second line under the value (hints, not a second chrome layer). */
   hint?: string
   /** Single Δ% (volume / fees). Prefer `deltas` when a tile needs more than one chip. */
@@ -62,6 +68,7 @@ export function StatBox({
   title,
   valueAriaLabel,
   variant = 'card',
+  preserveLabelCase = false,
   hint,
   delta,
   deltaLabel,
@@ -81,7 +88,11 @@ export function StatBox({
   return (
     <div className={chrome} data-testid={testId} title={title}>
       <p
-        className="text-[10px] uppercase tracking-wider font-medium mb-1"
+        className={
+          preserveLabelCase
+            ? 'text-[10px] tracking-wider font-medium mb-1'
+            : 'text-[10px] uppercase tracking-wider font-medium mb-1'
+        }
         style={{ color: 'var(--ink-dim)' }}
         title={title}
       >

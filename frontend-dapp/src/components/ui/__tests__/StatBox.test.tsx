@@ -31,6 +31,13 @@ describe('StatBox', () => {
     expect(screen.getByTestId('vol-chg')).toHaveTextContent('24h')
   })
 
+  it('default label keeps uppercase; preserveLabelCase drops it (#1240)', () => {
+    const { rerender } = render(<StatBox variant="flat" label="1 vFDUSD Price" value="0.023 FDUSD" />)
+    expect(screen.getByText('1 vFDUSD Price')).toHaveClass('uppercase')
+    rerender(<StatBox variant="flat" label="1 vFDUSD Price" value="0.023 FDUSD" preserveLabelCase />)
+    expect(screen.getByText('1 vFDUSD Price')).not.toHaveClass('uppercase')
+  })
+
   it('groups Δ% with the headline instead of justify-between (GitLab #667)', () => {
     const { container } = render(
       <StatBox
