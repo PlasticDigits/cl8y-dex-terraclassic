@@ -4,7 +4,7 @@
   "version": {
     "major": 1,
     "minor": 0,
-    "patch": 2
+    "patch": 3
   },
   "keywords": ["terra-classic", "cl8y", "dex"],
   "tokens": [
@@ -98,6 +98,14 @@
       "type": "cw20",
       "decimals": 6,
       "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/VFDUSD.png"
+    },
+    {
+      "symbol": "USDT",
+      "name": "Tether USD",
+      "address": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4",
+      "type": "cw20",
+      "decimals": 18,
+      "logoURI": "https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/raw/main/tokenlist/images/USDT.png"
     }
   ]
 }

@@ -48,6 +48,15 @@ describe('lookupByCW20', () => {
     expect(entry!.decimals).toBe(18)
   })
 
+  it('returns USDT for the bridged CW20 (18 decimals)', () => {
+    const entry = lookupByCW20('terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4')
+    expect(entry).toBeDefined()
+    expect(entry!.symbol).toBe('USDT')
+    expect(entry!.name).toBe('Tether USD')
+    expect(entry!.decimals).toBe(18)
+    expect(entry!.logoURI).toContain('/tokenlist/images/USDT.png')
+  })
+
   it('is case-insensitive', () => {
     expect(lookupByCW20('TERRA16WTML2Q66G82FDKX66TAP0QJKAHQWP4LWQ3NGTYGACG5Q0KZYCGQVHPAX3')).toBeDefined()
   })
