@@ -2,6 +2,10 @@
 
 Operator script for deepening the **cLUNC/cUSTC** pair to **$10,000** TVL (**$5,000** each side) in USD rungs, after bringing the pool to the indexer LUNC/USTC oracles. LP is minted to the **ustr-cmm CMM treasury**. Leftover **cLUNC / cUSTC** on the ops wallet is holder-burned. The script **never** burns LP, LP tokens, CMM holdings, or native `uluna`.
 
+To add ~$10k at the **live** ratio (keep a cLUNC premium, no swap): [`mint-clunc-custc-lp.md`](./mint-clunc-custc-lp.md).
+
+Oracle peg only (mint + swap, **no LP**, then burn leftover), including UST1/cUSTC at **1 UST1 = $1**: [`rebalance-oracle-mint-swap-burn.md`](./rebalance-oracle-mint-swap-burn.md).
+
 Script: [`scripts/rebalance-mint-clunc-custc-lp.sh`](../../scripts/rebalance-mint-clunc-custc-lp.sh)  
 Math: [`scripts/lib/clunc-custc-lp-math.py`](../../scripts/lib/clunc-custc-lp-math.py) (`--self-test`)
 

@@ -21,7 +21,10 @@
 : "${CLUNC_LP_ADMIN_ADDR:=terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv}"
 
 # Target TVL rungs (USD, 50/50 each side). Final = $10k ($5k cLUNC + $5k cUSTC).
+# mint-clunc-custc-lp.sh sets SKIP_SWAP=1 and ADD_USD=10000 (add $10k at live ratio).
 : "${CLUNC_LP_RUNGS:=200,500,2000,5000,10000}"
+: "${CLUNC_LP_SKIP_SWAP:=0}"
+: "${CLUNC_LP_ADD_USD:=}"
 : "${CLUNC_LP_PRICE_TOLERANCE:=0.001}"
 : "${CLUNC_LP_CROSS_CHECK_TOLERANCE:=0.03}"
 : "${CLUNC_LP_ORACLE_MAX_AGE_SEC:=1800}"

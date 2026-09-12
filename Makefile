@@ -1064,12 +1064,37 @@ rebalance-mint-ust1-lp:
 	@chmod +x scripts/rebalance-mint-ust1-lp.sh scripts/lib/ust1-lp-rebalance-math.py
 	./scripts/rebalance-mint-ust1-lp.sh
 
+# Columbus-5: mint + swap UST1/cUSTC and cLUNC/cUSTC onto oracles (1 UST1 = $1), burn leftover.
+# No LP. DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + ORACLE_RB_YES=1 (or TTY confirm).
+.PHONY: rebalance-oracle-mint-swap-burn test-oracle-rebalance
+rebalance-oracle-mint-swap-burn:
+	@chmod +x scripts/rebalance-oracle-mint-swap-burn.sh \
+		scripts/lib/ust1-lp-rebalance-math.py scripts/lib/clunc-custc-lp-math.py
+	./scripts/rebalance-oracle-mint-swap-burn.sh
+
+test-oracle-rebalance:
+	@chmod +x scripts/qa/test-oracle-rebalance.sh scripts/rebalance-oracle-mint-swap-burn.sh \
+		scripts/lib/ust1-lp-rebalance-math.py scripts/lib/clunc-custc-lp-math.py
+	./scripts/qa/test-oracle-rebalance.sh
+
 # Columbus-5: rebalance cLUNC/cUSTC to LUNC+USTC oracles, mint $10k LP in rungs, send to CMM.
 # DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + CLUNC_LP_YES=1 (or TTY confirm).
-.PHONY: rebalance-mint-clunc-custc-lp
+.PHONY: rebalance-mint-clunc-custc-lp mint-clunc-custc-lp test-clunc-custc-lp
 rebalance-mint-clunc-custc-lp:
 	@chmod +x scripts/rebalance-mint-clunc-custc-lp.sh scripts/lib/clunc-custc-lp-math.py
 	./scripts/rebalance-mint-clunc-custc-lp.sh
+
+# Columbus-5: mint ~$10k cLUNC/cUSTC LP at the live pool ratio (no swap) → CMM.
+# Keeps a cLUNC premium. DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + CLUNC_LP_YES=1.
+mint-clunc-custc-lp:
+	@chmod +x scripts/mint-clunc-custc-lp.sh scripts/rebalance-mint-clunc-custc-lp.sh \
+		scripts/lib/clunc-custc-lp-math.py
+	./scripts/mint-clunc-custc-lp.sh
+
+test-clunc-custc-lp:
+	@chmod +x scripts/qa/test-clunc-custc-lp.sh scripts/mint-clunc-custc-lp.sh \
+		scripts/rebalance-mint-clunc-custc-lp.sh scripts/lib/clunc-custc-lp-math.py
+	./scripts/qa/test-clunc-custc-lp.sh
 
 # Columbus-5: mint 50 UST1/hour, best-solver swap to cLUNC, burn until CMM bank uluna × oracle is $2500.
 # DRY_RUN=1 skips txs (one tick). Live loops hourly: TERRAD_HOST_KEYRING_PASS + UST1_CLUNC_YES=1.
@@ -1344,7 +1369,7 @@ help:
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
-	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-mint-clunc-custc-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
+	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:

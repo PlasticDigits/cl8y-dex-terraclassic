@@ -34,6 +34,7 @@ UST1_LP_BURN_ONLY=1 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 
 ## Related
 
+- [`AGENTS_REBALANCE_ORACLE_MINT_SWAP_BURN.md`](./AGENTS_REBALANCE_ORACLE_MINT_SWAP_BURN.md) — same UST1 peg + cLUNC/cUSTC, no LP, leftover burn
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — pair create/seed (#508)
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) — USTC ticker
 - [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — Protocol/Charts USTR USD is DEX hub, not this 2.5× seed

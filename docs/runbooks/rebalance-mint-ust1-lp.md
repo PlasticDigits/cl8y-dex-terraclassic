@@ -2,6 +2,8 @@
 
 Operator script for deepening **UST1/cUSTC** and **UST1/USTR** with **$5000** of LP each, after bringing the **UST1/cUSTC** pool to the indexer USTC oracle (within **0.1%**). LP is minted to the **ustr-cmm CMM treasury**. The UST1/USTR pool is **not** swapped.
 
+Peg only (mint + swap, **no LP**, then burn leftover), including **cLUNC/cUSTC**: [`rebalance-oracle-mint-swap-burn.md`](./rebalance-oracle-mint-swap-burn.md).
+
 Script: [`scripts/rebalance-mint-ust1-lp.sh`](../../scripts/rebalance-mint-ust1-lp.sh)  
 Playbook: [`skills/AGENTS_REBALANCE_MINT_UST1_LP.md`](../../skills/AGENTS_REBALANCE_MINT_UST1_LP.md)
 
