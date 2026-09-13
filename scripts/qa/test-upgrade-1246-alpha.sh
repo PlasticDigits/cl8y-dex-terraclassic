@@ -15,7 +15,8 @@ run_syntax() {
   bash -n scripts/upgrade-1246-alpha.sh
   rg -q 'UPGRADE1246_WHITELIST' scripts/upgrade-1246-alpha.sh
   rg -q '8654' scripts/upgrade-1246-alpha.sh
-  rg -q 'WasmMsg::Migrate' scripts/upgrade-1246-alpha.sh
+  rg -q 'migrate_owned_contract' scripts/upgrade-1246-alpha.sh
+  rg -q 'UPGRADE1246_STORE_CMM' scripts/upgrade-1246-alpha.sh
   rg -q 'register_listed_pair' scripts/upgrade-1246-alpha.sh
   rg -q 'refresh_pair_asset_code_ids' scripts/upgrade-1246-alpha.sh
   rg -q 'multisig-2of3-host-tx' scripts/upgrade-1246-alpha.sh
@@ -28,7 +29,7 @@ run_dry() {
     ./scripts/upgrade-1246-alpha.sh | tee /tmp/upgrade1246-dry.log
   rg -q 'AddWhitelistedCodeId' /tmp/upgrade1246-dry.log
   rg -q 'DRY_RUN skip: 2-of-3' /tmp/upgrade1246-dry.log
-  rg -q 'CMM treasury ExecuteMsg has no WasmMsg::Migrate' /tmp/upgrade1246-dry.log
+  rg -q 'migrate_owned_contract' /tmp/upgrade1246-dry.log
   rg -q 'OK token=' /tmp/upgrade1246-dry.log
 }
 
