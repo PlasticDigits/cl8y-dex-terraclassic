@@ -6,7 +6,7 @@ use std::os::unix::io::AsRawFd;
 use std::sync::Once;
 
 use axum::Router;
-use cl8y_dex_indexer::api::{AppState, build_router};
+use cl8y_dex_indexer::api::{build_router, AppState};
 use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::PgPool;
@@ -74,6 +74,7 @@ pub fn test_config() -> Config {
         hub_ust1_address: cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
         hub_ustr_address: cl8y_dex_indexer::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
         hub_cl8y_address: cl8y_dex_indexer::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
+        usdt_cw20_address: cl8y_dex_indexer::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
         hub_usd_tvl_floor: "100".parse().unwrap(),
         bsc_rpc_urls: vec![],
         venus_vfdusd_poll_interval_ms: 30_000,

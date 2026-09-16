@@ -2,7 +2,7 @@
 
 Audience: third-party agents touching indexer swap prices, candles, Trade/Charts **Price (USD)**, or limit-order USD notional.
 
-**Issue:** [GitLab **#522**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)  
+**Issue:** [GitLab **#522**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522) · [Forgejo **#1258**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258) (USDT quote pin)  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **Pair price human + USD #522**)  
 **Related:** [#466](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/466) orientation, [#515](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/515) oracles, [#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508) UST1 secondary AMM
 
@@ -16,7 +16,7 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 |----|------|
 | **P522-1** | `swap_events.price` is **human** quote-per-base: `raw × 10^(decimals_base − decimals_quote)`. Orientation stays #466 (quote per base). |
 | **P522-2** | `swap_events.price_usd` is **USD of 1 human unit of pair base (`asset_0`)**: `price × USD(1 human quote)`. |
-| **P522-3** | Quote USD catalog: `uusd`/USTC/cUSTC → #515 `ustc`; `uluna`/LUNC/cLUNC → #515 `lunc`; **UST1 = `hub_prices.ust1`**; **USTR = `hub_prices.ustr`** ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Unknown quote → `price_usd` NULL. Client `pairPriceUsd.ts` may keep a **legacy** 2.5× fallback for pre-upgrade indexers only. |
+| **P522-3** | Quote USD catalog: `uusd`/USTC/cUSTC → #515 `ustc`; `uluna`/LUNC/cLUNC → #515 `lunc`; **UST1 = `hub_prices.ust1`**; **USTR = `hub_prices.ustr`** ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); **USDT = contract-pinned advisory $1** on the registry CW20 only ([#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258)) — **not** `Peg1` / hub UST1. Unknown quote → `price_usd` NULL. Client `pairPriceUsd.ts` may keep a **legacy** 2.5× fallback for pre-upgrade indexers only. |
 | **P522-4** | Candle `open/high/low/close` are factory **USD from `price_usd` only** (no human fallback — [#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543)). Additive `*_human` columns are human quote-per-base for per-bar `invertUsd`. Bars with NULL `price_usd` are omitted. |
 | **P522-5** | UI **Price (USD)** (headline, chart, Charts Open/Close, limit USD notional) must use `price_usd` / `*_usd` stats — **never** raw or human `trades[].price`. Trades table **Price** stays human quote-per-base and must not compact-format as `T`. |
 
@@ -27,8 +27,11 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - **Don’t** wire `trades[0].price` into any control labeled USD.
 - **Don’t** treat `formatNum` compact `T` as a price formatter — use `formatPairPrice`.
 - **Don’t** double-scale: after this migration, `price` is already human. Client fallback scales `price` as **raw** only when `price_usd` is missing (pre-upgrade indexer).
+- **Don’t** add a bare `quote_usd_kind("USDT")` arm. Identity is the pinned registry CW20 (`USDT_CW20_ADDRESS` / columbus-5 tokenlist). A spoof `symbol=USDT` stays `None` ([#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258)).
 - **Don’t** map `VFDUSD` / `FDUSD` in `quote_usd_kind` or multiply CEX FDUSD (`OracleTicker::Vfdusd`) into pair `price_usd` / `volume_usd` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)).
 - **Don’t** add `CL8Y` to `quote_usd_kind` (symbol alone stays `None`). Protocol **fee** USD for factory-listed economic CW20s is a sibling mark path ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)); volume/TVL stay P522-Q.
+- **Don’t** reuse `QuoteUsdKind::Peg1` / `hub_prices.ust1` for USDT. Advisory $1 is `QuoteUsdKind::Usdt` only.
+- **Don’t** read `HubQuoteUsd.economic` for pair `price_usd` / volume / TVL (EFee-4).
 
 ## Regression checklist
 
@@ -36,6 +39,7 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 2. `cd indexer && cargo test --test swap_price_human_usd --test swap_price_orientation -- --test-threads=1`
 3. Frontend: `pairPriceUsd.test.ts`, `chartHeadlinePrice.test.ts`, `formatAmount.test.ts`
 4. `make verify-issue-522`
+5. USDT quote pin: `make verify-issue-1258`
 
 ## Related
 
@@ -47,7 +51,7 @@ Audience: third-party agents touching indexer swap prices, candles, Trade/Charts
 - [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — dApp USD candles use `invertUsd`, not `1/x` ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543))
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — Charts 24h volume USD uses [`volume_usd_for_swap`](../indexer/src/indexer/pair_price_usd.rs) (P522-Q / hub USD, [#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Pair-list USD badges stay [#544](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/544). Pair-detail 24h stats strip is [#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564).
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — Charts pair Stats **Vol (USD)** uses `stats.volume_usd`; token vols use `formatChartsPairTokenVolume`; TWAP/OHLC human scale ([#565](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/565) / [#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564))
-- [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub marks replace `$1` / `2.5×` ingest ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
+- [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) — DEX hub marks replace `$1` / `2.5×` ingest ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`. Registry **USDT** is not a hub ticker ([#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258)).
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — Protocol pool TVL (#569) prices pair legs with this catalog + hub marks; `make verify-issue-569`
 - [`AGENTS_INDEXER_CANDLE_USD_MARK.md`](./AGENTS_INDEXER_CANDLE_USD_MARK.md) — do not rewrite historical `price_usd` / candle USD from live hub; idle mark-to-market ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [`AGENTS_FRONTEND_PORTFOLIO_PNL.md`](./AGENTS_FRONTEND_PORTFOLIO_PNL.md) — portfolio/trader P&amp;L human scale + USD totals ([#551](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/551)). Do not `formatNum` mixed trader totals.
