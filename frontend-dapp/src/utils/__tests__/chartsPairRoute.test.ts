@@ -7,6 +7,8 @@ import {
   isSafeChartsPriceToken,
   matchChartsPriceParam,
   parseChartsPriceQuery,
+  shouldAutoPickChartsHeroPair,
+  shouldSnapChartsSelectionToCatalogHead,
 } from '@/utils/chartsPairRoute'
 
 const VALID = 'terra1pair0000000000000000000000000000000001'
@@ -72,5 +74,52 @@ describe('chartsPairRoute ?price= (GitLab #680)', () => {
     expect(matchChartsPriceParam(VALID, UST1, CUSTC, VALID)).toBeNull()
     expect(matchChartsPriceParam('javascript:alert(1)', UST1, CUSTC, VALID)).toBeNull()
     expect(matchChartsPriceParam('<script>', UST1, CUSTC, VALID)).toBeNull()
+  })
+})
+
+describe('chartsPairRoute hero idle-only (GitLab #1266)', () => {
+  const idle = {
+    isBareCharts: true,
+    invalidRoutePair: null as string | null,
+    selectedPairAddr: '',
+    userCommittedPair: false,
+    pairsLoading: false,
+    pairsError: false,
+  }
+
+  it('auto-picks hero only on idle bare /charts', () => {
+    expect(shouldAutoPickChartsHeroPair(idle)).toBe(true)
+  })
+
+  it('does not force hero after selectPair on a still-bare route', () => {
+    expect(shouldAutoPickChartsHeroPair({ ...idle, selectedPairAddr: VALID })).toBe(false)
+    expect(shouldAutoPickChartsHeroPair({ ...idle, userCommittedPair: true })).toBe(false)
+  })
+
+  it('does not auto-pick when the pair segment is already present (C680-5)', () => {
+    expect(shouldAutoPickChartsHeroPair({ ...idle, isBareCharts: false })).toBe(false)
+  })
+
+  it('does not snap a valid bech32 choice to catalog head', () => {
+    expect(
+      shouldSnapChartsSelectionToCatalogHead({
+        validRoutePair: '',
+        isBareCharts: false,
+        selectedPairAddr: VALID,
+        pairOptionsLength: 2,
+        pairOptionsHasSelected: false,
+        waitingForSelectedPairFetch: true,
+      })
+    ).toBe(false)
+    expect(
+      shouldSnapChartsSelectionToCatalogHead({
+        validRoutePair: VALID,
+        isBareCharts: false,
+        selectedPairAddr: VALID,
+        pairOptionsLength: 2,
+        pairOptionsHasSelected: false,
+        waitingForSelectedPairFetch: false,
+      })
+    ).toBe(false)
   })
 })

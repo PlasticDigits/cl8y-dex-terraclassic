@@ -1456,11 +1456,11 @@ Implementation: [`tradePairDisplayOrientation.ts`](../frontend-dapp/src/utils/tr
 
 **Resolve on Charts:** valid `?price=` (last key) → Charts session `cl8y-dex-charts-pair-invert:` → Charts product default (**not** inverted). **Trade** keeps storage → **T524-3**. Repeated `price` keys: last wins; hostile / overlong / non-leg values are ignored (not 404, not echoed).
 
-Hero pair is UST1 + **cUSTC wrap** (`isUst1Leg` + `isCustcLeg`). Not native `uusd`. columbus-5 pin: `MAINNET_UST1_CUSTC_PAIR_ADDRESS`. LocalTerra matches env legs. Bare `/charts` only — valid `/charts/:pairAddr` must not snap back.
+Hero pair is UST1 + **cUSTC wrap** (`isUst1Leg` + `isCustcLeg`). Not native `uusd`. columbus-5 pin: `MAINNET_UST1_CUSTC_PAIR_ADDRESS`. LocalTerra matches env legs. **Idle** bare `/charts` only — valid `/charts/:pairAddr` must not snap back (**C680-5**). An explicit `#chart-pair-select` change is also idle-breaking: the hero effect must not override `selectPair` ([#1266](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1266), [§ Charts Select Pair](#charts-select-pair)).
 
 | ID | Rule |
 |----|------|
-| **C680-1** | Bare `/charts` → UST1/cUSTC when listed + `?price=UST1`. Last + candles are USD of 1 UST1 (`~$1` class). |
+| **C680-1** | **Idle** bare `/charts` → UST1/cUSTC when listed + `?price=UST1`. Last + candles are USD of 1 UST1 (`~$1` class). |
 | **C680-2** | `/charts/{ust1custc}` without `price` uses Charts UST1 USD, not **T524-3**. |
 | **C680-3** | `?price=cUSTC` / `USTC` / quote-leg contract prices Last, candles, 24h USD OHLC, %, TWAP, headings, tape Price. Pill matches. |
 | **C680-4** | Invert pill `replace`s `?price=` and all C680-3 rows. |
@@ -1470,7 +1470,24 @@ Hero pair is UST1 + **cUSTC wrap** (`isUst1Leg` + `isCustcLeg`). Not native `uus
 | **C680-8** | Missing hero → first economic catalog pair; no spinner lock. Gems stay hidden in production (**P562**). |
 | **C680-9** | `invertUsd` per value — never `1/x` factory USD. No CoinGecko stitch. No U1 mint copy. Chrome nesting green. |
 
-Implementation: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts), [`useChartsPairDisplayOrientation`](../frontend-dapp/src/hooks/usePairDisplayOrientation.ts), [`resolveDisplayPairStatsUsdOhlc`](../frontend-dapp/src/utils/pairPriceUsd.ts), [`resolveChartsHeroPairAddress`](../frontend-dapp/src/utils/pairCatalogRank.ts). Charts Share is not wired; `buildCanonicalShareUrl({ kind: 'charts' })` stays path-only (**TS-2**). Regression: `make verify-issue-680`.
+Implementation: [`chartsPairRoute.ts`](../frontend-dapp/src/utils/chartsPairRoute.ts), [`useChartsPairDisplayOrientation`](../frontend-dapp/src/hooks/usePairDisplayOrientation.ts), [`resolveDisplayPairStatsUsdOhlc`](../frontend-dapp/src/utils/pairPriceUsd.ts), [`resolveChartsHeroPairAddress`](../frontend-dapp/src/utils/pairCatalogRank.ts). Charts Share is not wired; `buildCanonicalShareUrl({ kind: 'charts' })` stays path-only (**TS-2**). Regression: `make verify-issue-680`. Hero auto-pick is idle-only — see [§ Charts Select Pair](#charts-select-pair) (`make verify-issue-1266`).
+
+### Charts Select Pair (first change sticks) {#charts-select-pair}
+
+[`#chart-pair-select`](../frontend-dapp/src/pages/ChartsPage.tsx) on **idle** bare `/charts` must keep the first listed-pair change ([#1266](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1266)). Hero replace-nav (**C680-1**) runs only until the user commits a pair (`shouldAutoPickChartsHeroPair`). Trade auto-pick [#357](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/357) is closed and Trade-scoped — do not reopen it. Agent playbook: [`skills/AGENTS_FRONTEND_CHARTS_PAIR_SELECT.md`](../skills/AGENTS_FRONTEND_CHARTS_PAIR_SELECT.md).
+
+| ID | Rule |
+|----|------|
+| **C1266-1** | First Select Pair change to listed **B** ≠ hero: URL `/charts/{B}`, trigger, candles, 24h stats, leaderboard all use **B**. No second select. |
+| **C1266-2** | Idle bare `/charts` (no click) still auto-picks hero (**C680-1**). |
+| **C1266-3** | Reload `/charts/{B}` keeps **B** (**C680-5**). |
+| **C1266-4** | After select, Find/sort/page must not snap to hero or `pairOptions[0]`. |
+| **C1266-5** | Carried `?price=` drops when it is not a leg of **B**; hostile price ignored. |
+| **C1266-6** | Catalog-head fallback must not replace a valid bech32 `selectedPairAddr` while `getPair` is pending. Never replace `validRoutePair`. |
+| **C1266-7** | Navigate only via `chartsPairHref` + `replace`. Non-bech32 `onChange` is a no-op. |
+| **C1266-8** | No last-pair `localStorage`. Trade picker unchanged. Chrome nesting green. **P562** gems stay hidden. |
+
+Helpers: [`shouldAutoPickChartsHeroPair`](../frontend-dapp/src/utils/chartsPairRoute.ts), [`shouldSnapChartsSelectionToCatalogHead`](../frontend-dapp/src/utils/chartsPairRoute.ts). Regression: `make verify-issue-1266` (keep `make verify-issue-680` green).
 
 ### Trade page — market context (tape, hybrid tag, limit-only book) {#trade-page-market-context}
 
