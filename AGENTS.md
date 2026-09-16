@@ -179,6 +179,7 @@ make verify-issue-708                    # #708 greedy book-first swap (multites
 make verify-issue-709                    # #709 greedy query mutex + remainder_to_pool + pool_spot overflow
 make verify-issue-710                    # #710 greedy tax / pause / blacklist / AfterSwap L7
 make verify-issue-1230                   # #1230 reject zero / dust-floor belief_price (L9)
+make verify-issue-1257                   # #1257 USTR→USDT mixed 18/6 hop honesty + Expert no-waive ≥99%
 make verify-issue-1227                   # #1227 UpdateLimitOrderPrice equal-price FIFO (keep order_id)
 make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
@@ -344,6 +345,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Limit reprice FIFO | `make verify-issue-1227` |
 | Charts newest-N candles + interval chip | `make verify-issue-705` |
 | Invalid `belief_price` L9 (zero / dust-floor) | `make verify-issue-1230` |
+| USTR→USDT mixed-dec quote scale | `make verify-issue-1257` |
 | Observe query extreme-ratio skip | `make verify-issue-1231` |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
@@ -519,6 +521,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md](skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap `/` + `/swap` Uniswap/Terra query aliases (**Q711-1–Q711-8**, [#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711)); `make verify-issue-711`
 - [skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md](skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md) — Swap URL rewrite, reverse quotes, Share, Create/Trade prefill (**Q713-1–Q713-10**, [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)); `make verify-issue-713`
 - [skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md](skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — tokenlist unique symbols, Swap `from=`/`to=` encode, Share logos (**TL/QS/SH**, [#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)); `make verify-issue-715`
+- [skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md](skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md) — USTR→USDT mixed 18/6 hop honesty + Expert no-waive ≥99% (**Q1257-1–Q1257-8**, [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)); `make verify-issue-1257`
 - [skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md](skills/AGENTS_MAINNET_WRAP_ENABLEMENT.md) — post-SL5 Coolify wrap env + cLUNC/cUSTC fee UX ([#507](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/507))
 - [skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md](skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md) — unwrap InstantWithdraw burn tax quotes + exchange-deposit warning (**W8–W11**, [#512](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/512)); `make verify-issue-512`
 - [skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md](skills/AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — wrap-mapper `fee_wrap_bps` / `fee_unwrap_bps` + unwrap ≈2% all-in retune (**W12–W15**, [#516](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/516)); `make verify-issue-516`. Router `unwrap_output` dual-read ([#523](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/523)); `make verify-issue-523`. LocalTerra wrap-mapper instantiate + #533 P4–P8 ([#539](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/539)); `make verify-issue-539`

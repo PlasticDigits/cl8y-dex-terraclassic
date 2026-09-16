@@ -98,4 +98,4 @@ cd indexer && cargo test --test api_route_solve_db_hybrid -- --test-threads=1 \
 
 ## Related invariants
 
-[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), hybrid GET cache tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)), CG/CMC consolidated reporting rows.
+[docs/indexer-invariants.md](../docs/indexer-invariants.md) — route GET global best execution ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209)), GET best ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)), hybrid GET cache tier ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)), mixed 18/6 hop honesty ([#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)), CG/CMC consolidated reporting rows.

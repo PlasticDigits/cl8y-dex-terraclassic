@@ -106,13 +106,16 @@ const DENOM_MAP: Record<string, string> = {
   uusd: 'USTC',
 }
 
+export const USTR_CW20_ADDRESS = 'terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv'
+export const USDT_CW20_ADDRESS = 'terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4'
+
 const CW20_MAP: Record<string, string> = {
   terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3: 'CL8Y',
-  terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv: 'USTR',
+  [USTR_CW20_ADDRESS]: 'USTR',
   terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz: 'ALPHA',
   terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5: 'USTRIX',
   terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl: 'SpaceUSD',
-  terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4: 'USDT',
+  [USDT_CW20_ADDRESS]: 'USDT',
 }
 
 if (LUNC_C_TOKEN_ADDRESS) CW20_MAP[LUNC_C_TOKEN_ADDRESS.toLowerCase()] = 'cLUNC'
