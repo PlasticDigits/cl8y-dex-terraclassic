@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Route, Routes } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Route, Routes, createMemoryRouter, RouterProvider } from 'react-router-dom'
 import ChartsPage from './ChartsPage'
 import { renderWithProviders } from '@/test-utils'
 import * as indexerClient from '@/services/indexer/client'
@@ -1024,6 +1025,186 @@ describe('ChartsPage (component)', () => {
       renderCharts('/charts')
       await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(OTHER, expect.any(String)))
       expect(screen.queryByText(/loading selected pair/i)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('Select Pair first change vs hero (GitLab #1266)', () => {
+    const HERO = 'terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f'
+    const OTHER = 'terra1pair0000000000000000000000000000000001'
+    const PAGE2 = 'terra1pair0000000000000000000000000000000002'
+    const UST1 = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+    const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
+
+    const heroPair: IndexerPair = {
+      ...mockPair,
+      pair_address: HERO,
+      asset_0: { symbol: 'UST1', contract_addr: UST1, denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: CUSTC, denom: null, decimals: 6 },
+    }
+    const otherPair: IndexerPair = {
+      ...mockPair,
+      pair_address: OTHER,
+      asset_0: { symbol: 'CCC', contract_addr: 'terra1ccc', denom: null, decimals: 6 },
+      asset_1: { symbol: 'DDD', contract_addr: 'terra1ddd', denom: null, decimals: 6 },
+    }
+    const page2Pair: IndexerPair = { ...mockPair, pair_address: PAGE2 }
+
+    function renderChartsRouter(route: string) {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+      const router = createMemoryRouter(
+        [
+          { path: '/charts', element: <ChartsPage /> },
+          { path: '/charts/:pairAddr', element: <ChartsPage /> },
+        ],
+        { initialEntries: [route] }
+      )
+      render(
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      )
+      return router
+    }
+
+    async function selectListedPair(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
+      const trigger = await screen.findByRole('button', { name: 'Select pair' })
+      await waitFor(() => expect(trigger).not.toBeDisabled())
+      await user.click(trigger)
+      const listbox = await screen.findByRole('listbox')
+      await user.click(within(listbox).getByRole('option', { name }))
+    }
+
+    beforeEach(() => {
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [heroPair, otherPair],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      })
+      vi.mocked(indexerClient.getPairStats).mockImplementation(async (addr: string) => ({
+        volume_base: '1',
+        volume_quote: '1',
+        volume_usd: addr === OTHER ? '99.5' : '1.25',
+        trade_count: addr === OTHER ? 7 : 1,
+        high: '1',
+        low: '1',
+        open_price: '1',
+        close_price: '1',
+        price_change_pct: 0,
+      }))
+      vi.mocked(indexerClient.getLeaderboard).mockImplementation(async (_sort, _limit, pair) => [
+        {
+          address:
+            pair === OTHER
+              ? 'terra1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+              : 'terra1abcdefghijklmnopqrstuvwxyz1234567890abcd',
+          total_trades: 2,
+          total_volume: '1',
+          total_volume_usd: pair === OTHER ? '50' : '10',
+          volume_24h: '0',
+          volume_7d: '0',
+          volume_30d: '0',
+          tier_id: null,
+          tier_name: null,
+          registered: false,
+          first_trade_at: null,
+          last_trade_at: null,
+          total_realized_pnl: '0',
+          best_trade_pnl: null,
+          worst_trade_pnl: null,
+          total_fees_paid: '0',
+        },
+      ])
+    })
+
+    it('AC1/T1: first Select Pair change on bare /charts sticks to B (no second click)', async () => {
+      const user = userEvent.setup()
+      const router = renderChartsRouter('/charts')
+      await selectListedPair(user, /terra1ccc/)
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/charts/${OTHER}`))
+      expect(router.state.location.pathname).not.toBe(`/charts/${HERO}`)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(OTHER, expect.any(String)))
+      expect(indexerClient.getPairStats).toHaveBeenCalledWith(OTHER)
+      await waitFor(() => expect(indexerClient.getLeaderboard).toHaveBeenCalledWith('total_volume_usd', 20, OTHER))
+      expect(await screen.findByTestId('charts-pair-trades')).toHaveTextContent('7')
+      expect(screen.getByRole('button', { name: 'Select pair' })).toHaveTextContent(/terra1ccc/)
+    })
+
+    it('AC2/T2: idle bare /charts still auto-picks hero', async () => {
+      const router = renderChartsRouter('/charts')
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/charts/${HERO}`))
+      expect(router.state.location.search).toMatch(/price=UST1/)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(HERO, expect.any(String)))
+    })
+
+    it('AC3/T3: reload /charts/{B} keeps B (C680-5)', async () => {
+      const router = renderChartsRouter(`/charts/${OTHER}`)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(OTHER, expect.any(String)))
+      expect(router.state.location.pathname).toBe(`/charts/${OTHER}`)
+      expect(indexerClient.getCandles).not.toHaveBeenCalledWith(HERO, expect.any(String))
+    })
+
+    it('T4: first change from B back to hero sticks', async () => {
+      const user = userEvent.setup()
+      const router = renderChartsRouter(`/charts/${OTHER}`)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(OTHER, expect.any(String)))
+      await selectListedPair(user, /UST1 \/ cUSTC/)
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/charts/${HERO}`))
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(HERO, expect.any(String)))
+    })
+
+    it('AC4/T5: after select B, pager does not snap to catalog head', async () => {
+      const user = userEvent.setup()
+      vi.mocked(indexerClient.getPairs).mockImplementation(async (args?: { offset?: number }) => {
+        const offset = args?.offset ?? 0
+        if (offset === 0) {
+          return { items: [heroPair, otherPair], total: 51, limit: 50, offset: 0 }
+        }
+        return { items: [page2Pair], total: 51, limit: 50, offset }
+      })
+      vi.mocked(indexerClient.getPair).mockImplementation(async (addr: string) => {
+        if (addr === OTHER) return otherPair
+        if (addr === HERO) return heroPair
+        return { ...page2Pair, pair_address: addr }
+      })
+      const router = renderChartsRouter('/charts')
+      await selectListedPair(user, /terra1ccc/)
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/charts/${OTHER}`))
+      await user.click(screen.getByRole('button', { name: /next/i }))
+      await waitFor(() => expect(indexerClient.getPairs).toHaveBeenCalledWith(expect.objectContaining({ offset: 50 })))
+      expect(router.state.location.pathname).toBe(`/charts/${OTHER}`)
+      await waitFor(() => expect(indexerClient.getPairStats).toHaveBeenCalledWith(OTHER))
+      expect(await screen.findByTestId('charts-pair-trades')).toHaveTextContent('7')
+    })
+
+    it('AC5: carried ?price= drops when it is not a leg of B', async () => {
+      const user = userEvent.setup()
+      const router = renderChartsRouter(`/charts/${HERO}?price=UST1`)
+      await waitFor(() => expect(indexerClient.getCandles).toHaveBeenCalledWith(HERO, expect.any(String)))
+      await selectListedPair(user, /terra1ccc/)
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/charts/${OTHER}`))
+      expect(router.state.location.search).not.toMatch(/price=UST1/)
+    })
+
+    it('T7: last committed pair wins; no hero insert', async () => {
+      const user = userEvent.setup()
+      const third: IndexerPair = {
+        ...mockPair,
+        pair_address: PAGE2,
+        asset_0: { symbol: 'EEE', contract_addr: 'terra1eee', denom: null, decimals: 6 },
+        asset_1: { symbol: 'FFF', contract_addr: 'terra1fff', denom: null, decimals: 6 },
+      }
+      vi.mocked(indexerClient.getPairs).mockResolvedValue({
+        items: [heroPair, otherPair, third],
+        total: 3,
+        limit: 50,
+        offset: 0,
+      })
+      const router = renderChartsRouter('/charts')
+      await selectListedPair(user, /terra1ccc/)
+      await selectListedPair(user, /terra1eee/)
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/charts/${PAGE2}`))
+      expect(router.state.location.pathname).not.toBe(`/charts/${HERO}`)
     })
   })
 })
