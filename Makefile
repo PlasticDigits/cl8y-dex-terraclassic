@@ -509,6 +509,12 @@ verify-issue-522:
 	@chmod +x scripts/qa/verify-issue-522.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-522.sh
 
+# Forgejo #1258 — registry USDT quote USD pin for Charts Price (USD) / 24h OHLC.
+.PHONY: verify-issue-1258
+verify-issue-1258:
+	@chmod +x scripts/qa/verify-issue-1258.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1258.sh
+
 # GitLab #551 — portfolio/trader P&L human scale + USD totals (drop mixed-unit sums).
 verify-issue-551:
 	@chmod +x scripts/qa/verify-issue-551.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh

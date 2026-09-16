@@ -437,6 +437,7 @@ pub fn fee_usd_per_human(
         lunc_usd,
         configured_ustc_denom,
         hub,
+        None,
     ) {
         return Some(usd);
     }
