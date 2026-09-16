@@ -466,13 +466,7 @@ pub fn fee_usd_for_raw(
     if raw <= &BigDecimal::from(0) {
         return None;
     }
-    let usd_per = fee_usd_per_human(
-        asset,
-        ustc_usd,
-        lunc_usd,
-        configured_ustc_denom,
-        hub,
-    )?;
+    let usd_per = fee_usd_per_human(asset, ustc_usd, lunc_usd, configured_ustc_denom, hub)?;
     let human = humanize_raw_amount(raw, asset.decimals)?;
     let usd = human * usd_per;
     if usd <= BigDecimal::from(0) || !fits_numeric_38_18(&usd) {
@@ -528,6 +522,9 @@ pub struct FeeEventDraft {
     pub tx_hash: String,
     pub source: FeeSource,
     pub ordinal: i64,
+    /// Factory pair for `swap_amm` (GitLab #1269). `None` for wrap / window / book / place
+    /// so those sources keep `(tx_hash, source, ordinal)` uniqueness.
+    pub pair_id: Option<i32>,
     pub asset_id: i32,
     pub amount_raw: BigDecimal,
     pub decimals: i16,
@@ -1107,8 +1104,7 @@ mod tests {
         let cl8y = crate::config::DEFAULT_HUB_CL8Y_ADDRESS;
         let asset = cw20("CL8Y-cb", cl8y, 6);
         let mut hub = HubQuoteUsd::default();
-        hub.economic
-            .insert(cl8y.to_string(), bd("10"));
+        hub.economic.insert(cl8y.to_string(), bd("10"));
         // 1.298 human × $10
         let usd = fee_usd_for_raw(&asset, &bd("1298000"), None, None, None, Some(&hub)).unwrap();
         assert_eq!(usd, bd("12.98000"));
@@ -1147,7 +1143,11 @@ mod tests {
 
     #[test]
     fn fee_usd_gem_and_vfdusd_stay_unpriced() {
-        let ember = cw20("EMBER", crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES[0], 6);
+        let ember = cw20(
+            "EMBER",
+            crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES[0],
+            6,
+        );
         let mut hub = HubQuoteUsd::default();
         hub.economic.insert(
             crate::indexer::defillama::COLUMBUS5_GEM_ADDRESSES[0].to_string(),

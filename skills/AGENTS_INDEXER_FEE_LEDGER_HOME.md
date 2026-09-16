@@ -5,7 +5,8 @@ Use when an agent is asked to add pair-creation, SKU/settings invoices, or retai
 This is the **design/home map**. It does **not** add a `FeeSource`, migration CHECK, API field, or UI label.
 
 **Issue:** [Forgejo **#1213**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)  
-**Live census (seven sources today):** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**PFee-1–PFee-13**, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586))  
+**Live census (seven sources today):** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**PFee-1–PFee-14**, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586))  
+**Multihop AMM uniqueness:** [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](./AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) (**F1269** / [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269)) — children inherit this **widened** key, not `UNIQUE (tx_hash, source, ordinal)`  
 **Wrap ingest pattern:** [`AGENTS_INDEXER_WRAP_FEE_INGEST.md`](./AGENTS_INDEXER_WRAP_FEE_INGEST.md) (**I613**)  
 **Window ingest pattern:** [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614**)  
 **Catalog ≠ fees:** [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**I594**)  
@@ -21,7 +22,7 @@ This is the **design/home map**. It does **not** add a `FeeSource`, migration CH
 | Community SKU unlock + settings-batch invoices on the same API | [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) | [cl8y-marketing#4](https://git.cl8y.com/PlasticDigits/cl8y-marketing/issues/4) |
 | Actor-joined priced fees with fee-discount-registry cohort split (retail / MM / unjoined) | [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211) | [cl8y-marketing#5](https://git.cl8y.com/PlasticDigits/cl8y-marketing/issues/5) |
 
-Stack order: **#1209 → #1210 → #1211**. Copy wrap/window pin + explicit-amount + uniqueness from **I613** / **I614**. Do not file a fourth feat that copies those titles.
+Stack order: **#1209 → #1210 → #1211**. Copy wrap/window pin + explicit-amount + uniqueness from **I613** / **I614**. Inherit the **widened** `protocol_fee_events` unique key from **#1269** / **F1269** (pair-scoped `swap_amm`; NULL-pair partial for non-pair sources). Do not land a copy of `UNIQUE (tx_hash, source, ordinal)`. Do not file a fourth feat that copies those titles.
 
 Related, **not this epic:**
 
@@ -61,6 +62,7 @@ Docs-only. Child ingest tickets keep `make verify-issue-586` / `make verify-issu
 ## Cross-links
 
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — seven-source census (**PFee**)
+- [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](./AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) — `swap_amm` pair-scoped unique (**F1269**, [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269)); inherit on children
 - [`AGENTS_INDEXER_WRAP_FEE_INGEST.md`](./AGENTS_INDEXER_WRAP_FEE_INGEST.md) — pattern to copy on children
 - [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) — pattern to copy on children
 - [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) — catalog only

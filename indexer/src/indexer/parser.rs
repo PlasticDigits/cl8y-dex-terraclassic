@@ -466,6 +466,23 @@ async fn process_swap(
     };
 
     if swap_events::trade_exists(pool, tx_hash, pair.id, swap.swap_index).await? {
+        // Replay skips swap insert (#287) but must still try fee ingest: unique
+        // (tx, swap_amm, pair_id, ordinal) heals hops dropped by the old 3-column key
+        // without double-counting (GitLab #1269).
+        let ask_asset_id = asset_resolver::resolve_asset_str(pool, lcd, &swap.ask_asset).await?;
+        ingest_swap_amm_fee(
+            pool,
+            lcd,
+            config,
+            pair.id,
+            ask_asset_id,
+            swap,
+            height,
+            block_time,
+            tx_hash,
+            ustc_price,
+        )
+        .await?;
         return Ok(());
     }
 
@@ -598,24 +615,19 @@ async fn process_swap(
         reserve_cache.insert(pair.id, post);
     }
 
-    if let Some(commission) = swap.commission_amount.as_ref() {
-        if *commission > BigDecimal::from(0) {
-            ingest_protocol_fee(
-                pool,
-                lcd,
-                config,
-                protocol_fees::FeeSource::SwapAmm,
-                i64::from(swap.swap_index),
-                ask_asset_id,
-                commission,
-                height,
-                block_time,
-                tx_hash,
-                ustc_price,
-            )
-            .await?;
-        }
-    }
+    ingest_swap_amm_fee(
+        pool,
+        lcd,
+        config,
+        pair.id,
+        ask_asset_id,
+        swap,
+        height,
+        block_time,
+        tx_hash,
+        ustc_price,
+    )
+    .await?;
 
     candle_builder::update_candles_for_swap(
         pool,
@@ -654,12 +666,48 @@ async fn process_swap(
     Ok(())
 }
 
+async fn ingest_swap_amm_fee(
+    pool: &PgPool,
+    lcd: &LcdClient,
+    config: &Config,
+    pair_id: i32,
+    ask_asset_id: i32,
+    swap: &ParsedSwap,
+    height: i64,
+    block_time: DateTime<Utc>,
+    tx_hash: &str,
+    ustc_price: &oracle::SharedPrice,
+) -> Result<(), BoxError> {
+    let Some(commission) = swap.commission_amount.as_ref() else {
+        return Ok(());
+    };
+    if *commission <= BigDecimal::from(0) {
+        return Ok(());
+    }
+    ingest_protocol_fee(
+        pool,
+        lcd,
+        config,
+        protocol_fees::FeeSource::SwapAmm,
+        i64::from(swap.swap_index),
+        Some(pair_id),
+        ask_asset_id,
+        commission,
+        height,
+        block_time,
+        tx_hash,
+        ustc_price,
+    )
+    .await
+}
+
 async fn ingest_protocol_fee(
     pool: &PgPool,
     _lcd: &LcdClient,
     config: &Config,
     source: protocol_fees::FeeSource,
     ordinal: i64,
+    pair_id: Option<i32>,
     asset_id: i32,
     amount_raw: &BigDecimal,
     height: i64,
@@ -695,6 +743,7 @@ async fn ingest_protocol_fee(
         tx_hash: tx_hash.to_string(),
         source,
         ordinal,
+        pair_id,
         asset_id,
         amount_raw: amount_raw.clone(),
         decimals: asset.decimals,
@@ -721,6 +770,7 @@ async fn process_wrap_fee(
         config,
         fee.source,
         fee.ordinal,
+        None,
         asset_id,
         &fee.amount_raw,
         height,
@@ -1034,6 +1084,7 @@ async fn process_limit_order_fill(
                 config,
                 protocol_fees::FeeSource::BookTake,
                 fill.order_id,
+                None,
                 asset_id,
                 &fill.commission_amount,
                 height,
@@ -1342,6 +1393,7 @@ async fn process_limit_order_placement(
                         config,
                         protocol_fees::FeeSource::LimitPlace,
                         p.order_id,
+                        None,
                         asset_id,
                         fee,
                         height,
@@ -1829,6 +1881,9 @@ mod tests {
         // GitLab #287: two swaps on the same pair in one tx must get distinct ordinals (0, 1)
         // so they no longer collapse on (tx_hash, pair_id); a swap on a different pair restarts
         // at 0 (the ordinal is per-pair, not per-tx).
+        // GitLab #1269: protocol_fee_events must still persist hop B at swap_index 0 via
+        // (tx_hash, source, pair_id, ordinal) — do not reuse this per-pair index as a
+        // per-tx fee ordinal.
         let tx = wasm_tx_multi(vec![
             vec![
                 ("_contract_address", "terra1pairA"),

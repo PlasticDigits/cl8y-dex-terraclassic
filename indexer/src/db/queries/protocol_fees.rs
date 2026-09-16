@@ -1,7 +1,11 @@
-//! Protocol fee event insert + ~5 min rollup (GitLab #586).
+//! Protocol fee event insert + ~5 min rollup (GitLab #586 / #1269).
 //!
 //! GET `/overview` and GET `/protocol/fees` read `global_stats_24h` / child rollup tables only.
 //! `OVERVIEW_GLOBAL_STATS_LIVE=1` must not 60d-SUM `protocol_fee_events` on the request path.
+//!
+//! Unique key (GitLab #1269): pair-scoped `(tx_hash, source, pair_id, ordinal)` when
+//! `pair_id IS NOT NULL` (`swap_amm`); `(tx_hash, source, ordinal)` when `pair_id IS NULL`
+//! (wrap / window / book / place). Replay skips duplicates; never overwrite stored amounts.
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
@@ -9,9 +13,7 @@ use sqlx::{FromRow, PgPool};
 
 use crate::db::queries::assets::AssetRow;
 use crate::indexer::pair_price_usd::{fits_numeric_38_18, HubQuoteUsd};
-use crate::indexer::protocol_fees::{
-    fee_usd_for_raw, flow_change_pct, FeeEventDraft, FeeSource,
-};
+use crate::indexer::protocol_fees::{fee_usd_for_raw, flow_change_pct, FeeEventDraft, FeeSource};
 
 const TOKEN_CAP: i64 = 8;
 
@@ -53,20 +55,22 @@ pub struct FeeTokenStatRow {
     pub denom: Option<String>,
 }
 
-/// Insert one fee row. `ON CONFLICT DO NOTHING` so poller replay does not double-count.
+/// Insert one fee row. `ON CONFLICT DO NOTHING` (no inference target) so either partial
+/// unique index can fire. Never `DO UPDATE` — replay/spoof must not overwrite a stored amount.
 pub async fn insert_fee_event(pool: &PgPool, draft: &FeeEventDraft) -> Result<bool, sqlx::Error> {
     let res = sqlx::query(
         r#"INSERT INTO protocol_fee_events
            (block_height, block_timestamp, tx_hash, source, ordinal,
-            asset_id, amount_raw, decimals, fee_usd)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           ON CONFLICT (tx_hash, source, ordinal) DO NOTHING"#,
+            pair_id, asset_id, amount_raw, decimals, fee_usd)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT DO NOTHING"#,
     )
     .bind(draft.block_height)
     .bind(draft.block_timestamp)
     .bind(&draft.tx_hash)
     .bind(draft.source.as_str())
     .bind(draft.ordinal)
+    .bind(draft.pair_id)
     .bind(draft.asset_id)
     .bind(&draft.amount_raw)
     .bind(draft.decimals)
@@ -74,6 +78,84 @@ pub async fn insert_fee_event(pool: &PgPool, draft: &FeeEventDraft) -> Result<bo
     .execute(pool)
     .await?;
     Ok(res.rows_affected() > 0)
+}
+
+/// Attach colliding `swap_amm` rows to a hop, then insert hops still missing from
+/// `swap_events.commission_amount` (GitLab #1269). Idempotent — unique key +
+/// `ON CONFLICT DO NOTHING`. `fee_usd` NULL until [`backfill_null_fee_usd`].
+/// Keep SQL in sync with `indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`.
+pub async fn backfill_missing_swap_amm_fees(pool: &PgPool) -> Result<u64, sqlx::Error> {
+    sqlx::query(
+        r#"UPDATE protocol_fee_events e
+           SET pair_id = s.pair_id
+           FROM (
+               SELECT DISTINCT ON (e2.id)
+                   e2.id AS fee_id,
+                   se.pair_id
+               FROM protocol_fee_events e2
+               JOIN swap_events se
+                 ON se.tx_hash = e2.tx_hash
+                AND se.swap_index = e2.ordinal
+                AND se.commission_amount IS NOT NULL
+                AND se.commission_amount > 0
+               WHERE e2.source = 'swap_amm'
+                 AND e2.pair_id IS NULL
+               ORDER BY e2.id,
+                        (se.commission_amount = e2.amount_raw) DESC,
+                        se.id ASC
+           ) s
+           WHERE e.id = s.fee_id
+             AND e.pair_id IS NULL
+             AND e.source = 'swap_amm'"#,
+    )
+    .execute(pool)
+    .await?;
+
+    let res = sqlx::query(
+        r#"INSERT INTO protocol_fee_events
+               (block_height, block_timestamp, tx_hash, source, ordinal,
+                pair_id, asset_id, amount_raw, decimals, fee_usd)
+           SELECT
+               se.block_height,
+               se.block_timestamp,
+               se.tx_hash,
+               'swap_amm',
+               se.swap_index,
+               se.pair_id,
+               se.ask_asset_id,
+               se.commission_amount,
+               a.decimals,
+               NULL
+           FROM swap_events se
+           JOIN assets a ON a.id = se.ask_asset_id
+           WHERE se.commission_amount IS NOT NULL
+             AND se.commission_amount > 0
+           ON CONFLICT DO NOTHING"#,
+    )
+    .execute(pool)
+    .await?;
+    let inserted = res.rows_affected();
+
+    sqlx::query(
+        r#"DELETE FROM protocol_fee_events e
+           WHERE e.source = 'swap_amm'
+             AND e.pair_id IS NULL
+             AND EXISTS (
+                 SELECT 1
+                 FROM protocol_fee_events p
+                 WHERE p.source = 'swap_amm'
+                   AND p.tx_hash = e.tx_hash
+                   AND p.ordinal = e.ordinal
+                   AND p.pair_id IS NOT NULL
+             )"#,
+    )
+    .execute(pool)
+    .await?;
+
+    if inserted > 0 {
+        tracing::info!(inserted, "backfilled missing swap_amm protocol fee hops");
+    }
+    Ok(inserted)
 }
 
 fn window_usd(count: i64, priced_sum: Option<BigDecimal>) -> Option<BigDecimal> {
@@ -280,12 +362,30 @@ pub async fn refresh_protocol_fees(
     .execute(pool)
     .await?;
 
-    refresh_source_breakdown(pool, "24h", c24, wrap_mapper_configured, ust1_window_configured)
-        .await?;
-    refresh_source_breakdown(pool, "7d", c7, wrap_mapper_configured, ust1_window_configured)
-        .await?;
-    refresh_source_breakdown(pool, "30d", c30, wrap_mapper_configured, ust1_window_configured)
-        .await?;
+    refresh_source_breakdown(
+        pool,
+        "24h",
+        c24,
+        wrap_mapper_configured,
+        ust1_window_configured,
+    )
+    .await?;
+    refresh_source_breakdown(
+        pool,
+        "7d",
+        c7,
+        wrap_mapper_configured,
+        ust1_window_configured,
+    )
+    .await?;
+    refresh_source_breakdown(
+        pool,
+        "30d",
+        c30,
+        wrap_mapper_configured,
+        ust1_window_configured,
+    )
+    .await?;
     refresh_token_breakdown(pool, "24h", c24).await?;
     refresh_token_breakdown(pool, "7d", c7).await?;
     refresh_token_breakdown(pool, "30d", c30).await?;

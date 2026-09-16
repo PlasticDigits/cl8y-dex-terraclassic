@@ -428,6 +428,12 @@ verify-issue-586:
 	@chmod +x scripts/qa/verify-issue-586.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-586.sh
 
+# Forgejo #1269 — persist every multihop AMM hop in protocol_fee_events.
+.PHONY: verify-issue-1269
+verify-issue-1269:
+	@chmod +x scripts/qa/verify-issue-1269.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1269.sh
+
 # GitLab #683 — /protocol fee USD for CL8Y + factory-listed economic tokens.
 .PHONY: verify-issue-683
 verify-issue-683:

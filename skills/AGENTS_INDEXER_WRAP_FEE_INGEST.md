@@ -46,6 +46,7 @@ Treasury `wrap_deposit` / `instant_withdraw` are **not** fees (`amount` is gross
 - **Don’t** treat `wrap_mapper_configured: true` with `event_count: 0` as done.
 - **Don’t** implement UST1 window mint/redeem here (#614).
 - **Don’t** implement pair_creation / SKU invoices / cohort split here — home is [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213) / [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1213**); ingest children #1209 / #1210 / #1211.
+- **Don’t** copy `UNIQUE (tx_hash, source, ordinal)` after [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) — wrap stays NULL `pair_id` on the non-pair partial ([`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](./AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) **F1269-3**).
 
 ## Key files
 
