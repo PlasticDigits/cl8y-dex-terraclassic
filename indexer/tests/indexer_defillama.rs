@@ -9,7 +9,7 @@ use cl8y_dex_indexer::api::reset_defillama_cache;
 use cl8y_dex_indexer::db::queries::defillama as daily_q;
 use cl8y_dex_indexer::db::queries::protocol_fees as fee_q;
 use cl8y_dex_indexer::indexer::defillama::{
-    ADAPTER_START_UTC_DAY, COLUMBUS5_FACTORY, COLUMBUS5_GEM_ADDRESSES, utc_day_start,
+    utc_day_start, ADAPTER_START_UTC_DAY, COLUMBUS5_FACTORY, COLUMBUS5_GEM_ADDRESSES,
 };
 use cl8y_dex_indexer::indexer::protocol_fees::{FeeEventDraft, FeeSource};
 use cl8y_dex_indexer::indexer::volume_aggregator;
@@ -138,6 +138,7 @@ async fn insert_fee(
         tx_hash: tx.to_string(),
         source,
         ordinal,
+        pair_id: None,
         asset_id,
         amount_raw: bd("1000000"),
         decimals: 6,
@@ -301,12 +302,10 @@ async fn daily_volume_excludes_gems_fills_wrap_and_window() {
     assert_eq!(body["assets"]["ustr"]["category"], "reserve");
     assert_usd(&body["assets"]["ust1"]["fees_usd"], "0.10");
     assert_usd(&body["assets"]["ustr"]["volume_usd"], "0");
-    assert!(
-        body["methodology"]["tvl"]
-            .as_str()
-            .unwrap()
-            .contains("liquidity_in_usd")
-    );
+    assert!(body["methodology"]["tvl"]
+        .as_str()
+        .unwrap()
+        .contains("liquidity_in_usd"));
 
     let ts1 = day1().timestamp();
     let day1_body: Value = server

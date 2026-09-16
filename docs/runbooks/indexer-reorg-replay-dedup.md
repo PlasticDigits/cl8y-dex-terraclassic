@@ -14,6 +14,7 @@ Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 ## Dedup and replay
 
 - **Swap dedup:** Inserts use a unique constraint on `(tx_hash, pair_id, swap_index)` with `ON CONFLICT DO NOTHING` ([`insert_swap`](../../indexer/src/db/queries/swap_events.rs); migration `20260605000000_swap_events_per_tx_pair_swap_index.sql`, GitLab [**#287**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)). `swap_index` is the per-pair ordinal within the tx so multiple genuine swaps on one pair are stored separately; re-processing the **same** canonical swaps after a restart **skips** duplicate delivery safely.
+- **Protocol fee dedup (#1269):** `protocol_fee_events` is **not** unique on `(tx_hash, source, ordinal)` alone. `swap_amm` uses `(tx_hash, source, pair_id, ordinal)` (pair-scoped `swap_index`); wrap / unwrap / ust1_* / book_take / limit_place use `(tx_hash, source, ordinal)` WHERE `pair_id IS NULL`. Poller replay is `ON CONFLICT DO NOTHING` — never `DO UPDATE`. Historical hops already in `swap_events` are backfilled at migrate + poller startup (`backfill_missing_swap_amm_fees`); `trade_exists` still skips swap insert but now retries fee ingest. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](../../skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md).
 - **True reorg:** Canonical txs at affected heights may differ from what was indexed. Use `--cleanup-derived` before replay (see [Shallow reorg recovery](#shallow-reorg-recovery-1–few-blocks)).
 
 ## Alerting on reorg halt
