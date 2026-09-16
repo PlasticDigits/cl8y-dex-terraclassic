@@ -501,12 +501,14 @@ async fn process_swap(
         .await
         .ok();
     let price_usd = quote_asset.as_ref().and_then(|quote| {
-        pair_price_usd::price_usd_for_human_quote_per_base(
+        pair_price_usd::price_usd_for_human_quote_per_base_pinned(
             quote,
             &oriented.price,
             ustc_usd.as_ref(),
             lunc_usd.as_ref(),
             hub.as_ref(),
+            config.ustc_denom.as_deref(),
+            Some(config.usdt_cw20_address.as_str()),
         )
     });
 
@@ -523,7 +525,7 @@ async fn process_swap(
         ask_asset.as_ref(),
         quote_asset.as_ref(),
     ) {
-        (Some(offer), Some(ask), Some(quote)) => pair_price_usd::volume_usd_for_swap(
+        (Some(offer), Some(ask), Some(quote)) => pair_price_usd::volume_usd_for_swap_pinned(
             offer,
             ask,
             &swap.offer_amount,
@@ -533,6 +535,7 @@ async fn process_swap(
             lunc_usd.as_ref(),
             config.ustc_denom.as_deref(),
             hub.as_ref(),
+            Some(config.usdt_cw20_address.as_str()),
         ),
         _ => None,
     };

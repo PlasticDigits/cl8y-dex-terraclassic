@@ -63,6 +63,7 @@ fn catalog_usd(asset: &AssetRef, quotes: &ProtocolTvlQuotes) -> Option<BigDecima
         quotes.lunc.as_ref(),
         None,
         Some(&quotes.hub),
+        None,
     )
 }
 

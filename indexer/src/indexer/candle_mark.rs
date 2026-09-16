@@ -12,8 +12,8 @@ use sqlx::{FromRow, PgPool};
 use super::candle_builder;
 use super::hub_usd::{is_hub_custc, is_hub_ust1, is_hub_ustr, AssetRef, HubUsdConfig};
 use super::pair_price_usd::{
-    human_quote_per_base_from_reserves, mark_price_usd, quote_usd_kind, usd_per_human_quote,
-    HubQuoteUsd, QuoteUsdKind,
+    human_quote_per_base_from_reserves, is_pinned_usdt_cw20, mark_price_usd, quote_usd_kind,
+    usd_per_human_quote, HubQuoteUsd, QuoteUsdKind,
 };
 
 #[derive(Debug, Clone, FromRow)]
@@ -53,6 +53,13 @@ fn mark_quote_kind(quote: &AssetRef, cfg: &HubUsdConfig) -> Option<QuoteUsdKind>
     if is_hub_ustr(quote, cfg) {
         return Some(QuoteUsdKind::Ustr);
     }
+    if is_pinned_usdt_cw20(
+        quote.is_cw20,
+        quote.contract_address.as_deref(),
+        Some(cfg.usdt_address.as_str()),
+    ) {
+        return Some(QuoteUsdKind::Usdt);
+    }
     if quote.denom.as_deref() == Some("uluna") {
         return Some(QuoteUsdKind::Lunc);
     }
@@ -72,7 +79,7 @@ fn mark_quote_kind(quote: &AssetRef, cfg: &HubUsdConfig) -> Option<QuoteUsdKind>
         Some(QuoteUsdKind::Ustc | QuoteUsdKind::Lunc) => {
             quote_usd_kind(&quote.symbol, quote.denom.as_deref())
         }
-        Some(QuoteUsdKind::Peg1 | QuoteUsdKind::Ustr) | None => None,
+        Some(QuoteUsdKind::Peg1 | QuoteUsdKind::Ustr | QuoteUsdKind::Usdt) | None => None,
     }
 }
 
@@ -168,6 +175,7 @@ mod tests {
             ust1_address: "terra1ust1".into(),
             ustr_address: "terra1ustr".into(),
             cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
+            usdt_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             tvl_floor: BigDecimal::from(100),
             max_staleness: Duration::from_secs(60),
         }

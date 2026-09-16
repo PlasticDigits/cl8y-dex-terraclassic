@@ -63,6 +63,8 @@ pub struct HubUsdConfig {
     pub ustr_address: String,
     /// Official CL8Y CW20 (columbus-5 default). Fee USD keys contract, not ticker (#683).
     pub cl8y_address: String,
+    /// Registry USDT CW20 pin (advisory $1 pair USD, GitLab #1258). Not a hub ticker.
+    pub usdt_address: String,
     pub tvl_floor: BigDecimal,
     pub max_staleness: Duration,
 }
@@ -75,6 +77,7 @@ impl HubUsdConfig {
             ust1_address: config.hub_ust1_address.clone(),
             ustr_address: config.hub_ustr_address.clone(),
             cl8y_address: config.hub_cl8y_address.clone(),
+            usdt_address: config.usdt_cw20_address.clone(),
             tvl_floor: config.hub_usd_tvl_floor.clone(),
             max_staleness: Duration::from_millis(config.book_snapshot_max_staleness_ms()),
         }
@@ -432,6 +435,7 @@ mod tests {
             ust1_address: "terra1ust1".into(),
             ustr_address: "terra1ustr".into(),
             cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
+            usdt_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             tvl_floor: bd("100"),
             max_staleness: Duration::from_secs(60),
         }
