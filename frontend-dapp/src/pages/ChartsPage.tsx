@@ -1,4 +1,4 @@
-import { useState, useDeferredValue, useEffect, useCallback, useMemo } from 'react'
+import { useState, useDeferredValue, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
@@ -44,6 +44,8 @@ import {
   isSafeChartsPriceToken,
   matchChartsPriceParam,
   parseChartsPriceQuery,
+  shouldAutoPickChartsHeroPair,
+  shouldSnapChartsSelectionToCatalogHead,
 } from '@/utils/chartsPairRoute'
 import { formatTime, formatTimeFromUnixSeconds } from '@/utils/formatDate'
 import { getTwapPrices, getOracleInfo } from '@/services/terraclassic/oracle'
@@ -81,6 +83,7 @@ export default function ChartsPage() {
   const isBareCharts = routePair === undefined
   const priceParam = useMemo(() => parseChartsPriceQuery(searchParams), [searchParams])
   const [selectedPairAddr, setSelectedPairAddr] = useState<string>(validRoutePair)
+  const userCommittedPairRef = useRef(false)
   const [pairSearch, setPairSearch] = useState('')
   const [pairSort, setPairSort] = useState<IndexerPairSort>('volume_24h')
   const [pairOrder, setPairOrder] = useState<'asc' | 'desc'>('desc')
@@ -135,6 +138,8 @@ export default function ChartsPage() {
   )
 
   const selectPair = (addr: string, price?: string | null) => {
+    if (!isChartsPairRouteParam(addr)) return
+    userCommittedPairRef.current = true
     setSelectedPairAddr(addr)
     const nextPair = pairOptions.find((p) => p.pair_address === addr)
     const carried =
@@ -202,22 +207,44 @@ export default function ChartsPage() {
   const pairQueriesEnabled = !!activePairAddr && pairKnown && !unknownDeepLink
 
   useEffect(() => {
-    if (validRoutePair) return
-    if (isBareCharts) return
-    if (pairOptions.length === 0) return
-    if (!selectedPairAddr) return
-    if (pairOptions.some((p) => p.pair_address === selectedPairAddr)) return
-    if (needsPairFetch && selectedPairQuery.isLoading) return
+    if (
+      !shouldSnapChartsSelectionToCatalogHead({
+        validRoutePair,
+        isBareCharts,
+        selectedPairAddr,
+        pairOptionsLength: pairOptions.length,
+        pairOptionsHasSelected: pairOptions.some((p) => p.pair_address === selectedPairAddr),
+        waitingForSelectedPairFetch: needsPairFetch && (selectedPairQuery.isLoading || selectedPairQuery.isFetching),
+      })
+    ) {
+      return
+    }
     setSelectedPairAddr(pairOptions[0].pair_address)
-  }, [pairOptions, selectedPairAddr, needsPairFetch, selectedPairQuery.isLoading, validRoutePair, isBareCharts])
+  }, [
+    pairOptions,
+    selectedPairAddr,
+    needsPairFetch,
+    selectedPairQuery.isLoading,
+    selectedPairQuery.isFetching,
+    validRoutePair,
+    isBareCharts,
+  ])
 
   useEffect(() => {
-    if (!isBareCharts) return
-    if (invalidRoutePair) return
-    if (pairsQuery.isLoading) return
-    if (pairsQuery.isError) return
+    if (
+      !shouldAutoPickChartsHeroPair({
+        isBareCharts,
+        invalidRoutePair,
+        selectedPairAddr,
+        userCommittedPair: userCommittedPairRef.current,
+        pairsLoading: pairsQuery.isLoading,
+        pairsError: pairsQuery.isError,
+      })
+    ) {
+      return
+    }
     const hero = resolveChartsHeroPairAddress(pairOptions)
-    if (!hero || selectedPairAddr === hero) return
+    if (!hero) return
     const heroPair = pairOptions.find((p) => p.pair_address === hero)
     const price =
       heroPair && isUst1CustcIndexerPair(heroPair)

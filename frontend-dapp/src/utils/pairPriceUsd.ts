@@ -1,14 +1,22 @@
 import type { IndexerPair, IndexerTrade } from '@/types'
 import { tradeToToken1PerToken0Human } from './limitOrderPriceReference'
 import { invertUsd, parseFinitePositive } from './tradePairDisplayOrientation'
+import { REGISTRY_USDT_CW20_ADDRESS } from './tokenRegistry'
 
 /** USTR/UST1 client fallback for **pre-#556** indexers only (legacy 2.5× USTC seed).
  * New indexer sends `price_usd` from DEX hub marks — prefer that field. */
 export const USTR_PER_USTC = 2.5
 
-export type QuoteUsdKind = 'ustc' | 'lunc' | 'peg1' | 'ustr' | 'unknown'
+export type QuoteUsdKind = 'ustc' | 'lunc' | 'peg1' | 'ustr' | 'usdt' | 'unknown'
 
-export function classifyQuoteSymbol(symbol: string, denom?: string | null): QuoteUsdKind {
+/** Registry USDT CW20 pin (columbus-5). Symbol `USDT` alone is not a USD handle (#1258). */
+export function isPinnedUsdtCw20(contract?: string | null): boolean {
+  const addr = (contract ?? '').trim()
+  return addr.length > 0 && addr.toLowerCase() === REGISTRY_USDT_CW20_ADDRESS.toLowerCase()
+}
+
+export function classifyQuoteSymbol(symbol: string, denom?: string | null, contract?: string | null): QuoteUsdKind {
+  if (isPinnedUsdtCw20(contract)) return 'usdt'
   if (denom === 'uusd') return 'ustc'
   if (denom === 'uluna') return 'lunc'
   switch (symbol.trim().toUpperCase()) {
@@ -32,6 +40,7 @@ export function quoteTokenUsd(
   ustcUsd: number | null | undefined,
   luncUsd?: number | null
 ): number | null {
+  if (kind === 'usdt') return 1
   if (kind === 'peg1') return 1
   if (kind === 'ustc') return finitePositive(ustcUsd)
   if (kind === 'lunc') return finitePositive(luncUsd)
@@ -67,6 +76,8 @@ export type TapeUsdInput = {
   decimalsQuote?: number
   quoteSymbol?: string
   quoteDenom?: string | null
+  /** CW20 contract for A1 (registry USDT pin). Ticker `USDT` without this stays unpriced. */
+  quoteContract?: string | null
   ustcUsd?: string | number | null
   luncUsd?: string | number | null
 }
@@ -88,7 +99,7 @@ export function resolveTapeLastPriceUsd(opts: TapeUsdInput): string | null {
   const human = raw * 10 ** (d0 - d1)
   if (!Number.isFinite(human) || human <= 0) return null
 
-  const kind = classifyQuoteSymbol(opts.quoteSymbol ?? '', opts.quoteDenom)
+  const kind = classifyQuoteSymbol(opts.quoteSymbol ?? '', opts.quoteDenom, opts.quoteContract)
   const ustc = parsePositiveDecimal(opts.ustcUsd)
   const lunc = parsePositiveDecimal(opts.luncUsd)
   const quoteUsd = quoteTokenUsd(kind, ustc, lunc)
@@ -111,6 +122,7 @@ export function resolveTapePriceUsd(opts: {
     price: undefined,
     quoteSymbol: opts.pair?.asset_1.symbol,
     quoteDenom: opts.pair?.asset_1.denom,
+    quoteContract: opts.pair?.asset_1.contract_addr,
     ustcUsd: opts.ustcUsd,
     luncUsd: opts.luncUsd,
   })
@@ -121,7 +133,7 @@ export function resolveTapePriceUsd(opts: {
   if (!trade || !pair) return null
   const human = tradeToToken1PerToken0Human(trade, pair)
   if (human == null || !Number.isFinite(human) || human <= 0) return null
-  const kind = classifyQuoteSymbol(pair.asset_1.symbol, pair.asset_1.denom)
+  const kind = classifyQuoteSymbol(pair.asset_1.symbol, pair.asset_1.denom, pair.asset_1.contract_addr)
   const quoteUsd = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
   if (quoteUsd == null) return null
   return String(human * quoteUsd)
@@ -132,13 +144,18 @@ export function resolveTapePriceUsd(opts: {
  * When inverted, prefer `price_usd / human_price`, else the quote catalog for the display leg.
  */
 export function resolveDisplayTapeLastPriceUsd(
-  opts: TapeUsdInput & { inverted: boolean; displayBaseSymbol?: string; displayBaseDenom?: string | null }
+  opts: TapeUsdInput & {
+    inverted: boolean
+    displayBaseSymbol?: string
+    displayBaseDenom?: string | null
+    displayBaseContract?: string | null
+  }
 ): string | null {
   const factory = resolveTapeLastPriceUsd(opts)
   if (!opts.inverted) return factory
   const viaRatio = invertUsd(factory, opts.price)
   if (viaRatio) return viaRatio
-  const kind = classifyQuoteSymbol(opts.displayBaseSymbol ?? '', opts.displayBaseDenom)
+  const kind = classifyQuoteSymbol(opts.displayBaseSymbol ?? '', opts.displayBaseDenom, opts.displayBaseContract)
   const catalog = quoteTokenUsd(kind, parsePositiveDecimal(opts.ustcUsd), parsePositiveDecimal(opts.luncUsd))
   return catalog == null ? null : String(catalog)
 }

@@ -68,6 +68,7 @@ mod tests {
             hub_ust1_address: crate::config::DEFAULT_HUB_UST1_ADDRESS.to_string(),
             hub_ustr_address: crate::config::DEFAULT_HUB_USTR_ADDRESS.to_string(),
             hub_cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
+            usdt_cw20_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             hub_usd_tvl_floor: "100".parse().unwrap(),
             bsc_rpc_urls: vec![],
             venus_vfdusd_poll_interval_ms: 30_000,

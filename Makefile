@@ -434,6 +434,12 @@ verify-issue-586:
 	@chmod +x scripts/qa/verify-issue-586.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-586.sh
 
+# Forgejo #1269 — persist every multihop AMM hop in protocol_fee_events.
+.PHONY: verify-issue-1269
+verify-issue-1269:
+	@chmod +x scripts/qa/verify-issue-1269.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1269.sh
+
 # GitLab #683 — /protocol fee USD for CL8Y + factory-listed economic tokens.
 .PHONY: verify-issue-683
 verify-issue-683:
@@ -508,6 +514,12 @@ verify-issue-577:
 verify-issue-522:
 	@chmod +x scripts/qa/verify-issue-522.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-522.sh
+
+# Forgejo #1258 — registry USDT quote USD pin for Charts Price (USD) / 24h OHLC.
+.PHONY: verify-issue-1258
+verify-issue-1258:
+	@chmod +x scripts/qa/verify-issue-1258.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1258.sh
 
 # GitLab #551 — portfolio/trader P&L human scale + USD totals (drop mixed-unit sums).
 verify-issue-551:
@@ -596,6 +608,13 @@ verify-issue-680:
 	./scripts/qa/verify-issue-680.sh
 
 .PHONY: verify-issue-680
+
+# GitLab #1266 — /charts Select Pair first change vs idle hero.
+verify-issue-1266:
+	@chmod +x scripts/qa/verify-issue-1266.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1266.sh
+
+.PHONY: verify-issue-1266
 
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:

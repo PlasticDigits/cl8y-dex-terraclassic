@@ -14,7 +14,7 @@ Charts is a **UST1/USD** product surface. Bare `/charts` must open UST1/cUSTC (r
 
 | ID | Rule |
 |----|------|
-| **C680-1** | Bare `/charts` (no pair segment) selects UST1/cUSTC when listed and replace-navigates to `/charts/{addr}?price=UST1`. Last + candles are USD of 1 UST1 (`~$1` class). |
+| **C680-1** | **Idle** bare `/charts` (no user select) selects UST1/cUSTC when listed and replace-navigates to `/charts/{addr}?price=UST1`. Last + candles are USD of 1 UST1 (`~$1` class). |
 | **C680-2** | `/charts/{ust1custc}` without `price` uses the **Charts** product default (UST1 USD / not inverted), not T524-3. |
 | **C680-3** | `?price=cUSTC` / `USTC` / quote-leg contract on that pair shows cUSTC USD on Last, candles, 24h USD OHLC, Price Change, TWAP, headings, tape Price. Pill matches. |
 | **C680-4** | Invert pill updates the URL (`replace`) and all C680-3 rows. A second click / `?price=UST1` restores UST1 USD. |
@@ -32,6 +32,7 @@ Charts is a **UST1/USD** product surface. Bare `/charts` must open UST1/cUSTC (r
 - **Do** keep Trade on `usePairDisplayOrientation` + `cl8y-dex-trade-pair-invert:`.
 - **Don’t** write Charts orientation into the Trade storage key.
 - **Don’t** snap a valid `/charts/:pairAddr` back to the hero.
+- **Don’t** override `selectPair`: an explicit `#chart-pair-select` change must not be replaced by the hero while the route is still bare ([#1266](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1266) **C1266-1**). The hero effect **must not override** `selectPair`. Idle bare `/charts` (no user select) still hero-picks (**C680-1**).
 - **Don’t** treat invert or the hero chart as mint/redeem (**U1**).
 - **Don’t** change indexer factory USD, CG/CMC, or `/limits` standalone (**T524-10**).
 
@@ -39,8 +40,8 @@ Charts is a **UST1/USD** product surface. Bare `/charts` must open UST1/cUSTC (r
 
 | File | Role |
 |------|------|
-| `frontend-dapp/src/pages/ChartsPage.tsx` | Hero replace-nav; `?price=` sync; display OHLC / % / TWAP / headings |
-| `frontend-dapp/src/utils/chartsPairRoute.ts` | Parse/serialize `price`; bech32 href hardening |
+| `frontend-dapp/src/pages/ChartsPage.tsx` | Idle hero replace-nav; `selectPair` must not be overridden (#1266); `?price=` sync; display OHLC / % / TWAP / headings |
+| `frontend-dapp/src/utils/chartsPairRoute.ts` | Parse/serialize `price`; bech32 href hardening; `shouldAutoPickChartsHeroPair` |
 | `frontend-dapp/src/utils/tradePairDisplayOrientation.ts` | Charts default + Charts session + param↔invert |
 | `frontend-dapp/src/hooks/usePairDisplayOrientation.ts` | `useChartsPairDisplayOrientation` (Trade hook unchanged) |
 | `frontend-dapp/src/utils/pairPriceUsd.ts` | `resolveDisplayPairStatsUsdOhlc` |
@@ -51,6 +52,7 @@ Charts is a **UST1/USD** product surface. Bare `/charts` must open UST1/cUSTC (r
 
 ```bash
 make verify-issue-680
+make verify-issue-1266
 make verify-issue-524
 make verify-issue-543
 ```
@@ -64,5 +66,6 @@ Chrome: `python3 scripts/check_chrome_nesting.py`.
 - [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) — `invertUsd` not `1/x`
 - [`AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md`](./AGENTS_FRONTEND_CHARTS_PAIR_SCOPED.md) — layout / CS-11
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — volume unchanged; price tiles follow `?price=`
+- [`AGENTS_FRONTEND_CHARTS_PAIR_SELECT.md`](./AGENTS_FRONTEND_CHARTS_PAIR_SELECT.md) — first Select Pair change vs idle hero (#1266)
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — **U1**
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
