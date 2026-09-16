@@ -127,6 +127,10 @@ pub enum DbSimError {
     InvalidNumeric,
     #[error("insufficient pool liquidity")]
     InsufficientLiquidity,
+    /// Pool-leg sim is not a ranking winner: ask out > ask reserve, or 18-dec offer
+    /// scale-mismatched into a 6-dec pool and ~100% drain (#1257).
+    #[error("implausible hop simulation")]
+    ImplausibleHop,
     #[error("{0}")]
     Db(#[from] sqlx::Error),
 }
@@ -405,6 +409,31 @@ fn book_walk_step(scan_steps: &mut u32) -> bool {
     *scan_steps <= MAX_SCAN_STEPS
 }
 
+/// Drop a hop whose pool sim cannot be the economic output of this offer (#1257).
+///
+/// - Ask out greater than that hop's ask reserve (always a bug).
+/// - Offer ≥ 1000× the offer-side reserve **and** ≥99% of the ask reserve is taken
+///   (18-dec raw into a 6-dec pool). Retail sizes that fit in the pool still quote;
+///   99% chrome on the dApp covers honest whale impact.
+pub fn hop_sim_implausible(
+    offer_amount: u128,
+    input_reserve: u128,
+    output_reserve: u128,
+    ask_out: u128,
+) -> bool {
+    if output_reserve == 0 {
+        return ask_out > 0;
+    }
+    if ask_out > output_reserve {
+        return true;
+    }
+    let scale_mismatch = input_reserve > 0 && offer_amount > input_reserve.saturating_mul(1_000);
+    let full_drain = ask_out.saturating_mul(100) >= output_reserve.saturating_mul(99);
+    scale_mismatch && full_drain
+}
+
+/// Constant-product pool leg with **wide** `k` (pair Uint256 / GitLab #464 analog).
+/// `saturating_mul` on mixed 18/6 reserves can print a near-full drain; that is not a quote.
 fn simulate_pool_leg(
     input_reserve: u128,
     output_reserve: u128,
@@ -417,12 +446,32 @@ fn simulate_pool_leg(
     if input_reserve == 0 || output_reserve == 0 {
         return Err(DbSimError::InsufficientLiquidity);
     }
-    let k = input_reserve.saturating_mul(output_reserve);
     let new_in = input_reserve.saturating_add(pool_input);
-    let new_out = ceil_div(k, new_in);
+    if new_in == 0 {
+        return Err(DbSimError::InvalidNumeric);
+    }
+    let new_out = match input_reserve.checked_mul(output_reserve) {
+        Some(k) => ceil_div(k, new_in),
+        None => ceil_div_wide(input_reserve, output_reserve, new_in)?,
+    };
     let gross = output_reserve.saturating_sub(new_out);
+    if gross > output_reserve {
+        return Err(DbSimError::ImplausibleHop);
+    }
     let fee = swap_fee_amount(gross, fee_bps);
     Ok(gross.saturating_sub(fee))
+}
+
+/// `ceil((in * out) / new_in)` when `in * out` does not fit in `u128`.
+fn ceil_div_wide(input_reserve: u128, output_reserve: u128, new_in: u128) -> Result<u128, DbSimError> {
+    if new_in == 0 {
+        return Err(DbSimError::InvalidNumeric);
+    }
+    let k = BigDecimal::from(input_reserve) * BigDecimal::from(output_reserve);
+    let den = BigDecimal::from(new_in);
+    let numer = k + den.clone() - BigDecimal::from(1u32);
+    let ceil = numer / den;
+    parse_u128(&ceil).ok_or(DbSimError::InvalidNumeric)
 }
 
 /// Hybrid simulation from mirrored Postgres state (forward offer → ask output).
@@ -488,6 +537,9 @@ pub fn simulate_hybrid_from_mirror(
     let pool_input_amount =
         pool_input.saturating_add(book_input.saturating_sub(offer_consumed_by_book));
     let pool_out = simulate_pool_leg(input_reserve, output_reserve, pool_input_amount, eff_fee)?;
+    if hop_sim_implausible(offer_amount, input_reserve, output_reserve, pool_out) {
+        return Err(DbSimError::ImplausibleHop);
+    }
     Ok(book_return.saturating_add(pool_out))
 }
 
@@ -711,5 +763,118 @@ mod tests {
         let full = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 0).unwrap();
         let disc = simulate_pool_only_from_mirror(&m, "terra1token0", 1_000_000, 5_000).unwrap();
         assert!(disc > full);
+    }
+
+    fn mixed_18_6_mirror() -> HopMirror {
+        HopMirror {
+            pair_id: 1,
+            asset_0_addr: "terra1ustr18dec000000000000000000000000000".into(),
+            asset_1_addr: "terra1ust16dec00000000000000000000000000000".into(),
+            reserve_0: 1_000 * 10u128.pow(18),
+            reserve_1: 1_000 * 10u128.pow(6),
+            fee_bps: 30,
+            block_height: Some(1),
+            snapshot_at: Utc::now(),
+            freshness: MirrorFreshness::Fresh,
+            bids: vec![],
+            asks: vec![],
+        }
+    }
+
+    #[test]
+    fn mixed_18_to_6_hop_offer_1e18_returns_6dec_scale() {
+        let m = mixed_18_6_mirror();
+        let out = simulate_pool_only_from_mirror(
+            &m,
+            "terra1ustr18dec000000000000000000000000000",
+            10u128.pow(18),
+            0,
+        )
+        .unwrap();
+        assert!(out > 900_000, "expected ~1 human UST1 (1e6 raw), got {out}");
+        assert!(out < 1_100_000, "must not treat 10^18 offer as 18-dec UST1 out, got {out}");
+    }
+
+    #[test]
+    fn mixed_6_to_18_last_hop_returns_18dec_usdt_raw() {
+        let m = HopMirror {
+            asset_0_addr: "terra1clunc6dec000000000000000000000000000".into(),
+            asset_1_addr: "terra1usdt18dec000000000000000000000000000".into(),
+            reserve_0: 1_000 * 10u128.pow(6),
+            reserve_1: 1_000 * 10u128.pow(18),
+            ..mixed_18_6_mirror()
+        };
+        let out = simulate_pool_only_from_mirror(
+            &m,
+            "terra1clunc6dec000000000000000000000000000",
+            10u128.pow(6),
+            0,
+        )
+        .unwrap();
+        assert!(out > 9 * 10u128.pow(17), "expected ~1 human USDT (1e18 raw), got {out}");
+        assert!(out < 11 * 10u128.pow(17));
+    }
+
+    #[test]
+    fn scale_mismatch_18dec_offer_into_6dec_pool_is_implausible() {
+        let m = HopMirror {
+            asset_0_addr: "terra1clunc6dec000000000000000000000000000".into(),
+            asset_1_addr: "terra1usdt18dec000000000000000000000000000".into(),
+            reserve_0: 1_000 * 10u128.pow(6),
+            reserve_1: 1_000 * 10u128.pow(18),
+            ..mixed_18_6_mirror()
+        };
+        let err = simulate_pool_only_from_mirror(
+            &m,
+            "terra1clunc6dec000000000000000000000000000",
+            10u128.pow(18),
+            0,
+        )
+        .unwrap_err();
+        assert!(matches!(err, DbSimError::ImplausibleHop));
+    }
+
+    #[test]
+    fn hop_sim_implausible_ask_out_gt_reserve() {
+        assert!(hop_sim_implausible(1_000, 1_000_000, 500, 501));
+        assert!(!hop_sim_implausible(1_000, 1_000_000, 500, 400));
+    }
+
+    #[test]
+    fn wide_k_18dec_reserves_do_not_print_full_drain() {
+        let m = HopMirror {
+            reserve_0: 10u128.pow(27),
+            reserve_1: 10u128.pow(27),
+            ..mirror_with_book(vec![])
+        };
+        let out = simulate_pool_only_from_mirror(&m, "terra1token0", 10u128.pow(18), 0).unwrap();
+        assert!(out > 0);
+        assert!(
+            out < 10u128.pow(27) / 100,
+            "wide k must not drain ~100% of a 1e27 reserve on a 1e18 offer, got {out}"
+        );
+    }
+
+    #[test]
+    fn per_unit_size_curve_honest_pool_is_non_increasing() {
+        let m = mixed_18_6_mirror();
+        let sizes = [1u128, 100, 1_000, 10_000];
+        let mut prev_per = u128::MAX;
+        for human in sizes {
+            let offer = human * 10u128.pow(18);
+            let out = simulate_pool_only_from_mirror(
+                &m,
+                "terra1ustr18dec000000000000000000000000000",
+                offer,
+                0,
+            )
+            .unwrap();
+            let per = out / human;
+            assert!(
+                per <= prev_per,
+                "human {human}: per-unit {per} > previous {prev_per}"
+            );
+            prev_per = per;
+        }
     }
 }

@@ -87,3 +87,4 @@ make verify-issue-238   # on-chain: deployed pair/router accept `trader`; sim==e
 - [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) — production rejects gem-bridge hops on economic quotes (**P562-6**, [#562](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/562)); displayed hops must match execute
 - Product invariants: [`docs/limit-orders.md` § Swap page: hybrid vs pool-only](../docs/limit-orders.md#swap-ui-hybrid-vs-pool-only-estimates)
 - Retail always-on book ([#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)): [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md)
+- Mixed 18/6 hop honesty ([#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)): [`AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](./AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md) — wide `k`, implausible skip, Expert does not waive ≥99%

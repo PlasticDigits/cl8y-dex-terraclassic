@@ -85,7 +85,10 @@ impl From<crate::lcd::LcdError> for HybridSimError {
 
 impl From<db_orderbook_sim::DbSimError> for HybridSimError {
     fn from(e: db_orderbook_sim::DbSimError) -> Self {
-        HybridSimError::Db(e)
+        match e {
+            db_orderbook_sim::DbSimError::ImplausibleHop => HybridSimError::PathUnusable,
+            other => HybridSimError::Db(other),
+        }
     }
 }
 

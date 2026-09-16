@@ -2251,6 +2251,23 @@ The Swap page displays the effective fee after discount **only when the selected
 
 Unwired pairs (registry `None`, e.g. economic pairs before the #535 factory sweep) show plain `fee_bps` with **no** strikethrough and hide the Hold-CL8Y CTA for that pair — HybridSimulation with `trader` already quotes the full fee. Probe: [`pairDiscountRegistry.ts`](../frontend-dapp/src/utils/pairDiscountRegistry.ts) + [`getPairDiscountRegistry`](../frontend-dapp/src/services/terraclassic/pairDiscountRegistry.ts). Agent playbook: [`skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md`](../skills/AGENTS_FRONTEND_PAIR_FEE_DISCOUNT.md).
 
+### USTR / USDT quote scale (Forgejo [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)) {#ustr-usdt-quote-scale}
+
+USTR and unique-symbol USDT (`terra1z0xe7…`) are **18-dec**; UST1 / cLUNC / cUSTC are **6-dec**. A 3-hop USTR→USDT path must not print 18-dec raw as billions, and Expert Mode must not waive ≥99% theater quotes.
+
+| ID | Rule |
+|----|------|
+| **Q1257-1** | Indexer mixed 18/6 hop sim uses wide `k` (pair Uint256 analog). `saturating_mul` overflow is not a quote. |
+| **Q1257-2** | Skip a hop when ask_out > ask reserve, or offer > 1000× input reserve **and** ≥99% ask drain. Honest 1-hop whale 99% still quotes. |
+| **Q1257-3** | Route cache keys include `token_in` / `token_out`. 1 USTR (`1e18`) and 10000 USTR must not share `AMOUNT_CACHE_BUCKET`. |
+| **Q1257-4** | Swap / Trade display USTR / USDT as 18. Unknown CW20 stays 6 (#1255). |
+| **Q1257-5** | Hide **You Receive** when expected slippage ≥ 99%. |
+| **Q1257-6** | Expert Mode waives > 30% only. ≥ 99% stays blocked. |
+| **Q1257-7** | Honest mixed-dec pools stay size-monotonic per human unit. |
+| **Q1257-8** | Tokenlist USDT ticker is unique. Do not LCD-fetch `token_info.symbol` for scale. |
+
+Helpers: [`swapQuoteAmountScale.ts`](../frontend-dapp/src/utils/swapQuoteAmountScale.ts). Verify: `make verify-issue-1257`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](../skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md).
+
 **Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y & register…** CTA instead **when the pair is wired** (I14). Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts) + [`useFeeDiscountRegistryStatus`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
 
 ### Pair fee-tier chrome vs on-chain registry (GitLab [#537](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/537)) {#pair-fee-tier-chrome}

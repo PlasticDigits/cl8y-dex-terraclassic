@@ -1284,6 +1284,35 @@ mod hybrid_cache_key_tests {
     }
 
     #[test]
+    fn amount_cache_key_18dec_sizes_do_not_alias() {
+        let one_ustr = 10u128.pow(18);
+        let ten_k_ustr = 10_000 * 10u128.pow(18);
+        let one_ust1 = 1_000_000u128;
+        assert_eq!(amount_cache_key(one_ustr), one_ustr);
+        assert_ne!(
+            amount_cache_key(one_ustr),
+            amount_cache_key(ten_k_ustr),
+            "1 USTR and 10000 USTR must not share a raw bucket"
+        );
+        assert_ne!(
+            amount_cache_key(one_ustr),
+            amount_cache_key(one_ust1),
+            "1 USTR (1e18) must not bucket as 1 UST1 (1e6)"
+        );
+        let ustr_key = hybrid_cache_key(SV, TIN, TOUT, amount_cache_key(one_ustr), 8, 0, "none");
+        let ust1_pair = hybrid_cache_key(
+            SV,
+            "terra1ust1in00000000000000000000000000000",
+            TOUT,
+            amount_cache_key(one_ust1),
+            8,
+            0,
+            "none",
+        );
+        assert_ne!(ustr_key, ust1_pair, "cache key includes token_in");
+    }
+
+    #[test]
     fn hybrid_cache_key_isolates_tax_identity() {
         let ordinary = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0, "none");
         let taxed = hybrid_cache_key(SV, TIN, TOUT, 1_000_000, 8, 0, "b0s0/b100s0/rh0/e0");
