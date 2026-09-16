@@ -21,6 +21,10 @@ pub const DEFAULT_HUB_CL8Y_ADDRESS: &str =
 /// Columbus-5 Terra vFDUSD CW20 — never a fee-USD handle (CEX FDUSD / Venus are not this token).
 pub const DEFAULT_VFDUSD_ADDRESS: &str =
     "terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3";
+/// Columbus-5 registry USDT CW20 (tokenlist). Charts/tape USD pin — advisory $1, not Peg1 / hub.
+/// LocalTerra: `USDT_CW20_ADDRESS` from deploy/env, not this mainnet bech32 (GitLab #1258).
+pub const DEFAULT_USDT_CW20_ADDRESS: &str =
+    "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4";
 pub const DEFAULT_HUB_USD_TVL_FLOOR: &str = "100";
 
 /// Deployment profile. `RUN_MODE=prod` enforces explicit production configuration.
@@ -166,6 +170,9 @@ pub struct Config {
     /// Official CL8Y CW20 pin (columbus-5 default; LocalTerra `HUB_CL8Y_ADDRESS` / TCL8Y).
     /// Fee USD keys this contract — never `symbol=CL8Y` / `CL8Y-cb` (GitLab #683).
     pub hub_cl8y_address: String,
+    /// Registry USDT CW20 pin (columbus-5 default; LocalTerra `USDT_CW20_ADDRESS`).
+    /// Pair `price_usd` / volume catalog — identity by contract, not ticker (GitLab #1258).
+    pub usdt_cw20_address: String,
     /// Ignore factory pairs below this USD TVL when picking hub sources (default $100).
     pub hub_usd_tvl_floor: BigDecimal,
     /// Comma-separated BSC JSON-RPC URLs for Venus `eth_call` (GitLab #571). Empty = do not poll.
@@ -414,6 +421,7 @@ impl Config {
             hub_ust1_address: env_hub_addr("HUB_UST1_ADDRESS", DEFAULT_HUB_UST1_ADDRESS),
             hub_ustr_address: env_hub_addr("HUB_USTR_ADDRESS", DEFAULT_HUB_USTR_ADDRESS),
             hub_cl8y_address: env_hub_addr("HUB_CL8Y_ADDRESS", DEFAULT_HUB_CL8Y_ADDRESS),
+            usdt_cw20_address: env_hub_addr("USDT_CW20_ADDRESS", DEFAULT_USDT_CW20_ADDRESS),
             hub_usd_tvl_floor: env::var("HUB_USD_TVL_FLOOR")
                 .ok()
                 .and_then(|v| BigDecimal::from_str(v.trim()).ok())
