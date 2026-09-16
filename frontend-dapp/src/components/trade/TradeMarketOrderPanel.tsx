@@ -57,16 +57,19 @@ import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalan
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
-import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
+import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
   extraDebitSellBpsForExecute,
+  extraDebitSubmitGate,
+  INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE,
 } from '@/utils/taxPreviewMaxSpend'
 import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
+import { ROUTER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
@@ -393,12 +396,32 @@ export function TradeMarketOrderPanel({
     usesRouter: tradeUsesRouter,
     sellBps: taxSell.sellBps,
   })
+  const taxPreview = useCommunityTaxPreviewDebit({
+    token: fromToken?.startsWith('terra1') ? fromToken : null,
+    from: address,
+    to: tradeUsesRouter ? ROUTER_CONTRACT_ADDRESS : (selectedPair?.contract_addr ?? null),
+    amount: rawInputAmount,
+    enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+  })
+  const extraDebitGate = extraDebitSubmitGate({
+    declaredRaw: tryParseBigInt(rawInputAmount),
+    balanceRaw: escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
+    debitRaw: taxPreview.debitRaw,
+    sellBps: extraDebitSellBpsForExecute(taxSell.sellBps, tradeUsesRouter),
+    extraDebitUnresolved: taxSell.extraDebitUnresolved,
+    isNativePay: !fromToken?.startsWith('terra1'),
+  })
 
   const swapMutation = useTerraBroadcastMutation({
     toastSuccess: 'Market swap submitted.',
     mutationFn: async () => {
       if (!address || !selectedPair) throw new Error('Connect wallet')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
+      if (extraDebitGate.blockSubmit) {
+        throw new Error(
+          extraDebitGate.insufficientBalance ? 'Insufficient Balance' : INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
+        )
+      }
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
       if (snapshottedHybrid) {
         assertSubmitHybridAligned({ bookInputHuman, hybridMaxMakers }, snapshottedHybrid)
@@ -557,20 +580,23 @@ export function TradeMarketOrderPanel({
     !swapMutation.isPending &&
     !!selectedPair &&
     rawInputAmount !== '0' &&
-    isSubmitReady
+    isSubmitReady &&
+    !extraDebitGate.blockSubmit
 
   const submitLabel = !isWalletConnected
     ? 'Connect Wallet'
-    : terraBroadcastPendingButtonLabel(
-        swapMutation.phase,
-        swapMutation.isPending,
-        priceImpactTooHigh
-          ? 'Hop spread exceeds slippage protection'
-          : liveSplit?.bookExceedsPay
-            ? 'Book leg exceeds pay'
-            : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
-        'Submitting…'
-      )
+    : extraDebitGate.insufficientBalance
+      ? 'Insufficient Balance'
+      : terraBroadcastPendingButtonLabel(
+          swapMutation.phase,
+          swapMutation.isPending,
+          priceImpactTooHigh
+            ? 'Hop spread exceeds slippage protection'
+            : liveSplit?.bookExceedsPay
+              ? 'Book leg exceeds pay'
+              : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+          'Submitting…'
+        )
 
   const swapMutate = swapMutation.mutate
   const swapPhase = swapMutation.phase

@@ -18,6 +18,16 @@ describe('stripNestedTransactionFailedPrefixes', () => {
 })
 
 describe('tryHumanizeTerraTxMessage — existing branches (regression coverage)', () => {
+  it('humanizes extra-debit sell tax InsufficientForSellTax (#1267)', () => {
+    const raw =
+      'failed to execute message; message index: 0: Insufficient balance for extra-debit sell tax: execute wasm contract failed'
+    const out = tryHumanizeTerraTxMessage(raw)
+    expect(out).toBe('Not enough tokens after sell tax. Reduce the amount or tap Max.')
+    expect(out).not.toMatch(/message index/i)
+    expect(out).not.toMatch(/1267|GitLab|Forgejo/i)
+    expect(tryHumanizeTerraTxMessage('InsufficientForSellTax')).toBe(out)
+  })
+
   it('humanizes Max spread assertion errors', () => {
     const raw =
       'failed to execute message; message index: 0: dispatch: submessages: Max spread assertion: actual spread (0.969) exceeds max allowed (0.01): execute wasm contract failed'

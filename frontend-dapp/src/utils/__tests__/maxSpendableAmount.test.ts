@@ -9,6 +9,8 @@ import {
   estimateZapInUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
 import { computeMaxSpendableHumanAmount, maxAmountReserveUlunaForContext } from '@/utils/maxSpendableAmount'
+import { extraDebitMaxDeclaredRaw } from '@/utils/taxPreviewMaxSpend'
+import { toRawAmount } from '@/utils/formatAmount'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 
 describe('maxSpendableAmount (GitLab #213)', () => {
@@ -166,6 +168,8 @@ describe('maxSpendableAmount (GitLab #213)', () => {
       extraDebitSellBps: 500,
     })
     expect(taxed.spendableRaw).toBeLessThan(full.spendableRaw)
+    expect(taxed.spendableRaw).toBe(extraDebitMaxDeclaredRaw(10_000_000n, 500, 6))
+    expect(BigInt(toRawAmount(taxed.human, 6))).toBeLessThanOrEqual(taxed.spendableRaw)
   })
 
   it('floors native Max at zero when balance below reserve', () => {

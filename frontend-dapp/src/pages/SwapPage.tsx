@@ -76,7 +76,7 @@ import {
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
 import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
-import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, ROUTER_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { SWAP_FUNDED_HIGH_IMPACT_PCT, acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
@@ -100,12 +100,14 @@ import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmoun
 import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
-import { useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
+import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
 import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
   extraDebitSellBpsForExecute,
+  extraDebitSubmitGate,
+  INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE,
 } from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
@@ -914,6 +916,22 @@ export default function SwapPage() {
     usesRouter: communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
     sellBps: taxSell.sellBps,
   })
+  const extraDebitUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop)
+  const taxPreview = useCommunityTaxPreviewDebit({
+    token: fromToken.startsWith('terra1') ? fromToken : null,
+    from: address,
+    to: extraDebitUsesRouter ? ROUTER_CONTRACT_ADDRESS : (directPair?.contract_addr ?? null),
+    amount: rawInputAmount,
+    enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+  })
+  const extraDebitGate = extraDebitSubmitGate({
+    declaredRaw: tryParseBigInt(rawInputAmount),
+    balanceRaw: balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
+    debitRaw: taxPreview.debitRaw,
+    sellBps: extraDebitSellBpsForExecute(taxSell.sellBps, extraDebitUsesRouter),
+    extraDebitUnresolved: taxSell.extraDebitUnresolved,
+    isNativePay: payIsNativeUluna || !fromToken.startsWith('terra1'),
+  })
 
   const swapBlacklistProbe = useMemo(() => {
     const routeOps = deriveSwapSubmitRouteOps({
@@ -969,6 +987,11 @@ export default function SwapPage() {
     toastSuccess: 'Swap submitted.',
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
+      if (extraDebitGate.blockSubmit) {
+        throw new Error(
+          extraDebitGate.insufficientBalance ? 'Insufficient Balance' : INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
+        )
+      }
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
       if (snapshottedHybrid) {
         assertSubmitHybridAligned(hybridStaleLive, snapshottedHybrid)
@@ -1208,8 +1231,7 @@ export default function SwapPage() {
     swapNetworkFeeEstimate.feeUluna
   )
 
-  const insufficientBalance =
-    hasPositiveInputAmount && balanceQuery.data !== undefined && BigInt(rawInputAmount) > BigInt(balanceQuery.data)
+  const insufficientBalance = extraDebitGate.insufficientBalance
 
   const payAcquireGuidance = useSwapPayAcquireGuidance({
     walletConnected: isWalletConnected,
@@ -1263,6 +1285,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (insufficientBalance) {
     buttonText = 'Insufficient Balance'
+    buttonDisabled = true
+  } else if (extraDebitGate.blockSubmit) {
+    buttonText = defaultActionLabel
     buttonDisabled = true
   } else if (hasPositiveInputAmount && !swapGasGate.canSubmit) {
     buttonText = swapGasGate.userMessage ?? 'Need LUNC for network fee'
@@ -2180,6 +2205,7 @@ export default function SwapPage() {
                 openWalletModal()
                 return
               }
+              if (extraDebitGate.blockSubmit) return
               if (
                 priceImpact &&
                 (parseSlippagePercent(priceImpact) ?? 0) > SWAP_FUNDED_HIGH_IMPACT_PCT &&
@@ -2192,6 +2218,7 @@ export default function SwapPage() {
               swapMutation.mutate()
             }}
             disabled={buttonDisabled}
+            data-testid="swap-submit"
             className={`w-full py-3.5 sm:py-4 font-semibold text-base ${
               buttonDisabled ? 'btn-disabled !w-full !py-3.5 sm:!py-4' : 'btn-primary btn-cta !w-full !py-3.5 sm:!py-4'
             }`}

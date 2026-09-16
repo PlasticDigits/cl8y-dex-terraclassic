@@ -16,6 +16,7 @@ import {
 import { INVALID_TERRA_ADDRESS_CHECKSUM_TX_MSG } from './terraAddressValidation'
 import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUserMessage'
 import { humanizeExpiredLimitClaimMessage } from './limitClaimUserMessage'
+import { INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE } from './taxPreviewMaxSpend'
 
 /** Strip repeated `Transaction failed:` prefixes from nested throws. */
 export function stripNestedTransactionFailedPrefixes(message: string): string {
@@ -40,6 +41,9 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   const claim = humanizeExpiredLimitClaimMessage(inner)
   if (claim) {
     return claim
+  }
+  if (/InsufficientForSellTax|Insufficient balance for extra-debit sell tax/i.test(inner)) {
+    return INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
   }
   if (/Max spread assertion/i.test(inner)) {
     return (
