@@ -597,6 +597,13 @@ verify-issue-680:
 
 .PHONY: verify-issue-680
 
+# GitLab #1266 — /charts Select Pair first change vs idle hero.
+verify-issue-1266:
+	@chmod +x scripts/qa/verify-issue-1266.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1266.sh
+
+.PHONY: verify-issue-1266
+
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
 	@chmod +x scripts/qa/verify-issue-576.sh scripts/with-node.sh
