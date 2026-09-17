@@ -60,6 +60,8 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     grep -q "ADR 0005" docs/adr/0005-protocol-fee-multihop-hops.md
     grep -q "protocol_fee_events_pair_tx_source_ordinal_uidx" docs/adr/0005-protocol-fee-multihop-hops.md
     grep -q "Indexer protocol fee ledger" docs/architecture.md
+    grep -q "20260916120000_usdt_quote_usd_null_backfill" docs/adr/0005-protocol-fee-multihop-hops.md
+    grep -q "sqlx version leftover" docs/adr/0005-protocol-fee-multihop-hops.md
   '
 
 run_step "source: pair-scoped unique; GET does not SUM events; no DO UPDATE" \

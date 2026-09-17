@@ -125,7 +125,7 @@ flowchart LR
 | `swap_amm` | factory `pairs.id` | `protocol_fee_events_pair_tx_source_ordinal_uidx` `(tx_hash, source, pair_id, ordinal)` WHERE `pair_id IS NOT NULL` |
 | wrap / unwrap / ust1_* / book_take / limit_place | NULL | `protocol_fee_events_nopair_tx_source_ordinal_uidx` `(tx_hash, source, ordinal)` WHERE `pair_id IS NULL` |
 
-Replay is `ON CONFLICT DO NOTHING` (never overwrite). Missing hops are backfilled from `swap_events.commission_amount`; GET never `SUM`s the event table. Full decision, alternatives, migration, and rollback: [ADR 0005](./adr/0005-protocol-fee-multihop-hops.md) ([#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) / [PR #1274](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1274)). Invariants: [`indexer-invariants.md`](./indexer-invariants.md) **Protocol fees (#586 / #1269)**. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](../skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md).
+Replay is `ON CONFLICT DO NOTHING` (never overwrite). Missing hops are backfilled from `swap_events.commission_amount`; GET never `SUM`s the event table. Decision, alternatives, sqlx-version leftover, rollout, and rollback: [ADR 0005](./adr/0005-protocol-fee-multihop-hops.md) ([#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) / [PR #1274](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1274)). Invariants: [`indexer-invariants.md`](./indexer-invariants.md) **Protocol fees (#586 / #1269)**. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](../skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md).
 
 ## Directory Layout
 

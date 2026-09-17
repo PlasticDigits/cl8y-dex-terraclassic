@@ -2,9 +2,9 @@
 
 ## Status
 
-Proposed ([#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269), implement [PR #1274](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1274))
+Proposed — post-hoc design record. Bug [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269). Ingest already merged as [PR #1274](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1274). This ADR is the versioned review artifact; it does **not** re-merge ingest, deploy Coolify, or expand policy.
 
-Indexer uniqueness + backfill. This ADR does **not** retune on-chain bps, add a `FeeSource`, change GET JSON shape, or expand deploy/spend/custody policy. Coolify indexer migrate + restart after this lands is ordinary leftover ops — not a founder card and not [#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297) authority.
+Indexer uniqueness + backfill. This ADR does **not** retune on-chain bps, add a `FeeSource`, change GET JSON shape, or expand deploy/spend/custody policy. Coolify indexer migrate + restart, and the sqlx **filename-version leftover** below, are ordinary leftover ops — not a founder card and not [#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297) authority.
 
 Playbook (do not duplicate here): [`skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](../../skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) (**F1269-1–F1269-8**). Overview: [`architecture.md`](../architecture.md#indexer-protocol-fee-ledger). Invariants row: [`indexer-invariants.md`](../indexer-invariants.md) **Protocol fees (#586 / #1269)**.
 
@@ -12,7 +12,7 @@ Playbook (do not duplicate here): [`skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`]
 
 Every factory-listed AMM hop with `commission_amount > 0` becomes one `protocol_fee_events` row (`source=swap_amm`). A router tx with two distinct pairs and per-pair `swap_index == 0` stores **two** hops. Same-pair `swap_index` 0 then 1 still stores two. Replay of the same hop inserts **zero** extra rows and never overwrites a stored amount.
 
-After migrate + one-shot/poller backfill + one aggregator tick, trailing 7d `swap_amm` USD on `/protocol` equals the hop-complete priced `SUM` (existing clamp / unpriced rules), not the collision-truncated census. GET `/overview` and `/protocol/fees` stay O(1) rollup / 60s cache.
+After migrate + one-shot/poller backfill + `backfill_null_fee_usd` + one aggregator tick, trailing 7d `swap_amm` USD on `/protocol` equals the hop-complete priced `SUM` (existing clamp / unpriced rules), not the collision-truncated census. GET `/overview` and `/protocol/fees` stay O(1) rollup / 60s cache. Hop backfill inserts `fee_usd` NULL; the first rollup may raise `fee_event_count_*` before USD is stamped.
 
 ## Context
 
@@ -101,22 +101,25 @@ Net: one extra column and two indexes in exchange for fee census matching hop-co
 
 ## Migration
 
-New file only: [`indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`](../../indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql).
+Shipped file: [`indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`](../../indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql). Do not edit `20260821120000_protocol_fees.sql` in place.
 
-Order inside the migration: add column → drop old unique → create partials → attach colliding rows → insert missing hops → delete NULL-`pair_id` duplicates that now have a pair-scoped copy.
+Order inside the hops migration: add column → drop old unique → create partials → attach colliding rows → insert missing hops → delete NULL-`pair_id` duplicates that now have a pair-scoped copy.
 
 Idempotent: `IF NOT EXISTS` / `DROP IF EXISTS` / `ON CONFLICT DO NOTHING`. Poller SQL must stay in sync with the migration (`backfill_missing_swap_amm_fees`).
 
-`fee_usd` on inserted hops is NULL until `backfill_null_fee_usd` (existing as-of helper). Unpriced hops stay NULL; activity + all unpriced → API `null`, not `$0`.
+`fee_usd` on inserted hops is NULL until `backfill_null_fee_usd` (existing as-of helper, from hub refresh — not the hop-backfill SQL). Unpriced hops stay NULL; activity + all unpriced → API `null`, not `$0`.
+
+**sqlx version leftover (ordinary ops, not this docs PR):** `origin/main` also has [`indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql`](../../indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql) ([#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258)). sqlx `migrate!()` versions from the numeric prefix; two files sharing `20260916120000` fail compile or migrate. Rename the **unapplied** file to a later unique version (prefer hops → `20260916120100_protocol_fee_events_pair_id.sql` when USDT already applied as `20260916120000`; the reverse if hops already applied). Do not checksum-edit `_sqlx_migrations`. Update `verify-issue-1269` / skill paths when the hops filename moves. Table order vs USDT does not matter (different tables).
 
 No wasm migrate. No factory `UpdateConfig`. No dApp env keys.
 
 ## Observability
 
-- `tracing::info!(inserted, "backfilled missing swap_amm protocol fee hops")` when insert count > 0.
-- `tracing::error!("swap_amm hop fee backfill failed: …")` on poller startup failure; process continues.
-- After aggregator tick: `protocol_fee_stats_by_source` `swap_amm` `event_count` and `global_stats_24h.fee_event_count_*` rise by recovered hops (priced USD only in totals).
-- GET still must not scan events. Operator check is SQL off the request path, then `/protocol` 7d AMM vs hop-complete priced SUM.
+- `backfill_missing_swap_amm_fees`: `tracing::info!(inserted, "backfilled missing swap_amm protocol fee hops")` when insert count > 0 (not on every startup).
+- Poller startup: `tracing::error!("swap_amm hop fee backfill failed: …")` then continue; next restart retries. Do not halt the cursor.
+- `backfill_null_fee_usd`: existing `info!(filled, …)` / hub-refresh `warn` on failure.
+- After hub stamp + aggregator tick: `protocol_fee_stats_by_source` `swap_amm` `event_count` and `global_stats_24h.fee_event_count_*` include recovered hops. Totals USD count priced rows only; event counts can move first.
+- No per-hop ingest success log (by design). GET still must not scan events. Operator check is SQL off the request path, then `/protocol` 7d AMM vs hop-complete priced SUM.
 
 ## Failure modes
 
@@ -131,18 +134,20 @@ No wasm migrate. No factory `UpdateConfig`. No dApp env keys.
 | Hostile huge `swap_index` | Existing parse fail-closed / i32; no overwrite of another hop. |
 | Operator `SUM` on GET to “hide” missing ingest | Forbidden (DoS / V5). |
 | Gem / vFDUSD identity in backfill USD | Same omit rules as #683; stamp NULL. |
+| Duplicate sqlx version `20260916120000` vs #1258 | Compile or migrate fails until one filename is renamed (leftover). |
+| First rollup before `backfill_null_fee_usd` | `event_count` up; 7d AMM USD still missing recovered hops until hub stamp + next tick. |
 
 ## Ordered implementation slices
 
-1. **Schema** — migration: `pair_id` + two partial uniques; drop 3-column unique. No ingest yet would still collide at runtime until slice 2.
-2. **Ingest** — `FeeEventDraft.pair_id`; `insert_fee_event` inference conflict; `ingest_swap_amm_fee`; `trade_exists` retry.
-3. **Backfill** — migration SQL + `backfill_missing_swap_amm_fees` + poller startup.
-4. **Docs / verify** — invariants, runbooks, **PFee-14**, skill, `make verify-issue-1269`.
-5. **Ops leftover** — Coolify indexer migrate + restart + aggregator tick; confirm 7d AMM vs hop-complete SUM; confirm replay does not inflate `fee_event_count`. Not this design PR.
+1. **Schema** — shipped in #1274: `pair_id` + two partial uniques; drop 3-column unique.
+2. **Ingest** — shipped: `FeeEventDraft.pair_id`; inference `ON CONFLICT DO NOTHING`; `ingest_swap_amm_fee`; `trade_exists` retry.
+3. **Backfill** — shipped: migration SQL + `backfill_missing_swap_amm_fees` + poller startup.
+4. **Docs / verify** — this PR: ADR + architecture overview + `verify-issue-1269` docs grep. Skill / invariants / **PFee-14** already on `main`.
+5. **sqlx version leftover** — rename the unapplied `20260916120000_*` file so hops and #1258 USDT do not share a version. Then Coolify indexer migrate + restart + hub stamp + aggregator tick; confirm 7d AMM vs hop-complete priced SUM; confirm replay does not inflate `fee_event_count`. Ordinary leftover — not this design PR, not #297.
 
-**Dependencies (already on `main`, not open blockers):** #287 swap uniqueness, #586 fee ledger, #613/#614 wrap/window NULL `pair_id` sources, #683 stamp helper.
+**Open issue dependencies:** none. Shipped precedents (#287 / #586 / #613 / #614 / #683) are on `main`.
 
-**Downstream (must wait on this key):** #1209 / #1210 / #1211.
+**Downstream (must inherit the widened key; not blockers):** #1209 / #1210 / #1211.
 
 ## Tests
 
@@ -151,8 +156,8 @@ No wasm migrate. No factory `UpdateConfig`. No dApp env keys.
 | T1 | Parse pairA, pairA, pairB | `swap_index` 0, 1, 0. Fees: **3** `swap_amm` rows if all commissions > 0 |
 | T2 | Insert same `(tx, swap_amm, pair, ordinal)` twice | Second `rows_affected == 0` |
 | T3 | Same tx/source/ordinal, **different** pair | Both persist |
-| T4 | 2-hop router wasm with commissions | `protocol_fee_events` 2; `swap_events` 2 |
-| T5 | Replay T4 | Counts unchanged |
+| T4 | Two distinct-pair drafts, same tx, ordinal 0 (`hop_collision_distinct_pairs_both_persist`) | Two `swap_amm` rows + rollup. Full `process_swap` wasm fixture is not required; `trade_exists` retry is source-level (`ingest_swap_amm_fee` after the exists check) plus verify greps |
+| T5 | Replay same `(tx, swap_amm, pair, ordinal)` | Counts unchanged; `DO UPDATE` amount rejected |
 | T6 | Rollup 7d after T4 | `swap_amm` `event_count` + USD include both hops |
 | T7 | `commission_amount = 0` | No fee row |
 | T8 | Wrap ordinals 0 then 1, same tx | Both persist; replay deduped |
@@ -164,12 +169,13 @@ Harness: `indexer_protocol_fees.rs` + parser unit `parse_swaps_assigns_per_pair_
 
 ## Rollout
 
-1. Merge schema + ingest + backfill (already in #1274 on `main`).
-2. Deploy indexer binary + run migrations (sqlx on startup).
-3. Confirm poller log for backfill insert count (may be 0 if migration already inserted).
-4. Wait one aggregator tick (~5 min) or restart so `refresh_protocol_fee_stats` runs after `backfill_null_fee_usd`.
-5. Compare `/protocol` 7d AMM to hop-complete priced SUM from `swap_events.commission_amount`. Collision-only reconstruction must no longer match the dashboard.
-6. Restart / poller replay: `fee_event_count` must not inflate.
+1. Ingest is already on `main` (#1274). This design PR is docs only.
+2. Leftover: unique sqlx version vs #1258 (slice 5) **before** a Coolify binary that compiles both files.
+3. Deploy indexer binary + run migrations (sqlx on startup).
+4. Confirm poller log for backfill insert count (may be 0 if migration already inserted).
+5. Wait hub `backfill_null_fee_usd` then one aggregator tick (~5 min) so `refresh_protocol_fee_stats` prices recovered hops.
+6. Compare `/protocol` 7d AMM to hop-complete priced SUM from `swap_events.commission_amount`. Collision-only reconstruction must no longer match the dashboard.
+7. Restart / poller replay: `fee_event_count` must not inflate.
 
 No frontend deploy required. No wasm store.
 
@@ -183,8 +189,9 @@ This is not a chain halt, pause, or treasury rotate.
 
 ## Integration completion criteria
 
-- AC1–AC9 from #1269 hold (two-pair `swap_index==0` → 2 rows; same-pair 0,1 → 2; replay 0 extras; wrap/window/book/place uniqueness unchanged; 7d AMM matches hop-complete priced SUM; GET does not scan events; L7; docs/verify; #285).
-- `make verify-issue-1269` green (docs grep includes this ADR).
+- AC1–AC9 from #1269 hold (two-pair `swap_index==0` → 2 rows; same-pair 0,1 → 2; replay 0 extras; wrap/window/book/place uniqueness unchanged; 7d AMM matches hop-complete priced SUM after stamp + rollup; GET does not scan events; L7; docs/verify; #285).
+- `make verify-issue-1269` green (this branch: docs grep includes ADR 0005 + architecture anchor).
+- sqlx leftover: hops and #1258 USDT no longer share version `20260916120000` before Coolify compile.
 - After Coolify leftover: 7d AMM ≠ collision-truncated reconstruction; replay does not inflate `fee_event_count`.
 - #1209 / #1210 / #1211 specs name the widened key (out of this slice to implement).
 
