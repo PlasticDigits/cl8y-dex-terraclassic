@@ -57,6 +57,9 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     test -f indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql
     grep -q "F1269" docs/testing.md
     grep -q "PFee-14" docs/frontend.md
+    grep -q "ADR 0005" docs/adr/0005-protocol-fee-multihop-hops.md
+    grep -q "protocol_fee_events_pair_tx_source_ordinal_uidx" docs/adr/0005-protocol-fee-multihop-hops.md
+    grep -q "Indexer protocol fee ledger" docs/architecture.md
   '
 
 run_step "source: pair-scoped unique; GET does not SUM events; no DO UPDATE" \
