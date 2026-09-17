@@ -109,3 +109,4 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | UST1 | UST1 | cw20 | ![UST1](images/UST1.png) |
 | vFDUSD | Venus FDUSD (bridged) | cw20 | ![vFDUSD](images/VFDUSD.png) |
 | USDT | Tether USD | cw20 | ![USDT](images/USDT.png) |
+| DO | Lunc Cookie Do Coin | cw20 | ![DO](images/DO.png) |
