@@ -101,6 +101,7 @@ pub fn hybrid_notes_for_global(meta: &BestExecutionMeta, solver_version: &str) -
          {pricing}. \
          Final output validated via router simulate_swap_operations when configured (fidelity_check={}). \
          {TAX_RANK_NOTE}. \
+         Retail GET emits declared hybrid on hop 0 only; later hops are pool-only so execute hop_output cannot drift off a frozen interior split (#1280). \
          Execution on-chain may differ from mirror/LCD snapshots.{truncation}",
         meta.paths_considered,
         meta.db_hybrid_queries,
@@ -401,6 +402,10 @@ async fn evaluate_candidate(
     };
 
     let hops = cand.hops.clone();
+    // Retail GET: freeze declared hybrid only on hop 0 (#1280 Policy A).
+    let hybrid_plan = hybrid_route_opt::retail_declared_hybrid_plan_hop0_only(hybrid_plan);
+    let mut opt_meta = opt_meta;
+    opt_meta.any_book_leg = hybrid_route_opt::plan_has_book_leg(&hybrid_plan);
     let ops = apply_hybrid_by_hop(cand.ops, &hybrid_plan)?;
     let estimated =
         crate::api::route_solver::maybe_simulate(&state, Some(&amount_raw), &ops, &quote_trader)

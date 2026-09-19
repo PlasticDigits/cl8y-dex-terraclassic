@@ -93,6 +93,62 @@ describe('quoteCw20ViaRouteSolve (#501)', () => {
     expect(quoted?.executeAmountOut).toBeUndefined()
   })
 
+  it('strips interior hybrid on GET multihop before wallet sim (#1280 Policy A)', async () => {
+    const mid = 'terra1mid00000000000000000000000000000001'
+    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+      token_in: from,
+      token_out: to,
+      hops: [
+        { pair, offer_token: from, ask_token: mid },
+        { pair: 'terra1pair2', offer_token: mid, ask_token: to },
+      ],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: from } },
+            ask_asset_info: { token: { contract_addr: mid } },
+            hybrid: {
+              pool_input: '800000',
+              book_input: '200000',
+              max_maker_fills: 8,
+              book_start_hint: null,
+            },
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: mid } },
+            ask_asset_info: { token: { contract_addr: to } },
+            hybrid: {
+              pool_input: '10',
+              book_input: '10',
+              max_maker_fills: 8,
+              book_start_hint: null,
+            },
+          },
+        },
+      ],
+      quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '999999',
+      intermediate_tokens: [from, mid, to],
+    } as Awaited<ReturnType<typeof indexerClient.getRouteSolve>>)
+    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '950000' })
+
+    const quoted = await quoteCw20ViaRouteSolve({
+      fromToken: from,
+      toToken: to,
+      simRaw: '1000000',
+      maxMakerFills: 8,
+      slippageTolerancePercent: 5,
+      maxSpreadStr: '0.05',
+    })
+
+    expect(quoted?.indexerOperations?.[0]?.terra_swap.hybrid?.book_input).toBe('200000')
+    expect(quoted?.indexerOperations?.[1]?.terra_swap.hybrid).toBeUndefined()
+    const simOps = vi.mocked(router.simulateMultiHopSwap).mock.calls[0][1]
+    expect(simOps[1].terra_swap.hybrid).toBeUndefined()
+  })
+
   it('shows buy-split net You Receive and keeps pre-tax execute amount (#615)', async () => {
     vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
       token_in: from,

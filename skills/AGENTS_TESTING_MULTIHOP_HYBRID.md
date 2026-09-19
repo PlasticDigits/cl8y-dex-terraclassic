@@ -21,7 +21,7 @@ Regression tests for **≥3-hop** router paths where **≥2 legs** carry non-zer
 - `setup_router_abc_env` — A/B + B/C pairs ([`smartcontracts/tests/src/lib.rs`](../smartcontracts/tests/src/lib.rs))
 - `setup_router_abcd_env` — adds C/D pair for 3-hop paths
 
-**Building per-hop hybrid splits:** each hop’s `pool_input + book_input` must equal that hop’s offer amount. For hop *n > 1*, simulate hops `1..n` first (router `SimulateSwapOperations`) to learn the intermediate offer, then assign splits (see `hybrid_params_split` in `limit_order_tests.rs`).
+**Building per-hop hybrid splits:** each hop’s `pool_input + book_input` must equal that hop’s offer amount. For hop *n > 1*, simulate hops `1..n` first (router `SimulateSwapOperations`) to learn the intermediate offer, then assign splits (see `hybrid_params_split` in `limit_order_tests.rs`). Retail **GET** does **not** emit those interior splits ([#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280) Policy A) — only hop 0 is declared; hops 1+ are `hybrid: null`. POST / integrator tests that size hop 2 from sim out remain valid. Playbook: [`AGENTS_HYBRID_HOP_OFFER.md`](./AGENTS_HYBRID_HOP_OFFER.md).
 
 **Run:**
 

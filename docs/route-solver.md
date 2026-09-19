@@ -16,7 +16,7 @@ Authoritative reference for contributors and integrators using **`GET` / `POST /
 | **Hop** | One swap leg: a pair contract, an **offer** CW20, and an **ask** CW20. | `hops[]`: `{ pair, offer_token, ask_token }` |
 | **Path** | A simple (no repeated asset) sequence of hops from `token_in` to `token_out`. | `intermediate_tokens`: `[token_in, …, token_out]` |
 | **Pool-only leg** | Constant-product AMM only; router op has `terra_swap.hybrid: null` (on-chain this is pool-only hybrid with `book_input = 0`). | `quote_kind`: `indexer_pool_lcd` or `indexer_route_only` |
-| **Hybrid leg** | Split between pool and limit book: `pool_input + book_input = offer` for that hop. | `router_operations[].terra_swap.hybrid` |
+| **Hybrid leg** | Split between pool and limit book: `pool_input + book_input = offer` for that hop. Retail **GET** attaches this only on **hop 0**; hops 1+ stay `hybrid: null` ([#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280)). | `router_operations[].terra_swap.hybrid` |
 | **`book_input` / `pool_input`** | Raw integer strings: offer amount routed to the limit book vs the AMM pool on one hop. | `HybridHopJson` in POST body / merged ops |
 | **`book_start_hint`** | Optional order id to start the book walk on the **matcher side** for that hop (bid hint when offering token0, ask hint when offering token1). The global optimizer (`global_v2`) sets this to the first **live** resting order on that side when the Postgres mirror is fresh and `book_input > 0`; stale/missing mirror or pool-only hops leave it `null` ([#332](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/332), [#289](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/289)). Same hint is used in mirror/LCD `HybridSimulation` grid evals and in returned `router_operations`. Wrong-side hints are omitted server-side; on-chain validation (**L17**, [#272](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/272)) remains authoritative at execute time. | `HybridHopJson.book_start_hint` |
 | **`RouteQuoteKind`** | How the quote was produced. | `quote_kind` (snake_case enum) |
@@ -77,7 +77,7 @@ flowchart TD
 |--|-------------------|--------------------------|-----------------|----------|
 | **Hop cap** | 4 (hybrid) / 4 (discovery) | 4 | 4 | 4 |
 | **Path selection** | Top-5 by hop count + max `estimated_amount_out` when `amount_in` set; else first BFS | First BFS | Same as GET + `amount_in` | First BFS only |
-| **Hybrid splits** | Server `global_v1` optimizer when `amount_in` set | None (`hybrid: null`) | Server optimizer | Client `hybrid_by_hop` optional |
+| **Hybrid splits** | Server optimizer; **retail emit hop 0 only** (#1280). Interior hops `hybrid: null` | None (`hybrid: null`) | Same as GET | Client `hybrid_by_hop` optional (interior allowed) |
 | **`amount_in`** | Optional (required for optimization) | Optional | **Required** | Optional |
 | **`solver_version`** | Present when optimized | Absent | Present | Absent |
 | **`optimality_scope`** | Present when optimized | Absent | Present | Absent |
@@ -168,6 +168,7 @@ This means:
 
 1. Only up to **five** simple paths are considered, preferring **fewer hops** (then lexicographic pair order).
 2. On each path, each hop’s `book_input` is chosen from a **17-point** uniform grid on `[0, offer_amount]`, plus **two** full coordinate-descent passes that re-optimize each hop given the current plan.
+3. **Retail emit (#1280):** after ranking, declared `hybrid` is kept on **hop 0 only**; hops 1+ are `hybrid: null` so execute `hop_output` cannot miss a frozen interior split. `estimated_amount_out` is simulated on those emitted ops. `POST hybrid_by_hop` is unchanged.
 3. The winning path is the one with highest **`estimated_amount_out_net`** (catalog buy/sell policy for this snapshot — GitLab **#615**). `estimated_amount_out` stays the hop/router **`raw_out`**. Ties: first path with that net wins (later equal paths do not replace). Option-2 wasm: a path that sells a catalogued tax token as a **middle** hop is skipped. Unmigrated **11611** does not skip.
 
 Paths **outside** the top-5 shortest (by hop count) are never evaluated. Split points **between** grid nodes are not exhaustively searched. The solver is **not** MEV-aware and uses an **LCD snapshot** that can change before execute.

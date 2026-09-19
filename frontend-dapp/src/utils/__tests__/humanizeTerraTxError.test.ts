@@ -223,4 +223,22 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
       expect(tryHumanizeTerraTxMessage('Transaction failed:')).toBeNull()
     })
   })
+
+  describe('hybrid hop-offer partition (#1280)', () => {
+    it('humanizes router hop-offer generic_err', () => {
+      const raw =
+        'failed to execute message; message index: 0: generic error: hybrid pool_input + book_input must equal hop offer amount: execute wasm contract failed'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).not.toBeNull()
+      expect(out).toContain('book/pool split')
+      expect(out).toContain('hop-0 integers')
+    })
+
+    it('humanizes pair HybridSplitMismatch', () => {
+      const raw =
+        'failed to execute message; message index: 0: Hybrid swap split mismatch: pool_input + book_input must equal offer amount: execute wasm contract failed'
+      const out = tryHumanizeTerraTxMessage(raw)
+      expect(out).toContain('book/pool split')
+    })
+  })
 })

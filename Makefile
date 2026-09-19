@@ -804,6 +804,18 @@ verify-issue-501:
 	@chmod +x scripts/qa/verify-issue-501.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-501.sh
 
+# Forgejo #1280 — declared hybrid hop-offer partition (Policy A hop0-only GET).
+.PHONY: verify-issue-1280
+verify-issue-1280:
+	@chmod +x scripts/qa/verify-issue-1280.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1280.sh
+
+# Forgejo #1264 — USTC→USTR wrap+2hop stays pool-only at the #587 2.71M envelope.
+.PHONY: verify-issue-1264
+verify-issue-1264:
+	@chmod +x scripts/qa/verify-issue-1264.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1264.sh
+
 # GitLab #596 — retail hybrid always-on (no opt-out on Swap / Trade market).
 verify-issue-596:
 	@chmod +x scripts/qa/verify-issue-596.sh scripts/with-node.sh

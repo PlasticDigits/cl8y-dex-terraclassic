@@ -31,6 +31,41 @@ pub struct HybridHopJson {
     pub book_start_hint: Option<u64>,
 }
 
+/// Retail GET Policy A ([#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280)):
+/// keep a declared split only on hop 0 (the CW20 send amount). Later hops are
+/// pool-only (`None`) so execute cannot freeze hop-1+ integers against a
+/// different realized `hop_output`. POST `hybrid_by_hop` is unchanged.
+pub fn retail_declared_hybrid_plan_hop0_only(
+    mut plan: Vec<Option<HybridHopJson>>,
+) -> Vec<Option<HybridHopJson>> {
+    if plan.len() > 1 {
+        for slot in plan.iter_mut().skip(1) {
+            *slot = None;
+        }
+    }
+    plan
+}
+
+/// True when any remaining declared hop has `book_input > 0`.
+pub fn plan_has_book_leg(plan: &[Option<HybridHopJson>]) -> bool {
+    plan.iter().any(|h| {
+        h.as_ref()
+            .and_then(|x| x.book_input.parse::<u128>().ok())
+            .is_some_and(|b| b > 0)
+    })
+}
+
+/// Integer partition: `pool_input + book_input == offer` (no wrap on overflow).
+pub fn hybrid_hop_partitions_offer(h: &HybridHopJson, offer: u128) -> bool {
+    let Ok(pool) = h.pool_input.parse::<u128>() else {
+        return false;
+    };
+    let Ok(book) = h.book_input.parse::<u128>() else {
+        return false;
+    };
+    pool.checked_add(book) == Some(offer)
+}
+
 #[derive(Clone, Debug)]
 pub struct HopDescriptor {
     pub pair: String,
@@ -754,6 +789,43 @@ mod tests {
             mirror_meta.db_hybrid_queries
         );
         assert_eq!(mirror_meta.lcd_fallback_queries, 0);
+    }
+
+    #[test]
+    fn retail_plan_keeps_hop0_and_nulls_interior() {
+        let hop0 = HybridHopJson {
+            pool_input: "700".into(),
+            book_input: "300".into(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let hop1 = HybridHopJson {
+            pool_input: "50".into(),
+            book_input: "50".into(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let plan = retail_declared_hybrid_plan_hop0_only(vec![Some(hop0.clone()), Some(hop1)]);
+        assert_eq!(plan.len(), 2);
+        assert!(plan[0].as_ref().is_some_and(|h| h.pool_input == "700"));
+        assert!(plan[1].is_none());
+        assert!(plan_has_book_leg(&plan));
+        assert!(hybrid_hop_partitions_offer(plan[0].as_ref().unwrap(), 1000));
+        assert!(!hybrid_hop_partitions_offer(plan[0].as_ref().unwrap(), 999));
+    }
+
+    #[test]
+    fn retail_plan_single_hop_unchanged() {
+        let hop0 = HybridHopJson {
+            pool_input: "1000".into(),
+            book_input: "0".into(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let plan = retail_declared_hybrid_plan_hop0_only(vec![Some(hop0)]);
+        assert_eq!(plan.len(), 1);
+        assert!(plan[0].is_some());
+        assert!(!plan_has_book_leg(&plan));
     }
 
     #[tokio::test]

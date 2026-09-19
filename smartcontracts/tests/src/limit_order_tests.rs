@@ -5316,6 +5316,130 @@ fn router_single_hop_forwards_hybrid_to_pair() {
 }
 
 #[test]
+fn router_declared_split_mismatch_reverts_hop0() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    provide_liquidity(
+        &mut app,
+        &env,
+        &env.user,
+        Uint128::new(1_000_000),
+        Uint128::new(1_000_000),
+    );
+
+    let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+        operations: vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_a),
+            ask_asset_info: asset_info_token(&env.token_b),
+            hybrid: Some(HybridSwapParams {
+                pool_input: Uint128::new(5_000),
+                book_input: Uint128::new(4_999),
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }),
+            greedy: None,
+            min_return: Some(Uint128::one()),
+        }],
+        max_spread: Decimal::one(),
+        minimum_receive: None,
+        to: None,
+        deadline: None,
+        unwrap_output: None,
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: Uint128::new(10_000),
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let msg = err.root_cause().to_string();
+    assert!(
+        msg.contains("must equal hop offer amount"),
+        "T3 hop-0 mismatch: {msg}"
+    );
+}
+
+#[test]
+fn router_two_hop_interior_hybrid_mismatch_reverts() {
+    let mut app = App::default();
+    let abc = setup_router_abc_env(&mut app);
+    let env = &abc.env;
+
+    let taker = cosmwasm_std::Addr::unchecked("taker_1280_interior");
+    transfer_tokens(
+        &mut app,
+        &env.token_a,
+        &env.user,
+        &taker,
+        Uint128::new(500_000),
+    );
+
+    let offer_a = Uint128::new(80_000);
+    let hop0_hybrid = HybridSwapParams {
+        pool_input: Uint128::new(80_000),
+        book_input: Uint128::new(0),
+        max_maker_fills: 8,
+        book_start_hint: None,
+    };
+    let operations = vec![
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_a),
+            ask_asset_info: asset_info_token(&env.token_b),
+            hybrid: Some(hop0_hybrid),
+            greedy: None,
+            min_return: None,
+        },
+        cl8y_dex_router::msg::SwapOperation::TerraSwap {
+            offer_asset_info: asset_info_token(&env.token_b),
+            ask_asset_info: asset_info_token(&abc.token_c),
+            hybrid: Some(HybridSwapParams {
+                pool_input: Uint128::new(1),
+                book_input: Uint128::new(1),
+                max_maker_fills: 8,
+                book_start_hint: None,
+            }),
+            greedy: None,
+            min_return: Some(Uint128::one()),
+        },
+    ];
+
+    let hook_msg = to_json_binary(&cl8y_dex_router::msg::Cw20HookMsg::ExecuteSwapOperations {
+        operations,
+        max_spread: Decimal::one(),
+        minimum_receive: None,
+        to: None,
+        deadline: None,
+        unwrap_output: None,
+    })
+    .unwrap();
+    let err = app
+        .execute_contract(
+            taker,
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.router.to_string(),
+                amount: offer_a,
+                msg: hook_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    let msg = err.root_cause().to_string();
+    assert!(
+        msg.contains("must equal hop offer amount"),
+        "T4 frozen interior split: {msg}"
+    );
+}
+
+#[test]
 fn router_two_hop_first_leg_hybrid_matches_simulate() {
     let mut app = App::default();
     let abc = setup_router_abc_env(&mut app);

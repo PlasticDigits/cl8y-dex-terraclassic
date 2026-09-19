@@ -12,6 +12,7 @@ import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { displayReceiveNet } from '@/utils/communityTaxNetOut'
+import { assertHop0DeclaredHybridPartitionsOffer, stripInteriorDeclaredHybrid } from '@/utils/hybridHopOfferPartition'
 
 /**
  * Wallet-authoritative CW20 quote from indexer `GET /route/solve` (global best-execution hybrid).
@@ -20,7 +21,8 @@ import { displayReceiveNet } from '@/utils/communityTaxNetOut'
  * Invariants:
  * - Receive **display** is wallet sim minus catalog buy split when indexer `buy_tax_bps` > 0 (#615).
  * - Submit `min_return` uses pre-tax wallet sim (`executeAmountOut`), not the net display.
- * - Submit must use returned `indexerOperations` (including per-hop `hybrid`) via `hybridFromSingleHopIndexerOps` / router execute.
+ * - Submit must use returned `indexerOperations` (hop-0 `hybrid` after Policy A strip; #1280).
+ * - Wrap/native BFS hops never copy `hybrid` (#1264 / **H596-7**).
  * - Returns `null` when token_in/out mismatch the request (caller falls back).
  * - Throws on indexer/wallet failure (caller catches for pool-only / Advanced fallback).
  */
@@ -73,7 +75,9 @@ export async function quoteCw20ViaRouteSolve(input: {
     return null
   }
 
-  const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
+  const mapped = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
+  const ops = stripInteriorDeclaredHybrid(mapped)
+  assertHop0DeclaredHybridPartitionsOffer(ops, simRaw)
   const opsForQuote = await enrichSwapOperationsWithHopMinReturns(ops, simRaw, slippageTolerancePercent, quoteTrader)
   const result = await simulateMultiHopSwap(simRaw, opsForQuote, quoteTrader)
   const routePreflight = await preflightSwapRouteSpread(opsForQuote, simRaw, maxSpreadStr, quoteTrader)

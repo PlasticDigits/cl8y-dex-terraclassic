@@ -5,6 +5,36 @@ use common::lcd_mock;
 use serde_json::{json, Value};
 use serial_test::serial;
 
+/// Retail GET Policy A (#1280): hop 0 may carry a declared split; hops 1+ are pool-only.
+fn assert_retail_get_hybrid_hop0_only(ops: &[Value], amount_in: &str) {
+    assert!(!ops.is_empty());
+    let h0 = &ops[0]["terra_swap"]["hybrid"];
+    if !h0.is_null() {
+        let pool: u128 = h0["pool_input"]
+            .as_str()
+            .expect("pool_input")
+            .parse()
+            .expect("pool_input u128");
+        let book: u128 = h0["book_input"]
+            .as_str()
+            .expect("book_input")
+            .parse()
+            .expect("book_input u128");
+        let offer: u128 = amount_in.parse().expect("amount_in");
+        assert_eq!(
+            pool.checked_add(book),
+            Some(offer),
+            "hop 0 pool+book must equal amount_in"
+        );
+    }
+    for (i, op) in ops.iter().enumerate().skip(1) {
+        assert!(
+            op["terra_swap"]["hybrid"].is_null(),
+            "retail GET hop {i} must be pool-only (#1280 Policy A)"
+        );
+    }
+}
+
 #[serial]
 #[tokio::test]
 async fn route_solve_returns_hops_and_pool_only_hybrid() {
@@ -163,7 +193,7 @@ async fn route_solve_get_default_hybrid_two_hops() {
     assert!(!j["hybrid_notes"].is_null());
     let ops = j["router_operations"].as_array().unwrap();
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
-    assert!(!ops[1]["terra_swap"]["hybrid"].is_null());
+    assert_retail_get_hybrid_hop0_only(ops, "1000000");
 }
 
 #[serial]
@@ -292,7 +322,7 @@ async fn route_solve_get_hybrid_optimize_two_hops() {
     assert!(!j["hybrid_notes"].is_null());
     let ops = j["router_operations"].as_array().unwrap();
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
-    assert!(!ops[1]["terra_swap"]["hybrid"].is_null());
+    assert_retail_get_hybrid_hop0_only(ops, "1000000");
 }
 
 #[serial]
@@ -376,8 +406,7 @@ async fn route_solve_get_hybrid_optimize_three_hops() {
     let ops = j["router_operations"].as_array().unwrap();
     assert_eq!(ops.len(), 3);
     assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
-    assert!(!ops[1]["terra_swap"]["hybrid"].is_null());
-    assert!(!ops[2]["terra_swap"]["hybrid"].is_null());
+    assert_retail_get_hybrid_hop0_only(ops, "1000000");
 }
 
 #[serial]
@@ -415,9 +444,8 @@ async fn route_solve_get_default_hybrid_four_hops() {
     assert_eq!(j["estimated_amount_out"], "8888888");
     let ops = j["router_operations"].as_array().unwrap();
     assert_eq!(ops.len(), 4);
-    for op in ops {
-        assert!(!op["terra_swap"]["hybrid"].is_null());
-    }
+    assert!(!ops[0]["terra_swap"]["hybrid"].is_null());
+    assert_retail_get_hybrid_hop0_only(ops, "1000000");
 }
 
 #[serial]

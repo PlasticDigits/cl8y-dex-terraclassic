@@ -168,6 +168,37 @@ test.describe('Swap Transaction Tests — Native Wrapping', () => {
     await assertSuccessTxGasUsedLtWanted(page, request)
   })
 
+  test('E10: wrap+≥2hop USTC → USTR (or JADE/RUBY stand-in) one submit (#1264)', async ({ page, request }) => {
+    const dest = await requireHubOrTwoHopReceive(page)
+    await requireTokenInCombobox(page, ARIA_SELECT_TOKEN_PAY, 'USTC', 'cUSTC')
+
+    const input = page.getByRole('textbox', { name: 'You Pay' })
+    await input.fill('0.0001')
+
+    await expect(async () => {
+      const text = await readSwapYouReceiveAmount(page)
+      expect(text).not.toBe('0.00')
+      expect(text).not.toContain('Calculating')
+    }).toPass({ timeout: 20000 })
+
+    const feeHint = page.getByTestId('swap-network-fee')
+    await expect(feeHint).toBeVisible()
+    await expect(feeHint).toContainText('LUNC')
+    await expect(feeHint).not.toContainText('USTC')
+
+    const route = page.getByTestId('swap-route-summary')
+    if ((await route.count()) > 0) {
+      const routeText = await route.innerText()
+      expect(routeText.toLowerCase()).toContain(dest.toLowerCase())
+    }
+
+    await openSwapSettingsAndSetSlippage(page, 15)
+    await clickSwapSubmit(page)
+    await expect(page.locator('.alert-success').first()).toBeVisible({ timeout: 90_000 })
+    await expect(page.getByText(/needed more gas than estimated|out of gas/i)).toHaveCount(0)
+    await assertSuccessTxGasUsedLtWanted(page, request)
+  })
+
   test('E8: ≥2hop CW20 → LUNC unwrap one submit (#587)', async ({ page }) => {
     let paySym = ''
     for (const sym of ['USTR', 'JADE', 'RUBY']) {

@@ -403,7 +403,13 @@ export const RETAIL_COMBINED_ENVELOPE_FIXTURES: readonly RetailCombinedEnvelopeF
   },
   {
     id: 'wrap_plus_send_2hop',
-    note: 'LUNC→USTR wrap + router 2-hop (#587)',
+    note: 'LUNC→USTR wrap + router 2-hop (#587); same envelope as USTC→USTR (#1264)',
+    msgs: [{ msg: { wrap_deposit: {} } }, { msg: routerSendMsg(2) }],
+    expectedGas: WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(2) + WRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  },
+  {
+    id: 'wrap_plus_send_2hop_ustc',
+    note: 'USTC→USTR wrap + router 2-hop (#1264) — same 2,710,000 as LUNC wrap+2hop until columbus-5 AC1',
     msgs: [{ msg: { wrap_deposit: {} } }, { msg: routerSendMsg(2) }],
     expectedGas: WRAP_GAS_LIMIT + gasLimitForRouterExecuteSwapOperations(2) + WRAP_ROUTER_COMBO_OVERHEAD_GAS,
   },

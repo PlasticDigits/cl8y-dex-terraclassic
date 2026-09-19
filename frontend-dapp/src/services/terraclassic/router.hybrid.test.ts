@@ -139,4 +139,25 @@ describe('executeMultiHopSwap hybrid message shape (GitLab #84 / #199)', () => {
     expect(operations[0].terra_swap.hybrid).toBeDefined()
     expect(operations[1].terra_swap.hybrid).toBeUndefined()
   })
+
+  it('rejects hop 0 declared split that does not partition the send amount (#1280)', async () => {
+    const ops: SwapOperation[] = [
+      {
+        terra_swap: {
+          offer_asset_info: terraA,
+          ask_asset_info: terraB,
+          hybrid: {
+            pool_input: '600',
+            book_input: '399',
+            max_maker_fills: 8,
+            book_start_hint: null,
+          },
+        },
+      },
+    ]
+    await expect(executeMultiHopSwap(WALLET, TOKEN_IN, '1000', ops, '0.05')).rejects.toThrow(
+      /does not match the amount you are sending/
+    )
+    expect(mockedExecute).not.toHaveBeenCalled()
+  })
 })
