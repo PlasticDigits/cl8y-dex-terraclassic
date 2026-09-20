@@ -32,6 +32,10 @@ REQUIRED_RUNBOOK_MARKERS: tuple[str, ...] = (
     "any success=false?",
     "every success=false",
     "auto-deploy off is **not** a process stop",
+    "auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass",
+    "start only the hotfix image",
+    "schema is the bug or no hotfix that still embeds N",
+    "idx_restart",
     "N-shipping image",
     "scale-to-zero",
     "## 3. Contract incident",
@@ -43,11 +47,21 @@ REQUIRED_RUNBOOK_MARKERS: tuple[str, ...] = (
 
 ADR = ROOT / "docs/adr/0006-indexer-health-git-sha.md"
 HEALTH_SKILL = ROOT / "skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md"
+ARCHITECTURE = ROOT / "docs/architecture.md"
+INVARIANTS = ROOT / "docs/indexer-invariants.md"
+TESTING = ROOT / "docs/testing.md"
 EVERY_AHEAD_2C = "**every** successful `_sqlx_migrations.version` newer"
 DIRTY_REENTER = "re-enter the three-way"
 DIRTY_SEQUENTIAL = "any `success=false`"
 DIRTY_EVERY_ROW = "**every** `success=false`"
 STOP_NOT_AUTODEPLOY = "auto-deploy off is **not** a process stop"
+DIRTY_ORDER = (
+    "auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → "
+    "DELETE every success=false → idx_reclass"
+)
+DIRTY_2B_START = "start only the hotfix image"
+MERMAID_2C_YES = "schema is the bug or no hotfix that still embeds N"
+ROLLBACK_BINARY_ROW = "| **Rollback binary** |"
 N_SHIPPING = "N-shipping image"
 SCALE_TO_ZERO = "scale-to-zero"
 
@@ -132,6 +146,48 @@ def main() -> int:
         fail(f"missing {ADR.relative_to(ROOT)}")
     adr_text = ADR.read_text()
 
+    if not ARCHITECTURE.is_file():
+        fail(f"missing {ARCHITECTURE.relative_to(ROOT)}")
+    architecture_text = ARCHITECTURE.read_text()
+
+    if not INVARIANTS.is_file():
+        fail(f"missing {INVARIANTS.relative_to(ROOT)}")
+    invariants_text = INVARIANTS.read_text()
+
+    if not TESTING.is_file():
+        fail(f"missing {TESTING.relative_to(ROOT)}")
+    testing_text = TESTING.read_text()
+
+    if ROLLBACK_BINARY_ROW in runbook_text:
+        fail(
+            f"{RUNBOOK.relative_to(ROOT)} must not offer a pre-Coolify "
+            f"{ROLLBACK_BINARY_ROW!r} row; production uses only the Auto-deploy era table"
+        )
+    if MERMAID_2C_YES not in runbook_text:
+        fail(f"{RUNBOOK.relative_to(ROOT)} mermaid 2(c) Yes must be {MERMAID_2C_YES!r}")
+    if "Yes — schema is the bug|" in runbook_text:
+        fail(
+            f"{RUNBOOK.relative_to(ROOT)} mermaid must not use "
+            "'Yes — schema is the bug' without the no-hotfix clause"
+        )
+
+    for path, text in (
+        (SKILL, skill_text),
+        (HEALTH_SKILL, health_skill_text),
+        (ADR, adr_text),
+        (RUNBOOK, runbook_text),
+        (ARCHITECTURE, architecture_text),
+        (INVARIANTS, invariants_text),
+        (TESTING, testing_text),
+    ):
+        rel = path.relative_to(ROOT)
+        if DIRTY_ORDER not in text:
+            fail(f"{rel} must pin dirty action list {DIRTY_ORDER!r}")
+        if DIRTY_2B_START not in text:
+            fail(f"{rel} must pin dirty→2(b) {DIRTY_2B_START!r}")
+        if STOP_NOT_AUTODEPLOY not in text:
+            fail(f"{rel} must pin warning {STOP_NOT_AUTODEPLOY!r}")
+
     for path, text in (
         (SKILL, skill_text),
         (HEALTH_SKILL, health_skill_text),
@@ -147,8 +203,6 @@ def main() -> int:
             fail(f"{rel} must pin sequential dirty gate {DIRTY_SEQUENTIAL!r}")
         if DIRTY_EVERY_ROW not in text:
             fail(f"{rel} must pin {DIRTY_EVERY_ROW!r} row delete")
-        if STOP_NOT_AUTODEPLOY not in text:
-            fail(f"{rel} must pin {STOP_NOT_AUTODEPLOY!r}")
         if N_SHIPPING not in text:
             fail(f"{rel} must pin {N_SHIPPING!r} still-boot failure")
         if SCALE_TO_ZERO not in text:
@@ -158,7 +212,8 @@ def main() -> int:
         "OK: rollback decision runbook covers SEC-H09 (four incident types) and is "
         "linked from launch-checklist, wasm-admin-migration, emergency-commands, "
         "incident template, and security-model; 2(c) every-ahead-version + sequential "
-        "dirty gate + Stop-before-surgery pinned in ADR 0006, runbook, and both skills"
+        "dirty gate (auto-deploy off → Stop → snapshot → DELETE → idx_reclass) pinned "
+        "in ADR 0006, architecture, invariants, testing, runbook, and both skills"
     )
     return 0
 
