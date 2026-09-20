@@ -15,7 +15,7 @@ Implementation: GitLab [**#236**](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 - **Swap dedup:** Inserts use a unique constraint on `(tx_hash, pair_id, swap_index)` with `ON CONFLICT DO NOTHING` ([`insert_swap`](../../indexer/src/db/queries/swap_events.rs); migration `20260605000000_swap_events_per_tx_pair_swap_index.sql`, GitLab [**#287**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287)). `swap_index` is the per-pair ordinal within the tx so multiple genuine swaps on one pair are stored separately; re-processing the **same** canonical swaps after a restart **skips** duplicate delivery safely.
 - **Protocol fee dedup (#1269):** `protocol_fee_events` is **not** unique on `(tx_hash, source, ordinal)` alone. `swap_amm` uses `(tx_hash, source, pair_id, ordinal)` (pair-scoped `swap_index`); wrap / unwrap / ust1_* / book_take / limit_place use `(tx_hash, source, ordinal)` WHERE `pair_id IS NULL`. Poller replay is `ON CONFLICT DO NOTHING` — never `DO UPDATE`. Historical hops already in `swap_events` are backfilled at migrate + poller startup (`backfill_missing_swap_amm_fees`); `trade_exists` still skips swap insert but now retries fee ingest. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](../../skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md).
-- **Trader rolling volume skip (#1277):** `insert_swap` commits before `upsert_trader`. A `(38, 18)` overflow (pre-widen) leaves the swap and skips trader identity on replay (`trade_exists`). Heal from `swap_events` at migrate + poller startup — same skip class as #676 positions. Rolling refresh is UPDATE-only. Playbook: [`AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md`](../../skills/AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md). ADR [0005](../adr/0005-trader-rolling-volume-numeric.md).
+- **Trader rolling volume skip (#1277):** `insert_swap` commits before `upsert_trader`. A `(38, 18)` overflow (pre-widen) leaves the swap and skips trader identity on replay (`trade_exists`). Heal from `swap_events` at migrate + poller startup **before** `refresh_all_volume_windows(..., true)` (`poller.rs`, #1269 slot — not the #676 slot after refresh). Same skip class as #676 positions; poller heal is mismatch-gated. Rolling refresh is UPDATE-only. After heal, `refresh_trader_total_volume_usd` (unpriced stays NULL). Playbook: [`AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md`](../../skills/AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md). ADR [0005](../adr/0005-trader-rolling-volume-numeric.md).
 - **True reorg:** Canonical txs at affected heights may differ from what was indexed. Use `--cleanup-derived` before replay (see [Shallow reorg recovery](#shallow-reorg-recovery-1–few-blocks)).
 
 ## Alerting on reorg halt
@@ -81,7 +81,7 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
 2. **Stop** the indexer process.
 3. **Choose recovery:**
    - **Preferred:** Restore Postgres from a snapshot taken **before** the reorg window, then restart indexer, **or**
-   - **Heavy SQL:** Use `--cleanup-derived` from an earlier fork height `H` and accept that `trader_positions` / trader rollups may need a full re-backfill or snapshot (not height-keyed). After the indexer is back, run **`cl8y-dex-indexer rebuild-positions`** (or wait for poller `repair_positions_if_trade_count_mismatch` — GitLab **#676**, `NUMERIC(78, 18)`). Block replay alone does not rebuild positions for swaps that already exist.
+   - **Heavy SQL:** Use `--cleanup-derived` from an earlier fork height `H` and accept that `trader_positions` / trader rollups may need a full re-backfill or snapshot (not height-keyed). After the indexer is back, run **`cl8y-dex-indexer rebuild-positions`** (or wait for poller `repair_positions_if_trade_count_mismatch` — GitLab **#676**, `NUMERIC(78, 18)`). Block replay alone does not rebuild positions for swaps that already exist. After `--cleanup-derived`, leftover `traders.total_trades` / `total_volume` still count deleted swaps; additive `upsert_trader` on re-ingest **double-counts** unless startup `heal_trader_lifetime_from_swaps` recomputes lifetime from remaining `swap_events` **before** re-ingest (`poller.rs`, before `refresh_all_volume_windows(..., true)` — GitLab **#1277**). Block replay alone does not rebuild skipped or inflated trader totals.
 4. **Reset cursor** if not restoring snapshot: `last_indexed_height` to **at least one block before** the fork point (recovery script or manual `indexer_state` update).
 5. **Restart** and monitor `tracing` logs.
 
@@ -93,8 +93,8 @@ Use when the fork point is known (alert log shows mismatch height) and Postgres 
 | 2 | Fork height `H` identified | Matches alert `height` / LCD common ancestor |
 | 3 | Dry-run script | Row-impact preview reviewed |
 | 4 | `--apply` (+ `--cleanup-derived` if reorg) | `last_indexed_height` = `H - 1` |
-| 5 | Restart indexer | Logs show blocks indexing from `H` |
-| 6 | API spot-check | `/api/v1/pairs`, candles consistent with chain |
+| 5 | Restart indexer | Logs show blocks indexing from `H`. After `--cleanup-derived`, startup `heal_trader_lifetime_from_swaps` runs **before** `refresh_all_volume_windows(..., true)` so leftover trader lifetime matches remaining `swap_events` before re-ingest (#1277; same class as `rebuild-positions` / #676). |
+| 6 | API spot-check | `/api/v1/pairs`, candles consistent with chain; unscoped `sort=volume_24h` not inflated vs remaining swaps |
 
 ## Backfill
 
