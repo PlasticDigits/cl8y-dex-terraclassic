@@ -25,12 +25,21 @@ REQUIRED_RUNBOOK_MARKERS: tuple[str, ...] = (
     "### Recovery verification",
     "## 2. Indexer incident",
     "down.sql",
+    "**every** successful `_sqlx_migrations.version` newer",
+    "Partial suffix revert",
+    "re-enter the three-way",
+    "idx_reclass",
     "## 3. Contract incident",
     "prior_code_id",
     "## 4. Chain dependency incident",
     "IBC-hooks",
     "verify-no-ibc-hooks-in-contracts",
 )
+
+ADR = ROOT / "docs/adr/0006-indexer-health-git-sha.md"
+HEALTH_SKILL = ROOT / "skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md"
+EVERY_AHEAD_2C = "**every** successful `_sqlx_migrations.version` newer"
+DIRTY_REENTER = "re-enter the three-way"
 
 FOUR_TYPES: tuple[str, ...] = (
     "Frontend-only",
@@ -104,10 +113,47 @@ def main() -> int:
     if not SKILL.is_file():
         fail(f"missing {SKILL.relative_to(ROOT)}")
 
+    skill_text = SKILL.read_text()
+    if EVERY_AHEAD_2C not in skill_text:
+        fail(
+            f"{SKILL.relative_to(ROOT)} must pin 2(c) every-ahead-version gate: "
+            f"{EVERY_AHEAD_2C!r}"
+        )
+    if DIRTY_REENTER not in skill_text:
+        fail(
+            f"{SKILL.relative_to(ROOT)} must pin dirty DELETE then {DIRTY_REENTER!r}"
+        )
+
+    if not HEALTH_SKILL.is_file():
+        fail(f"missing {HEALTH_SKILL.relative_to(ROOT)}")
+    health_skill_text = HEALTH_SKILL.read_text()
+    if EVERY_AHEAD_2C not in health_skill_text:
+        fail(
+            f"{HEALTH_SKILL.relative_to(ROOT)} must pin 2(c) every-ahead-version gate: "
+            f"{EVERY_AHEAD_2C!r}"
+        )
+    if DIRTY_REENTER not in health_skill_text:
+        fail(
+            f"{HEALTH_SKILL.relative_to(ROOT)} must pin dirty DELETE then "
+            f"{DIRTY_REENTER!r}"
+        )
+
+    if not ADR.is_file():
+        fail(f"missing {ADR.relative_to(ROOT)}")
+    adr_text = ADR.read_text()
+    if EVERY_AHEAD_2C not in adr_text:
+        fail(
+            f"{ADR.relative_to(ROOT)} must pin 2(c) every-ahead-version gate: "
+            f"{EVERY_AHEAD_2C!r}"
+        )
+    if DIRTY_REENTER not in adr_text:
+        fail(f"{ADR.relative_to(ROOT)} must pin dirty DELETE then {DIRTY_REENTER!r}")
+
     print(
         "OK: rollback decision runbook covers SEC-H09 (four incident types) and is "
         "linked from launch-checklist, wasm-admin-migration, emergency-commands, "
-        "incident template, and security-model"
+        "incident template, and security-model; 2(c) every-ahead-version + dirty "
+        "re-enter pinned in ADR 0006 and both rollback skills"
     )
     return 0
 
