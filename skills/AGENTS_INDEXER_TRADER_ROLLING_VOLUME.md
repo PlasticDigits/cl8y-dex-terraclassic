@@ -18,7 +18,7 @@ Audience: third-party agents changing `traders.volume_24h` / `7d` / `30d` / `tot
 |----|------|
 | **V1277-1** | `traders.volume_24h` / `volume_7d` / `volume_30d` / `total_volume` are **`NUMERIC(38, 0)`**. Do not switch these to `NUMERIC(78, 18)`. |
 | **V1277-2** | Keep `LEAST(SUM(…), POWER(10,38)-1)` on rolling sums. Cap `upsert_trader` `total_volume + $2` the same way. Do not clamp raw volume to the USD `10^20` cap. |
-| **V1277-3** | `total_volume_usd` stays `NUMERIC(38, 18)` / `10^20` USD cap. Heal INSERT / lifetime UPDATE / leftover-zero do **not** rewrite it. Idle **D2** zeros rolling columns only. Unpriced stays NULL (**R5**). Same heal transaction: `refresh_trader_total_volume_usd` SQL, then leftover-USD `NULL` when no remaining priced `swap_events`. Do not change P522-Q for senders who still have priced swaps. |
+| **V1277-3** | `total_volume_usd` stays `NUMERIC(38, 18)` / `10^20` USD cap. Heal INSERT / lifetime UPDATE / leftover-zero do **not** rewrite it. Idle **D2** zeros rolling columns only. Unpriced stays NULL (**R5**). Same heal transaction: **copy** `refresh_trader_total_volume_usd` SQL onto `&mut Transaction`, then leftover-USD `NULL` when no remaining priced `swap_events`. Do **not** call `refresh_trader_total_volume_usd(&pool)` inside `heal_trader_lifetime_from_swaps`. Do not change P522-Q for senders who still have priced swaps. |
 | **V1277-4** | After overflow-skip, one-shot + poller heal from `swap_events`: `INSERT` missing senders (`ON CONFLICT DO NOTHING`); `UPDATE` existing including register-then-overflow; leftover-zero `UPDATE` (`total_trades = 0`, `total_volume = 0`, `first_trade_at` / `last_trade_at` `NULL`) when leftover-lifetime and **no** remaining `swap_events` — **do not `DELETE`** (keep tier / registered / P&L). Do **not** zero idle traders who still have old `swap_events` (**D2**). Block replay alone does not heal. In `poller.rs`, `heal_trader_lifetime_from_swaps` **before** `refresh_all_volume_windows(..., true)` (#1269 slot, not the #676 slot after refresh). Mismatch-gated with `COALESCE` like `#676` `positions_trade_count_diverges` (not `s.sender IS NOT NULL`): leftover-lifetime ghosts **trip**; registered / zero-lifetime ghosts **do not**. Scan is `GROUP BY sender` on `swap_events` (`idx_swaps_sender`), not “`traders` is small”. Heal writes + USD are **one transaction**. |
 | **V1277-5** | `refresh_rolling_volumes` stays UPDATE-only once heal has inserted senders. |
 | **V1277-6** | Unscoped rolling + `total_volume` **and** pair-scoped `total_volume` JSON uses **`bd_plain_string`** (no `1e+19`). Unscoped GET does not live-`SUM(swap_events)` for rolling windows (guardrail 6). |
@@ -27,14 +27,14 @@ Audience: third-party agents changing `traders.volume_24h` / `7d` / `30d` / `tot
 
 ## Do / don’t
 
-- **Do** widen (`USING …::numeric(38, 0)`), then heal (INSERT + lifetime UPDATE + leftover-zero), then #553 USD UPDATE, then leftover-USD `NULL`, in the same migration file. Migration SQL is canonical; Rust **copies** it with a keep-in-sync comment (`backfill_swap_volume_usd`) and runs those statements in **one** transaction. sqlx migrations cannot call Rust.
+- **Do** widen (`USING …::numeric(38, 0)`), then heal (INSERT + lifetime UPDATE + leftover-zero), then #553 USD UPDATE, then leftover-USD `NULL`, in the same migration file. Migration SQL is canonical; Rust **copies** it (including the #553 priced SQL) with a keep-in-sync comment (`backfill_swap_volume_usd`) and runs those statements in **one** transaction. sqlx migrations cannot call Rust. Do **not** call `refresh_trader_total_volume_usd(&pool)` from the helper.
 - **Do** keep rolling refresh and idle zero-out in one transaction (**D2** / **A6**).
 - **Do** call `heal_trader_lifetime_from_swaps` in `poller.rs` **before** `refresh_all_volume_windows(..., true)`.
 - **Do** gate with `COALESCE` like #676. Leftover-lifetime ghosts trip; registered zeros do not.
 - **Don’t** wrap `insert_swap` + `upsert_trader` in one ingest transaction on this ticket.
 - **Don’t** UPSERT senders inside the rolling window SQL.
 - **Don’t** `DELETE` leftover `traders` rows.
-- **Don’t** call pool-level `refresh_trader_total_volume_usd` after a committed heal (crash window).
+- **Don’t** call `refresh_trader_total_volume_usd(&pool)` **inside** `heal_trader_lifetime_from_swaps` (copy the #553 SQL onto `&mut Transaction`) **or** after a committed heal (crash window). Catalog `volume.rs` may still use the pool-level function.
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** fold this into #1276.
 - **Don’t** `ALTER TABLE traders` on the shared integration pool for I10.
