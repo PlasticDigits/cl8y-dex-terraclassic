@@ -17,7 +17,7 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 | **H1276-4** | `GET /api/v1/health/fee-discount` unchanged. |
 | **H1276-5** | No inventory, tokens, or Coolify UUIDs on `/health`. |
 | **H1276-6** | Auto-deploy is the indexer Coolify protected-branch flag. CAC drain is one UUID per path — not the indexer redeploy path. Do not infer the checkbox from HTTP. |
-| **H1276-7** | Auto-deploy on ⇒ expand-only sqlx migrations; dual-app skew is expected. Coolify-era rollback is **three-way** (unchanged vs prior Coolify Deploys SHA’s latest `*.sql` → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → auto-deploy off + snapshot + that `down.sql` + `DELETE` that `_sqlx_migrations` row + restore). Dirty `success = false` → repair ledger first. Revert files do not touch the ledger. No production `set_ignore_missing`. Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. Do not rewrite M573/M590 as if auto-deploy applied retroactively. |
+| **H1276-7** | Auto-deploy on ⇒ expand-only sqlx migrations; dual-app skew is expected. Coolify-era rollback is **three-way** vs prior Coolify Deploys SHA (`git ls-tree --name-only <sha> indexer/migrations/`; `version`/`success`; `installed_on` inspect-only). **2(a)** unchanged → restore (auto-deploy off first, or land revert/hotfix before the next `main` webhook). **2(b)** keep schema + hotfix that still ships N **even if** a paired `down.sql` exists. **2(c)** **iff** restoring the prior image is required **and** `indexer/migrations/revert/<ahead-version>_*.down.sql` exists for version(s) **newer than that baseline** (historical `revert/` files do **not** select 2(c); no paired file for the ahead version → 2(b); do not invent a revert) → auto-deploy off → snapshot → that `down.sql` (descending if several) → `DELETE` **each** matching `_sqlx_migrations` row → restore. After 2(c), re-enable auto-deploy only when `main` no longer ships N, or re-applying N is explicit intent. Dirty: `DELETE FROM _sqlx_migrations WHERE version = <v> AND success = false` only; never `UPDATE success`. Revert files do not touch the ledger. No production `set_ignore_missing`. Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. Do not rewrite M573/M590 as if auto-deploy applied retroactively. |
 | **H1276-8** | #1277, CAC map, #706, Nixpacks, second `/status` out of scope. |
 
 ## Do / don’t
@@ -39,9 +39,13 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 - **Don’t** close leftover on `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` without `VERIFY1276_EXPECT_SHA` (**FAIL before curl**; stale manual hex must not close). Sibling leftover IID is unreachable-fail, not leftover-complete.
 - **Don’t** treat `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` as leftover-complete (that path may PASS bake presence).
 - **Don’t** enable Coolify watch paths until leftover is closed if glance uses repo `HEAD`.
-- **Don’t** treat `SELECT version … LIMIT 5` or “no new row” as unchanged — compare `_sqlx_migrations` (`version`, `success`, `installed_on`) to the prior Coolify Deploys SHA’s latest `indexer/migrations/*.sql`.
-- **Don’t** apply `down.sql` then restore without `DELETE FROM _sqlx_migrations WHERE version = <that version>` (revert files do not touch the ledger).
-- **Don’t** start 2(c) with auto-deploy still on, or re-enable it before a good tip is on `main`.
+- **Don’t** treat `SELECT version … LIMIT 5` or “no new row” as unchanged — compare `_sqlx_migrations` (`version`, `success`; `installed_on` inspect-only) to `git ls-tree --name-only <prior-coolify-deploys-sha> indexer/migrations/`.
+- **Don’t** treat any file under `indexer/migrations/revert/` as a 2(c) selector. 2(c) **iff** `indexer/migrations/revert/<ahead-version>_*.down.sql` exists for version(s) **newer than that baseline**. Historical revert files do **not** select 2(c). No paired file for the ahead version → **2(b)**; do not invent a revert.
+- **Don’t** take 2(c) just because a paired `down.sql` exists. If the next image will still ship N, **2(b)** keep schema (do not restore the prior image). 2(c) only when restoring the prior image is required.
+- **Don’t** apply `down.sql` then restore without `DELETE FROM _sqlx_migrations WHERE version = <that version>` for **each** reverted ahead version (revert files do not touch the ledger; several versions: descending).
+- **Don’t** `UPDATE _sqlx_migrations SET success = true`. Dirty repair is `DELETE FROM _sqlx_migrations WHERE version = <v> AND success = false` only.
+- **Don’t** start 2(c) with auto-deploy still on. After 2(c), **don’t** re-enable auto-deploy while `main` still ships N (a typical hotfix still embeds N — that is **2(b)**). Re-enable only when `main` no longer ships N, or re-applying N is explicit intent.
+- **Don’t** 2(a) restore with auto-deploy still on while `main` is the bad SHA without a land-before-next-webhook plan (sticky until the next webhook; same retrigger class as 2(c), without re-applying N).
 - **Don’t** set `set_ignore_missing(true)` on production `sqlx::migrate!()`.
 
 ## Live leftover probe
