@@ -6,7 +6,7 @@ Proposed ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276))
 
 Design record for implement. This ADR does **not** flip Coolify, deploy, scrape Coolify logs, publish app UUIDs or tokens, change CAC `/health`, or expand CAC `COOLIFY_APP_MAP`. Enabling the indexer Coolify protected-branch auto-deploy checkbox is operator leftover under [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297) (deploy policy). In-repo work stamps SHA and documents the flag; it cannot close the checkbox.
 
-Playbook: [`skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md`](../../skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md) (**H1276-1–H1276-8**). Overview: [`architecture.md`](../architecture.md#indexer-production-attest) (**target after slice 1**). Invariant: [`indexer-invariants.md`](../indexer-invariants.md) **Health git SHA (#1276)** (**target after slice 1**). Rollback: [`runbooks/rollback-decision.md`](../runbooks/rollback-decision.md) § Auto-deploy era.
+Playbook: [`skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md`](../../skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md) (**H1276-1–H1276-8**). Overview: [`architecture.md`](../architecture.md#indexer-production-attest) (code MR shipped; leftover is operator). Invariant: [`indexer-invariants.md`](../indexer-invariants.md) **Health git SHA (#1276)**. Rollback: [`runbooks/rollback-decision.md`](../runbooks/rollback-decision.md) § Auto-deploy era.
 
 ADR **0005** is reserved by the #1269 hop-fee design branch (`docs/adr/0005-protocol-fee-multihop-hops.md`). This ticket is **0006**.
 
@@ -47,7 +47,7 @@ The Dockerfile is **multi-stage**: builder `COPY indexer/` then a separate `debi
 
 The binary always runs `sqlx::migrate!()` before bind ([`indexer/src/main.rs`](../../indexer/src/main.rs)) and does **not** call `set_ignore_missing` — the default migrator **rejects applied versions missing from the binary**. Integration tests set `set_ignore_missing(true)` only for worktree skew ([`indexer/tests/common/mod.rs`](../../indexer/tests/common/mod.rs)). Almost all migrations have no `down.sql` (three files under [`indexer/migrations/revert/`](../../indexer/migrations/revert/); those files undo schema only and do **not** `DELETE` `_sqlx_migrations`). Those files are paired to **those** versions; they do **not** select 2(c) for a later expand-only land. Post-merge playbooks still treat indexer as a gated Coolify redeploy after migrate, separate from the frontend rebuild. Auto-deploy without a forward-fix/rollback rule (including ledger delete after a documented revert of the **ahead** version) and a skew window is not supportable.
 
-[`docs/architecture.md`](../architecture.md#indexer-production-attest) and the **Health git SHA (#1276)** invariant row are **target after slice 1**, not live evidence. Until the code MR lands, treat `health()` as ok-only and the Dockerfile as unstamped.
+[`docs/architecture.md`](../architecture.md#indexer-production-attest) and the **Health git SHA (#1276)** invariant row describe the shipped handler + Dockerfile bake. Live leftover (checkbox + tip-match) is still operator / #297, not live evidence of auto-deploy.
 
 ## Non-goals
 
@@ -164,7 +164,7 @@ Pure function, no I/O. Input: the **selected** candidate string from `select_com
 | Parser | Lib-testable helpers as above — do not inline ad-hoc regex only in the handler; unit tests pass `&str` / `Option<&str>`. |
 | Image | `docker/indexer/Dockerfile` **runtime** ARG/ENV **after** `COPY --from=builder`, before `HEALTHCHECK`. HEALTHCHECK unchanged (HTTP 200). |
 | Tests | See Tests. `generic_health_unchanged` becomes “ok-only when env unset.” Env-mutating integration tests are `#[serial]` and `remove_var` both keys before ok-only requests. |
-| Invariant | Observability unhappy-path + **Health git SHA (#1276)** row are **target after slice 1** (not live evidence until the code MR). |
+| Invariant | Observability unhappy-path + **Health git SHA (#1276)** row match shipped JSON (leftover checkbox is still operator). |
 | Runbooks | Indexer auto-deploy era + SHA glance; mainnet-soft-launch Coolify indexer bake-args on the **runtime** stage after COPY. Do not rewrite M573. |
 | Coolify | Operator leftover only. Not in git. |
 | CAC | Unchanged. |

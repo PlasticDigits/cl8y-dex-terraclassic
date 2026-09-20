@@ -3,7 +3,7 @@
 Use when changing generic `GET /health`, `docker/indexer/Dockerfile` commit bake, or indexer Coolify auto-deploy docs. Canonical decision: [`docs/adr/0006-indexer-health-git-sha.md`](../docs/adr/0006-indexer-health-git-sha.md). Overview: [`docs/architecture.md`](../docs/architecture.md#indexer-production-attest).
 
 **Issue:** [#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)  
-**Verify (implement):** `make verify-issue-1276` (add in the code slice)
+**Verify (implement):** `make verify-issue-1276`
 
 Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify logs. Do not publish Coolify UUIDs or tokens. Do not flip the Coolify auto-deploy checkbox from an implement agent ([agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). Do not infer that checkbox from HTTP.
 
@@ -52,7 +52,7 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 
 ## Live leftover probe
 
-Canonical: [ADR 0006 Tests](../docs/adr/0006-indexer-health-git-sha.md). Overview: [`docs/architecture.md`](../docs/architecture.md#indexer-production-attest) is **target after slice 1**.
+Canonical: [ADR 0006 Tests](../docs/adr/0006-indexer-health-git-sha.md). Overview: [`docs/architecture.md`](../docs/architecture.md#indexer-production-attest) (code MR shipped; leftover is operator).
 
 `GET https://indexer.dex.cl8y.com/health` must be 200. Parse JSON with **jq** (not grep): `status=ok` and hex `git_sha` `^[0-9a-f]{7,40}$`. Missing/omitted field is **FAIL**, not SKIP. Unreachable host is FAIL when a live flag is set; SKIP without it.
 
