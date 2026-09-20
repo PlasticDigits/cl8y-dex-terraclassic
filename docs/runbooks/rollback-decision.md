@@ -9,7 +9,7 @@ Operator playbook for **when** to rollback vs hotfix forward during live inciden
 | Surface | Typical symptom | First control | Rollback available? |
 |---------|-----------------|---------------|---------------------|
 | **Frontend** | Broken UI, wrong `VITE_*` addresses, CSP/connect-src failure | Hotfix build or redeploy prior static artifact | Yes — prior `dist/` or Render deploy rollback |
-| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; rollback binary + optional `down.sql`; attest via `/health` `git_sha` ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)) | Partial — schema rollback only when paired `.down.sql` exists; schema-ahead after auto-deploy migrate is **forward-fix** |
+| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; Coolify restore or hotfix; optional `down.sql`; attest via `/health` `git_sha` ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)) | Partial — schema rollback only when paired `.down.sql` exists; schema-ahead after auto-deploy migrate is **forward-fix** |
 | **Contract** | Logic bug post-migrate | Emergency **pause** / blacklist; forward-fix **migrate** | Partial — migrate to prior `code_id` only if still on chain and state compatible |
 | **Chain dependency** | Chain upgrade incompatibility, IBC-hooks patch, LCD/RPC outage | Pause pairs; switch LCD provider; wait for validator upgrade | No on-chain rollback — coordinate with network |
 
@@ -31,7 +31,11 @@ flowchart TD
   fe_dec -->|No| fe_roll[Rollback: prior static build]
   idx --> idx_dec{Process crash only?}
   idx_dec -->|Yes| idx_restart[Restart indexer]
-  idx_dec -->|No — bad data or migration| idx_roll[Forward-fix if schema moved;<br/>else prior image + down.sql]
+  idx_dec -->|No — bad data or migration| idx_schema{New _sqlx_migrations row?}
+  idx_schema -->|Yes — no down.sql| idx_fwd[Forward-fix hotfix image]
+  idx_schema -->|No| idx_cool[Restore prior Coolify indexer deploy]
+  idx_fwd --> idx_attest[Attest /health git_sha EXPECT_SHA]
+  idx_cool --> idx_attest
   ctr --> ctr_risk{Funds at risk<br/>or exploit active?}
   ctr_risk -->|Yes| ctr_pause[Emergency pause / blacklist]
   ctr_risk -->|No — contained bug| ctr_fix{State-compatible<br/>forward migrate?}
@@ -42,6 +46,8 @@ flowchart TD
   chain_dec -->|Yes| chain_lcd[Fail over LCD/RPC; monitor]
   chain_dec -->|No| chain_pause[Pause all affected pairs; coordinate upgrade]
 ```
+
+Indexer `idx_schema` / `idx_attest` → [§ Auto-deploy era Coolify incident checklist](#auto-deploy-era-1276) (inspect `_sqlx_migrations` → forward-fix **or** restore prior Coolify image → attest `git_sha` with `EXPECT_SHA` → re-enable auto-deploy if it was off).
 
 ---
 
@@ -127,17 +133,31 @@ VITE_INDEXER_URL=https://<staging-indexer> npm run build
 
 ### Auto-deploy era (#1276)
 
-Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Frontend Vite may already be at a newer tip (**dual-app skew** — expected).
+Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Frontend Vite may already be at a newer tip (**dual-app skew** — expected). Production rollback is **restore previous Coolify indexer deploy** (or a hotfix image), not `git checkout` + `cargo run` on the host.
 
 | Choose | When auto-deploy is on |
 |--------|------------------------|
 | **Forward-fix (required)** | The bad release **applied** a new migration and there is **no** paired `down.sql`. Do **not** restore the previous image — schema is ahead and the old binary may fail startup. Snapshot Postgres; ship a hotfix image. |
-| **Rollback previous image** | No new `_sqlx_migrations` row (or migrate was a no-op). Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
+| **Rollback previous image** | No new `_sqlx_migrations` row (or migrate was a no-op). Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit via `VERIFY1276_EXPECT_SHA` (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
 | **Disable auto-deploy temporarily** | Breaking / rewrite migrations. Operator Coolify checkbox off ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)), apply by this runbook, then re-enable. Expand-only migrations may ride auto-deploy. |
+
+#### Coolify incident checklist (production indexer)
+
+Use this table from the mermaid `idx_schema` branch. Do not publish Coolify UUIDs, tokens, or hosts.
+
+1. **Inspect `_sqlx_migrations`.** Query `SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 5;` (host `psql` or `scripts/lib/postgres-psql.sh`). Decide schema-ahead vs unchanged.
+2. **Forward-fix or restore.** Schema-ahead and no `down.sql` → snapshot Postgres and ship a **hotfix Coolify image** (do not restore the previous binary). Schema unchanged → **restore the previous Coolify indexer deploy** (Coolify Deploys → prior successful deploy). Local `git checkout` + `cargo run` / systemd is a **dev** path only.
+3. **Attest `/health` `git_sha`.** `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=<restored-or-hotfix-sha> make verify-issue-1276` (or `curl` + jq). Prefix-match. Do not scrape Coolify SOURCE SHA logs. Do not infer the auto-deploy checkbox from HTTP.
+4. **Re-enable auto-deploy** if it was turned off for a breaking migrate / incident (#297). Leave it off only while the expand-only rule is suspended.
+5. **Record** the restored/hotfix SHA and UTC in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline). Close leftover #1276 still needs the ADR slice 3 comment template (not this incident path).
 
 CAC drain (one UUID per Forgejo path) is **not** the indexer rollback/redeploy path.
 
 ### Rollback path (commands)
+
+**Production (Coolify — leftover path):** follow **Auto-deploy era → Coolify incident checklist** above. Restore the previous Coolify indexer deploy, or ship a hotfix image. Do not treat `git checkout` + `cargo run` as the production rollback.
+
+**Local / systemd (dev):**
 
 ```bash
 # 1. Stop indexer (systemd, k8s, or tmux)
@@ -152,7 +172,7 @@ psql "$DATABASE_URL" -X -c "SELECT version FROM _sqlx_migrations ORDER BY versio
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
   -f indexer/migrations/revert/20260509160000_limit_order_placement_lifecycle.down.sql
 
-# 4. Deploy prior release binary
+# 4. Deploy prior release binary (dev only — production uses Coolify restore)
 export PATH="/usr/local/cargo/bin:$PATH"
 git checkout "<prior-release-sha>"
 cd indexer && cargo build --release
@@ -187,7 +207,7 @@ curl -sS "${INDEXER_URL}/api/v1/pairs?limit=3" | jq '.items[0].pair_address'
 terrad query wasm contract-state smart "<pair_addr>" '{"pool":{}}' --node "$LCD_URL" | jq '.data'
 ```
 
-- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). Regex-only / IID-only hex is bake presence, not proof the Coolify auto-deploy checkbox is on. Leftover-complete still needs checkbox evidence **and** `VERIFY1276_EXPECT_SHA` tip-match ([ADR 0006](../adr/0006-indexer-health-git-sha.md)).
+- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is bake presence. `VERIFY1276_IID=1276` without `EXPECT_SHA` **FAIL**s. Leftover-complete still needs checkbox evidence **and** `VERIFY1276_EXPECT_SHA` tip-match ([ADR 0006](../adr/0006-indexer-health-git-sha.md)).
 - [ ] Block lag acceptable vs chain head.
 - [ ] Spot-check pair reserves and recent swaps against LCD.
 - [ ] No `INDEXER_REORG_HALT` in logs after recovery.
