@@ -29,6 +29,11 @@ REQUIRED_RUNBOOK_MARKERS: tuple[str, ...] = (
     "Partial suffix revert",
     "re-enter the three-way",
     "idx_reclass",
+    "any success=false?",
+    "every success=false",
+    "auto-deploy off is **not** a process stop",
+    "N-shipping image",
+    "scale-to-zero",
     "## 3. Contract incident",
     "prior_code_id",
     "## 4. Chain dependency incident",
@@ -40,6 +45,11 @@ ADR = ROOT / "docs/adr/0006-indexer-health-git-sha.md"
 HEALTH_SKILL = ROOT / "skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md"
 EVERY_AHEAD_2C = "**every** successful `_sqlx_migrations.version` newer"
 DIRTY_REENTER = "re-enter the three-way"
+DIRTY_SEQUENTIAL = "any `success=false`"
+DIRTY_EVERY_ROW = "**every** `success=false`"
+STOP_NOT_AUTODEPLOY = "auto-deploy off is **not** a process stop"
+N_SHIPPING = "N-shipping image"
+SCALE_TO_ZERO = "scale-to-zero"
 
 FOUR_TYPES: tuple[str, ...] = (
     "Frontend-only",
@@ -112,48 +122,43 @@ def main() -> int:
 
     if not SKILL.is_file():
         fail(f"missing {SKILL.relative_to(ROOT)}")
-
     skill_text = SKILL.read_text()
-    if EVERY_AHEAD_2C not in skill_text:
-        fail(
-            f"{SKILL.relative_to(ROOT)} must pin 2(c) every-ahead-version gate: "
-            f"{EVERY_AHEAD_2C!r}"
-        )
-    if DIRTY_REENTER not in skill_text:
-        fail(
-            f"{SKILL.relative_to(ROOT)} must pin dirty DELETE then {DIRTY_REENTER!r}"
-        )
 
     if not HEALTH_SKILL.is_file():
         fail(f"missing {HEALTH_SKILL.relative_to(ROOT)}")
     health_skill_text = HEALTH_SKILL.read_text()
-    if EVERY_AHEAD_2C not in health_skill_text:
-        fail(
-            f"{HEALTH_SKILL.relative_to(ROOT)} must pin 2(c) every-ahead-version gate: "
-            f"{EVERY_AHEAD_2C!r}"
-        )
-    if DIRTY_REENTER not in health_skill_text:
-        fail(
-            f"{HEALTH_SKILL.relative_to(ROOT)} must pin dirty DELETE then "
-            f"{DIRTY_REENTER!r}"
-        )
 
     if not ADR.is_file():
         fail(f"missing {ADR.relative_to(ROOT)}")
     adr_text = ADR.read_text()
-    if EVERY_AHEAD_2C not in adr_text:
-        fail(
-            f"{ADR.relative_to(ROOT)} must pin 2(c) every-ahead-version gate: "
-            f"{EVERY_AHEAD_2C!r}"
-        )
-    if DIRTY_REENTER not in adr_text:
-        fail(f"{ADR.relative_to(ROOT)} must pin dirty DELETE then {DIRTY_REENTER!r}")
+
+    for path, text in (
+        (SKILL, skill_text),
+        (HEALTH_SKILL, health_skill_text),
+        (ADR, adr_text),
+        (RUNBOOK, runbook_text),
+    ):
+        rel = path.relative_to(ROOT)
+        if EVERY_AHEAD_2C not in text:
+            fail(f"{rel} must pin 2(c) every-ahead-version gate: {EVERY_AHEAD_2C!r}")
+        if DIRTY_REENTER not in text:
+            fail(f"{rel} must pin dirty DELETE then {DIRTY_REENTER!r}")
+        if DIRTY_SEQUENTIAL not in text:
+            fail(f"{rel} must pin sequential dirty gate {DIRTY_SEQUENTIAL!r}")
+        if DIRTY_EVERY_ROW not in text:
+            fail(f"{rel} must pin {DIRTY_EVERY_ROW!r} row delete")
+        if STOP_NOT_AUTODEPLOY not in text:
+            fail(f"{rel} must pin {STOP_NOT_AUTODEPLOY!r}")
+        if N_SHIPPING not in text:
+            fail(f"{rel} must pin {N_SHIPPING!r} still-boot failure")
+        if SCALE_TO_ZERO not in text:
+            fail(f"{rel} must pin Coolify Stop / {SCALE_TO_ZERO!r}")
 
     print(
         "OK: rollback decision runbook covers SEC-H09 (four incident types) and is "
         "linked from launch-checklist, wasm-admin-migration, emergency-commands, "
-        "incident template, and security-model; 2(c) every-ahead-version + dirty "
-        "re-enter pinned in ADR 0006 and both rollback skills"
+        "incident template, and security-model; 2(c) every-ahead-version + sequential "
+        "dirty gate + Stop-before-surgery pinned in ADR 0006, runbook, and both skills"
     )
     return 0
 
