@@ -49,7 +49,7 @@ PostgreSQL `UNIQUE` treats NULL as distinct. A nullable `pair_id` **without** th
 
 | Area | Path |
 |------|------|
-| Migration | [`indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`](../indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql) |
+| Migration | [`indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql`](../indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql) |
 | Insert + backfill | [`indexer/src/db/queries/protocol_fees.rs`](../indexer/src/db/queries/protocol_fees.rs) |
 | Ingest | [`indexer/src/indexer/parser.rs`](../indexer/src/indexer/parser.rs) `ingest_swap_amm_fee` |
 | Draft | [`indexer/src/indexer/protocol_fees.rs`](../indexer/src/indexer/protocol_fees.rs) `FeeEventDraft.pair_id` |

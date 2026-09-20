@@ -111,6 +111,15 @@ async fn health_empty_git_sha_falls_through_to_source_commit() {
     let _gunset = set_commit_env(None, Some(HEX40));
     let body: Value = server.get("/health").await.json();
     assert_eq!(body["git_sha"], HEX40);
+
+    drop(_gunset);
+    let _gws_src = set_commit_env(None, Some("   "));
+    let body: Value = server.get("/health").await.json();
+    assert_eq!(
+        body,
+        serde_json::json!({ "status": "ok" }),
+        "whitespace-only selected SOURCE_COMMIT must omit"
+    );
 }
 
 #[serial]

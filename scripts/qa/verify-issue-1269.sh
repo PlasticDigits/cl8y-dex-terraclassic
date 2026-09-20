@@ -54,7 +54,7 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     grep -q "#1269" docs/runbooks/overview-global-stats-brin.md
     grep -q "#1269" docs/runbooks/indexer-reorg-replay-dedup.md
     grep -q "widened" skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md
-    test -f indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql
+    test -f indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql
     grep -q "F1269" docs/testing.md
     grep -q "PFee-14" docs/frontend.md
   '
@@ -63,12 +63,12 @@ run_step "source: pair-scoped unique; GET does not SUM events; no DO UPDATE" \
   bash -c '
     set -euo pipefail
     grep -q "protocol_fee_events_pair_tx_source_ordinal_uidx" \
-      indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql
+      indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql
     grep -q "protocol_fee_events_nopair_tx_source_ordinal_uidx" \
-      indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql
+      indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql
     grep -q "ON CONFLICT DO NOTHING" indexer/src/db/queries/protocol_fees.rs
     if grep -nE "ON CONFLICT[^\\n]*DO UPDATE SET" indexer/src/db/queries/protocol_fees.rs \
-         indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql 2>/dev/null; then
+         indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql 2>/dev/null; then
       echo "DO UPDATE is forbidden on protocol_fee_events" >&2
       exit 1
     fi

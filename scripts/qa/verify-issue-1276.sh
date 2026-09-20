@@ -96,8 +96,33 @@ run_step "docs: ADR 0006 + skill H1276 + invariants + Makefile" \
     grep -q "verify-issue-1276" Makefile
     grep -q "make verify-issue-1276" docs/testing.md
     grep -q "indexer-production-attest" docs/architecture.md
+    grep -q "first-applied" docs/adr/0006-indexer-health-git-sha.md
+    grep -q "20260916120000_usdt_quote_usd_null_backfill.sql" docs/adr/0006-indexer-health-git-sha.md
+    grep -q "20260916120001_protocol_fee_events_pair_id.sql" skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md
     python3 scripts/check_rollback_decision_docs.py
   '
+
+run_step "sqlx: unique migration versions; first-applied USDT checksum pin" \
+  python3 - <<'PY'
+from collections import Counter
+from pathlib import Path
+
+vers = []
+for p in sorted(Path("indexer/migrations").glob("*.sql")):
+    vers.append(p.name.split("_", 1)[0])
+dups = [v for v, n in Counter(vers).items() if n > 1]
+if dups:
+    raise SystemExit(f"duplicate sqlx versions: {dups}")
+usdt = Path("indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql")
+hop = Path("indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql")
+if not usdt.is_file():
+    raise SystemExit("first-applied USDT backfill must stay 20260916120000")
+if not hop.is_file():
+    raise SystemExit("#1269 protocol_fee must be 20260916120001 (not 20260916120000)")
+if Path("indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql").exists():
+    raise SystemExit("protocol_fee must not share USDT version 20260916120000")
+print("unique sqlx versions + first-applied USDT pin ok")
+PY
 
 run_step "dockerfile: runtime ARG/ENV after COPY --from=builder, before HEALTHCHECK" \
   python3 - <<'PY'
@@ -155,6 +180,7 @@ run_step "source: per-request health helpers; no dotenvy in handler" \
     grep -q "remove_var(\"SOURCE_COMMIT\")" indexer/tests/api_fee_discount_health.rs
     grep -q "generic_health_unchanged" indexer/tests/api_fee_discount_health.rs
     grep -q "health_empty_git_sha_falls_through_to_source_commit" indexer/tests/api_health.rs
+    grep -q "whitespace-only selected SOURCE_COMMIT must omit" indexer/tests/api_health.rs
     grep -q "GIT_SHA" indexer/.env.example
     grep -q "SOURCE_COMMIT" indexer/.env.example
     if grep -nE "GIT_SHA=HEAD|GIT_SHA=\"HEAD\"|GIT_SHA='HEAD'" indexer/.env.example; then
