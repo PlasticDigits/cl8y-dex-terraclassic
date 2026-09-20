@@ -25,7 +25,8 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 - **Do** omit `git_sha` rather than echo `HEAD`.
 - **Do** fall through empty / whitespace-only `GIT_SHA` (Dockerfile `ARG GIT_SHA=` → `ENV` `""`) to `SOURCE_COMMIT`.
 - **Don’t** fall through after a non-empty rejected `GIT_SHA` (`HEAD` + leftover hex → omit).
-- **Don’t** map Coolify `git_commit_sha=HEAD` (or a branch) into `GIT_SHA`. Leave `GIT_SHA` unset/empty; include-source-commit fills `SOURCE_COMMIT`.
+- **Don’t** map Coolify `git_commit_sha=HEAD` (or a branch) into `GIT_SHA`. Leave `GIT_SHA` unset/empty; include-source-commit fills `SOURCE_COMMIT`. Copying `HEAD` into `GIT_SHA` **and** enabling include-source-commit still omits (`HEAD` is a non-empty reject). Include-source-commit **alone** is enough because empty `GIT_SHA` falls through.
+- **Do** omit a whitespace-only **selected** candidate (`parse_git_sha`); that is distinct from whitespace-only `GIT_SHA` at select time (fall through).
 - **Do** keep Docker HEALTHCHECK as HTTP 200 only.
 - **Do** place runtime ARG/ENV after `COPY --from=builder`, not immediately after `FROM runtime` (apt-get cache).
 - **Do** read env **per request** in `health()` (helpers stay pure `&str`; no `dotenvy` in the handler).
@@ -35,6 +36,8 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 - **Don’t** scrape Coolify logs for SOURCE SHA.
 - **Don’t** stamp ARG/ENV only on the builder (ARG does not cross `FROM`).
 - **Don’t** close leftover on regex-only live `git_sha` (bake presence ≠ follows `main`).
+- **Don’t** close leftover on `VERIFY1276_IID=1276` without `VERIFY1276_EXPECT_SHA` (stale manual hex can PASS).
+- **Don’t** enable Coolify watch paths until leftover is closed if glance uses repo `HEAD`.
 
 ## Live leftover probe (`VERIFY1276_REQUIRE_LIVE=1` or `VERIFY1276_IID=1276`)
 
@@ -42,7 +45,9 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 
 If **`VERIFY1276_EXPECT_SHA`** is set (leftover glance after a land: full or short hex of that merge), FAIL unless one of `git_sha` / expect is a prefix of the other (case-insensitive). Checkbox stays operator/#297; do not infer it from HTTP.
 
-Leftover-complete must list **both**: checkbox **on** **and** tip-match after an indexer-touching land. Regex-only is bake presence, not “follows `main`.” A stale hex from a one-off manual bake would PASS regex-only while auto-deploy is still off.
+Leftover-complete must list **both**: checkbox **on** **and** tip-match after an indexer-touching land. A leftover glance that should close #1276 **must** set `VERIFY1276_EXPECT_SHA` to that merge. Regex-only / `VERIFY1276_IID=1276` without `EXPECT_SHA` is bake presence (can PASS a stale manual hex), not “follows `main`.” Issue-body AC (“matching the baked commit”) is weaker; ADR leftover-complete wins.
+
+Leave Coolify watch paths **off** until leftover is closed if glance uses repo `git rev-parse HEAD`. If include-source-commit injects a name other than `SOURCE_COMMIT`, leftover still has the hex-`GIT_SHA` path — confirm at leftover, not in the code MR.
 
 Do not scrape Coolify.
 

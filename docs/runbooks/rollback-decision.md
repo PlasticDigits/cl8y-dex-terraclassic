@@ -187,7 +187,7 @@ curl -sS "${INDEXER_URL}/api/v1/pairs?limit=3" | jq '.items[0].pair_address'
 terrad query wasm contract-state smart "<pair_addr>" '{"pool":{}}' --node "$LCD_URL" | jq '.data'
 ```
 
-- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). Regex-only hex is bake presence, not proof the Coolify auto-deploy checkbox is on.
+- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). Regex-only / IID-only hex is bake presence, not proof the Coolify auto-deploy checkbox is on. Leftover-complete still needs checkbox evidence **and** `VERIFY1276_EXPECT_SHA` tip-match ([ADR 0006](../adr/0006-indexer-health-git-sha.md)).
 - [ ] Block lag acceptable vs chain head.
 - [ ] Spot-check pair reserves and recent swaps against LCD.
 - [ ] No `INDEXER_REORG_HALT` in logs after recovery.
