@@ -1,7 +1,7 @@
 # Design 1277 — trader rolling raw volume `NUMERIC(38, 0)`
 
 **Issue:** [#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277)  
-**Revision:** 2026-09-20-r5 (pins implementer constraint: copy #553 SQL onto the heal `Transaction`; do not call pool-level `refresh_trader_total_volume_usd(&pool)` inside the helper)  
+**Revision:** 2026-09-20-r6 (pins: copy #553 SQL from `traders.rs` not `volume.rs`; poller gate is raw-lifetime only; leftover-zero omits `COALESCE` on `NOT NULL` `total_volume`)  
 **Canonical decision:** [ADR 0005](../docs/adr/0005-trader-rolling-volume-numeric.md)  
 **Playbook:** [`skills/AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md`](../skills/AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md)
 
@@ -45,7 +45,7 @@ Live `indexer/src/indexer/poller.rs` order: `#1269` `backfill_missing_swap_amm_f
 | #553 USD after heal | Same migration file **and** same poller transaction, after leftover-zero: copy of `refresh_trader_total_volume_usd` SQL, then leftover-USD `NULL`. Required, not optional. Unpriced stays NULL (**R5**). Heal INSERT/UPDATE/leftover-zero still do not `SET` USD (**V1277-3**). Do not change P522-Q for senders who still have priced swaps. |
 | `upsert_trader` | `total_volume = LEAST(traders.total_volume + $2, POWER(10::numeric, 38) - 1)` (and the insert branch `LEAST($2, …)`). USD `LEAST` stays `10^20 - 10^-18`. |
 | `refresh_rolling_volumes` | Keep current two-statement tx: window `UPDATE … FROM SUM` + idle zero `UPDATE`. **D2** still applies. No `INSERT`. |
-| Poller startup | In `indexer/src/indexer/poller.rs`, call `heal_trader_lifetime_from_swaps` **before** `refresh_all_volume_windows(..., true)` (the `#1269` slot, after `backfill_missing_swap_amm_fees`). Do **not** copy the `#676` slot after refresh — that leaves post-deploy skip-class wallets off `sort=volume_24h` until the 5-minute loop. Mismatch-gated (`COALESCE` like `#676` `positions_trade_count_diverges`: missing sender **or** `total_trades` / capped `total_volume` diverge **or** leftover-lifetime with no remaining swaps). Registered / zero-lifetime ghosts do **not** trip. When the gate fires, one transaction: INSERT + lifetime UPDATE + leftover-zero + priced USD + leftover-USD `NULL`. Priced USD is the #553 SQL text executed on `&mut Transaction<'_, Postgres>`. **Do not** call `refresh_trader_total_volume_usd(&pool)` inside the helper (that function `.execute(pool)` auto-commits on another connection) **or** after that commit (crash window). Catalog `volume.rs` keeps the pool-level function for non-heal callers. |
+| Poller startup | In `indexer/src/indexer/poller.rs`, call `heal_trader_lifetime_from_swaps` **before** `refresh_all_volume_windows(..., true)` (the `#1269` slot, after `backfill_missing_swap_amm_fees`). Do **not** copy the `#676` slot after refresh — that leaves post-deploy skip-class wallets off `sort=volume_24h` until the 5-minute loop. Mismatch-gated (`COALESCE` like `#676` `positions_trade_count_diverges`: missing sender **or** `total_trades` / capped `total_volume` diverge **or** leftover-lifetime with no remaining swaps). Gate is **raw-lifetime only** — do **not** expand it to `total_volume_usd` on this ticket (USD-only skew with matching raw totals is migrate leftover-USD plus later catalog refresh). Registered / zero-lifetime ghosts do **not** trip. When the gate fires, one transaction: INSERT + lifetime UPDATE + leftover-zero + priced USD + leftover-USD `NULL`. Priced USD is a **copy** of `traders::refresh_trader_total_volume_usd` SQL (`indexer/src/db/queries/traders.rs`, currently 313–328) on `&mut Transaction<'_, Postgres>`. `volume.rs` only *calls* that helper; it does not contain the trader USD `UPDATE`. **Do not** call `refresh_trader_total_volume_usd(&pool)` inside the helper (`.execute(pool)` auto-commits on another connection) **or** after that commit (crash window). Do not move the pool helper onto `&mut Transaction`. Catalog `volume.rs` keeps the pool-level function for non-heal callers. |
 | HTTP | Unscoped `TraderResponse` raw volumes **and** pair-scoped `total_volume`: `bd_plain_string`. Rolling zeros on pair-scoped rows stay `"0"`. P&L fields already mixed; this ticket owns raw **volume** strings only. |
 | Verify | `make verify-issue-1277` → `scripts/qa/verify-issue-1277.sh` (Postgres only). Target may land with the implement MR. Crates: `indexer_volume_window_decay`, `volume_usd_catalog`, `api_traders`, plus the new overflow/skip test; `--test-threads=1`. |
 
@@ -104,6 +104,8 @@ WHERE t.address = sub.sender;
 -- Do not DELETE (keep tier / registered / P&L). Do not touch rolling (D2) or USD
 -- (priced + leftover-USD statements below). Idle wallets that still have old
 -- swap_events do not match NOT EXISTS.
+-- total_volume is NOT NULL DEFAULT 0 (renamed from 20260310000001); do not add
+-- COALESCE as a NULL-ghost fix. Gate SQL still COALESCE both sides like #676.
 UPDATE traders t
 SET
   total_trades = 0,
@@ -119,8 +121,9 @@ AND (
   OR t.total_volume IS DISTINCT FROM 0
 );
 
--- Required #553 stamp (copy of refresh_trader_total_volume_usd). Unpriced stays NULL (R5).
--- Do not change P522-Q for senders who still have priced swaps.
+-- Required #553 stamp. Copy SQL from traders::refresh_trader_total_volume_usd
+-- (traders.rs, currently 313–328) — not from volume.rs (that file only calls the helper).
+-- Unpriced stays NULL (R5). Do not change P522-Q for senders who still have priced swaps.
 UPDATE traders t
 SET total_volume_usd = sub.usd,
     updated_at = NOW()
@@ -149,9 +152,9 @@ WHERE t.total_volume_usd IS NOT NULL
   );
 ```
 
-Rust `heal_trader_lifetime_from_swaps` **copies** INSERT + lifetime UPDATE + leftover-zero + leftover-USD **and** the #553 priced SQL (keep-in-sync comment, same pattern as `volume.rs` `backfill_swap_volume_usd` / #548) onto the **same** `sqlx` transaction (`&mut Transaction<'_, Postgres>`). sqlx migrations cannot call Rust. Live `refresh_trader_total_volume_usd` is `pool: &PgPool` + `.execute(pool)` — **do not call it from this helper** (would leave the heal `Transaction`). Catalog / `volume.rs` still uses that pool-level UPDATE-only function for non-heal priced-sender refresh (formula unchanged). Do **not** `SET` USD in INSERT / lifetime UPDATE / leftover-zero. Do **not** extract a `&PgPool` from the helper and pass it to `refresh_trader_total_volume_usd`.
+Rust `heal_trader_lifetime_from_swaps` **copies** INSERT + lifetime UPDATE + leftover-zero + leftover-USD **and** the #553 priced SQL onto the **same** `sqlx` transaction (`&mut Transaction<'_, Postgres>`). Copy the priced SQL from `traders::refresh_trader_total_volume_usd` (`indexer/src/db/queries/traders.rs`, currently 313–328). `volume.rs` only *calls* `traders::refresh_trader_total_volume_usd` (`volume.rs` ~453); it does not contain that `UPDATE`. Keep-in-sync comment *pattern* may still cite `volume.rs` `backfill_swap_volume_usd` / #548. sqlx migrations cannot call Rust. Live helper is `pool: &PgPool` + `.execute(pool)` — **do not call it from this helper** (would leave the heal `Transaction`). Do **not** move that pool helper onto `&mut Transaction`; catalog / `volume.rs` still uses it for non-heal priced-sender refresh (formula unchanged). Do **not** `SET` USD in INSERT / lifetime UPDATE / leftover-zero. Do **not** extract a `&PgPool` from the helper and pass it to `refresh_trader_total_volume_usd`.
 
-Mismatch-gate (`trader_lifetime_diverges_from_swaps`) — **SQL analog of** `#676` `positions_trade_count_diverges` (`COALESCE(s.n,0) IS DISTINCT FROM COALESCE(p.trade_count,0)`), **not** r3’s `WHERE s.sender IS NOT NULL`, and **not** “`traders` is small”. The scan is `GROUP BY sender` over `swap_events` (`idx_swaps_sender` exists). Skip writes when aligned.
+Mismatch-gate (`trader_lifetime_diverges_from_swaps`) — **SQL analog of** `#676` `positions_trade_count_diverges` (`COALESCE(s.n,0) IS DISTINCT FROM COALESCE(p.trade_count,0)`), **not** r3’s `WHERE s.sender IS NOT NULL`, and **not** “`traders` is small”. The scan is `GROUP BY sender` over `swap_events` (`idx_swaps_sender` exists). Skip writes when aligned. Gate compares **raw lifetime only** (`total_trades` / capped `total_volume`). USD-only skew with matching raw totals is migrate leftover-USD plus later catalog refresh (`volume.rs` → pool helper). Do **not** expand the gate to `total_volume_usd` on this ticket unless a new leftover shows up.
 
 Ghost split (same `COALESCE`, not “all ghosts”):
 
@@ -200,6 +203,8 @@ Keep **D2** / **D5** ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclas
 | Gate `WHERE s.sender IS NOT NULL` (r3) | Excludes leftover-lifetime ghosts; `traders_healed` can log while those rows stay inflated; restart `upsert_trader` double-counts. |
 | Heal commit then pool-level USD | Crash after heal leaves totals aligned; next boot skips heal **and** USD. Skip-class priced volume stays NULL. |
 | Call `refresh_trader_total_volume_usd(&pool)` inside `heal_trader_lifetime_from_swaps` | Live helper is `pool: &PgPool` + `.execute(pool)` — another connection, auto-commit. A later rollback of the heal `Transaction` (or a crash before leftover-USD) splits USD from INSERT/lifetime/leftover-zero. Copy the #553 SQL onto `&mut Transaction`. Catalog `volume.rs` keeps the pool-level function. |
+| Copy #553 SQL from `volume.rs` | `volume.rs` does not contain it; it only *calls* `traders::refresh_trader_total_volume_usd`. Source is `traders.rs` (currently 313–328). Do not move the pool helper. |
+| Expand poller gate to USD-only skew | USD-only mismatch with aligned `total_trades` / `total_volume` is migrate leftover-USD plus later catalog `volume.rs` → pool helper. Expanding the gate on this ticket re-scans `swap_events` for a leftover the heal tx already stamps. |
 
 ## Complexity added / removed
 
@@ -241,7 +246,7 @@ Existing #577 **D5** logs: 5-minute loop `Failed to refresh rolling trader volum
 
 1. **Schema + canonical heal SQL + #553 USD UPDATE + leftover-USD `NULL`** in one sqlx migration (`ALTER` with `USING`, then INSERT/UPDATE/leftover-zero, then priced USD stamp, then leftover-USD). No app code yet still leaves rolling UPDATE failing until the process loads the new type — ship with slice 2.
 2. **`upsert_trader` `LEAST`** on raw lifetime add.
-3. **`heal_trader_lifetime_from_swaps` + `trader_lifetime_diverges_from_swaps`** in `traders.rs`. Migration SQL is canonical; Rust copies it with a keep-in-sync comment (`volume.rs` `backfill_swap_volume_usd`). Gate is the `COALESCE` SQL above. Helper opens **one** transaction: INSERT + lifetime UPDATE + leftover-zero + priced USD (**copy** of `refresh_trader_total_volume_usd` SQL onto `&mut Transaction`, **not** `refresh_trader_total_volume_usd(&pool)`) + leftover-USD `NULL`; then commit. Poller calls the helper **before** `refresh_all_volume_windows(..., true)` in `poller.rs`. Poller does not chain a second pool-level USD call. Do not call `refresh_trader_total_volume_usd(&pool)` inside the helper.
+3. **`heal_trader_lifetime_from_swaps` + `trader_lifetime_diverges_from_swaps`** in `traders.rs`. Migration SQL is canonical; Rust copies it with a keep-in-sync comment (`backfill_swap_volume_usd` *pattern*). Copy priced USD from `traders::refresh_trader_total_volume_usd` (not `volume.rs`). Gate is the `COALESCE` SQL above — **raw-lifetime only**. Helper opens **one** transaction: INSERT + lifetime UPDATE + leftover-zero + priced USD (**copy** of that SQL onto `&mut Transaction`, **not** `refresh_trader_total_volume_usd(&pool)`) + leftover-USD `NULL`; then commit. Do not move the pool helper. Poller calls the helper **before** `refresh_all_volume_windows(..., true)` in `poller.rs`. Poller does not chain a second pool-level USD call.
 4. **`bd_plain_string`** on unscoped rolling + `total_volume` **and** pair-scoped `total_volume`.
 5. **Tests** (I1–I10, I7b, **A1**) + **`make verify-issue-1277`** (crates named below; Makefile target may land with the implement MR).
 6. **Docs:** invariants row **V1277-1–V1277-8**, decay skill pointer, reorg runbook leftover-zero (not DELETE), `docs/testing.md`, `AGENTS.md` verify line.
@@ -308,4 +313,4 @@ Do not treat env-only restart as enough: old binary + new columns is OK; new bin
 - Unscoped `GET /api/v1/traders/leaderboard?sort=volume_24h` for the I1 wallet: `volume_24h` is `"1000000000000000000000"` (plain digits). Pair-scoped `total_volume` is also plain digits (**I7b**).
 - After `--cleanup-derived` fixture: leftover-lifetime ghost zeros; registered zero-lifetime does not trip; simulated `upsert_trader` is not additive on the old totals.
 - Coolify: migrate applied, indexer up, no rolling-trader error in the 5-minute log for that dataset.
-- ADR 0005 + this file + skill **V1277-1–V1277-8** + invariants/runbook pointers land with the implement MR (design branch may already contain the docs).
+- ADR 0005 stays **Proposed** until the implement MR. [`docs/architecture.md`](../docs/architecture.md) / [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) present tense is the **target** state on this design SHA — implement MR lands the migration + poller hook with those docs (do not rewrite them to future tense on the design branch). ADR 0005 + this file + skill **V1277-1–V1277-8** + invariants/runbook pointers may already be on the design branch.
