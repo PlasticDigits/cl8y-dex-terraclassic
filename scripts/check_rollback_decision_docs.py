@@ -34,6 +34,7 @@ REQUIRED_RUNBOOK_MARKERS: tuple[str, ...] = (
     "auto-deploy off is **not** a process stop",
     "auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass",
     "start only the hotfix image",
+    "`idx_reclass` is **2(b)**",
     "schema is the bug or no hotfix that still embeds N",
     "idx_restart",
     "N-shipping image",
@@ -60,6 +61,12 @@ DIRTY_ORDER = (
     "DELETE every success=false → idx_reclass"
 )
 DIRTY_2B_START = "start only the hotfix image"
+DIRTY_2B_GUARD = "`idx_reclass` is **2(b)**"
+DIRTY_2A_START = "dirty → **2(a)**: start **only** the restored prior image"
+DIRTY_2C_START = "dirty → **2(c)**: stay stopped through downs"
+UNQUALIFIED_DIRTY_2B = "dirty `idx_reclass` → **2(b)**"
+MERMAID_FWD_START = "idx_fwd_start[2(b) start only the hotfix image]"
+MERMAID_FWD_CLEAN = "idx_fwd[2(b) keep schema; hotfix; no Stop]"
 MERMAID_2C_YES = "schema is the bug or no hotfix that still embeds N"
 ROLLBACK_BINARY_ROW = "| **Rollback binary** |"
 N_SHIPPING = "N-shipping image"
@@ -170,6 +177,35 @@ def main() -> int:
             f"{RUNBOOK.relative_to(ROOT)} mermaid must not use "
             "'Yes — schema is the bug' without the no-hotfix clause"
         )
+    if MERMAID_FWD_START not in runbook_text:
+        fail(
+            f"{RUNBOOK.relative_to(ROOT)} mermaid dirty 2(b) must be "
+            f"{MERMAID_FWD_START!r}"
+        )
+    if MERMAID_FWD_CLEAN not in runbook_text:
+        fail(
+            f"{RUNBOOK.relative_to(ROOT)} mermaid clean 2(b) must be "
+            f"{MERMAID_FWD_CLEAN!r}"
+        )
+    for line in runbook_text.splitlines():
+        s = line.strip()
+        if not any(
+            s.startswith(n)
+            for n in (
+                "idx_ahead_dirty",
+                "idx_pair_dirty",
+                "idx_dirty",
+                "idx_stop_dirty",
+                "idx_reclass",
+            )
+        ):
+            continue
+        scrubbed = s.replace("idx_fwd_start", "")
+        if "idx_fwd" in scrubbed:
+            fail(
+                f"{RUNBOOK.relative_to(ROOT)} dirty mermaid must not route "
+                f"to idx_fwd: {s}"
+            )
 
     for path, text in (
         (SKILL, skill_text),
@@ -183,8 +219,19 @@ def main() -> int:
         rel = path.relative_to(ROOT)
         if DIRTY_ORDER not in text:
             fail(f"{rel} must pin dirty action list {DIRTY_ORDER!r}")
+        if DIRTY_2B_GUARD not in text:
+            fail(f"{rel} must pin dirty→2(b) guard {DIRTY_2B_GUARD!r}")
         if DIRTY_2B_START not in text:
             fail(f"{rel} must pin dirty→2(b) {DIRTY_2B_START!r}")
+        if DIRTY_2A_START not in text:
+            fail(f"{rel} must pin dirty→2(a) {DIRTY_2A_START!r}")
+        if DIRTY_2C_START not in text:
+            fail(f"{rel} must pin dirty→2(c) {DIRTY_2C_START!r}")
+        if UNQUALIFIED_DIRTY_2B in text:
+            fail(
+                f"{rel} must not pin unqualified {UNQUALIFIED_DIRTY_2B!r}; "
+                f"use {DIRTY_2B_GUARD!r}"
+            )
         if STOP_NOT_AUTODEPLOY not in text:
             fail(f"{rel} must pin warning {STOP_NOT_AUTODEPLOY!r}")
 
@@ -212,7 +259,8 @@ def main() -> int:
         "OK: rollback decision runbook covers SEC-H09 (four incident types) and is "
         "linked from launch-checklist, wasm-admin-migration, emergency-commands, "
         "incident template, and security-model; 2(c) every-ahead-version + sequential "
-        "dirty gate (auto-deploy off → Stop → snapshot → DELETE → idx_reclass) pinned "
+        "dirty gate (auto-deploy off → Stop → snapshot → DELETE → idx_reclass) and "
+        "qualified dirty idx_reclass start-only (when 2(b)/2(a)/2(c)) pinned "
         "in ADR 0006, architecture, invariants, testing, runbook, and both skills"
     )
     return 0
