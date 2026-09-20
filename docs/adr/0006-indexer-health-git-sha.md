@@ -24,11 +24,12 @@ ADR **0005** is reserved by the #1269 hop-fee design branch (`docs/adr/0005-prot
 
    **Probe vs leftover-complete** (slice 1 script contract):
 
-   - Bake presence: `VERIFY1276_REQUIRE_LIVE=1` **without** `VERIFY1276_IID` and **without** `VERIFY1276_EXPECT_SHA` may PASS on hex `git_sha`.
-   - Leftover-complete: `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1` **must FAIL** if `VERIFY1276_EXPECT_SHA` is unset/empty. Do not PASS bake presence under the IID.
+   - Sibling leftover scripts (`scripts/qa/verify-issue-701.sh` and 673/686/698/702/706) treat `VERIFY*_IID=<n>` / `REQUIRE_LIVE=1` as **live probe required; unreachable = FAIL not SKIP**. Repo-wide there is no `EXPECT_SHA` / `LEFTOVER_COMPLETE` outside this design. Copying `require_live()` does **not** implement leftover-complete.
+   - Bake presence: `VERIFY1276_REQUIRE_LIVE=1` **without** `VERIFY1276_IID` and **without** `VERIFY1276_EXPECT_SHA` may PASS on hex `git_sha`. Unreachable still FAIL under `REQUIRE_LIVE`.
+   - Leftover-complete: #1276 **adds** `VERIFY1276_EXPECT_SHA` under `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1`. Unset or whitespace-only `EXPECT_SHA` after trim **must FAIL**. Bare `VERIFY1276_IID=1276` without `EXPECT_SHA` is an **intentional FAIL**, not a #701 bug. Prefer **FAIL before curl**. Script exit `1` when `FAIL > 0`.
    - Rollout leftover command: `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=$(git rev-parse HEAD) make verify-issue-1276`.
 2. **Bake.** Production image is [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) (not Nixpacks). Re-declare `ARG GIT_SHA` / `ARG SOURCE_COMMIT` and export them as runtime `ENV` on the **`runtime` stage after `COPY --from=builder`** (after apt/`useradd`/COPY/USER/`API_BIND`; **before** `HEALTHCHECK`). Do **not** place ARG immediately after `FROM debian:bookworm-slim AS runtime` — that busts the `apt-get` layer on every auto-deploy commit. ARG does not cross `FROM`; stamping only the builder leaves the serving process with empty/unset vars. The image still `COPY indexer/` only and does **not** run `git` in either stage. Empty ARG is valid for local `cargo run`. Live leftover bake: set `GIT_SHA` **only** when the value is already hex; leave it unset/empty when the Coolify UI token is `HEAD` or a branch name — **never** copy that token into `GIT_SHA`. `SOURCE_COMMIT` (include-source-commit) is then the candidate.
-3. **Auto-deploy (documented intent, operator leftover).** The indexer Coolify app for this Forgejo path should follow protected `main` like the frontend app. CAC grouped drain maps **one** UUID per `owner/repo` and is **not** the indexer redeploy path. Dual-app skew (Vite vs Rust rebuild) is expected. Schema-on-boot stays `sqlx::migrate!()`; rollback after a landed migration without `down.sql` is **forward-fix only**.
+3. **Auto-deploy (documented intent, operator leftover).** The indexer Coolify app for this Forgejo path should follow protected `main` like the frontend app. CAC grouped drain maps **one** UUID per `owner/repo` and is **not** the indexer redeploy path. Dual-app skew (Vite vs Rust rebuild) is expected. Schema-on-boot stays `sqlx::migrate!()`. Coolify-era indexer rollback is **three-way** (canonical: [`rollback-decision.md`](../runbooks/rollback-decision.md) § Auto-deploy era): schema unchanged → restore prior Coolify image; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot → apply **that** `down.sql` → restore image → attest. A failed migrate that rolled back leaves **no** new `_sqlx_migrations` row → restore path.
 
 Implement may merge slices 1–2 while the Coolify checkbox is still off. Closing #1276 leftover glance waits on operator evidence, not on implement agents. Implement **must not** flip Coolify.
 
@@ -151,8 +152,7 @@ Pure function, no I/O. Input: the **selected** candidate string from `select_com
 | Rule | Meaning |
 |------|---------|
 | **Expand-only while auto-deploy is on** | New sqlx migrations that ride auto-deploy must be additive (nullable columns, new tables, new indexes). Breaking rewrites require the operator to **turn auto-deploy off**, apply by [`rollback-decision.md`](../runbooks/rollback-decision.md), then re-enable. |
-| **Forward-fix if schema moved** | After boot migrate with **no** paired `down.sql`, do **not** roll the previous binary — schema is ahead and startup will fail. Snapshot Postgres before risky migrations. Ship a hotfix image. |
-| **Binary rollback if schema did not move** | Crash/logic bug with unchanged `_sqlx_migrations`: restore the previous Coolify indexer image. Confirm `git_sha` on `/health` matches the restored digest’s commit (prefix OK). |
+| **Three-way Coolify rollback** | Inspect production `_sqlx_migrations` via Coolify DB shell / indexer app `DATABASE_URL` (not `scripts/lib/postgres-psql.sh`). **Unchanged** (including a failed migrate that rolled back — **no** new row) → restore the prior Coolify indexer image. **Ahead + no** paired `down.sql` → snapshot; ship a hotfix image (do not restore the previous binary). **Ahead + documented revert** under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) → snapshot → apply **that** `down.sql` → restore the prior Coolify image → attest. Do not invent a revert file. Local/systemd still uses host `psql` / `postgres-psql.sh` and the same revert files. Image binary is `cl8y-dex-indexer`. |
 | **Dual-app skew** | Frontend (Vite) and indexer (Rust) are two apps on one repo. After `main` land they may differ for minutes to tens of minutes. Additive JSON is the default contract. A frontend that **requires** a new indexer field must land **after** live `/health` `git_sha` includes the indexer commit (or auto-deploy is temporarily off and the pair is coupled). Historical **#573** / **M573** “rebuild frontend + restart indexer together” stays that stack’s leftover — do **not** rewrite [`AGENTS_POST_MERGE_STACK.md`](../../skills/AGENTS_POST_MERGE_STACK.md) or **M590** as if auto-deploy applied retroactively. Going forward, couple only for breaking indexer contracts. |
 | **CAC drain** | Still one UUID per Forgejo path. Auto-deploy on the indexer app is independent. Do not use drain as the indexer redeploy path. |
 
@@ -180,7 +180,7 @@ Pure function, no I/O. Input: the **selected** candidate string from `select_com
 | **H1276-4** | `GET /api/v1/health/fee-discount` unchanged. |
 | **H1276-5** | No Coolify UUID, token, host, occupancy, or inventory in `/health` or issue comments. |
 | **H1276-6** | Auto-deploy is the indexer Coolify protected-branch flag (operator / #297). CAC drain is not the indexer redeploy path. CAC `/health` stays SHA-free. Do not infer the checkbox from HTTP. |
-| **H1276-7** | While auto-deploy is on: expand-only migrations; schema-ahead → forward-fix; dual-app skew is expected. |
+| **H1276-7** | While auto-deploy is on: expand-only migrations; dual-app skew is expected. Coolify-era rollback is **three-way** (unchanged → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot + that `down.sql` + restore). Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. |
 | **H1276-8** | #1277, CAC map shape, #706, Nixpacks, and a second `/status` stay out of this ticket. |
 
 Existing Observability exception for fee-discount LCD probe is unchanged. Generic health is **no longer** “ok-only.” Do not reuse hub-wrap **H11–H16** or audit **H11** (LCD fanout) for this liveness rule — those IDs are taken.
@@ -194,6 +194,8 @@ Existing Observability exception for fee-discount LCD probe is unchanged. Generi
 | First **set** var wins, including empty `GIT_SHA=""` | Leftover include-source-commit injects `SOURCE_COMMIT` while Dockerfile still exports empty `GIT_SHA`. Live `/health` would omit `git_sha`. Rejected. |
 | “Prefer both” by copying Coolify `git_commit_sha` into `GIT_SHA` | That UI field is often `HEAD`. Select then rejects and does **not** fall through to `SOURCE_COMMIT`. Set `GIT_SHA` only when already hex. |
 | Close leftover on regex-only live `git_sha` | A stale hex from a one-off manual bake would PASS while auto-deploy is still off. `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is bake presence (may PASS). `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` without `EXPECT_SHA` **must FAIL**. Leftover-complete is checkbox **and** tip-match. Map issue AC per Outcome (strengthen baked-commit; no frontend HTTP attest). |
+| Copy sibling `require_live()` as leftover-complete | Sibling IID/`REQUIRE_LIVE` fail-close on **unreachable**. #1276 **adds** `EXPECT_SHA` under IID/`LEFTOVER_COMPLETE`. Bare `VERIFY1276_IID=1276` without `EXPECT_SHA` is an intentional FAIL, not a #701 bug. Prefer FAIL before curl. |
+| Two-way Coolify mermaid (`ahead` always forward-fix) **or** Coolify never applies `down.sql` while Decision still lists revert | Leaves on-call to invent the third branch. **Three-way** is the Coolify-era rule (unchanged → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot + that `down.sql` + restore). Reject “never apply `down.sql` on Coolify.” Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. |
 | Enable watch paths before leftover glance | A glance that uses repo `HEAD` after a frontend-only land FAILS tip-match while auto-deploy may be on. Leave watch paths off until leftover closed. |
 | Optional Dockerfile stamp | Live leftover AC cannot pass; Coolify `HEAD` stays invisible. Bake path is **required**. |
 | ARG/ENV only on the builder (frontend Vite pattern) | ARG does not cross `FROM`. The serving process would have no `GIT_SHA` / `SOURCE_COMMIT`. |
@@ -211,7 +213,7 @@ Existing Observability exception for fee-discount LCD probe is unchanged. Generi
 
 ## Complexity added / removed
 
-**Added:** parser + select (empty/`GIT_SHA` whitespace trim fallthrough; `HEAD`/`main`/`refs/` non-empty reject) + two Docker ARG/ENV on the runtime stage after COPY; one optional JSON key; auto-deploy rollback/skew rules; operator leftover checklist + close-comment template; `VERIFY1276_REQUIRE_LIVE` leftover probe; leftover-complete fail-close when IID/`LEFTOVER_COMPLETE` is set without `VERIFY1276_EXPECT_SHA`; watch paths off until leftover closed.
+**Added:** parser + select (empty/`GIT_SHA` whitespace trim fallthrough; `HEAD`/`main`/`refs/` non-empty reject) + two Docker ARG/ENV on the runtime stage after COPY; one optional JSON key; auto-deploy skew rules + **three-way** Coolify rollback; operator leftover checklist + close-comment template; `VERIFY1276_REQUIRE_LIVE` leftover probe; leftover-complete **adds** `EXPECT_SHA` under IID/`LEFTOVER_COMPLETE` (FAIL before curl; not sibling `require_live()`); watch paths off until leftover closed.
 
 **Removed:** “scrape Coolify logs to learn the serving SHA”; implicit “indexer is always a manual Coolify click after every `main` land” as the **only** documented path (manual remains available when auto-deploy is off or disabled for a breaking migrate).
 
@@ -225,7 +227,7 @@ Additive `/health` JSON: old clients that require exact `{"status":"ok"}` **outs
 
 ## Observability
 
-- Attest: `GET https://indexer.dex.cl8y.com/health` → parse JSON with **jq** (not grep). `status=ok` plus hex `git_sha`. After an indexer-touching land, compare to `git rev-parse HEAD` (prefix OK) via `VERIFY1276_EXPECT_SHA`. `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` **must FAIL** without `EXPECT_SHA`. `VERIFY1276_REQUIRE_LIVE=1` alone may PASS bake presence.
+- Attest: `GET https://indexer.dex.cl8y.com/health` → parse JSON with **jq** (not grep). `status=ok` plus hex `git_sha`. After an indexer-touching land, compare to `git rev-parse HEAD` (prefix OK) via `VERIFY1276_EXPECT_SHA`. Sibling IID is unreachable-fail; leftover-complete **adds** `EXPECT_SHA` (bare IID without it is an intentional FAIL; prefer FAIL before curl). `VERIFY1276_REQUIRE_LIVE=1` alone may PASS bake presence.
 - Tracing: optional debug log that SHA was omitted (reason enum: unset / rejected), **never** log the rejected raw value if it looked secret-shaped (log `rejected` only).
 - Do **not** scrape Coolify logs. Do **not** add `/metrics`.
 - `make verify-issue-1276` live leftover: see Tests. Do not assert the Coolify checkbox from HTTP.
@@ -247,11 +249,12 @@ Additive `/health` JSON: old clients that require exact `{"status":"ok"}` **outs
 | Secret-shaped env | Omit — 200. No echo. |
 | ARG/ENV only on builder | Serving process has no stamp; live leftover **FAIL** (`git_sha` omitted). Implement must pin runtime stage. |
 | ARG immediately after `FROM runtime` | `apt-get` layer busts on every commit. Implement must pin after `COPY --from=builder`. |
-| Live hex without `VERIFY1276_EXPECT_SHA` | `VERIFY1276_REQUIRE_LIVE=1` without IID may PASS (bake presence). `VERIFY1276_IID=1276` or `VERIFY1276_LEFTOVER_COMPLETE=1` **FAIL**s (leftover-complete gate). Not leftover-complete until checkbox + tip-match. |
+| Live hex without `VERIFY1276_EXPECT_SHA` | `VERIFY1276_REQUIRE_LIVE=1` without IID may PASS (bake presence). `VERIFY1276_IID=1276` or `VERIFY1276_LEFTOVER_COMPLETE=1` **FAIL**s before curl when `EXPECT_SHA` is unset/whitespace-only (intentional; not a #701 bug). Not leftover-complete until checkbox + tip-match. |
+| Prod incident uses `postgres-psql.sh` | Reads **local** compose `_sqlx_migrations`. Restore/forward-fix on the wrong DB. Inspect Coolify DB / indexer `DATABASE_URL` only. |
 | Include-source-commit arg name ≠ `SOURCE_COMMIT` | Empty `SOURCE_COMMIT`; leftover uses hex `GIT_SHA` if set. Confirm the name at leftover; do not guess in the code MR. |
 | Watch paths on + glance uses repo `HEAD` after a frontend-only land | Tip-match FAIL while auto-deploy may be on. Leave watch paths off until leftover closed; glance after an indexer-touching land. |
 | Auto-deploy rebuild on frontend-only land (no watch paths) | Extra Rust image build + process restart; migrate no-ops if schema unchanged. Cost only. |
-| Auto-deploy land with new expand-only migration | Boot migrate succeeds; previous image **cannot** start on the new schema → forward-fix if the new binary is bad. |
+| Auto-deploy land with new expand-only migration | Boot migrate succeeds; previous image **cannot** start on the new schema. Coolify-era: no `down.sql` → forward-fix; documented revert → snapshot + that `down.sql` + restore. |
 | Auto-deploy land with breaking migration while flag on | High risk. Policy: do not ship breaking migrations with auto-deploy on. |
 | Vite at tip T, indexer still T-n | Skew window. Additive APIs OK. Breaking consume-after-expand. |
 | Implement agent tries Coolify UI | Forbidden (#297). Document leftover only. |
@@ -263,9 +266,9 @@ Additive `/health` JSON: old clients that require exact `{"status":"ok"}` **outs
 | Slice | Who | Deliverable | Blocks |
 |-------|-----|-------------|--------|
 | **0 — this design** | design_author | ADR 0006, architecture pointer, invariant amendment, runbook policy, skill | Slice 1 |
-| **1 — code + tests** | implement | `select_commit_env` + `parse_git_sha`, per-request `health()`, Dockerfile **runtime** ARG/ENV **after** `COPY --from=builder`, unit tests (`&str` / `Option<&str>`), `#[serial]` env-mutating integration tests (`remove_var` both keys on ok-only, including `generic_health_unchanged`), `scripts/qa/verify-issue-1276.sh` (local; live Coolify SKIP unless `VERIFY1276_REQUIRE_LIVE=1` / `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1`; jq parse; leftover-complete gate **FAIL**s if `EXPECT_SHA` unset under IID/`LEFTOVER_COMPLETE`; `REQUIRE_LIVE=1` alone may PASS bake presence) | Slice 3 leftover glance |
+| **1 — code + tests** | implement | `select_commit_env` + `parse_git_sha`, per-request `health()`, Dockerfile **runtime** ARG/ENV **after** `COPY --from=builder`, unit tests (`&str` / `Option<&str>`), `#[serial]` env-mutating integration tests (`remove_var` both keys on ok-only, including `generic_health_unchanged`), `scripts/qa/verify-issue-1276.sh` (local; live Coolify SKIP unless `VERIFY1276_REQUIRE_LIVE=1` / `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1`; jq parse; leftover-complete **adds** `EXPECT_SHA` under IID/`LEFTOVER_COMPLETE` — **FAIL before curl** if unset/whitespace-only after trim; exit `1` when `FAIL > 0`; `REQUIRE_LIVE=1` alone may PASS bake presence; sibling IID is unreachable-fail, not leftover-complete) | Slice 3 leftover glance |
 | **2 — remaining docs in the code MR** | implement | `indexer/.env.example` optional `GIT_SHA` / `SOURCE_COMMIT` (hex only; never document copying `HEAD` into `GIT_SHA`); Makefile `verify-issue-1276` wiring; AGENTS.md **only if** that file already lists 1276 children. Do **not** rewrite M573/M590. `docs/testing.md` already has the verify row (do not treat “together” wording as this ticket’s deliverable). | none |
-| **3 — operator leftover** | founder/operator (#297) | Coolify indexer: protected-branch auto-deploy **on**; include-source-commit (confirm injected arg name at leftover; code still bakes `SOURCE_COMMIT` + hex-`GIT_SHA` fallback); `GIT_SHA` left unset/empty unless already hex; **watch paths off until leftover closed**. Live leftover glance: HTTP probe **plus** `VERIFY1276_EXPECT_SHA` tip-match after an indexer-touching land. `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` **FAIL** without `EXPECT_SHA`. Checkbox is operator-attested, not inferred from HTTP. Close with the comment template below (no UUID/token/host). Map issue AC per Outcome. | Closes leftover AC only |
+| **3 — operator leftover** | founder/operator (#297) | Coolify indexer: protected-branch auto-deploy **on**; include-source-commit (confirm injected arg name at leftover; code still bakes `SOURCE_COMMIT` + hex-`GIT_SHA` fallback); `GIT_SHA` left unset/empty unless already hex; **watch paths off until leftover closed**. Live leftover glance: HTTP probe **plus** `VERIFY1276_EXPECT_SHA` tip-match after an indexer-touching land. `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` **FAIL before curl** without `EXPECT_SHA` (intentional; not a sibling `require_live()` bug). Checkbox is operator-attested, not inferred from HTTP. Close with the comment template below (no UUID/token/host). Map issue AC per Outcome. | Closes leftover AC only |
 
 Slice 1 **must not** wait on slice 3. Slice 3 **must not** be attempted by implement agents.
 
@@ -317,31 +320,31 @@ Local cargo/lib + API tests always run. Live Coolify is **not** required for the
 
 When `VERIFY1276_REQUIRE_LIVE=1` **or** `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1`:
 
+0. Leftover-complete gate **before curl:** if `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1`, trim `VERIFY1276_EXPECT_SHA`. Unset or whitespace-only → **FAIL** immediately (do not GET `/health`). Script exit `1` when `FAIL > 0`. Bare IID without `EXPECT_SHA` is an **intentional FAIL**, not a #701 / sibling `require_live()` bug. Sibling leftover scripts use IID/`REQUIRE_LIVE` only as **unreachable = FAIL not SKIP**.
 1. `GET https://indexer.dex.cl8y.com/health` must be HTTP **200**.
 2. Parse the body with **jq** (not grep): `status` and `git_sha` as JSON fields.
 3. Require `status=ok` and `git_sha` matching `^[0-9a-f]{7,40}$` (lowercase; if the field is mixed-case hex, compare after ASCII lowercasing).
 4. Missing or omitted `git_sha` is **FAIL**, not SKIP. `{"status":"ok"}` alone is FAIL.
-5. Leftover-complete gate: if `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1`, **FAIL** when `VERIFY1276_EXPECT_SHA` is unset/empty. Do **not** PASS bake presence under the IID.
-6. If **`VERIFY1276_EXPECT_SHA`** is set (leftover glance after a land: full or short hex of that merge, `git rev-parse HEAD` or prefix): trim, lowercase, require it is hex 7–40, then **FAIL** unless one of `git_sha` / expect is a **prefix of the other** (case-insensitive). A stale hex that is valid but not a prefix of that merge **FAIL**s.
-7. Bake presence: `VERIFY1276_REQUIRE_LIVE=1` **without** `VERIFY1276_IID` and **without** `EXPECT_SHA` may PASS on hex `git_sha` (steps 1–4 only).
-8. Unreachable host is **FAIL** under this flag (do not SKIP).
-9. Without the live flag: unreachable host is **SKIP**. Local tests can still PASS while live `/health` stays `{"status":"ok"}` until leftover bake.
-10. Do **not** scrape Coolify. Do **not** try to assert the auto-deploy checkbox from HTTP.
+5. If **`VERIFY1276_EXPECT_SHA`** is set (leftover glance after a land: full or short hex of that merge, `git rev-parse HEAD` or prefix): trim, lowercase, require it is hex 7–40, then **FAIL** unless one of `git_sha` / expect is a **prefix of the other** (case-insensitive). A stale hex that is valid but not a prefix of that merge **FAIL**s.
+6. Bake presence: `VERIFY1276_REQUIRE_LIVE=1` **without** `VERIFY1276_IID` and **without** `EXPECT_SHA` may PASS on hex `git_sha` (steps 1–4 only).
+7. Unreachable host is **FAIL** under this flag (do not SKIP). Sibling meaning of IID is this unreachable-fail, **not** leftover-complete.
+8. Without the live flag: unreachable host is **SKIP**. Local tests can still PASS while live `/health` stays `{"status":"ok"}` until leftover bake.
+9. Do **not** scrape Coolify. Do **not** try to assert the auto-deploy checkbox from HTTP.
 
-`VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is **bake presence only**. That is not leftover-complete. Sibling leftover scripts treat `VERIFY*_IID=<n>` as the leftover-complete gate — so `VERIFY1276_IID=1276` **must FAIL** without `EXPECT_SHA` (a stale manual hex must not close #1276 while auto-deploy is still off). Rollout leftover command: `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=$(git rev-parse HEAD) make verify-issue-1276`.
+`VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is **bake presence only**. That is not leftover-complete. #1276 **adds** `EXPECT_SHA` under `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` so a stale manual hex cannot close leftover while auto-deploy is still off. Rollout leftover command: `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=$(git rev-parse HEAD) make verify-issue-1276`.
 
 ## Rollout
 
 1. Merge slice 1–2 to `main` (frontend auto-deploy may ship the dApp first; indexer still manual until leftover). Implement **must not** flip Coolify.
 2. Operator leftover: include-source-commit (confirm injected arg name at leftover); `GIT_SHA` only if already hex (never copy `HEAD`); auto-deploy checkbox **on**; **watch paths off until leftover closed**.
-3. Glance after an indexer-touching land: `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=$(git rev-parse HEAD) make verify-issue-1276` (short hex OK). Live `git_sha` must prefix-match that merge. `VERIFY1276_REQUIRE_LIVE=1` alone does not close leftover. `VERIFY1276_IID=1276` without `EXPECT_SHA` **FAIL**s.
+3. Glance after an indexer-touching land: `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=$(git rev-parse HEAD) make verify-issue-1276` (short hex OK). Live `git_sha` must prefix-match that merge. `VERIFY1276_REQUIRE_LIVE=1` alone does not close leftover. `VERIFY1276_IID=1276` without `EXPECT_SHA` **FAIL**s before curl (intentional; sibling IID is unreachable-fail only).
 4. Post-merge playbooks that required a coupled restart for a **named historical stack** stay those issues’ leftovers (M573, M590). New default after leftover: each app follows `main`; couple only for breaking contracts.
 
 ## Rollback
 
 - **Health field:** revert the handler (clients tolerate missing `git_sha`). HEALTHCHECK unchanged.
 - **Dockerfile ARG:** removing ARG is compatible with empty env (omit field).
-- **Indexer binary after auto-deploy:** see Decision table and [`rollback-decision.md`](../runbooks/rollback-decision.md) § Auto-deploy era Coolify checklist. Schema-ahead → forward-fix. Schema unchanged → restore the **prior Coolify indexer deploy** (not `git checkout` + `cargo run` on the production host). Attest rollback with `/health` `git_sha` + `EXPECT_SHA`, not Coolify log scrape.
+- **Indexer binary after auto-deploy:** see Decision **Three-way Coolify rollback** and [`rollback-decision.md`](../runbooks/rollback-decision.md) § Auto-deploy era Coolify incident checklist. Unchanged → restore prior Coolify image. Ahead + no `down.sql` → forward-fix. Ahead + documented revert → snapshot + that `down.sql` + restore. Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. Image binary is `cl8y-dex-indexer`. Attest rollback with `/health` `git_sha` + `EXPECT_SHA`, not Coolify log scrape.
 - **Auto-deploy flag:** operator may turn it **off** (#297) without a code revert.
 
 ## Integration completion criteria
@@ -357,7 +360,7 @@ When `VERIFY1276_REQUIRE_LIVE=1` **or** `VERIFY1276_IID=1276` **or** `VERIFY1276
 **#1276 leftover is complete when (operator, not implement) — both, not regex-only:**
 
 1. Indexer Coolify protected-branch auto-deploy is **on** (operator / #297; documented; no UUID pasted). **Do not infer this from HTTP.** Record it with the slice 3 close-comment template.
-2. After an indexer-touching `main` land: live `GET /health` includes hex `git_sha` that **prefix-matches** that merge (`VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=<full or short hex>`). Not `HEAD`. `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` **FAIL** if `EXPECT_SHA` is unset — do not close on bake presence under the IID.
+2. After an indexer-touching `main` land: live `GET /health` includes hex `git_sha` that **prefix-matches** that merge (`VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=<full or short hex>`). Not `HEAD`. `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` **FAIL before curl** if `EXPECT_SHA` is unset/whitespace-only — do not close on bake presence under the IID. That FAIL is #1276 leftover-complete, not sibling unreachable-fail.
 3. Glance used public `/health` + jq only (no Coolify log scrape). Paste the command and jq `git_sha` in the close comment.
 4. Watch paths were **off** for that glance (or the land touched indexer paths). After leftover-complete, watch paths are optional. Close comment: `Watch paths: off for this glance.`
 5. Close comment records include-source-commit’s injected name: `SOURCE_COMMIT` **or** `other=<name> + hex GIT_SHA path` (confirmed at leftover, not in the code MR).

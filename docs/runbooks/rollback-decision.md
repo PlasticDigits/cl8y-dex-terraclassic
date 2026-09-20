@@ -32,10 +32,12 @@ flowchart TD
   idx --> idx_dec{Process crash only?}
   idx_dec -->|Yes| idx_restart[Restart indexer]
   idx_dec -->|No — bad data or migration| idx_schema{New _sqlx_migrations row?}
+  idx_schema -->|No — unchanged| idx_cool[Restore prior Coolify indexer deploy]
   idx_schema -->|Yes — no down.sql| idx_fwd[Forward-fix hotfix image]
-  idx_schema -->|No| idx_cool[Restore prior Coolify indexer deploy]
+  idx_schema -->|Yes — documented down.sql| idx_down[Snapshot; apply that down.sql; restore prior Coolify image]
   idx_fwd --> idx_attest[Attest /health git_sha EXPECT_SHA]
   idx_cool --> idx_attest
+  idx_down --> idx_attest
   ctr --> ctr_risk{Funds at risk<br/>or exploit active?}
   ctr_risk -->|Yes| ctr_pause[Emergency pause / blacklist]
   ctr_risk -->|No — contained bug| ctr_fix{State-compatible<br/>forward migrate?}
@@ -47,7 +49,7 @@ flowchart TD
   chain_dec -->|No| chain_pause[Pause all affected pairs; coordinate upgrade]
 ```
 
-Indexer `idx_schema` / `idx_attest` → [§ Auto-deploy era Coolify incident checklist](#auto-deploy-era-1276) (inspect `_sqlx_migrations` → forward-fix **or** restore prior Coolify image → attest `git_sha` with `EXPECT_SHA` → re-enable auto-deploy if it was off).
+Indexer `idx_schema` / `idx_attest` → [§ Auto-deploy era Coolify incident checklist](#auto-deploy-era-1276) (**three-way:** unchanged → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot + that `down.sql` + restore). Inspect `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL` (not `postgres-psql.sh`). A failed migrate that rolled back leaves **no** new row → restore. Attest `git_sha` with `EXPECT_SHA` → re-enable auto-deploy if it was off.
 
 ---
 
@@ -133,20 +135,21 @@ VITE_INDEXER_URL=https://<staging-indexer> npm run build
 
 ### Auto-deploy era (#1276)
 
-Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Frontend Vite may already be at a newer tip (**dual-app skew** — expected). Production rollback is **restore previous Coolify indexer deploy** (or a hotfix image), not `git checkout` + `cargo run` on the host.
+Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Frontend Vite may already be at a newer tip (**dual-app skew** — expected). Production rollback is the **three-way** Coolify path below (restore prior image, hotfix, or documented `down.sql` then restore), not `git checkout` + `cargo run` on the host. Image binary is `cl8y-dex-indexer`.
 
 | Choose | When auto-deploy is on |
 |--------|------------------------|
+| **Restore previous image** | No new `_sqlx_migrations` row (migrate no-op **or** a failed migrate that rolled back — **no** new row). Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit via `VERIFY1276_EXPECT_SHA` (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
 | **Forward-fix (required)** | The bad release **applied** a new migration and there is **no** paired `down.sql`. Do **not** restore the previous image — schema is ahead and the old binary may fail startup. Snapshot Postgres; ship a hotfix image. |
-| **Rollback previous image** | No new `_sqlx_migrations` row (or migrate was a no-op). Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit via `VERIFY1276_EXPECT_SHA` (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
+| **Documented revert then restore** | The bad release **applied** a new migration **and** a paired documented `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/). Snapshot Postgres; apply **that** `down.sql`; restore the prior Coolify indexer image; attest. Do not invent a revert file. |
 | **Disable auto-deploy temporarily** | Breaking / rewrite migrations. Operator Coolify checkbox off ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)), apply by this runbook, then re-enable. Expand-only migrations may ride auto-deploy. |
 
 #### Coolify incident checklist (production indexer)
 
 Use this table from the mermaid `idx_schema` branch. Do not publish Coolify UUIDs, tokens, or hosts.
 
-1. **Inspect `_sqlx_migrations`.** Query `SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 5;` (host `psql` or `scripts/lib/postgres-psql.sh`). Decide schema-ahead vs unchanged.
-2. **Forward-fix or restore.** Schema-ahead and no `down.sql` → snapshot Postgres and ship a **hotfix Coolify image** (do not restore the previous binary). Schema unchanged → **restore the previous Coolify indexer deploy** (Coolify Deploys → prior successful deploy). Local `git checkout` + `cargo run` / systemd is a **dev** path only.
+1. **Inspect `_sqlx_migrations` on the production Coolify database.** Query `SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 5;` via the **Coolify Postgres shell** or `psql` using the **indexer app** `DATABASE_URL` secret (the DB the running Coolify indexer uses). Do **not** use `scripts/lib/postgres-psql.sh` here — that helper is host/`docker compose exec` for **LocalTerra/dev** Postgres, not Coolify-provisioned production ([`mainnet-soft-launch.md`](./mainnet-soft-launch.md): Postgres is provisioned in Coolify separately). A failed `sqlx::migrate!()` that rolled back leaves **no** new `_sqlx_migrations` row → treat as **schema unchanged** (restore path).
+2. **Three-way action.** (a) Schema **unchanged** (including failed migrate with no new row) → **restore the previous Coolify indexer deploy** (Coolify Deploys → prior successful deploy). (b) Schema **ahead** and **no** paired `down.sql` under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) → snapshot Postgres and ship a **hotfix Coolify image** (do not restore the previous binary). (c) Schema **ahead** **and** a **documented** paired revert file exists for that migration → snapshot Postgres → apply **that** `down.sql` → restore the prior Coolify indexer image → attest. Do not invent a revert file. Local `git checkout` + `cargo run` / systemd is a **dev** path only.
 3. **Attest `/health` `git_sha`.** `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=<restored-or-hotfix-sha> make verify-issue-1276` (or `curl` + jq). Prefix-match. Do not scrape Coolify SOURCE SHA logs. Do not infer the auto-deploy checkbox from HTTP.
 4. **Re-enable auto-deploy** if it was turned off for a breaking migrate / incident (#297). Leave it off only while the expand-only rule is suspended.
 5. **Record** the restored/hotfix SHA and UTC in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline). Close leftover #1276 still needs the ADR slice 3 comment template (not this incident path).
@@ -155,7 +158,7 @@ CAC drain (one UUID per Forgejo path) is **not** the indexer rollback/redeploy p
 
 ### Rollback path (commands)
 
-**Production (Coolify — leftover path):** follow **Auto-deploy era → Coolify incident checklist** above. Restore the previous Coolify indexer deploy, or ship a hotfix image. Do not treat `git checkout` + `cargo run` as the production rollback.
+**Production (Coolify — leftover path):** follow **Auto-deploy era → Coolify incident checklist** above (**three-way**). Do not treat `git checkout` + `cargo run` as the production rollback.
 
 **Local / systemd (dev):**
 
@@ -172,11 +175,12 @@ psql "$DATABASE_URL" -X -c "SELECT version FROM _sqlx_migrations ORDER BY versio
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
   -f indexer/migrations/revert/20260509160000_limit_order_placement_lifecycle.down.sql
 
-# 4. Deploy prior release binary (dev only — production uses Coolify restore)
+# 4. Deploy prior release binary (dev only — production uses Coolify restore).
+# Image / cargo binary is cl8y-dex-indexer (docker/indexer/Dockerfile), not cl8y-indexer.
 export PATH="/usr/local/cargo/bin:$PATH"
 git checkout "<prior-release-sha>"
 cd indexer && cargo build --release
-# Install binary to service path, e.g. cp target/release/cl8y-indexer /usr/local/bin/
+# Install binary to service path, e.g. cp target/release/cl8y-dex-indexer /usr/local/bin/
 
 # 5. Restart and watch logs
 cd indexer && cargo run --release
@@ -207,7 +211,7 @@ curl -sS "${INDEXER_URL}/api/v1/pairs?limit=3" | jq '.items[0].pair_address'
 terrad query wasm contract-state smart "<pair_addr>" '{"pool":{}}' --node "$LCD_URL" | jq '.data'
 ```
 
-- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is bake presence. `VERIFY1276_IID=1276` without `EXPECT_SHA` **FAIL**s. Leftover-complete still needs checkbox evidence **and** `VERIFY1276_EXPECT_SHA` tip-match ([ADR 0006](../adr/0006-indexer-health-git-sha.md)).
+- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is bake presence. Sibling leftover IID is unreachable-fail. `VERIFY1276_IID=1276` without `EXPECT_SHA` **FAIL**s before curl (intentional leftover-complete gate). Leftover-complete still needs checkbox evidence **and** `VERIFY1276_EXPECT_SHA` tip-match ([ADR 0006](../adr/0006-indexer-health-git-sha.md)).
 - [ ] Block lag acceptable vs chain head.
 - [ ] Spot-check pair reserves and recent swaps against LCD.
 - [ ] No `INDEXER_REORG_HALT` in logs after recovery.

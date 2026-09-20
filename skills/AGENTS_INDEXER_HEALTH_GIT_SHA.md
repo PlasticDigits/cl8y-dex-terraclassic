@@ -17,7 +17,7 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 | **H1276-4** | `GET /api/v1/health/fee-discount` unchanged. |
 | **H1276-5** | No inventory, tokens, or Coolify UUIDs on `/health`. |
 | **H1276-6** | Auto-deploy is the indexer Coolify protected-branch flag. CAC drain is one UUID per path — not the indexer redeploy path. Do not infer the checkbox from HTTP. |
-| **H1276-7** | Auto-deploy on ⇒ expand-only sqlx migrations; schema-ahead ⇒ forward-fix; Vite vs Rust skew is expected. Do not rewrite M573/M590 as if auto-deploy applied retroactively. |
+| **H1276-7** | Auto-deploy on ⇒ expand-only sqlx migrations; dual-app skew is expected. Coolify-era rollback is **three-way** (unchanged → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot + that `down.sql` + restore). Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. Do not rewrite M573/M590 as if auto-deploy applied retroactively. |
 | **H1276-8** | #1277, CAC map, #706, Nixpacks, second `/status` out of scope. |
 
 ## Do / don’t
@@ -36,7 +36,7 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 - **Don’t** scrape Coolify logs for SOURCE SHA.
 - **Don’t** stamp ARG/ENV only on the builder (ARG does not cross `FROM`).
 - **Don’t** close leftover on regex-only live `git_sha` (bake presence ≠ follows `main`).
-- **Don’t** close leftover on `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` without `VERIFY1276_EXPECT_SHA` (**FAIL**; stale manual hex must not close).
+- **Don’t** close leftover on `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` without `VERIFY1276_EXPECT_SHA` (**FAIL before curl**; stale manual hex must not close). Sibling leftover IID is unreachable-fail, not leftover-complete.
 - **Don’t** treat `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` as leftover-complete (that path may PASS bake presence).
 - **Don’t** enable Coolify watch paths until leftover is closed if glance uses repo `HEAD`.
 
@@ -46,9 +46,11 @@ Canonical: [ADR 0006 Tests](../docs/adr/0006-indexer-health-git-sha.md). Overvie
 
 `GET https://indexer.dex.cl8y.com/health` must be 200. Parse JSON with **jq** (not grep): `status=ok` and hex `git_sha` `^[0-9a-f]{7,40}$`. Missing/omitted field is **FAIL**, not SKIP. Unreachable host is FAIL when a live flag is set; SKIP without it.
 
+**Sibling leftover scripts** (`verify-issue-701.sh` and 673/686/698/702/706): `VERIFY*_IID=<n>` / `REQUIRE_LIVE=1` means **live probe required; unreachable = FAIL not SKIP**. They do **not** implement leftover-complete. There is no repo-wide `EXPECT_SHA` outside this design. Copying `require_live()` is not the #1276 leftover gate.
+
 **Bake presence:** `VERIFY1276_REQUIRE_LIVE=1` **without** `VERIFY1276_IID` and **without** `VERIFY1276_EXPECT_SHA` may PASS on hex `git_sha`. That is not leftover-complete.
 
-**Leftover-complete gate:** `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1` **must FAIL** if `VERIFY1276_EXPECT_SHA` is unset/empty. Do not PASS bake presence under the IID.
+**Leftover-complete gate:** #1276 **adds** `VERIFY1276_EXPECT_SHA` under `VERIFY1276_IID=1276` **or** `VERIFY1276_LEFTOVER_COMPLETE=1`. Unset or whitespace-only after trim **must FAIL before curl**. Bare `VERIFY1276_IID=1276` without `EXPECT_SHA` is an **intentional FAIL**, not a #701 bug. Script exit `1` when `FAIL > 0`. Do not PASS bake presence under the IID.
 
 If **`VERIFY1276_EXPECT_SHA`** is set (leftover glance after a land: full or short hex of that merge), FAIL unless one of `git_sha` / expect is a prefix of the other (case-insensitive). Checkbox stays operator/#297; do not infer it from HTTP.
 
