@@ -17,7 +17,7 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 | **H1276-4** | `GET /api/v1/health/fee-discount` unchanged. |
 | **H1276-5** | No inventory, tokens, or Coolify UUIDs on `/health`. |
 | **H1276-6** | Auto-deploy is the indexer Coolify protected-branch flag. CAC drain is one UUID per path — not the indexer redeploy path. Do not infer the checkbox from HTTP. |
-| **H1276-7** | Auto-deploy on ⇒ expand-only sqlx migrations; dual-app skew is expected. Coolify-era rollback is **three-way** (unchanged → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot + that `down.sql` + restore). Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. Do not rewrite M573/M590 as if auto-deploy applied retroactively. |
+| **H1276-7** | Auto-deploy on ⇒ expand-only sqlx migrations; dual-app skew is expected. Coolify-era rollback is **three-way** (unchanged vs prior Coolify Deploys SHA’s latest `*.sql` → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → auto-deploy off + snapshot + that `down.sql` + `DELETE` that `_sqlx_migrations` row + restore). Dirty `success = false` → repair ledger first. Revert files do not touch the ledger. No production `set_ignore_missing`. Inspect prod via Coolify DB / indexer `DATABASE_URL`, not `postgres-psql.sh`. Do not rewrite M573/M590 as if auto-deploy applied retroactively. |
 | **H1276-8** | #1277, CAC map, #706, Nixpacks, second `/status` out of scope. |
 
 ## Do / don’t
@@ -39,6 +39,10 @@ Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify log
 - **Don’t** close leftover on `VERIFY1276_IID=1276` / `VERIFY1276_LEFTOVER_COMPLETE=1` without `VERIFY1276_EXPECT_SHA` (**FAIL before curl**; stale manual hex must not close). Sibling leftover IID is unreachable-fail, not leftover-complete.
 - **Don’t** treat `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` as leftover-complete (that path may PASS bake presence).
 - **Don’t** enable Coolify watch paths until leftover is closed if glance uses repo `HEAD`.
+- **Don’t** treat `SELECT version … LIMIT 5` or “no new row” as unchanged — compare `_sqlx_migrations` (`version`, `success`, `installed_on`) to the prior Coolify Deploys SHA’s latest `indexer/migrations/*.sql`.
+- **Don’t** apply `down.sql` then restore without `DELETE FROM _sqlx_migrations WHERE version = <that version>` (revert files do not touch the ledger).
+- **Don’t** start 2(c) with auto-deploy still on, or re-enable it before a good tip is on `main`.
+- **Don’t** set `set_ignore_missing(true)` on production `sqlx::migrate!()`.
 
 ## Live leftover probe
 

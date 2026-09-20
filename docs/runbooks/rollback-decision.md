@@ -9,7 +9,7 @@ Operator playbook for **when** to rollback vs hotfix forward during live inciden
 | Surface | Typical symptom | First control | Rollback available? |
 |---------|-----------------|---------------|---------------------|
 | **Frontend** | Broken UI, wrong `VITE_*` addresses, CSP/connect-src failure | Hotfix build or redeploy prior static artifact | Yes — prior `dist/` or Render deploy rollback |
-| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; Coolify restore or hotfix; optional `down.sql`; attest via `/health` `git_sha` ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)) | Partial — schema rollback only when paired `.down.sql` exists; schema-ahead after auto-deploy migrate is **forward-fix** |
+| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; Coolify restore or hotfix; optional `down.sql`; attest via `/health` `git_sha` ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)) | Partial — schema rollback only when paired `.down.sql` exists; **ahead + no `down.sql` → forward-fix**; **ahead + documented revert → auto-deploy off + snapshot + that `down.sql` + `DELETE` that `_sqlx_migrations` row + restore** |
 | **Contract** | Logic bug post-migrate | Emergency **pause** / blacklist; forward-fix **migrate** | Partial — migrate to prior `code_id` only if still on chain and state compatible |
 | **Chain dependency** | Chain upgrade incompatibility, IBC-hooks patch, LCD/RPC outage | Pause pairs; switch LCD provider; wait for validator upgrade | No on-chain rollback — coordinate with network |
 
@@ -31,13 +31,15 @@ flowchart TD
   fe_dec -->|No| fe_roll[Rollback: prior static build]
   idx --> idx_dec{Process crash only?}
   idx_dec -->|Yes| idx_restart[Restart indexer]
-  idx_dec -->|No — bad data or migration| idx_schema{New _sqlx_migrations row?}
-  idx_schema -->|No — unchanged| idx_cool[Restore prior Coolify indexer deploy]
-  idx_schema -->|Yes — no down.sql| idx_fwd[Forward-fix hotfix image]
-  idx_schema -->|Yes — documented down.sql| idx_down[Snapshot; apply that down.sql; restore prior Coolify image]
+  idx_dec -->|No — bad data or migration| idx_schema{Ledger vs prior Coolify SHA?}
+  idx_schema -->|Dirty success=false| idx_dirty[Repair that ledger row; then restore or forward-fix]
+  idx_schema -->|Unchanged vs prior latest *.sql| idx_cool[Restore prior Coolify indexer deploy]
+  idx_schema -->|Ahead — no down.sql| idx_fwd[Forward-fix hotfix image]
+  idx_schema -->|Ahead — documented down.sql| idx_down[Auto-deploy off; snapshot; that down.sql; DELETE that ledger row; restore]
   idx_fwd --> idx_attest[Attest /health git_sha EXPECT_SHA]
   idx_cool --> idx_attest
   idx_down --> idx_attest
+  idx_dirty --> idx_attest
   ctr --> ctr_risk{Funds at risk<br/>or exploit active?}
   ctr_risk -->|Yes| ctr_pause[Emergency pause / blacklist]
   ctr_risk -->|No — contained bug| ctr_fix{State-compatible<br/>forward migrate?}
@@ -49,7 +51,7 @@ flowchart TD
   chain_dec -->|No| chain_pause[Pause all affected pairs; coordinate upgrade]
 ```
 
-Indexer `idx_schema` / `idx_attest` → [§ Auto-deploy era Coolify incident checklist](#auto-deploy-era-1276) (**three-way:** unchanged → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → snapshot + that `down.sql` + restore). Inspect `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL` (not `postgres-psql.sh`). A failed migrate that rolled back leaves **no** new row → restore. Attest `git_sha` with `EXPECT_SHA` → re-enable auto-deploy if it was off.
+Indexer `idx_schema` / `idx_attest` → [§ Auto-deploy era Coolify incident checklist](#auto-deploy-era-1276) (**three-way:** unchanged vs prior Coolify Deploys SHA’s latest `indexer/migrations/*.sql` → restore; ahead + no `down.sql` → forward-fix; ahead + documented revert → auto-deploy off + snapshot + that `down.sql` + `DELETE` that `_sqlx_migrations` row + restore). Inspect `_sqlx_migrations` (`version`, `success`, `installed_on`) via Coolify DB / indexer `DATABASE_URL` (not `postgres-psql.sh`). Dirty `success = false` → repair ledger, then restore or forward-fix. Revert files do **not** touch the ledger. Attest `git_sha` with `EXPECT_SHA`. After 2(c), leave auto-deploy off until a good tip is on `main`.
 
 ---
 
@@ -131,27 +133,30 @@ VITE_INDEXER_URL=https://<staging-indexer> npm run build
 | **Restart only** | Crash from transient LCD 429, OOM, or host reboot; **no** schema change in the failing release; data spot-checks match LCD. |
 | **Forward-fix** | Bug is in indexer logic but schema is compatible; patch release ready; safe to redeploy binary and catch up from `last_indexed_height`. |
 | **Rollback binary** | New release introduced bad parsing, wrong migrations, or data corruption; prior release binary is known-good. |
-| **Rollback schema (`down.sql`)** | A migration in the bad release must be reversed **and** a paired `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) ([docs/testing.md § Manual rollback SQL](../testing.md#frontend-integration-tests-charts--indexer)). |
+| **Rollback schema (`down.sql`)** | A migration in the bad release must be reversed **and** a paired `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) ([docs/testing.md § Manual rollback SQL](../testing.md#frontend-integration-tests-charts--indexer)). After `down.sql`, `DELETE` **that** `_sqlx_migrations` row (revert files do **not** touch the ledger). |
 
 ### Auto-deploy era (#1276)
 
-Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Frontend Vite may already be at a newer tip (**dual-app skew** — expected). Production rollback is the **three-way** Coolify path below (restore prior image, hotfix, or documented `down.sql` then restore), not `git checkout` + `cargo run` on the host. Image binary is `cl8y-dex-indexer`.
+Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Production `sqlx::migrate!()` in [`indexer/src/main.rs`](../../indexer/src/main.rs) does **not** call `set_ignore_missing` — the default migrator **rejects applied versions missing from the binary**. Integration tests set `set_ignore_missing(true)` only for worktree skew ([`indexer/tests/common/mod.rs`](../../indexer/tests/common/mod.rs)); do **not** paper over a leftover ledger row that way in production. Frontend Vite may already be at a newer tip (**dual-app skew** — expected). Production rollback is the **three-way** Coolify path below, not `git checkout` + `cargo run` on the host. Image binary is `cl8y-dex-indexer`.
 
-| Choose | When auto-deploy is on |
-|--------|------------------------|
-| **Restore previous image** | No new `_sqlx_migrations` row (migrate no-op **or** a failed migrate that rolled back — **no** new row). Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit via `VERIFY1276_EXPECT_SHA` (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
-| **Forward-fix (required)** | The bad release **applied** a new migration and there is **no** paired `down.sql`. Do **not** restore the previous image — schema is ahead and the old binary may fail startup. Snapshot Postgres; ship a hotfix image. |
-| **Documented revert then restore** | The bad release **applied** a new migration **and** a paired documented `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/). Snapshot Postgres; apply **that** `down.sql`; restore the prior Coolify indexer image; attest. Do not invent a revert file. |
-| **Disable auto-deploy temporarily** | Breaking / rewrite migrations. Operator Coolify checkbox off ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)), apply by this runbook, then re-enable. Expand-only migrations may ride auto-deploy. |
+Classify **unchanged** vs **ahead** by comparing `_sqlx_migrations` (`version`, `success`, `installed_on`) to the **prior successful Coolify deploy’s** latest `indexer/migrations/*.sql` (Coolify Deploys SHA is allowed; still **no** SOURCE SHA log scrape). Do **not** treat `SELECT version … LIMIT 5` or “no new row” as the baseline.
+
+| Choose | When |
+|--------|------|
+| **Restore previous image** | Ledger is **unchanged** vs that prior SHA’s latest `*.sql` (max successful `version` matches; no successful row newer than the baseline). Includes a transactional failure of the **first** new migration that left **no** row. Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit via `VERIFY1276_EXPECT_SHA` (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
+| **Forward-fix (required)** | Ledger is **ahead** (a successful row for a version newer than the prior SHA’s latest `*.sql`, or a version the prior image’s binary does not ship) **and** there is **no** paired `down.sql`. Success of `N` then failure of `N+1` is ahead (`N` applied). Do **not** restore the previous image. Snapshot Postgres; ship a hotfix image. |
+| **Documented revert then restore** | Ledger is **ahead** **and** a paired documented `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/). **Turn auto-deploy off first** ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). Then snapshot Postgres → apply **that** `down.sql` → `DELETE FROM _sqlx_migrations WHERE version = <that version>` (**only that row**) → restore the prior Coolify indexer image → attest. Leave auto-deploy **off** until a good tip is on `main` (revert commit or hotfix). Files under `revert/` undo schema only; they do **not** `DELETE` `_sqlx_migrations`. Do not invent a revert file. |
+| **Repair dirty ledger** | Any `_sqlx_migrations` row with `success = false` is dirty. Repair that row first, then restore or forward-fix. Restore of the prior image still fails while a dirty row remains. Not “no new successful row → restore.” |
+| **Disable auto-deploy temporarily** | Breaking / rewrite migrations, **and** as the **first** step of documented revert (2(c)). Operator Coolify checkbox off ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). After 2(c), leave it off until a good tip is on `main`. Expand-only migrations may ride auto-deploy. |
 
 #### Coolify incident checklist (production indexer)
 
 Use this table from the mermaid `idx_schema` branch. Do not publish Coolify UUIDs, tokens, or hosts.
 
-1. **Inspect `_sqlx_migrations` on the production Coolify database.** Query `SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 5;` via the **Coolify Postgres shell** or `psql` using the **indexer app** `DATABASE_URL` secret (the DB the running Coolify indexer uses). Do **not** use `scripts/lib/postgres-psql.sh` here — that helper is host/`docker compose exec` for **LocalTerra/dev** Postgres, not Coolify-provisioned production ([`mainnet-soft-launch.md`](./mainnet-soft-launch.md): Postgres is provisioned in Coolify separately). A failed `sqlx::migrate!()` that rolled back leaves **no** new `_sqlx_migrations` row → treat as **schema unchanged** (restore path).
-2. **Three-way action.** (a) Schema **unchanged** (including failed migrate with no new row) → **restore the previous Coolify indexer deploy** (Coolify Deploys → prior successful deploy). (b) Schema **ahead** and **no** paired `down.sql` under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) → snapshot Postgres and ship a **hotfix Coolify image** (do not restore the previous binary). (c) Schema **ahead** **and** a **documented** paired revert file exists for that migration → snapshot Postgres → apply **that** `down.sql` → restore the prior Coolify indexer image → attest. Do not invent a revert file. Local `git checkout` + `cargo run` / systemd is a **dev** path only.
+1. **Inspect `_sqlx_migrations` against the prior successful Coolify deploy.** Query `SELECT version, success, installed_on FROM _sqlx_migrations ORDER BY version DESC;` via the **Coolify Postgres shell** or `psql` using the **indexer app** `DATABASE_URL` secret (the DB the running Coolify indexer uses). Do **not** use `scripts/lib/postgres-psql.sh` here — that helper is host/`docker compose exec` for **LocalTerra/dev** Postgres, not Coolify-provisioned production ([`mainnet-soft-launch.md`](./mainnet-soft-launch.md): Postgres is provisioned in Coolify separately). Baseline: Coolify Deploys SHA of the **prior successful** indexer deploy (allowed). That SHA’s latest `indexer/migrations/*.sql` version (filename prefix) is “unchanged.” Still **do not** scrape Coolify SOURCE SHA logs. Classify: **dirty** = any `success = false` (repair that row, then restore or forward-fix; restore of the prior image **fails** while a dirty row remains — not “no new successful row → restore”); **unchanged** = max successful `version` equals the prior SHA’s latest `*.sql` and no successful row is newer (a transactional failure of the **first** new migration that left **no** row is unchanged); **ahead** = a successful `version` newer than that baseline (success of `N` then failure of `N+1` is ahead — `N` applied).
+2. **Three-way action.** (a) Schema **unchanged** vs that baseline → **restore the previous Coolify indexer deploy** (Coolify Deploys → prior successful deploy). (b) Schema **ahead** and **no** paired `down.sql` under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) → snapshot Postgres and ship a **hotfix Coolify image** (do not restore the previous binary). (c) Schema **ahead** **and** a **documented** paired revert file exists for that migration → **turn auto-deploy off first** ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)) → snapshot Postgres → apply **that** `down.sql` → `DELETE FROM _sqlx_migrations WHERE version = <that version>` (**only that row**) → restore the prior Coolify indexer image → attest. Files under `revert/` undo schema only; they do **not** `DELETE` `_sqlx_migrations`. Do not invent a revert file. Do **not** set `set_ignore_missing(true)` on production `sqlx::migrate!()`. Local `git checkout` + `cargo run` / systemd is a **dev** path only.
 3. **Attest `/health` `git_sha`.** `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=<restored-or-hotfix-sha> make verify-issue-1276` (or `curl` + jq). Prefix-match. Do not scrape Coolify SOURCE SHA logs. Do not infer the auto-deploy checkbox from HTTP.
-4. **Re-enable auto-deploy** if it was turned off for a breaking migrate / incident (#297). Leave it off only while the expand-only rule is suspended.
+4. **Re-enable auto-deploy** only after a good tip is on `main` (revert commit or hotfix) if it was turned off for 2(c) or a breaking migrate (#297). Leaving it on after 2(c) retriggers the bad tip and re-applies `N`.
 5. **Record** the restored/hotfix SHA and UTC in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline). Close leftover #1276 still needs the ADR slice 3 comment template (not this incident path).
 
 CAC drain (one UUID per Forgejo path) is **not** the indexer rollback/redeploy path.
@@ -166,14 +171,18 @@ CAC drain (one UUID per Forgejo path) is **not** the indexer rollback/redeploy p
 # 1. Stop indexer (systemd, k8s, or tmux)
 # systemctl stop cl8y-indexer
 
-# 2. Note current migration version
+# 2. Note current migration ledger (compare to prior SHA latest *.sql — not LIMIT 5 alone)
 source indexer/.env
-psql "$DATABASE_URL" -X -c "SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 5;"
+psql "$DATABASE_URL" -X -c "SELECT version, success, installed_on FROM _sqlx_migrations ORDER BY version DESC;"
 
 # 3. If the bad release ran a new migration, apply manual down.sql ONLY when documented
-# Example (adjust filename to the migration being reverted):
+# Example (adjust filename / version to the migration being reverted):
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
   -f indexer/migrations/revert/20260509160000_limit_order_placement_lifecycle.down.sql
+# Revert files undo schema only — they do NOT DELETE _sqlx_migrations.
+# Production sqlx::migrate!() rejects applied versions missing from the binary.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+  -c "DELETE FROM _sqlx_migrations WHERE version = 20260509160000;"
 
 # 4. Deploy prior release binary (dev only — production uses Coolify restore).
 # Image / cargo binary is cl8y-dex-indexer (docker/indexer/Dockerfile), not cl8y-indexer.
@@ -200,6 +209,9 @@ See [indexer reorg runbook § Shallow reorg recovery](./indexer-reorg-replay-ded
 - Most migrations have **no** automatic down path — rolling back binary without `down.sql` leaves schema ahead of code (startup may fail).
 - Derived tables (swaps, charts) may need rebuild from chain replay after a bad ingest window.
 - `down.sql` may **drop data** — take a Postgres snapshot before applying.
+- Files under `indexer/migrations/revert/` do **not** `DELETE` `_sqlx_migrations`. After `down.sql`, delete **only that** ledger row or the restored prior image exits on migrate validation (applied version missing from the binary). Do **not** set `set_ignore_missing(true)` in production.
+- A dirty `success = false` row is not “unchanged.” Repair the ledger before restore or forward-fix.
+- After documented revert, leave Coolify auto-deploy **off** until a good tip is on `main` — otherwise the bad tip rebuilds and re-applies `N`.
 - Indexer rollback does **not** fix on-chain state; pair pause may still be required if users acted on bad off-chain quotes.
 
 ### Recovery verification
