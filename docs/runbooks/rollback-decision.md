@@ -9,7 +9,7 @@ Operator playbook for **when** to rollback vs hotfix forward during live inciden
 | Surface | Typical symptom | First control | Rollback available? |
 |---------|-----------------|---------------|---------------------|
 | **Frontend** | Broken UI, wrong `VITE_*` addresses, CSP/connect-src failure | Hotfix build or redeploy prior static artifact | Yes — prior `dist/` or Render deploy rollback |
-| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; rollback binary + optional `down.sql` | Partial — schema rollback only when paired `.down.sql` exists |
+| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; rollback binary + optional `down.sql`; attest via `/health` `git_sha` ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)) | Partial — schema rollback only when paired `.down.sql` exists; schema-ahead after auto-deploy migrate is **forward-fix** |
 | **Contract** | Logic bug post-migrate | Emergency **pause** / blacklist; forward-fix **migrate** | Partial — migrate to prior `code_id` only if still on chain and state compatible |
 | **Chain dependency** | Chain upgrade incompatibility, IBC-hooks patch, LCD/RPC outage | Pause pairs; switch LCD provider; wait for validator upgrade | No on-chain rollback — coordinate with network |
 
@@ -31,7 +31,7 @@ flowchart TD
   fe_dec -->|No| fe_roll[Rollback: prior static build]
   idx --> idx_dec{Process crash only?}
   idx_dec -->|Yes| idx_restart[Restart indexer]
-  idx_dec -->|No — bad data or migration| idx_roll[Rollback binary + down.sql if needed]
+  idx_dec -->|No — bad data or migration| idx_roll[Forward-fix if schema moved;<br/>else prior image + down.sql]
   ctr --> ctr_risk{Funds at risk<br/>or exploit active?}
   ctr_risk -->|Yes| ctr_pause[Emergency pause / blacklist]
   ctr_risk -->|No — contained bug| ctr_fix{State-compatible<br/>forward migrate?}
@@ -125,6 +125,18 @@ VITE_INDEXER_URL=https://<staging-indexer> npm run build
 | **Rollback binary** | New release introduced bad parsing, wrong migrations, or data corruption; prior release binary is known-good. |
 | **Rollback schema (`down.sql`)** | A migration in the bad release must be reversed **and** a paired `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) ([docs/testing.md § Manual rollback SQL](../testing.md#frontend-integration-tests-charts--indexer)). |
 
+### Auto-deploy era (#1276)
+
+Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Frontend Vite may already be at a newer tip (**dual-app skew** — expected).
+
+| Choose | When auto-deploy is on |
+|--------|------------------------|
+| **Forward-fix (required)** | The bad release **applied** a new migration and there is **no** paired `down.sql`. Do **not** restore the previous image — schema is ahead and the old binary may fail startup. Snapshot Postgres; ship a hotfix image. |
+| **Rollback previous image** | No new `_sqlx_migrations` row (or migrate was a no-op). Restore the prior Coolify indexer deploy. Confirm `GET /health` `git_sha` matches that commit (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
+| **Disable auto-deploy temporarily** | Breaking / rewrite migrations. Operator Coolify checkbox off ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)), apply by this runbook, then re-enable. Expand-only migrations may ride auto-deploy. |
+
+CAC drain (one UUID per Forgejo path) is **not** the indexer rollback/redeploy path.
+
 ### Rollback path (commands)
 
 ```bash
@@ -175,7 +187,8 @@ curl -sS "${INDEXER_URL}/api/v1/pairs?limit=3" | jq '.items[0].pair_address'
 terrad query wasm contract-state smart "<pair_addr>" '{"pool":{}}' --node "$LCD_URL" | jq '.data'
 ```
 
-- [ ] `/health` returns OK; block lag acceptable vs chain head.
+- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)).
+- [ ] Block lag acceptable vs chain head.
 - [ ] Spot-check pair reserves and recent swaps against LCD.
 - [ ] No `INDEXER_REORG_HALT` in logs after recovery.
 - [ ] Record binary SHA, migration actions, and UTC in incident timeline.

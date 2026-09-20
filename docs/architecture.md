@@ -105,6 +105,12 @@ Our extensions (governance, treasury, FeeConfig, code ID whitelist, post-swap ho
 
 FIFO limit book, Pattern C splits, and indexer route solving are documented in [limit-orders.md](./limit-orders.md). Types and caps are in `dex-common` (`HybridSwapParams`, `PlaceLimitOrder`, `CancelLimitOrder`).
 
+## Indexer production attest {#indexer-production-attest}
+
+Two Coolify apps share this Forgejo repo: **frontend** (`dex.cl8y.com`, auto-deploy on) and **indexer** (`indexer.dex.cl8y.com`, Dockerfile [`docker/indexer/Dockerfile`](../docker/indexer/Dockerfile)). CAC grouped drain maps **one** UUID per `owner/repo` and is not the indexer redeploy path. Product attest is indexer `GET /health`: always `{"status":"ok"}`, plus optional `"git_sha"` when baked `GIT_SHA` / `SOURCE_COMMIT` parses as lowercase hex 7–40 (`HEAD` and secret-shaped values omitted). CAC `/health` stays SHA-free. Fee-discount health stays LCD-only.
+
+Auto-deploy on the indexer app is an operator Coolify protected-branch flag ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276) leftover, [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). Boot still runs `sqlx::migrate!()`; schema-ahead rollback is forward-fix. Vite vs Rust rebuild skew is expected. Decision, parser, bake ARG, slices, and leftover glance: [ADR 0006](./adr/0006-indexer-health-git-sha.md). Invariants: [`indexer-invariants.md`](./indexer-invariants.md) **Health git SHA (#1276)**. Playbook: [`AGENTS_INDEXER_HEALTH_GIT_SHA.md`](../skills/AGENTS_INDEXER_HEALTH_GIT_SHA.md).
+
 ## Directory Layout
 
 ```
