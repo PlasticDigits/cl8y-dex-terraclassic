@@ -29,7 +29,7 @@ Trailing windows use **`Utc::now() − window`**. No calendar-day reset. Decay t
 
 - **Do** bind `"window"` / cutoffs as SQL parameters (never concatenate user strings).
 - **Do** wrap each refresh function’s INSERT+zero-out in **one transaction**.
-- **Do** keep `LEAST(…, POWER(10,38)-1)` / USD cap on sums; zero-out writes `0` not NULL.
+- **Do** keep `LEAST(…, POWER(10,38)-1)` / USD cap on sums; zero-out writes `0` not NULL. Trader rolling destinations must be **`NUMERIC(38, 0)`** so that integer cap fits ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277) **V1277-1**).
 - **Do** key zero-out by `pair_id` / `(asset_id, window)` / `traders.address` + `idx_swaps_sender` / `idx_swaps_offer_asset`.
 - **Don’t** live-`SUM(swap_events)` on every `/overview` GET when the rollup is stale-but-nonzero.
 - **Don’t** zero lifetime trader fields “to fix 24h”.
@@ -57,6 +57,7 @@ Trailing windows use **`Utc::now() − window`**. No calendar-day reset. Decay t
 
 - [`AGENTS_INDEXER_VOLUME_PAGINATION.md`](./AGENTS_INDEXER_VOLUME_PAGINATION.md) — rollup read path + pagination (**V1–V5**)
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — retail USD box reads the global rollup ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548))
+- [`AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md`](./AGENTS_INDEXER_TRADER_ROLLING_VOLUME.md) — rolling + lifetime **raw** volume `(38, 0)` + skip-class heal ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277) **V1277-1–V1277-8**)
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Charts leaderboard uses **lifetime** `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)); still keep rolling columns correct for API / QA
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` 24h/7d/30d from the same rollup ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550))
 - [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres for integration tests

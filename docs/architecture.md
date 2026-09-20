@@ -105,6 +105,10 @@ Our extensions (governance, treasury, FeeConfig, code ID whitelist, post-swap ho
 
 FIFO limit book, Pattern C splits, and indexer route solving are documented in [limit-orders.md](./limit-orders.md). Types and caps are in `dex-common` (`HybridSwapParams`, `PlaceLimitOrder`, `CancelLimitOrder`).
 
+## Indexer raw volume types
+
+Pair / global / token raw offer sums are **`NUMERIC(38, 0)`** so 18-decimal CW20 notionals fit (`|x| < 10^20` overflows `(38, 18)`). Trader rolling `volume_24h` / `7d` / `30d` and lifetime `total_volume` are the same leftover class ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277), [ADR 0005](./adr/0005-trader-rolling-volume-numeric.md)). `total_volume_usd` stays `(38, 18)` (USD cap). Positions/P&L stay `(78, 18)` ([#676](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/676)). After an overflow skip, heal from `swap_events` — block replay does not insert missing senders. Trailing-window decay (**D2**) is unchanged.
+
 ## Directory Layout
 
 ```
