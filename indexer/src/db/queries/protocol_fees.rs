@@ -83,7 +83,7 @@ pub async fn insert_fee_event(pool: &PgPool, draft: &FeeEventDraft) -> Result<bo
 /// Attach colliding `swap_amm` rows to a hop, then insert hops still missing from
 /// `swap_events.commission_amount` (GitLab #1269). Idempotent — unique key +
 /// `ON CONFLICT DO NOTHING`. `fee_usd` NULL until [`backfill_null_fee_usd`].
-/// Keep SQL in sync with `indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`.
+/// Keep SQL in sync with `indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql`.
 pub async fn backfill_missing_swap_amm_fees(pool: &PgPool) -> Result<u64, sqlx::Error> {
     sqlx::query(
         r#"UPDATE protocol_fee_events e
