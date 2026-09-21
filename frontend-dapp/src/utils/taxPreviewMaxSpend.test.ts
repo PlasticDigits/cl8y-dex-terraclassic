@@ -158,6 +158,54 @@ describe('extra-debit submit gate (#1267)', () => {
     ).toBe(true)
   })
 
+  it('AC1: Honest LCD debit === declared === balance with sell_bps 500 still blocks', () => {
+    const balance = 1_050_000n
+    const declared = 1_050_000n
+    expect(extraDebitFromDeclared(declared, 500)).toBeGreaterThan(balance)
+    const gate = extraDebitSubmitGate({
+      declaredRaw: declared,
+      balanceRaw: balance,
+      debitRaw: declared,
+      sellBps: 500,
+      extraDebitUnresolved: false,
+      isNativePay: false,
+    })
+    expect(gate.insufficientBalance).toBe(true)
+    expect(gate.blockSubmit).toBe(true)
+  })
+
+  it('LCD debit larger than local extra-debit floor still blocks', () => {
+    const declared = 1_000_000n
+    const balance = 1_050_000n
+    const localFloor = extraDebitFromDeclared(declared, 500)
+    expect(localFloor).toBe(1_050_000n)
+    const lcdDebit = 1_200_000n
+    expect(lcdDebit).toBeGreaterThan(localFloor)
+    const gate = extraDebitSubmitGate({
+      declaredRaw: declared,
+      balanceRaw: balance,
+      debitRaw: lcdDebit,
+      sellBps: 500,
+      extraDebitUnresolved: false,
+      isNativePay: false,
+    })
+    expect(gate.insufficientBalance).toBe(true)
+    expect(gate.blockSubmit).toBe(true)
+  })
+
+  it('Honest LCD debit === declared with sell_bps 0 allows amount ≤ balance', () => {
+    const gate = extraDebitSubmitGate({
+      declaredRaw: 1_050_000n,
+      balanceRaw: 1_050_000n,
+      debitRaw: 1_050_000n,
+      sellBps: 0,
+      extraDebitUnresolved: false,
+      isNativePay: false,
+    })
+    expect(gate.insufficientBalance).toBe(false)
+    expect(gate.blockSubmit).toBe(false)
+  })
+
   it('T8/T11: sell_bps 0 and native pay stay amount ≤ balance', () => {
     expect(
       extraDebitSubmitGate({

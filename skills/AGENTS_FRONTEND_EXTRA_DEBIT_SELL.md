@@ -19,7 +19,7 @@ Parent Max: [`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.m
 
 ## Invariants **S1267-1–S1267-8**
 
-1. **S1267-1 — LCD debit is execute truth.** When `TaxPreview.debit` parses, Swap/Trade **must not** build or sign if `debit > balance`. Classic `amount > balance` stays Insufficient Balance. Do not size extra-debit in pair/router wasm.
+1. **S1267-1 — LCD debit is a floor, not exclusive truth.** When `sell_bps > 0`, Swap/Trade debit is `max(TaxPreview.debit, extraDebitFromDeclared(declared, sell_bps))`. Honest LCD (`debit === declared`, no `send_msg`) **must not** enable a 100% tax sell. Missing LCD debit still uses the local floor. Classic `amount > balance` stays Insufficient Balance. Do not size extra-debit in pair/router wasm.
 2. **S1267-2 — Max leaves debit room.** Max declared is `extraDebitMaxDeclaredRaw` so human round-trip `toRawAmount(fromRawAmount(declared))` still has `declared + floor(declared * sell_bps / 10000) ≤ balance`. User Sends `amount` 1:1; leftover tax is extra-debit (**R607-7**).
 3. **S1267-3 — pin ≠ sell detector.** `VITE_COMMUNITY_TAX_CODE_ID` is Create Token / Manage template only (**C593-8**). Sell detection is LCD `GetConfig.sell_bps` on the pay contract. `code_id === pin` must not skip extra-debit on a listed tax wasm with a different live id.
 4. **S1267-4 — unknown exempt fail-closed.** Manager-directory `true` → 0 extra-debit (Honest). `null` / loading / error keep `sell_bps`. Do not unlock 100% Max while exempt is unknown (**E609-7**).

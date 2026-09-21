@@ -168,9 +168,11 @@ export type ExtraDebitSubmitGate = {
 }
 
 /**
- * Swap/Trade execute gate (**S1267**). LCD `TaxPreview.debit` wins when present.
- * Local bps debit is the fallback only when preview is missing **and** `sell_bps` is known.
- * Both unknown → fail closed (do not assume 0-tax). Honest / `sell_bps = 0` stay `amount ≤ balance`.
+ * Swap/Trade execute gate (**S1267**). When `sell_bps > 0`, debit is
+ * `max(LCD TaxPreview.debit, extraDebitFromDeclared(declared, sellBps))` so Honest LCD
+ * (`debit === declared`, no `send_msg`) cannot enable a 100% tax sell. Missing LCD debit
+ * still uses the local floor. Both unknown → fail closed (do not assume 0-tax).
+ * Honest / `sell_bps = 0` stay `amount ≤ balance`.
  */
 export function extraDebitSubmitGate(input: {
   declaredRaw: bigint | null
@@ -195,17 +197,19 @@ export function extraDebitSubmitGate(input: {
   if (input.extraDebitUnresolved) {
     return { insufficientBalance: false, blockSubmit: true }
   }
+  const localFloor =
+    input.sellBps != null && input.sellBps > 0 ? extraDebitFromDeclared(input.declaredRaw, input.sellBps) : null
   if (input.debitRaw != null) {
+    const debit = localFloor != null && localFloor > input.debitRaw ? localFloor : input.debitRaw
     const over = sellDebitExceedsBalance({
       declaredRaw: input.declaredRaw,
       balanceRaw: input.balanceRaw,
-      debitRaw: input.debitRaw,
+      debitRaw: debit,
     })
     return { insufficientBalance: over, blockSubmit: over }
   }
-  if (input.sellBps != null && input.sellBps > 0) {
-    const debit = extraDebitFromDeclared(input.declaredRaw, input.sellBps)
-    const over = debit > input.balanceRaw
+  if (localFloor != null) {
+    const over = localFloor > input.balanceRaw
     return { insufficientBalance: over, blockSubmit: over }
   }
   return { insufficientBalance: false, blockSubmit: false }
