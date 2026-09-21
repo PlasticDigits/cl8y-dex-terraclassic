@@ -65,6 +65,8 @@ describe('resolveSwapQueryTokenValue (#711)', () => {
     )
     expect(resolveSwapQueryTokenValue('USDT')).toBe('terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4')
     expect(resolveSwapQueryTokenValue('usdt')).toBe('terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4')
+    expect(resolveSwapQueryTokenValue('DO')).toBe('terra15p8su45k45axng8ue59rl6zph4at27s49u3agr6uqrx3dhcxpg3qt0ekdt')
+    expect(resolveSwapQueryTokenValue('do')).toBe('terra15p8su45k45axng8ue59rl6zph4at27s49u3agr6uqrx3dhcxpg3qt0ekdt')
     expect(resolveSwapQueryTokenValue(MAINNET_UST1_TOKEN_ADDRESS)).toBe(MAINNET_UST1_TOKEN_ADDRESS)
   })
 

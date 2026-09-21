@@ -57,6 +57,15 @@ describe('lookupByCW20', () => {
     expect(entry!.logoURI).toContain('/tokenlist/images/USDT.png')
   })
 
+  it('returns DO for Lunc Cookie Do Coin (6 decimals)', () => {
+    const entry = lookupByCW20('terra15p8su45k45axng8ue59rl6zph4at27s49u3agr6uqrx3dhcxpg3qt0ekdt')
+    expect(entry).toBeDefined()
+    expect(entry!.symbol).toBe('DO')
+    expect(entry!.name).toBe('Lunc Cookie Do Coin')
+    expect(entry!.decimals).toBe(6)
+    expect(entry!.logoURI).toContain('/tokenlist/images/DO.png')
+  })
+
   it('is case-insensitive', () => {
     expect(lookupByCW20('TERRA16WTML2Q66G82FDKX66TAP0QJKAHQWP4LWQ3NGTYGACG5Q0KZYCGQVHPAX3')).toBeDefined()
   })
