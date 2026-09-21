@@ -69,6 +69,9 @@ pub async fn refresh_all_volume_windows_with_pins(
     if let Err(e) = volume::refresh_pair_volumes(pool).await {
         fail("pair 24h volumes", e);
     }
+    if let Err(e) = volume::refresh_pair_volumes_30d(pool).await {
+        fail("pair 30d volumes", e);
+    }
     if let Err(e) = volume::refresh_global_stats(pool).await {
         fail("global 24h stats", e);
     }
@@ -98,7 +101,7 @@ pub async fn refresh_all_volume_windows_with_pins(
     }
 }
 
-/// Background refresh for token volumes, pair 24h rollups, and trader rolling windows (~5 min).
+/// Background refresh for token volumes, pair 24h/30d rollups, and trader rolling windows (~5 min).
 pub async fn run_volume_refresh_loop(pool: PgPool) {
     loop {
         tokio::time::sleep(Duration::from_secs(300)).await;

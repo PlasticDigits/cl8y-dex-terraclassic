@@ -6,6 +6,7 @@ import {
   formatProtocolOracleUsd,
   formatProtocolPct,
   formatProtocolUsd,
+  formatVolumePerTvl,
   protocolPctToneFromDisplay,
 } from '../formatProtocolStats'
 
@@ -24,6 +25,25 @@ describe('formatProtocolUsd', () => {
     expect(formatProtocolUsd('Infinity')).toBe('—')
     expect(formatProtocolUsd('NaN')).toBe('—')
     expect(formatProtocolUsd('<img onerror=alert(1)>')).toBe('—')
+  })
+})
+
+describe('formatVolumePerTvl (Forgejo #1263)', () => {
+  it('formats a compact multiplier, not a percent', () => {
+    expect(formatVolumePerTvl('2.469')).toMatch(/2\.47×/)
+    expect(formatVolumePerTvl('2.469')).not.toMatch(/%/)
+  })
+
+  it('uses em-dash for missing, zero, infinite, and hostile values', () => {
+    expect(formatVolumePerTvl(undefined)).toBe('—')
+    expect(formatVolumePerTvl(null)).toBe('—')
+    expect(formatVolumePerTvl('')).toBe('—')
+    expect(formatVolumePerTvl('0')).toBe('—')
+    expect(formatVolumePerTvl(Number.POSITIVE_INFINITY)).toBe('—')
+    expect(formatVolumePerTvl(Number.NaN)).toBe('—')
+    expect(formatVolumePerTvl('Infinity')).toBe('—')
+    expect(formatVolumePerTvl('javascript:alert(1)')).toBe('—')
+    expect(formatVolumePerTvl('<script>')).toBe('—')
   })
 })
 

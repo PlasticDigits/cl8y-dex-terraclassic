@@ -16,6 +16,7 @@ import type {
   IndexerPairStats,
   IndexerOverview,
   ProtocolFeesResponse,
+  ProtocolTopPairsResponse,
   ProtocolVolumeDailyResponse,
   ProtocolVolumeSeriesResponse,
   ProtocolLiquiditySeriesResponse,
@@ -361,6 +362,11 @@ export async function getPairLimitBookInsertHints(
 /** Get global DEX overview stats. */
 export async function getOverview(): Promise<IndexerOverview> {
   return fetchJson<IndexerOverview>('/api/v1/overview')
+}
+
+/** Top-5 factory pairs by trailing 30d USD. No query string — server cap is 5 (Forgejo #1263). */
+export async function getProtocolTopPairs(): Promise<ProtocolTopPairsResponse> {
+  return fetchJson<ProtocolTopPairsResponse>('/api/v1/protocol/top-pairs')
 }
 
 const PROTOCOL_FEE_WINDOWS = new Set(['24h', '7d', '30d'])

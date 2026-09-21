@@ -18,6 +18,16 @@ export const TRAILING_PAIR_VOL_USD_LABEL = TRAILING_24H_VOLUME_LABEL
 export const PROTOCOL_VOLUME_24H_LABEL = 'Last 24h vol'
 export const PROTOCOL_VOLUME_7D_LABEL = 'Last 7d vol'
 export const PROTOCOL_VOLUME_30D_LABEL = 'Last 30d vol'
+
+export const PROTOCOL_TOP_PAIRS_TITLE = 'Top pairs (30d)'
+export const PROTOCOL_TOP_PAIRS_LEAD = 'Trailing 30-day volume vs current pool USD.'
+export const PROTOCOL_TOP_PAIRS_VOL_LABEL = '30d vol'
+export const PROTOCOL_TOP_PAIRS_LP_LABEL = 'v2 LP'
+export const PROTOCOL_TOP_PAIRS_RATIO_LABEL = 'Vol/LP'
+export const PROTOCOL_TOP_PAIRS_EMPTY = 'No pairs yet'
+export const PROTOCOL_TOP_PAIRS_PAIR_LABEL = 'Pair'
+export const PROTOCOL_TOP_PAIRS_LP_TITLE = 'Current pool USD, not a 30-day average.'
+export const PROTOCOL_TOP_PAIRS_RATIO_TITLE = 'Trailing 30-day volume divided by current pool USD. Not a percent.'
 export const PROTOCOL_TRADES_24H_LABEL = 'Last 24h trades'
 
 export const PROTOCOL_FEES_24H_LABEL = 'Last 24h fees'
@@ -107,6 +117,11 @@ export const TRAILING_WINDOW_VISIBLE_LABELS = [
   PROTOCOL_VOLUME_GRAIN_MONTHLY_LABEL,
   CHARTS_PAIR_SORT_VOLUME_LABEL,
   POOL_VOL_HEADER_LABEL,
+  PROTOCOL_TOP_PAIRS_TITLE,
+  PROTOCOL_TOP_PAIRS_VOL_LABEL,
+  PROTOCOL_TOP_PAIRS_LP_LABEL,
+  PROTOCOL_TOP_PAIRS_RATIO_LABEL,
+  PROTOCOL_TOP_PAIRS_PAIR_LABEL,
 ] as const
 
 /** Progressive-disclosure titles (static; no JSON, URLs, or settlement claims). */

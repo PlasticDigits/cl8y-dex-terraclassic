@@ -24,6 +24,7 @@ Audience: third-party agents changing `/pool` Vol, pair-search volume badges, `G
 - **Don’t** `COALESCE` unpriced to `0` for display or sort (unpriced ranks last, cell **—**).
 - **Don’t** accept `sort=volume_usd` (must be `volume_usd_24h`) — invalid → **400**.
 - **Don’t** change CG/CMC volumes, candles, #522 price, or #655 stock.
+- **Don’t** add `sort=volume_usd_30d` to `GET /pairs` — trailing 30d ranking is `GET /api/v1/protocol/top-pairs` ([#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263), [`AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](./AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md)).
 
 ## Canonical code
 

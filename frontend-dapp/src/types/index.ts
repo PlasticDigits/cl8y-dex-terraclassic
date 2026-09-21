@@ -561,6 +561,21 @@ export interface ProtocolFeeTokenRow {
   is_other?: boolean
 }
 
+/** `GET /api/v1/protocol/top-pairs` item (Forgejo #1263). */
+export interface ProtocolTopPairItem {
+  pair_address: string
+  asset_0: IndexerAssetBrief
+  asset_1: IndexerAssetBrief
+  volume_usd_30d: string
+  liquidity_usd?: string | null
+  volume_per_tvl?: string | null
+}
+
+/** `GET /api/v1/protocol/top-pairs` — at most five factory pairs. */
+export interface ProtocolTopPairsResponse {
+  items: ProtocolTopPairItem[]
+}
+
 /** `GET /api/v1/protocol/fees` */
 export interface ProtocolFeesResponse {
   window: '24h' | '7d' | '30d' | string

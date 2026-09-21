@@ -160,6 +160,7 @@ async fn clean_db_tables(pool: &PgPool) {
             liquidity_events,
             token_volume_stats,
             pair_volume_24h,
+            pair_volume_30d,
             pair_liquidity_usd,
             global_stats_24h,
             protocol_fee_events,
@@ -364,6 +365,9 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     cl8y_dex_indexer::db::queries::volume::refresh_pair_volumes(pool)
         .await
         .expect("refresh pair_volume_24h for tests");
+    cl8y_dex_indexer::db::queries::volume::refresh_pair_volumes_30d(pool)
+        .await
+        .expect("refresh pair_volume_30d for tests");
     cl8y_dex_indexer::db::queries::volume::refresh_global_stats(pool)
         .await
         .expect("refresh global_stats_24h for tests");
