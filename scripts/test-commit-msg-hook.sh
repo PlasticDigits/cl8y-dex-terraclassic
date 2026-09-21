@@ -91,7 +91,7 @@ assert_reject "co-author without blank line after subject" "$f"
   echo "FAIL: .githooks/pre-push must be executable" >&2
   exit 1
 }
-grep -qE -- '--not --remotes=origin' "$REPO_ROOT/.githooks/pre-push" || {
+grep -qE -- '--not --remotes' "$REPO_ROOT/.githooks/pre-push" || {
   echo "FAIL: pre-push must not rev-list all ancestors on a new remote branch" >&2
   exit 1
 }

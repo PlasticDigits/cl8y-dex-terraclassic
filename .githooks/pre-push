@@ -22,14 +22,12 @@ while read -r local_ref local_oid remote_ref remote_oid; do
     continue
   fi
 
-  hashes=""
+  rev_list_args=()
   if [[ "$remote_oid" == "$zero_oid" ]]; then
-    # New remote branch: git sends a zero remote OID. `git rev-list <sha>`
-    # would walk every ancestor (including historic main) and false-reject
-    # already-merged messages. Only check commits not already on origin.
-    hashes="$(git rev-list "$local_oid" --not --remotes=origin 2>/dev/null || true)"
+    # New remote branch: do not walk all ancestors. Skip commits already on remotes.
+    rev_list_args=("$local_oid" --not --remotes="${push_remote}")
   else
-    hashes="$(git rev-list "${remote_oid}..${local_oid}" 2>/dev/null || true)"
+    rev_list_args=("${remote_oid}..${local_oid}")
   fi
 
   hash=""
@@ -42,7 +40,7 @@ while read -r local_ref local_oid remote_ref remote_oid; do
       echo "  [$hash] $(git log -1 --format='%s' "$hash")" >&2
       failed=1
     fi
-  done <<< "$hashes"
+  done < <(git rev-list "${rev_list_args[@]}" 2>/dev/null || true)
 done
 
 if [[ "$failed" -ne 0 ]]; then
