@@ -7,6 +7,10 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import type { PairInfo } from '@/types'
 
+const { taxPreviewMock } = vi.hoisted(() => ({
+  taxPreviewMock: { debitRaw: null as bigint | null },
+}))
+
 const PAIR_ADDR = 'terra1pair00000000000000000000000000000001'
 const TERRA_A = 'terra1from00000000000000000000000000000001'
 const TERRA_B = 'terra1to00000000000000000000000000000001'
@@ -27,7 +31,7 @@ vi.mock('@/hooks/useCommunityTaxSellBps', () => ({
     extraDebitUnresolved: false,
   }),
   useCommunityTaxPreviewDebit: () => ({
-    debitRaw: null,
+    debitRaw: taxPreviewMock.debitRaw,
     previewUnresolved: false,
     isLoading: false,
   }),
@@ -125,6 +129,7 @@ import * as pair from '@/services/terraclassic/pair'
 
 describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
   beforeEach(() => {
+    taxPreviewMock.debitRaw = null
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.clearAllMocks()
     useWalletStore.setState({
@@ -139,6 +144,25 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
   })
 
   it('T9: typing full tax CW20 balance disables Market sell', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1.05')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    await waitFor(() => expect(screen.getByTestId('trade-market-submit')).toBeDisabled())
+    expect(screen.getByTestId('trade-market-submit')).toHaveTextContent(/insufficient balance/i)
+    expect(pair.swap).not.toHaveBeenCalled()
+  })
+
+  it('T10 (#1285 AC3): Honest LCD debit === declared at full balance disables Market sell', async () => {
+    taxPreviewMock.debitRaw = 1_050_000n
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
     renderWithProviders(
       <TradeMarketOrderPanel

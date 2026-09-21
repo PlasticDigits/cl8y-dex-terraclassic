@@ -57,7 +57,7 @@ The binary always runs `sqlx::migrate!()` before bind ([`indexer/src/main.rs`](.
 - A second public `/status`, Prometheus `/metrics`, or DB/LCD on generic `/health` (**H1276-1**).
 - Fetching Coolify from the indexer process. Scraping Coolify logs. Publishing Coolify tokens, app UUIDs, hosts, or `/status` JSON.
 - Nixpacks. Production stays `docker/indexer/Dockerfile`.
-- Numeric overflow on volume_aggregator ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277)) — out of scope, not approved.
+- Numeric overflow on volume_aggregator ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277), [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](../../skills/AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md)) — out of scope for this health/SHA ticket.
 - Frontend stale Vite chunks ([#706](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706)) — complementary UX.
 - Rewriting historical coupled leftover **M573** / **M590** as if indexer auto-deploy applied retroactively. [`docs/runbooks/mainnet-soft-launch.md`](../runbooks/mainnet-soft-launch.md) “rebuild frontend + restart indexer together” stays the **#573** / [`AGENTS_POST_MERGE_STACK.md`](../../skills/AGENTS_POST_MERGE_STACK.md) note.
 - Flipping Coolify UI from this repo, HMAC/`autonomy.rs` self-approval, or a founder card for this ordinary design.

@@ -76,7 +76,7 @@ import {
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
 import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
-import { DOCS_GITLAB_BASE, ROUTER_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { SWAP_FUNDED_HIGH_IMPACT_PCT, acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
@@ -112,6 +112,7 @@ import {
 } from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
+import { defaultNativeNeedsWrapInput, defaultNativeWrapHopCount, isNativeUlunaDenom } from '@/utils/nativeWrapSwapHints'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve, getPair } from '@/services/indexer/client'
 import {
@@ -126,6 +127,7 @@ import {
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
+import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
@@ -504,11 +506,21 @@ export default function SwapPage() {
     return null
   }, [wrapDenom, wrapUnwrapType, toToken, fromToken, nativeRouteInfo?.needsWrapInput])
 
-  const payIsNativeUluna = isNativeDenom(fromToken)
-  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max to 1-hop (#587). */
-  const nativeSwapHopCount =
-    nativeRouteInfo?.operations?.length ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap' ? 2 : 1)
-  const nativeNeedsWrapInput = nativeRouteInfo?.needsWrapInput ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap')
+  /** Fee-paying native is LUNC only — USTC (`uusd`) wraps but pays gas in uluna (#1264 G1264-4). */
+  const payIsNativeUluna = isNativeUlunaDenom(fromToken)
+  const payIsNativeDenom = isNativeDenom(fromToken)
+  const isDirectWrapOrUnwrap = wrapUnwrapType === 'wrap' || wrapUnwrapType === 'unwrap'
+  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max/hint to 1-hop (#587 / #1264). */
+  const nativeSwapHopCount = defaultNativeWrapHopCount({
+    operationsLength: nativeRouteInfo?.operations?.length,
+    payIsNativeDenom,
+    isDirectWrapOrUnwrap,
+  })
+  const nativeNeedsWrapInput = defaultNativeNeedsWrapInput({
+    routeNeedsWrapInput: nativeRouteInfo?.needsWrapInput,
+    payIsNativeDenom,
+    isDirectWrapOrUnwrap,
+  })
   const nativeNeedsUnwrapOutput =
     nativeRouteInfo?.needsUnwrapOutput ??
     (!!toToken && isNativeDenom(toToken) && wrapUnwrapType !== 'wrap' && wrapUnwrapType !== 'unwrap')
@@ -956,19 +968,42 @@ export default function SwapPage() {
     sellBps: taxSell.sellBps,
   })
   const extraDebitUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop)
+  const taxPreviewMaxSpread = (slippageTolerance / 100).toString()
+  const taxPreviewQuery = useMemo(
+    () =>
+      address && fromToken.startsWith('terra1')
+        ? resolveCommunityTaxPreviewQuery({
+            wallet: address,
+            payToken: fromToken,
+            usesRouter: extraDebitUsesRouter,
+            directPairAddr: directPair?.contract_addr,
+            routeOps: simData?.indexerOperations,
+            pairs,
+            maxSpread: taxPreviewMaxSpread,
+          })
+        : null,
+    [
+      address,
+      fromToken,
+      extraDebitUsesRouter,
+      directPair?.contract_addr,
+      simData?.indexerOperations,
+      pairs,
+      taxPreviewMaxSpread,
+    ]
+  )
   const taxPreview = useCommunityTaxPreviewDebit({
     token: fromToken.startsWith('terra1') ? fromToken : null,
-    from: address,
-    to: extraDebitUsesRouter ? ROUTER_CONTRACT_ADDRESS : (directPair?.contract_addr ?? null),
     amount: rawInputAmount,
     enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+    previewQuery: taxPreviewQuery,
   })
   const extraDebitGate = extraDebitSubmitGate({
     declaredRaw: tryParseBigInt(rawInputAmount),
     balanceRaw: balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
     debitRaw: taxPreview.debitRaw,
     sellBps: extraDebitSellBpsForExecute(taxSell.sellBps, extraDebitUsesRouter),
-    extraDebitUnresolved: taxSell.extraDebitUnresolved,
+    extraDebitUnresolved: taxSell.extraDebitUnresolved || taxPreview.previewUnresolved,
     isNativePay: payIsNativeUluna || !fromToken.startsWith('terra1'),
   })
 
@@ -2319,7 +2354,7 @@ export default function SwapPage() {
 
           {swapMutation.isError && (
             <div className="mt-4">
-              <TxResultAlert type="error" message={swapMutation.error?.message ?? 'Swap failed'} />
+              <TxResultAlert type="error" message={humanizeUserFacingErrorFromUnknown(swapMutation.error)} />
             </div>
           )}
 

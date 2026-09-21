@@ -551,7 +551,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.getByTestId('protocol-stat-fees-30d-chg')).toBeInTheDocument()
   })
 
-  it('renders DEX hub card for cUSTC / LUNC / UST1 / USTR and never queries CEX ustr', async () => {
+  it('renders DEX hub card for cUSTC / cLUNC / UST1 / USTR and never queries CEX ustr', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const hub = await screen.findByTestId('protocol-dex-hub-prices')
@@ -592,7 +592,9 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(custcDt).toBeInTheDocument()
     expect(custcDt).not.toHaveClass('uppercase')
     expect(within(hub).queryByText('CUSTC / USD')).not.toBeInTheDocument()
-    expect(within(hub).getByText('LUNC / USD')).not.toHaveClass('uppercase')
+    const cluncDt = within(hub).getByText('cLUNC / USD')
+    expect(cluncDt).not.toHaveClass('uppercase')
+    expect(within(hub).queryByText('LUNC / USD', { exact: true })).not.toBeInTheDocument()
     expect(within(hub).getByText('UST1 / USD')).not.toHaveClass('uppercase')
     expect(within(hub).getByText('USTR / USD')).not.toHaveClass('uppercase')
     expect(within(hub).getByRole('heading', { name: /DEX hub prices/i })).toHaveClass('uppercase')
@@ -601,11 +603,20 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const ustcHeading = within(oracle).getByRole('heading', { name: 'USTC / USD' })
     expect(ustcHeading).not.toHaveClass('uppercase')
     expect(screen.queryByRole('heading', { name: 'cUSTC / USD' })).not.toBeInTheDocument()
+    expect(within(oracle).queryByText('cLUNC / USD')).not.toBeInTheDocument()
     const vfdusdTab = screen.getByTestId('protocol-oracle-tab-vfdusd')
     expect(vfdusdTab.textContent).toBe('vFDUSD')
     expect(vfdusdTab).not.toHaveClass('uppercase')
+    expect(vfdusdTab).toHaveClass('normal-case')
+    expect(vfdusdTab).toHaveStyle({ textTransform: 'none' })
+    expect(screen.getByTestId('protocol-oracle-tab-ustc')).toHaveStyle({ textTransform: 'none' })
     expect(screen.getByTestId('protocol-oracle-tab-ustc').textContent).toBe('USTC')
     expect(screen.getByTestId('protocol-oracle-tab-lunc').textContent).toBe('LUNC')
+
+    await user.click(screen.getByTestId('protocol-oracle-tab-lunc'))
+    const luncHeading = await screen.findByRole('heading', { name: 'LUNC / USD' })
+    expect(luncHeading).not.toHaveClass('uppercase')
+    expect(screen.queryByRole('heading', { name: 'cLUNC / USD' })).not.toBeInTheDocument()
 
     await user.click(vfdusdTab)
     const vfdusdHeading = await screen.findByRole('heading', { name: 'vFDUSD' })

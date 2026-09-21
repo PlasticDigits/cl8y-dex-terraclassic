@@ -7,12 +7,14 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=.githooks/lib/validate-commit-message.sh
 source "${REPO_ROOT}/.githooks/lib/validate-commit-message.sh"
 
-remote="${1:-origin}"
+push_remote="${1:-origin}"
 url="${2:-}"
 unset url
 
 zero_oid='0000000000000000000000000000000000000000'
 failed=0
+integration_ref=""
+integration_ref=$(resolve_integration_main_ref "$push_remote" 2>/dev/null || true)
 
 while read -r local_ref local_oid remote_ref remote_oid; do
   [[ -z "${local_ref:-}" ]] && continue
@@ -22,9 +24,8 @@ while read -r local_ref local_oid remote_ref remote_oid; do
 
   rev_list_args=()
   if [[ "$remote_oid" == "$zero_oid" ]]; then
-    # New branch: only commits not already on this remote. `git rev-list <oid>`
-    # walks all ancestry and would reject/hang on published history.
-    rev_list_args=("$local_oid" --not --remotes="$remote")
+    # New remote branch: do not walk all ancestors. Skip commits already on remotes.
+    rev_list_args=("$local_oid" --not --remotes="${push_remote}")
   else
     rev_list_args=("${remote_oid}..${local_oid}")
   fi
@@ -32,6 +33,9 @@ while read -r local_ref local_oid remote_ref remote_oid; do
   hash=""
   while read -r hash; do
     [[ -z "$hash" ]] && continue
+    if [[ -n "$integration_ref" ]] && commit_message_policy_on_integration_branch "$hash" "$integration_ref"; then
+      continue
+    fi
     if ! validate_commit_message_hash "$hash"; then
       echo "  [$hash] $(git log -1 --format='%s' "$hash")" >&2
       failed=1

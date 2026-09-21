@@ -4,9 +4,10 @@ export const HUB_PRICE_TICKERS = ['custc', 'lunc', 'ust1', 'ustr'] as const
 
 export type HubPriceTicker = (typeof HUB_PRICE_TICKERS)[number]
 
+/** Visible wrap labels. API ids stay `custc` / `lunc` — no `clunc` path (#1240). */
 export const HUB_PRICE_TICKER_LABEL: Record<HubPriceTicker, string> = {
   custc: 'cUSTC',
-  lunc: 'LUNC',
+  lunc: 'cLUNC',
   ust1: 'UST1',
   ustr: 'USTR',
 }
