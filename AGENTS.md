@@ -213,6 +213,7 @@ make verify-issue-702                    # #702 post-merge !476 leftover verify 
 make verify-issue-632                    # #632 Keplr in-app / visualViewport token picker
 make verify-issue-672                    # #672 Connect Wallet / Modal dismiss overlay (Vitest + docs)
 make verify-issue-1279                   # #1279 leftover Lunc Dash WalletConnect ops verify (pre-check; device QA is ops-bot)
+make verify-issue-1308                   # #1308 Lunc Dash WC payload query on dex.cl8y.com (pre-check; device AC after Coolify)
 make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool (LocalTerra: localterra-634-migrate-inventory.sh)
 make verify-issue-604                    # #604 identity + connected-wallet helpers (Vitest + crates)
 make verify-issue-605                    # #605 SKU init + percent taxes (Vitest + crates)
@@ -345,6 +346,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Post-merge !477 leftover (`/pool` Vol USD) | `make verify-issue-701` |
 | Post-merge !476 leftover (`/trade` flatten) | `make verify-issue-702` |
 | Lunc Dash leftover ops verify | `make verify-issue-1279` |
+| Lunc Dash WC payload (dex.cl8y.com) | `make verify-issue-1308` |
 | Pool Manage provide labels | `make verify-issue-661` |
 | Trade / Charts v2 LP USD | `make verify-issue-664` |
 | Trader page global leaderboard | `make verify-issue-657` |

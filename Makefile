@@ -490,6 +490,12 @@ verify-issue-1279:
 	@chmod +x scripts/qa/verify-issue-1279.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1279.sh
 
+# Forgejo #1308 — Lunc Dash WalletConnect payload query (mobile dex.cl8y.com pairing).
+.PHONY: verify-issue-1308
+verify-issue-1308:
+	@chmod +x scripts/qa/verify-issue-1308.sh scripts/qa/verify-issue-519.sh scripts/qa/verify-issue-554.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1308.sh
+
 # GitLab #683 — /protocol fee USD for CL8Y + factory-listed economic tokens.
 .PHONY: verify-issue-683
 verify-issue-683:

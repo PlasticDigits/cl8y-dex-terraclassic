@@ -382,11 +382,26 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 | **L1279-1** | Product path already shipped (#519 / #554 / #566 / #658 / #490). Do not invent a second Lunc Dash scheme, add Leap, implement ADR-036, LCD-sim Station/LuncDash WC post, or remove in-app browser (**WC-M7**). |
 | **L1279-2** | `make verify-issue-1279` is pre-check only. Green make does not close leftover. |
 | **L1279-3** | Connect always emits LuncDash WalletConnect on desktop and mobile. Leap absent. |
-| **L1279-4** | Keep `buildLuncDashDeepLink` / `luncdash:` allowlist. Mobile Open / Copy / Cancel; desktop QR unchanged. |
+| **L1279-4** | Keep `buildLuncDashDeepLink` with parseable `payload` query ([#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308)) / `luncdash:` allowlist. Mobile Open / Copy / Cancel; desktop QR unchanged. |
 | **L1279-5** | Station / LuncDash WC stay atomic `broadcastTx`. Wallet-app gas rewrite is ADR 0004 Stay. |
 | **L1279-6** | Terms hint names Lunc Dash (or the DEX list), not Keplr-only. UA detects Lunc Dash. |
 | **L1279-7** | Leftover-complete is ops-bot QA 1.5. `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` FAIL. Do not paste `/status` JSON or tokens on the issue. |
 | **L1279-8** | Playbook + this Q20 + WC-M / L658 skills stay crosslinked. |
+
+## Lunc Dash WalletConnect payload on dex.cl8y.com (invariant Q21) {#luncdash-wc-1308}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q21** Lunc Dash `buildLuncDashDeepLink` uses a real `payload` query key; device AC on production closes **#1308**, not make | **`make verify-issue-1308`** → payload Vitest + docs + children **519, 554** unless `VERIFY1308_SKIP_CHILDREN=1` (**L1308-1–L1308-4**) | Non-zero exit; fix pairing helper or child. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` **must FAIL**. |
+
+**L1308** (Forgejo **#1308** — [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md)):
+
+| ID | Rule |
+|----|------|
+| **L1308-1** | `buildLuncDashDeepLink` → `luncdash://wallet_connect?payload=<encoded wc:>`; `parseLuncDashDeepLinkPayload` returns the `wc:` URI. Reject legacy encoded-blob hrefs. |
+| **L1308-2** | Mobile pairing sheet unchanged (**WC-M1** / **WC-M8**). Copy still raw `wc:` (**WC-M4**). |
+| **L1308-3** | `make verify-issue-1308` is pre-check only. Green make does not close device AC (wallet lists `dex.cl8y.com`). |
+| **L1308-4** | Playbook + this Q21 + #1279 / WC-M skills stay crosslinked. Coolify deploy required before production QA. |
 
 ## Related docs
 

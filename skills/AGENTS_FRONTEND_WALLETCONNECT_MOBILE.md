@@ -34,7 +34,7 @@ Use when changing **WalletConnect QR / pairing UX**, **Lunc Dash / Galaxy Statio
 
 ## Lunc Dash scheme
 
-Cosmes already used `luncdash://wallet_connect?payload=<encoded wc:>`. Keep that string in `buildLuncDashDeepLink` — do not invent a second Lunc Dash scheme. If the app is not installed, **Copy pairing link** + **Open wallet** (`wc:`) cover it.
+`buildLuncDashDeepLink` must emit `luncdash://wallet_connect?payload=<encoded wc:>` with a real **`payload` query key** (Forgejo [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308)). Do **not** percent-encode the entire `payload=…` string as one opaque query blob — Lunc Dash cannot parse that. Use `parseLuncDashDeepLinkPayload` in unit tests. If the app is not installed, **Copy pairing link** + **Open wallet** (`wc:`) cover it.
 
 ## Rules of thumb
 
@@ -53,6 +53,7 @@ make verify-issue-554
 make verify-issue-519
 make verify-issue-658
 make verify-issue-1279   # leftover Lunc Dash ops pre-check; does not close #1279
+make verify-issue-1308   # Lunc Dash payload query + children 519/554 pre-check; does not close device AC
 # or:
 bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
   src/utils/__tests__/walletConnectPairing.test.ts \
