@@ -170,6 +170,8 @@ import {
   isDirectWrapUnwrap,
   simulateMultiHopSwap,
   simulateNativeSwap,
+  executeNativeSwap,
+  netCw20AfterNativeWrap,
 } from '@/services/terraclassic/router'
 import { queryPausedState, checkRateLimitExceeded, queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
 import { WRAP_CONFIG_UNAVAILABLE_CTA, WRAP_TREASURY_MISCONFIGURED_CTA } from '@/utils/marketDataServiceCopy'
@@ -1598,7 +1600,7 @@ describe('SwapPage', () => {
       const terraE = 'terra1ee0000000000000000000000000000000001'
       const hop1Hybrid = {
         pool_input: '0',
-        book_input: '10000000000',
+        book_input: '1000000',
         max_maker_fills: 8,
         book_start_hint: 1426,
       }
@@ -1790,6 +1792,145 @@ describe('SwapPage', () => {
       expect(screen.getByTestId('swap-confirm-max-spread')).toHaveTextContent('5%')
       expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.95')
       expect(screen.getByTestId('swap-confirm-chain')).toHaveTextContent('LocalTerra')
+    })
+  })
+
+  describe('wrap-enter GET /route/solve (#1218)', () => {
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    const mockUstr = 'terra1ustr_mock_address_for_testing_xxxx'
+    const mockCustc = 'terra1ustc_c_mock_for_1218_testingxxxx'
+    const mockUst1 = 'terra1ust1_mock_for_1218_testingxxxxxx'
+
+    it('quotes LUNC→USTR via getRouteSolve(cLUNC) and submits those hops (P1/P2)', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
+      vi.mocked(netCw20AfterNativeWrap).mockResolvedValue(980000n)
+      const solverOps = [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
+            ask_asset_info: { token: { contract_addr: mockCustc } },
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: mockCustc } },
+            ask_asset_info: { token: { contract_addr: mockUst1 } },
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: mockUst1 } },
+            ask_asset_info: { token: { contract_addr: mockUstr } },
+          },
+        },
+      ]
+      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
+        operations: [
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
+              ask_asset_info: { token: { contract_addr: mockUst1 } },
+            },
+          },
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: mockUst1 } },
+              ask_asset_info: { token: { contract_addr: mockUstr } },
+            },
+          },
+        ],
+        needsWrapInput: true,
+        needsUnwrapOutput: false,
+      })
+      vi.mocked(simulateNativeSwap).mockResolvedValue({
+        amount: '50',
+        isDirectWrapUnwrap: false,
+        routerMinReceiveBase: '50',
+      })
+      vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '48400000' })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair_clunc_ust1',
+            liquidity_token: 'terra1lp1',
+            asset_infos: [{ token: { contract_addr: MOCK_LUNC_C } }, { token: { contract_addr: mockUst1 } }],
+          },
+          {
+            contract_addr: 'terra1pair_ust1_ustr',
+            liquidity_token: 'terra1lp2',
+            asset_infos: [{ token: { contract_addr: mockUst1 } }, { token: { contract_addr: mockUstr } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uluna', mockUstr])
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+      vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
+        token_in: MOCK_LUNC_C,
+        token_out: mockUstr,
+        hops: [
+          { offer_token: MOCK_LUNC_C, ask_token: mockCustc },
+          { offer_token: mockCustc, ask_token: mockUst1 },
+          { offer_token: mockUst1, ask_token: mockUstr },
+        ],
+        router_operations: solverOps,
+        quote_kind: 'indexer_pool_db',
+        estimated_amount_out: '48400000',
+        intermediate_tokens: [MOCK_LUNC_C, mockCustc, mockUst1, mockUstr],
+      })
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
+
+      await waitFor(() => {
+        expect(indexerClient.getRouteSolve).toHaveBeenCalled()
+      })
+      const solveArgs = vi.mocked(indexerClient.getRouteSolve).mock.calls[0]
+      expect(solveArgs[0]).toBe(MOCK_LUNC_C)
+      expect(solveArgs[1]).toBe(mockUstr)
+      expect(solveArgs[2]).toBe('980000')
+
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Swap$/i })).toBeEnabled())
+      await user.click(screen.getByRole('button', { name: /^Swap$/i }))
+      await waitFor(() => expect(executeNativeSwap).toHaveBeenCalled())
+      const execArgs = vi.mocked(executeNativeSwap).mock.calls[0]
+      expect(execArgs[1]).toBe('uluna')
+      expect(execArgs[2]).toBe(mockUstr)
+      const submittedOps = execArgs[8] as typeof solverOps
+      expect(submittedOps).toHaveLength(3)
+      expect(submittedOps[0].terra_swap.ask_asset_info).toEqual({ token: { contract_addr: mockCustc } })
+    })
+
+    it('does not call /route/solve for direct LUNC→cLUNC wrap (P4)', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(isDirectWrapUnwrap).mockImplementation((from, to) => {
+        if (from === 'uluna' && to === MOCK_LUNC_C) return 'wrap'
+        return null
+      })
+      vi.mocked(simulateNativeSwap).mockResolvedValue({ amount: '990000', isDirectWrapUnwrap: true })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair00000000000000000000000000000001',
+            liquidity_token: 'terra1lp000000000000000000000000000000001',
+            asset_infos: [{ token: { contract_addr: 'uluna' } }, { token: { contract_addr: MOCK_LUNC_C } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uluna', MOCK_LUNC_C])
+      vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+      const solveSpy = vi.spyOn(indexerClient, 'getRouteSolve')
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Wrap$/i })).toBeEnabled())
+      expect(solveSpy).not.toHaveBeenCalled()
     })
   })
 })

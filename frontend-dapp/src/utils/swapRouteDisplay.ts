@@ -1,4 +1,4 @@
-import { assetInfoLabel } from '@/types'
+import { assetInfoLabel, isNativeDenom } from '@/types'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import { swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 
@@ -145,11 +145,28 @@ export function computeSwapRouteDisplay(args: SwapRouteDisplayArgs): string | nu
     return `${displaySymbol(fromToken)} → ${displaySymbol(toToken)}`
   }
 
-  if (nativeRouteInfo && nativeRouteInfo.operations.length > 0) {
-    return tokenPathForNativeSupportedRoute(fromToken, toToken, nativeRouteInfo, displaySymbol).join(' → ')
+  const idxOps = indexerOperations
+  const wrapOps =
+    idxOps && idxOps.length > 0
+      ? idxOps
+      : nativeRouteInfo && nativeRouteInfo.operations.length > 0
+        ? nativeRouteInfo.operations
+        : null
+  const needsWrapInput = nativeRouteInfo?.needsWrapInput ?? isNativeDenom(fromToken)
+  const needsUnwrapOutput = nativeRouteInfo?.needsUnwrapOutput ?? isNativeDenom(toToken)
+  if (wrapOps && wrapOps.length > 0 && (needsWrapInput || needsUnwrapOutput)) {
+    return tokenPathForNativeSupportedRoute(
+      fromToken,
+      toToken,
+      {
+        operations: wrapOps,
+        needsWrapInput,
+        needsUnwrapOutput,
+      },
+      displaySymbol
+    ).join(' → ')
   }
 
-  const idxOps = indexerOperations
   if (idxOps && idxOps.length > 0) {
     if (indexerIntermediateTokens && indexerIntermediateTokens.length >= 2) {
       return indexerIntermediateTokens.map((t) => displaySymbol(t)).join(' → ')
@@ -178,14 +195,17 @@ export type SwapSubmitRouteSource = 'indexer' | 'client_bfs' | 'direct' | 'nativ
 export function deriveSwapSubmitRouteSource(args: {
   isWrapOrUnwrap: boolean
   nativeRouteInfo: NativeRouteForDisplay | null
+  /** Non-direct native wrap-enter / unwrap-exit (#1218) even when client BFS missed. */
+  nativeWrapExecute?: boolean
   indexerOperations?: SwapOperation[]
   clientRoute: SwapOperation[] | null
   isDirect: boolean
   isMultiHop: boolean
 }): SwapSubmitRouteSource | null {
-  const { isWrapOrUnwrap, nativeRouteInfo, indexerOperations, clientRoute, isDirect, isMultiHop } = args
+  const { isWrapOrUnwrap, nativeRouteInfo, nativeWrapExecute, indexerOperations, clientRoute, isDirect, isMultiHop } =
+    args
 
-  if (isWrapOrUnwrap || nativeRouteInfo) return 'native_wrap'
+  if (isWrapOrUnwrap || nativeRouteInfo || nativeWrapExecute) return 'native_wrap'
   if (swapOpsRequireRouter(indexerOperations)) return 'indexer'
   if (!clientRoute) return null
   if (isDirect) return 'direct'
@@ -204,8 +224,10 @@ export function deriveSwapSubmitRouteOps(args: {
   clientRoute: SwapOperation[] | null
 }): SwapOperation[] | null | undefined {
   const { nativeRouteInfo, indexerOperations, clientRoute } = args
+  if (indexerOperations && indexerOperations.length > 0) {
+    if (nativeRouteInfo || swapOpsRequireRouter(indexerOperations)) return indexerOperations
+  }
   if (nativeRouteInfo?.operations?.length) return nativeRouteInfo.operations
-  if (swapOpsRequireRouter(indexerOperations)) return indexerOperations
   return clientRoute ?? indexerOperations ?? undefined
 }
 

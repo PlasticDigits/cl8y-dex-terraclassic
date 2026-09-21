@@ -428,8 +428,59 @@ pub fn hop_sim_implausible(
         return true;
     }
     let scale_mismatch = input_reserve > 0 && offer_amount > input_reserve.saturating_mul(1_000);
-    let full_drain = ask_out.saturating_mul(100) >= output_reserve.saturating_mul(99);
+    let full_drain = hop_near_full_ask_drain(ask_out, output_reserve);
     scale_mismatch && full_drain
+}
+
+/// Same-scale ~100% pool impact: hop takes ≥99% of the ask reserve (#1218 top-K skip).
+pub fn hop_near_full_ask_drain(ask_out: u128, output_reserve: u128) -> bool {
+    output_reserve > 0 && ask_out.saturating_mul(100) >= output_reserve.saturating_mul(99)
+}
+
+/// Cheap pool-only walk used while filling top-K. Skip ~100% spread / implausible hops
+/// so a thin 2-hop cannot occupy the slot that would have scored an honest 3-hop (#1218).
+/// Missing/stale mirrors are **not** skipped here (evaluate_candidate owns LCD fallback).
+pub fn path_unusable_for_top_k(
+    mirrors: &HashMap<String, HopMirror>,
+    hops: &[(&str, &str)],
+    amount_in: u128,
+) -> bool {
+    if amount_in == 0 || hops.is_empty() {
+        return true;
+    }
+    let mut offer = amount_in;
+    for (pair, offer_token) in hops {
+        let Some(mirror) = mirrors.get(*pair) else {
+            return false;
+        };
+        match simulate_pool_only_from_mirror(mirror, offer_token, offer, 0) {
+            Ok(ask_out) => {
+                let offer_is_token0 = offer_token.eq_ignore_ascii_case(&mirror.asset_0_addr);
+                let output_reserve = if offer_is_token0 {
+                    mirror.reserve_1
+                } else {
+                    mirror.reserve_0
+                };
+                let input_reserve = if offer_is_token0 {
+                    mirror.reserve_0
+                } else {
+                    mirror.reserve_1
+                };
+                if ask_out == 0
+                    || hop_sim_implausible(offer, input_reserve, output_reserve, ask_out)
+                    || hop_near_full_ask_drain(ask_out, output_reserve)
+                {
+                    return true;
+                }
+                offer = ask_out;
+            }
+            Err(DbSimError::ImplausibleHop)
+            | Err(DbSimError::InsufficientLiquidity)
+            | Err(DbSimError::MissingMirror) => return true,
+            Err(_) => return false,
+        }
+    }
+    false
 }
 
 /// Constant-product pool leg with **wide** `k` (pair Uint256 / GitLab #464 analog).
@@ -623,6 +674,7 @@ pub fn simulate_pool_only_from_mirror(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     fn bd(s: &str) -> BigDecimal {
         s.parse().unwrap()
     }
@@ -838,6 +890,54 @@ mod tests {
     fn hop_sim_implausible_ask_out_gt_reserve() {
         assert!(hop_sim_implausible(1_000, 1_000_000, 500, 501));
         assert!(!hop_sim_implausible(1_000, 1_000_000, 500, 400));
+    }
+
+    #[test]
+    fn hop_near_full_ask_drain_same_scale() {
+        assert!(hop_near_full_ask_drain(990, 1_000));
+        assert!(!hop_near_full_ask_drain(50, 1_000));
+        assert!(!hop_near_full_ask_drain(1, 0));
+    }
+
+    #[test]
+    fn path_unusable_for_top_k_skips_full_drain_hop() {
+        // offer ≈ 99× input reserve so constant-product takes ≥99% of the thin ask.
+        let drain = HopMirror {
+            reserve_0: 100,
+            reserve_1: 2_000,
+            ..mirror_with_book(vec![])
+        };
+        let mut mirrors = HashMap::new();
+        mirrors.insert("terra1drainpair".into(), drain);
+        let hops = [("terra1drainpair", "terra1token0")];
+        assert!(path_unusable_for_top_k(&mirrors, &hops, 1_000_000));
+    }
+
+    #[test]
+    fn path_unusable_for_top_k_skips_zero_out_thin_ask() {
+        // Deep offer reserve + tiny ask: ceil_div can print 0 out (not 99% drain).
+        let thin = HopMirror {
+            reserve_0: 10_000_000_000,
+            reserve_1: 2_000,
+            ..mirror_with_book(vec![])
+        };
+        let mut mirrors = HashMap::new();
+        mirrors.insert("terra1thinpair".into(), thin);
+        let hops = [("terra1thinpair", "terra1token0")];
+        assert!(path_unusable_for_top_k(&mirrors, &hops, 1_000_000));
+    }
+
+    #[test]
+    fn path_unusable_for_top_k_keeps_deep_pool() {
+        let deep = HopMirror {
+            reserve_0: 10_000_000_000_000,
+            reserve_1: 10_000_000_000_000,
+            ..mirror_with_book(vec![])
+        };
+        let mut mirrors = HashMap::new();
+        mirrors.insert("terra1deeppair".into(), deep);
+        let hops = [("terra1deeppair", "terra1token0")];
+        assert!(!path_unusable_for_top_k(&mirrors, &hops, 1_000_000));
     }
 
     #[test]

@@ -29,6 +29,7 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 - **#501** (2026): Retail `/trade` Market ticket defaults to the same **GET** best-execution path as Swap (no client-side split search; Pattern C remains caller-declared on-chain with solver-filled params). Advanced manual book leg keeps **POST** `hybrid_by_hop`. Shared helper: [`cw20RouteSolveQuote.ts`](../../frontend-dapp/src/utils/cw20RouteSolveQuote.ts). Docs: [`limit-orders.md`](../limit-orders.md#swap-ui-hybrid-vs-pool-only-estimates), [`skills/AGENTS_HYBRID_QUOTING.md`](../../skills/AGENTS_HYBRID_QUOTING.md).
 - **#596** (2026): Official dApp **always** uses that GET path — no retail hybrid opt-in/opt-out. Pool-only remains indexer `pool_only=true` for integrators / custom frontends. Skill: [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](../../skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md).
 - **#615** (2026): Winner compare is max **`estimated_amount_out_net`** (catalog buy split when `token_out` is a community-tax CW20). `estimated_amount_out` stays the unchanged hop/router sim (`raw_out`) for execute / `min_return` (**H-01**). Option-2 wasm: skip candidates that sell a catalogued tax token as a **middle** hop. Unmigrated columbus-5 **11611** hops stay Honest until `COMMUNITY_TAX_OPTION2_CODE_IDS` / `COMMUNITY_TAX_OPTION2_DATA_HASHES`. Hybrid GET cache keys include tax identity. Skill: [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](../../skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
+- **#1218** (2026): Top-K fill **skips unusable** ~100% hop-spread / `hop_sim_implausible` candidates (DB-hybrid) instead of bumping `MAX_PATH_CANDIDATES`. Structural DFS uses `PATH_ENUM_POOL` (32); hybrid eval stays K=5 usable. Retail Swap wrap-maps `uluna`/`uusd` on the client; indexer GET still 400s native denoms. Skill: [`AGENTS_FRONTEND_WRAP_ENTER_ROUTE_SOLVE.md`](../../skills/AGENTS_FRONTEND_WRAP_ENTER_ROUTE_SOLVE.md).
 
 ## Links
 
@@ -38,4 +39,5 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 - [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md)
 - [skills/AGENTS_HYBRID_QUOTING.md](../../skills/AGENTS_HYBRID_QUOTING.md) — Swap + Trade GET default (#501); always-on hybrid (#596)
 - [skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md](../../skills/AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — no retail pool-only opt-out (#596)
+- [skills/AGENTS_FRONTEND_WRAP_ENTER_ROUTE_SOLVE.md](../../skills/AGENTS_FRONTEND_WRAP_ENTER_ROUTE_SOLVE.md) — wrap-enter client map + skip-unusable top-K (#1218)
 - [gaps/GAP_1780023683.md](../../gaps/GAP_1780023683.md)

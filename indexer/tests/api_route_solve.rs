@@ -84,6 +84,21 @@ async fn route_solve_unknown_token_returns_400() {
     resp.assert_status_bad_request();
 }
 
+/// #1218 AC8: indexer graph is CW20 contract ids; wrap-map is client-side only.
+#[serial]
+#[tokio::test]
+async fn route_solve_native_uluna_returns_400() {
+    let pool = common::setup_pool().await;
+    common::seed_route_solve(&pool).await;
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+
+    let resp = server
+        .get("/api/v1/route/solve?token_in=uluna&token_out=terra1routesolvebbb")
+        .await;
+    resp.assert_status_bad_request();
+}
+
 #[serial]
 #[tokio::test]
 async fn route_solve_no_path_returns_404() {

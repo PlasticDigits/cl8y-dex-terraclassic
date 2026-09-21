@@ -64,6 +64,44 @@ describe('swapRouteDisplay', () => {
     expect(line).toBe(`${sym(from)} → ${sym(mid)} → ${sym(to)}`)
   })
 
+  it('prefers indexer hops over native BFS 2-hop (#1218 AC2 / #450)', () => {
+    const clunc = 'terra1clunc0000000000000000000000000000001'
+    const custc = 'terra1custc0000000000000000000000000000001'
+    const ust1 = 'terra1ust10000000000000000000000000000001'
+    const ustr = 'terra1ustr0000000000000000000000000000001'
+    const bfs: SwapOperation[] = [op(clunc, ust1), op(ust1, ustr)]
+    const solver: SwapOperation[] = [op(clunc, custc), op(custc, ust1), op(ust1, ustr)]
+    const line = computeSwapRouteDisplay({
+      fromToken: 'uluna',
+      toToken: ustr,
+      isWrapOrUnwrap: false,
+      nativeRouteInfo: { operations: bfs, needsWrapInput: true, needsUnwrapOutput: false },
+      indexerIntermediateTokens: [clunc, custc, ust1, ustr],
+      indexerOperations: solver,
+      clientRoute: null,
+      isMultiHop: false,
+      isDirect: false,
+      displaySymbol: (id) => (id === 'uluna' ? 'LUNC' : id.slice(-4)),
+    })
+    expect(line).toBe(`LUNC → ${clunc.slice(-4)} → ${custc.slice(-4)} → ${ust1.slice(-4)} → ${ustr.slice(-4)}`)
+  })
+
+  it('deriveSwapSubmitRouteOps prefers indexer hops over native BFS (#1218 AC2)', () => {
+    const clunc = 'terra1clunc0000000000000000000000000000001'
+    const ust1 = 'terra1ust10000000000000000000000000000001'
+    const ustr = 'terra1ustr0000000000000000000000000000001'
+    const custc = 'terra1custc0000000000000000000000000000001'
+    const bfs: SwapOperation[] = [op(clunc, ust1), op(ust1, ustr)]
+    const solver: SwapOperation[] = [op(clunc, custc), op(custc, ust1), op(ust1, ustr)]
+    expect(
+      deriveSwapSubmitRouteOps({
+        nativeRouteInfo: { operations: bfs, needsWrapInput: true, needsUnwrapOutput: false },
+        indexerOperations: solver,
+        clientRoute: null,
+      })
+    ).toEqual(solver)
+  })
+
   it('deriveSwapSubmitRouteOps prefers indexer router ops over client BFS direct (#449)', () => {
     const from = 'terra1aa0000000000000000000000000000000001'
     const mid = 'terra1bb0000000000000000000000000000000001'

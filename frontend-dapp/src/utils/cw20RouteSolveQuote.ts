@@ -12,7 +12,11 @@ import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
 import { displayReceiveNet } from '@/utils/communityTaxNetOut'
-import { assertHop0DeclaredHybridPartitionsOffer, stripInteriorDeclaredHybrid } from '@/utils/hybridHopOfferPartition'
+import {
+  assertHop0DeclaredHybridPartitionsOffer,
+  stripAllDeclaredHybrid,
+  stripInteriorDeclaredHybrid,
+} from '@/utils/hybridHopOfferPartition'
 
 /**
  * Wallet-authoritative CW20 quote from indexer `GET /route/solve` (global best-execution hybrid).
@@ -22,7 +26,8 @@ import { assertHop0DeclaredHybridPartitionsOffer, stripInteriorDeclaredHybrid } 
  * - Receive **display** is wallet sim minus catalog buy split when indexer `buy_tax_bps` > 0 (#615).
  * - Submit `min_return` uses pre-tax wallet sim (`executeAmountOut`), not the net display.
  * - Submit must use returned `indexerOperations` (hop-0 `hybrid` after Policy A strip; #1280).
- * - Wrap/native BFS hops never copy `hybrid` (#1264 / **H596-7**).
+ * - Wrap/native execute hops never copy `hybrid` (#1264 / **H596-7** / #1218). Pass
+ *   `omitAllHybrid: true` on wrap-enter / unwrap-exit so wallet sim matches pool-only submit.
  * - Returns `null` when token_in/out mismatch the request (caller falls back).
  * - Throws on indexer/wallet failure (caller catches for pool-only / Advanced fallback).
  */
@@ -50,9 +55,20 @@ export async function quoteCw20ViaRouteSolve(input: {
   maxSpreadStr: string
   quoteTrader?: QuoteTraderOptions
   signal?: AbortSignal
+  /** Strip hop-0 hybrid too so wrap-enter quote = pool-only execute (#1218 / **H596-7**). */
+  omitAllHybrid?: boolean
 }): Promise<Cw20RouteSolveQuote | null> {
-  const { fromToken, toToken, simRaw, maxMakerFills, slippageTolerancePercent, maxSpreadStr, quoteTrader, signal } =
-    input
+  const {
+    fromToken,
+    toToken,
+    simRaw,
+    maxMakerFills,
+    slippageTolerancePercent,
+    maxSpreadStr,
+    quoteTrader,
+    signal,
+    omitAllHybrid,
+  } = input
 
   const idx = await getRouteSolve(fromToken, toToken, simRaw, {
     maxMakerFills,
@@ -76,8 +92,10 @@ export async function quoteCw20ViaRouteSolve(input: {
   }
 
   const mapped = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
-  const ops = stripInteriorDeclaredHybrid(mapped)
-  assertHop0DeclaredHybridPartitionsOffer(ops, simRaw)
+  const ops = omitAllHybrid ? stripAllDeclaredHybrid(mapped) : stripInteriorDeclaredHybrid(mapped)
+  if (!omitAllHybrid) {
+    assertHop0DeclaredHybridPartitionsOffer(ops, simRaw)
+  }
   const opsForQuote = await enrichSwapOperationsWithHopMinReturns(ops, simRaw, slippageTolerancePercent, quoteTrader)
   const result = await simulateMultiHopSwap(simRaw, opsForQuote, quoteTrader)
   const routePreflight = await preflightSwapRouteSpread(opsForQuote, simRaw, maxSpreadStr, quoteTrader)

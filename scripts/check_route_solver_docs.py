@@ -73,6 +73,7 @@ def main() -> int:
     solver_version_lcd = extract_str_const(BEST_EXEC, "SOLVER_VERSION_LCD")
     solver_version_db = extract_str_const(BEST_EXEC, "SOLVER_VERSION_DB")
     max_paths = extract_usize(BEST_EXEC, "MAX_PATH_CANDIDATES")
+    path_enum_pool = extract_usize(BEST_EXEC, "PATH_ENUM_POOL")
     optimality = extract_str_const(BEST_EXEC, "OPTIMALITY_SCOPE")
     default_hops = extract_usize(ROUTE_SOLVER, "GET_DEFAULT_MAX_HOPS")
     pool_only_hops = extract_usize(ROUTE_SOLVER, "GET_POOL_ONLY_MAX_HOPS")
@@ -89,6 +90,7 @@ def main() -> int:
         ("solver_version_lcd", [solver_version_lcd, "global_v3"]),
         ("solver_version_db", [solver_version_db, "global_v4"]),
         ("max_paths", [str(max_paths), "top-5", "five"]),
+        ("path_enum_pool", [str(path_enum_pool), "PATH_ENUM_POOL"]),
         ("optimality", [optimality]),
         ("lcd_budget", [str(lcd_budget), "1700"]),
         ("default_hops", [f"GET_DEFAULT_MAX_HOPS` | {default_hops}", f"≤ {default_hops} hops"]),

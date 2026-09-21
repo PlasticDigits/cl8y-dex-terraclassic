@@ -47,6 +47,11 @@ vi.mock('@/utils/nativeTransferTax', () => ({
   }),
 }))
 
+vi.mock('./transactions', () => ({
+  executeTerraContract: vi.fn().mockResolvedValue('txhash'),
+  executeTerraContractMulti: vi.fn().mockResolvedValue('txhash'),
+}))
+
 vi.mock('./wrapMapper', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./wrapMapper')>()
   return {
@@ -55,7 +60,15 @@ vi.mock('./wrapMapper', async (importOriginal) => {
   }
 })
 
-import { findRoute, getAllTokens, isDirectWrapUnwrap, findRouteWithNativeSupport, simulateNativeSwap } from './router'
+import {
+  findRoute,
+  getAllTokens,
+  isDirectWrapUnwrap,
+  findRouteWithNativeSupport,
+  simulateNativeSwap,
+  executeNativeSwap,
+} from './router'
+import { executeTerraContractMulti } from './transactions'
 import { queryWrapMapperFeeBps } from './wrapMapper'
 import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
 import type { PairInfo } from '@/types'
@@ -288,5 +301,68 @@ describe('getAllTokens with native support', () => {
     const tokens = getAllTokens(pairs)
     expect(tokens).toContain('uluna')
     expect(tokens).toContain('uusd')
+  })
+})
+
+describe('executeNativeSwap solver ops (#1218)', () => {
+  beforeEach(() => {
+    vi.mocked(executeTerraContractMulti).mockClear()
+    vi.mocked(executeTerraContractMulti).mockResolvedValue('txhash')
+  })
+
+  it('submits injected solver hops pool-only and does not BFS a 2-hop (P2/P3)', async () => {
+    const ustr = 'terra1ustr_mock_for_execute_native_swapxx'
+    const custc = MOCK_USTC_C
+    const ust1 = 'terra1ust1_mock_for_execute_native_swapx'
+    const thinBfsPair = mockPair(MOCK_LUNC_C, ust1, 'pair_thin')
+    const solverOps = [
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: MOCK_LUNC_C } },
+          ask_asset_info: { token: { contract_addr: custc } },
+          hybrid: { pool_input: '90', book_input: '10', max_maker_fills: 8 },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: custc } },
+          ask_asset_info: { token: { contract_addr: ust1 } },
+        },
+      },
+      {
+        terra_swap: {
+          offer_asset_info: { token: { contract_addr: ust1 } },
+          ask_asset_info: { token: { contract_addr: ustr } },
+        },
+      },
+    ]
+
+    await executeNativeSwap(
+      'terra1wallet',
+      'uluna',
+      ustr,
+      '1000000',
+      [thinBfsPair, mockPair(ust1, ustr, 'pair_out')],
+      '0.05',
+      '1',
+      1,
+      solverOps
+    )
+
+    expect(executeTerraContractMulti).toHaveBeenCalledTimes(1)
+    const msgs = vi.mocked(executeTerraContractMulti).mock.calls[0][1]
+    expect(msgs[0].msg).toEqual({ wrap_deposit: {} })
+    const send = msgs[1].msg as { send: { msg: string } }
+    const hook = JSON.parse(atob(send.send.msg)) as {
+      execute_swap_operations: {
+        operations: Array<{ terra_swap: { hybrid?: unknown; ask_asset_info: { token: { contract_addr: string } } } }>
+        unwrap_output?: boolean
+      }
+    }
+    const ops = hook.execute_swap_operations.operations
+    expect(ops).toHaveLength(3)
+    expect(ops.every((o) => o.terra_swap.hybrid == null)).toBe(true)
+    expect(ops[0].terra_swap.ask_asset_info.token.contract_addr).toBe(custc)
+    expect(hook.execute_swap_operations.unwrap_output).toBeUndefined()
   })
 })
