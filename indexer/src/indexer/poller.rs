@@ -63,6 +63,12 @@ pub async fn run_indexer(
         tracing::error!("swap_amm hop fee backfill failed: {e}");
     }
 
+    if let Err(e) =
+        crate::db::queries::traders::heal_trader_lifetime_from_swaps_if_needed(&pool).await
+    {
+        tracing::error!("trader lifetime heal failed: {e}");
+    }
+
     // Token + trader windows too — do not wait for the 5 min loop (GitLab #577 **D5**).
     volume_aggregator::refresh_all_volume_windows(&pool, true).await;
 

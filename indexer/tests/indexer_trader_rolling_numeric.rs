@@ -444,3 +444,101 @@ async fn huge_raw_refresh_does_not_smash_total_volume_usd() {
     );
     let _ = seed.pair_id;
 }
+
+/// I10: overflow-skip leftover — swap row without `traders` row heals before rolling refresh.
+#[serial]
+#[tokio::test]
+async fn heal_inserts_missing_trader_from_swaps_then_refresh_ok() {
+    let pool = common::setup_pool().await;
+    let seed = seed_huge(&pool, false).await;
+    sqlx::query("DELETE FROM traders WHERE address = $1")
+        .bind(&seed.sender)
+        .execute(&pool)
+        .await
+        .expect("drop trader");
+
+    assert!(
+        traders::heal_trader_lifetime_from_swaps(&pool)
+            .await
+            .expect("heal")
+    );
+    let row = traders::get_trader(&pool, &seed.sender)
+        .await
+        .expect("get")
+        .expect("healed row");
+    assert_eq!(row.total_trades, 1);
+    assert_eq!(row.total_volume.normalized(), seed.offer.normalized());
+
+    traders::refresh_rolling_volumes(&pool)
+        .await
+        .expect("refresh after heal");
+}
+
+/// I10: reorg leftover-lifetime ghost zeros inflated totals; registered zero-lifetime does not trip.
+#[serial]
+#[tokio::test]
+async fn heal_zeros_leftover_lifetime_ghost_not_registered_zero() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    sqlx::query(
+        "INSERT INTO traders (address, total_trades, total_volume, total_volume_usd, registered)
+         VALUES ('terra1r1277ghost', 3, 999, 1.5, false)",
+    )
+    .execute(&pool)
+    .await
+    .expect("ghost");
+    sqlx::query(
+        "INSERT INTO traders (address, total_trades, total_volume, registered)
+         VALUES ('terra1r1277regzero', 0, 0, true)",
+    )
+    .execute(&pool)
+    .await
+    .expect("registered zero");
+
+    assert!(
+        traders::trader_lifetime_diverges_from_swaps(&pool)
+            .await
+            .expect("gate with ghost")
+    );
+
+    traders::heal_trader_lifetime_from_swaps(&pool)
+        .await
+        .expect("heal ghost");
+    let ghost = traders::get_trader(&pool, "terra1r1277ghost")
+        .await
+        .expect("get")
+        .expect("ghost row");
+    assert_eq!(ghost.total_trades, 0);
+    assert_eq!(ghost.total_volume.normalized(), zero().normalized());
+    assert!(ghost.total_volume_usd.is_none());
+    assert!(ghost.first_trade_at.is_none());
+
+    traders::upsert_trader(&pool, "terra1r1277ghost", &bd("1000"), None)
+        .await
+        .expect("re-ingest");
+    let after = traders::get_trader(&pool, "terra1r1277ghost")
+        .await
+        .expect("get")
+        .expect("after");
+    assert_eq!(after.total_trades, 1);
+    assert_eq!(after.total_volume.normalized(), bd("1000").normalized());
+}
+
+#[serial]
+#[tokio::test]
+async fn registered_zero_lifetime_does_not_trip_heal_gate() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    sqlx::query(
+        "INSERT INTO traders (address, total_trades, total_volume, registered)
+         VALUES ('terra1r1277regzero', 0, 0, true)",
+    )
+    .execute(&pool)
+    .await
+    .expect("registered zero");
+    assert!(
+        !traders::trader_lifetime_diverges_from_swaps(&pool)
+            .await
+            .expect("gate")
+    );
+}
