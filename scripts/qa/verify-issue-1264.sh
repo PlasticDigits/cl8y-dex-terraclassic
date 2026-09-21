@@ -179,8 +179,8 @@ else
     bad "columbus-5 hash required (VERIFY1264_REQUIRE_MAINNET=1) — set VERIFY1264_COLUMBUS_TX"
   else
     echo ""
-    echo "[columbus-5] SKIP — set VERIFY1264_COLUMBUS_TX=<hash> after operator USTC→USTR"
-    skip "columbus-5 USTC→USTR (AC1) — set VERIFY1264_COLUMBUS_TX=<hash>"
+    echo "[columbus-5] SKIP — AC1 already measured (53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36); optional pin VERIFY1264_COLUMBUS_TX"
+    skip "columbus-5 USTC→USTR AC1 optional LCD pin — VERIFY1264_COLUMBUS_TX=53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36"
   fi
 fi
 

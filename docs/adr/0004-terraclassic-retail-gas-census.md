@@ -97,7 +97,7 @@ Wallet rows apply to every family: **Keplr extension** honors `preferNoSetFee` (
 
 ## Dated measurements
 
-Re-fetched **2026-09-11** from `https://terra-classic-lcd.publicnode.com/cosmos/tx/v1beta1/txs/{hash}` (public LCD only).
+Re-fetched **2026-09-11** from `https://terra-classic-lcd.publicnode.com/cosmos/tx/v1beta1/txs/{hash}` (public LCD only). **Wrap+2hop USTC AC1** added **2026-09-21** from leftover [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) / [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) (do **not** reopen). **#587 LUNC** wrap+2hop remains unmeasured.
 
 | Sample | Hash | Height | `gas_wanted` | `gas_used` | Fee | Notes |
 |--------|------|--------|--------------|------------|-----|-------|
@@ -105,7 +105,7 @@ Re-fetched **2026-09-11** from `https://terra-classic-lcd.publicnode.com/cosmos/
 | Direct unwrap OOG (historical) | `3C3B382A…287AD` | — | 550,000 | ~550,559 | — | Ceiling below cost; current `UNWRAP_GAS_LIMIT` is 800k. Partial hash in `constants.ts` comment. |
 | Wrap LCD | — | — | 400,000 ceiling | ~303k | — | Code comment; **unmeasured** on columbus-5 this census |
 | Unwrap+2hop success | — | — | 3,110,000 | — | — | **Unmeasured.** Record via existing `VERIFY600_COLUMBUS_TX` (#600). Do not bump `UNWRAP_GAS_LIMIT` from this ADR. |
-| Wrap+2hop success | — | — | 2,710,000 | — | — | **Unmeasured** on columbus-5 this census. Envelope already above gem 2.31M. |
+| Wrap+2hop success (USTC AC1) | [`53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36`](https://finder.terraclassic.community/columbus-5/tx/53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36) | — | **2,710,000** | **2,630,228** | — | **#1264 USTC AC1** measured 2026-09-21. `code=0`, class **not-A / not-B**. Envelope stays 2,710,000. Do **not** reopen #1264. **#587 LUNC** wrap+2hop columbus-5 still **unmeasured**. Leftover must **not** treat this row as a reopen trigger (**G-CENSUS-2**). |
 
 Current code identity for the mixed path (must stay **> 5,026,176** and **< 15M**):
 
