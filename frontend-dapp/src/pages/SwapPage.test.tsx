@@ -24,7 +24,12 @@ vi.mock('@/services/terraclassic/wallet', () => ({
 }))
 
 vi.mock('@/services/terraclassic/queries', () => ({
-  queryContract: vi.fn().mockResolvedValue({}),
+  queryContract: vi.fn(async (_addr: string, msg: unknown) => {
+    if (msg && typeof msg === 'object' && 'token_info' in msg) {
+      return { name: 'Dummy', symbol: 'DUM', decimals: 6, total_supply: '0' }
+    }
+    return {}
+  }),
   getTokenBalance: vi.fn().mockResolvedValue('0'),
 }))
 
@@ -238,6 +243,8 @@ describe('SwapPage', () => {
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
     vi.spyOn(indexerClient, 'postRouteSolve').mockReset()
     vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('indexer post not used in this test'))
+    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no pair'))
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -1598,7 +1605,7 @@ describe('SwapPage', () => {
       const terraE = 'terra1ee0000000000000000000000000000000001'
       const hop1Hybrid = {
         pool_input: '0',
-        book_input: '10000000000',
+        book_input: '1000000',
         max_maker_fills: 8,
         book_start_hint: 1426,
       }
@@ -1680,12 +1687,13 @@ describe('SwapPage', () => {
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
       await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
+      await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled(), { timeout: 8000 })
       const feeHint = await screen.findByTestId('swap-network-fee')
       expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
       expect(feeHint).toHaveTextContent('LUNC')
       expect(feeHint).not.toHaveTextContent(/~107/)
       expect(feeHint).not.toHaveTextContent(/~108/)
-      expect(feeHint).toHaveTextContent(/~192/)
+      await waitFor(() => expect(feeHint).toHaveTextContent(/~192/), { timeout: 8000 })
       const route = await screen.findByTestId('swap-route-summary')
       expect(route.textContent ?? '').toMatch(/→/)
       expect((route.textContent ?? '').split('→').length).toBeGreaterThanOrEqual(4)

@@ -48,7 +48,12 @@ vi.mock('@/services/terraclassic/wallet', () => ({
   getConnectedWallet: vi.fn().mockReturnValue({}),
 }))
 vi.mock('@/services/terraclassic/queries', () => ({
-  queryContract: vi.fn().mockResolvedValue({}),
+  queryContract: vi.fn(async (_addr: string, msg: unknown) => {
+    if (msg && typeof msg === 'object' && 'token_info' in msg) {
+      return { name: 'Dummy', symbol: 'DUM', decimals: 6, total_supply: '0' }
+    }
+    return {}
+  }),
   getTokenBalance: vi.fn().mockResolvedValue('1050000'),
 }))
 vi.mock('@/services/terraclassic/pair', () => ({
@@ -182,6 +187,8 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
     seedPair()
     vi.mocked(getTokenBalance).mockResolvedValue('1050000')
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unused'))
+    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no pair'))
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,

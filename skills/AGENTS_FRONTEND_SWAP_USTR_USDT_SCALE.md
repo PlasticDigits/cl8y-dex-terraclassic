@@ -18,7 +18,7 @@ USTR and USDT are **18-dec**; UST1 / cLUNC / cUSTC are **6-dec**. A 3-hop USTR�
 | **Q1257-1** | Mixed 18/6 hop sim uses **wide** `k` (pair Uint256 analog, #464). `saturating_mul` overflow is not a quote. |
 | **Q1257-2** | Hop is unusable (`ImplausibleHop` → skip path) when ask_out **>** ask reserve, **or** offer > **1000×** input reserve **and** ask_out ≥ **99%** of ask reserve. Do **not** 404 an honest 1-hop whale 99% drain. |
 | **Q1257-3** | `hybrid_cache_key` includes `token_in` / `token_out`. `AMOUNT_CACHE_BUCKET` = 1e6 raw: 1 USTR (`1e18`) and 10000 USTR (`1e22`) must not alias; 1 USTR must not alias 1 UST1 (`1e6`). |
-| **Q1257-4** | Unique-symbol USDT (`terra1z0xe7…`) and USTR display as **18** decimals. Unknown CW20 stays **6** (#1255). Do not globally remove the unknown default. |
+| **Q1257-4** | Unique-symbol USDT (`terra1z0xe7…`) and USTR display as **18** decimals. Unknown CW20 stays **6** on `getDecimals` / `swapAmountDecimals` chrome only. Swap / Trade **execute** amounts use `useAssetDecimals` (`null`, not 6) ([#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255)). Do not globally remove the unknown default. |
 | **Q1257-5** | Swap / Trade hide **You Receive** (show `—` / empty, not billions) when expected slippage **≥ 99%**. |
 | **Q1257-6** | Expert Mode waives **> 30%** only. **≥ 99%** stays blocked; do not offer Expert as an escape hatch. |
 | **Q1257-7** | Honest mixed-dec pools stay size-monotonic on per-human-unit out (larger size → ≤ per-unit). Theater 3-hop must lose to a funded 1-hop when both exist. |
@@ -56,4 +56,5 @@ Indexer lib: `db_orderbook_sim` mixed 18/6 + implausible; `route_solver` amount-
 
 - [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — unique USDT ticker (**TL-1**)
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — quote = execute
+- [`AGENTS_FRONTEND_SWAP_AMOUNT_SCALE.md`](./AGENTS_FRONTEND_SWAP_AMOUNT_SCALE.md) — unlisted CW20 execute scale (**Q1255**)
 - [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — do not weaken 30/99 gates
