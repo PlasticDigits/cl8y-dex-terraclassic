@@ -4,7 +4,7 @@
   "version": {
     "major": 1,
     "minor": 0,
-    "patch": 4
+    "patch": 5
   },
   "keywords": ["terra-classic", "cl8y", "dex"],
   "tokens": [
@@ -106,6 +106,15 @@
       "type": "cw20",
       "decimals": 18,
       "logoURI": "https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/USDT.png"
+    },
+    {
+      "symbol": "DO",
+      "name": "Lunc Cookie Do Coin",
+      "address": "terra15p8su45k45axng8ue59rl6zph4at27s49u3agr6uqrx3dhcxpg3qt0ekdt",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/DO.png",
+      "website": "https://luncverse.io"
     }
   ]
 }

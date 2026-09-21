@@ -101,6 +101,13 @@ export const TOKENS: TokenRegistryEntry[] = [
     type: 'cw20',
     logoURI: 'https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/USDT.png',
   },
+  {
+    symbol: 'DO',
+    name: 'Lunc Cookie Do Coin',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/DO.png',
+  },
 ]
 
 // Allowlist only — unknown bank/IBC denoms stay raw (GitLab #630).
@@ -119,6 +126,7 @@ const CW20_MAP: Record<string, string> = {
   terra1r3eaa2tucjr3es88wzuqpgxvssqflk9cghrjmf9uneds8wljyapqwtrcp5: 'USTRIX',
   terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl: 'SpaceUSD',
   [REGISTRY_USDT_CW20_ADDRESS]: 'USDT',
+  terra15p8su45k45axng8ue59rl6zph4at27s49u3agr6uqrx3dhcxpg3qt0ekdt: 'DO',
 }
 
 if (LUNC_C_TOKEN_ADDRESS) CW20_MAP[LUNC_C_TOKEN_ADDRESS.toLowerCase()] = 'cLUNC'
