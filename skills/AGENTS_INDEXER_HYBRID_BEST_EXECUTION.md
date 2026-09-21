@@ -6,7 +6,7 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 
 | Endpoint | When to use |
 |----------|-------------|
-| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1` or `global_v2`): top-5 paths by hop count, joint hybrid splits, max **4 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191), [#323](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/323)). Optional **`trader`** / **`sender`** for CL8Y fee-tier quote parity — pair `HybridSimulation` discount math ([#238](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)); indexer/frontend wiring ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). See [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md). |
+| `GET /api/v1/route/solve?token_in=&token_out=&amount_in=` | **Default retail / integrator path** — **global best execution** (`solver_version`: `global_v1` or `global_v2`): top-5 paths by hop count, joint hybrid splits, max **4 hops** when `amount_in` is set ([#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209), [#191](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191), [#323](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/323)). **Retail emit (#1280):** declared `hybrid` on **hop 0 only**; later hops `hybrid: null`. Optional **`trader`** / **`sender`** for CL8Y fee-tier quote parity — pair `HybridSimulation` discount math ([#238](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/238)); indexer/frontend wiring ([#245](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). See [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) · [`AGENTS_HYBRID_HOP_OFFER.md`](./AGENTS_HYBRID_HOP_OFFER.md). |
 | `GET /api/v1/route/solve/best?token_in=&token_out=&amount_in=` | **Alias** — requires `amount_in` ([#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189)). Accepts same optional **`trader`** / **`sender`**. |
 | `GET /api/v1/route/solve?hybrid_optimize=true&amount_in=` | Deprecated explicit opt-in; equivalent to default GET with `amount_in`. |
 | `GET /api/v1/route/solve?pool_only=true&amount_in=` | **Integrator / custom frontend only** — pool-only opt-out (max 4 hops, no global solver). The official dApp never sends this ([#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)). |
@@ -21,7 +21,7 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 | `optimality_scope` | Human-readable bound (not unbounded “global optimal”) |
 | `lcd_hybrid_queries` | LCD `HybridSimulation` calls during optimization (legacy / per-hop fallback) |
 | `db_hybrid_queries` | Postgres mirror grid evals (`global_v2`) |
-| `fidelity_check` | `passed` \| `drift` \| `skipped` — router sim vs mirror grid (#319) |
+| `fidelity_check` | `passed` \| `drift` \| `skipped` — router sim vs **emitted-ops** mirror grid (#319, #1280 hop-0-only strip) |
 | `hybrid_notes` | Degradation + liability boundary |
 | `quote_kind` | `indexer_hybrid_db`, `indexer_hybrid_db_degraded`, `indexer_pool_db`, or legacy `*_lcd` kinds |
 

@@ -18,6 +18,7 @@ import {
   retailExposeTestTokens,
 } from '@/utils/pairCatalogRank'
 import { netAfterWrapMapperFee, queryWrapMapperFeeBps } from './wrapMapper'
+import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
 
 /** Result of `simulateNativeSwap` (direct wrap/unwrap + native-routed swaps). */
 export type NativeSwapSimResult = {
@@ -107,6 +108,7 @@ export async function executeMultiHopSwap(
   to?: string,
   deadline?: number
 ): Promise<string> {
+  assertHop0DeclaredHybridPartitionsOffer(operations, amount)
   const swapMsg = btoa(
     JSON.stringify({
       execute_swap_operations: {
@@ -375,7 +377,8 @@ export async function executeNativeSwap(
     cw20SendAmount = (await netCw20AfterNativeWrap(BigInt(amount), fromToken)).toString()
   }
 
-  // Pool-only hops from client BFS `findRoute` — never copy hybrid / book_input (#587 / #599).
+  // Pool-only hops from client BFS `findRoute` — never copy hybrid / book_input
+  // (#587 / #599 / #1264 / #1280 / **H596-7**).
   const swapHookMsg = {
     execute_swap_operations: {
       operations: routeInfo.operations.map((op) => ({

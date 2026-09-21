@@ -31,6 +31,41 @@ pub struct HybridHopJson {
     pub book_start_hint: Option<u64>,
 }
 
+/// Retail GET Policy A ([#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280)):
+/// keep a declared split only on hop 0 (the CW20 send amount). Later hops are
+/// pool-only (`None`) so execute cannot freeze hop-1+ integers against a
+/// different realized `hop_output`. POST `hybrid_by_hop` is unchanged.
+pub fn retail_declared_hybrid_plan_hop0_only(
+    mut plan: Vec<Option<HybridHopJson>>,
+) -> Vec<Option<HybridHopJson>> {
+    if plan.len() > 1 {
+        for slot in plan.iter_mut().skip(1) {
+            *slot = None;
+        }
+    }
+    plan
+}
+
+/// True when any remaining declared hop has `book_input > 0`.
+pub fn plan_has_book_leg(plan: &[Option<HybridHopJson>]) -> bool {
+    plan.iter().any(|h| {
+        h.as_ref()
+            .and_then(|x| x.book_input.parse::<u128>().ok())
+            .is_some_and(|b| b > 0)
+    })
+}
+
+/// Integer partition: `pool_input + book_input == offer` (no wrap on overflow).
+pub fn hybrid_hop_partitions_offer(h: &HybridHopJson, offer: u128) -> bool {
+    let Ok(pool) = h.pool_input.parse::<u128>() else {
+        return false;
+    };
+    let Ok(book) = h.book_input.parse::<u128>() else {
+        return false;
+    };
+    pool.checked_add(book) == Some(offer)
+}
+
 #[derive(Clone, Debug)]
 pub struct HopDescriptor {
     pub pair: String,
@@ -604,7 +639,11 @@ async fn optimize_multihop_hybrid_with_plan(
     Ok(out_vec)
 }
 
-async fn propagate_offer_through_plan(
+/// Forward-simulate a fixed hybrid plan through hops `[0, target_hop)`.
+///
+/// After Policy A hop-0-only strip, pass the **stripped** plan with
+/// `target_hop = hops.len()` so DB `grid_out` matches emitted ops (#1280 fidelity).
+pub async fn propagate_offer_through_plan(
     source: &HybridSimSource<'_>,
     mut mirror_meta: Option<&mut MirrorLoadMeta>,
     hops: &[HopDescriptor],
@@ -667,10 +706,10 @@ async fn propagate_offer_through_plan(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
     use crate::api::db_orderbook_sim::{HopMirror, MirrorFreshness, MirrorLoadMeta};
     use crate::db::queries::resting_orders;
     use bigdecimal::BigDecimal;
+    use chrono::Utc;
 
     fn bd(s: &str) -> BigDecimal {
         s.parse().unwrap()
@@ -720,6 +759,42 @@ mod tests {
         }
     }
 
+    fn fresh_mirror_pair(
+        offer: &str,
+        ask: &str,
+        bids: Vec<resting_orders::RestingOrderRow>,
+    ) -> HopMirror {
+        HopMirror {
+            pair_id: 1,
+            asset_0_addr: offer.into(),
+            asset_1_addr: ask.into(),
+            reserve_0: 1_000_000_000,
+            reserve_1: 2_000_000_000,
+            fee_bps: 30,
+            block_height: Some(1),
+            snapshot_at: Utc::now(),
+            freshness: MirrorFreshness::Fresh,
+            bids,
+            asks: vec![],
+        }
+    }
+
+    fn hop_ab() -> HopDescriptor {
+        HopDescriptor {
+            pair: "terra1pairab".into(),
+            offer_token: "terra1token0".into(),
+            ask_token: "terra1token1".into(),
+        }
+    }
+
+    fn hop_bc() -> HopDescriptor {
+        HopDescriptor {
+            pair: "terra1pairbc".into(),
+            offer_token: "terra1token1".into(),
+            ask_token: "terra1token2".into(),
+        }
+    }
+
     #[tokio::test]
     async fn empty_book_short_circuits_grid() {
         let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
@@ -756,6 +831,43 @@ mod tests {
         assert_eq!(mirror_meta.lcd_fallback_queries, 0);
     }
 
+    #[test]
+    fn retail_plan_keeps_hop0_and_nulls_interior() {
+        let hop0 = HybridHopJson {
+            pool_input: "700".into(),
+            book_input: "300".into(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let hop1 = HybridHopJson {
+            pool_input: "50".into(),
+            book_input: "50".into(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let plan = retail_declared_hybrid_plan_hop0_only(vec![Some(hop0.clone()), Some(hop1)]);
+        assert_eq!(plan.len(), 2);
+        assert!(plan[0].as_ref().is_some_and(|h| h.pool_input == "700"));
+        assert!(plan[1].is_none());
+        assert!(plan_has_book_leg(&plan));
+        assert!(hybrid_hop_partitions_offer(plan[0].as_ref().unwrap(), 1000));
+        assert!(!hybrid_hop_partitions_offer(plan[0].as_ref().unwrap(), 999));
+    }
+
+    #[test]
+    fn retail_plan_single_hop_unchanged() {
+        let hop0 = HybridHopJson {
+            pool_input: "1000".into(),
+            book_input: "0".into(),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        };
+        let plan = retail_declared_hybrid_plan_hop0_only(vec![Some(hop0)]);
+        assert_eq!(plan.len(), 1);
+        assert!(plan[0].is_some());
+        assert!(!plan_has_book_leg(&plan));
+    }
+
     #[tokio::test]
     async fn live_book_still_runs_grid() {
         let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
@@ -785,9 +897,9 @@ mod tests {
 
         assert!(out > 0);
         assert!(
-            plan[0].as_ref().is_some_and(|h| {
-                h.book_input.parse::<u128>().unwrap_or(0) > 0
-            }),
+            plan[0]
+                .as_ref()
+                .is_some_and(|h| { h.book_input.parse::<u128>().unwrap_or(0) > 0 }),
             "live book should pick a book leg; plan={:?}",
             plan[0]
         );
@@ -797,6 +909,82 @@ mod tests {
             mirror_meta.db_hybrid_queries >= GRID_POINTS,
             "live book must still grid-search; got {}",
             mirror_meta.db_hybrid_queries
+        );
+    }
+
+    #[tokio::test]
+    async fn hop0_only_strip_recomputes_grid_out_below_joint() {
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let mut mirrors = HashMap::new();
+        mirrors.insert(
+            "terra1pairab".into(),
+            fresh_mirror_pair(
+                "terra1token0",
+                "terra1token1",
+                vec![resting(1, "bid", "5", "50000000000")],
+            ),
+        );
+        mirrors.insert(
+            "terra1pairbc".into(),
+            fresh_mirror_pair(
+                "terra1token1",
+                "terra1token2",
+                vec![resting(2, "bid", "5", "50000000000")],
+            ),
+        );
+        let source = HybridSimSource::Db {
+            lcd_fallback: &lcd,
+            mirrors: &mirrors,
+            discount_bps: 0,
+        };
+        let mut mirror_meta = MirrorLoadMeta::default();
+        let quote = QuoteTrader::default();
+        let hops = [hop_ab(), hop_bc()];
+
+        let (plan, _, joint_out) = optimize_multihop_hybrid_joint(
+            &source,
+            Some(&mut mirror_meta),
+            &hops,
+            100_000,
+            8,
+            &quote,
+        )
+        .await
+        .expect("optimize");
+
+        let hop1_book = plan
+            .get(1)
+            .and_then(|h| h.as_ref())
+            .and_then(|h| h.book_input.parse::<u128>().ok())
+            .unwrap_or(0);
+        assert!(
+            hop1_book > 0,
+            "joint grid should use hop-1 book; plan={plan:?}"
+        );
+
+        let stripped = retail_declared_hybrid_plan_hop0_only(plan);
+        assert!(stripped[1].is_none());
+        let stripped_out = propagate_offer_through_plan(
+            &source,
+            Some(&mut mirror_meta),
+            &hops,
+            &stripped,
+            100_000,
+            hops.len(),
+            8,
+            &quote,
+        )
+        .await
+        .expect("stripped propagate");
+
+        assert!(
+            joint_out > stripped_out,
+            "interior book must raise joint grid_out; joint={joint_out} stripped={stripped_out}"
+        );
+        let drift_bps = (joint_out - stripped_out).saturating_mul(10_000) / stripped_out.max(1);
+        assert!(
+            drift_bps > 100,
+            "unstripped fidelity would exceed default 100 bps; drift_bps={drift_bps}"
         );
     }
 }

@@ -81,6 +81,16 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   if (/code_id pins are missing|AssetCodeIdUnpinned/i.test(inner)) {
     return CODE_ID_UNPINNED_TX_MESSAGE
   }
+  if (
+    /hybrid pool_input \+ book_input must equal hop offer amount|Hybrid swap split mismatch|must equal simulated offer amount for this hop/i.test(
+      inner
+    )
+  ) {
+    return (
+      'Trade rejected: the book/pool split does not match this hop’s offer amount. ' +
+      'Refresh the quote and try again. Do not reuse hop-0 integers on later hops.'
+    )
+  }
   if (/Trading blacklist/i.test(inner)) {
     return (
       'This action was blocked by the protocol trading blacklist (compliance or incident response). ' +

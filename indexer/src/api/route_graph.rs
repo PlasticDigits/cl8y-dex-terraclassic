@@ -39,13 +39,11 @@ fn graph_cache() -> &'static Mutex<Option<(Arc<RouteGraphSnapshot>, Instant)>> {
     CACHE.get_or_init(|| Mutex::new(None))
 }
 
-async fn load_graph_snapshot(pool: &PgPool) -> Result<Arc<RouteGraphSnapshot>, (StatusCode, String)> {
-    let all_assets = assets::get_all_assets(pool)
-        .await
-        .map_err(internal_err)?;
-    let pair_rows = db_pairs::get_all_pairs(pool)
-        .await
-        .map_err(internal_err)?;
+async fn load_graph_snapshot(
+    pool: &PgPool,
+) -> Result<Arc<RouteGraphSnapshot>, (StatusCode, String)> {
+    let all_assets = assets::get_all_assets(pool).await.map_err(internal_err)?;
+    let pair_rows = db_pairs::get_all_pairs(pool).await.map_err(internal_err)?;
     Ok(Arc::new(RouteGraphSnapshot::new(all_assets, pair_rows)))
 }
 
@@ -74,6 +72,13 @@ pub async fn get_route_graph_snapshot(
     }
 
     Ok(snapshot)
+}
+
+/// Drop the process-local graph snapshot (integration tests after TRUNCATE/reseed).
+pub fn reset_route_graph_cache() {
+    if let Ok(mut guard) = graph_cache().lock() {
+        *guard = None;
+    }
 }
 
 #[cfg(test)]

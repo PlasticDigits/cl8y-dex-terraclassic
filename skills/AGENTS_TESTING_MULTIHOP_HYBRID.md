@@ -21,7 +21,7 @@ Regression tests for **≥3-hop** router paths where **≥2 legs** carry non-zer
 - `setup_router_abc_env` — A/B + B/C pairs ([`smartcontracts/tests/src/lib.rs`](../smartcontracts/tests/src/lib.rs))
 - `setup_router_abcd_env` — adds C/D pair for 3-hop paths
 
-**Building per-hop hybrid splits:** each hop’s `pool_input + book_input` must equal that hop’s offer amount. For hop *n > 1*, simulate hops `1..n` first (router `SimulateSwapOperations`) to learn the intermediate offer, then assign splits (see `hybrid_params_split` in `limit_order_tests.rs`).
+**Building per-hop hybrid splits:** each hop’s `pool_input + book_input` must equal that hop’s offer amount. For hop *n > 1*, simulate hops `1..n` first (router `SimulateSwapOperations`) to learn the intermediate offer, then assign splits (see `hybrid_params_split` in `limit_order_tests.rs`). Retail **GET** does **not** emit those interior splits ([#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280) Policy A) — only hop 0 is declared; hops 1+ are `hybrid: null`. POST / integrator tests that size hop 2 from sim out remain valid. Playbook: [`AGENTS_HYBRID_HOP_OFFER.md`](./AGENTS_HYBRID_HOP_OFFER.md).
 
 **Run:**
 
@@ -40,6 +40,7 @@ cargo test hybrid_swap_rejects_min_return_above_net_output
 | `route_solve_post_three_hop_multi_leg_hybrid` | [`indexer/tests/api_route_solve.rs`](../indexer/tests/api_route_solve.rs) | `seed_route_solve_3hop` |
 | `route_solve_get_hybrid_optimize_three_hops` | same | `seed_route_solve_3hop` |
 | `route_solve_get_default_hybrid_two_hops` | same | `seed_route_solve_2hop` — default GET with `amount_in` (no `hybrid_optimize`; [**#191**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/191)) |
+| `route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan` | [`indexer/tests/api_route_solve_db_hybrid.rs`](../indexer/tests/api_route_solve_db_hybrid.rs) | `seed_route_solve_2hop_with_mirror` — DB fidelity stays `passed` when LCD matches hop-0-only DB-sim ([#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280)) |
 | `route_solve_pool_only_escape_hatch` | same | `seed_route_solve` — `pool_only=true` |
 
 **Run (serialized — shared DB):**
