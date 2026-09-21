@@ -139,6 +139,18 @@ run_constants_lockstep() {
   python3 scripts/check_route_solver_docs.py
 }
 
+run_pre_push_zero_remote_oid() {
+  [[ -x "${REPO_ROOT}/.githooks/pre-push" ]] || {
+    echo ".githooks/pre-push missing or not executable" >&2
+    return 1
+  }
+  local local_oid
+  local_oid="$(git rev-parse HEAD)"
+  printf 'refs/heads/qa-zero-oid %s refs/heads/qa-zero-oid %s\n' \
+    "$local_oid" "0000000000000000000000000000000000000000" \
+    | "${REPO_ROOT}/.githooks/pre-push"
+}
+
 run_no_prod_solve_diff() {
   local base=""
   if git rev-parse --verify origin/main >/dev/null 2>&1; then
@@ -175,6 +187,9 @@ run_step "lockstep: current solver/quote constants still match census" \
 
 run_step "AC5: production solver/quote files untouched vs merge-base" \
   run_no_prod_solve_diff
+
+run_step "hooks: pre-push zero remote OID checks only new commits" \
+  run_pre_push_zero_remote_oid
 
 echo ""
 echo "── retest ──"

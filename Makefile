@@ -357,6 +357,10 @@ verify-issue-1265:
 	@chmod +x scripts/qa/verify-issue-1265.sh
 	./scripts/qa/verify-issue-1265.sh
 
+# Forgejo #1289 — implement PR for #1265 remaining-failure census (same verify).
+.PHONY: verify-issue-1289
+verify-issue-1289: verify-issue-1265
+
 # GitLab #708 — greedy book-first swap (opt-in; G1–G14).
 verify-issue-708:
 	@chmod +x scripts/qa/verify-issue-708.sh scripts/with-node.sh

@@ -1,6 +1,6 @@
 # QA — Forgejo #1265 remaining GET `/route/solve` failures census
 
-Verify (no chain): `make verify-issue-1265`
+Implement PR: [#1289](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1289). Verify (no chain): `make verify-issue-1265` or `make verify-issue-1289` (alias).
 
 Playbook: [`skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](../../../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) · ADR [`docs/adr/0007-route-solve-remaining-failures.md`](../../adr/0007-route-solve-remaining-failures.md) · invariants **R-CENSUS-1–R-CENSUS-8**.
 

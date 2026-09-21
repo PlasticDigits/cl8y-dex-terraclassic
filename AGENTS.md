@@ -178,6 +178,7 @@ make verify-issue-1280                   # #1280 hop-offer hybrid partition (Pol
 make verify-issue-679                    # #679 mixed hybrid+pool router gas + Swap Network fee (Vitest)
 make verify-issue-1222                   # #1222 retail gas envelope vs wallet auto-fee census (docs/ADR)
 make verify-issue-1265                   # #1265 remaining GET /route/solve failures census (docs/ADR)
+make verify-issue-1289                   # #1289 implement PR for #1265 (alias)
 make verify-issue-708                    # #708 greedy book-first swap (multitest + gas + docs)
 make verify-issue-709                    # #709 greedy query mutex + remainder_to_pool + pool_spot overflow
 make verify-issue-710                    # #710 greedy tax / pause / blacklist / AfterSwap L7
@@ -343,7 +344,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
 | Retail gas census (docs) | `make verify-issue-1222` |
-| Route solve remaining failures (docs) | `make verify-issue-1265` |
+| Route solve remaining failures (docs) | `make verify-issue-1265` · `make verify-issue-1289` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
 | API4 per-request caps | `make verify-issue-694` |
 | GeckoTerminal `/gt/events` post-event reserves | `make verify-issue-684` |
