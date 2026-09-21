@@ -7,6 +7,8 @@ Audience: third-party agents changing `protocol_fee_events` uniqueness, `swap_am
 **Swap uniqueness precedent:** GitLab [#287](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/287) `(tx_hash, pair_id, swap_index)` on `swap_events`  
 **Fee-ledger children:** [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1213**) — inherit this **widened** key, do not copy `UNIQUE (tx_hash, source, ordinal)`  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **Protocol fees #586 / #1269**)  
+**ADR:** [`docs/adr/0005-protocol-fee-multihop-hops.md`](../docs/adr/0005-protocol-fee-multihop-hops.md) — uniqueness, backfill, alternatives, rollout  
+**Overview:** [`docs/architecture.md`](../docs/architecture.md#indexer-protocol-fee-ledger)  
 **Ops:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md) § Protocol fees; [`docs/runbooks/indexer-reorg-replay-dedup.md`](../docs/runbooks/indexer-reorg-replay-dedup.md)
 
 ## Problem class
@@ -44,6 +46,7 @@ PostgreSQL `UNIQUE` treats NULL as distinct. A nullable `pair_id` **without** th
 - **Don’t** use a nullable unique without partial indexes / COALESCE sentinel.
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** implement pair_creation / SKU / cohort here (#1209 / #1210 / #1211).
+- **Don’t** keep two sqlx files on prefix `20260916120000` (hops vs [#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258) USDT). Rename the unapplied file; see [ADR 0005](../docs/adr/0005-protocol-fee-multihop-hops.md) § Migration.
 
 ## Key files
 
