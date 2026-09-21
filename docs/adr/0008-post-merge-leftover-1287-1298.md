@@ -21,7 +21,16 @@ Close leftover **#1300** only after operator evidence for the merged stack — n
 3. **columbus-5 pair wasm.** Store+migrate in-tree pair **cw2 1.17.0** so listed fleet picks up **F6** `#1234` (`UpdateLimitOrderPrice` / `CleanLimitBook` gate) and **L24** `#1219` named min remaining. Operator path is [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) (`UPGRADE582_PAIR_VERSION` **1.17.0**). Factory on columbus-5 is already **1.10.0 / 11629** → `UPGRADE582_SKIP_FACTORY_MIGRATE=1` (script still asserts factory ≥ 1.9.0). The script **`UpdateConfig { pair_code_id }`** so new `CreatePair` instantiates 1.17.0 — skipping that is a leftover defect, not optional. Versions: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md) (pair **1.17.0**, fleet was **1.16.0**). Do **not** follow [`docs/runbooks/cw20-code-id-ops.md`](../runbooks/cw20-code-id-ops.md) Launch checklist (still factory **1.9.0** + pair **1.15.0** **RAN 2026-08-21** / 11602 / 11601). Leftover agents use `UPGRADE582_PROBE_ONLY=1` (read-only); they do **not** `store` / `migrate` / 2-of-3. Pair-first migrate still freezes gated writes; leftover must **not** invent a pair-only `terrad tx`.
 4. **Keep `#1264` open.** Envelope stays **2,710,000**. Columbus-5 wrap+2hop USTC→USTR `gas_used` is still **unmeasured** (AC1). **G1264-4** (USTC Max/gas-gate is LUNC-only) survived `#1218` — no code follow-up.
 5. **`#1279` leftover-complete is ops-bot** `QA_TEMPLATE.md` **1.5.1–1.5.11**. Green `make verify-issue-1279` does **not** close `#1279`.
-6. **LocalTerra / manual** (issue leftover item 5 / **M1300-3** — not a substitute for Coolify; keep these walks). Close #1300 only after the four walks, **or** an explicit SKIP because `make has-localterra` is down. Child Vitest / laptop-green `make verify-issue-1218` (chain opt-in `VERIFY_ISSUE_1218_CHAIN=1`) is **not** the walk. `VERIFY1300_REQUIRE_CHAIN=1` runs `make has-localterra` plus those four walks (FAIL if chain down) — not invented five-worker e2e. `VERIFY1300_LEFTOVER_E2E=1` stays **SKIP until named** (**M1300-7**). Walks: `#1218` LUNC→USTR Route wrap-then-cUSTC; `#1255` 18-dec unlisted factory CW20; `#1219` dust ladder no wallet popup; `#1263` `/protocol` ≤5 economic rows.
+6. **LocalTerra / manual** (issue leftover item 5 / **M1300-3** — not a substitute for Coolify). The four walks stay leftover-complete **operator evidence** on #1300. Close #1300 only after those walks, **or** an explicit SKIP because `make has-localterra` is down **and** `VERIFY1300_REQUIRE_CHAIN` is unset.
+
+   **`VERIFY1300_REQUIRE_CHAIN=1` contract:** fail-closed `make has-localterra` only. No Playwright. Do **not** copy #701 leftover Playwright FAIL (`VERIFY701_REQUIRE_CHAIN=1` FAILs when Playwright is missing). Default `make verify-issue-1300` does **not** execute the four walks even when the chain is up. Child Vitest / laptop-green `make verify-issue-1218` (chain opt-in `VERIFY_ISSUE_1218_CHAIN=1` is wrap-swap E7/E8, not LUNC→USTR Route wrap-then-cUSTC) is **not** the walk. Child skills `#1255` / `#1218` / `#1263` have no LocalTerra walk recipe — leftover-complete uses the how-tos below, not those flags. `VERIFY1300_LEFTOVER_E2E=1` stays **SKIP until named** (**M1300-7**). `REQUIRE_CHAIN` is **not** that flag.
+
+   | Walk | How-to | Pass |
+   |------|--------|------|
+   | **#1218** | Swap Pay LUNC / Receive USTR (LocalTerra + `make dev`). | Route shows wrap-then-cUSTC (wrap prefix + solver hops), not BFS 2-hop (**H1218-8**). |
+   | **#1255** | Fixture: Create Token 18-dec unlisted factory CW20; Swap pick as Pay; type `1`, then Max. | Typed `1` is 18-dec (`10^18` raw, not `10^6`); Max for `10^18` raw is human `1` (**Q1255-6**). |
+   | **#1219** | `/limits` or `/trade` Ladder with a rung below min remaining (10). | Copy **Minimum size is 10 units**; Place disabled; no wallet popup (**S1219-8**). |
+   | **#1263** | LocalTerra `/protocol`. | **Top pairs (30d)** section renders; table ≤5 rows (empty OK). Weaker than Coolify HTTP — does **not** prove `?limit=6` → 400. That 400 is **Coolify-only** (`GET /api/v1/protocol/top-pairs?limit=6`; **I1263-6** / `protocol_top_pairs.rs`). `protocol-page.spec.ts` does not assert Top pairs. |
 
 ## Context
 
@@ -89,7 +98,7 @@ Stacked-merge sanity already on the issue:
 | #1279 | Pre-check `make verify-issue-1279`; leftover-complete = ops-bot 1.5. `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` **must FAIL**. |
 | #297 | Coolify **migrate/rebuild** is ordinary leftover (same class as #701). Coolify **auto-deploy checkbox** is still #1276 / #297 — out of this ticket. columbus-5 pair store+migrate uses [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) (not the August 1.15.0 checklist); leftover agents `UPGRADE582_PROBE_ONLY=1` and SKIP/FAIL live, they do not store. |
 | PR #1302 | Landed (`92c84406`) on **#1305**. Do **not** revert. Do **not** merge `origin/cac-design-issue-1302` (unpublished second 0008). Hub wrap Coolify visual is **#1305 leftover-complete**. |
-| LocalTerra walks | Keep issue item 5. Close #1300 only after the four walks **or** explicit SKIP (`make has-localterra` down). `VERIFY1300_REQUIRE_CHAIN=1` = `has-localterra` + those four. Child Vitest is not the walk. |
+| LocalTerra walks | Keep issue item 5 as leftover-complete **operator evidence**. Close #1300 only after the four walks (Outcome item 6 how-tos) **or** explicit SKIP (`make has-localterra` down **and** `VERIFY1300_REQUIRE_CHAIN` unset). **`VERIFY1300_REQUIRE_CHAIN=1` = fail-closed `make has-localterra` only** — no Playwright, does not execute the walks, do not copy #701 Playwright FAIL. Default leftover verify does not execute walks when the chain is up. Child Vitest is not the walk. `VERIFY1300_LEFTOVER_E2E=1` SKIP until named (`REQUIRE_CHAIN` is not that flag). |
 
 ## Component / state / interface changes
 
@@ -131,7 +140,9 @@ Stacked-merge sanity already on the issue:
 | Revert merged PR #1302 / treat it as a leftover defect | Already on `origin/main` (`92c84406`). Sister leftover is **#1305**. Hub wrap Coolify visual is **#1305 leftover-complete**. |
 | Merge `origin/cac-design-issue-1302` ADR 0008 | Unpublished second `0008` (`0008-verify-issue-1290-hub-wrap-labels.md`). This branch keeps `0008-post-merge-leftover-1287-1298.md`. |
 | Wait on / FAIL #1300 because `20260921130000` is present or missing | That version is **#1305**. #1300 attests `…000` then `…001` only. Same boot may apply `…30000`; not a #1300 FAIL. |
-| Drop issue item 5 (Coolify frontend + child verifies enough) | Rejected: leftover-complete keeps the four LocalTerra/manual walks (or explicit `has-localterra` down SKIP). Child Vitest is not the walk. |
+| Drop issue item 5 (Coolify frontend + child verifies enough) | Rejected: leftover-complete keeps the four LocalTerra/manual walks as **operator evidence** (or explicit `has-localterra` down SKIP when REQUIRE_CHAIN is unset). Child Vitest is not the walk. |
+| Have `make verify-issue-1300` execute the four walks under `REQUIRE_CHAIN` | Rejected: no named command/pass-fail per walk. `REQUIRE_CHAIN` is fail-closed `has-localterra` only. |
+| Copy #701 `REQUIRE_CHAIN` Playwright FAIL (`run_leftover_e2e`) | Contradicts **M1300-7** (`VERIFY1300_LEFTOVER_E2E=1` SKIP until named). |
 | Fold #1276 auto-deploy checkbox into #1300 | Different authority (#297 deploy policy) and different leftover-complete (`EXPECT_SHA`). |
 | One sqlx file combining NUMERIC + `pair_volume_30d` | Would rewrite applied checksums; collision already resolved as `…000` / `…001`. |
 | Agent store+migrate pair wasm from leftover verify | Deploy/custody. Operator `upgrade-582-code-id-pin.sh` only (`UPGRADE582_PROBE_ONLY=1` for leftover agents). |
@@ -140,7 +151,7 @@ Stacked-merge sanity already on the issue:
 
 ## Complexity added / removed
 
-**Added (docs + leftover verify only):** Q21 registry, playbook, `make verify-issue-1300` (implement slice), Coolify migrate ordering, columbus-5 wasm checklist, explicit do-not-close for #1264.
+**Added (docs + leftover verify only):** Q21 registry, playbook, `make verify-issue-1300` (implement slice), Coolify migrate ordering, columbus-5 wasm checklist, explicit do-not-close for #1264, leftover-complete walk how-tos, `VERIFY1300_REQUIRE_CHAIN=1` as fail-closed `has-localterra` only.
 
 **Removed:** Ambiguity that child-green == leftover-complete for this stack; the false `verify-issue-582` claim once implement fixes it.
 
@@ -195,7 +206,8 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 | Treat merged PR #1302 as a leftover defect / revert it | Forbidden. `92c84406` is on `origin/main`. Hub wrap Coolify visual is **#1305 leftover-complete**. |
 | FAIL #1300 because `_sqlx_migrations` also has `20260921130000` (or lacks it) | That row is **#1305**. #1300 attests `…000` then `…001` only. Do not add a third version to `make verify-issue-1300`. |
 | Grep Coolify hub `cLUNC / USD` as the #1300 frontend marker | Forbidden. Named marker is **`protocol-top-pairs` / `Top pairs (30d)`**. Hub wrap visual is **#1305**. |
-| Treat child Vitest as LocalTerra leftover-complete | Forbidden. Close #1300 only after the four walks **or** explicit SKIP (`make has-localterra` down). `VERIFY1300_REQUIRE_CHAIN=1` is `has-localterra` + those four, not five-worker e2e. |
+| Treat child Vitest as LocalTerra leftover-complete | Forbidden. Close #1300 only after the four walks (Outcome item 6 how-tos) **or** explicit SKIP (`has-localterra` down **and** REQUIRE_CHAIN unset). |
+| Treat `VERIFY1300_REQUIRE_CHAIN=1` as “run the four walks” / copy #701 Playwright FAIL | Forbidden. REQUIRE_CHAIN is fail-closed `make has-localterra` only. No Playwright. Default leftover verify does not execute walks when the chain is up. `VERIFY1300_LEFTOVER_E2E=1` is the stacked-Playwright flag and stays SKIP until named. |
 | Agent store wasm / flip auto-deploy | Out of authority. #297 for policy expansion; operator `upgrade-582-code-id-pin.sh` for wasm. Leftover agents `UPGRADE582_PROBE_ONLY=1` only. |
 | Colliding sqlx rename after prod apply | Checksum mismatch; migrator rejects. Do not rename applied files. |
 | Rollback image without schema | `NUMERIC(38, 0)` and `pair_volume_30d` stay; old binary may fail migrate-on-boot if versions missing from the binary — **2(b)** keep schema + hotfix that still ships N ([ADR 0006](./0006-indexer-health-git-sha.md)). |
@@ -203,12 +215,12 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 ## Ordered implementation slices
 
 1. **Docs registry (this design PR).** ADR 0008 + architecture pointer + **Q21** + playbook **M1300**. Pointers on ADR 0004/0005/0006/0007. No verify script in the design PR.
-2. **Leftover verify script (implement).** `scripts/qa/verify-issue-1300.sh` + `Makefile` `verify-issue-1300` + `docs/testing.md` / `scripts/qa/README.md` / `AGENTS.md` wiring + child-skill “Coolify leftover: #1300” one-liners. Children: **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263**. Copy `require_live()` from #701/#702. Live frontend HTTP: hashed-chunk grep for **`protocol-top-pairs` / `Top pairs (30d)`** (same class as #701). Do **not** grep hub `cLUNC / USD`. Do **not** copy #1276 `EXPECT_SHA` leftover-complete. Do **not** attest `20260921130000`.
+2. **Leftover verify script (implement).** `scripts/qa/verify-issue-1300.sh` + `Makefile` `verify-issue-1300` + `docs/testing.md` / `scripts/qa/README.md` / `AGENTS.md` wiring + child-skill “Coolify leftover: #1300” one-liners. Children: **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263**. Copy `require_live()` from #701/#702 **for Coolify HTTP only** (`VERIFY1300_REQUIRE_LIVE` / `VERIFY1300_IID=1300`). Do **not** copy #701 leftover Playwright (`VERIFY701_REQUIRE_CHAIN=1` FAIL when Playwright missing; `run_leftover_e2e`). `VERIFY1300_REQUIRE_CHAIN=1` is fail-closed `make has-localterra` only. Live frontend HTTP: hashed-chunk grep for **`protocol-top-pairs` / `Top pairs (30d)`** (same class as #701). Do **not** grep hub `cLUNC / USD`. Do **not** copy #1276 `EXPECT_SHA` leftover-complete. Do **not** attest `20260921130000`.
 3. **Comment-only gap.** `verify-issue-1234.sh`: invoke `make verify-issue-582` **or** remove the header claim. Same leftover implement slice.
 4. **Coolify indexer (operator).** Migrate `…000` then `…001`; attest those two `_sqlx_migrations` rows via Coolify DB / indexer `DATABASE_URL`; wait rollup; probe `GET /api/v1/protocol/top-pairs` (≤5 economic; `?limit=6` → 400). `…30000` if applied is **#1305**. Ordinary leftover — not #297.
 5. **Coolify frontend (operator).** Rebuild `6d34da13+`. Production marker: **`protocol-top-pairs` / `Top pairs (30d)`**. Vite `/protocol` is frontend evidence only. Do not grep hub `cLUNC / USD`.
 6. **columbus-5 pair wasm (operator).** [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh): `UPGRADE582_PAIR_VERSION` **1.17.0**, `UPGRADE582_SKIP_FACTORY_MIGRATE=1`, `UpdateConfig { pair_code_id }`. Leftover agents: `UPGRADE582_PROBE_ONLY=1` — do not store / migrate / 2-of-3 / invent a pair-only `terrad tx`.
-7. **LocalTerra / manual (keep issue item 5).** Four walks: #1218 LUNC→USTR Route wrap-then-cUSTC; #1255 18-dec unlisted factory CW20; #1219 dust ladder no wallet popup; #1263 `/protocol` ≤5 economic rows. Child Vitest is **not** the walk. `VERIFY1300_REQUIRE_CHAIN=1` runs `make has-localterra` plus those four (FAIL if chain down). Chain down without REQUIRE_CHAIN → leftover-complete may record explicit SKIP (`make has-localterra` down). Leftover stacked Playwright is **manual**; `VERIFY1300_LEFTOVER_E2E=1` **SKIP until named**. Child verifies already run their own specs (`wrap-swap.spec.ts` / #1218, ladder UI / #1219). `protocol-page.spec.ts` does **not** assert Top pairs. Do not invent five-worker leftover coverage. `e2e-tx` stays **1 worker**. `:3173` CORS: do not leak `PLAYWRIGHT_WEB_PORT`.
+7. **LocalTerra / manual (keep issue item 5 as leftover-complete operator evidence).** How-tos: Outcome item 6. Do **not** have make execute the four walks (no named command; do not invent). Default leftover verify does not execute them when the chain is up. `VERIFY1300_REQUIRE_CHAIN=1` is fail-closed `make has-localterra` only — no Playwright, do not copy #701 Playwright FAIL. Chain down without REQUIRE_CHAIN → leftover-complete may record explicit SKIP. Leftover stacked Playwright is **manual**; `VERIFY1300_LEFTOVER_E2E=1` **SKIP until named** (`REQUIRE_CHAIN` is not that flag). Child verifies already run their own specs (`wrap-swap.spec.ts` / #1218, ladder UI / #1219). `protocol-page.spec.ts` does **not** assert Top pairs. Do not invent five-worker leftover coverage. `e2e-tx` stays **1 worker**. `:3173` CORS: do not leak `PLAYWRIGHT_WEB_PORT`.
 8. **Stay-open owners.** Record #1264 AC1 still unmeasured; #1279 still ops-bot. Do not close those issues from #1300.
 
 **Open issue dependencies:** none that block starting leftover implement. `#1264` and `#1279` remain open *after* #1300 leftover-complete. Sister **#1305** does **not** block #1300.
@@ -226,7 +238,7 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 | T5 | Child FAIL | Stack FAIL |
 | T6 | `make verify-issue-1264` | Envelope 2.71M; no combo raise |
 | T7 | `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` | FAIL |
-| T8 | `VERIFY1300_REQUIRE_CHAIN=1` | Runs `make has-localterra` plus the four leftover walks (#1218 LUNC→USTR Route wrap-then-cUSTC; #1255 18-dec unlisted factory CW20; #1219 dust ladder no wallet popup; #1263 `/protocol` ≤5 economic). Child Vitest is **not** the walk. Chain down → **FAIL** (not SKIP). Without REQUIRE_CHAIN, chain down → leftover-complete may record explicit SKIP (`make has-localterra` down). `VERIFY1300_LEFTOVER_E2E=1` remains **SKIP until named** (stacked Playwright; do not invent five-worker coverage). |
+| T8 | `VERIFY1300_REQUIRE_CHAIN=1` | Fail-closed `make has-localterra` only. Chain down → **FAIL** (not SKIP). Chain up → PASS the probe; **does not** execute the four walks. No Playwright. Do **not** copy #701 Playwright FAIL. Default leftover verify (flag unset) does **not** execute the walks even when the chain is up. Walks stay leftover-complete operator evidence (Outcome item 6 how-tos), **or** explicit SKIP when `has-localterra` is down and REQUIRE_CHAIN is unset. `VERIFY1300_LEFTOVER_E2E=1` remains **SKIP until named** (`REQUIRE_CHAIN` is not that flag). |
 | T9 | `verify-issue-1234` after slice 3 | Claim matches behavior |
 | T10 | Live Coolify after migrate | Operator: **#1300** sqlx versions `20260921120000` then `20260921120001` `success=true` via Coolify DB / indexer `DATABASE_URL` (`20260921130000` is **#1305**, not a #1300 FAIL). HTTP: `GET /api/v1/protocol/top-pairs` items ≤5 economic, gems absent; `?limit=6` → **400**. Frontend: hashed-chunk grep **`protocol-top-pairs` / `Top pairs (30d)`**. Do **not** grep hub `cLUNC / USD`. No leftover `DATABASE_URL`. No `EXPECT_SHA`. |
 
@@ -239,7 +251,7 @@ Postgres-only child tests stay Postgres-only. No CosmWasm in leftover verify exc
 3. Confirm `_sqlx_migrations` **`…000` then `…001`** (operator Coolify DB / indexer `DATABASE_URL`; `…30000` is **#1305**) + `GET /api/v1/protocol/top-pairs`.
 4. Operator: frontend rebuild; confirm **`protocol-top-pairs` / `Top pairs (30d)`**. Do not grep hub `cLUNC / USD`.
 5. Operator: columbus-5 pair 1.17.0 via `upgrade-582-code-id-pin.sh` when ready (`UpdateConfig { pair_code_id }`); leftover stays open until cw2 matches.
-6. Manual/LocalTerra four walks, **or** explicit SKIP (`make has-localterra` down).
+6. Manual/LocalTerra four walks per Outcome item 6 how-tos, **or** explicit SKIP (`make has-localterra` down **and** REQUIRE_CHAIN unset). `make verify-issue-1300` does not execute those walks.
 7. Close **#1300** with probe evidence. Leave **#1264** and **#1279** open unless their own leftover-complete holds.
 
 No wasm store from the leftover MR. No pause. No treasury rotate.
@@ -257,7 +269,7 @@ This leftover is not a chain halt.
 - `make verify-issue-1300` exists on `main` and is green locally (children + docs).
 - Coolify: **#1300 attests `20260921120000` then `20260921120001` only** (`success=true`, apply order — operator Coolify DB / indexer `DATABASE_URL`). Same boot may also apply `20260921130000`; that row is **#1305**, not a #1300 FAIL and not a reason to keep #1300 open. Do **not** add a third version to `make verify-issue-1300`. Live **`GET /api/v1/protocol/top-pairs`** items ≤5 economic, gems absent; `?limit=6` → **400**.
 - Coolify frontend serves `6d34da13+` with production HTTP marker **`protocol-top-pairs` / `Top pairs (30d)`**. Do **not** grep hub `cLUNC / USD` (that is **#1305 leftover-complete**). Vite `/protocol` is frontend evidence only.
-- LocalTerra / manual (issue item 5): the four walks (#1218 / #1255 / #1219 / #1263) recorded, **or** explicit SKIP because `make has-localterra` is down. Child Vitest is not the walk. `VERIFY1300_REQUIRE_CHAIN=1` is `has-localterra` + those four, not five-worker e2e.
+- LocalTerra / manual (issue item 5): the four walks recorded per Outcome item 6 how-tos, **or** explicit SKIP because `make has-localterra` is down **and** `VERIFY1300_REQUIRE_CHAIN` is unset. Child Vitest is not the walk. `VERIFY1300_REQUIRE_CHAIN=1` is fail-closed `has-localterra` only — does not execute the walks, not five-worker e2e.
 - columbus-5 listed pair cw2 **1.17.0** via `upgrade-582-code-id-pin.sh` (including `UpdateConfig { pair_code_id }`), **or** leftover comment records that wasm is still outstanding (then **#1300 stays open**).
 - `#1264` still open; envelope **2,710,000**; AC1 unmeasured unless an operator hash is attached.
 - `#1279` still ops-bot; make did not close it.
