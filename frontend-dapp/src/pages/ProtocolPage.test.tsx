@@ -50,6 +50,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
     getOverview: vi.fn(),
     getHubPrices: vi.fn(),
     getProtocolFees: vi.fn(),
+    getProtocolTopPairs: vi.fn(),
     getProtocolVolumeDaily: vi.fn(),
     getProtocolVolumeSeries: vi.fn(),
     getProtocolLiquiditySeries: vi.fn(),
@@ -163,6 +164,29 @@ const feesOk = {
   ],
 }
 
+const VALID_PAIR = 'terra1pair0000000000000000000000000000000001'
+
+const topPairsOk = {
+  items: [
+    {
+      pair_address: VALID_PAIR,
+      asset_0: { symbol: 'UST1', contract_addr: 'terra1ust1', denom: null, decimals: 6 },
+      asset_1: { symbol: 'cUSTC', contract_addr: 'terra1custc', denom: null, decimals: 6 },
+      volume_usd_30d: '1234.5',
+      liquidity_usd: '500',
+      volume_per_tvl: '2.469',
+    },
+    {
+      pair_address: 'terra1pair0000000000000000000000000000000002',
+      asset_0: { symbol: 'LUNC', contract_addr: null, denom: 'uluna', decimals: 6 },
+      asset_1: { symbol: 'USTC', contract_addr: null, denom: 'uusd', decimals: 6 },
+      volume_usd_30d: '200',
+      liquidity_usd: '100',
+      volume_per_tvl: '2',
+    },
+  ],
+}
+
 function mockOracle(ticker: string, price: string) {
   vi.mocked(indexerClient.getOraclePrice).mockImplementation(async (t = 'ustc') => ({
     ticker: t,
@@ -190,6 +214,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   beforeEach(() => {
     vi.mocked(indexerClient.getOverview).mockResolvedValue(overviewOk)
     vi.mocked(indexerClient.getProtocolFees).mockResolvedValue(feesOk)
+    vi.mocked(indexerClient.getProtocolTopPairs).mockResolvedValue(topPairsOk)
     vi.mocked(indexerClient.getProtocolVolumeDaily).mockResolvedValue(dailyOk)
     vi.mocked(indexerClient.getProtocolVolumeSeries).mockClear()
     vi.mocked(indexerClient.getProtocolLiquiditySeries).mockClear()
@@ -262,10 +287,12 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
   it('renders global stats above a single oracle card and does not headline mixed-unit volume', async () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     const stats = await screen.findByTestId('protocol-global-stats')
+    const topPairs = await screen.findByTestId('protocol-top-pairs')
     const fees = await screen.findByTestId('protocol-fee-stats')
     const hub = await screen.findByTestId('protocol-dex-hub-prices')
     const oracle = await screen.findByTestId('protocol-oracle')
-    expect(stats.compareDocumentPosition(fees) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(stats.compareDocumentPosition(topPairs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(topPairs.compareDocumentPosition(fees) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(fees.compareDocumentPosition(hub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(hub.compareDocumentPosition(oracle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const liq = within(stats).getByTestId('protocol-stat-liquidity')
@@ -1163,5 +1190,70 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     await user.click(screen.getByTestId('protocol-utc-metric-fees'))
     expect(screen.getByTestId('protocol-volume-daily-chart').querySelector('script')).toBeNull()
     expect(screen.getByTestId('protocol-volume-daily-chart').querySelector('a[href]')).toBeNull()
+  })
+
+  it('renders Top pairs (30d) after Global stats with vol, v2 LP, and Vol/LP (Forgejo #1263)', async () => {
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const panel = await screen.findByTestId('protocol-top-pairs')
+    expect(await screen.findByTestId('protocol-top-pair-row-0')).toBeInTheDocument()
+    expect(panel).toHaveTextContent('Top pairs (30d)')
+    expect(panel).toHaveTextContent('Trailing 30-day volume vs current pool USD.')
+    expect(panel).toHaveTextContent('30d vol')
+    expect(panel).toHaveTextContent('v2 LP')
+    expect(panel).toHaveTextContent('Vol/LP')
+    expect(panel.textContent).not.toMatch(/\bfarm(ing)?\b/i)
+    expect(panel.textContent).not.toMatch(/\bvot(e|ing)\b/i)
+    expect(panel.textContent).not.toMatch(/cost to benefit/i)
+    expect(panel.textContent).not.toMatch(/\bAPR\b/)
+    expect(panel.querySelector('.card-glass')).toBeNull()
+    expect(panel.querySelector('.shell-panel')).toBeNull()
+    expect(panel.querySelector('.overflow-x-auto')).toBeTruthy()
+    expect(screen.getByTestId('protocol-top-pair-pair-0')).toHaveTextContent('UST1 / cUSTC')
+    const href = screen.getByTestId('protocol-top-pair-pair-0').querySelector('a')
+    expect(href).toHaveAttribute('href', `/charts/${VALID_PAIR}`)
+    expect(screen.getByTestId('protocol-top-pair-vol-0').textContent).toMatch(/^\$/)
+    expect(screen.getByTestId('protocol-top-pair-lp-0').textContent).toMatch(/^\$/)
+    expect(screen.getByTestId('protocol-top-pair-ratio-0')).toHaveTextContent('2.47×')
+    expect(screen.getByTestId('protocol-top-pair-ratio-0').textContent).not.toMatch(/%/)
+    expect(screen.queryByTestId('protocol-top-pair-row-5')).not.toBeInTheDocument()
+    expect(screen.queryByText('EMBER')).not.toBeInTheDocument()
+  })
+
+  it('renders em-dash for missing TVL / hostile ratio and never a javascript href (Forgejo #1263)', async () => {
+    vi.mocked(indexerClient.getProtocolTopPairs).mockResolvedValue({
+      items: [
+        {
+          pair_address: 'javascript:alert(1)',
+          asset_0: { symbol: '<script>xss</script>', contract_addr: null, denom: null, decimals: 6 },
+          asset_1: { symbol: 'UST1', contract_addr: null, denom: null, decimals: 6 },
+          volume_usd_30d: '50',
+          liquidity_usd: null,
+          volume_per_tvl: 'Infinity',
+        },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const pairCell = await screen.findByTestId('protocol-top-pair-pair-0')
+    expect(pairCell.querySelector('a')).toBeNull()
+    expect(pairCell.querySelector('script')).toBeNull()
+    expect(pairCell).toHaveTextContent('<script>xss</script> / UST1')
+    expect(screen.getByTestId('protocol-top-pair-lp-0')).toHaveTextContent('—')
+    expect(screen.getByTestId('protocol-top-pair-ratio-0')).toHaveTextContent('—')
+  })
+
+  it('shows No pairs yet when the ranking is empty (Forgejo #1263)', async () => {
+    vi.mocked(indexerClient.getProtocolTopPairs).mockResolvedValue({ items: [] })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    expect(await screen.findByTestId('protocol-top-pairs-empty')).toHaveTextContent('No pairs yet')
+    expect(screen.queryByTestId('protocol-top-pair-row-0')).not.toBeInTheDocument()
+  })
+
+  it('hides Top pairs when the indexer route is missing (Forgejo #1263)', async () => {
+    vi.mocked(indexerClient.getProtocolTopPairs).mockRejectedValue(new Error('Indexer API error: 404 Not Found'))
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-global-stats')
+    await waitFor(() => {
+      expect(screen.queryByTestId('protocol-top-pairs')).not.toBeInTheDocument()
+    })
   })
 })

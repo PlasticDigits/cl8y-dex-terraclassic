@@ -175,6 +175,54 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// Rebuild trailing 30d USD volume per pair (materialized table for Protocol top-5).
+/// Same priced-leg / NULL / overflow / idle-zero rules as [`refresh_pair_volumes`] (Forgejo #1263 / P1263).
+/// Unpriced activity → NULL (do not COALESCE to 0). Overflow ≥ 10^20 → NULL.
+/// Idle pairs (no 30d swaps) zero USD (D3 analog).
+pub async fn refresh_pair_volumes_30d(pool: &PgPool) -> Result<(), sqlx::Error> {
+    let cutoff = Utc::now() - chrono::Duration::days(30);
+
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        r#"INSERT INTO pair_volume_30d (pair_id, volume_usd, updated_at)
+           SELECT s.pair_id,
+                  CASE
+                    WHEN s.volume_usd IS NULL THEN NULL
+                    WHEN s.volume_usd >= POWER(10::numeric, 20) THEN NULL
+                    ELSE s.volume_usd
+                  END,
+                  NOW()
+           FROM (
+             SELECT se.pair_id,
+                    SUM(se.volume_usd) FILTER (WHERE se.volume_usd IS NOT NULL AND se.volume_usd > 0) AS volume_usd
+             FROM swap_events se
+             WHERE se.block_timestamp >= $1
+             GROUP BY se.pair_id
+           ) s
+           ON CONFLICT (pair_id)
+             DO UPDATE SET volume_usd = EXCLUDED.volume_usd,
+                          updated_at = EXCLUDED.updated_at"#,
+    )
+    .bind(cutoff)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        r#"UPDATE pair_volume_30d pv
+           SET volume_usd = 0, updated_at = NOW()
+           WHERE NOT EXISTS (
+             SELECT 1 FROM swap_events se
+             WHERE se.pair_id = pv.pair_id AND se.block_timestamp >= $1
+           )"#,
+    )
+    .bind(cutoff)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+
+    Ok(())
+}
+
 /// Rebuild rolling 24h/7d/30d global overview stats (materialized single-row table).
 /// Aggregates run here (~5 min), never on the /overview request path (GitLab #550 / AC7).
 pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {

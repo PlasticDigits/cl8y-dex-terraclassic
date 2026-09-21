@@ -31,6 +31,7 @@ mod overview;
 mod protocol_fee_series;
 mod protocol_fees;
 mod protocol_liquidity;
+mod protocol_top_pairs;
 mod protocol_volume;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use overview::reset_overview_cache;
@@ -40,6 +41,8 @@ pub use protocol_fee_series::reset_protocol_fee_series_cache;
 pub use protocol_fees::reset_protocol_fees_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_liquidity::reset_protocol_liquidity_cache;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use protocol_top_pairs::reset_protocol_top_pairs_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
@@ -355,6 +358,7 @@ pub async fn find_pair_by_ticker(
         protocol_fees::get_protocol_fees,
         protocol_fee_series::get_protocol_fees_daily,
         protocol_liquidity::get_protocol_liquidity_daily,
+        protocol_top_pairs::get_protocol_top_pairs,
         protocol_volume::get_protocol_volume_daily,
         defillama::get_defillama_daily,
         hub_prices::get_hub_prices,
@@ -433,6 +437,8 @@ pub async fn find_pair_by_ticker(
         protocol_fee_series::ProtocolFeeSeriesPoint,
         protocol_liquidity::ProtocolLiquidityDailyResponse,
         protocol_liquidity::ProtocolLiquidityDailyPoint,
+        protocol_top_pairs::ProtocolTopPairsResponse,
+        protocol_top_pairs::ProtocolTopPairItem,
         protocol_volume::ProtocolVolumeDailyResponse,
         protocol_volume::ProtocolVolumeDailyPoint,
         defillama::DefillamaDailyResponse,
@@ -645,6 +651,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/protocol/liquidity/daily",
             get(protocol_liquidity::get_protocol_liquidity_daily),
+        )
+        .route(
+            "/api/v1/protocol/top-pairs",
+            get(protocol_top_pairs::get_protocol_top_pairs),
         )
         .route(
             "/api/v1/protocol/volume/daily",

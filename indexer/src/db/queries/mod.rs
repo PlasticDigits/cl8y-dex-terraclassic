@@ -17,6 +17,7 @@ pub mod positions;
 pub mod protocol_fee_series;
 pub mod protocol_fees;
 pub mod protocol_liquidity;
+pub mod protocol_top_pairs;
 pub mod protocol_volume;
 pub mod resting_orders;
 pub mod state;

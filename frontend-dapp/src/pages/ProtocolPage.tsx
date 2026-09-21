@@ -11,11 +11,13 @@ import { formatDateTime } from '@/utils/formatDate'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { ProtocolGlobalStats } from '@/components/protocol/ProtocolGlobalStats'
 import { ProtocolFeeStats } from '@/components/protocol/ProtocolFeeStats'
+import { ProtocolTopPairs } from '@/components/protocol/ProtocolTopPairs'
 import { ProtocolDexHubPrices } from '@/components/protocol/ProtocolDexHubPrices'
 import { ProtocolOracleCard } from '@/components/protocol/ProtocolOracleCard'
 import { useProtocolOracleQueries } from '@/components/protocol/useProtocolOracleQueries'
 import { useProtocolOverviewQuery } from '@/components/protocol/useProtocolOverviewQuery'
 import { useProtocolFeesQuery } from '@/components/protocol/useProtocolFeesQuery'
+import { useProtocolTopPairsQuery } from '@/components/protocol/useProtocolTopPairsQuery'
 import { useProtocolHubPricesQuery } from '@/components/protocol/useProtocolHubPricesQuery'
 import { parseProtocolOracleTicker, type ProtocolOracleTicker } from '@/utils/protocolOracleTicker'
 import {
@@ -51,6 +53,7 @@ export default function ProtocolPage() {
 
   const overviewQuery = useProtocolOverviewQuery()
   const feesQuery = useProtocolFeesQuery()
+  const topPairsQuery = useProtocolTopPairsQuery()
   const hubPricesQuery = useProtocolHubPricesQuery()
   const { priceQuery, historyQuery, venusQuery } = useProtocolOracleQueries(ticker)
 
@@ -68,6 +71,7 @@ export default function ProtocolPage() {
   const marketDataDown = detectMarketDataOutage(
     overviewQuery,
     feesQuery,
+    topPairsQuery,
     hubPricesQuery,
     priceQuery,
     historyQuery,
@@ -93,6 +97,7 @@ export default function ProtocolPage() {
           onRetry={() => {
             void overviewQuery.refetch()
             void feesQuery.refetch()
+            void topPairsQuery.refetch()
             void hubPricesQuery.refetch()
             void priceQuery.refetch()
             void historyQuery.refetch()
@@ -102,6 +107,7 @@ export default function ProtocolPage() {
       )}
 
       <ProtocolGlobalStats overviewQuery={overviewQuery} />
+      <ProtocolTopPairs query={topPairsQuery} />
       <ProtocolFeeStats overviewQuery={overviewQuery} feesQuery={feesQuery} />
       <ProtocolDexHubPrices query={hubPricesQuery} />
       <ProtocolOracleCard

@@ -42,7 +42,7 @@ fn parse_book_side(raw: &str) -> Result<&'static str, (StatusCode, String)> {
     }
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ToSchema, Clone)]
 pub struct AssetBrief {
     pub symbol: String,
     pub contract_addr: Option<String>,

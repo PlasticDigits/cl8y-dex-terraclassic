@@ -439,6 +439,12 @@ verify-issue-550:
 	@chmod +x scripts/qa/verify-issue-550.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-550.sh
 
+# Forgejo #1263 — /protocol top-5 30d pair volume + current TVL + vol/LP.
+.PHONY: verify-issue-1263
+verify-issue-1263:
+	@chmod +x scripts/qa/verify-issue-1263.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1263.sh
+
 # GitLab #571 — /protocol vFDUSD tab: FDUSD reference price + Venus 1 vFDUSD Price.
 verify-issue-571:
 	@chmod +x scripts/qa/verify-issue-571.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh

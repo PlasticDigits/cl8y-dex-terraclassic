@@ -2,7 +2,7 @@
 
 Audience: third-party agents changing Protocol page layout, overview JSON, or external oracle tickers.
 
-**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#703**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) (phone Monthly last 12 UTC months + `YY-MM` axis; no rotated ticks) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees) · [**#1240**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) (mixed-case hub/oracle tickers)  
+**Issue:** [GitLab **#550**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) · [**#569**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/569) (pool TVL + 24h snapshot Δ%) · [**#586**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586) (treasury fees) · [**#652**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652) (inline Δ% + volume prior-window % + UTC-day series) · [**#667**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) (Δ% grouped with headline; integer census) · [**#668**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668) (USD axis + Hourly/Daily/Monthly grain chart) · [**#677**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677) (liquidity 24h-only + denser UTC x-axis) · [**#689**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/689) (Volume / Liquidity / Fees metric toggle on the UTC census chart) · [**#703**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703) (phone Monthly last 12 UTC months + `YY-MM` axis; no rotated ticks) · [**#613**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613) (wrap/unwrap ingest) · [**#614**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614) (UST1 window mint/redeem fees) · [**#1240**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) (mixed-case hub/oracle tickers) · [**#1263**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263) (top-5 30d pair volume table)  
 **Oracle skill:** [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md) (**X1–X6**, now `ustc` \| `lunc` \| `vfdusd`)  
 **Overview runbook:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md)  
 **Frontend:** [`docs/frontend.md`](../docs/frontend.md) § Protocol
@@ -15,8 +15,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 
 | ID | Rule |
 |----|------|
-| **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+cLUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. |
-| **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
+| **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Top pairs (30d)** (`protocol-top-pairs`, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+cLUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. || **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3** | Snapshot + sources + history live in **one** card. Query keys include ticker. |
 | **P550-4** | Stats headline **USD** (`total_volume_*_usd`). Do **not** present mixed-unit `total_volume_24h` as volume. |
 | **P550-5** | 7d/30d/active-pair/unique-trader **and** pool TVL / Δ% **and** fee totals come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
@@ -76,12 +75,28 @@ Retail must tell **cUSTC / cLUNC (wrap hub)** from **USTC / LUNC (CEX)** and **v
 - **Don't** scan `swap_events` on `GET /protocol/volume/daily` or accept free-form `from`/`to` / over-max `limit`.
 - **Don't** mount `PriceChart` on the Protocol volume census chart, or restore `7d`/`30d` as the grain selector.
 - **Don't** put a 30d Δ% chip back on Total liquidity, or restore `sparseTimeLabelIndexes` / `maxLabels = 5` ([#677](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/677)).
+- **Don't** nest `card-glass` per row in `protocol-top-pairs`, rank gems, or compute vol/LP from 24h `/pairs` in the browser ([#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)).
+
+## Invariants (P1263 — top-5 30d pairs)
+
+Census ranking of factory pools on `/protocol`. Not `/pool`, not `/charts`, not a vote, not a farm.
+
+| ID | Rule |
+|----|------|
+| **P1263-1** | Sibling `shell-panel` `protocol-top-pairs` **after Global stats, before Protocol fees**. Flat table (overflow-x OK). No `card-glass` per row. Do not nest inside `protocol-global-stats`. |
+| **P1263-2** | Title **Top pairs (30d)**. Lead: trailing 30-day volume vs current pool USD. Columns: Pair (symbols) \| 30d vol (USD) \| v2 LP (USD) \| Vol/LP (`N×` or **—**). Trailing window, not calendar month. Not 24h Vol reused as 30d. |
+| **P1263-3** | At most **five** rows from `GET /api/v1/protocol/top-pairs`. Ranked by trailing 30d priced USD. Gems (`COLUMBUS5_GEM_ADDRESSES`) never appear. Idle 0 does not pad. Empty → **No pairs yet**. |
+| **P1263-4** | Ratio is indexer `volume_per_tvl`. Missing / ≤0 / hostile / Inf → **—** (`formatVolumePerTvl`). Compact multiplier, never a percent. |
+| **P1263-5** | Pair cell uses `chartsPairHref`. Invalid bech32 / `javascript:` is text, not an href. Symbols render as text (no `innerHTML`). |
+| **P1263-6** | 404/501 (old indexer) hides the panel. 5xx is in `detectMarketDataOutage` + Retry. No per-row LCD / `/stats`. |
+| **P1263-7** | Copy has no “voting” / “farm” / “APR” / “cost to benefit” lecture (#489 / **H531-4**). No Provide CTA. |
+| **P1263-8** | Verify: `make verify-issue-1263`. Keep `verify-issue-550` / `569` / `655` / `692` / `653` / `562` green. Indexer contract: [`AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](./AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md) (**I1263-1–I1263-8**). |
 
 ## Invariants (PFee — GitLab #586)
 
 | ID | Rule |
 |----|------|
-| **PFee-1** | Fee panel `protocol-fee-stats` sits **after** Global stats and **before** DEX hub. Do not merge factory/router into fees. Do not headline `traders.total_fees_paid` (lifetime mixed-unit, includes spread). |
+| **PFee-1** | Fee panel `protocol-fee-stats` sits **after** Top pairs (`protocol-top-pairs`, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)) and **before** DEX hub. Do not merge factory/router into fees. Do not headline `traders.total_fees_paid` (lifetime mixed-unit, includes spread). |
 | **PFee-2** | Headlines are trailing **24h / 7d / 30d** treasury fee USD with **inline** flow Δ% vs the prior equal window (same cell; `protocol-stat-fees-*-chg` is a child, not a sibling card). Δ% sits immediately after the USD (`justify-start` / wrap), not in the gutter under the next fee label ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1**). Idle → `$0`; activity + all unpriced → `—`; missing prior / `then ≤ 0` → Δ% `—`. Never `Infinity`. Flat `StatBox` inside `protocol-fee-stats` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **PFee-3** | Source table uses retail labels (wrap / unwrap / **UST1 mint** / **UST1 redeem** / AMM swap / book take / limit place), not wasm action strings (`deposit` / `withdraw` / `effective_swap`). Unconfigured wrap mapper **omits** wrap/unwrap. Unconfigured `UST1_WINDOW_ADDRESS` (or missing `ust1_window_configured`) **omits** mint/redeem — not fake idle `$0`. Hide idle `$0` sources. |
 | **PFee-4** | Token table is human units + USD, cap 8 + `other`. Unpriced token shows human + USD `—`. XSS/`javascript:` symbols render as **text**. |
@@ -220,5 +235,6 @@ make verify-issue-1240  # mixed-case cUSTC / cLUNC / vFDUSD (hub wrap vs CEX nat
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — Global stats / fees / oracle chips are `flat` (#653); inline Δ% parentage is [#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652); visual grouping is [#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667)
 - [`AGENTS_FRONTEND_TRAILING_WINDOW.md`](./AGENTS_FRONTEND_TRAILING_WINDOW.md) — 24h/7d/30d volume is trailing, not calendar (#576). Phone Monthly UTC chart is last 6–12 calendar months + `YY-MM` ([#703](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/703))
 - [`AGENTS_FRONTEND_TRADE_IDENTITY_LP.md`](./AGENTS_FRONTEND_TRADE_IDENTITY_LP.md) — Trade / Charts pair TVL chip reuses **P569** `protocol_pair_tvl` (#664); `/pool` column is #655
+- [`AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](./AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md) — `GET /protocol/top-pairs` stamp + gem exclude + 60s/400 (**I1263**, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263))
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)

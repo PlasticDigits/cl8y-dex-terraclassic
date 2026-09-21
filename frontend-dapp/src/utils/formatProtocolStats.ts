@@ -55,6 +55,22 @@ export function formatProtocolFdusdOut(raw: string | number | null | undefined, 
   return formatNum(raw, digits)
 }
 
+/**
+ * Trailing-30d volume ÷ current v2 LP USD (Forgejo #1263).
+ * Missing / ≤0 / non-finite / hostile → em-dash. Compact multiplier, never a percent.
+ */
+export function formatVolumePerTvl(raw: string | number | null | undefined): string {
+  if (raw == null || raw === '') return EM_DASH
+  if (typeof raw === 'string' && /[<>]|javascript:/i.test(raw)) return EM_DASH
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return EM_DASH
+  const compact = formatNum(n, 3)
+  if (compact === '0') return EM_DASH
+  const out = `${compact}×`
+  if (out.length > 24) return EM_DASH
+  return out
+}
+
 /** Signed compact percent for Protocol liquidity Δ%. Missing / non-finite → em-dash; never Infinity. */
 export function formatProtocolPct(raw: string | number | null | undefined): string {
   if (raw == null || raw === '') return EM_DASH
