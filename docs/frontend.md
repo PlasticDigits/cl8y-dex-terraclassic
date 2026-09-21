@@ -1059,14 +1059,14 @@ Regression: [`terraAddressValidation.test.ts`](../frontend-dapp/src/utils/__test
 | **P550-9 vFDUSD** | Path `vfdusd` returns CEX **FDUSD/USD** (`first-digital-usd` / `FDUSDUSDT`; JSON `quote_asset=FDUSD`, `display_name=FDUSD/USD`). Protocol tab heading is **vFDUSD**; CEX StatBox is **FDUSD reference price**. Not Terra CW20 vFDUSD, not `$1`, not the `/ust1` window rate. Venus **1 vFDUSD Price** is [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571) ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). Do not CSS-uppercase ticker-bearing labels ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240**). |
 | **V571-1–V571-10** | vFDUSD tab: CEX vs Venus split; indexer `eth_call` only; pin `0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba`. |
 | **P550-11 Reference** | Feeds are advisory. Per-pair TWAP stays on Charts. |
-| **H11–H16 Hub wrap** | Hub columns **cUSTC, LUNC, UST1, USTR**. LUNC/USD is #515 LUNC CEX (wrap 1:1). cUSTC and LUNC show configured wrap CW20 `AddressRow`s (`protocol-dex-hub-custc-token` / `protocol-dex-hub-lunc-token`); UST1/USTR keep **source pair** rows. Native `uluna` is not given a Finder URL. Explorer hrefs only via `getExplorerAddressUrl`. Four cells stay in the DOM on hub 502 (USD `—`). |
-| **P1240-1 Hub `<dt>`** | Hub ticker lines omit `uppercase`. Visible **cUSTC / USD** (not `CUSTC / USD`), plus `LUNC / USD`, `UST1 / USD`, `USTR / USD`. Card H2 **DEX hub prices** may stay uppercase. |
-| **P1240-2 Oracle tabs** | Tabs **USTC**, **LUNC**, **vFDUSD** (never `VFDUSD`). |
+| **H11–H16 Hub wrap** | Hub columns **cUSTC, cLUNC, UST1, USTR** (API ticker `lunc` for the wrap column). Visible `<dt>` is **cLUNC / USD** ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240-1**). LUNC/USD mark is #515 LUNC CEX (wrap 1:1). cUSTC and cLUNC show configured wrap CW20 `AddressRow`s (`protocol-dex-hub-custc-token` / `protocol-dex-hub-lunc-token`); UST1/USTR keep **source pair** rows. Native `uluna` is not given a Finder URL. Explorer hrefs only via `getExplorerAddressUrl`. Four cells stay in the DOM on hub 502 (USD `—`). |
+| **P1240-1 Hub `<dt>`** | Hub ticker lines omit `uppercase`. Visible **cUSTC / USD** (not `CUSTC / USD`) and **cLUNC / USD** (not `LUNC / USD` on this card), plus `UST1 / USD`, `USTR / USD`. Card H2 **DEX hub prices** may stay uppercase. API id for the wrap column stays `lunc`. |
+| **P1240-2 Oracle tabs** | Tabs **USTC**, **LUNC**, **vFDUSD** (never `VFDUSD`, never wrap `cUSTC` / `cLUNC`). Selected tab may use `btn-primary` fill but keeps `text-transform: none`. |
 | **P1240-3 Oracle H2** | **USTC / USD**, **LUNC / USD**, or **vFDUSD** (no `/ USD` on vFDUSD). H2 omits `uppercase`. |
 | **P1240-4 Venus** | **1 vFDUSD Price** heading + StatBox keep mixed-case `vFDUSD` (`preserveLabelCase`). |
-| **P1240-5 Identity** | Wrap hub is **cUSTC**; CEX tab is **USTC**. Do not retitle CEX USTC as cUSTC. |
-| **P1240-6 Allowlist** | `?ticker=` and disclaimers unchanged. No new CEX tickers. Maps stay `custc` / `ustc` / `vfdusd`. |
-| **P1240-7 RTL** | Exact-case assertions on `cUSTC` / `vFDUSD` (no `/i`). |
+| **P1240-5 Identity** | Wrap hub is **cUSTC** / **cLUNC**; CEX tabs are **USTC** / **LUNC**. Do not retitle CEX USTC as cUSTC or CEX LUNC as cLUNC. |
+| **P1240-6 Allowlist** | `?ticker=` and disclaimers unchanged. No new CEX tickers. Ids stay `custc` / `lunc` / `ustc` / `vfdusd` (no `clunc` hub path). |
+| **P1240-7 RTL** | Exact-case assertions on `cUSTC` / `cLUNC` / `vFDUSD` (no `/i`). Oracle `USTC` / `LUNC` stay native. |
 | **P1240-8 Chrome-only** | `uppercase` may remain on page H1, **DEX hub prices**, table SOURCE/USD/TIME, non-ticker StatBox labels. No indexer/Venus API change. |
 
 `unique_traders_24h` is on `GET /overview` for rollup/DoS safety ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550) **AC7**) but is **not** a Protocol headline (dust-swap gaming; [#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/489)).

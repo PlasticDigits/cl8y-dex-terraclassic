@@ -241,7 +241,7 @@ make verify-issue-689                    # #689 /protocol UTC chart Volume / Liq
 make verify-issue-703                    # #703 /protocol Monthly UTC chart phone x-axis (last 12 months + YY-MM)
 make verify-issue-677                    # #677 /protocol leftovers: liquidity 24h-only Δ% + denser UTC volume x-axis
 make verify-issue-550                    # #550 /protocol global USD stats + unified oracle card
-make verify-issue-1240                   # #1240 /protocol mixed-case cUSTC / vFDUSD (no CSS uppercase)
+make verify-issue-1240                   # #1240 /protocol mixed-case cUSTC / cLUNC / vFDUSD (hub wrap vs CEX native)
 make verify-issue-571                    # #571 /protocol vFDUSD: FDUSD reference + Venus 1 vFDUSD Price
 make verify-issue-569                    # #569 /protocol total USD pair liquidity + 24h/30d % change
 make verify-issue-655                    # #655 /pool v2 LP USD column + pair_liquidity_usd rollup
@@ -442,7 +442,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); registry USDT contract-pinned advisory $1 (**#1258**); `make verify-issue-522` · `make verify-issue-1258`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
 - [skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md](skills/AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — factory economic fee USD (CL8Y + listed non-gems; hub card stays four cells) (**EFee-1–EFee-8**, [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)); `make verify-issue-683`
-- [skills/AGENTS_FRONTEND_PROTOCOL_HUB.md](skills/AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap CW20 identity + LUNC/USD column (**H11–H16**, [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)); mixed-case hub `<dt>` **P1240**; `make verify-issue-570` · `make verify-issue-1240`
+- [skills/AGENTS_FRONTEND_PROTOCOL_HUB.md](skills/AGENTS_FRONTEND_PROTOCOL_HUB.md) — Protocol hub wrap CW20 identity + cLUNC/USD column (**H11–H16**, [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)); mixed-case hub `<dt>` **P1240**; `make verify-issue-570` · `make verify-issue-1240`
 - [skills/AGENTS_INDEXER_CANDLE_USD_MARK.md](skills/AGENTS_INDEXER_CANDLE_USD_MARK.md) — time-stamped candle USD; no as-of-now hub rewrite; idle mark-to-market bars (**C568-1–C568-8**, [#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)); `make verify-issue-568`
 - [skills/AGENTS_INDEXER_CANDLES_NEWEST_N.md](skills/AGENTS_INDEXER_CANDLES_NEWEST_N.md) — GET `/candles` newest-N + interval `fitContent` + chart-interval chip (**C705-1–C705-8**, [#705](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/705)); `make verify-issue-705`
 - [skills/AGENTS_FRONTEND_PRICE_CHART.md](skills/AGENTS_FRONTEND_PRICE_CHART.md) — Price (USD) lightweight-charts canvas, interval switch, zoom (#148 / #336 / #705)
