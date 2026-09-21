@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Forgejo #1302 — leftover hub wrap cLUNC vs CEX LUNC (Q22 / B1290; related !1290 / #1240).
+# Forgejo #1306 — leftover hub wrap cLUNC vs CEX LUNC (Q22 / B1290; related #1302 / !1290 / #1240).
 # Extends verify-issue-1240 with hubPriceTicker Vitest + Playwright protocol-page (5 workers).
 #
 # Refs: docs/adr/0009-verify-issue-1290-hub-wrap-labels.md,
@@ -46,7 +46,7 @@ free_tcp_port() {
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  #1302 — hub wrap cLUNC vs CEX LUNC (Q22 / B1290; child #1240)"
+echo "  #1306 — hub wrap cLUNC vs CEX LUNC (Q22 / B1290; child #1240)"
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "verify-issue-1240 (P1240-1–P1240-8)" \
@@ -80,7 +80,7 @@ else
   ok "playwright e2e-smoke protocol-page (skipped — no node_modules playwright)"
 fi
 
-run_step "docs: #1302 verify crosslink (B1290-4)" \
+run_step "docs: #1306 verify crosslink (B1290-4)" \
   bash -c 'grep -qE "verify-issue-1290" docs/testing.md && \
   grep -qE "verify-issue-1290" AGENTS.md && \
   grep -qE "verify-issue-1290" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md && \
@@ -102,4 +102,4 @@ if [ "$FAIL" -ne 0 ]; then
   exit 1
 fi
 echo ""
-echo "  #1302 hub wrap vs CEX native labels verified (alias verify-issue-1302)."
+echo "  #1306 hub wrap vs CEX native labels verified (aliases verify-issue-1302 / verify-issue-1306)."

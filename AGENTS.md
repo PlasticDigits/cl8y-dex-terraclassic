@@ -252,8 +252,9 @@ make verify-issue-677                    # #677 /protocol leftovers: liquidity 2
 make verify-issue-550                    # #550 /protocol global USD stats + unified oracle card
 make verify-issue-1263                   # #1263 /protocol top-5 30d pair volume + TVL + vol/LP
 make verify-issue-1240                   # #1240 /protocol mixed-case cUSTC / cLUNC / vFDUSD (hub wrap vs CEX native)
-make verify-issue-1290                   # #1302 leftover hub wrap vs CEX (Q22 / B1290; alias verify-issue-1302; related !1290 / #1240)
+make verify-issue-1290                   # #1306 leftover hub wrap vs CEX (Q22 / B1290; aliases verify-issue-1302 / verify-issue-1306; related #1302 / !1290 / #1240)
 make verify-issue-1302                   # same as verify-issue-1290
+make verify-issue-1306                   # same as verify-issue-1290
 make verify-issue-571                    # #571 /protocol vFDUSD: FDUSD reference + Venus 1 vFDUSD Price
 make verify-issue-569                    # #569 /protocol total USD pair liquidity + 24h/30d % change
 make verify-issue-655                    # #655 /pool v2 LP USD column + pair_liquidity_usd rollup
@@ -336,7 +337,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Swap tokenlist symbols / unique-ticker CI / Share logos | `make verify-issue-715` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
 | Protocol mixed-case tickers | `make verify-issue-1240` |
-| Hub wrap vs CEX leftover verify | `make verify-issue-1290` · `make verify-issue-1302` |
+| Hub wrap vs CEX leftover verify | `make verify-issue-1290` · `make verify-issue-1302` · `make verify-issue-1306` |
 | Trade ticket Market default + flatten | `make verify-issue-693` |
 | Pool Manage four peer actions | `make verify-issue-660` |
 | Swap direction seam plate | `make verify-issue-659` |

@@ -6,8 +6,9 @@ Audience: third-party agents touching `/protocol` DEX hub prices, `GET /api/v1/h
 **Parent hub USD:** [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) (**H1–H16**)  
 **Protocol layout:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-1**, **P1240** mixed-case tickers)  
 **Token identity / explorer:** [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) (**T541-2**)  
-**Verify:** `make verify-issue-570`  
-**Leftover hub wrap vs CEX:** `make verify-issue-1290` (alias `verify-issue-1302`) — [#1302](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1302), **Q22** / **B1290**; related !1290 / #1240
+**Verify:** `make verify-issue-570`
+
+**Leftover hub wrap vs CEX:** `make verify-issue-1290` (aliases `verify-issue-1302` / `verify-issue-1306`) — [#1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1306), **Q22** / **B1290**; related #1302 / !1290 / #1240
 
 ## Problem class
 
