@@ -120,3 +120,48 @@ export function chartsHrefForOrientation(
   const price = chartsPriceTokenForInverted(inverted, asset0, asset1, token0Symbol, token1Symbol)
   return chartsPairHref(pairAddr, { price })
 }
+
+/**
+ * Whether idle bare `/charts` should replace-navigate to the UST1/cUSTC hero (#680).
+ * Skips once the user has committed a pair (`selectPair`) or `selectedPairAddr` is
+ * already set — same idea as Trade `shouldAutoPickDefaultTradePair` (#357 / #1266).
+ * Do **not** treat `selectedPairAddr !== hero` on a still-bare route as “force hero”.
+ */
+export function shouldAutoPickChartsHeroPair(opts: {
+  isBareCharts: boolean
+  invalidRoutePair: string | null
+  selectedPairAddr: string
+  userCommittedPair: boolean
+  pairsLoading: boolean
+  pairsError: boolean
+}): boolean {
+  if (!opts.isBareCharts) return false
+  if (opts.invalidRoutePair) return false
+  if (opts.pairsLoading || opts.pairsError) return false
+  if (opts.userCommittedPair) return false
+  if (opts.selectedPairAddr) return false
+  return true
+}
+
+/**
+ * Whether the paginated catalog head may replace `selectedPairAddr`.
+ * Never clobber a valid bech32 the user just chose, a live `:pairAddr`, or a
+ * pending `getPair` extra-row fetch (#1266).
+ */
+export function shouldSnapChartsSelectionToCatalogHead(opts: {
+  validRoutePair: string
+  isBareCharts: boolean
+  selectedPairAddr: string
+  pairOptionsLength: number
+  pairOptionsHasSelected: boolean
+  waitingForSelectedPairFetch: boolean
+}): boolean {
+  if (opts.validRoutePair) return false
+  if (opts.isBareCharts) return false
+  if (opts.pairOptionsLength === 0) return false
+  if (!opts.selectedPairAddr) return false
+  if (opts.pairOptionsHasSelected) return false
+  if (opts.waitingForSelectedPairFetch) return false
+  if (isChartsPairRouteParam(opts.selectedPairAddr)) return false
+  return true
+}

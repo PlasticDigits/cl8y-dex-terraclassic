@@ -52,5 +52,5 @@ make lint-frontend
 - [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap `/?from=&to=` (#711); amount prefill is not a submit bypass
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — one-sentence errors
 - [`AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md`](./AGENTS_FRONTEND_DEFAULT_SLIPPAGE.md) — 5% protection / confirm-again
-- Expert Mode: [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293)
+- Expert Mode: [#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/293); ≥99% theater is not waivable ([#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)): [`AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](./AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md)
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)

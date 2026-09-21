@@ -197,9 +197,6 @@ import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
 import { useDexStore } from '@/stores/dex'
 import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
 import { sounds } from '@/lib/sounds'
-import { useDexStore } from '@/stores/dex'
-import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
-import { sounds } from '@/lib/sounds'
 
 async function expandSwapAdvancedSettings(user: ReturnType<typeof userEvent.setup>) {
   const toggle = screen.getByTestId('swap-advanced-settings-toggle')
@@ -217,6 +214,7 @@ async function openSwapSettingsWithAdvanced(user: ReturnType<typeof userEvent.se
 describe('SwapPage', () => {
   beforeEach(() => {
     window.localStorage.removeItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)
+    useDexStore.setState({ expertMode: false })
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
     vi.mocked(findRoute).mockReturnValue(null)
@@ -236,7 +234,10 @@ describe('SwapPage', () => {
     vi.mocked(probePairCodeIdFreeze).mockResolvedValue({ frozen: false, verdict: 'tradable' })
     vi.mocked(getConnectedWallet).mockReturnValue(null)
     useWalletStore.setState({ address: null, walletType: null, error: null })
+    vi.spyOn(indexerClient, 'getRouteSolve').mockReset()
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
+    vi.spyOn(indexerClient, 'postRouteSolve').mockReset()
+    vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('indexer post not used in this test'))
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -1019,6 +1020,65 @@ describe('SwapPage', () => {
         },
       ],
       quote_kind: 'indexer_hybrid_lcd',
+      estimated_amount_out: '550000',
+      slippage_percent: '45.00',
+      spot_amount_out: '1000000',
+    })
+    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '550000' })
+    vi.mocked(getTokenBalance).mockResolvedValue('10000000000')
+
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
+
+    expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('45.00%')
+    expect(screen.getByTestId('swap-slippage-blocked')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Slippage is too high' })).toBeDisabled()
+    expect(screen.getByTestId('swap-enable-expert-mode')).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('swap-enable-expert-mode'))
+    const modal = await screen.findByRole('dialog')
+    await user.type(screen.getByTestId('expert-mode-confirm-input'), 'ENABLE EXPERT MODE')
+    await user.click(within(modal).getByTestId('expert-mode-confirm-enable'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('swap-slippage-blocked')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Slippage is too high' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('hides You Receive at ≥99% and does not let Expert Mode waive (Forgejo #1257)', async () => {
+    const user = userEvent.setup()
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+    useDexStore.setState({ expertMode: true })
+    const terraA = 'terra1from00000000000000000000000000000001'
+    const terraB = 'terra1to00000000000000000000000000000001'
+    vi.mocked(getAllPairsPaginated).mockResolvedValue({
+      pairs: [
+        {
+          contract_addr: 'terra1pair00000000000000000000000000000001',
+          liquidity_token: 'terra1lp000000000000000000000000000000001',
+          asset_infos: [{ token: { contract_addr: terraA } }, { token: { contract_addr: terraB } }],
+        },
+      ],
+    })
+    vi.mocked(getAllTokens).mockReturnValue([terraA, terraB])
+    vi.mocked(findRoute).mockReturnValue(null)
+    vi.spyOn(indexerClient, 'getRouteSolve').mockResolvedValue({
+      token_in: terraA,
+      token_out: terraB,
+      hops: [{ pair: 'terra1pair', offer_token: terraA, ask_token: terraB }],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: terraA } },
+            ask_asset_info: { token: { contract_addr: terraB } },
+          },
+        },
+      ],
+      quote_kind: 'indexer_hybrid_lcd',
       estimated_amount_out: '36000000000',
       slippage_percent: '99.97',
       spot_amount_out: '960000',
@@ -1030,21 +1090,18 @@ describe('SwapPage', () => {
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
     await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
-    // Wallet-aligned slippage (return vs spot) rounds to 100% for this arb-sized gap.
     expect(await screen.findByTestId('swap-expected-slippage')).toHaveTextContent('100.00%')
     expect(screen.getByTestId('swap-slippage-blocked')).toBeInTheDocument()
+    expect(screen.getByTestId('swap-theater-quote-blocked')).toBeInTheDocument()
+    expect(screen.queryByTestId('swap-enable-expert-mode')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Slippage is too high' })).toBeDisabled()
+    const receive = screen.getByTestId('swap-you-receive')
+    if (receive.tagName === 'INPUT') {
+      expect(receive).toHaveValue('—')
+    } else {
+      expect(receive).toHaveTextContent('—')
+    }
     expect(screen.getByTestId('swap-extreme-slippage-warning')).toBeInTheDocument()
-
-    await user.click(screen.getByTestId('swap-enable-expert-mode'))
-    const modal = await screen.findByRole('dialog')
-    await user.type(screen.getByTestId('expert-mode-confirm-input'), 'ENABLE EXPERT MODE')
-    await user.click(within(modal).getByTestId('expert-mode-confirm-enable'))
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('swap-slippage-blocked')).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Slippage is too high' })).not.toBeInTheDocument()
-    })
   })
 
   describe('large-amount precision (GitLab #366)', () => {

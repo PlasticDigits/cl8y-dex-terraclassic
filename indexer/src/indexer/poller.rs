@@ -7,8 +7,9 @@ use crate::db::queries::state;
 use crate::lcd::LcdClient;
 
 use super::{
-    asset_code_id_freeze, block_indexer, book_snapshot, community_tokens, fee_discount_registry_health,
-    oracle, pair_discovery, reorg_alert, trader_tracker, venus_vfdusd, volume_aggregator,
+    asset_code_id_freeze, block_indexer, book_snapshot, community_tokens,
+    fee_discount_registry_health, oracle, pair_discovery, reorg_alert, trader_tracker,
+    venus_vfdusd, volume_aggregator,
 };
 use crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealth;
 
@@ -54,6 +55,12 @@ pub async fn run_indexer(
     tracing::info!("Starting pair discovery from factory...");
     if let Err(e) = pair_discovery::sync_all_pairs(&pool, &lcd, &config.factory_address).await {
         tracing::error!("Initial pair sync failed: {}", e);
+    }
+
+    // Heal swap_amm hops dropped by UNIQUE (tx_hash, source, ordinal) before first
+    // rollup (GitLab #1269). Replay cannot: trade_exists skips swap insert.
+    if let Err(e) = crate::db::queries::protocol_fees::backfill_missing_swap_amm_fees(&pool).await {
+        tracing::error!("swap_amm hop fee backfill failed: {e}");
     }
 
     // Token + trader windows too — do not wait for the 5 min loop (GitLab #577 **D5**).

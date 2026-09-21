@@ -116,4 +116,10 @@ describe('formatPairStatsUsdOhlc (GitLab #564)', () => {
     expect(formatPairStatsUsdOhlc(null)).toBe('—')
     expect(formatPairStatsUsdOhlc('0')).toBe('—')
   })
+
+  it('prints USDT-quoted factory USD without compact T and without em-dash (#1258)', () => {
+    expect(formatPairStatsUsdOhlc('0.00004123')).toMatch(/^\$/)
+    expect(formatPairStatsUsdOhlc('0.00004123')).not.toBe('—')
+    expect(formatPairStatsUsdOhlc('0.00004123')).not.toMatch(/[TMBK]/)
+  })
 })

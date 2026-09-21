@@ -10,11 +10,11 @@ use cl8y_dex_indexer::api::{reset_overview_cache, reset_protocol_fees_cache};
 use cl8y_dex_indexer::config::{
     DEFAULT_HUB_CL8Y_ADDRESS, DEFAULT_HUB_CUSTC_ADDRESS, DEFAULT_HUB_UST1_ADDRESS,
 };
+use cl8y_dex_indexer::db::queries::assets as asset_q;
 use cl8y_dex_indexer::db::queries::hub_prices;
 use cl8y_dex_indexer::db::queries::protocol_fees as fee_q;
 use cl8y_dex_indexer::indexer::defillama::COLUMBUS5_GEM_ADDRESSES;
 use cl8y_dex_indexer::indexer::hub_usd::HubUsdConfig;
-use cl8y_dex_indexer::db::queries::assets as asset_q;
 use cl8y_dex_indexer::indexer::protocol_fees::{fee_usd_for_raw, FeeEventDraft, FeeSource};
 use cl8y_dex_indexer::indexer::volume_aggregator;
 use serial_test::serial;
@@ -152,6 +152,7 @@ async fn insert_fee(
         tx_hash: tx.to_string(),
         source,
         ordinal: 0,
+        pair_id: None,
         asset_id,
         amount_raw: bd(raw),
         decimals,
@@ -340,21 +341,19 @@ async fn null_only_backfill_does_not_rewrite_stamp() {
         .unwrap();
     assert_eq!(filled, 1);
 
-    let null_row: Option<BigDecimal> = sqlx::query_scalar(
-        "SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-null'",
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let null_row: Option<BigDecimal> =
+        sqlx::query_scalar("SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-null'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert!(null_row.is_some());
     assert_eq!(null_row.unwrap(), bd("0.01298"));
 
-    let stamped: BigDecimal = sqlx::query_scalar(
-        "SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-stamped'",
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let stamped: BigDecimal =
+        sqlx::query_scalar("SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-stamped'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(stamped, bd("99.99"));
 
     // Second backfill must not change the original stamp when the live mark moves.
@@ -367,12 +366,11 @@ async fn null_only_backfill_does_not_rewrite_stamp() {
         .await
         .unwrap();
     assert_eq!(filled2, 0);
-    let stamped2: BigDecimal = sqlx::query_scalar(
-        "SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-stamped'",
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let stamped2: BigDecimal =
+        sqlx::query_scalar("SELECT fee_usd FROM protocol_fee_events WHERE tx_hash = 'tx-stamped'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(stamped2, bd("99.99"));
 }
 
@@ -465,12 +463,11 @@ async fn llama_daily_inherits_cl8y_fee_excludes_gem_pair() {
     .execute(&pool)
     .await
     .unwrap();
-    let gem_pair: i32 = sqlx::query_scalar(
-        "SELECT id FROM pairs WHERE contract_address = 'terra1gempire683'",
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let gem_pair: i32 =
+        sqlx::query_scalar("SELECT id FROM pairs WHERE contract_address = 'terra1gempire683'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     sqlx::query(
         "INSERT INTO swap_events
             (pair_id, block_height, block_timestamp, tx_hash, sender,

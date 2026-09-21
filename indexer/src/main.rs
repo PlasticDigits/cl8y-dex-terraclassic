@@ -155,6 +155,25 @@ async fn run_server() -> anyhow::Result<()> {
     sqlx::migrate!().run(&pool).await?;
     tracing::info!("Database migrations applied");
 
+    match crate::db::queries::usdt_quote_usd::backfill_null_usdt_quote_usd(
+        &pool,
+        &config.usdt_cw20_address,
+    )
+    .await
+    {
+        Ok(stats) => {
+            if stats.price_filled > 0 || stats.volume_filled > 0 {
+                tracing::info!(
+                    price_filled = stats.price_filled,
+                    volume_filled = stats.volume_filled,
+                    pairs = stats.pairs,
+                    "USDT quote USD NULL-only backfill complete"
+                );
+            }
+        }
+        Err(e) => tracing::warn!("USDT quote USD NULL-only backfill failed: {}", e),
+    }
+
     let lcd_client = lcd::LcdClient::new(
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,
