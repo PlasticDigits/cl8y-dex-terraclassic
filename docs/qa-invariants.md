@@ -388,6 +388,25 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 | **L1279-7** | Leftover-complete is ops-bot QA 1.5. `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` FAIL. Do not paste `/status` JSON or tokens on the issue. |
 | **L1279-8** | Playbook + this Q20 + WC-M / L658 skills stay crosslinked. |
 
+## Hub wrap vs CEX labels leftover verify (invariant Q21) {#ops-hub-wrap-1290}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q21** Post-merge hub wrap **cLUNC** vs CEX **LUNC** has an agent `make` bundle; leftover-complete is reviewer `/protocol` visual, not green skip-E2E | **`make verify-issue-1290`** (alias **`verify-issue-1302`**) → child **1240** + `hubPriceTicker` Vitest + optional Playwright `protocol-page` at 5 workers (**B1290-1–B1290-8**) | Non-zero exit; fix the failing child or docs. `VERIFY_ISSUE_1290_SKIP_E2E=1` is implement-complete, **not** leftover-complete. Do not reopen #1240 / !1290. Do not scrape production HTML. Do not land `frontend-dapp/node_modules` or hook-test FAIL residue. |
+
+**B1290** (Forgejo **#1302** — [ADR 0008](./adr/0008-verify-issue-1290-hub-wrap-labels.md)):
+
+| ID | Rule |
+|----|------|
+| **B1290-1** | Bundle runs child **1240**. Child FAIL fails the stack. `verify-issue-1302` is the same target. |
+| **B1290-2** | `hubPriceTicker.test.ts` is a required step. |
+| **B1290-3** | Playwright default-on, **5 workers**, port **30129**, `PLAYWRIGHT_SKIP_CHAIN=1`. Skip only `VERIFY_ISSUE_1290_SKIP_E2E=1` or missing Playwright package. Installed package + crash = FAIL. |
+| **B1290-4** | Crosslinks: testing, AGENTS, PROTOCOL_STATS, PROTOCOL_HUB, frontend.md, ADR 0008, architecture `#dex-hub-wrap-labels`, this Q21. |
+| **B1290-5** | No indexer / hub-price / Venus API change. No `clunc` path. No product TSX unless a shipped P1240 assert is wrong (reopen #1240). |
+| **B1290-6** | Do not reopen !1290 / #1240 for ops/QA. Do not `Fixes #1290`. Woodpecker quota is not leftover evidence. |
+| **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, `.gitignore` churn, or `AGENTS_POST_MERGE_OPS_1302.md`. |
+| **B1290-8** | Green skip-E2E ≠ leftover-complete. Leftover is reviewer visual on production `/protocol`. No HTML scrape. Not [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297). |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -413,3 +432,4 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 - [`skills/AGENTS_POST_MERGE_OPS_701.md`](../skills/AGENTS_POST_MERGE_OPS_701.md) — post-merge !477 leftover verify ([#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701), **Q18**)
 - [`skills/AGENTS_POST_MERGE_OPS_702.md`](../skills/AGENTS_POST_MERGE_OPS_702.md) — post-merge !476 leftover verify ([#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702), **Q19**)
 - [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279), **Q20**)
+- [ADR 0008](./adr/0008-verify-issue-1290-hub-wrap-labels.md) — leftover `make verify-issue-1290` hub wrap vs CEX labels ([#1302](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1302), **Q21**)
