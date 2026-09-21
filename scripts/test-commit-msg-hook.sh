@@ -91,6 +91,10 @@ assert_reject "co-author without blank line after subject" "$f"
   echo "FAIL: .githooks/pre-push must be executable" >&2
   exit 1
 }
+grep -qE 'origin/main\.\.' "$REPO_ROOT/.githooks/pre-push" || {
+  echo "FAIL: pre-push must range new branches against origin/main (not all ancestors)" >&2
+  exit 1
+}
 [[ -x "$REPO_ROOT/.githooks/prepare-commit-msg" ]] || {
   echo "FAIL: .githooks/prepare-commit-msg must be executable" >&2
   exit 1
