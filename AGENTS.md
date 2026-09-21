@@ -184,6 +184,7 @@ make verify-issue-1230                   # #1230 reject zero / dust-floor belief
 make verify-issue-1257                   # #1257 USTR→USDT mixed 18/6 hop honesty + Expert no-waive ≥99%
 make verify-issue-1227                   # #1227 UpdateLimitOrderPrice equal-price FIFO (keep order_id)
 make verify-issue-1234                   # #1234 UpdateLimitOrderPrice + CleanLimitBook F6 code-id gate
+make verify-issue-1288                   # bundle PR alias → verify-issue-1234
 make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
