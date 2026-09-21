@@ -7,7 +7,7 @@ Audience: third-party agents verifying Coolify indexer migrate `20260921130000` 
 **Sister leftover (stays open):** [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) (PRs 1287–1298; sqlx `…000`/`…001`).
 **Invariants:** [`docs/qa-invariants.md`](../docs/qa-invariants.md) **Q23** (**M1305-1–M1305-8**)
 **Design:** [`docs/adr/0010-post-merge-leftover-1302-1304.md`](../docs/adr/0010-post-merge-leftover-1302-1304.md)
-**Verify:** `make verify-issue-1305` (implement slice; this playbook is the contract)
+**Verify:** `make verify-issue-1305` **(implement)** — this playbook is the contract. Make is children + optional HTTP, **not** leftover-complete. Do not add the script on this design branch.
 
 Indexer **auto-deploy checkbox** leftover stays on [#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276) / [ADR 0006](../docs/adr/0006-indexer-health-git-sha.md) — [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297). If that checkbox is **off**, leftover 2 is a **manual** Coolify indexer deploy of `729b097f+`. Healthy `GET /health` is **not** `_sqlx_migrations` evidence. Do **not** merge `origin/cac-design-issue-1300` / `1302` / `1277` as-is (ADR 0008 collision; this leftover is **0010** / **Q23**). Do **not** reopen closed parents for ops/QA. If **#1305** is still closed on the 06:46 comment, **reopen it as a leftover precondition** (not leftover-complete). Do **not** wait on GitLab CI quota. Do **not** file a founder card. Keywords on #1305 are not architecture approval.
 
@@ -23,9 +23,9 @@ Indexer **auto-deploy checkbox** leftover stays on [#1276](https://git.cl8y.com/
 
 | ID | Rule |
 |----|------|
-| **M1305-1** | Local regression is `make verify-issue-1305`, which runs children **1290** (`VERIFY_ISSUE_1290_SKIP_E2E=1` by default: docs + `hubPriceTicker` + `verify-issue-1240`) and **1277**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless hosts answer (FAIL when `VERIFY1305_REQUIRE_LIVE=1` or `VERIFY1305_IID=1305`). Do **not** invent `VERIFY1305_LEFTOVER_COMPLETE`. HTTP PASS is not sqlx leftover-complete. Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL`. Do **not** attest sqlx `20260921120000` / `20260921120001` (those are **#1300**). |
+| **M1305-1** | Local regression is `make verify-issue-1305` **(implement)**, which runs children **1290** (`VERIFY_ISSUE_1290_SKIP_E2E=1` by default: docs + `hubPriceTicker` + `verify-issue-1240`) and **1277**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless hosts answer (FAIL when `VERIFY1305_REQUIRE_LIVE=1` or `VERIFY1305_IID=1305`). Live make is **HTTP only** (optional supporting pins). Make does **not** cover leftover-complete (sqlx / heal logs / leftover-1 glance stay operator). Do **not** invent `VERIFY1305_LEFTOVER_COMPLETE`. HTTP PASS is not leftover-1 and not sqlx leftover-complete. Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL`. Do **not** attest sqlx `20260921120000` / `20260921120001` (those are **#1300**). |
 | **M1305-2** | Coolify indexer migrate **`20260921130000_traders_lifetime_heal_from_swaps`** after #1300’s `…000` then `…001`. **#1305 attests `…30000` only** via Coolify DB / indexer `DATABASE_URL` — not `postgres-psql.sh`. If the #1276 checkbox is off, leftover 2 is a **manual** Coolify indexer deploy of `729b097f+`. Healthy `GET /health` is not `_sqlx_migrations` evidence. Heal is **startup-before-D5** (`poller.rs` once, then D5 `refresh_all_volume_windows`). Heal is **not** in `run_volume_refresh_loop`. Startup heal is a no-op or one `traders_healed` info; later process starts stay silent if the gate is false. Heal silence/one log via **indexer logs** — not queryable from `DATABASE_URL`. Heal errors must not abort `run_indexer`. No `down.sql`. |
-| **M1305-3** | Coolify **frontend rebuild** from `729b097f+`. HTTP pins unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`). **`cLUNC`** is leftover-1; **`cUSTC`** / **`vFDUSD`** / **`cLUNC wrap`** are supporting (pre-1302) and do not prove leftover 1 by themselves. Operator glance: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **`VFDUSD`**. Do **not** grep concatenated **`cLUNC / USD`** / **`cUSTC / USD`** in hashed chunks (assembled at render). Do **not** grep **`protocol-top-pairs`** (that is **#1300 leftover-complete**). Dual-app skew during rebuild is expected. |
+| **M1305-3** | Coolify **frontend rebuild** from `729b097f+`. **Leftover-1 proof is operator DOM glance** on `dex.cl8y.com/protocol`: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **`VFDUSD`**. HTTP pins unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`) are **supporting rebuild-presence**. **None prove leftover 1.** Unquoted **`cLUNC`** is a substring of pre-1302 **`cLUNC wrap`** and of registry/wrap copy; hashed-chunk grep PASSes a Coolify build that never shipped `lunc: 'cLUNC'`. Implement live HTTP **must not** treat `cLUNC` as leftover-1 complete. Do **not** grep concatenated **`cLUNC / USD`** / **`cUSTC / USD`** in hashed chunks (assembled at render). Do **not** grep **`protocol-top-pairs`** (that is **#1300 leftover-complete**). Dual-app skew during rebuild is expected. |
 | **M1305-4** | Optional **I11**: USD-only lifetime skew does **not** make `trader_lifetime_diverges_from_swaps` true (gate is trades + raw `total_volume` only). Do **not** add `total_volume_usd` to the EXISTS. Do **not** name this test I10 (I10 is missing-trader / ghost-zero). Optional test is not leftover-complete. |
 | **M1305-5** | Merge recipe: dismiss `.* @code/maintainers` self-request, then normal `fj pr merge`. Do **not** `force_merge` ([`forgejo-pr-merge.md`](../docs/runbooks/forgejo-pr-merge.md)). #1302/#1303 `force_merge` commits **are** ancestors of `origin/main`; do not rewrite. #1304 used dismiss + normal merge. |
 | **M1305-6** | Do **not** reopen #1290 / #1240 / #1277 for ops/QA. Do **not** wait on GitLab CI. Do **not** close #1300 from this ticket. Do **not** revert #1302. Do **not** merge unpublished sister design branches. Do **not** take ADR **0008** / **0009** or **Q21** / **Q22**. Do **not** flip Coolify auto-deploy. Do **not** file a founder card. Do **not** infer leftover-complete from the 06:46 issue close comment (`top-pairs` + `/health` SHA). If **#1305** is still closed on that comment, **reopen it as a leftover precondition**. Reopen is not leftover-complete. Keywords on #1305 are not #297 authority or `DESIGN: APPROVE`. |
@@ -36,11 +36,11 @@ Indexer **auto-deploy checkbox** leftover stays on [#1276](https://git.cl8y.com/
 
 1. Indexer: if the #1276 checkbox is off, **manually** deploy `729b097f+`. Apply `…000` then `…001` then **`20260921130000`** (sqlx on boot). **#1305 attests `…30000` only.** Operator attests `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL` (`success=true`). Do **not** use `scripts/lib/postgres-psql.sh` against prod. Do **not** treat healthy `GET /health` as this attest. Confirm startup-before-D5 heal no-op or one `traders_healed` **via indexer logs**. Heal is not queryable from `DATABASE_URL`.
 
-2. Frontend: rebuild from current `main` (`729b097f+`). Operator glance: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** (selected not **`VFDUSD`**). HTTP pins: hashed-chunk unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`). **`cLUNC`** is leftover-1; the others are supporting. Do **not** grep concatenated **`cLUNC / USD`** in hashed chunks.
+2. Frontend: rebuild from current `main` (`729b097f+`). **Leftover-1:** operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** (selected not **`VFDUSD`**). HTTP pins: hashed-chunk unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`) are supporting rebuild-presence — **none prove leftover 1**. Do **not** grep concatenated **`cLUNC / USD`** in hashed chunks.
 
 3. Do **not** infer the indexer auto-deploy checkbox from HTTP ([ADR 0006](../docs/adr/0006-indexer-health-git-sha.md)).
 
-`make verify-issue-1305` live is **HTTP only**: unquoted **`cLUNC wrap`** / **`cLUNC`** / **`cUSTC`** / **`vFDUSD`** (any quote style; never require source `'`). Do **not** grep concatenated `cLUNC / USD` in hashed chunks. Do **not** grep `protocol-top-pairs`. Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL` or `VERIFY1305_LEFTOVER_COMPLETE`. Leftover probes SKIP unless hosts answer. Fail closed with `VERIFY1305_REQUIRE_LIVE=1` or `VERIFY1305_IID=1305`. HTTP PASS is not sqlx leftover-complete.
+`make verify-issue-1305` live is **HTTP only** (supporting rebuild-presence: unquoted **`cLUNC wrap`** / **`cLUNC`** / **`cUSTC`** / **`vFDUSD`**, any quote style; never require source `'`). Live HTTP **must not** treat **`cLUNC`** as leftover-1 complete. Leftover-1 is operator DOM glance. Do **not** grep concatenated `cLUNC / USD` in hashed chunks. Do **not** grep `protocol-top-pairs`. Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL` or `VERIFY1305_LEFTOVER_COMPLETE`. Leftover probes SKIP unless hosts answer. Fail closed with `VERIFY1305_REQUIRE_LIVE=1` or `VERIFY1305_IID=1305`. HTTP PASS is not leftover-1 and not sqlx leftover-complete. Make does **not** cover leftover-complete.
 
 ## Leftover-complete
 
@@ -50,32 +50,34 @@ Close **#1305** only when all hold (same as [ADR 0010](../docs/adr/0010-post-mer
 - Coolify: **#1305 attests `20260921130000` only** (`success=true` — operator Coolify DB / indexer `DATABASE_URL`; **manual** indexer deploy of `729b097f+` while the #1276 checkbox is off). Same boot may also apply `…000` / `…001`; those rows are **#1300**, not a #1305 FAIL.
 - Healthy `GET /health` is **not** this attest.
 - Startup-before-D5 heal no-op or one `traders_healed` log via **indexer logs** (not `DATABASE_URL`).
-- Coolify frontend serves `729b097f+` with HTTP unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`; **`cLUNC`** is leftover-1) and operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **VFDUSD**.
-- `make verify-issue-1305` green locally (children with #1290 E2E skipped + docs). Child Playwright / #703 ticks are not leftover-complete.
+- Coolify frontend leftover-1 is operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **VFDUSD**. HTTP unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`) are supporting rebuild-presence — **none prove leftover 1**.
+- `make verify-issue-1305` **(implement)** green locally (children with #1290 E2E skipped + docs). Make does **not** cover leftover-complete. Child Playwright / #703 ticks are not leftover-complete.
 - **#1300** still open unless its own leftover-complete holds.
 
 Do **not** close #1305 on green child `make verify-issue-1290` / `1277` alone. Do **not** close on the 06:46 issue comment (`top-pairs` + `/health` SHA). Do **not** treat reopen as leftover-complete.
 
 ## Do / don’t
 
-- **Do** run `make verify-issue-1305` from a git worktree after pulling `main` (once implement lands the script). Default child 1290 skips E2E.
+- **Do** run `make verify-issue-1305` **(implement)** from a git worktree after pulling `main` (once implement lands the script). Default child 1290 skips E2E. Green make is not leftover-complete.
 - **Do** link `frontend-dapp/node_modules` from the primary checkout in a git worktree. Do **not** `npm install` over a worktree symlink (#1299).
 - **Do** reopen **#1305** if it is still closed on the 06:46 comment (leftover precondition). Reopen is **not** leftover-complete.
 - **Don’t** reopen #1290 / #1240 / #1277 unless a merged invariant is wrong.
 - **Don’t** close #1300 from this ticket or grep `protocol-top-pairs` as this leftover’s marker.
 - **Don’t** grep concatenated `cLUNC / USD` in hashed chunks. Never require source `'` in leftover HTTP.
-- **Don’t** treat supporting greps `cUSTC` / `vFDUSD` / `cLUNC wrap` as leftover-1 proof.
+- **Don’t** treat HTTP `cLUNC` (or `cUSTC` / `vFDUSD` / `cLUNC wrap`) as leftover-1 proof. Leftover-1 is operator DOM glance.
 - **Don’t** merge `cac-design-issue-1300` / `1302` / `1277` as-is.
 - **Don’t** expand the heal gate to USD. Do not name the optional USD-gate test I10 (use **I11** / **M1305-4**).
 - **Don’t** `force_merge`.
 - **Don’t** treat GitLab CI quota as leftover evidence.
-- **Don’t** invent `VERIFY1305_LEFTOVER_COMPLETE` or treat HTTP PASS as sqlx leftover-complete.
+- **Don’t** invent `VERIFY1305_LEFTOVER_COMPLETE` or treat HTTP PASS / green make as leftover-complete.
 - **Don’t** treat `GET /health` as `_sqlx_migrations` evidence. Do **not** query heal from `DATABASE_URL`.
 - **Don’t** flip Coolify auto-deploy or edit `autonomy.rs` / HMAC.
 - **Don’t** treat keywords on #1305 as #297 authority or `DESIGN: APPROVE`.
 - **Don’t** treat a reopen of #1305 as leftover-complete.
 
 ## Regression
+
+After implement lands the script (not on this design branch):
 
 ```bash
 make verify-issue-1305

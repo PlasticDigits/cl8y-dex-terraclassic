@@ -36,7 +36,7 @@ Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `tot
 - **Don’t** switch rolling volume to `NUMERIC(78, 18)` (#676 is inventory/P&L).
 - **Don’t** add `total_volume_usd` to `SQL_TRADER_LIFETIME_DIVERGES` (USD-only skew must not re-trip the poller — leftover [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) **M1305-4**).
 
-Coolify leftover migrate `20260921130000` + startup-before-D5 heal no-op: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) ([`AGENTS_POST_MERGE_OPS_1305.md`](./AGENTS_POST_MERGE_OPS_1305.md); `make verify-issue-1305`). Heal runs once at startup, then D5; it is not in `run_volume_refresh_loop`. If the #1276 checkbox is off, leftover 2 is a **manual** Coolify indexer deploy of `729b097f+`. Healthy `GET /health` is not `_sqlx_migrations` evidence. Heal silence/one log via indexer logs, not `DATABASE_URL`. Widen `…000` + 30d `…001` stay sister [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300).
+Coolify leftover migrate `20260921130000` + startup-before-D5 heal no-op: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) ([`AGENTS_POST_MERGE_OPS_1305.md`](./AGENTS_POST_MERGE_OPS_1305.md); `make verify-issue-1305` (implement)). Heal runs once at startup, then D5; it is not in `run_volume_refresh_loop`. If the #1276 checkbox is off, leftover 2 is a **manual** Coolify indexer deploy of `729b097f+`. Healthy `GET /health` is not `_sqlx_migrations` evidence. Heal silence/one log via indexer logs, not `DATABASE_URL`. Widen `…000` + 30d `…001` stay sister [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300).
 
 ## Canonical code
 
