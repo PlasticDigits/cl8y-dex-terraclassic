@@ -4,7 +4,7 @@ Audience: third-party agents touching `/protocol` DEX hub prices, `GET /api/v1/h
 
 **Issue:** [GitLab **#570**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)  
 **Parent hub USD:** [`AGENTS_INDEXER_HUB_USD.md`](./AGENTS_INDEXER_HUB_USD.md) (**H1–H16**)  
-**Protocol layout:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-1**, **P1240** mixed-case tickers)  
+**Protocol layout:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-1**, **P1240** mixed-case tickers; bundle verify **`make verify-issue-1290`**)  
 **Token identity / explorer:** [`AGENTS_FRONTEND_TOKEN_IDENTITY.md`](./AGENTS_FRONTEND_TOKEN_IDENTITY.md) (**T541-2**)  
 **Verify:** `make verify-issue-570`
 

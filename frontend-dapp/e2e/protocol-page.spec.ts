@@ -181,6 +181,7 @@ async function assertMonthlyXaxisNoOverlap(page: Page, maxBars: number) {
   }
 }
 
+// Hub wrap cUSTC/cLUNC vs CEX USTC/LUNC casing: GitLab #1240 / #1290 (P1/P2/P4).
 test.describe('Protocol page (GitLab #550 / #422)', () => {
   test('P1 stats card + oracle card + audit rows', async ({ page }) => {
     await page.goto('/protocol')

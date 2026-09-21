@@ -456,6 +456,12 @@ verify-issue-1240:
 	@chmod +x scripts/qa/verify-issue-1240.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1240.sh
 
+# Forgejo #1290 — implement PR for #1240 hub wrap cLUNC vs CEX USTC/LUNC (+ Playwright).
+.PHONY: verify-issue-1290
+verify-issue-1290:
+	@chmod +x scripts/qa/verify-issue-1290.sh scripts/qa/verify-issue-1240.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1290.sh
+
 # GitLab #569 — /protocol total USD pair liquidity + 24h/30d % change.
 verify-issue-569:
 	@chmod +x scripts/qa/verify-issue-569.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
