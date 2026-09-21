@@ -46,13 +46,13 @@ PostgreSQL `UNIQUE` treats NULL as distinct. A nullable `pair_id` **without** th
 - **Don’t** use a nullable unique without partial indexes / COALESCE sentinel.
 - **Don’t** bind-mount `indexer/` into root Docker for cargo (`make test-indexer-target-ownership`).
 - **Don’t** implement pair_creation / SKU / cohort here (#1209 / #1210 / #1211).
-- **Don’t** keep two sqlx files on prefix `20260916120000` (hops vs [#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258) USDT). Rename the unapplied file; see [ADR 0005](../docs/adr/0005-protocol-fee-multihop-hops.md) § Migration.
+- **Don’t** keep two sqlx files on prefix `20260916120000` (hops vs [#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258) USDT). Keep first-applied USDT at `20260916120000`; hops is `20260916120001` (not `20260916120100`); see [ADR 0005](../docs/adr/0005-protocol-fee-multihop-hops.md) § Migration.
 
 ## Key files
 
 | Area | Path |
 |------|------|
-| Migration | [`indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`](../indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql) |
+| Migration | [`indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql`](../indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql) |
 | Insert + backfill | [`indexer/src/db/queries/protocol_fees.rs`](../indexer/src/db/queries/protocol_fees.rs) |
 | Ingest | [`indexer/src/indexer/parser.rs`](../indexer/src/indexer/parser.rs) `ingest_swap_amm_fee` |
 | Draft | [`indexer/src/indexer/protocol_fees.rs`](../indexer/src/indexer/protocol_fees.rs) `FeeEventDraft.pair_id` |

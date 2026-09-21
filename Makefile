@@ -440,6 +440,12 @@ verify-issue-1269:
 	@chmod +x scripts/qa/verify-issue-1269.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1269.sh
 
+# Forgejo #1276 — indexer /health git SHA + auto-deploy leftover (operator Coolify checkbox).
+.PHONY: verify-issue-1276
+verify-issue-1276:
+	@chmod +x scripts/qa/verify-issue-1276.sh scripts/setup-cloud-agent-indexer-postgres.sh
+	./scripts/qa/verify-issue-1276.sh
+
 # GitLab #683 — /protocol fee USD for CL8Y + factory-listed economic tokens.
 .PHONY: verify-issue-683
 verify-issue-683:
@@ -1417,7 +1423,7 @@ help:
 	@echo "Frontend:        make dev | verify-issue-678 | verify-issue-711 | verify-issue-713 | verify-issue-715 | verify-issue-1257 | verify-issue-578 | verify-issue-695 | verify-issue-706 | verify-issue-693 | verify-issue-629 | verify-issue-639 | verify-issue-1213 | verify-issue-640 | verify-issue-641 | verify-issue-630 | verify-issue-632 | verify-issue-651 | verify-issue-665 | verify-issue-674 | verify-issue-669 | verify-issue-653 | verify-issue-660 | verify-issue-671 | verify-issue-670 | verify-issue-657 | verify-issue-662 | verify-issue-664 | verify-issue-661 | verify-issue-672 | verify-issue-658 | verify-issue-659 | verify-issue-663 | verify-issue-573 | verify-issue-410 | verify-issue-416 | verify-issue-436 | verify-issue-439 | verify-issue-440 | verify-issue-441 | verify-issue-442 | verify-issue-451 | verify-issue-443 | verify-issue-444 | verify-issue-445 | verify-issue-1222 | verify-issue-1240 | verify-issue-295 (needs make dev)"
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | verify-issue-1276 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1]"
 	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 

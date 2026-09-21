@@ -9,7 +9,7 @@ Operator playbook for **when** to rollback vs hotfix forward during live inciden
 | Surface | Typical symptom | First control | Rollback available? |
 |---------|-----------------|---------------|---------------------|
 | **Frontend** | Broken UI, wrong `VITE_*` addresses, CSP/connect-src failure | Hotfix build or redeploy prior static artifact | Yes — prior `dist/` or Render deploy rollback |
-| **Indexer** | Crash loop, wrong API data, failed migration | Restart process; rollback binary + optional `down.sql` | Partial — schema rollback only when paired `.down.sql` exists |
+| **Indexer** | Crash loop, wrong API data, failed migration | Restart process (`idx_restart`); Coolify restore or hotfix per [Auto-deploy era](#auto-deploy-era-1276) three-way table (**2(a)**/**2(b)**/**2(c)**) + sequential dirty gate (dirty `DELETE`/`idx_reclass` only when `success=false`; not a `down.sql` prelude); attest via `/health` `git_sha` ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)) | Partial — schema rollback only when `indexer/migrations/revert/<version>_*.down.sql` exists for **every** successful `_sqlx_migrations.version` newer than the prior Coolify baseline; **2(b)** keep schema + hotfix that still ships N (even if a paired down exists; **no Stop** only for clean ahead; when `idx_reclass` is **2(b)**, **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image); **Partial suffix revert** is still **2(b)**; dirty is a sequential `any success=false?` gate (auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass; auto-deploy off is **not** a process stop); **2(c)** **iff** restoring the prior image is required **and** that every-version gate passes → auto-deploy off + **Stop** / scale-to-zero + snapshot + descending `down.sql` + `DELETE` **each** matching `_sqlx_migrations` row + restore |
 | **Contract** | Logic bug post-migrate | Emergency **pause** / blacklist; forward-fix **migrate** | Partial — migrate to prior `code_id` only if still on chain and state compatible |
 | **Chain dependency** | Chain upgrade incompatibility, IBC-hooks patch, LCD/RPC outage | Pause pairs; switch LCD provider; wait for validator upgrade | No on-chain rollback — coordinate with network |
 
@@ -31,7 +31,28 @@ flowchart TD
   fe_dec -->|No| fe_roll[Rollback: prior static build]
   idx --> idx_dec{Process crash only?}
   idx_dec -->|Yes| idx_restart[Restart indexer]
-  idx_dec -->|No — bad data or migration| idx_roll[Rollback binary + down.sql if needed]
+  idx_dec -->|No — bad data or migration| idx_schema{any success=false?}
+  idx_schema -->|Yes| idx_stop_dirty["auto-deploy off; Stop / scale-to-zero; snapshot"]
+  idx_stop_dirty --> idx_dirty["DELETE every success=false row; never UPDATE success"]
+  idx_dirty --> idx_reclass{Successful row newer than baseline?}
+  idx_reclass -->|No| idx_cool
+  idx_reclass -->|Yes| idx_ahead_dirty{Restore prior image required?}
+  idx_ahead_dirty -->|No — next image still ships N| idx_fwd_start[2(b) start only the hotfix image]
+  idx_ahead_dirty -->|Yes — schema is the bug or no hotfix that still embeds N| idx_pair_dirty{every successful _sqlx_migrations.version newer has paired down.sql?}
+  idx_pair_dirty -->|No — any missing; Partial suffix revert still 2(b)| idx_fwd_start
+  idx_pair_dirty -->|Yes — every successful version newer than baseline| idx_stop_2c
+  idx_schema -->|No| idx_class{Unchanged vs prior latest *.sql?}
+  idx_class -->|Unchanged| idx_cool["2(a) restore; auto-deploy off or land fix before next webhook"]
+  idx_class -->|Ahead| idx_ahead{Restore prior image required?}
+  idx_ahead -->|No — next image still ships N| idx_fwd[2(b) keep schema; hotfix; no Stop]
+  idx_ahead -->|Yes — schema is the bug or no hotfix that still embeds N| idx_pair{every successful _sqlx_migrations.version newer has paired down.sql?}
+  idx_pair -->|No — any missing; Partial suffix revert still 2(b)| idx_fwd
+  idx_pair -->|Yes — every successful version newer than baseline| idx_stop_2c["auto-deploy off; Stop if still running; snapshot"]
+  idx_stop_2c --> idx_down["2(c) descending downs; DELETE each matching row; restore"]
+  idx_fwd --> idx_attest[Attest /health git_sha EXPECT_SHA]
+  idx_fwd_start --> idx_attest
+  idx_cool --> idx_attest
+  idx_down --> idx_attest
   ctr --> ctr_risk{Funds at risk<br/>or exploit active?}
   ctr_risk -->|Yes| ctr_pause[Emergency pause / blacklist]
   ctr_risk -->|No — contained bug| ctr_fix{State-compatible<br/>forward migrate?}
@@ -42,6 +63,8 @@ flowchart TD
   chain_dec -->|Yes| chain_lcd[Fail over LCD/RPC; monitor]
   chain_dec -->|No| chain_pause[Pause all affected pairs; coordinate upgrade]
 ```
+
+Indexer `idx_schema` / `idx_attest` → [§ Auto-deploy era Coolify incident checklist](#auto-deploy-era-1276) (**three-way:** **2(a)** unchanged vs prior Coolify Deploys SHA → restore; **2(b)** keep schema + hotfix that still ships N, **even if** a paired `down.sql` exists — **no Stop** only for clean ahead; when `idx_reclass` is **2(b)**, **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image; **2(c)** **iff** restoring the prior image is required **and** `indexer/migrations/revert/<version>_*.down.sql` exists for **every** successful `_sqlx_migrations.version` newer than that baseline — historical `revert/` files do **not** select 2(c); if **any** ahead version has no pair → 2(b); **Partial suffix revert** is still 2(b)). Inspect `_sqlx_migrations` (`version`, `success`; `installed_on` inspect-only) via Coolify DB / indexer `DATABASE_URL` (not `postgres-psql.sh`). Baseline: `git ls-tree --name-only <prior-coolify-deploys-sha> indexer/migrations/`. Dirty is a **sequential gate**, not a sibling of Unchanged/Ahead: `idx_schema` → any `success=false`? → **Yes:** auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass (auto-deploy off is **not** a process stop; `DELETE FROM _sqlx_migrations WHERE success = false` — **every** `success=false` row; never `UPDATE success`; then **re-enter the three-way** Unchanged/Ahead). Mixed dirty+ahead uses the same every-ahead-version **2(c)** gate after reclassify. Do **not** route `idx_dirty` to attest. **No:** classify Unchanged vs Ahead as today. A failed first new migrate with **no** row stays unchanged, not dirty. **Stop** is a **hard pre-step** for dirty `DELETE` and for **2(c)** `down.sql` + ledger `DELETE`. Revert files do **not** touch the ledger. Attest `git_sha` with `EXPECT_SHA`. After 2(c), re-enable auto-deploy only when `main` **no longer ships N**, or re-applying N is explicit intent.
 
 ---
 
@@ -118,35 +141,89 @@ VITE_INDEXER_URL=https://<staging-indexer> npm run build
 
 ### Decision criteria
 
+Production Coolify uses **only** the [Auto-deploy era](#auto-deploy-era-1276) table (**2(a)** restore / **2(b)** keep schema + hotfix / **2(c)** documented revert then restore + dirty gate). Map **Restart only** (transient crash, no schema work) to mermaid `idx_restart`. Do **not** choose a pre-Coolify “Rollback binary” that boots the prior image while the ledger is ahead — production `sqlx::migrate!()` then rejects. Local/systemd commands stay under **Rollback path** in this section.
+
+### Auto-deploy era (#1276)
+
+Protected-branch auto-deploy on the indexer Coolify app (operator leftover; [ADR 0006](../adr/0006-indexer-health-git-sha.md)) means every indexer-touching `main` land rebuilds [`docker/indexer/Dockerfile`](../../docker/indexer/Dockerfile) and runs `sqlx::migrate!()` before bind. Production `sqlx::migrate!()` in [`indexer/src/main.rs`](../../indexer/src/main.rs) does **not** call `set_ignore_missing` — the default migrator **rejects applied versions missing from the binary**. Integration tests set `set_ignore_missing(true)` only for worktree skew ([`indexer/tests/common/mod.rs`](../../indexer/tests/common/mod.rs)); do **not** paper over a leftover ledger row that way in production. Frontend Vite may already be at a newer tip (**dual-app skew** — expected). Production rollback is the **three-way** Coolify path below, not `git checkout` + `cargo run` on the host. Image binary is `cl8y-dex-indexer`.
+
+Classify **unchanged** vs **ahead** by comparing `_sqlx_migrations` (`version`, `success`; `installed_on` is inspect-only) to the **prior successful Coolify deploy’s** latest `indexer/migrations/*.sql`. Baseline command: `git ls-tree --name-only <prior-coolify-deploys-sha> indexer/migrations/` (or equivalent); that tree’s latest `*.sql` filename prefix (not `revert/`). Coolify Deploys SHA is allowed; still **no** SOURCE SHA log scrape. Do **not** treat `SELECT version … LIMIT 5` or “no new row” as the baseline.
+
 | Choose | When |
 |--------|------|
-| **Restart only** | Crash from transient LCD 429, OOM, or host reboot; **no** schema change in the failing release; data spot-checks match LCD. |
-| **Forward-fix** | Bug is in indexer logic but schema is compatible; patch release ready; safe to redeploy binary and catch up from `last_indexed_height`. |
-| **Rollback binary** | New release introduced bad parsing, wrong migrations, or data corruption; prior release binary is known-good. |
-| **Rollback schema (`down.sql`)** | A migration in the bad release must be reversed **and** a paired `.down.sql` exists under [`indexer/migrations/revert/`](../../indexer/migrations/revert/) ([docs/testing.md § Manual rollback SQL](../testing.md#frontend-integration-tests-charts--indexer)). |
+| **Restore previous image (2(a))** | Ledger is **unchanged** vs that prior SHA’s latest `*.sql` (max successful `version` matches; no successful row newer than the baseline). Includes a transactional failure of the **first** new migration that left **no** row. Restore the prior Coolify indexer deploy. While auto-deploy is on and `main` is still the bad SHA, that image is sticky until the next webhook: turn auto-deploy **off** **or** land revert/hotfix before the next `main` land (same retrigger class as 2(c), without re-applying N). Confirm `GET /health` `git_sha` matches that commit via `VERIFY1276_EXPECT_SHA` (prefix OK). **Do not** scrape Coolify SOURCE SHA logs. |
+| **Forward-fix (2(b))** | Ledger is **ahead** **and** the next image will still ship N (keep schema; do not restore the previous binary) — **even when** a paired `down.sql` exists. Typical: logic bug with an additive migration. Also required when **any** successful `_sqlx_migrations.version` newer than the baseline has **no** `indexer/migrations/revert/<version>_*.down.sql` (historical files in `revert/` do **not** count). **Partial suffix revert** (only versions that have downs) leaves the ledger **ahead** — still **2(b)**, not 2(c). Success of `N` then failure of `N+1` is ahead (`N` applied) **and** dirty if `N+1` left `success=false` — take the dirty gate first. Snapshot Postgres; ship a hotfix image. **2(b)** (hotfix, no ledger surgery) does **not** need Stop on **clean ahead**. When `idx_reclass` is **2(b)**: **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image. Do not invent a revert file. |
+| **Documented revert then restore (2(c))** | Ledger is **ahead**, restoring the prior image is required (schema itself is the bug, or no hotfix that still embeds N can ship), **and** `indexer/migrations/revert/<version>_*.down.sql` exists for **every** successful `_sqlx_migrations.version` newer than the prior Coolify Deploys SHA baseline. If **any** of those versions has no pair → **2(b)**; do not restore; do not invent a revert. **Partial suffix revert** is still **2(b)**. Historical revert files for versions already in that baseline **do not** select 2(c). Coolify **Stop** / scale-to-zero of the current indexer is a **hard pre-step** for `down.sql` + ledger `DELETE`. Auto-deploy off is **not** a process stop. Order: auto-deploy **off** ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)) → **Stop** current `cl8y-dex-indexer` → snapshot → dirty `DELETE` (if any) → reclassify → those `down.sql` files (**descending**, **only after** the every-version gate passes) → `DELETE FROM _sqlx_migrations WHERE version = <that version>` (**each** matching row) → start **only** that prior Coolify image → attest. Keep it **stopped** until the intended image is the one that will boot. Do **not** apply `down.sql` under a live process. Do **not** `DELETE` `_sqlx_migrations` while the N-shipping image can still boot (restart re-applies `N`). Files under `revert/` undo schema only; they do **not** `DELETE` `_sqlx_migrations`. After 2(c), re-enable auto-deploy only when `main` **no longer ships version N** (migration file reverted / not in the binary), **or** when re-applying N is the explicit intent. A logic hotfix that still embeds N is **2(b)** — do not 2(c) then ship that hotfix. |
+| **Repair dirty ledger** | Any `_sqlx_migrations` row with `success = false` is dirty — a **sequential gate**, not a sibling of Unchanged/Ahead and not a terminal branch. Order: auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass. Auto-deploy off is **not** a process stop. That DELETE is `DELETE FROM _sqlx_migrations WHERE success = false;` (**every** `success=false` row). Never `UPDATE success`. Then **re-enter the three-way** tree: no successful row newer than baseline → **2(a)**; a successful newer row remains → **2(b) / 2(c)** with the same every-ahead-version gate. Mixed dirty+ahead uses that **2(c)** gate after reclassify. When `idx_reclass` is **2(b)**: **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image. Keep **no Stop** only for clean ahead → **2(b)**. Do **not** route dirty to attest. Do **not** treat remaining successful `N` as forward-fix only. Restore of the prior image still fails while a dirty row remains. This tree’s migrations do not disable transactions; a failed first new migrate often leaves **no** row — that is **unchanged**, not dirty. Do **not** `DELETE` `_sqlx_migrations` while the N-shipping image can still boot. |
+| **Disable auto-deploy temporarily** | Breaking / rewrite migrations, **and** as the **first** step of documented revert (2(c)) **and** dirty `DELETE`, **and** before a 2(a) restore while `main` is still the bad SHA. Operator Coolify checkbox off ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). Auto-deploy off only blocks the next `main` webhook — it does **not** stop the image Coolify still has selected. After 2(c), re-enable only when `main` no longer ships N (or re-applying N is explicit intent). Expand-only migrations may ride auto-deploy. |
+
+#### Coolify incident checklist (production indexer)
+
+Use this table from the mermaid `idx_schema` branch. Do not publish Coolify UUIDs, tokens, or hosts.
+
+1. **Inspect `_sqlx_migrations` against the prior successful Coolify deploy.** Query `SELECT version, success, installed_on FROM _sqlx_migrations ORDER BY version DESC;` via the **Coolify Postgres shell** or `psql` using the **indexer app** `DATABASE_URL` secret (the DB the running Coolify indexer uses). `installed_on` is inspect-only — classify on `version` / `success`. Do **not** use `scripts/lib/postgres-psql.sh` here — that helper is host/`docker compose exec` for **LocalTerra/dev** Postgres, not Coolify-provisioned production ([`mainnet-soft-launch.md`](./mainnet-soft-launch.md): Postgres is provisioned in Coolify separately). Baseline: Coolify Deploys SHA of the **prior successful** indexer deploy (allowed). `git ls-tree --name-only <prior-coolify-deploys-sha> indexer/migrations/` (or equivalent); that tree’s latest `*.sql` filename prefix is “unchanged.” Still **do not** scrape Coolify SOURCE SHA logs. Classify **sequentially**: any `success = false`? → **Yes:** auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass (auto-deploy off is **not** a process stop; `DELETE FROM _sqlx_migrations WHERE success = false;` — **every** `success=false` row; never `UPDATE success`; restore of the prior image **fails** while a dirty row remains; mixed dirty+ahead uses the same every-ahead-version **2(c)** gate; when `idx_reclass` is **2(b)**, **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image; do **not** route dirty to attest). **No:** **unchanged** = max successful `version` equals the prior SHA’s latest `*.sql` and no successful row is newer (a transactional failure of the **first** new migration that left **no** row is unchanged, not dirty); **ahead** = a successful `version` newer than that baseline (success of `N` then failure of `N+1` is ahead — `N` applied — **and** dirty if `N+1` left `success=false`; take the dirty gate first).
+2. **Three-way action.** After the dirty gate the process is already down — if `idx_reclass` is **2(b)**, **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image. Keep **no Stop** only for **clean ahead** → **2(b)** (hotfix, no ledger surgery). Keep the indexer **stopped** until the intended image is the one that will boot whenever ledger or schema surgery ran (dirty `DELETE` or **2(c)**). Order when ledger or schema surgery is required: auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass → **2(c)** descending downs + `DELETE` each matching row **or** **2(a)** restore **or** **2(b)** **start only the hotfix image** → attest `git_sha`. (a) Schema **unchanged** vs that baseline → **restore the previous Coolify indexer deploy**. While auto-deploy is on and `main` is still the bad SHA, that image is sticky until the next webhook: turn auto-deploy **off** **or** land revert/hotfix before the next `main` land. (b) Schema **ahead** and the next image will still ship N (keep schema) **or** **any** successful `_sqlx_migrations.version` newer than the baseline has **no** `indexer/migrations/revert/<version>_*.down.sql` → snapshot Postgres and ship a **hotfix Coolify image** (do not restore the previous binary). **2(b)** (hotfix, no ledger surgery) does **not** need Stop on **clean ahead**; when `idx_reclass` is **2(b)**, **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image. **Partial suffix revert** is still **2(b)**. Historical files in `revert/` do **not** select 2(c). (c) Schema **ahead**, restoring the prior image is required (schema itself is the bug, or no hotfix that still embeds N can ship), **and** `indexer/migrations/revert/<version>_*.down.sql` exists for **every** successful `_sqlx_migrations.version` newer than that baseline → auto-deploy **off** first ([#297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)) → **Stop** / scale-to-zero (hard pre-step; auto-deploy off is **not** a process stop) → snapshot Postgres → apply those `down.sql` files (**descending**, **only after** the every-version gate passes) → `DELETE FROM _sqlx_migrations WHERE version = <that version>` (**each** matching row) → start **only** the prior Coolify indexer image → attest. Do **not** apply `down.sql` under a live process. Do **not** `DELETE` `_sqlx_migrations` while the N-shipping image can still boot (restart re-applies `N`). Files under `revert/` undo schema only; they do **not** `DELETE` `_sqlx_migrations`. Do not invent a revert file. Do **not** set `set_ignore_missing(true)` on production `sqlx::migrate!()`. Local `git checkout` + `cargo run` / systemd is a **dev** path only.
+3. **Attest `/health` `git_sha`.** `VERIFY1276_REQUIRE_LIVE=1 VERIFY1276_EXPECT_SHA=<restored-or-hotfix-sha> make verify-issue-1276` (or `curl` + jq). Prefix-match. Do not scrape Coolify SOURCE SHA logs. Do not infer the auto-deploy checkbox from HTTP.
+4. **Re-enable auto-deploy** after 2(c) only when `main` **no longer ships version N** (migration file reverted / not in the binary), **or** when re-applying N is the explicit intent (#297). A typical hotfix still embeds N — that is the **2(b)** path; do not 2(c) then ship that hotfix. Leaving the flag on after 2(c) retriggers the bad tip and re-applies `N`. After 2(a), same: auto-deploy off or a good tip before the next `main` webhook.
+5. **Record** the restored/hotfix SHA and UTC in the [incident timeline](../templates/incident-dex-indexer.md#incident-timeline). Close leftover #1276 still needs the ADR slice 3 comment template (not this incident path).
+
+CAC drain (one UUID per Forgejo path) is **not** the indexer rollback/redeploy path.
 
 ### Rollback path (commands)
 
+**Production (Coolify — leftover path):** follow **Auto-deploy era → Coolify incident checklist** above (**three-way**). Do not treat `git checkout` + `cargo run` as the production rollback.
+
+**Local / systemd (dev):**
+
 ```bash
-# 1. Stop indexer (systemd, k8s, or tmux)
+# 1. Stop indexer FIRST (systemd, k8s, or tmux) before any ledger or schema
+#    surgery. Keep stopped until the intended binary is the one that will boot.
+#    Coolify production: Stop / scale-to-zero — auto-deploy off is not a process stop.
 # systemctl stop cl8y-indexer
 
-# 2. Note current migration version
+# 2. Note current migration ledger (compare to prior SHA latest *.sql — not LIMIT 5 alone)
+#    Baseline: git ls-tree --name-only <prior-sha> indexer/migrations/
+#    installed_on is inspect-only
 source indexer/.env
-psql "$DATABASE_URL" -X -c "SELECT version FROM _sqlx_migrations ORDER BY version DESC LIMIT 5;"
+psql "$DATABASE_URL" -X -c "SELECT version, success, installed_on FROM _sqlx_migrations ORDER BY version DESC;"
 
-# 3. If the bad release ran a new migration, apply manual down.sql ONLY when documented
-# Example (adjust filename to the migration being reverted):
+# 3. Dirty gate FIRST when any success=false exists (matching Coolify):
+#    auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot →
+#    DELETE every success=false → idx_reclass (never UPDATE success).
+#    Auto-deploy off is **not** a process stop. Then re-enter the three-way.
+#    Dirty DELETE / idx_reclass is NOT the down.sql prelude.
+# psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+#   -c "DELETE FROM _sqlx_migrations WHERE success = false;"
+#    If idx_reclass is 2(a): start only the restored prior binary (already stopped).
+#    If idx_reclass is 2(b): start only the hotfix image (already stopped).
+#    If idx_reclass is 2(c): stay stopped through downs / version DELETE,
+#    then start only the prior binary.
+
+# 4. If idx_reclass is 2(c) — apply down.sql ONLY when documented AND every
+#    successful version newer than baseline has a paired down.sql.
+#    Clean 2(c): off → Stop → snapshot → descending downs → version DELETE → restore.
+# Example (adjust filename / version to the migration being reverted):
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
   -f indexer/migrations/revert/20260509160000_limit_order_placement_lifecycle.down.sql
+# Revert files undo schema only — they do NOT DELETE _sqlx_migrations.
+# Production sqlx::migrate!() rejects applied versions missing from the binary.
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+  -c "DELETE FROM _sqlx_migrations WHERE version = 20260509160000;"
+# Do not DELETE _sqlx_migrations while the N-shipping binary can still boot
+# (restart re-applies N). Do not apply down.sql under a live process.
+# Several ahead versions: only after every successful version newer than
+# baseline has a paired down.sql (else 2(b); Partial suffix revert is still 2(b)).
+# Then apply down.sql descending; DELETE each matching ledger row.
 
-# 4. Deploy prior release binary
+# 5. Deploy intended binary (dev only — production uses Coolify restore).
+#    2(a)/2(c): prior image; 2(b): hotfix. Keep stopped until that binary boots.
+# Image / cargo binary is cl8y-dex-indexer (docker/indexer/Dockerfile), not cl8y-indexer.
 export PATH="/usr/local/cargo/bin:$PATH"
 git checkout "<prior-release-sha>"
 cd indexer && cargo build --release
-# Install binary to service path, e.g. cp target/release/cl8y-indexer /usr/local/bin/
+# Install binary to service path, e.g. cp target/release/cl8y-dex-indexer /usr/local/bin/
 
-# 5. Restart and watch logs
+# 6. Restart and watch logs
 cd indexer && cargo run --release
 # Or: systemctl start cl8y-indexer
 ```
@@ -161,9 +238,14 @@ See [indexer reorg runbook § Shallow reorg recovery](./indexer-reorg-replay-ded
 
 ### Limitations
 
-- Most migrations have **no** automatic down path — rolling back binary without `down.sql` leaves schema ahead of code (startup may fail).
+- Most migrations have **no** automatic down path — rolling back binary without `down.sql` for **every** successful `_sqlx_migrations.version` newer than the baseline leaves schema ahead of code (startup may fail). Historical files in `revert/` are not a 2(c) selector. **Partial suffix revert** is still **2(b)**.
 - Derived tables (swaps, charts) may need rebuild from chain replay after a bad ingest window.
 - `down.sql` may **drop data** — take a Postgres snapshot before applying.
+- Files under `indexer/migrations/revert/` do **not** `DELETE` `_sqlx_migrations`. After `down.sql`, delete **each** matching ledger row (`DELETE FROM _sqlx_migrations WHERE version = <that version>`) or the restored prior image exits on migrate validation (applied version missing from the binary). Several ahead versions: revert **descending** — **only after** the every-version gate. Do **not** set `set_ignore_missing(true)` in production. Do **not** apply `down.sql` under a live process. Do **not** `DELETE` `_sqlx_migrations` while the N-shipping image can still boot (restart re-applies `N`).
+- A dirty `success = false` row is not “unchanged” and is not a sibling of Ahead. Sequential gate: any `success=false`? → auto-deploy **off** → Coolify **Stop** / scale-to-zero → snapshot → DELETE every success=false → idx_reclass (auto-deploy off is **not** a process stop). Never `UPDATE success`. Then **re-enter the three-way** tree. Mixed dirty+ahead uses the same every-ahead-version **2(c)** gate after reclassify. When `idx_reclass` is **2(b)**: **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image. A failed first new migrate with **no** row is unchanged, not dirty.
+- Coolify **Stop** / scale-to-zero is a **hard pre-step** for dirty `DELETE` and for **2(c)** `down.sql` + ledger `DELETE`. Keep stopped until the intended image is the one that will boot. **2(b)** (hotfix, no ledger surgery) does **not** need this stop on **clean ahead**. When `idx_reclass` is **2(b)**: **start only the hotfix image**; dirty → **2(a)**: start **only** the restored prior image (already stopped); dirty → **2(c)**: stay stopped through downs / version `DELETE`, then start **only** the prior image.
+- After 2(c), re-enable Coolify auto-deploy only when `main` **no longer ships N** (or re-applying N is explicit intent). A hotfix that still embeds N is **2(b)** — do not 2(c) then ship that hotfix.
+- After 2(a), a prior Coolify image is sticky until the next webhook while auto-deploy is on and `main` is still the bad SHA. Turn auto-deploy off **or** land revert/hotfix before the next `main` land.
 - Indexer rollback does **not** fix on-chain state; pair pause may still be required if users acted on bad off-chain quotes.
 
 ### Recovery verification
@@ -175,7 +257,8 @@ curl -sS "${INDEXER_URL}/api/v1/pairs?limit=3" | jq '.items[0].pair_address'
 terrad query wasm contract-state smart "<pair_addr>" '{"pool":{}}' --node "$LCD_URL" | jq '.data'
 ```
 
-- [ ] `/health` returns OK; block lag acceptable vs chain head.
+- [ ] `/health` returns OK (`status=ok`); when the image bakes a commit, `git_sha` is lowercase hex 7–40 matching the restored/hotfix commit (prefix OK; compare with `VERIFY1276_EXPECT_SHA`) — omit means unset/rejected env, not a substitute for Coolify log scrape ([#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)). `VERIFY1276_REQUIRE_LIVE=1` without IID/`EXPECT_SHA` is bake presence. Sibling leftover IID is unreachable-fail. `VERIFY1276_IID=1276` without `EXPECT_SHA` **FAIL**s before curl (intentional leftover-complete gate). Leftover-complete still needs checkbox evidence **and** `VERIFY1276_EXPECT_SHA` tip-match ([ADR 0006](../adr/0006-indexer-health-git-sha.md)).
+- [ ] Block lag acceptable vs chain head.
 - [ ] Spot-check pair reserves and recent swaps against LCD.
 - [ ] No `INDEXER_REORG_HALT` in logs after recovery.
 - [ ] Record binary SHA, migration actions, and UTC in incident timeline.
