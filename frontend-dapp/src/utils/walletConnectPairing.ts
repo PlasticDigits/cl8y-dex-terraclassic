@@ -71,8 +71,21 @@ export function isWalletConnectMobileClient(env?: WalletConnectMobileEnv): boole
   return false
 }
 
+/** Lunc Dash expects `payload` as a real query key (Forgejo #1308), not one encoded blob. */
 export function buildLuncDashDeepLink(uri: string): string {
-  return `luncdash://wallet_connect?${encodeURIComponent(`payload=${encodeURIComponent(uri)}`)}`
+  return `luncdash://wallet_connect?payload=${encodeURIComponent(uri)}`
+}
+
+/** Parse the `wc:` URI from an Open Lunc Dash href (unit tests + regression guards). */
+export function parseLuncDashDeepLinkPayload(href: string): string | null {
+  try {
+    const url = new URL(href)
+    if (url.protocol !== 'luncdash:' || url.hostname !== 'wallet_connect') return null
+    const payload = url.searchParams.get('payload')
+    return payload && payload.length > 0 ? payload : null
+  } catch {
+    return null
+  }
 }
 
 /**

@@ -41,7 +41,7 @@ describe('WalletConnectPairingModal (GitLab #519)', () => {
     const openWallet = screen.getByTestId('walletconnect-pairing-wallet')
     expect(openWallet).toHaveTextContent('Open LUNC Dash')
     expect(openWallet).toHaveAttribute('href')
-    expect(openWallet.getAttribute('href')?.startsWith('luncdash://')).toBe(true)
+    expect(openWallet.getAttribute('href')).toBe(`luncdash://wallet_connect?payload=${encodeURIComponent(WC_V1)}`)
 
     const generic = screen.getByTestId('walletconnect-pairing-generic')
     expect(generic).toHaveTextContent('Open wallet')

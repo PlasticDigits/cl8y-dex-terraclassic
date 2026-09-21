@@ -3,6 +3,7 @@ import {
   buildAndroidWalletIntent,
   buildIosWalletIntent,
   buildLuncDashDeepLink,
+  parseLuncDashDeepLinkPayload,
   buildWalletConnectDeepLinks,
   isAllowedWalletConnectDeepLink,
   isWalletConnectMobileClient,
@@ -51,10 +52,33 @@ describe('walletConnectPairing (GitLab #519)', () => {
     ).toBe(false)
   })
 
-  it('builds the Lunc Dash scheme used by cosmes QRCodeModal', () => {
+  it('treats desktop-site UA with coarse pointer on a tablet-width screen as mobile (Forgejo #1308)', () => {
+    expect(
+      isWalletConnectMobileClient({
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
+        platform: 'Win32',
+        maxTouchPoints: 5,
+        matchMedia: (query) => ({
+          matches: query.includes('pointer: coarse') || query.includes('max-width: 1024'),
+        }),
+      })
+    ).toBe(true)
+  })
+
+  it('builds Lunc Dash deep link with a parseable payload query (Forgejo #1308)', () => {
     const href = buildLuncDashDeepLink(WC_V1)
-    expect(href.startsWith('luncdash://wallet_connect?')).toBe(true)
-    expect(href).toContain(encodeURIComponent(`payload=${encodeURIComponent(WC_V1)}`))
+    expect(href).toBe(`luncdash://wallet_connect?payload=${encodeURIComponent(WC_V1)}`)
+    expect(new URL(href).searchParams.get('payload')).toBe(WC_V1)
+    const payload = parseLuncDashDeepLinkPayload(href)
+    expect(payload).toBe(WC_V1)
+    expect(isWalletConnectPairingUri(payload!)).toBe(true)
+  })
+
+  it('rejects legacy encoded-blob Lunc Dash hrefs without a payload key', () => {
+    const legacy = `luncdash://wallet_connect?${encodeURIComponent(`payload=${encodeURIComponent(WC_V1)}`)}`
+    expect(parseLuncDashDeepLinkPayload(legacy)).toBeNull()
+    expect(buildLuncDashDeepLink(WC_V1)).not.toBe(legacy)
   })
 
   it('inserts the pairing URI into Android intent templates before #Intent', () => {
