@@ -34,7 +34,7 @@ Use when changing **WalletConnect QR / pairing UX**, **Lunc Dash / Galaxy Statio
 
 ## Lunc Dash scheme
 
-Cosmes already used `luncdash://wallet_connect?payload=<encoded wc:>`. Keep that string in `buildLuncDashDeepLink` — do not invent a second Lunc Dash scheme. If the app is not installed, **Copy pairing link** + **Open wallet** (`wc:`) cover it.
+`buildLuncDashDeepLink` must emit `luncdash://wallet_connect?payload=<encoded wc:>` with a real **`payload` query key** (Forgejo [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308)). Do **not** percent-encode the entire `payload=…` string as one opaque query blob — Lunc Dash cannot parse that. Use `parseLuncDashDeepLinkPayload` in unit tests. If the app is not installed, **Copy pairing link** + **Open wallet** (`wc:`) cover it.
 
 ## Rules of thumb
 
@@ -53,6 +53,7 @@ make verify-issue-554
 make verify-issue-519
 make verify-issue-658
 make verify-issue-1279   # leftover Lunc Dash ops pre-check; does not close #1279
+make verify-issue-1308   # Lunc Dash payload query + children 519/554 + 1279 docs pre-check; does not close device AC (cl8y-pm inbox after Coolify)
 # or:
 bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
   src/utils/__tests__/walletConnectPairing.test.ts \
@@ -75,5 +76,5 @@ Manual: Android Chrome → Connect → Station / Cosmostation / Lunc Dash / Gala
 - Copy primitive: [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md)
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
 - Legal clickwrap (no ADR-036; **WC-M12** / **L658** not Keplr-only): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
-- Leftover Lunc Dash ops verify (pre-check only; device QA is ops-bot): [`AGENTS_OPS_LUNCDASH_VERIFY.md`](./AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-1–L1279-8**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); `make verify-issue-1279`
+- Leftover Lunc Dash ops verify (pre-check only; device QA is cl8y-pm inbox): [`AGENTS_OPS_LUNCDASH_VERIFY.md`](./AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-1–L1279-8**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); `make verify-issue-1279`. Live pairing payload on `dex.cl8y.com` is [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / **Q21**.
 - Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))
