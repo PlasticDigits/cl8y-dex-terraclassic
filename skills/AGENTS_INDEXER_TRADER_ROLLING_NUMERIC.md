@@ -40,7 +40,9 @@ Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `tot
 | File | Role |
 |------|------|
 | [`20260921120000_traders_rolling_volume_numeric_38_0.sql`](../indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql) | Widen raw columns |
-| [`traders.rs`](../indexer/src/db/queries/traders.rs) | `refresh_rolling_volumes` + `upsert_trader` cap |
+| [`20260921130000_traders_lifetime_heal_from_swaps.sql`](../indexer/migrations/20260921130000_traders_lifetime_heal_from_swaps.sql) | One-shot lifetime heal from `swap_events` |
+| [`traders.rs`](../indexer/src/db/queries/traders.rs) | `refresh_rolling_volumes` + `upsert_trader` cap + `heal_trader_lifetime_from_swaps` |
+| [`poller.rs`](../indexer/src/indexer/poller.rs) | Mismatch-gated heal **before** `refresh_all_volume_windows` (**D5**) |
 | [`volume_aggregator.rs`](../indexer/src/indexer/volume_aggregator.rs) | Isolated fail log (`rolling trader volumes`) |
 | [`api/traders.rs`](../indexer/src/api/traders.rs) | `bd_plain_string` on raw volume JSON |
 | [`indexer_trader_rolling_numeric.rs`](../indexer/tests/indexer_trader_rolling_numeric.rs) | `10^21` refresh + decay + upsert cap + leaderboard |

@@ -57,6 +57,9 @@ run_step "code: widen + integer LEAST cap; USD cap untouched" \
     grep -q "POWER(10::numeric, 20) - POWER(10::numeric, -18)" indexer/src/db/queries/traders.rs
     grep -q "volume_24h: bd_plain_string" indexer/src/api/traders.rs
     grep -q "Failed to refresh {label}" indexer/src/indexer/volume_aggregator.rs
+    grep -q "heal_trader_lifetime_from_swaps_if_needed" indexer/src/indexer/poller.rs
+    test -f indexer/migrations/20260921130000_traders_lifetime_heal_from_swaps.sql
+    grep -q "heal_trader_lifetime_from_swaps" indexer/src/db/queries/traders.rs
     # Forbidden: clamp rolling raw to USD 10^20 cap (A3).
     ! grep -n "vol_24h" indexer/src/db/queries/traders.rs | grep -q "POWER(10::numeric, 20)"
   '

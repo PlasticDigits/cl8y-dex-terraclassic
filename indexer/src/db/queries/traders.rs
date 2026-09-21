@@ -1,6 +1,6 @@
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 #[derive(Debug, Clone, FromRow)]
 pub struct TraderRow {
@@ -317,27 +317,163 @@ pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+/// P522-Q priced-sender stamp (#553). Shared with migrate heal and poller heal (#1277).
+pub(crate) const SQL_REFRESH_TRADER_TOTAL_VOLUME_USD: &str =
+    "UPDATE traders t
+     SET total_volume_usd = sub.usd,
+         updated_at = NOW()
+     FROM (
+       SELECT
+         sender,
+         LEAST(
+           SUM(volume_usd),
+           POWER(10::numeric, 20) - POWER(10::numeric, -18)
+         ) AS usd
+       FROM swap_events
+       WHERE volume_usd IS NOT NULL AND volume_usd > 0
+       GROUP BY sender
+     ) sub
+     WHERE t.address = sub.sender";
+
 /// Recompute `traders.total_volume_usd` from `swap_events.volume_usd` (P522-Q, GitLab #553).
 /// Idempotent. Senders with no priced swaps stay NULL (not 0).
 pub async fn refresh_trader_total_volume_usd(pool: &PgPool) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "UPDATE traders t
-         SET total_volume_usd = sub.usd,
-             updated_at = NOW()
-         FROM (
-           SELECT
-             sender,
-             LEAST(
-               SUM(volume_usd),
-               POWER(10::numeric, 20) - POWER(10::numeric, -18)
-             ) AS usd
-           FROM swap_events
-           WHERE volume_usd IS NOT NULL AND volume_usd > 0
-           GROUP BY sender
-         ) sub
-         WHERE t.address = sub.sender",
-    )
-    .execute(pool)
-    .await?;
+    sqlx::query(SQL_REFRESH_TRADER_TOTAL_VOLUME_USD)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+// Keep in sync with `20260921130000_traders_lifetime_heal_from_swaps.sql`.
+const SQL_HEAL_TRADER_INSERT: &str =
+    "INSERT INTO traders (address, total_trades, total_volume, first_trade_at, last_trade_at)
+     SELECT
+       se.sender,
+       COUNT(*)::bigint,
+       LEAST(SUM(se.offer_amount), POWER(10::numeric, 38) - 1),
+       MIN(se.block_timestamp),
+       MAX(se.block_timestamp)
+     FROM swap_events se
+     GROUP BY se.sender
+     ON CONFLICT (address) DO NOTHING";
+
+const SQL_HEAL_TRADER_UPDATE_LIFETIME: &str =
+    "UPDATE traders t
+     SET
+       total_trades = sub.cnt,
+       total_volume = sub.vol,
+       first_trade_at = CASE
+         WHEN t.total_trades IS DISTINCT FROM sub.cnt
+           OR t.total_volume IS DISTINCT FROM sub.vol
+           OR t.first_trade_at IS NULL
+         THEN sub.first_ts
+         ELSE t.first_trade_at
+       END,
+       last_trade_at = CASE
+         WHEN t.total_trades IS DISTINCT FROM sub.cnt
+           OR t.total_volume IS DISTINCT FROM sub.vol
+           OR t.last_trade_at IS NULL
+         THEN sub.last_ts
+         ELSE t.last_trade_at
+       END,
+       updated_at = NOW()
+     FROM (
+       SELECT
+         sender,
+         COUNT(*)::bigint AS cnt,
+         LEAST(SUM(offer_amount), POWER(10::numeric, 38) - 1) AS vol,
+         MIN(block_timestamp) AS first_ts,
+         MAX(block_timestamp) AS last_ts
+       FROM swap_events
+       GROUP BY sender
+     ) sub
+     WHERE t.address = sub.sender";
+
+const SQL_HEAL_TRADER_LEFTOVER_ZERO: &str =
+    "UPDATE traders t
+     SET
+       total_trades = 0,
+       total_volume = 0,
+       first_trade_at = NULL,
+       last_trade_at = NULL,
+       updated_at = NOW()
+     WHERE NOT EXISTS (
+       SELECT 1 FROM swap_events se WHERE se.sender = t.address
+     )
+     AND (
+       COALESCE(t.total_trades, 0) IS DISTINCT FROM 0
+       OR t.total_volume IS DISTINCT FROM 0
+     )";
+
+const SQL_HEAL_TRADER_LEFTOVER_USD_NULL: &str =
+    "UPDATE traders t
+     SET total_volume_usd = NULL,
+         updated_at = NOW()
+     WHERE t.total_volume_usd IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1
+         FROM swap_events se
+         WHERE se.sender = t.address
+           AND se.volume_usd IS NOT NULL
+           AND se.volume_usd > 0
+       )";
+
+const SQL_TRADER_LIFETIME_DIVERGES: &str =
+    "SELECT EXISTS (
+       SELECT 1
+       FROM (
+         SELECT sender,
+                COUNT(*)::bigint AS cnt,
+                LEAST(SUM(offer_amount), POWER(10::numeric, 38) - 1) AS vol
+         FROM swap_events
+         GROUP BY sender
+       ) s
+       FULL OUTER JOIN traders t ON t.address = s.sender
+       WHERE COALESCE(s.cnt, 0) IS DISTINCT FROM COALESCE(t.total_trades, 0)
+          OR COALESCE(s.vol, 0) IS DISTINCT FROM COALESCE(t.total_volume, 0)
+     )";
+
+async fn apply_trader_lifetime_heal_tx(
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(SQL_HEAL_TRADER_INSERT).execute(&mut *tx).await?;
+    sqlx::query(SQL_HEAL_TRADER_UPDATE_LIFETIME)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query(SQL_HEAL_TRADER_LEFTOVER_ZERO).execute(&mut *tx).await?;
+    sqlx::query(SQL_REFRESH_TRADER_TOTAL_VOLUME_USD)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query(SQL_HEAL_TRADER_LEFTOVER_USD_NULL)
+        .execute(&mut *tx)
+        .await?;
+    Ok(())
+}
+
+/// True when swap-derived lifetime totals diverge from `traders` (GitLab #1277 / #676 analog).
+pub async fn trader_lifetime_diverges_from_swaps(pool: &PgPool) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(SQL_TRADER_LIFETIME_DIVERGES)
+        .fetch_one(pool)
+        .await
+}
+
+/// Rebuild missing / undercounted trader rows from `swap_events` before rolling refresh (**D5**).
+///
+/// Mismatch-gated. One transaction: INSERT + lifetime UPDATE + leftover-zero + #553 USD +
+/// leftover-USD NULL. Returns `true` when heal SQL ran.
+pub async fn heal_trader_lifetime_from_swaps(pool: &PgPool) -> Result<bool, sqlx::Error> {
+    if !trader_lifetime_diverges_from_swaps(pool).await? {
+        return Ok(false);
+    }
+    let mut tx = pool.begin().await?;
+    apply_trader_lifetime_heal_tx(&mut tx).await?;
+    tx.commit().await?;
+    tracing::info!("traders_healed lifetime totals from swap_events (GitLab #1277)");
+    Ok(true)
+}
+
+/// Poller entry: log errors but do not abort `run_indexer` (#1269 / #676 pattern).
+pub async fn heal_trader_lifetime_from_swaps_if_needed(pool: &PgPool) -> Result<(), sqlx::Error> {
+    heal_trader_lifetime_from_swaps(pool).await?;
     Ok(())
 }
