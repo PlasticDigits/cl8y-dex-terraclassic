@@ -82,9 +82,9 @@ CreatePair-only whitelist is **not** enough: instance wasm admin can `MsgMigrate
 
 Template **GO** is recorded. Columbus-5 listed **8266** 2026-08-22. Re-run the suite with `CODE_ID=8266 LAYER_B_LT=1 make verify-issue-589` then `make verify-issue-581` when changing the harness. LocalTerra may whitelist a locally stored copy of the bytes for the harness only.
 
-**Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`; `make verify-issue-584`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md). Rollout script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)).
+**Tests:** `asset_code_id_pin_tests::*`; `make verify-issue-582`; `make verify-issue-584`; `make verify-issue-1234`. Playbook: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Invariant **F6** in [contracts-security-audit.md](../contracts-security-audit.md). Rollout script: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)).
 
-**Exit-path policy (keep):** maximal freeze. Cancel / claim / withdraw stay gated with swap/provide/place. Opening exits is a separate contract change. Unfreeze is pause-through-refresh + private rebalance — [cw20-code-id-ops.md](./cw20-code-id-ops.md). Do not Refresh onto FoT. Do not de-whitelist **10184** by default.
+**Exit-path policy (keep):** maximal freeze. Cancel / claim / withdraw stay gated with swap/provide/place. Opening exits is a separate contract change. Unfreeze is pause-through-refresh + private rebalance — [cw20-code-id-ops.md](./cw20-code-id-ops.md). Do not Refresh onto FoT. Do not de-whitelist **10184** by default. **#1234:** `UpdateLimitOrderPrice` and `CleanLimitBook` are also gated (no DLL writes during freeze).
 
 ### Listed-asset wasm admin inventory (2026-08-20)
 

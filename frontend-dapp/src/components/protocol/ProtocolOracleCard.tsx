@@ -95,18 +95,19 @@ export function ProtocolOracleCard({
               aria-selected={active}
               tabIndex={active ? 0 : -1}
               data-testid={`protocol-oracle-tab-${value}`}
-              className={`flex-1 min-w-[5.5rem] py-2.5 text-sm font-semibold tracking-wide ${
+              className={`flex-1 min-w-[5.5rem] py-2.5 text-sm font-semibold tracking-wide normal-case ${
                 active ? 'btn-primary' : ''
               }`}
-              style={
-                active
+              style={{
+                textTransform: 'none',
+                ...(active
                   ? undefined
                   : {
                       background: 'var(--panel-muted, transparent)',
                       color: 'var(--ink-dim)',
                       border: '1px solid var(--stroke, transparent)',
-                    }
-              }
+                    }),
+              }}
               onClick={() => selectTicker(value)}
             >
               {PROTOCOL_ORACLE_TICKER_LABEL[value]}

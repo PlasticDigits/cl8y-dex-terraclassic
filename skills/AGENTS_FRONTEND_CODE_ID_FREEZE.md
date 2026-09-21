@@ -24,7 +24,7 @@ Issue **#585 is implemented**. On-chain F6 pin stays live regardless of 8266 lis
 3. **F585-3 — fail-open LCD for routing/UI.** Probe errors keep last known membership (unknown ≠ frozen). Pre-1.15.0 `GetAssetCodeIds` (`unknown variant` / unpinned) → **not frozen**. On-chain execute still **fail-closes**.
 4. **F585-4 — no LCD on request path.** Indexer freeze set is a process-local `HashSet`; background probe every **60s**. Do not query LCD inside `route/solve`.
 5. **F585-5 — humanize execute errors.** Swap / Trade / Pool map `Asset CW20 code_id drifted`, `not factory-whitelisted`, `Asset code_id guard unavailable`, and unpinned pins to retail copy — not a generic failed tx.
-6. **F585-6 — surfaces + quotes-still-appear.** `/`, `/trade`, `/pool`, `/charts`, `/limits` show freeze state when known (indexer field **or** LCD). Banner copy: quotes can still appear; swaps / LP / limits blocked. CTA **Market frozen**.
+6. **F585-6 — surfaces + quotes-still-appear.** `/`, `/trade`, `/pool`, `/charts`, `/limits` show freeze state when known (indexer field **or** LCD). Banner copy: quotes can still appear; swaps / LP / limits blocked. CTA **Market frozen**. On-chain **Edit** (`UpdateLimitOrderPrice`) fail-closes with the same `AssetCodeId*` errors as place/cancel ([#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234)); `toastErrorMessage` already humanizes them. Do **not** teach the dApp to reprice through a frozen pair.
 7. **F585-7 — no un-gate exits.** This issue does **not** open on-chain cancel / claim / withdraw. Exit-path **keep** stays in [`cw20-code-id-ops.md`](../docs/runbooks/cw20-code-id-ops.md).
 8. **F585-8 — no FoT math.** Do **not** add pair balance-delta / fee-on-transfer swap math (**H-01**). Queries (`Simulation` / `HybridSimulation`) stay ungated by design.
 
@@ -45,6 +45,6 @@ Needs Postgres + `indexer/.env` for the route/pair integration tests (`make setu
 
 ## Related
 
-- On-chain pin: [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) (**F6**, #582 / #584)
+- On-chain pin: [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) (**F6**, #582 / #584 / [#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234) reprice + `CleanLimitBook`)
 - Hybrid quoting: [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — retail GET still uses `route/solve`
 - Pair pause CTAs: [`docs/frontend.md` § Pair pause](../docs/frontend.md#pair-pause-disabled-ctas-sec-b05)
