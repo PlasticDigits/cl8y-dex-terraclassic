@@ -434,6 +434,8 @@ pub enum ExecuteMsg {
     },
     /// Change the limit price of an existing order (same `order_id`, same
     /// remaining size). Does not charge the maker placement fee again.
+    /// **F6 / #1234:** `gate_asset_code_ids` after pause + blacklist — freeze
+    /// (pin drift or whitelist removal) rejects before DLL relink.
     UpdateLimitOrderPrice {
         order_id: u64,
         price: Decimal,
@@ -447,6 +449,8 @@ pub enum ExecuteMsg {
     /// Permissionless: park time-expired and/or governance dust orders from the limit book
     /// into `EXPIRED_LIMIT_CLAIMS` (no CW20 movement; makers claim later). Distinct from
     /// factory-only CW20 excess recovery [`Sweep`](ExecuteMsg::Sweep) (GitLab #263).
+    /// **F6 / #1234:** also behind `gate_asset_code_ids` (no DLL writes during freeze;
+    /// keepers resume after unfreeze, same as **L6** unpause).
     CleanLimitBook {
         side: LimitOrderSide,
         max_orders: u32,
