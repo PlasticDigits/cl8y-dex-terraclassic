@@ -114,7 +114,7 @@ Trading tokens (EMBER, CORAL, …) use **6** decimals. Fee-discount `min_cl8y_ba
 | `make verify-issue-599` | Unwrap+≥2hop USTR→USTC gas combo (`UNWRAP_ROUTER_COMBO_OVERHEAD_GAS`); inventory `send_2hop_unwrap_ustc`; E9 needs LocalTerra |
 | `make verify-issue-600` | Post-merge !400 LocalTerra E9 + columbus-5 unwrap gas (`Q8` / **M600-1–M600-8**); children 599 + 587 |
 | `make verify-issue-1280` | Hop-offer partition: retail GET hop-0-only hybrid; POST interior `hybrid_by_hop` kept; wasm revert tests (**H1280**) |
-| `make verify-issue-1264` | Wrap+2hop USTC→USTR pool-only envelope (2.71M); E10 + inventory; no columbus-5 gas raise |
+| `make verify-issue-1264` | Wrap+2hop USTC→USTR pool-only envelope (2.71M); USTC LUNC gas-gate (**G1264-4**); E10 + inventory; optional `VERIFY1264_COLUMBUS_TX`; no columbus-5 gas raise |
 | `/tiers` + Keplr or Simulated Wallet | Register tier 1 succeeds when wallet holds ≥ 1 TCL8Y (requires #384 gas limits) |
 
 ### Post-merge stack !368–!377 (GitLab #573)
