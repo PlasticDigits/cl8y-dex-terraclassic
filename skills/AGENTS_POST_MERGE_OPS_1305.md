@@ -1,0 +1,77 @@
+# Agent playbook: post-merge PRs 1302–1304 leftover verify (Forgejo #1305)
+
+Audience: third-party agents verifying Coolify indexer migrate `20260921130000` + `/protocol` hub wrap visual after [PRs 1302–1304](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls) landed on `main` (`729b097f`). Child `make verify-issue-1290` / `make verify-issue-1277` already existed on the merge commits.
+
+**Issue:** [Forgejo **#1305**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305)
+**Parents (closed unless a merged invariant is wrong):** #1290 / #1240, #1277 / #1292, #1303 / #1304.
+**Sister leftover (stays open):** [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) (PRs 1287–1298; sqlx `…000`/`…001`).
+**Invariants:** [`docs/qa-invariants.md`](../docs/qa-invariants.md) **Q23** (**M1305-1–M1305-8**)
+**Design:** [`docs/adr/0010-post-merge-leftover-1302-1304.md`](../docs/adr/0010-post-merge-leftover-1302-1304.md)
+**Verify:** `make verify-issue-1305` (implement slice; this playbook is the contract)
+
+Indexer **auto-deploy checkbox** leftover stays on [#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276) / [ADR 0006](../docs/adr/0006-indexer-health-git-sha.md) — [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297). Do **not** merge `origin/cac-design-issue-1300` / `1302` / `1277` as-is (ADR 0008 collision; this leftover is **0010** / **Q23**). Do **not** reopen closed parents for ops/QA. Do **not** wait on GitLab CI quota. Do **not** file a founder card. Keywords on #1305 are not architecture approval.
+
+## Merged PR(s)
+
+| PR | Issue | Skill |
+|----|-------|-------|
+| 1302 | #1290 / #1240 hub wrap **cLUNC** vs CEX **LUNC** verify bundle | [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) **P1240** |
+| 1303 | #1277 / #1292 trader lifetime heal from `swap_events` | [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md) |
+| 1304 | sqlx 0.8 `&mut **tx` so heal compiles | same (compile gate in `make verify-issue-1277`) |
+
+## Invariants (M1305-1–M1305-8)
+
+| ID | Rule |
+|----|------|
+| **M1305-1** | Local regression is `make verify-issue-1305`, which runs children **1290** and **1277**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless hosts answer (FAIL when `VERIFY1305_REQUIRE_LIVE=1` or `VERIFY1305_IID=1305`). Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL`. Do **not** attest sqlx `20260921120000` / `20260921120001` (those are **#1300**). Do **not** invent leftover Playwright; child #1290 already runs `protocol-page` at **5 workers**. |
+| **M1305-2** | Coolify indexer migrate **`20260921130000_traders_lifetime_heal_from_swaps`** after #1300’s `…000` then `…001`. **#1305 attests `…30000` only.** Operator attests `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL` — not `postgres-psql.sh`. After boot, D5 `heal_trader_lifetime_from_swaps_if_needed` is a no-op or one `traders_healed` info then silence. Heal errors must not abort `run_indexer`. No `down.sql`. |
+| **M1305-3** | Coolify **frontend rebuild** from `729b097f+`. Production HTTP marker: hashed Vite chunk **`cLUNC / USD`** + **`cUSTC / USD`**. Operator glance: oracle tabs **USTC** / **LUNC** / **vFDUSD**; selected tab not **VFDUSD**. Do **not** grep **`protocol-top-pairs`** (that is **#1300 leftover-complete**). Dual-app skew during rebuild is expected. |
+| **M1305-4** | Optional I10: USD-only lifetime skew does **not** re-trip `SQL_TRADER_LIFETIME_DIVERGES` (gate is trades + raw `total_volume` only). Do **not** add `total_volume_usd` to the EXISTS. Optional test is not leftover-complete. |
+| **M1305-5** | Merge recipe: dismiss `.* @code/maintainers` self-request, then normal `fj pr merge`. Do **not** `force_merge` ([`forgejo-pr-merge.md`](../docs/runbooks/forgejo-pr-merge.md)). #1302/#1303 `force_merge` commits **are** ancestors of `origin/main`; do not rewrite. #1304 used dismiss + normal merge. |
+| **M1305-6** | Do **not** reopen #1290 / #1240 / #1277 for ops/QA. Do **not** wait on GitLab CI. Do **not** close #1300 from this ticket. Do **not** revert #1302. Do **not** merge unpublished sister design branches. Do **not** take ADR **0008** / **0009** or **Q21** / **Q22**. Do **not** flip Coolify auto-deploy. Do **not** file a founder card. Keywords on #1305 are not #297 authority or `DESIGN: APPROVE`. |
+| **M1305-7** | Leftover Playwright is child **#1290** only (`protocol-page`, 5 workers). Do **not** invent a second leftover e2e flag. Do **not** leak a different `PLAYWRIGHT_WEB_PORT`. `e2e-tx` stays **1 worker**. |
+| **M1305-8** | This playbook + **Q23** + [ADR 0010](../docs/adr/0010-post-merge-leftover-1302-1304.md) + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
+## Coolify leftovers (operator)
+
+1. Indexer: apply `…000` then `…001` then **`20260921130000`** (sqlx on boot). **#1305 attests `…30000` only.** Operator attests `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL` (`success=true`). Do **not** use `scripts/lib/postgres-psql.sh` against prod. Confirm D5 heal no-op or one log.
+
+2. Frontend: rebuild from current `main` (`729b097f+`). Confirm hub **`cUSTC / USD`** + **`cLUNC / USD`** vs oracle **`USTC`** / **`LUNC`** / **`vFDUSD`** (selected not **`VFDUSD`**). HTTP marker: hashed-chunk **`cLUNC / USD`** + **`cUSTC / USD`**.
+
+3. Do **not** infer the indexer auto-deploy checkbox from HTTP ([ADR 0006](../docs/adr/0006-indexer-health-git-sha.md)).
+
+`make verify-issue-1305` live is **HTTP only**: frontend **`cLUNC / USD`** / **`cUSTC / USD`**. Do **not** grep `protocol-top-pairs`. Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL`. Leftover probes SKIP unless hosts answer. Fail closed with `VERIFY1305_REQUIRE_LIVE=1`.
+
+## Leftover-complete
+
+Close **#1305** only when all hold (same as [ADR 0010](../docs/adr/0010-post-merge-leftover-1302-1304.md) Integration):
+
+- Coolify: **#1305 attests `20260921130000` only** (`success=true` — operator Coolify DB / indexer `DATABASE_URL`). Same boot may also apply `…000` / `…001`; those rows are **#1300**, not a #1305 FAIL.
+- D5 heal no-op or one `traders_healed` log.
+- Coolify frontend serves `729b097f+` with HTTP marker **`cLUNC / USD`** + **`cUSTC / USD`** and operator glance hub wrap vs CEX / selected **vFDUSD** not **VFDUSD**.
+- `make verify-issue-1305` green locally (children + docs).
+- **#1300** still open unless its own leftover-complete holds.
+
+Do **not** close #1305 on green child `make verify-issue-1290` / `1277` alone.
+
+## Do / don’t
+
+- **Do** run `make verify-issue-1305` from a git worktree after pulling `main` (once implement lands the script).
+- **Do** link `frontend-dapp/node_modules` from the primary checkout in a git worktree. Do **not** `npm install` over a worktree symlink (#1299).
+- **Don’t** reopen #1290 / #1240 / #1277 unless a merged invariant is wrong.
+- **Don’t** close #1300 from this ticket or grep `protocol-top-pairs` as this leftover’s marker.
+- **Don’t** merge `cac-design-issue-1300` / `1302` / `1277` as-is.
+- **Don’t** expand the heal gate to USD.
+- **Don’t** `force_merge`.
+- **Don’t** treat GitLab CI quota as leftover evidence.
+- **Don’t** flip Coolify auto-deploy or edit `autonomy.rs` / HMAC.
+- **Don’t** treat keywords on #1305 as #297 authority or `DESIGN: APPROVE`.
+
+## Regression
+
+```bash
+make verify-issue-1305
+VERIFY1305_SKIP_CHILDREN=1 make verify-issue-1305
+VERIFY1305_SKIP_LIVE=1 make verify-issue-1305
+VERIFY1305_REQUIRE_LIVE=1 make verify-issue-1305
+```

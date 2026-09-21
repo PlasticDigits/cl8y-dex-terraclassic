@@ -34,6 +34,9 @@ Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `tot
 - **Don’t** zero `total_volume_usd` to “heal” overflow (**A4** / #553 / #577 **A5**).
 - **Don’t** clamp ingest timestamps with `Utc::now()` (same as #577 **A1** / this **A8**).
 - **Don’t** switch rolling volume to `NUMERIC(78, 18)` (#676 is inventory/P&L).
+- **Don’t** add `total_volume_usd` to `SQL_TRADER_LIFETIME_DIVERGES` (USD-only skew must not re-trip the poller — leftover [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) **M1305-4**).
+
+Coolify leftover migrate `20260921130000` + D5 heal no-op: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) ([`AGENTS_POST_MERGE_OPS_1305.md`](./AGENTS_POST_MERGE_OPS_1305.md); `make verify-issue-1305`). Widen `…000` + 30d `…001` stay sister [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300).
 
 ## Canonical code
 

@@ -25,6 +25,17 @@ Do not POST a fake commit status to skip a failing Woodpecker run. Manual
 `ci/woodpecker/pr/woodpecker` POSTs were a stopgap before this repo was enabled
 on `ci.cl8y.com`; they are not the merge path once AC1 on #1247 holds.
 
+## Historical (do not rewrite)
+
+[#1302](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1302) and
+[#1303](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1303) were merged
+with `force_merge` before this recipe was followed. Both merge commits
+(`92c84406`, `a7919548`) **are** ancestors of `origin/main`.
+[#1304](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1304) used dismiss
++ normal merge (`729b097f`). Leftover ops: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305)
+([ADR 0010](../adr/0010-post-merge-leftover-1302-1304.md) leftover 5). Do not
+rewrite those ancestors. Later PRs stay dismiss-then-merge.
+
 ## Do not
 
 - `force_merge`
