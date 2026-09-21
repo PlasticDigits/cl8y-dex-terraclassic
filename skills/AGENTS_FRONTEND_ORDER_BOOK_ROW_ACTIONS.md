@@ -49,6 +49,7 @@ Canonical copy: [`limitOrderPriceEdit.ts`](../frontend-dapp/src/utils/limitOrder
 - Deep book pagination: [`AGENTS_FRONTEND_DEEP_ORDER_BOOK.md`](./AGENTS_FRONTEND_DEEP_ORDER_BOOK.md) ([GitLab **#194**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/194))
 - Trade workspace layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Reprice FIFO (**L23** / [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227)): [`AGENTS_LIMIT_ORDER_REPRICE_FIFO.md`](./AGENTS_LIMIT_ORDER_REPRICE_FIFO.md) — price-only Edit still one tx / same `order_id`; the chain joins the destination equal-price **tail**
+- F6 freeze (**#1234**): [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) / [`AGENTS_FRONTEND_CODE_ID_FREEZE.md`](./AGENTS_FRONTEND_CODE_ID_FREEZE.md) — Edit fail-closes with the same humanized Market frozen copy as place/cancel; do not reprice through `code_id_frozen`
 - Limit price / crossing gates: [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md)
 - Limit side control: [`AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md`](./AGENTS_FRONTEND_LIMIT_ORDER_SIDE_SELECTOR.md)
 - Terra gas: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) — **`UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT`**
