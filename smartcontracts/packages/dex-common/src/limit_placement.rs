@@ -1,9 +1,21 @@
-//! Batch / ladder limit order placement types and ladder expansion (GitLab #206).
+//! Batch / ladder limit order placement types and ladder expansion (GitLab #206, #1219).
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, StdError, Uint128};
 
 use crate::pair::LimitOrderSide;
+
+/// Post-fill park floor (**L16** / #264) and **placement** min remaining (**L24** / #1219).
+///
+/// Raw escrow units of the side token (token1 bids, token0 asks). Not governance-configurable
+/// in v1. Re-exported from [`crate::pair`] so match-time flush and place share one constant.
+pub const LIMIT_ORDER_DUST_FLUSH_THRESHOLD: Uint128 = Uint128::new(10);
+
+/// Minimum **post–maker-fee remaining** accepted at place (batch, ladder, retail n=1).
+#[inline]
+pub fn min_limit_place_remaining() -> Uint128 {
+    LIMIT_ORDER_DUST_FLUSH_THRESHOLD
+}
 
 /// Absolute ceiling (gas safety); governance cannot exceed this on-chain.
 /// Raised to 100 per LocalTerra gas benchmarks (GitLab #263).
@@ -162,6 +174,12 @@ pub fn expand_limit_ladder(
         validate_limit_order_price(*price, decimals0, decimals1).map_err(StdError::generic_err)?;
     }
     let amounts = ladder_amounts_equal(spec.total_amount, count)?;
+    let min = min_limit_place_remaining();
+    if let Some(too_small) = amounts.iter().find(|a| **a < min) {
+        return Err(StdError::generic_err(format!(
+            "limit order amount too small: remaining {too_small} is below minimum {min}"
+        )));
+    }
     let boundary_idx =
         ladder_boundary_rung_index(&spec.side, spec.start_price, spec.end_price, count);
 
@@ -213,10 +231,16 @@ fn ladder_prices(start: Decimal, end: Decimal, count: u32) -> Result<Vec<Decimal
         return Ok(vec![start]);
     }
     let steps = Decimal::from_ratio(count as u128 - 1, 1u128);
-    let delta = end
-        .checked_sub(start)
-        .map_err(|_| StdError::generic_err("ladder price range overflow"))?;
-    let step_size = delta
+    let descending = end < start;
+    let span = if descending {
+        start
+            .checked_sub(end)
+            .map_err(|_| StdError::generic_err("ladder price range overflow"))?
+    } else {
+        end.checked_sub(start)
+            .map_err(|_| StdError::generic_err("ladder price range overflow"))?
+    };
+    let step_size = span
         .checked_div(steps)
         .map_err(|_| StdError::generic_err("ladder price step divide"))?;
 
@@ -230,11 +254,16 @@ fn ladder_prices(start: Decimal, end: Decimal, count: u32) -> Result<Vec<Decimal
             let offset = step_size
                 .checked_mul(Decimal::from_ratio(i as u128, 1u128))
                 .map_err(|_| StdError::generic_err("ladder price multiply"))?;
-            out.push(
+            let price = if descending {
+                start
+                    .checked_sub(offset)
+                    .map_err(|_| StdError::generic_err("ladder price subtract"))?
+            } else {
                 start
                     .checked_add(offset)
-                    .map_err(|_| StdError::generic_err("ladder price add"))?,
-            );
+                    .map_err(|_| StdError::generic_err("ladder price add"))?
+            };
+            out.push(price);
         }
     }
     Ok(out)
@@ -364,5 +393,85 @@ mod tests {
         assert_eq!(items[0].hint_after_order_id, None);
         assert_eq!(items[1].hint_after_order_id, None);
         assert_eq!(items[2].hint_after_order_id, Some(42));
+    }
+
+    #[test]
+    fn ladder_prices_descending_equal_dec_three_to_one() {
+        let prices = ladder_prices(Decimal::from_ratio(3u128, 1u128), Decimal::one(), 3).unwrap();
+        assert_eq!(prices.len(), 3);
+        assert_eq!(prices[0], Decimal::from_ratio(3u128, 1u128));
+        assert_eq!(prices[1], Decimal::from_ratio(2u128, 1u128));
+        assert_eq!(prices[2], Decimal::one());
+        assert!(prices[0] > prices[1] && prices[1] > prices[2]);
+    }
+
+    #[test]
+    fn ladder_prices_ascending_one_to_three() {
+        let prices = ladder_prices(Decimal::one(), Decimal::from_ratio(3u128, 1u128), 3).unwrap();
+        assert_eq!(prices[0], Decimal::one());
+        assert_eq!(prices[1], Decimal::from_ratio(2u128, 1u128));
+        assert_eq!(prices[2], Decimal::from_ratio(3u128, 1u128));
+    }
+
+    /// Forgejo #1219 — former `end.checked_sub(start)` overflowed Decimal atomics 1 and 3.
+    #[test]
+    fn ladder_prices_descending_raw_atomics_one_and_three() {
+        let prices = ladder_prices(Decimal::raw(3), Decimal::raw(1), 3).unwrap();
+        assert_eq!(
+            prices,
+            vec![Decimal::raw(3), Decimal::raw(2), Decimal::raw(1)]
+        );
+    }
+
+    #[test]
+    fn expand_ladder_descending_equal_dec_places_monotonic_prices() {
+        let spec = LimitOrderLadderSpec {
+            side: LimitOrderSide::Ask,
+            start_price: Decimal::from_ratio(3u128, 1u128),
+            end_price: Decimal::one(),
+            count: 3,
+            total_amount: Uint128::new(30),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let items = expand_limit_ladder(&spec, 20, 6, 6).unwrap();
+        assert_eq!(items.len(), 3);
+        let sum: Uint128 = items.iter().map(|i| i.amount).sum();
+        assert_eq!(sum, Uint128::new(30));
+        assert_eq!(items[0].price, Decimal::from_ratio(3u128, 1u128));
+        assert_eq!(items[2].price, Decimal::one());
+        assert!(items
+            .iter()
+            .all(|i| i.amount >= min_limit_place_remaining()));
+    }
+
+    #[test]
+    fn expand_ladder_rejects_dust_equal_split() {
+        let spec = ladder_spec(3, 1);
+        let err = expand_limit_ladder(&spec, 20, 6, 6)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("below minimum 10"), "{err}");
+        assert!(!err.contains("Cannot Sub"));
+    }
+
+    #[test]
+    fn expand_ladder_rejects_remainder_dust_rung() {
+        let spec = ladder_spec(3, 29);
+        let err = expand_limit_ladder(&spec, 20, 6, 6)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("below minimum 10"), "{err}");
+    }
+
+    #[test]
+    fn min_limit_place_remaining_is_dust_flush_floor() {
+        assert_eq!(
+            min_limit_place_remaining(),
+            LIMIT_ORDER_DUST_FLUSH_THRESHOLD
+        );
+        assert_eq!(min_limit_place_remaining(), Uint128::new(10));
     }
 }

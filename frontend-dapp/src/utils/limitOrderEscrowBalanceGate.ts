@@ -1,9 +1,12 @@
+import { LIMIT_ORDER_DUST_FLUSH_THRESHOLD } from '@/utils/limitPlacementLifecycle'
 import { toRawAmount } from '@/utils/formatAmount'
 
 /** User-visible copy — keep in sync with `LimitOrderEscrowPlaceGuardMessage` styling rules. */
 export const LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT = 'Insufficient balance'
 export const LIMIT_ORDER_ESCROW_MSG_LOADING = 'Loading wallet balance…'
 export const LIMIT_ORDER_ESCROW_MSG_BALANCE_UNAVAILABLE = 'Cannot verify balance.'
+/** Retail copy for the on-chain place floor (**L24** / #1219). Same `10` as L16 flush. */
+export const LIMIT_ORDER_MIN_PLACE_MSG = 'Minimum size is 10 units'
 
 /**
  * Minimal balance-query shape so callers can pass React Query results without
@@ -38,6 +41,8 @@ export type LimitOrderEscrowPlaceGateResult = {
  *    “allowance succeeds, `transfer_from` fails” gas burn from [GitLab #130](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/130)).
  * 4. **Zero / empty human amount** → `canPlaceLimit: false` with no user message (existing “Enter amount”
  *    path on submit remains a safety net).
+ * 5. **Per-order raw below `LIMIT_ORDER_DUST_FLUSH_THRESHOLD` (10)** → closed with
+ *    `LIMIT_ORDER_MIN_PLACE_MSG` (Forgejo #1219 / **L24**). Same floor as L16 match-time park.
  */
 export function evaluateLimitOrderEscrowPlaceGate(
   amountHuman: string,
@@ -73,6 +78,10 @@ export function evaluateLimitOrderEscrowPlaceGate(
       userMessage: LIMIT_ORDER_ESCROW_MSG_BALANCE_UNAVAILABLE,
       tone: 'error',
     }
+  }
+
+  if (spend < BigInt(LIMIT_ORDER_DUST_FLUSH_THRESHOLD)) {
+    return { canPlaceLimit: false, userMessage: LIMIT_ORDER_MIN_PLACE_MSG, tone: 'error' }
   }
 
   if (spend > bal) {

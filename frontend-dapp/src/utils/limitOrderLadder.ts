@@ -1,3 +1,5 @@
+import { LIMIT_ORDER_DUST_FLUSH_THRESHOLD } from '@/utils/limitPlacementLifecycle'
+
 /**
  * Client-side ladder expansion aligned with `dex_common::limit_placement::expand_limit_ladder`.
  */
@@ -75,6 +77,10 @@ export function expandLimitLadder(spec: LimitLadderSpec, maxRungs: number): Ladd
   const remainder = total - assigned
   if (remainder > 0n) {
     amounts[amounts.length - 1] = amounts[amounts.length - 1]! + remainder
+  }
+
+  if (amounts.some((a) => a < BigInt(LIMIT_ORDER_DUST_FLUSH_THRESHOLD))) {
+    throw new LimitLadderError('Minimum size is 10 units')
   }
 
   return prices.map((price, i) => ({

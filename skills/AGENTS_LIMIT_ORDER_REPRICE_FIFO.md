@@ -56,7 +56,7 @@ Indexer (Postgres): `resting_book_walk_index_preserves_reprice_fifo` in `db_orde
 
 ## Related
 
-- [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — #266 batch ids stay ascending; relink of one rung still joins the tail
+- [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — #266 batch ids stay ascending; relink of one rung still joins the tail. Place min remaining is **L24** / [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219) (size, not FIFO).
 - [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md) — **L14** / **L17** hints cannot invert FIFO
 - [`AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](./AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md) — Edit still one tx, same id (**T11**)
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — **L8** sim = execute

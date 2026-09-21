@@ -4,6 +4,7 @@ import {
   LIMIT_ORDER_ESCROW_MSG_BALANCE_UNAVAILABLE,
   LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT,
   LIMIT_ORDER_ESCROW_MSG_LOADING,
+  LIMIT_ORDER_MIN_PLACE_MSG,
 } from '@/utils/limitOrderEscrowBalanceGate'
 
 describe('evaluateLimitOrderEscrowPlaceGate', () => {
@@ -52,10 +53,30 @@ describe('evaluateLimitOrderEscrowPlaceGate', () => {
     expect(r.tone).toBe('error')
   })
 
-  it('treats zero wallet balance as insufficient for positive spend', () => {
-    const r = evaluateLimitOrderEscrowPlaceGate('0.000001', 6, { data: '0', isLoading: false, isError: false })
+  it('treats zero wallet balance as insufficient for a place-sized spend', () => {
+    const r = evaluateLimitOrderEscrowPlaceGate('0.000010', 6, { data: '0', isLoading: false, isError: false })
     expect(r.canPlaceLimit).toBe(false)
     expect(r.userMessage).toBe(LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT)
+  })
+
+  it('closes the gate with named min-size when raw is 1–9 (Forgejo #1219)', () => {
+    const q = { data: '1000000', isLoading: false, isError: false }
+    const r1 = evaluateLimitOrderEscrowPlaceGate('0.000001', 6, q)
+    expect(r1.canPlaceLimit).toBe(false)
+    expect(r1.userMessage).toBe(LIMIT_ORDER_MIN_PLACE_MSG)
+    const r9 = evaluateLimitOrderEscrowPlaceGate('0.000009', 6, q)
+    expect(r9.canPlaceLimit).toBe(false)
+    expect(r9.userMessage).toBe(LIMIT_ORDER_MIN_PLACE_MSG)
+  })
+
+  it('opens the gate at exactly 10 raw units when balance covers it', () => {
+    const r = evaluateLimitOrderEscrowPlaceGate('0.000010', 6, {
+      data: '10',
+      isLoading: false,
+      isError: false,
+    })
+    expect(r.canPlaceLimit).toBe(true)
+    expect(r.userMessage).toBeNull()
   })
 
   it('handles malformed balance string conservatively', () => {
