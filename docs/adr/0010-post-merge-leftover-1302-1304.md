@@ -14,15 +14,15 @@ Product decisions stay in child skills. Do **not** duplicate **P1240** or **R127
 
 ## Outcome
 
-Close leftover **#1305** only after operator evidence for this stack — not after green child `make verify-issue-1290` / `make verify-issue-1277` on a laptop. HTTP `[PASS]` is **not** sqlx leftover-complete. Child Playwright is **not** leftover-complete. If **#1305** is still closed on the 2026-09-21 06:46 comment (`GET /health` SHA + `top-pairs`), **reopen it as a leftover precondition**. Reopen is **not** leftover-complete. Leftover-complete still records on **#1305**.
+Close leftover **#1305** only after the leftover-complete close-comment template (Rollout / Integration) is pasted on the issue — not after green child `make verify-issue-1290` / `make verify-issue-1277` on a laptop. HTTP `[PASS]` is **not** sqlx leftover-complete. Child Playwright is **not** leftover-complete. If **#1305** is still closed on the 2026-09-21 06:46 comment (`GET /health` SHA + `top-pairs`), **reopen it as a leftover precondition**. Reopen is **not** leftover-complete. Leftover-complete still records on **#1305**.
 
-1. **Coolify `/protocol` visual** (issue leftover 1 / related #1290 AC). After frontend rebuild from `729b097f+`, **leftover-1 proof is operator DOM glance** on live `dex.cl8y.com/protocol`: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX tabs **`USTC`** / **`LUNC`** / **`vFDUSD`**. Selected vFDUSD tab is **not** flattened to **`VFDUSD`**. Child `protocol-page.spec.ts` asserts both hub dts. The #1290 delta is hub `lunc` showing **cLUNC**, not **LUNC**. Hub `<dt>` is assembled at render (`{HUB_PRICE_TICKER_LABEL[ticker]} / USD` in `ProtocolDexHubPrices.tsx`) — production chunks keep ticker literals and `" / USD"`, **not** the concatenated display string. Concatenated hub labels stay **operator DOM glance only**. Selected-tab casing stays operator glance (CSS-in-JS is not a stable curl assert). Child `protocol-page` still has a monthly **`YY-MM`** tick flake unrelated to hub wrap (#703) — leftover-complete **must not** wait on that.
+1. **Coolify `/protocol` visual** (issue leftover 1 / related #1290 AC). After frontend rebuild from `729b097f+`, **leftover-1 proof is operator DOM glance** on live `dex.cl8y.com/protocol`: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX tabs **`USTC`** / **`LUNC`** / **`vFDUSD`** / click **vFDUSD** and record the selected label (**not** **`VFDUSD`**). Idle `/protocol` selects **USTC** (`parseProtocolOracleTicker` in `protocolOracleTicker.ts`). **Selected not `VFDUSD`** is the #1240 CSS guard (`ProtocolOracleCard.tsx` `textTransform: 'none'`). Idle USTC does **not** prove that guard — the operator **must click the vFDUSD tab**. Child `protocol-page.spec.ts` asserts both hub dts. The #1290 delta is hub `lunc` showing **cLUNC**, not **LUNC**. Hub `<dt>` is assembled at render (`{HUB_PRICE_TICKER_LABEL[ticker]} / USD` in `ProtocolDexHubPrices.tsx`) — production chunks keep ticker literals and `" / USD"`, **not** the concatenated display string. Concatenated hub labels stay **operator DOM glance only**. Selected-tab casing stays operator glance (CSS-in-JS is not a stable curl assert). Child `protocol-page` still has a monthly **`YY-MM`** tick flake unrelated to hub wrap (#703) — leftover-complete **must not** wait on that.
 
    Leftover HTTP (hashed Vite chunk grep, same class as #701 `pool-row-vol` / `volume_usd_24h`) pins **unquoted substrings** with **any quote style** (Vite minify emits double quotes). Never require source `'`. Grepping `'cLUNC'` including `'` false-FAILs a correct Coolify rebuild. **All four** HTTP pins — **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** — are **supporting rebuild-presence greps**. **None prove leftover 1.** Unquoted **`cLUNC`** is a substring of pre-1302 **`cLUNC wrap`** (`ProtocolDexHubPrices.tsx` copy aria since #570 / `a356757f`) and of registry/wrap copy (`tokenRegistry` since #507); hashed-chunk grep **PASS**es a Coolify build that never shipped the hub relabel (`lunc: 'LUNC'` → `cLUNC` in `0b4597f6` / #1290). Implement `verify-issue-1305` live HTTP **must not** treat `cLUNC` as leftover-1 complete.
 
    Grepping concatenated **`cLUNC / USD`** / **`cUSTC / USD`** **in hashed chunks** will FAIL a correct Coolify rebuild and look leftover-incomplete. Leftover-1 is this glance, not HTTP. Quote-agnostic HTTP is supporting rebuild presence, not leftover-1 and not leftover-complete. This is not #1300 (that leftover greps **`protocol-top-pairs` / `Top pairs (30d)`**) and not #1302 leftover-complete (unpublished ADR 0009 treats the glance as this sister). Do **not** infer leftover-complete from the 2026-09-21 06:46 issue close comment — that is **#1300** / [ADR 0006](./0006-indexer-health-git-sha.md), not this contract.
 
-2. **Coolify indexer migrate** (issue leftover 2). Apply sqlx in filename order: #1300’s `20260921120000_traders_rolling_volume_numeric_38_0` then `20260921120001_pair_volume_30d`, then **this leftover** `20260921130000_traders_lifetime_heal_from_swaps`. **#1305 attests `…30000` only.** `…000` / `…001` stay [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300). The [#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276) indexer auto-deploy checkbox is **still off** until that leftover / #297. **If the checkbox is off, leftover 2 is a manual Coolify indexer deploy of `729b097f+`.** Do **not** wait on flipping the checkbox. Healthy `GET /health` (`status=ok`, with or without `git_sha`) is **not** `_sqlx_migrations` evidence ([ADR 0006](./0006-indexer-health-git-sha.md)). Split attest: `_sqlx_migrations` `20260921130000` `success=true` via Coolify DB / indexer `DATABASE_URL` — not `scripts/lib/postgres-psql.sh`; heal silence/one log via **indexer logs**. Heal is **not** queryable from `DATABASE_URL`. `poller.rs` runs `heal_trader_lifetime_from_swaps_if_needed` **once at startup**, then D5 `refresh_all_volume_windows`. Heal is **not** in `run_volume_refresh_loop` and is **not** a D5 step. Startup heal (before D5) is a **no-op** (`Ok(false)`, no `traders_healed` info) **or** one `traders_healed` info; later process starts stay silent if the gate is false. Heal errors stay `tracing::error` and must not abort `run_indexer`.
+2. **Coolify indexer migrate** (issue leftover 2). Apply sqlx in filename order: #1300’s `20260921120000_traders_rolling_volume_numeric_38_0` then `20260921120001_pair_volume_30d`, then **this leftover** `20260921130000_traders_lifetime_heal_from_swaps`. **#1305 attests `…30000` only.** `…000` / `…001` stay [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300). The [#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276) indexer auto-deploy checkbox is **still off** until that leftover / #297. **If the checkbox is off, leftover 2 is a manual Coolify indexer deploy of `729b097f+`.** Do **not** wait on flipping the checkbox. Healthy `GET /health` (`status=ok`, with or without `git_sha`) is **not** `_sqlx_migrations` evidence ([ADR 0006](./0006-indexer-health-git-sha.md)). Split attest (how-to, not bans-only): `_sqlx_migrations` `20260921130000` `success=true` via the **SELECT** in Observability / Coolify leftovers (Coolify DB / indexer `DATABASE_URL` — not `scripts/lib/postgres-psql.sh`); heal silence/one log via **indexer logs** matching the `traders.rs` needle `traders_healed lifetime totals from swap_events (GitLab #1277)`. Heal is **not** queryable from `DATABASE_URL`. `poller.rs` runs `heal_trader_lifetime_from_swaps_if_needed` **once at startup**, then D5 `refresh_all_volume_windows`. Heal is **not** in `run_volume_refresh_loop` and is **not** a D5 step. Startup heal (before D5) is a **no-op** (`Ok(false)`, no `traders_healed` info) **or** one `traders_healed` info; later process starts stay silent if the gate is false. Heal errors stay `tracing::error` and must not abort `run_indexer`.
 
 3. **ADR collision** (issue leftover 3). This file **is** the re-slot. Implement **inserts** 0010 / Q23 / architecture `#post-merge-leftover-ops` (keep the one-line **#1300 / Q21** sister stub) — do **not** whole-file checkout overlap docs from sister design tips. Do **not** add `0008-*.md` or `0009-*.md` on this leftover MR.
 
@@ -132,10 +132,26 @@ No wasm. No pause. No treasury rotate.
 
 ## Observability
 
-- Indexer: `traders_healed lifetime totals from swap_events (GitLab #1277)` at **info** when startup heal SQL ran; `trader lifetime heal failed` at **error** (poller continues). Leftover-complete after migrate: absence of that info on later **process starts**, or one info on the first start then silence. Do **not** treat `GET /health` as this attest. Do **not** query heal from `DATABASE_URL`.
+Leftover-2 how-to (operator; Coolify DB / indexer logs — not liveness):
+
+**sqlx** (Coolify DB / indexer `DATABASE_URL`; not `postgres-psql.sh`; not `GET /health`):
+
+```sql
+SELECT version, description, success FROM _sqlx_migrations
+WHERE version = 20260921130000;
+```
+
+Expect `version=20260921130000` and `success=true`. A healthy boot does **not** imply this row.
+
+**heal** (indexer logs; not `DATABASE_URL`): the attest needle is the `tracing::info!` string in `indexer/src/db/queries/traders.rs`:
+
+`traders_healed lifetime totals from swap_events (GitLab #1277)`
+
+One of that line on the first start after migrate, then silence on later process starts if the gate is false. `trader lifetime heal failed` at **error** (poller continues). Do **not** treat `GET /health` as this attest. Do **not** query heal from `DATABASE_URL`.
+
 - No public heal metric. Do not add `/health` keys. Do not scrape Coolify `/status` JSON or paste app UUIDs/tokens on the issue.
-- Frontend leftover HTTP: hashed-chunk grep unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`). **All four are supporting rebuild-presence greps. None prove leftover 1.** Implement live HTTP must not treat **`cLUNC`** as leftover-1 complete. Leftover-1 is operator glance: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **`VFDUSD`**. Do **not** grep concatenated **`cLUNC / USD`** in hashed chunks.
-- Verify script prints `[PASS]` / `[FAIL]` / SKIP; exit `1` iff `FAIL > 0`. Sibling `VERIFY*_IID` unreachable = FAIL. Keep only `VERIFY1305_REQUIRE_LIVE` / `VERIFY1305_IID=1305` fail-closed on unreachable. Do **not** copy `EXPECT_SHA`. Do **not** invent `VERIFY1305_LEFTOVER_COMPLETE`. HTTP PASS is not sqlx leftover-complete; `success=true` stays operator Coolify DB.
+- Frontend leftover HTTP: hashed-chunk grep unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`). **All four are supporting rebuild-presence greps. None prove leftover 1.** Implement live HTTP must not treat **`cLUNC`** as leftover-1 complete. Leftover-1 is operator glance: hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / click **vFDUSD** selected not **`VFDUSD`** (idle `/protocol` is **USTC**). Do **not** grep concatenated **`cLUNC / USD`** in hashed chunks.
+- Verify script prints `[PASS]` / `[FAIL]` / SKIP; exit `1` iff `FAIL > 0`. Sibling `VERIFY*_IID` unreachable = FAIL. Keep only `VERIFY1305_REQUIRE_LIVE` / `VERIFY1305_IID=1305` fail-closed on unreachable. Do **not** copy `EXPECT_SHA`. Do **not** invent `VERIFY1305_LEFTOVER_COMPLETE`. HTTP PASS is not sqlx leftover-complete; `success=true` stays the SELECT above.
 
 ## Failure modes
 
@@ -155,6 +171,8 @@ No wasm. No pause. No treasury rotate.
 | Grep leftover HTTP as source `'cLUNC'` | Forbidden. Quote-agnostic unquoted substrings. |
 | Grep `protocol-top-pairs` as this leftover’s marker | Forbidden. That is #1300. |
 | Infer leftover-complete from the 06:46 close comment | Forbidden. That is #1300 / 0006. If still closed on that comment, reopen as a leftover precondition (not leftover-complete). |
+| Close comment uses `GET /health`, `protocol-top-pairs`, hashed-chunk `cLUNC` PASS, or green `make verify-issue-1305` | Forbidden. Those already closed this card wrongly. Paste the leftover-complete template (sqlx SELECT + heal needle + leftover-1 glance including click **vFDUSD**). |
+| Glance leftover-1 from idle `/protocol` only | Forbidden. Idle selects **USTC** (`protocolOracleTicker.ts`). Selected-not-`VFDUSD` is the #1240 CSS guard after clicking the **vFDUSD** tab. |
 | Merge sister design branches as-is | ADR collision. Insert 0010/Q23 only. |
 | `fj pr merge` HTTP 405 | Dismiss maintainers self-request; retry normal merge. Not `force_merge`. |
 | Agent flips Coolify auto-deploy | Forbidden (#297). |
@@ -165,10 +183,10 @@ No wasm. No pause. No treasury rotate.
 | Slice | Who | Deliverable | Blocks |
 |-------|-----|-------------|--------|
 | **0 — this design** | design_author | ADR **0010**, architecture `#post-merge-leftover-ops` (Q23 plus one-line **#1300 / Q21** sister stub so implement insert cannot drop Q21), **Q23**, playbook **M1305**, README index tagged **(implement)**, runbook merge-recipe note, child-skill one-liners. Branch `cac-design-issue-1305` only (no design-only PR). If #1305 is still closed on the 06:46 comment, reopen as leftover precondition (not leftover-complete). | Slice 1 |
-| **1 — leftover verify** | implement | `scripts/qa/verify-issue-1305.sh` + `Makefile` `verify-issue-1305` + `docs/testing.md` / `scripts/qa/README.md` / `AGENTS.md` wiring (drop **(implement)** tags once the target exists). Children **1290** (default `VERIFY_ISSUE_1290_SKIP_E2E=1` — docs + `hubPriceTicker` + `verify-issue-1240`) and **1277**. Copy `require_live()` from #701 (`REQUIRE_LIVE` / `IID=1305` only — **no** `LEFTOVER_COMPLETE`). Live frontend HTTP: unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`). **All four are supporting rebuild-presence. Live HTTP must not treat `cLUNC` as leftover-1 complete.** Leftover-1 is operator glance **`cUSTC / USD`** + **`cLUNC / USD`**. Do **not** grep concatenated `cLUNC / USD` in hashed chunks. Do **not** grep `protocol-top-pairs`. Do **not** copy `EXPECT_SHA`. Do **not** attest `…000`/`…001`. Do **not** invent leftover `DATABASE_URL`. Optional leftover e2e: run child **without** `SKIP_E2E` (existing 5 workers, child’s `PLAYWRIGHT_WEB_PORT=30129`; do **not** invent a second leftover e2e flag or leak a different port). Optional leftover e2e is **not** leftover-complete. Optional **I11** USD-gate test in `indexer_trader_rolling_numeric.rs` (same slice, not close-gate; do **not** name it I10). | Slice 2 (docs greps) |
+| **1 — leftover verify** | implement | `scripts/qa/verify-issue-1305.sh` + `Makefile` `verify-issue-1305` + `docs/testing.md` / `scripts/qa/README.md` / `AGENTS.md` wiring (drop **(implement)** tags once the target exists). Children **1290** (default `VERIFY_ISSUE_1290_SKIP_E2E=1` — docs + `hubPriceTicker` + `verify-issue-1240`) and **1277**. Copy `require_live()` from #701 (`REQUIRE_LIVE` / `IID=1305` only — **no** `LEFTOVER_COMPLETE`). Live frontend HTTP: unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`). **All four are supporting rebuild-presence. Live HTTP must not treat `cLUNC` as leftover-1 complete.** Leftover-1 is operator glance **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / click **vFDUSD** selected not **`VFDUSD`**. Do **not** grep concatenated `cLUNC / USD` in hashed chunks. Do **not** grep `protocol-top-pairs`. Do **not** copy `EXPECT_SHA`. Do **not** attest `…000`/`…001`. Do **not** invent leftover `DATABASE_URL`. Optional leftover e2e: run child **without** `SKIP_E2E` (existing 5 workers, child’s `PLAYWRIGHT_WEB_PORT=30129`; do **not** invent a second leftover e2e flag or leak a different port). Optional leftover e2e is **not** leftover-complete. Optional **I11** USD-gate test in `indexer_trader_rolling_numeric.rs` (same slice, not close-gate; do **not** name it I10). | Slice 2 (docs greps) |
 | **2 — crosslinks** | implement | Keep Q23 / ADR 0010 / playbook greppable. One-liners already in slice 0; implement must not drop them. **Insert** if #1300/#1302 later land overlap files — do not whole-file checkout those tips. | none for in-repo |
-| **3 — Coolify indexer** | operator | If the #1276 checkbox is off: **manual** Coolify indexer deploy of `729b097f+`. Attest `_sqlx_migrations` **`20260921130000`** `success=true` (Coolify DB / indexer `DATABASE_URL`). Confirm startup-before-D5 heal no-op or one `traders_healed` **via indexer logs**. Heal is not queryable from `DATABASE_URL`. Healthy `/health` is not this attest. Ordinary leftover — not #297. | leftover-complete |
-| **4 — Coolify frontend** | operator | Rebuild `729b097f+`. **Leftover-1:** glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`**. Quote-agnostic HTTP pins are supporting rebuild-presence, not leftover-1. Record glance on **#1305**. | leftover-complete |
+| **3 — Coolify indexer** | operator | If the #1276 checkbox is off: **manual** Coolify indexer deploy of `729b097f+`. Attest `_sqlx_migrations` with the Observability **SELECT** (`version=20260921130000` `success=true` — Coolify DB / indexer `DATABASE_URL`). Confirm startup-before-D5 heal with the `traders.rs` needle `traders_healed lifetime totals from swap_events (GitLab #1277)` **via indexer logs**. Heal is not queryable from `DATABASE_URL`. Healthy `/health` is not this attest. Ordinary leftover — not #297. | leftover-complete |
+| **4 — Coolify frontend** | operator | Rebuild `729b097f+`. **Leftover-1:** glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`**, then **click the vFDUSD tab** and record the selected label (**not** **`VFDUSD`**). Idle `/protocol` is **USTC**. Quote-agnostic HTTP pins are supporting rebuild-presence, not leftover-1. Record glance on **#1305**. | leftover-complete |
 | **5 — merge recipe** | implement docs (slice 0) + future PR operators | Runbook note is the contract. Later PRs dismiss then merge. | not a Coolify gate |
 
 **Open issue dependencies:** none that block leftover implement. Sister **#1300** does not block #1305 (`…30000` is a later prefix on the same boot). Unpublished ADR 0009 / PR **#1306** wiring is not a wait for this Coolify glance.
@@ -187,7 +205,7 @@ No wasm. No pause. No treasury rotate.
 | T6 | `make verify-issue-1277` | Includes sqlx `&mut **tx` grep / I10 rolling+heal; 6/6 after #1304 |
 | T7 | Child #1290 from leftover wrapper | Default `VERIFY_ISSUE_1290_SKIP_E2E=1`: docs + `hubPriceTicker` + `verify-issue-1240`. Optional leftover e2e: unset `SKIP_E2E`, 5 workers, no extra `PLAYWRIGHT_WEB_PORT`. `YY-MM` flake is not leftover-complete. |
 | T8 | Optional I11 | USD-only skew does **not** set `trader_lifetime_diverges_from_swaps`; heal returns `false`. Do **not** name this I10 (I10 is missing-trader / ghost-zero). |
-| T9 | Live Coolify after migrate | Operator leftover-complete: **`20260921130000`** `success=true` via Coolify DB / indexer `DATABASE_URL` (manual indexer deploy of `729b097f+` if #1276 checkbox still off). Healthy `/health` is not this attest. Startup-before-D5 heal no-op or one log via **indexer logs** (not `DATABASE_URL`). **Leftover-1:** operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **`VFDUSD`**. Frontend hashed-chunk unquoted **`cLUNC wrap`** / **`cLUNC`** / **`cUSTC`** / **`vFDUSD`** (any quote style; never require source `'`) are supporting rebuild-presence — **not leftover-1**. Implement live HTTP must not treat `cLUNC` as leftover-1 complete. HTTP PASS is not leftover-1 and not sqlx leftover-complete. No leftover `DATABASE_URL`. No `EXPECT_SHA`. |
+| T9 | Live Coolify after migrate | Operator leftover-complete: paste the close-comment template (Rollout / Integration). **sqlx:** Observability SELECT `version=20260921130000` `success=true` via Coolify DB / indexer `DATABASE_URL` (manual indexer deploy of `729b097f+` if #1276 checkbox still off). Healthy `/health` is not this attest. **heal:** indexer-log needle `traders_healed lifetime totals from swap_events (GitLab #1277)` once then silence (not `DATABASE_URL`). **Leftover-1:** operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / click **vFDUSD** selected not **`VFDUSD`** (idle is **USTC**). Frontend hashed-chunk unquoted **`cLUNC wrap`** / **`cLUNC`** / **`cUSTC`** / **`vFDUSD`** (any quote style; never require source `'`) are supporting rebuild-presence — **not leftover-1**. Implement live HTTP must not treat `cLUNC` as leftover-1 complete. HTTP PASS is not leftover-1 and not sqlx leftover-complete. Forbidden in the close comment: `GET /health`, `protocol-top-pairs`, hashed-chunk `cLUNC` PASS, green make. No leftover `DATABASE_URL`. No `EXPECT_SHA`. |
 
 Postgres-only child tests stay Postgres-only. Leftover Playwright is optional child #1290 e2e only (5 workers, existing port). Do **not** invent a second five-worker leftover spec. `e2e-tx` stays 1 worker. Do not leak `PLAYWRIGHT_WEB_PORT`.
 
@@ -196,9 +214,33 @@ Postgres-only child tests stay Postgres-only. Leftover Playwright is optional ch
 1. If **#1305** is still closed on the 06:46 comment, **reopen it as a leftover precondition**. Reopen is not leftover-complete. Leftover-complete still records on **#1305**.
 2. Merge leftover *implement* (script + wiring) to `main` via a **code** PR (not this design branch). Dismiss CODEOWNERS self-request; normal merge; no `force_merge`.
 3. Operator: if the #1276 indexer auto-deploy checkbox is **off**, **manually** deploy the indexer app at `729b097f+`. If it is already on, a protected-main land rebuilds. Do **not** flip the checkbox from this ticket.
-4. Confirm `_sqlx_migrations` **`20260921130000`** `success=true` via Coolify DB / indexer `DATABASE_URL`. Confirm startup-before-D5 heal no-op or one `traders_healed` **via indexer logs**. Do **not** query heal from `DATABASE_URL`. Do **not** use `GET /health` as sqlx attest.
-5. Operator: frontend rebuild; leftover-1 is hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** glance. Quote-agnostic HTTP pins are supporting, not leftover-1.
-6. Close **#1305** with probe evidence for **this** contract. Leave **#1300** open unless its own leftover-complete holds. Do **not** close on the 06:46 comment.
+4. Confirm leftover-2 with the Observability **SELECT** (`version=20260921130000` `success=true`) and the `traders.rs` heal needle via **indexer logs**. Do **not** query heal from `DATABASE_URL`. Do **not** use `GET /health` as sqlx attest.
+5. Operator: frontend rebuild; leftover-1 is hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`**, then **click the vFDUSD tab** (idle `/protocol` is **USTC**) and record selected **not** **`VFDUSD`**. Quote-agnostic HTTP pins are supporting, not leftover-1.
+6. Close **#1305** by pasting the leftover-complete comment below (same shape as [ADR 0006](./0006-indexer-health-git-sha.md) slice 3; no UUID/token/host). Leave **#1300** open unless its own leftover-complete holds. Do **not** close on the 06:46 comment.
+
+### Leftover-complete close-comment template (required; no UUID/token/host)
+
+Paste on [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) when leftover-complete is claimed. The 06:46 close used `GET /health` + `protocol-top-pairs`; that is **not** this contract.
+
+```
+sqlx: SELECT version, description, success FROM _sqlx_migrations
+      WHERE version = 20260921130000;
+      → version=20260921130000 success=true
+      (Coolify DB / indexer DATABASE_URL; not postgres-psql.sh; not GET /health)
+
+heal: indexer logs — one
+      "traders_healed lifetime totals from swap_events (GitLab #1277)"
+      on first start after migrate, then silence on later process starts
+      (not DATABASE_URL)
+
+glance leftover-1: dex.cl8y.com/protocol hub <dt>
+      cUSTC / USD + cLUNC / USD
+      vs CEX tabs USTC / LUNC / vFDUSD
+      selected vFDUSD tab label stays vFDUSD (not VFDUSD)
+
+FORBIDDEN in this comment: GET /health, protocol-top-pairs,
+hashed-chunk cLUNC PASS, green make verify-issue-1305
+```
 
 No wasm store from the leftover MR.
 
@@ -214,8 +256,8 @@ This leftover is not a chain halt.
 
 - Slice-0 on `main` via implement inserts: this ADR **0010**, architecture `#post-merge-leftover-ops` (keep the **#1300 / Q21** sister stub), **Q23**, playbook **M1305**. No `0008-*.md` / `0009-*.md` from this leftover MR.
 - `make verify-issue-1305` exists on `main` and is green locally (children **1290** with `VERIFY_ISSUE_1290_SKIP_E2E=1`, **1277** + docs). Optional leftover e2e may stay skipped. Green make is **not** leftover-complete.
-- Coolify: **#1305 attests `20260921130000` only** (`success=true` — operator Coolify DB / indexer `DATABASE_URL`; **manual** indexer deploy of `729b097f+` while the #1276 checkbox is off). Healthy `GET /health` is not this attest. `…000` / `…001` are **#1300**, not a #1305 FAIL if already applied. Startup-before-D5 heal no-op or one `traders_healed` log via **indexer logs** (not `DATABASE_URL`).
-- Coolify frontend leftover-1 is operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / selected not **VFDUSD**. Hashed-chunk unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`) are supporting rebuild-presence — **none prove leftover 1**. Implement live HTTP must not treat **`cLUNC`** as leftover-1 complete. Do **not** grep concatenated **`cLUNC / USD`** in hashed chunks. Do **not** grep **`protocol-top-pairs`** (that is **#1300 leftover-complete**).
+- Coolify leftover-2: **#1305 attests `20260921130000` only** via the Observability **SELECT** (`success=true` — Coolify DB / indexer `DATABASE_URL`; **manual** indexer deploy of `729b097f+` while the #1276 checkbox is off). Healthy `GET /health` is not this attest. `…000` / `…001` are **#1300**, not a #1305 FAIL if already applied. Startup-before-D5 heal via indexer-log needle `traders_healed lifetime totals from swap_events (GitLab #1277)` (not `DATABASE_URL`).
+- Coolify leftover-1 is operator glance hub **`cUSTC / USD`** + **`cLUNC / USD`** vs CEX **`USTC`** / **`LUNC`** / **`vFDUSD`** / click **vFDUSD** selected not **`VFDUSD`** (idle `/protocol` is **USTC**). Hashed-chunk unquoted **`cLUNC wrap`**, **`cLUNC`**, **`cUSTC`**, **`vFDUSD`** (any quote style; never require source `'`) are supporting rebuild-presence — **none prove leftover 1**. Implement live HTTP must not treat **`cLUNC`** as leftover-1 complete. Do **not** grep concatenated **`cLUNC / USD`** in hashed chunks. Do **not** grep **`protocol-top-pairs`** (that is **#1300 leftover-complete**).
 - Child Playwright / #703 `YY-MM` ticks are **not** leftover-complete.
 - Optional **I11** USD-gate test may land in slice 1; leftover may close without it. Do **not** name it I10.
 - Merge recipe documented; later PRs are not `force_merge`. #1302/#1303 remain ancestors of `main`.
@@ -223,6 +265,27 @@ This leftover is not a chain halt.
 - #1300 still the owner of `…000`/`…001` / pair wasm / LocalTerra walks.
 - No founder card. No Coolify auto-deploy flip. No `VERIFY1305_LEFTOVER_COMPLETE`. No `DESIGN: APPROVE`.
 - If #1305 is still closed on the 06:46 comment, reopen it as a leftover precondition. Do **not** treat that comment or the reopen as leftover-complete.
+- Close **#1305** only by pasting this leftover-complete comment (same as Rollout; no UUID/token/host). Do **not** close on green make, HTTP `cLUNC` PASS, or “healthy boot implies migrate.”
+
+```
+sqlx: SELECT version, description, success FROM _sqlx_migrations
+      WHERE version = 20260921130000;
+      → version=20260921130000 success=true
+      (Coolify DB / indexer DATABASE_URL; not postgres-psql.sh; not GET /health)
+
+heal: indexer logs — one
+      "traders_healed lifetime totals from swap_events (GitLab #1277)"
+      on first start after migrate, then silence on later process starts
+      (not DATABASE_URL)
+
+glance leftover-1: dex.cl8y.com/protocol hub <dt>
+      cUSTC / USD + cLUNC / USD
+      vs CEX tabs USTC / LUNC / vFDUSD
+      selected vFDUSD tab label stays vFDUSD (not VFDUSD)
+
+FORBIDDEN in this comment: GET /health, protocol-top-pairs,
+hashed-chunk cLUNC PASS, green make verify-issue-1305
+```
 
 ## Links
 
