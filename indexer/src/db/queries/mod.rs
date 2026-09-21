@@ -23,5 +23,6 @@ pub mod state;
 pub mod swap_events;
 pub mod traders;
 pub mod usd_as_of;
+pub mod usdt_quote_usd;
 pub mod venus_vfdusd;
 pub mod volume;

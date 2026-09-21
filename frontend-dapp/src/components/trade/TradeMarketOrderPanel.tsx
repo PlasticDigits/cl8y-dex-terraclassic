@@ -45,7 +45,9 @@ import {
   type IndexerRouteQuoteKind,
   type PairInfo,
 } from '@/types'
-import { getDecimals, toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { swapAmountDecimals, isTheaterRouteQuote } from '@/utils/swapQuoteAmountScale'
+import { resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
@@ -87,6 +89,7 @@ interface MarketSimData {
   indexerOperations?: SwapOperation[]
   routePreflight?: SwapRoutePreflightSpread
   indexerAmountReconciled?: boolean
+  routeSlippagePercent?: string
 }
 
 function hybridParamsFromBookSplit(
@@ -158,8 +161,8 @@ export function TradeMarketOrderPanel({
   const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null)
   const toToken = side === 'bid' ? token0 : token1
   const taxReceive = useCommunityTaxSellBps(toToken?.startsWith('terra1') ? toToken : null)
-  const offerDecimals = fromToken ? getDecimals(tokenAssetInfo(fromToken)) : 6
-  const receiveDecimals = toToken ? getDecimals(tokenAssetInfo(toToken)) : 6
+  const offerDecimals = fromToken ? swapAmountDecimals(fromToken) : 6
+  const receiveDecimals = toToken ? swapAmountDecimals(toToken) : 6
   const rawInputAmount = marketAmountHuman.trim() ? toRawAmount(marketAmountHuman.trim(), offerDecimals) : '0'
   const debouncedMarketAmount = useDebouncedValue(marketAmountHuman, SIM_QUOTE_DEBOUNCE_MS)
   const debouncedRawInputAmount = debouncedMarketAmount.trim()
@@ -299,6 +302,7 @@ export function TradeMarketOrderPanel({
               indexerQuoteKind: quoted.indexerQuoteKind,
               indexerOperations: quoted.indexerOperations,
               routePreflight: quoted.routePreflight,
+              routeSlippagePercent: quoted.routeSlippagePercent,
             }
           }
         } catch {
@@ -368,6 +372,11 @@ export function TradeMarketOrderPanel({
   const inlineGate = placeEscrowGate.userMessage ? placeEscrowGate : placeNativeGasGate
 
   const priceImpactTooHigh = simQuery.data?.routePreflight?.anyHopExceedsMaxSpread === true
+  const expectedSlippagePct = resolveSwapExpectedSlippagePercent(
+    simQuery.data?.routeSlippagePercent,
+    simQuery.data?.routePreflight?.worstSpreadPercent ?? null
+  )
+  const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
 
   const hybridSubmitSnapshot = useMemo(
     () => ({
@@ -382,7 +391,7 @@ export function TradeMarketOrderPanel({
     debouncedRawInputAmount,
     simQuery,
     slippageTolerance,
-    extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay,
+    extraSubmitBlocked: priceImpactTooHigh || !!liveSplit?.bookExceedsPay || theaterRouteQuote,
     hybrid: {
       enabled: true,
       live: { bookInputHuman, hybridMaxMakers },
@@ -538,13 +547,17 @@ export function TradeMarketOrderPanel({
     [simQuery.data?.indexerOperations, pairs, selectedPair, fromToken, toToken]
   )
 
-  const receiveHuman =
-    simData?.return_amount != null && simData.return_amount !== ''
+  const receiveHuman = theaterRouteQuote
+    ? '—'
+    : simData?.return_amount != null && simData.return_amount !== ''
       ? formatTokenAmount(simData.return_amount, receiveDecimals, 6)
       : '—'
 
-  const minReceiveHuman =
-    minReceived != null && minReceived !== '' ? formatTokenAmount(minReceived, receiveDecimals, 6) : '—'
+  const minReceiveHuman = theaterRouteQuote
+    ? '—'
+    : minReceived != null && minReceived !== ''
+      ? formatTokenAmount(minReceived, receiveDecimals, 6)
+      : '—'
 
   // Same receive stale/loading rules as Swap (#484 keep-previous vs #496 pay change).
   const hasSettledSimQuote = !!simQuery.data && !simQuery.isPlaceholderData
@@ -592,9 +605,11 @@ export function TradeMarketOrderPanel({
           swapMutation.isPending,
           priceImpactTooHigh
             ? 'Hop spread exceeds slippage protection'
-            : liveSplit?.bookExceedsPay
-              ? 'Book leg exceeds pay'
-              : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+            : theaterRouteQuote
+              ? 'Slippage is too high'
+              : liveSplit?.bookExceedsPay
+                ? 'Book leg exceeds pay'
+                : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
           'Submitting…'
         )
 

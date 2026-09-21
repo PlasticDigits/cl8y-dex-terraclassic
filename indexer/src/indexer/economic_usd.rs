@@ -271,6 +271,7 @@ mod tests {
             ust1_address: "terra1ust1".into(),
             ustr_address: "terra1ustr".into(),
             cl8y_address: crate::config::DEFAULT_HUB_CL8Y_ADDRESS.to_string(),
+            usdt_address: crate::config::DEFAULT_USDT_CW20_ADDRESS.to_string(),
             tvl_floor: bd("100"),
             max_staleness: Duration::from_secs(60),
         }

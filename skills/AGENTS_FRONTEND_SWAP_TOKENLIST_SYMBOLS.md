@@ -85,3 +85,4 @@ Playwright (5 workers, when Vite + factory): `e2e/swap-tokenlist-symbols-715.spe
 - [`AGENTS_UST1_SECONDARY_AMM.md`](./AGENTS_UST1_SECONDARY_AMM.md) — **U1**; `ust1SecondarySwapPath`
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — no extra Share chrome
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — silent rewrite (#489)
+- [`AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](./AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md) — unique-symbol USDT is 18-dec (**Q1257-4 / Q1257-8**, [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257))

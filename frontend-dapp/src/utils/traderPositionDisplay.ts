@@ -351,6 +351,8 @@ function catalogUsd(kind: QuoteUsdKind, marks?: TraderUsdMarks): number | null {
       return parsePositiveUsd(marks.ust1Usd)
     case 'ustr':
       return parsePositiveUsd(marks.ustrUsd)
+    case 'usdt':
+      return 1
     default:
       return null
   }

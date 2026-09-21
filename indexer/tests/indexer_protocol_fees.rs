@@ -38,6 +38,7 @@ async fn insert_fee(
         tx_hash: tx.to_string(),
         source,
         ordinal,
+        pair_id: None,
         asset_id,
         amount_raw: bd(raw),
         decimals: 6,
@@ -46,6 +47,72 @@ async fn insert_fee(
     fee_q::insert_fee_event(pool, &draft)
         .await
         .expect("insert fee");
+}
+
+async fn insert_fee_pair(
+    pool: &sqlx::PgPool,
+    source: FeeSource,
+    asset_id: i32,
+    raw: &str,
+    usd: Option<&str>,
+    hours_ago: i64,
+    tx: &str,
+    ordinal: i64,
+    pair_id: Option<i32>,
+) -> bool {
+    let draft = FeeEventDraft {
+        block_height: 1,
+        block_timestamp: Utc::now() - Duration::hours(hours_ago),
+        tx_hash: tx.to_string(),
+        source,
+        ordinal,
+        pair_id,
+        asset_id,
+        amount_raw: bd(raw),
+        decimals: 6,
+        fee_usd: usd.map(bd),
+    };
+    fee_q::insert_fee_event(pool, &draft)
+        .await
+        .expect("insert fee pair")
+}
+
+async fn insert_second_pair(pool: &sqlx::PgPool, asset_0: i32, asset_1: i32) -> i32 {
+    sqlx::query_scalar(
+        "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+         VALUES ('terra1pairBhop1269', $1, $2, 'terra1lpBhop', 30) RETURNING id",
+    )
+    .bind(asset_0)
+    .bind(asset_1)
+    .fetch_one(pool)
+    .await
+    .expect("insert second pair")
+}
+
+async fn insert_swap_commission(
+    pool: &sqlx::PgPool,
+    pair_id: i32,
+    swap_index: i32,
+    tx: &str,
+    offer_id: i32,
+    ask_id: i32,
+    commission: &str,
+) {
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, swap_index, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, commission_amount, price)
+         VALUES ($1, $2, 1, NOW(), $3, 'terra1traderxyz', $4, $5, 1000, 950, $6, 0.95)",
+    )
+    .bind(pair_id)
+    .bind(swap_index)
+    .bind(tx)
+    .bind(offer_id)
+    .bind(ask_id)
+    .bind(bd(commission))
+    .execute(pool)
+    .await
+    .expect("insert swap commission");
 }
 
 #[serial]
@@ -813,4 +880,275 @@ fn ust1_window_parse_exported_for_fixtures() {
     let fees = parse_ust1_window_fees(&tx, pin);
     assert_eq!(fees.len(), 1);
     assert_eq!(fees[0].source, FeeSource::Ust1Mint);
+}
+
+async fn swap_amm_count(pool: &sqlx::PgPool, tx: &str) -> i64 {
+    sqlx::query_scalar(
+        "SELECT COUNT(*) FROM protocol_fee_events WHERE tx_hash = $1 AND source = 'swap_amm'",
+    )
+    .bind(tx)
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
+#[serial]
+#[tokio::test]
+async fn hop_collision_distinct_pairs_both_persist() {
+    // GitLab #1269 AC1 / T3: two hops, same tx, same swap_index 0, distinct pairs.
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    let pair_b = insert_second_pair(&pool, seed.asset_0_id, seed.asset_1_id).await;
+    assert!(
+        insert_fee_pair(
+            &pool,
+            FeeSource::SwapAmm,
+            seed.asset_1_id,
+            "100",
+            Some("2"),
+            1,
+            "tx-mh",
+            0,
+            Some(seed.pair_id),
+        )
+        .await
+    );
+    assert!(
+        insert_fee_pair(
+            &pool,
+            FeeSource::SwapAmm,
+            seed.asset_1_id,
+            "200",
+            Some("3"),
+            1,
+            "tx-mh",
+            0,
+            Some(pair_b),
+        )
+        .await
+    );
+    assert_eq!(swap_amm_count(&pool, "tx-mh").await, 2);
+
+    cl8y_dex_indexer::indexer::volume_aggregator::refresh_all_volume_windows_with_wrap(
+        &pool, true, false,
+    )
+    .await;
+    let sources = fee_q::get_fees_by_source(&pool, "7d").await.unwrap();
+    let amm = sources.iter().find(|s| s.source == "swap_amm").unwrap();
+    assert_eq!(amm.event_count, 2);
+    assert_eq!(amm.amount_usd.as_ref().unwrap(), &bd("5"));
+}
+
+#[serial]
+#[tokio::test]
+async fn same_pair_swap_index_0_and_1_both_persist() {
+    // GitLab #1269 AC2.
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    assert!(
+        insert_fee_pair(
+            &pool,
+            FeeSource::SwapAmm,
+            seed.asset_1_id,
+            "10",
+            Some("1"),
+            1,
+            "tx-same",
+            0,
+            Some(seed.pair_id),
+        )
+        .await
+    );
+    assert!(
+        insert_fee_pair(
+            &pool,
+            FeeSource::SwapAmm,
+            seed.asset_1_id,
+            "20",
+            Some("2"),
+            1,
+            "tx-same",
+            1,
+            Some(seed.pair_id),
+        )
+        .await
+    );
+    assert_eq!(swap_amm_count(&pool, "tx-same").await, 2);
+}
+
+#[serial]
+#[tokio::test]
+async fn hop_replay_same_pair_ordinal_is_noop() {
+    // GitLab #1269 AC3 / T2 / A1: duplicate delivery of one hop.
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    assert!(
+        insert_fee_pair(
+            &pool,
+            FeeSource::SwapAmm,
+            seed.asset_1_id,
+            "10",
+            Some("1"),
+            1,
+            "tx-rep",
+            0,
+            Some(seed.pair_id),
+        )
+        .await
+    );
+    assert!(
+        !insert_fee_pair(
+            &pool,
+            FeeSource::SwapAmm,
+            seed.asset_1_id,
+            "999",
+            Some("99"),
+            1,
+            "tx-rep",
+            0,
+            Some(seed.pair_id),
+        )
+        .await,
+        "ON CONFLICT DO NOTHING must not overwrite amount"
+    );
+    let amt: BigDecimal = sqlx::query_scalar(
+        "SELECT amount_raw FROM protocol_fee_events WHERE tx_hash = 'tx-rep' AND source = 'swap_amm'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(amt, bd("10"));
+    assert_eq!(swap_amm_count(&pool, "tx-rep").await, 1);
+}
+
+#[serial]
+#[tokio::test]
+async fn wrap_two_ordinals_persist_and_replay_dedup() {
+    // GitLab #1269 AC4 / T8 / A6: NULL pair_id unique still collapses identical wrap rows.
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_0_id,
+        "100",
+        Some("1"),
+        1,
+        "tx-wrap2",
+        0,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_0_id,
+        "200",
+        Some("2"),
+        1,
+        "tx-wrap2",
+        1,
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::Wrap,
+        seed.asset_0_id,
+        "100",
+        Some("1"),
+        1,
+        "tx-wrap2",
+        0,
+    )
+    .await;
+    let n: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM protocol_fee_events WHERE tx_hash = 'tx-wrap2' AND source = 'wrap'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(n, 2);
+}
+
+#[serial]
+#[tokio::test]
+async fn backfill_missing_swap_amm_heals_colliding_hops() {
+    // GitLab #1269 T1 / T9 / A7: colliding 3-col row + two swap_events hops → two fee rows.
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    let pair_b = insert_second_pair(&pool, seed.asset_0_id, seed.asset_1_id).await;
+    insert_swap_commission(
+        &pool,
+        seed.pair_id,
+        0,
+        "tx-bf",
+        seed.asset_0_id,
+        seed.asset_1_id,
+        "100",
+    )
+    .await;
+    insert_swap_commission(
+        &pool,
+        pair_b,
+        0,
+        "tx-bf",
+        seed.asset_0_id,
+        seed.asset_1_id,
+        "200",
+    )
+    .await;
+    insert_fee(
+        &pool,
+        FeeSource::SwapAmm,
+        seed.asset_1_id,
+        "100",
+        Some("4"),
+        1,
+        "tx-bf",
+        0,
+    )
+    .await;
+    assert_eq!(swap_amm_count(&pool, "tx-bf").await, 1);
+
+    let inserted = fee_q::backfill_missing_swap_amm_fees(&pool)
+        .await
+        .expect("backfill hops");
+    assert!(inserted >= 1);
+    assert_eq!(swap_amm_count(&pool, "tx-bf").await, 2);
+    let null_pair: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM protocol_fee_events
+         WHERE tx_hash = 'tx-bf' AND source = 'swap_amm' AND pair_id IS NULL",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(null_pair, 0);
+
+    let again = fee_q::backfill_missing_swap_amm_fees(&pool)
+        .await
+        .expect("backfill idempotent");
+    assert_eq!(again, 0);
+    assert_eq!(swap_amm_count(&pool, "tx-bf").await, 2);
+}
+
+#[serial]
+#[tokio::test]
+async fn backfill_skips_zero_commission_hops() {
+    // GitLab #1269 T7.
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    insert_swap_commission(
+        &pool,
+        seed.pair_id,
+        0,
+        "tx-zero",
+        seed.asset_0_id,
+        seed.asset_1_id,
+        "0",
+    )
+    .await;
+    let inserted = fee_q::backfill_missing_swap_amm_fees(&pool)
+        .await
+        .expect("backfill");
+    assert_eq!(inserted, 0);
+    assert_eq!(swap_amm_count(&pool, "tx-zero").await, 0);
 }

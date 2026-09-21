@@ -1,4 +1,4 @@
-//! USD of 1 human unit of pair **base** (`asset_0`) at index time (GitLab #522 / #556).
+//! USD of 1 human unit of pair **base** (`asset_0`) at index time (GitLab #522 / #556 / #1258).
 //!
 //! `price_usd = human_quote_per_base * usd_per_human_quote` using the #515 ticker
 //! oracles plus DEX hub USD for UST1/USTR (P522-Q, GitLab #556):
@@ -9,14 +9,17 @@
 //! | USTC, cUSTC / CUSTC, `uusd` | USTC oracle (= hub cUSTC) |
 //! | LUNC, cLUNC / CLUNC, `uluna` | LUNC oracle |
 //! | USTR | `hub_prices.ustr` (largest vs cUSTC or UST1) — **not** `2.5 ×` USTC |
+//! | **USDT** (registry CW20 pin) | advisory **$1** — contract identity only, **not** `Peg1` / hub UST1 |
 //!
 //! Unknown quotes → `None` (do not invent a USD). Advisory only — not settlement.
 //! Ops LP seed for UST1/USTR sizing stays in rebalance scripts only — not ingest.
+//! Do not match ticker `USDT` without the pin. VFDUSD / FDUSD stay `None` (#580).
 
 use std::collections::HashMap;
 
 use bigdecimal::BigDecimal;
 
+use crate::config::DEFAULT_USDT_CW20_ADDRESS;
 use crate::db::queries::assets::AssetRow;
 
 /// DEX hub USD for UST1 / USTR quotes at ingest (#556). Missing → do not peg.
@@ -76,6 +79,8 @@ pub enum QuoteUsdKind {
     Ustc,
     Lunc,
     Ustr,
+    /// Pinned registry USDT CW20 — advisory $1 (GitLab #1258). Never `Peg1`.
+    Usdt,
 }
 
 /// Classify a quote (or base) asset for USD conversion.
@@ -103,6 +108,28 @@ fn normalize_symbol(symbol: &str) -> String {
     symbol.trim().to_ascii_uppercase()
 }
 
+/// Contract-identity pin for registry USDT (A1 / GitLab #1258).
+///
+/// `configured_usdt_address` is LocalTerra / deploy overlay; empty/`None` uses the
+/// columbus-5 tokenlist default. Symbol `USDT` alone never prices.
+pub fn is_pinned_usdt_cw20(
+    is_cw20: bool,
+    contract_address: Option<&str>,
+    configured_usdt_address: Option<&str>,
+) -> bool {
+    if !is_cw20 {
+        return false;
+    }
+    let Some(addr) = contract_address.map(str::trim).filter(|s| !s.is_empty()) else {
+        return false;
+    };
+    let pin = configured_usdt_address
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(DEFAULT_USDT_CW20_ADDRESS);
+    addr.eq_ignore_ascii_case(pin)
+}
+
 /// USD per 1 human unit of the quote asset.
 pub fn usd_per_human_quote(
     kind: QuoteUsdKind,
@@ -119,6 +146,7 @@ pub fn usd_per_human_quote(
         QuoteUsdKind::Ustr => hub
             .and_then(|h| h.ustr.clone())
             .filter(|p| *p > BigDecimal::from(0)),
+        QuoteUsdKind::Usdt => Some(BigDecimal::from(1)),
     }
 }
 
@@ -170,6 +198,10 @@ pub fn human_quote_per_base_from_reserves(
 }
 
 /// Resolve `price_usd` for an oriented (human) quote-per-base print.
+///
+/// USDT is identity-gated ([`quote_usd_kind_for_identity`]); `quote_usd_kind("USDT")`
+/// stays `None` so spoofs do not inherit `$1`. Other catalog kinds still resolve from
+/// symbol/denom when the asset row has no CW20 contract (legacy unit fixtures).
 pub fn price_usd_for_human_quote_per_base(
     quote: &AssetRow,
     human_quote_per_base: &BigDecimal,
@@ -177,7 +209,36 @@ pub fn price_usd_for_human_quote_per_base(
     lunc_usd: Option<&BigDecimal>,
     hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
-    let kind = quote_usd_kind(&quote.symbol, quote.denom.as_deref())?;
+    price_usd_for_human_quote_per_base_pinned(
+        quote,
+        human_quote_per_base,
+        ustc_usd,
+        lunc_usd,
+        hub,
+        None,
+        None,
+    )
+}
+
+/// Same as [`price_usd_for_human_quote_per_base`] with LocalTerra / USTC denom pins.
+pub fn price_usd_for_human_quote_per_base_pinned(
+    quote: &AssetRow,
+    human_quote_per_base: &BigDecimal,
+    ustc_usd: Option<&BigDecimal>,
+    lunc_usd: Option<&BigDecimal>,
+    hub: Option<&HubQuoteUsd>,
+    configured_ustc_denom: Option<&str>,
+    configured_usdt_address: Option<&str>,
+) -> Option<BigDecimal> {
+    let kind = quote_usd_kind_for_identity(
+        &quote.symbol,
+        quote.denom.as_deref(),
+        quote.is_cw20,
+        quote.contract_address.as_deref(),
+        configured_ustc_denom,
+        configured_usdt_address,
+    )
+    .or_else(|| quote_usd_kind(&quote.symbol, quote.denom.as_deref()))?;
     let quote_usd = usd_per_human_quote(kind, ustc_usd, lunc_usd, hub)?;
     if quote_usd <= BigDecimal::from(0) {
         return None;
@@ -193,12 +254,22 @@ pub fn quote_usd_kind_for_asset(
     asset: &AssetRow,
     configured_ustc_denom: Option<&str>,
 ) -> Option<QuoteUsdKind> {
+    quote_usd_kind_for_asset_pinned(asset, configured_ustc_denom, None)
+}
+
+/// [`quote_usd_kind_for_asset`] with a LocalTerra / deploy USDT pin.
+pub fn quote_usd_kind_for_asset_pinned(
+    asset: &AssetRow,
+    configured_ustc_denom: Option<&str>,
+    configured_usdt_address: Option<&str>,
+) -> Option<QuoteUsdKind> {
     quote_usd_kind_for_identity(
         &asset.symbol,
         asset.denom.as_deref(),
         asset.is_cw20,
         asset.contract_address.as_deref(),
         configured_ustc_denom,
+        configured_usdt_address,
     )
 }
 
@@ -209,7 +280,11 @@ pub fn quote_usd_kind_for_identity(
     is_cw20: bool,
     contract_address: Option<&str>,
     configured_ustc_denom: Option<&str>,
+    configured_usdt_address: Option<&str>,
 ) -> Option<QuoteUsdKind> {
+    if is_pinned_usdt_cw20(is_cw20, contract_address, configured_usdt_address) {
+        return Some(QuoteUsdKind::Usdt);
+    }
     if let Some(d) = denom {
         if d == "uusd" {
             return Some(QuoteUsdKind::Ustc);
@@ -261,6 +336,7 @@ fn catalog_usd_per_human(
     lunc_usd: Option<&BigDecimal>,
     configured_ustc_denom: Option<&str>,
     hub: Option<&HubQuoteUsd>,
+    configured_usdt_address: Option<&str>,
 ) -> Option<BigDecimal> {
     catalog_usd_per_human_identity(
         &asset.symbol,
@@ -271,6 +347,7 @@ fn catalog_usd_per_human(
         lunc_usd,
         configured_ustc_denom,
         hub,
+        configured_usdt_address,
     )
 }
 
@@ -284,6 +361,7 @@ pub fn catalog_usd_per_human_identity(
     lunc_usd: Option<&BigDecimal>,
     configured_ustc_denom: Option<&str>,
     hub: Option<&HubQuoteUsd>,
+    configured_usdt_address: Option<&str>,
 ) -> Option<BigDecimal> {
     let kind = quote_usd_kind_for_identity(
         symbol,
@@ -291,6 +369,7 @@ pub fn catalog_usd_per_human_identity(
         is_cw20,
         contract_address,
         configured_ustc_denom,
+        configured_usdt_address,
     )?;
     let usd = usd_per_human_quote(kind, ustc_usd, lunc_usd, hub)?;
     if usd <= BigDecimal::from(0) {
@@ -337,9 +416,44 @@ pub fn volume_usd_for_swap(
     configured_ustc_denom: Option<&str>,
     hub: Option<&HubQuoteUsd>,
 ) -> Option<BigDecimal> {
-    if quote_usd_kind_for_asset(pair_quote, configured_ustc_denom).is_some() {
-        let usd =
-            catalog_usd_per_human(pair_quote, ustc_usd, lunc_usd, configured_ustc_denom, hub)?;
+    volume_usd_for_swap_pinned(
+        offer,
+        ask,
+        offer_amount,
+        return_amount,
+        pair_quote,
+        ustc_usd,
+        lunc_usd,
+        configured_ustc_denom,
+        hub,
+        None,
+    )
+}
+
+/// [`volume_usd_for_swap`] with a LocalTerra / deploy USDT contract pin.
+pub fn volume_usd_for_swap_pinned(
+    offer: &AssetRow,
+    ask: &AssetRow,
+    offer_amount: &BigDecimal,
+    return_amount: &BigDecimal,
+    pair_quote: &AssetRow,
+    ustc_usd: Option<&BigDecimal>,
+    lunc_usd: Option<&BigDecimal>,
+    configured_ustc_denom: Option<&str>,
+    hub: Option<&HubQuoteUsd>,
+    configured_usdt_address: Option<&str>,
+) -> Option<BigDecimal> {
+    if quote_usd_kind_for_asset_pinned(pair_quote, configured_ustc_denom, configured_usdt_address)
+        .is_some()
+    {
+        let usd = catalog_usd_per_human(
+            pair_quote,
+            ustc_usd,
+            lunc_usd,
+            configured_ustc_denom,
+            hub,
+            configured_usdt_address,
+        )?;
         if offer.id == pair_quote.id {
             return notional_usd(offer, offer_amount, &usd);
         }
@@ -348,11 +462,24 @@ pub fn volume_usd_for_swap(
         }
         return None;
     }
-    if let Some(usd) = catalog_usd_per_human(offer, ustc_usd, lunc_usd, configured_ustc_denom, hub)
-    {
+    if let Some(usd) = catalog_usd_per_human(
+        offer,
+        ustc_usd,
+        lunc_usd,
+        configured_ustc_denom,
+        hub,
+        configured_usdt_address,
+    ) {
         return notional_usd(offer, offer_amount, &usd);
     }
-    if let Some(usd) = catalog_usd_per_human(ask, ustc_usd, lunc_usd, configured_ustc_denom, hub) {
+    if let Some(usd) = catalog_usd_per_human(
+        ask,
+        ustc_usd,
+        lunc_usd,
+        configured_ustc_denom,
+        hub,
+        configured_usdt_address,
+    ) {
         return notional_usd(ask, return_amount, &usd);
     }
     None
@@ -401,6 +528,9 @@ mod tests {
         assert_eq!(quote_usd_kind("UST1", None), Some(QuoteUsdKind::Peg1));
         assert_eq!(quote_usd_kind("USTR", None), Some(QuoteUsdKind::Ustr));
         assert_eq!(quote_usd_kind("CL8Y", None), None);
+        // GitLab #1258: symbol USDT is not a catalog arm — identity pin only.
+        assert_eq!(quote_usd_kind("USDT", None), None);
+        assert_eq!(quote_usd_kind("USDT", Some("ibc/USDT")), None);
         // GitLab #580: CEX FDUSD under path vfdusd is not USD of Terra CW20 vFDUSD.
         assert_eq!(quote_usd_kind("VFDUSD", None), None);
         assert_eq!(quote_usd_kind("vFDUSD", None), None);
@@ -696,8 +826,8 @@ mod tests {
             Some(&HubQuoteUsd {
                 ust1: None,
                 ustr: Some(bd("0.01")),
-            ..Default::default()
-        }),
+                ..Default::default()
+            }),
         )
         .is_none());
     }
@@ -830,5 +960,140 @@ mod tests {
             None,
         )
         .is_none());
+    }
+
+    #[test]
+    fn usdt_identity_pin_is_advisory_one_not_peg1() {
+        let pin = crate::config::DEFAULT_USDT_CW20_ADDRESS;
+        assert_eq!(
+            quote_usd_kind_for_identity("USDT", None, true, Some(pin), None, None),
+            Some(QuoteUsdKind::Usdt)
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("usdt", None, true, Some(pin), None, None),
+            Some(QuoteUsdKind::Usdt)
+        );
+        // Casefold pin; symbol may differ — identity is the contract.
+        let mixed = pin.to_ascii_uppercase();
+        assert_eq!(
+            quote_usd_kind_for_identity("GEM", None, true, Some(&mixed), None, None),
+            Some(QuoteUsdKind::Usdt)
+        );
+        assert_eq!(
+            usd_per_human_quote(QuoteUsdKind::Usdt, None, None, None),
+            Some(bd("1"))
+        );
+        assert_ne!(QuoteUsdKind::Usdt, QuoteUsdKind::Peg1);
+        let hub = HubQuoteUsd {
+            ust1: Some(bd("0.80")),
+            ustr: None,
+            ..Default::default()
+        };
+        assert_eq!(
+            usd_per_human_quote(QuoteUsdKind::Usdt, None, None, Some(&hub)),
+            Some(bd("1"))
+        );
+        assert_eq!(
+            usd_per_human_quote(QuoteUsdKind::Peg1, None, None, Some(&hub)),
+            Some(bd("0.80"))
+        );
+    }
+
+    #[test]
+    fn usdt_spoof_symbol_or_native_is_none() {
+        let pin = crate::config::DEFAULT_USDT_CW20_ADDRESS;
+        assert_eq!(
+            quote_usd_kind_for_identity(
+                "USDT",
+                None,
+                true,
+                Some("terra1spoofusdtxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+                None,
+                None
+            ),
+            None
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("USDT", None, true, None, None, None),
+            None
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("USDT", Some("uusdt"), false, None, None, None),
+            None
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("USDT", None, false, Some(pin), None, None),
+            None
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("VFDUSD", None, true, Some(pin), None, None),
+            Some(QuoteUsdKind::Usdt)
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("VFDUSD", None, true, Some("terra1vfdusd"), None, None),
+            None
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("FDUSD", None, true, Some("terra1fdusd"), None, None),
+            None
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity(
+                "CL8Y",
+                None,
+                true,
+                Some(crate::config::DEFAULT_HUB_CL8Y_ADDRESS),
+                None,
+                None
+            ),
+            None
+        );
+        let local = "terra1localusdtxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+        assert_eq!(
+            quote_usd_kind_for_identity("USDT", None, true, Some(local), None, Some(local)),
+            Some(QuoteUsdKind::Usdt)
+        );
+        assert_eq!(
+            quote_usd_kind_for_identity("USDT", None, true, Some(pin), None, Some(local)),
+            None
+        );
+    }
+
+    #[test]
+    fn usdt_six_eighteen_human_times_one_is_price_usd() {
+        let pin = crate::config::DEFAULT_USDT_CW20_ADDRESS;
+        let quote = cw20(2, "USDT", 18, pin);
+        // P522-1: raw × 10^(6−18) = 1.234e-11 human USDT per cLUNC? Use already-human print.
+        let human = bd("0.00004123");
+        let usd = price_usd_for_human_quote_per_base(&quote, &human, None, None, None).unwrap();
+        assert_eq!(usd, human);
+        assert!(fits_numeric_38_18(&usd));
+        let spoof = cw20(
+            3,
+            "USDT",
+            18,
+            "terra1notthepinxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        );
+        assert!(price_usd_for_human_quote_per_base(&spoof, &human, None, None, None).is_none());
+    }
+
+    #[test]
+    fn volume_usdt_quote_leg_humanizes_18_decimals() {
+        let pin = crate::config::DEFAULT_USDT_CW20_ADDRESS;
+        let clunc = cw20(1, "cLUNC", 6, crate::config::DEFAULT_HUB_CLUNC_ADDRESS);
+        let usdt = cw20(2, "USDT", 18, pin);
+        // 2 human USDT returned (ask = quote)
+        let offer = bd("1000000"); // 1 human cLUNC (unused when quote=USDT ask)
+        let ret = bd("2000000000000000000");
+        let usd = volume_usd_for_swap(&clunc, &usdt, &offer, &ret, &usdt, None, None, None, None)
+            .unwrap();
+        assert!((usd_f(&usd) - 2.0).abs() < 1e-9, "got {}", usd_f(&usd));
+        // 6-dec lie would be 2e12
+        assert!(usd_f(&usd) < 10.0);
+        let spoof = cw20(4, "USDT", 18, "terra1spoof");
+        assert!(
+            volume_usd_for_swap(&clunc, &spoof, &offer, &ret, &spoof, None, None, None, None,)
+                .is_none()
+        );
     }
 }

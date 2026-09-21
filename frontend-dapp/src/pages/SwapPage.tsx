@@ -161,6 +161,7 @@ import {
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
 } from '@/utils/swapRouteSlippage'
+import { isTheaterRouteQuote, swapAmountDecimals, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
 import {
   formatTransactionDeadline,
   HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
@@ -414,8 +415,8 @@ export default function SwapPage() {
     refetchInterval: 15_000,
   })
 
-  const offerDecimals = offerAssetInfo ? getDecimals(offerAssetInfo) : 6
-  const receiveDecimals = receiveAssetInfo ? getDecimals(receiveAssetInfo) : 6
+  const offerDecimals = fromToken ? swapAmountDecimals(fromToken) : 6
+  const receiveDecimals = toToken ? swapAmountDecimals(toToken) : 6
   const typedPayRaw = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
   const debouncedInputAmount = useDebouncedValue(inputAmount, SIM_QUOTE_DEBOUNCE_MS)
   const debouncedTypedPayRaw = debouncedInputAmount ? toRawAmount(debouncedInputAmount, offerDecimals) : '0'
@@ -1120,8 +1121,8 @@ export default function SwapPage() {
 
   const priceImpact = expectedSlippagePct != null ? expectedSlippagePct.toFixed(2) : hopSpreadPercent
 
-  const routeSlippageBlocked =
-    expectedSlippagePct != null && expectedSlippagePct > SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT && !expertMode
+  const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
+  const routeSlippageBlocked = swapRouteSlippageBlocksSubmit(expectedSlippagePct, expertMode)
 
   const extremeSlippageWarning = expectedSlippagePct != null && expectedSlippagePct >= SWAP_EXTREME_SLIPPAGE_WARNING_PCT
 
@@ -1353,8 +1354,11 @@ export default function SwapPage() {
 
   const reversePayHuman = reverseQuoteReady && reverseOfferRaw ? formatTokenAmount(reverseOfferRaw, offerDecimals) : ''
   const payInputValue = reverseQuoteActive ? reversePayHuman : inputAmount
-  const quotedReceiveHuman =
-    simData && outputAmount && receiveAssetInfo ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo)) : ''
+  const quotedReceiveHuman = theaterRouteQuote
+    ? '—'
+    : simData && outputAmount && receiveAssetInfo
+      ? formatTokenAmount(outputAmount, receiveDecimals)
+      : ''
   const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
   const showReversePayCalculating = reverseQuoteActive && !reverseQuoteReady && isPositiveDecimalAmount(inputAmount)
 
@@ -1851,7 +1855,7 @@ export default function SwapPage() {
                 >
                   <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
                   <span className="font-mono text-xs sm:text-right break-all">
-                    {receiveAssetInfo ? formatTokenAmount(minReceived!, getDecimals(receiveAssetInfo)) : minReceived}
+                    {receiveAssetInfo ? formatTokenAmount(minReceived!, receiveDecimals) : minReceived}
                   </span>
                 </div>
               )}
@@ -1912,7 +1916,7 @@ export default function SwapPage() {
                         discountBps={discountBps}
                         commissionAmount={
                           commissionAmount && receiveAssetInfo
-                            ? formatTokenAmount(commissionAmount, getDecimals(receiveAssetInfo))
+                            ? formatTokenAmount(commissionAmount, receiveDecimals)
                             : undefined
                         }
                       />
@@ -2084,22 +2088,31 @@ export default function SwapPage() {
           {routeSlippageBlocked && (
             <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
               <p className="font-semibold mb-1">Slippage is too high</p>
-              <p className="mb-2">
-                Expected slippage is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable Expert Mode
-                to continue.
-              </p>
-              <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
-                Dangerous: Enable Expert Mode to Swap Anyway:{' '}
-                <button
-                  type="button"
-                  className="underline font-semibold uppercase tracking-wide"
-                  style={{ color: 'var(--cyan)' }}
-                  onClick={() => setShowExpertModeModal(true)}
-                  data-testid="swap-enable-expert-mode"
-                >
-                  Enable Expert Mode
-                </button>
-              </p>
+              {theaterRouteQuote ? (
+                <p className="mb-2" data-testid="swap-theater-quote-blocked">
+                  Expected slippage is {priceImpact}% (at or above {SWAP_EXTREME_SLIPPAGE_WARNING_PCT}%). This quote is
+                  not executable. Expert Mode cannot waive it.
+                </p>
+              ) : (
+                <>
+                  <p className="mb-2">
+                    Expected slippage is {priceImpact}% (above {SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT}%). Enable Expert
+                    Mode to continue.
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--ink-subtle)' }}>
+                    Dangerous: Enable Expert Mode to Swap Anyway:{' '}
+                    <button
+                      type="button"
+                      className="underline font-semibold uppercase tracking-wide"
+                      style={{ color: 'var(--cyan)' }}
+                      onClick={() => setShowExpertModeModal(true)}
+                      data-testid="swap-enable-expert-mode"
+                    >
+                      Enable Expert Mode
+                    </button>
+                  </p>
+                </>
+              )}
             </div>
           )}
           {simData?.routePreflight?.anyHopExceedsMaxSpread && (
@@ -2167,14 +2180,16 @@ export default function SwapPage() {
                 receiveSymbol={getTokenDisplaySymbol(toToken)}
                 offerAmountHuman={reverseQuoteActive ? reversePayHuman : inputAmount}
                 receiveAmountHuman={
-                  outputAmount && receiveAssetInfo
-                    ? formatTokenAmount(outputAmount, getDecimals(receiveAssetInfo))
-                    : '—'
+                  theaterRouteQuote
+                    ? '—'
+                    : outputAmount && receiveAssetInfo
+                      ? formatTokenAmount(outputAmount, receiveDecimals)
+                      : '—'
                 }
                 maxSpreadPercent={slippageTolerance}
                 minReceiveHuman={
                   !showQuoteOnly && minReceived != null && receiveAssetInfo
-                    ? formatTokenAmount(minReceived, getDecimals(receiveAssetInfo))
+                    ? formatTokenAmount(minReceived, receiveDecimals)
                     : null
                 }
                 pairContractAddresses={swapBlacklistProbe.pairAddresses}

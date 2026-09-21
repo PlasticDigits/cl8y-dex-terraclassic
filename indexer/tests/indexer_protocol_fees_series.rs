@@ -36,6 +36,7 @@ async fn insert_fee(
         tx_hash: tx.to_string(),
         source,
         ordinal,
+        pair_id: None,
         asset_id,
         amount_raw: bd(raw),
         decimals: 6,
@@ -87,9 +88,7 @@ async fn fees_grain_allowlist_idle_unpriced_mixed() {
         0,
     )
     .await;
-    fee_s::refresh_protocol_hourly(&pool)
-        .await
-        .expect("hourly");
+    fee_s::refresh_protocol_hourly(&pool).await.expect("hourly");
 
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
@@ -120,9 +119,9 @@ async fn fees_grain_allowlist_idle_unpriced_mixed() {
         "mixed priced+unpriced SUMs priced, does not null the bucket"
     );
 
-    let idle = series.iter().find(|p| {
-        p["utc_hour"] == vol_q::format_utc_hour(hour - Duration::hours(1))
-    });
+    let idle = series
+        .iter()
+        .find(|p| p["utc_hour"] == vol_q::format_utc_hour(hour - Duration::hours(1)));
     if let Some(p) = idle {
         assert_eq!(p["fees_usd"], "0");
         assert_eq!(p["event_count"], 0);
@@ -189,9 +188,7 @@ async fn fees_cache_ignores_extra_query_junk() {
         0,
     )
     .await;
-    fee_s::refresh_protocol_hourly(&pool)
-        .await
-        .expect("hourly");
+    fee_s::refresh_protocol_hourly(&pool).await.expect("hourly");
 
     let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
@@ -255,16 +252,13 @@ async fn fees_aggregator_refreshes_series_and_hourly_prune() {
     .execute(&pool)
     .await
     .unwrap();
-    fee_s::refresh_protocol_hourly(&pool)
-        .await
-        .expect("prune");
-    let leftover: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM protocol_hourly_fees WHERE utc_hour = $1",
-    )
-    .bind(old)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    fee_s::refresh_protocol_hourly(&pool).await.expect("prune");
+    let leftover: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM protocol_hourly_fees WHERE utc_hour = $1")
+            .bind(old)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(leftover, 0);
 }
 
@@ -298,9 +292,11 @@ async fn fees_daily_and_monthly_shape() {
     let dbody: Value = daily.json();
     assert_eq!(dbody["series"].as_array().unwrap().len(), 14);
     assert_eq!(
-        bd(dbody["series"].as_array().unwrap().last().unwrap()["fees_usd"]
-            .as_str()
-            .unwrap()),
+        bd(
+            dbody["series"].as_array().unwrap().last().unwrap()["fees_usd"]
+                .as_str()
+                .unwrap()
+        ),
         bd("9")
     );
 
@@ -311,9 +307,11 @@ async fn fees_daily_and_monthly_shape() {
     let mbody: Value = monthly.json();
     assert_eq!(mbody["series"].as_array().unwrap().len(), 6);
     assert_eq!(
-        bd(mbody["series"].as_array().unwrap().last().unwrap()["fees_usd"]
-            .as_str()
-            .unwrap()),
+        bd(
+            mbody["series"].as_array().unwrap().last().unwrap()["fees_usd"]
+                .as_str()
+                .unwrap()
+        ),
         bd("9")
     );
 }

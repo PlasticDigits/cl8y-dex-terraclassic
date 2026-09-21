@@ -196,4 +196,11 @@ describe('getDecimals', () => {
     const info = { native_token: { denom: 'uluna' } }
     expect(getDecimals(info)).toBe(6)
   })
+
+  it('returns 18 for registry USDT (#1257)', () => {
+    const info = {
+      token: { contract_addr: 'terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4' },
+    }
+    expect(getDecimals(info)).toBe(18)
+  })
 })

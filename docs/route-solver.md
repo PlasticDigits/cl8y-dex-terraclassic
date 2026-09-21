@@ -129,6 +129,8 @@ Read the response using this doc:
 | `ROUTE_GRAPH_CACHE_TTL` | 15 s | `route_graph.rs` |
 | `ROUTE_CACHE_MAX_ENTRIES` | 512 | `route_solver.rs` |
 | `AMOUNT_CACHE_BUCKET` | 1_000_000 (raw offer units) | `route_solver.rs` |
+
+**#1257:** Bucket is **raw** offer units, not human tokens. 1 USTR (`10^18`) and 10000 USTR do not share a bucket; 1 USTR does not alias 1 UST1 (`10^6`). Cache key also includes `token_in` / `token_out`. Mixed 18/6 hops use wide `k`; implausible scale-mismatch drains skip the path ([`db_orderbook_sim.rs`](../indexer/src/api/db_orderbook_sim.rs)).
 | `LCD_HYBRID_SIM_BUDGET` | 1700 (= 5×4×85) | `best_execution.rs` |
 | `OPTIMALITY_SCOPE` | See [optimality scope](#optimality-scope-string) | `best_execution.rs` |
 
@@ -259,13 +261,14 @@ Tie changes to **`LCD_HYBRID_SIM_BUDGET`**, **`RATE_LIMIT_LCD_HEAVY_RPS`**, and 
 | Cache poisoning across tiers | Cache keys include `discount_tier` ([#283](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/283)) |
 | Path explosion DoS | Server caps paths, hops, LCD budget; reachability gate O(V+E) ([#286](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/286)) |
 | Micro-amount cache busting | Amount bucketing (`AMOUNT_CACHE_BUCKET`); avoid hammering unique tiny amounts |
+| Mixed-dec 18→6 theater quotes (#1257) | Wide `k` + implausible hop skip; cache keys include tokens + raw bucket |
 | “Best execution” marketing | Read `optimality_scope` bounds |
 
 ---
 
 ## Frontend cross-link
 
-The retail dApp consumes indexer routes for swap preview; sequential pair-level preflight still enforces **`max_spread`** per hop because router sim does not return per-hop spread. See [swap-max-spread-ux.md](./swap-max-spread-ux.md), [frontend.md § Swap](./frontend.md#swap-page-integration), [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md).
+The retail dApp consumes indexer routes for swap preview; sequential pair-level preflight still enforces **`max_spread`** per hop because router sim does not return per-hop spread. See [swap-max-spread-ux.md](./swap-max-spread-ux.md), [frontend.md § Swap](./frontend.md#swap-page-integration), [frontend.md § USTR/USDT quote scale](./frontend.md#ustr-usdt-quote-scale), [skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md](../skills/AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md), [skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md](../skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md).
 
 ---
 
