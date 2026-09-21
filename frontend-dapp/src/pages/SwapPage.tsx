@@ -76,7 +76,7 @@ import {
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
 import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
-import { DOCS_GITLAB_BASE, ROUTER_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { SWAP_FUNDED_HIGH_IMPACT_PCT, acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
@@ -125,6 +125,7 @@ import {
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
+import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
@@ -918,19 +919,42 @@ export default function SwapPage() {
     sellBps: taxSell.sellBps,
   })
   const extraDebitUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop)
+  const taxPreviewMaxSpread = (slippageTolerance / 100).toString()
+  const taxPreviewQuery = useMemo(
+    () =>
+      address && fromToken.startsWith('terra1')
+        ? resolveCommunityTaxPreviewQuery({
+            wallet: address,
+            payToken: fromToken,
+            usesRouter: extraDebitUsesRouter,
+            directPairAddr: directPair?.contract_addr,
+            routeOps: simData?.indexerOperations,
+            pairs,
+            maxSpread: taxPreviewMaxSpread,
+          })
+        : null,
+    [
+      address,
+      fromToken,
+      extraDebitUsesRouter,
+      directPair?.contract_addr,
+      simData?.indexerOperations,
+      pairs,
+      taxPreviewMaxSpread,
+    ]
+  )
   const taxPreview = useCommunityTaxPreviewDebit({
     token: fromToken.startsWith('terra1') ? fromToken : null,
-    from: address,
-    to: extraDebitUsesRouter ? ROUTER_CONTRACT_ADDRESS : (directPair?.contract_addr ?? null),
     amount: rawInputAmount,
     enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+    previewQuery: taxPreviewQuery,
   })
   const extraDebitGate = extraDebitSubmitGate({
     declaredRaw: tryParseBigInt(rawInputAmount),
     balanceRaw: balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
     debitRaw: taxPreview.debitRaw,
     sellBps: extraDebitSellBpsForExecute(taxSell.sellBps, extraDebitUsesRouter),
-    extraDebitUnresolved: taxSell.extraDebitUnresolved,
+    extraDebitUnresolved: taxSell.extraDebitUnresolved || taxPreview.previewUnresolved,
     isNativePay: payIsNativeUluna || !fromToken.startsWith('terra1'),
   })
 
@@ -2249,7 +2273,7 @@ export default function SwapPage() {
 
           {swapMutation.isError && (
             <div className="mt-4">
-              <TxResultAlert type="error" message={swapMutation.error?.message ?? 'Swap failed'} />
+              <TxResultAlert type="error" message={humanizeUserFacingErrorFromUnknown(swapMutation.error)} />
             </div>
           )}
 

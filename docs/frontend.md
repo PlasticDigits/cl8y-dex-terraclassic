@@ -848,6 +848,10 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **S1267-6** Honest / 0-bps | Native, unknown-query CW20, `sell_bps = 0` stay `amount ≤ balance`. Hostile shape / loading tax detection fail-closed. |
 | **S1267-7** Humanize | `InsufficientForSellTax` → reduce amount or Max. No ticket ids in copy. |
 | **S1267-8** Scope | dApp only. Do not reopen #593 / #1228 / #607 classify. |
+| **S1285-1** Pair `send_msg` | Pair-direct `TaxPreview` includes pair `Swap` CW20 hook (same classification as execute). |
+| **S1285-2** Router hop debit | Router preview uses router→listed-pair + `trader`; gate debit is `declared + hop_trader_debit` when present. |
+| **S1285-3** Vitest LCD shapes | Unit tests cover sell `debit` and router `hop_trader_debit`, not only `debitRaw: null`. |
+| **S1285-4** Inline humanize | Swap/Trade inline `TxResultAlert` uses `humanizeUserFacingErrorFromUnknown` for broadcast errors. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, Create Token may still copy-address to `/create`; `/create?a=<cw20>` prefill is allowed after [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) (**C542-11** / **P402-5**). Prefill is not a substitute for reading the picker. |
 | **C593-12** Free create | 0 SKU → launcher `CreateToken` execute (not 0-amount UST1 Send). Live on columbus-5 launcher `terra126pr5…` (code **11622**). |

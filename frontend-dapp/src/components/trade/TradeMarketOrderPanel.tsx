@@ -71,9 +71,9 @@ import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
-import { ROUTER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { getTokenDisplaySymbol } from '@/utils/tokenDisplay'
 import { computeSwapRouteDisplay } from '@/utils/swapRouteDisplay'
+import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
 import { TradeMarketSubmitChrome, type TradeMarketSubmitChromeModel } from '@/components/trade/TradeTicketSubmitFooter'
@@ -405,19 +405,33 @@ export function TradeMarketOrderPanel({
     usesRouter: tradeUsesRouter,
     sellBps: taxSell.sellBps,
   })
+  const taxPreviewQuery = useMemo(
+    () =>
+      address && fromToken.startsWith('terra1')
+        ? resolveCommunityTaxPreviewQuery({
+            wallet: address,
+            payToken: fromToken,
+            usesRouter: tradeUsesRouter,
+            directPairAddr: selectedPair?.contract_addr,
+            routeOps: simData?.indexerOperations,
+            pairs,
+            maxSpread: maxSpreadStr,
+          })
+        : null,
+    [address, fromToken, tradeUsesRouter, selectedPair?.contract_addr, simData?.indexerOperations, pairs, maxSpreadStr]
+  )
   const taxPreview = useCommunityTaxPreviewDebit({
     token: fromToken?.startsWith('terra1') ? fromToken : null,
-    from: address,
-    to: tradeUsesRouter ? ROUTER_CONTRACT_ADDRESS : (selectedPair?.contract_addr ?? null),
     amount: rawInputAmount,
     enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+    previewQuery: taxPreviewQuery,
   })
   const extraDebitGate = extraDebitSubmitGate({
     declaredRaw: tryParseBigInt(rawInputAmount),
     balanceRaw: escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
     debitRaw: taxPreview.debitRaw,
     sellBps: extraDebitSellBpsForExecute(taxSell.sellBps, tradeUsesRouter),
-    extraDebitUnresolved: taxSell.extraDebitUnresolved,
+    extraDebitUnresolved: taxSell.extraDebitUnresolved || taxPreview.previewUnresolved,
     isNativePay: !fromToken?.startsWith('terra1'),
   })
 
@@ -617,7 +631,7 @@ export function TradeMarketOrderPanel({
   const swapPhase = swapMutation.phase
   const swapPendingTxHash = swapMutation.pendingTxHash
   const swapIsError = swapMutation.isError
-  const swapErrorMessage = swapMutation.isError ? (swapMutation.error as Error).message : null
+  const swapErrorMessage = swapMutation.isError ? humanizeUserFacingErrorFromUnknown(swapMutation.error) : null
   const swapIsSuccess = swapMutation.isSuccess
   const swapSuccessTxHash = swapMutation.data
 
