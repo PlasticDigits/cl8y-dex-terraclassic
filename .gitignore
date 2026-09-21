@@ -10,6 +10,7 @@ target/
 
 # Frontend (Node.js)
 node_modules/
+node_modules
 dist/
 
 # Test artifacts
