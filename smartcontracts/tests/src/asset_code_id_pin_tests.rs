@@ -9,6 +9,11 @@ use crate::helpers::{
 use cosmwasm_std::{to_json_binary, Addr, Decimal, Empty, Uint128};
 use cw2::set_contract_version;
 use cw_multi_test::{App, Executor};
+use dex_common::limit_placement::LimitOrderPlacementItem;
+use dex_common::pair::{
+    Cw20HookMsg, ExecuteMsg, ExpiredLimitRefundResponse, LimitOrderResponse, LimitOrderSide,
+    QueryMsg,
+};
 
 fn query_pins(app: &App, pair: &Addr) -> [u64; 2] {
     let resp: dex_common::pair::AssetCodeIdsResponse = app
@@ -118,6 +123,126 @@ fn seed_pool(app: &mut App, env: &TestEnv) {
         Uint128::new(1_000_000_000),
         Uint128::new(1_000_000_000),
     );
+}
+
+fn parse_limit_order_placed(events: &[cosmwasm_std::Event]) -> u64 {
+    events
+        .iter()
+        .flat_map(|e| e.attributes.iter())
+        .find(|a| a.key == "limit_order_placed")
+        .map(|a| a.value.parse::<u64>().unwrap())
+        .expect("limit_order_placed attribute")
+}
+
+fn place_bid(
+    app: &mut App,
+    env: &TestEnv,
+    amount: Uint128,
+    price: Decimal,
+    expires_at: Option<u64>,
+) -> u64 {
+    let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+        side: LimitOrderSide::Bid,
+        orders: vec![LimitOrderPlacementItem {
+            price,
+            amount,
+            max_adjust_steps: 32,
+            expires_at,
+            hint_after_order_id: None,
+        }],
+    })
+    .unwrap();
+    let res = app
+        .execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount,
+                msg,
+            },
+            &[],
+        )
+        .unwrap();
+    parse_limit_order_placed(&res.events)
+}
+
+fn query_limit(app: &App, pair: &Addr, order_id: u64) -> LimitOrderResponse {
+    app.wrap()
+        .query_wasm_smart(pair.to_string(), &QueryMsg::LimitOrder { order_id })
+        .unwrap()
+}
+
+fn query_expired_refund(
+    app: &App,
+    pair: &Addr,
+    order_id: u64,
+) -> Option<ExpiredLimitRefundResponse> {
+    app.wrap()
+        .query_wasm_smart(pair.to_string(), &QueryMsg::ExpiredLimitRefund { order_id })
+        .unwrap()
+}
+
+fn try_update_limit_order_price(
+    app: &mut App,
+    env: &TestEnv,
+    order_id: u64,
+    price: Decimal,
+) -> Result<cw_multi_test::AppResponse, String> {
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::UpdateLimitOrderPrice {
+            order_id,
+            price,
+            hint_after_order_id: None,
+            max_adjust_steps: 32,
+        },
+        &[],
+    )
+    .map_err(|e| e.root_cause().to_string())
+}
+
+fn try_clean_limit_book(
+    app: &mut App,
+    env: &TestEnv,
+) -> Result<cw_multi_test::AppResponse, String> {
+    app.execute_contract(
+        Addr::unchecked("keeper"),
+        env.pair.clone(),
+        &ExecuteMsg::CleanLimitBook {
+            side: LimitOrderSide::Bid,
+            max_orders: 10,
+            start_hint: None,
+            max_steps: None,
+        },
+        &[],
+    )
+    .map_err(|e| e.root_cause().to_string())
+}
+
+fn try_cancel_limit_order(
+    app: &mut App,
+    env: &TestEnv,
+    order_id: u64,
+) -> Result<cw_multi_test::AppResponse, String> {
+    app.execute_contract(
+        env.user.clone(),
+        env.pair.clone(),
+        &ExecuteMsg::CancelLimitOrder { order_id },
+        &[],
+    )
+    .map_err(|e| e.root_cause().to_string())
+}
+
+fn assert_order_unchanged(before: &LimitOrderResponse, after: &LimitOrderResponse) {
+    assert_eq!(after.order_id, before.order_id);
+    assert_eq!(after.price, before.price);
+    assert_eq!(after.remaining, before.remaining);
+    assert_eq!(after.next, before.next);
+    assert_eq!(after.prev, before.prev);
+    assert_eq!(after.owner, before.owner);
+    assert_eq!(after.side, before.side);
 }
 
 #[test]
@@ -484,4 +609,291 @@ fn refresh_pair_asset_code_ids_batch_covers_indexed_pairs() {
     )
     .unwrap();
     assert_eq!(has_more, "false");
+}
+
+/// Forgejo #1234 AC2 — honest pinned pair still reprices (no CW20 / remaining change).
+#[test]
+fn honest_pinned_pair_update_limit_order_price_succeeds() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    seed_pool(&mut app, &env);
+
+    let order_id = place_bid(&mut app, &env, Uint128::new(100_000), Decimal::one(), None);
+    let before = query_limit(&app, &env.pair, order_id);
+    let new_price = Decimal::from_ratio(11u128, 10u128);
+    try_update_limit_order_price(&mut app, &env, order_id, new_price).unwrap();
+    let after = query_limit(&app, &env.pair, order_id);
+    assert_eq!(after.order_id, order_id);
+    assert_eq!(after.remaining, before.remaining);
+    assert_eq!(after.price, new_price);
+    assert!(query_expired_refund(&app, &env.pair, order_id).is_none());
+}
+
+/// Forgejo #1234 AC1 — FoT migrate then reprice fails; order stays linked at old price.
+#[test]
+fn honest_place_then_migrate_fot_update_limit_order_price_must_fail() {
+    let mut app = App::default();
+    let governance = Addr::unchecked("governance");
+    let treasury = Addr::unchecked("treasury");
+    let user = Addr::unchecked("user");
+
+    let lp_code = app.store_code(cw20_mintable_contract());
+    let honest_code = app.store_code(adversarial_token::adversarial_cw20_contract_with_migrate());
+    let fot_code = app.store_code(adversarial_token::adversarial_cw20_contract_with_fot_migrate());
+    let pair_code = app.store_code(pair_contract());
+    let factory = instantiate_factory(
+        &mut app,
+        &governance,
+        &treasury,
+        pair_code,
+        lp_code,
+        vec![honest_code],
+    );
+
+    let initial = Uint128::new(10_000_000_000);
+    let token_a =
+        create_honest_adv_with_admin(&mut app, honest_code, &user, "Token A", "TKNA", initial);
+    let token_b =
+        create_honest_adv_with_admin(&mut app, honest_code, &user, "Token B", "TKNB", initial);
+
+    let resp = app
+        .execute_contract(
+            user.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::CreatePair {
+                asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
+            },
+            &[],
+        )
+        .unwrap();
+    let pair = extract_pair_address(&resp.events);
+    let pair_info: dex_common::types::PairInfo = app
+        .wrap()
+        .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pair {})
+        .unwrap();
+    let env = TestEnv {
+        factory: factory.clone(),
+        token_a: token_a.clone(),
+        token_b: token_b.clone(),
+        pair,
+        lp_token: pair_info.liquidity_token,
+        router: Addr::unchecked("unused"),
+        governance: governance.clone(),
+        treasury,
+        user: user.clone(),
+    };
+    seed_pool(&mut app, &env);
+
+    let old_price = Decimal::one();
+    let order_id = place_bid(&mut app, &env, Uint128::new(100_000), old_price, None);
+    let before = query_limit(&app, &env.pair, order_id);
+
+    app.migrate_contract(user.clone(), token_a, &Empty {}, fot_code)
+        .unwrap();
+
+    let err = try_update_limit_order_price(
+        &mut app,
+        &env,
+        order_id,
+        Decimal::from_ratio(11u128, 10u128),
+    )
+    .unwrap_err();
+    assert!(
+        err.contains("Asset CW20 code_id drifted"),
+        "expected pin drift on reprice, got {err}"
+    );
+
+    let after = query_limit(&app, &env.pair, order_id);
+    assert_order_unchanged(&before, &after);
+    assert!(query_expired_refund(&app, &env.pair, order_id).is_none());
+
+    let swap_err = try_swap_a_to_b(&mut app, &env, &user, Uint128::new(1_000_000)).unwrap_err();
+    assert!(
+        swap_err.contains("Asset CW20 code_id drifted"),
+        "swap must stay fail-closed, got {swap_err}"
+    );
+}
+
+/// Forgejo #1234 AC1/AC3/AC4 — whitelist freeze blocks reprice and CleanLimitBook;
+/// cancel/swap stay gated; restore whitelist lets reprice succeed.
+#[test]
+fn remove_whitelisted_code_id_blocks_reprice_and_clean_limit_book() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    seed_pool(&mut app, &env);
+
+    let old_price = Decimal::one();
+    let live_id = place_bid(&mut app, &env, Uint128::new(100_000), old_price, None);
+    let exp = app.block_info().time.seconds() + 60;
+    let expiring_id = place_bid(
+        &mut app,
+        &env,
+        Uint128::new(50_000),
+        Decimal::from_ratio(99u128, 100u128),
+        Some(exp),
+    );
+    app.update_block(|b| {
+        b.time = b.time.plus_seconds(120);
+    });
+    let before_live = query_limit(&app, &env.pair, live_id);
+    let before_expiring = query_limit(&app, &env.pair, expiring_id);
+
+    let pinned = query_pins(&app, &env.pair);
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &dex_common::factory::ExecuteMsg::RemoveWhitelistedCodeId { code_id: pinned[0] },
+        &[],
+    )
+    .unwrap();
+
+    let reprice_err =
+        try_update_limit_order_price(&mut app, &env, live_id, Decimal::from_ratio(11u128, 10u128))
+            .unwrap_err();
+    assert!(
+        reprice_err.contains("is not factory-whitelisted"),
+        "expected whitelist freeze on reprice, got {reprice_err}"
+    );
+
+    let clean_err = try_clean_limit_book(&mut app, &env).unwrap_err();
+    assert!(
+        clean_err.contains("is not factory-whitelisted"),
+        "CleanLimitBook must fail-closed on F6 freeze, got {clean_err}"
+    );
+
+    let cancel_err = try_cancel_limit_order(&mut app, &env, live_id).unwrap_err();
+    assert!(
+        cancel_err.contains("is not factory-whitelisted"),
+        "cancel must stay fail-closed, got {cancel_err}"
+    );
+
+    let swap_err = try_swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000_000)).unwrap_err();
+    assert!(
+        swap_err.contains("is not factory-whitelisted"),
+        "swap must stay fail-closed, got {swap_err}"
+    );
+
+    assert_order_unchanged(&before_live, &query_limit(&app, &env.pair, live_id));
+    assert_order_unchanged(&before_expiring, &query_limit(&app, &env.pair, expiring_id));
+    assert!(query_expired_refund(&app, &env.pair, expiring_id).is_none());
+
+    app.execute_contract(
+        env.governance.clone(),
+        env.factory.clone(),
+        &dex_common::factory::ExecuteMsg::AddWhitelistedCodeId { code_id: pinned[0] },
+        &[],
+    )
+    .unwrap();
+
+    let new_price = Decimal::from_ratio(11u128, 10u128);
+    try_update_limit_order_price(&mut app, &env, live_id, new_price).unwrap();
+    let after = query_limit(&app, &env.pair, live_id);
+    assert_eq!(after.price, new_price);
+    assert_eq!(after.remaining, before_live.remaining);
+
+    try_clean_limit_book(&mut app, &env).unwrap();
+    assert!(query_limit_err(&app, &env.pair, expiring_id));
+    let parked =
+        query_expired_refund(&app, &env.pair, expiring_id).expect("TTL park after unfreeze");
+    assert_eq!(parked.remaining, before_expiring.remaining);
+}
+
+fn query_limit_err(app: &App, pair: &Addr, order_id: u64) -> bool {
+    app.wrap()
+        .query_wasm_smart::<LimitOrderResponse>(
+            pair.to_string(),
+            &QueryMsg::LimitOrder { order_id },
+        )
+        .is_err()
+}
+
+/// Forgejo #1234 — migrate onto another *whitelisted* template still blocks reprice
+/// until governance Refresh; then reprice succeeds.
+#[test]
+fn migrate_to_other_whitelisted_template_blocks_reprice_until_refresh() {
+    let mut app = App::default();
+    let governance = Addr::unchecked("governance");
+    let treasury = Addr::unchecked("treasury");
+    let user = Addr::unchecked("user");
+
+    let lp_code = app.store_code(cw20_mintable_contract());
+    let code_a = app.store_code(adversarial_token::adversarial_cw20_contract_with_migrate());
+    let code_b = app.store_code(adversarial_token::adversarial_cw20_contract_with_migrate());
+    let pair_code = app.store_code(pair_contract());
+    let factory = instantiate_factory(
+        &mut app,
+        &governance,
+        &treasury,
+        pair_code,
+        lp_code,
+        vec![code_a, code_b],
+    );
+
+    let initial = Uint128::new(10_000_000_000);
+    let token_a = create_honest_adv_with_admin(&mut app, code_a, &user, "Token A", "TKNA", initial);
+    let token_b = create_honest_adv_with_admin(&mut app, code_a, &user, "Token B", "TKNB", initial);
+
+    let resp = app
+        .execute_contract(
+            user.clone(),
+            factory.clone(),
+            &dex_common::factory::ExecuteMsg::CreatePair {
+                asset_infos: [asset_info_token(&token_a), asset_info_token(&token_b)],
+            },
+            &[],
+        )
+        .unwrap();
+    let pair = extract_pair_address(&resp.events);
+    let pair_info: dex_common::types::PairInfo = app
+        .wrap()
+        .query_wasm_smart(pair.to_string(), &dex_common::pair::QueryMsg::Pair {})
+        .unwrap();
+    let env = TestEnv {
+        factory: factory.clone(),
+        token_a: token_a.clone(),
+        token_b,
+        pair: pair.clone(),
+        lp_token: pair_info.liquidity_token,
+        router: Addr::unchecked("unused"),
+        governance: governance.clone(),
+        treasury,
+        user: user.clone(),
+    };
+    seed_pool(&mut app, &env);
+
+    let order_id = place_bid(&mut app, &env, Uint128::new(100_000), Decimal::one(), None);
+    let before = query_limit(&app, &env.pair, order_id);
+
+    app.migrate_contract(user.clone(), token_a, &Empty {}, code_b)
+        .unwrap();
+
+    let err = try_update_limit_order_price(
+        &mut app,
+        &env,
+        order_id,
+        Decimal::from_ratio(11u128, 10u128),
+    )
+    .unwrap_err();
+    assert!(
+        err.contains("Asset CW20 code_id drifted"),
+        "pin must reject reprice onto another whitelisted template, got {err}"
+    );
+    assert_order_unchanged(&before, &query_limit(&app, &env.pair, order_id));
+
+    app.execute_contract(
+        governance,
+        factory,
+        &dex_common::factory::ExecuteMsg::RefreshPairAssetCodeIds {
+            pair: pair.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
+    assert_eq!(query_pins(&app, &pair)[0], code_b);
+
+    let new_price = Decimal::from_ratio(11u128, 10u128);
+    try_update_limit_order_price(&mut app, &env, order_id, new_price).unwrap();
+    let after = query_limit(&app, &env.pair, order_id);
+    assert_eq!(after.price, new_price);
+    assert_eq!(after.remaining, before.remaining);
 }
