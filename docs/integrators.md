@@ -117,6 +117,14 @@ During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remai
 
 Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-time-dust-flush-gitlab-264), [§ Park reason](./limit-orders.md#expired-limit-park-reason-gitlab-504), invariant **L16** / **L22** in [contracts-security-audit.md](./contracts-security-audit.md), [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs). Agent playbooks: [`skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md`](../skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md), [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
 
+## Limit place min remaining (Forgejo #1219) {#limit-place-min-remaining-gitlab-1219}
+
+Each batch / ladder / retail rung must rest with **post–maker-fee remaining ≥ 10** (`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`). Undersize reverts the **whole** `send` with **`LimitOrderAmountTooSmall`** (message includes the minimum `10`) — not `Overflow: Cannot Sub`, and not a partial `LimitInsertStepsExceeded` skip. Descending ladders (`start_price > end_price`) are valid; integrators must not sort start &lt; end. Official dApp copy: **Minimum size is 10 units**.
+
+Unfillable in-band `MIN_LIMIT_PRICE` asks (zero-cost skip forever) stay **[#1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225)** — this gate does not reject `remaining.checked_mul_floor(price) < 1`.
+
+Canonical: [limit-orders.md § Place](./limit-orders.md#place--cancel-limit-gitlab-206), invariant **L24**, [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md).
+
 ## Parked refund `reason` (GitLab #504) {#expired-limit-park-reason-gitlab-504}
 
 LCD query **`{ "expired_limit_refund": { "order_id": N } }`** returns optional **`reason`** as snake_case JSON: `expired` | `dust_filled` | `force_cleaned` | `blacklisted` (or omitted on pre-#504 rows). Same strings on wasm `reason=`. Claim execute is unchanged and reason-agnostic.

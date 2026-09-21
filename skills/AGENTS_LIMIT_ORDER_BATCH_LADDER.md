@@ -40,12 +40,34 @@ Use when changing **multi-rung limit placement** on-chain, in the indexer, or in
 
 14. **Ladder create UI must not require a connected wallet to render ([#494](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/494))** — on `/limits`, **`placeMode === 'ladder' && selectedPair`** mounts [`LimitOrderLadderPanel`](../frontend-dapp/src/components/trade/LimitOrderLadderPanel.tsx) **without** gating on store `address`. Single and Ladder must both show create fields when disconnected. Parent may pass `walletAddress` as `null`/`undefined`; panel still shows start/end price, rungs, total pay, expiry/advanced, preview. **Connect Wallet CTA parity with Single / `TradeOrderTicket`:** escrow + LUNC place gates apply only when `isWalletConnected` (`(isWalletConnected && !placeGates.canPlace)`); submit stays enabled for disconnect; label **Connect Wallet**; click → `openWalletModal()`. Do **not** put `!isWalletConnected` into the panel `disabled` prop (that is for trade-block / blacklist / paused only). `mutationFn` still throws `Connect wallet` if address is missing. Vitest: [`LimitOrderLadderPanel.disconnect.test.tsx`](../frontend-dapp/src/components/trade/__tests__/LimitOrderLadderPanel.disconnect.test.tsx), [`LimitOrdersPage.test.tsx`](../frontend-dapp/src/pages/LimitOrdersPage.test.tsx) · smoke E2E: [`limit-orders.spec.ts`](../frontend-dapp/e2e/limit-orders.spec.ts).
 
+16. **Named min remaining at place ([#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219) / **L24**)** — post–maker-fee remaining must be **≥ `LIMIT_ORDER_DUST_FLUSH_THRESHOLD` (10)**. Same constant as match-time dust flush (**L16** / #264). Named `LimitOrderAmountTooSmall` (message includes `10`); **all-or-nothing** — do **not** skip+refund like `LimitInsertStepsExceeded`. Maker fee stays **floor**. Ladder expand rejects equal-split rungs (including zeros from `total < count`) before batch execute. dApp: `expandLimitLadder` throws **Minimum size is 10 units**; ticket / escrow gate disable Place. **#1225** still owns unfillable in-band `MIN_LIMIT_PRICE` asks (this issue does **not** reject `remaining × price < 1`). `UpdateLimitOrderPrice` does not re-check size.
+
+17. **Descending ladder prices ([#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219))** — `ladder_prices` uses `span = |end − start|` and steps from `start` toward `end` (last rung exactly `end`). Do **not** require the UI to sort start &lt; end. **L20** still applies per rung. Equal-dec `3 → 1` must place; 18-vs-6 `Decimal::raw(3) → Decimal::raw(1)` must not `Overflow: Cannot Sub` (L20 may still reject out-of-band human).
+
+## Invariants (S1219-1–S1219-8)
+
+| ID | Rule |
+|----|------|
+| **S1219-1** | `min_limit_place_remaining() == LIMIT_ORDER_DUST_FLUSH_THRESHOLD == 10`. Do not invent a second floor. |
+| **S1219-2** | `amount ∈ {1,9}` (in-band price) reverts named min-size; **no** `Overflow: Cannot Sub`. |
+| **S1219-3** | One dust rung in a mixed batch reverts the **whole** tx; zero new `ORDERS`. |
+| **S1219-4** | Ladder equal-split that would assign `< 10` to any rung (incl. remainder) fails expand **before** insert. |
+| **S1219-5** | Descending `start > end` in-band prices place `count` rungs; amounts sum to `total_amount`. |
+| **S1219-6** | Tier 9 (`limit_discount_bps = 10000`, fee 0) still cannot place `amount < 10`. |
+| **S1219-7** | Undersize is **not** `LimitInsertStepsExceeded`. No saturating sub on escrow/fee. |
+| **S1219-8** | Official dApp never signs a dust rung. Copy: **Minimum size is 10 units**. No new `shell-panel*` / lecture banner. |
 
 ## Tests to run after changes
 
 ```bash
 # Contracts (batch + partial + ladder)
 cd smartcontracts && cargo test -p cl8y-dex-tests limit_batch place_limit_order_ladder -- --nocapture
+
+# Named min remaining + descending ladder (#1219)
+make verify-issue-1219
+cd smartcontracts && cargo test -p dex-common ladder_prices_descending --quiet
+cd smartcontracts && cargo test -p cl8y-dex-tests limit_place_min_size_1219 -- --test-threads=1 --quiet
+cd frontend-dapp && npm test -- --run limitOrderLadder limitOrderEscrowBalanceGate
 
 # Frontend unit
 cd frontend-dapp && npm test -- limitOrderLadder limitOrderNonCrossing limitOrderBatchGasSummary useLimitLadderPlaceGates useTokenBalance limitLadderBoundary limitLadderAdaptiveSteps limitLadderDepth limitLadderPlacementPlan useLimitLadderPlacementPlan
@@ -70,6 +92,7 @@ cd frontend-dapp && npx playwright test e2e/limit-orders-tx.spec.ts --project=e2
 - Placement gas presets: [`AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PLACEMENT_GAS.md)
 - Terra gas / two-tx sequences: [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
 - Reprice FIFO at the quoted price (**L23** / [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227)): [`AGENTS_LIMIT_ORDER_REPRICE_FIFO.md`](./AGENTS_LIMIT_ORDER_REPRICE_FIFO.md) — a later `UpdateLimitOrderPrice` on one rung joins the destination equal-price **tail**; do not invert #266 batch id assignment
+- Place min remaining + descending ladder (**L24** / [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219)): this playbook §16–17 / **S1219-1–S1219-8**; match-time park stays **L16** / [#264](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/264); unfillable `MIN_LIMIT_PRICE` asks stay [#1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225)
 
 ## GitLab
 
@@ -82,3 +105,4 @@ cd frontend-dapp && npx playwright test e2e/limit-orders-tx.spec.ts --project=e2
 - [#297](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/297) — ladder panel missing post-only crossing guard (ported from `TradeOrderTicket`; MR !39)
 - [#385](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/385) — BID ladder crossing guard skipped when `best_ask` empty (reference fallback + `limitBookPage` cache seed)
 - [#494](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/494) — Ladder place mode hid create options when wallet disconnected (`address &&` gate); Connect Wallet CTA parity with Single
+- [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219) — named min remaining (10) at place + descending `ladder_prices`; `make verify-issue-1219`

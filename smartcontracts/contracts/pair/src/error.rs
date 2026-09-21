@@ -127,6 +127,10 @@ pub enum ContractError {
     #[error("Limit order amount too small after maker fee")]
     LimitOrderMakerFeeExceedsAmount {},
 
+    /// Post–maker-fee remaining below the L16 / L24 dust floor (#1219).
+    #[error("Limit order amount too small: remaining {actual} is below minimum {min}")]
+    LimitOrderAmountTooSmall { min: String, actual: String },
+
     #[error("Limit batch exceeds max_batch_rungs ({max}); got {actual} orders")]
     LimitBatchTooLarge { max: u32, actual: u32 },
 

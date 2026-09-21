@@ -53,7 +53,7 @@ cd frontend-dapp && npm test -- --run limitOrderPriceScale pair.test
 
 - [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md) — **L20** match skip
 - [`AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md`](./AGENTS_FRONTEND_LIMIT_ORDER_PRICE.md) — human refs / gates
-- [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — ladder expand still human in the preview; scale at submit
+- [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — ladder expand still human in the preview; scale at submit. Place min remaining (**L24** / [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219)) is **size**, not the price band.
 - [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) — invert is not decimal scale
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — swap tape human scale (#522); limit book prices stay raw
 - [`AGENTS_FRONTEND_CHARTS_PAIR_STATS.md`](./AGENTS_FRONTEND_CHARTS_PAIR_STATS.md) — Charts TWAP uses the same `10^(d0−d1)` human scale (#564)
