@@ -34,7 +34,7 @@ Write only the subject and a short technical description of the change. Hooks in
 
 - **`prepare-commit-msg`** — strips agent-injected `Co-authored-by` / email lines from the body before the commit is recorded.
 - **`commit-msg`** — rejects any remaining violations.
-- **`pre-push`** — blocks pushes that include commits whose bodies still violate the policy (catches `git commit --no-verify`).
+- **`pre-push`** — blocks pushes that include commits whose bodies still violate the policy (catches `git commit --no-verify`). Skips commits already on `origin/main` so merging main into a feature branch does not re-reject historical main commits ([#1286](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1286) / [#1287](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1287)); playbook [`skills/AGENTS_GIT_COMMIT_HOOKS.md`](skills/AGENTS_GIT_COMMIT_HOOKS.md); `make verify-issue-1287`.
 
 **Never use `git commit --no-verify` or `git push --no-verify`** to skip these hooks. Cursor may append `Co-authored-by` trailers automatically; the hooks remove them — do not re-add them manually.
 
@@ -185,6 +185,8 @@ make verify-issue-710                    # #710 greedy tax / pause / blacklist /
 make verify-issue-1230                   # #1230 reject zero / dust-floor belief_price (L9)
 make verify-issue-1257                   # #1257 USTR→USDT mixed 18/6 hop honesty + Expert no-waive ≥99%
 make verify-issue-1227                   # #1227 UpdateLimitOrderPrice equal-price FIFO (keep order_id)
+make verify-issue-1234                   # #1234 UpdateLimitOrderPrice + CleanLimitBook F6 code-id gate
+make verify-issue-1288                   # bundle PR alias → verify-issue-1234
 make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
@@ -353,6 +355,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Hexxagon CW20 pack | `make verify-issue-641` |
 | Indexer lib | `cd indexer && cargo test --lib` |
 | Limit reprice FIFO | `make verify-issue-1227` |
+| F6 reprice + CleanLimitBook gate | `make verify-issue-1234` |
 | Charts newest-N candles + interval chip | `make verify-issue-705` |
 | Invalid `belief_price` L9 (zero / dust-floor) | `make verify-issue-1230` |
 | USTR→USDT mixed-dec quote scale | `make verify-issue-1257` |
@@ -498,7 +501,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_UST1_SECONDARY_AMM.md](skills/AGENTS_UST1_SECONDARY_AMM.md) — UST1 secondary AMM create/seed or Path B waiver ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508), invariants **U1–U7**); `make verify-issue-508`
 - [skills/AGENTS_FEE_DISCOUNT_TIERS.md](skills/AGENTS_FEE_DISCOUNT_TIERS.md) — CL8Y tier ladder + **I13** limit-placement discount shift (tier 9 place = 0; swap/take unchanged) + [`scripts/upgrade-514-limit-discount.sh`](scripts/upgrade-514-limit-discount.sh) ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)); `make verify-issue-514`
 - [skills/AGENTS_FACTORY_DISCOUNT_REGISTRY.md](skills/AGENTS_FACTORY_DISCOUNT_REGISTRY.md) — factory `config.discount_registry` snapshot on `CreatePair` so new pairs are wired (**F5** / **I14**, [#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536)); LocalTerra inherit + dApp `GetDiscountRegistry` first (**F538-1–F538-3**, [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538)); `make verify-issue-536` / `make verify-issue-538`
-- [skills/AGENTS_CW20_CODE_ID_PIN.md](skills/AGENTS_CW20_CODE_ID_PIN.md) — listed CW20 `code_id` pin + write-path whitelist re-check so `MsgMigrateContract` cannot leave the listing template (**F6**, [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582)); factory-first migrate [`scripts/upgrade-582-code-id-pin.sh`](scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)) including `UpdateConfig { pair_code_id }` + LCD whitelist retries; `make verify-issue-582` · `make verify-issue-584`
+- [skills/AGENTS_CW20_CODE_ID_PIN.md](skills/AGENTS_CW20_CODE_ID_PIN.md) — listed CW20 `code_id` pin + write-path whitelist re-check so `MsgMigrateContract` cannot leave the listing template (**F6**, [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) / [#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234) reprice + `CleanLimitBook`); factory-first migrate [`scripts/upgrade-582-code-id-pin.sh`](scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)) including `UpdateConfig { pair_code_id }` + LCD whitelist retries; `make verify-issue-582` · `make verify-issue-584` · `make verify-issue-1234`
 - [skills/AGENTS_CW20_CODE_ID_AUDIT.md](skills/AGENTS_CW20_CODE_ID_AUDIT.md) — generalized CW20 code-id audit harness: LCD pin + decomp + catalogue + Layer A/B (**C589-1–C589-9**, [#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589)); gates [#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581) 8266 go; `make verify-issue-589`
 - [skills/AGENTS_CW20_CODE_ID_TAX_ON.md](skills/AGENTS_CW20_CODE_ID_TAX_ON.md) — named tax-on Layer B (**C623-1–C623-8**, [#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623)); do **not** merge into B-lt; `make verify-issue-623`; leftover live [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)
 - [skills/AGENTS_POST_MERGE_OPS_590.md](skills/AGENTS_POST_MERGE_OPS_590.md) — post-merge Coolify + LocalTerra ops for !394–!396 (**M590-1–M590-8**, [#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)); `make verify-issue-590`
