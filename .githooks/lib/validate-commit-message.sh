@@ -122,7 +122,7 @@ validate_commit_message_hash() {
 }
 
 # Pre-push: do not re-reject commits already merged to the integration branch (e.g.
-# origin/main) — merging main into a feature branch puts them in the push range (#1286).
+# origin/main) — merging main into a feature branch puts them in the push range (#1286 / #1287).
 commit_message_policy_on_integration_branch() {
   local hash=$1
   local integration_ref=$2

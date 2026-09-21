@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regression: pre-push skips policy violations already on origin/main (#1286).
+# Regression: pre-push skips policy violations already on origin/main (#1286 / #1287).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -97,4 +97,4 @@ if [[ "$violations" -eq 0 ]]; then
   _fail "new feature commit with Co-authored-by should still fail"
 fi
 
-echo "OK: pre-push integration-branch skip (#1286)"
+echo "OK: pre-push integration-branch skip (#1286 / #1287)"

@@ -816,6 +816,12 @@ verify-issue-1280:
 	@chmod +x scripts/qa/verify-issue-1280.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1280.sh
 
+# Forgejo #1287 / #1286 — pre-push skips commit policy on origin/main (post-#1282 merge pain).
+.PHONY: verify-issue-1287
+verify-issue-1287:
+	@chmod +x scripts/qa/verify-issue-1287.sh
+	./scripts/qa/verify-issue-1287.sh
+
 # Forgejo #1264 — USTC→USTR wrap+2hop stays pool-only at the #587 2.71M envelope.
 .PHONY: verify-issue-1264
 verify-issue-1264:
