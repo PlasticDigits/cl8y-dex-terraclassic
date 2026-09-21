@@ -484,7 +484,7 @@ verify-issue-1276:
 	@chmod +x scripts/qa/verify-issue-1276.sh scripts/setup-cloud-agent-indexer-postgres.sh
 	./scripts/qa/verify-issue-1276.sh
 
-# Forgejo #1279 — leftover Lunc Dash WalletConnect ops verify (pre-check; device QA is ops-bot).
+# Forgejo #1279 — leftover Lunc Dash WalletConnect ops verify (pre-check; device QA is cl8y-pm inbox).
 .PHONY: verify-issue-1279
 verify-issue-1279:
 	@chmod +x scripts/qa/verify-issue-1279.sh scripts/with-node.sh

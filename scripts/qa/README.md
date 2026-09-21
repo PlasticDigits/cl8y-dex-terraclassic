@@ -88,7 +88,7 @@ Browser wallet checks over an SSH tunnel follow the same matrix as [`docs/qa-onb
 
 **Keplr + Ledger Nano** is columbus-5 **P1** (not LocalTerra): [`docs/qa-onboarding.md`](../../docs/qa-onboarding.md) § Wallet Matrix, [`skills/AGENTS_FRONTEND_KEPLR_LEDGER.md`](../../skills/AGENTS_FRONTEND_KEPLR_LEDGER.md) ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)).
 
-**Lunc Dash** leftover device QA is columbus-5 **P1** ([`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) **1.5.1–1.5.11**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)). In-repo `make verify-issue-1279` is a unit/docs **pre-check only**; leftover-complete is ops-bot. Playbook: [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-1–L1279-8**, **Q20**).
+**Lunc Dash** leftover device QA is columbus-5 **P1** ([`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) **1.5**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)). In-repo `make verify-issue-1279` is a unit/docs **pre-check only**; leftover-complete is cl8y-pm inbox cards. Playbook: [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-1–L1279-8**, **Q20**).
 
 Canonical root cause: [`docs/frontend.md` § Station extension signing](../../docs/frontend.md#station-extension-signing). Agent playbooks: [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../skills/AGENTS_FRONTEND_STATION_SIGNING.md), [`skills/AGENTS_TERRACLASSIC_GAS.md`](../../skills/AGENTS_TERRACLASSIC_GAS.md).
 
