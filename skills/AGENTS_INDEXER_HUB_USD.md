@@ -18,13 +18,13 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 | **H2** | `usd(UST1)` from the **largest USD-TVL** factory pair whose legs are hub **cUSTC + UST1** (contract/denom), via humanized **reserves** (not last print, not `$1`). |
 | **H3** | `usd(USTR)` from the **largest USD-TVL** factory pair vs already-priced cUSTC or UST1. **USTR is set by the market, not a fixed peg** — launch `2.5 ×` USTC is ops seed only. |
 | **H4** | Pair `price_usd` / candles USD use hub quote USD **as-of ingest or current-bucket marks**. Do **not** rewrite historical tape from the live snapshot ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)). UI invert (#524 / #543) stays frontend `invertUsd`. |
-| **H5** | `/protocol` shows a **DEX hub prices** card (`protocol-dex-hub-prices`) with cUSTC, **LUNC**, UST1, USTR ([#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570)). CEX tabs stay `ustc` \| `lunc` \| `vfdusd`. |
+| **H5** | `/protocol` shows a **DEX hub prices** card (`protocol-dex-hub-prices`) with **cUSTC**, **cLUNC**, UST1, USTR ([#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) / [#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240)). CEX tabs stay `ustc` \| `lunc` \| `vfdusd` (native **USTC** / **LUNC** labels). |
 | **H6** | `GET /api/v1/oracle/price/ustr` (and `ust1`, `custc`) remain **400**. Use `GET /api/v1/hub-prices`. `GET /hub-prices/lunc` is the DEX-card snapshot, distinct from CEX `/oracle/price/lunc`. |
 | **H7** | `volume_usd` ingest uses hub USD for UST1/USTR quotes. Still **not** vFDUSD. |
 | **H8** | Dust (`< $100` TVL default), stale reserves, unlisted pairs, and symbol-spoof natives cannot win ranking. Identity is **contract/denom**. |
 | **H9** | This skill + invariants + `make verify-issue-556`. Wrap identity / LUNC column: `make verify-issue-570`. |
 | **H10** | CG/CMC `last_price` stays human quote-per-base. |
-| **H11** | Hub card column order: cUSTC, LUNC, UST1, USTR. Grid `sm:grid-cols-2 xl:grid-cols-4`. Four cells stay painted on hub 502 (USD `—`; wrap rows from env overlay). |
+| **H11** | Hub card column order: **cUSTC**, **cLUNC**, UST1, USTR (API tickers `custc` \| `lunc` \| `ust1` \| `ustr`; visible LUNC wrap `<dt>` is `cLUNC / USD`). Grid `sm:grid-cols-2 xl:grid-cols-4`. Four cells stay painted on hub 502 (USD `—`; wrap rows from env overlay). |
 | **H12** | LUNC hub USD = #515 LUNC CEX wrap 1:1. Independent of USTC. Not a pool mark. |
 | **H13** | cUSTC and LUNC columns show configured wrap CW20 `AddressRow` (cLUNC, not native `uluna`). |
 | **H14** | UST1/USTR keep source-pair rows; cUSTC/LUNC `source_pair` stays null. |

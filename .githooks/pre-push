@@ -7,12 +7,14 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=.githooks/lib/validate-commit-message.sh
 source "${REPO_ROOT}/.githooks/lib/validate-commit-message.sh"
 
-remote="${1:-}"
+push_remote="${1:-origin}"
 url="${2:-}"
-unset remote url
+unset url
 
 zero_oid='0000000000000000000000000000000000000000'
 failed=0
+integration_ref=""
+integration_ref=$(resolve_integration_main_ref "$push_remote" 2>/dev/null || true)
 
 while read -r local_ref local_oid remote_ref remote_oid; do
   [[ -z "${local_ref:-}" ]] && continue
@@ -20,30 +22,25 @@ while read -r local_ref local_oid remote_ref remote_oid; do
     continue
   fi
 
-  range=""
+  rev_list_args=()
   if [[ "$remote_oid" == "$zero_oid" ]]; then
-    # New remote branch: only commits not already on origin/main.
-    # `git rev-list $local_oid` walks every ancestor and fails on historical
-    # bodies that landed before this hook (for example Co-authored-by trailers).
-    if git rev-parse --verify --quiet origin/main >/dev/null; then
-      range="origin/main..${local_oid}"
-    elif git rev-parse --verify --quiet main >/dev/null; then
-      range="main..${local_oid}"
-    else
-      range="${local_oid}^..${local_oid}"
-    fi
+    # New remote branch: do not walk all ancestors. Skip commits already on remotes.
+    rev_list_args=("$local_oid" --not --remotes="${push_remote}")
   else
-    range="${remote_oid}..${local_oid}"
+    rev_list_args=("${remote_oid}..${local_oid}")
   fi
 
   hash=""
   while read -r hash; do
     [[ -z "$hash" ]] && continue
+    if [[ -n "$integration_ref" ]] && commit_message_policy_on_integration_branch "$hash" "$integration_ref"; then
+      continue
+    fi
     if ! validate_commit_message_hash "$hash"; then
       echo "  [$hash] $(git log -1 --format='%s' "$hash")" >&2
       failed=1
     fi
-  done < <(git rev-list "$range" 2>/dev/null || true)
+  done < <(git rev-list "${rev_list_args[@]}" 2>/dev/null || true)
 done
 
 if [[ "$failed" -ne 0 ]]; then
