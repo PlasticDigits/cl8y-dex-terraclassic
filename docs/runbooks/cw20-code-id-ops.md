@@ -99,7 +99,7 @@ A third-party token wasm admin (the actor F6 defends against) can freeze **all**
 
 **SLA target:** pause the incident pair (`SetPairPaused`) as soon as drift is confirmed; whitelist + refresh + private rebalance + unpause within the same incident window. There is no one-click protocol halt in the upgrade script.
 
-Also: `GetAssetCodeIds` **hard-errors** on pre-1.15.0 pairs (not `null`). `CleanLimitBook` still parks during freeze while claims stay gated (stranded parked escrow until unfreeze + claim). `UpdateLimitOrderPrice` is ungated (no funds).
+Also: `GetAssetCodeIds` **hard-errors** on pre-1.15.0 pairs (not `null`). **F6 freeze means no DLL writes** ([#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234)): `UpdateLimitOrderPrice` and `CleanLimitBook` call `gate_asset_code_ids` (same errors as swap/place). Keepers resume `CleanLimitBook` after unfreeze — same as after **L6** unpause. Claims stay gated (stranded parked escrow until unfreeze + claim). Do **not** treat “no CW20 in this tx” as an F6 exemption.
 
 ---
 

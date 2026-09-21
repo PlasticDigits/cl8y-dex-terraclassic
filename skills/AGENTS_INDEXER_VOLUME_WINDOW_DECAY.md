@@ -5,7 +5,7 @@ Audience: third-party agents touching token/trader/pair/global volume rollups, `
 **Issue:** [GitLab **#577**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) (related [#576](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/576) Charts copy — out of scope here)  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **Trailing window decay #577**)  
 **Ops:** [`docs/runbooks/overview-global-stats-brin.md`](../docs/runbooks/overview-global-stats-brin.md) § Rollup freshness  
-**Sibling:** [`AGENTS_INDEXER_VOLUME_PAGINATION.md`](./AGENTS_INDEXER_VOLUME_PAGINATION.md) (**V1–V5**); this skill owns **D1–D7**.
+**Sibling:** [`AGENTS_INDEXER_VOLUME_PAGINATION.md`](./AGENTS_INDEXER_VOLUME_PAGINATION.md) (**V1–V5**); this skill owns **D1–D7**. Rolling raw column types are [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md) (**R1277-1–R1277-8**, [#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277)) — **`NUMERIC(38, 0)`**, not the USD `(38, 18)` cap.
 
 ## Problem class
 
@@ -16,7 +16,7 @@ Charts **24h Volume (USD)** is a trailing window from `global_stats_24h`. Pair l
 | ID | Rule |
 |----|------|
 | **D1** | After `refresh_token_volumes`, an asset whose **offer-side** swaps are all older than the window has that `"window"` row at **0** (volume, volume_usd, trade_count, unique_traders). 7d/30d analogous. **Offer-side only** (`GROUP BY offer_asset_id`) — do not sum both legs. |
-| **D2** | Trader whose last swap is older than **30d** → `volume_24h` = `volume_7d` = `volume_30d` = **0**. Never zero `total_volume` / `total_volume_usd` / `total_trades` (lifetime, [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). |
+| **D2** | Trader whose last swap is older than **30d** → `volume_24h` = `volume_7d` = `volume_30d` = **0**. Never zero `total_volume` / `total_volume_usd` / `total_trades` (lifetime, [#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)). Rolling + lifetime **raw** columns are **`NUMERIC(38, 0)`** ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277)); do not fail the aggregator on 18-dec `SUM(offer_amount)`. |
 | **D3** | Pair with only 48h-old swaps → `pair_volume_24h.volume_quote = 0` **and** `volume_usd = 0` after refresh. `sort=volume_24h` / `sort=volume_usd_24h` must not rank it as live ([#692](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/692)). |
 | **D4** | Aging a previously counted 24h swap to 25h then refreshing **decreases** `global_stats_24h` volume/trades (not only “extra old row ignored”). |
 | **D5** | Indexer **startup** (`poller` → `refresh_all_volume_windows(..., true)`) refreshes token + trader + pair + global **without** waiting 5 min. Loop still sleeps 300s first. |
@@ -29,7 +29,7 @@ Trailing windows use **`Utc::now() − window`**. No calendar-day reset. Decay t
 
 - **Do** bind `"window"` / cutoffs as SQL parameters (never concatenate user strings).
 - **Do** wrap each refresh function’s INSERT+zero-out in **one transaction**.
-- **Do** keep `LEAST(…, POWER(10,38)-1)` / USD cap on sums; zero-out writes `0` not NULL.
+- **Do** keep `LEAST(…, POWER(10,38)-1)` on **raw** `(38, 0)` sums and the USD `10^20` cap on `(38, 18)` separately; zero-out writes `0` not NULL. Do not clamp rolling raw volume to `10^20` ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277) **A3**).
 - **Do** key zero-out by `pair_id` / `(asset_id, window)` / `traders.address` + `idx_swaps_sender` / `idx_swaps_offer_asset`.
 - **Don’t** live-`SUM(swap_events)` on every `/overview` GET when the rollup is stale-but-nonzero.
 - **Don’t** zero lifetime trader fields “to fix 24h”.
@@ -58,5 +58,6 @@ Trailing windows use **`Utc::now() − window`**. No calendar-day reset. Decay t
 - [`AGENTS_INDEXER_VOLUME_PAGINATION.md`](./AGENTS_INDEXER_VOLUME_PAGINATION.md) — rollup read path + pagination (**V1–V5**)
 - [`AGENTS_FRONTEND_CHARTS_OVERVIEW.md`](./AGENTS_FRONTEND_CHARTS_OVERVIEW.md) — retail USD box reads the global rollup ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548))
 - [`AGENTS_FRONTEND_TRADER_VOLUME_USD.md`](./AGENTS_FRONTEND_TRADER_VOLUME_USD.md) — Charts leaderboard uses **lifetime** `total_volume_usd` ([#553](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/553)); still keep rolling columns correct for API / QA
+- [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md) — rolling + lifetime raw volume **`NUMERIC(38, 0)`** so 18-dec `SUM(offer_amount)` cannot fail the aggregator ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277)); `make verify-issue-1277`
 - [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) — `/protocol` 24h/7d/30d from the same rollup ([#550](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/550))
 - [`AGENTS_LOCAL_POSTGRES_DEV.md`](./AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres for integration tests

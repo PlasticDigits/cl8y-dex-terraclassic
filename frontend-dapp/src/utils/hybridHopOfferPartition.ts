@@ -39,18 +39,30 @@ export function hybridPartitionsHopOffer(h: HybridSwapParams, hopOffer: string):
   return sum === offer
 }
 
+function terraSwapWithoutHybrid(op: SwapOperation): SwapOperation {
+  return {
+    terra_swap: {
+      offer_asset_info: op.terra_swap.offer_asset_info,
+      ask_asset_info: op.terra_swap.ask_asset_info,
+      min_return: op.terra_swap.min_return,
+    },
+  }
+}
+
 /** Policy A: drop declared hybrid on hops 1+ so execute cannot freeze quote-time interiors. */
 export function stripInteriorDeclaredHybrid(ops: SwapOperation[]): SwapOperation[] {
   return ops.map((op, i) => {
     if (i === 0 || !op.terra_swap.hybrid) return op
-    return {
-      terra_swap: {
-        offer_asset_info: op.terra_swap.offer_asset_info,
-        ask_asset_info: op.terra_swap.ask_asset_info,
-        min_return: op.terra_swap.min_return,
-      },
-    }
+    return terraSwapWithoutHybrid(op)
   })
+}
+
+/**
+ * Drop declared `hybrid` on every hop (wrap-enter / unwrap-exit execute — **H596-7** / #1218).
+ * Ranking may still use hop-0 book on CW20 GET; wrap submit is pool-only.
+ */
+export function stripAllDeclaredHybrid(ops: SwapOperation[]): SwapOperation[] {
+  return ops.map((op) => (op.terra_swap.hybrid ? terraSwapWithoutHybrid(op) : op))
 }
 
 /** Fail closed before sign: hop 0 declared hybrid must partition the CW20 send amount. */

@@ -17,7 +17,7 @@ Write only a short technical description in the body.
 
 ## Hooks (do not bypass)
 
-`.githooks/prepare-commit-msg` strips agent-injected trailers. `commit-msg` rejects violations. `pre-push` blocks pushes with bad messages.
+`.githooks/prepare-commit-msg` strips agent-injected trailers. `commit-msg` rejects violations. `pre-push` blocks pushes of **new** commits with bad messages: new branches exclude commits already on that remote (they do not walk published ancestry), and commits already on `origin/main` are skipped so merging main into a feature branch still pushes cleanly ([#1286](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1286) / [#1287](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1287)).
 
 **Never run `git commit --no-verify` or `git push --no-verify`.** Agents often use `--no-verify` to skip slow `pre-commit` checks; that also skips message policy hooks and is how `Co-authored-by: … <contact@example.com>` trailers reach the remote.
 

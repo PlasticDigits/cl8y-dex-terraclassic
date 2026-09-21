@@ -37,6 +37,16 @@ vi.mock('@/services/terraclassic/wallet', () => ({
   getConnectedWallet: vi.fn().mockReturnValue({}),
 }))
 
+vi.mock('@/services/terraclassic/queries', () => ({
+  queryContract: vi.fn(async (_addr: string, msg: unknown) => {
+    if (msg && typeof msg === 'object' && 'token_info' in msg) {
+      return { name: 'Dummy', symbol: 'DUM', decimals: 6, total_supply: '0' }
+    }
+    return {}
+  }),
+  getTokenBalance: vi.fn().mockResolvedValue('0'),
+}))
+
 vi.mock('@/hooks/useLimitOrderEscrowBalance', () => ({
   useLimitOrderEscrowBalance: () => ({ data: '0', isLoading: false, isError: false }),
 }))
@@ -89,6 +99,7 @@ vi.mock('@/services/terraclassic/ust1Window', () => ({
 vi.mock('@/services/indexer/client', () => ({
   getRouteSolve: vi.fn().mockRejectedValue(new Error('indexer unused')),
   postRouteSolve: vi.fn().mockRejectedValue(new Error('indexer unused')),
+  getTokens: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('@/lib/sounds', () => ({

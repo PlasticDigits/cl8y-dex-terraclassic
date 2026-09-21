@@ -51,7 +51,7 @@ make verify-issue-515
 
 ## Related
 
-- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-9** rewritten; **P1240** mixed-case chrome)
+- [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P550-9** rewritten; **P1240** mixed-case chrome — hub wrap `cUSTC`/`cLUNC` vs CEX `USTC`/`LUNC`)
 - [`AGENTS_INDEXER_EXTERNAL_ORACLE.md`](./AGENTS_INDEXER_EXTERNAL_ORACLE.md)
 - [`docs/runbooks/indexer-external-oracle.md`](../docs/runbooks/indexer-external-oracle.md)
 - [`docs/frontend.md`](../docs/frontend.md) § Protocol

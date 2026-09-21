@@ -15,8 +15,7 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 
 | ID | Rule |
 |----|------|
-| **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Top pairs (30d)** (`protocol-top-pairs`, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+LUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. |
-| **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
+| **P550-1** | Page order: title → **Global stats** (`protocol-global-stats`) → **Top pairs (30d)** (`protocol-top-pairs`, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)) → **Protocol fees** (`protocol-fee-stats`, [#586](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/586)) → **DEX hub prices** (`protocol-dex-hub-prices`, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) / [#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) cUSTC+cLUNC wrap identity) → **one** CEX oracle card (`protocol-oracle`) → audit contracts → hooks. || **P550-2** | Oracle chips/tabs only `ustc` \| `lunc` \| `vfdusd`. `?ticker=` allowlisted; unknown / `javascript:` / `../` → `ustc`. |
 | **P550-3** | Snapshot + sources + history live in **one** card. Query keys include ticker. |
 | **P550-4** | Stats headline **USD** (`total_volume_*_usd`). Do **not** present mixed-unit `total_volume_24h` as volume. |
 | **P550-5** | 7d/30d/active-pair/unique-trader **and** pool TVL / Δ% **and** fee totals come from `global_stats_24h` rollup + 60s cache. Cache-miss must not `SUM`/`COUNT(DISTINCT)` 30d `swap_events`, join `pair_reserves`, walk `global_liquidity_snapshots`, or scan `protocol_fee_events`. |
@@ -30,17 +29,17 @@ Audience: third-party agents changing Protocol page layout, overview JSON, or ex
 
 ## Invariants (P1240 — mixed-case tickers)
 
-Retail must tell **cUSTC (wrap hub)** from **USTC (CEX)** and **vFDUSD** from **FDUSD** at a glance. Source maps already have the right strings; do not flatten them with `text-transform: uppercase`.
+Retail must tell **cUSTC / cLUNC (wrap hub)** from **USTC / LUNC (CEX)** and **vFDUSD** from **FDUSD** at a glance. Source maps already have the right strings; do not flatten them with `text-transform: uppercase`.
 
 | ID | Rule |
 |----|------|
-| **P1240-1** | Hub `<dt>` ticker lines omit `uppercase`. Visible text equals `HUB_PRICE_TICKER_LABEL[ticker] / USD` character-for-character: `cUSTC / USD`, `LUNC / USD`, `UST1 / USD`, `USTR / USD`. Card H2 **DEX hub prices** may stay uppercase. |
-| **P1240-2** | Oracle tabs show map labels **USTC**, **LUNC**, **vFDUSD** (never `VFDUSD`). Tab buttons omit `uppercase`. |
+| **P1240-1** | Hub `<dt>` ticker lines omit `uppercase`. Visible text equals `HUB_PRICE_TICKER_LABEL[ticker] / USD` character-for-character: `cUSTC / USD`, `cLUNC / USD`, `UST1 / USD`, `USTR / USD`. Card H2 **DEX hub prices** may stay uppercase. API ticker for the LUNC wrap column stays `lunc` (no `clunc` path). |
+| **P1240-2** | Oracle tabs show map labels **USTC**, **LUNC**, **vFDUSD** (never `VFDUSD`). Tab buttons omit `uppercase`. The selected tab may use `btn-primary` fill but must keep `text-transform: none` (inline + `normal-case`) so `vFDUSD` is not flattened by global `.btn-primary { text-transform: uppercase }`. |
 | **P1240-3** | Oracle H2 is **USTC / USD**, **LUNC / USD**, or **vFDUSD** per #571 (vFDUSD heading has no `/ USD`). H2 omits `uppercase`. |
 | **P1240-4** | Venus heading and StatBox label **1 vFDUSD Price** keep mixed-case `vFDUSD` (`preserveLabelCase` on that StatBox). |
-| **P1240-5** | CEX vs hub identity unchanged: wrap hub is **cUSTC**; CEX tab is **USTC**; hub **LUNC** still has cLUNC wrap `AddressRow`; oracle **LUNC** still loads CEX sources/history. Do not retitle CEX USTC as cUSTC or hub LUNC as cLUNC. |
-| **P1240-6** | Disclaimers and `?ticker=` allowlist unchanged (**P550-2**, **P550-11**). No new CEX tickers. Ticker maps stay as-is (ids `custc` / `ustc` / `vfdusd`). |
-| **P1240-7** | RTL asserts exact casing (no `/i` on `vFDUSD` / `cUSTC` product tickers). Keyboard / deep-link / 502 tests stay green. |
+| **P1240-5** | Wrap hub is **cUSTC** / **cLUNC**; CEX tabs are **USTC** / **LUNC**. Hub `lunc` still has cLUNC wrap `AddressRow`; oracle `lunc` still loads CEX sources/history. Do not retitle CEX USTC as cUSTC or CEX LUNC as cLUNC. |
+| **P1240-6** | Disclaimers and `?ticker=` allowlist unchanged (**P550-2**, **P550-11**). No new CEX tickers. Hub/oracle **ids** stay `custc` / `lunc` / `ustc` / `vfdusd`. Hub **labels** are wrap (`cUSTC` / `cLUNC`); CEX **labels** stay native (`USTC` / `LUNC` / `vFDUSD`). |
+| **P1240-7** | RTL asserts exact casing (no `/i` on `vFDUSD` / `cUSTC` / `cLUNC` product tickers). Oracle `USTC` / `LUNC` stay native. Keyboard / deep-link / 502 tests stay green. |
 | **P1240-8** | No indexer, hub-price, or Venus API change. `uppercase` may remain on non-ticker chrome (page H1, **DEX hub prices**, **On-chain contracts**, table SOURCE / USD / TIME, StatBox labels that are not tickers). |
 
 ## Invariants (P569)
@@ -214,7 +213,7 @@ make verify-issue-550
 make verify-issue-556   # hub card still after fees
 make verify-issue-515   # catalog still catalogs; X4
 make verify-issue-571   # FDUSD reference + Venus 1 vFDUSD Price
-make verify-issue-1240  # mixed-case cUSTC / vFDUSD (no CSS uppercase)
+make verify-issue-1240  # mixed-case cUSTC / cLUNC / vFDUSD (hub wrap vs CEX native)
 ```
 
 ## Related

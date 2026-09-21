@@ -12,7 +12,7 @@ Authoritative reference for contributors and integrators using **`GET` / `POST /
 
 | Term | Meaning | JSON / code |
 |------|---------|-------------|
-| **Token graph** | Undirected graph: nodes = indexed CW20 assets (`assets.contract_address`); edges = indexed pairs (`pairs`). Native-only assets without a contract address are **not** routable. | Built in `route_solver.rs` / `route_paths.rs` from Postgres |
+| **Token graph** | Undirected graph: nodes = indexed CW20 assets (`assets.contract_address`); edges = indexed pairs (`pairs`). Native-only assets without a contract address are **not** routable (`token_in=uluna` → **400**). Retail Swap wrap-maps `uluna`→cLUNC / `uusd`→cUSTC **on the client** before GET ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)). | Built in `route_solver.rs` / `route_paths.rs` from Postgres |
 | **Hop** | One swap leg: a pair contract, an **offer** CW20, and an **ask** CW20. | `hops[]`: `{ pair, offer_token, ask_token }` |
 | **Path** | A simple (no repeated asset) sequence of hops from `token_in` to `token_out`. | `intermediate_tokens`: `[token_in, …, token_out]` |
 | **Pool-only leg** | Constant-product AMM only; router op has `terra_swap.hybrid: null` (on-chain this is pool-only hybrid with `book_input = 0`). | `quote_kind`: `indexer_pool_lcd` or `indexer_route_only` |
@@ -61,7 +61,7 @@ flowchart TD
 | Stage | Module | Function / constant |
 |-------|--------|-------------------|
 | Graph + BFS (legacy) | `route_solver.rs` | `find_path`, `resolve_route_with_max_hops` |
-| Top-K paths | `route_paths.rs` | `find_paths_top_k`, `MAX_PATH_CANDIDATES` (= 5) |
+| Top-K paths | `route_paths.rs` | `find_paths_top_k`, `PATH_ENUM_POOL` (= 32) then `select_usable_top_k` → `MAX_PATH_CANDIDATES` (= 5 usable) |
 | Global winner | `best_execution.rs` | `solve_global_best_execution` |
 | Per-hop / joint hybrid | `hybrid_route_opt.rs` | `optimize_multihop_hybrid_joint`, `GRID_POINTS` (= 17), `COORDINATE_PASSES` (= 2) |
 | Router sim | `route_solver.rs` | `maybe_simulate` |
@@ -116,6 +116,7 @@ Read the response using this doc:
 | `SOLVER_VERSION_LCD` | `global_v3` | `best_execution.rs` |
 | `SOLVER_VERSION_DB` | `global_v4` | `best_execution.rs` |
 | `MAX_PATH_CANDIDATES` | 5 | `best_execution.rs` |
+| `PATH_ENUM_POOL` | 32 | `best_execution.rs` (structural DFS before skip-unusable; #1218) |
 | `SOLVE_CONCURRENCY` | 5 (bounded concurrent candidate eval; #324) | `best_execution.rs` |
 | `GET_DEFAULT_MAX_HOPS` | 4 | `route_solver.rs` |
 | `GET_POOL_ONLY_MAX_HOPS` | 4 | `route_solver.rs` |
@@ -162,11 +163,11 @@ Before a solve starts for the key, the endpoint returns `{ "stage": "idle", "lab
 
 The API returns exactly (from `best_execution::OPTIMALITY_SCOPE`):
 
-> optimal within top-5 simple paths by hop count and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops
+> optimal within top-5 usable simple paths (skip ~100% hop-spread / hop_sim_implausible while filling K, hop-count order) and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops
 
 This means:
 
-1. Only up to **five** simple paths are considered, preferring **fewer hops** (then lexicographic pair order).
+1. Only up to **five usable** simple paths are considered, preferring **fewer hops** (then lexicographic pair order). While filling K, skip ~100% hop-spread / `hop_sim_implausible` candidates so a thin 2-hop cannot occupy the slot an honest 3-hop would have scored ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)). Structural DFS enumerates up to `PATH_ENUM_POOL` (32); hybrid eval stays `MAX_PATH_CANDIDATES` (5). Do **not** bump K as the primary fix.
 2. On each path, each hop’s `book_input` is chosen from a **17-point** uniform grid on `[0, offer_amount]`, plus **two** full coordinate-descent passes that re-optimize each hop given the current plan.
 3. **Retail emit (#1280):** after ranking, declared `hybrid` is kept on **hop 0 only**; hops 1+ are `hybrid: null` so execute `hop_output` cannot miss a frozen interior split. `estimated_amount_out` is simulated on those emitted ops. Under `ROUTE_SOLVER_DB_HYBRID=1`, `fidelity_check` DB-sims the **stripped** plan (`propagate_offer_through_plan`) against that LCD sim — not the unstripped joint `grid_out`. `POST hybrid_by_hop` is unchanged.
 3. The winning path is the one with highest **`estimated_amount_out_net`** (catalog buy/sell policy for this snapshot — GitLab **#615**). `estimated_amount_out` stays the hop/router **`raw_out`**. Ties: first path with that net wins (later equal paths do not replace). Option-2 wasm: a path that sells a catalogued tax token as a **middle** hop is skipped. Unmigrated **11611** does not skip.
@@ -179,7 +180,7 @@ Paths **outside** the top-5 shortest (by hop count) are never evaluated. Split p
 
 | Not guaranteed | Why |
 |----------------|-----|
-| Global optimum over **all** simple paths | Only top-5 by hop count (`MAX_PATH_CANDIDATES`) |
+| Global optimum over **all** simple paths | Only top-5 **usable** by hop count (`MAX_PATH_CANDIDATES`) after skip-unusable fill (`PATH_ENUM_POOL`) |
 | Optimal split between grid points | 17-point grid + 2 CD passes — not continuous convex search |
 | Same quote as execute after mempool / block delay | Snapshot LCD + resting book state |
 | MEV / sandwich protection | Advisory quoting only |
@@ -190,13 +191,19 @@ Clients **must** set on-chain **`max_spread`** / **`min_receive`** (or equivalen
 
 ---
 
+## Remaining failures census (docs-only)
+
+Retail quote skips / timeouts / disagreements with optimized GET are catalogued in [ADR 0007](./adr/0007-route-solve-remaining-failures.md) ([#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265)). That memo does **not** change shipped constants below. Native wrap-enter remains [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218); mixed 18/6 honesty remains [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257). Verify: `make verify-issue-1265`.
+
+---
+
 ## Optimization theory (shipped heuristics ↔ literature)
 
 References are **explanatory** — they do not imply the implementation is provably optimal.
 
 ### 1. Top-K simple paths by hop count
 
-| Shipped | `route_paths::find_paths_top_k` with `MAX_PATH_CANDIDATES = 5`, iterative deepening shortest-first |
+| Shipped | `route_paths::find_paths_top_k` with `PATH_ENUM_POOL = 32`, then `select_usable_top_k` → `MAX_PATH_CANDIDATES = 5`, iterative deepening shortest-first |
 | Research | **Yen (1971)** — algorithm for K shortest simple paths; **Eppstein (1998)** — efficient K shortest paths in graphs |
 | Relevance | CL8Y caps K and orders by hop count (fee/slippage priority) rather than implementing full Yen; pruning uses BFS distance-to-goal (#286) for O(V+E) soundness |
 
@@ -244,7 +251,7 @@ Documented upper bound: `LCD_HYBRID_SIM_BUDGET = MAX_PATH_CANDIDATES × GET_DEFA
 
 | Upgrade | When to consider | Cost driver |
 |---------|------------------|-------------|
-| Increase K (`MAX_PATH_CANDIDATES`) | More pairs, frequent longer-cheaper paths | LCD calls × paths |
+| Increase K (`MAX_PATH_CANDIDATES`) | More pairs, frequent longer-cheaper paths — prefer skip-unusable fill first ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)) | LCD calls × paths |
 | Finer grid / adaptive search | Large trades where grid misses interior optimum | LCD per hop |
 | Edge-weight pruning before top-K | Very dense graphs | Engineering complexity vs #286 gate |
 | Yen / Eppstein full K-shortest | Need provable K-shortest without hop-first bias | CPU + LCD |

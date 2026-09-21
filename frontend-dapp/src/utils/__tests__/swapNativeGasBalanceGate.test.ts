@@ -67,4 +67,17 @@ describe('evaluateSwapNativeGasGate (GitLab #587)', () => {
     )
     expect(r.canSubmit).toBe(true)
   })
+
+  it('USTC (uusd) pay does not add payRaw to the LUNC requirement (#1264 G1264-4)', () => {
+    const r = evaluateSwapNativeGasGate(
+      '1000',
+      6,
+      false,
+      '1000000000000',
+      { data: fee.toString(), isLoading: false, isError: false },
+      fee
+    )
+    expect(r.canSubmit).toBe(true)
+    expect(r.userMessage).toBeNull()
+  })
 })

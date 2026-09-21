@@ -14,7 +14,8 @@ use crate::state::{
     PENDING_ESCROW_TOKEN1,
 };
 use dex_common::limit_placement::{
-    expand_limit_ladder, validate_limit_order_price, LimitOrderLadderSpec, LimitOrderPlacementItem,
+    expand_limit_ladder, min_limit_place_remaining, validate_limit_order_price,
+    LimitOrderLadderSpec, LimitOrderPlacementItem,
 };
 use dex_common::pair::LimitOrderSide;
 use dex_common::types::AssetInfo;
@@ -194,6 +195,13 @@ pub fn execute_place_limit_orders_batch(
             return Err(ContractError::LimitOrderMakerFeeExceedsAmount {});
         }
         let remaining_for_book = plan.item.amount.checked_sub(maker_fee)?;
+        let min_remaining = min_limit_place_remaining();
+        if remaining_for_book < min_remaining {
+            return Err(ContractError::LimitOrderAmountTooSmall {
+                min: min_remaining.to_string(),
+                actual: remaining_for_book.to_string(),
+            });
+        }
 
         let hint_after = plan.item.hint_after_order_id.or(last_placed_hint);
 

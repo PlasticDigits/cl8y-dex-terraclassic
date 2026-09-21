@@ -5,10 +5,11 @@ import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
 
-const { TERRA_A, TERRA_B, WALLET } = vi.hoisted(() => ({
+const { TERRA_A, TERRA_B, WALLET, taxPreviewMock } = vi.hoisted(() => ({
   TERRA_A: 'terra1from00000000000000000000000000000001',
   TERRA_B: 'terra1to00000000000000000000000000000001',
   WALLET: 'terra1wallet000000000000000000000000000001',
+  taxPreviewMock: { debitRaw: null as bigint | null },
 }))
 
 vi.mock('@/utils/pairCatalogRank', async (importActual) => {
@@ -29,7 +30,7 @@ vi.mock('@/hooks/useCommunityTaxSellBps', () => ({
     extraDebitUnresolved: false,
   }),
   useCommunityTaxPreviewDebit: () => ({
-    debitRaw: null,
+    debitRaw: taxPreviewMock.debitRaw,
     previewUnresolved: false,
     isLoading: false,
   }),
@@ -48,7 +49,12 @@ vi.mock('@/services/terraclassic/wallet', () => ({
   getConnectedWallet: vi.fn().mockReturnValue({}),
 }))
 vi.mock('@/services/terraclassic/queries', () => ({
-  queryContract: vi.fn().mockResolvedValue({}),
+  queryContract: vi.fn(async (_addr: string, msg: unknown) => {
+    if (msg && typeof msg === 'object' && 'token_info' in msg) {
+      return { name: 'Dummy', symbol: 'DUM', decimals: 6, total_supply: '0' }
+    }
+    return {}
+  }),
   getTokenBalance: vi.fn().mockResolvedValue('1050000'),
 }))
 vi.mock('@/services/terraclassic/pair', () => ({
@@ -176,12 +182,15 @@ function seedPair() {
 
 describe('SwapPage extra-debit sell gate (#1267)', () => {
   beforeEach(() => {
+    taxPreviewMock.debitRaw = null
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
     seedPair()
     vi.mocked(getTokenBalance).mockResolvedValue('1050000')
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unused'))
+    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no pair'))
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -190,6 +199,17 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
   })
 
   it('T1: typing full CW20 balance disables Swap (no broadcast)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+    await user.type(screen.getByTestId('swap-you-pay-amount'), '1.05')
+    expect(await screen.findByTestId('swap-submit')).toBeDisabled()
+    expect(screen.getByTestId('swap-submit')).toHaveTextContent(/insufficient balance/i)
+    expect(swap).not.toHaveBeenCalled()
+  })
+
+  it('T3 (#1285 AC3): Honest LCD debit === declared at full balance still disables Swap', async () => {
+    taxPreviewMock.debitRaw = 1_050_000n
     const user = userEvent.setup()
     renderWithProviders(<SwapPage />)
     await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })

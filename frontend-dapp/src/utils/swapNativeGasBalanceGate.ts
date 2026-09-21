@@ -26,7 +26,10 @@ export function swapNativeGasInsufficientMessage(requiredUluna: bigint): string 
  *
  * 1. Empty / zero pay amount → gate open (CTA already says Enter Amount).
  * 2. Loading or unreadable bank uluna → gate closed (conservative).
- * 3. Native LUNC pay: require `payRaw + feeUluna`. CW20 pay: require `feeUluna` only.
+ * 3. Native LUNC pay: require `payRaw + feeUluna`. CW20 **and native USTC (`uusd`)** pay:
+ *    require `feeUluna` only — USTC does not pay gas (**G1264-4** / [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)).
+ *    Callers must pass `payIsNativeUluna = (fromToken === 'uluna')` and the **uluna**
+ *    bank query, never the USTC balance.
  * 4. `feeUluna` must come from {@link estimateSwapNetworkFee} / broadcast envelope.
  */
 export function evaluateSwapNativeGasGate(

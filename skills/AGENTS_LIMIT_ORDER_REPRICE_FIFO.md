@@ -20,7 +20,7 @@ Audience: third-party agents touching **`UpdateLimitOrderPrice`**, pair book ins
 | **R1227-4** | Cross-price order is unchanged: a strictly better price is still closer to the head than worse resters. |
 | **R1227-5** | New placements and [#266](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/266) equal-price **batch** rungs still insert by ascending `order_id`. `reserve_order_id_block` never assigns `u64::MAX`. |
 | **R1227-6** | **L14** hints stay advisory. `hint_after_order_id` pointing at an earlier same-price maker cannot place the jumper *before* that maker. |
-| **R1227-7** | Failed relink (`LimitInsertStepsExceeded`, pause, non-owner, expired, blacklist) is all-or-nothing: still linked at the old price with the same `remaining`. **L1:** success does not change `remaining` or `PENDING_ESCROW_*`. No CW20 on the update tx. |
+| **R1227-7** | Failed relink (`LimitInsertStepsExceeded`, pause, non-owner, expired, blacklist, **F6** `#1234`) is all-or-nothing: still linked at the old price with the same `remaining`. **L1:** success does not change `remaining` or `PENDING_ESCROW_*`. No CW20 on the update tx. |
 | **R1227-8** | Indexer snapshot stores LCD walk order as **`resting_limit_orders.walk_index`**. `get_pair_resting_book` / `db_orderbook_sim` **ORDER BY walk_index** — never rebuild equal-price FIFO from `order_id ASC` (**L8**). |
 
 ## Do / don’t
@@ -36,7 +36,7 @@ Audience: third-party agents touching **`UpdateLimitOrderPrice`**, pair book ins
 | File | Role |
 |------|------|
 | [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs) | `RELINK_EQUAL_PRICE_SORT_ID`, `relink_limit_order_price`, `link_*_order_at_id(..., sort_id)` |
-| [`contract.rs`](../smartcontracts/contracts/pair/src/contract.rs) | `execute_update_limit_order_price` (owner / pause / expiry / band) |
+| [`contract.rs`](../smartcontracts/contracts/pair/src/contract.rs) | `execute_update_limit_order_price` (owner / pause / expiry / band); **F6** `gate_asset_code_ids` on the execute arm (#1234) |
 | [`resting_orders.rs`](../indexer/src/db/queries/resting_orders.rs) | `walk_index` insert + `ORDER BY walk_index` |
 | [`20260911120000_resting_orders_walk_index.sql`](../indexer/migrations/20260911120000_resting_orders_walk_index.sql) | Schema |
 | [`pair.ts`](../frontend-dapp/src/services/terraclassic/pair.ts) | `updateLimitOrderPrice` — still same `order_id` |
@@ -56,9 +56,10 @@ Indexer (Postgres): `resting_book_walk_index_preserves_reprice_fifo` in `db_orde
 
 ## Related
 
-- [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — #266 batch ids stay ascending; relink of one rung still joins the tail
+- [`AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](./AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — #266 batch ids stay ascending; relink of one rung still joins the tail. Place min remaining is **L24** / [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219) (size, not FIFO).
 - [`AGENTS_BOOK_MATCH_HINT_SECURITY.md`](./AGENTS_BOOK_MATCH_HINT_SECURITY.md) — **L14** / **L17** hints cannot invert FIFO
 - [`AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md`](./AGENTS_FRONTEND_ORDER_BOOK_ROW_ACTIONS.md) — Edit still one tx, same id (**T11**)
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — **L8** sim = execute
 - [`AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md`](./AGENTS_INDEXER_AMM_ORDERBOOK_SIM.md) — CG/CMC synthetic depth is **not** the on-chain FIFO walk
 - [`docs/runbooks/book-snapshot-mirror.md`](../docs/runbooks/book-snapshot-mirror.md) — snapshot walk order
+- [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) — **F6** write-path includes reprice + `CleanLimitBook` (#1234); do not relink through a freeze

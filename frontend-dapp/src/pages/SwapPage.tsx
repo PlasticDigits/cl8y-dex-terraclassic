@@ -20,6 +20,7 @@ import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool, reverseSimulateSwap } from '@/services/terraclassic/pair'
 import { quoteDirectHybridSwap, DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
+import { wrapMappedSolvePair } from '@/utils/nativeWrapRouteSolve'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
@@ -39,6 +40,7 @@ import {
   simulateNativeSwap,
   executeNativeSwap,
   netCw20AfterNativeWrap,
+  netNativeAfterUnwrap,
 } from '@/services/terraclassic/router'
 import {
   compareTokenCatalog,
@@ -76,7 +78,7 @@ import {
   wrapTreasuryMatchesEnv,
 } from '@/services/terraclassic/wrapMapper'
 import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
-import { DOCS_GITLAB_BASE, ROUTER_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
+import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
 import { SWAP_FUNDED_HIGH_IMPACT_PCT, acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
@@ -96,7 +98,8 @@ import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { formatTokenAmount, getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmount, toRawAmount } from '@/utils/formatAmount'
+import { registrySwapDecimals } from '@/utils/swapAssetDecimals'
 import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
@@ -111,8 +114,9 @@ import {
 } from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
+import { defaultNativeNeedsWrapInput, defaultNativeWrapHopCount, isNativeUlunaDenom } from '@/utils/nativeWrapSwapHints'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
-import { getRouteSolve } from '@/services/indexer/client'
+import { getRouteSolve, getPair } from '@/services/indexer/client'
 import {
   getDirectHybridBookSplit,
   getDirectHybridSettingsExecutionSummary,
@@ -125,6 +129,7 @@ import {
   SWAP_ROUTE_INTERMEDIATE_RECONCILED_COPY,
   SWAP_CLIENT_BFS_FALLBACK_COPY,
 } from '@/utils/swapRouteDisplay'
+import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
@@ -161,7 +166,8 @@ import {
   resolveSwapExpectedSlippagePercent,
   slippageSeverityClass,
 } from '@/utils/swapRouteSlippage'
-import { isTheaterRouteQuote, swapAmountDecimals, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
+import { useAssetDecimals } from '@/hooks/useAssetDecimals'
+import { isTheaterRouteQuote, swapRouteSlippageBlocksSubmit } from '@/utils/swapQuoteAmountScale'
 import {
   formatTransactionDeadline,
   HIGH_SLIPPAGE_PROTECTION_WARN_PERCENT,
@@ -293,13 +299,17 @@ export default function SwapPage() {
   const wrapUnwrapType = fromToken && toToken ? isDirectWrapUnwrap(fromToken, toToken) : null
   const isWrapOrUnwrap = wrapUnwrapType !== null
 
+  const wrapSolvePair = fromToken && toToken && !isWrapOrUnwrap ? wrapMappedSolvePair(fromToken, toToken) : null
+
   const nativeRouteInfo =
     fromToken && toToken && !isWrapOrUnwrap && (isNativeDenom(fromToken) || isNativeDenom(toToken))
       ? findRouteWithNativeSupport(pairs, fromToken, toToken)
       : null
 
   const route =
-    fromToken && toToken && !isWrapOrUnwrap && !nativeRouteInfo ? findRoute(pairs, fromToken, toToken) : null
+    fromToken && toToken && !isWrapOrUnwrap && !nativeRouteInfo && !wrapSolvePair
+      ? findRoute(pairs, fromToken, toToken)
+      : null
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
   const showHybridBookSubmitWarning = useMemo(() => {
@@ -316,9 +326,11 @@ export default function SwapPage() {
     fromToken.startsWith('terra1') &&
     toToken.startsWith('terra1') &&
     !isWrapOrUnwrap &&
-    !nativeRouteInfo
+    !nativeRouteInfo &&
+    !wrapSolvePair
 
-  const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
+  const hasRoute =
+    isWrapOrUnwrap || wrapSolvePair !== null || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
 
   const checkIndexerRoute = useCallback(async () => {
     if (!fromToken || !toToken) return
@@ -366,6 +378,30 @@ export default function SwapPage() {
 
   const offerAssetInfo = fromToken ? tokenAssetInfo(fromToken) : null
   const receiveAssetInfo = toToken ? tokenAssetInfo(toToken) : null
+
+  const fromInPicker = !!fromToken && allTokens.some((t) => t.trim().toLowerCase() === fromToken.trim().toLowerCase())
+  const toInPicker = !!toToken && allTokens.some((t) => t.trim().toLowerCase() === toToken.trim().toLowerCase())
+
+  const indexerPairQuery = useQuery({
+    queryKey: ['indexer-pair', directPair?.contract_addr],
+    queryFn: () => getPair(directPair!.contract_addr),
+    enabled: !!directPair?.contract_addr,
+    staleTime: 60_000,
+    retry: false,
+  })
+
+  const payDecimalsState = useAssetDecimals(fromToken, {
+    lcdEnabled: !!fromToken?.startsWith('terra1') && fromInPicker,
+    indexerPair: indexerPairQuery.data ?? null,
+  })
+  const receiveDecimalsState = useAssetDecimals(toToken, {
+    lcdEnabled: !!toToken?.startsWith('terra1') && toInPicker,
+    indexerPair: indexerPairQuery.data ?? null,
+  })
+  const offerDecimals = payDecimalsState.decimals
+  const receiveDecimals = receiveDecimalsState.decimals
+  const decimalsResolved = offerDecimals != null && receiveDecimals != null
+  const decimalsPending = payDecimalsState.pending || receiveDecimalsState.pending
 
   const poolQuery = useQuery({
     queryKey: ['pool', directPair?.contract_addr],
@@ -415,11 +451,10 @@ export default function SwapPage() {
     refetchInterval: 15_000,
   })
 
-  const offerDecimals = fromToken ? swapAmountDecimals(fromToken) : 6
-  const receiveDecimals = toToken ? swapAmountDecimals(toToken) : 6
-  const typedPayRaw = inputAmount ? toRawAmount(inputAmount, offerDecimals) : '0'
+  const typedPayRaw = inputAmount && offerDecimals != null ? toRawAmount(inputAmount, offerDecimals) : '0'
   const debouncedInputAmount = useDebouncedValue(inputAmount, SIM_QUOTE_DEBOUNCE_MS)
-  const debouncedTypedPayRaw = debouncedInputAmount ? toRawAmount(debouncedInputAmount, offerDecimals) : '0'
+  const debouncedTypedPayRaw =
+    debouncedInputAmount && offerDecimals != null ? toRawAmount(debouncedInputAmount, offerDecimals) : '0'
 
   useEffect(() => {
     if (!fromToken || !toToken) return
@@ -441,12 +476,14 @@ export default function SwapPage() {
   const canReverseQuote = Boolean(directPair) && isDirect && !isWrapOrUnwrap && !nativeRouteInfo
   const reverseQuoteActive = exactField === 'output' && canReverseQuote && isPositiveDecimalAmount(debouncedInputAmount)
   const reverseAskRaw =
-    reverseQuoteActive && receiveAssetInfo ? toRawAmount(debouncedInputAmount, receiveDecimals) : '0'
+    reverseQuoteActive && receiveAssetInfo && receiveDecimals != null
+      ? toRawAmount(debouncedInputAmount, receiveDecimals)
+      : '0'
 
   const reverseQuery = useQuery({
-    queryKey: ['reverseSimulation', directPair?.contract_addr, toToken, reverseAskRaw],
+    queryKey: ['reverseSimulation', directPair?.contract_addr, toToken, reverseAskRaw, receiveDecimals],
     queryFn: () => reverseSimulateSwap(directPair!.contract_addr, receiveAssetInfo!, reverseAskRaw),
-    enabled: reverseQuoteActive && reverseAskRaw !== '0' && !!directPair && !!receiveAssetInfo,
+    enabled: decimalsResolved && reverseQuoteActive && reverseAskRaw !== '0' && !!directPair && !!receiveAssetInfo,
     placeholderData: keepPreviousData,
     refetchInterval: simQuoteRefetchInterval,
   })
@@ -477,16 +514,26 @@ export default function SwapPage() {
     return null
   }, [wrapDenom, wrapUnwrapType, toToken, fromToken, nativeRouteInfo?.needsWrapInput])
 
-  const payIsNativeUluna = isNativeDenom(fromToken)
-  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max to 1-hop (#587). */
-  const nativeSwapHopCount =
-    nativeRouteInfo?.operations?.length ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap' ? 2 : 1)
-  const nativeNeedsWrapInput = nativeRouteInfo?.needsWrapInput ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap')
+  /** Fee-paying native is LUNC only — USTC (`uusd`) wraps but pays gas in uluna (#1264 G1264-4). */
+  const payIsNativeUluna = isNativeUlunaDenom(fromToken)
+  const payIsNativeDenom = isNativeDenom(fromToken)
+  const isDirectWrapOrUnwrap = wrapUnwrapType === 'wrap' || wrapUnwrapType === 'unwrap'
+  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max/hint to 1-hop (#587 / #1264). */
+  const nativeSwapHopCount = defaultNativeWrapHopCount({
+    operationsLength: nativeRouteInfo?.operations?.length,
+    payIsNativeDenom,
+    isDirectWrapOrUnwrap,
+  })
+  const nativeNeedsWrapInput = defaultNativeNeedsWrapInput({
+    routeNeedsWrapInput: nativeRouteInfo?.needsWrapInput,
+    payIsNativeDenom,
+    isDirectWrapOrUnwrap,
+  })
   const nativeNeedsUnwrapOutput =
     nativeRouteInfo?.needsUnwrapOutput ??
     (!!toToken && isNativeDenom(toToken) && wrapUnwrapType !== 'wrap' && wrapUnwrapType !== 'unwrap')
   const payMaxResult = useMemo(() => {
-    if (!balanceQuery.data) {
+    if (!balanceQuery.data || offerDecimals == null) {
       return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
     }
     return computeMaxSpendableHumanAmount({
@@ -517,7 +564,7 @@ export default function SwapPage() {
   ])
 
   const bookLegMaxResult = useMemo(() => {
-    if (!balanceQuery.data || rawInputAmount === '0') {
+    if (!balanceQuery.data || rawInputAmount === '0' || offerDecimals == null) {
       return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
     }
     return computeMaxSpendableHumanAmount({
@@ -604,6 +651,8 @@ export default function SwapPage() {
         fromToken,
         toToken,
         debouncedRawInputAmount,
+        offerDecimals,
+        receiveDecimals,
         JSON.stringify(route),
         wrapUnwrapType,
         JSON.stringify(nativeRouteInfo),
@@ -620,6 +669,8 @@ export default function SwapPage() {
       fromToken,
       toToken,
       debouncedRawInputAmount,
+      offerDecimals,
+      receiveDecimals,
       route,
       wrapUnwrapType,
       nativeRouteInfo,
@@ -664,6 +715,55 @@ export default function SwapPage() {
         }
       }
 
+      if (wrapSolvePair && simRaw !== '0') {
+        try {
+          let solveRaw = simRaw
+          if (wrapSolvePair.needsWrapInput) {
+            solveRaw = (await netCw20AfterNativeWrap(BigInt(simRaw), fromToken)).toString()
+          }
+          const quoted = await quoteCw20ViaRouteSolve({
+            fromToken: wrapSolvePair.tokenIn,
+            toToken: wrapSolvePair.tokenOut,
+            simRaw: solveRaw,
+            maxMakerFills: debouncedHybridMaxMakers,
+            slippageTolerancePercent: slippageTolerance,
+            maxSpreadStr,
+            quoteTrader,
+            signal,
+            omitAllHybrid: true,
+          })
+          if (quoted) {
+            let returnAmount = quoted.return_amount
+            let routerMinReceiveBase = quoted.executeAmountOut ?? quoted.return_amount
+            if (wrapSolvePair.needsUnwrapOutput) {
+              const { receive, routerMinReceiveBase: minBase } = await netNativeAfterUnwrap(
+                BigInt(quoted.executeAmountOut ?? quoted.return_amount),
+                toToken
+              )
+              returnAmount = receive.toString()
+              routerMinReceiveBase = minBase.toString()
+            }
+            return withIndexerOutageFlag({
+              return_amount: returnAmount,
+              executeAmountOut: quoted.executeAmountOut,
+              spread_amount: quoted.spread_amount,
+              commission_amount: quoted.commission_amount,
+              routeSlippagePercent: quoted.routeSlippagePercent,
+              spotAmountOut: quoted.spotAmountOut,
+              indexerQuoteKind: quoted.indexerQuoteKind,
+              indexerOperations: quoted.indexerOperations,
+              indexerIntermediateTokens: quoted.indexerIntermediateTokens,
+              indexerRouteIntermediateReconciled: quoted.indexerRouteIntermediateReconciled,
+              routePreflight: quoted.routePreflight,
+              routerMinReceiveBase,
+            })
+          }
+        } catch (e) {
+          noteIndexerFailure(e)
+          /* H596-5: BFS fallback below; 100% hop still blocks submit */
+        }
+      }
+
       if (nativeRouteInfo) {
         const result = await simulateNativeSwap(simRaw, fromToken, toToken, pairs)
         let routePreflight: SwapRoutePreflightSpread | undefined
@@ -696,6 +796,7 @@ export default function SwapPage() {
           bookInputHuman: debouncedBookInputHuman,
           rawInputAmount: simRaw,
           hybridMaxMakers: debouncedHybridMaxMakers,
+          payDecimals: offerDecimals,
         })
         if (hybridSplit?.bookExceedsPay) throw new Error('Book leg cannot exceed pay amount')
         if (hybridSplit?.willSubmitHybrid) {
@@ -766,6 +867,7 @@ export default function SwapPage() {
           bookInputHuman: debouncedBookInputHuman,
           rawInputAmount: simRaw,
           hybridMaxMakers: debouncedHybridMaxMakers,
+          payDecimals: offerDecimals,
         })
         if (hybridSplit?.willSubmitHybrid) {
           const hybridParams: HybridSwapParams = {
@@ -812,7 +914,11 @@ export default function SwapPage() {
       }
       throw new Error('No route found')
     },
-    enabled: hasRoute && isPositiveDecimalAmount(debouncedInputAmount) && (!reverseQuoteActive || reverseQuoteReady),
+    enabled:
+      decimalsResolved &&
+      hasRoute &&
+      isPositiveDecimalAmount(debouncedInputAmount) &&
+      (!reverseQuoteActive || reverseQuoteReady),
     // Skip interval while fetching so slow multi-hop quotes are not cancel/restarted (#484).
     refetchInterval: simQuoteRefetchInterval,
   })
@@ -821,9 +927,9 @@ export default function SwapPage() {
 
   const routeSolveProgressEnabled =
     !isWrapOrUnwrap &&
-    !nativeRouteInfo &&
-    fromToken.startsWith('terra1') &&
-    toToken.startsWith('terra1') &&
+    (wrapSolvePair
+      ? wrapSolvePair.tokenIn.startsWith('terra1') && wrapSolvePair.tokenOut.startsWith('terra1')
+      : !nativeRouteInfo && fromToken.startsWith('terra1') && toToken.startsWith('terra1')) &&
     debouncedRawInputAmount !== '0'
 
   const {
@@ -833,8 +939,8 @@ export default function SwapPage() {
   } = useRouteSolveProgress({
     enabled: routeSolveProgressEnabled,
     isFetching: simQuery.isFetching,
-    tokenIn: fromToken,
-    tokenOut: toToken,
+    tokenIn: wrapSolvePair?.tokenIn ?? fromToken,
+    tokenOut: wrapSolvePair?.tokenOut ?? toToken,
     amountIn: debouncedRawInputAmount,
     trader: quoteTrader?.trader,
     knownDiscountBps: discountQuery.isSuccess ? (discountQuery.data?.discount_bps ?? 0) : undefined,
@@ -884,6 +990,7 @@ export default function SwapPage() {
       bookInputHuman: debouncedBookInputHuman,
       rawInputAmount: debouncedRawInputAmount,
       hybridMaxMakers: debouncedHybridMaxMakers,
+      payDecimals: offerDecimals,
     })
     if (!split?.willSubmitHybrid) return undefined
     return {
@@ -892,7 +999,7 @@ export default function SwapPage() {
       max_maker_fills: debouncedHybridMaxMakers,
       book_start_hint: null,
     } satisfies HybridSwapParams
-  }, [isDirect, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers])
+  }, [isDirect, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers, offerDecimals])
 
   const {
     submitPayRaw,
@@ -918,19 +1025,42 @@ export default function SwapPage() {
     sellBps: taxSell.sellBps,
   })
   const extraDebitUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop)
+  const taxPreviewMaxSpread = (slippageTolerance / 100).toString()
+  const taxPreviewQuery = useMemo(
+    () =>
+      address && fromToken.startsWith('terra1')
+        ? resolveCommunityTaxPreviewQuery({
+            wallet: address,
+            payToken: fromToken,
+            usesRouter: extraDebitUsesRouter,
+            directPairAddr: directPair?.contract_addr,
+            routeOps: simData?.indexerOperations,
+            pairs,
+            maxSpread: taxPreviewMaxSpread,
+          })
+        : null,
+    [
+      address,
+      fromToken,
+      extraDebitUsesRouter,
+      directPair?.contract_addr,
+      simData?.indexerOperations,
+      pairs,
+      taxPreviewMaxSpread,
+    ]
+  )
   const taxPreview = useCommunityTaxPreviewDebit({
     token: fromToken.startsWith('terra1') ? fromToken : null,
-    from: address,
-    to: extraDebitUsesRouter ? ROUTER_CONTRACT_ADDRESS : (directPair?.contract_addr ?? null),
     amount: rawInputAmount,
     enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+    previewQuery: taxPreviewQuery,
   })
   const extraDebitGate = extraDebitSubmitGate({
     declaredRaw: tryParseBigInt(rawInputAmount),
     balanceRaw: balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
     debitRaw: taxPreview.debitRaw,
     sellBps: extraDebitSellBpsForExecute(taxSell.sellBps, extraDebitUsesRouter),
-    extraDebitUnresolved: taxSell.extraDebitUnresolved,
+    extraDebitUnresolved: taxSell.extraDebitUnresolved || taxPreview.previewUnresolved,
     isNativePay: payIsNativeUluna || !fromToken.startsWith('terra1'),
   })
 
@@ -988,6 +1118,9 @@ export default function SwapPage() {
     toastSuccess: 'Swap submitted.',
     mutationFn: async () => {
       if (!address || !inputAmount) throw new Error('Missing parameters')
+      if (!decimalsResolved || offerDecimals == null || receiveDecimals == null) {
+        throw new Error('Token decimals unavailable')
+      }
       if (extraDebitGate.blockSubmit) {
         throw new Error(
           extraDebitGate.insufficientBalance ? 'Insufficient Balance' : INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
@@ -1006,7 +1139,7 @@ export default function SwapPage() {
           : minReceived
       const maxSpread = (slippageTolerance / 100).toString()
 
-      if (isWrapOrUnwrap || nativeRouteInfo) {
+      if (isWrapOrUnwrap || nativeRouteInfo || wrapSolvePair) {
         const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
         return executeNativeSwap(
           address,
@@ -1016,7 +1149,8 @@ export default function SwapPage() {
           pairs,
           maxSpread,
           submitMinReceived ?? undefined,
-          deadline
+          deadline,
+          isWrapOrUnwrap ? undefined : simData.indexerOperations
         )
       }
 
@@ -1134,8 +1268,9 @@ export default function SwapPage() {
         bookInputHuman: debouncedBookInputHuman,
         rawInputAmount: debouncedRawInputAmount,
         hybridMaxMakers: debouncedHybridMaxMakers,
+        payDecimals: offerDecimals,
       }),
-    [isDirect, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
+    [isDirect, fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers, offerDecimals]
   )
 
   const indexerHybridExec = useMemo(
@@ -1182,12 +1317,13 @@ export default function SwapPage() {
       deriveSwapSubmitRouteSource({
         isWrapOrUnwrap: !!isWrapOrUnwrap,
         nativeRouteInfo,
+        nativeWrapExecute: !!wrapSolvePair,
         indexerOperations: simData?.indexerOperations,
         clientRoute: route,
         isDirect,
         isMultiHop,
       }),
-    [isWrapOrUnwrap, nativeRouteInfo, simData?.indexerOperations, route, isDirect, isMultiHop]
+    [isWrapOrUnwrap, nativeRouteInfo, wrapSolvePair, simData?.indexerOperations, route, isDirect, isMultiHop]
   )
 
   const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
@@ -1196,17 +1332,21 @@ export default function SwapPage() {
 
   const swapNetworkFeeEstimate = useMemo(() => {
     const cw20HopCount = simData?.indexerOperations?.length ?? route?.length ?? 1
-    const cw20RouterOperations =
-      !isWrapOrUnwrap && !nativeRouteInfo && (simData?.indexerOperations?.length ?? 0) >= 2
-        ? simData?.indexerOperations
-        : undefined
+    const indexerHopCount = simData?.indexerOperations?.length ?? 0
+    const wrapOrNative = Boolean(isWrapOrUnwrap || wrapSolvePair || nativeRouteInfo)
+    const cw20RouterOperations = !wrapOrNative && indexerHopCount >= 2 ? simData?.indexerOperations : undefined
     return estimateSwapNetworkFee({
       isDirectWrap: wrapUnwrapType === 'wrap',
       isDirectUnwrap: wrapUnwrapType === 'unwrap',
-      needsWrapInput: nativeNeedsWrapInput,
-      needsUnwrapOutput: nativeNeedsUnwrapOutput,
-      hopCount: nativeRouteInfo?.operations?.length ?? (isWrapOrUnwrap ? 1 : nativeSwapHopCount || cw20HopCount),
-      cw20DirectPair: !!isDirect && !nativeRouteInfo && !isWrapOrUnwrap,
+      needsWrapInput: nativeNeedsWrapInput || Boolean(wrapSolvePair?.needsWrapInput),
+      needsUnwrapOutput: nativeNeedsUnwrapOutput || Boolean(wrapSolvePair?.needsUnwrapOutput),
+      hopCount:
+        indexerHopCount > 0
+          ? indexerHopCount
+          : wrapOrNative
+            ? (nativeRouteInfo?.operations?.length ?? nativeSwapHopCount)
+            : cw20HopCount,
+      cw20DirectPair: !!isDirect && !wrapOrNative,
       cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
       cw20RouterOperations,
     })
@@ -1217,31 +1357,35 @@ export default function SwapPage() {
     nativeRouteInfo,
     nativeSwapHopCount,
     isWrapOrUnwrap,
+    wrapSolvePair,
     isDirect,
     bookInputHuman,
     simData?.indexerOperations,
     route?.length,
   ])
 
-  const swapGasGate = evaluateSwapNativeGasGate(
-    inputAmount,
-    offerDecimals,
-    payIsNativeUluna,
-    rawInputAmount,
-    payIsNativeUluna ? balanceQuery : ulunaBalanceQuery,
-    swapNetworkFeeEstimate.feeUluna
-  )
+  const swapGasGate =
+    offerDecimals == null
+      ? { canSubmit: false, userMessage: null as string | null, tone: 'none' as const }
+      : evaluateSwapNativeGasGate(
+          inputAmount,
+          offerDecimals,
+          payIsNativeUluna,
+          rawInputAmount,
+          payIsNativeUluna ? balanceQuery : ulunaBalanceQuery,
+          swapNetworkFeeEstimate.feeUluna
+        )
 
   const insufficientBalance = extraDebitGate.insufficientBalance
 
   const payAcquireGuidance = useSwapPayAcquireGuidance({
     walletConnected: isWalletConnected,
     address,
-    hasPositivePay: hasPositiveInputAmount,
-    hasSettledQuote: hasSettledSimQuote,
+    hasPositivePay: hasPositiveInputAmount && decimalsResolved,
+    hasSettledQuote: hasSettledSimQuote && decimalsResolved,
     payAsset: fromToken,
     paySymbol: getTokenDisplaySymbol(fromToken),
-    payDecimals: offerDecimals,
+    payDecimals: offerDecimals ?? 6,
     payRaw: tryParseBigInt(rawInputAmount),
     payBalanceRaw: isWalletConnected && balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
     expectedSlippagePct,
@@ -1280,6 +1424,9 @@ export default function SwapPage() {
     buttonDisabled = true
   } else if (!hasPositiveInputAmount) {
     buttonText = 'Enter Amount'
+    buttonDisabled = true
+  } else if (!decimalsResolved) {
+    buttonText = decimalsPending ? 'Loading decimals…' : 'Token decimals unavailable'
     buttonDisabled = true
   } else if (isRateLimitExceeded) {
     buttonText = 'Rate Limit Exceeded'
@@ -1352,11 +1499,14 @@ export default function SwapPage() {
     })
   }, [fromToken, toToken, debouncedInputAmount, exactField])
 
-  const reversePayHuman = reverseQuoteReady && reverseOfferRaw ? formatTokenAmount(reverseOfferRaw, offerDecimals) : ''
+  const reversePayHuman =
+    reverseQuoteReady && reverseOfferRaw && offerDecimals != null
+      ? formatTokenAmount(reverseOfferRaw, offerDecimals)
+      : ''
   const payInputValue = reverseQuoteActive ? reversePayHuman : inputAmount
   const quotedReceiveHuman = theaterRouteQuote
     ? '—'
-    : simData && outputAmount && receiveAssetInfo
+    : simData && outputAmount && receiveAssetInfo && receiveDecimals != null
       ? formatTokenAmount(outputAmount, receiveDecimals)
       : ''
   const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
@@ -1659,7 +1809,7 @@ export default function SwapPage() {
                 data-testid="swap-you-pay-amount"
                 aria-busy={showReversePayCalculating || undefined}
               />
-              {isWalletConnected && (
+              {isWalletConnected && offerDecimals != null && (
                 <AmountBalanceActions
                   balanceQuery={balanceQuery}
                   decimals={offerDecimals}
@@ -1855,7 +2005,9 @@ export default function SwapPage() {
                 >
                   <span className="uppercase text-xs tracking-wide font-medium">Min Received</span>
                   <span className="font-mono text-xs sm:text-right break-all">
-                    {receiveAssetInfo ? formatTokenAmount(minReceived!, receiveDecimals) : minReceived}
+                    {receiveAssetInfo && receiveDecimals != null
+                      ? formatTokenAmount(minReceived!, receiveDecimals)
+                      : minReceived}
                   </span>
                 </div>
               )}
@@ -1898,9 +2050,26 @@ export default function SwapPage() {
                     >
                       <span className="uppercase text-xs tracking-wide font-medium">Pool Reserves</span>
                       <span className="font-mono text-xs sm:text-right break-all">
-                        {formatTokenAmount(poolQuery.data.assets[0].amount, getDecimals(poolQuery.data.assets[0].info))}{' '}
-                        /{' '}
-                        {formatTokenAmount(poolQuery.data.assets[1].amount, getDecimals(poolQuery.data.assets[1].info))}
+                        {(() => {
+                          const a0 = poolQuery.data.assets[0]
+                          const a1 = poolQuery.data.assets[1]
+                          const id0 = assetInfoLabel(a0.info)
+                          const id1 = assetInfoLabel(a1.info)
+                          const d0 =
+                            id0 === fromToken
+                              ? offerDecimals
+                              : id0 === toToken
+                                ? receiveDecimals
+                                : registrySwapDecimals(id0)
+                          const d1 =
+                            id1 === fromToken
+                              ? offerDecimals
+                              : id1 === toToken
+                                ? receiveDecimals
+                                : registrySwapDecimals(id1)
+                          if (d0 == null || d1 == null) return '—'
+                          return `${formatTokenAmount(a0.amount, d0)} / ${formatTokenAmount(a1.amount, d1)}`
+                        })()}
                       </span>
                     </div>
                   )}
@@ -1915,7 +2084,7 @@ export default function SwapPage() {
                         feeBps={feeQuery.data.fee_bps}
                         discountBps={discountBps}
                         commissionAmount={
-                          commissionAmount && receiveAssetInfo
+                          commissionAmount && receiveAssetInfo && receiveDecimals != null
                             ? formatTokenAmount(commissionAmount, receiveDecimals)
                             : undefined
                         }
@@ -2182,13 +2351,13 @@ export default function SwapPage() {
                 receiveAmountHuman={
                   theaterRouteQuote
                     ? '—'
-                    : outputAmount && receiveAssetInfo
+                    : outputAmount && receiveAssetInfo && receiveDecimals != null
                       ? formatTokenAmount(outputAmount, receiveDecimals)
                       : '—'
                 }
                 maxSpreadPercent={slippageTolerance}
                 minReceiveHuman={
-                  !showQuoteOnly && minReceived != null && receiveAssetInfo
+                  !showQuoteOnly && minReceived != null && receiveAssetInfo && receiveDecimals != null
                     ? formatTokenAmount(minReceived, receiveDecimals)
                     : null
                 }
@@ -2249,7 +2418,7 @@ export default function SwapPage() {
 
           {swapMutation.isError && (
             <div className="mt-4">
-              <TxResultAlert type="error" message={swapMutation.error?.message ?? 'Swap failed'} />
+              <TxResultAlert type="error" message={humanizeUserFacingErrorFromUnknown(swapMutation.error)} />
             </div>
           )}
 

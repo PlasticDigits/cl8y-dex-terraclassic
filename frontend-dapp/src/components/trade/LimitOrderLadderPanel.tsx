@@ -16,7 +16,8 @@ import { LimitOrderAdvancedLimitSettings } from '@/components/trade/LimitOrderAd
 import { LimitOrderBidAskSideSelector } from '@/components/trade/LimitOrderBidAskSideSelector'
 import { LimitOrderEscrowPlaceGuardMessage } from '@/components/trade/LimitOrderEscrowPlaceGuardMessage'
 import { LimitOrderExpiryField } from '@/components/trade/LimitOrderExpiryField'
-import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { evaluateLimitOrderEscrowPlaceGate, LIMIT_ORDER_MIN_PLACE_MSG } from '@/utils/limitOrderEscrowBalanceGate'
+import { LIMIT_ORDER_DUST_FLUSH_THRESHOLD } from '@/utils/limitPlacementLifecycle'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { describeLimitCrossingBlockerWithRef } from '@/utils/limitOrderNonCrossing'
 import { formatLimitBatchGasSavingsLine, formatLimitLadderPlacementSummary } from '@/utils/limitOrderBatchGasSummary'
@@ -206,6 +207,9 @@ export function LimitOrderLadderPanel({
       if (preview.error || preview.rungs.length < 2) {
         throw new Error(preview.error ?? 'Invalid ladder')
       }
+      if (preview.rungs.some((r) => BigInt(r.amountRaw) < BigInt(LIMIT_ORDER_DUST_FLUSH_THRESHOLD))) {
+        throw new Error(LIMIT_ORDER_MIN_PLACE_MSG)
+      }
       const escrowGate = evaluateLimitOrderEscrowPlaceGate(totalHuman, escrowDecimals, placeGates.escrowBalanceQuery)
       if (!escrowGate.canPlaceLimit) {
         throw new Error(escrowGate.userMessage ?? 'Insufficient balance')
@@ -392,7 +396,11 @@ export function LimitOrderLadderPanel({
         onExpiresAtChange={setExpiresAt}
         idPrefix="ladder"
       />
-      {preview.error && <p className="text-sm text-red-400">{preview.error}</p>}
+      {preview.error && (
+        <p className="text-sm text-red-400" data-testid="ladder-preview-error">
+          {preview.error}
+        </p>
+      )}
       {!preview.error && preview.rungs.length > 0 && (
         <div className="text-xs text-muted overflow-x-auto">
           <table className="w-full">

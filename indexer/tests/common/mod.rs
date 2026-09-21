@@ -747,6 +747,88 @@ pub async fn seed_route_solve_zero_reserve_poison(pool: &PgPool) -> RouteSolveSe
     seed
 }
 
+/// Five thin 2-hops that ~100% drain plus one honest 3-hop hub (#1218 AC7).
+/// Without skip-unusable, top-5 hop-count fill never admits the 3-hop.
+pub async fn seed_route_solve_skip_unusable_drain(pool: &PgPool) -> RouteSolveSeed {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    use std::str::FromStr;
+
+    clean_db(pool).await;
+    let bd = |s: &str| BigDecimal::from_str(s).unwrap();
+    let deep = bd("10000000000000000");
+    let thin_ask = bd("2000");
+
+    async fn insert_cw20(pool: &PgPool, addr: &str, name: &str, symbol: &str) -> i32 {
+        sqlx::query_scalar(
+            "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
+             VALUES ($1, true, $2, $3, 6)
+             RETURNING id",
+        )
+        .bind(addr)
+        .bind(name)
+        .bind(symbol)
+        .fetch_one(pool)
+        .await
+        .expect("insert skip-unusable asset")
+    }
+
+    async fn insert_pair(pool: &PgPool, addr: &str, a0: i32, a1: i32) -> i32 {
+        sqlx::query_scalar(
+            "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
+             VALUES ($1, $2, $3, $4, 30)
+             RETURNING id",
+        )
+        .bind(addr)
+        .bind(a0)
+        .bind(a1)
+        .bind(format!("terra1lp{addr}"))
+        .fetch_one(pool)
+        .await
+        .expect("insert skip-unusable pair")
+    }
+
+    let token_a = "terra1skipunusableaa".to_string();
+    let token_c = "terra1skipunusablecc".to_string();
+    let hub1 = "terra1skipunusableh1".to_string();
+    let hub2 = "terra1skipunusableh2".to_string();
+
+    let id_a = insert_cw20(pool, &token_a, "Skip A", "SKA").await;
+    let id_out = insert_cw20(pool, &token_c, "Skip Out", "SKO").await;
+    let id_h1 = insert_cw20(pool, &hub1, "Skip H1", "SKH1").await;
+    let id_h2 = insert_cw20(pool, &hub2, "Skip H2", "SKH2").await;
+
+    for i in 1..=5 {
+        let mid = format!("terra1skipunusablem{i}");
+        let id_m = insert_cw20(pool, &mid, &format!("Skip M{i}"), &format!("SKM{i}")).await;
+        let p_am = insert_pair(pool, &format!("terra1pairskipam{i}"), id_a, id_m).await;
+        let p_mo = insert_pair(pool, &format!("terra1pairskipmo{i}"), id_m, id_out).await;
+        pair_reserves::upsert_pair_reserves(pool, p_am, &deep, &deep, 30, Some(100))
+            .await
+            .expect("am reserves");
+        pair_reserves::upsert_pair_reserves(pool, p_mo, &deep, &thin_ask, 30, Some(100))
+            .await
+            .expect("mo reserves");
+    }
+
+    let p_ah = insert_pair(pool, "terra1pairskipah1", id_a, id_h1).await;
+    let p_hh = insert_pair(pool, "terra1pairskiph1h2", id_h1, id_h2).await;
+    let p_ho = insert_pair(pool, "terra1pairskiph2o", id_h2, id_out).await;
+    for pid in [p_ah, p_hh, p_ho] {
+        pair_reserves::upsert_pair_reserves(pool, pid, &deep, &deep, 30, Some(100))
+            .await
+            .expect("hub reserves");
+    }
+
+    RouteSolveSeed {
+        token_a,
+        token_b: hub1,
+        token_c,
+        token_d: Some(hub2),
+        token_e: None,
+    }
+}
+
 /// A→B→C→D chain (three hops) for multihop hybrid regression tests (GitLab #192).
 pub async fn seed_route_solve_3hop(pool: &PgPool) -> RouteSolveSeed {
     clean_db(pool).await;

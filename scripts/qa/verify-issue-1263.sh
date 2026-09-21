@@ -43,7 +43,7 @@ docs_crosslinks() {
   grep -qE "AGENTS_INDEXER_PROTOCOL_TOP_PAIRS" AGENTS.md
   grep -qE "verify-issue-1263" AGENTS.md
   grep -qE "verify-issue-1263" docs/testing.md
-  test -f indexer/migrations/20260921120000_pair_volume_30d.sql
+  test -f indexer/migrations/20260921120001_pair_volume_30d.sql
 }
 
 source_guards() {

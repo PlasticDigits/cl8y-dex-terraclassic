@@ -9,7 +9,7 @@ import {
 
 type Props = {
   escrowLabel: string
-  escrowDecimals: number
+  escrowDecimals: number | null
   amountHuman: string
   onAmountChange: (v: string) => void
   balanceQuery: UseQueryResult<string, Error>
@@ -54,7 +54,7 @@ export function LimitOrderEscrowAmountField({
   const showUsd = escrowUsdNotionalApprox !== undefined && amountHuman.trim() !== ''
 
   const maxResult = useMemo(() => {
-    if (!balanceQuery.data) {
+    if (!balanceQuery.data || escrowDecimals == null) {
       return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
     }
     return computeMaxSpendableHumanAmount({
@@ -103,17 +103,19 @@ export function LimitOrderEscrowAmountField({
           {escrowUsdNotionalApprox != null ? <span>≈ {escrowUsdNotionalApprox}</span> : <span>—</span>}
         </p>
       )}
-      <AmountBalanceActions
-        balanceQuery={balanceQuery}
-        decimals={escrowDecimals}
-        walletConnected={walletConnected}
-        compact={compact}
-        spendableRaw={maxResult.spendableRaw}
-        onMax={() => onMax(maxResult.human)}
-        onFraction={(human) => onAmountChange(human)}
-        testIdMax="limit-order-escrow-max"
-        testIdFractionPrefix="limit-order-escrow-frac"
-      />
+      {escrowDecimals != null && (
+        <AmountBalanceActions
+          balanceQuery={balanceQuery}
+          decimals={escrowDecimals}
+          walletConnected={walletConnected}
+          compact={compact}
+          spendableRaw={maxResult.spendableRaw}
+          onMax={() => onMax(maxResult.human)}
+          onFraction={(human) => onAmountChange(human)}
+          testIdMax="limit-order-escrow-max"
+          testIdFractionPrefix="limit-order-escrow-frac"
+        />
+      )}
     </div>
   )
 }

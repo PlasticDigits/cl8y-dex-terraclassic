@@ -12,7 +12,7 @@ Both surfaces share [`computeSwapRouteDisplay`](../frontend-dapp/src/utils/swapR
 - **Execution-aligned path:** Display must match submit on each surface:
   - **Swap:** `SwapPage` `swapMutation` prefers `indexerOperations`, then direct pair, then client multihop `route`.
   - **Trade market:** `TradeMarketOrderPanel` `swapMutation` uses `indexerOperations` via `swapOpsRequireRouter` → `executeMultiHopSwap`, else pair `swap` with hybrid params.
-- **Indexer op precedence (#158):** When `indexerOperations` is non-empty, that path wins over any client BFS graph (Swap passes `clientRoute`; Trade passes `clientRoute: null` because the ticket is always a direct pair context).
+- **Indexer op precedence (#158 / #1218):** When `indexerOperations` is non-empty, that path wins over any client BFS graph — including native wrap-enter (do not show BFS 2-hop while submit uses wrap-then-cUSTC). Swap passes `clientRoute`; Trade passes `clientRoute: null` because the ticket is always a direct pair context.
 - **Client BFS fallback label (#329):** When Swap **submit** uses client multihop `findRoute` without indexer `router_operations` (≥2 hops), a brief warning line appears under **`swap-route-summary`**: `data-testid="swap-route-source-client-fallback"`. Not shown for indexer, direct pair, or native wrap paths. Trade market: N/A (`clientRoute: null`).
 - **Indexer route path reconciliation (#450 / SEC-I02 H09):** When indexer `intermediate_tokens` disagrees with `router_operations`, the route row is updated to the ops-derived path and **`swap-route-intermediate-reconciled`** warns the user. Submit still uses indexer ops (not client BFS or pool-only fallback). Helper: `reconcileSwapRouteIntermediateTokens` in [`swapRouteDisplay.ts`](../frontend-dapp/src/utils/swapRouteDisplay.ts).
 - **Trade pool-only fallback:** When indexer GET fails or the quote has no `indexerOperations`, `computeSwapRouteDisplay` still returns a direct `from → to` line via `isDirect: true` — the row renders whenever the market quote card is visible and `marketRouteLine` is non-null. Retail UI has **no hybrid-off control** ([#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)).
@@ -119,6 +119,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 - Anti-cognitive-overload retail copy (Swap vs charts **Best Trade**): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
 - Sim quote refetch / Calculating hang + stale receive on pay change: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484), [#496](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/496))
+- Remaining GET `/route/solve` failures census (**Stay**): [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265). Verify: `make verify-issue-1265`. Do **not** bump hop caps from that ticket.
 
 ## Closed scope (GitLab #302 / #329)
 

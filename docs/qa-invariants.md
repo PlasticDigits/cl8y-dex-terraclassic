@@ -152,6 +152,14 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M600-7** | Do **not** reopen #599 unless 3.11M still OOGs. File a new envelope ticket if the named combo must rise. |
 | **M600-8** | Playbook + this Q8 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## USTC wrap+2hop envelope (G1264 / Forgejo #1264) {#ustc-wrap-2hop-1264}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **G1264** USTC→USTR wrap+2hop stays pool-only at **2,710,000**; USTC Max/gas-gate use bank LUNC | **`make verify-issue-1264`** (**G1264-1–G1264-8**) | Non-zero exit; do **not** raise `WRAP_ROUTER_COMBO_OVERHEAD_GAS` without AC1 class A. Optional `VERIFY1264_COLUMBUS_TX` / `VERIFY_ISSUE_1264_CHAIN=1` |
+
+See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) **G1264-1–G1264-8**. Sibling unwrap columbus-5 hash remains **Q8** / `VERIFY600_COLUMBUS_TX`.
+
 ## Post-merge !402 Create Token Coolify + LocalTerra (invariant Q9) {#post-merge-ops-602}
 
 | Invariant | Check | On failure |
@@ -361,6 +369,25 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 | **M702-7** | Optional leftover Playwright is `e2e/trade-page-responsive.spec.ts` at **5 workers**. Expiry measurement opens Advanced first. P1 T527-1 overlap is clipped to **visible** `trade-order-ticket-scroll`. Do not leak a non-3173 `PLAYWRIGHT_WEB_PORT`. |
 | **M702-8** | Playbook + this Q19 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
+## Leftover Lunc Dash WalletConnect ops verify (invariant Q20) {#ops-luncdash-1279}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q20** Leftover Lunc Dash WalletConnect path is pre-checked in-repo; leftover-complete is ops-bot device QA **1.5.1–1.5.11**, not make | **`make verify-issue-1279`** → Lunc Dash Vitest + docs + children **519, 554, 658** unless `VERIFY1279_SKIP_CHILDREN=1` (**L1279-1–L1279-8**) | Non-zero exit; fix the failing child or docs. Do **not** treat green make as leftover-complete. `VERIFY1279_IID=1279` / `VERIFY1279_LEFTOVER_COMPLETE=1` **must FAIL**. Reopen a closed child only with device AC evidence. |
+
+**L1279** (Forgejo **#1279** — [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../skills/AGENTS_OPS_LUNCDASH_VERIFY.md)):
+
+| ID | Rule |
+|----|------|
+| **L1279-1** | Product path already shipped (#519 / #554 / #566 / #658 / #490). Do not invent a second Lunc Dash scheme, add Leap, implement ADR-036, LCD-sim Station/LuncDash WC post, or remove in-app browser (**WC-M7**). |
+| **L1279-2** | `make verify-issue-1279` is pre-check only. Green make does not close leftover. |
+| **L1279-3** | Connect always emits LuncDash WalletConnect on desktop and mobile. Leap absent. |
+| **L1279-4** | Keep `buildLuncDashDeepLink` / `luncdash:` allowlist. Mobile Open / Copy / Cancel; desktop QR unchanged. |
+| **L1279-5** | Station / LuncDash WC stay atomic `broadcastTx`. Wallet-app gas rewrite is ADR 0004 Stay. |
+| **L1279-6** | Terms hint names Lunc Dash (or the DEX list), not Keplr-only. UA detects Lunc Dash. |
+| **L1279-7** | Leftover-complete is ops-bot QA 1.5. `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` FAIL. Do not paste `/status` JSON or tokens on the issue. |
+| **L1279-8** | Playbook + this Q20 + WC-M / L658 skills stay crosslinked. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -373,6 +400,7 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_STACK.md`](../skills/AGENTS_POST_MERGE_STACK.md) — post-merge Coolify + indexer stack !368–!377 ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573), **Q6**)
 - [`skills/AGENTS_POST_MERGE_OPS_590.md`](../skills/AGENTS_POST_MERGE_OPS_590.md) — post-merge !394–!396 fees / wrap gas / 8266 A-lcd ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590), **Q7**)
 - [`skills/AGENTS_POST_MERGE_OPS_600.md`](../skills/AGENTS_POST_MERGE_OPS_600.md) — post-merge !400 LocalTerra E9 + columbus-5 USTR→USTC unwrap gas ([#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600), **Q8**)
+- [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) — USTC wrap+2hop envelope + LUNC gas-gate ([#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264), **G1264-1–G1264-8**)
 - [`skills/AGENTS_POST_MERGE_OPS_602.md`](../skills/AGENTS_POST_MERGE_OPS_602.md) — post-merge !402 Coolify + 11614 launcher + LocalTerra Create Token ([#602](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/602), **Q9**)
 - [`skills/AGENTS_POST_MERGE_OPS_612.md`](../skills/AGENTS_POST_MERGE_OPS_612.md) — post-merge !407/!408 Enable Feature migrate + LocalTerra QA ([#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612), **Q10**)
 - [`skills/AGENTS_POST_MERGE_OPS_616.md`](../skills/AGENTS_POST_MERGE_OPS_616.md) — post-merge !409–!413 option-2 / wrap / window / AutoLP / ranking ([#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616), **Q11**)
@@ -384,3 +412,4 @@ Agents: **`make test-localterra-host-curl`** when compose is up; see [`skills/AG
 - [`skills/AGENTS_POST_MERGE_OPS_698.md`](../skills/AGENTS_POST_MERGE_OPS_698.md) — post-merge !474/!475 leftover verify ([#698](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/698), **Q17**)
 - [`skills/AGENTS_POST_MERGE_OPS_701.md`](../skills/AGENTS_POST_MERGE_OPS_701.md) — post-merge !477 leftover verify ([#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701), **Q18**)
 - [`skills/AGENTS_POST_MERGE_OPS_702.md`](../skills/AGENTS_POST_MERGE_OPS_702.md) — post-merge !476 leftover verify ([#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702), **Q19**)
+- [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279), **Q20**)
