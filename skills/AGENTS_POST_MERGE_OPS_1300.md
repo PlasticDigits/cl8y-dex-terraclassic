@@ -33,28 +33,64 @@ Indexer **auto-deploy checkbox** leftover stays on [#1276](https://git.cl8y.com/
 
 | ID | Rule |
 |----|------|
-| **M1300-1** | Local regression is `make verify-issue-1300`, which runs children **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless hosts answer (FAIL when `VERIFY1300_REQUIRE_LIVE=1` or `VERIFY1300_IID=1300`). Leftover Playwright SKIP unless LocalTerra is up (FAIL when `VERIFY1300_REQUIRE_CHAIN=1`). Do **not** copy #1276 `EXPECT_SHA` leftover-complete onto this ticket. |
-| **M1300-2** | Coolify indexer migrate **`20260921120000_traders_rolling_volume_numeric_38_0` then `20260921120001_pair_volume_30d`**, then indexer redeploy. Confirm `_sqlx_migrations`. After one rollup tick, live `/protocol` Top pairs is ≤5 factory-listed economic rows (**P1263**). No `down.sql` for these versions. |
+| **M1300-1** | Local regression is `make verify-issue-1300`, which runs children **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless hosts answer (FAIL when `VERIFY1300_REQUIRE_LIVE=1` or `VERIFY1300_IID=1300`). LocalTerra leftover walks SKIP unless the chain is up (FAIL when `VERIFY1300_REQUIRE_CHAIN=1`). Leftover stacked Playwright is SKIP until named (**M1300-7**) — `REQUIRE_CHAIN` is not an invitation to invent five-worker e2e. Do **not** copy #1276 `EXPECT_SHA` leftover-complete onto this ticket. Do **not** invent leftover `DATABASE_URL`. |
+| **M1300-2** | Coolify indexer migrate **`20260921120000_traders_rolling_volume_numeric_38_0` then `20260921120001_pair_volume_30d`**, then indexer redeploy. Operator attests `_sqlx_migrations` (both versions `success=true`, apply order) via Coolify DB / indexer `DATABASE_URL` — not `postgres-psql.sh`. After one rollup tick, live **`GET /api/v1/protocol/top-pairs`** is ≤5 factory-listed economic rows; `?limit=6` → **400** (**I1263-6**). Vite `/protocol` is frontend rebuild evidence, not sqlx/`pair_volume_30d` evidence. Trader `NUMERIC(38, 0)` leftover-complete is migrate applied + aggregator still running (no public metric). No `down.sql` for these versions. |
 | **M1300-3** | Coolify **frontend rebuild** from `6d34da13+`. LocalTerra / manual: **#1218** LUNC→USTR Route wrap-then-cUSTC; **#1255** 18-dec unlisted factory CW20; **#1219** dust ladder no wallet popup; **#1263** `/protocol` ≤5 economic rows. |
-| **M1300-4** | columbus-5 pair wasm store+migrate in-tree cw2 **1.17.0** (listed fleet was **1.16.0**) so **F6** #1234 and **L24** #1219 are on chain. Leftover agents do **not** `store`/`migrate`. `verify-issue-1234` must not claim `verify-issue-582` unless it runs it. |
+| **M1300-4** | columbus-5 pair wasm via [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh): `UPGRADE582_PAIR_VERSION` **1.17.0** (listed fleet was **1.16.0**). Factory is already **1.10.0 / 11629** → `UPGRADE582_SKIP_FACTORY_MIGRATE=1` (script still asserts factory ≥ 1.9.0). Script **`UpdateConfig { pair_code_id }`** so new `CreatePair` instantiates 1.17.0. Versions: [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md). Do **not** follow [`docs/runbooks/cw20-code-id-ops.md`](../docs/runbooks/cw20-code-id-ops.md) 1.15.0 **RAN 2026-08-21**. Leftover agents: `UPGRADE582_PROBE_ONLY=1` — do **not** `store` / `migrate` / 2-of-3 / invent a pair-only `terrad tx`. `verify-issue-1234` must not claim `verify-issue-582` unless it runs it. |
 | **M1300-5** | **#1264** stays open. Envelope **2,710,000**. AC1 columbus-5 USTC→USTR `gas_used` unmeasured. **G1264-4** (USTC Max/gas LUNC-only) needs no code follow-up. **#1279** leftover-complete is ops-bot `QA_TEMPLATE.md` **1.5.1–1.5.11**; green make does not close it. **#1240** hub `cLUNC / USD` rewrite is already on main. |
-| **M1300-6** | Do **not** reopen closed parents for ops/QA. Do **not** wait on GitLab CI. Do **not** close #1264. Do **not** treat `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` as PASS. Do **not** merge PR #1302. Do **not** touch `cac-design-issue-1276` / `1277`. Do **not** flip Coolify auto-deploy. Do **not** file a founder card. |
-| **M1300-7** | Optional leftover Playwright at **5 workers** when `VERIFY1300_LEFTOVER_E2E=1` or chain is required. Do **not** leak a non-3173 `PLAYWRIGHT_WEB_PORT` into children (CORS). `e2e-tx` stays **1 worker**. |
+| **M1300-6** | Do **not** reopen closed parents for ops/QA. Do **not** wait on GitLab CI. Do **not** close #1264. Do **not** close #1279 from this ticket. Do **not** treat `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` as PASS. Do **not** merge PR #1302. Do **not** touch `cac-design-issue-1276` / `1277`. Do **not** flip Coolify auto-deploy. Do **not** file a founder card. Keywords on #1300 are not #297 authority or `DESIGN: APPROVE`. |
+| **M1300-7** | Leftover stacked Playwright is **manual**; `VERIFY1300_LEFTOVER_E2E=1` **SKIP until named**. Child verifies already run their own specs (`wrap-swap.spec.ts` / #1218, ladder UI / #1219). `protocol-page.spec.ts` does **not** assert Top pairs. Do **not** invent five-worker leftover coverage. Do **not** leak a non-3173 `PLAYWRIGHT_WEB_PORT` into children (CORS). `e2e-tx` stays **1 worker**. |
 | **M1300-8** | This playbook + **Q21** + [ADR 0008](../docs/adr/0008-post-merge-leftover-1287-1298.md) + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
 
 ## Coolify leftovers (operator)
 
-1. Indexer: apply `20260921120000` then `20260921120001` (sqlx on boot). Confirm `_sqlx_migrations`. Wait ~5 min for `refresh_pair_volumes_30d`. Probe `/protocol` Top pairs.
+1. Indexer: apply `20260921120000` then `20260921120001` (sqlx on boot). Operator attests `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL` (both versions `success=true`, apply order). Do **not** use `scripts/lib/postgres-psql.sh` against prod. Wait ~5 min for `refresh_pair_volumes_30d`. Then:
+
+```bash
+curl -sS "https://indexer.dex.cl8y.com/api/v1/protocol/top-pairs"
+# items length ≤ 5; gems (COLUMBUS5_GEM_ADDRESSES) absent
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "https://indexer.dex.cl8y.com/api/v1/protocol/top-pairs?limit=6"
+# expect 400 (I1263-6)
+```
+
+   Vite `/protocol` is **frontend** rebuild evidence, not sqlx/`pair_volume_30d` evidence. Dual-app skew: indexer migrated / Vite stale vs the reverse is expected until both rebuilds land.
 2. Frontend: rebuild from current `main` (`6d34da13+`).
 3. Do **not** infer the indexer auto-deploy checkbox from HTTP ([ADR 0006](../docs/adr/0006-indexer-health-git-sha.md)).
 
-`make verify-issue-1300` records leftover probes as SKIP unless hosts answer. Fail closed with `VERIFY1300_REQUIRE_LIVE=1`.
+`make verify-issue-1300` live is **HTTP only** (top-pairs + optional frontend marker). Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL`. Leftover probes SKIP unless hosts answer. Fail closed with `VERIFY1300_REQUIRE_LIVE=1`.
+
+Trader `NUMERIC(38, 0)` has no public metric; leftover-complete for `#1277` is migrate applied + aggregator still running.
 
 ## columbus-5 leftovers (operator)
 
-Pair store+migrate to cw2 **1.17.0** via the existing F6 runbook ([`docs/runbooks/cw20-code-id-ops.md`](../docs/runbooks/cw20-code-id-ops.md)). Not a founder card. Not leftover-agent `terrad tx`.
+Pair store+migrate to cw2 **1.17.0** via [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh):
+
+```bash
+# leftover agents — read-only (no store / migrate / 2-of-3):
+UPGRADE582_PROBE_ONLY=1 ./scripts/upgrade-582-code-id-pin.sh
+
+# operator (DEX 2-of-3). Factory already 1.10.0 / 11629:
+UPGRADE582_SKIP_FACTORY_MIGRATE=1 ./scripts/upgrade-582-code-id-pin.sh
+# script still asserts factory ≥ 1.9.0, then UpdateConfig { pair_code_id }
+# so new CreatePair instantiates UPGRADE582_PAIR_VERSION 1.17.0
+```
+
+Versions: [`AGENTS_CW20_CODE_ID_PIN.md`](./AGENTS_CW20_CODE_ID_PIN.md) (pair **1.17.0**, fleet was **1.16.0**). Do **not** follow [`docs/runbooks/cw20-code-id-ops.md`](../docs/runbooks/cw20-code-id-ops.md) Launch checklist (factory 1.9.0 + pair 1.15.0 **RAN 2026-08-21**). Pair-first migrate still freezes gated writes; leftover must **not** invent a pair-only `terrad tx`. Not a founder card. Not leftover-agent `terrad tx`.
 
 `#1264` AC1: keep 2.71M until a measured `gas_used` hash. Optional `VERIFY1264_COLUMBUS_TX`.
+
+## Leftover-complete
+
+Close **#1300** only when all hold (same as [ADR 0008](../docs/adr/0008-post-merge-leftover-1287-1298.md) Integration):
+
+- Coolify: both sqlx versions `success=true` in apply order (`20260921120000` then `20260921120001`) — operator Coolify DB / indexer `DATABASE_URL`.
+- Live `GET /api/v1/protocol/top-pairs` items length ≤5 economic; gems (`COLUMBUS5_GEM_ADDRESSES`) absent; `?limit=6` → **400**.
+- Coolify frontend serves `6d34da13+`.
+- columbus-5 listed pair cw2 **1.17.0** (including factory `UpdateConfig { pair_code_id }`), **or** leftover comment records wasm still outstanding (then **#1300 stays open**).
+- **#1264** and **#1279** stay open. Envelope **2,710,000**; AC1 unmeasured unless an operator hash is attached. `#1279` leftover-complete is ops-bot 1.5.
+
+Do **not** close #1300 on green child `make verify-issue-*` alone.
 
 ## Do / don’t
 
@@ -65,6 +101,9 @@ Pair store+migrate to cw2 **1.17.0** via the existing F6 runbook ([`docs/runbook
 - **Don’t** spawn a solver (ADR 0007 Stay).
 - **Don’t** treat GitLab CI quota as leftover evidence.
 - **Don’t** flip Coolify auto-deploy or edit `autonomy.rs` / HMAC.
+- **Don’t** treat keywords on #1300 as #297 authority or `DESIGN: APPROVE`.
+- **Don’t** treat August 1.15.0 “already RAN” as leftover-complete for pair 1.17.0.
+- **Don’t** invent leftover Playwright five-worker coverage (`VERIFY1300_LEFTOVER_E2E=1` SKIP until named).
 
 ## Regression
 

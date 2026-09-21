@@ -16,9 +16,9 @@ Keywords on [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300)
 
 Close leftover **#1300** only after operator evidence for the merged stack — not after green child `make verify-issue-*` on a laptop.
 
-1. **Coolify indexer.** Apply sqlx in filename order: `#1277` `20260921120000_traders_rolling_volume_numeric_38_0` then `#1263` `20260921120001_pair_volume_30d`. Confirm both versions in `_sqlx_migrations` (success). After one aggregator tick, live `/protocol` **Top pairs** is ≤5 factory-listed economic rows (**P1263**).
+1. **Coolify indexer.** Apply sqlx in filename order: `#1277` `20260921120000_traders_rolling_volume_numeric_38_0` then `#1263` `20260921120001_pair_volume_30d`. Operator attests both versions in `_sqlx_migrations` (`success=true`, apply order) via Coolify DB / indexer `DATABASE_URL` — not `scripts/lib/postgres-psql.sh`. After one aggregator tick, live **`GET /api/v1/protocol/top-pairs`** is ≤5 factory-listed economic rows (**P1263** / **I1263-6**). Trader `NUMERIC(38, 0)` has no public metric; leftover-complete for `#1277` is migrate applied + aggregator still running.
 2. **Coolify frontend.** Rebuild from `6d34da13+`. Dual-app skew during rebuild is expected ([ADR 0006](./0006-indexer-health-git-sha.md)).
-3. **columbus-5 pair wasm.** Store+migrate in-tree pair **cw2 1.17.0** so listed fleet picks up **F6** `#1234` (`UpdateLimitOrderPrice` / `CleanLimitBook` gate) and **L24** `#1219` named min remaining. Agents do **not** run the store. Existing F6 runbook owns the operator path.
+3. **columbus-5 pair wasm.** Store+migrate in-tree pair **cw2 1.17.0** so listed fleet picks up **F6** `#1234` (`UpdateLimitOrderPrice` / `CleanLimitBook` gate) and **L24** `#1219` named min remaining. Operator path is [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) (`UPGRADE582_PAIR_VERSION` **1.17.0**). Factory on columbus-5 is already **1.10.0 / 11629** → `UPGRADE582_SKIP_FACTORY_MIGRATE=1` (script still asserts factory ≥ 1.9.0). The script **`UpdateConfig { pair_code_id }`** so new `CreatePair` instantiates 1.17.0 — skipping that is a leftover defect, not optional. Versions: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md) (pair **1.17.0**, fleet was **1.16.0**). Do **not** follow [`docs/runbooks/cw20-code-id-ops.md`](../runbooks/cw20-code-id-ops.md) Launch checklist (still factory **1.9.0** + pair **1.15.0** **RAN 2026-08-21** / 11602 / 11601). Leftover agents use `UPGRADE582_PROBE_ONLY=1` (read-only); they do **not** `store` / `migrate` / 2-of-3. Pair-first migrate still freezes gated writes; leftover must **not** invent a pair-only `terrad tx`.
 4. **Keep `#1264` open.** Envelope stays **2,710,000**. Columbus-5 wrap+2hop USTC→USTR `gas_used` is still **unmeasured** (AC1). **G1264-4** (USTC Max/gas-gate is LUNC-only) survived `#1218` — no code follow-up.
 5. **`#1279` leftover-complete is ops-bot** `QA_TEMPLATE.md` **1.5.1–1.5.11**. Green `make verify-issue-1279` does **not** close `#1279`.
 6. **LocalTerra / manual** (not a substitute for Coolify): `#1218` LUNC→USTR Route wrap-then-cUSTC; `#1255` 18-dec unlisted factory CW20; `#1219` dust ladder no wallet popup; `#1263` `/protocol` ≤5 economic rows.
@@ -85,7 +85,7 @@ Stacked-merge sanity already on the issue:
 | #1240 copy | Already on main; leftover does not retitle CEX tabs. |
 | #1234 vs #582 | Implement leftover must make the verify claim true (invoke) or delete it. |
 | #1279 | Pre-check `make verify-issue-1279`; leftover-complete = ops-bot 1.5. `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` **must FAIL**. |
-| #297 | Coolify **migrate/rebuild** is ordinary leftover (same class as #701). Coolify **auto-deploy checkbox** is still #1276 / #297 — out of this ticket. columbus-5 pair store+migrate uses the existing F6 operator runbook; leftover agents document and SKIP/FAIL live, they do not store. |
+| #297 | Coolify **migrate/rebuild** is ordinary leftover (same class as #701). Coolify **auto-deploy checkbox** is still #1276 / #297 — out of this ticket. columbus-5 pair store+migrate uses [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) (not the August 1.15.0 checklist); leftover agents `UPGRADE582_PROBE_ONLY=1` and SKIP/FAIL live, they do not store. |
 | PR #1302 | Leave unmerged. |
 
 ## Component / state / interface changes
@@ -93,7 +93,7 @@ Stacked-merge sanity already on the issue:
 | Layer | Change in *this* leftover |
 |-------|---------------------------|
 | Schema | **None in git.** Production must *apply* already-merged `20260921120000` then `20260921120001`. Expand-only. No revert files. |
-| Indexer API | No new routes. After migrate + `refresh_pair_volumes_30d` (~5 min), `GET /protocol/top-pairs` / `/protocol` Top pairs use `pair_volume_30d`. Rolling trader raw volume columns are `NUMERIC(38, 0)` (**R1277**). |
+| Indexer API | No new routes. After migrate + `refresh_pair_volumes_30d` (~5 min), **`GET /api/v1/protocol/top-pairs`** uses `pair_volume_30d`. Vite `/protocol` is **frontend** rebuild evidence, not sqlx/`pair_volume_30d` evidence. Rolling trader raw volume columns are `NUMERIC(38, 0)` (**R1277**). |
 | Pair wasm | In-tree cw2 remains **1.17.0** until columbus-5 listed fleet is migrated from **1.16.0**. No message-schema change in this leftover. |
 | dApp | No required chrome change. Frontend rebuild picks up already-merged wrap-enter, decimals, TaxPreview, mixed-case hub, Protocol top-5. |
 | Hooks | Already on `main` (#1287 / #1301). No further hook diff. |
@@ -106,7 +106,7 @@ Stacked-merge sanity already on the issue:
 |----|--------|
 | **M1300-1–M1300-8** / **Q21** | New leftover stack. |
 | **R1277-1–R1277-8** | Coolify must apply `NUMERIC(38, 0)` before 18-dec `SUM` can overflow prod. |
-| **P1263 / I1263** | Live Top pairs after `20260921120001` + rollup tick. |
+| **P1263 / I1263** | Live `GET /api/v1/protocol/top-pairs` after `20260921120001` + rollup tick. |
 | **F6 / #1234** | columbus-5 pair 1.17.0; local verify already green. |
 | **L24 / #1219** | Same wasm migrate; dust ladder must not popup. |
 | **G1264-1–G1264-8** | Envelope + LUNC-only gate unchanged; AC1 still unmeasured. |
@@ -128,7 +128,7 @@ Stacked-merge sanity already on the issue:
 | Merge PR #1302 into this leftover | Not in 1287–1298; separate bundle. |
 | Fold #1276 auto-deploy checkbox into #1300 | Different authority (#297 deploy policy) and different leftover-complete (`EXPECT_SHA`). |
 | One sqlx file combining NUMERIC + `pair_volume_30d` | Would rewrite applied checksums; collision already resolved as `…000` / `…001`. |
-| Agent store+migrate pair wasm from leftover verify | Deploy/custody. Operator F6 runbook only. |
+| Agent store+migrate pair wasm from leftover verify | Deploy/custody. Operator `upgrade-582-code-id-pin.sh` only (`UPGRADE582_PROBE_ONLY=1` for leftover agents). |
 | Founder card / `DESIGN: APPROVE` | Ordinary leftover. Keywords are not approval. |
 | Invent `down.sql` so 2(c) rollback applies | Partial suffix revert is still **2(b)** ([ADR 0006](./0006-indexer-health-git-sha.md)). These two versions have no downs. |
 
@@ -147,18 +147,28 @@ Already in git:
 1. [`indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql`](../../indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql) — expand `traders.volume_*` / `total_volume` to `NUMERIC(38, 0)`.
 2. [`indexer/migrations/20260921120001_pair_volume_30d.sql`](../../indexer/migrations/20260921120001_pair_volume_30d.sql) — `pair_volume_30d` rollup table.
 
-Production: indexer boot `sqlx::migrate!()` (no `set_ignore_missing`). Confirm `_sqlx_migrations` has both versions `success=true` **in that order**. Then one `refresh_pair_volumes` / `refresh_pair_volumes_30d` tick.
+Production: indexer boot `sqlx::migrate!()` (no `set_ignore_missing`). Operator confirms `_sqlx_migrations` has both versions `success=true` **in that order** via Coolify DB / indexer `DATABASE_URL`. Then one `refresh_pair_volumes` / `refresh_pair_volumes_30d` tick. `make verify-issue-1300` live does **not** query that table.
 
-Pair wasm: columbus-5 store of optimized pair artifact + migrate listed pairs from cw2 **1.16.0** → **1.17.0**. No factory `UpdateConfig` required for this leftover unless the F6 runbook already names it (existing **#582** / **#1234** path).
+Pair wasm: columbus-5 store of optimized pair artifact + migrate listed pairs from cw2 **1.16.0** → **1.17.0** via [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh). Factory is already **1.10.0 / 11629** → `UPGRADE582_SKIP_FACTORY_MIGRATE=1`. The script **does** `UpdateConfig { pair_code_id }` so new `CreatePair` instantiates 1.17.0 — skipping that is a leftover defect. Do **not** treat [`docs/runbooks/cw20-code-id-ops.md`](../runbooks/cw20-code-id-ops.md) “RAN 2026-08-21” as leftover-complete. Versions: [`skills/AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md). Leftover agents: `UPGRADE582_PROBE_ONLY=1` only.
 
 No dApp env keys. No new revert files.
 
 ## Observability
 
-- Indexer: `_sqlx_migrations` rows for `20260921120000` and `20260921120001`.
-- After ~5 min: `pair_volume_30d.updated_at` recent; `/protocol` Top pairs ≤5 economic rows; gems excluded.
-- Trader rolling: aggregator no longer fails on 18-dec `SUM(offer_amount)` (prod evidence is “refresh succeeded”, not a new metric).
-- Pair: columbus-5 cw2 query `1.17.0` on listed pairs after migrate.
+- Indexer schema: operator attests `_sqlx_migrations` rows for `20260921120000` and `20260921120001` (`success=true`, apply order) via **Coolify DB / indexer `DATABASE_URL`**. Do **not** use `scripts/lib/postgres-psql.sh` against prod (LocalTerra/dev helper). `make verify-issue-1300` live is **HTTP only** (top-pairs + optional frontend marker). Do **not** copy #1276 `EXPECT_SHA`. Do **not** invent leftover `DATABASE_URL`.
+- After ~5 min: `pair_volume_30d.updated_at` recent. Live probe:
+
+```bash
+curl -sS "https://indexer.dex.cl8y.com/api/v1/protocol/top-pairs"
+# items length ≤ 5; gems (COLUMBUS5_GEM_ADDRESSES) absent
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  "https://indexer.dex.cl8y.com/api/v1/protocol/top-pairs?limit=6"
+# expect 400 (I1263-6)
+```
+
+  Vite `/protocol` is **frontend** rebuild evidence, not sqlx/`pair_volume_30d` evidence.
+- Trader rolling: aggregator no longer fails on 18-dec `SUM(offer_amount)`. No public metric; leftover-complete for `#1277` is migrate applied + aggregator still running.
+- Pair: columbus-5 cw2 query `1.17.0` on listed pairs after `upgrade-582-code-id-pin.sh`. Leftover agents: `UPGRADE582_PROBE_ONLY=1`.
 - `#1264` AC1: optional `VERIFY1264_COLUMBUS_TX` when an operator records `gas_used`; until then leftover reports **unmeasured**, not PASS-as-closed.
 - `#1279`: ops-bot records 1.5.1–1.5.11; make output is pre-check only.
 - Do **not** scrape Coolify `SOURCE SHA` logs. Do **not** paste `/status` JSON or tokens on the issue.
@@ -170,12 +180,13 @@ No dApp env keys. No new revert files.
 | Child `make verify-issue-*` FAIL | Stack FAIL. Fix the child; do not SKIP_CHILDREN to paint leftover-complete. |
 | Coolify indexer unreachable | SKIP unless `VERIFY1300_REQUIRE_LIVE=1` / `VERIFY1300_IID=1300` → FAIL. |
 | `20260921120001` applied before `…000` | sqlx orders by version int; both must succeed. If prod skipped `…000`, traders can still overflow. Confirm both rows. |
-| Frontend rebuilt, indexer not | Dual-app skew: `/protocol` Top pairs 404/empty while Vite shows the section. Wait indexer migrate + tick. |
+| Frontend rebuilt, indexer not | Dual-app skew: `GET /api/v1/protocol/top-pairs` 404/empty while Vite shows the section. Wait indexer migrate + tick. |
 | Indexer migrated, frontend stale | Top pairs API live; dApp may hide the block. Rebuild frontend. |
 | Pair wasm still 1.16.0 | F6 reprice / L24 min-size not on columbus-5. Leftover stays open. Local verify stays green (in-tree 1.17.0). |
+| Treat August 1.15.0 “already RAN” as leftover-complete | Operator skips **1.16.0 → 1.17.0**. Leftover stays open until listed cw2 is 1.17.0. Use `upgrade-582-code-id-pin.sh`, not `cw20-code-id-ops.md` Launch checklist. |
 | Treat AC1 unmeasured as close | Forbidden. Keep 2.71M. |
 | `VERIFY1279_LEFTOVER_COMPLETE=1` | Must FAIL. Do not close #1279 from this stack. |
-| Agent store wasm / flip auto-deploy | Out of authority. #297 for policy expansion; F6 runbook for operator wasm. |
+| Agent store wasm / flip auto-deploy | Out of authority. #297 for policy expansion; operator `upgrade-582-code-id-pin.sh` for wasm. Leftover agents `UPGRADE582_PROBE_ONLY=1` only. |
 | Colliding sqlx rename after prod apply | Checksum mismatch; migrator rejects. Do not rename applied files. |
 | Rollback image without schema | `NUMERIC(38, 0)` and `pair_volume_30d` stay; old binary may fail migrate-on-boot if versions missing from the binary — **2(b)** keep schema + hotfix that still ships N ([ADR 0006](./0006-indexer-health-git-sha.md)). |
 
@@ -184,10 +195,10 @@ No dApp env keys. No new revert files.
 1. **Docs registry (this design PR).** ADR 0008 + architecture pointer + **Q21** + playbook **M1300**. Pointers on ADR 0004/0005/0006/0007. No verify script in the design PR.
 2. **Leftover verify script (implement).** `scripts/qa/verify-issue-1300.sh` + `Makefile` `verify-issue-1300` + `docs/testing.md` / `scripts/qa/README.md` / `AGENTS.md` wiring + child-skill “Coolify leftover: #1300” one-liners. Children: **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263**. Copy `require_live()` from #701/#702. Do **not** copy #1276 `EXPECT_SHA` leftover-complete.
 3. **Comment-only gap.** `verify-issue-1234.sh`: invoke `make verify-issue-582` **or** remove the header claim. Same leftover implement slice.
-4. **Coolify indexer (operator).** Migrate `…000` then `…001`; confirm `_sqlx_migrations`; wait rollup; probe `/protocol` Top pairs. Ordinary leftover — not #297.
-5. **Coolify frontend (operator).** Rebuild `6d34da13+`.
-6. **columbus-5 pair wasm (operator).** Store+migrate 1.17.0 via existing F6 runbook. Leftover agents do not store.
-7. **LocalTerra / manual.** #1218 / #1255 / #1219 / #1263 walks. Optional Playwright at **5 workers** when `VERIFY1300_LEFTOVER_E2E=1`. `e2e-tx` stays **1 worker**. `:3173` CORS: do not leak `PLAYWRIGHT_WEB_PORT`.
+4. **Coolify indexer (operator).** Migrate `…000` then `…001`; attest `_sqlx_migrations` via Coolify DB / indexer `DATABASE_URL`; wait rollup; probe `GET /api/v1/protocol/top-pairs` (≤5 economic; `?limit=6` → 400). Ordinary leftover — not #297.
+5. **Coolify frontend (operator).** Rebuild `6d34da13+`. Vite `/protocol` is frontend evidence only.
+6. **columbus-5 pair wasm (operator).** [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh): `UPGRADE582_PAIR_VERSION` **1.17.0**, `UPGRADE582_SKIP_FACTORY_MIGRATE=1`, `UpdateConfig { pair_code_id }`. Leftover agents: `UPGRADE582_PROBE_ONLY=1` — do not store / migrate / 2-of-3 / invent a pair-only `terrad tx`.
+7. **LocalTerra / manual.** #1218 / #1255 / #1219 / #1263 walks. Leftover stacked Playwright is **manual**; `VERIFY1300_LEFTOVER_E2E=1` **SKIP until named**. Child verifies already run their own specs (`wrap-swap.spec.ts` / #1218, ladder UI / #1219). `protocol-page.spec.ts` does **not** assert Top pairs. Do not invent five-worker leftover coverage. `e2e-tx` stays **1 worker**. `:3173` CORS: do not leak `PLAYWRIGHT_WEB_PORT`.
 8. **Stay-open owners.** Record #1264 AC1 still unmeasured; #1279 still ops-bot. Do not close those issues from #1300.
 
 **Open issue dependencies:** none that block starting leftover implement. `#1264` and `#1279` remain open *after* #1300 leftover-complete.
@@ -205,9 +216,9 @@ No dApp env keys. No new revert files.
 | T5 | Child FAIL | Stack FAIL |
 | T6 | `make verify-issue-1264` | Envelope 2.71M; no combo raise |
 | T7 | `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` | FAIL |
-| T8 | Optional leftover e2e 5 workers | SKIP unless chain / `VERIFY1300_LEFTOVER_E2E=1` |
+| T8 | `VERIFY1300_LEFTOVER_E2E=1` | **SKIP until named** (leftover e2e is **manual**; do not invent five-worker coverage) |
 | T9 | `verify-issue-1234` after slice 3 | Claim matches behavior |
-| T10 | Live Coolify after migrate | Both sqlx versions; Top pairs ≤5 economic |
+| T10 | Live Coolify after migrate | Operator: both sqlx versions `success=true` via Coolify DB / indexer `DATABASE_URL`. HTTP: `GET /api/v1/protocol/top-pairs` items ≤5 economic, gems absent; `?limit=6` → **400**. `make verify-issue-1300` live: HTTP only (top-pairs + optional frontend marker). No leftover `DATABASE_URL`. No `EXPECT_SHA`. |
 
 Postgres-only child tests stay Postgres-only. No CosmWasm in leftover verify except existing child pair tests. No new indexer integration suite.
 
@@ -215,9 +226,9 @@ Postgres-only child tests stay Postgres-only. No CosmWasm in leftover verify exc
 
 1. Merge leftover *implement* (script + wiring) to `main`.
 2. Operator: indexer migrate + restart (or auto-deploy if already on — still not this ticket’s job to flip the checkbox).
-3. Confirm `_sqlx_migrations` + Top pairs.
+3. Confirm `_sqlx_migrations` (operator Coolify DB / indexer `DATABASE_URL`) + `GET /api/v1/protocol/top-pairs`.
 4. Operator: frontend rebuild.
-5. Operator: columbus-5 pair 1.17.0 when ready; leftover stays open until cw2 matches.
+5. Operator: columbus-5 pair 1.17.0 via `upgrade-582-code-id-pin.sh` when ready (`UpdateConfig { pair_code_id }`); leftover stays open until cw2 matches.
 6. Manual/LocalTerra walks.
 7. Close **#1300** with probe evidence. Leave **#1264** and **#1279** open unless their own leftover-complete holds.
 
@@ -234,9 +245,9 @@ This leftover is not a chain halt.
 ## Integration completion criteria
 
 - `make verify-issue-1300` exists on `main` and is green locally (children + docs).
-- Coolify: both sqlx versions success; `/protocol` Top pairs ≤5 economic rows.
-- Coolify frontend serves `6d34da13+` wrap-enter / decimals / TaxPreview / mixed-case hub / top-5 chrome.
-- columbus-5 listed pair cw2 **1.17.0**, **or** leftover comment records that wasm is still outstanding (then **#1300 stays open**).
+- Coolify: both sqlx versions `success=true` in apply order (operator Coolify DB / indexer `DATABASE_URL`); live **`GET /api/v1/protocol/top-pairs`** items ≤5 economic, gems absent; `?limit=6` → **400**.
+- Coolify frontend serves `6d34da13+` wrap-enter / decimals / TaxPreview / mixed-case hub / top-5 chrome (Vite `/protocol` is frontend evidence only).
+- columbus-5 listed pair cw2 **1.17.0** via `upgrade-582-code-id-pin.sh` (including `UpdateConfig { pair_code_id }`), **or** leftover comment records that wasm is still outstanding (then **#1300 stays open**).
 - `#1264` still open; envelope **2,710,000**; AC1 unmeasured unless an operator hash is attached.
 - `#1279` still ops-bot; make did not close it.
 - PR #1302 still unmerged by this leftover.
@@ -251,5 +262,6 @@ This leftover is not a chain halt.
 - [ADR 0006](./0006-indexer-health-git-sha.md) — Coolify attest / three-way rollback / #297 checkbox
 - [ADR 0007](./0007-route-solve-remaining-failures.md) — Stay; wrap-enter leftover is #1218 LocalTerra
 - Playbook: [`AGENTS_POST_MERGE_OPS_1300.md`](../../skills/AGENTS_POST_MERGE_OPS_1300.md)
+- F6 operator path: [`scripts/upgrade-582-code-id-pin.sh`](../../scripts/upgrade-582-code-id-pin.sh) · Versions [`AGENTS_CW20_CODE_ID_PIN.md`](../../skills/AGENTS_CW20_CODE_ID_PIN.md)
 - Verify (implement): `make verify-issue-1300`
 - Authority: [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)
