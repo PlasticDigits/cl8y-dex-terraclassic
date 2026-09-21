@@ -1694,6 +1694,7 @@ setup-hooks:
 
 test-commit-msg-hook:
 	@./scripts/test-commit-msg-hook.sh
+	@./scripts/test-pre-push-commit-policy.sh
 
 send: 
 	docker exec cl8y-dex-terraclassic-localterra-1 terrad tx bank send test1 terra1753zuaneacfr60rg37l8d4t0x7j4yvqgsl7cvv 50000000uluna  --chain-id localterra --keyring-backend test --fees 6000000uluna --yes 
