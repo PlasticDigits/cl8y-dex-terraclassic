@@ -57,3 +57,4 @@ Indexer lib: `db_orderbook_sim` mixed 18/6 + implausible; `route_solver` amount-
 - [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — unique USDT ticker (**TL-1**)
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — quote = execute
 - [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — do not weaken 30/99 gates
+- Remaining GET `/route/solve` failures census (**Stay**): [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265). **F1** stays this ticket. Verify: `make verify-issue-1265`.

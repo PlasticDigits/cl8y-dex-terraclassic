@@ -21,6 +21,7 @@ Issue **#596 is implemented**. Indexer `GET /api/v1/route/solve?pool_only=true` 
 | [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) | L8 quote = execute |
 | [`AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md`](./AGENTS_FRONTEND_SWAP_ROUTE_DISPLAY.md) | Route row; no hybrid-off path |
 | [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) | Integrator `pool_only=true` |
+| [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265) | Remaining retail solve failures census (**Stay**). **H596-7** wrap stays pool-only. Verify: `make verify-issue-1265` |
 
 ## Invariants **H596-1–H596-8**
 

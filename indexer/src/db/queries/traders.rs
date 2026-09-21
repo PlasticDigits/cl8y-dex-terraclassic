@@ -26,6 +26,11 @@ pub struct TraderRow {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Insert or bump a trader on swap ingest.
+///
+/// Raw `total_volume` is `NUMERIC(38, 0)` (`LEAST` at `10^38-1`, GitLab #1277).
+/// USD stays `NUMERIC(38, 18)` with the `10^20` cap (#553). Do not reuse the USD
+/// cap on raw offer sums (that truncates ~100 human 18-dec tokens).
 pub async fn upsert_trader(
     pool: &PgPool,
     address: &str,
@@ -38,10 +43,10 @@ pub async fn upsert_trader(
     };
     let row = sqlx::query_scalar::<_, bool>(
         "INSERT INTO traders (address, total_trades, total_volume, total_volume_usd, first_trade_at, last_trade_at)
-         VALUES ($1, 1, $2, $3, NOW(), NOW())
+         VALUES ($1, 1, LEAST($2::numeric, POWER(10::numeric, 38) - 1), $3, NOW(), NOW())
          ON CONFLICT (address)
            DO UPDATE SET total_trades = traders.total_trades + 1,
-                        total_volume = traders.total_volume + $2,
+                        total_volume = LEAST(traders.total_volume + $2, POWER(10::numeric, 38) - 1),
                         total_volume_usd = CASE
                           WHEN $3::numeric IS NULL THEN traders.total_volume_usd
                           ELSE LEAST(
@@ -256,6 +261,11 @@ pub async fn update_trader_tier(
     Ok(())
 }
 
+/// Recompute `traders.volume_24h` / `7d` / `30d` from in-window `offer_amount`.
+///
+/// Destinations are `NUMERIC(38, 0)` (GitLab #1277). `LEAST(..., 10^38-1)` matches
+/// sibling pair/global raw rollups (#548). Do not clamp to the USD `10^20` cap.
+/// Idle 30d+ senders zero **rolling** columns only (#577 **D2**).
 pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let now = Utc::now();
     let cutoff_24h = now - chrono::Duration::hours(24);

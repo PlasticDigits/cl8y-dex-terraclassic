@@ -54,6 +54,9 @@
 //!   Hybrid swaps cap distinct makers per tx via `max_maker_fills`.
 //! - **Reprice FIFO (L23 / #1227):** `UpdateLimitOrderPrice` keeps `order_id` and
 //!   escrow; a real price change joins the equal-price **tail**. Match walks the DLL.
+//! - **F6 write-path (#1234):** `UpdateLimitOrderPrice` and `CleanLimitBook` abort
+//!   unless live asset `code_id` equals the pin **and** factory-whitelisted
+//!   (`gate_asset_code_ids`). Freeze means no DLL writes; keepers resume after unfreeze.
 //! - **Queries:** `HybridSimulation` / `HybridReverseSimulation` are the only
 //!   swap quote paths. Use [`dex_common::pair::pool_only_hybrid_params`] for
 //!   pool-only quotes (`book_input = 0`). Optional `trader` / `sender` apply

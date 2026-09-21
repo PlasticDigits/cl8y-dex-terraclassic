@@ -216,10 +216,14 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     }
     await expect(page.getByTestId('protocol-dex-hub-prices')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-custc')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('protocol-dex-hub-custc')).toContainText('cUSTC / USD')
     await expect(page.getByTestId('protocol-dex-hub-lunc')).toBeVisible()
+    await expect(page.getByTestId('protocol-dex-hub-lunc')).toContainText('cLUNC / USD')
     await expect(page.getByTestId('protocol-dex-hub-ust1')).toBeVisible()
     await expect(page.getByTestId('protocol-dex-hub-ustr')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle')).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^USTC \/ USD$/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^cUSTC \/ USD$/ })).toHaveCount(0)
     await expect(page.getByTestId('protocol-contract-addresses')).toBeVisible()
 
     let factory: string | null = null
@@ -242,9 +246,12 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('protocol-oracle-tab-ustc')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle-tab-lunc')).toBeVisible()
+    await expect(page.getByTestId('protocol-oracle-tab-ustc')).toHaveText('USTC')
+    await expect(page.getByTestId('protocol-oracle-tab-lunc')).toHaveText('LUNC')
     await expect(page.getByTestId('protocol-oracle-tab-vfdusd')).toBeVisible()
     await page.getByTestId('protocol-oracle-tab-lunc').click()
-    await expect(page.getByRole('heading', { name: /LUNC \/ USD/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^LUNC \/ USD$/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^cLUNC \/ USD$/ })).toHaveCount(0)
   })
 
   test('P3 one history table — no duplicate Recent USTC heading', async ({ page }) => {
@@ -264,7 +271,9 @@ test.describe('Protocol page (GitLab #550 / #422)', () => {
     await expect(page.getByTestId('protocol-global-stats')).toBeVisible()
     await expect(page.getByTestId('protocol-oracle-tabs')).toBeVisible()
     await page.getByTestId('protocol-oracle-tab-vfdusd').click()
-    await expect(page.getByRole('heading', { name: /^vFDUSD$/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^vFDUSD$/ })).toBeVisible()
+    await expect(page.getByTestId('protocol-oracle-tab-vfdusd')).toHaveCSS('text-transform', 'none')
+    await expect(page.getByTestId('protocol-oracle-tab-vfdusd')).toHaveText('vFDUSD')
     await expect(page.getByTestId('protocol-oracle-vfdusd-venus')).toBeVisible()
     await expect(page.getByRole('heading', { name: /1 vFDUSD Price/i })).toBeVisible()
     await expect(

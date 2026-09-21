@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Automated verification for #1240 — /protocol mixed-case product tickers
-# (cUSTC / vFDUSD) must not be flattened by Tailwind `uppercase`.
+# (cUSTC / cLUNC / vFDUSD) must not be flattened by Tailwind `uppercase`.
+# Hub wrap labels are cUSTC / cLUNC; CEX oracle stays USTC / LUNC.
 #
 # Proves (unit + docs; no chain, no indexer API change):
 #   1. Hub <dt> / oracle H2 / tabs / Venus heading omit `uppercase`.
-#   2. Ticker maps still print cUSTC / vFDUSD (ids unchanged).
+#   2. Hub map prints cUSTC / cLUNC; oracle map prints USTC / LUNC / vFDUSD (ids unchanged).
 #   3. ProtocolPage + StatBox exact-case RTL.
 #   4. Skills / frontend.md P1240-1–P1240-8 + AGENTS / testing crosslinks.
 #
@@ -36,7 +37,7 @@ run_step() {
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  #1240 — /protocol mixed-case tickers (cUSTC / vFDUSD)"
+echo "  #1240 — /protocol mixed-case tickers (cUSTC / cLUNC / vFDUSD)"
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "frontend: Protocol page exact-case tickers" \
@@ -94,6 +95,12 @@ if not tab:
 if "uppercase" in tab.group(1).split():
     print(f"oracle tab still uppercase: {tab.group(1)}", file=sys.stderr)
     sys.exit(1)
+if "normal-case" not in tab.group(1).split():
+    print("oracle tab missing normal-case override for btn-primary", file=sys.stderr)
+    sys.exit(1)
+if "textTransform: 'none'" not in oracle and 'textTransform: "none"' not in oracle:
+    print("oracle tabs must inline textTransform none against .btn-primary uppercase", file=sys.stderr)
+    sys.exit(1)
 
 venus_h3 = re.search(r"<h3\s+className=\"([^\"]+)\"[\s\S]{0,120}1 vFDUSD Price", oracle)
 if not venus_h3:
@@ -109,19 +116,22 @@ if "preserveLabelCase" not in oracle:
 print("ticker nodes omit uppercase; hub chrome H2 keeps it")
 PY
 
-run_step "code: ticker maps unchanged (cUSTC / vFDUSD; no id remap)" \
+run_step "code: ticker maps wrap hub vs native CEX (ids unchanged)" \
   bash -c '
     set -euo pipefail
     grep -q "custc: '\''cUSTC'\''" frontend-dapp/src/utils/hubPriceTicker.ts
-    grep -q "lunc: '\''LUNC'\''" frontend-dapp/src/utils/hubPriceTicker.ts
+    grep -q "lunc: '\''cLUNC'\''" frontend-dapp/src/utils/hubPriceTicker.ts
     grep -q "ust1: '\''UST1'\''" frontend-dapp/src/utils/hubPriceTicker.ts
     grep -q "ustr: '\''USTR'\''" frontend-dapp/src/utils/hubPriceTicker.ts
     grep -q "ustc: '\''USTC'\''" frontend-dapp/src/utils/protocolOracleTicker.ts
+    grep -q "lunc: '\''LUNC'\''" frontend-dapp/src/utils/protocolOracleTicker.ts
     grep -q "vfdusd: '\''vFDUSD'\''" frontend-dapp/src/utils/protocolOracleTicker.ts
     grep -q "PROTOCOL_ORACLE_TICKERS = \['\''ustc'\'', '\''lunc'\'', '\''vfdusd'\''\]" frontend-dapp/src/utils/protocolOracleTicker.ts
     grep -q "HUB_PRICE_TICKERS = \['\''custc'\'', '\''lunc'\'', '\''ust1'\'', '\''ustr'\''\]" frontend-dapp/src/utils/hubPriceTicker.ts
     ! grep -q "custc: '\''CUSTC'\''" frontend-dapp/src/utils/hubPriceTicker.ts
     ! grep -q "vfdusd: '\''VFDUSD'\''" frontend-dapp/src/utils/protocolOracleTicker.ts
+    ! grep -q "lunc: '\''LUNC'\''" frontend-dapp/src/utils/hubPriceTicker.ts
+    ! grep -q "ustc: '\''cUSTC'\''" frontend-dapp/src/utils/protocolOracleTicker.ts
   '
 
 run_step "docs: frontend.md P1240-1–P1240-8" \
@@ -129,12 +139,14 @@ run_step "docs: frontend.md P1240-1–P1240-8" \
   grep -qE "\*\*P1240-8" docs/frontend.md && \
   grep -qE "#1240" docs/frontend.md && \
   grep -qE "cUSTC / USD" docs/frontend.md && \
+  grep -qE "cLUNC / USD" docs/frontend.md && \
   grep -qE "verify-issue-1240" docs/frontend.md'
 
 run_step "skill: AGENTS_FRONTEND_PROTOCOL_STATS P1240 + verify" \
   bash -c 'grep -qE "\*\*P1240-1" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md && \
   grep -qE "\*\*P1240-8" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md && \
   grep -qE "make verify-issue-1240" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md && \
+  grep -qE "cLUNC / USD" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md && \
   grep -qE "uppercase" skills/AGENTS_FRONTEND_PROTOCOL_STATS.md'
 
 run_step "skill: hub + Venus playbooks crosslink #1240" \

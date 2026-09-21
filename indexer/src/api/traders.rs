@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+use axum::Json;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -14,11 +14,11 @@ use utoipa::{IntoParams, ToSchema};
 
 use super::overview::overview_volume_usd_field;
 use super::pairs::{
-    asset_map_decimals, bd_plain_string, limit_fill_response_from_row, limit_placement_response,
-    parse_placement_lifecycle_filter, trade_response_from_swap_row, LimitCancellationResponse,
-    LimitFillResponse, LimitPlacementResponse,
+    LimitCancellationResponse, LimitFillResponse, LimitPlacementResponse, asset_map_decimals,
+    bd_plain_string, limit_fill_response_from_row, limit_placement_response,
+    parse_placement_lifecycle_filter, trade_response_from_swap_row,
 };
-use super::{build_asset_map, internal_err, text_csv, AppState};
+use super::{AppState, build_asset_map, internal_err, text_csv};
 use crate::db::queries::{
     assets as db_assets, limit_order_fills, limit_order_lifecycle, pairs as db_pairs,
     positions as db_positions, swap_events, traders as db_traders,
@@ -93,9 +93,11 @@ pub fn reset_leaderboard_cache() {
 pub struct TraderResponse {
     pub address: String,
     pub total_trades: i64,
+    /// Raw lifetime `SUM(offer_amount)` (`NUMERIC(38, 0)`, GitLab #1277). Plain decimal.
     pub total_volume: String,
     /// P522-Q USD lifetime volume. JSON `null` when `total_trades > 0` and priced USD is 0 (#553).
     pub total_volume_usd: Option<String>,
+    /// Trailing-window raw offer sums (`NUMERIC(38, 0)`, #1277). Plain decimal; not USD.
     pub volume_24h: String,
     pub volume_7d: String,
     pub volume_30d: String,
@@ -115,14 +117,14 @@ impl From<&db_traders::TraderRow> for TraderResponse {
         Self {
             address: t.address.clone(),
             total_trades: t.total_trades,
-            total_volume: t.total_volume.to_string(),
+            total_volume: bd_plain_string(&t.total_volume),
             total_volume_usd: overview_volume_usd_field(
                 t.total_trades,
                 t.total_volume_usd.as_ref().unwrap_or(&BigDecimal::from(0)),
             ),
-            volume_24h: t.volume_24h.to_string(),
-            volume_7d: t.volume_7d.to_string(),
-            volume_30d: t.volume_30d.to_string(),
+            volume_24h: bd_plain_string(&t.volume_24h),
+            volume_7d: bd_plain_string(&t.volume_7d),
+            volume_30d: bd_plain_string(&t.volume_30d),
             tier_id: Some(t.tier_id),
             tier_name: Some(t.tier_name.clone()),
             registered: t.registered,
@@ -141,7 +143,7 @@ impl From<&db_traders::PairLeaderboardRow> for TraderResponse {
         Self {
             address: r.address.clone(),
             total_trades: r.total_trades,
-            total_volume: r.total_volume.to_string(),
+            total_volume: bd_plain_string(&r.total_volume),
             total_volume_usd: overview_volume_usd_field(
                 r.total_trades,
                 r.total_volume_usd.as_ref().unwrap_or(&BigDecimal::from(0)),
@@ -599,10 +601,9 @@ pub async fn leaderboard(
             return Ok(Json(cached));
         }
 
-        let rows =
-            db_traders::get_leaderboard_for_pair(&state.pool, pair_row.id, &sort_by, limit)
-                .await
-                .map_err(internal_err)?;
+        let rows = db_traders::get_leaderboard_for_pair(&state.pool, pair_row.id, &sort_by, limit)
+            .await
+            .map_err(internal_err)?;
         let resp: Vec<TraderResponse> = rows.iter().map(TraderResponse::from).collect();
         leaderboard_cache_put(cache_key, resp.clone());
         return Ok(Json(resp));
