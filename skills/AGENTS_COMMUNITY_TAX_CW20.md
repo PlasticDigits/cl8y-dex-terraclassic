@@ -12,6 +12,7 @@ LocalTerra reused QA market: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENT
 |------------|---------|
 | [GitLab **#592**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) | On-chain design |
 | [Forgejo **#1228**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1228) | **A-allow** — `SendFrom` listed-pair Sell allowance = `TaxPreview.debit` |
+| [Forgejo **#1267**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1267) / [`AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md`](./AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md) | dApp Swap/Trade extra-debit Sell CTA (**S1267**) |
 | [GitLab **#626**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/626) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) | Free listed-template adopt + Terraport/GDEX LP gate |
 | [GitLab **#633**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md) **R633** | Factory/dApp/AutoLP listed-pair register + manager role skip. LocalTerra: [`localterra-633-autoregister.sh`](../scripts/qa/localterra-633-autoregister.sh) |
 | [GitLab **#634**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / [`AGENTS_FRONTEND_TOKEN_MIGRATE.md`](./AGENTS_FRONTEND_TOKEN_MIGRATE.md) **M634** | Migrate page venue inventory + post-refresh CL8Y register (never Terraport/GDEX). LocalTerra: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh) |
@@ -93,6 +94,7 @@ Token-only extra-debit sell + outbound buy. `SetPairHooks` stays governance-only
 ```bash
 make verify-issue-592
 make verify-issue-1228
+make verify-issue-1267
 make verify-issue-604
 make verify-issue-605
 make verify-issue-606

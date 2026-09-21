@@ -23,6 +23,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 | [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) | On-chain SKUs |
 | [`AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md`](./AGENTS_COMMUNITY_TAX_ENABLE_FEATURE.md) | Official Enable Feature path (**T606**) |
 | [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) | Catalog API |
+| [`AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md`](./AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md) | Swap/Trade extra-debit Sell CTA (**S1267**, #1267) |
 
 ## Invariants **C593-1–C593-14**
 
@@ -34,7 +35,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 6. **C593-6 — manager gate.** Submit compares connected wallet to LCD `GetConfig.manager`, not a URL param. Non-manager is read-only; config stays visible.
 7. **C593-7 — unverified admin.** LCD `ContractInfo.admin ≠ CMM` → **Unverified admin** banner.
 8. **C593-8 — template.** Manage requires LCD `code_id == VITE_COMMUNITY_TAX_CODE_ID`. 10184/8266/6036/8654 must not show tax SKUs. After #626 adopt the same address is the current tax pin (**11630** after #635; **11626** was the #628 store) and Manage shows tax SKUs (**P11** / [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628)).
-9. **C593-9 — extra-debit max.** Swap + Trade Market Max for this template uses sell extra-debit (`extraDebitSellBps` / TaxPreview) on **pair-direct and router-hop** sells. User Sends `amount` 1:1 to the router, then the hop extra-debits leftover tax (**T592-13** / **R607-7**). Manager-directory wallets skip extra-debit (**E609-7**); Extra exemptions hint must say buy, sell, and transfer.
+9. **C593-9 — extra-debit max.** Swap + Trade Market Max for this template uses sell extra-debit (`extraDebitSellBps` / TaxPreview) on **pair-direct and router-hop** sells. User Sends `amount` 1:1 to the router, then the hop extra-debits leftover tax (**T592-13** / **R607-7**). Manager-directory wallets skip extra-debit (**E609-7**); Extra exemptions hint must say buy, sell, and transfer. Typed 100% / reverse offer is a **submit** hole closed by [#1267](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1267) (**S1267-1–S1267-8**, [`AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md`](./AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md); `make verify-issue-1267`). Do not treat catalog pin equality as the sell detector.
 10. **C593-10 — payee from env.** Invoice payee is launcher or token from config/query. Never `?payee=`.
 11. **C593-11 — no Swap dump.** Created tokens are not auto-injected into Swap defaults (#562).
 12. **C593-12 — free create.** 0 SKUs uses launcher `CreateToken` execute (UST1 `Send` of 0 is invalid). Paid SKUs stay on Receive + #595.
@@ -58,6 +59,7 @@ Sibling: on-chain template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terr
 
 ```bash
 make verify-issue-593
+make verify-issue-1267
 make verify-issue-604
 make verify-issue-605
 make verify-issue-669

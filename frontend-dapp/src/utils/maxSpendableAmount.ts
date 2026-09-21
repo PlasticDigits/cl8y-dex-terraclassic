@@ -8,7 +8,7 @@ import {
   estimateZapOutUlunaFeesTotal,
 } from '@/services/terraclassic/transactions'
 import { fromRawAmount } from '@/utils/formatAmount'
-import { applyExtraDebitSellCap } from '@/utils/taxPreviewMaxSpend'
+import { extraDebitMaxDeclaredRaw } from '@/utils/taxPreviewMaxSpend'
 import { isDecimalAmountDraft } from '@/utils/decimalAmountInput'
 
 /** Fee envelope selector for one-click Max ([GitLab #213](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/213)). */
@@ -134,7 +134,8 @@ export function computeMaxSpendableHumanAmount(
   }
 
   if (input.extraDebitSellBps != null && input.extraDebitSellBps > 0) {
-    spendableRaw = applyExtraDebitSellCap(spendableRaw, input.extraDebitSellBps)
+    const room = spendableRaw
+    spendableRaw = extraDebitMaxDeclaredRaw(room, input.extraDebitSellBps, input.decimals)
   }
 
   const human = fromRawAmount(spendableRaw.toString(), input.decimals)
