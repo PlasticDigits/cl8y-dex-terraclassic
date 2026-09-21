@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Automated verification for #1240 — /protocol mixed-case product tickers
+# Bundle implement PR: #1290 (`make verify-issue-1290` adds hubPriceTicker + Playwright).
 # (cUSTC / cLUNC / vFDUSD) must not be flattened by Tailwind `uppercase`.
 # Hub wrap labels are cUSTC / cLUNC; CEX oracle stays USTC / LUNC.
 #
