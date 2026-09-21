@@ -24,7 +24,7 @@ vi.mock('@/services/indexer/client', async (importOriginal) => {
 })
 
 describe('PairSearchSelect degraded mode (GitLab #328)', () => {
-  const TOKEN_CACHE_KEY = 'cl8y-dex-token-info'
+  const TOKEN_CACHE_KEY = 'cl8y-dex-token-info-v2'
 
   beforeEach(() => {
     localStorage.setItem(

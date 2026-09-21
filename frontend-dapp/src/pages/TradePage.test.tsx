@@ -163,7 +163,12 @@ import {
 } from '@/utils/tradeWorkspacePanels'
 
 vi.mock('@/services/terraclassic/queries', () => ({
-  queryContract: vi.fn().mockResolvedValue({}),
+  queryContract: vi.fn(async (_addr: string, msg: unknown) => {
+    if (msg && typeof msg === 'object' && 'token_info' in msg) {
+      return { name: 'Dummy', symbol: 'DUM', decimals: 6, total_supply: '0' }
+    }
+    return {}
+  }),
   getTokenBalance: vi.fn().mockResolvedValue('0'),
 }))
 

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   shortenAddress,
   shortenTraderAddress,
@@ -10,6 +10,9 @@ import {
   usablePoolAssetName,
   formatPoolAssetFieldLabel,
   poolProvideAmountAriaLabel,
+  CW20_TOKEN_INFO_CACHE_KEY,
+  getCachedTokenDecimals,
+  getCachedTokenDecimalsHostile,
 } from '../tokenDisplay'
 
 describe('shortenAddress', () => {
@@ -149,5 +152,44 @@ describe('formatPoolAssetFieldLabel (GitLab #661)', () => {
     expect(poolProvideAmountAriaLabel('cLUNC')).toBe('cLUNC amount')
     expect(poolProvideAmountAriaLabel('UST1')).toBe('UST1 amount')
     expect(poolProvideAmountAriaLabel('')).toBe('amount')
+  })
+})
+
+describe('CW20 token_info cache decimals (#1255)', () => {
+  const UNKNOWN = 'terra1from00000000000000000000000000000001'
+
+  beforeEach(() => {
+    localStorage.removeItem(CW20_TOKEN_INFO_CACHE_KEY)
+    localStorage.removeItem('cl8y-dex-token-info')
+  })
+
+  afterEach(() => {
+    localStorage.removeItem(CW20_TOKEN_INFO_CACHE_KEY)
+    localStorage.removeItem('cl8y-dex-token-info')
+  })
+
+  it('uses versioned v2 key; missing decimals is unresolved not 6', () => {
+    expect(CW20_TOKEN_INFO_CACHE_KEY).toBe('cl8y-dex-token-info-v2')
+    localStorage.setItem(
+      'cl8y-dex-token-info',
+      JSON.stringify({ [UNKNOWN]: { symbol: 'GEM', name: 'Gem', decimals: 18 } })
+    )
+    expect(getCachedTokenDecimals(UNKNOWN)).toBeNull()
+    localStorage.setItem(CW20_TOKEN_INFO_CACHE_KEY, JSON.stringify({ [UNKNOWN]: { symbol: 'GEM', name: 'Gem' } }))
+    expect(getCachedTokenDecimals(UNKNOWN)).toBeNull()
+  })
+
+  it('reads cached 18 and hostile flag', () => {
+    localStorage.setItem(
+      CW20_TOKEN_INFO_CACHE_KEY,
+      JSON.stringify({ [UNKNOWN]: { symbol: 'GEM', name: 'Gem', decimals: 18 } })
+    )
+    expect(getCachedTokenDecimals(UNKNOWN)).toBe(18)
+    localStorage.setItem(
+      CW20_TOKEN_INFO_CACHE_KEY,
+      JSON.stringify({ [UNKNOWN]: { symbol: 'BAD', name: 'Bad', decimalsHostile: true } })
+    )
+    expect(getCachedTokenDecimals(UNKNOWN)).toBeNull()
+    expect(getCachedTokenDecimalsHostile(UNKNOWN)).toBe(true)
   })
 })

@@ -104,7 +104,7 @@ describe('filterPairsByLocalSearch', () => {
 })
 
 describe('buildPairSearchHaystacksByAddress', () => {
-  const TOKEN_CACHE_KEY = 'cl8y-dex-token-info'
+  const TOKEN_CACHE_KEY = 'cl8y-dex-token-info-v2'
 
   beforeEach(() => {
     localStorage.setItem(

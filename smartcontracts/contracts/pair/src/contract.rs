@@ -754,6 +754,8 @@ pub fn execute(
                 std::slice::from_ref(&info.sender),
                 &[],
             )?;
+            // F6 write-path re-check (#1234): relink mutates the bid/ask DLL.
+            gate_asset_code_ids(deps.as_ref())?;
             execute_update_limit_order_price(
                 deps,
                 env,
@@ -774,6 +776,9 @@ pub fn execute(
             max_steps,
         } => {
             assert_not_paused(deps.storage)?;
+            // F6: freeze means no DLL writes (#1234). Keepers resume after unfreeze
+            // (same as L6 unpause). Claims stay gated (exit-path keep).
+            gate_asset_code_ids(deps.as_ref())?;
             execute_clean_limit_book(deps, env, side, max_orders, start_hint, max_steps)
         }
         ExecuteMsg::UpdateLimitCleanConfig {

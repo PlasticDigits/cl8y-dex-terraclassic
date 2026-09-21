@@ -109,6 +109,21 @@ export function sellDebitExceedsBalance(input: { declaredRaw: bigint; balanceRaw
 }
 
 /**
+ * Economic user debit from LCD `TaxPreview` (**S1285-2**).
+ * Router-hop Sell keeps `debit === declared` on the router leg; extra-debit is `hop_trader_debit`.
+ */
+export function taxPreviewExecuteDebitRaw(input: {
+  declaredRaw: bigint
+  previewDebit: bigint | null
+  hopTraderDebit: bigint | null
+}): bigint | null {
+  if (input.hopTraderDebit != null && input.hopTraderDebit > 0n) {
+    return input.declaredRaw + input.hopTraderDebit
+  }
+  return input.previewDebit
+}
+
+/**
  * Largest declared whose human round-trip still has `debit ≤ balance`.
  * Steps down 1 raw unit if `fromRawAmount` → `toRawAmount` would overshoot.
  */

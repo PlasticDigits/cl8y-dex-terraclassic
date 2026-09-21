@@ -3,11 +3,12 @@ import { SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT, SWAP_EXTREME_SLIPPAGE_WARNING_PCT 
 import { lookupByTokenId, USDT_CW20_ADDRESS, USTR_CW20_ADDRESS } from '@/utils/tokenRegistry'
 
 /**
- * Human-scale decimals for Swap / Trade quote display (#1257).
+ * Listed-token pin for USTR / USDT display (#1257).
  *
- * Registry USTR / USDT are 18. Unknown CW20 still defaults to 6 (#1255 dummy tokens).
- * Pinning the two columbus-5 addresses here means a missing TOKENS row cannot reprint
- * 18-dec raw as billions.
+ * Swap / Trade **execute** amounts must use `resolveSwapAssetDecimals` /
+ * `useAssetDecimals` (#1255). Unknown CW20 is **not** 6 on those surfaces.
+ * This helper still defaults unknown to 6 for non-execute chrome that has not
+ * switched yet (`getDecimals` class). Do not use it as Swap sim/execute scale.
  */
 export function swapAmountDecimals(tokenId: string | undefined | null): number {
   if (!tokenId?.trim()) return 6

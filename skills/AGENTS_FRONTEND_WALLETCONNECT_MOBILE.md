@@ -52,6 +52,7 @@ make verify-issue-566
 make verify-issue-554
 make verify-issue-519
 make verify-issue-658
+make verify-issue-1279   # leftover Lunc Dash ops pre-check; does not close #1279
 # or:
 bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
   src/utils/__tests__/walletConnectPairing.test.ts \
@@ -74,4 +75,5 @@ Manual: Android Chrome → Connect → Station / Cosmostation / Lunc Dash / Gala
 - Copy primitive: [`AGENTS_FRONTEND_COPY_BUTTON.md`](./AGENTS_FRONTEND_COPY_BUTTON.md)
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md)
 - Legal clickwrap (no ADR-036; **WC-M12** / **L658** not Keplr-only): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
+- Leftover Lunc Dash ops verify (pre-check only; device QA is ops-bot): [`AGENTS_OPS_LUNCDASH_VERIFY.md`](./AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-1–L1279-8**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); `make verify-issue-1279`
 - Post-merge Coolify cut: [`AGENTS_POST_MERGE_STACK.md`](./AGENTS_POST_MERGE_STACK.md) ([#573](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/573))

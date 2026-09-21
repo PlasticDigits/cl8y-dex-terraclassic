@@ -1,21 +1,27 @@
 import { queryContract } from '@/services/terraclassic/queries'
 import type { AssetInfo } from '@/types'
+import { isPairLegDecimals } from './formatAmount'
+import { parseTokenInfoDecimals } from './swapAssetDecimals'
 import { lookupByTokenId, lookupByAssetInfo, registryProductSymbol } from './tokenRegistry'
 
-interface CW20TokenInfo {
+export interface CW20TokenInfo {
   name: string
   symbol: string
-  decimals: number
+  /** Parsed 0…18, or null when LCD omitted / hostile decimals (#1255). */
+  decimals: number | null
+  /** True when LCD sent a `decimals` field outside 0…18. */
+  decimalsHostile: boolean
   total_supply: string
 }
 
-const CACHE_KEY = 'cl8y-dex-token-info'
+/** Versioned so pre-#1255 `{symbol,name}` rows cannot be read as “decimals unknown → 6”. */
+export const CW20_TOKEN_INFO_CACHE_KEY = 'cl8y-dex-token-info-v2'
 
-type CachedEntry = { symbol: string; name: string }
+type CachedEntry = { symbol: string; name: string; decimals?: number; decimalsHostile?: boolean }
 
 function loadCache(): Record<string, CachedEntry> {
   try {
-    return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}')
+    return JSON.parse(localStorage.getItem(CW20_TOKEN_INFO_CACHE_KEY) || '{}')
   } catch {
     return {}
   }
@@ -23,13 +29,18 @@ function loadCache(): Record<string, CachedEntry> {
 
 function saveCache(cache: Record<string, CachedEntry>) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+    localStorage.setItem(CW20_TOKEN_INFO_CACHE_KEY, JSON.stringify(cache))
   } catch {
     // quota exceeded
   }
 }
 
 const inFlightQueries = new Map<string, Promise<CW20TokenInfo | null>>()
+
+/** Vitest: drop hung LCD promises so a later mock is not stuck behind T7. */
+export function resetCw20TokenInfoInFlightForTests() {
+  inFlightQueries.clear()
+}
 
 export function getCachedTokenSymbol(tokenId: string): string | null {
   const reg = lookupByTokenId(tokenId)
@@ -41,9 +52,25 @@ export function getCachedTokenSymbol(tokenId: string): string | null {
 /** Cached CW20 metadata from prior on-chain `token_info` reads (localStorage). */
 export function getCachedTokenEntry(tokenId: string): CachedEntry | null {
   const reg = lookupByTokenId(tokenId)
-  if (reg) return { symbol: reg.symbol, name: reg.name }
+  if (reg) return { symbol: reg.symbol, name: reg.name, decimals: reg.decimals }
   const cache = loadCache()
-  return cache[tokenId.toLowerCase()] ?? null
+  const entry = cache[tokenId.toLowerCase()]
+  if (!entry) return null
+  if (entry.decimals != null && !isPairLegDecimals(entry.decimals)) {
+    return { symbol: entry.symbol, name: entry.name, decimalsHostile: entry.decimalsHostile }
+  }
+  return entry
+}
+
+/** Cached LCD `token_info.decimals` when in 0…18. Missing field is unresolved, not 6. */
+export function getCachedTokenDecimals(tokenId: string): number | null {
+  const entry = getCachedTokenEntry(tokenId)
+  return isPairLegDecimals(entry?.decimals) ? entry.decimals : null
+}
+
+export function getCachedTokenDecimalsHostile(tokenId: string): boolean {
+  const cache = loadCache()
+  return cache[tokenId.toLowerCase()]?.decimalsHostile === true
 }
 
 export function getTokenLogoURI(info: AssetInfo): string | undefined {
@@ -55,13 +82,31 @@ export async function fetchCW20TokenInfo(contractAddr: string): Promise<CW20Toke
   const existing = inFlightQueries.get(key)
   if (existing) return existing
 
-  const promise = queryContract<CW20TokenInfo>(contractAddr, { token_info: {} })
+  const promise = queryContract<{
+    name: string
+    symbol: string
+    decimals: unknown
+    total_supply: string
+  }>(contractAddr, { token_info: {} })
     .then((info) => {
+      const decimals = parseTokenInfoDecimals(info.decimals)
+      const decimalsHostile = info.decimals !== undefined && info.decimals !== null && decimals == null
       const cache = loadCache()
-      cache[key] = { symbol: info.symbol, name: info.name }
+      cache[key] = {
+        symbol: info.symbol,
+        name: info.name,
+        ...(decimals != null ? { decimals } : {}),
+        ...(decimalsHostile ? { decimalsHostile: true } : {}),
+      }
       saveCache(cache)
       inFlightQueries.delete(key)
-      return info
+      return {
+        name: info.name,
+        symbol: info.symbol,
+        decimals,
+        decimalsHostile,
+        total_supply: info.total_supply,
+      }
     })
     .catch(() => {
       inFlightQueries.delete(key)

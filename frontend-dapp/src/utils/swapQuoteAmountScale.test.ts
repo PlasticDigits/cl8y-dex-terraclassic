@@ -17,9 +17,9 @@ describe('swapQuoteAmountScale (#1257)', () => {
     expect(swapAmountDecimalsFromAssetInfo({ token: { contract_addr: USDT_CW20_ADDRESS } })).toBe(18)
   })
 
-  it('keeps unknown CW20 at 6 so dummy Swap tokens stay testable (#1255)', () => {
-    expect(swapAmountDecimals('terra1from00000000000000000000000000000001')).toBe(6)
+  it('keeps getDecimals unknown→6 for non-Swap chrome; Swap resolver is fail-closed (#1255)', () => {
     expect(getDecimals({ token: { contract_addr: 'terra1unknown' } })).toBe(6)
+    expect(swapAmountDecimals('terra1from00000000000000000000000000000001')).toBe(6)
   })
 
   it('does not print 9.091e15 USDT raw as 9.091B', () => {

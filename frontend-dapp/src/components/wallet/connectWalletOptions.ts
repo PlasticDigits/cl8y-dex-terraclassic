@@ -21,6 +21,7 @@ export type ConnectWalletOptionEnv = {
  * Cosmostation via WalletConnect — not an Install-only desktop extension row.
  * Injected extensions (in-app browser) stay Extension (**WC-M7** / **WC-M10**).
  * Leap stays absent ([#159](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/159)).
+ * Lunc Dash is WalletConnect-only on desktop and mobile (leftover [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)).
  */
 export function shouldOfferMobileExtensionWalletConnect(isMobileClient: boolean, extensionInjected: boolean): boolean {
   return isMobileClient && !extensionInjected
