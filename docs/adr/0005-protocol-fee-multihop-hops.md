@@ -52,7 +52,7 @@ PostgreSQL `UNIQUE` treats NULL as distinct. A nullable `pair_id` **without** th
 **Heal paths (both required):**
 
 1. **Ingest:** `trade_exists` still skips swap insert, then calls `ingest_swap_amm_fee` (idempotent).
-2. **Backfill:** one-shot SQL in migration `20260916120000_protocol_fee_events_pair_id.sql` plus poller startup `backfill_missing_swap_amm_fees`. Attach colliding NULL-`pair_id` `swap_amm` rows to the first matching hop (amount match preferred, then earliest `swap_events.id`). Insert remaining hops from `swap_events.commission_amount > 0`. Delete leftover NULL-`pair_id` `swap_amm` copies so the first hop is not double-counted. `fee_usd` NULL until the existing NULL-only stamp helper.
+2. **Backfill:** one-shot SQL in migration `20260916120001_protocol_fee_events_pair_id.sql` plus poller startup `backfill_missing_swap_amm_fees`. Attach colliding NULL-`pair_id` `swap_amm` rows to the first matching hop (amount match preferred, then earliest `swap_events.id`). Insert remaining hops from `swap_events.commission_amount > 0`. Delete leftover NULL-`pair_id` `swap_amm` copies so the first hop is not double-counted. `fee_usd` NULL until the existing NULL-only stamp helper.
 
 Do **not** change `parse_swaps` to a global-in-tx fee ordinal. That would fork fee rows from `swap_events` and from fill `swap_index`.
 
@@ -101,7 +101,7 @@ Net: one extra column and two indexes in exchange for fee census matching hop-co
 
 ## Migration
 
-Shipped file: [`indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql`](../../indexer/migrations/20260916120000_protocol_fee_events_pair_id.sql). Do not edit `20260821120000_protocol_fees.sql` in place.
+Shipped file: [`indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql`](../../indexer/migrations/20260916120001_protocol_fee_events_pair_id.sql). Do not edit `20260821120000_protocol_fees.sql` in place.
 
 Order inside the hops migration: add column → drop old unique → create partials → attach colliding rows → insert missing hops → delete NULL-`pair_id` duplicates that now have a pair-scoped copy.
 
@@ -109,7 +109,7 @@ Idempotent: `IF NOT EXISTS` / `DROP IF EXISTS` / `ON CONFLICT DO NOTHING`. Polle
 
 `fee_usd` on inserted hops is NULL until `backfill_null_fee_usd` (existing as-of helper, from hub refresh — not the hop-backfill SQL). Unpriced hops stay NULL; activity + all unpriced → API `null`, not `$0`.
 
-**sqlx version leftover (ordinary ops, not this docs PR):** `origin/main` also has [`indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql`](../../indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql) ([#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258)). sqlx `migrate!()` versions from the numeric prefix; two files sharing `20260916120000` fail compile or migrate. Rename the **unapplied** file to a later unique version (prefer hops → `20260916120100_protocol_fee_events_pair_id.sql` when USDT already applied as `20260916120000`; the reverse if hops already applied). Do not checksum-edit `_sqlx_migrations`. Update `verify-issue-1269` / skill paths when the hops filename moves. Table order vs USDT does not matter (different tables).
+**sqlx version leftover (ordinary ops, not this docs PR):** `origin/main` also has [`indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql`](../../indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql) ([#1258](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1258)). sqlx `migrate!()` versions from the numeric prefix; two files sharing `20260916120000` fail compile or migrate. Keep the **first-applied** USDT checksum at `20260916120000`; hops is `20260916120001_protocol_fee_events_pair_id.sql` (do **not** introduce `20260916120100`). Do not checksum-edit `_sqlx_migrations`. Table order vs USDT does not matter (different tables).
 
 No wasm migrate. No factory `UpdateConfig`. No dApp env keys.
 
@@ -143,7 +143,7 @@ No wasm migrate. No factory `UpdateConfig`. No dApp env keys.
 2. **Ingest** — shipped: `FeeEventDraft.pair_id`; inference `ON CONFLICT DO NOTHING`; `ingest_swap_amm_fee`; `trade_exists` retry.
 3. **Backfill** — shipped: migration SQL + `backfill_missing_swap_amm_fees` + poller startup.
 4. **Docs / verify** — this PR: ADR + architecture overview + `verify-issue-1269` docs grep. Skill / invariants / **PFee-14** already on `main`.
-5. **sqlx version leftover** — rename the unapplied `20260916120000_*` file so hops and #1258 USDT do not share a version. Then Coolify indexer migrate + restart + hub stamp + aggregator tick; confirm 7d AMM vs hop-complete priced SUM; confirm replay does not inflate `fee_event_count`. Ordinary leftover — not this design PR, not #297.
+5. **sqlx version leftover** — hops is `20260916120001`; #1258 USDT stays `20260916120000`. Then Coolify indexer migrate + restart + hub stamp + aggregator tick; confirm 7d AMM vs hop-complete priced SUM; confirm replay does not inflate `fee_event_count`. Ordinary leftover — not this design PR, not #297.
 
 **Open issue dependencies:** none. Shipped precedents (#287 / #586 / #613 / #614 / #683) are on `main`.
 
@@ -191,7 +191,7 @@ This is not a chain halt, pause, or treasury rotate.
 
 - AC1–AC9 from #1269 hold (two-pair `swap_index==0` → 2 rows; same-pair 0,1 → 2; replay 0 extras; wrap/window/book/place uniqueness unchanged; 7d AMM matches hop-complete priced SUM after stamp + rollup; GET does not scan events; L7; docs/verify; #285).
 - `make verify-issue-1269` green (this branch: docs grep includes ADR 0005 + architecture anchor).
-- sqlx leftover: hops and #1258 USDT no longer share version `20260916120000` before Coolify compile.
+- sqlx leftover: hops is `20260916120001` and #1258 USDT stays `20260916120000` before Coolify compile.
 - After Coolify leftover: 7d AMM ≠ collision-truncated reconstruction; replay does not inflate `fee_event_count`.
 - #1209 / #1210 / #1211 specs name the widened key (out of this slice to implement).
 

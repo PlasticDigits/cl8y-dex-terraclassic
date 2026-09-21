@@ -47,12 +47,17 @@ async fn build_app_with_health(
     build_router(state, &config)
 }
 
-#[tokio::test]
 #[serial]
+#[tokio::test]
 async fn generic_health_unchanged() {
     let pool = common::setup_pool().await;
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
+    // Handler reads env per request; CI/Coolify-like shells often export SOURCE_COMMIT.
+    unsafe {
+        std::env::remove_var("GIT_SHA");
+        std::env::remove_var("SOURCE_COMMIT");
+    }
 
     let resp = server.get("/health").await;
     resp.assert_status_ok();
