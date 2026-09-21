@@ -40,6 +40,12 @@ echo "════════════════════════�
 
 run_indexer_unit() {
   (cd indexer && cargo test --lib retail_plan_keeps_hop0 -- --test-threads=1)
+  (cd indexer && cargo test --lib hop0_only_strip_recomputes_grid_out -- --test-threads=1)
+}
+
+run_indexer_db_hybrid() {
+  (cd indexer && cargo test --test api_route_solve_db_hybrid \
+    route_solve_db_hybrid_2hop_live_book_fidelity -- --test-threads=1)
 }
 
 run_wasm_multitest() {
@@ -62,6 +68,8 @@ run_docs() {
   set -euo pipefail
   rg -q 'retail_declared_hybrid_plan_hop0_only' indexer/src/api/hybrid_route_opt.rs
   rg -q 'retail_declared_hybrid_plan_hop0_only' indexer/src/api/best_execution.rs
+  rg -q 'propagate_offer_through_plan' indexer/src/api/best_execution.rs
+  rg -q 'route_solve_db_hybrid_2hop_live_book_fidelity' indexer/tests/api_route_solve_db_hybrid.rs
   rg -q 'stripInteriorDeclaredHybrid' frontend-dapp/src/utils/cw20RouteSolveQuote.ts
   rg -q 'assertHop0DeclaredHybridPartitionsOffer' frontend-dapp/src/services/terraclassic/router.ts
   rg -q 'never copy hybrid' frontend-dapp/src/services/terraclassic/router.ts
@@ -82,6 +90,7 @@ run_docs() {
 echo ""
 echo "── first pass ──"
 run_step "indexer unit: hop0-only retail plan" run_indexer_unit
+run_step "indexer integration: DB 2-hop stripped-plan fidelity" run_indexer_db_hybrid
 run_step "wasm multitest: hop0 + interior split mismatch reverts" run_wasm_multitest
 run_step "frontend unit: strip + hop0 preflight + humanize" run_frontend_unit
 run_step "docs: #1280 + H1280 + skills" run_docs
@@ -89,6 +98,7 @@ run_step "docs: #1280 + H1280 + skills" run_docs
 echo ""
 echo "── retest ──"
 run_step "retest indexer unit" run_indexer_unit
+run_step "retest indexer DB 2-hop fidelity" run_indexer_db_hybrid
 run_step "retest wasm multitest" run_wasm_multitest
 run_step "retest frontend unit" run_frontend_unit
 run_step "retest docs" run_docs

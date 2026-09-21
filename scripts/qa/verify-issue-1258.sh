@@ -46,7 +46,7 @@ run_step "docs: invariants + skill + AGENTS crosslinks" \
     grep -q 'AGENTS_INDEXER_PAIR_PRICE_USD' AGENTS.md
     grep -q '1258' docs/frontend.md
     grep -q 'USDT' skills/AGENTS_INDEXER_CANDLE_USD_MARK.md
-    test -f indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql
+    test -f indexer/migrations/20260916120100_usdt_quote_usd_null_backfill.sql
     test -f indexer/src/db/queries/usdt_quote_usd.rs
   "
 
@@ -81,8 +81,8 @@ run_step "source: identity pin, not Peg1 / hub / CEX FDUSD / symbol arm" \
     grep -q 'usdt_cw20_address' indexer/src/indexer/parser.rs
     grep -q 'backfill_null_usdt_quote_usd' indexer/src/main.rs
     grep -q 'price_usd IS NULL' indexer/src/db/queries/usdt_quote_usd.rs
-    grep -q 'price_usd IS NULL' indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql
-    grep -q '${PIN}' indexer/migrations/20260916120000_usdt_quote_usd_null_backfill.sql
+    grep -q 'price_usd IS NULL' indexer/migrations/20260916120100_usdt_quote_usd_null_backfill.sql
+    grep -q '${PIN}' indexer/migrations/20260916120100_usdt_quote_usd_null_backfill.sql
     grep -q 'USDT_CW20_ADDRESS' indexer/.env.example
     grep -q 'REGISTRY_USDT_CW20_ADDRESS' frontend-dapp/src/utils/tokenRegistry.ts
     grep -q 'isPinnedUsdtCw20' frontend-dapp/src/utils/pairPriceUsd.ts

@@ -108,6 +108,8 @@ pub async fn setup_pool() -> PgPool {
         .await
         .expect("Failed to run migrations");
 
+    cl8y_dex_indexer::api::reset_route_graph_cache();
+
     pool
 }
 
@@ -588,6 +590,34 @@ pub async fn seed_route_solve_2hop(pool: &PgPool) -> RouteSolveSeed {
         token_d: None,
         token_e: None,
     }
+}
+
+/// 2-hop A→B→C plus fresh `pair_reserves` on both pairs (DB hybrid / #1280 fidelity).
+pub async fn seed_route_solve_2hop_with_mirror(pool: &PgPool) -> RouteSolveSeed {
+    use bigdecimal::BigDecimal;
+    use cl8y_dex_indexer::db::queries::pair_reserves;
+    use std::str::FromStr;
+
+    let seed = seed_route_solve_2hop(pool).await;
+    let bd = |s: &str| BigDecimal::from_str(s).unwrap();
+    for addr in ["terra1pairrouteabc", "terra1pairroutebcd"] {
+        let pair_id: i32 = sqlx::query_scalar("SELECT id FROM pairs WHERE contract_address = $1")
+            .bind(addr)
+            .fetch_one(pool)
+            .await
+            .expect("pair id");
+        pair_reserves::upsert_pair_reserves(
+            pool,
+            pair_id,
+            &bd("10000000000000"),
+            &bd("10000000000000"),
+            30,
+            Some(100),
+        )
+        .await
+        .expect("upsert reserves");
+    }
+    seed
 }
 
 /// Insert or update `traders` rows with explicit `tier_id` (GitLab #306 / #283 HTTP cache tests).

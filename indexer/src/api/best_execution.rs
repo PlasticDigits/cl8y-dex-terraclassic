@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::api::AppState;
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
 use crate::api::hybrid_route_opt::{
     self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta,
@@ -13,9 +12,10 @@ use crate::api::route_graph::{self, RouteGraphSnapshot};
 use crate::api::route_paths;
 use crate::api::route_solve_progress;
 use crate::api::route_solver::{
-    FidelityCheck, GET_DEFAULT_MAX_HOPS, RouteHop, RouteQuoteKind, RouteSolveResponse,
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
+    FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, GET_DEFAULT_MAX_HOPS,
 };
+use crate::api::AppState;
 use axum::http::StatusCode;
 use sqlx::PgPool;
 
@@ -390,6 +390,49 @@ async fn evaluate_candidate(
         Err(e) => return Err(hybrid_sim_gateway_err(e)),
     };
 
+    let hops = cand.hops.clone();
+    // Retail GET: freeze declared hybrid only on hop 0 (#1280 Policy A).
+    let hybrid_plan = hybrid_route_opt::retail_declared_hybrid_plan_hop0_only(hybrid_plan);
+    let mut opt_meta = opt_meta;
+    opt_meta.any_book_leg = hybrid_route_opt::plan_has_book_leg(&hybrid_plan);
+
+    // Fidelity must DB-sim the emitted (stripped) ops, not the joint ranking plan.
+    let grid_out = if db_mode && hops_desc.len() > 1 {
+        match hybrid_route_opt::propagate_offer_through_plan(
+            &source,
+            Some(&mut mirror_meta),
+            &hops_desc,
+            &hybrid_plan,
+            amount_in,
+            hops_desc.len(),
+            max_maker_fills,
+            &quote_trader,
+        )
+        .await
+        {
+            Ok(v) => v,
+            Err(HybridSimError::PathUnusable) => {
+                tracing::debug!(
+                    path_index = index,
+                    hops = hops_desc.len(),
+                    "skipping path candidate: unusable after hop-0-only strip"
+                );
+                return Ok(None);
+            }
+            Err(HybridSimError::Db(db_orderbook_sim::DbSimError::InsufficientLiquidity)) => {
+                tracing::debug!(
+                    path_index = index,
+                    hops = hops_desc.len(),
+                    "skip path candidate: zero-reserve after hop-0-only strip"
+                );
+                return Ok(None);
+            }
+            Err(e) => return Err(hybrid_sim_gateway_err(e)),
+        }
+    } else {
+        grid_out
+    };
+
     let lcd_delta = if db_mode {
         mirror_meta.lcd_fallback_queries
     } else {
@@ -401,11 +444,6 @@ async fn evaluate_candidate(
         0
     };
 
-    let hops = cand.hops.clone();
-    // Retail GET: freeze declared hybrid only on hop 0 (#1280 Policy A).
-    let hybrid_plan = hybrid_route_opt::retail_declared_hybrid_plan_hop0_only(hybrid_plan);
-    let mut opt_meta = opt_meta;
-    opt_meta.any_book_leg = hybrid_route_opt::plan_has_book_leg(&hybrid_plan);
     let ops = apply_hybrid_by_hop(cand.ops, &hybrid_plan)?;
     let estimated =
         crate::api::route_solver::maybe_simulate(&state, Some(&amount_raw), &ops, &quote_trader)
@@ -492,7 +530,7 @@ async fn preload_mirrors_with_progress(
     let mut mirrors = HashMap::new();
     if progress_key.is_some() {
         use crate::api::db_orderbook_sim::{
-            DbSimError, HopMirror, MirrorFreshness, load_hop_mirror,
+            load_hop_mirror, DbSimError, HopMirror, MirrorFreshness,
         };
         use crate::db::queries::pairs;
         use chrono::Utc;
@@ -1040,7 +1078,7 @@ fn apply_tax_rank_fields(
 
 #[cfg(test)]
 mod concurrent_solve_tests {
-    use super::{CandidateEval, RouteHop, SOLVE_CONCURRENCY, merge_candidate_evaluations};
+    use super::{merge_candidate_evaluations, CandidateEval, RouteHop, SOLVE_CONCURRENCY};
     use crate::api::route_solver::{RouteQuoteKind, RouteSolveResponse};
     use std::time::{Duration, Instant};
 

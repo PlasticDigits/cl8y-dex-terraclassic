@@ -19,7 +19,7 @@ mod fee_discount_health;
 pub mod hooks;
 mod hub_prices;
 pub mod hybrid_orderbook_sim;
-mod hybrid_route_opt;
+pub mod hybrid_route_opt;
 pub mod limit_book_lcd;
 pub mod limit_book_price;
 mod listing_spread;
@@ -43,6 +43,8 @@ pub use protocol_liquidity::reset_protocol_liquidity_cache;
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
 mod route_graph;
+#[allow(unused_imports)] // re-exported for integration tests
+pub use route_graph::reset_route_graph_cache;
 mod route_paths;
 mod route_slippage;
 mod route_solve_progress;
@@ -57,13 +59,13 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use axum::Router;
-use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
+use axum::Router;
 use sqlx::PgPool;
-use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::PeerIpKeyExtractor;
+use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -127,14 +129,14 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
     )
 }
 
-#[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
-pub use errors::{LCD_UPSTREAM_GATEWAY_MSG, lcd_gateway_err};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
 pub use compliance::{MAX_BLACKLIST_PAIRS, MAX_BLACKLIST_TOKENS};
+#[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
+pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
 pub use gt::{GT_EVENT_ROW_CAP_MSG, MAX_EVENT_BLOCK_SPAN, MAX_GT_EVENT_ROWS};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
-pub use route_solver::{DISCOUNT_BPS_CACHE_TTL, reset_discount_bps_cache};
+pub use route_solver::{reset_discount_bps_cache, DISCOUNT_BPS_CACHE_TTL};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.

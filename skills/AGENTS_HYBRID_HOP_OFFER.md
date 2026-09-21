@@ -6,7 +6,7 @@ This is **construction drift**, not a request to drop the sum invariant and not 
 
 ## Policy A (locked)
 
-Retail **`GET /api/v1/route/solve`** emits declared `hybrid` on **hop 0 only** (the CW20 send amount). Hops **1+** are `hybrid: null` (pool-only on-chain). Joint grid may still **rank** paths using interior books; **emitted** ops and `estimated_amount_out` use the hop-0-only plan so quote ≈ execute.
+Retail **`GET /api/v1/route/solve`** emits declared `hybrid` on **hop 0 only** (the CW20 send amount). Hops **1+** are `hybrid: null` (pool-only on-chain). Joint grid may still **rank** paths using interior books; **emitted** ops and `estimated_amount_out` use the hop-0-only plan so quote ≈ execute. DB-hybrid **`fidelity_check`** must recompute `grid_out` on that stripped plan (not the joint interior-hybrid output).
 
 **`POST /route/solve` `hybrid_by_hop`** may still declare interior splits that **partition that hop’s offer** (integrator / Advanced). Wasm keeps the hard fail.
 
@@ -29,7 +29,7 @@ No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop
 
 ## Files
 
-- Indexer: `retail_declared_hybrid_plan_hop0_only` in [`hybrid_route_opt.rs`](../indexer/src/api/hybrid_route_opt.rs); applied in [`best_execution.rs`](../indexer/src/api/best_execution.rs) before `apply_hybrid_by_hop`.
+- Indexer: `retail_declared_hybrid_plan_hop0_only` in [`hybrid_route_opt.rs`](../indexer/src/api/hybrid_route_opt.rs); applied in [`best_execution.rs`](../indexer/src/api/best_execution.rs) before `apply_hybrid_by_hop`. After strip, `propagate_offer_through_plan` recomputes DB `grid_out` for fidelity.
 - Frontend: [`hybridHopOfferPartition.ts`](../frontend-dapp/src/utils/hybridHopOfferPartition.ts), [`cw20RouteSolveQuote.ts`](../frontend-dapp/src/utils/cw20RouteSolveQuote.ts), [`router.ts`](../frontend-dapp/src/services/terraclassic/router.ts) `executeMultiHopSwap`.
 - Wasm (unchanged invariant): [`router/src/contract.rs`](../smartcontracts/contracts/router/src/contract.rs) `validate_hybrid_declared_split_for_no_belief`.
 
@@ -42,6 +42,8 @@ make verify-issue-1264
 cd smartcontracts && cargo test -p cl8y-dex-tests -- --test-threads=1 router_declared_split_mismatch_reverts_hop0
 cd smartcontracts && cargo test -p cl8y-dex-tests -- --test-threads=1 router_two_hop_interior_hybrid_mismatch_reverts
 cd indexer && cargo test --lib retail_plan_keeps_hop0
+cd indexer && cargo test --lib hop0_only_strip_recomputes_grid_out
+cd indexer && cargo test --test api_route_solve_db_hybrid route_solve_db_hybrid_2hop_live_book_fidelity -- --test-threads=1
 cd frontend-dapp && npm test -- src/utils/hybridHopOfferPartition.test.ts src/utils/cw20RouteSolveQuote.test.ts
 ```
 

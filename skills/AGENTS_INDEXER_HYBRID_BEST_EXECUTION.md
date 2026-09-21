@@ -21,7 +21,7 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 | `optimality_scope` | Human-readable bound (not unbounded “global optimal”) |
 | `lcd_hybrid_queries` | LCD `HybridSimulation` calls during optimization (legacy / per-hop fallback) |
 | `db_hybrid_queries` | Postgres mirror grid evals (`global_v2`) |
-| `fidelity_check` | `passed` \| `drift` \| `skipped` — router sim vs mirror grid (#319) |
+| `fidelity_check` | `passed` \| `drift` \| `skipped` — router sim vs **emitted-ops** mirror grid (#319, #1280 hop-0-only strip) |
 | `hybrid_notes` | Degradation + liability boundary |
 | `quote_kind` | `indexer_hybrid_db`, `indexer_hybrid_db_degraded`, `indexer_pool_db`, or legacy `*_lcd` kinds |
 
