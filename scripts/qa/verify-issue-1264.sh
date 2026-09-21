@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Verification for Forgejo #1264 — USTC→USTR wrap+2hop stays pool-only at the #587 envelope.
 #
-# Does **not** raise WRAP_ROUTER_COMBO_OVERHEAD_GAS (columbus-5 AC1 still unmeasured).
+# Does **not** raise WRAP_ROUTER_COMBO_OVERHEAD_GAS (AC1 measured not-A/not-B;
+# envelope stays 2,710,000). Do **not** treat AC1 as unmeasured.
+# Optional columbus-5 LCD: VERIFY1264_COLUMBUS_TX=<hash>
+# Known AC1: 53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36
+#   gas_wanted=2710000 gas_used=2630228 class not-A/not-B.
 # Proves:
 #   1. wrap+2hop fixture = 2,710,000 (LUNC and USTC pay share the envelope)
 #   2. Native wrap path never copies hybrid / book_input (H596-7 / #1280 AC4)
@@ -9,8 +13,8 @@
 #   4. Docs/skills crosslinks
 #
 # Optional chain: wrap-swap E10 (VERIFY_ISSUE_1264_CHAIN=1 or VERIFY1264_REQUIRE_CHAIN=1).
-# Optional columbus-5 LCD: VERIFY1264_COLUMBUS_TX=<hash>
-#   VERIFY1264_REQUIRE_MAINNET=1 — FAIL when the hash is unset / LCD miss.
+# VERIFY1264_REQUIRE_MAINNET=1 — FAIL when the hash is unset / LCD miss.
+# Pin the known AC1 hash with VERIFY1264_COLUMBUS_TX (do not treat AC1 as open).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -77,9 +81,9 @@ run_docs() {
   rg -q 'G1264' docs/qa-invariants.md
   rg -q 'isNativeUlunaDenom' frontend-dapp/src/pages/SwapPage.tsx
   rg -q 'defaultNativeWrapHopCount' frontend-dapp/src/pages/SwapPage.tsx
-  # Do not raise the combo in this ticket — AC1 still unmeasured.
+  # Do not raise the combo in this ticket — AC1 measured not-A; envelope stays.
   if rg -n 'WRAP_ROUTER_COMBO_OVERHEAD_GAS =' frontend-dapp/src/utils/constants.ts | rg -v '400_000'; then
-    echo "WRAP_ROUTER_COMBO_OVERHEAD_GAS must stay 400_000 until AC1" >&2
+    echo "WRAP_ROUTER_COMBO_OVERHEAD_GAS must stay 400_000 (AC1 not-A; do not raise)" >&2
     exit 1
   fi
 }
@@ -190,4 +194,4 @@ echo "════════════════════════�
 if (( FAIL > 0 )); then
   exit 1
 fi
-echo "==> Forgejo #1264 verification passed (envelope unchanged; AC1 columbus-5 not claimed unless VERIFY1264_COLUMBUS_TX)"
+echo "==> Forgejo #1264 verification passed (envelope unchanged; AC1 measured not-A/not-B; optional VERIFY1264_COLUMBUS_TX LCD pin)"
