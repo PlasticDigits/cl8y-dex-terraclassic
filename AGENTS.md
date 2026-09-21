@@ -40,6 +40,15 @@ Write only the subject and a short technical description of the change. Hooks in
 
 Enable hooks locally: `make setup-hooks` (Cloud Agent: `scripts/setup-cloud-agent-env.sh` sets `core.hooksPath` on VM startup).
 
+## Operator work
+
+There is **one** human developer. Work the agent cannot finish (keyring TTY, 2-of-3, physical device, wallet app) **must** be a [cl8y-pm](https://git.cl8y.com/PlasticDigits/cl8y-pm) **inbox card** so assigned load is visible. There is **no** ops-bot channel.
+
+- Phone vs desktop: cl8y-pm invariant 36 ([`docs/assigner-cards.md`](https://git.cl8y.com/PlasticDigits/cl8y-pm/src/branch/main/docs/assigner-cards.md) in that repo).
+- One action per card; at most five numbered taps; no leftover novels.
+- Do **not** close leftover issues from `make verify-issue-*` when the remaining work is that card.
+- Put the DEX issue URL in the card body when the dashboard cannot link `code/cl8y-dex-terraclassic`.
+
 ## Cursor Cloud specific instructions
 
 ### Cloud Agent startup (GitLab + git identity)
@@ -212,7 +221,7 @@ make verify-issue-701                    # #701 post-merge !477 leftover verify 
 make verify-issue-702                    # #702 post-merge !476 leftover verify (children 693, 563, 653 + Coolify)
 make verify-issue-632                    # #632 Keplr in-app / visualViewport token picker
 make verify-issue-672                    # #672 Connect Wallet / Modal dismiss overlay (Vitest + docs)
-make verify-issue-1279                   # #1279 leftover Lunc Dash WalletConnect ops verify (pre-check; device QA is ops-bot)
+make verify-issue-1279                   # #1279 leftover Lunc Dash WalletConnect ops verify (pre-check; device QA is cl8y-pm inbox)
 make verify-issue-634                    # #634 migrate pair inventory + post-adopt CL8Y register tool (LocalTerra: localterra-634-migrate-inventory.sh)
 make verify-issue-604                    # #604 identity + connected-wallet helpers (Vitest + crates)
 make verify-issue-605                    # #605 SKU init + percent taxes (Vitest + crates)
@@ -411,7 +420,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md](skills/AGENTS_FRONTEND_RISK_DISCLAIMERS.md) — first-visit NFA / risk modal (#138)
 - [skills/AGENTS_FRONTEND_CLICKWRAP.md](skills/AGENTS_FRONTEND_CLICKWRAP.md) — connected Legal TermsGate for `dex.cl8y.com` (**C1–C10**, **L658-1–L658-8**, [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)); `make verify-issue-517` · `make verify-issue-658`
 - [skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md](skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) — WalletConnect same-device mobile pairing (deep-link + copy, not QR-only; **WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658)); leftover Lunc Dash ops verify [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) [`AGENTS_OPS_LUNCDASH_VERIFY.md`](skills/AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-1–L1279-8**); `make verify-issue-519` · `make verify-issue-554` · `make verify-issue-566` · `make verify-issue-658` · `make verify-issue-1279`
-- [skills/AGENTS_OPS_LUNCDASH_VERIFY.md](skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify (**L1279-1–L1279-8**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); pre-check `make verify-issue-1279`; device QA 1.5 is ops-bot
+- [skills/AGENTS_OPS_LUNCDASH_VERIFY.md](skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify (**L1279-1–L1279-8**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); pre-check `make verify-issue-1279`; device QA 1.5 is cl8y-pm inbox cards
 - [skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md](skills/AGENTS_FRONTEND_WALLET_CONNECT_MODAL.md) — Connect Wallet list + logos + dismiss overlay (**D1–D9**, [#672](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/672)); `make verify-issue-672`
 - [skills/AGENTS_FRONTEND_CLICKWRAP.md](skills/AGENTS_FRONTEND_CLICKWRAP.md) — connected Legal TermsGate for `dex.cl8y.com` (**C1–C10**, [#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517)); `make verify-issue-517`
 - [skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md](skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) — WalletConnect same-device mobile pairing (deep-link + copy, not QR-only; **WC-M1–WC-M12**, [#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566)); leftover Lunc Dash ops verify [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279); `make verify-issue-519` · `make verify-issue-554` · `make verify-issue-566` · `make verify-issue-1279`

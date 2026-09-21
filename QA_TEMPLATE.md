@@ -101,6 +101,8 @@
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 
+Leftover assignment for this matrix is **cl8y-pm inbox cards** (at most five numbered taps each). Do not dump 1.5.1–1.5.11 onto one card. Close [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) when the cards are done.
+
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
 | 1.5.1 | Connect LuncDash (desktop) | Click wallet → Select LuncDash → Scan QR on a second device | WalletConnect session established, address shown | | |
