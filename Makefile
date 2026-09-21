@@ -871,6 +871,12 @@ verify-issue-1264:
 	@chmod +x scripts/qa/verify-issue-1264.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1264.sh
 
+# Forgejo #1218 — wrap-enter native routes GET /route/solve + skip-unusable top-K.
+.PHONY: verify-issue-1218
+verify-issue-1218:
+	@chmod +x scripts/qa/verify-issue-1218.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1218.sh
+
 # GitLab #596 — retail hybrid always-on (no opt-out on Swap / Trade market).
 verify-issue-596:
 	@chmod +x scripts/qa/verify-issue-596.sh scripts/with-node.sh

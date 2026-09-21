@@ -20,6 +20,7 @@ import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { simulateSwap, swap, getPool, reverseSimulateSwap } from '@/services/terraclassic/pair'
 import { quoteDirectHybridSwap, DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
+import { wrapMappedSolvePair } from '@/utils/nativeWrapRouteSolve'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
@@ -39,6 +40,7 @@ import {
   simulateNativeSwap,
   executeNativeSwap,
   netCw20AfterNativeWrap,
+  netNativeAfterUnwrap,
 } from '@/services/terraclassic/router'
 import {
   compareTokenCatalog,
@@ -297,13 +299,17 @@ export default function SwapPage() {
   const wrapUnwrapType = fromToken && toToken ? isDirectWrapUnwrap(fromToken, toToken) : null
   const isWrapOrUnwrap = wrapUnwrapType !== null
 
+  const wrapSolvePair = fromToken && toToken && !isWrapOrUnwrap ? wrapMappedSolvePair(fromToken, toToken) : null
+
   const nativeRouteInfo =
     fromToken && toToken && !isWrapOrUnwrap && (isNativeDenom(fromToken) || isNativeDenom(toToken))
       ? findRouteWithNativeSupport(pairs, fromToken, toToken)
       : null
 
   const route =
-    fromToken && toToken && !isWrapOrUnwrap && !nativeRouteInfo ? findRoute(pairs, fromToken, toToken) : null
+    fromToken && toToken && !isWrapOrUnwrap && !nativeRouteInfo && !wrapSolvePair
+      ? findRoute(pairs, fromToken, toToken)
+      : null
   const isDirect = route !== null && route.length === 1
   const isMultiHop = route !== null && route.length > 1
   const showHybridBookSubmitWarning = useMemo(() => {
@@ -320,9 +326,11 @@ export default function SwapPage() {
     fromToken.startsWith('terra1') &&
     toToken.startsWith('terra1') &&
     !isWrapOrUnwrap &&
-    !nativeRouteInfo
+    !nativeRouteInfo &&
+    !wrapSolvePair
 
-  const hasRoute = isWrapOrUnwrap || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
+  const hasRoute =
+    isWrapOrUnwrap || wrapSolvePair !== null || nativeRouteInfo !== null || route !== null || indexerCw20Eligible
 
   const checkIndexerRoute = useCallback(async () => {
     if (!fromToken || !toToken) return
@@ -707,6 +715,55 @@ export default function SwapPage() {
         }
       }
 
+      if (wrapSolvePair && simRaw !== '0') {
+        try {
+          let solveRaw = simRaw
+          if (wrapSolvePair.needsWrapInput) {
+            solveRaw = (await netCw20AfterNativeWrap(BigInt(simRaw), fromToken)).toString()
+          }
+          const quoted = await quoteCw20ViaRouteSolve({
+            fromToken: wrapSolvePair.tokenIn,
+            toToken: wrapSolvePair.tokenOut,
+            simRaw: solveRaw,
+            maxMakerFills: debouncedHybridMaxMakers,
+            slippageTolerancePercent: slippageTolerance,
+            maxSpreadStr,
+            quoteTrader,
+            signal,
+            omitAllHybrid: true,
+          })
+          if (quoted) {
+            let returnAmount = quoted.return_amount
+            let routerMinReceiveBase = quoted.executeAmountOut ?? quoted.return_amount
+            if (wrapSolvePair.needsUnwrapOutput) {
+              const { receive, routerMinReceiveBase: minBase } = await netNativeAfterUnwrap(
+                BigInt(quoted.executeAmountOut ?? quoted.return_amount),
+                toToken
+              )
+              returnAmount = receive.toString()
+              routerMinReceiveBase = minBase.toString()
+            }
+            return withIndexerOutageFlag({
+              return_amount: returnAmount,
+              executeAmountOut: quoted.executeAmountOut,
+              spread_amount: quoted.spread_amount,
+              commission_amount: quoted.commission_amount,
+              routeSlippagePercent: quoted.routeSlippagePercent,
+              spotAmountOut: quoted.spotAmountOut,
+              indexerQuoteKind: quoted.indexerQuoteKind,
+              indexerOperations: quoted.indexerOperations,
+              indexerIntermediateTokens: quoted.indexerIntermediateTokens,
+              indexerRouteIntermediateReconciled: quoted.indexerRouteIntermediateReconciled,
+              routePreflight: quoted.routePreflight,
+              routerMinReceiveBase,
+            })
+          }
+        } catch (e) {
+          noteIndexerFailure(e)
+          /* H596-5: BFS fallback below; 100% hop still blocks submit */
+        }
+      }
+
       if (nativeRouteInfo) {
         const result = await simulateNativeSwap(simRaw, fromToken, toToken, pairs)
         let routePreflight: SwapRoutePreflightSpread | undefined
@@ -870,9 +927,9 @@ export default function SwapPage() {
 
   const routeSolveProgressEnabled =
     !isWrapOrUnwrap &&
-    !nativeRouteInfo &&
-    fromToken.startsWith('terra1') &&
-    toToken.startsWith('terra1') &&
+    (wrapSolvePair
+      ? wrapSolvePair.tokenIn.startsWith('terra1') && wrapSolvePair.tokenOut.startsWith('terra1')
+      : !nativeRouteInfo && fromToken.startsWith('terra1') && toToken.startsWith('terra1')) &&
     debouncedRawInputAmount !== '0'
 
   const {
@@ -882,8 +939,8 @@ export default function SwapPage() {
   } = useRouteSolveProgress({
     enabled: routeSolveProgressEnabled,
     isFetching: simQuery.isFetching,
-    tokenIn: fromToken,
-    tokenOut: toToken,
+    tokenIn: wrapSolvePair?.tokenIn ?? fromToken,
+    tokenOut: wrapSolvePair?.tokenOut ?? toToken,
     amountIn: debouncedRawInputAmount,
     trader: quoteTrader?.trader,
     knownDiscountBps: discountQuery.isSuccess ? (discountQuery.data?.discount_bps ?? 0) : undefined,
@@ -1082,7 +1139,7 @@ export default function SwapPage() {
           : minReceived
       const maxSpread = (slippageTolerance / 100).toString()
 
-      if (isWrapOrUnwrap || nativeRouteInfo) {
+      if (isWrapOrUnwrap || nativeRouteInfo || wrapSolvePair) {
         const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
         return executeNativeSwap(
           address,
@@ -1092,7 +1149,8 @@ export default function SwapPage() {
           pairs,
           maxSpread,
           submitMinReceived ?? undefined,
-          deadline
+          deadline,
+          isWrapOrUnwrap ? undefined : simData.indexerOperations
         )
       }
 
@@ -1259,12 +1317,13 @@ export default function SwapPage() {
       deriveSwapSubmitRouteSource({
         isWrapOrUnwrap: !!isWrapOrUnwrap,
         nativeRouteInfo,
+        nativeWrapExecute: !!wrapSolvePair,
         indexerOperations: simData?.indexerOperations,
         clientRoute: route,
         isDirect,
         isMultiHop,
       }),
-    [isWrapOrUnwrap, nativeRouteInfo, simData?.indexerOperations, route, isDirect, isMultiHop]
+    [isWrapOrUnwrap, nativeRouteInfo, wrapSolvePair, simData?.indexerOperations, route, isDirect, isMultiHop]
   )
 
   const showClientBfsFallbackLabel = swapSubmitRouteSource === 'client_bfs'
@@ -1273,17 +1332,21 @@ export default function SwapPage() {
 
   const swapNetworkFeeEstimate = useMemo(() => {
     const cw20HopCount = simData?.indexerOperations?.length ?? route?.length ?? 1
-    const cw20RouterOperations =
-      !isWrapOrUnwrap && !nativeRouteInfo && (simData?.indexerOperations?.length ?? 0) >= 2
-        ? simData?.indexerOperations
-        : undefined
+    const indexerHopCount = simData?.indexerOperations?.length ?? 0
+    const wrapOrNative = Boolean(isWrapOrUnwrap || wrapSolvePair || nativeRouteInfo)
+    const cw20RouterOperations = !wrapOrNative && indexerHopCount >= 2 ? simData?.indexerOperations : undefined
     return estimateSwapNetworkFee({
       isDirectWrap: wrapUnwrapType === 'wrap',
       isDirectUnwrap: wrapUnwrapType === 'unwrap',
-      needsWrapInput: nativeNeedsWrapInput,
-      needsUnwrapOutput: nativeNeedsUnwrapOutput,
-      hopCount: nativeRouteInfo?.operations?.length ?? (isWrapOrUnwrap ? 1 : nativeSwapHopCount || cw20HopCount),
-      cw20DirectPair: !!isDirect && !nativeRouteInfo && !isWrapOrUnwrap,
+      needsWrapInput: nativeNeedsWrapInput || Boolean(wrapSolvePair?.needsWrapInput),
+      needsUnwrapOutput: nativeNeedsUnwrapOutput || Boolean(wrapSolvePair?.needsUnwrapOutput),
+      hopCount:
+        indexerHopCount > 0
+          ? indexerHopCount
+          : wrapOrNative
+            ? (nativeRouteInfo?.operations?.length ?? nativeSwapHopCount)
+            : cw20HopCount,
+      cw20DirectPair: !!isDirect && !wrapOrNative,
       cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
       cw20RouterOperations,
     })
@@ -1294,6 +1357,7 @@ export default function SwapPage() {
     nativeRouteInfo,
     nativeSwapHopCount,
     isWrapOrUnwrap,
+    wrapSolvePair,
     isDirect,
     bookInputHuman,
     simData?.indexerOperations,

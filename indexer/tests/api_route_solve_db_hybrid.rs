@@ -494,3 +494,51 @@ async fn route_solve_db_hybrid_book_start_hint_paths() {
         }
     }
 }
+
+/// #1218 AC7: five ~100% drain 2-hops must not occupy top-K ahead of an honest 3-hop.
+#[serial]
+#[tokio::test]
+async fn route_solve_db_hybrid_skip_unusable_admits_honest_3hop() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_skip_unusable_drain(&pool).await;
+    let (mock, _) = lcd_mock::start_router_only_route_mock("8888888").await;
+    let app =
+        common::build_test_app_with_price_and_config(pool, None, db_hybrid_config(&mock)).await;
+    let server = TestServer::new(app);
+
+    let url = format!(
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        seed.token_a, seed.token_c
+    );
+    let resp = server.get(&url).await;
+    resp.assert_status_ok();
+    let j: Value = resp.json();
+    assert_eq!(j["solver_version"], "global_v4");
+    let hops = j["hops"].as_array().expect("hops");
+    assert_eq!(
+        hops.len(),
+        3,
+        "honest 3-hop must win over five drain 2-hops: {j:?}"
+    );
+    let intermediates = j["intermediate_tokens"]
+        .as_array()
+        .expect("intermediate_tokens");
+    let labels: Vec<&str> = intermediates.iter().filter_map(|v| v.as_str()).collect();
+    assert!(
+        labels.iter().any(|t| t.contains("skipunusableh1"))
+            && labels.iter().any(|t| t.contains("skipunusableh2")),
+        "winner path must walk the hub: {labels:?}"
+    );
+    let considered = j["paths_considered"].as_u64().unwrap_or(0);
+    assert!(
+        considered >= 1 && considered <= 5,
+        "paths_considered should be scored usable paths, got {considered}"
+    );
+    assert!(
+        j["optimality_scope"]
+            .as_str()
+            .unwrap_or("")
+            .contains("usable"),
+        "optimality_scope must mention usable-path fill"
+    );
+}

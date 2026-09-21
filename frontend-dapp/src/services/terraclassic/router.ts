@@ -19,6 +19,7 @@ import {
 } from '@/utils/pairCatalogRank'
 import { netAfterWrapMapperFee, queryWrapMapperFeeBps } from './wrapMapper'
 import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
+import { poolOnlyNativeExecuteOps } from '@/utils/nativeWrapRouteSolve'
 
 /** Result of `simulateNativeSwap` (direct wrap/unwrap + native-routed swaps). */
 export type NativeSwapSimResult = {
@@ -334,6 +335,9 @@ export async function simulateNativeSwap(
  * - Native input swap: Msg1 = WrapDeposit, Msg2 = CW20 Send to router
  * - Native output swap: CW20 Send to router with unwrap_output: true
  * - Native-to-native: Msg1 = WrapDeposit, Msg2 = CW20 Send to router (unwrap_output: true)
+ *
+ * When `operations` is set (solver hops from this quote tick — #1218), do **not** re-run
+ * client BFS `findRouteWithNativeSupport`. Hops are always pool-only (**H596-7**).
  */
 export async function executeNativeSwap(
   walletAddress: string,
@@ -343,7 +347,8 @@ export async function executeNativeSwap(
   pairs: PairInfo[],
   maxSpread: string,
   minimumReceive?: string,
-  deadline?: number
+  deadline?: number,
+  operations?: SwapOperation[]
 ): Promise<string> {
   const direct = isDirectWrapUnwrap(fromToken, toToken)
 
@@ -364,11 +369,14 @@ export async function executeNativeSwap(
     })
   }
 
-  const routeInfo = findRouteWithNativeSupport(pairs, fromToken, toToken)
+  const needsWrap = isNativeDenom(fromToken)
+  const needsUnwrap = isNativeDenom(toToken)
+  const solverOps = operations && operations.length > 0 ? poolOnlyNativeExecuteOps(operations) : null
+  const routeInfo = solverOps
+    ? { operations: solverOps, needsWrapInput: needsWrap, needsUnwrapOutput: needsUnwrap }
+    : findRouteWithNativeSupport(pairs, fromToken, toToken)
   if (!routeInfo) throw new Error('No route found')
 
-  const needsWrap = routeInfo.needsWrapInput
-  const needsUnwrap = routeInfo.needsUnwrapOutput
   const wrappedInput = needsWrap ? getWrappedEquivalent(fromToken)! : fromToken
 
   let cw20SendAmount = amount
@@ -377,8 +385,9 @@ export async function executeNativeSwap(
     cw20SendAmount = (await netCw20AfterNativeWrap(BigInt(amount), fromToken)).toString()
   }
 
-  // Pool-only hops from client BFS `findRoute` — never copy hybrid / book_input
-  // (#587 / #599 / #1264 / #1280 / **H596-7**).
+  // Pool-only hops — never copy hybrid / book_input
+  // (#587 / #599 / #1264 / #1280 / **H596-7** / #1218). Solver ops are stripped above;
+  // BFS `findRoute` never had hybrid.
   const swapHookMsg = {
     execute_swap_operations: {
       operations: routeInfo.operations.map((op) => ({

@@ -10,7 +10,7 @@ Retail **`GET /api/v1/route/solve`** emits declared `hybrid` on **hop 0 only** (
 
 **`POST /route/solve` `hybrid_by_hop`** may still declare interior splits that **partition that hop’s offer** (integrator / Advanced). Wasm keeps the hard fail.
 
-Wrap / native BFS (`executeNativeSwap`) never copies `hybrid` / `book_input` ([#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264), **H596-7**). Do not attach leftover CW20 solver hybrid onto a wrap hop.
+Wrap / native execute (`executeNativeSwap`) never copies `hybrid` / `book_input` ([#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264), **H596-7**). Wrap-enter still **quotes** via GET after a client wrap-map ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)); strip all declared hybrid before sign (`omitAllHybrid` / `stripAllDeclaredHybrid`). Do not attach leftover CW20 solver hybrid onto a wrap hop.
 
 No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop`).
 
@@ -23,8 +23,7 @@ No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop
 | **H1280-3** | Retail GET hops 1+ are `hybrid: null` (pool-only). Do not copy hop-0 integers onto later hops. |
 | **H1280-4** | POST `hybrid_by_hop` may keep interior Pattern C splits that partition that hop’s offer (**AC5**). Greedy mutex (**G11**) unchanged. `hybrid: None` stays pool-only (**G1**). |
 | **H1280-5** | dApp: strip interior GET hybrid; fail closed before sign if hop-0 sum ≠ pay raw. Later-hop offers are realized `hop_output`, not quote-time `running`. |
-| **H1280-6** | Wrap/native BFS hops omit `hybrid` (**H596-7**, [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) **G1264-2**). |
-| **H1280-7** | Do not skip `min_return` / `max_spread` / material pool-leg / greedy mutex. Do not overload `pool_input=0, book_input=offer` as “rescale for me.” |
+| **H1280-6** | Wrap/native execute hops omit `hybrid` (**H596-7**, [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)). Wrap-enter quotes GET after client wrap-map then strips all hybrid ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)). || **H1280-7** | Do not skip `min_return` / `max_spread` / material pool-leg / greedy mutex. Do not overload `pool_input=0, book_input=offer` as “rescale for me.” |
 | **H1280-8** | No wasm rescale in `reply_swap_hop`. Typed hop-offer errors stay; dApp humanizes the generic LCD string **after** the revert is rare. |
 
 ## Files
@@ -42,6 +41,8 @@ make verify-issue-1264
 # optional LocalTerra E10 / columbus-5 LCD:
 VERIFY_ISSUE_1264_CHAIN=1 make verify-issue-1264
 VERIFY1264_COLUMBUS_TX=<hash> make verify-issue-1264
+# wrap-enter GET + skip-unusable top-K:
+make verify-issue-1218
 cd smartcontracts && cargo test -p cl8y-dex-tests -- --test-threads=1 router_declared_split_mismatch_reverts_hop0
 cd smartcontracts && cargo test -p cl8y-dex-tests -- --test-threads=1 router_two_hop_interior_hybrid_mismatch_reverts
 cd indexer && cargo test --lib retail_plan_keeps_hop0
@@ -52,6 +53,6 @@ cd frontend-dapp && npm test -- src/utils/hybridHopOfferPartition.test.ts src/ut
 
 ## Cross-links
 
-- Issues: [#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280) · [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)
-- [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) · [`AGENTS_TESTING_MULTIHOP_HYBRID.md`](./AGENTS_TESTING_MULTIHOP_HYBRID.md) · [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) · [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) (**H596-7**) · [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md)
+- Issues: [#1280](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1280) · [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) · [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)
+- [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) · [`AGENTS_TESTING_MULTIHOP_HYBRID.md`](./AGENTS_TESTING_MULTIHOP_HYBRID.md) · [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md) · [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) (**H596-7**) · [`AGENTS_TERRACLASSIC_GAS.md`](./AGENTS_TERRACLASSIC_GAS.md) · [`AGENTS_FRONTEND_WRAP_ENTER_ROUTE_SOLVE.md`](./AGENTS_FRONTEND_WRAP_ENTER_ROUTE_SOLVE.md)
 - [`docs/integrators.md`](../docs/integrators.md) · [`docs/route-solver.md`](../docs/route-solver.md) · [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md) **L4** / **H1280**

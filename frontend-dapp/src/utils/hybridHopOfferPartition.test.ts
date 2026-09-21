@@ -6,6 +6,7 @@ import {
   assertHop0DeclaredHybridPartitionsOffer,
   hybridPartitionsHopOffer,
   stripInteriorDeclaredHybrid,
+  stripAllDeclaredHybrid,
 } from './hybridHopOfferPartition'
 
 const token = (addr: string) => ({ token: { contract_addr: addr } })
@@ -48,6 +49,11 @@ describe('hybridHopOfferPartition (#1280)', () => {
     const wrapOps = [op(), op()]
     expect(stripInteriorDeclaredHybrid(wrapOps).every((o) => !o.terra_swap.hybrid)).toBe(true)
     expect(() => assertHop0DeclaredHybridPartitionsOffer(wrapOps, '1000')).not.toThrow()
+  })
+
+  it('stripAllDeclaredHybrid drops hop-0 hybrid too (#1218 / H596-7)', () => {
+    const stripped = stripAllDeclaredHybrid([op(split('800', '200')), op(split('50', '50'))])
+    expect(stripped.every((o) => !o.terra_swap.hybrid)).toBe(true)
   })
 
   it('throws before sign when hop 0 sum != pay raw', () => {

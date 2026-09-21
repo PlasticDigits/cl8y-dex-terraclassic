@@ -25,14 +25,18 @@ pub const SOLVER_VERSION_LCD: &str = "global_v3";
 /// Postgres-mirror hybrid grid (#319 Phase 1c; cache-key bump #324).
 pub const SOLVER_VERSION_DB: &str = "global_v4";
 
-/// Max simple paths evaluated per request (hop-count order).
+/// Max simple paths evaluated per request after skip-unusable fill (hop-count order).
 pub const MAX_PATH_CANDIDATES: usize = 5;
+
+/// Structural DFS pool **before** skip-unusable (#1218). Hybrid eval stays `MAX_PATH_CANDIDATES`.
+/// Do not raise `MAX_PATH_CANDIDATES` to admit wrap-then-cUSTC; skip ~100% spread first.
+pub const PATH_ENUM_POOL: usize = 32;
 
 /// Bounded concurrent path-candidate evaluations per request (GitLab #324).
 pub const SOLVE_CONCURRENCY: usize = MAX_PATH_CANDIDATES;
 
 /// Documented optimality scope for clients.
-pub const OPTIMALITY_SCOPE: &str = "optimal within top-5 simple paths by hop count and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops";
+pub const OPTIMALITY_SCOPE: &str = "optimal within top-5 usable simple paths (skip ~100% hop-spread / hop_sim_implausible while filling K, hop-count order) and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops";
 
 /// Additive #615 note: rank is catalog net; hop sims unchanged.
 pub const TAX_RANK_NOTE: &str = "Ranking is net of catalog buy/sell policy for this snapshot (GitLab #615); hop LCD/DB sims unchanged";
@@ -116,6 +120,40 @@ struct PathCandidate {
     ops: Vec<serde_json::Value>,
 }
 
+/// Keep up to `MAX_PATH_CANDIDATES` **usable** paths (shortest-first). DB-hybrid: skip
+/// ~100% hop-spread / `hop_sim_implausible` while filling K (#1218). LCD mode keeps the
+/// first K structural paths (cheap filter needs mirrors).
+fn select_usable_top_k(
+    candidates: Vec<PathCandidate>,
+    mirrors: &HashMap<String, db_orderbook_sim::HopMirror>,
+    amount_in: u128,
+    db_mode: bool,
+) -> Vec<PathCandidate> {
+    if !db_mode || mirrors.is_empty() {
+        return candidates.into_iter().take(MAX_PATH_CANDIDATES).collect();
+    }
+    let mut usable = Vec::with_capacity(MAX_PATH_CANDIDATES);
+    for c in candidates {
+        let hop_refs: Vec<(&str, &str)> = c
+            .hops
+            .iter()
+            .map(|h| (h.pair.as_str(), h.offer_token.as_str()))
+            .collect();
+        if db_orderbook_sim::path_unusable_for_top_k(mirrors, &hop_refs, amount_in) {
+            tracing::debug!(
+                hops = c.hops.len(),
+                "skip unusable path while filling top-K (#1218)"
+            );
+            continue;
+        }
+        usable.push(c);
+        if usable.len() >= MAX_PATH_CANDIDATES {
+            break;
+        }
+    }
+    usable
+}
+
 async fn enumerate_path_candidates(
     snapshot: &RouteGraphSnapshot,
     token_in: &str,
@@ -139,7 +177,7 @@ async fn enumerate_path_candidates(
 
     let pair_rows = Arc::clone(&snapshot.pairs);
     let paths_raw = tokio::task::spawn_blocking(move || {
-        route_paths::find_paths_top_k(start, goal, &pair_rows, max_hops, MAX_PATH_CANDIDATES)
+        route_paths::find_paths_top_k(start, goal, &pair_rows, max_hops, PATH_ENUM_POOL)
     })
     .await
     .map_err(crate::api::internal_err)?;
@@ -937,6 +975,14 @@ pub(crate) async fn solve_global_best_execution_inner(
         .await?;
     }
     let mirror_ms = mirror_start.elapsed().as_millis();
+
+    let candidates = select_usable_top_k(candidates, &mirrors, amount_in, db_mode);
+    if candidates.is_empty() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            format!("no viable route within {} hops", GET_DEFAULT_MAX_HOPS),
+        ));
+    }
 
     let mirrors = Arc::new(mirrors);
     let candidate_start = Instant::now();
