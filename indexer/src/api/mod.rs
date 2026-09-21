@@ -16,6 +16,7 @@ mod consolidated_stats;
 pub mod db_orderbook_sim;
 mod errors;
 mod fee_discount_health;
+mod health_git_sha;
 pub mod hooks;
 mod hub_prices;
 pub mod hybrid_orderbook_sim;
@@ -480,7 +481,23 @@ pub async fn find_pair_by_ticker(
 struct ApiDoc;
 
 async fn health() -> axum::Json<serde_json::Value> {
-    axum::Json(serde_json::json!({"status": "ok"}))
+    // Per-request env (H1276-2). Do not cache on AppState; do not load .env here.
+    let git_sha_env = std::env::var("GIT_SHA").ok();
+    let source_commit_env = std::env::var("SOURCE_COMMIT").ok();
+    let selected =
+        health_git_sha::select_commit_env(git_sha_env.as_deref(), source_commit_env.as_deref());
+    match selected.and_then(health_git_sha::parse_git_sha) {
+        Some(git_sha) => axum::Json(serde_json::json!({"status": "ok", "git_sha": git_sha})),
+        None => {
+            let reason = if selected.is_none() {
+                "unset"
+            } else {
+                "rejected"
+            };
+            tracing::debug!(reason, "omitting git_sha");
+            axum::Json(serde_json::json!({"status": "ok"}))
+        }
+    }
 }
 
 pub fn build_router(state: AppState, config: &Config) -> Router {

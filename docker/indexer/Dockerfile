@@ -34,6 +34,14 @@ ENV API_BIND=0.0.0.0 \
     API_PORT=3001 \
     RUST_LOG=info
 
+# ARG/ENV after COPY --from=builder (and USER / WORKDIR / API_BIND), before the
+# HTTP health probe. Empty GIT_SHA falls through to SOURCE_COMMIT at serve time
+# (#1276 / H1276-3).
+ARG GIT_SHA=
+ARG SOURCE_COMMIT=
+ENV GIT_SHA=${GIT_SHA} \
+    SOURCE_COMMIT=${SOURCE_COMMIT}
+
 EXPOSE 3001
 
 # Required at runtime (Coolify env): DATABASE_URL, FACTORY_ADDRESS, CORS_ORIGINS,
