@@ -822,6 +822,12 @@ verify-issue-1280:
 	@chmod +x scripts/qa/verify-issue-1280.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1280.sh
 
+# Forgejo #1287 / #1286 — pre-push skips commit policy on origin/main (post-#1282 merge pain).
+.PHONY: verify-issue-1287
+verify-issue-1287:
+	@chmod +x scripts/qa/verify-issue-1287.sh
+	./scripts/qa/verify-issue-1287.sh
+
 # Forgejo #1264 — USTC→USTR wrap+2hop stays pool-only at the #587 2.71M envelope.
 .PHONY: verify-issue-1264
 verify-issue-1264:
@@ -1700,6 +1706,7 @@ setup-hooks:
 
 test-commit-msg-hook:
 	@./scripts/test-commit-msg-hook.sh
+	@./scripts/test-pre-push-commit-policy.sh
 
 send: 
 	docker exec cl8y-dex-terraclassic-localterra-1 terrad tx bank send test1 terra1753zuaneacfr60rg37l8d4t0x7j4yvqgsl7cvv 50000000uluna  --chain-id localterra --keyring-backend test --fees 6000000uluna --yes 

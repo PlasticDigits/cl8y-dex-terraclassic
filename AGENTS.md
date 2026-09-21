@@ -34,7 +34,7 @@ Write only the subject and a short technical description of the change. Hooks in
 
 - **`prepare-commit-msg`** — strips agent-injected `Co-authored-by` / email lines from the body before the commit is recorded.
 - **`commit-msg`** — rejects any remaining violations.
-- **`pre-push`** — blocks pushes that include commits whose bodies still violate the policy (catches `git commit --no-verify`).
+- **`pre-push`** — blocks pushes that include commits whose bodies still violate the policy (catches `git commit --no-verify`). Skips commits already on `origin/main` so merging main into a feature branch does not re-reject historical main commits ([#1286](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1286) / [#1287](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1287)); playbook [`skills/AGENTS_GIT_COMMIT_HOOKS.md`](skills/AGENTS_GIT_COMMIT_HOOKS.md); `make verify-issue-1287`.
 
 **Never use `git commit --no-verify` or `git push --no-verify`** to skip these hooks. Cursor may append `Co-authored-by` trailers automatically; the hooks remove them — do not re-add them manually.
 

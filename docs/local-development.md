@@ -11,7 +11,9 @@
 
 ```bash
 # 1. Install git hooks
-git config core.hooksPath .githooks
+make setup-hooks
+# or: git config core.hooksPath .githooks
+# Regression: make verify-issue-1287 (commit-msg + pre-push; see skills/AGENTS_GIT_COMMIT_HOOKS.md)
 
 # 2. Start LocalTerra
 docker compose up -d
