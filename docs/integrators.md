@@ -25,7 +25,7 @@ Total limit-book fee rate matches the pair’s **effective** swap commission (`f
 - **Maker half** is charged once when the order is placed (`Cw20HookMsg::PlaceLimitOrder`), from the escrowed CW20 amount. The resting order’s `remaining` is reduced accordingly.
 - **Taker half** is charged on each **fill** against the book (same notional bases as before: bids — token1 `cost`; asks — token0 `fill`), and appears as `commission_amount` on `limit_order_fill` wasm events for that fill.
 
-Updating only the **price** of an existing order (`ExecuteMsg::UpdateLimitOrderPrice`) re-links the order in the FIFO book **without** charging the maker placement fee again (same `order_id`, no CW20). Relink **joins the tail** of the destination equal-price run (time-priority at the quoted price — [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227) / **L23**); it does **not** keep place-time rank via the preserved id. Cancel + new placement pays a new maker-side half. Placement uses the maker’s `limit_discount_bps` when set ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)); fills still charge the **taker** half of the taker’s swap `discount_bps`. See [fee-discount-tiers.md](./reference/fee-discount-tiers.md) **I13**.
+Updating only the **price** of an existing order (`ExecuteMsg::UpdateLimitOrderPrice`) re-links the order in the FIFO book **without** charging the maker placement fee again (same `order_id`, no CW20). Relink **joins the tail** of the destination equal-price run (time-priority at the quoted price — [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227) / **L23**); it does **not** keep place-time rank via the preserved id. **F6 freeze** rejects the relink before DLL mutation ([#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234)). Cancel + new placement pays a new maker-side half. Placement uses the maker’s `limit_discount_bps` when set ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)); fills still charge the **taker** half of the taker’s swap `discount_bps`. See [fee-discount-tiers.md](./reference/fee-discount-tiers.md) **I13**.
 
 Details and tx attributes: [limit-orders.md](./limit-orders.md).
 
@@ -116,6 +116,14 @@ During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remai
 **Indexer:** `limit_order_expired_parked` still maps to lifecycle **`parked_expired`**; parse wasm **`reason`** when available (follow-up OK). Historical **`force_expired=true`** remains on non-TTL parks.
 
 Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-time-dust-flush-gitlab-264), [§ Park reason](./limit-orders.md#expired-limit-park-reason-gitlab-504), invariant **L16** / **L22** in [contracts-security-audit.md](./contracts-security-audit.md), [`orderbook.rs`](../smartcontracts/contracts/pair/src/orderbook.rs). Agent playbooks: [`skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md`](../skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md), [`skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md`](../skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md).
+
+## Limit place min remaining (Forgejo #1219) {#limit-place-min-remaining-gitlab-1219}
+
+Each batch / ladder / retail rung must rest with **post–maker-fee remaining ≥ 10** (`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`). Undersize reverts the **whole** `send` with **`LimitOrderAmountTooSmall`** (message includes the minimum `10`) — not `Overflow: Cannot Sub`, and not a partial `LimitInsertStepsExceeded` skip. Descending ladders (`start_price > end_price`) are valid; integrators must not sort start &lt; end. Official dApp copy: **Minimum size is 10 units**.
+
+Unfillable in-band `MIN_LIMIT_PRICE` asks (zero-cost skip forever) stay **[#1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225)** — this gate does not reject `remaining.checked_mul_floor(price) < 1`.
+
+Canonical: [limit-orders.md § Place](./limit-orders.md#place--cancel-limit-gitlab-206), invariant **L24**, [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md).
 
 ## Parked refund `reason` (GitLab #504) {#expired-limit-park-reason-gitlab-504}
 

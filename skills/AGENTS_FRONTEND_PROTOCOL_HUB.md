@@ -16,7 +16,7 @@ The Protocol **DEX hub prices** card showed cUSTC / UST1 / USTR. UST1 and USTR h
 
 | ID | Rule |
 |----|------|
-| **H11** | Hub card columns are **cUSTC, LUNC, UST1, USTR** (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`). The four cells stay in the DOM on hub 502 (USD `—`; wrap rows still come from env overlay). CEX tabs stay exactly `ustc` \| `lunc` \| `vfdusd`. Page order unchanged (**P550-1**). |
+| **H11** | Hub card columns are **cUSTC, cLUNC, UST1, USTR** (`grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`). Visible `<dt>` is `cLUNC / USD` for ticker id `lunc` ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240-1**). The four cells stay in the DOM on hub 502 (USD `—`; wrap rows still come from env overlay). CEX tabs stay exactly `ustc` \| `lunc` \| `vfdusd` with native labels **USTC** / **LUNC** / **vFDUSD**. Page order unchanged (**P550-1**). |
 | **H12** | `usd(LUNC)` on this card = #515 LUNC CEX (`usd(cLUNC) = usd(uluna)`). Oracle down → `—`, not `$1` / `$0` / USTC. **Not** a DEX pool mark. Independent of USTC outage. |
 | **H13** | Oracle-anchored columns (cUSTC, LUNC) render a wrap **CW20** `AddressRow` when the address passes `getExplorerAddressUrl`. cUSTC = `HUB_CUSTC_ADDRESS` / `VITE_USTC_C_TOKEN_ADDRESS`. LUNC = **cLUNC wrap** (`HUB_CLUNC_ADDRESS` / `VITE_LUNC_C_TOKEN_ADDRESS`). Native `uluna` is never given a Finder URL. |
 | **H14** | UST1/USTR keep **source pair** rows (pair contracts, not tokens). cUSTC/LUNC `source_pair` stays null. Do not invent a pool for oracle wraps. |
@@ -31,7 +31,8 @@ The Protocol **DEX hub prices** card showed cUSTC / UST1 / USTR. UST1 and USTR h
 - **Don’t** add a fourth CEX tab or `getOraclePrice('ustr'|'ust1'|'custc')`.
 - **Don’t** rank a factory pair to fill cUSTC/LUNC `source_pair`.
 - **Don’t** match `symbol === 'cUSTC'` / `'LUNC'`. Identity is contract.
-- **Don’t** apply `uppercase` to hub `<dt>` ticker lines — visible **cUSTC / USD** must stay mixed-case ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240-1**). Card H2 **DEX hub prices** may stay uppercase.
+- **Don’t** apply `uppercase` to hub `<dt>` ticker lines — visible **cUSTC / USD** and **cLUNC / USD** must stay mixed-case ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240) **P1240-1**). Card H2 **DEX hub prices** may stay uppercase.
+- **Don’t** retitle CEX oracle **USTC** / **LUNC** as wrap `cUSTC` / `cLUNC`. Hub wrap labels and CEX native labels stay distinct (**P1240-5**).
 - **Don’t** retarget `volume_usd`, UST1/USTR ranking, Charts USD, `/ust1`, or portfolio P&L (LUNC P&L stays CEX per **P560-3**).
 - **Don’t** clone hub AddressRows onto Swap / Trade / Charts (#541).
 

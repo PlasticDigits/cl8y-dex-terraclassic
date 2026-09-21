@@ -18,6 +18,7 @@ import {
   parseUintString,
   sellDebitExceedsBalance,
   SELL_TAX_EXTRA_HINT,
+  taxPreviewExecuteDebitRaw,
 } from './taxPreviewMaxSpend'
 import { toRawAmount } from './formatAmount'
 
@@ -266,5 +267,27 @@ describe('extra-debit submit gate (#1267)', () => {
   it('unknown-query errors are honest CW20', () => {
     expect(classifyCommunityTaxQueryError(new Error('unknown variant `get_config`'))).toBe('not_tax')
     expect(classifyCommunityTaxQueryError(new Error('LCD request timed out after 10000ms'))).toBe('unresolved')
+  })
+})
+
+describe('taxPreview execute debit (#1285)', () => {
+  it('pair-direct Sell uses LCD debit when send_msg classifies sell', () => {
+    expect(
+      taxPreviewExecuteDebitRaw({
+        declaredRaw: 1_000_000n,
+        previewDebit: 1_050_000n,
+        hopTraderDebit: null,
+      })
+    ).toBe(1_050_000n)
+  })
+
+  it('router hop adds hop_trader_debit to declared (Honest router leg debit)', () => {
+    expect(
+      taxPreviewExecuteDebitRaw({
+        declaredRaw: 1_000_000n,
+        previewDebit: 1_000_000n,
+        hopTraderDebit: 50_000n,
+      })
+    ).toBe(1_050_000n)
   })
 })

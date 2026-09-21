@@ -83,4 +83,20 @@ describe('resolveConnectWalletOptions (GitLab #554 / #566)', () => {
       WalletName.GALAXYSTATION,
     ])
   })
+
+  it('keeps LuncDash always WalletConnect on desktop and mobile (Forgejo #1279)', () => {
+    for (const env of [desktop, mobileNone]) {
+      const luncdash = row(env, WalletName.LUNCDASH)
+      expect(luncdash?.name).toBe('LuncDash')
+      expect(luncdash?.walletType).toBe(WalletType.WALLETCONNECT)
+      expect(luncdash?.connectionLabel).toBe('WalletConnect')
+    }
+    const injected = {
+      ...mobileNone,
+      keplrInjected: true,
+      stationInjected: true,
+      cosmostationInjected: true,
+    }
+    expect(row(injected, WalletName.LUNCDASH)?.walletType).toBe(WalletType.WALLETCONNECT)
+  })
 })

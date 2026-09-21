@@ -119,6 +119,7 @@ Hybrid / L8 quoting detail: [`docs/swap-max-spread-ux.md`](../docs/swap-max-spre
 
 - Anti-cognitive-overload retail copy (Swap vs charts **Best Trade**): [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) ([#489](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/489)); glossary: [`docs/design-system.md`](../docs/design-system.md#terminology-glossary)
 - Sim quote refetch / Calculating hang + stale receive on pay change: [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md) ([#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484), [#496](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/496))
+- Remaining GET `/route/solve` failures census (**Stay**): [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265). Verify: `make verify-issue-1265`. Do **not** bump hop caps from that ticket.
 
 ## Closed scope (GitLab #302 / #329)
 

@@ -29,6 +29,34 @@ describe('getDirectHybridBookSplit', () => {
     ).toBeNull()
   })
 
+  it('splits pay into pool and book at 18 decimals when payDecimals is passed (#1255)', () => {
+    const s = getDirectHybridBookSplit({
+      isDirect: true,
+      fromToken: CW,
+      bookInputHuman: '0.4',
+      rawInputAmount: '1000000000000000000',
+      hybridMaxMakers: 8,
+      payDecimals: 18,
+    })
+    expect(s).not.toBeNull()
+    expect(s!.bookRaw).toBe('400000000000000000')
+    expect(s!.poolRaw).toBe('600000000000000000')
+    expect(s!.willSubmitHybrid).toBe(true)
+  })
+
+  it('returns null when payDecimals is unresolved', () => {
+    expect(
+      getDirectHybridBookSplit({
+        isDirect: true,
+        fromToken: CW,
+        bookInputHuman: '0.4',
+        rawInputAmount: '1000000000000000000',
+        hybridMaxMakers: 8,
+        payDecimals: null,
+      })
+    ).toBeNull()
+  })
+
   it('splits pay into pool and book (6 decimals) and sets willSubmitHybrid', () => {
     const s = getDirectHybridBookSplit({
       isDirect: true,

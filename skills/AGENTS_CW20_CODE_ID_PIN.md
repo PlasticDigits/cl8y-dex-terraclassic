@@ -1,4 +1,4 @@
-# Agent playbook: listed CW20 `code_id` pin (GitLab #582 / #584)
+# Agent playbook: listed CW20 `code_id` pin (GitLab #582 / #584 / #1234)
 
 Use when migrating factory/pair wasm, adding a CW20 code id to the factory whitelist, listing a third-party token (including **#581 / 8266 SpaceUSD**), or debugging swaps that fail with `Asset CW20 code_id drifted` / `not factory-whitelisted`.
 
@@ -23,7 +23,7 @@ Factory/pair **F6** (this pin) is not faucet **F6** (deploy key remains primary 
 ## Invariant F6
 
 1. **Pin at instantiate** — pair queries live `ContractInfo.code_id` for both assets and stores `ASSET_CODE_IDS` (order matches `asset_infos`). Query: `GetAssetCodeIds`.
-2. **Write-path re-check** — swap / provide / withdraw / limit place+fill / cancel / claim abort unless live id **equals the pin** **and** factory `IsCodeIdWhitelisted` is true.
+2. **Write-path re-check** — swap / provide / withdraw / limit place+fill / cancel / claim / **price update** (`UpdateLimitOrderPrice`) / **`CleanLimitBook`** abort unless live id **equals the pin** **and** factory `IsCodeIdWhitelisted` is true. Freeze means **no DLL writes** ([#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234)): keepers resume `CleanLimitBook` after unfreeze (same as **L6** unpause). Admin-only config (`UpdateLimitOrderConfig`, `UpdateLimitCleanConfig`) stays ungated.
 3. **Fail closed** — `ContractInfo` or factory query errors → `AssetCodeIdGuardUnavailable` (same posture as blacklist guard).
 4. **Refresh** — factory-only `RefreshAssetCodeIds` re-pins live ids **only if both are still whitelisted**. Governance: `RefreshPairAssetCodeIds` / `RefreshPairAssetCodeIdsBatch`.
 5. **Migrate** — factory **1.9.0** first (adds `IsCodeIdWhitelisted`), then pair **1.15.0** (pins + re-check). Pair migrate backfills missing pins from live `ContractInfo`. **Enforced by** [`scripts/upgrade-582-code-id-pin.sh`](../scripts/upgrade-582-code-id-pin.sh): the script aborts before any pair 1.15.0 migrate unless factory cw2 ≥ 1.9.0 **and** `IsCodeIdWhitelisted` succeeds. After factory migrate it **`UpdateConfig { pair_code_id }`** to the new pair wasm so new listings instantiate 1.15.0 (columbus-5 2026-08-21 had to do this as a follow-up when the first script omitted it). Do **not** copy the #514 pairs-first order.
@@ -87,11 +87,12 @@ make verify-issue-589   # #589 CW20 code-id intake (LCD pin + decomp + Layer A/B
 make verify-issue-584   # script bash -n, DRY_RUN factory-assert, pagination mock, runbook greps
 make verify-issue-582   # pin tests + #584 ops (fails if upgrade script is deleted)
 make verify-issue-585   # dApp banners + indexer route/solve freeze (Postgres; no LocalTerra)
+make verify-issue-1234  # #1234 UpdateLimitOrderPrice + CleanLimitBook F6 gate
 ```
 
 No LocalTerra required for those targets. Live rehearsal: `UPGRADE582_LOCAL=1` after `make deploy-local`. Columbus-5 read-only probe: `./scripts/qa/probe-columbus5-contract-info.sh`.
 
-Tests: `asset_code_id_pin_tests::*` (honest CreatePair → FoT migrate → swap fails; whitelist removal freeze; pin vs other whitelisted template until Refresh; pair migrate backfill).
+Tests: `asset_code_id_pin_tests::*` (honest CreatePair → FoT migrate → swap fails; whitelist removal freeze; pin vs other whitelisted template until Refresh; pair migrate backfill; **#1234** reprice + `CleanLimitBook` fail-closed). `make verify-issue-1234` greps the execute arms.
 
 ## Related
 
@@ -104,4 +105,5 @@ Tests: `asset_code_id_pin_tests::*` (honest CreatePair → FoT migrate → swap 
 - [`docs/runbooks/launch-checklist.md`](../docs/runbooks/launch-checklist.md) — **BLOCK** until columbus-5 migrate has **run**
 - [`docs/contracts-terraclassic.md` § Asset CW20 code_id pin](../docs/contracts-terraclassic.md#asset-cw20-code-id-pin-gitlab-582)
 - Invariant **F6** — [`docs/contracts-security-audit.md`](../docs/contracts-security-audit.md)
-- [`AGENTS_FRONTEND_CODE_ID_FREEZE.md`](./AGENTS_FRONTEND_CODE_ID_FREEZE.md) — dApp banners + indexer `route/solve` exclude (**F585**, [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)); not a substitute for on-chain **A**
+- [`AGENTS_FRONTEND_CODE_ID_FREEZE.md`](./AGENTS_FRONTEND_CODE_ID_FREEZE.md) — dApp banners + indexer `route/solve` exclude (**F585**, [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585)); not a substitute for on-chain **A**. Edit/reprice uses the same humanized F6 errors ([#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234)).
+- [`AGENTS_LIMIT_ORDER_REPRICE_FIFO.md`](./AGENTS_LIMIT_ORDER_REPRICE_FIFO.md) — **L23** equal-price tail; F6 gate is **before** relink (#1234)

@@ -10,11 +10,11 @@ pub use crate::limit_clean::{
     MAX_CLEAN_SCAN_STEPS, MAX_LIMIT_CLEAN_ORDERS_HARD_CAP,
 };
 pub use crate::limit_placement::{
-    clamp_max_batch_rungs, expand_limit_ladder, human_scale_limit_price,
+    clamp_max_batch_rungs, expand_limit_ladder, human_scale_limit_price, min_limit_place_remaining,
     validate_limit_order_price, LimitLadderDistribution, LimitOrderConfigResponse,
     LimitOrderLadderSpec, LimitOrderPlacementItem, DEFAULT_LIMIT_BATCH_MAX_RUNGS,
-    MAX_LIMIT_BATCH_RUNGS_HARD_CAP, MAX_LIMIT_PRICE, MIN_LIMIT_PRICE,
-    SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
+    LIMIT_ORDER_DUST_FLUSH_THRESHOLD, MAX_LIMIT_BATCH_RUNGS_HARD_CAP, MAX_LIMIT_PRICE,
+    MIN_LIMIT_PRICE, SUGGESTED_FACTORY_DEFAULT_LIMIT_BATCH_MAX_RUNGS,
 };
 
 // ---------------------------------------------------------------------------
@@ -44,11 +44,8 @@ pub const MAX_SCAN_STEPS: u32 = 500;
 /// budget (500 × ~19k) remains the binding hybrid envelope — see `docs/limit-orders.md` § Expired-park benchmark.
 pub const MAX_EXPIRED_PARKS_PER_SWAP: u32 = 15;
 
-/// Post-fill rounding can leave 1–9 smallest-unit remainders on limit orders. Match walks
-/// auto-park sub-threshold dust into `EXPIRED_LIMIT_CLAIMS` (GitLab #264); governance
-/// `CleanLimitBook` thresholds ([#263](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/263))
-/// cover larger notionals separately.
-pub const LIMIT_ORDER_DUST_FLUSH_THRESHOLD: Uint128 = Uint128::new(10);
+// Dust remaining: [`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`] (re-export from limit_placement).
+// Match-time park is **L16** / #264; placement min remaining is **L24** / #1219.
 
 /// TTL for on-pair CL8Y fee-discount cache entries ([GitLab #251](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/251)).
 ///
@@ -434,6 +431,8 @@ pub enum ExecuteMsg {
     },
     /// Change the limit price of an existing order (same `order_id`, same
     /// remaining size). Does not charge the maker placement fee again.
+    /// **F6 / #1234:** `gate_asset_code_ids` after pause + blacklist — freeze
+    /// (pin drift or whitelist removal) rejects before DLL relink.
     UpdateLimitOrderPrice {
         order_id: u64,
         price: Decimal,
@@ -447,6 +446,8 @@ pub enum ExecuteMsg {
     /// Permissionless: park time-expired and/or governance dust orders from the limit book
     /// into `EXPIRED_LIMIT_CLAIMS` (no CW20 movement; makers claim later). Distinct from
     /// factory-only CW20 excess recovery [`Sweep`](ExecuteMsg::Sweep) (GitLab #263).
+    /// **F6 / #1234:** also behind `gate_asset_code_ids` (no DLL writes during freeze;
+    /// keepers resume after unfreeze, same as **L6** unpause).
     CleanLimitBook {
         side: LimitOrderSide,
         max_orders: u32,

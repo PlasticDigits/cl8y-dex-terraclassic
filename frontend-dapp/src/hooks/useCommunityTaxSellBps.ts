@@ -8,7 +8,14 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { isCommunityTaxEnabled } from '@/utils/constants'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { effectiveBuyTaxBps } from '@/utils/communityTaxNetOut'
-import { effectiveExtraDebitSellBps, parseCommunityTaxSellBps, parseUintString } from '@/utils/taxPreviewMaxSpend'
+import {
+  classifyCommunityTaxQueryError,
+  effectiveExtraDebitSellBps,
+  parseCommunityTaxSellBps,
+  parseUintString,
+  taxPreviewExecuteDebitRaw,
+} from '@/utils/taxPreviewMaxSpend'
+import type { CommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 
 export type CommunityTaxDetection = 'tax' | 'honest' | 'unresolved'
 
@@ -65,36 +72,56 @@ export function useCommunityTaxSellBps(tokenAddr: string | null | undefined) {
 }
 
 /**
- * Live `TaxPreview.debit` for the execute path (`from=wallet`, `to=pair|router`, `amount=declared`).
- * Enabled only after sell detection is tax. Hostile/non-numeric debit stays unresolved.
+ * Live execute-aligned `TaxPreview` debit (#1285): pair-direct `Send+Swap` send_msg;
+ * router hop uses router→pair preview + `hop_trader_debit`.
  */
 export function useCommunityTaxPreviewDebit(input: {
   token: string | null | undefined
-  from: string | null | undefined
-  to: string | null | undefined
   amount: string
   enabled: boolean
+  previewQuery: CommunityTaxPreviewQuery | null
 }) {
   const tokenOk = !!input.token && isValidTerraBech32Address(input.token)
-  const fromOk = !!input.from && isValidTerraBech32Address(input.from)
-  const toOk = !!input.to && isValidTerraBech32Address(input.to)
   const amountOk = /^\d+$/.test(input.amount) && input.amount !== '0'
-  const qEnabled = input.enabled && tokenOk && fromOk && toOk && amountOk
+  const from = input.previewQuery?.from
+  const to = input.previewQuery?.to
+  const sendMsg = input.previewQuery?.sendMsg
+  const fromOk = !!from && isValidTerraBech32Address(from)
+  const toOk = !!to && isValidTerraBech32Address(to)
+  const sendOk = typeof sendMsg === 'string' && sendMsg.length > 0
+  const qEnabled = input.enabled && tokenOk && amountOk && fromOk && toOk && sendOk
   const q = useQuery({
-    queryKey: ['communityTaxPreview', input.token, input.from, input.to, input.amount],
+    queryKey: ['communityTaxPreview', input.token, from, to, input.amount, sendMsg],
     queryFn: () =>
       queryTaxPreview({
         token: input.token!,
-        from: input.from!,
-        to: input.to!,
+        from: from!,
+        to: to!,
         amount: input.amount,
+        sendMsg,
       }),
     enabled: qEnabled,
     staleTime: 5_000,
     retry: false,
   })
-  const debitRaw = q.isSuccess ? parseUintString(q.data?.debit) : null
-  const previewUnresolved = qEnabled && (q.isLoading || q.isError || (q.isSuccess && debitRaw == null))
+  let declaredRaw: bigint | null = null
+  if (amountOk) {
+    try {
+      declaredRaw = BigInt(input.amount)
+    } catch {
+      declaredRaw = null
+    }
+  }
+  const previewDebit = q.isSuccess ? parseUintString(q.data?.debit) : null
+  const hopTraderDebit = q.isSuccess ? parseUintString(q.data?.hop_trader_debit) : null
+  const debitRaw =
+    q.isSuccess && declaredRaw != null ? taxPreviewExecuteDebitRaw({ declaredRaw, previewDebit, hopTraderDebit }) : null
+  const previewQueryMissing = input.enabled && tokenOk && amountOk && !sendOk
+  const previewErrUnresolved = q.isError && classifyCommunityTaxQueryError(q.error) === 'unresolved'
+  const previewUnresolved =
+    previewQueryMissing ||
+    previewErrUnresolved ||
+    (qEnabled && (q.isLoading || q.isError || (q.isSuccess && debitRaw == null)))
   return {
     debitRaw,
     previewUnresolved,

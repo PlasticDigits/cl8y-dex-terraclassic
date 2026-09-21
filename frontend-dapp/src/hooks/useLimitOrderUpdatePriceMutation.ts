@@ -14,6 +14,8 @@ export type LimitOrderUpdatePriceInput = {
 
 /**
  * Owner-only in-place limit price relink (`ExecuteMsg::UpdateLimitOrderPrice`, GitLab #247).
+ * F6 freeze (#1234) fail-closes with the same `AssetCodeId*` errors as place/cancel;
+ * `toastErrorMessage` maps those to the Market frozen copy. Do not bypass `code_id_frozen`.
  */
 export function useLimitOrderUpdatePriceMutation(pairAddr: string, walletAddress: string | undefined) {
   const queryClient = useQueryClient()

@@ -5,8 +5,9 @@ import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
 
-const { MOCK_LUNC_C } = vi.hoisted(() => ({
+const { MOCK_LUNC_C, MOCK_USTC_C } = vi.hoisted(() => ({
   MOCK_LUNC_C: 'terra1lunc_c_mock_address_for_testing_xxxxx',
+  MOCK_USTC_C: 'terra1ustc_c_mock_address_for_testing_xxxxx',
 }))
 
 vi.mock('react-blockies', () => ({
@@ -24,7 +25,12 @@ vi.mock('@/services/terraclassic/wallet', () => ({
 }))
 
 vi.mock('@/services/terraclassic/queries', () => ({
-  queryContract: vi.fn().mockResolvedValue({}),
+  queryContract: vi.fn(async (_addr: string, msg: unknown) => {
+    if (msg && typeof msg === 'object' && 'token_info' in msg) {
+      return { name: 'Dummy', symbol: 'DUM', decimals: 6, total_supply: '0' }
+    }
+    return {}
+  }),
   getTokenBalance: vi.fn().mockResolvedValue('0'),
 }))
 
@@ -240,6 +246,8 @@ describe('SwapPage', () => {
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer not used in this test'))
     vi.spyOn(indexerClient, 'postRouteSolve').mockReset()
     vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('indexer post not used in this test'))
+    vi.spyOn(indexerClient, 'getPair').mockRejectedValue(new Error('no pair'))
+    vi.spyOn(indexerClient, 'getTokens').mockResolvedValue([])
     vi.spyOn(indexerClient, 'getFeeDiscountHealth').mockResolvedValue({
       configured: true,
       fee_discount_registry_ok: true,
@@ -1682,15 +1690,79 @@ describe('SwapPage', () => {
       await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
       await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
 
+      await waitFor(() => expect(indexerClient.getRouteSolve).toHaveBeenCalled(), { timeout: 8000 })
       const feeHint = await screen.findByTestId('swap-network-fee')
       expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
       expect(feeHint).toHaveTextContent('LUNC')
       expect(feeHint).not.toHaveTextContent(/~107/)
       expect(feeHint).not.toHaveTextContent(/~108/)
-      expect(feeHint).toHaveTextContent(/~192/)
+      await waitFor(() => expect(feeHint).toHaveTextContent(/~192/), { timeout: 8000 })
       const route = await screen.findByTestId('swap-route-summary')
       expect(route.textContent ?? '').toMatch(/→/)
       expect((route.textContent ?? '').split('→').length).toBeGreaterThanOrEqual(4)
+    })
+
+    it('USTC→USTR wrap+2hop shows LUNC Network fee and gates on bank LUNC not USTC (#1264)', async () => {
+      const user = userEvent.setup()
+      vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+      useWalletStore.setState({ address: wallet, walletType: 'simulated', error: null })
+      vi.mocked(isDirectWrapUnwrap).mockReturnValue(null)
+      vi.mocked(findRouteWithNativeSupport).mockReturnValue({
+        operations: [
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: MOCK_USTC_C } },
+              ask_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
+            },
+          },
+          {
+            terra_swap: {
+              offer_asset_info: { token: { contract_addr: 'terra1ust1_mock' } },
+              ask_asset_info: { token: { contract_addr: mockUstr } },
+            },
+          },
+        ],
+        needsWrapInput: true,
+        needsUnwrapOutput: false,
+      })
+      vi.mocked(simulateNativeSwap).mockResolvedValue({
+        amount: '990000',
+        isDirectWrapUnwrap: false,
+        routerMinReceiveBase: '990000',
+      })
+      vi.mocked(getAllPairsPaginated).mockResolvedValue({
+        pairs: [
+          {
+            contract_addr: 'terra1pair_custc_ust1',
+            liquidity_token: 'terra1lp1',
+            asset_infos: [{ token: { contract_addr: MOCK_USTC_C } }, { token: { contract_addr: 'terra1ust1_mock' } }],
+          },
+          {
+            contract_addr: 'terra1pair_ust1_ustr',
+            liquidity_token: 'terra1lp2',
+            asset_infos: [{ token: { contract_addr: 'terra1ust1_mock' } }, { token: { contract_addr: mockUstr } }],
+          },
+        ],
+      })
+      vi.mocked(getAllTokens).mockReturnValue(['uusd', mockUstr])
+      vi.mocked(getTokenBalance).mockImplementation(async (_addr, asset) => {
+        if (asset && 'native_token' in asset && asset.native_token.denom === 'uluna') {
+          return '1000'
+        }
+        return '10000000000'
+      })
+
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument(), { timeout: 5000 })
+      await user.type(screen.getByTestId('swap-you-pay-amount'), '1')
+
+      const feeHint = await screen.findByTestId('swap-network-fee')
+      expect(feeHint).toHaveTextContent(/Network fee \(est\.\)/i)
+      expect(feeHint).toHaveTextContent('LUNC')
+      expect(feeHint).not.toHaveTextContent('USTC')
+
+      const cta = await screen.findByRole('button', { name: /Need ~.*LUNC for network fee/i })
+      expect(cta).toBeDisabled()
     })
   })
 

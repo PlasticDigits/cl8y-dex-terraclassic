@@ -15,7 +15,7 @@ use dex_common::pair::{
     ExpiredLimitRefundResponse, GreedyStopReason, GreedySwapParams,
     HybridReverseSimulationResponse, HybridSimulationResponse, HybridSwapParams,
     LimitCleanConfigResponse, LimitOrderConfigResponse, LimitOrderResponse, LimitOrderSide,
-    OrderStatusResponse, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
+    OrderStatus, OrderStatusResponse, PausedResponse, QueryMsg, MAX_EXPIRED_PARKS_PER_SWAP,
     MAX_LIMIT_CLEAN_ORDERS_HARD_CAP, MAX_MAKER_FILLS_HARD_CAP,
 };
 use dex_common::types::Asset;
@@ -8135,6 +8135,500 @@ fn limit_placement_shifted_discount_swap_fee_unchanged_514() {
         unreg_escrow.checked_sub(expected_unreg_fee).unwrap(),
         "unregistered placement stays 90 bps"
     );
+}
+
+/// Forgejo #1219 — named min remaining at place + descending ladder (no Overflow sub).
+mod limit_place_min_size_1219 {
+    use super::*;
+
+    fn assert_named_min_size(s: &str) {
+        assert!(
+            s.contains("below minimum 10") || s.contains("minimum 10"),
+            "expected named min-size, got: {s}"
+        );
+        assert!(!s.contains("Cannot Sub"), "{s}");
+        assert!(!s.to_lowercase().contains("overflow: cannot sub"), "{s}");
+    }
+
+    fn send_batch(
+        app: &mut App,
+        env: &TestEnv,
+        orders: Vec<LimitOrderPlacementItem>,
+    ) -> Result<AppResponse, String> {
+        let total: Uint128 = orders.iter().map(|o| o.amount).sum();
+        let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+            side: LimitOrderSide::Bid,
+            orders,
+        })
+        .unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .map_err(|e| e.root_cause().to_string())
+    }
+
+    fn rung(price: Decimal, amount: u128) -> LimitOrderPlacementItem {
+        LimitOrderPlacementItem {
+            price,
+            amount: Uint128::new(amount),
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        }
+    }
+
+    fn send_ladder(
+        app: &mut App,
+        env: &TestEnv,
+        ladder: LimitOrderLadderSpec,
+    ) -> Result<AppResponse, String> {
+        let total = ladder.total_amount;
+        let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderLadder { ladder }).unwrap();
+        app.execute_contract(
+            env.user.clone(),
+            env.token_b.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total,
+                msg,
+            },
+            &[],
+        )
+        .map_err(|e| e.root_cause().to_string())
+    }
+
+    #[test]
+    fn batch_amount_one_and_nine_named_min_size() {
+        for amount in [1u128, 9] {
+            let mut app = App::default();
+            let env = setup_full_env(&mut app);
+            provide_liquidity(
+                &mut app,
+                &env,
+                &env.user,
+                Uint128::new(1_000_000),
+                Uint128::new(1_000_000),
+            );
+            let err = send_batch(&mut app, &env, vec![rung(Decimal::one(), amount)]).unwrap_err();
+            assert_named_min_size(&err);
+            assert!(query_book_head(&app, &env.pair, LimitOrderSide::Bid).is_none());
+            let st = query_status(&app, &env.pair, 1);
+            assert_eq!(st.status, OrderStatus::Unknown);
+        }
+    }
+
+    #[test]
+    fn batch_amount_ten_places_with_zero_fee() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            Uint128::new(10),
+            Decimal::one(),
+        );
+        let lo = query_limit(&app, &env.pair, id);
+        assert_eq!(lo.remaining, Uint128::new(10));
+    }
+
+    #[test]
+    fn batch_amount_667_places_minus_floor_maker_fee() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let amount = Uint128::new(667);
+        let id = place_bid(
+            &mut app,
+            &env.pair,
+            &env.user,
+            &env.token_b,
+            amount,
+            Decimal::one(),
+        );
+        let lo = query_limit(&app, &env.pair, id);
+        let maker_fee = amount.multiply_ratio(15u128, 10_000u128);
+        assert_eq!(maker_fee, Uint128::new(1));
+        assert_eq!(lo.remaining, amount.checked_sub(maker_fee).unwrap());
+    }
+
+    #[test]
+    fn mixed_dust_rung_reverts_entire_batch() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let err = send_batch(
+            &mut app,
+            &env,
+            vec![
+                rung(Decimal::from_ratio(95u128, 100u128), 1000),
+                rung(Decimal::one(), 1),
+                rung(Decimal::from_ratio(105u128, 100u128), 1000),
+            ],
+        )
+        .unwrap_err();
+        assert_named_min_size(&err);
+        assert!(query_book_head(&app, &env.pair, LimitOrderSide::Bid).is_none());
+        assert_eq!(
+            query_status(&app, &env.pair, 1).status,
+            OrderStatus::Unknown
+        );
+    }
+
+    #[test]
+    fn ladder_total_one_named_min_before_insert() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let ladder = LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::from_ratio(95u128, 100u128),
+            end_price: Decimal::one(),
+            count: 3,
+            total_amount: Uint128::new(1),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let err = send_ladder(&mut app, &env, ladder).unwrap_err();
+        assert!(err.contains("below minimum 10"), "{err}");
+        assert!(!err.contains("Cannot Sub"), "{err}");
+        assert!(query_book_head(&app, &env.pair, LimitOrderSide::Bid).is_none());
+    }
+
+    #[test]
+    fn ladder_remainder_dust_rung_rejects_all() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let ladder = LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::from_ratio(95u128, 100u128),
+            end_price: Decimal::from_ratio(105u128, 100u128),
+            count: 3,
+            total_amount: Uint128::new(29),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let err = send_ladder(&mut app, &env, ladder).unwrap_err();
+        assert!(err.contains("below minimum 10"));
+        assert!(query_book_head(&app, &env.pair, LimitOrderSide::Bid).is_none());
+    }
+
+    #[test]
+    fn ladder_equal_split_thirty_places_three_tens() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let ladder = LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::from_ratio(95u128, 100u128),
+            end_price: Decimal::from_ratio(105u128, 100u128),
+            count: 3,
+            total_amount: Uint128::new(30),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let res = send_ladder(&mut app, &env, ladder).unwrap();
+        let placed: Vec<u64> = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .filter(|a| a.key == "limit_order_placed")
+            .map(|a| a.value.parse().unwrap())
+            .collect();
+        assert_eq!(placed.len(), 3);
+        let sum: Uint128 = placed
+            .iter()
+            .map(|id| query_limit(&app, &env.pair, *id).remaining)
+            .sum();
+        assert_eq!(sum, Uint128::new(30));
+    }
+
+    #[test]
+    fn descending_ladder_three_to_one_places() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let ladder = LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::from_ratio(3u128, 1u128),
+            end_price: Decimal::one(),
+            count: 3,
+            total_amount: Uint128::new(30),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let res = send_ladder(&mut app, &env, ladder).unwrap();
+        let placed: Vec<u64> = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .filter(|a| a.key == "limit_order_placed")
+            .map(|a| a.value.parse().unwrap())
+            .collect();
+        assert_eq!(placed.len(), 3);
+        let prices: Vec<Decimal> = placed
+            .iter()
+            .map(|id| query_limit(&app, &env.pair, *id).price)
+            .collect();
+        assert_eq!(prices[0], Decimal::from_ratio(3u128, 1u128));
+        assert_eq!(prices[2], Decimal::one());
+        assert!(prices[0] > prices[1] && prices[1] > prices[2]);
+        let sum: Uint128 = placed
+            .iter()
+            .map(|id| query_limit(&app, &env.pair, *id).remaining)
+            .sum();
+        assert_eq!(sum, Uint128::new(30));
+    }
+
+    #[test]
+    fn eighteen_vs_six_raw_three_to_one_no_overflow_sub() {
+        let mut app = App::default();
+        let env = setup_env_with_asset_decimals(&mut app, 18, 6);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000_000_000_000_000),
+            Uint128::new(1_000_000),
+        );
+        let ladder = LimitOrderLadderSpec {
+            side: LimitOrderSide::Bid,
+            start_price: Decimal::raw(3),
+            end_price: Decimal::raw(1),
+            count: 3,
+            total_amount: Uint128::new(30),
+            distribution: LimitLadderDistribution::Equal,
+            max_adjust_steps: 32,
+            expires_at: None,
+            hint_after_order_id: None,
+        };
+        let res = send_ladder(&mut app, &env, ladder).unwrap();
+        let placed: Vec<u64> = res
+            .events
+            .iter()
+            .flat_map(|e| e.attributes.iter())
+            .filter(|a| a.key == "limit_order_placed")
+            .map(|a| a.value.parse().unwrap())
+            .collect();
+        assert_eq!(placed.len(), 3);
+        let prices: Vec<Decimal> = placed
+            .iter()
+            .map(|id| query_limit(&app, &env.pair, *id).price)
+            .collect();
+        assert_eq!(prices[0], Decimal::raw(3));
+        assert_eq!(prices[2], Decimal::raw(1));
+        assert!(prices[0] > prices[1] && prices[1] > prices[2]);
+        let sum: Uint128 = placed
+            .iter()
+            .map(|id| query_limit(&app, &env.pair, *id).remaining)
+            .sum();
+        assert_eq!(sum, Uint128::new(30));
+    }
+
+    fn setup_tier9_maker(app: &mut App, env: &TestEnv) -> Addr {
+        let maker = Addr::unchecked("mm_t9_1219");
+        let cw20_code_id = app.store_code(cw20_mintable_contract());
+        let fd_code_id = app.store_code(fee_discount_contract());
+        let cl8y = create_cw20_token_with_decimals(
+            app,
+            cw20_code_id,
+            &env.user,
+            "CL8Y",
+            "CL8Y",
+            18,
+            Uint128::new(20_000_000_000_000_000_000_000u128),
+        );
+        let fd = app
+            .instantiate_contract(
+                fd_code_id,
+                env.governance.clone(),
+                &cl8y_dex_fee_discount::msg::InstantiateMsg {
+                    governance: env.governance.to_string(),
+                    cl8y_token: cl8y.to_string(),
+                },
+                &[],
+                "fd_1219",
+                None,
+            )
+            .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            fd.clone(),
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::AddTier {
+                tier_id: 9,
+                min_cl8y_balance: Uint128::new(7_500_000_000_000_000_000_000u128),
+                discount_bps: 9_500,
+                limit_discount_bps: Some(10_000),
+                governance_only: false,
+            },
+            &[],
+        )
+        .unwrap();
+        app.execute_contract(
+            env.governance.clone(),
+            env.factory.clone(),
+            &FactoryExecuteMsg::SetDiscountRegistry {
+                pair: env.pair.to_string(),
+                registry: Some(fd.to_string()),
+            },
+            &[],
+        )
+        .unwrap();
+        transfer_tokens(
+            app,
+            &cl8y,
+            &env.user,
+            &maker,
+            Uint128::new(7_500_000_000_000_000_000_000u128),
+        );
+        transfer_tokens(
+            app,
+            &env.token_b,
+            &env.user,
+            &maker,
+            Uint128::new(1_000_000),
+        );
+        app.execute_contract(
+            maker.clone(),
+            fd,
+            &cl8y_dex_fee_discount::msg::ExecuteMsg::Register { tier_id: 9 },
+            &[],
+        )
+        .unwrap();
+        maker
+    }
+
+    #[test]
+    fn tier9_cannot_place_amount_below_ten() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let maker = setup_tier9_maker(&mut app, &env);
+        let msg = batch_place_msg(
+            LimitOrderSide::Bid,
+            Decimal::one(),
+            Uint128::new(1),
+            32,
+            None,
+        );
+        let err = app
+            .execute_contract(
+                maker,
+                env.token_b.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: Uint128::new(1),
+                    msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert_named_min_size(&err.root_cause().to_string());
+        assert!(query_book_head(&app, &env.pair, LimitOrderSide::Bid).is_none());
+    }
+
+    #[test]
+    fn tier9_spam_dust_batch_named_reject() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        let maker = setup_tier9_maker(&mut app, &env);
+        let orders: Vec<LimitOrderPlacementItem> = (0..10)
+            .map(|i| rung(Decimal::from_ratio(100u128 + i as u128, 100u128), 1))
+            .collect();
+        let total: Uint128 = orders.iter().map(|o| o.amount).sum();
+        let msg = to_json_binary(&Cw20HookMsg::PlaceLimitOrderBatch {
+            side: LimitOrderSide::Bid,
+            orders,
+        })
+        .unwrap();
+        let err = app
+            .execute_contract(
+                maker,
+                env.token_b.clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: env.pair.to_string(),
+                    amount: total,
+                    msg,
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert_named_min_size(&err.root_cause().to_string());
+        assert!(query_book_head(&app, &env.pair, LimitOrderSide::Bid).is_none());
+    }
 }
 
 /// GitLab #708 — greedy book-first (**G1–G11**, **G14** Pattern C unchanged).

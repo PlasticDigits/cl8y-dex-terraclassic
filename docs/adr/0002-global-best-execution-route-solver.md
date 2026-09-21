@@ -34,6 +34,7 @@ The indexer previously chose the **first** BFS shortest path and ran a **sequent
 ## Links
 
 - [ADR 0001](./0001-hybrid-quoting-and-routing.md)
+- [ADR 0007](./0007-route-solve-remaining-failures.md) — remaining retail GET failure-mode census ([#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265)); docs-only **Stay**
 - [route-solver.md](../route-solver.md) — in-depth pipeline, glossary, optimization theory, and shipped constants (GitLab [#310](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/310))
 - [indexer-invariants.md](../indexer-invariants.md) — route GET hybrid / best execution rows
 - [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md)

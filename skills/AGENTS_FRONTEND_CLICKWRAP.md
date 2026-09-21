@@ -108,5 +108,6 @@ Manual soft-launch: connect unsigned wallet → portal Terra Classic sign → re
 - Trust / CSP: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Soft-launch: [`docs/runbooks/mainnet-soft-launch.md`](../docs/runbooks/mainnet-soft-launch.md)
 - WalletConnect same-device mobile pairing / Legal hint: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M12**, [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658))
+- Leftover Lunc Dash ops verify (hint names Lunc Dash; device QA is ops-bot): [`AGENTS_OPS_LUNCDASH_VERIFY.md`](./AGENTS_OPS_LUNCDASH_VERIFY.md) (**L1279-6**, [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); `make verify-issue-1279`
 - Retail copy: [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) (#489 — one short sentence, no always-on essay after `signed_latest`)
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)

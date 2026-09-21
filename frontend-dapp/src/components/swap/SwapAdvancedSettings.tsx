@@ -24,7 +24,7 @@ type Props = {
   hybridMaxMakersInputId: string
   isWalletConnected: boolean
   balanceQuery: UseQueryResult<string>
-  offerDecimals: number
+  offerDecimals: number | null
   bookLegMaxResult: ComputeMaxSpendableHumanAmountResult
   onCheckIndexerRoute: () => void
   indexerRouteLoading: boolean
@@ -109,7 +109,7 @@ export function SwapAdvancedSettings({
                       }}
                       placeholder="0.0"
                     />
-                    {isWalletConnected && fromToken.startsWith('terra1') && (
+                    {isWalletConnected && fromToken.startsWith('terra1') && offerDecimals != null && (
                       <AmountBalanceActions
                         balanceQuery={balanceQuery}
                         decimals={offerDecimals}

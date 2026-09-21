@@ -13,6 +13,7 @@ Parent Max: [`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.m
 | [Forgejo **#1267**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1267) | Typed 100% / reverse offer still submitted when `TaxPreview.debit > balance` |
 | [`docs/frontend.md` § Create Token](../docs/frontend.md#create-token-community-tax) | **S1267-1–S1267-8** + **C593-9** |
 | [`taxPreviewMaxSpend.ts`](../frontend-dapp/src/utils/taxPreviewMaxSpend.ts) | `extraDebitSubmitGate` + round-trip Max |
+| [`communityTaxPreviewQuery.ts`](../frontend-dapp/src/utils/communityTaxPreviewQuery.ts) | Execute-aligned `TaxPreview` `from` / `to` / `send_msg` (#1285) |
 | [`useCommunityTaxSellBps.ts`](../frontend-dapp/src/hooks/useCommunityTaxSellBps.ts) | Live `GetConfig.sell_bps` (not catalog pin equality) |
 | [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) / [`TradeMarketOrderPanel.tsx`](../frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx) | CTA + mutation guard |
 | [`humanizeTerraTxError.ts`](../frontend-dapp/src/utils/humanizeTerraTxError.ts) | `InsufficientForSellTax` copy |
@@ -28,10 +29,18 @@ Parent Max: [`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.m
 7. **S1267-7 — humanize, no ticket ids.** Map `InsufficientForSellTax` / `Insufficient balance for extra-debit sell tax` to `Not enough tokens after sell tax. Reduce the amount or tap Max.` No GitLab / Forgejo / issue numbers in UI.
 8. **S1267-8 — no wasm / FoT / reopen.** Do not change pair or router contracts. Do not teach the dApp FoT reserve math. Do not reopen #593 / #1228 / #607 classify. `isCommunityTaxEnabled()` only means Create Token env is present (so LCD is queried); it is not `code_id === pin`.
 
+## Invariants **S1285-1–S1285-4** (#1285 leftover)
+
+1. **S1285-1 — pair `send_msg`.** Pair-direct preview must pass a pair `Swap` hook in `TaxPreview.send_msg` (slippage-aligned `max_spread`; not Honest `debit === declared` without hook).
+2. **S1285-2 — router hop debit.** Multihop preview queries router→first sell hop pair with `Swap.trader = wallet`; economic debit uses `hop_trader_debit + declared` when LCD returns router-leg Honest `debit`.
+3. **S1285-3 — Vitest LCD shapes.** Cover sell `debit` and router `hop_trader_debit` parsing — not only mocked `debitRaw: null`.
+4. **S1285-4 — inline humanize.** Swap inline `TxResultAlert` and Trade market submit chrome humanize mutation errors (`InsufficientForSellTax` map).
+
 ## Verify
 
 ```bash
 make verify-issue-1267
+make verify-issue-1285
 make verify-issue-593
 make verify-issue-607
 ```

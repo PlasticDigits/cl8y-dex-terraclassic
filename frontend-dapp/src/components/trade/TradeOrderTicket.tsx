@@ -23,7 +23,8 @@ import { Spinner, TokenLogo, TxResultAlert } from '@/components/ui'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
 import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
-import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
+import { evaluateLimitOrderEscrowPlaceGate, LIMIT_ORDER_MIN_PLACE_MSG } from '@/utils/limitOrderEscrowBalanceGate'
+import { LIMIT_ORDER_DUST_FLUSH_THRESHOLD } from '@/utils/limitPlacementLifecycle'
 import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { evaluateLimitOrderPricePlaceGate } from '@/utils/limitOrderPricePlaceGate'
@@ -502,6 +503,9 @@ function TradeOrderTicketContent({
       }
       const raw = toRawAmount(amountHuman, escrowDecimals)
       if (raw === '0') throw new Error('Enter amount')
+      if (BigInt(raw) < BigInt(LIMIT_ORDER_DUST_FLUSH_THRESHOLD)) {
+        throw new Error(LIMIT_ORDER_MIN_PLACE_MSG)
+      }
       return placeLimitOrderWithAllowance(
         address,
         escrowToken,

@@ -191,6 +191,12 @@ Clients **must** set on-chain **`max_spread`** / **`min_receive`** (or equivalen
 
 ---
 
+## Remaining failures census (docs-only)
+
+Retail quote skips / timeouts / disagreements with optimized GET are catalogued in [ADR 0007](./adr/0007-route-solve-remaining-failures.md) ([#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265)). That memo does **not** change shipped constants below. Native wrap-enter remains [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218); mixed 18/6 honesty remains [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257). Verify: `make verify-issue-1265`.
+
+---
+
 ## Optimization theory (shipped heuristics ↔ literature)
 
 References are **explanatory** — they do not imply the implementation is provably optimal.

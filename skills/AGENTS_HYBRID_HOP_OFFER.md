@@ -23,8 +23,7 @@ No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop
 | **H1280-3** | Retail GET hops 1+ are `hybrid: null` (pool-only). Do not copy hop-0 integers onto later hops. |
 | **H1280-4** | POST `hybrid_by_hop` may keep interior Pattern C splits that partition that hop’s offer (**AC5**). Greedy mutex (**G11**) unchanged. `hybrid: None` stays pool-only (**G1**). |
 | **H1280-5** | dApp: strip interior GET hybrid; fail closed before sign if hop-0 sum ≠ pay raw. Later-hop offers are realized `hop_output`, not quote-time `running`. |
-| **H1280-6** | Wrap/native execute hops omit `hybrid` (**H596-7**, [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)). Wrap-enter quotes GET after client wrap-map then strips all hybrid ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)). |
-| **H1280-7** | Do not skip `min_return` / `max_spread` / material pool-leg / greedy mutex. Do not overload `pool_input=0, book_input=offer` as “rescale for me.” |
+| **H1280-6** | Wrap/native execute hops omit `hybrid` (**H596-7**, [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)). Wrap-enter quotes GET after client wrap-map then strips all hybrid ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218)). || **H1280-7** | Do not skip `min_return` / `max_spread` / material pool-leg / greedy mutex. Do not overload `pool_input=0, book_input=offer` as “rescale for me.” |
 | **H1280-8** | No wasm rescale in `reply_swap_hop`. Typed hop-offer errors stay; dApp humanizes the generic LCD string **after** the revert is rare. |
 
 ## Files
@@ -39,6 +38,9 @@ No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop
 make verify-issue-1280
 # optional wrap pool-only + same 2.71M envelope (no columbus-5 AC1 raise):
 make verify-issue-1264
+# optional LocalTerra E10 / columbus-5 LCD:
+VERIFY_ISSUE_1264_CHAIN=1 make verify-issue-1264
+VERIFY1264_COLUMBUS_TX=<hash> make verify-issue-1264
 # wrap-enter GET + skip-unusable top-K:
 make verify-issue-1218
 cd smartcontracts && cargo test -p cl8y-dex-tests -- --test-threads=1 router_declared_split_mismatch_reverts_hop0
