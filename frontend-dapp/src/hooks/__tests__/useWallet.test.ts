@@ -11,9 +11,13 @@ vi.mock('@/services/terraclassic/wallet', () => ({
 vi.mock('@/services/terraclassic/devWallet', () => ({
   createDevTerraWallet: vi.fn(() => ({ address: 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v' })),
 }))
-vi.mock('@/utils/constants', () => ({
-  DEV_MODE: true,
-}))
+vi.mock('@/utils/constants', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/constants')>()
+  return {
+    ...actual,
+    DEV_MODE: true,
+  }
+})
 
 const WALLET_STORAGE_KEY = 'cl8y_wallet_connection'
 

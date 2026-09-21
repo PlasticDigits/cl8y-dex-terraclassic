@@ -5,7 +5,7 @@ Use when changing generic `GET /health`, `docker/indexer/Dockerfile` commit bake
 **Issue:** [#1276](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1276)  
 **Verify (implement):** `make verify-issue-1276`
 
-Not CAC `/health`. Not fee-discount health. Not #1277. Do not scrape Coolify logs. Do not publish Coolify UUIDs or tokens. Do not flip the Coolify auto-deploy checkbox from an implement agent ([agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). Do not infer that checkbox from HTTP.
+Not CAC `/health`. Not fee-discount health. Not #1277 ([`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md)). Do not scrape Coolify logs. Do not publish Coolify UUIDs or tokens. Do not flip the Coolify auto-deploy checkbox from an implement agent ([agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297)). Do not infer that checkbox from HTTP.
 
 ## Invariants (H1276-1–H1276-8)
 
@@ -75,4 +75,4 @@ Do not scrape Coolify.
 
 ## Slice 2 (code MR docs)
 
-`indexer/.env.example` optional `GIT_SHA` / `SOURCE_COMMIT` (hex only; do not document copying `HEAD` into `GIT_SHA`). Makefile `verify-issue-1276`. AGENTS.md **only if** it already lists 1276. Do not rewrite M573/M590.
+`indexer/.env.example` optional `GIT_SHA` / `SOURCE_COMMIT` (hex only; do not document copying `HEAD` into `GIT_SHA`). Makefile `verify-issue-1276`. AGENTS.md **only if** it already lists 1276. Do not rewrite M573/M590. Numeric overflow of trader rolling volume is [#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277) / [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md).

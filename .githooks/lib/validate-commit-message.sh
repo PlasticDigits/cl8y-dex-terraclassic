@@ -120,3 +120,27 @@ validate_commit_message_hash() {
   rm -f "$tmp"
   return "$rc"
 }
+
+# Pre-push: do not re-reject commits already merged to the integration branch (e.g.
+# origin/main) — merging main into a feature branch puts them in the push range (#1286 / #1287).
+commit_message_policy_on_integration_branch() {
+  local hash=$1
+  local integration_ref=$2
+
+  [[ -n "$hash" && -n "$integration_ref" ]] || return 1
+  git rev-parse --verify -q "$integration_ref" >/dev/null 2>&1 || return 1
+  git merge-base --is-ancestor "$hash" "$integration_ref" 2>/dev/null
+}
+
+resolve_integration_main_ref() {
+  local push_remote=${1:-origin}
+  local candidate
+
+  for candidate in "refs/remotes/${push_remote}/main" "${push_remote}/main" "origin/main"; do
+    if git rev-parse --verify -q "$candidate" >/dev/null 2>&1; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}

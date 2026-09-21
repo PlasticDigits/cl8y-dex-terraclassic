@@ -83,6 +83,18 @@ describe('maxSpendableAmount (GitLab #213)', () => {
     expect(result.reserveUluna).toBe(0n)
   })
 
+  it('native USTC Max keeps full uusd balance (gas is LUNC, #1264 G1264-4)', () => {
+    const result = computeMaxSpendableHumanAmount({
+      balanceRaw: balance,
+      decimals: 6,
+      assetIsNativeUluna: false,
+      context: 'swap_cw20',
+    })
+    expect(result.spendableRaw).toBe(10_000_000_000n)
+    expect(result.reserveUluna).toBe(0n)
+    expect(result.cappedByGas).toBe(false)
+  })
+
   it('limit place CW20 Max stays full balance', () => {
     const result = computeMaxSpendableHumanAmount({
       balanceRaw: '5000000',

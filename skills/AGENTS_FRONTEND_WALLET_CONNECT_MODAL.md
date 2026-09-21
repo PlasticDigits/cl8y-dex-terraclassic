@@ -52,6 +52,7 @@ Do **not** bind wallet / pairing `name` into the close control as HTML (`dangero
 - Production build / `tsc -b` hygiene: [`AGENTS_FRONTEND_PRODUCTION_BUILD.md`](./AGENTS_FRONTEND_PRODUCTION_BUILD.md)
 - Connected header chip (chain logo, not wallet brand): [`AGENTS_FRONTEND_WALLET_CHIP.md`](./AGENTS_FRONTEND_WALLET_CHIP.md)
 - WalletConnect same-device mobile pairing: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) ([#519](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/519) / [#554](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/554) / [#566](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/566))
+- Leftover Lunc Dash always-WC row (ops verify, not a Connect UI change): [`AGENTS_OPS_LUNCDASH_VERIFY.md`](./AGENTS_OPS_LUNCDASH_VERIFY.md) ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) **L1279-3**); `make verify-issue-1279`
 - Legal terms hint after connect matches this list (**not Keplr-only**, no Leap): [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#658](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/658) **L658** / **WC-M12**)
 - First-visit risk gate (must stay non-dismissible): [`AGENTS_FRONTEND_RISK_DISCLAIMERS.md`](./AGENTS_FRONTEND_RISK_DISCLAIMERS.md) ([#138](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/138))
 - Connected Legal clickwrap: [`AGENTS_FRONTEND_CLICKWRAP.md`](./AGENTS_FRONTEND_CLICKWRAP.md) ([#517](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/517))
