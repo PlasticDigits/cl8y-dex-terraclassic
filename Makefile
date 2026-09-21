@@ -294,6 +294,10 @@ verify-issue-1234:
 	@chmod +x scripts/qa/verify-issue-1234.sh
 	./scripts/qa/verify-issue-1234.sh
 
+# Forgejo bundle PR #1288 (implements #1234).
+.PHONY: verify-issue-1288
+verify-issue-1288: verify-issue-1234
+
 # GitLab #584 — F6 factory-first upgrade script, ContractInfo probe, freeze runbook.
 verify-issue-584:
 	@chmod +x scripts/qa/verify-issue-584.sh scripts/upgrade-582-code-id-pin.sh \
