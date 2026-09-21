@@ -392,7 +392,7 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 
 | Invariant | Check | On failure |
 | --------- | ----- | ---------- |
-| **Q21** Post-merge hub wrap **cLUNC** vs CEX **LUNC** has an agent `make` bundle; leftover-complete is reviewer `/protocol` visual, not green skip-E2E | **`make verify-issue-1290`** (alias **`verify-issue-1302`**) → child **1240** + `hubPriceTicker` Vitest + optional Playwright `protocol-page` at 5 workers (**B1290-1–B1290-8**) | Non-zero exit; fix the failing child or docs. `VERIFY_ISSUE_1290_SKIP_E2E=1` is implement-complete, **not** leftover-complete. Do not reopen #1240 / !1290. Do not scrape production HTML. Do not land `frontend-dapp/node_modules` or hook-test FAIL residue. |
+| **Q21** Post-merge hub wrap **cLUNC** vs CEX **LUNC** has an agent `make` bundle; leftover-complete is reviewer `/protocol` visual, not green skip-E2E | **`make verify-issue-1290`** (alias **`verify-issue-1302`**) → child **1240** + `hubPriceTicker` Vitest + optional Playwright `protocol-page` at 5 workers (**B1290-1–B1290-8**). Related !1290 / #1240. Closed !1302 is a weaker sketch; follow-up on current `main`, do not retarget. | Non-zero exit; fix the failing child or docs. `VERIFY_ISSUE_1290_SKIP_E2E=1` is implement-complete, **not** leftover-complete. Do not reopen #1240 / !1290. Do not `Fixes #1290`. Do not scrape production HTML. Do not land `frontend-dapp/node_modules` or hook-test FAIL residue. |
 
 **B1290** (Forgejo **#1302** — [ADR 0008](./adr/0008-verify-issue-1290-hub-wrap-labels.md)):
 
@@ -400,11 +400,11 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 |----|------|
 | **B1290-1** | Bundle runs child **1240**. Child FAIL fails the stack. `verify-issue-1302` is the same target. |
 | **B1290-2** | `hubPriceTicker.test.ts` is a required step. |
-| **B1290-3** | Playwright default-on, **5 workers**, port **30129**, `PLAYWRIGHT_SKIP_CHAIN=1`. Skip only `VERIFY_ISSUE_1290_SKIP_E2E=1` or missing Playwright package. Installed package + crash = FAIL. |
-| **B1290-4** | Crosslinks: testing, AGENTS, PROTOCOL_STATS, PROTOCOL_HUB, frontend.md, ADR 0008, architecture `#dex-hub-wrap-labels`, this Q21. |
+| **B1290-3** | Playwright default-on, **5 workers**, port **30129**, `PLAYWRIGHT_SKIP_CHAIN=1`. Copy `free_tcp_port` from `verify-issue-703.sh`; free 30129 first; port + `PLAYWRIGHT_BASE_URL` only in that step’s subshell. Skip only `VERIFY_ISSUE_1290_SKIP_E2E=1` or missing Playwright package. Installed package + crash (Chromium / NSS) = FAIL. |
+| **B1290-4** | Crosslinks: testing, AGENTS, PROTOCOL_STATS, PROTOCOL_HUB, frontend.md, ADR 0008, architecture `#dex-hub-wrap-labels`, this Q21. Follow-up must land those slice-0 files; do not shrink greps to the closed-!1302 sketch. |
 | **B1290-5** | No indexer / hub-price / Venus API change. No `clunc` path. No product TSX unless a shipped P1240 assert is wrong (reopen #1240). |
-| **B1290-6** | Do not reopen !1290 / #1240 for ops/QA. Do not `Fixes #1290`. Woodpecker quota is not leftover evidence. |
-| **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, `.gitignore` churn, or `AGENTS_POST_MERGE_OPS_1302.md`. |
+| **B1290-6** | Do not reopen !1290 / #1240 for ops/QA. Do not retarget closed !1302. Do not `Fixes #1290`. Woodpecker quota is not leftover evidence. |
+| **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, `.gitignore` churn, or `AGENTS_POST_MERGE_OPS_1302.md`. Do not edit `scripts/test-commit-msg-hook.sh`. |
 | **B1290-8** | Green skip-E2E ≠ leftover-complete. Leftover is reviewer visual on production `/protocol`. No HTML scrape. Not [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297). |
 
 ## Related docs
