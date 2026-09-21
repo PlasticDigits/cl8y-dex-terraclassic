@@ -36,7 +36,7 @@ Audience: third-party agents touching `traders.volume_24h` / `7d` / `30d` / `tot
 - **Don’t** switch rolling volume to `NUMERIC(78, 18)` (#676 is inventory/P&L).
 - **Don’t** add `total_volume_usd` to `SQL_TRADER_LIFETIME_DIVERGES` (USD-only skew must not re-trip the poller — leftover [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) **M1305-4**).
 
-Coolify leftover migrate `20260921130000` + D5 heal no-op: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) ([`AGENTS_POST_MERGE_OPS_1305.md`](./AGENTS_POST_MERGE_OPS_1305.md); `make verify-issue-1305`). If the #1276 checkbox is off, leftover 2 is a **manual** Coolify indexer deploy of `729b097f+`. Healthy `GET /health` is not `_sqlx_migrations` evidence. Widen `…000` + 30d `…001` stay sister [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300).
+Coolify leftover migrate `20260921130000` + startup-before-D5 heal no-op: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) ([`AGENTS_POST_MERGE_OPS_1305.md`](./AGENTS_POST_MERGE_OPS_1305.md); `make verify-issue-1305`). Heal runs once at startup, then D5; it is not in `run_volume_refresh_loop`. If the #1276 checkbox is off, leftover 2 is a **manual** Coolify indexer deploy of `729b097f+`. Healthy `GET /health` is not `_sqlx_migrations` evidence. Heal silence/one log via indexer logs, not `DATABASE_URL`. Widen `…000` + 30d `…001` stay sister [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300).
 
 ## Canonical code
 
@@ -45,7 +45,7 @@ Coolify leftover migrate `20260921130000` + D5 heal no-op: [#1305](https://git.c
 | [`20260921120000_traders_rolling_volume_numeric_38_0.sql`](../indexer/migrations/20260921120000_traders_rolling_volume_numeric_38_0.sql) | Widen raw columns |
 | [`20260921130000_traders_lifetime_heal_from_swaps.sql`](../indexer/migrations/20260921130000_traders_lifetime_heal_from_swaps.sql) | One-shot lifetime heal from `swap_events` |
 | [`traders.rs`](../indexer/src/db/queries/traders.rs) | `refresh_rolling_volumes` + `upsert_trader` cap + `heal_trader_lifetime_from_swaps` |
-| [`poller.rs`](../indexer/src/indexer/poller.rs) | Mismatch-gated heal **before** `refresh_all_volume_windows` (**D5**) |
+| [`poller.rs`](../indexer/src/indexer/poller.rs) | Mismatch-gated heal **once at startup before** `refresh_all_volume_windows` (**D5**). Not in `run_volume_refresh_loop`. |
 | [`volume_aggregator.rs`](../indexer/src/indexer/volume_aggregator.rs) | Isolated fail log (`rolling trader volumes`) |
 | [`api/traders.rs`](../indexer/src/api/traders.rs) | `bd_plain_string` on raw volume JSON |
 | [`indexer_trader_rolling_numeric.rs`](../indexer/tests/indexer_trader_rolling_numeric.rs) | `10^21` refresh + decay + upsert cap + leaderboard |
