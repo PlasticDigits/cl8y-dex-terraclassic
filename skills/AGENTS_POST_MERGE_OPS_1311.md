@@ -26,14 +26,14 @@ Frontend Coolify cut is operator leftover of the existing Vite app. Do **not** f
 
 | ID | Rule |
 |----|------|
-| **M1311-1** | Local regression is `make verify-issue-1311` **(implement)**, which runs child **1308**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless `dex.cl8y.com` answers (FAIL when `VERIFY1311_REQUIRE_LIVE=1` or `VERIFY1311_IID=1311` **and** unreachable). Make is **not** leftover-complete. Do **not** invent `VERIFY1311_LEFTOVER_COMPLETE` as a pass. `VERIFY1311_DEVICE_COMPLETE=1` / `VERIFY1311_IID=1311` **must FAIL** the device-complete guard (same class as `VERIFY1308_DEVICE_COMPLETE=1`). |
+| **M1311-1** | Local regression is `make verify-issue-1311` **(implement)**, which runs child **1308**. A child FAIL fails the stack. Live Coolify leftover probes SKIP unless `dex.cl8y.com` answers (FAIL when `VERIFY1311_REQUIRE_LIVE=1` **and** unreachable). Do **not** copy the #628 pattern where `VERIFY*_IID` enables leftover probes. `VERIFY1311_IID=1311` **always** fails the device-complete guard even when live HTTP would PASS. `VERIFY1311_DEVICE_COMPLETE=1` **must FAIL**. Make is **not** leftover-complete. Do **not** invent `VERIFY1311_LEFTOVER_COMPLETE` as a pass. |
 | **M1311-2** | Coolify **frontend rebuild** from `ead2ffe4+` / `0d6eaeee+`. Production Open Lunc Dash uses `luncdash://wallet_connect?payload=<encoded wc:>`, not the double-encoded blob. Supporting HTTP: hashed-chunk unquoted **`wallet_connect?payload=`** (any quote style; never require source `'`). HTTP PASS is **not** leftover-1 complete. If auto-deploy did not pick that SHA, operator **manually** deploys the frontend app. Do **not** flip indexer auto-deploy. |
-| **M1311-3** | Leftover-complete is closed #1308 **AC2 / AC3 / AC7** on production after leftover 1: phone Connect → LuncDash **Open Lunc Dash** → pairing prompt → header `terra1…`; WalletConnect settings list **`dex.cl8y.com`**; small Swap approve **or** reject. Inbox: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) **1.5.1 / 1.5.1a / 1.5.1b** + **1.5.6 / 1.5.7** as cl8y-pm cards (≤5 taps). Put the #1311 URL in the card body. |
-| **M1311-4** | `make verify-issue-1308` stays pre-check only. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` **must FAIL**. |
+| **M1311-3** | Leftover-complete is closed #1308 **AC2 / AC3 / AC7** on production after leftover 1: phone Connect → LuncDash **Open Lunc Dash** → pairing prompt → header `terra1…`; WalletConnect settings list **`dex.cl8y.com`**; small Swap approve **or** reject. Inbox: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7** as cl8y-pm cards (≤5 taps). **AC3** is **1.5.1c**. Put the #1311 URL in the card body. |
+| **M1311-4** | `make verify-issue-1308` stays pre-check only. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` / `VERIFY1311_DEVICE_COMPLETE=1` / `VERIFY1311_IID=1311` **must FAIL**. |
 | **M1311-5** | Do **not** reopen #1279 / #1308 / #519 / #554 / #566 / #658. Do **not** close #1305 from this ticket. Do **not** wait on GitLab CI. |
 | **M1311-6** | Do **not** merge unpublished sister design branches. Do **not** take ADR **0010** / **Q23**. Do **not** add Leap / second URI scheme / ADR-036 / DEX LCD-sim. Do **not** file a founder card from design. Keywords on #1311 are not #297 authority or `DESIGN: APPROVE`. |
-| **M1311-7** | Optional leftover 3 (runbook no longer claims catch-all `CODEOWNERS`; ADR 0009 numbering: live **Q21** is #1308) is **not** leftover-complete. `git ls-files CODEOWNERS` stays empty. |
-| **M1311-8** | This playbook + **Q24** + [ADR 0011](../docs/adr/0011-post-merge-leftover-1306-1309-1310.md) + L1308 skills stay crosslinked. |
+| **M1311-7** | Optional leftover 3 is **not** leftover-complete. On this SHA: runbook records !1309 (`git ls-files CODEOWNERS` empty); ADR 0009 / README live **Q21** `{#luncdash-wc-1308}` / #1308. Implement **inserts** that ADR 0009 body onto `main`; do **not** re-edit the runbook as catch-all. |
+| **M1311-8** | This playbook + **Q24** + [ADR 0011](../docs/adr/0011-post-merge-leftover-1306-1309-1310.md) + L1308 / L1279 skills stay crosslinked. |
 
 ## Coolify leftovers (operator)
 
@@ -48,7 +48,7 @@ Supporting HTTP (not leftover-complete): hashed chunks contain unquoted `wallet_
 File **cl8y-pm inbox** cards after leftover 1. One action; at most five numbered taps. Typical split:
 
 1. **1.5.1a / AC2:** Phone browser on `https://dex.cl8y.com` → Connect → LuncDash → **Open Lunc Dash** → pairing prompt → header `terra1…`.
-2. **AC3:** Lunc Dash WalletConnect settings list **`dex.cl8y.com`** (same class as `bridge.cl8y.com`).
+2. **1.5.1c / AC3:** Lunc Dash WalletConnect settings list **`dex.cl8y.com`** (same class as `bridge.cl8y.com`).
 3. **1.5.1b:** Android Chrome pairing sheet above Connect; **Open Lunc Dash** tappable; header **Cancel** re-enables Connect.
 4. **1.5.1:** Desktop Connect → LuncDash → Scan QR on a second device (WC-M2 still holds).
 5. **1.5.6 or 1.5.7 / AC7:** After AC2, small Swap approve **or** reject (success toast or explicit rejection, not a hang).
@@ -84,4 +84,4 @@ Close **#1311** only by pasting the template in [ADR 0011](../docs/adr/0011-post
 - Pairing UX: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md)
 - L1279 pre-check: [`AGENTS_OPS_LUNCDASH_VERIFY.md`](./AGENTS_OPS_LUNCDASH_VERIFY.md)
 - Merge recipe: [`docs/runbooks/forgejo-pr-merge.md`](../docs/runbooks/forgejo-pr-merge.md)
-- Sister leftover: [`AGENTS_POST_MERGE_OPS_1305.md`](./AGENTS_POST_MERGE_OPS_1305.md) (unpublished on `origin/cac-design-issue-1305` — do not merge as-is)
+- Sister leftover: [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) (PRs 1302–1304; `/protocol` glance + indexer migrate; unpublished ADR **0010** / **Q23** on `origin/cac-design-issue-1305` — do **not** merge as-is)

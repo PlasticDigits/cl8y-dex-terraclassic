@@ -101,13 +101,14 @@
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 
-Leftover assignment for this matrix is **cl8y-pm inbox cards** (at most five numbered taps each). Do not dump 1.5.1–1.5.11 onto one card. Do **not** reopen or close [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) from production payload leftover [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311) (1.5.1 / 1.5.1a / 1.5.1b + 1.5.6 / 1.5.7 after Coolify).
+Leftover assignment for this matrix is **cl8y-pm inbox cards** (at most five numbered taps each). Do not dump 1.5.1–1.5.11 onto one card. Do **not** reopen or close [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) from production payload leftover [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311) (1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c + 1.5.6 / 1.5.7 after Coolify; **AC3** is **1.5.1c**).
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|
 | 1.5.1 | Connect LuncDash (desktop) | Click wallet → Select LuncDash → Scan QR on a second device | WalletConnect session established, address shown | | |
 | 1.5.1a | Connect LuncDash (same-device mobile, #519) | Phone browser → LuncDash → **Open Lunc Dash** or **Copy pairing link** (not QR-only) | Session established without a second device | | |
 | 1.5.1b | Android Chrome pairing foreground (#554) | Android Chrome → LuncDash | Pairing sheet is on top of Connect; **Open Lunc Dash** tappable; header **Cancel** re-enables Connect | | |
+| 1.5.1c | LuncDash WalletConnect settings list `dex.cl8y.com` (#1308 AC3 / leftover #1311) | After 1.5.1a session: open Lunc Dash WalletConnect settings | Settings list **`dex.cl8y.com`** (same class as `bridge.cl8y.com`) | | |
 | 1.5.2 | LuncDash QR timeout | Show QR → Wait without scanning | Timeout handled gracefully | | |
 | 1.5.3 | LuncDash reject connection | Scan QR → Reject on mobile | Error message displayed | | |
 | 1.5.4 | LuncDash disconnect | Connected → Disconnect | Session closed, UI resets | | |

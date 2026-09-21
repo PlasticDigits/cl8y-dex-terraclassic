@@ -12,13 +12,15 @@ Playbook: [`skills/AGENTS_POST_MERGE_OPS_1311.md`](../../skills/AGENTS_POST_MERG
 
 ## Outcome
 
-Close leftover **#1311** only after the leftover-complete close-comment template (Rollout / Integration) is pasted on the issue — not after green `make verify-issue-1308` / `make verify-issue-1311` on a laptop. HTTP `[PASS]` is **not** leftover-complete. Child Vitest is **not** leftover-complete. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` **must FAIL**. `VERIFY1311_DEVICE_COMPLETE=1` / `VERIFY1311_IID=1311` **must FAIL**. Do **not** invent `VERIFY1311_LEFTOVER_COMPLETE=1` as a pass.
+Close leftover **#1311** only after the leftover-complete close-comment template (Rollout / Integration) is pasted on the issue — not after green `make verify-issue-1308` / `make verify-issue-1311` on a laptop. HTTP `[PASS]` is **not** leftover-complete. Child Vitest is **not** leftover-complete. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` **must FAIL**. `VERIFY1311_DEVICE_COMPLETE=1` / `VERIFY1311_IID=1311` **must FAIL**. `VERIFY1311_IID=1311` **always** fails the device-complete guard even when live HTTP would PASS — do **not** copy the #628 pattern where `VERIFY*_IID` enables leftover probes. Do **not** invent `VERIFY1311_LEFTOVER_COMPLETE=1` as a pass.
 
 1. **Coolify frontend cut** (issue leftover 1). Production `https://dex.cl8y.com` must serve the !1310 helper `luncdash://wallet_connect?payload=<encoded wc:>` (real `payload` query key), **not** the pre-1310 double-encoded blob (`luncdash://wallet_connect?` + percent-encoding of the entire `payload=…` string). Frontend auto-deploy on the Vite app is an existing operator flag ([ADR 0006](./0006-indexer-health-git-sha.md)); this ticket does **not** flip it. If the serving image is still pre-`ead2ffe4`, the operator **manually** deploys the frontend app at `ead2ffe4+` / `0d6eaeee+`. Hashed-chunk HTTP pin unquoted **`wallet_connect?payload=`** (any quote style; never require source `'`) is **supporting rebuild-presence**. It is **not** leftover-1 complete and **not** leftover-complete. Legacy blob used `payload%3D` (no literal `?payload=`). Do **not** grep concatenated runtime hrefs.
 
-2. **Device QA after that cut** (issue leftover 2 / closed [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) **AC2 / AC3 / AC7**). Phone Connect → LuncDash **Open Lunc Dash** → pairing prompt → header `terra1…`; Lunc Dash WalletConnect settings list **`dex.cl8y.com`**; small Swap approve **or** reject. Inbox: [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) **1.5.1 / 1.5.1a / 1.5.1b** + **1.5.6 / 1.5.7**, as **cl8y-pm inbox cards** (one action, ≤5 numbered taps). `make verify-issue-1308` is pre-check only. Do **not** reopen [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279). Do **not** file those cards from the design slice. The design slice does **not** file a founder card for ordinary design.
+2. **Device QA after that cut** (issue leftover 2 / closed [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) **AC2 / AC3 / AC7**). Phone Connect → LuncDash **Open Lunc Dash** → pairing prompt → header `terra1…`; Lunc Dash WalletConnect settings list **`dex.cl8y.com`**; small Swap approve **or** reject. Inbox: [`QA_TEMPLATE.md`](../../QA_TEMPLATE.md) **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7**, as **cl8y-pm inbox cards** (one action, ≤5 numbered taps). **AC3** is **1.5.1c** (settings list `dex.cl8y.com`, same class as `bridge.cl8y.com`) — not 1.5.1a’s “session established” expected result. `make verify-issue-1308` is pre-check only. Do **not** reopen [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279). Do **not** file those cards from the design slice. The design slice does **not** file a founder card for ordinary design.
 
-3. **Docs nits** (issue leftover 3 — **optional**, not a product gate). [`docs/runbooks/forgejo-pr-merge.md`](../runbooks/forgejo-pr-merge.md) still describes catch-all `CODEOWNERS` (`.* @code/maintainers`); !1309 removed that file. ADR **0009** / `docs/README.md` still reserve **Q21** for closed #1300; live **Q21** is #1308. Slice 1 **may** land those inserts; leftover-complete does **not** wait on them.
+3. **Docs nits** (issue leftover 3 — **optional**, not a product gate). State of **this SHA** (not of `origin/main`):
+   - **Already landed here:** [`docs/runbooks/forgejo-pr-merge.md`](../runbooks/forgejo-pr-merge.md) records !1309 (`git ls-files CODEOWNERS` empty — no catch-all). `docs/README.md` names live **Q21** `{#luncdash-wc-1308}` / #1308. ADR **0009** Status/opening and body (Non-goals, Decision inserts, Affected invariants, Integration) assign live **Q21** to #1308, not #1300. Unpublished `cac-design-issue-1300` still must not merge as-is.
+   - **Implement leftover 3:** **insert** those already-correct sentences onto current `main`. Do **not** re-edit the runbook as if it still described catch-all `CODEOWNERS`. Leftover-complete does **not** wait on leftover 3.
 
 **Not this issue**
 
@@ -66,9 +68,9 @@ Do **not** `git checkout <design-sha> --` `docs/architecture.md` / `docs/qa-inva
 1. New file `docs/adr/0011-post-merge-leftover-1306-1309-1310.md` (this ADR). Status **Proposed ([#1311])**. Do **not** add `0008-*.md` / `0010-*.md` here.
 2. `docs/architecture.md`: insert `## Post-merge leftover after PRs 1306/1309/1310 {#post-merge-leftover-ops-1311}` (do not replace the whole file; do not use `#post-merge-leftover-ops`).
 3. `docs/qa-invariants.md`: insert **Q24** `{#post-merge-ops-1311}` **after Q22**. Leave **Q23** to #1305.
-4. `docs/README.md`: insert the ADR 0011 index line after ADR 0009. Architecture Overview bullet adds `#post-merge-leftover-ops-1311`. Patch the ADR 0009 parenthetical: live **Q21** is #1308, not reserved #1300.
+4. `docs/README.md`: insert the ADR 0011 index line after ADR 0009. Architecture Overview bullet adds `#post-merge-leftover-ops-1311`. Live **Q21** parenthetical (`{#luncdash-wc-1308}` / #1308) is already on this SHA — insert it onto `main` if still missing.
 5. Playbook `skills/AGENTS_POST_MERGE_OPS_1311.md` (**M1311-1–M1311-8**). Crosslinks in `AGENTS.md`, `docs/testing.md`, WC-M / L1279 skills.
-6. Optional leftover 3 on the same MR: runbook CODEOWNERS paragraph (file removed by !1309); ADR 0009 numbering sentences that still assign **Q21** to #1300.
+6. Optional leftover 3 remaining on the same MR: **insert** the rewritten ADR 0009 Q21-ownership body (this SHA) onto `main`. Runbook !1309 truth and README live-Q21 already match this SHA — do **not** re-touch them as if they still lie.
 
 ### `make verify-issue-1311` (implement — not this design branch)
 
@@ -79,8 +81,8 @@ Do **not** add `scripts/qa/verify-issue-1311.sh` or the Makefile target on `cac-
 | 1 | Child `./scripts/qa/verify-issue-1308.sh`. Child FAIL → stack FAIL. Honor `VERIFY1308_SKIP_CHILDREN` if already exported. Nested `VERIFY1308_DEVICE_COMPLETE=1` still FAIL. |
 | 2 | Docs greps: this ADR, architecture `#post-merge-leftover-ops-1311`, **Q24**, playbook **M1311**, `docs/testing.md` leftover **#1311** row. |
 | 3 | `git ls-files CODEOWNERS` empty ( !1309 ). |
-| 4 | Optional live HTTP: hashed-chunk unquoted **`wallet_connect?payload=`** on `dex.cl8y.com` (any quote style). SKIP unless hosts answer. FAIL when `VERIFY1311_REQUIRE_LIVE=1` or `VERIFY1311_IID=1311` **and** the host is unreachable. HTTP PASS is **not** leftover-1 complete. |
-| 5 | `VERIFY1311_IID=1311` or `VERIFY1311_DEVICE_COMPLETE=1` **must FAIL** (device leftover never make). Do **not** invent a pass `LEFTOVER_COMPLETE` flag. |
+| 4 | Optional live HTTP: hashed-chunk unquoted **`wallet_connect?payload=`** on `dex.cl8y.com` (any quote style). SKIP unless hosts answer. FAIL when `VERIFY1311_REQUIRE_LIVE=1` **and** the host is unreachable. Do **not** use `VERIFY1311_IID` to enable leftover probes (#628 pattern). HTTP PASS is **not** leftover-1 complete. |
+| 5 | `VERIFY1311_IID=1311` **always** fails the device-complete guard even when live HTTP would PASS. `VERIFY1311_DEVICE_COMPLETE=1` **must FAIL** (device leftover never make). Do **not** invent a pass `LEFTOVER_COMPLETE` flag. |
 
 Makefile: `.PHONY: verify-issue-1311` immediately after `verify-issue-1308`. Add `verify-issue-1311` to Cloud Agent and Frontend `help` after `verify-issue-1308`.
 
@@ -92,7 +94,7 @@ Do **not** default-run child `verify-issue-1290` ( #1306 wiring is already on `m
 |-------|--------|
 | Design docs (slice 0) | New ADR **0011** **Proposed [#1311]**; insert architecture `#post-merge-leftover-ops-1311`; insert **Q24**; insert README index; playbook **M1311**. |
 | QA script / Makefile | Implement only: `verify-issue-1311` wrapper + help. Not on this design branch. |
-| Docs / skills | `docs/testing.md` leftover **#1311** row; `AGENTS.md` verify + playbook; WC-M / L1279 leftover **#1311** pointer. Optional runbook CODEOWNERS + ADR 0009 numbering. |
+| Docs / skills | `docs/testing.md` leftover **#1311** row; `AGENTS.md` verify + playbook; WC-M / L1279 leftover **#1311** pointer. Optional leftover 3: insert already-correct ADR 0009 Q21 body (runbook + README already match this SHA). |
 | dApp TS / indexer / wasm / env | **None**. |
 | HTTP | Optional supporting hashed-chunk grep only. No new API. |
 | Inbox | Operator leftover 2 files cl8y-pm cards. Design does not. |
@@ -104,7 +106,7 @@ Do **not** default-run child `verify-issue-1290` ( #1306 wiring is already on `m
 | **L1308-1–L1308-4** / **Q21** | Unchanged product rules. Leftover 1–2 attest production + device AC after Coolify. |
 | **WC-M1–WC-M12** | Unchanged. Device leftover is AC2/AC3/AC7 of closed #1308. |
 | **L1279-1–L1279-8** / **Q20** | Unchanged. Do **not** reopen #1279. |
-| **Q22** / **B1290** / ADR **0009** | Unchanged hub-wrap bundle. Numbering nit: live Q21 is #1308. |
+| **Q22** / **B1290** / ADR **0009** | Unchanged hub-wrap bundle. Leftover 3: live **Q21** `{#luncdash-wc-1308}` is #1308 (ADR 0009 body rewritten on this SHA). |
 | **Q23** / ADR **0010** | Reserved by unpublished #1305. This ticket does not occupy those slots. |
 | **#297** | Coolify cut is operator leftover of an existing frontend app. Do not flip indexer auto-deploy. |
 
@@ -112,14 +114,14 @@ Do **not** default-run child `verify-issue-1290` ( #1306 wiring is already on `m
 
 | ID | Rule |
 |----|------|
-| **M1311-1** | Local regression is `make verify-issue-1311` **(implement)** → child **1308** + docs + empty `CODEOWNERS`. Make is **not** leftover-complete. |
-| **M1311-2** | Coolify **frontend** cut of `ead2ffe4+` / `0d6eaeee+`. Supporting HTTP: unquoted **`wallet_connect?payload=`**. HTTP is not leftover-1 complete. |
-| **M1311-3** | Leftover-complete is device **AC2 / AC3 / AC7** on production after leftover 1, via cl8y-pm inbox **1.5.1 / 1.5.1a / 1.5.1b** + **1.5.6 / 1.5.7**. |
-| **M1311-4** | `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1311_DEVICE_COMPLETE=1` / matching IID flags **must FAIL**. |
+| **M1311-1** | Local regression is `make verify-issue-1311` **(implement)** → child **1308** + docs + empty `CODEOWNERS`. Make is **not** leftover-complete. `VERIFY1311_IID=1311` **always** fails the device-complete guard even when live HTTP would PASS. |
+| **M1311-2** | Coolify **frontend** cut of `ead2ffe4+` / `0d6eaeee+`. Supporting HTTP: unquoted **`wallet_connect?payload=`**. HTTP is not leftover-1 complete. Unreachable-host FAIL only when `VERIFY1311_REQUIRE_LIVE=1`. |
+| **M1311-3** | Leftover-complete is device **AC2 / AC3 / AC7** on production after leftover 1, via cl8y-pm inbox **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7**. **AC3** is **1.5.1c**. |
+| **M1311-4** | `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1311_DEVICE_COMPLETE=1` / `VERIFY1311_IID=1311` **must FAIL**. |
 | **M1311-5** | Do **not** reopen #1279 / #1308 / #519 / #554. Do **not** close #1305 from this ticket. |
 | **M1311-6** | Do **not** merge unpublished sister design branches. Do **not** take ADR **0010** / **Q23**. Do **not** flip Coolify auto-deploy. Do **not** file a founder card from design. |
-| **M1311-7** | Optional leftover 3 (runbook CODEOWNERS; ADR 0009 Q21 numbering) is not a close gate. |
-| **M1311-8** | Playbook + this Q24 + ADR 0011 + L1308 skills stay crosslinked. |
+| **M1311-7** | Optional leftover 3 is not a close gate. On this SHA: runbook !1309 truth and ADR 0009 / README live **Q21** `{#luncdash-wc-1308}` already match. Implement **inserts** that ADR 0009 body onto `main`; do **not** re-edit the runbook as catch-all. |
+| **M1311-8** | Playbook + this Q24 + ADR 0011 + L1308 / L1279 skills stay crosslinked. |
 
 ## Alternatives
 
@@ -136,9 +138,9 @@ Do **not** default-run child `verify-issue-1290` ( #1306 wiring is already on `m
 
 ## Complexity added / removed
 
-**Added:** leftover **Q24** / **M1311**, ADR **0011**, implement verify wrapper, optional runbook CODEOWNERS truth, inbox card split for post-cut AC2/AC3/AC7.
+**Added:** leftover **Q24** / **M1311**, ADR **0011**, implement verify wrapper, QA_TEMPLATE **1.5.1c** (AC3), inbox card split for post-cut AC2/AC3/AC7.
 
-**Removed:** the gap where !1310 closed #1308 on Vitest while production could still serve the double-encoded blob; stale runbook catch-all CODEOWNERS as if !1309 never landed; ADR 0009 claiming live **Q21** is #1300.
+**Removed:** the gap where !1310 closed #1308 on Vitest while production could still serve the double-encoded blob; stale runbook catch-all CODEOWNERS as if !1309 never landed (already corrected on this SHA); ADR 0009 body claiming live **Q21** is #1300 (rewritten on this SHA).
 
 Net: ops discoverability without a second pairing surface and without colliding #1305 numbering.
 
@@ -172,9 +174,9 @@ Supporting HTTP: hashed Vite chunks containing unquoted **`wallet_connect?payloa
 | Slice | Who | Deliverable | Blocks |
 |-------|-----|-------------|--------|
 | **0 — this design** | design slice | This ADR **0011**, architecture `#post-merge-leftover-ops-1311`, **Q24**, playbook **M1311**, README index. Transported on `cac-design-issue-1311` only (no design-only PR). | Slice 1 |
-| **1 — verify wiring + optional nits** | implement | On **current `main`**: **insert** slice-0 docs; `scripts/qa/verify-issue-1311.sh` + Makefile + help; WC-M / L1279 / testing / AGENTS crosslinks. Optional leftover 3 runbook + ADR 0009 numbering. No product TSX. No `Fixes #1308`. | Slice 2 |
+| **1 — verify wiring + optional nits** | implement | On **current `main`**: **insert** slice-0 docs; `scripts/qa/verify-issue-1311.sh` + Makefile + help; WC-M / L1279 / testing / AGENTS crosslinks. Optional leftover 3: insert already-correct ADR 0009 Q21 body (runbook + README already match this SHA; do not re-touch the runbook as catch-all). No product TSX. No `Fixes #1308`. | Slice 2 |
 | **2 — Coolify frontend cut** | operator | Frontend app serves `ead2ffe4+` / `0d6eaeee+`. Supporting HTTP `wallet_connect?payload=` optional. Do **not** flip auto-deploy from the agent. | Slice 3 |
-| **3 — device QA** | operator / cl8y-pm inbox | **AC2 / AC3 / AC7** via QA_TEMPLATE **1.5.1 / 1.5.1a / 1.5.1b** + **1.5.6 / 1.5.7**. Paste leftover-complete comment on **#1311**. | leftover-complete |
+| **3 — device QA** | operator / cl8y-pm inbox | **AC2 / AC3 / AC7** via QA_TEMPLATE **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7** (**AC3** = **1.5.1c**). Paste leftover-complete comment on **#1311**. | leftover-complete |
 | **4 — #1305 (not this ticket)** | reviewer / operator on [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) | `/protocol` glance + indexer migrate. | **Not** the #1311 close gate |
 
 No product-issue wait: !1310 / !1309 / !1306 are on `main`. #1305 is a sister leftover, not a blocker. #1308 is closed implement. #1279 stays closed.
@@ -195,7 +197,7 @@ git ls-files CODEOWNERS         # empty
 Assert:
 
 - Child 1308 still green as pre-check without device flags.
-- Device-complete flags FAIL.
+- Device-complete flags FAIL. `VERIFY1311_IID=1311` fails the device-complete guard even if live HTTP would PASS (do not copy #628 IID-enables-probes).
 - Slice-0 files greppable: ADR **0011**, `#post-merge-leftover-ops-1311`, **Q24**, **M1311**.
 - No `docs/adr/0010-*.md` from this leftover MR.
 - ADR Status **Proposed ([#1311])**.
@@ -205,7 +207,7 @@ Assert:
 
 1. Merge leftover *implement* (script + wiring) to `main` via a **code** PR (not this design branch). Normal merge; no `force_merge`. CODEOWNERS file is gone (!1309) — no catch-all self-request to dismiss.
 2. Operator: confirm frontend Coolify serves `ead2ffe4+`. Manual frontend deploy if auto-deploy did not. Do **not** flip the indexer #1276 checkbox.
-3. Operator: file cl8y-pm inbox cards (≤5 taps) for **1.5.1 / 1.5.1a / 1.5.1b** + **1.5.6 / 1.5.7**. Put https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311 in the card body.
+3. Operator: file cl8y-pm inbox cards (≤5 taps) for **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7**. **AC3** is **1.5.1c**. Put https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311 in the card body.
 4. Close **#1311** by pasting the leftover-complete comment below. Leave **#1305** / **#1279** alone.
 
 ### Leftover-complete close-comment template (required; no UUID/token/host)
@@ -222,11 +224,12 @@ device leftover-2:
       AC3 Lunc Dash WalletConnect settings list dex.cl8y.com
       AC7 small Swap approve or reject (not a hang)
 
-inbox: QA_TEMPLATE 1.5.1 / 1.5.1a / 1.5.1b + 1.5.6 / 1.5.7
-      (did not reopen #1279)
+inbox: QA_TEMPLATE 1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c + 1.5.6 / 1.5.7
+      (AC3 is 1.5.1c; did not reopen #1279)
 
 FORBIDDEN in this comment: green make verify-issue-1308,
-VERIFY1308_DEVICE_COMPLETE PASS, hashed-chunk-only PASS,
+VERIFY1308_DEVICE_COMPLETE PASS, VERIFY1311_DEVICE_COMPLETE PASS,
+VERIFY1311_IID PASS, hashed-chunk-only PASS,
 GET /health, protocol-top-pairs, tokens / inbox ids
 ```
 
@@ -243,7 +246,7 @@ Frontend: redeploy previous Vite app (pairing blob returns; device AC2/AC3 fail 
 - `make verify-issue-1311` exists on `main` and is green locally **without** device-complete flags. Green make is **not** leftover-complete.
 - Device-complete / IID flags FAIL.
 - Coolify leftover-1: production serves `ead2ffe4+` payload helper. HTTP `wallet_connect?payload=` is supporting, not leftover-complete.
-- Device leftover-2: **AC2 / AC3 / AC7** recorded via inbox cards. #1279 not reopened.
+- Device leftover-2: **AC2 / AC3 / AC7** recorded via inbox cards **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7** (**AC3** = **1.5.1c**). #1279 not reopened.
 - Optional leftover 3 may be absent at close.
 - `cac-design-issue-1300` / `1302` / `1305` / `1306` not merged as-is.
 - #1305 still the owner of `/protocol` glance + indexer migrate.

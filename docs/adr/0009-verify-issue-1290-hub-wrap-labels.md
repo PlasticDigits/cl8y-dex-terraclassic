@@ -37,7 +37,7 @@ On `origin/main` after closed !1302 (`92c84406` merged `f237a6e6`; tip at this d
 - Crosslinks title the bundle as the **#1290 product / implement PR** and closed !1302 said `Fixes #1290`. Product labels already merged in !1290; first leftover sketch is closed !1302; **this leftover ticket is #1306**.
 - Slice-0 files are **not** on `main`: this ADR, `docs/architecture.md` `#dex-hub-wrap-labels`, `docs/qa-invariants.md` **Q22**, `docs/README.md` ADR 0009 index. B1290-4 greps those paths — they must ride the #1306 MR as **inserts**, not a whole-file checkout of this tip or of `cac-design-issue-1302`.
 - Open [!1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1306) (`origin/issue/1302` @ `50eb149f`) already drafts most of that wiring but is **not** leftover-complete: ADR Status **Accepted (#1302)** (forbidden self-mark), leftover naming still **#1302**, PR body `Closes #1302`, no `verify-issue-1306` alias. Amend that PR (or a new branch from current `main`); do not merge it as-is.
-- `origin/cac-design-issue-1300` already published ADR **0008** and **Q21** `{#post-merge-ops-1300}` on the same three overlap files (`architecture.md`, `qa-invariants.md`, `README.md`). This ticket must not take 0008/Q21.
+- Unpublished `origin/cac-design-issue-1300` still publishes ADR **0008** and a colliding **Q21** `{#post-merge-ops-1300}` on the same three overlap files (`architecture.md`, `qa-invariants.md`, `README.md`) — do **not** merge as-is. Live **Q21** `{#luncdash-wc-1308}` is [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / !1310. This ticket must not take ADR **0008** or add a second Q21 table.
 - `git ls-files frontend-dapp/node_modules` is empty on `origin/main` (merge kept !1299). `f237a6e6` still has that gitlink (`120000`). Do not reintroduce it.
 - `scripts/test-commit-msg-hook.sh` is clean on `main` via !1301. `f237a6e6` duplicated a `FAIL` / `exit 1` block. Do not edit that script.
 
@@ -58,7 +58,7 @@ This ADR is the versioned contract (retarget of the unpublished `cac-design-issu
 - `Fixes #1290` or `Closes #1302` on the #1306 PR body — !1290 and !1302 are already merged. Cite leftover **#1306**; related #1302 / !1290 / #1240.
 - Opening a design-only PR from `cac-design-issue-1306` or `cac-design-issue-1302`.
 - Retargeting closed !1302. Merging open !1306 as-is without the #1306 retarget and Proposed status.
-- Taking ADR **0008** / **Q21** (those belong to [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) unless that design is withdrawn). Merging this design branch, `cac-design-issue-1302`, or `cac-design-issue-1300` as-is ([#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 3).
+- Taking live **Q21** `{#luncdash-wc-1308}` away from [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / !1310, or adding a second Q21 table. Taking ADR **0008** (unused on `main`; remains only on unpublished `cac-design-issue-1300`). Merging this design branch, `cac-design-issue-1302`, or `cac-design-issue-1300` as-is ([#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 3; unpublished 1300 still assigns Q21/0008 to #1300).
 - Self-marking this ADR **Accepted**.
 
 ## Decision
@@ -69,13 +69,13 @@ This ADR is the versioned contract (retarget of the unpublished `cac-design-issu
 
 Continue open [!1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1306) (`origin/issue/1302`) **or** open a new branch from **current `main`** (tip at this design: `729b097f`; use whatever `origin/main` is at implement time). Do not retarget or reopen !1302. Do not merge `f237a6e6` as-is. Do not merge `50eb149f` as-is. This design tip is **not** an ancestor of `origin/main` (merge-base `6d34da13`).
 
-**Slice-0 apply — insert; do not whole-file checkout.** Do **not** `git checkout <design-sha> --` `docs/architecture.md` / `docs/qa-invariants.md` / `docs/README.md` from this tip or from `cac-design-issue-1302`. #1300 (and later `main`) touches those same three files. Cherry-pick of whole-file 0008-era paths is unsafe.
+**Slice-0 apply — insert; do not whole-file checkout.** Do **not** `git checkout <design-sha> --` `docs/architecture.md` / `docs/qa-invariants.md` / `docs/README.md` from this tip or from `cac-design-issue-1302`. Unpublished `cac-design-issue-1300` (and later `main`) touch those same three files. Cherry-pick of whole-file 0008-era paths is unsafe.
 
 1. **Insert slice 0 onto the #1306 MR:**
    - New file `docs/adr/0009-verify-issue-1290-hub-wrap-labels.md` (copy from this branch). Status **Proposed ([#1306])**. Do **not** add a second `0008-*.md`. Do **not** mark **Accepted**.
    - `docs/architecture.md`: insert section `## DEX hub wrap vs CEX labels {#dex-hub-wrap-labels}` (do not replace the whole file).
-   - `docs/qa-invariants.md`: insert **Q22** `{#ops-hub-wrap-1302}` **after Q21** if #1300 already landed, else **after Q20** — still number it **Q22**; leave **Q21** / ADR **0008** to #1300. Keep the `{#ops-hub-wrap-1302}` anchor (first leftover reservation). Table text names leftover **#1306**. Add the Related-docs bullet for ADR 0009.
-   - `docs/README.md`: insert the ADR 0009 index line **after ADR 0008** if present, else **after ADR 0007**. If 0008 is not yet on `main`, a parenthetical that 0008 / Q21 are reserved for #1300 leftover-ops is enough — do not invent a stub `0008-*.md` here. Architecture Overview bullet adds `#dex-hub-wrap-labels`.
+   - `docs/qa-invariants.md`: insert **Q22** `{#ops-hub-wrap-1302}` **after** live **Q21** `{#luncdash-wc-1308}` ([#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / !1310). Still number it **Q22**. Do **not** add a second Q21 table. Do **not** assign live Q21 to unpublished `cac-design-issue-1300` (that tip still claims Q21/0008 for #1300 — do not merge as-is). Keep the `{#ops-hub-wrap-1302}` anchor (first leftover reservation). Table text names leftover **#1306**. Add the Related-docs bullet for ADR 0009.
+   - `docs/README.md`: insert the ADR 0009 index line **after ADR 0007** (ADR **0008** is unused on `main`). Parenthetical: live **Q21** is #1308 `{#luncdash-wc-1308}`; ADR **0008** unused; do not merge `cac-design-issue-1300` as-is. Do not invent a stub `0008-*.md` here. Architecture Overview bullet adds `#dex-hub-wrap-labels`.
 2. Reconstruct `scripts/qa/verify-issue-1290.sh` (Playwright isolation + full B1290-4 greps + leftover **#1306** naming). Copy **only** `free_tcp_port` from [`scripts/qa/verify-issue-703.sh`](../../scripts/qa/verify-issue-703.sh) — **not** 703’s `ln -sfn` `frontend-dapp/node_modules` bootstrap. Add Makefile aliases `verify-issue-1302: verify-issue-1290` and `verify-issue-1306: verify-issue-1290`. Add **1290, 1302, and 1306** to Cloud Agent and Frontend `help` (immediately after `verify-issue-1240`).
 3. Retitle crosslinks to leftover **#1306** (wording below). Keep `git ls-files frontend-dapp/node_modules` empty. Do not touch `scripts/test-commit-msg-hook.sh`.
 4. PR body cites **#1306**. Related #1302 / !1290 / #1240. Do **not** `Fixes #1290`. Do **not** `Closes #1302`. Production `/protocol` glance stays on [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 1.
@@ -177,7 +177,7 @@ Do not title rows as the #1290 product PR. Green skip-E2E is a required implemen
 | **P1240-1–P1240-8** | Unchanged rules. Bundle **runs** the existing 1240 harness plus the omitted Vitest + smoke. |
 | **H11–H16** | Unchanged hub identity. Skill gains the leftover **#1306** verify pointer. |
 | **B1290-1–B1290-8** | Bundle/leftover IDs (this ADR + **Q22**). Keep Q22 in sync with the table below. |
-| **Q21 / ADR 0008** | Unchanged ownership: leftover-ops [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300). This ticket does not occupy those slots. |
+| **Q21 `{#luncdash-wc-1308}` / ADR 0008** | Live **Q21** is Lunc Dash payload [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / !1310. ADR **0008** unused (closed [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300); unpublished `cac-design-issue-1300` must not merge as-is). This ticket does not occupy those slots and must not add a second Q21 table. |
 | **#1298 / #1300 / #1301** | Follow-up must not reintroduce those defects. |
 | **Playwright 5 workers** | `e2e-smoke` stays 5 workers ([`.cursor/rules/playwright-workers.mdc`](../../.cursor/rules/playwright-workers.mdc)). Not `e2e-tx`. |
 
@@ -191,7 +191,7 @@ Do not title rows as the #1290 product PR. Green skip-E2E is a required implemen
 | **B1290-4** | Crosslinks: testing, AGENTS, PROTOCOL_STATS, PROTOCOL_HUB, frontend.md, this ADR (`docs/adr/0009-verify-issue-1290-hub-wrap-labels.md`), architecture `#dex-hub-wrap-labels`, **Q22**. Implement greps **all eight**. Slice-0 files ride #1306 as **inserts** so those greps can pass. |
 | **B1290-5** | No indexer/hub-price/Venus/API change. No `clunc` path. No product TSX in this MR unless a shipped P1240 assertion is actually wrong (then reopen #1240, do not hide it in the bundle). |
 | **B1290-6** | Do not reopen closed !1290 / #1240 for ops/QA. Do not retarget closed !1302. Do not `Fixes #1290`. Do not `Closes #1302`. Do not wait on Woodpecker quota as leftover evidence. |
-| **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, or `.gitignore` churn. Do not edit `scripts/test-commit-msg-hook.sh`. Do not create `AGENTS_POST_MERGE_OPS_1302.md` / `AGENTS_POST_MERGE_OPS_1306.md`. Do not take ADR 0008 / Q21. |
+| **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, or `.gitignore` churn. Do not edit `scripts/test-commit-msg-hook.sh`. Do not create `AGENTS_POST_MERGE_OPS_1302.md` / `AGENTS_POST_MERGE_OPS_1306.md`. Do not take ADR 0008. Do not retarget live **Q21** `{#luncdash-wc-1308}` (#1308). Do not add a second Q21 table. |
 | **B1290-8** | Green `SKIP_E2E=1` ≠ leftover-complete. Leftover-complete is the **#1306 wiring MR** on `main` (aliases, `free_tcp_port`, full B1290-4, leftover **#1306** naming, slice-0 ADR 0009 / **Q22** / architecture / README). Production `/protocol` visual is [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 1 (related #1290 AC), not this ticket. No HTML scrape. Not #297. |
 
 ## Alternatives
@@ -206,7 +206,7 @@ Do not title rows as the #1290 product PR. Green skip-E2E is a required implemen
 | Merge `origin/issue/1290` / `f237a6e6` as-is | Reintroduces !1299 / !1301 defects; weaker greps; no alias; no `free_tcp_port`. |
 | Retarget closed !1302 | PR is merged. Continue open !1306 or a new branch on current `main`. |
 | Merge open !1306 (`50eb149f`) as-is | ADR self-marked **Accepted (#1302)**; leftover naming still #1302; `Closes #1302`; no `verify-issue-1306` alias. Amend. |
-| Keep ADR 0008 / Q21 on this ticket | Collides with `origin/cac-design-issue-1300`. [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 3. Keep **0009** / **Q22**. |
+| Occupying ADR 0008 or a second Q21 table | Collides with live **Q21** `{#luncdash-wc-1308}` (#1308) and unpublished `origin/cac-design-issue-1300` (do not merge as-is). Keep **0009** / **Q22**. |
 | Whole-file `git checkout <design-sha> --` architecture / qa-invariants / README | This tip is not an ancestor of `origin/main`; #1300 edits the same files. Insert sections. |
 | Close #1306 on a Coolify glance recorded here | Splits close-out with #1305 leftover 1. Leftover-complete is the wiring MR. |
 | Occupying a new ADR / Q23 slot | 0009 / Q22 already reserved for this bundle. Retarget the ticket iid only. |
@@ -215,7 +215,7 @@ Do not title rows as the #1290 product PR. Green skip-E2E is a required implemen
 
 **Added:** one bash wrapper (reconstruct), Makefile aliases `1302` + `1306`, Cloud Agent + Frontend help for **1290 / 1302 / 1306**, full B1290-4 greps, optional E2E skip flag, `free_tcp_port` on 30129, **Q22** / **B1290**, slice-0 docs on #1306 (ADR **0009**).
 
-**Removed:** the gap where post-merge hub **cLUNC** vs CEX **LUNC** had no agent `make` entry besides 1240’s CSS/docs subset; the closed-PR sketch’s weaker grep / missing alias / stale-Vite flake; the 0008/Q21 collision with #1300; leftover-complete split onto a Coolify glance that #1305 already owns; dual “leftover #1302” close-out after that sketch already merged.
+**Removed:** the gap where post-merge hub **cLUNC** vs CEX **LUNC** had no agent `make` entry besides 1240’s CSS/docs subset; the closed-PR sketch’s weaker grep / missing alias / stale-Vite flake; the 0008 / second-Q21 collision with unpublished `cac-design-issue-1300` (live **Q21** stays `{#luncdash-wc-1308}` / #1308); leftover-complete split onto a Coolify glance that #1305 already owns; dual “leftover #1302” close-out after that sketch already merged.
 
 Net: QA discoverability without a second product surface and without dual ADR/Q numbering.
 
@@ -244,7 +244,7 @@ Script prints `[PASS]` / `[FAIL]` / skipped E2E lines and a counts footer; exit 
 | Merge of `f237a6e6` / retarget closed !1302 | Reintroduces node_modules symlink and/or hook FAIL residue; skips alias + `free_tcp_port`. Reconstruct. |
 | Merge of open !1306 as-is | Lands **Accepted (#1302)** and `Closes #1302`. Amend first. |
 | Copy 703 `ln -sfn` bootstrap | Reintroduces #1298 gitlink. Copy `free_tcp_port` only. |
-| Land ADR 0008 / Q21 on this leftover | Collides with #1300. Use **0009** / **Q22**. |
+| Land ADR 0008 / a second Q21 table | Collides with live **Q21** `{#luncdash-wc-1308}` (#1308) and unpublished `cac-design-issue-1300` (do not merge as-is). Use **0009** / **Q22**. |
 | Implement flips Coolify | Forbidden (#297). |
 | Implement marks this ADR **Accepted** | Forbidden self-approval. Keep **Proposed ([#1306])**. |
 | `VERIFY1290_IID=1290` / `LEFTOVER_COMPLETE=1` invented as HTTP fail-closed | Out of scope. No live HTML probe. |
@@ -260,7 +260,7 @@ Script prints `[PASS]` / `[FAIL]` / skipped E2E lines and a counts footer; exit 
 
 Slice 1 **must not** wait on slice 3. Slice 3 **must not** be attempted as a Coolify checkbox, deploy, or #1306 close comment.
 
-No product-issue dependencies. #1240, !1290, and closed !1302 are already on `main`. Open !1306 is a starting patch to amend, not a blocker. #1300 is numbering reservation (0008/Q21), not a wait. #1305 leftover 1 is the Coolify glance, not a wait for this wiring MR.
+No product-issue dependencies. #1240, !1290, and closed !1302 are already on `main`. Open !1306 is a starting patch to amend, not a blocker. Unpublished `cac-design-issue-1300` is a merge-as-is hazard (stale Q21=#1300), not a wait. Live **Q21** `{#luncdash-wc-1308}` is #1308. #1305 leftover 1 is the Coolify glance, not a wait for this wiring MR.
 
 ## Tests
 
@@ -299,7 +299,7 @@ Assert:
 
 ## Rollback
 
-Revert the #1306 follow-up (verify script deltas, Makefile aliases + help, crosslinks, slice-0 docs). Product labels remain from !1290. The weaker !1302 sketch (`verify-issue-1290` target) may remain until reverted separately. No schema, wasm, or env rollback. Frontend image rollback is unrelated (verify-only MR). Do not revert #1300’s ADR 0008 / Q21 as part of this rollback.
+Revert the #1306 follow-up (verify script deltas, Makefile aliases + help, crosslinks, slice-0 docs). Product labels remain from !1290. The weaker !1302 sketch (`verify-issue-1290` target) may remain until reverted separately. No schema, wasm, or env rollback. Frontend image rollback is unrelated (verify-only MR). Do not revert live **Q21** `{#luncdash-wc-1308}` (#1308) as part of this rollback. Do not merge unpublished ADR 0008 as rollback.
 
 ## Integration completion criteria
 
@@ -308,7 +308,7 @@ Revert the #1306 follow-up (verify script deltas, Makefile aliases + help, cross
 The MR is leftover-complete when:
 
 - Slice-0 is on `main` via **inserts** (this ADR **0009** **Proposed [#1306]**, architecture `#dex-hub-wrap-labels`, **Q22**, `docs/README.md` index) — not left only on `cac-design-issue-1306` / `cac-design-issue-1302`, and not a whole-file checkout of overlap files from this tip.
-- No `0008-verify-issue-1290-*.md`. **Q21** / ADR **0008** remain #1300’s if/when that design lands.
+- No `0008-verify-issue-1290-*.md`. Live **Q21** `{#luncdash-wc-1308}` stays [#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / !1310. ADR **0008** stays unused; unpublished `origin/cac-design-issue-1300` still must **not** merge as-is (it would collide Q21). Do **not** add a second Q21 table.
 - `VERIFY_ISSUE_1290_SKIP_E2E=1 make verify-issue-1290` exits 0 on a worktree from `main` + that MR, including full B1290-4 greps.
 - Aliases `make verify-issue-1302` and `make verify-issue-1306` are the same target.
 - Cloud Agent and Frontend `help` list **verify-issue-1290**, **verify-issue-1302**, and **verify-issue-1306**.

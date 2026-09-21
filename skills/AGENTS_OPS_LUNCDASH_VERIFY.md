@@ -64,3 +64,4 @@ VERIFY1279_LEFTOVER_COMPLETE=1 make verify-issue-1279
 - Retail docs: [`docs/frontend.md`](../docs/frontend.md#walletconnect-same-device-mobile)
 - QA matrix: [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) § 1.5 · [`docs/qa-onboarding.md`](../docs/qa-onboarding.md) § Wallet Matrix
 - Verify: [`scripts/qa/verify-issue-1279.sh`](../scripts/qa/verify-issue-1279.sh)
+- Post-merge Coolify + device leftover: [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311) / **Q24** / [ADR 0011](../docs/adr/0011-post-merge-leftover-1306-1309-1310.md) / [`AGENTS_POST_MERGE_OPS_1311.md`](./AGENTS_POST_MERGE_OPS_1311.md). Do **not** reopen this leftover for that cut.

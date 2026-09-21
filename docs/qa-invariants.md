@@ -428,20 +428,20 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 
 | Invariant | Check | On failure |
 | --------- | ----- | ---------- |
-| **Q24** Post-merge PRs 1306/1309/1310 leftover live is checked (Coolify frontend `ead2ffe4+` payload helper; leftover-complete is device AC2/AC3/AC7 after that cut, not make) | **Make (implement):** `make verify-issue-1311` → child **1308** + docs + empty `CODEOWNERS`. Optional supporting HTTP unquoted `wallet_connect?payload=`. Make does **not** cover leftover-complete. **Leftover-complete (operator):** paste ADR 0011 close-comment — frontend cut + AC2 header `terra1…` + AC3 settings `dex.cl8y.com` + AC7 Swap approve or reject; inbox 1.5.1 / 1.5.1a / 1.5.1b + 1.5.6 / 1.5.7. Forbidden in that comment: green make, `VERIFY1308_DEVICE_COMPLETE` PASS, hashed-chunk-only PASS. | Non-zero make: fix the failing child or docs. Do not treat green make or HTTP PASS as leftover-complete. Do not reopen #1279. Do not close #1305. Do not merge unpublished 0010/Q23 tips as-is. |
+| **Q24** Post-merge PRs 1306/1309/1310 leftover live is checked (Coolify frontend `ead2ffe4+` payload helper; leftover-complete is device AC2/AC3/AC7 after that cut, not make) | **Make (implement):** `make verify-issue-1311` → child **1308** + docs + empty `CODEOWNERS`. Optional supporting HTTP unquoted `wallet_connect?payload=`. Make does **not** cover leftover-complete. **Leftover-complete (operator):** paste ADR 0011 close-comment — frontend cut + AC2 header `terra1…` + AC3 settings `dex.cl8y.com` + AC7 Swap approve or reject; inbox **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7** (**AC3** = **1.5.1c**). Forbidden in that comment: green make, `VERIFY1308_DEVICE_COMPLETE` PASS, `VERIFY1311_DEVICE_COMPLETE` PASS, `VERIFY1311_IID` PASS, hashed-chunk-only PASS. | Non-zero make: fix the failing child or docs. Do not treat green make or HTTP PASS as leftover-complete. `VERIFY1311_IID=1311` always fails the device-complete guard even when live HTTP would PASS (do not copy #628 IID-enables-probes). Do not reopen #1279. Do not close #1305. Do not merge unpublished 0010/Q23 tips as-is. |
 
 **M1311** (Forgejo **[#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311)** — [ADR 0011](./adr/0011-post-merge-leftover-1306-1309-1310.md)):
 
 | ID | Rule |
 |----|------|
-| **M1311-1** | `make verify-issue-1311` **(implement)** runs child **1308**. Child FAIL fails the stack. Make is not leftover-complete. |
-| **M1311-2** | Coolify frontend `ead2ffe4+`. Supporting HTTP unquoted `wallet_connect?payload=` is not leftover-1 complete. |
-| **M1311-3** | Leftover-complete is AC2 / AC3 / AC7 via cl8y-pm inbox after leftover 1. |
-| **M1311-4** | `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1311_DEVICE_COMPLETE=1` / matching IID **must FAIL**. |
+| **M1311-1** | `make verify-issue-1311` **(implement)** runs child **1308**. Child FAIL fails the stack. Make is not leftover-complete. `VERIFY1311_IID=1311` always fails the device-complete guard even when live HTTP would PASS. |
+| **M1311-2** | Coolify frontend `ead2ffe4+`. Supporting HTTP unquoted `wallet_connect?payload=` is not leftover-1 complete. Unreachable-host FAIL only when `VERIFY1311_REQUIRE_LIVE=1`. |
+| **M1311-3** | Leftover-complete is AC2 / AC3 / AC7 via cl8y-pm inbox **1.5.1 / 1.5.1a / 1.5.1b / 1.5.1c** + **1.5.6 / 1.5.7** after leftover 1. **AC3** is **1.5.1c**. |
+| **M1311-4** | `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1311_DEVICE_COMPLETE=1` / `VERIFY1311_IID=1311` **must FAIL**. |
 | **M1311-5** | Do not reopen #1279 / #1308. Do not close #1305 from this ticket. |
 | **M1311-6** | Do not merge unpublished sister design branches. Do not take ADR 0010 / Q23. Do not flip Coolify auto-deploy. |
-| **M1311-7** | Optional leftover 3 (runbook CODEOWNERS; ADR 0009 Q21 numbering) is not a close gate. |
-| **M1311-8** | Playbook + this Q24 + ADR 0011 + L1308 skills stay crosslinked. |
+| **M1311-7** | Optional leftover 3 is not a close gate. On this SHA: runbook !1309 truth and ADR 0009 / README live **Q21** `{#luncdash-wc-1308}` already match. Implement inserts that ADR 0009 body onto `main`; do not re-edit the runbook as catch-all. |
+| **M1311-8** | Playbook + this Q24 + ADR 0011 + L1308 / L1279 skills stay crosslinked. |
 
 ## Related docs
 
