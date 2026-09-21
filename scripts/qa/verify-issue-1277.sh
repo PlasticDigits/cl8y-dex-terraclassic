@@ -60,6 +60,8 @@ run_step "code: widen + integer LEAST cap; USD cap untouched" \
     grep -q "heal_trader_lifetime_from_swaps_if_needed" indexer/src/indexer/poller.rs
     test -f indexer/migrations/20260921130000_traders_lifetime_heal_from_swaps.sql
     grep -q "heal_trader_lifetime_from_swaps" indexer/src/db/queries/traders.rs
+    # sqlx 0.8: Transaction helper must execute via &mut **tx (not &mut *tx).
+    grep -F "execute(&mut **tx)" indexer/src/db/queries/traders.rs | grep -q .
     # Forbidden: clamp rolling raw to USD 10^20 cap (A3).
     ! grep -n "vol_24h" indexer/src/db/queries/traders.rs | grep -q "POWER(10::numeric, 20)"
   '

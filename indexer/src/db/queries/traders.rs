@@ -318,8 +318,7 @@ pub async fn refresh_rolling_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 }
 
 /// P522-Q priced-sender stamp (#553). Shared with migrate heal and poller heal (#1277).
-pub(crate) const SQL_REFRESH_TRADER_TOTAL_VOLUME_USD: &str =
-    "UPDATE traders t
+pub(crate) const SQL_REFRESH_TRADER_TOTAL_VOLUME_USD: &str = "UPDATE traders t
      SET total_volume_usd = sub.usd,
          updated_at = NOW()
      FROM (
@@ -357,8 +356,7 @@ const SQL_HEAL_TRADER_INSERT: &str =
      GROUP BY se.sender
      ON CONFLICT (address) DO NOTHING";
 
-const SQL_HEAL_TRADER_UPDATE_LIFETIME: &str =
-    "UPDATE traders t
+const SQL_HEAL_TRADER_UPDATE_LIFETIME: &str = "UPDATE traders t
      SET
        total_trades = sub.cnt,
        total_volume = sub.vol,
@@ -389,8 +387,7 @@ const SQL_HEAL_TRADER_UPDATE_LIFETIME: &str =
      ) sub
      WHERE t.address = sub.sender";
 
-const SQL_HEAL_TRADER_LEFTOVER_ZERO: &str =
-    "UPDATE traders t
+const SQL_HEAL_TRADER_LEFTOVER_ZERO: &str = "UPDATE traders t
      SET
        total_trades = 0,
        total_volume = 0,
@@ -405,8 +402,7 @@ const SQL_HEAL_TRADER_LEFTOVER_ZERO: &str =
        OR t.total_volume IS DISTINCT FROM 0
      )";
 
-const SQL_HEAL_TRADER_LEFTOVER_USD_NULL: &str =
-    "UPDATE traders t
+const SQL_HEAL_TRADER_LEFTOVER_USD_NULL: &str = "UPDATE traders t
      SET total_volume_usd = NULL,
          updated_at = NOW()
      WHERE t.total_volume_usd IS NOT NULL
@@ -418,8 +414,7 @@ const SQL_HEAL_TRADER_LEFTOVER_USD_NULL: &str =
            AND se.volume_usd > 0
        )";
 
-const SQL_TRADER_LIFETIME_DIVERGES: &str =
-    "SELECT EXISTS (
+const SQL_TRADER_LIFETIME_DIVERGES: &str = "SELECT EXISTS (
        SELECT 1
        FROM (
          SELECT sender,
@@ -433,19 +428,24 @@ const SQL_TRADER_LIFETIME_DIVERGES: &str =
           OR COALESCE(s.vol, 0) IS DISTINCT FROM COALESCE(t.total_volume, 0)
      )";
 
+// sqlx 0.8: `&mut Transaction` helpers must `.execute(&mut **tx)` (see hub_prices).
 async fn apply_trader_lifetime_heal_tx(
     tx: &mut Transaction<'_, Postgres>,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(SQL_HEAL_TRADER_INSERT).execute(&mut *tx).await?;
-    sqlx::query(SQL_HEAL_TRADER_UPDATE_LIFETIME)
-        .execute(&mut *tx)
+    sqlx::query(SQL_HEAL_TRADER_INSERT)
+        .execute(&mut **tx)
         .await?;
-    sqlx::query(SQL_HEAL_TRADER_LEFTOVER_ZERO).execute(&mut *tx).await?;
+    sqlx::query(SQL_HEAL_TRADER_UPDATE_LIFETIME)
+        .execute(&mut **tx)
+        .await?;
+    sqlx::query(SQL_HEAL_TRADER_LEFTOVER_ZERO)
+        .execute(&mut **tx)
+        .await?;
     sqlx::query(SQL_REFRESH_TRADER_TOTAL_VOLUME_USD)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     sqlx::query(SQL_HEAL_TRADER_LEFTOVER_USD_NULL)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     Ok(())
 }
