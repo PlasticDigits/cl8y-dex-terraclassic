@@ -16,6 +16,7 @@ Live columbus-5 **11611** still runs pre-option-2 wasm until CMM store + migrate
 | Audit C-2 | [`audits/INTERNAL_KIMIK3_1787468843.md`](../audits/INTERNAL_KIMIK3_1787468843.md) |
 | [`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md) | **T592-13** + inbound 1:1 (**T592-1**) |
 | [`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md) | **C593-14** sell/buy copy |
+| [`AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md`](./AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md) | **S1267** typed 100% / `TaxPreview.debit > balance` CTA |
 | [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) | Official Swap keeps hybrid (**#596**) |
 | [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) | Quote = execute; router when `ops.length >= 2` |
 | [`AGENTS_GREEDY_BOOK_FIRST.md`](./AGENTS_GREEDY_BOOK_FIRST.md) | Opt-in greedy `Send+Swap` still extra-debits (**T592-13** / [#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710)) |
@@ -35,7 +36,7 @@ Live columbus-5 **11611** still runs pre-option-2 wasm until CMM store + migrate
    - **Buy:** pair→router stays 1:1; official router→non-exempt is outbound split (same primitive as pair→EOA). TransferTax SKU is not a substitute for buy tax on that hop.
 5. **R607-5 — hybrid stays on.** Do **not** force pair-only execute for `code_id` 11611. That is option 3 and it does not stop off-dApp router use. **#596** is unchanged. Tax applies **because** classify honors the router’s `trader`, not because hybrid is off. Opt-in **greedy** `Send+Swap` is still a swap hook (`is_swap_send_hook`) — extra-debit `from` pair-direct and authenticated `trader` on official-router hops ([#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710)).
 6. **R607-6 — disclose, don’t lecture.** Swap/Trade: sell → `Sell tax extra`; receive tax token → `Buy tax applies`. Create/Manage: `Buy/sell tax applies on every listed-pair swap.` No always-on architecture banner. Do not say hops skip tax.
-7. **R607-7 — extra-debit Max matches execute.** Cap Max for extra-debit on **both** pair-direct and router-hop sells. User Sends `amount` to the router 1:1, then the hop extra-debits leftover `tax` — 100% Max self-DoS.
+7. **R607-7 — extra-debit Max matches execute.** Cap Max for extra-debit on **both** pair-direct and router-hop sells. User Sends `amount` to the router 1:1, then the hop extra-debits leftover `tax` — 100% Max self-DoS. Typed 100% still must not submit when `TaxPreview.debit > balance` (**S1267**, [#1267](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1267) / [`AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md`](./AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md)).
 8. **R607-8 — PoC is inverted.** `poc_router_exemption_full_tax_bypass` proves: no-`trader` router sell fail-closes; authenticated trader is extra-debited; pair-direct ignores spoofed `trader`; pair→router 1:1; router→user is buy split.
 
 ## Why this is “improved” option 2
@@ -77,7 +78,7 @@ make verify-issue-623
 make verify-issue-710   # greedy Send+Swap extra-debit + router trader (no LocalTerra)
 ```
 
-Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit). Post-merge Enable Feature LocalTerra: [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)). Live option-2 copy + wrap/window leftovers: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)). Do not run the stale option-1 disclose checklist on this ticket.
+Also: `make verify-issue-592` (T592 crates + docs) · `make verify-issue-593` (Create Token + extra-debit Max) · `make verify-issue-1267` (typed extra-debit Sell CTA). Post-merge Enable Feature LocalTerra: [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612) ([`AGENTS_POST_MERGE_OPS_612.md`](./AGENTS_POST_MERGE_OPS_612.md)). Live option-2 copy + wrap/window leftovers: [#616](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616) ([`AGENTS_POST_MERGE_OPS_616.md`](./AGENTS_POST_MERGE_OPS_616.md)). Do not run the stale option-1 disclose checklist on this ticket.
 
 ## Do not
 
