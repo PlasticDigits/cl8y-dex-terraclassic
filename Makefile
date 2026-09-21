@@ -886,6 +886,11 @@ verify-issue-1267:
 	@chmod +x scripts/qa/verify-issue-1267.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1267.sh
 
+.PHONY: verify-issue-1285
+verify-issue-1285:
+	@chmod +x scripts/qa/verify-issue-1285.sh scripts/with-node.sh scripts/qa/verify-issue-1267.sh
+	./scripts/qa/verify-issue-1285.sh
+
 # Forgejo #1237 — SettingsBatch AutoLP / minter no-op (T592-4 sister identity).
 .PHONY: verify-issue-1237
 verify-issue-1237:

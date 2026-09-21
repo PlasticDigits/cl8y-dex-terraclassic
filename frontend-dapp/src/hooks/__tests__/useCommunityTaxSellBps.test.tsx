@@ -22,8 +22,12 @@ vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   queryTaxPreview: vi.fn(),
 }))
 
-import { queryCommunityTaxConfig, queryCommunityTaxIsExempt } from '@/services/terraclassic/communityTaxToken'
-import { useCommunityTaxSellBps } from '../useCommunityTaxSellBps'
+import {
+  queryCommunityTaxConfig,
+  queryCommunityTaxIsExempt,
+  queryTaxPreview,
+} from '@/services/terraclassic/communityTaxToken'
+import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '../useCommunityTaxSellBps'
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -68,5 +72,37 @@ describe('useCommunityTaxSellBps (#1267 catalog pin ≠ sell detection)', () => 
     const { result } = renderHook(() => useCommunityTaxSellBps(TOKEN), { wrapper })
     await waitFor(() => expect(result.current.isTaxToken).toBe(true))
     expect(result.current.sellBps).toBe(500)
+  })
+})
+
+describe('useCommunityTaxPreviewDebit (#1285 send_msg + hop_trader_debit)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes pair Swap send_msg and maps hop_trader_debit into debitRaw', async () => {
+    vi.mocked(queryTaxPreview).mockResolvedValue({
+      kind: 'sell',
+      declared: '1000000',
+      debit: '1000000',
+      credit: '1000000',
+      tax: '50000',
+      hop_trader_debit: '50000',
+    })
+    const sendMsg = btoa(JSON.stringify({ swap: { max_spread: '0.05', trader: WALLET } }))
+    const router = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
+    const pair = 'terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l'
+    const { result } = renderHook(
+      () =>
+        useCommunityTaxPreviewDebit({
+          token: TOKEN,
+          amount: '1000000',
+          enabled: true,
+          previewQuery: { from: router, to: pair, sendMsg },
+        }),
+      { wrapper }
+    )
+    await waitFor(() => expect(result.current.debitRaw).toBe(1_050_000n))
+    expect(queryTaxPreview).toHaveBeenCalledWith(expect.objectContaining({ sendMsg, amount: '1000000' }))
   })
 })
