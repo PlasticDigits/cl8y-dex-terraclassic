@@ -78,9 +78,14 @@ export function buildLuncDashDeepLink(uri: string): string {
 
 /** Parse the `wc:` URI from an Open Lunc Dash href (unit tests + regression guards). */
 export function parseLuncDashDeepLinkPayload(href: string): string | null {
-  const prefix = 'luncdash://wallet_connect?'
-  if (!href.startsWith(prefix)) return null
-  return new URLSearchParams(href.slice(prefix.length)).get('payload')
+  try {
+    const url = new URL(href)
+    if (url.protocol !== 'luncdash:' || url.hostname !== 'wallet_connect') return null
+    const payload = url.searchParams.get('payload')
+    return payload && payload.length > 0 ? payload : null
+  } catch {
+    return null
+  }
 }
 
 /**

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Automated verification for Forgejo #1279 — leftover Lunc Dash WalletConnect path.
 #
-# Pre-check only (unit + docs + optional children 519/554/658). Device QA 1.5.1–1.5.11
-# on a real Lunc Dash install closes leftover via ops-bot, not this script.
+# Pre-check only (unit + docs + optional children 519/554/658). Device QA 1.5
+# on a real Lunc Dash install closes leftover via cl8y-pm inbox cards, not this script.
 #
 # VERIFY1279_IID=1279 / VERIFY1279_LEFTOVER_COMPLETE=1 MUST FAIL (L1279-7).
 # VERIFY1279_SKIP_CHILDREN=1 skips child 519/554/658 (still runs Lunc Dash Vitest).
@@ -44,7 +44,7 @@ echo "════════════════════════�
 echo "  Forgejo #1279 — leftover Lunc Dash WalletConnect (pre-check)"
 echo "════════════════════════════════════════════════════════════════"
 echo "  Green make does not close leftover. Operator QA_TEMPLATE 1.5"
-echo "  on a real Lunc Dash install + ops-bot closes #1279 (L1279-7)."
+echo "  on a real Lunc Dash install + cl8y-pm inbox cards close #1279 (L1279-7)."
 echo "════════════════════════════════════════════════════════════════"
 
 run_step "frontend: Lunc Dash always-WC + pairing + UA + legal hint + atomic post" \
@@ -65,6 +65,7 @@ run_step "skill: AGENTS_OPS_LUNCDASH_VERIFY L1279-1–L1279-8" \
     grep -qE "#1279" skills/AGENTS_OPS_LUNCDASH_VERIFY.md
     grep -qE "buildLuncDashDeepLink" skills/AGENTS_OPS_LUNCDASH_VERIFY.md
     grep -qE "VERIFY1279_LEFTOVER_COMPLETE" skills/AGENTS_OPS_LUNCDASH_VERIFY.md
+    grep -qE "cl8y-pm inbox" skills/AGENTS_OPS_LUNCDASH_VERIFY.md
   '
 
 run_step "docs: Q20 + testing.md + frontend.md + QA 1.5 + onboarding matrix" \
@@ -86,7 +87,9 @@ run_step "docs: Q20 + testing.md + frontend.md + QA 1.5 + onboarding matrix" \
 
 run_step "AGENTS.md leftover playbook #1279" \
   grep -qE "AGENTS_OPS_LUNCDASH_VERIFY|#1279" AGENTS.md && \
-  grep -qE "verify-issue-1279" AGENTS.md
+  grep -qE "verify-issue-1279" AGENTS.md && \
+  grep -qE "## Operator work" AGENTS.md && \
+  grep -qE "inbox card" AGENTS.md
 
 run_step "WC mobile + clickwrap leftover crosslink #1279" \
   grep -qE "AGENTS_OPS_LUNCDASH_VERIFY|#1279" skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md && \
@@ -127,7 +130,7 @@ fi
 echo ""
 echo "[leftover-complete gate (L1279-7)]"
 if leftover_complete_requested; then
-  bad "VERIFY1279_IID=1279 / LEFTOVER_COMPLETE=1 cannot close leftover (ops-bot QA 1.5)"
+  bad "VERIFY1279_IID=1279 / LEFTOVER_COMPLETE=1 cannot close leftover (inbox QA 1.5)"
 else
   ok "leftover-complete not requested (pre-check only)"
 fi

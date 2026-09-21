@@ -188,7 +188,7 @@ The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bu
 | Dev / simulated     | Chrome   | P0 (when enabled) |
 | Station (ext)       | —        | **N/A** — use columbus-5 for Station P0 ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
 | Keplr + Ledger Nano | —        | **N/A** — physical Ledger QA is columbus-5 P1 ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567), [#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
-| Lunc Dash (WC)      | —        | **N/A** — leftover device matrix is columbus-5 P1 ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) QA **1.5**); in-repo `make verify-issue-1279` is pre-check only |
+| Lunc Dash (WC)      | —        | **N/A** — leftover device matrix is columbus-5 P1 ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) QA **1.5**); assign cl8y-pm inbox cards; in-repo `make verify-issue-1279` is pre-check only |
 
 ### columbus-5 (mainnet / staging)
 
@@ -199,7 +199,7 @@ The short **`docs/qa-templates/qa-test-pass.md`** template includes condensed bu
 | Station (mobile)| iOS/Android | P1       |
 | Keplr (ext)     | Chrome      | P1       |
 | Keplr + Ledger Nano (ext) | Chrome + Nano X / S Plus | **P1** — columbus-5 only ([#567](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/567)); not LocalTerra ([#235](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/235)) |
-| Lunc Dash (mobile WC) | iOS/Android | **P1 leftover** — [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) **1.5.1–1.5.11** on a real install ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); record in ops-bot; `make verify-issue-1279` does not close |
+| Lunc Dash (mobile WC) | iOS/Android | **P1 leftover** — [`QA_TEMPLATE.md`](../QA_TEMPLATE.md) **1.5** on a real install ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279)); assign as cl8y-pm inbox cards; `make verify-issue-1279` does not close |
 
 ## CLI Workflow
 
