@@ -986,7 +986,7 @@ Follow-up to #711 / #713 ([GitLab **#715**](https://gitlab.com/PlasticDigits/cl8
 | **QS-1** | `/?from=UST1&to=USTR` (any published casing) selects those factory tokens after apply. |
 | **QS-2** | `terra1` / `uluna` / `uusd` still apply; rewrite prefers published symbols (`from=LUNC&to=UST1`). |
 | **QS-3** | Unlisted factory CW20 stays bech32 outbound (no invented ticker). |
-| **QS-4** | Hostile / gem / spoofed ticker ignored per side; never echo; `?showGems=1` inert. No LCD symbol lookup (**X1**). |
+| **QS-4** | Hostile / gem / spoofed ticker ignored per side; never echo; `?showGems=1` inert. No LCD **symbol** lookup (**X1**). LCD `token_info.decimals` for picker `getAllTokens` ids is amount scale only ([#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255) **Q1255-4**). |
 | **QS-5** | `/swap` preserves search on redirect. `/trade?from=&to=` still resolves to `/trade/{uniquePair}`. |
 | **QS-6** | Deep links and Share URLs use symbols when unique. Overlay execute ids still share as `UST1`. Execute stays offer-in. |
 | **SH-1** | Swap Share visible chrome: **Share {pay TokenLogo} → {receive TokenLogo}**. `aria-label` includes both display symbols. Logos `alt=""`. |
@@ -2272,13 +2272,30 @@ USTR and unique-symbol USDT (`terra1z0xe7…`) are **18-dec**; UST1 / cLUNC / cU
 | **Q1257-1** | Indexer mixed 18/6 hop sim uses wide `k` (pair Uint256 analog). `saturating_mul` overflow is not a quote. |
 | **Q1257-2** | Skip a hop when ask_out > ask reserve, or offer > 1000× input reserve **and** ≥99% ask drain. Honest 1-hop whale 99% still quotes. |
 | **Q1257-3** | Route cache keys include `token_in` / `token_out`. 1 USTR (`1e18`) and 10000 USTR must not share `AMOUNT_CACHE_BUCKET`. |
-| **Q1257-4** | Swap / Trade display USTR / USDT as 18. Unknown CW20 stays 6 (#1255). |
+| **Q1257-4** | Swap / Trade display USTR / USDT as 18. Unknown CW20 stays 6 on `getDecimals` chrome; execute uses `useAssetDecimals` ([#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255)). |
 | **Q1257-5** | Hide **You Receive** when expected slippage ≥ 99%. |
 | **Q1257-6** | Expert Mode waives > 30% only. ≥ 99% stays blocked. |
 | **Q1257-7** | Honest mixed-dec pools stay size-monotonic per human unit. |
 | **Q1257-8** | Tokenlist USDT ticker is unique. Do not LCD-fetch `token_info.symbol` for scale. |
 
-Helpers: [`swapQuoteAmountScale.ts`](../frontend-dapp/src/utils/swapQuoteAmountScale.ts). Verify: `make verify-issue-1257`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](../skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md).
+Helpers: [`swapQuoteAmountScale.ts`](../frontend-dapp/src/utils/swapQuoteAmountScale.ts). Verify: `make verify-issue-1257`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](../skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md). Unlisted factory CW20 execute scale is [#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255) ([§ Swap amount scaling](#swap-amount-scaling)).
+
+### Swap amount scaling (Forgejo [#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255)) {#swap-amount-scaling}
+
+Home Swap (`/`) and Trade market must not scale unlisted factory CW20s with `getDecimals` `?? 6`. Create Token (#604) can mint 6–18 decimal CW20s that appear in the picker via `getAllTokens` (**QS-3**) but are absent from `tokenRegistry`. Typed `1` on an 18-dec token must simulate/execute `10^18`, not `10^6`.
+
+| ID | Rule |
+|----|------|
+| **Q1255-1** | Execute amounts use `resolveSwapAssetDecimals` / `useAssetDecimals`. Unknown CW20 is `null`, never `?? 6`. |
+| **Q1255-2** | Precedence: registry / USTR+USDT pin → valid LCD `token_info.decimals` (wins over stale indexer 6) → indexer pair-leg / `GET /tokens` while LCD is in flight or transport-failed. Match by contract/denom, not ticker. |
+| **Q1255-3** | Hostile LCD (`255`, `1e9`, `"18e0"`, non-integer) → unresolved; no indexer fallback; no `10 ** n`. |
+| **Q1255-4** | LCD `token_info.decimals` only for picker `getAllTokens` ids. Do not LCD-fetch random `terra1` into the combobox. Do not use `token_info.symbol` as a query key (**QS-4** / **X1**). |
+| **Q1255-5** | Pending / null: no sim/execute/reverse `toRawAmount`; CTA **Loading decimals…** / **Token decimals unavailable**. No 6-dec flash then 18-dec execute. |
+| **Q1255-6** | Max / balance / insufficient-balance use the same resolved scale. Hide Max until resolved. Raw `10^18` Max is human `1`. |
+| **Q1255-7** | Cache key `cl8y-dex-token-info-v2` stores `decimals`. Pre-#1255 `{symbol,name}` rows are not read as 6. |
+| **Q1255-8** | `getDecimals` / `swapAmountDecimals` still default unknown to 6 for leftover chrome (**Q1257-4**). Tokenlist JSON `decimals` is not an amount source (**C542-11**). `uluna` / `uusd` stay 6. Unknown bank/IBC fail-closed (#630). |
+
+Helpers: [`swapAssetDecimals.ts`](../frontend-dapp/src/utils/swapAssetDecimals.ts), [`useAssetDecimals.ts`](../frontend-dapp/src/hooks/useAssetDecimals.ts). Limit-order LCD fallback stays [`limitOrderPriceReference.ts`](../frontend-dapp/src/utils/limitOrderPriceReference.ts) (#166). Verify: `make verify-issue-1255`. Playbook: [`skills/AGENTS_FRONTEND_SWAP_AMOUNT_SCALE.md`](../skills/AGENTS_FRONTEND_SWAP_AMOUNT_SCALE.md). Do not reopen #15 / #564 / #557.
 
 **Registry outage warning (GitLab [#374](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/374)):** When LCD `get_registration` / `get_discount` fails or the indexer reports `fee_discount_registry_ok: false` (`GET /api/v1/health/fee-discount`), registered traders see a non-blocking amber banner (`data-testid="swap-fee-discount-registry-warning"`) — swap submit stays enabled; on-chain execution may still charge full pair fee. Unregistered wallets with healthy LCD reads keep the **Hold CL8Y & register…** CTA instead **when the pair is wired** (I14). Logic: [`feeDiscountRegistryWarning.ts`](../frontend-dapp/src/utils/feeDiscountRegistryWarning.ts) + [`useFeeDiscountRegistryStatus`](../frontend-dapp/src/hooks/useFeeDiscountRegistryStatus.ts). Agent playbook: [`skills/AGENTS_FEE_DISCOUNT_TIERS.md`](../skills/AGENTS_FEE_DISCOUNT_TIERS.md) § Registry outage observability.
 

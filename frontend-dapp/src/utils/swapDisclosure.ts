@@ -27,12 +27,15 @@ export function getDirectHybridBookSplit(input: {
   bookInputHuman: string
   rawInputAmount: string
   hybridMaxMakers: number
+  /** Resolved pay decimals (#1255). Required for unlisted CW20s — do not fall back to `getDecimals` ?? 6. */
+  payDecimals?: number | null
 }): DirectHybridBookSplit | null {
   if (!input.isDirect || !input.fromToken.startsWith('terra1')) {
     return null
   }
+  if (input.payDecimals === null) return null
   const pay = tokenAssetInfo(input.fromToken)
-  const dec = getDecimals(pay)
+  const dec = input.payDecimals ?? getDecimals(pay)
   const bookHuman = input.bookInputHuman.trim()
   if (bookHuman && !isDecimalAmountDraft(bookHuman)) {
     return null

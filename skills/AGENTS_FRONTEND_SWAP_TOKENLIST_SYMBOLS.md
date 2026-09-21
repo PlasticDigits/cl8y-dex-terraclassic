@@ -21,8 +21,8 @@ Land as a **new MR on top of #713**. Do not reopen #711/#713.
 | **TL-2** | README states uniqueness and that Swap `from`/`to` / Share use those symbols. Gems stay out of the JSON (**#562** / **U6**). |
 | **QS-1** | Inbound `from=UST1` / `from=ust1` / published mixed case selects the overlay-or-published execute id after factory gate. Same for every current tokenlist row in `getAllTokens`. |
 | **QS-2** | Checksummed `terra1` and `uluna`/`uusd` still apply. After apply, rewrite to the published symbol when unique (`from=uluna` → `from=LUNC`). |
-| **QS-3** | Factory-listed CW20 **not** in the tokenlist stays bech32 outbound (no invented ticker). |
-| **QS-4** | Unlisted / gem / hostile / spoofed ticker ignored per side; raw string never echoed. `?showGems=1` inert. LCD `token_info.symbol` is **not** the query key (**X1**). |
+| **QS-3** | Factory-listed CW20 **not** in the tokenlist stays bech32 outbound (no invented ticker). It is still a picker id — Swap amounts use indexer / `token_info.decimals`, never `?? 6` ([#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255) **Q1255-1**). |
+| **QS-4** | Unlisted / gem / hostile / spoofed ticker ignored per side; raw string never echoed. `?showGems=1` inert. LCD `token_info.symbol` is **not** the query key (**X1**). LCD `token_info.decimals` is allowed only for picker `getAllTokens` ids (amount scale, **Q1255-4**). |
 | **QS-5** | `/swap?from=UST1&to=cUSTC` preserves search on redirect to `/`. `/trade?from=UST1&to=cUSTC` still `replace`s to `/trade/{uniquePair}`. |
 | **QS-6** | `swapDeepLinkPath` / `ust1SecondarySwapPath` / Share URL use symbols when unique. Amount / `exactField=output` unchanged. Execute stays offer-in. Overlay address still shares as `UST1`, not LocalTerra bech32. |
 | **SH-1** | Swap header Share visible label is **Share {pay TokenLogo} → {receive TokenLogo}** (`data-testid="swap-share-link"`). Logos update on picker/flip. `aria-label` is text with both display symbols. Logos `alt=""`. |
@@ -54,7 +54,7 @@ Outbound: `executeIdToQueryToken` → published casing (`cLUNC`, `vFDUSD`, `Spac
 
 - **Do** bundle `tokenlist.json` (same relative import as Create Pair). Overlay env addresses for LocalTerra.
 - **Do** fail the MR on colliding tickers. Prefer reject non-ASCII tickers.
-- **Don’t** `fetch(tokenlist.json)`. **Don’t** LCD-fetch `token_info.symbol` for query ids.
+- **Don’t** `fetch(tokenlist.json)`. **Don’t** LCD-fetch `token_info.symbol` for query ids. LCD `token_info.decimals` for picker ids is [#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255), not a query-key path.
 - **Don’t** force-uppercase outbound (`cLUNC` must not become `CLUNC`).
 - **Don’t** put pair logos on Trader / Portfolio Share.
 - **Don’t** persist query in `localStorage`. **Don’t** map `0x` to Terra. **Don’t** treat `from=UST1` as `/ust1` mint (**U1**).
@@ -86,3 +86,4 @@ Playwright (5 workers, when Vite + factory): `e2e/swap-tokenlist-symbols-715.spe
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — no extra Share chrome
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — silent rewrite (#489)
 - [`AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md`](./AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md) — unique-symbol USDT is 18-dec (**Q1257-4 / Q1257-8**, [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257))
+- [`AGENTS_FRONTEND_SWAP_AMOUNT_SCALE.md`](./AGENTS_FRONTEND_SWAP_AMOUNT_SCALE.md) — unlisted factory CW20 execute scale (**Q1255**, [#1255](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1255))

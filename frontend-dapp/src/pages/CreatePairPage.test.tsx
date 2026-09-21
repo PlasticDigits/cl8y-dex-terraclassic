@@ -197,7 +197,7 @@ describe('CreatePairPage', () => {
     const user = userEvent.setup()
     const [a] = getCreatePairCw20Options()
     localStorage.setItem(
-      'cl8y-dex-token-info',
+      'cl8y-dex-token-info-v2',
       JSON.stringify({
         [a.address.toLowerCase()]: { symbol: '<img onerror=alert(1)>', name: '<script>x</script>' },
       })
@@ -208,7 +208,7 @@ describe('CreatePairPage', () => {
     const option = within(listbox).getByTestId(`token-option-${a.address}`)
     expect(option.querySelector('script')).toBeNull()
     expect(option.querySelector('img[onerror]')).toBeNull()
-    localStorage.removeItem('cl8y-dex-token-info')
+    localStorage.removeItem('cl8y-dex-token-info-v2')
   })
 
   it('T17: search paste longer than 128 chars is truncated', async () => {

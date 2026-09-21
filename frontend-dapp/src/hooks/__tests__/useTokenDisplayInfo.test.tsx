@@ -14,7 +14,7 @@ import { indexerTokenForId, useTokenDisplayInfo } from '../useTokenDisplayInfo'
 const CLUNC = 'terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg'
 const CUSTC = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
 const UNKNOWN_CW20 = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
-const TOKEN_CACHE_KEY = 'cl8y-dex-token-info'
+const TOKEN_CACHE_KEY = 'cl8y-dex-token-info-v2'
 
 function tokenRow(partial: Partial<IndexerToken>): IndexerToken {
   return {

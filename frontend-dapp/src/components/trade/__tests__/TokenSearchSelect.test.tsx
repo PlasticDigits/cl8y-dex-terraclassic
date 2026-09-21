@@ -15,7 +15,7 @@ vi.mock('react-blockies', () => ({
 const EMBER_ADDR = 'terra1ember00000000000000000000000000000001'
 const CORAL_ADDR = 'terra1coral00000000000000000000000000000002'
 const JADE_ADDR = 'terra1jade000000000000000000000000000000003'
-const TOKEN_CACHE_KEY = 'cl8y-dex-token-info'
+const TOKEN_CACHE_KEY = 'cl8y-dex-token-info-v2'
 
 const tokens = [EMBER_ADDR, CORAL_ADDR, JADE_ADDR, 'uluna']
 

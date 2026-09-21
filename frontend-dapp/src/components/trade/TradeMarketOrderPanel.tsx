@@ -45,8 +45,9 @@ import {
   type IndexerRouteQuoteKind,
   type PairInfo,
 } from '@/types'
+import { useAssetDecimals } from '@/hooks/useAssetDecimals'
 import { toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
-import { swapAmountDecimals, isTheaterRouteQuote } from '@/utils/swapQuoteAmountScale'
+import { isTheaterRouteQuote } from '@/utils/swapQuoteAmountScale'
 import { resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
@@ -161,13 +162,23 @@ export function TradeMarketOrderPanel({
   const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null)
   const toToken = side === 'bid' ? token0 : token1
   const taxReceive = useCommunityTaxSellBps(toToken?.startsWith('terra1') ? toToken : null)
-  const offerDecimals = fromToken ? swapAmountDecimals(fromToken) : 6
-  const receiveDecimals = toToken ? swapAmountDecimals(toToken) : 6
-  const rawInputAmount = marketAmountHuman.trim() ? toRawAmount(marketAmountHuman.trim(), offerDecimals) : '0'
+  const payDecimalsState = useAssetDecimals(fromToken, {
+    lcdEnabled: !!fromToken?.startsWith('terra1'),
+  })
+  const receiveDecimalsState = useAssetDecimals(toToken, {
+    lcdEnabled: !!toToken?.startsWith('terra1'),
+  })
+  const offerDecimals = payDecimalsState.decimals
+  const receiveDecimals = receiveDecimalsState.decimals
+  const decimalsResolved = offerDecimals != null && receiveDecimals != null
+  const decimalsPending = payDecimalsState.pending || receiveDecimalsState.pending
+  const rawInputAmount =
+    marketAmountHuman.trim() && offerDecimals != null ? toRawAmount(marketAmountHuman.trim(), offerDecimals) : '0'
   const debouncedMarketAmount = useDebouncedValue(marketAmountHuman, SIM_QUOTE_DEBOUNCE_MS)
-  const debouncedRawInputAmount = debouncedMarketAmount.trim()
-    ? toRawAmount(debouncedMarketAmount.trim(), offerDecimals)
-    : '0'
+  const debouncedRawInputAmount =
+    debouncedMarketAmount.trim() && offerDecimals != null
+      ? toRawAmount(debouncedMarketAmount.trim(), offerDecimals)
+      : '0'
 
   const escrowBalanceQuery = useLimitOrderEscrowBalance(address, fromToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
@@ -180,8 +191,9 @@ export function TradeMarketOrderPanel({
         bookInputHuman,
         rawInputAmount,
         hybridMaxMakers,
+        payDecimals: offerDecimals,
       }),
-    [fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers]
+    [fromToken, bookInputHuman, rawInputAmount, hybridMaxMakers, offerDecimals]
   )
   const liveHybrid = hybridParamsFromBookSplit(liveSplit, hybridMaxMakers)
 
@@ -193,14 +205,15 @@ export function TradeMarketOrderPanel({
         bookInputHuman: debouncedBookInputHuman,
         rawInputAmount: debouncedRawInputAmount,
         hybridMaxMakers: debouncedHybridMaxMakers,
+        payDecimals: offerDecimals,
       }),
-    [fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers]
+    [fromToken, debouncedBookInputHuman, debouncedRawInputAmount, debouncedHybridMaxMakers, offerDecimals]
   )
   const debouncedHybrid = hybridParamsFromBookSplit(debouncedSplit, debouncedHybridMaxMakers)
   const debouncedWillSubmitHybrid = !!debouncedSplit?.willSubmitHybrid
 
   const bookLegMaxResult = useMemo(() => {
-    if (!escrowBalanceQuery.data || rawInputAmount === '0') {
+    if (!escrowBalanceQuery.data || rawInputAmount === '0' || offerDecimals == null) {
       return { human: '0', spendableRaw: 0n, cappedByGas: false, reserveUluna: 0n }
     }
     return computeMaxSpendableHumanAmount({
@@ -214,11 +227,13 @@ export function TradeMarketOrderPanel({
 
   const placeEscrowGate = useMemo(
     () =>
-      evaluateLimitOrderEscrowPlaceGate(marketAmountHuman, offerDecimals, {
-        data: escrowBalanceQuery.data,
-        isLoading: escrowBalanceQuery.isLoading,
-        isError: escrowBalanceQuery.isError,
-      }),
+      offerDecimals == null
+        ? { canPlaceLimit: false, userMessage: null as string | null, tone: 'none' as const }
+        : evaluateLimitOrderEscrowPlaceGate(marketAmountHuman, offerDecimals, {
+            data: escrowBalanceQuery.data,
+            isLoading: escrowBalanceQuery.isLoading,
+            isError: escrowBalanceQuery.isError,
+          }),
     [
       marketAmountHuman,
       offerDecimals,
@@ -237,6 +252,8 @@ export function TradeMarketOrderPanel({
       pairAddr,
       side,
       debouncedRawInputAmount,
+      offerDecimals,
+      receiveDecimals,
       debouncedBookInputHuman,
       debouncedHybridMaxMakers,
       slippageTolerance,
@@ -320,6 +337,7 @@ export function TradeMarketOrderPanel({
       )
     },
     enabled:
+      decimalsResolved &&
       !!selectedPair &&
       pairAddr.startsWith('terra1') &&
       fromToken.startsWith('terra1') &&
@@ -347,17 +365,19 @@ export function TradeMarketOrderPanel({
 
   const placeNativeGasGate = useMemo(
     () =>
-      evaluateMarketSwapNativeGasPlaceGate(
-        marketAmountHuman,
-        offerDecimals,
-        {
-          data: nativeUlunaQuery.data,
-          isLoading: nativeUlunaQuery.isLoading,
-          isError: nativeUlunaQuery.isError,
-        },
-        marketGasMin,
-        'hybrid swap'
-      ),
+      offerDecimals == null
+        ? { canPlaceLimit: false, userMessage: null as string | null, tone: 'none' as const }
+        : evaluateMarketSwapNativeGasPlaceGate(
+            marketAmountHuman,
+            offerDecimals,
+            {
+              data: nativeUlunaQuery.data,
+              isLoading: nativeUlunaQuery.isLoading,
+              isError: nativeUlunaQuery.isError,
+            },
+            marketGasMin,
+            'hybrid swap'
+          ),
     [
       marketAmountHuman,
       offerDecimals,
@@ -439,6 +459,7 @@ export function TradeMarketOrderPanel({
     toastSuccess: 'Market swap submitted.',
     mutationFn: async () => {
       if (!address || !selectedPair) throw new Error('Connect wallet')
+      if (offerDecimals == null || receiveDecimals == null) throw new Error('Token decimals unavailable')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
       if (extraDebitGate.blockSubmit) {
         throw new Error(
@@ -563,13 +584,13 @@ export function TradeMarketOrderPanel({
 
   const receiveHuman = theaterRouteQuote
     ? '—'
-    : simData?.return_amount != null && simData.return_amount !== ''
+    : simData?.return_amount != null && simData.return_amount !== '' && receiveDecimals != null
       ? formatTokenAmount(simData.return_amount, receiveDecimals, 6)
       : '—'
 
   const minReceiveHuman = theaterRouteQuote
     ? '—'
-    : minReceived != null && minReceived !== ''
+    : minReceived != null && minReceived !== '' && receiveDecimals != null
       ? formatTokenAmount(minReceived, receiveDecimals, 6)
       : '—'
 
@@ -586,11 +607,11 @@ export function TradeMarketOrderPanel({
   const payAcquireGuidance = useSwapPayAcquireGuidance({
     walletConnected: isWalletConnected,
     address,
-    hasPositivePay,
-    hasSettledQuote: hasSettledSimQuote,
+    hasPositivePay: hasPositivePay && decimalsResolved,
+    hasSettledQuote: hasSettledSimQuote && decimalsResolved,
     payAsset: fromToken,
     paySymbol: getTokenDisplaySymbol(fromToken),
-    payDecimals: offerDecimals,
+    payDecimals: offerDecimals ?? 6,
     payRaw: tryParseBigInt(rawInputAmount),
     payBalanceRaw:
       isWalletConnected && escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
@@ -603,6 +624,7 @@ export function TradeMarketOrderPanel({
   const canSubmit =
     isWalletConnected &&
     !isPaused &&
+    decimalsResolved &&
     combinedOk &&
     !swapMutation.isPending &&
     !!selectedPair &&
@@ -614,18 +636,22 @@ export function TradeMarketOrderPanel({
     ? 'Connect Wallet'
     : extraDebitGate.insufficientBalance
       ? 'Insufficient Balance'
-      : terraBroadcastPendingButtonLabel(
-          swapMutation.phase,
-          swapMutation.isPending,
-          priceImpactTooHigh
-            ? 'Hop spread exceeds slippage protection'
-            : theaterRouteQuote
-              ? 'Slippage is too high'
-              : liveSplit?.bookExceedsPay
-                ? 'Book leg exceeds pay'
-                : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
-          'Submitting…'
-        )
+      : hasPositivePay && !decimalsResolved
+        ? decimalsPending
+          ? 'Loading decimals…'
+          : 'Token decimals unavailable'
+        : terraBroadcastPendingButtonLabel(
+            swapMutation.phase,
+            swapMutation.isPending,
+            priceImpactTooHigh
+              ? 'Hop spread exceeds slippage protection'
+              : theaterRouteQuote
+                ? 'Slippage is too high'
+                : liveSplit?.bookExceedsPay
+                  ? 'Book leg exceeds pay'
+                  : `Market ${side === 'bid' ? 'buy' : 'sell'}`,
+            'Submitting…'
+          )
 
   const swapMutate = swapMutation.mutate
   const swapPhase = swapMutation.phase
@@ -796,7 +822,7 @@ export function TradeMarketOrderPanel({
                   placeholder="0.0"
                   data-testid="trade-market-book-leg-input"
                 />
-                {isWalletConnected && fromToken.startsWith('terra1') && (
+                {isWalletConnected && fromToken.startsWith('terra1') && offerDecimals != null && (
                   <AmountBalanceActions
                     balanceQuery={escrowBalanceQuery}
                     decimals={offerDecimals}
