@@ -101,7 +101,7 @@
 
 ### 1.5 LuncDash (WalletConnect – Mobile)
 
-Leftover assignment for this matrix is **cl8y-pm inbox cards** (at most five numbered taps each). Do not dump 1.5.1–1.5.11 onto one card. Close [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) when the cards are done.
+Leftover assignment for this matrix is **cl8y-pm inbox cards** (at most five numbered taps each). Do not dump 1.5.1–1.5.11 onto one card. Do **not** reopen or close [#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279) from production payload leftover [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311) (1.5.1 / 1.5.1a / 1.5.1b + 1.5.6 / 1.5.7 after Coolify).
 
 | # | Test Case | Steps | Expected Result | Status | Notes |
 |---|-----------|-------|-----------------|--------|-------|

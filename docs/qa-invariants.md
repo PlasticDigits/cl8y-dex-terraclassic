@@ -392,7 +392,7 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 
 | Invariant | Check | On failure |
 | --------- | ----- | ---------- |
-| **Q21** Lunc Dash `buildLuncDashDeepLink` uses a real `payload` query key; device AC on production closes leftover after Coolify, not make | **`make verify-issue-1308`** → payload Vitest + docs + children **519, 554** unless `VERIFY1308_SKIP_CHILDREN=1` (**L1308-1–L1308-4**) | Non-zero exit; fix pairing helper or child. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` **must FAIL**. |
+| **Q21** Lunc Dash `buildLuncDashDeepLink` uses a real `payload` query key; device AC on production closes leftover [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311) after Coolify, not make | **`make verify-issue-1308`** → payload Vitest + docs + children **519, 554** unless `VERIFY1308_SKIP_CHILDREN=1` (**L1308-1–L1308-4**) | Non-zero exit; fix pairing helper or child. `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1308_IID=1308` **must FAIL**. Production leftover is **Q24** / #1311. |
 
 **L1308** (Forgejo **#1308** / !1310 — [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md)):
 
@@ -400,7 +400,7 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 |----|------|
 | **L1308-1** | `buildLuncDashDeepLink` → `luncdash://wallet_connect?payload=<encoded wc:>`; `parseLuncDashDeepLinkPayload` returns the `wc:` URI. Reject legacy encoded-blob hrefs. |
 | **L1308-2** | Mobile pairing sheet unchanged (**WC-M1** / **WC-M8**). Copy still raw `wc:` (**WC-M4**). |
-| **L1308-3** | `make verify-issue-1308` is pre-check only. Green make does not close device AC (wallet lists `dex.cl8y.com`). Production leftover is cl8y-pm inbox after Coolify. |
+| **L1308-3** | `make verify-issue-1308` is pre-check only. Green make does not close device AC (wallet lists `dex.cl8y.com`). Production leftover is [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311) (**Q24**) cl8y-pm inbox after Coolify. |
 | **L1308-4** | Playbook + this Q21 + #1279 / WC-M skills stay crosslinked. Coolify deploy required before production QA. Device AC is not make. |
 
 ## Hub wrap vs CEX labels leftover verify (invariant Q22) {#ops-hub-wrap-1302}
@@ -421,6 +421,27 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 | **B1290-6** | Do not reopen !1290 / #1240 for ops/QA. Do not retarget closed !1302. Do not `Fixes #1290`. Do not `Closes #1302`. Woodpecker quota is not leftover evidence. |
 | **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, `.gitignore` churn, or `AGENTS_POST_MERGE_OPS_1302.md` / `AGENTS_POST_MERGE_OPS_1306.md`. Do not edit `scripts/test-commit-msg-hook.sh`. Do not retarget **Q21** (#1308). Do not take ADR 0008 (closed #1300). |
 | **B1290-8** | Green skip-E2E ≠ leftover-complete. Leftover-complete is the **#1306** wiring MR. Production `/protocol` visual is [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 1 (related #1290 AC), not this ticket. No HTML scrape. Not [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297). |
+
+## Post-merge PRs 1306/1309/1310 leftover verify (invariant Q24) {#post-merge-ops-1311}
+
+**Q23** `{#post-merge-ops-1305}` / ADR **0010** are reserved by unpublished sister leftover [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305). This leftover is **Q24**. Live **Q21** is Lunc Dash payload ([#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308) / !1310). Live **Q22** is hub wrap [#1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1306).
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q24** Post-merge PRs 1306/1309/1310 leftover live is checked (Coolify frontend `ead2ffe4+` payload helper; leftover-complete is device AC2/AC3/AC7 after that cut, not make) | **Make (implement):** `make verify-issue-1311` → child **1308** + docs + empty `CODEOWNERS`. Optional supporting HTTP unquoted `wallet_connect?payload=`. Make does **not** cover leftover-complete. **Leftover-complete (operator):** paste ADR 0011 close-comment — frontend cut + AC2 header `terra1…` + AC3 settings `dex.cl8y.com` + AC7 Swap approve or reject; inbox 1.5.1 / 1.5.1a / 1.5.1b + 1.5.6 / 1.5.7. Forbidden in that comment: green make, `VERIFY1308_DEVICE_COMPLETE` PASS, hashed-chunk-only PASS. | Non-zero make: fix the failing child or docs. Do not treat green make or HTTP PASS as leftover-complete. Do not reopen #1279. Do not close #1305. Do not merge unpublished 0010/Q23 tips as-is. |
+
+**M1311** (Forgejo **[#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311)** — [ADR 0011](./adr/0011-post-merge-leftover-1306-1309-1310.md)):
+
+| ID | Rule |
+|----|------|
+| **M1311-1** | `make verify-issue-1311` **(implement)** runs child **1308**. Child FAIL fails the stack. Make is not leftover-complete. |
+| **M1311-2** | Coolify frontend `ead2ffe4+`. Supporting HTTP unquoted `wallet_connect?payload=` is not leftover-1 complete. |
+| **M1311-3** | Leftover-complete is AC2 / AC3 / AC7 via cl8y-pm inbox after leftover 1. |
+| **M1311-4** | `VERIFY1308_DEVICE_COMPLETE=1` / `VERIFY1311_DEVICE_COMPLETE=1` / matching IID **must FAIL**. |
+| **M1311-5** | Do not reopen #1279 / #1308. Do not close #1305 from this ticket. |
+| **M1311-6** | Do not merge unpublished sister design branches. Do not take ADR 0010 / Q23. Do not flip Coolify auto-deploy. |
+| **M1311-7** | Optional leftover 3 (runbook CODEOWNERS; ADR 0009 Q21 numbering) is not a close gate. |
+| **M1311-8** | Playbook + this Q24 + ADR 0011 + L1308 skills stay crosslinked. |
 
 ## Related docs
 
@@ -449,3 +470,4 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 - [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279), **Q20**)
 - [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) — Lunc Dash WalletConnect payload query ([#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308), **Q21** / !1310)
 - [ADR 0009](./adr/0009-verify-issue-1290-hub-wrap-labels.md) — leftover `make verify-issue-1290` hub wrap vs CEX labels ([#1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1306), **Q22**); ADR **0008** unused (closed [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300))
+- [`skills/AGENTS_POST_MERGE_OPS_1311.md`](../skills/AGENTS_POST_MERGE_OPS_1311.md) — post-merge PRs 1306/1309/1310 leftover verify ([#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311), **Q24**); [ADR 0011](./adr/0011-post-merge-leftover-1306-1309-1310.md)

@@ -9,10 +9,12 @@ Pipeline YAML: [`.woodpecker.yaml`](../../.woodpecker.yaml) (gitleaks-only until
 
 ## Merge recipe
 
-1. **CODEOWNERS.** This repo’s [`CODEOWNERS`](../../CODEOWNERS) is `.* @code/maintainers`.
-   Forgejo requests review from that team. If you are the only member, you cannot
-   approve your own PR. Dismiss that self-request in the PR UI (or equivalent API)
-   so the required-review rule is not a deadlock. Do not weaken branch protection.
+1. **CODEOWNERS.** Catch-all `.* @code/maintainers` was **removed** in
+   [!1309](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1309)
+   (`git ls-files CODEOWNERS` is empty). There is no team self-request to dismiss
+   from that file. Do not restore a catch-all. Do not weaken branch protection.
+   Leftover runbook nit: [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311)
+   leftover 3 (not a product gate).
 2. **Status.** Wait for Woodpecker to post `ci/woodpecker/pr/woodpecker` on the
    head SHA (PR event). Admins must not drop that required context.
 3. **Merge.** Use a normal merge (`fj pr merge` / Forgejo **Merge**). Never
