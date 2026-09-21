@@ -111,6 +111,7 @@ import {
 } from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
+import { defaultNativeNeedsWrapInput, defaultNativeWrapHopCount, isNativeUlunaDenom } from '@/utils/nativeWrapSwapHints'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
 import { getRouteSolve } from '@/services/indexer/client'
 import {
@@ -477,11 +478,21 @@ export default function SwapPage() {
     return null
   }, [wrapDenom, wrapUnwrapType, toToken, fromToken, nativeRouteInfo?.needsWrapInput])
 
-  const payIsNativeUluna = isNativeDenom(fromToken)
-  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max to 1-hop (#587). */
-  const nativeSwapHopCount =
-    nativeRouteInfo?.operations?.length ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap' ? 2 : 1)
-  const nativeNeedsWrapInput = nativeRouteInfo?.needsWrapInput ?? (payIsNativeUluna && wrapUnwrapType !== 'wrap')
+  /** Fee-paying native is LUNC only — USTC (`uusd`) wraps but pays gas in uluna (#1264 G1264-4). */
+  const payIsNativeUluna = isNativeUlunaDenom(fromToken)
+  const payIsNativeDenom = isNativeDenom(fromToken)
+  const isDirectWrapOrUnwrap = wrapUnwrapType === 'wrap' || wrapUnwrapType === 'unwrap'
+  /** Hub-typical 2 hops until the client-BFS route is known — do not default Max/hint to 1-hop (#587 / #1264). */
+  const nativeSwapHopCount = defaultNativeWrapHopCount({
+    operationsLength: nativeRouteInfo?.operations?.length,
+    payIsNativeDenom,
+    isDirectWrapOrUnwrap,
+  })
+  const nativeNeedsWrapInput = defaultNativeNeedsWrapInput({
+    routeNeedsWrapInput: nativeRouteInfo?.needsWrapInput,
+    payIsNativeDenom,
+    isDirectWrapOrUnwrap,
+  })
   const nativeNeedsUnwrapOutput =
     nativeRouteInfo?.needsUnwrapOutput ??
     (!!toToken && isNativeDenom(toToken) && wrapUnwrapType !== 'wrap' && wrapUnwrapType !== 'unwrap')
@@ -1228,7 +1239,7 @@ export default function SwapPage() {
     offerDecimals,
     payIsNativeUluna,
     rawInputAmount,
-    payIsNativeUluna ? balanceQuery : ulunaBalanceQuery,
+    ulunaBalanceQuery,
     swapNetworkFeeEstimate.feeUluna
   )
 
