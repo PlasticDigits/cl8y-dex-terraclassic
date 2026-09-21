@@ -309,6 +309,8 @@ async fn i11_ustc_price_usd_from_oracle_cache_never_lunc() {
 }
 
 /// Coolify crash: raw 18-decimal SUM(offer_amount) into NUMERIC(38,18) overflows at 10^20.
+/// Global/pair leftover was #548. Trader rolling leftover is GitLab #1277
+/// (`indexer_trader_rolling_numeric` / `make verify-issue-1277`).
 #[serial]
 #[tokio::test]
 async fn raw_18_decimal_volume_does_not_overflow_global_stats() {
