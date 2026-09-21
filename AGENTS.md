@@ -34,7 +34,7 @@ Write only the subject and a short technical description of the change. Hooks in
 
 - **`prepare-commit-msg`** — strips agent-injected `Co-authored-by` / email lines from the body before the commit is recorded.
 - **`commit-msg`** — rejects any remaining violations.
-- **`pre-push`** — blocks pushes that include commits whose bodies still violate the policy (catches `git commit --no-verify`).
+- **`pre-push`** — blocks pushes that include **new** commits whose bodies still violate the policy (catches `git commit --no-verify`). New branches scan only commits not already on that remote (`git rev-list <oid> --not --remotes=<remote>`), not the whole ancestry.
 
 **Never use `git commit --no-verify` or `git push --no-verify`** to skip these hooks. Cursor may append `Co-authored-by` trailers automatically; the hooks remove them — do not re-add them manually.
 

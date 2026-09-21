@@ -7,9 +7,9 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 # shellcheck source=.githooks/lib/validate-commit-message.sh
 source "${REPO_ROOT}/.githooks/lib/validate-commit-message.sh"
 
-remote="${1:-}"
+remote="${1:-origin}"
 url="${2:-}"
-unset remote url
+unset url
 
 zero_oid='0000000000000000000000000000000000000000'
 failed=0
@@ -20,11 +20,13 @@ while read -r local_ref local_oid remote_ref remote_oid; do
     continue
   fi
 
-  range=""
+  rev_list_args=()
   if [[ "$remote_oid" == "$zero_oid" ]]; then
-    range="$local_oid"
+    # New branch: only commits not already on this remote. `git rev-list <oid>`
+    # walks all ancestry and would reject/hang on published history.
+    rev_list_args=("$local_oid" --not --remotes="$remote")
   else
-    range="${remote_oid}..${local_oid}"
+    rev_list_args=("${remote_oid}..${local_oid}")
   fi
 
   hash=""
@@ -34,7 +36,7 @@ while read -r local_ref local_oid remote_ref remote_oid; do
       echo "  [$hash] $(git log -1 --format='%s' "$hash")" >&2
       failed=1
     fi
-  done < <(git rev-list "$range" 2>/dev/null || true)
+  done < <(git rev-list "${rev_list_args[@]}" 2>/dev/null || true)
 done
 
 if [[ "$failed" -ne 0 ]]; then

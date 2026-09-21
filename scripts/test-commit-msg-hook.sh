@@ -91,6 +91,15 @@ assert_reject "co-author without blank line after subject" "$f"
   echo "FAIL: .githooks/pre-push must be executable" >&2
   exit 1
 }
+if grep -qE 'range="\$local_oid"' "$REPO_ROOT/.githooks/pre-push"; then
+  echo "FAIL: pre-push must not rev-list full ancestry on a new branch" >&2
+  exit 1
+fi
+if ! grep -q -- '--not --remotes' "$REPO_ROOT/.githooks/pre-push"; then
+  echo "FAIL: pre-push new branches must exclude commits already on the remote" >&2
+  exit 1
+fi
+echo "OK: pre-push new-branch range excludes remotes"
 [[ -x "$REPO_ROOT/.githooks/prepare-commit-msg" ]] || {
   echo "FAIL: .githooks/prepare-commit-msg must be executable" >&2
   exit 1
