@@ -12,9 +12,9 @@ Retail “routing is wrong / quote is insane / Calculating forever” is several
 
 | Ticket | What it owns |
 |--------|----------------|
-| [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) (open) | Native wrap-enter never reaches optimized GET; client BFS after wrap substitution |
+| [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) (landed, PR 1297) | Native wrap-enter GET after client wrap-map; leftover LocalTerra Route wrap-then-cUSTC is [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) |
 | [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257) (closed, in tree) | Mixed 18/6 hop honesty (`ImplausibleHop`) + 18-dec display + ≥99% theater chrome |
-| [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) (open) | USTC→USTR wrap+2hop **execute gas** — not quote ranking |
+| [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) (code on `main`, PR 1293; issue stays open) | USTC→USTR wrap+2hop **execute gas** — not quote ranking. AC1 `gas_used` unmeasured; leftover [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) must **not** close it |
 | [#484](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/484) / [#485](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/485) (closed) | Calculating hang + distant-pair progress |
 | [#209](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/209) / [#323](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/323) | Shipped solver; hop cap 4; top-5 shortest |
 | [#369](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/369) / [#493](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/493) / [#585](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/585) / [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) | Zero-reserve skip, empty-book short-circuit, freeze hop skip, net ranking |
@@ -37,7 +37,7 @@ Filed tickets stay owners of **F0** (#1218), **F1** (#1257), **F10** (#1264 / #1
 
 | ID | Gap class | Score | Why |
 |----|-----------|-------|-----|
-| **F0** | Native wrap-enter / unwrap-exit skip solve | **Confirm — #1218** | Swap branches wrap / `findRouteWithNativeSupport` **before** `quoteCw20ViaRouteSolve`. GET `token_in=uluna` → **400** `token_in not found in indexer assets`. Execute stays pool-only (**H596-7**). Do not reopen here. |
+| **F0** | Native wrap-enter / unwrap-exit skip solve | **Confirm landed — #1218** | Swap wrap-maps then GET `/route/solve` on CW20 ids (PR 1297). GET `token_in=uluna` still **400**. Execute stays pool-only (**H596-7**). Leftover LocalTerra is [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300). Do not spawn ranking work here. |
 | **F1** | Mixed 6/18 humanize / sim scale | **Confirm landed — #1257** | `ImplausibleHop` + unique-symbol 18-dec display + ≥99% hide. Dated 1 USTR→USDT is 5.47% (not theater). |
 | **F2** | Hop-count top-K drops a better longer CW20 path | **Unmeasured — no spawn** | Shortest-first top-5 is the shipped bound. Hub probes: `search_truncated=false`. No listed CW20 pair in this census proved a cheaper path **outside** K. Do not bump `MAX_PATH_CANDIDATES` here. |
 | **F3** | ~100% hop spread still wins | **Kill as unfiled** | Scale-mismatch drain is #1257. Honest whale 99% still quotes; dApp ≥99% theater chrome blocks submit (#678). Dated hub quotes were 0–7% `slippage_percent`. |
@@ -69,7 +69,7 @@ Playbook: [`skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](../../skills/AGENTS
 ## How retail quoting works (2026-09-21 code)
 
 1. **CW20 pay + CW20 receive (Swap default and Trade market default).** `quoteCw20ViaRouteSolve` → `GET /api/v1/route/solve` with `amount_in` (timeout **45s**) → strip interior declared hybrid (#1280) → wallet `simulateMultiHopSwap` is authoritative You Receive → hop preflight → humanize via `getDecimals` / `fromRawAmount` (USTR/USDT pinned 18).
-2. **Native pay or receive (Swap only).** Direct 1:1 wrap/unwrap: mapper `simulateNativeSwap`. Else wrap substitution + client BFS `findRouteWithNativeSupport` → `simulateNativeSwap`. **No** GET solve (**F0** / #1218). Submit strips `hybrid` / `book_input` (**H596-7**).
+2. **Native pay or receive (Swap only).** Direct 1:1 wrap/unwrap: mapper `simulateNativeSwap`. Else the client wrap-maps `uluna`→cLUNC / `uusd`→cUSTC and **GET** `/route/solve` on the CW20 ids ([#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) / **F0** landed). Indexer GET still 400s raw `token_in=uluna`. Submit strips `hybrid` / `book_input` (**H596-7**). Leftover LocalTerra Route wrap-then-cUSTC is [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300).
 3. **Advanced typed book.** `POST /route/solve` with caller `hybrid_by_hop` (first BFS path + override). Not the retail empty-book amount quote.
 4. **Indexer timeout / 404 / 502.** Swap may fall back to 1-hop LCD or client BFS (can disagree with top-K). Trade falls back to pair `simulateSwap` only (`clientRoute: null`).
 5. **Discovery GET (no `amount_in`).** First BFS only — Advanced “Compare indexer route”, not You Receive.
@@ -151,7 +151,7 @@ Negative: a memo that only says “routing is bad” fails. Implementing #1218 o
 - Agents treat USTR→USDT scale/theater as **#1257** (landed). Do not spawn a sibling from 5% hub slippage.
 - Top-5 shortest remains a **documented non-goal** of global optimality. Raising K needs its own implement issue with a listed-pair proof.
 - Swap client-BFS after indexer failure stays a **degrade path**, not a reason to disable hybrid (**H596-5**).
-- Wrap+N-hop OOG stays **#1264** / [ADR 0004](./0004-terraclassic-retail-gas-census.md).
+- Wrap+N-hop OOG stays **#1264** / [ADR 0004](./0004-terraclassic-retail-gas-census.md). Post-merge Coolify/LocalTerra for wrap-enter is leftover [ADR 0008](./0008-post-merge-leftover-1287-1298.md) / [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) — **Stay** / no solver spawn unchanged.
 
 ## Links
 

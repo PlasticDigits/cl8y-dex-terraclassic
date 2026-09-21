@@ -390,3 +390,5 @@ When `VERIFY1276_REQUIRE_LIVE=1` **or** `VERIFY1276_IID=1276` **or** `VERIFY1276
 Issue AC maps as in Outcome (keep checkbox; strengthen baked-commit to `EXPECT_SHA`; no frontend HTTP attest). Leftover must not close on regex-only or IID-only.
 
 Keywords on the issue (“architecture”, “deploy”) are **not** approval to flip Coolify or to write `DESIGN: APPROVE`.
+
+Sibling leftover [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) ([ADR 0008](./0008-post-merge-leftover-1287-1298.md) / **Q21**) is Coolify **migrate/rebuild** after PRs 1287–1298 plus columbus-5 pair wasm — ordinary leftover, **not** this checkbox and **not** `EXPECT_SHA`. Do **not** treat `origin/cac-design-issue-1276` or `origin/cac-design-issue-1277` as the #1300 stack. Numeric overflow on volume_aggregator ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277)) remains out of this health/SHA ticket; its Coolify migrate is #1300.

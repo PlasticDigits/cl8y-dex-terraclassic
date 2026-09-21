@@ -166,3 +166,4 @@ Negative: a memo that only says “gas is high on Classic” fails. Reopening #6
 - [`skills/AGENTS_FRONTEND_STATION_SIGNING.md`](../../skills/AGENTS_FRONTEND_STATION_SIGNING.md) (**G-AUTO-8**)
 - [`skills/AGENTS_EXTENSION_FEE_GUARD.md`](../../skills/AGENTS_EXTENSION_FEE_GUARD.md) (SEC-E08 / #429)
 - Verify: `make verify-issue-1222` · QA [`docs/qa/issue-1222/README.md`](../qa/issue-1222/README.md)
+- USTC wrap+2hop execute leftover: [#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) code is on `main` (PR 1293); columbus-5 AC1 `gas_used` still **unmeasured** — keep **2,710,000**; **G1264-4** needs no follow-up after wrap-enter. Stack leftover: [ADR 0008](./0008-post-merge-leftover-1287-1298.md) / [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300). Do **not** close #1264 from that leftover.

@@ -388,6 +388,25 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 | **L1279-7** | Leftover-complete is ops-bot QA 1.5. `VERIFY1279_IID=1279` / `LEFTOVER_COMPLETE=1` FAIL. Do not paste `/status` JSON or tokens on the issue. |
 | **L1279-8** | Playbook + this Q20 + WC-M / L658 skills stay crosslinked. |
 
+## Post-merge PRs 1287–1298 leftover verify (invariant Q21) {#post-merge-ops-1300}
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q21** Post-merge PRs 1287–1298 leftover live is checked (Coolify `20260921120000` then `20260921120001`, columbus-5 pair 1.17.0, LocalTerra/manual, #1264 stay-open, #1279 ops-bot) | **`make verify-issue-1300`** → children **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263** plus leftover probes (**M1300-1–M1300-8**) | Non-zero exit; fix the failing child or Coolify/columbus-5 leftover; do not treat green child docs-only as leftover live; do not close #1264; do not treat green #1279 make as leftover-complete |
+
+**M1300** (Forgejo **#1300** — [`skills/AGENTS_POST_MERGE_OPS_1300.md`](../skills/AGENTS_POST_MERGE_OPS_1300.md); design [`docs/adr/0008-post-merge-leftover-1287-1298.md`](./adr/0008-post-merge-leftover-1287-1298.md)):
+
+| ID | Rule |
+|----|------|
+| **M1300-1** | `make verify-issue-1300` runs children **1287, 1234, 1265, 1240, 1279, 1277, 1264, 1285, 1255, 1219, 1218, 1263**. Unit/docs FAILs fail the stack. Live leftover SKIP unless hosts answer (FAIL when `VERIFY1300_REQUIRE_LIVE=1` or `VERIFY1300_IID=1300`). Do not copy #1276 `EXPECT_SHA` leftover-complete. |
+| **M1300-2** | Coolify Postgres has `20260921120000_traders_rolling_volume_numeric_38_0` then `20260921120001_pair_volume_30d`, then indexer redeploy. Confirm `_sqlx_migrations`. `/protocol` Top pairs ≤5 economic rows after one rollup tick. |
+| **M1300-3** | Coolify frontend rebuild from `6d34da13+`. Manual: #1218 wrap-then-cUSTC Route; #1255 18-dec unlisted CW20; #1219 dust ladder no popup; #1263 ≤5 rows. |
+| **M1300-4** | columbus-5 pair cw2 **1.17.0** (F6 + L24). Agents do not store wasm. `verify-issue-1234` must not claim `verify-issue-582` unless it runs it. |
+| **M1300-5** | Do not close #1264; envelope **2,710,000**; AC1 unmeasured; G1264-4 no code. #1279 leftover-complete is ops-bot 1.5. #1240 hub rewrite already on main. |
+| **M1300-6** | Do not reopen closed parents. Do not wait on GitLab CI. Do not merge PR #1302. Do not touch `cac-design-issue-1276` / `1277`. Do not flip Coolify auto-deploy. |
+| **M1300-7** | Optional leftover Playwright at **5 workers** (`:3173`). Do not leak a different `PLAYWRIGHT_WEB_PORT`. `e2e-tx` stays 1 worker. |
+| **M1300-8** | Playbook + this Q21 + ADR 0008 + child skills stay crosslinked. GitLab CI quota is not a substitute for local verify. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -413,3 +432,4 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 - [`skills/AGENTS_POST_MERGE_OPS_701.md`](../skills/AGENTS_POST_MERGE_OPS_701.md) — post-merge !477 leftover verify ([#701](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/701), **Q18**)
 - [`skills/AGENTS_POST_MERGE_OPS_702.md`](../skills/AGENTS_POST_MERGE_OPS_702.md) — post-merge !476 leftover verify ([#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702), **Q19**)
 - [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279), **Q20**)
+- [`skills/AGENTS_POST_MERGE_OPS_1300.md`](../skills/AGENTS_POST_MERGE_OPS_1300.md) — post-merge PRs 1287–1298 leftover verify ([#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300), **Q21**); [ADR 0008](./adr/0008-post-merge-leftover-1287-1298.md)
