@@ -18,6 +18,7 @@ The frozen **production review bundle** (executive summary, security review, rel
 - [Public security posture](./security-posture.md) — launch expectations, audit disclaimer, TVL-scaled controls (dApp footer link, SEC-A01)
 - [Contracts Security Audit & Invariants](./contracts-security-audit.md) — invariant matrix, attack paths, test mapping
 - [Indexer Invariants & API Security](./indexer-invariants.md) — HTTP/indexing invariants, caps, caches, test mapping
+- [Indexer HTTP pack](./indexer-http.md) — OpenAPI path table and curls for swaps, pools, fees, burns, and volume windows ([#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)); skill [`AGENTS_INDEXER_HTTP_PACK.md`](../skills/AGENTS_INDEXER_HTTP_PACK.md); `make verify-issue-1204`
 - [Route solver guide](./route-solver.md) — global best-execution pipeline, glossary, `optimality_scope`, optimization theory ([GitLab #310](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/310)); remaining retail failures [ADR 0007](./adr/0007-route-solve-remaining-failures.md) ([#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265))
 
 ## Smart Contracts
