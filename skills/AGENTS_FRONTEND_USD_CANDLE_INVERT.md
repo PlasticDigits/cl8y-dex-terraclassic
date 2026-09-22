@@ -14,7 +14,9 @@ After #524, **Last** used `invertUsd(price_usd, human)` (USD of the displayed ba
 
 - **Do** invert USD candles with `invertUsd` / `invertUsdNumber` per bar: `display_usd = factory_usd / human_quote_per_base`.
 - **Do** give the client both series: factory USD in `open/high/low/close`, human quote-per-base in `*_human`.
-- **Do** drop bars with missing / `≤ 0` / non-finite USD (no human-on-USD-axis fallback).
+- **Do** drop bars with missing / `≤ 0` / non-finite USD from a **Price (USD)** series (no human-on-USD-axis fallback).
+- **Do** plot neither-catalog `*_human` only under **Price ({quote} per {base})** ([#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315) / [ADR 0012](../docs/adr/0012-alpha-pair-price-candles.md)). A catalog pair with no positive USD stays on the empty state (**C543-9**).
+- **Do** keep Trade `inverted` for the ticket and labels when `usd_leg=asset_1`. Plot `subject_*` when the displayed token is `asset_1`. Plot `subject × H` for `asset_0` (stored high with human low, stored low with human high, then high ≥ low). Do not pass that series to `applyChartDisplayInvert`. On `/charts`, with no `?price=` and no Charts session flag, default **both** the pane and the pill to `asset_1`. `defaultChartsDisplayInverted()` stays false for every other pair.
 - **Do** set adaptive `priceFormat` via series `applyOptions` (do not recreate the chart — #148).
 - **Do** run SMA/RSI on the **display USD** series after invert. Volume stays quote/base volume, **human-scaled by pair-leg decimals** ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)).
 - **Don’t** call `invertOhlc` / `1/x` on a USD-of-`asset_0` series. `invertOhlc` is **human** book/limit only.

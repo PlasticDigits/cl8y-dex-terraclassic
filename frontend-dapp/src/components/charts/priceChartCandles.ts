@@ -1,5 +1,6 @@
 import type { HistogramData, Time } from 'lightweight-charts'
 import type { IndexerCandle } from '@/types'
+import { isIndexerCatalogLeg } from '@/utils/pairPriceUsd'
 import { invertUsdNumber } from '@/utils/tradePairDisplayOrientation'
 import { fromRawAmount, isPairLegDecimals } from '@/utils/formatAmount'
 
@@ -138,6 +139,127 @@ export function applyChartDisplayInvert(points: FactoryCandlePoint[], inverted: 
   return out
 }
 
+export type PricePaneKind = 'usd' | 'human' | 'subject'
+
+export interface ChartLegRef {
+  symbol?: string | null
+  denom?: string | null
+  contract_addr?: string | null
+  contractAddr?: string | null
+}
+
+export interface PricePanePlot {
+  points: ChartCandlePoint[]
+  kind: PricePaneKind
+}
+
+function positiveOhlc(
+  time: Time,
+  openRaw: string | null | undefined,
+  highRaw: string | null | undefined,
+  lowRaw: string | null | undefined,
+  closeRaw: string | null | undefined
+): ChartCandlePoint | null {
+  const open = parseChartFinitePositive(openRaw)
+  const high = parseChartFinitePositive(highRaw)
+  const low = parseChartFinitePositive(lowRaw)
+  const close = parseChartFinitePositive(closeRaw)
+  if (open == null || high == null || low == null || close == null) return null
+  return { time, open, high, low, close }
+}
+
+function mulPositive(a: number, b: number): number | null {
+  const n = a * b
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n
+}
+
+/**
+ * USD of `asset_0` from a stored USD-of-`asset_1` bar: open×open_human, close×close_human,
+ * stored high×human low, stored low×human high, then high = max and low = min (#1315).
+ */
+export function subjectUsdTimesHuman(stored: ChartCandlePoint, human: ChartCandlePoint): ChartCandlePoint | null {
+  const open = mulPositive(stored.open, human.open)
+  const close = mulPositive(stored.close, human.close)
+  const highRaw = mulPositive(stored.high, human.low)
+  const lowRaw = mulPositive(stored.low, human.high)
+  if (open == null || close == null || highRaw == null || lowRaw == null) return null
+  return {
+    time: stored.time,
+    open,
+    close,
+    high: Math.max(highRaw, lowRaw),
+    low: Math.min(highRaw, lowRaw),
+  }
+}
+
+function neitherCatalogPair(asset0?: ChartLegRef | null, asset1?: ChartLegRef | null): boolean {
+  if (asset0 == null || asset1 == null) return false
+  return !isIndexerCatalogLeg(asset0) && !isIndexerCatalogLeg(asset1)
+}
+
+/**
+ * Price-pane bars (#1315).
+ *
+ * Neither-catalog pairs plot human quote-per-base and do not run `invertUsd`.
+ * `usd_leg=asset_1` plots `subject_*` when the displayed token is `asset_1`, and
+ * `subject × human` (crossed wicks) when the displayed token is `asset_0`. That series
+ * does not go through `applyChartDisplayInvert`. Other catalog bars stay factory USD of
+ * `asset_0` (empty when only `*_human` is present).
+ */
+export function plotPricePaneCandles(
+  data: IndexerCandle[] | undefined,
+  displayInverted: boolean,
+  asset0?: ChartLegRef | null,
+  asset1?: ChartLegRef | null
+): PricePanePlot {
+  if (!data?.length) return { points: [], kind: neitherCatalogPair(asset0, asset1) ? 'human' : 'usd' }
+  const rows = [...data].sort((a, b) => new Date(a.open_time).getTime() - new Date(b.open_time).getTime())
+  if (neitherCatalogPair(asset0, asset1)) {
+    const points: ChartCandlePoint[] = []
+    for (const c of rows) {
+      const timeSec = candleOpenTimeSeconds(c.open_time)
+      if (timeSec == null) continue
+      const human = parseHumanOhlc(c, timeSec as Time)
+      if (human) points.push(human)
+    }
+    return { points, kind: 'human' }
+  }
+
+  const points: ChartCandlePoint[] = []
+  let sawSubject = false
+  for (const c of rows) {
+    const timeSec = candleOpenTimeSeconds(c.open_time)
+    if (timeSec == null) continue
+    const time = timeSec as Time
+    if (c.usd_leg === 'asset_1') {
+      const stored = positiveOhlc(time, c.subject_open, c.subject_high, c.subject_low, c.subject_close)
+      if (!stored) continue
+      if (displayInverted) {
+        points.push(stored)
+        sawSubject = true
+        continue
+      }
+      const human = parseHumanOhlc(c, time)
+      if (!human) continue
+      const crossed = subjectUsdTimesHuman(stored, human)
+      if (!crossed) continue
+      points.push(crossed)
+      sawSubject = true
+      continue
+    }
+    if (!isValidUsdIndexerCandle(c)) continue
+    const factory: FactoryCandlePoint = {
+      time,
+      usd: toUsdChartCandlePoint(c),
+      human: parseHumanOhlc(c, time),
+    }
+    const plotted = applyChartDisplayInvert([factory], displayInverted)
+    if (plotted[0]) points.push(plotted[0])
+  }
+  return { points, kind: sawSubject ? 'subject' : 'usd' }
+}
+
 /**
  * Quote-side volume per candle, colored by bar direction (same times as factory USD series).
  * Uses **quote** volume when non-zero; otherwise **base** volume so local / thin markets still show bars.
@@ -204,6 +326,50 @@ export function indexerCandlesToVolumeHistogramPoints(
       time: candleOpenTimeSeconds(c.open_time)! as Time,
       value,
       color: close >= open ? upColor : downColor,
+    })
+  }
+  return out
+}
+
+function candleVolumeValue(c: IndexerCandle, scale?: CandleVolumeScale): number | null {
+  if (scale) {
+    const quoteRaw = c.volume_quote
+    const quoteIsZero = quoteRaw == null || quoteRaw === '' || quoteRaw === '0'
+    if (!quoteIsZero) return scaleRawCandleVolume(quoteRaw, scale.quoteDecimals)
+    return scaleRawCandleVolume(c.volume_base, scale.baseDecimals)
+  }
+  const vq = Math.max(0, parseChartFiniteNumber(c.volume_quote) ?? 0)
+  const vb = Math.max(0, parseChartFiniteNumber(c.volume_base) ?? 0)
+  const value = vq > 0 ? vq : vb
+  return Number.isFinite(value) ? value : null
+}
+
+/** Volume bars for a plotted human or subject series, colored by the plotted open/close. */
+export function volumeHistogramForPlottedPoints(
+  data: IndexerCandle[] | undefined,
+  points: ChartCandlePoint[],
+  upColor: string,
+  downColor: string,
+  scale?: CandleVolumeScale
+): HistogramData<Time>[] {
+  if (!data?.length || points.length === 0) return []
+  const byTime = new Map<number, IndexerCandle>()
+  for (const c of data) {
+    const t = candleOpenTimeSeconds(c.open_time)
+    if (t != null) byTime.set(t, c)
+  }
+  const out: HistogramData<Time>[] = []
+  for (const point of points) {
+    const t = typeof point.time === 'number' ? point.time : null
+    if (t == null) continue
+    const candle = byTime.get(t)
+    if (!candle) continue
+    const value = candleVolumeValue(candle, scale)
+    if (value == null || !Number.isFinite(value)) continue
+    out.push({
+      time: point.time,
+      value,
+      color: point.close >= point.open ? upColor : downColor,
     })
   }
   return out

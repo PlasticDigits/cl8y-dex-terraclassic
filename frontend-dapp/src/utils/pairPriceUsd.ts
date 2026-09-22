@@ -15,6 +15,38 @@ export function isPinnedUsdtCw20(contract?: string | null): boolean {
   return addr.length > 0 && addr.toLowerCase() === REGISTRY_USDT_CW20_ADDRESS.toLowerCase()
 }
 
+/**
+ * Catalog leg for the price pane (#1315). Matches indexer `quote_usd_kind_for_identity`:
+ * native `uusd` / `uluna`, pinned USDT, or a CW20 (contract present) whose symbol is
+ * UST1 / USTC / cUSTC / LUNC / cLUNC / USTR. A native that only spoofs `USTR` is not catalog.
+ */
+export function isIndexerCatalogLeg(
+  leg: {
+    symbol?: string | null
+    denom?: string | null
+    contract_addr?: string | null
+    contractAddr?: string | null
+  } | null | undefined
+): boolean {
+  if (!leg) return false
+  const denom = (leg.denom ?? '').trim()
+  if (denom === 'uusd' || denom === 'uluna') return true
+  const contract = (leg.contract_addr ?? leg.contractAddr ?? '').trim()
+  if (isPinnedUsdtCw20(contract)) return true
+  if (!contract) return false
+  switch ((leg.symbol ?? '').trim().toUpperCase()) {
+    case 'UST1':
+    case 'USTC':
+    case 'CUSTC':
+    case 'LUNC':
+    case 'CLUNC':
+    case 'USTR':
+      return true
+    default:
+      return false
+  }
+}
+
 export function classifyQuoteSymbol(symbol: string, denom?: string | null, contract?: string | null): QuoteUsdKind {
   if (isPinnedUsdtCw20(contract)) return 'usdt'
   if (denom === 'uusd') return 'ustc'

@@ -21,6 +21,10 @@ fn bd(s: &str) -> BigDecimal {
     BigDecimal::from_str(s).unwrap()
 }
 
+fn usd_ref(v: &Option<BigDecimal>) -> &BigDecimal {
+    v.as_ref().expect("usd ohlc")
+}
+
 fn f64_bd(v: &BigDecimal) -> f64 {
     use bigdecimal::ToPrimitive;
     v.to_f64().unwrap()
@@ -166,15 +170,17 @@ async fn hub_refresh_does_not_rewrite_historical_usd() {
     .await;
 
     let open_time = candle_builder::truncate_to_interval(past, "1h");
+    let mut conn = pool.acquire().await.expect("conn");
     candles::upsert_candle(
-        &pool,
+        &mut conn,
         trio.ust1_custc_pair,
         "1h",
         open_time,
-        &stamped,
-        &stamped,
-        &stamped,
-        &stamped,
+        Some(&stamped),
+        Some(&stamped),
+        Some(&stamped),
+        Some(&stamped),
+        None,
         Some(&human),
         Some(&human),
         Some(&human),
@@ -212,9 +218,9 @@ async fn hub_refresh_does_not_rewrite_historical_usd() {
     .unwrap();
     assert_eq!(rows.len(), 1);
     assert!(
-        (f64_bd(&rows[0].close) - 1.0).abs() < 1e-9,
+        (f64_bd(usd_ref(&rows[0].close)) - 1.0).abs() < 1e-9,
         "historical candle USD rewritten to {}",
-        rows[0].close
+        usd_ref(&rows[0].close)
     );
     assert_eq!(rows[0].trade_count, 1);
 }
@@ -305,8 +311,8 @@ async fn idle_ustc_tick_writes_mark_bars() {
     assert_eq!(c0.volume_quote, bd("0"));
     let human = c0.close_human.as_ref().unwrap();
     assert!((f64_bd(human) - 200.0).abs() < 1e-6, "human {human}");
-    assert!((f64_bd(&c0.close) - 1.0).abs() < 1e-6, "usd {}", c0.close);
-    assert!((invert(&c0.close, human) - 0.005).abs() < 1e-9);
+    assert!((f64_bd(usd_ref(&c0.close)) - 1.0).abs() < 1e-6, "usd {}", usd_ref(&c0.close));
+    assert!((invert(usd_ref(&c0.close), human) - 0.005).abs() < 1e-9);
 
     candle_mark::apply_idle_usd_marks(&pool, &hub_cfg(), now, Some(&bd("0.0045")), None, &hub)
         .await
@@ -325,10 +331,10 @@ async fn idle_ustc_tick_writes_mark_bars() {
     let c1 = &rows[0];
     assert_eq!(c1.trade_count, 0);
     let human = c1.close_human.as_ref().unwrap();
-    assert!((f64_bd(&c1.close) - 0.9).abs() < 1e-6, "usd {}", c1.close);
-    assert!((invert(&c1.close, human) - 0.0045).abs() < 1e-9);
-    assert!(c1.open <= c1.close || c1.high >= c1.low);
-    assert!(c1.high >= c1.low);
+    assert!((f64_bd(usd_ref(&c1.close)) - 0.9).abs() < 1e-6, "usd {}", usd_ref(&c1.close));
+    assert!((invert(usd_ref(&c1.close), human) - 0.0045).abs() < 1e-9);
+    assert!(usd_ref(&c1.open) <= usd_ref(&c1.close) || usd_ref(&c1.high) >= usd_ref(&c1.low));
+    assert!(usd_ref(&c1.high) >= usd_ref(&c1.low));
 }
 
 #[serial]
@@ -366,7 +372,7 @@ async fn idle_ustr_and_lunc_marks() {
     assert_eq!(ustr_rows.len(), 1);
     assert_eq!(ustr_rows[0].trade_count, 0);
     let ustr_human = ustr_rows[0].close_human.as_ref().unwrap();
-    let ustr_inv = invert(&ustr_rows[0].close, ustr_human);
+    let ustr_inv = invert(usd_ref(&ustr_rows[0].close), ustr_human);
     assert!(ustr_inv > 0.0);
 
     let lunc_rows = candles::get_candles(
@@ -381,9 +387,9 @@ async fn idle_ustr_and_lunc_marks() {
     .unwrap();
     assert_eq!(lunc_rows.len(), 1);
     let lh = lunc_rows[0].close_human.as_ref().unwrap();
-    assert!((invert(&lunc_rows[0].close, lh) - 0.00005).abs() < 1e-12);
+    assert!((invert(usd_ref(&lunc_rows[0].close), lh) - 0.00005).abs() < 1e-12);
 
-    let before = lunc_rows[0].close.clone();
+    let before = usd_ref(&lunc_rows[0].close).clone();
     candle_mark::apply_idle_usd_marks(
         &pool,
         &hub_cfg(),
@@ -409,7 +415,7 @@ async fn idle_ustr_and_lunc_marks() {
     .await
     .unwrap();
     assert!(
-        (f64_bd(&lunc_after[0].close) - f64_bd(&before)).abs() < 1e-12,
+        (f64_bd(usd_ref(&lunc_after[0].close)) - f64_bd(&before)).abs() < 1e-12,
         "USTC tick must not reprice a LUNC quote"
     );
 }
@@ -425,7 +431,10 @@ async fn swap_bar_keeps_trade_count_when_marked() {
         &pool,
         trio.ust1_custc_pair,
         now,
-        Some(&bd("1.0")),
+        &cl8y_dex_indexer::indexer::pair_price_usd::CandleUsdSubject::Usd {
+            leg: cl8y_dex_indexer::indexer::pair_price_usd::CandleUsdLeg::Asset0,
+            usd: bd("1.0"),
+        },
         &human,
         &bd("1000"),
         &bd("200000"),
@@ -463,7 +472,7 @@ async fn swap_bar_keeps_trade_count_when_marked() {
     assert!(rows[0].volume_base > bd("0"));
     let h = rows[0].close_human.as_ref().unwrap();
     assert!((f64_bd(h) - 200.0).abs() < 1e-9);
-    assert!((f64_bd(&rows[0].close) - 0.8).abs() < 1e-6);
+    assert!((f64_bd(usd_ref(&rows[0].close)) - 0.8).abs() < 1e-6);
 }
 
 #[serial]
@@ -646,15 +655,17 @@ async fn repair_restores_as_of_ustc_oracle() {
         Some(&bd("0.8")),
     )
     .await;
+    let mut conn = pool.acquire().await.expect("conn");
     candles::upsert_candle(
-        &pool,
+        &mut conn,
         trio.ust1_custc_pair,
         "1h",
         open_time,
-        &bd("0.8"),
-        &bd("0.8"),
-        &bd("0.8"),
-        &bd("0.8"),
+        Some(&bd("0.8")),
+        Some(&bd("0.8")),
+        Some(&bd("0.8")),
+        Some(&bd("0.8")),
+        None,
         Some(&human),
         Some(&human),
         Some(&human),
@@ -687,7 +698,7 @@ async fn repair_restores_as_of_ustc_oracle() {
     .await
     .unwrap();
     assert_eq!(rows.len(), 1, "expected repaired 1h candle");
-    assert!((f64_bd(&rows[0].close) - 1.0).abs() < 1e-9);
+    assert!((f64_bd(usd_ref(&rows[0].close)) - 1.0).abs() < 1e-9);
     assert_eq!(rows[0].trade_count, 1);
 }
 
@@ -746,8 +757,8 @@ async fn clunc_ust1_factory_usd_still_tracks_human() {
     .unwrap();
     assert_eq!(rows.len(), 1);
     let h = rows[0].close_human.as_ref().unwrap();
-    assert!(f64_bd(&rows[0].close) > 0.0);
-    let implied_ust1 = invert(&rows[0].close, h);
+    assert!(f64_bd(usd_ref(&rows[0].close)) > 0.0);
+    let implied_ust1 = invert(usd_ref(&rows[0].close), h);
     assert!(
         implied_ust1 > 0.5 && implied_ust1 < 1.5,
         "implied UST1 USD {implied_ust1}"

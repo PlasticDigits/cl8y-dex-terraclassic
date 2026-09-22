@@ -1,7 +1,7 @@
 import { useState, useDeferredValue, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
+import { getCandles, getPairs, getPair, getPairStats, getTrades, getOraclePrice } from '@/services/indexer/client'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { PairCodeIdFrozenBanner } from '@/components/common/PairCodeIdFrozenBanner'
 import { usePairCodeIdFreeze } from '@/hooks/usePairCodeIdFreeze'
@@ -30,6 +30,7 @@ import {
 } from '@/utils/trailingWindowCopy'
 import { resolveDisplayPairStatsUsdOhlc, resolveDisplayTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { useChartsPairDisplayOrientation } from '@/hooks/usePairDisplayOrientation'
+import { chartsUsdLegFromCandles } from '@/utils/tradePairDisplayOrientation'
 import { indexerPairMenuLabel, indexerPairsToMenuSelectOptions } from '@/utils/pairMenuOptions'
 import {
   filterRetailDiscoveryIndexerPairs,
@@ -293,6 +294,14 @@ export default function ChartsPage() {
     [priceParam, activePair]
   )
 
+  const candleLegQuery = useQuery({
+    queryKey: ['candles', activePairAddr, '1h'],
+    queryFn: () => getCandles(activePairAddr, '1h'),
+    enabled: pairQueriesEnabled,
+    staleTime: 30_000,
+  })
+  const chartsUsdLeg = candleLegQuery.isFetched ? chartsUsdLegFromCandles(candleLegQuery.data) : undefined
+
   const pairOrientation = useChartsPairDisplayOrientation({
     pairAddr: activePairAddr,
     asset0: activePair?.asset_0,
@@ -300,15 +309,24 @@ export default function ChartsPage() {
     token0Symbol: activePair?.asset_0.symbol ?? 'Base',
     token1Symbol: activePair?.asset_1.symbol ?? 'Quote',
     priceMatch: chartsPriceMatch,
+    usdLeg: chartsUsdLeg,
     onPriceTokenChange: replacePriceToken,
   })
 
   useEffect(() => {
     if (!activePairAddr || !activePair) return
     if (chartsPriceMatch) return
+    if (!candleLegQuery.isFetched) return
     if (!isSafeChartsPriceToken(pairOrientation.pricedToken)) return
     replacePriceToken(pairOrientation.pricedToken)
-  }, [activePairAddr, activePair, chartsPriceMatch, pairOrientation.pricedToken, replacePriceToken])
+  }, [
+    activePairAddr,
+    activePair,
+    chartsPriceMatch,
+    candleLegQuery.isFetched,
+    pairOrientation.pricedToken,
+    replacePriceToken,
+  ])
 
   const tapeLastPriceUsd = useMemo(
     () =>
@@ -646,6 +664,8 @@ export default function ChartsPage() {
             displayBaseSymbol={pairOrientation.displayBase}
             volumeBaseDecimals={activePair?.asset_0.decimals}
             volumeQuoteDecimals={activePair?.asset_1.decimals}
+            chartAsset0={activePair?.asset_0}
+            chartAsset1={activePair?.asset_1}
           />
         </div>
       )}

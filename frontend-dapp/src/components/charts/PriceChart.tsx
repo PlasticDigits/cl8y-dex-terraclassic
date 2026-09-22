@@ -6,12 +6,13 @@ import { sounds } from '@/lib/sounds'
 import { PriceChartEmptyState } from './PriceChartEmptyState'
 import { PriceChartLightweightCanvas } from './PriceChartLightweightCanvas'
 import {
-  applyChartDisplayInvert,
-  indexerCandlesToFactoryPoints,
   indexerCandlesToVolumeHistogramPoints,
+  plotPricePaneCandles,
+  volumeHistogramForPlottedPoints,
   type CandleVolumeScale,
+  type ChartLegRef,
 } from './priceChartCandles'
-import { isPairLegDecimals } from '@/utils/formatAmount'
+import { formatNum, isPairLegDecimals } from '@/utils/formatAmount'
 import { PairDisplayInvertPill } from '@/components/trade/PairDisplayInvertControls'
 import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 import { chartPointsToRsiLine, chartPointsToSmaLine } from './priceChartIndicators'
@@ -37,6 +38,9 @@ interface PriceChartProps {
   /** Pair-leg decimals for human candle volume (GitLab #564). */
   volumeBaseDecimals?: number
   volumeQuoteDecimals?: number
+  /** Factory legs. When both are set, neither-catalog pairs plot human OHLC (#1315). */
+  chartAsset0?: ChartLegRef | null
+  chartAsset1?: ChartLegRef | null
 }
 
 export default function PriceChart({
@@ -50,6 +54,8 @@ export default function PriceChart({
   displayBaseSymbol,
   volumeBaseDecimals,
   volumeQuoteDecimals,
+  chartAsset0,
+  chartAsset1,
 }: PriceChartProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const chartHeadingId = useId()
@@ -91,15 +97,25 @@ export default function PriceChart({
       keepPreviousCandlesForIntervalSwitch(pairAddress, previousData, previousQuery),
   })
 
-  const chartPoints = useMemo(
-    () => applyChartDisplayInvert(indexerCandlesToFactoryPoints(candlesQuery.data), displayInverted),
-    [candlesQuery.data, displayInverted]
+  const plotted = useMemo(
+    () => plotPricePaneCandles(candlesQuery.data, displayInverted, chartAsset0, chartAsset1),
+    [candlesQuery.data, displayInverted, chartAsset0, chartAsset1]
   )
+  const chartPoints = plotted.points
+  const humanPane = plotted.kind === 'human'
 
-  const headlineUsd = useMemo(
-    () => resolveTradeChartHeadlineUsd(tapeLastPriceUsd, chartPoints),
-    [tapeLastPriceUsd, chartPoints]
-  )
+  const headlineUsd = useMemo(() => {
+    if (humanPane) return null
+    if (plotted.kind === 'subject') return resolveTradeChartHeadlineUsd(tapeLastPriceUsd, [])
+    return resolveTradeChartHeadlineUsd(tapeLastPriceUsd, chartPoints)
+  }, [humanPane, plotted.kind, tapeLastPriceUsd, chartPoints])
+
+  const humanLast = useMemo(() => {
+    if (!humanPane || chartPoints.length === 0) return null
+    return formatNum(chartPoints[chartPoints.length - 1].close, 6)
+  }, [humanPane, chartPoints])
+
+  const quotePerBaseLabel = `${chartAsset1?.symbol?.trim() || 'Quote'} per ${chartAsset0?.symbol?.trim() || 'Base'}`
 
   const volumeScale = useMemo((): CandleVolumeScale | undefined => {
     if (!isPairLegDecimals(volumeBaseDecimals) || !isPairLegDecimals(volumeQuoteDecimals)) return undefined
@@ -108,14 +124,21 @@ export default function PriceChart({
 
   const volumePoints = useMemo(() => {
     if (!volumeScale) return []
-    if (typeof document === 'undefined') {
-      return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, '#22c55e', '#ef4444', volumeScale)
+    const upFallback = '#22c55e'
+    const downFallback = '#ef4444'
+    const up =
+      typeof document === 'undefined'
+        ? upFallback
+        : getComputedStyle(document.documentElement).getPropertyValue('--color-positive').trim() || upFallback
+    const down =
+      typeof document === 'undefined'
+        ? downFallback
+        : getComputedStyle(document.documentElement).getPropertyValue('--color-negative').trim() || downFallback
+    if (plotted.kind === 'usd') {
+      return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, up, down, volumeScale)
     }
-    const root = document.documentElement
-    const up = getComputedStyle(root).getPropertyValue('--color-positive').trim() || '#22c55e'
-    const down = getComputedStyle(root).getPropertyValue('--color-negative').trim() || '#ef4444'
-    return indexerCandlesToVolumeHistogramPoints(candlesQuery.data, up, down, volumeScale)
-  }, [candlesQuery.data, volumeScale])
+    return volumeHistogramForPlottedPoints(candlesQuery.data, chartPoints, up, down, volumeScale)
+  }, [candlesQuery.data, volumeScale, plotted.kind, chartPoints])
 
   const sma7Points = useMemo(() => chartPointsToSmaLine(chartPoints, 7), [chartPoints])
   const sma25Points = useMemo(() => chartPointsToSmaLine(chartPoints, 25), [chartPoints])
@@ -151,11 +174,16 @@ export default function PriceChart({
       return `Price chart empty. No candles for interval ${interval}.`
     }
     const tokenPart = displayBaseSymbol ? ` for 1 ${displayBaseSymbol}` : ''
+    const pricePart = humanPane
+      ? humanLast != null
+        ? ` Last price ${humanLast} ${quotePerBaseLabel}.`
+        : ' Last price unavailable.'
+      : headlineUsd != null
+        ? ` Last price ${headlineUsd} USD${tokenPart}.`
+        : ' Last price unavailable.'
     if (intervalRefetching) {
-      const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD${tokenPart}.` : ''
-      return `Price chart updating to interval ${interval}.${pricePart}`
+      return `Price chart updating to interval ${interval}.${humanPane || headlineUsd != null ? pricePart : ''}`
     }
-    const pricePart = headlineUsd != null ? ` Last price ${headlineUsd} USD${tokenPart}.` : ' Last price unavailable.'
     const candlePart = chartPoints.length > 0 ? ` ${chartPoints.length} candles on chart.` : ''
     return `Price chart. Interval ${interval}.${pricePart}${candlePart}`
   }, [
@@ -166,6 +194,9 @@ export default function PriceChart({
     intervalRefetching,
     interval,
     headlineUsd,
+    humanLast,
+    humanPane,
+    quotePerBaseLabel,
     chartPoints.length,
     displayBaseSymbol,
   ])
@@ -190,14 +221,31 @@ export default function PriceChart({
                 className="text-sm font-semibold uppercase tracking-wide font-heading"
                 style={{ color: 'var(--ink)' }}
               >
-                Price (USD)
+                {humanPane ? `Price (${quotePerBaseLabel})` : 'Price (USD)'}
               </h3>
-              {onToggleDisplayInvert && pairPillLabel && (
+              {!humanPane && onToggleDisplayInvert && pairPillLabel && (
                 <PairDisplayInvertPill
                   label={pairPillLabel}
                   ariaLabel={invertAriaLabel ?? `Show inverted ${pairPillLabel} pricing`}
                   onToggle={onToggleDisplayInvert}
                 />
+              )}
+              {humanLast != null && (
+                <div
+                  className="flex items-baseline gap-2"
+                  data-testid="trade-chart-headline-price"
+                  title={`Last close (${quotePerBaseLabel}).`}
+                >
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wide"
+                    style={{ color: 'var(--ink-dim)' }}
+                  >
+                    Last
+                  </span>
+                  <span className="text-lg font-semibold tabular-nums font-heading" style={{ color: 'var(--ink)' }}>
+                    {humanLast}
+                  </span>
+                </div>
               )}
               {headlineUsd != null && (
                 <div

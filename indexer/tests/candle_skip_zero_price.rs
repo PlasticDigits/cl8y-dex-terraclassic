@@ -3,6 +3,7 @@ mod common;
 use bigdecimal::BigDecimal;
 use chrono::Utc;
 use cl8y_dex_indexer::indexer::candle_builder;
+use cl8y_dex_indexer::indexer::pair_price_usd::{CandleUsdLeg, CandleUsdSubject};
 use serial_test::serial;
 
 #[serial]
@@ -22,7 +23,10 @@ async fn candle_update_skipped_for_zero_price() {
         &pool,
         seed.pair_id,
         Utc::now(),
-        Some(&zero),
+        &CandleUsdSubject::Usd {
+            leg: CandleUsdLeg::Asset0,
+            usd: zero,
+        },
         &BigDecimal::from(1),
         &BigDecimal::from(1000),
         &BigDecimal::from(950),
@@ -55,7 +59,7 @@ async fn candle_update_skipped_when_price_usd_missing() {
         &pool,
         seed.pair_id,
         Utc::now(),
-        None,
+        &CandleUsdSubject::Skip,
         &BigDecimal::from(21260),
         &BigDecimal::from(1000),
         &BigDecimal::from(950),

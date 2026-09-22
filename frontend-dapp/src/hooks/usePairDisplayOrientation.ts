@@ -79,15 +79,17 @@ export function useChartsPairDisplayOrientation(args: {
   token0Symbol: string
   token1Symbol: string
   priceMatch: 'asset0' | 'asset1' | null
+  /** When `asset_1`, the pane and pill default to `asset_1` until `?price=` or a Charts session flag. */
+  usdLeg?: 'asset_0' | 'asset_1' | null
   onPriceTokenChange: (token: string) => void
 }): ChartsPairDisplayOrientation {
-  const { pairAddr, asset0, asset1, token0Symbol, token1Symbol, priceMatch, onPriceTokenChange } = args
+  const { pairAddr, asset0, asset1, token0Symbol, token1Symbol, priceMatch, usdLeg, onPriceTokenChange } = args
   const [tick, setTick] = useState(0)
 
   const inverted = useMemo(() => {
     void tick
-    return resolveChartsDisplayInverted(pairAddr, priceMatch)
-  }, [pairAddr, priceMatch, tick])
+    return resolveChartsDisplayInverted(pairAddr, priceMatch, usdLeg)
+  }, [pairAddr, priceMatch, usdLeg, tick])
 
   const toggleInverted = useCallback(() => {
     const next = !inverted
