@@ -422,6 +422,14 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 | **B1290-7** | Do not add `frontend-dapp/node_modules`, hook-test FAIL residue, `.gitignore` churn, or `AGENTS_POST_MERGE_OPS_1302.md` / `AGENTS_POST_MERGE_OPS_1306.md`. Do not edit `scripts/test-commit-msg-hook.sh`. Do not retarget **Q21** (#1308). Do not take ADR 0008 (closed #1300). |
 | **B1290-8** | Green skip-E2E ≠ leftover-complete. Leftover-complete is the **#1306** wiring MR. Production `/protocol` visual is [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 1 (related #1290 AC), not this ticket. No HTML scrape. Not [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297). |
 
+## Scroll layout invariants (invariant Q25) {#scroll-layout-1316}
+
+**Q23** / ADR **0010** and **Q24** / ADR **0011** are reserved by unpublished [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) and [#1311](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1311). This ticket is **Q25**.
+
+| Invariant | Check | On failure |
+| --------- | ----- | ---------- |
+| **Q25** Portaled pickers, the sticky shell, the trade-ticket CTA, and chart zoom stay correct while scrolling | **`make verify-issue-1316`** → portal + chart Vitest + Playwright `e2e/scroll-layout-invariants.spec.ts` at 5 workers, `PLAYWRIGHT_SKIP_CHAIN=1` (**S1316-1–S1316-8**, [ADR 0012](./adr/0012-scroll-layout-invariants.md)) | Non-zero exit; fix only the failing surface. `VERIFY_ISSUE_1316_SKIP_E2E=1` is not completion. Do not reopen #181, #336, #482, #500, #527, #632, or #705. |
+
 ## Related docs
 
 - [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — master executable Local/QA verification checklist (Q1 maps to **INF-00-02** / **LR-00-01**)
@@ -449,3 +457,4 @@ See [`skills/AGENTS_TERRACLASSIC_GAS.md`](../skills/AGENTS_TERRACLASSIC_GAS.md) 
 - [`skills/AGENTS_OPS_LUNCDASH_VERIFY.md`](../skills/AGENTS_OPS_LUNCDASH_VERIFY.md) — leftover Lunc Dash WalletConnect ops verify ([#1279](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1279), **Q20**)
 - [`skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](../skills/AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) — Lunc Dash WalletConnect payload query ([#1308](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1308), **Q21** / !1310)
 - [ADR 0009](./adr/0009-verify-issue-1290-hub-wrap-labels.md) — leftover `make verify-issue-1290` hub wrap vs CEX labels ([#1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1306), **Q22**); ADR **0008** unused (closed [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300))
+- [ADR 0012](./adr/0012-scroll-layout-invariants.md) — scroll layout invariants ([#1316](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1316), **Q25** / **S1316**)
