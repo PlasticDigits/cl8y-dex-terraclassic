@@ -13,10 +13,10 @@ Audience: agents adding ingest, new HTTP routes, or sharing protocol activity wi
 | ID | Rule |
 |----|------|
 | **E1205-1** | One UTC calendar day per request (`[00:00Z, +1d)`). No multi-day range. |
-| **E1205-2** | Surfaces: `swap` \| `wrap` \| `limit` \| `lp` only. L10: limit fills are **not** `surface=swap`. |
+| **E1205-2** | Surfaces: `swap` \| `wrap` \| `limit` \| `lp` only. A single `surface=swap`, comma `surface=swap,lp`, and repeated `surface=swap&surface=lp` all parse. L10: limit fills are **not** `surface=swap`. |
 | **E1205-3** | Redact user actors (`sender`, `maker`, `owner`, `provider`) → `actor_hash` (SHA-256, 32 hex). Wrap fee rows omit `actor_hash`. |
 | **E1205-4** | Wrap = `protocol_fee_events` `source` `wrap` \| `unwrap` only (fee amount, not principal). |
-| **E1205-5** | Postgres-only request path — not on `lcd_heavy_router`. Keyset pagination (`limit` 1–1000, default 500). |
+| **E1205-5** | Postgres-only request path — not on `lcd_heavy_router`. Keyset pagination (`limit` 1–1000, default 500). Cursor sort is `(block_height, tx_hash, surface, kind, ordinal, row_id)`. `row_id` is the source primary key (not in JSON) so two pair swaps in one tx that share `swap_index` are not dropped on the next page. Every UNION arm aliases the same columns — a `surface=` filter that omits swap must still decode. |
 | **E1205-6** | No `format=csv`, no `?redact=0`, no API keys. Pair/token contracts stay; gems included (not L639 listing-safe). |
 | **E1205-7** | Do not change `/gt/events`, trader tapes, or DeFiLlama daily aggregates for redaction. |
 | **E1205-8** | OpenAPI tag **Evidence**; skill + `docs/indexer-invariants.md` + `make verify-issue-1205`. |

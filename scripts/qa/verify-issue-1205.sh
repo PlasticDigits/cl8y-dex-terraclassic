@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Verification for Forgejo #1205 — redacted UTC-day evidence JSON export.
+# Requires Postgres (bootstraps indexer/.env when missing). A skipped cargo
+# run is a failure: static greps alone do not prove the UNION decode or pages.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -28,6 +30,12 @@ echo "════════════════════════�
 echo "  Forgejo #1205 — GET /api/v1/evidence/daily"
 echo "════════════════════════════════════════════════════════════════"
 
+if [ ! -f "$REPO_ROOT/indexer/.env" ]; then
+  echo ""
+  echo "[bootstrap] indexer/.env missing — running make setup-indexer-postgres…"
+  make setup-indexer-postgres
+fi
+
 export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
 
 run_step "evidence route in api router" \
@@ -45,13 +53,30 @@ run_step "skill AGENTS_INDEXER_EVIDENCE_DAILY.md" \
 run_step "invariants doc mentions evidence daily" \
   grep -q 'evidence/daily' docs/indexer-invariants.md
 
-if [ -f "$REPO_ROOT/indexer/.env" ] && command -v cargo >/dev/null; then
+run_step "AGENTS.md lists verify-issue-1205" \
+  grep -q 'verify-issue-1205' AGENTS.md
+
+run_step "evidence is not on lcd_heavy_router and SQL skips pair_reserves" \
+  bash -c '
+    ! grep -q "pair_reserves" indexer/src/db/queries/evidence_daily.rs && \
+    python3 - <<'"'"'PY'"'"'
+from pathlib import Path
+text = Path("indexer/src/api/mod.rs").read_text()
+start = text.find("let lcd_heavy_router = Router::new()")
+end = text.find("apply_rate_limit_layer(lcd_heavy_router")
+block = text[start:end]
+assert "/api/v1/evidence/daily" not in block, "evidence route is on lcd_heavy_router"
+api = text[text.find("let api_router = Router::new()"):text.find(".merge(lcd_heavy_router)")]
+assert "/api/v1/evidence/daily" in api, "evidence route missing from global api_router"
+print("router membership ok")
+PY
+  '
+
+if ! command -v cargo >/dev/null; then
+  bad "integration tests api_evidence_daily (cargo missing)"
+else
   run_step "integration tests api_evidence_daily" \
     bash -c 'cd indexer && cargo test --test api_evidence_daily -- --test-threads=1'
-else
-  echo ""
-  echo "[skip] indexer/.env or cargo missing — integration tests not run in this environment"
-  ok "integration tests api_evidence_daily (skipped)"
 fi
 
 echo ""

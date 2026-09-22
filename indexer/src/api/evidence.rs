@@ -5,15 +5,13 @@ use axum::http::StatusCode;
 use axum::Json;
 use base64::Engine;
 use chrono::{NaiveDate, TimeZone, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sha2::{Digest, Sha256};
 use utoipa::{IntoParams, ToSchema};
 
 use super::pairs::bd_plain_string;
 use super::{internal_err, AppState};
-use crate::db::queries::evidence_daily::{
-    EvidenceRawRow, EvidenceSortKey, EvidenceSurfaceSet,
-};
+use crate::db::queries::evidence_daily::{EvidenceRawRow, EvidenceSortKey, EvidenceSurfaceSet};
 
 const CURSOR_PREFIX: &str = "e1.";
 const DEFAULT_LIMIT: i64 = 500;
@@ -39,14 +37,48 @@ mod hex {
     }
 }
 
-#[derive(Debug, Deserialize, IntoParams, ToSchema)]
+#[derive(Debug, IntoParams, ToSchema)]
 pub struct EvidenceDailyQuery {
     pub day: Option<String>,
-    #[serde(default)]
+    /// Collected from every `surface` key. A derived `Vec` rejects `surface=swap`
+    /// (string, not a sequence) and a custom field deserializer rejects
+    /// `surface=swap&surface=lp` (`duplicate field`).
     pub surface: Vec<String>,
     pub limit: Option<String>,
     pub cursor: Option<String>,
     pub format: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for EvidenceDailyQuery {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // serde_urlencoded yields one pair per key, including repeats.
+        let pairs = Vec::<(String, String)>::deserialize(deserializer)?;
+        let mut day = None;
+        let mut surface = Vec::new();
+        let mut limit = None;
+        let mut cursor = None;
+        let mut format = None;
+        for (key, value) in pairs {
+            match key.as_str() {
+                "day" => day = Some(value),
+                "surface" => surface.push(value),
+                "limit" => limit = Some(value),
+                "cursor" => cursor = Some(value),
+                "format" => format = Some(value),
+                _ => {}
+            }
+        }
+        Ok(Self {
+            day,
+            surface,
+            limit,
+            cursor,
+            format,
+        })
+    }
 }
 
 #[derive(Serialize, ToSchema, Clone)]
@@ -174,6 +206,7 @@ fn encode_cursor(key: &EvidenceSortKey) -> String {
         "surface": key.surface,
         "kind": key.kind,
         "ordinal": key.ordinal,
+        "row_id": key.row_id,
     });
     let b = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string());
     format!("{}{}", CURSOR_PREFIX, b)
@@ -189,10 +222,7 @@ fn decode_cursor(raw: &str) -> Result<EvidenceSortKey, ()> {
         return Err(());
     }
     Ok(EvidenceSortKey {
-        block_height: v
-            .get("block_height")
-            .and_then(|x| x.as_i64())
-            .ok_or(())?,
+        block_height: v.get("block_height").and_then(|x| x.as_i64()).ok_or(())?,
         tx_hash: v
             .get("tx_hash")
             .and_then(|x| x.as_str())
@@ -203,17 +233,19 @@ fn decode_cursor(raw: &str) -> Result<EvidenceSortKey, ()> {
             .and_then(|x| x.as_str())
             .ok_or(())?
             .to_string(),
-        kind: v.get("kind").and_then(|x| x.as_str()).ok_or(())?.to_string(),
+        kind: v
+            .get("kind")
+            .and_then(|x| x.as_str())
+            .ok_or(())?
+            .to_string(),
         ordinal: v.get("ordinal").and_then(|x| x.as_i64()).ok_or(())?,
+        row_id: v.get("row_id").and_then(|x| x.as_i64()).ok_or(())?,
     })
 }
 
 fn map_row(row: EvidenceRawRow) -> EvidenceDailyEvent {
     let actor_hash = row.actor.as_deref().and_then(actor_hash);
-    let fee_usd = row
-        .fee_usd
-        .as_ref()
-        .map(|v| bd_plain_string(v));
+    let fee_usd = row.fee_usd.as_ref().map(|v| bd_plain_string(v));
     EvidenceDailyEvent {
         surface: row.surface,
         kind: row.kind,
@@ -286,15 +318,18 @@ pub async fn get_evidence_daily(
         return Err(bad_request("format=csv is not supported on this route"));
     }
 
-    let day_raw = params.day.as_deref().ok_or_else(|| bad_request("day is required"))?;
+    let day_raw = params
+        .day
+        .as_deref()
+        .ok_or_else(|| bad_request("day is required"))?;
     let day = parse_day(day_raw).map_err(|_| bad_request("invalid day"))?;
     let today = Utc::now().date_naive();
     if day > today {
         return Err(bad_request("day cannot be in the future"));
     }
 
-    let surfaces =
-        parse_surfaces(&flatten_surface_params(&params)).map_err(|_| bad_request("invalid surface"))?;
+    let surfaces = parse_surfaces(&flatten_surface_params(&params))
+        .map_err(|_| bad_request("invalid surface"))?;
 
     let limit = parse_limit(params.limit.as_ref());
     let cursor_key = match params.cursor.as_deref() {
@@ -328,6 +363,7 @@ pub async fn get_evidence_daily(
             surface: last.surface.clone(),
             kind: last.kind.clone(),
             ordinal: last.ordinal,
+            row_id: last.row_id,
         }))
     } else {
         None
@@ -357,10 +393,7 @@ mod tests {
         assert_eq!(h1, h2);
         assert_eq!(h1.len(), 32);
         assert!(h1.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_ne!(
-            actor_hash("terra1otheraddressxxxxxxxxxxxx"),
-            actor_hash(a)
-        );
+        assert_ne!(actor_hash("terra1otheraddressxxxxxxxxxxxx"), actor_hash(a));
     }
 
     #[test]
@@ -378,10 +411,23 @@ mod tests {
             surface: "swap".to_string(),
             kind: "swap".to_string(),
             ordinal: 2,
+            row_id: 7,
         };
         let c = encode_cursor(&key);
         let back = decode_cursor(&c).expect("decode");
         assert_eq!(back.block_height, 99);
         assert_eq!(back.tx_hash, "ABC");
+        assert_eq!(back.row_id, 7);
+        assert!(decode_cursor("e1.e30").is_err());
+    }
+
+    #[test]
+    fn limit_clamp_matches_list_routes() {
+        assert_eq!(parse_limit(None), DEFAULT_LIMIT);
+        assert_eq!(parse_limit(Some(&"0".to_string())), 1);
+        assert_eq!(parse_limit(Some(&"-1".to_string())), 1);
+        assert_eq!(parse_limit(Some(&"10000".to_string())), MAX_LIMIT);
+        assert_eq!(parse_limit(Some(&"3".to_string())), 3);
+        assert_eq!(parse_limit(Some(&"1e999".to_string())), DEFAULT_LIMIT);
     }
 }
