@@ -2,6 +2,8 @@
 
 Audience: protocols, indexers, and wallets integrating with CL8Y pair hooks, hybrid swaps, and the on-chain limit book. End-user UX lives elsewhere.
 
+**Read API pack:** copy-paste curls for swaps, pools, fees, hook burns, and volume windows are in [indexer-http.md](./indexer-http.md) ([#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)). This page is execute-path hybrid and the on-chain book. On-chain pair swap versus solver execute stays [#707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707).
+
 ## Hybrid swaps and post-swap hooks (invariant L7)
 
 On a **hybrid** swap (pool + limit book in one execution), the pair invokes each registered hook with `AfterSwap` after settlement.

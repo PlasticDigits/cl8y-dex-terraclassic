@@ -174,6 +174,16 @@ async fn run_server() -> anyhow::Result<()> {
         Err(e) => tracing::warn!("USDT quote USD NULL-only backfill failed: {}", e),
     }
 
+    if let Err(e) = indexer::candle_gap_fill::run_once(
+        &pool,
+        config.ustc_denom.as_deref(),
+        config.usdt_cw20_address.as_str(),
+    )
+    .await
+    {
+        tracing::warn!("candle gap fill failed: {}", e);
+    }
+
     let lcd_client = lcd::LcdClient::new(
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,

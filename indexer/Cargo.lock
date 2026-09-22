@@ -361,6 +361,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "sha2",
  "socket2 0.5.10",
  "sqlx",
  "thiserror 2.0.18",

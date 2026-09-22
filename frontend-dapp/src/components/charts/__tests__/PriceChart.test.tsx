@@ -436,4 +436,61 @@ describe('PriceChart', () => {
     expect(screen.getByTestId('trade-pair-invert-pill').textContent).toContain('<img onerror=alert(1)>')
     expect(document.querySelector('img[onerror]')).toBeNull()
   })
+
+  it('plots a neither-catalog pair as human quote-per-base and hides the USD pill (#1315)', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([
+      candle({
+        open: null,
+        high: null,
+        low: null,
+        close: null,
+        open_human: '2',
+        high_human: '3',
+        low_human: '1',
+        close_human: '2.5',
+      }),
+    ])
+    renderWithProviders(
+      <PriceChart
+        pairAddress={pairA}
+        onToggleDisplayInvert={() => {}}
+        pairPillLabel="ALPHA/CL8Y"
+        chartAsset0={{ symbol: 'CL8Y', contract_addr: 'terra1cl8y' }}
+        chartAsset1={{ symbol: 'ALPHA', contract_addr: 'terra1alpha' }}
+      />
+    )
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Price (ALPHA per CL8Y)' })).toBeInTheDocument())
+    expect(screen.queryByRole('heading', { name: 'Price (USD)' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('trade-pair-invert-pill')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('trade-chart-headline-price')).toHaveTextContent(formatNum(2.5, 6))
+    )
+    await waitFor(() => expect(lwChartTestDouble.seriesSpies[0]?.setData).toHaveBeenCalled())
+    const rows = lwChartTestDouble.seriesSpies[0]?.setData.mock.calls.at(-1)?.[0] as { close: number }[]
+    expect(rows[0]?.close).toBe(2.5)
+  })
+
+  it('stays empty when a catalog pair has human OHLC and no positive USD (#1315)', async () => {
+    vi.mocked(indexerClient.getCandles).mockResolvedValue([
+      candle({
+        open: null,
+        high: null,
+        low: null,
+        close: null,
+        open_human: '2',
+        high_human: '2',
+        low_human: '2',
+        close_human: '2',
+      }),
+    ])
+    renderWithProviders(
+      <PriceChart
+        pairAddress={pairA}
+        chartAsset0={{ symbol: 'UST1', contract_addr: 'terra1ust1' }}
+        chartAsset1={{ symbol: 'ALPHA', contract_addr: 'terra1alpha' }}
+      />
+    )
+    await waitFor(() => expect(screen.getByText(/No chart data for this interval yet/i)).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Price (USD)' })).toBeInTheDocument()
+  })
 })

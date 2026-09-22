@@ -792,7 +792,23 @@ async fn openapi_spec_available() {
     let body: Value = resp.json();
     assert_eq!(body["info"]["title"], "CL8Y DEX Indexer API");
     assert!(body["paths"].is_object());
-    assert!(body["paths"]["/api/v1/pairs"].is_object());
+    for key in [
+        "/api/v1/pairs",
+        "/api/v1/pairs/{addr}/trades",
+        "/api/v1/hooks",
+        "/api/v1/protocol/fees",
+        "/api/v1/overview",
+        "/api/v1/protocol/volume/daily",
+        "/api/v1/tokens/{addr}",
+        "/health",
+        "/api/v1/health/fee-discount",
+        "/api/v1/compliance/blacklist-check",
+    ] {
+        assert!(
+            body["paths"][key].is_object(),
+            "served OpenAPI missing {key}"
+        );
+    }
 }
 
 /// GitLab #379 (M-05): dev config accepts dual-zero rate limits (governors disabled).

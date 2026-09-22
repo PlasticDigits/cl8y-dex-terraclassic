@@ -26,7 +26,7 @@ Stack order: **#1209 → #1210 → #1211**. Copy wrap/window pin + explicit-amou
 
 Related, **not this epic:**
 
-- [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204) — OpenAPI/curl pack (no ingest).
+- [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204) — OpenAPI/curl pack (no ingest). Playbook [`AGENTS_INDEXER_HTTP_PACK.md`](./AGENTS_INDEXER_HTTP_PACK.md).
 - [#1202](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1202) — source-to-fee client events (privacy hold; not fee truth). #1211 depends on that hold remaining; do not expand #1202.
 - [#594](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/594) — community-token **catalog**.
 - [#597](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/597) — MM subscription invoices (not SKU/settings).

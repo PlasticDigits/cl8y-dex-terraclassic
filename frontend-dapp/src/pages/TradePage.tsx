@@ -91,6 +91,8 @@ type TradeChartSlotProps = {
   displayBaseSymbol?: string
   volumeBaseDecimals?: number
   volumeQuoteDecimals?: number
+  chartAsset0?: { symbol?: string | null; denom?: string | null; contract_addr?: string | null } | null
+  chartAsset1?: { symbol?: string | null; denom?: string | null; contract_addr?: string | null } | null
 }
 
 /** Chart mounts on `pairAddr` immediately; candles load in parallel with `getPair` (GitLab #180). */
@@ -109,6 +111,8 @@ function TradeChartSlot({
   displayBaseSymbol,
   volumeBaseDecimals,
   volumeQuoteDecimals,
+  chartAsset0,
+  chartAsset1,
 }: TradeChartSlotProps) {
   if (!pairRouteReady) {
     return (
@@ -138,6 +142,8 @@ function TradeChartSlot({
       displayBaseSymbol={displayBaseSymbol}
       volumeBaseDecimals={volumeBaseDecimals}
       volumeQuoteDecimals={volumeQuoteDecimals}
+      chartAsset0={chartAsset0}
+      chartAsset1={chartAsset1}
     />
   )
   return <div className="flex-1 min-h-0 h-full flex flex-col">{chart}</div>
@@ -434,6 +440,8 @@ export default function TradePage() {
     displayBaseSymbol: pairOrientation.displayBase,
     volumeBaseDecimals: activePair?.asset_0.decimals,
     volumeQuoteDecimals: activePair?.asset_1.decimals,
+    chartAsset0: activePair?.asset_0,
+    chartAsset1: activePair?.asset_1,
   }
 
   const tradeOrderTicket = (

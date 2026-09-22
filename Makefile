@@ -680,6 +680,12 @@ verify-issue-1266:
 
 .PHONY: verify-issue-1266
 
+verify-issue-1315:
+	@chmod +x scripts/qa/verify-issue-1315.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1315.sh
+
+.PHONY: verify-issue-1315
+
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
 	@chmod +x scripts/qa/verify-issue-576.sh scripts/with-node.sh
@@ -1395,10 +1401,20 @@ verify-issue-639:
 	@chmod +x scripts/qa/verify-issue-639.sh scripts/qa/listings_catalog_validate.py
 	./scripts/qa/verify-issue-639.sh
 
+.PHONY: verify-issue-1205
+verify-issue-1205:
+	@chmod +x scripts/qa/verify-issue-1205.sh
+	./scripts/qa/verify-issue-1205.sh
+
 .PHONY: verify-issue-1213
 verify-issue-1213:
 	@chmod +x scripts/qa/verify-issue-1213.sh
 	./scripts/qa/verify-issue-1213.sh
+
+.PHONY: verify-issue-1204
+verify-issue-1204:
+	@chmod +x scripts/qa/verify-issue-1204.sh
+	./scripts/qa/verify-issue-1204.sh
 
 # git.cl8y.com #1231 — Observe query checked_from_ratio skip (no VM panic).
 .PHONY: verify-issue-1231
@@ -1534,7 +1550,7 @@ help:
 
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | verify-issue-1276 | verify-issue-1265 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1] | verify-issue-1277"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | verify-issue-1276 | verify-issue-1265 | verify-issue-1204 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1] | verify-issue-1277"
 	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback | make mint-swap-custc-ust1 | make test-custc-ust1-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 

@@ -25,8 +25,9 @@ export LCD="http://127.0.0.1:1317"
 ```
 
 2. **Read-only** — discovery queries do not mutate chain or DB state.
-3. **Thresholds are tunable** — adjust `INTERVAL`, `LIMIT`, and `HAVING` counts for incident severity; document chosen values in the incident tracker.
-4. **Escalation** — discovery alone is **not** grounds for blacklist. After confirming abnormal patterns, follow [blacklist-decision.md](./blacklist-decision.md) and [emergency-commands.md](./emergency-commands.md).
+3. **Redacted daily export vs this runbook** — `GET /api/v1/evidence/daily?day=YYYY-MM-DD` ([#1205](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1205)) returns shareable, actor-hashed JSON for one UTC day. It is **not** a substitute for wallet-level triage here; keep using leaderboard, trader trades, and SQL below when you need full bech32 addresses.
+4. **Thresholds are tunable** — adjust `INTERVAL`, `LIMIT`, and `HAVING` counts for incident severity; document chosen values in the incident tracker.
+5. **Escalation** — discovery alone is **not** grounds for blacklist. After confirming abnormal patterns, follow [blacklist-decision.md](./blacklist-decision.md) and [emergency-commands.md](./emergency-commands.md).
 
 ---
 
