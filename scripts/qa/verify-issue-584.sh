@@ -119,7 +119,7 @@ run_dry_run_ok() {
     UPGRADE582_FORCE_FACTORY_VERSION=1.9.0 \
     UPGRADE582_FACTORY_ADDRESS="$DUMMY_FACTORY" \
     ./scripts/upgrade-582-code-id-pin.sh | tee /tmp/upgrade582-dry-ok.log
-  rg -q 'factory 1.9.0 then pairs 1.17.0' /tmp/upgrade582-dry-ok.log
+  rg -q 'factory 1.9.0 then pairs 1.18.0' /tmp/upgrade582-dry-ok.log
   rg -q 'PAIR_MIGRATE_BEGIN' /tmp/upgrade582-dry-ok.log
   rg -q 'IsCodeIdWhitelisted' /tmp/upgrade582-dry-ok.log
   rg -q 'UPDATE_CONFIG_BEGIN' /tmp/upgrade582-dry-ok.log

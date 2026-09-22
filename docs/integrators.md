@@ -254,15 +254,17 @@ Invariants **H641-1–H641-8**: [`listings/hexxagon/README.md`](./listings/hexxa
 
 `QueryMsg::Observe` forward-extrapolation (`seconds_ago == 0` / target after the last stored observation) uses `Decimal::checked_from_ratio`. If either direction cannot be a CosmWasm `Decimal`, the query **returns the last stored cumulatives** (missed sample) instead of panicking. JSON field names are unchanged. Historical in-window interpolation does not recompute spot.
 
-Indexers that poll `seconds_ago: [0]` on a lopsided pair after the execute-path `#465` skip will see **flat cumulatives while wall-clock advanced** — treat that as no new sample (the gap contributes 0 to the integral), not as last-price held through the gap, and not as an LCD outage. Do not clamp to `Decimal::MAX`. Execute `price_times_dt` overflow is [#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224), not this query path.
+Indexers that poll `seconds_ago: [0]` on a lopsided pair after the execute-path `#465` skip will see **flat cumulatives while wall-clock advanced** — treat that as no new sample (the gap contributes 0 to the integral), not as last-price held through the gap, and not as an LCD outage. Do not clamp to `Decimal::MAX`.
 
-Canonical: [twap-oracle.md](./twap-oracle.md), invariant **O1231** in [contracts-security-audit.md](./contracts-security-audit.md), [`skills/AGENTS_TWAP_OBSERVE_RATIO.md`](../skills/AGENTS_TWAP_OBSERVE_RATIO.md). Verify: `make verify-issue-1231`.
+Cumulative values are **`Uint256` decimal strings** ([#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224) / [#1322](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1322), **O1322**). Parse them as arbitrary-precision integers. A sum past `2^128` is the full integer, not a wrap and not an error. A stored value that fits in `u128` is the same digit string as before.
+
+Canonical: [twap-oracle.md](./twap-oracle.md), invariants **O1231** and **O1322** in [contracts-security-audit.md](./contracts-security-audit.md), [`skills/AGENTS_TWAP_OBSERVE_RATIO.md`](../skills/AGENTS_TWAP_OBSERVE_RATIO.md), [`skills/AGENTS_TWAP_CUMULATIVE_U256.md`](../skills/AGENTS_TWAP_CUMULATIVE_U256.md). Verify: `make verify-issue-1231` · `make verify-issue-1224` · `make verify-issue-1322`.
 
 ## Related docs
 
 - [limit-orders.md](./limit-orders.md) — messages, pause, indexer, events.
 - [contracts-security-audit.md](./contracts-security-audit.md) — invariant matrix.
-- [twap-oracle.md](./twap-oracle.md) — pair TWAP Observe / `oracle_update` (#465 / #1231).
+- [twap-oracle.md](./twap-oracle.md) — pair TWAP Observe / `oracle_update` (#465 / #1231 / #1224 / #1322).
 - [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) — hybrid routing and quoting scope.
 - [ADR 0002](./adr/0002-global-best-execution-route-solver.md) — global best execution (#209).
 - [integrators-hybrid-volume.md](./integrators-hybrid-volume.md) — consolidated vs leg vs fill volumes (#216).

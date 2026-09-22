@@ -12,7 +12,7 @@ contract records a snapshot *before* mutating reserves:
 
 ```
 price          = reserve_b / reserve_a          (CosmWasm Decimal, 18 digits)
-price_a_cum   += price × dt                     (∫ token1_base / token0_base dt)
+price_a_cum   += price × dt                     (Uint256 ∫ token1_base / token0_base dt)
 price_b_cum   += (reserve_a / reserve_b) × dt
 ```
 
@@ -72,8 +72,8 @@ Response:
 
 ```json
 {
-  "price_a_cumulatives": ["<uint128>", "<uint128>"],
-  "price_b_cumulatives": ["<uint128>", "<uint128>"]
+  "price_a_cumulatives": ["<uint256>", "<uint256>"],
+  "price_b_cumulatives": ["<uint256>", "<uint256>"]
 }
 ```
 
@@ -149,17 +149,29 @@ pool's liquidity depth.
    panicking ([#1231](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1231)
    **O1231-1**). That is a missed sample (the gap contributes 0 to the
    integral), not a clamp to `Decimal::MAX`. Historical in-window
-   interpolation does not recompute spot. `price_times_dt` overflow on
-   execute after a representable ratio is [#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224), not this query path.
+   interpolation does not recompute spot.
    Agent playbook: [`skills/AGENTS_TWAP_OBSERVE_RATIO.md`](../skills/AGENTS_TWAP_OBSERVE_RATIO.md).
 
-4. **Arithmetic-mean sensitivity.** This oracle is an **arithmetic** mean of
+4. **Cumulative width.** `price × dt` and the running sum are `Uint256`
+   ([#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224),
+   [#1322](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1322),
+   **O1322-1–O1322-8**). A `Decimal` (`u128` atomics) times a `u64` `dt`
+   always fits in 192 bits, so one sample is the full product and does not
+   abort swap, provide, or withdraw. Sums past `2^128` stay that integer.
+   Stored observations are JSON decimal strings: a value that used to fit
+   in `u128` loads as the same integer (zero-extend). `migrate` does not
+   rewrite them. Clients parse the strings as arbitrary-precision integers.
+   `end < start` is a corrupt window, not a modulo wrap. Do not saturate
+   at `u128::MAX` and do not skip forever once the counter is high.
+   Playbook: [`skills/AGENTS_TWAP_CUMULATIVE_U256.md`](../skills/AGENTS_TWAP_CUMULATIVE_U256.md).
+
+5. **Arithmetic-mean sensitivity.** This oracle is an **arithmetic** mean of
    raw `reserve_b / reserve_a`. A short spike still weights by time, but it
    is **not** the geometric-mean (Uniswap v3-style tick) construction. Short
    windows remain easier to skew than a geometric TWAP would be. Charts must
    not present the raw Decimal as a compact `T` figure ([#564](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/564)).
 
-5. **Single-source dependency.** This oracle derives from the pair's own
+6. **Single-source dependency.** This oracle derives from the pair's own
    reserves. If the pair is itself subject to an exploit (e.g. a bug in
    the swap math), the oracle is compromised too.
 
@@ -255,7 +267,7 @@ fn get_safe_price(pair: Addr, window: u32, band_feed: Addr) -> Result<Decimal> {
 |------|---------|
 | `packages/dex-common/src/oracle.rs` | Arithmetic cumulative Decimal (`price_times_dt`, `compute_twap_price`), observation types, response types |
 | `contracts/pair/src/state.rs` | `OracleState`, `OBSERVATIONS` ring buffer storage |
-| `contracts/pair/src/contract.rs` | `oracle_update` (hot path, `#465` checked ratio skip), `oracle_observe_single` (query, `#1231` skip-extrapolate), `IncreaseObservationCardinality` execute |
+| `contracts/pair/src/contract.rs` | `oracle_update` (hot path, `#465` checked ratio skip, `#1224`/`#1322` `Uint256` add), `oracle_observe_single` (query, `#1231` skip-extrapolate), `IncreaseObservationCardinality` execute |
 | `packages/dex-common/src/pair.rs` | `Observe` and `OracleInfo` query message definitions |
 | `frontend-dapp/src/services/terraclassic/oracle.ts` | LCD `observe` → raw Decimal string |
 | `frontend-dapp/src/utils/chartsPairStats.ts` | Human TWAP display (`formatTwapHumanPrice`) |

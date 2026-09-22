@@ -48,8 +48,9 @@ use dex_common::types::{Asset, AssetInfo, FeeConfig};
 
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
 /// Columbus-5 listed pairs are already cw2 1.16.0 (greedy #712 / store 11639).
-/// Same-version migrate is rejected; this bump is for #1227/#1230/#1231 (#1246).
-const CONTRACT_VERSION: &str = "1.17.0";
+/// 1.17.0 was #1227/#1230/#1231 (#1246). 1.18.0 is the Uint256 TWAP cumulative
+/// (#1224 / #1322). Same-version migrate is rejected.
+const CONTRACT_VERSION: &str = "1.18.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -302,6 +303,20 @@ fn gate_asset_code_ids(deps: Deps) -> Result<(), ContractError> {
 // an attacker's trade in this block does NOT influence the observation
 // recorded for this block.
 
+/// `checked_add` of a delta `price_times_dt` already accepted.
+///
+/// The sum is a `Uint256`. A value above `u128::MAX` is the real integral,
+/// not a wrap, a saturate-at-max, or a skipped sample (#1322).
+fn add_price_cumulative(
+    last: Uint256,
+    delta: Uint256,
+    label: &str,
+) -> Result<Uint256, ContractError> {
+    last.checked_add(delta).map_err(|e| ContractError::Oracle {
+        reason: format!("{label} overflow: {e}"),
+    })
+}
+
 /// Write a new observation into the ring buffer if the block timestamp has
 /// advanced since the last write. Called at the **top** of every execute
 /// path that mutates reserves.
@@ -332,8 +347,8 @@ fn oracle_update(
                 state.index,
                 &Observation {
                     timestamp: block_time,
-                    price_a_cumulative: Uint128::zero(),
-                    price_b_cumulative: Uint128::zero(),
+                    price_a_cumulative: Uint256::zero(),
+                    price_b_cumulative: Uint256::zero(),
                 },
             )?;
             state.cardinality_initialized = 1;
@@ -368,16 +383,8 @@ fn oracle_update(
         reason: e.to_string(),
     })?;
 
-    let new_cum_a = last_cum_a
-        .checked_add(delta_a)
-        .map_err(|e| ContractError::Oracle {
-            reason: format!("price_a overflow: {e}"),
-        })?;
-    let new_cum_b = last_cum_b
-        .checked_add(delta_b)
-        .map_err(|e| ContractError::Oracle {
-            reason: format!("price_b overflow: {e}"),
-        })?;
+    let new_cum_a = add_price_cumulative(last_cum_a, delta_a, "price_a")?;
+    let new_cum_b = add_price_cumulative(last_cum_b, delta_b, "price_b")?;
 
     let new_index = if state.cardinality_initialized < state.cardinality {
         state.cardinality_initialized
@@ -414,7 +421,7 @@ fn oracle_observe_single(
     latest_obs: &Observation,
     reserve_a: Uint128,
     reserve_b: Uint128,
-) -> Result<(Uint128, Uint128), ContractError> {
+) -> Result<(Uint256, Uint256), ContractError> {
     let target = block_time - seconds_ago as u64;
 
     if seconds_ago == 0 || target >= latest_obs.timestamp {
@@ -430,8 +437,9 @@ fn oracle_observe_single(
         // Observe still extrapolated from live `RESERVES` and aborted the VM on
         // the indexer "now" path (`seconds_ago == 0`). Same checked constructors
         // and skip policy as execute: do not clamp to Decimal::MAX (TWAP bias).
-        // Query `price_times_dt` overflow stays a typed Oracle error (#1224 execute
-        // brick is out of scope).
+        // #1224 / #1322: the extrapolated delta is the full Uint256 product
+        // and the add is the full sum. An unrepresentable ratio still skips
+        // above (#1231). This branch does not write storage.
         let (price_a, price_b) = match (
             Decimal::checked_from_ratio(reserve_b, reserve_a),
             Decimal::checked_from_ratio(reserve_a, reserve_b),
@@ -447,18 +455,8 @@ fn oracle_observe_single(
         let delta_b = price_times_dt(price_b, dt).map_err(|e| ContractError::Oracle {
             reason: e.to_string(),
         })?;
-        let cum_a = latest_obs
-            .price_a_cumulative
-            .checked_add(delta_a)
-            .map_err(|e| ContractError::Oracle {
-                reason: e.to_string(),
-            })?;
-        let cum_b = latest_obs
-            .price_b_cumulative
-            .checked_add(delta_b)
-            .map_err(|e| ContractError::Oracle {
-                reason: e.to_string(),
-            })?;
+        let cum_a = add_price_cumulative(latest_obs.price_a_cumulative, delta_a, "price_a")?;
+        let cum_b = add_price_cumulative(latest_obs.price_b_cumulative, delta_b, "price_b")?;
         return Ok((cum_a, cum_b));
     }
 
@@ -514,12 +512,52 @@ fn oracle_observe_single(
 
     let time_span = after.timestamp - before.timestamp;
     let dt = target - before.timestamp;
+    if time_span == 0 {
+        return Err(ContractError::Oracle {
+            reason: "observation timestamps are not ordered".into(),
+        });
+    }
 
-    let diff_a = after.price_a_cumulative - before.price_a_cumulative;
-    let diff_b = after.price_b_cumulative - before.price_b_cumulative;
+    let diff_a = after
+        .price_a_cumulative
+        .checked_sub(before.price_a_cumulative)
+        .map_err(|e| ContractError::Oracle {
+            reason: format!("price_a interpolate: {e}"),
+        })?;
+    let diff_b = after
+        .price_b_cumulative
+        .checked_sub(before.price_b_cumulative)
+        .map_err(|e| ContractError::Oracle {
+            reason: format!("price_b interpolate: {e}"),
+        })?;
 
-    let interp_a = before.price_a_cumulative + diff_a.multiply_ratio(dt as u128, time_span as u128);
-    let interp_b = before.price_b_cumulative + diff_b.multiply_ratio(dt as u128, time_span as u128);
+    let step_a =
+        diff_a
+            .checked_multiply_ratio(dt, time_span)
+            .map_err(|e| ContractError::Oracle {
+                reason: format!("price_a interpolate: {e}"),
+            })?;
+    let step_b =
+        diff_b
+            .checked_multiply_ratio(dt, time_span)
+            .map_err(|e| ContractError::Oracle {
+                reason: format!("price_b interpolate: {e}"),
+            })?;
+
+    let interp_a =
+        before
+            .price_a_cumulative
+            .checked_add(step_a)
+            .map_err(|e| ContractError::Oracle {
+                reason: format!("price_a interpolate: {e}"),
+            })?;
+    let interp_b =
+        before
+            .price_b_cumulative
+            .checked_add(step_b)
+            .map_err(|e| ContractError::Oracle {
+                reason: format!("price_b interpolate: {e}"),
+            })?;
 
     Ok((interp_a, interp_b))
 }
@@ -2967,6 +3005,10 @@ pub fn migrate(
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
         .map_err(ContractError::Std)?;
 
+    // #1224 / #1322: do not rewrite OBSERVATIONS. Stored cumulative decimal
+    // strings zero-extend into Uint256 on the next load. A migrate message
+    // cannot set or reset price_*_cumulative.
+
     if ORDER_NEXT_ID.may_load(deps.storage)?.is_none() {
         ORDER_NEXT_ID.save(deps.storage, &1u64)?;
     }
@@ -3025,8 +3067,8 @@ mod oracle_overflow_tests {
     use super::oracle_update;
     use crate::state::{OracleState, OBSERVATIONS, ORACLE_STATE};
     use cosmwasm_std::testing::mock_dependencies;
-    use cosmwasm_std::{Storage, Uint128};
-    use dex_common::oracle::Observation;
+    use cosmwasm_std::{Decimal, Storage, Uint128, Uint256};
+    use dex_common::oracle::{price_times_dt, Observation};
 
     fn seed(storage: &mut dyn Storage, ts: u64) {
         ORACLE_STATE
@@ -3045,8 +3087,8 @@ mod oracle_overflow_tests {
                 0,
                 &Observation {
                     timestamp: ts,
-                    price_a_cumulative: Uint128::zero(),
-                    price_b_cumulative: Uint128::zero(),
+                    price_a_cumulative: Uint256::zero(),
+                    price_b_cumulative: Uint256::zero(),
                 },
             )
             .unwrap();
@@ -3075,6 +3117,36 @@ mod oracle_overflow_tests {
             Uint128::new(1_000_000),
         );
         assert!(res.is_ok());
+        let obs = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        let price = Decimal::checked_from_ratio(1_000_000u128, 1_000_000u128).unwrap();
+        let delta = price_times_dt(price, 100).unwrap();
+        assert_eq!(obs.price_a_cumulative, delta);
+        assert_eq!(obs.price_b_cumulative, delta);
+        assert!(obs.timestamp > 100);
+    }
+
+    /// #1224: a ratio that is still a Decimal, but whose atomics × dt does not
+    /// fit in u128, must record the full Uint256 product and return Ok.
+    #[test]
+    fn representable_ratio_wider_than_u128_product_still_records() {
+        let mut deps = mock_dependencies();
+        seed(&mut deps.storage, 1_000);
+        // atomics = Uint128::MAX, so × dt=2 does not fit in u128 but is still a Decimal.
+        let reserve_a = Uint128::new(1_000_000_000_000_000_000);
+        let reserve_b = Uint128::MAX;
+        let dt = 2u64;
+        let price = Decimal::checked_from_ratio(reserve_b, reserve_a).unwrap();
+        let delta = price_times_dt(price, dt).unwrap();
+        assert!(
+            delta > Uint256::from(Uint128::MAX),
+            "fixture must be the #1224 u128 multiply overflow"
+        );
+        let res = oracle_update(&mut deps.storage, 1_000 + dt, reserve_a, reserve_b);
+        assert!(res.is_ok(), "wide product must not abort execute: {res:?}");
+        let obs = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        assert_eq!(obs.timestamp, 1_000 + dt);
+        assert_eq!(obs.price_a_cumulative, delta);
+        assert_ne!(obs.price_a_cumulative, Uint256::zero());
     }
 }
 
@@ -3086,14 +3158,14 @@ mod oracle_observe_overflow_tests {
     use crate::msg::QueryMsg;
     use crate::state::{OracleState, OBSERVATIONS, ORACLE_STATE, RESERVES};
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{from_json, Storage, Timestamp, Uint128};
+    use cosmwasm_std::{from_json, Storage, Timestamp, Uint128, Uint256};
     use dex_common::oracle::{Observation, ObserveResponse};
 
     const LAST_TS: u64 = 100;
     const LAST_CUM_A: u128 = 7;
     const LAST_CUM_B: u128 = 11;
 
-    fn seed_latest(storage: &mut dyn Storage, ts: u64, cum_a: Uint128, cum_b: Uint128) {
+    fn seed_latest(storage: &mut dyn Storage, ts: u64, cum_a: Uint256, cum_b: Uint256) {
         ORACLE_STATE
             .save(
                 storage,
@@ -3131,8 +3203,8 @@ mod oracle_observe_overflow_tests {
         seed_latest(
             &mut deps.storage,
             LAST_TS,
-            Uint128::new(LAST_CUM_A),
-            Uint128::new(LAST_CUM_B),
+            Uint256::from(LAST_CUM_A),
+            Uint256::from(LAST_CUM_B),
         );
         let obs = latest(&deps.storage);
         let st = state(&deps.storage);
@@ -3146,8 +3218,8 @@ mod oracle_observe_overflow_tests {
             Uint128::MAX,
         );
         let (cum_a, cum_b) = res.expect("extreme Observe must not panic/err");
-        assert_eq!(cum_a, Uint128::new(LAST_CUM_A));
-        assert_eq!(cum_b, Uint128::new(LAST_CUM_B));
+        assert_eq!(cum_a, Uint256::from(LAST_CUM_A));
+        assert_eq!(cum_b, Uint256::from(LAST_CUM_B));
     }
 
     #[test]
@@ -3156,8 +3228,8 @@ mod oracle_observe_overflow_tests {
         seed_latest(
             &mut deps.storage,
             LAST_TS,
-            Uint128::new(LAST_CUM_A),
-            Uint128::new(LAST_CUM_B),
+            Uint256::from(LAST_CUM_A),
+            Uint256::from(LAST_CUM_B),
         );
         let obs = latest(&deps.storage);
         let st = state(&deps.storage);
@@ -3171,8 +3243,8 @@ mod oracle_observe_overflow_tests {
             Uint128::one(),
         );
         let (cum_a, cum_b) = res.expect("reciprocal extreme Observe must not panic/err");
-        assert_eq!(cum_a, Uint128::new(LAST_CUM_A));
-        assert_eq!(cum_b, Uint128::new(LAST_CUM_B));
+        assert_eq!(cum_a, Uint256::from(LAST_CUM_A));
+        assert_eq!(cum_b, Uint256::from(LAST_CUM_B));
     }
 
     #[test]
@@ -3181,8 +3253,8 @@ mod oracle_observe_overflow_tests {
         seed_latest(
             &mut deps.storage,
             LAST_TS,
-            Uint128::new(LAST_CUM_A),
-            Uint128::new(LAST_CUM_B),
+            Uint256::from(LAST_CUM_A),
+            Uint256::from(LAST_CUM_B),
         );
         let obs = latest(&deps.storage);
         let st = state(&deps.storage);
@@ -3196,7 +3268,7 @@ mod oracle_observe_overflow_tests {
             Uint128::new(1_000_000),
         )
         .unwrap();
-        assert_eq!(res, (Uint128::new(LAST_CUM_A), Uint128::new(LAST_CUM_B)));
+        assert_eq!(res, (Uint256::from(LAST_CUM_A), Uint256::from(LAST_CUM_B)));
     }
 
     #[test]
@@ -3205,8 +3277,8 @@ mod oracle_observe_overflow_tests {
         seed_latest(
             &mut deps.storage,
             LAST_TS,
-            Uint128::new(LAST_CUM_A),
-            Uint128::new(LAST_CUM_B),
+            Uint256::from(LAST_CUM_A),
+            Uint256::from(LAST_CUM_B),
         );
         let obs = latest(&deps.storage);
         let st = state(&deps.storage);
@@ -3235,8 +3307,8 @@ mod oracle_observe_overflow_tests {
         seed_latest(
             &mut deps.storage,
             LAST_TS,
-            Uint128::new(LAST_CUM_A),
-            Uint128::new(LAST_CUM_B),
+            Uint256::from(LAST_CUM_A),
+            Uint256::from(LAST_CUM_B),
         );
         let obs = latest(&deps.storage);
         let st = state(&deps.storage);
@@ -3250,8 +3322,8 @@ mod oracle_observe_overflow_tests {
             Uint128::MAX,
         )
         .unwrap();
-        assert_eq!(cum_a, Uint128::new(LAST_CUM_A));
-        assert_eq!(cum_b, Uint128::new(LAST_CUM_B));
+        assert_eq!(cum_a, Uint256::from(LAST_CUM_A));
+        assert_eq!(cum_b, Uint256::from(LAST_CUM_B));
     }
 
     #[test]
@@ -3273,8 +3345,8 @@ mod oracle_observe_overflow_tests {
                 0,
                 &Observation {
                     timestamp: 100,
-                    price_a_cumulative: Uint128::new(1_000),
-                    price_b_cumulative: Uint128::new(1_000),
+                    price_a_cumulative: Uint256::from(1_000u128),
+                    price_b_cumulative: Uint256::from(1_000u128),
                 },
             )
             .unwrap();
@@ -3284,8 +3356,8 @@ mod oracle_observe_overflow_tests {
                 1,
                 &Observation {
                     timestamp: 200,
-                    price_a_cumulative: Uint128::new(2_000),
-                    price_b_cumulative: Uint128::new(2_000),
+                    price_a_cumulative: Uint256::from(2_000u128),
+                    price_b_cumulative: Uint256::from(2_000u128),
                 },
             )
             .unwrap();
@@ -3302,8 +3374,8 @@ mod oracle_observe_overflow_tests {
             Uint128::MAX,
         )
         .unwrap();
-        assert_eq!(cum_a, Uint128::new(1_500));
-        assert_eq!(cum_b, Uint128::new(1_500));
+        assert_eq!(cum_a, Uint256::from(1_500u128));
+        assert_eq!(cum_b, Uint256::from(1_500u128));
     }
 
     #[test]
@@ -3312,8 +3384,8 @@ mod oracle_observe_overflow_tests {
         seed_latest(
             &mut deps.storage,
             LAST_TS,
-            Uint128::new(LAST_CUM_A),
-            Uint128::new(LAST_CUM_B),
+            Uint256::from(LAST_CUM_A),
+            Uint256::from(LAST_CUM_B),
         );
         RESERVES
             .save(&mut deps.storage, &(Uint128::one(), Uint128::MAX))
@@ -3329,12 +3401,12 @@ mod oracle_observe_overflow_tests {
         )
         .expect("Observe query must not VM-panic or StdError on extreme ratio");
         let resp: ObserveResponse = from_json(bin).unwrap();
-        assert_eq!(resp.price_a_cumulatives, vec![Uint128::new(LAST_CUM_A)]);
-        assert_eq!(resp.price_b_cumulatives, vec![Uint128::new(LAST_CUM_B)]);
+        assert_eq!(resp.price_a_cumulatives, vec![Uint256::from(LAST_CUM_A)]);
+        assert_eq!(resp.price_b_cumulatives, vec![Uint256::from(LAST_CUM_B)]);
         let after = OBSERVATIONS.load(&deps.storage, 0).unwrap();
         assert_eq!(after.timestamp, LAST_TS);
-        assert_eq!(after.price_a_cumulative, Uint128::new(LAST_CUM_A));
-        assert_eq!(after.price_b_cumulative, Uint128::new(LAST_CUM_B));
+        assert_eq!(after.price_a_cumulative, Uint256::from(LAST_CUM_A));
+        assert_eq!(after.price_b_cumulative, Uint256::from(LAST_CUM_B));
     }
 
     #[test]
@@ -3356,8 +3428,8 @@ mod oracle_observe_overflow_tests {
                 0,
                 &Observation {
                     timestamp: 100,
-                    price_a_cumulative: Uint128::new(1_000),
-                    price_b_cumulative: Uint128::new(1_000),
+                    price_a_cumulative: Uint256::from(1_000u128),
+                    price_b_cumulative: Uint256::from(1_000u128),
                 },
             )
             .unwrap();
@@ -3367,8 +3439,8 @@ mod oracle_observe_overflow_tests {
                 1,
                 &Observation {
                     timestamp: 200,
-                    price_a_cumulative: Uint128::new(2_000),
-                    price_b_cumulative: Uint128::new(2_000),
+                    price_a_cumulative: Uint256::from(2_000u128),
+                    price_b_cumulative: Uint256::from(2_000u128),
                 },
             )
             .unwrap();
@@ -3388,18 +3460,18 @@ mod oracle_observe_overflow_tests {
         let resp: ObserveResponse = from_json(bin).unwrap();
         assert_eq!(
             resp.price_a_cumulatives,
-            vec![Uint128::new(2_000), Uint128::new(1_500)]
+            vec![Uint256::from(2_000u128), Uint256::from(1_500u128)]
         );
         assert_eq!(
             resp.price_b_cumulatives,
-            vec![Uint128::new(2_000), Uint128::new(1_500)]
+            vec![Uint256::from(2_000u128), Uint256::from(1_500u128)]
         );
     }
 
     #[test]
     fn oracle_update_extreme_ratio_still_skips() {
         let mut deps = mock_dependencies();
-        seed_latest(&mut deps.storage, LAST_TS, Uint128::zero(), Uint128::zero());
+        seed_latest(&mut deps.storage, LAST_TS, Uint256::zero(), Uint256::zero());
         let res = oracle_update(
             &mut deps.storage,
             LAST_TS + 100,
@@ -3409,5 +3481,366 @@ mod oracle_observe_overflow_tests {
         assert!(res.is_ok(), "execute skip (#465) must stay Ok: {res:?}");
         let after = latest(&deps.storage);
         assert_eq!(after.timestamp, LAST_TS);
+    }
+}
+
+/// git.cl8y.com #1322 / #1224 — Uint256 cumulatives.
+/// A stored u128 decimal string zero-extends. Sums past 2^128 stay the full
+/// integer (not wrap, saturate, or skip-and-freeze).
+#[cfg(test)]
+mod oracle_u256_tests {
+    use super::{oracle_observe_single, oracle_update, query};
+    use crate::msg::QueryMsg;
+    use crate::state::{OracleState, OBSERVATIONS, ORACLE_STATE, RESERVES};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use cosmwasm_std::{from_json, Decimal, Order, Storage, Timestamp, Uint128, Uint256};
+    use dex_common::oracle::{price_times_dt, Observation, ObserveResponse};
+
+    /// Cumulative reported on the live pair (~99.96% of u128::MAX).
+    const LIVE: &str = "340144359629112943994362291128760055446";
+
+    fn live() -> Uint256 {
+        LIVE.parse().unwrap()
+    }
+
+    fn seed_slot(
+        storage: &mut dyn Storage,
+        index: u16,
+        cardinality: u16,
+        initialized: u16,
+        ts: u64,
+        cum_a: Uint256,
+        cum_b: Uint256,
+    ) {
+        ORACLE_STATE
+            .save(
+                storage,
+                &OracleState {
+                    cardinality,
+                    index,
+                    cardinality_initialized: initialized,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                storage,
+                index,
+                &Observation {
+                    timestamp: ts,
+                    price_a_cumulative: cum_a,
+                    price_b_cumulative: cum_b,
+                },
+            )
+            .unwrap();
+    }
+
+    /// Spot whose `price × dt` fits in u128 but, added to `live()`, does not.
+    fn modest_overflowing_spot() -> (Uint128, Uint128, u64) {
+        (Uint128::one(), Uint128::new(100_000_000_000_000_000), 10)
+    }
+
+    #[test]
+    fn price_a_near_max_stores_full_sum_and_keeps_advancing() {
+        let mut deps = mock_dependencies();
+        let ts = 1_000u64;
+        seed_slot(
+            &mut deps.storage,
+            0,
+            8,
+            1,
+            ts,
+            live(),
+            Uint256::from(1_000u128),
+        );
+        let (reserve_a, reserve_b, dt) = modest_overflowing_spot();
+        let price_a = Decimal::checked_from_ratio(reserve_b, reserve_a).unwrap();
+        let price_b = Decimal::checked_from_ratio(reserve_a, reserve_b).unwrap();
+        let delta_a = price_times_dt(price_a, dt).unwrap();
+        let delta_b = price_times_dt(price_b, dt).unwrap();
+        assert!(delta_a <= Uint256::from(Uint128::MAX));
+        assert!(live() + delta_a > Uint256::from(Uint128::MAX));
+
+        oracle_update(&mut deps.storage, ts + dt, reserve_a, reserve_b).unwrap();
+        let obs = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        assert_eq!(obs.timestamp, ts + dt);
+        assert_eq!(obs.price_a_cumulative, live() + delta_a);
+        assert_eq!(obs.price_b_cumulative, Uint256::from(1_000u128) + delta_b);
+        assert_ne!(obs.price_a_cumulative, Uint256::from(Uint128::MAX));
+
+        oracle_update(&mut deps.storage, ts + dt + dt, reserve_a, reserve_b).unwrap();
+        let next = OBSERVATIONS.load(&deps.storage, 2).unwrap();
+        assert!(next.price_a_cumulative > obs.price_a_cumulative);
+    }
+
+    #[test]
+    fn price_b_near_max_stores_full_sum() {
+        let mut deps = mock_dependencies();
+        let ts = 1_000u64;
+        seed_slot(
+            &mut deps.storage,
+            0,
+            8,
+            1,
+            ts,
+            Uint256::from(1_000u128),
+            live(),
+        );
+        let (reserve_b, reserve_a, dt) = modest_overflowing_spot();
+        let price_b = Decimal::checked_from_ratio(reserve_a, reserve_b).unwrap();
+        let delta_b = price_times_dt(price_b, dt).unwrap();
+        assert!(live() + delta_b > Uint256::from(Uint128::MAX));
+        oracle_update(&mut deps.storage, ts + dt, reserve_a, reserve_b).unwrap();
+        let obs = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        assert_eq!(obs.price_b_cumulative, live() + delta_b);
+        assert!(obs.price_a_cumulative > Uint256::from(1_000u128));
+        assert!(obs.price_a_cumulative <= Uint256::from(Uint128::MAX));
+    }
+
+    #[test]
+    fn sum_that_lands_on_two_pow_128_is_not_wrapped_to_zero() {
+        let mut deps = mock_dependencies();
+        let ts = 50u64;
+        seed_slot(
+            &mut deps.storage,
+            0,
+            4,
+            1,
+            ts,
+            Uint256::from(Uint128::MAX),
+            Uint256::zero(),
+        );
+        let reserve_a = Uint128::new(1_000_000_000_000_000_000);
+        let reserve_b = Uint128::one();
+        oracle_update(&mut deps.storage, ts + 1, reserve_a, reserve_b).unwrap();
+        let obs = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        let two_128 = Uint256::from(Uint128::MAX) + Uint256::one();
+        assert_eq!(obs.price_a_cumulative, two_128);
+        assert_ne!(obs.price_a_cumulative, Uint256::zero());
+    }
+
+    #[test]
+    fn observe_includes_now_and_history_when_sum_exceeds_u128() {
+        let mut deps = mock_dependencies();
+        ORACLE_STATE
+            .save(
+                &mut deps.storage,
+                &OracleState {
+                    cardinality: 4,
+                    index: 1,
+                    cardinality_initialized: 2,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                0,
+                &Observation {
+                    timestamp: 100,
+                    price_a_cumulative: Uint256::from(1_000u128),
+                    price_b_cumulative: Uint256::from(1_000u128),
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                1,
+                &Observation {
+                    timestamp: 200,
+                    price_a_cumulative: live(),
+                    price_b_cumulative: Uint256::from(2_000u128),
+                },
+            )
+            .unwrap();
+        let (reserve_a, reserve_b, _) = modest_overflowing_spot();
+        RESERVES
+            .save(&mut deps.storage, &(reserve_a, reserve_b))
+            .unwrap();
+        let mut env = mock_env();
+        env.block.time = Timestamp::from_seconds(210);
+        let before = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        let bin = query(
+            deps.as_ref(),
+            env,
+            QueryMsg::Observe {
+                seconds_ago: vec![0, 60],
+            },
+        )
+        .expect("one wide point must not fail the whole seconds_ago list");
+        let resp: ObserveResponse = from_json(bin).unwrap();
+        let price_a = Decimal::checked_from_ratio(reserve_b, reserve_a).unwrap();
+        let now = live() + price_times_dt(price_a, 10).unwrap();
+        assert!(now > Uint256::from(Uint128::MAX));
+        assert_eq!(resp.price_a_cumulatives[0], now);
+        // target = 150, halfway from 1000 to `live` is not a u128 wrap.
+        let span = live() - Uint256::from(1_000u128);
+        let expected_hist = Uint256::from(1_000u128) + span.multiply_ratio(50u128, 100u128);
+        assert_eq!(resp.price_a_cumulatives[1], expected_hist);
+        let after = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        assert_eq!(after, before);
+    }
+
+    #[test]
+    fn interpolation_across_u128_ceiling_matches_wide_integral() {
+        let mut deps = mock_dependencies();
+        let before_cum = Uint256::from(Uint128::MAX) - Uint256::from(500u128);
+        let after_cum = Uint256::from(Uint128::MAX) + Uint256::from(500u128);
+        ORACLE_STATE
+            .save(
+                &mut deps.storage,
+                &OracleState {
+                    cardinality: 2,
+                    index: 1,
+                    cardinality_initialized: 2,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                0,
+                &Observation {
+                    timestamp: 100,
+                    price_a_cumulative: before_cum,
+                    price_b_cumulative: before_cum,
+                },
+            )
+            .unwrap();
+        OBSERVATIONS
+            .save(
+                &mut deps.storage,
+                1,
+                &Observation {
+                    timestamp: 200,
+                    price_a_cumulative: after_cum,
+                    price_b_cumulative: after_cum,
+                },
+            )
+            .unwrap();
+        let latest = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        let state = ORACLE_STATE.load(&deps.storage).unwrap();
+        let (cum_a, cum_b) = oracle_observe_single(
+            &deps.storage,
+            300,
+            150,
+            &state,
+            &latest,
+            Uint128::one(),
+            Uint128::MAX,
+        )
+        .unwrap();
+        assert_eq!(cum_a, Uint256::from(Uint128::MAX));
+        assert_eq!(cum_b, Uint256::from(Uint128::MAX));
+    }
+
+    #[test]
+    fn same_block_zero_reserves_and_first_seed_keep_prior_behavior() {
+        let mut deps = mock_dependencies();
+        seed_slot(
+            &mut deps.storage,
+            0,
+            4,
+            1,
+            100,
+            live(),
+            Uint256::from(9u128),
+        );
+        oracle_update(
+            &mut deps.storage,
+            100,
+            Uint128::new(1_000),
+            Uint128::new(1_000),
+        )
+        .unwrap();
+        let same = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        assert_eq!(same.price_a_cumulative, live());
+        assert_eq!(same.timestamp, 100);
+
+        oracle_update(&mut deps.storage, 200, Uint128::zero(), Uint128::new(5)).unwrap();
+        let zero_res = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        assert_eq!(zero_res.timestamp, 100);
+        assert_eq!(zero_res.price_a_cumulative, live());
+    }
+
+    #[test]
+    fn first_observation_seeds_zero_cumulatives() {
+        let mut deps = mock_dependencies();
+        ORACLE_STATE
+            .save(
+                &mut deps.storage,
+                &OracleState {
+                    cardinality: 4,
+                    index: 0,
+                    cardinality_initialized: 0,
+                },
+            )
+            .unwrap();
+        oracle_update(
+            &mut deps.storage,
+            300,
+            Uint128::new(1_000),
+            Uint128::new(1_000),
+        )
+        .unwrap();
+        let first = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        assert_eq!(first.timestamp, 300);
+        assert_eq!(first.price_a_cumulative, Uint256::zero());
+        assert_eq!(first.price_b_cumulative, Uint256::zero());
+        let state = ORACLE_STATE.load(&deps.storage).unwrap();
+        assert_eq!(state.cardinality_initialized, 1);
+    }
+
+    #[test]
+    fn balanced_reserves_match_exact_add() {
+        let mut deps = mock_dependencies();
+        seed_slot(
+            &mut deps.storage,
+            0,
+            4,
+            1,
+            100,
+            Uint256::from(50u128),
+            Uint256::from(70u128),
+        );
+        oracle_update(
+            &mut deps.storage,
+            160,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        )
+        .unwrap();
+        let obs = OBSERVATIONS.load(&deps.storage, 1).unwrap();
+        let delta = price_times_dt(Decimal::one(), 60).unwrap();
+        assert_eq!(obs.price_a_cumulative, Uint256::from(50u128) + delta);
+        assert_eq!(obs.price_b_cumulative, Uint256::from(70u128) + delta);
+    }
+
+    #[test]
+    fn stored_u128_json_zero_extends_on_load() {
+        let mut deps = mock_dependencies();
+        seed_slot(
+            &mut deps.storage,
+            0,
+            1,
+            1,
+            1,
+            Uint256::from(1u128),
+            Uint256::from(2u128),
+        );
+        let records: Vec<_> = deps.storage.range(None, None, Order::Ascending).collect();
+        let (key, _) = records
+            .into_iter()
+            .find(|(_, value)| String::from_utf8_lossy(value).contains("price_a_cumulative"))
+            .expect("observation json");
+        let legacy = format!(
+            r#"{{"timestamp":1000,"price_a_cumulative":"{LIVE}","price_b_cumulative":"11"}}"#
+        );
+        deps.storage.set(&key, legacy.as_bytes());
+        let obs = OBSERVATIONS.load(&deps.storage, 0).unwrap();
+        assert_eq!(obs.price_a_cumulative, live());
+        assert_eq!(obs.price_b_cumulative, Uint256::from(11u128));
+        assert_eq!(obs.timestamp, 1000);
     }
 }

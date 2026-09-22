@@ -6,7 +6,7 @@ You touch pair **`oracle_observe_single`**, **`QueryMsg::Observe`**, **`oracle_u
 
 Closed [#465](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/465) already skips execute-path observation when `reserve_b/reserve_a` (or the reciprocal) cannot be a CosmWasm `Decimal`. This skill covers the **query** leftover: forward extrapolation for `seconds_ago == 0` (or any target after the last stored observation) used to call panicking `Decimal::from_ratio`.
 
-Open [#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224) is **`price_times_dt` overflow on execute**. Do **not** fold that into this ticket. Observe already maps `price_times_dt` / `checked_add` to `ContractError::Oracle`.
+[#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224) / [#1322](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1322) widened `price × dt` and the cumulative add to `Uint256` (**O1322**). Do **not** fold that width change back into a `u128` error, a wrap, or a saturate. This skill stays the ratio skip. Playbook: [`AGENTS_TWAP_CUMULATIVE_U256.md`](AGENTS_TWAP_CUMULATIVE_U256.md).
 
 ## Invariants (O1231-1–O1231-6)
 
@@ -28,7 +28,7 @@ Typed `ContractError::Oracle` is allowed by the issue if docs say so; this imple
 ## Forbidden
 
 - Reopen or retarget `#465` ACs.
-- Implement `#1224` (`price_times_dt` execute brick) “while here.”
+- Revert **O1322** (`Uint256` cumulative / full `price × dt`) to a `u128` error, wrap, or saturate “while here.”
 - Reintroduce `Decimal::from_ratio` on execute “for consistency.”
 - Change observation cardinality, ring index, `seconds_ago` semantics, or JSON field names for representable ratios.
 - Gate on `#464` k-widening / `MAX_PAIR_ASSET_DECIMALS`.

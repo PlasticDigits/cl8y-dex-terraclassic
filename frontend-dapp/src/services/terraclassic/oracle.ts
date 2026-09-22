@@ -20,7 +20,11 @@ export async function getOracleInfo(pairAddress: string): Promise<OracleInfoResp
 /**
  * Arithmetic-mean TWAP as a **raw** Decimal string (token1 base units per token0 base unit).
  * Same units as on-chain `compute_twap_price` / limit `price` — Charts must human-scale with
- * `raw × 10^(d0 − d1)` (GitLab #564). Zero / inverted cum / bad window → `null`.
+ * `raw × 10^(d0 − d1)` (GitLab #564).
+ * Cumulatives are Uint256 decimal strings (#1224 / #1322). A window that crosses
+ * the old u128 ceiling still has `cumEnd > cumStart`. `cumEnd < cumStart` is a
+ * corrupt pair of snapshots (null), not a modulo wrap. Zero elapsed or a zero
+ * average → `null`.
  */
 export function computeTwapPriceDecimalString(cumStart: bigint, cumEnd: bigint, timeElapsed: number): string | null {
   if (!Number.isInteger(timeElapsed) || timeElapsed <= 0) return null
