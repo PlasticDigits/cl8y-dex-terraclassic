@@ -5,6 +5,7 @@ use chrono::{DateTime, Datelike, Timelike, Utc};
 use sqlx::PgPool;
 
 use crate::db::queries::candles::{self, CandleRow};
+use crate::indexer::pair_price_usd::{CandleUsdLeg, CandleUsdSubject};
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -32,24 +33,64 @@ pub(crate) fn merge_candle_ohlc(
     (existing_open.clone(), high, low, close)
 }
 
-/// Live candle write (GitLab #543).
+/// Live candle write (GitLab #543 / #1315).
 ///
-/// `price_usd` is factory USD of 1 `asset_0`. Missing / non-positive USD skips the
-/// update so human quote-per-base never lands in USD columns. `price_human` is
-/// quote-per-base for additive `*_human` OHLC (per-bar `invertUsd` on the dApp).
+/// `subject` is the catalog decision. `Skip` writes nothing. `HumanOnly` stores
+/// `*_human` and NULL USD. USD subjects store that print in `open/high/low/close`
+/// plus `usd_leg`. `swap_events.price_usd` is unchanged by this function.
 pub async fn update_candles_for_swap(
     pool: &PgPool,
     pair_id: i32,
     timestamp: DateTime<Utc>,
-    price_usd: Option<&BigDecimal>,
+    subject: &CandleUsdSubject,
+    price_human: &BigDecimal,
+    offer_amount: &BigDecimal,
+    return_amount: &BigDecimal,
+) -> Result<(), BoxError> {
+    let mut conn = pool.acquire().await?;
+    update_candles_for_swap_conn(
+        &mut conn,
+        pair_id,
+        timestamp,
+        subject,
+        price_human,
+        offer_amount,
+        return_amount,
+    )
+    .await
+}
+
+pub(crate) async fn update_candles_for_swap_conn(
+    conn: &mut sqlx::PgConnection,
+    pair_id: i32,
+    timestamp: DateTime<Utc>,
+    subject: &CandleUsdSubject,
     price_human: &BigDecimal,
     offer_amount: &BigDecimal,
     return_amount: &BigDecimal,
 ) -> Result<(), BoxError> {
     let zero = BigDecimal::from(0);
-    let Some(price) = price_usd.filter(|p| *p > &zero) else {
-        tracing::debug!("Skipping candle update for missing or non-positive price_usd");
-        return Ok(());
+    let (usd_price, usd_leg) = match subject {
+        CandleUsdSubject::Skip => {
+            tracing::debug!(pair_id, mode = "skip", "candle_write");
+            return Ok(());
+        }
+        CandleUsdSubject::HumanOnly => {
+            if price_human <= &zero {
+                tracing::debug!(pair_id, mode = "skip", "candle_write");
+                return Ok(());
+            }
+            tracing::debug!(pair_id, mode = "human_only", "candle_write");
+            (None, None)
+        }
+        CandleUsdSubject::Usd { leg, usd } => {
+            if usd <= &zero {
+                tracing::debug!(pair_id, mode = "skip", "candle_write");
+                return Ok(());
+            }
+            tracing::debug!(pair_id, mode = subject.mode_str(), "candle_write");
+            (Some(usd), Some(leg.as_str()))
+        }
     };
     let human = if price_human > &zero {
         Some(price_human)
@@ -59,65 +100,142 @@ pub async fn update_candles_for_swap(
 
     for &interval in INTERVALS {
         let open_time = truncate_to_interval(timestamp, interval);
-
-        let existing = get_candle_at(pool, pair_id, interval, open_time).await?;
-
-        let (open, high, low, close, open_h, high_h, low_h, close_h, vol_base, vol_quote, count) =
-            match existing {
-                Some(candle) => {
-                    let (open, high, low, close) =
-                        merge_candle_ohlc(price, &candle.open, &candle.high, &candle.low);
-                    let (open_h, high_h, low_h, close_h) = merge_human_ohlc(human, &candle);
-                    (
-                        open,
-                        high,
-                        low,
-                        close,
-                        open_h,
-                        high_h,
-                        low_h,
-                        close_h,
-                        candle.volume_base + offer_amount,
-                        candle.volume_quote + return_amount,
-                        candle.trade_count + 1,
-                    )
-                }
-                None => (
-                    price.clone(),
-                    price.clone(),
-                    price.clone(),
-                    price.clone(),
-                    human.cloned(),
-                    human.cloned(),
-                    human.cloned(),
-                    human.cloned(),
-                    offer_amount.clone(),
-                    return_amount.clone(),
-                    1,
-                ),
-            };
-
+        let existing = get_candle_at_conn(conn, pair_id, interval, open_time).await?;
+        let merged = merge_swap_into_candle(existing.as_ref(), usd_price, usd_leg, human, offer_amount, return_amount);
         candles::upsert_candle(
-            pool,
+            conn,
             pair_id,
             interval,
             open_time,
-            &open,
-            &high,
-            &low,
-            &close,
-            open_h.as_ref(),
-            high_h.as_ref(),
-            low_h.as_ref(),
-            close_h.as_ref(),
-            &vol_base,
-            &vol_quote,
-            count,
+            merged.open.as_ref(),
+            merged.high.as_ref(),
+            merged.low.as_ref(),
+            merged.close.as_ref(),
+            merged.usd_leg.as_deref(),
+            merged.open_h.as_ref(),
+            merged.high_h.as_ref(),
+            merged.low_h.as_ref(),
+            merged.close_h.as_ref(),
+            &merged.vol_base,
+            &merged.vol_quote,
+            merged.count,
         )
         .await?;
     }
 
     Ok(())
+}
+
+struct MergedCandle {
+    open: Option<BigDecimal>,
+    high: Option<BigDecimal>,
+    low: Option<BigDecimal>,
+    close: Option<BigDecimal>,
+    usd_leg: Option<String>,
+    open_h: Option<BigDecimal>,
+    high_h: Option<BigDecimal>,
+    low_h: Option<BigDecimal>,
+    close_h: Option<BigDecimal>,
+    vol_base: BigDecimal,
+    vol_quote: BigDecimal,
+    count: i32,
+}
+
+fn stored_usd_leg(candle: &CandleRow) -> Option<&'static str> {
+    match candle.usd_leg.as_deref() {
+        Some("asset_1") => Some("asset_1"),
+        Some("asset_0") => Some("asset_0"),
+        _ if candle.open.is_some() => Some("asset_0"),
+        _ => None,
+    }
+}
+
+fn merge_swap_into_candle(
+    existing: Option<&CandleRow>,
+    usd_price: Option<&BigDecimal>,
+    usd_leg: Option<&str>,
+    human: Option<&BigDecimal>,
+    offer_amount: &BigDecimal,
+    return_amount: &BigDecimal,
+) -> MergedCandle {
+    let Some(candle) = existing else {
+        let (open, high, low, close) = match usd_price {
+            Some(price) => (
+                Some(price.clone()),
+                Some(price.clone()),
+                Some(price.clone()),
+                Some(price.clone()),
+            ),
+            None => (None, None, None, None),
+        };
+        return MergedCandle {
+            open,
+            high,
+            low,
+            close,
+            usd_leg: usd_leg.map(|s| s.to_string()),
+            open_h: human.cloned(),
+            high_h: human.cloned(),
+            low_h: human.cloned(),
+            close_h: human.cloned(),
+            vol_base: offer_amount.clone(),
+            vol_quote: return_amount.clone(),
+            count: 1,
+        };
+    };
+
+    let (open_h, high_h, low_h, close_h) = merge_human_ohlc(human, candle);
+    let kept = MergedCandle {
+        open: candle.open.clone(),
+        high: candle.high.clone(),
+        low: candle.low.clone(),
+        close: candle.close.clone(),
+        usd_leg: candle
+            .usd_leg
+            .clone()
+            .or_else(|| stored_usd_leg(candle).map(|s| s.to_string())),
+        open_h: open_h.clone(),
+        high_h: high_h.clone(),
+        low_h: low_h.clone(),
+        close_h: close_h.clone(),
+        vol_base: &candle.volume_base + offer_amount,
+        vol_quote: &candle.volume_quote + return_amount,
+        count: candle.trade_count + 1,
+    };
+
+    let Some(price) = usd_price else {
+        return kept;
+    };
+    let new_leg = usd_leg.unwrap_or("asset_0");
+    match stored_usd_leg(candle) {
+        Some(stored) if stored == new_leg => {
+            let (open, high, low, close) = match (&candle.open, &candle.high, &candle.low) {
+                (Some(o), Some(h), Some(l)) => merge_candle_ohlc(price, o, h, l),
+                _ => (
+                    price.clone(),
+                    price.clone(),
+                    price.clone(),
+                    price.clone(),
+                ),
+            };
+            MergedCandle {
+                open: Some(open),
+                high: Some(high),
+                low: Some(low),
+                close: Some(close),
+                usd_leg: Some(new_leg.to_string()),
+                open_h,
+                high_h,
+                low_h,
+                close_h,
+                vol_base: kept.vol_base,
+                vol_quote: kept.vol_quote,
+                count: kept.count,
+            }
+        }
+        // Do not reclassify a stored leg or a human-only bucket.
+        _ => kept,
+    }
 }
 
 /// Idle mark-to-market candle write (GitLab #568).
@@ -137,15 +255,26 @@ pub async fn update_candles_for_mark(
         return Ok(());
     }
 
+    let mut conn = pool.acquire().await?;
     for &interval in INTERVALS {
         let open_time = truncate_to_interval(timestamp, interval);
-        let existing = get_candle_at(pool, pair_id, interval, open_time).await?;
+        let existing = get_candle_at_conn(&mut conn, pair_id, interval, open_time).await?;
+        // Idle marks are catalog `asset_1` USD of `asset_0`. Do not merge that print
+        // into an `asset_1` subject series or a human-only bucket.
+        if let Some(candle) = existing.as_ref() {
+            if stored_usd_leg(candle) == Some("asset_1") || candle.open.is_none() {
+                continue;
+            }
+        }
 
         let (open, high, low, close, open_h, high_h, low_h, close_h, vol_base, vol_quote, count) =
             match existing {
                 Some(candle) if candle.trade_count > 0 => {
-                    let (open, high, low, close) =
-                        merge_candle_ohlc(price_usd, &candle.open, &candle.high, &candle.low);
+                    let (o, h, l) = match (&candle.open, &candle.high, &candle.low) {
+                        (Some(o), Some(h), Some(l)) => (o.clone(), h.clone(), l.clone()),
+                        _ => continue,
+                    };
+                    let (open, high, low, close) = merge_candle_ohlc(price_usd, &o, &h, &l);
                     (
                         open,
                         high,
@@ -161,8 +290,11 @@ pub async fn update_candles_for_mark(
                     )
                 }
                 Some(candle) => {
-                    let (open, high, low, close) =
-                        merge_candle_ohlc(price_usd, &candle.open, &candle.high, &candle.low);
+                    let (o, h, l) = match (&candle.open, &candle.high, &candle.low) {
+                        (Some(o), Some(h), Some(l)) => (o.clone(), h.clone(), l.clone()),
+                        _ => continue,
+                    };
+                    let (open, high, low, close) = merge_candle_ohlc(price_usd, &o, &h, &l);
                     let (open_h, high_h, low_h, close_h) =
                         merge_human_ohlc(Some(price_human), &candle);
                     (
@@ -195,14 +327,15 @@ pub async fn update_candles_for_mark(
             };
 
         candles::upsert_candle(
-            pool,
+            &mut conn,
             pair_id,
             interval,
             open_time,
-            &open,
-            &high,
-            &low,
-            &close,
+            Some(&open),
+            Some(&high),
+            Some(&low),
+            Some(&close),
+            Some(CandleUsdLeg::Asset0.as_str()),
             open_h.as_ref(),
             high_h.as_ref(),
             low_h.as_ref(),
@@ -314,8 +447,8 @@ pub fn truncate_to_interval(ts: DateTime<Utc>, interval: &str) -> DateTime<Utc> 
     }
 }
 
-pub(crate) async fn get_candle_at(
-    pool: &PgPool,
+pub(crate) async fn get_candle_at_conn(
+    conn: &mut sqlx::PgConnection,
     pair_id: i32,
     interval: &str,
     open_time: DateTime<Utc>,
@@ -326,7 +459,7 @@ pub(crate) async fn get_candle_at(
     .bind(pair_id)
     .bind(interval)
     .bind(open_time)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await
 }
 

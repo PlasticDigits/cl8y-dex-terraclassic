@@ -94,7 +94,13 @@ async fn rebuild_writes_usd_and_human_for_ust1_ustr() {
     .await
     .expect("get");
     assert_eq!(rows.len(), 1, "human-only swap must not create a USD candle");
-    let usd = rows[0].close.to_string().parse::<f64>().unwrap();
+    let usd = rows[0]
+        .close
+        .as_ref()
+        .expect("usd")
+        .to_string()
+        .parse::<f64>()
+        .unwrap();
     let human = rows[0]
         .close_human
         .as_ref()
@@ -174,7 +180,13 @@ async fn rebuild_clunc_ust1_usd_matches_human_scale() {
     .await
     .expect("get");
     assert_eq!(rows.len(), 1);
-    let usd = rows[0].close.to_string().parse::<f64>().unwrap();
+    let usd = rows[0]
+        .close
+        .as_ref()
+        .expect("usd")
+        .to_string()
+        .parse::<f64>()
+        .unwrap();
     let human = rows[0]
         .close_human
         .as_ref()

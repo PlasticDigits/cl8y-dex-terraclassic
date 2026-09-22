@@ -6,6 +6,8 @@ import {
   indexerCandlesToFactoryPoints,
   indexerCandlesToVolumeHistogramPoints,
   parseChartFiniteNumber,
+  plotPricePaneCandles,
+  subjectUsdTimesHuman,
 } from '../priceChartCandles'
 import type { IndexerCandle } from '@/types'
 import { invertOhlc, invertUsdNumber } from '@/utils/tradePairDisplayOrientation'
@@ -457,5 +459,111 @@ describe('indexerCandlesToVolumeHistogramPoints', () => {
     expect(a[0]?.value).toBe(2)
     expect(b[0]?.value).toBe(4)
     expect((b[0]?.value ?? 0) / (a[0]?.value ?? 1)).toBe(2)
+  })
+})
+
+const cl8y = { symbol: 'CL8Y', contract_addr: 'terra1cl8y' }
+const alpha = { symbol: 'ALPHA', contract_addr: 'terra1alpha' }
+const ust1 = { symbol: 'UST1', contract_addr: 'terra1ust1' }
+
+describe('price pane subject USD (#1315)', () => {
+  it('pairs stored OHLC with human OHLC and crosses high/low', () => {
+    const stored = {
+      time: 1 as const,
+      open: 1,
+      high: 1.2,
+      low: 0.8,
+      close: 1,
+    }
+    const human = {
+      time: 1 as const,
+      open: 2,
+      high: 4,
+      low: 1,
+      close: 2,
+    }
+    const crossed = subjectUsdTimesHuman(stored, human)
+    expect(crossed).toEqual({ time: 1, open: 2, close: 2, high: 3.2, low: 1.2 })
+  })
+
+  it('plots human OHLC for a neither-catalog pair and ignores factory USD', () => {
+    const plot = plotPricePaneCandles(
+      [row({ open: '9', close: '9', high: '9', low: '9', close_human: '4', open_human: '4', high_human: '5', low_human: '3' })],
+      false,
+      cl8y,
+      alpha
+    )
+    expect(plot.kind).toBe('human')
+    expect(plot.points).toHaveLength(1)
+    expect(plot.points[0]?.close).toBe(4)
+  })
+
+  it('keeps a catalog pair with only human OHLC on the empty pane', () => {
+    const plot = plotPricePaneCandles(
+      [
+        row({
+          open: null,
+          high: null,
+          low: null,
+          close: null,
+          open_human: '2',
+          high_human: '2',
+          low_human: '2',
+          close_human: '2',
+        }),
+      ],
+      false,
+      ust1,
+      alpha
+    )
+    expect(plot.kind).toBe('usd')
+    expect(plot.points).toHaveLength(0)
+  })
+
+  it('plots subject OHLC when inverted and subject×human when showing asset_0', () => {
+    const candle = row({
+      open: null,
+      high: null,
+      low: null,
+      close: null,
+      usd_leg: 'asset_1',
+      subject_open: '1',
+      subject_high: '1.2',
+      subject_low: '0.8',
+      subject_close: '1',
+      open_human: '2',
+      high_human: '4',
+      low_human: '1',
+      close_human: '2',
+    })
+    const shown = plotPricePaneCandles([candle], true, ust1, alpha)
+    expect(shown.kind).toBe('subject')
+    expect(shown.points[0]?.close).toBe(1)
+    expect(shown.points[0]?.high).toBe(1.2)
+    const base = plotPricePaneCandles([candle], false, ust1, alpha)
+    expect(base.points[0]).toMatchObject({ open: 2, close: 2, high: 3.2, low: 1.2 })
+  })
+
+  it('drops an asset_1 bar when a crossed factor is missing', () => {
+    const plot = plotPricePaneCandles(
+      [
+        row({
+          open: null,
+          high: null,
+          low: null,
+          close: null,
+          usd_leg: 'asset_1',
+          subject_open: '1',
+          subject_high: '1',
+          subject_low: '1',
+          subject_close: '1',
+          open_human: null,
+        }),
+      ],
+      false,
+      ust1,
+      alpha
+    )
+    expect(plot.points).toHaveLength(0)
   })
 })

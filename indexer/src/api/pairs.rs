@@ -349,11 +349,28 @@ pub struct CandleQuery {
 #[derive(Serialize, ToSchema)]
 pub struct CandleResponse {
     pub open_time: String,
-    /// Factory USD of 1 human `asset_0` (`price_usd` only — never human quote-per-base).
-    pub open: String,
-    pub high: String,
-    pub low: String,
-    pub close: String,
+    /// USD of 1 human `asset_0`. Omitted when NULL, and omitted when `usd_leg` is `asset_1`
+    /// so a cached client drops the bar instead of plotting the other leg (#1315).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub open: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub high: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub low: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub close: Option<String>,
+    /// Leg whose USD is stored. Missing means `open` is USD of `asset_0` when present.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usd_leg: Option<String>,
+    /// Subject OHLC when `usd_leg` is `asset_1`. Absent on USD-of-`asset_0` rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_open: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_high: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_low: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject_close: Option<String>,
     /// Human quote-per-base OHLC for per-bar `invertUsd` (GitLab #543). Absent on pre-upgrade rows.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub open_human: Option<String>,
@@ -430,19 +447,27 @@ pub async fn get_pair_candles(
 
     let result: Vec<CandleResponse> = rows
         .iter()
-        .map(|c| CandleResponse {
-            open_time: c.open_time.to_rfc3339(),
-            open: c.open.to_string(),
-            high: c.high.to_string(),
-            low: c.low.to_string(),
-            close: c.close.to_string(),
-            open_human: c.open_human.as_ref().map(|v| v.to_string()),
-            high_human: c.high_human.as_ref().map(|v| v.to_string()),
-            low_human: c.low_human.as_ref().map(|v| v.to_string()),
-            close_human: c.close_human.as_ref().map(|v| v.to_string()),
-            volume_base: c.volume_base.to_string(),
-            volume_quote: c.volume_quote.to_string(),
-            trade_count: c.trade_count,
+        .map(|c| {
+            let wire = candles::project_candle_api(c);
+            CandleResponse {
+                open_time: c.open_time.to_rfc3339(),
+                open: wire.open,
+                high: wire.high,
+                low: wire.low,
+                close: wire.close,
+                usd_leg: wire.usd_leg,
+                subject_open: wire.subject_open,
+                subject_high: wire.subject_high,
+                subject_low: wire.subject_low,
+                subject_close: wire.subject_close,
+                open_human: c.open_human.as_ref().map(|v| v.to_string()),
+                high_human: c.high_human.as_ref().map(|v| v.to_string()),
+                low_human: c.low_human.as_ref().map(|v| v.to_string()),
+                close_human: c.close_human.as_ref().map(|v| v.to_string()),
+                volume_base: c.volume_base.to_string(),
+                volume_quote: c.volume_quote.to_string(),
+                trade_count: c.trade_count,
+            }
         })
         .collect();
 

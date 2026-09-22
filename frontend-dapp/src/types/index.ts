@@ -220,11 +220,21 @@ export function indexerPairToPairInfo(p: IndexerPair): PairInfo {
 
 export interface IndexerCandle {
   open_time: string
-  /** Factory USD of 1 human `asset_0` (never human quote-per-base). GitLab #522 / #543. */
-  open: string
-  high: string
-  low: string
-  close: string
+  /**
+   * USD of 1 human `asset_0`. Omitted when `usd_leg` is `asset_1` so a cached client
+   * drops the bar instead of plotting the other leg (#1315).
+   */
+  open?: string | null
+  high?: string | null
+  low?: string | null
+  close?: string | null
+  /** `asset_0` or `asset_1`. Missing means `open` is USD of `asset_0` when present. */
+  usd_leg?: 'asset_0' | 'asset_1' | string | null
+  /** Subject OHLC when `usd_leg` is `asset_1` (USD of 1 human `asset_1`). */
+  subject_open?: string | null
+  subject_high?: string | null
+  subject_low?: string | null
+  subject_close?: string | null
   /** Human quote-per-base OHLC for per-bar `invertUsd`. GitLab #543. */
   open_human?: string | null
   high_human?: string | null

@@ -680,6 +680,12 @@ verify-issue-1266:
 
 .PHONY: verify-issue-1266
 
+verify-issue-1315:
+	@chmod +x scripts/qa/verify-issue-1315.sh scripts/with-node.sh
+	./scripts/qa/verify-issue-1315.sh
+
+.PHONY: verify-issue-1315
+
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
 	@chmod +x scripts/qa/verify-issue-576.sh scripts/with-node.sh

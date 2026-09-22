@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed ([#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315)). Revision 2 of `e7c2eb61` (gap fill, chart vs ticket, catalog skip, stats).
+Proposed ([#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315)). Revision 3 (wire omits `asset_1` OHLC from `open/high/low/close`, rollback deletes those rows, gap-fill done marker only on zero failures, Charts pill matches the pane).
 
 Design only. This ADR does not deploy, spend, expand custody or policy, or write an approval marker. Issue keywords are not approval. Deploy, spend, custody, and policy expansion stay under [agent-control #297](https://git.cl8y.com/PlasticDigits/cl8y-agent-control/issues/297).
 
@@ -67,11 +67,12 @@ Idle marks stay as they are: `mark_quote_kind` requires a catalog `asset_1`. The
 
 GET `/api/v1/pairs/{addr}/candles` (`CandleResponse`):
 
-- `open`, `high`, `low`, `close` become optional strings. Omit them when NULL (`skip_serializing_if`).
-- Add optional `usd_leg`: `"asset_0"` or `"asset_1"`, present only when USD OHLC is present. Persist it on the candle row at insert. GET returns that stored value. Do not recompute it from the pair’s catalog membership at read time. Rows written before the column (both-catalog and quote-catalog history) omit it; clients treat a missing `usd_leg` as `asset_0`.
-- `*_human` unchanged in meaning. A neither-catalog row omits USD and omits `usd_leg`. A one-catalog row is never stored that way.
+- `open`, `high`, `low`, `close` stay **USD of 1 human `asset_0`**. Omit them when NULL, and omit them when `usd_leg` is `asset_1` (`skip_serializing_if`). A cached client drops a bar that has no finite positive `open`.
+- When `usd_leg=asset_1`, send that subject OHLC on optional `subject_open`, `subject_high`, `subject_low`, `subject_close`. The database may keep the same numbers in `open/high/low/close` plus `usd_leg`. The new client plots `subject_*`. It does not plot omitted `open` as USD of `asset_0`.
+- Add optional `usd_leg`: `"asset_0"` or `"asset_1"`, present when the row records a leg. Persist it on the candle row at insert. GET returns that stored value. Do not recompute it from the pair’s catalog membership at read time. Rows written before the column (both-catalog and quote-catalog history) omit it; clients treat a missing `usd_leg` as `asset_0` and read `open/high/low/close`.
+- `*_human` unchanged in meaning. A neither-catalog row omits USD, omits `usd_leg`, and omits `subject_*`.
 
-`IndexerCandle.open/high/low/close` become `string | null | undefined` plus optional `usd_leg`.
+`IndexerCandle.open/high/low/close` are optional strings, plus optional `usd_leg` and `subject_*`.
 
 `CandleRow` USD fields become `Option<BigDecimal>`. `upsert_candle` binds NULL USD for the neither-catalog path.
 
@@ -88,7 +89,7 @@ No new store. The pair’s catalog class (same identity helper as ingest) choose
 Price-pane displayed token:
 
 - Missing `usd_leg` or `usd_leg=asset_0`: unchanged. Charts hero and Trade invert unchanged. The other leg uses `applyChartDisplayInvert` (`invertUsd` = stored / `H`, high with high, then order so high ≥ low). Never `1/x` of the USD series.
-- `usd_leg=asset_1`: stored OHLC is already USD of `asset_1`. On `/charts`, when there is no `?price=` and no Charts invert flag, the **price pane** defaults the displayed token to `asset_1` (ALPHA USD, not a flat catalog line). That default does not write `cl8y-dex-trade-pair-invert:`. Trade keeps its own default `inverted`. Explicit `?price=` / pill still selects either leg for the pane. When the displayed token is `asset_1`, plot stored OHLC. When it is `asset_0`, plot `stored × H` and do **not** call `applyChartDisplayInvert`. Pair `open` with `open_human` and `close` with `close_human`. Pair stored `high` with human `low` and stored `low` with human `high`, then set high = max and low = min so high ≥ low. Drop the bar when any factor is missing, non-positive, or non-finite. `applyChartDisplayInvert` divides and pairs high with high; that function stays on the `usd_leg=asset_0` branch.
+- `usd_leg=asset_1`: stored OHLC is already USD of `asset_1`. On `/charts`, when there is no `?price=` and no Charts session flag, this default selects `asset_1` for both the price pane and the Charts pill (ALPHA USD, not a flat catalog line). `defaultChartsDisplayInverted()` stays `false` for every other pair. That default does not write `cl8y-dex-trade-pair-invert:`. Do not write `?price=` until candle `usd_leg` is known. Trade keeps its own default `inverted`. Explicit `?price=` or a Charts session flag still selects either leg. When the displayed token is `asset_1`, plot `subject_*`. When it is `asset_0`, plot `subject × H` and do **not** call `applyChartDisplayInvert`. Pair `open` with `open_human` and `close` with `close_human`. Pair stored `high` with human `low` and stored `low` with human `high`, then set high = max and low = min so high ≥ low. Drop the bar when any factor is missing, non-positive, or non-finite. `applyChartDisplayInvert` divides and pairs high with high; that function stays on the `usd_leg=asset_0` branch.
 
 Both-catalog pairs stay on the first branch (**C680**, `usd_leg` omitted or `asset_0`).
 
@@ -138,7 +139,7 @@ No `TRUNCATE`. No rewrite of non-null candle USD and no rewrite of `swap_events.
 New unique migration prefix (do not reuse `20260916120000`):
 
 - `candles.usd_leg` text, NULL. NULL on a row that has USD means that write was USD of `asset_0`. New USD writes set `asset_0` or `asset_1`. Neither-catalog rows leave `usd_leg` NULL and leave USD NULL.
-- `candle_gap_fill_1315 (pair_id, interval, open_time)` primary key, plus a single done marker row so boot does not scan forever.
+- `candle_gap_fill_1315 (pair_id, interval, open_time)` primary key, plus a single done marker row so a **successful** boot does not scan forever. Set the marker only when the failure count is 0. On failure, the next boot retries pairs that still have zero `candles` rows. Stamped buckets stay as written.
 
 After `sqlx::migrate`, one indexer pass (info log, does not crash boot on failure). Select only pairs that have `se.price > 0` **and zero `candles` rows**. Leave every pair that already has a candle row, including ALPHA-as-`asset_0`. Do not scan missing buckets on pairs that already have candles.
 
@@ -149,7 +150,7 @@ For each selected pair, insert buckets from those swaps:
 
 Forward swaps after deploy use the catalog print at ingest time (same clock as other candles) and store that write’s `usd_leg`.
 
-`down.sql` deletes only stamped gap-fill keys, then drops the stamp table. See Rollback.
+`down.sql`, before an old binary serves GET, deletes stamped gap-fill keys, every `usd_leg = 'asset_1'` row, and every row with NULL `open`, then drops `candles.usd_leg` and the stamp objects. See Rollback.
 
 ## Observability
 
@@ -168,7 +169,7 @@ Tracing only (no `/metrics`, [#200](https://gitlab.com/PlasticDigits/cl8y-dex-te
 | Spoof CW20, symbol `ALPHA`, other leg UST1 | Generic mixed rule. USD is the UST1 cross of that CW20, not $1 and not a registry pin. |
 | Idle mark tick on ALPHA-as-`asset_1` | Still skipped. Must not merge catalog USD into the ALPHA series. |
 | Old indexer binary reads a NULL `open` | `CandleRow` decode error on that pair’s GET. Rollback runs `down.sql` first. |
-| Indexer live before the understanding client | Both-catalog charts stay correct (missing `usd_leg` means `asset_0`). `usd_leg=asset_1` is misread as USD of `asset_0`, and Trade `invertUsd` divides it again. Two Coolify apps (dApp and indexer) deploy on their own, and a cached dApp bundle keeps running after the indexer is up. “Ship together” does not close that window. It ends when the client that reads `usd_leg` is what is running. |
+| Indexer live before the understanding client | Both-catalog charts stay correct (missing `usd_leg` means `asset_0`). `usd_leg=asset_1` omits `open/high/low/close`, so today’s client drops the bar and shows the empty pane instead of plotting USD of `asset_1` as USD of `asset_0`. The new client plots `subject_*`. |
 
 ## Slices
 
@@ -213,12 +214,12 @@ Frontend:
 
 ## Rollout
 
-One implement MR. Boot migrates, then runs the zero-row gap fill. The indexer app and the dApp are two Coolify apps and do not cut over together. A cached dApp keeps misreading `usd_leg=asset_1` until that client is what is running. This design does not deploy.
+One implement MR. Boot migrates, then runs the zero-row gap fill. The indexer app and the dApp are two Coolify apps and do not cut over together. Until the new client is running, `usd_leg=asset_1` rows omit `open/high/low/close`, so a cached dApp shows the empty pane for that pair. This design does not deploy.
 
 ## Rollback
 
-1. Run `down.sql`: delete `candles` rows whose `(pair_id, interval, open_time)` is in `candle_gap_fill_1315`, then drop the stamp objects. Do this before an old indexer binary serves GET `/candles` (NULL `open` fails `CandleRow`).
-2. Restore the previous indexer image, and the previous dApp image when it is what is running. A cached bundle can still be the new client after the indexer is restored, or the old client after the indexer is new. The misread ends only when the client that is running matches the `usd_leg` it is given.
+1. Run `down.sql` before an old indexer binary serves GET `/candles` (NULL `open`, or `open` that is USD of `asset_1`, fails the old read contract). Delete stamped gap-fill keys, every `usd_leg = 'asset_1'` row, and every row with NULL `open`. Then drop `candles.usd_leg` and the stamp objects.
+2. Restore the previous indexer image, and the previous dApp image when it is what is running.
 3. Forward ingest returns to skipping unpriced quotes. Both-catalog candles that were never stamped stay.
 
 Do not `TRUNCATE candles` as a rollback.
@@ -233,7 +234,7 @@ Do not `TRUNCATE candles` as a rollback.
 - A pair with no positive-price swaps still shows the existing empty state.
 - No new `quote_usd_kind` arm and no ALPHA/CL8Y peg.
 - Idle marks still skip a non-catalog `asset_1`.
-- `down.sql` deletes only stamped gap keys.
+- `down.sql` deletes stamped gap keys, every `usd_leg = 'asset_1'` row, and every NULL `open` row, then drops the column and stamp objects.
 - A pair that already had candle rows is unchanged by the gap fill.
 - A missing catalog print on a one-catalog pair inserts nothing.
 - Trade `inverted` still drives the ticket when `usd_leg=asset_1`. The price pane does not use `applyChartDisplayInvert` on that series.

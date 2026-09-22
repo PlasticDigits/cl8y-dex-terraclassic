@@ -384,6 +384,130 @@ pub fn fits_numeric_38_18(value: &BigDecimal) -> bool {
     value.abs() < ten_pow_i32(20)
 }
 
+/// PostgreSQL `NUMERIC(78, 18)` requires `|x| < 10^60` (human candle OHLC).
+pub fn fits_numeric_78_18(value: &BigDecimal) -> bool {
+    value.abs() < ten_pow_i32(60)
+}
+
+/// Which factory leg a candle USD print describes ([#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CandleUsdLeg {
+    Asset0,
+    Asset1,
+}
+
+impl CandleUsdLeg {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Asset0 => "asset_0",
+            Self::Asset1 => "asset_1",
+        }
+    }
+}
+
+/// Candle write decision. `swap_events.price_usd` is not this value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CandleUsdSubject {
+    /// Subject USD stored in `candles.open/high/low/close` plus `usd_leg`.
+    Usd { leg: CandleUsdLeg, usd: BigDecimal },
+    /// Neither leg is catalog. Persist `*_human` only.
+    HumanOnly,
+    /// Missing catalog print, non-positive `H`, or overflow. Write nothing.
+    Skip,
+}
+
+impl CandleUsdSubject {
+    pub fn mode_str(&self) -> &'static str {
+        match self {
+            Self::Usd {
+                leg: CandleUsdLeg::Asset0,
+                ..
+            } => "usd_asset_0",
+            Self::Usd {
+                leg: CandleUsdLeg::Asset1,
+                ..
+            } => "usd_asset_1",
+            Self::HumanOnly => "human_only",
+            Self::Skip => "skip",
+        }
+    }
+}
+
+/// Oracle / hub prints available at a candle write ([#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315)).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CandleUsdPrints<'a> {
+    pub ustc_usd: Option<&'a BigDecimal>,
+    pub lunc_usd: Option<&'a BigDecimal>,
+    pub hub: Option<&'a HubQuoteUsd>,
+    pub configured_ustc_denom: Option<&'a str>,
+    pub configured_usdt_address: Option<&'a str>,
+}
+
+fn catalog_kind_for_leg(asset: &AssetRow, prints: CandleUsdPrints<'_>) -> Option<QuoteUsdKind> {
+    quote_usd_kind_for_identity(
+        &asset.symbol,
+        asset.denom.as_deref(),
+        asset.is_cw20,
+        asset.contract_address.as_deref(),
+        prints.configured_ustc_denom,
+        prints.configured_usdt_address,
+    )
+}
+
+fn positive_fitting_usd(usd: BigDecimal) -> Option<BigDecimal> {
+    if usd <= BigDecimal::from(0) || !fits_numeric_38_18(&usd) {
+        None
+    } else {
+        Some(usd)
+    }
+}
+
+/// USD of the non-catalog leg, or human-only when neither leg is catalog.
+///
+/// `H` is human quote-per-base (`asset_1` per `asset_0`). Does not peg ALPHA or CL8Y.
+/// A missing catalog print is [`CandleUsdSubject::Skip`], not [`CandleUsdSubject::HumanOnly`].
+pub fn candle_usd_subject(
+    base: &AssetRow,
+    quote: &AssetRow,
+    human_quote_per_base: &BigDecimal,
+    prints: CandleUsdPrints<'_>,
+) -> CandleUsdSubject {
+    if human_quote_per_base <= &BigDecimal::from(0) || !fits_numeric_78_18(human_quote_per_base) {
+        return CandleUsdSubject::Skip;
+    }
+    let base_kind = catalog_kind_for_leg(base, prints);
+    let quote_kind = catalog_kind_for_leg(quote, prints);
+    match (base_kind, quote_kind) {
+        (_, Some(qk)) => {
+            let Some(quote_usd) = usd_per_human_quote(qk, prints.ustc_usd, prints.lunc_usd, prints.hub)
+            else {
+                return CandleUsdSubject::Skip;
+            };
+            let Some(usd) = positive_fitting_usd(human_quote_per_base * &quote_usd) else {
+                return CandleUsdSubject::Skip;
+            };
+            CandleUsdSubject::Usd {
+                leg: CandleUsdLeg::Asset0,
+                usd,
+            }
+        }
+        (Some(bk), None) => {
+            let Some(base_usd) = usd_per_human_quote(bk, prints.ustc_usd, prints.lunc_usd, prints.hub)
+            else {
+                return CandleUsdSubject::Skip;
+            };
+            let Some(usd) = positive_fitting_usd(&base_usd / human_quote_per_base) else {
+                return CandleUsdSubject::Skip;
+            };
+            CandleUsdSubject::Usd {
+                leg: CandleUsdLeg::Asset1,
+                usd,
+            }
+        }
+        (None, None) => CandleUsdSubject::HumanOnly,
+    }
+}
+
 fn notional_usd(
     asset: &AssetRow,
     raw: &BigDecimal,
@@ -1094,6 +1218,114 @@ mod tests {
         assert!(
             volume_usd_for_swap(&clunc, &spoof, &offer, &ret, &spoof, None, None, None, None,)
                 .is_none()
+        );
+    }
+
+    fn same_usd(got: &BigDecimal, expect: &str) {
+        assert_eq!(got.normalized(), bd(expect).normalized(), "got {got}");
+    }
+
+    #[test]
+    fn candle_subject_alpha_slots_match_and_swap_usd_stays_null() {
+        assert!(quote_usd_kind("ALPHA", None).is_none());
+        assert!(quote_usd_kind("CL8Y", None).is_none());
+        let ust1 = cw20(1, "UST1", 6, "terra1ust1");
+        let alpha = cw20(2, "ALPHA", 6, "terra1alpha");
+        let hub = HubQuoteUsd {
+            ust1: Some(bd("0.5")),
+            ..Default::default()
+        };
+        let prints = CandleUsdPrints {
+            hub: Some(&hub),
+            ..Default::default()
+        };
+        // 1 ALPHA = 2 UST1. USD of 1 ALPHA = 2 * 0.5 = 1.
+        let as_base = candle_usd_subject(&alpha, &ust1, &bd("2"), prints);
+        match as_base {
+            CandleUsdSubject::Usd {
+                leg: CandleUsdLeg::Asset0,
+                usd,
+            } => same_usd(&usd, "1"),
+            other => panic!("expected asset_0 USD, got {other:?}"),
+        }
+        let as_quote = candle_usd_subject(&ust1, &alpha, &bd("0.5"), prints);
+        match as_quote {
+            CandleUsdSubject::Usd {
+                leg: CandleUsdLeg::Asset1,
+                usd,
+            } => same_usd(&usd, "1"),
+            other => panic!("expected asset_1 USD, got {other:?}"),
+        }
+        assert!(
+            price_usd_for_human_quote_per_base(&alpha, &bd("0.5"), None, None, Some(prints.hub.unwrap()))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn candle_subject_neither_catalog_is_human_only() {
+        let cl8y = cw20(1, "CL8Y", 6, crate::config::DEFAULT_HUB_CL8Y_ADDRESS);
+        let alpha = cw20(2, "ALPHA", 6, "terra1alpha");
+        let prints = CandleUsdPrints::default();
+        assert_eq!(
+            candle_usd_subject(&cl8y, &alpha, &bd("3"), prints),
+            CandleUsdSubject::HumanOnly
+        );
+    }
+
+    #[test]
+    fn candle_subject_missing_catalog_print_skips() {
+        let ust1 = cw20(1, "UST1", 6, "terra1ust1");
+        let alpha = cw20(2, "ALPHA", 6, "terra1alpha");
+        let prints = CandleUsdPrints::default();
+        assert_eq!(
+            candle_usd_subject(&ust1, &alpha, &bd("0.5"), prints),
+            CandleUsdSubject::Skip
+        );
+        assert_eq!(
+            candle_usd_subject(&alpha, &ust1, &bd("2"), prints),
+            CandleUsdSubject::Skip
+        );
+    }
+
+    #[test]
+    fn candle_subject_spoof_alpha_is_not_a_peg() {
+        let ust1 = cw20(1, "UST1", 6, "terra1ust1");
+        let spoof = cw20(2, "ALPHA", 6, "terra1notregistryalpha");
+        let hub = HubQuoteUsd {
+            ust1: Some(bd("0.4")),
+            ..Default::default()
+        };
+        let prints = CandleUsdPrints {
+            hub: Some(&hub),
+            ..Default::default()
+        };
+        match candle_usd_subject(&ust1, &spoof, &bd("2"), prints) {
+            CandleUsdSubject::Usd {
+                leg: CandleUsdLeg::Asset1,
+                usd,
+            } => same_usd(&usd, "0.2"),
+            other => panic!("expected UST1 cross, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn candle_subject_non_positive_and_overflow_skip() {
+        let cl8y = cw20(1, "CL8Y", 6, crate::config::DEFAULT_HUB_CL8Y_ADDRESS);
+        let alpha = cw20(2, "ALPHA", 6, "terra1alpha");
+        let prints = CandleUsdPrints::default();
+        assert_eq!(
+            candle_usd_subject(&cl8y, &alpha, &bd("0"), prints),
+            CandleUsdSubject::Skip
+        );
+        assert_eq!(
+            candle_usd_subject(&cl8y, &alpha, &bd("-1"), prints),
+            CandleUsdSubject::Skip
+        );
+        let huge = ten_pow_i32(60);
+        assert_eq!(
+            candle_usd_subject(&cl8y, &alpha, &huge, prints),
+            CandleUsdSubject::Skip
         );
     }
 }

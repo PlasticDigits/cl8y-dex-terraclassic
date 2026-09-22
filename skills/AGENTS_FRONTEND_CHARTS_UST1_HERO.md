@@ -36,6 +36,7 @@ Charts is a **UST1/USD** product surface. Bare `/charts` must open UST1/cUSTC (r
 - **Don’t** treat invert or the hero chart as mint/redeem (**U1**).
 - **Don’t** change indexer factory USD, CG/CMC, or `/limits` standalone (**T524-10**).
 - **Don’t** retarget 24h OHLC, TWAP, or tape Price from the #1315 price-pane default. Those stay on swap `price_usd` (**—** when ALPHA is `asset_1`). See [ADR 0012](../docs/adr/0012-alpha-pair-price-candles.md).
+- **Do** default both the Charts pill and the price pane to `asset_1` when candle `usd_leg=asset_1` and there is no `?price=` or Charts session flag. `defaultChartsDisplayInverted()` stays false for every other pair. Wait for that `usd_leg` before writing `?price=`.
 
 ## Canonical code
 

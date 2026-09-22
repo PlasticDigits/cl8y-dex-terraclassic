@@ -244,4 +244,15 @@ describe('Charts orientation isolation (GitLab #680)', () => {
     expect(resolveChartsDisplayInverted(pair, 'asset0')).toBe(false)
     expect(resolveChartsDisplayInverted(pair, 'asset1')).toBe(true)
   })
+
+  it('usd_leg=asset_1 defaults the pane and pill to asset_1; price and session still win', () => {
+    const pair = 'terra1pairdddddddddddddddddddddddddddddddddddd'
+    expect(defaultChartsDisplayInverted()).toBe(false)
+    expect(resolveChartsDisplayInverted(pair, null, 'asset_1')).toBe(true)
+    expect(resolveChartsDisplayInverted(pair, null, 'asset_0')).toBe(false)
+    expect(resolveChartsDisplayInverted(pair, null)).toBe(false)
+    expect(resolveChartsDisplayInverted(pair, 'asset0', 'asset_1')).toBe(false)
+    writeChartsStoredPairDisplayInverted(pair, false)
+    expect(resolveChartsDisplayInverted(pair, null, 'asset_1')).toBe(false)
+  })
 })

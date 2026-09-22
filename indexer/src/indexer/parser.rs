@@ -629,11 +629,27 @@ async fn process_swap(
     )
     .await?;
 
+    let subject = match (base_asset.as_ref(), quote_asset.as_ref()) {
+        (Some(base), Some(quote)) => pair_price_usd::candle_usd_subject(
+            base,
+            quote,
+            &oriented.price,
+            pair_price_usd::CandleUsdPrints {
+                ustc_usd: ustc_usd.as_ref(),
+                lunc_usd: lunc_usd.as_ref(),
+                hub: hub.as_ref(),
+                configured_ustc_denom: config.ustc_denom.as_deref(),
+                configured_usdt_address: Some(config.usdt_cw20_address.as_str()),
+            },
+        ),
+        _ => pair_price_usd::CandleUsdSubject::Skip,
+    };
+
     candle_builder::update_candles_for_swap(
         pool,
         pair.id,
         block_time,
-        price_usd.as_ref(),
+        &subject,
         &oriented.price,
         &oriented.volume_base,
         &oriented.volume_quote,

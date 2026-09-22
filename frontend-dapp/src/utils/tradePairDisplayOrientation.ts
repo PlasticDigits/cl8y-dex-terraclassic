@@ -372,13 +372,38 @@ export function chartsPriceTokenForInverted(
   return fallback.trim() || (inverted ? 'Quote' : 'Base')
 }
 
+export type ChartsCandleUsdLeg = 'asset_0' | 'asset_1'
+
+/** Newest candle `usd_leg`. Missing or empty series is `asset_0` (#1315). */
+export function chartsUsdLegFromCandles(
+  rows: { open_time: string; usd_leg?: string | null }[] | undefined
+): ChartsCandleUsdLeg {
+  if (!rows?.length) return 'asset_0'
+  let newest = rows[0]
+  let newestMs = new Date(newest.open_time).getTime()
+  for (const row of rows) {
+    const ms = new Date(row.open_time).getTime()
+    if (Number.isFinite(ms) && ms >= newestMs) {
+      newest = row
+      newestMs = ms
+    }
+  }
+  return newest.usd_leg === 'asset_1' ? 'asset_1' : 'asset_0'
+}
+
 /**
- * Charts orientation: valid `?price=` → Charts session → Charts product default.
+ * Charts orientation: valid `?price=` → Charts session → `usd_leg=asset_1` pane default
+ * (show `asset_1`) → Charts product default (`false`).
  * Never reads or writes the Trade invert key.
  */
-export function resolveChartsDisplayInverted(pairAddr: string, priceMatch: 'asset0' | 'asset1' | null): boolean {
+export function resolveChartsDisplayInverted(
+  pairAddr: string,
+  priceMatch: 'asset0' | 'asset1' | null,
+  usdLeg?: ChartsCandleUsdLeg | null
+): boolean {
   if (priceMatch) return chartsInvertedFromPriceMatch(priceMatch)
   const stored = pairAddr ? readChartsStoredPairDisplayInverted(pairAddr) : null
   if (stored != null) return stored
+  if (usdLeg === 'asset_1') return true
   return defaultChartsDisplayInverted()
 }
