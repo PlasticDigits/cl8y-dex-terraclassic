@@ -35,6 +35,7 @@ Charts is a **UST1/USD** product surface. Bare `/charts` must open UST1/cUSTC (r
 - **Don’t** override `selectPair`: an explicit `#chart-pair-select` change must not be replaced by the hero while the route is still bare ([#1266](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1266) **C1266-1**). The hero effect **must not override** `selectPair`. Idle bare `/charts` (no user select) still hero-picks (**C680-1**).
 - **Don’t** treat invert or the hero chart as mint/redeem (**U1**).
 - **Don’t** change indexer factory USD, CG/CMC, or `/limits` standalone (**T524-10**).
+- **Don’t** retarget 24h OHLC, TWAP, or tape Price from the #1315 price-pane default. Those stay on swap `price_usd` (**—** when ALPHA is `asset_1`). See [ADR 0012](../docs/adr/0012-alpha-pair-price-candles.md).
 
 ## Canonical code
 
