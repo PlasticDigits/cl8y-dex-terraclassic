@@ -143,6 +143,24 @@ Sibling leftover scripts (`VERIFY*_IID`) fail-close on **unreachable**; #1276 **
 
 Labels shipped in [!1290](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1290) ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240)). Closed !1302 merged a weaker `verify-issue-1290` sketch (`f237a6e6`). Leftover issue is **[#1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1306)** (not product #1290). The #1306 MR on current `main` **inserts** this section plus ADR **0009** / **Q22** / README index, aliases `verify-issue-1302` and `verify-issue-1306`, Cloud Agent + Frontend help for **1290 / 1302 / 1306**, `free_tcp_port` 30129, and full B1290-4 greps — do not retarget closed !1302, do not merge open !1306 as-is, and do not whole-file checkout this file from the design tip (overlap with [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) ADR **0008** / **Q21**). Leftover-complete is that wiring MR, not green skip-E2E. Production `/protocol` glance is [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 1. Bundle: `make verify-issue-1290` (aliases `verify-issue-1302` / `verify-issue-1306`) → child `verify-issue-1240`, `hubPriceTicker` Vitest, optional Playwright `protocol-page` at 5 workers. Decision: [ADR 0009](./adr/0009-verify-issue-1290-hub-wrap-labels.md). QA row: [`qa-invariants.md`](./qa-invariants.md) **Q22**. No indexer JSON change.
 
+## CMM-held v2 LP census {#cmm-lp-census}
+
+`/protocol` **Top pairs (30d)** keeps the [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263) ranking (priced 30d volume, gems out, full-pool **Vol/LP**). Three columns after Vol/LP measure that same window against **CMM-held** LP, not against full-pool TVL.
+
+```mermaid
+flowchart LR
+    LEDGER[lp_holder_deltas]
+    CHK[lp_custody_checkpoints]
+    FEES[protocol_fee_events pair trading fees]
+    LEDGER --> REF[Refresh ~5 min]
+    CHK --> REF
+    FEES --> REF
+    REF --> STAMP[pair_cmm_lp_usd_30d and pair_trading_fees_30d]
+    STAMP --> GET["GET /protocol/top-pairs stamp join only"]
+```
+
+The custodian is the existing `CMM_GOVERNANCE_ADDR` pin. Provide credits the LP **receiver** (mint runbooks set that to the CMM treasury while the admin wallet is the sender). User transfers of the pair LP token update the same ledger. The denominator is time-weighted shares marked at current `pair_liquidity_usd / total_supply`. The fee numerator is `swap_amm` + `book_take` + `limit_place` only. GET does not scan events or the chain. Decision, flat pre-checkpoint prefix, and rollback: [ADR 0012](./adr/0012-cmm-held-v2-lp-fee-bps.md). Playbook: [`AGENTS_INDEXER_CMM_LP_CENSUS.md`](../skills/AGENTS_INDEXER_CMM_LP_CENSUS.md).
+
 ## Directory Layout
 
 ```

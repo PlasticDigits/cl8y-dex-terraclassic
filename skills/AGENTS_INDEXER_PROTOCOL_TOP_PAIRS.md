@@ -33,6 +33,7 @@ Global 30d volume and total TVL cannot rank **which pool** is earning its keep. 
 - **Don’t** rank gems or unpriced NULL volume.
 - **Don’t** compute the ratio in the browser from `/pairs?sort=volume_usd_24h&limit=5`.
 - **Don’t** add BTC/ETH/stock rows, farm/APR chrome, or a Protocol bar chart of the same five pairs.
+- **Don’t** redefine Vol/LP as the CMM ratio. CMM LP, fee bps, and Vol/CMM LP are [#1317](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1317) ([ADR 0012](../docs/adr/0012-cmm-held-v2-lp-fee-bps.md) / [`AGENTS_INDEXER_CMM_LP_CENSUS.md`](./AGENTS_INDEXER_CMM_LP_CENSUS.md)).
 
 ## Verify
 

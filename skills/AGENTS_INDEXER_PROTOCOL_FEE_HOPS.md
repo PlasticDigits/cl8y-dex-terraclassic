@@ -20,7 +20,8 @@ Audience: third-party agents changing `protocol_fee_events` uniqueness, `swap_am
 | Source | `pair_id` | Unique index |
 |--------|-----------|--------------|
 | `swap_amm` | factory `pairs.id` (NOT NULL) | `(tx_hash, source, pair_id, ordinal)` WHERE `pair_id IS NOT NULL` |
-| wrap / unwrap / ust1_* / book_take / limit_place | NULL | `(tx_hash, source, ordinal)` WHERE `pair_id IS NULL` |
+| wrap / unwrap / ust1_* | NULL | `(tx_hash, source, ordinal)` WHERE `pair_id IS NULL` |
+| `book_take` / `limit_place` | `pairs.id` when the fill or placement match is unique; else NULL | pair partial when `pair_id` is set; nopair partial when NULL ([#1317](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1317)) |
 
 PostgreSQL `UNIQUE` treats NULL as distinct. A nullable `pair_id` **without** these partials would double-count wrap/window on replay (**A6**). Do **not** `ON CONFLICT DO UPDATE`.
 
@@ -32,7 +33,7 @@ PostgreSQL `UNIQUE` treats NULL as distinct. A nullable `pair_id` **without** th
 |----|------|
 | **F1269-1** | Router tx, two distinct factory pairs, both `commission_amount > 0`, both `swap_index == 0` → two `swap_amm` rows. Same-pair `swap_index` 0 then 1 → two rows. |
 | **F1269-2** | Duplicate delivery of one hop inserts 0 rows. Never `DO UPDATE`. Amounts stay the first stored value. |
-| **F1269-3** | Wrap / unwrap / ust1_mint / ust1_redeem / book_take / limit_place keep NULL `pair_id` and `(tx_hash, source, ordinal)` uniqueness. Two wrap ordinals in one tx still coexist; replay of ordinal 0 still dedups. |
+| **F1269-3** | Wrap / unwrap / ust1_mint / ust1_redeem keep NULL `pair_id` and `(tx_hash, source, ordinal)` uniqueness. Two wrap ordinals in one tx still coexist; replay of ordinal 0 still dedups. `book_take` / `limit_place` may set `pair_id` ([#1317](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1317)); unattributed rows stay on the NULL partial. Never `DO UPDATE`. |
 | **F1269-4** | One-shot backfill from `swap_events.commission_amount > 0` plus poller startup. Do not rely on indexer replay alone. `fee_usd` NULL until the existing NULL-only stamp helper. Never rewrite non-null `fee_usd` (#568). |
 | **F1269-5** | GET `/overview` and `/protocol/fees` stay O(1) rollup / 60s cache. Do not `SUM protocol_fee_events` on GET. Refresh rollup after backfill. |
 | **F1269-6** | L7: hybrid still counts pool `commission_amount` + fill `commission_amount` once. Do not add `book_commission_amount`, spread, hook, burn tax, or gas to close a census gap. |

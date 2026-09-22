@@ -90,7 +90,22 @@ Census ranking of factory pools on `/protocol`. Not `/pool`, not `/charts`, not 
 | **P1263-5** | Pair cell uses `chartsPairHref`. Invalid bech32 / `javascript:` is text, not an href. Symbols render as text (no `innerHTML`). |
 | **P1263-6** | 404/501 (old indexer) hides the panel. 5xx is in `detectMarketDataOutage` + Retry. No per-row LCD / `/stats`. |
 | **P1263-7** | Copy has no “voting” / “farm” / “APR” / “cost to benefit” lecture (#489 / **H531-4**). No Provide CTA. |
-| **P1263-8** | Verify: `make verify-issue-1263`. Keep `verify-issue-550` / `569` / `655` / `692` / `653` / `562` green. Indexer contract: [`AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](./AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md) (**I1263-1–I1263-8**). |
+| **P1263-8** | Verify: `make verify-issue-1263`. Keep `verify-issue-550` / `569` / `655` / `692` / `653` / `562` green. Indexer contract: [`AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](./AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md) (**I1263-1–I1263-8**). CMM columns are **P1317** ([#1317](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1317)); do not redefine Vol/LP. |
+
+## Invariants (P1317 — CMM v2 LP, #1317)
+
+Same panel and ranking as **P1263**. Contract: [`AGENTS_INDEXER_CMM_LP_CENSUS.md`](./AGENTS_INDEXER_CMM_LP_CENSUS.md) and [ADR 0012](../docs/adr/0012-cmm-held-v2-lp-fee-bps.md).
+
+| ID | Rule |
+|----|------|
+| **P1317-1** | After Vol/LP: **CMM v2 LP**, **30d fee bps**, **Vol/CMM LP**. |
+| **P1317-2** | `formatProtocolUsd` / `formatFeeBps` (no `%`) / `formatVolumePerTvl` (`2.469` → `2.47×`). |
+| **P1317-3** | Missing or non-positive → em dash. Original cells stay. |
+| **P1317-4** | Tooltips: time-weighted CMM shares; bps exclude wrap/window; multiple is not full-pool Vol/LP. |
+| **P1317-5** | No farm, APR, or yield copy. |
+| **P1317-6** | Keep `overflow-x-auto`. New cells `whitespace-nowrap`. |
+| **P1317-7** | Test ids `protocol-top-pair-cmm-lp-*`, `protocol-top-pair-fee-bps-*`, `protocol-top-pair-cmm-ratio-*`. |
+| **P1317-8** | `make verify-issue-1317`. Keep `verify-issue-1263` and `verify-issue-1269` green. |
 
 ## Invariants (PFee — GitLab #586)
 
@@ -109,7 +124,7 @@ Census ranking of factory pools on `/protocol`. Not `/pool`, not `/charts`, not 
 | **PFee-11** | Breakdown cardinality is bounded (fixed source enum; top 8 tokens + `other`). No CSV in v1. |
 | **PFee-12** | Verify: `make verify-issue-586`. Wrap ingest attrs: `make verify-issue-613`. Related: `make verify-issue-550` `569` `576` `577`. Post-merge stack: `make verify-issue-590` ([#590](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/590)). Window mint/redeem: `make verify-issue-614`. Economic fee USD (CL8Y + listed non-gems): `make verify-issue-683`. Multihop AMM hops: `make verify-issue-1269` ([#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) **PFee-14** / [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](./AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md)). Remaining ingest home (no parsers here): `make verify-issue-1213` ([#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213) / [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](./AGENTS_INDEXER_FEE_LEDGER_HOME.md) **L1213**; children #1209 / #1210 / #1211). |
 | **PFee-13** | UST1 window mint/redeem only from pinned `UST1_WINDOW_ADDRESS` (same terra1 pin rules as wrap; do **not** reuse `WRAP_MAPPER_ADDRESS`). Actions `deposit` → `ust1_mint`, `withdraw` → `ust1_redeem`. Require explicit `fee_amount` + token (`fee_asset` / `fee_denom` / `denom` / `ust1_token`). **Never** infer `ust1_out × fee_total_bps` / `vfdusd_to_treasury × fee_cmm_protocol_bps`. Columbus-5 **11566** crate attrs (`fee_*_bps` / `ust1_out` / `vfdusd_to_treasury`) are **not** a fee amount (fail closed). Same address **11618** ([ust1-window#33](https://gitlab.com/PlasticDigits/ust1-window/-/issues/33)) emits `fee_amount` + `fee_asset` (UST1). Flattened CW20 `send` + hook scopes by reserved `_contract_address` (#285). Price with hub UST1 (**PFee-7**); never vFDUSD/FDUSD / `$1` UST1. `window=` query param stays `24h`\|`7d`\|`30d` (not “ust1-window”). Coolify pin is the **indexer** `UST1_WINDOW_ADDRESS`, not only Vite `VITE_UST1_WINDOW_ADDRESS`. Playbook: [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614-1–I614-8**). |
-| **PFee-14** | `swap_amm` uniqueness is pair-scoped: `(tx_hash, source, pair_id, ordinal)` so a router tx with two hops at per-pair `swap_index` 0 stores **both** commissions ([#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) **F1269-1–F1269-8**). Wrap / window / book / place keep NULL `pair_id` + `(tx_hash, source, ordinal)`. Never `DO UPDATE`. Backfill from `swap_events.commission_amount`; GET stays rollup-only. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](./AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md). `make verify-issue-1269`. |
+| **PFee-14** | `swap_amm` uniqueness is pair-scoped: `(tx_hash, source, pair_id, ordinal)` so a router tx with two hops at per-pair `swap_index` 0 stores **both** commissions ([#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) **F1269-1–F1269-8**). Wrap / window keep NULL `pair_id`. `book_take` / `limit_place` store `pair_id` when known ([#1317](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1317)); unattributed rows stay on the NULL partial. Never `DO UPDATE`. Backfill from `swap_events.commission_amount`; GET stays rollup-only. Playbook: [`AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md`](./AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md). `make verify-issue-1269`. |
 
 ## Invariants (P652 — GitLab #652)
 
