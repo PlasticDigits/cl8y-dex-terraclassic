@@ -66,6 +66,7 @@ use std::time::{Duration, Instant};
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::routing::get;
 use axum::Router;
+use serde::Serialize;
 use sqlx::PgPool;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::PeerIpKeyExtractor;
@@ -75,7 +76,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
-use utoipa::OpenApi;
+use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
@@ -381,6 +382,9 @@ pub async fn find_pair_by_ticker(
         cmc::cmc_ticker,
         cmc::cmc_orderbook,
         cmc::cmc_trades,
+        health,
+        fee_discount_health::get_fee_discount_health,
+        compliance::blacklist_check,
     ),
     components(schemas(
         route_solver::SolveRouteParams,
@@ -467,8 +471,14 @@ pub async fn find_pair_by_ticker(
         oracle::VenusVfdusdResponse,
         oracle::OracleHistoryEntry,
         oracle::OracleHistoryResponse,
+        HealthResponse,
+        crate::indexer::fee_discount_registry_health::FeeDiscountRegistryHealthSnapshot,
+        compliance::BlacklistCheckApiResponse,
+        compliance::BlacklistCheckParams,
     )),
     tags(
+        (name = "Health", description = "Liveness and fee-discount registry probe"),
+        (name = "Compliance", description = "Factory trading blacklist LCD proxy"),
         (name = "Routing", description = "Multihop route discovery for swaps"),
         (name = "Pairs", description = "Trading pair endpoints"),
         (name = "Tokens", description = "Token/asset endpoints"),
@@ -486,14 +496,33 @@ pub async fn find_pair_by_ticker(
 )]
 struct ApiDoc;
 
-async fn health() -> axum::Json<serde_json::Value> {
+/// Liveness body. `git_sha` is omitted when unset or rejected (same JSON as before).
+#[derive(Serialize, ToSchema)]
+struct HealthResponse {
+    status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    git_sha: Option<String>,
+}
+
+#[utoipa::path(
+    get,
+    path = "/health",
+    responses(
+        (status = 200, description = "Liveness. Optional git_sha when GIT_SHA or SOURCE_COMMIT is valid hex.", body = HealthResponse),
+    ),
+    tag = "Health"
+)]
+async fn health() -> axum::Json<HealthResponse> {
     // Per-request env (H1276-2). Do not cache on AppState; do not load .env here.
     let git_sha_env = std::env::var("GIT_SHA").ok();
     let source_commit_env = std::env::var("SOURCE_COMMIT").ok();
     let selected =
         health_git_sha::select_commit_env(git_sha_env.as_deref(), source_commit_env.as_deref());
     match selected.and_then(health_git_sha::parse_git_sha) {
-        Some(git_sha) => axum::Json(serde_json::json!({"status": "ok", "git_sha": git_sha})),
+        Some(git_sha) => axum::Json(HealthResponse {
+            status: "ok".to_string(),
+            git_sha: Some(git_sha),
+        }),
         None => {
             let reason = if selected.is_none() {
                 "unset"
@@ -501,7 +530,10 @@ async fn health() -> axum::Json<serde_json::Value> {
                 "rejected"
             };
             tracing::debug!(reason, "omitting git_sha");
-            axum::Json(serde_json::json!({"status": "ok"}))
+            axum::Json(HealthResponse {
+                status: "ok".to_string(),
+                git_sha: None,
+            })
         }
     }
 }
@@ -932,5 +964,43 @@ mod rate_limit_quota_tests {
             replenish_period_for_rps(60),
             std::time::Duration::from_nanos(16_666_666)
         );
+    }
+}
+
+#[cfg(test)]
+mod openapi_pack_tests {
+    use super::ApiDoc;
+    use utoipa::OpenApi;
+
+    /// #1204 AC8/AC9: five evidence surfaces plus health/compliance stay in ApiDoc.
+    #[test]
+    fn openapi_pack_includes_five_surfaces_and_health() {
+        let spec = ApiDoc::openapi();
+        let value: serde_json::Value =
+            serde_json::from_str(&spec.to_pretty_json().expect("openapi json")).expect("json");
+        let paths = value["paths"].as_object().expect("paths object");
+        for key in [
+            "/api/v1/pairs",
+            "/api/v1/pairs/{addr}",
+            "/api/v1/pairs/{addr}/trades",
+            "/api/v1/pairs/{addr}/liquidity-events",
+            "/api/v1/pairs/{addr}/stats",
+            "/api/v1/tokens/{addr}",
+            "/api/v1/tokens/{addr}/pairs",
+            "/api/v1/traders/{addr}/trades",
+            "/api/v1/hooks",
+            "/api/v1/protocol/fees",
+            "/api/v1/protocol/fees/daily",
+            "/api/v1/protocol/volume/daily",
+            "/api/v1/overview",
+            "/api/v1/defillama/daily",
+            "/gt/events",
+            "/api/v1/route/solve",
+            "/health",
+            "/api/v1/health/fee-discount",
+            "/api/v1/compliance/blacklist-check",
+        ] {
+            assert!(paths.contains_key(key), "OpenAPI missing {key}");
+        }
     }
 }

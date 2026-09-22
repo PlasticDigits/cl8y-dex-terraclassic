@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
+use utoipa::ToSchema;
 
 use crate::lcd::{LcdClient, LcdError};
 
@@ -16,7 +17,7 @@ const PROBE_INTERVAL: Duration = Duration::from_secs(60);
 /// Log at `error` when LCD config probes fail at least this many times in a row.
 const REPEATED_FAILURE_LOG_THRESHOLD: u32 = 2;
 
-#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq, ToSchema)]
 pub struct FeeDiscountRegistryHealthSnapshot {
     pub configured: bool,
     /// `null` when `FEE_DISCOUNT_ADDRESS` is unset; otherwise latest probe result.

@@ -272,6 +272,7 @@ make verify-issue-692                    # #692 /pool Vol column + pair-list 24h
 make verify-issue-586                    # #586 /protocol treasury fees 24h/7d/30d + source/token mix
 make verify-issue-1269                   # #1269 persist every multihop AMM hop in protocol_fee_events
 make verify-issue-1213                   # #1213 fee-ledger home (docs; ingest is #1209/#1210/#1211)
+make verify-issue-1204                   # #1204 indexer HTTP pack (OpenAPI paths + curls)
 make verify-issue-683                    # #683 /protocol fee USD for CL8Y + factory-listed economic tokens
 make verify-issue-631                    # #631 DeFiLlama UTC-day API + gem/hybrid/fee exclusions
 make verify-issue-687                    # #687 DeFiLlama fees headline partial SUM + adapter start / 404
@@ -368,6 +369,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
+| Indexer HTTP pack (docs + OpenAPI) | `make verify-issue-1204` |
 | Retail gas census (docs) | `make verify-issue-1222` |
 | Route solve remaining failures (docs) | `make verify-issue-1265` · `make verify-issue-1289` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
@@ -474,6 +476,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md](skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md) — wrap/unwrap protocol-fee ingest from captured mapper `notify_deposit` / `unwrap` `fee` (**I613-1–I613-8**, [#613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)); `make verify-issue-613`
 - [skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md](skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) — persist every multihop AMM hop in `protocol_fee_events` (**F1269-1–F1269-8**, [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269)); `make verify-issue-1269`
 - [skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md](skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) — fee-ledger home is this indexer (**L1213-1–L1213-8**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); ingest children [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) / [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) / [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211); do not implement parsers on the epic or in marketing; `make verify-issue-1213`
+- [skills/AGENTS_INDEXER_HTTP_PACK.md](skills/AGENTS_INDEXER_HTTP_PACK.md) — indexer HTTP pack for swaps, pools, fees, burns, and volume windows (**I1204-1–I1204-8**, [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)); `make verify-issue-1204`
 - [skills/AGENTS_INDEXER_VENUS_VFDUSD.md](skills/AGENTS_INDEXER_VENUS_VFDUSD.md) — `/protocol` vFDUSD **FDUSD reference price** + Venus **1 vFDUSD Price** (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); registry USDT contract-pinned advisory $1 (**#1258**); `make verify-issue-522` · `make verify-issue-1258`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
