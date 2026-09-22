@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed — [#1206](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1206). This design slice does not accept the ADR. Implement keeps **Proposed** until a reviewer accepts it.
+Proposed — [#1206](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1206). Revision **2**. This design slice does not accept the ADR. Implement keeps **Proposed** until a reviewer accepts it.
+
+Revision 2 keeps the same route and document. It closes three traps on current `main`: axum query structs drop unknown keys unless denied; the trailing fee rollup omits unconfigured wrap/UST1 families and stores a partial `SUM` instead of per-source fail-closed; a 60s cache must not freeze `complete` across UTC midnight.
 
 ADR **0008** stays reserved for leftover-ops [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300). This ticket is **0010**.
 
@@ -55,7 +57,9 @@ The issue text both says to reject `day=today` and, in **AC10**, to return today
 
 ### Clock
 
-Parse `day` with `chrono::NaiveDate` then `and_hms_opt(0, 0, 0)` and `Utc` — the same UTC midnight as `utc_day_start` in [`indexer/src/indexer/defillama.rs`](../../indexer/src/indexer/defillama.rs). Bind `$1` / `$2` as `timestamptz`. Never concatenate the query string into SQL.
+Parse `day` with `NaiveDate::parse_from_str(day, "%Y-%m-%d")` only, then `and_hms_opt(0, 0, 0)` and `Utc` — the same UTC midnight as `utc_day_start` in [`indexer/src/indexer/defillama.rs`](../../indexer/src/indexer/defillama.rs). Reject empty, whitespace, `T`, `Z`, offsets, and unix timestamps before any query. Bind `$1` / `$2` as `timestamptz`. Never concatenate the query string into SQL.
+
+The window is half-open. `$1` is that midnight. `$2` is `$1 + 1 day`. Every count and fee statement uses `block_timestamp >= $1 AND block_timestamp < $2`. Do not call `date_trunc` in SQL. Do not use `<= 23:59:59`.
 
 | Input | Result |
 |-------|--------|
@@ -64,19 +68,27 @@ Parse `day` with `chrono::NaiveDate` then `and_hms_opt(0, 0, 0)` and `Utc` — t
 | `day` strictly before today | **200**, `"complete": true` |
 | `day` strictly after today | **400** |
 
-`complete` means the calendar day has ended. It does not mean the indexer has caught the chain tip. A lagging poller can still add rows to a past day; the next cache expiry shows them. Do not copy Llama’s **404** when a rollup row is missing.
+`complete` is `day < Utc::now().date_naive()`, evaluated when the response is built, including on a cache hit. It means the calendar day has ended. It does not mean the indexer has caught the chain tip. A lagging poller can still add rows to a past day; the next cache expiry shows the new counts. Do not copy Llama’s **404** when a rollup row is missing.
 
 ### Query allowlist
 
-The only accepted query key is `day`. Any other key — `window`, `timestamp`, `from`, `to`, `format`, `sender`, `trader`, `maker`, `address`, `tx`, `tx_hash`, `join`, `redact`, `events` — is **400**. A denylist would miss synonyms and could let a client believe it filtered by wallet.
+The only accepted query key is `day`. Any other key — `window`, `timestamp`, `from`, `to`, `format`, `sender`, `trader`, `maker`, `address`, `tx`, `tx_hash`, `join`, `redact`, `events`, `wallet`, `addr` — is **400**. A denylist would miss synonyms and could let a client believe it filtered by wallet.
 
-**400** bodies are static sentences. Do not echo the parameter value (a bech32 in the error string would fail the anonymity check).
+`ProtocolFeesQuery` has no `deny_unknown_fields`, so axum drops unknown keys on `/protocol/fees`. Do not copy that struct. This handler deserializes a struct whose only field is `day: String` with `#[serde(deny_unknown_fields)]`, or it rejects the raw query when any key other than `day` is present. Duplicate `day` keys are **400**. Missing or empty `day` is **400**.
 
-`POST` / `PUT` / `DELETE` → **405**. `format=csv` is an extra key → **400**.
+**400** bodies are these static sentences. Do not interpolate the parameter value (a bech32 in the error string would fail the anonymity check):
+
+| Case | Body |
+|------|------|
+| Missing, empty, or malformed `day` | `Invalid day, expected YYYY-MM-DD` |
+| Future `day` | `day is in the future` |
+| Any other key, or a duplicate `day` | `Unexpected query parameter` |
+
+`POST` / `PUT` / `DELETE` → **405**. `format=csv` is an extra key → **400** with `Unexpected query parameter`.
 
 ### Counts
 
-Independent `COUNT(*)` queries. No join from fees to swaps or to `traders`.
+Independent `COUNT(*)` queries. No join from fees to swaps or to `traders`. Counts are gross rows in the window. Do not subtract cancels from places. Do not count the resting book. `liquidity_events.event_type` is already checked to `add` | `remove`; still count only those two strings.
 
 | JSON | SQL |
 |------|-----|
@@ -92,6 +104,10 @@ Independent `COUNT(*)` queries. No join from fees to swaps or to `traders`.
 
 `GROUP BY source` on `protocol_fee_events` for the same window. Emit `FeeSource::ALL` in enum order (seven rows on current `main`). Unknown DB source strings are omitted. Do not keep a second hardcoded list.
 
+Do not copy `refresh_source_breakdown` in [`indexer/src/db/queries/protocol_fees.rs`](../../indexer/src/db/queries/protocol_fees.rs). That job skips wrap/unwrap when `wrap_mapper_configured` is false and skips mint/redeem when `ust1_window_configured` is false, and it stores `SUM(fee_usd) FILTER (WHERE fee_usd IS NOT NULL)` with no unpriced count. This digest always emits seven rows. An unpinned mapper or window is idle zeros, not a missing key. Do not add `wrap_mapper_configured` or `ust1_window_configured` to the JSON.
+
+Each source aggregate returns `event_count = COUNT(*)`, `unpriced_count = COUNT(*) FILTER (WHERE fee_usd IS NULL)`, and `priced_usd = SUM(fee_usd) FILTER (WHERE fee_usd IS NOT NULL)`. Pass those three into `daily_usd_field_fail_closed`. Serialize priced amounts and shares with `bd_plain_string` (`normalized().to_plain_string()` in [`indexer/src/api/pairs.rs`](../../indexer/src/api/pairs.rs)). Do not use `BigDecimal::to_string()` — the trailing fees handler does, and it can emit scientific notation.
+
 Per source, fail closed ([#586](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/586) **C3** / `daily_usd_field_fail_closed`):
 
 | Case | `event_count` | `amount_usd` |
@@ -101,7 +117,7 @@ Per source, fail closed ([#586](https://git.cl8y.com/code/cl8y-dex-terraclassic/
 | Rows, all priced, sum > 0 | row count | plain digit string |
 | Rows, all priced, sum ≤ 0 | row count | JSON `null` |
 
-Headline `fees.total_usd` follows **EFee-6** / [#687](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/687): priced `SUM(fee_usd)` of non-null stamps only. One unpriced source must not wipe a priced wrap. Clients must not expect `total_usd` to equal the sum of displayed per-source `amount_usd` when a source is fail-closed `null`.
+Headline `fees.total_usd` is `daily_headline_usd(total_event_count, priced_sum)` ([#687](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/687) **EFee-6**): priced `SUM(fee_usd)` of non-null stamps only. Zero fee rows → `"0"`. Any fee rows and priced sum ≤ 0 → JSON `null`. One unpriced source must not wipe a priced wrap. Clients must not expect `total_usd` to equal the sum of displayed per-source `amount_usd` when a source is fail-closed `null`.
 
 `share_pct` uses that headline priced sum:
 
@@ -114,9 +130,11 @@ Not counted: `spread_amount`, burn tax, gas, hook fees, community-tax extra-debi
 
 ### Token mix
 
-`GROUP BY asset_id` joined to `assets` for `symbol` and contract or native denom. Cap **8** named rows (`TOKEN_CAP` in [`indexer/src/db/queries/protocol_fees.rs`](../../indexer/src/db/queries/protocol_fees.rs)), then one `is_other: true` row with `symbol` `"other"` and `contract_or_denom` omitted. Order by priced USD descending, nulls last, `asset_id` ascending.
+`GROUP BY asset_id` joined only to `assets` for `symbol` and contract or native denom. Cap **8** named rows (`TOKEN_CAP` in [`indexer/src/db/queries/protocol_fees.rs`](../../indexer/src/db/queries/protocol_fees.rs)), then one `is_other: true` row with `symbol` `"other"` and `contract_or_denom` omitted. Order by priced USD descending, nulls last, `asset_id` ascending. Nine assets → eight named plus `other`. Eight or fewer → no `other` row. A day with no fee rows → `"by_token": []` (present, not omitted).
 
-`by_token` may contain CW20 **token** contracts and denoms `uusd` / `uluna`. It must not contain trader bech32, the wrap-mapper address, or the factory address. Omit `asset_id` and `amount_human` (the issue example does not carry them).
+Each asset uses the same fail-closed helper (`unpriced_count` for that `asset_id`). The `other` row uses the tail’s combined unpriced count and priced sum, so one unpriced dust token makes `other.amount_usd` null instead of a partial sum.
+
+`contract_or_denom` is `assets.contract_address` when `is_cw20`, otherwise `assets.denom`. Do not select `pairs.contract_address`. `by_token` may contain CW20 **token** contracts and denoms `uusd` / `uluna`. It must not contain trader bech32, the wrap-mapper address, or the factory address. Omit `asset_id`, `amount_human`, and `rank`.
 
 Gems stay in **counts**. Gem fee stamps stay unpriced (`null` per source). This route is not L639-safe and is not a Llama clone.
 
@@ -124,7 +142,7 @@ Gems stay in **counts**. Gem fee stamps stay unpriced (`null` per source). This 
 
 Register on the global `api_router` in [`indexer/src/api/mod.rs`](../../indexer/src/api/mod.rs) next to `/api/v1/protocol/fees`. Do not add the path to `lcd_heavy_router`. No LCD on the request path.
 
-In-process cache **60s**, key = canonical `day` only. Same document for every caller. Existing global `tower_governor` (peer IP, no `X-Forwarded-For`) still applies. DB errors go through `internal_err()` → `"Internal server error"` with no sqlx text.
+In-process cache **60s**, key = canonical `day` only, value = counts and fees. Not the peer IP. On a hit, still set `complete` from the clock so a fill at 23:59Z cannot keep `complete: false` after 00:00Z for that same day key. Existing global `tower_governor` (peer IP, no `X-Forwarded-For`) still applies. The route is registered with `get` only. Global CORS allows POST, but this path does not add `.post`, so POST is **405**. DB errors go through `internal_err()` → `"Internal server error"` with no sqlx text. Stay under the existing 30s `TimeoutLayer`.
 
 Handler module: `indexer/src/api/evidence_digest.rs`. If [#1205](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1205) has already added `evidence.rs` when this is implemented, add this path as a **second route** with its own response types. Do not put digest fields on paginated events. Do not wait for #1205.
 
@@ -161,7 +179,7 @@ Handler module: `indexer/src/api/evidence_digest.rs`. If [#1205](https://git.cl8
 | HTTP | New `GET /api/v1/evidence/digest`. No change to existing route JSON. |
 | SQL | Read-only `COUNT` / `GROUP BY` with bound timestamps. Tables: `swap_events`, `liquidity_events`, three limit tables, `protocol_fee_events`, `assets`. |
 | Schema | Four new BRIN indexes (below). No new table. No ingest change. |
-| Cache | 60s map keyed by `day`. |
+| Cache | 60s map of counts and fees, keyed by `day`. `complete` is not cached. |
 | OpenAPI | Path + schemas + tag **Evidence**. |
 | dApp | None. |
 
@@ -171,12 +189,12 @@ SQL text in the handler must not contain `traders`, `sender`, `maker`, `owner`, 
 
 | ID | Effect |
 |----|--------|
-| **E1206-1** | One UTC day; `complete` is calendar-ended, not chain-tip. |
+| **E1206-1** | One UTC day; `complete` is calendar-ended at response time, not chain-tip and not a cached flag. |
 | **E1206-2** | Counts as in the table above. **L10** unchanged: fills are not swap volume or swap count. |
 | **E1206-3** | `counts.wrap` is fee events. `counts.window` keeps mint/redeem off wrap. |
-| **E1206-4** | Seven `FeeSource::ALL` rows. Idle `"0"`. Unpriced activity `null`. Headline **EFee-6**. |
+| **E1206-4** | Seven `FeeSource::ALL` rows even when wrap/UST1 pins are unset. Idle `"0"`. Per-source `unpriced_count` fail-closed. Headline `daily_headline_usd`. |
 | **E1206-5** | No people columns, no tx ids, no `COUNT(DISTINCT` people, no join to `traders`. Token contracts only on `by_token`. |
-| **E1206-6** | Query allowlist is `{day}`. Static **400** text. **405** for other methods. |
+| **E1206-6** | Query allowlist is `{day}` via `deny_unknown_fields` or a raw-key check. Duplicate `day` is **400**. Static **400** text. **405** for other methods. |
 | **E1206-7** | Global governor, not LCD-heavy. 60s cache. `internal_err` on DB failure. |
 | **E1206-8** | Gems count. Llama gem-exclude and **404** stay on `/defillama/daily` only. |
 | **L10 / PFee / L7 / #1269** | Unchanged. Digest reads rows those invariants already store. |
@@ -195,7 +213,8 @@ SQL text in the handler must not contain `traders`, `sender`, `maker`, `owner`, 
 | Reject `day=today` | Contradicts **AC10**. Today is incomplete, not invalid. |
 | Denylist of bad query keys | Misses `wallet=` / `addr=`. Allowlist `{day}` is closed. |
 | LCD-heavy governor | This handler does not call LCD. |
-| Forever-cache past days | Indexer catch-up would stay invisible. 60s matches other GETs. |
+| Forever-cache past days | Indexer catch-up would stay invisible. 60s matches other GETs. `complete` stays outside that cache. |
+| Copy the trailing fee rollup (skip unconfigured families, partial `SUM`) | Drops idle wrap/UST1 rows and is not fail-closed inside a source. |
 
 ## Complexity added / removed
 
@@ -218,7 +237,9 @@ New file `indexer/migrations/20260922120000_evidence_digest_day_brin.sql` (prefi
 - `idx_lo_cancellations_block_timestamp_brin` on `limit_order_cancellations (block_timestamp)`
 - `idx_lo_fills_block_timestamp_brin` on `limit_order_fills (block_timestamp)`
 
-`CREATE INDEX IF NOT EXISTS`. Pair-leading btree indexes stay for pair tapes.
+`CREATE INDEX IF NOT EXISTS` (not `CONCURRENTLY`). `sqlx::migrate!` runs inside a transaction, and `CONCURRENTLY` cannot. Match [`20260604120100_swap_events_block_timestamp_brin.sql`](../../indexer/migrations/20260604120100_swap_events_block_timestamp_brin.sql). Pair-leading btree indexes (`idx_liq_pair_time`, `idx_lo_*_pair_time`) stay for pair tapes; they do not serve a protocol-wide day predicate.
+
+If `20260922120000` is already taken when implement starts, bump the numeric suffix and the paired `down.sql` name together. Do not edit a migration that has already shipped.
 
 Paired `indexer/migrations/revert/20260922120000_evidence_digest_day_brin.down.sql` drops **only** those four indexes. Do not drop `idx_swaps_block_timestamp_brin` ([#281](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/281)).
 
@@ -239,12 +260,16 @@ Operators compare a seeded day with SQL `COUNT(*)` off the request path. They do
 | Mode | Behavior |
 |------|----------|
 | SQL metacharacters in `day` | `NaiveDate` parse fails → **400**. Tables unchanged. |
-| Extra or identity query keys | **400**. Counts stay protocol-wide. Body does not echo the value. |
-| Future day | **400**. |
-| Empty day | **200** zeros and seven idle fee rows. Not **404**. |
+| Extra or identity query keys | **400** `Unexpected query parameter`. Counts stay protocol-wide. Body does not echo the value. A struct that ignores unknown fields is a bug. |
+| Duplicate `day` | **400** `Unexpected query parameter`. |
+| Future day | **400** `day is in the future`. |
+| Empty day | **200** zeros, `by_token: []`, and seven idle fee rows. Not **404**. |
 | Today | **200**, `complete: false`. |
+| UTC midnight during the 60s TTL | Cached counts may be up to 60s old. `complete` follows the clock. |
 | Indexer behind chain tip | Past `complete: true` can still grow until catch-up. 60s cache then shows new counts. |
+| Mixed null and priced `fee_usd` in one source | That source `amount_usd` is `null`. Headline keeps priced stamps from other sources. |
 | Unpriced fee rows | That source `amount_usd` is `null`. Headline keeps other priced sources. |
+| Wrap or UST1 pin unset | Those sources are still present with `event_count=0` and `amount_usd="0"`. |
 | Unknown `source` or LP `event_type` | Omitted. No new JSON key. |
 | Gem swap | Increments `counts.swap`. Llama daily still omits it. |
 | 10k events in one day | One aggregate object. No `events` array. |
@@ -258,7 +283,7 @@ Operators compare a seeded day with SQL `COUNT(*)` off the request path. They do
 |-------|--------|------|------------|
 | **0 — this design** | design slice | ADR **0010**, architecture `#indexer-evidence-digest`, invariant row, README index, runbook pointer. Transport on `cac-design-issue-1206` only. | — |
 | **1 — indexes** | implement | Migration + paired `down.sql` above. | Slice 0 accepted |
-| **2 — handler** | implement | `evidence_digest.rs`, router, OpenAPI, 60s cache, allowlist, USD rules. | Slice 1 |
+| **2 — handler** | implement | `evidence_digest.rs`, router, OpenAPI, 60s counts cache, `deny_unknown_fields`, fail-closed USD. | Slice 1 |
 | **3 — tests** | implement | `indexer/tests/api_evidence_digest.rs` and `make verify-issue-1206` (cargo test + docs grep for this ADR and the architecture anchor). | Slice 2 |
 | **4 — indexer boot** | leftover ops | Coolify indexer image runs `sqlx::migrate!()` and serves the route. Ordinary indexer deploy. Not a founder card. Not #297. | Slice 3 merged |
 
@@ -279,7 +304,8 @@ Postgres harness (`make setup-indexer-postgres`). New `indexer/tests/api_evidenc
 | T3 | LP add and remove. Body has no `join` or `exit`. |
 | T4 | Wrap, unwrap, mint, redeem stay four fee rows. Wrap counts exclude mint/redeem. `counts.window` matches mint/redeem `event_count`. |
 | T5 | Missing `book_take` still returns a zero row. |
-| T6 | Null `fee_usd` on an active source → `amount_usd` null. Idle sibling `"0"`. Headline keeps a priced wrap (**EFee-6**). |
+| T6 | One source with both null and priced `fee_usd` → that source `amount_usd` null. Idle sibling `"0"`. Headline keeps a priced wrap via `daily_headline_usd` (**EFee-6**). |
+| T6b | Assemble from an empty source map (mapper pin unset) still returns seven `by_source` rows. No `wrap_mapper_configured` key. |
 | T7 | Empty day **200**, not **404**. |
 | T8 | Today `complete=false`. Past day `complete=true`. |
 | T9 | Events at D−1 23:30Z and D 00:30Z split across calendar days. Digest need not equal `/protocol/fees?window=24h`. |
@@ -289,7 +315,7 @@ Postgres harness (`make setup-indexer-postgres`). New `indexer/tests/api_evidenc
 | T13 | Existing protocol-fee, fee-series, and defillama tests unchanged. |
 | T14 | `serde_json::to_string` lacks seeded actor bech32, fixture tx hex, and keys `sender`, `maker`, `owner`, `provider`, `trader`, `actor_hash`, `tx_hash`, `unique_traders`. |
 | A1 | `day` injection strings → **400**, tables intact. |
-| A2 | Identity and join keys → **400**, static body, protocol-wide counts. |
+| A2 | Identity and join keys, including `sender=`, → **400** `Unexpected query parameter` (not a 200 that ignores the key). Static body. Protocol-wide counts. |
 | A3 | `unique_traders` absent even when overview would show traders. |
 | A4 | `day=2099-01-01`, `timestamp=`, `window=24h` → **400**. |
 | A5 | Non-GET → **405**. `format=csv` → **400**. |
@@ -297,6 +323,7 @@ Postgres harness (`make setup-indexer-postgres`). New `indexer/tests/api_evidenc
 | A7 | Governor burst → **429** + `Retry-After`. Route absent from the LCD-heavy list. |
 | A8 | No `events` array. SQL string assert: no `traders`, `sender`, `maker`, `owner`, `provider`, `COUNT(DISTINCT`, `pair_reserves`. |
 | A9 | Two senders: one protocol total, no per-sender field. |
+| A10 | `complete` is a pure function of `(day, now)`. The cache value has no `complete` field. |
 
 `make verify-issue-1206` runs that test and greps this ADR plus the architecture anchor. Keep `verify-issue-586`, `631`, `689`, and `1269` green.
 
@@ -320,12 +347,12 @@ This is not a chain halt, pause, or treasury rotate. Coolify three-way rollback 
 
 ## Integration completion criteria
 
-- **AC1–AC15** from [#1206](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1206) hold, with today allowed (`complete: false`) and `counts.window` always present.
-- `cargo test --manifest-path indexer/Cargo.toml --test api_evidence_digest -- --nocapture` green.
+- **AC1–AC15** from [#1206](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1206) hold, with today allowed (`complete: false`), `counts.window` always present, and seven `by_source` rows even when wrap/UST1 pins are unset.
+- `cargo test --manifest-path indexer/Cargo.toml --test api_evidence_digest -- --nocapture` green, including T6/T6b (fail-closed and idle families) and A2/A10 (unknown query keys and `complete` outside the cache).
 - `GET /api-docs/openapi.json` contains `/api/v1/evidence/digest`.
 - `/protocol/fees`, `/protocol/fees/daily`, `/defillama/daily`, `/gt/events`, and trader routes keep their response shapes.
 - Invariant row **Anonymous UTC-day digest (#1206)** is on `main` via insert, not only on `cac-design-issue-1206`.
-- Handler SQL matches **E1206-5**. Amounts use `bd_plain_string`.
+- Handler SQL matches **E1206-5**. Amounts use `bd_plain_string`. Extra query keys are **400**, not ignored.
 
 ## Links
 
