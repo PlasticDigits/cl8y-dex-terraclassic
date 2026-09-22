@@ -9,6 +9,7 @@ mod community_tax_rank;
 mod community_tokens;
 mod compliance;
 mod defillama;
+mod evidence;
 mod gt;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use defillama::reset_defillama_cache;
@@ -361,6 +362,7 @@ pub async fn find_pair_by_ticker(
         protocol_top_pairs::get_protocol_top_pairs,
         protocol_volume::get_protocol_volume_daily,
         defillama::get_defillama_daily,
+        evidence::get_evidence_daily,
         hub_prices::get_hub_prices,
         hub_prices::get_hub_price,
         oracle::get_oracle_price_catalog,
@@ -444,6 +446,9 @@ pub async fn find_pair_by_ticker(
         defillama::DefillamaDailyResponse,
         defillama::DefillamaFeeBreakdown,
         defillama::DefillamaMethodology,
+        evidence::EvidenceDailyQuery,
+        evidence::EvidenceDailyResponse,
+        evidence::EvidenceDailyEvent,
         hub_prices::HubPricesResponse,
         hub_prices::HubPriceEntry,
         cg::CgPairResponse,
@@ -663,6 +668,10 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
         .route(
             "/api/v1/defillama/daily",
             get(defillama::get_defillama_daily),
+        )
+        .route(
+            "/api/v1/evidence/daily",
+            get(evidence::get_evidence_daily),
         )
         .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
         .route(

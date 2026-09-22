@@ -1383,6 +1383,11 @@ verify-issue-639:
 	@chmod +x scripts/qa/verify-issue-639.sh scripts/qa/listings_catalog_validate.py
 	./scripts/qa/verify-issue-639.sh
 
+.PHONY: verify-issue-1205
+verify-issue-1205:
+	@chmod +x scripts/qa/verify-issue-1205.sh
+	./scripts/qa/verify-issue-1205.sh
+
 .PHONY: verify-issue-1213
 verify-issue-1213:
 	@chmod +x scripts/qa/verify-issue-1213.sh
