@@ -1255,6 +1255,18 @@ test-ust1-clunc-buyback:
 		scripts/lib/ust1-clunc-buyback-math.py
 	./scripts/qa/test-ust1-clunc-buyback.sh
 
+# Columbus-5: mint $200 cUSTC/hour, best-solver swap to UST1, until CMM vFDUSD × Venus × FDUSD is $500.
+# DRY_RUN=1 skips txs (one tick). Live loops hourly: TERRAD_HOST_KEYRING_PASS + CUSTC_UST1_YES=1.
+.PHONY: mint-swap-custc-ust1 test-custc-ust1-buyback
+mint-swap-custc-ust1:
+	@chmod +x scripts/mint-swap-custc-ust1.sh scripts/lib/custc-ust1-buyback-math.py
+	./scripts/mint-swap-custc-ust1.sh
+
+test-custc-ust1-buyback:
+	@chmod +x scripts/qa/test-custc-ust1-buyback.sh scripts/mint-swap-custc-ust1.sh \
+		scripts/lib/custc-ust1-buyback-math.py
+	./scripts/qa/test-custc-ust1-buyback.sh
+
 # GitLab #508 — UST1 secondary AMM create+seed tooling / Path B waiver (U1–U7).
 # Optional: VERIFY508_LOCAL=1 (LocalTerra fixture) VERIFY508_MAINNET=1 (live pair presence).
 verify-issue-508:
@@ -1393,6 +1405,11 @@ verify-issue-1213:
 	@chmod +x scripts/qa/verify-issue-1213.sh
 	./scripts/qa/verify-issue-1213.sh
 
+.PHONY: verify-issue-1204
+verify-issue-1204:
+	@chmod +x scripts/qa/verify-issue-1204.sh
+	./scripts/qa/verify-issue-1204.sh
+
 # git.cl8y.com #1231 — Observe query checked_from_ratio skip (no VM panic).
 .PHONY: verify-issue-1231
 verify-issue-1231:
@@ -1521,8 +1538,8 @@ help:
 
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
-	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | verify-issue-1276 | verify-issue-1265 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1] | verify-issue-1277"
-	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback"
+	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | verify-issue-1276 | verify-issue-1265 | verify-issue-1204 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1] | verify-issue-1277"
+	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback | make mint-swap-custc-ust1 | make test-custc-ust1-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:

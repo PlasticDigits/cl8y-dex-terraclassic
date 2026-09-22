@@ -273,6 +273,7 @@ make verify-issue-586                    # #586 /protocol treasury fees 24h/7d/3
 make verify-issue-1269                   # #1269 persist every multihop AMM hop in protocol_fee_events
 make verify-issue-1205                   # #1205 redacted UTC-day evidence JSON (swap/wrap/limit/LP)
 make verify-issue-1213                   # #1213 fee-ledger home (docs; ingest is #1209/#1210/#1211)
+make verify-issue-1204                   # #1204 indexer HTTP pack (OpenAPI paths + curls)
 make verify-issue-683                    # #683 /protocol fee USD for CL8Y + factory-listed economic tokens
 make verify-issue-631                    # #631 DeFiLlama UTC-day API + gem/hybrid/fee exclusions
 make verify-issue-687                    # #687 DeFiLlama fees headline partial SUM + adapter start / 404
@@ -369,6 +370,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
+| Indexer HTTP pack (docs + OpenAPI) | `make verify-issue-1204` |
 | Retail gas census (docs) | `make verify-issue-1222` |
 | Route solve remaining failures (docs) | `make verify-issue-1265` · `make verify-issue-1289` |
 | GeckoTerminal `/gt/` | `make verify-issue-646` |
@@ -476,6 +478,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md](skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) — persist every multihop AMM hop in `protocol_fee_events` (**F1269-1–F1269-8**, [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269)); `make verify-issue-1269`
 - [skills/AGENTS_INDEXER_EVIDENCE_DAILY.md](skills/AGENTS_INDEXER_EVIDENCE_DAILY.md) — redacted UTC-day `GET /api/v1/evidence/daily` (**E1205-1–E1205-8**, [#1205](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1205)); `make verify-issue-1205`
 - [skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md](skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) — fee-ledger home is this indexer (**L1213-1–L1213-8**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); ingest children [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) / [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) / [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211); do not implement parsers on the epic or in marketing; `make verify-issue-1213`
+- [skills/AGENTS_INDEXER_HTTP_PACK.md](skills/AGENTS_INDEXER_HTTP_PACK.md) — indexer HTTP pack for swaps, pools, fees, burns, and volume windows (**I1204-1–I1204-8**, [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)); `make verify-issue-1204`
 - [skills/AGENTS_INDEXER_VENUS_VFDUSD.md](skills/AGENTS_INDEXER_VENUS_VFDUSD.md) — `/protocol` vFDUSD **FDUSD reference price** + Venus **1 vFDUSD Price** (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); registry USDT contract-pinned advisory $1 (**#1258**); `make verify-issue-522` · `make verify-issue-1258`
 - [skills/AGENTS_INDEXER_HUB_USD.md](skills/AGENTS_INDEXER_HUB_USD.md) — DEX hub USD for cUSTC/UST1/USTR from largest-liquidity pools (**H1–H10**, [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)); `make verify-issue-556`
@@ -564,6 +567,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_MINT_CLUNC_CUSTC_LP.md](skills/AGENTS_MINT_CLUNC_CUSTC_LP.md) — add ~$10k cLUNC/cUSTC v2 LP at the **live ratio** (no swap; keep cLUNC premium) → CMM ([`scripts/mint-clunc-custc-lp.sh`](scripts/mint-clunc-custc-lp.sh))
 - cLUNC/USDT v2 seed $1k+$1k (mint cLUNC, never mint USDT) → CMM: [`scripts/mint-clunc-usdt-lp.sh`](scripts/mint-clunc-usdt-lp.sh) / `make test-clunc-usdt-lp`
 - Hourly 50 UST1 → best-solver cLUNC burn until CMM bank uluna × LUNC oracle is $2500: [`scripts/mint-swap-burn-ust1-clunc.sh`](scripts/mint-swap-burn-ust1-clunc.sh) / [`docs/runbooks/mint-swap-burn-ust1-clunc.md`](docs/runbooks/mint-swap-burn-ust1-clunc.md) / [`skills/AGENTS_MINT_SWAP_BURN_UST1_CLUNC.md`](skills/AGENTS_MINT_SWAP_BURN_UST1_CLUNC.md)
+- Hourly $200 cUSTC → best-solver UST1 until CMM vFDUSD × Venus × FDUSD oracle is $500: [`scripts/mint-swap-custc-ust1.sh`](scripts/mint-swap-custc-ust1.sh) / [`docs/runbooks/mint-swap-custc-ust1.md`](docs/runbooks/mint-swap-custc-ust1.md) / [`skills/AGENTS_MINT_SWAP_CUSTC_UST1.md`](skills/AGENTS_MINT_SWAP_CUSTC_UST1.md)
 - [skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md](skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md) — park `reason` discriminator so bots do not treat dust-filled parks as unfilled expiry ([#504](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/504), invariant **L22**)
 - [skills/AGENTS_ORDER_STATUS_QUERY.md](skills/AGENTS_ORDER_STATUS_QUERY.md) — on-chain typed `OrderStatus` for vaults/bots ([#505](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/505), invariant **L21**); `ParkedRefund` ≠ park reason
 - [skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md](skills/AGENTS_FRONTEND_LIMIT_PARKED_EXPIRED.md) — maker UX for indexer `parked_expired` + `ClaimExpiredLimitOrder` ([#141](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/141); pause blocks claim per [#120](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/120) / **L6**)

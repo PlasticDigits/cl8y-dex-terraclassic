@@ -31,6 +31,7 @@ UST1_CLUNC_LOOP=0 UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
 
 ## Related
 
+- [`AGENTS_MINT_SWAP_CUSTC_UST1.md`](./AGENTS_MINT_SWAP_CUSTC_UST1.md) — sister $200 cUSTC → UST1 until CMM vFDUSD is $500
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — UST1 extra-minter mint + leftover burn
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — quote = execute via `/route/solve`
 - [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) — why unwrap is forbidden here
