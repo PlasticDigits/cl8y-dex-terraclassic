@@ -1406,6 +1406,12 @@ verify-issue-1231:
 	@chmod +x scripts/qa/verify-issue-1231.sh
 	./scripts/qa/verify-issue-1231.sh
 
+# git.cl8y.com #1224 / #1322 — TWAP cumulative Uint256 (zero-extend).
+.PHONY: verify-issue-1224 verify-issue-1322
+verify-issue-1224 verify-issue-1322:
+	@chmod +x scripts/qa/verify-issue-1322.sh
+	./scripts/qa/verify-issue-1322.sh
+
 .PHONY: verify-issue-646
 verify-issue-646:
 	@chmod +x scripts/qa/verify-issue-646.sh

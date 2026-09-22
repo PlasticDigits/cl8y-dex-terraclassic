@@ -28,6 +28,11 @@
 //!   `config.discount_registry` into instantiate. `GetDiscountRegistry` returns
 //!   the stored `Option<Addr>` (`None` = unwired, full pair fee). Existing pairs
 //!   are not retroactively wired — that is GitLab #535. See **F5**.
+//! - **TWAP cumulative width (#1224 / #1322):** `price × dt` and
+//!   `price_*_cumulative` are `Uint256`. A stored `u128` decimal string
+//!   zero-extends on load. Sums past `2^128` stay the full integer. An
+//!   unrepresentable spot still skips (#465 / #1231). Migrate does not
+//!   rewrite `OBSERVATIONS`. See **O1322**.
 //! - **Asset CW20 `code_id` pin (#582):** instantiate snapshots each asset's
 //!   live `ContractInfo.code_id`. Swap / provide / withdraw / limit place+fill
 //!   (and cancel/claim CW20 refunds) abort unless live id **equals the pin**

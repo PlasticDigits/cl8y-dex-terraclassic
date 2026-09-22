@@ -8691,9 +8691,10 @@ mod security_tests {
 #[cfg(test)]
 mod oracle_tests {
     use super::helpers::*;
-    use cosmwasm_std::Uint128;
+    use cl8y_dex_pair::state::OBSERVATIONS;
+    use cosmwasm_std::{Decimal, Uint128, Uint256};
     use cw_multi_test::{App, Executor};
-    use dex_common::oracle::ObserveResponse;
+    use dex_common::oracle::{compute_twap_price, ObserveResponse};
 
     #[test]
     fn test_oracle_records_observations_on_swap() {
@@ -8798,9 +8799,11 @@ mod oracle_tests {
         // TWAP via cumulative prices: avg_price = (cum[0] - cum[1]) / (dt * 1e18)
         // With equal reserves, price ≈ 1, so the cumulative diff over 60s ≈ 60 * 1e18
         let cum_diff = obs.price_a_cumulatives[0] - obs.price_a_cumulatives[1];
-        let scale = Uint128::new(1_000_000_000_000_000_000); // 1e18
-        let twap_scaled = cum_diff / Uint128::new(60);
-        let twap_f: f64 = twap_scaled.u128() as f64 / scale.u128() as f64;
+        let scale = Uint256::from(1_000_000_000_000_000_000u128); // 1e18
+        let twap_scaled = cum_diff / Uint256::from(60u128);
+        let twap_u128 = Uint128::try_from(twap_scaled).unwrap();
+        let scale_u128 = Uint128::try_from(scale).unwrap();
+        let twap_f: f64 = twap_u128.u128() as f64 / scale_u128.u128() as f64;
 
         assert!(
             (twap_f - 1.0).abs() < 0.05,
@@ -9071,6 +9074,88 @@ mod oracle_tests {
         );
 
         assert!(result.is_err(), "Observing too far back should error");
+    }
+
+    /// #1322: a cumulative already within one sample of `u128::MAX` must not
+    /// revert swap, provide, or withdraw, and Observe must return the wide sum.
+    #[test]
+    fn test_oracle_u256_near_max_cumulative_does_not_brick_reserves() {
+        let mut app = App::default();
+        let env = setup_full_env(&mut app);
+
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(1_000_000),
+            Uint128::new(1_000_000),
+        );
+        app.update_block(|b| b.time = b.time.plus_seconds(10));
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
+
+        let info: dex_common::oracle::OracleInfoResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::OracleInfo {},
+            )
+            .unwrap();
+        // The live #1322 cumulative sits ~1.38e35 below 2^128. A ~1:1 pool
+        // accrues ~1e18 per second, and cw-multi-test timestamps are nanos in
+        // a u64, so wall-clock cannot close that gap. Seed just below the
+        // ceiling instead: the next 1:1 sample's delta fits in u128 and the
+        // sum does not. The exact live figure plus a representable spot is
+        // `oracle_u256_tests::price_a_near_max_stores_full_sum_and_keeps_advancing`.
+        let near_ceiling = Uint256::from(Uint128::MAX) - Uint256::from(500u128);
+        {
+            let mut storage = app.contract_storage_mut(&env.pair);
+            let mut obs = OBSERVATIONS
+                .load(storage.as_ref(), info.observation_index)
+                .unwrap();
+            obs.price_a_cumulative = near_ceiling;
+            OBSERVATIONS
+                .save(storage.as_mut(), info.observation_index, &obs)
+                .unwrap();
+        }
+
+        app.update_block(|b| b.time = b.time.plus_seconds(30));
+
+        let before = query_pool(&app, &env.pair);
+        swap_a_to_b(&mut app, &env, &env.user, Uint128::new(1_000));
+        let after_swap = query_pool(&app, &env.pair);
+        assert_ne!(before.assets[0].amount, after_swap.assets[0].amount);
+
+        app.update_block(|b| b.time = b.time.plus_seconds(30));
+        provide_liquidity(
+            &mut app,
+            &env,
+            &env.user,
+            Uint128::new(10_000),
+            Uint128::new(10_000),
+        );
+        let after_provide = query_pool(&app, &env.pair);
+        assert!(after_provide.assets[0].amount > after_swap.assets[0].amount);
+
+        app.update_block(|b| b.time = b.time.plus_seconds(30));
+        let lp = query_cw20_balance(&app, &env.lp_token, &env.user);
+        withdraw_liquidity(&mut app, &env, &env.user, lp / Uint128::new(4));
+        let after_withdraw = query_pool(&app, &env.pair);
+        assert!(after_withdraw.assets[0].amount < after_provide.assets[0].amount);
+
+        let obs: ObserveResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::Observe {
+                    seconds_ago: vec![0, 30],
+                },
+            )
+            .unwrap();
+        assert!(obs.price_a_cumulatives[0] > Uint256::from(Uint128::MAX));
+        assert!(obs.price_a_cumulatives[1] > Uint256::from(Uint128::MAX));
+        let twap =
+            compute_twap_price(obs.price_a_cumulatives[1], obs.price_a_cumulatives[0], 30).unwrap();
+        assert!(twap > Decimal::zero());
     }
 }
 

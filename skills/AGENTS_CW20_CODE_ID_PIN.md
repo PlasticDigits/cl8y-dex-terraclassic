@@ -35,7 +35,7 @@ Factory/pair **F6** (this pin) is not faucet **F6** (deploy key remains primary 
 | Contract | cw2 |
 |----------|-----|
 | Factory | **1.10.0** (F6 floor **1.9.0**) |
-| Pair | **1.17.0** (columbus-5 listed fleet was 1.16.0; 1.15.0 is the F6 pin floor) |
+| Pair | **1.18.0** (1.17.0 was #1227/#1230/#1231; columbus-5 listed fleet was 1.16.0; 1.15.0 is the F6 pin floor). 1.18.0 is the Uint256 TWAP cumulative ([#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224) / [#1322](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1322)). |
 
 ## Operator sequence (factory/pair wasm upgrade)
 

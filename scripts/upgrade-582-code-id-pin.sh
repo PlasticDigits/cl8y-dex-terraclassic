@@ -3,7 +3,7 @@
 #
 # Opposite of #514: factory MUST be ≥1.9.0 (IsCodeIdWhitelisted live) before any
 # pair migrate. Pair-first freezes every gated write until factory catches up.
-# Current pair target is UPGRADE582_PAIR_VERSION (1.17.0). Columbus-5 factory is
+# Current pair target is UPGRADE582_PAIR_VERSION (1.18.0). Columbus-5 factory is
 # already 1.10.0 / 11629; use UPGRADE582_SKIP_FACTORY_MIGRATE=1.
 #
 # Keys: cl8ydeploy stores wasm (permissionless). Columbus-5 UpdateConfig,
