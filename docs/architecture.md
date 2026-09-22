@@ -143,6 +143,23 @@ Sibling leftover scripts (`VERIFY*_IID`) fail-close on **unreachable**; #1276 **
 
 Labels shipped in [!1290](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1290) ([#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240)). Closed !1302 merged a weaker `verify-issue-1290` sketch (`f237a6e6`). Leftover issue is **[#1306](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1306)** (not product #1290). The #1306 MR on current `main` **inserts** this section plus ADR **0009** / **Q22** / README index, aliases `verify-issue-1302` and `verify-issue-1306`, Cloud Agent + Frontend help for **1290 / 1302 / 1306**, `free_tcp_port` 30129, and full B1290-4 greps — do not retarget closed !1302, do not merge open !1306 as-is, and do not whole-file checkout this file from the design tip (overlap with [#1300](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1300) ADR **0008** / **Q21**). Leftover-complete is that wiring MR, not green skip-E2E. Production `/protocol` glance is [#1305](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1305) leftover 1. Bundle: `make verify-issue-1290` (aliases `verify-issue-1302` / `verify-issue-1306`) → child `verify-issue-1240`, `hubPriceTicker` Vitest, optional Playwright `protocol-page` at 5 workers. Decision: [ADR 0009](./adr/0009-verify-issue-1290-hub-wrap-labels.md). QA row: [`qa-invariants.md`](./qa-invariants.md) **Q22**. No indexer JSON change.
 
+## ALPHA pair price candles {#alpha-pair-price-candles}
+
+Factory candles today require a catalog USD for `asset_1`. When that leg is ALPHA or CL8Y, ingest writes nothing and `/charts` shows the empty price pane. [#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315) keeps both-catalog candles as USD of `asset_0`. A single catalog leg prices **1 human unit of the other leg** (USD of ALPHA, either slot). Neither leg catalog (CL8Y/ALPHA) stores human quote-per-base only; the chart heading is **Price ({quote} per {base})**, not **Price (USD)**. No ALPHA/CL8Y peg and no new `quote_usd_kind` arm. Tape `price_usd`, volume, and idle marks stay on the existing catalog rules.
+
+```mermaid
+flowchart LR
+    SWAP[Swap human quote-per-base] --> CLASS{Catalog legs}
+    CLASS -->|Both or quote only| USD0[Candle USD of asset_0]
+    CLASS -->|Base only| USD1[Candle USD of asset_1]
+    CLASS -->|Neither| HUM[Human OHLC and null USD]
+    USD0 --> CHART[Price USD chart]
+    USD1 --> CHART
+    HUM --> HCHART[Quote-per-base chart]
+```
+
+Decision, gap fill, and rollback: [ADR 0012](./adr/0012-alpha-pair-price-candles.md). Invariant: [`indexer-invariants.md`](./indexer-invariants.md) **Unpriced-quote candles (#1315)**.
+
 ## Directory Layout
 
 ```
