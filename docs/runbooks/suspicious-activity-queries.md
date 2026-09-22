@@ -4,6 +4,8 @@ Copy-pastable **indexer API** and **Postgres SQL** recipes for incident triage â
 
 **Related:** [incident template](../templates/incident-dex-indexer.md) (Triage), [blacklist decision runbook](./blacklist-decision.md) (post-discovery escalation), [emergency commands](./emergency-commands.md) (on-chain mitigation), [indexer invariants](../indexer-invariants.md), [integrators.md](../integrators.md). Agent playbook: [`skills/AGENTS_SUSPICIOUS_ACTIVITY_QUERIES.md`](../../skills/AGENTS_SUSPICIOUS_ACTIVITY_QUERIES.md).
 
+`GET /api/v1/evidence/digest?day=YYYY-MM-DD` ([#1206](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1206) / [ADR 0010](../adr/0010-anonymous-utc-day-activity-digest.md)) is an anonymous UTC-day count and fee-path mix. It does not list wallets or transactions. Incident triage that needs senders stays in the sections below.
+
 ---
 
 ## Before you query
