@@ -58,32 +58,63 @@ cmm_lp_usd = tw_shares / total_supply × pair_liquidity_usd
 
 `pair_liquidity_usd` is the existing #655 / #569 catalog stamp (full-pool v2 TVL). `total_supply` is the LP CW20 `token_info.total_supply` from the latest off-request checkpoint. Both are raw-share and human-USD consistent: the ratio is USD per raw share. This is not full-pool TVL and not “pool minus CMM”. It is not an integral of historical pool USD. A price move marks the average share balance at today’s catalog. The tooltip says so. It is not an APR.
 
-**Ledger** `lp_holder_deltas` (idempotent `ON CONFLICT DO NOTHING`):
+**Ledger** `lp_holder_deltas`. Chain inserts name their conflict target:
 
-| Kind | Delta |
-|------|--------|
-| `provide` | `+share` to **`receiver`**. If the attr is absent, fall back to `sender`. |
-| `withdraw` | `−withdrawn_share` from **`sender`**. |
-| `transfer` | User CW20 `transfer` / `transfer_from` / `send` of `pairs.lp_token`: `−amount` from sender, `+amount` to recipient, only when **neither** party is the pair contract. |
+```sql
+INSERT INTO lp_holder_deltas (...)
+ON CONFLICT (tx_hash, pair_id, kind, holder, event_index)
+WHERE kind IN ('provide', 'withdraw', 'transfer_out', 'transfer_in')
+DO NOTHING
+```
 
-Do not also count LP `mint` or `burn`. Provide/withdraw already record those shares. A withdraw `send` whose recipient is the pair is ignored so the withdraw row is the only debit.
+Unique index `lp_holder_deltas_event_uidx` matches that column list and predicate. `event_index` is the 0-based wasm-event index in the transaction walk, so two transfers of the same holder in one transaction both insert. Chain rows require non-null `tx_hash` and `event_index` (a null `event_index` would not dedupe). `reconcile` rows leave both null. Do not call `liquidity_event_exists`. That check is `(tx_hash, pair_id, event_type)` and collapses a pair to one add or one remove per transaction.
 
-**Checkpoint** `lp_custody_checkpoints` (one row per pair + holder), written off the GET path:
+| Kind | Holder | Signed shares | Wasm keys |
+|------|--------|---------------|-----------|
+| `provide` | `receiver`, or `sender` when `receiver` is absent | `+share` | pair `action=provide_liquidity` |
+| `withdraw` | `sender` | `−withdrawn_share` | pair `action=withdraw_liquidity` |
+| `transfer_out` | `from` | `−amount` | LP-token `transfer`, `transfer_from`, or `send` |
+| `transfer_in` | `to` | `+amount` | same event as `transfer_out` |
+| `reconcile` | custodian | LCD balance minus expected | not a wasm event |
 
-- LCD `balance` of the LP token for the custodian, plus `token_info.total_supply`, and `observed_at`.
-- Tests inject a balance reader. Production uses the LCD client. No checkpoint query on GET.
-- Refresh LCD when the checkpoint is missing, older than 24h, or a delta exists after `observed_at`. On LCD failure, keep the previous checkpoint and still fold later deltas. If no checkpoint exists, the stamp is NULL.
+Match `transfer` / `transfer_from` / `send` only when the emitter is `pairs.lp_token`. Ignore `mint` and `burn`. Ignore a transfer or send when `from` or `to` is the pair contract, so a withdraw `send` is not a second debit. The poller already walks every transaction in the block. Parsing these attributes does not add a subscription.
+
+Reconciliation rows use a different target: unique index `lp_holder_deltas_reconcile_uidx` on `(pair_id, holder, block_height) WHERE kind = 'reconcile'`, inserted with `ON CONFLICT (pair_id, holder, block_height) WHERE kind = 'reconcile' DO NOTHING`.
+
+**Checkpoint** `lp_custody_checkpoints` (one row per pair + holder), written off the GET path. Production LCD queries run only for `CMM_GOVERNANCE_ADDR`. Do not LCD every LP holder.
+
+Columns: `shares`, `observed_at`, `observed_height`, `total_supply`, `last_lcd_at`. Primary key `(pair_id, holder)`. Tests inject a balance reader. Production uses the LCD client. No checkpoint query on GET.
+
+**The first successful read is a fixed anchor.** Insert only when the row is missing.
+
+- `shares` is that read’s CW20 `balance`.
+- `observed_height` is the LCD query height. It is greater than or equal to the height of the last delta included in that balance. Deltas with `block_height <= observed_height` are already inside `shares` and are not applied again.
+- `observed_at` is the block time of `observed_height`, not wall-clock `Utc::now()`.
+- `total_supply` is `token_info.total_supply` from the same read. `last_lcd_at` starts equal to `observed_at`.
+
+Later reads must not `UPDATE` `shares`, `observed_at`, or `observed_height`.
+
+**Later LCD reads** happen at most once per 24 hours, gated by `last_lcd_at`, and only for the custodian. A newer delta does not call LCD and does not move the anchor. On success:
+
+- `expected = anchor.shares + Σ deltas` whose `block_height` is greater than `observed_height` and less than or equal to this query height (chain deltas and earlier `reconcile` rows).
+- Store `lcd_balance − expected` as one `reconcile` delta at this query’s block time and height when the difference is not zero.
+- `UPDATE` only `total_supply` and `last_lcd_at`.
+
+On LCD failure, keep the anchor and still fold ledger deltas. If no anchor exists, the stamp is NULL. Do not replace `[window_start, latest_observed_at)` with the latest spot balance.
 
 **Integral** (pure function, unit-tested):
 
-- No checkpoint → `cmm_lp_usd` NULL (unknown). Do not treat “no rows” as zero. That is the idle/unknown em dash.
-- Checkpoint `observed_at` **inside** the window: `[window_start, observed_at)` holds `checkpoint.shares` constant (pre-index inventory). Deltas at or before `observed_at` are not applied again. Deltas after `observed_at` move the balance. The tooltip states this flat prefix. It ages out after 30 days of post-checkpoint history.
-- Checkpoint **before** the window: opening balance = checkpoint shares + deltas in `(observed_at, window_start]`, then a normal step integral. No flat prefix.
+- No anchor → `cmm_lp_usd` NULL (unknown). Do not treat “no rows” as zero. That is the idle/unknown em dash.
+- Anchor `observed_at` **inside** the window: `[window_start, observed_at)` holds `anchor.shares` constant. That prefix belongs to the first anchor only. It ages out once `observed_at` is before `window_start`. A later LCD read does not slide the prefix forward.
+- Deltas apply only when `block_height > observed_height`, as steps at `block_timestamp`. If that timestamp is earlier than `observed_at`, clamp the step to `observed_at`.
+- Anchor **before** the window: opening balance = `anchor.shares` + deltas after `observed_height` up through `window_start`, then a normal step integral. No flat prefix.
 - `tw_shares = share_seconds / window_seconds` with `window = 30` UTC days (`chrono` duration, not a calendar-month boundary).
 - Running balance that would go negative clamps to 0. Log a warning. Do not fail the other refreshes.
 - Stamp NULL when `tw_shares ≤ 0`, `total_supply ≤ 0`, `pair_liquidity_usd` is missing, or the USD result is `≥ 10^20`.
 
-Known-zero custody (checkpoint shares 0 and no later positive balance) stores NULL on the stamp as well, because non-positive CMM LP is not a denominator. The cell is an em dash. 30d vol / v2 LP / Vol/LP still render.
+**Regression:** anchor `shares = 100` at day 0 of a 30-day window, a `+400` custodian delta at day 20, and an LCD refresh on day 29 that returns `500`. Evaluate at day 30. The anchor stays `shares = 100` and `observed_at = day 0`. The day-29 read finds `expected = 500` and writes no nonzero reconcile row. `tw_shares = 100 × 20/30 + 500 × 10/30`. A result of `500` fails.
+
+Known-zero custody (anchor shares 0 and no later positive balance) stores NULL on the stamp as well, because non-positive CMM LP is not a denominator. The cell is an em dash. 30d vol / v2 LP / Vol/LP still render.
 
 ### Trading-fee numerator
 
@@ -102,7 +133,7 @@ Known-zero custody (checkpoint shares 0 and no later positive balance) stores NU
 
 The 60s cache stores the whole `ProtocolTopPairsResponse`, including the four new fields. `reset_protocol_top_pairs_cache` stays the test reset. There is no second cache map. A body cached inside this binary cannot omit the fields by type. Query allowlist is unchanged (`limit` / `window` only; `from` / `to` / `sort` / `ticker` → **400**).
 
-Handler comment (required, next to the SQL): CMM v2 LP is time-weighted custodian shares marked at current `pair_liquidity_usd / total_supply`; provide credits `receiver`; user LP transfers are ledger deltas; pair mint/burn is not double-counted; the pre-checkpoint slice is a flat observed balance; GET does not scan events or the chain.
+Handler comment (required, next to the SQL): CMM v2 LP is time-weighted custodian shares marked at current `pair_liquidity_usd / total_supply`; provide credits `receiver` by `share`; the first LCD balance is a fixed anchor; later reads add a reconciliation delta and do not install today’s balance; GET does not scan events or the chain.
 
 ### UI
 
@@ -116,7 +147,7 @@ Columns after Vol/LP, in order: **CMM v2 LP**, **30d fee bps**, **Vol/CMM LP**. 
 
 Tooltips (no farm, APR, or yield):
 
-- CMM v2 LP: time-weighted CMM LP shares over 30 days, valued at the current pool USD per share. Before the first indexed balance check, that balance is treated as constant. Not full-pool v2 LP.
+- CMM v2 LP: time-weighted CMM LP shares over 30 days, valued at the current pool USD per share. The first balance check is a fixed anchor. Later checks do not replace that history with today’s balance. Not full-pool v2 LP.
 - 30d fee bps: trailing 30-day pair trading fees (AMM, book take, limit place) in basis points of that CMM LP. Wrap and UST1 window fees are not included.
 - Vol/CMM LP: trailing 30-day volume divided by that CMM LP. A multiple, not a percent, and not full-pool Vol/LP.
 
@@ -126,8 +157,8 @@ Keep the table inside the existing `overflow-x-auto` wrapper. Numeric headers an
 
 | Layer | Change |
 |-------|--------|
-| Schema | Additive `lp_holder_deltas`, `lp_custody_checkpoints`, `pair_trading_fees_30d`, `pair_cmm_lp_usd_30d`. No edit of `20260821120000_protocol_fees.sql` or `20260916120001_protocol_fee_events_pair_id.sql` in place. |
-| Parser | Provide records `receiver`. Withdraw records sender. LP-token user transfers write two deltas. Book/place fee drafts set `pair_id`. |
+| Schema | Additive `lp_holder_deltas` (event unique `(tx_hash, pair_id, kind, holder, event_index)`; reconcile unique `(pair_id, holder, block_height)`), `lp_custody_checkpoints` (immutable `shares` / `observed_at` / `observed_height`), `pair_trading_fees_30d`, `pair_cmm_lp_usd_30d`. No edit of `20260821120000_protocol_fees.sql` or `20260916120001_protocol_fee_events_pair_id.sql` in place. |
+| Parser | Provide credits `receiver` (else `sender`) by `share`. Withdraw debits `sender` by `withdrawn_share`. LP-token `transfer` / `transfer_from` / `send` write `transfer_out` and `transfer_in` from `from`, `to`, and `amount`. Book/place fee drafts set `pair_id`. |
 | Refresh | `refresh_pair_trading_fees_30d` and `refresh_pair_cmm_lp_usd_30d` from `refresh_all_volume_windows_with_pins` (~5 min + startup), after `refresh_pair_volumes_30d`. Failure logs and continues. |
 | GET | Four optional strings on `ProtocolTopPairItem`: `cmm_lp_usd_30d`, `trading_fees_usd_30d`, `fees_bps_per_cmm_lp`, `volume_per_cmm_lp`. `skip_serializing_if` none, same as `liquidity_usd`. `utoipa::ToSchema` is the OpenAPI contract. |
 | dApp | `ProtocolTopPairItem`, three columns, copy, `formatFeeBps`. Missing keys → em dash. |
@@ -152,9 +183,10 @@ Keep the table inside the existing `overflow-x-auto` wrapper. Numeric headers an
 | Option | Why not |
 |--------|---------|
 | Spot CMM LCD balance as the denominator | Repeats the mismatch the v2 LP tooltip already states (current USD vs a 30-day flow). LCD on GET is forbidden. |
+| Move `observed_at` forward on each 24h LCD refresh | The anchor stays inside the 30-day window, the flat prefix never ages out, and `cmm_lp_usd` stays approximately today’s custodian balance. Fee bps and Vol/CMM LP then use a spot denominator. |
 | Sum `liquidity_events.provider = CMM` | Provider is the provide sender. Production provides credit `receiver`. Leftover LP moves by CW20 transfer. |
 | Integrate historical pool USD | No per-pair USD series at liquidity-event resolution. The issue asks for share-seconds valued with the existing pool-USD / total-supply ratio. |
-| Wait 30 days before showing a number | Hides current CMM inventory. The flat pre-checkpoint prefix is disclosed and ages out. |
+| Wait 30 days before showing a number | Hides current CMM inventory. The first-anchor prefix is disclosed and ages out. Later reads must not restart it. |
 | Rank by the new ratios | Reopens #1263. Forbidden. |
 | Put book fees in the numerator without `pair_id` | Those rows are NULL today and cannot be summed per pair. Joining fills on every refresh is a second attribution path; persisting `pair_id` at ingest matches `swap_amm`. |
 | `ON CONFLICT DO UPDATE` for fees or deltas | Replay could replace treasury USD or share deltas. Forbidden. |
@@ -163,9 +195,9 @@ Keep the table inside the existing `overflow-x-auto` wrapper. Numeric headers an
 
 ## Complexity added / removed
 
-**Added:** one custody ledger, one LCD checkpoint table, two stamp tables, provide-receiver and LP-transfer parsing, `pair_id` on book/place fees, two refresh functions, four optional JSON fields, three columns and one formatter.
+**Added:** one custody ledger with a named event conflict target, one insert-once LCD anchor, reconciliation deltas for later custodian reads, two stamp tables, provide-receiver and LP-transfer parsing, `pair_id` on book/place fees, two refresh functions, four optional JSON fields, three columns and one formatter.
 
-**Removed:** nothing. GET does not grow a scan. No new route, fee source, or wasm message.
+**Removed:** nothing. GET does not grow a scan. No new route, fee source, wasm message, or chain subscription. A 24h refresh does not gain a second balance series; it writes the drift from the fixed anchor.
 
 Net: off-request stamps so the top-pairs table can show CMM capital and pair trading fees without redefining Vol/LP.
 
@@ -173,9 +205,30 @@ Net: off-request stamps so the top-pairs table can show CMM capital and pair tra
 
 New file only: `indexer/migrations/20260922180000_pair_cmm_lp_and_trading_fees_30d.sql`. Prefix must stay unique (`sqlx` versions on the numeric stem). Do not reuse `20260921120000` / `20260921120001`.
 
-Order: create the four tables → backfill `book_take` / `limit_place` `pair_id` where the match is unique → do not delete fee rows. Idempotent `IF NOT EXISTS`. Deltas and checkpoints start empty; the first successful LCD checkpoint seeds the integral. Historical provides are not rewritten from `liquidity_events.provider`.
+Order: create the four tables and the two delta unique indexes → backfill `book_take` / `limit_place` `pair_id` where the match is unique → do not delete fee rows. Idempotent `IF NOT EXISTS`. Deltas and checkpoints start empty; the first successful LCD read inserts the anchor. Historical provides are not rewritten from `liquidity_events.provider`.
 
-Paired revert: `indexer/migrations/revert/20260922180000_pair_cmm_lp_and_trading_fees_30d.down.sql` drops the four new tables and sets `pair_id` NULL on `book_take` / `limit_place` only. It does not touch `swap_amm` pair ids or the #1269 indexes.
+Paired revert: `indexer/migrations/revert/20260922180000_pair_cmm_lp_and_trading_fees_30d.down.sql`. After this change, two `book_take` or `limit_place` rows can share `(tx_hash, source, ordinal)` on different pairs. `protocol_fee_events_nopair_tx_source_ordinal_uidx` is `UNIQUE (tx_hash, source, ordinal) WHERE pair_id IS NULL`, so a blanket `SET pair_id = NULL` fails. Before nulling, keep the lowest `id` per `(tx_hash, source, ordinal)` and delete the other `book_take` / `limit_place` rows:
+
+```sql
+DELETE FROM protocol_fee_events e
+USING (
+    SELECT tx_hash, source, ordinal, MIN(id) AS keep_id
+    FROM protocol_fee_events
+    WHERE source IN ('book_take', 'limit_place')
+    GROUP BY tx_hash, source, ordinal
+) d
+WHERE e.tx_hash = d.tx_hash
+  AND e.source = d.source
+  AND e.ordinal = d.ordinal
+  AND e.id <> d.keep_id;
+
+UPDATE protocol_fee_events
+SET pair_id = NULL
+WHERE source IN ('book_take', 'limit_place')
+  AND pair_id IS NOT NULL;
+```
+
+Then drop the four new tables. Leave `swap_amm` pair ids and the #1269 indexes unchanged.
 
 No wasm migrate. No dApp env key. No new indexer secret. `CMM_GOVERNANCE_ADDR` is the existing community-tax pin.
 
@@ -184,7 +237,8 @@ No wasm migrate. No dApp env key. No new indexer secret. `CMM_GOVERNANCE_ADDR` i
 - Refresh failure: `tracing::error` (startup: `warn`) with the label `pair 30d trading fees` or `pair cmm lp usd`, then continue the rest of `refresh_all_volume_windows_with_pins`.
 - Custodian unset: one `info` per refresh, `custodian_configured=false`. Do not log hostnames, DSNs, or credentials. Do not log the bech32 on every tick.
 - Negative-share clamp: `warn` with `pair_id` only.
-- LCD checkpoint failure with no prior row: `warn`; stamp stays NULL.
+- LCD anchor failure with no row: `warn`; stamp stays NULL.
+- Nonzero reconciliation delta: `info` with `pair_id` and the signed difference. Do not log the custodian bech32.
 - Do not add `/metrics`. Do not `SUM` the new tables on GET.
 
 ## Failure modes
@@ -192,12 +246,14 @@ No wasm migrate. No dApp env key. No new indexer secret. `CMM_GOVERNANCE_ADDR` i
 | Failure | Behavior |
 |---------|----------|
 | `CMM_GOVERNANCE_ADDR` unset or invalid | New fields omitted. Original columns unchanged. |
-| No checkpoint yet (LCD down on first pass) | CMM LP and both ratios omitted. Fees key may still show `"0"` or a sum. |
-| Checkpoint inside the window | Flat share prefix until `observed_at`. Tooltip discloses it. |
-| Provide sender ≠ receiver | Ledger credits `receiver`. Sender-only `provider` is not the balance. |
-| LP `mint`/`burn` plus provide/withdraw | Mint/burn ignored. One delta per economic move. |
-| Withdraw `send` to the pair | Ignored. Withdraw debit stands. |
-| User transfer of LP to CMM | Two deltas. CMM balance moves without a liquidity event. |
+| No anchor yet (LCD down on first pass) | CMM LP and both ratios omitted. Fees key may still show `"0"` or a sum. |
+| Anchor inside the window | Flat share prefix only until the first `observed_at`. A day-29 refresh does not extend it. |
+| LCD refresh while the anchor is inside the 30d window | Compare LCD with `anchor.shares + later deltas`. Insert one reconcile delta. Leave `shares` and `observed_at` unchanged. |
+| Provide sender ≠ receiver | Ledger credits `receiver` by `share`. Sender-only `provider` is not the balance. |
+| LP `mint`/`burn` plus provide/withdraw | `mint` and `burn` ignored. One economic delta from provide or withdraw. |
+| Withdraw `send` to the pair | `to` is the pair contract, so the transfer is ignored. Withdraw debit stands. |
+| Two LP transfers of one holder in one tx | Both rows insert. `event_index` is part of the conflict target. |
+| User transfer of LP to CMM | `transfer_out` and `transfer_in`. CMM balance moves without a liquidity event. |
 | Running share balance would go negative | Clamp to 0, warn, stamp from the clamped integral. |
 | Unpriced trading fees only | `fees_usd` NULL, bps omitted. |
 | Wrap / UST1 window fees only | Numerator `0`, bps omitted. |
@@ -212,7 +268,7 @@ No wasm migrate. No dApp env key. No new indexer secret. `CMM_GOVERNANCE_ADDR` i
 | Slice | Who | Deliverable | Blocks |
 |-------|-----|-------------|--------|
 | **0 — this design** | design | This ADR, architecture `#cmm-lp-census`, invariant rows, playbook, README / testing pointers | Slice 1 |
-| **1 — ledger + stamps** | implement | Migration `20260922180000`, down.sql, parser deltas, book/place `pair_id`, both refreshes, pure integral + bps tests, Postgres fixtures P2–P4 / P6. Hook refreshes into `refresh_all_volume_windows_with_pins`. | Slice 2 |
+| **1 — ledger + stamps** | implement | Migration `20260922180000`, unique-safe down.sql, parser deltas, book/place `pair_id`, both refreshes, pure integral + bps tests including the day-29 anchor regression, Postgres fixtures P2–P4 / P6 / P8. Hook refreshes into `refresh_all_volume_windows_with_pins`. | Slice 2 |
 | **2 — GET** | implement | LEFT JOINs, four fields, `ToSchema`, EXPLAIN has no raw tables, cache reset test, disallowed query keys still **400**. `make verify-issue-1263` stays green. | Slice 3 |
 | **3 — UI** | implement | Three columns, tooltips, `formatFeeBps`, missing-key dashes, nowrap + existing scroll wrapper. No farm/APR copy. | Slice 4 |
 | **4 — verify** | implement | `make verify-issue-1317` runs the indexer tests and the Protocol page / formatter tests (Postgres, no chain). Makefile + `docs/testing.md` target. Keep `verify-issue-1263` and `verify-issue-1269` green. | none |
@@ -227,11 +283,13 @@ Slices 1–4 land in one implement change. No operator leftover and no founder c
 |----|----------|
 | P1 | `10 / 500 × 10000 = 200`. `1234.5 / 500` plain string `2.469`. Zero, negative, missing, `≥ 10^20` denominator or ratio → `None`. |
 | P2 | Fixture with `swap_amm` + `wrap` on one pair: stamp includes `swap_amm` only. `book_take` / `limit_place` included when `pair_id` is set. Wrap and `ust1_*` excluded. |
-| P3 | Two custodian deltas inside 30d match a hand integral. A non-custodian provider does not move it. Provide credits `receiver`, not sender. A user LP transfer credits the recipient. |
+| P3 | Two custodian deltas inside 30d match a hand integral. A non-custodian provider does not move it. Provide credits `receiver` by `share`, not sender. Withdraw debits `withdrawn_share`. A user LP transfer writes `transfer_out` and `transfer_in`. Replaying the same `(tx_hash, pair_id, kind, holder, event_index)` inserts nothing. Two transfers of one holder in one tx both remain. `liquidity_event_exists` is not the guard. |
 | P4 | GET SQL is the stamp join. EXPLAIN lists none of the raw tables in Decision. Cache after `reset_protocol_top_pairs_cache` returns the new fields. `from` / `sort` still **400**. |
 | P5 | Headers **CMM v2 LP**, **30d fee bps**, **Vol/CMM LP**. Fee cell `200`. Volume cell matches `formatVolumePerTvl('2.469')` (`2.47×`). Nulls are em dashes. Vol/LP snapshot unchanged. Wrapper keeps `overflow-x-auto`; new cells are `whitespace-nowrap`. |
 | P6 | No checkpoint and no trading fees → new cells em dash. The pair can still appear from `pair_volume_30d`. |
-| P7 | Tooltips name time-weighted CMM LP, exclude wrap/window from bps, and say the multiple is not full-pool Vol/LP. Copy has no farm, APR, or yield. |
+| P7 | Tooltips name time-weighted CMM LP, the fixed first anchor, exclude wrap/window from bps, and say the multiple is not full-pool Vol/LP. Copy has no farm, APR, or yield. |
+| P8 | Evaluate at day 30. Shares 100 for 20 days, then 500 for 10 days. LCD refresh on day 29 returns 500 and does not change `shares` or `observed_at`. `tw_shares` stays `100 × 20/30 + 500 × 10/30`. A result of 500 fails. |
+| P9 | Down.sql deletes extra `book_take` / `limit_place` rows, keeping `MIN(id)` per `(tx_hash, source, ordinal)`, before `SET pair_id = NULL`. `swap_amm` pair ids and both #1269 partial indexes remain. |
 
 UI acceptance `2.469×` in the issue is the API plain string. The cell is the existing formatter.
 
@@ -243,11 +301,12 @@ Auto-deploy of an additive migration follows [ADR 0006](./0006-indexer-health-gi
 
 ## Rollback
 
-Code rollback that still contains the migration is **2(b)** (stamps may be wrong; GET stays stamp-only). Restoring a binary that does not contain `20260922180000` requires **2(c)** using the paired down.sql: drop the four tables, NULL only `book_take` / `limit_place` `pair_id`, then `DELETE` that `_sqlx_migrations` version while the process is stopped. `swap_amm` pair ids stay. Frontend rollback is safe against either API shape.
+Code rollback that still contains the migration is **2(b)** (stamps may be wrong; GET stays stamp-only). Restoring a binary that does not contain `20260922180000` requires **2(c)** using the paired down.sql: keep the lowest `book_take` / `limit_place` `id` per `(tx_hash, source, ordinal)`, delete the other rows of those sources, then NULL `pair_id` on the survivor, drop the four new tables, and `DELETE` that `_sqlx_migrations` version while the process is stopped. `swap_amm` pair ids and the #1269 indexes stay. Frontend rollback is safe against either API shape.
 
 ## Integration completion criteria
 
-- `make verify-issue-1317` passes (P1–P7). `make verify-issue-1263` and `make verify-issue-1269` still pass.
+- `make verify-issue-1317` passes (P1–P9). `make verify-issue-1263` and `make verify-issue-1269` still pass.
+- The day-29 refresh regression stays `100 × 20/30 + 500 × 10/30` and does not return 500.
 - OpenAPI schema from `ProtocolTopPairItem` lists `cmm_lp_usd_30d`, `trading_fees_usd_30d`, `fees_bps_per_cmm_lp`, `volume_per_cmm_lp`.
 - A reviewer can recompute the `500` / `10` / `1234.5` row from the stamp inputs without reading `swap_events` on the request path.
 - EXPLAIN for `LIST_TOP_PAIRS_SQL` does not name the raw tables in Decision.

@@ -101,7 +101,7 @@ Same panel and ranking as **P1263**. Contract: [`AGENTS_INDEXER_CMM_LP_CENSUS.md
 | **P1317-1** | After Vol/LP: **CMM v2 LP**, **30d fee bps**, **Vol/CMM LP**. |
 | **P1317-2** | `formatProtocolUsd` / `formatFeeBps` (no `%`) / `formatVolumePerTvl` (`2.469` → `2.47×`). |
 | **P1317-3** | Missing or non-positive → em dash. Original cells stay. |
-| **P1317-4** | Tooltips: time-weighted CMM shares; bps exclude wrap/window; multiple is not full-pool Vol/LP. |
+| **P1317-4** | Tooltips: time-weighted CMM shares; the first LCD anchor stays fixed; bps exclude wrap/window; multiple is not full-pool Vol/LP. |
 | **P1317-5** | No farm, APR, or yield copy. |
 | **P1317-6** | Keep `overflow-x-auto`. New cells `whitespace-nowrap`. |
 | **P1317-7** | Test ids `protocol-top-pair-cmm-lp-*`, `protocol-top-pair-fee-bps-*`, `protocol-top-pair-cmm-ratio-*`. |
