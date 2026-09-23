@@ -135,11 +135,13 @@ describe('parseSwapQueryParams (#711)', () => {
 
   it('does not read slippage, expertMode, recipient, hybrid, or showGems', () => {
     const parsed = parseSwapQueryParams(
-      'showGems=1&expertMode=1&slippage=50&recipient=terra1x&toAddress=terra1x&pool_only=1&hybrid_optimize=0&from=uluna'
+      'showGems=1&expertMode=1&slippage=50&recipient=terra1x&toAddress=terra1x&pool_only=1&hybrid_optimize=0&gas=1&gas_limit=1&from=uluna'
     )
     expect(parsed.payId).toBe('uluna')
     expect(parsed.receiveId).toBeNull()
     expect(parsed.payAmountHuman).toBeNull()
+    expect(parsed).not.toHaveProperty('gas')
+    expect(parsed).not.toHaveProperty('gasLimit')
   })
 })
 

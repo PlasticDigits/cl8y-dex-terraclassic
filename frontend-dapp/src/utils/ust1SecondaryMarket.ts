@@ -6,9 +6,10 @@
  */
 
 import { swapDeepLinkPath } from '@/utils/swapQueryParams'
+import { MAINNET_UST1_TOKEN_ADDRESS } from '@/utils/constants'
 
-/** columbus-5 anchors from issue #508 — override via Vite env when present. */
-export const MAINNET_UST1_TOKEN_ADDRESS = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
+/** Columbus-5 anchors from issue #508 — override via Vite env when present. */
+export { MAINNET_UST1_TOKEN_ADDRESS }
 export const MAINNET_VFDUSD_TOKEN_ADDRESS = 'terra1mnl9azefrqpmu888ar2u6zrcwr80hxlt3avf4300r576cw5ar7esvxsvj3'
 export const MAINNET_CUSTC_TOKEN_ADDRESS = 'terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch'
 /**

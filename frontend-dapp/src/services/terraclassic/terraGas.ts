@@ -1,5 +1,7 @@
 import { CosmosTxV1beta1Fee as Fee } from '@goblinhunt/cosmes/protobufs'
 import {
+  CL8Y_TOKEN_ADDRESS,
+  CL8Y_UST1_TWO_HOP_POOL_GAS_LIMIT,
   EXECUTE_SWAP_OPS_MIN_GAS_PER_HOP,
   ROUTER_SINGLE_HOP_GAS_LIMIT,
   ROUTER_SWAP_OPS_MIN_GAS_PER_HOP,
@@ -9,6 +11,8 @@ import {
   SWAP_MULTIHOP_GAS_PADDING_PER_HOP,
   UNWRAP_GAS_LIMIT,
   UNWRAP_ROUTER_COMBO_OVERHEAD_GAS,
+  MAINNET_UST1_TOKEN_ADDRESS,
+  UST1_TOKEN_ADDRESS,
   UST1_WINDOW_SEND_GAS_LIMIT,
   PAY_INVOICE_SEND_GAS_LIMIT,
   COMMUNITY_CREATE_TOKEN_GAS_LIMIT,
@@ -171,7 +175,61 @@ function gasLimitForInnerSwap(inner: Record<string, unknown>): number {
   return gasLimitForHybridParams(hybrid)
 }
 
-type RouterOp = { terra_swap?: { hybrid?: unknown; greedy?: unknown } }
+type RouterOp = {
+  terra_swap?: {
+    offer_asset_info?: unknown
+    ask_asset_info?: unknown
+    hybrid?: unknown
+    greedy?: unknown
+  }
+}
+
+function routerCw20Address(assetInfo: unknown): string | undefined {
+  if (assetInfo == null || typeof assetInfo !== 'object') return undefined
+  const token = (assetInfo as { token?: unknown }).token
+  if (token == null || typeof token !== 'object') return undefined
+  const address = (token as { contract_addr?: unknown }).contract_addr
+  return typeof address === 'string' && address.trim() ? address.trim().toLowerCase() : undefined
+}
+
+function routerOpIsPoolOnly(op: RouterOp): boolean {
+  const swap = op.terra_swap
+  if (!swap || swap.greedy != null) return false
+  if (swap.hybrid == null) return true
+  if (typeof swap.hybrid !== 'object' || Array.isArray(swap.hybrid)) return false
+
+  // An explicit zero book leg is still pool-only. This keeps a crafted quote from
+  // lowering the measured pool envelope by attaching a no-op hybrid object.
+  const bookInput = (swap.hybrid as Record<string, unknown>).book_input
+  return bookInput === 0 || bookInput === 0n || (typeof bookInput === 'string' && bookInput.trim() === '0')
+}
+
+/**
+ * Raise only the measured two-hop pool-only CW20 route from CL8Y to UST1 (#1328).
+ * Match route endpoints and continuous hops rather than an intermediate pair address:
+ * route solving can change the middle token while the message shape remains the same.
+ */
+function cl8yUst1PoolOnlyTwoHopGasLimit(msg: Record<string, unknown>): number | undefined {
+  const cl8y = CL8Y_TOKEN_ADDRESS.trim().toLowerCase()
+  const ust1 = (UST1_TOKEN_ADDRESS || MAINNET_UST1_TOKEN_ADDRESS).trim().toLowerCase()
+  if (!cl8y || !ust1) return undefined
+
+  const execute = msg.execute_swap_operations as { operations?: RouterOp[] } | undefined
+  const ops = execute?.operations
+  if (!ops || ops.length !== 2 || !ops.every(routerOpIsPoolOnly)) return undefined
+
+  const first = ops[0]?.terra_swap
+  const second = ops[1]?.terra_swap
+  if (!first || !second) return undefined
+
+  const offer = routerCw20Address(first.offer_asset_info)
+  const middleOut = routerCw20Address(first.ask_asset_info)
+  const middleIn = routerCw20Address(second.offer_asset_info)
+  const ask = routerCw20Address(second.ask_asset_info)
+  if (offer !== cl8y || ask !== ust1 || !middleOut || middleOut !== middleIn) return undefined
+
+  return CL8Y_UST1_TWO_HOP_POOL_GAS_LIMIT
+}
 
 function hopHybridRecord(op: RouterOp): Record<string, unknown> | undefined {
   const hybrid = op.terra_swap?.hybrid
@@ -293,6 +351,7 @@ export function unwrapRouterComboOverheadGas(hops: number, unwrapOutput: boolean
 function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   const hops = countSwapHops(msg)
   let limit = gasLimitForRouterExecuteSwapOperations(hops)
+  limit = Math.max(limit, cl8yUst1PoolOnlyTwoHopGasLimit(msg) ?? 0)
   if (executeSwapOpsUsesHybrid(msg)) {
     limit = Math.max(limit, gasLimitForHybridRouterOperations(msg))
   }
