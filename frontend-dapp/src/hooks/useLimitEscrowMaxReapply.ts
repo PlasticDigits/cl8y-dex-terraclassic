@@ -9,6 +9,7 @@ type Params = {
   escrowDecimals: number
   assetIsNativeUluna: boolean
   limitPlaceRungCount?: number
+  limitPlaceMaxAdjustSteps?: number
   setLimitEscrowAmountFromMaxReapply: (human: string) => void
 }
 
@@ -19,6 +20,7 @@ export function useLimitEscrowMaxReapply({
   escrowDecimals,
   assetIsNativeUluna,
   limitPlaceRungCount,
+  limitPlaceMaxAdjustSteps,
   setLimitEscrowAmountFromMaxReapply,
 }: Params) {
   useEffect(() => {
@@ -30,6 +32,7 @@ export function useLimitEscrowMaxReapply({
       assetIsNativeUluna,
       context: 'limit_place',
       limitPlaceRungCount,
+      limitPlaceMaxAdjustSteps,
     })
     setLimitEscrowAmountFromMaxReapply(human)
   }, [
@@ -40,6 +43,7 @@ export function useLimitEscrowMaxReapply({
     escrowDecimals,
     assetIsNativeUluna,
     limitPlaceRungCount,
+    limitPlaceMaxAdjustSteps,
     setLimitEscrowAmountFromMaxReapply,
   ])
 }

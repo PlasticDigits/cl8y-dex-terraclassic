@@ -128,8 +128,8 @@ export default function LimitOrdersPage() {
   const receiveBalanceQuery = useLimitOrderEscrowBalance(address, receiveToken)
   const nativeUlunaQuery = useNativeUlunaBalance(address)
 
-  const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
-  const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(), [])
+  const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(1, maxSteps), [maxSteps])
+  const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(maxSteps), [maxSteps])
 
   const limitBookQuery = useLimitBookInfinite(pairAddr, side)
 
@@ -260,6 +260,7 @@ export default function LimitOrdersPage() {
     escrowDecimals,
     assetIsNativeUluna: escrowToken === 'uluna',
     limitPlaceRungCount: 1,
+    limitPlaceMaxAdjustSteps: maxSteps,
     setLimitEscrowAmountFromMaxReapply,
   })
 
@@ -696,6 +697,7 @@ export default function LimitOrdersPage() {
                       walletConnected={isWalletConnected}
                       maxContext="limit_place"
                       assetIsNativeUluna={escrowToken === 'uluna'}
+                      limitPlaceMaxAdjustSteps={maxSteps}
                       escrowUsdNotionalApprox={escrowUsdNotionalApprox}
                     />
                     <LimitOrderSideFlipButton onFlip={() => handleSideChange(side === 'bid' ? 'ask' : 'bid')} />

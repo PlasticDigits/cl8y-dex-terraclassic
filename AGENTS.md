@@ -299,6 +299,7 @@ make verify-issue-680                    # #680 /charts UST1/USD hero + ?price= 
 make verify-issue-1266                   # #1266 /charts Select Pair first change sticks
 make verify-issue-1315                   # #1315 ALPHA pair price candles (lib + chart vitest)
 make verify-issue-1328                   # #1328 measured CL8Y→UST1 pool-only gas floor (Vitest + optional Columbus-5 simulation)
+make verify-issue-1329                   # #1329 step-aware limit place/edit gas + hybrid fill/cancel rollback and LCD checks
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
 make verify-issue-577                    # #577 token/trader/pair/global 24h rollup decay + stale overview
@@ -373,6 +374,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Charts Select Pair first change | `make verify-issue-1266` |
 | ALPHA pair price candles | `make verify-issue-1315` |
 | CL8Y → UST1 pool-only gas floor | `make verify-issue-1328` · `make measure-issue-1328` |
+| Hybrid limit place/fill/cancel gas | `make verify-issue-1329` (LocalTerra E2E: `VERIFY_ISSUE_1329_CHAIN=1`) |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
@@ -524,6 +526,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_LIMIT_PRICE_DECIMALS.md](skills/AGENTS_LIMIT_PRICE_DECIMALS.md) — limit-order price band is **human-scale** `raw × 10^(dec0 − dec1)` so UST1/USTR can place (**L20** / [#529](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/529)); `make verify-issue-529`
 - [skills/AGENTS_LIMIT_ORDER_REPRICE_FIFO.md](skills/AGENTS_LIMIT_ORDER_REPRICE_FIFO.md) — `UpdateLimitOrderPrice` keeps `order_id` but joins the equal-price **tail** (**L23** / **R1227-1–R1227-8**, [#1227](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1227)); `make verify-issue-1227`
 - [skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md](skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md) — batch/ladder place + **named min remaining** (**L24** / **S1219-1–S1219-8**, [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219)); `make verify-issue-1219`
+- [skills/AGENTS_HYBRID_LIMIT_GAS.md](skills/AGENTS_HYBRID_LIMIT_GAS.md) — step-aware place/edit envelopes, LUNC preflight, atomic hybrid remainder failure, and `gas_used < gas_wanted` verification (**L25**, [#1329](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1329)); `make verify-issue-1329`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md](skills/AGENTS_FRONTEND_TRADE_TICKET_CTA_DOCK.md) — `/trade` Place limit / Market CTA docks to ticket bottom; Chrome sticky mid-form float (**T527-1–T527-10**, [#527](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/527)); `make verify-issue-527`
 - [skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md](skills/AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` desktop CSS grid (no drag-resize), independent tape row, hide book/ticket (**L561-1–L561-12**, [#561](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/561)); `make verify-issue-561`
 - [skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md](skills/AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) — `/trade` full **Buy {base}** heading, no compact wallet chip, green Buy / red Sell side control (**T563-1–T563-8**, [#563](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/563)); `make verify-issue-563`

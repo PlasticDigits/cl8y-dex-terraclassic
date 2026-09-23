@@ -22,6 +22,7 @@ type Props = {
   nativeSwapHints?: NativeSwapMaxHints
   marketUsesHybrid?: boolean
   limitPlaceRungCount?: number
+  limitPlaceMaxAdjustSteps?: number
   /**
    * When set (limit place only), show a headline-scaled USD line under the input when the amount is non-empty.
    * `null` means headline/ref unavailable — display an em dash (same coverage as limit price USD anchor; GitLab #155).
@@ -47,6 +48,7 @@ export function LimitOrderEscrowAmountField({
   nativeSwapHints,
   marketUsesHybrid,
   limitPlaceRungCount,
+  limitPlaceMaxAdjustSteps,
   escrowUsdNotionalApprox,
   extraDebitSellBps,
 }: Props) {
@@ -65,6 +67,7 @@ export function LimitOrderEscrowAmountField({
       nativeSwapHints,
       marketUsesHybrid,
       limitPlaceRungCount,
+      limitPlaceMaxAdjustSteps,
       extraDebitSellBps,
     })
   }, [
@@ -75,6 +78,7 @@ export function LimitOrderEscrowAmountField({
     nativeSwapHints,
     marketUsesHybrid,
     limitPlaceRungCount,
+    limitPlaceMaxAdjustSteps,
     extraDebitSellBps,
   ])
 

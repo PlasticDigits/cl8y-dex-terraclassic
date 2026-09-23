@@ -133,9 +133,9 @@ describe('parseSwapQueryParams (#711)', () => {
     expect(parseSwapQueryParams('exactAmount=0').payAmountHuman).toBeNull()
   })
 
-  it('does not read slippage, expertMode, recipient, hybrid, or showGems', () => {
+  it('does not read slippage, expertMode, recipient, hybrid, gas, credit, or showGems', () => {
     const parsed = parseSwapQueryParams(
-      'showGems=1&expertMode=1&slippage=50&recipient=terra1x&toAddress=terra1x&pool_only=1&hybrid_optimize=0&gas=1&gas_limit=1&from=uluna'
+      'showGems=1&expertMode=1&slippage=50&recipient=terra1x&toAddress=terra1x&pool_only=1&hybrid_optimize=0&gas=99999999&gas_limit=1&credit=99999999&from=uluna'
     )
     expect(parsed.payId).toBe('uluna')
     expect(parsed.receiveId).toBeNull()

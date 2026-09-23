@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { estimateLimitOrderPlaceSequenceUlunaFeesTotal } from '@/services/terraclassic/transactions'
 import {
   evaluateLimitOrderNativeGasPlaceGate,
   LIMIT_ORDER_NATIVE_GAS_MSG_LOADING,
@@ -68,6 +69,24 @@ describe('evaluateLimitOrderNativeGasPlaceGate', () => {
       REQUIRED
     )
     expect(r.canPlaceLimit).toBe(true)
+  })
+
+  it('prevents a credit under-run at the selected High placement step cap', () => {
+    const required = estimateLimitOrderPlaceSequenceUlunaFeesTotal(1, 128)
+    const below = evaluateLimitOrderNativeGasPlaceGate(
+      '1',
+      6,
+      { data: String(required - 1n), isLoading: false, isError: false },
+      required
+    )
+    const exact = evaluateLimitOrderNativeGasPlaceGate(
+      '1',
+      6,
+      { data: String(required), isLoading: false, isError: false },
+      required
+    )
+    expect(below.canPlaceLimit).toBe(false)
+    expect(exact.canPlaceLimit).toBe(true)
   })
 
   it('treats malformed balance conservatively', () => {

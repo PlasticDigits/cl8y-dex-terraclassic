@@ -25,6 +25,7 @@ import {
   effectiveGasPriceUluna,
   isPayInvoiceHookInner,
 } from '@/utils/constants'
+import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT, LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI } from '@/utils/limitOrderExpiry'
 import {
   HYBRID_SWAP_GAS_LIMIT,
   gasLimitForGreedyParams,
@@ -85,21 +86,28 @@ function warnUnmappedRetailGasFallback(msg: Record<string, unknown>): void {
 }
 /** Legacy per-hop base; pool-only broadcast uses {@link gasLimitForExecuteSwapOperations}(1) (840k, GitLab #115 / #134). */
 export const SWAP_GAS_LIMIT = 600000
-/** Pattern C / limit-book matching — flat fallback when quote-driven estimate unavailable (GitLab #249). */
-export const PLACE_LIMIT_ORDER_GAS_LIMIT = 1_200_000
+/** Base for legacy one-order placement before the bounded book insertion walk. */
+export const PLACE_LIMIT_ORDER_GAS_BASE_LIMIT = 1_200_000
 /** Base gas for one CW20 send → `place_limit_order_batch` / ladder (GitLab #206 / #625).
  * Must cover tax CW20 `Send` + pair place; 400k + 180k×1 = 580k OOGs on tax/EMBER. */
 export const PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 1_000_000
 /** Per-rung marginal gas on top of batch base. */
 export const PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT = 180000
+/**
+ * Conservative increment for each permitted insertion-walk step (#1329).
+ * Hybrid book walking is sized at ~19k gas/step (#262); 25k leaves headroom for insertion
+ * lookup and neighbor checks. Batch placement sorts rungs and threads the cursor after each
+ * success (#266); skipped rungs may each retry a bounded head walk, so batch gas sums their caps.
+ */
+export const PLACE_LIMIT_ORDER_INSERT_STEP_GAS_LIMIT = 25_000
 /** Tax pair→EOA refund on cancel OOGs at 450k (#625 leftover). */
 export const CANCEL_LIMIT_ORDER_GAS_LIMIT = 1_000_000
 /** Base gas for one `cancel_limit_orders` / `claim_expired_limit_orders` batch tx (GitLab #246). */
 export const CANCEL_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT = 400000
 /** Per-order marginal gas on top of batch cancel/claim base. */
 export const CANCEL_LIMIT_ORDER_BATCH_PER_ORDER_GAS_LIMIT = 80000
-/** In-place limit price relink — one pair execute, no CW20 (GitLab #247; ≪ cancel+place). */
-export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = 350000
+/** In-place limit price relink base — one pair execute, no CW20 (GitLab #247). */
+export const UPDATE_LIMIT_ORDER_PRICE_GAS_BASE_LIMIT = 350000
 export const CLAIM_EXPIRED_LIMIT_ORDER_GAS_LIMIT = 450000
 /** Community-tax TransferFrom on provide exceeds 650k (#625 leftover #2 / E622-6). */
 export const ADD_LIQUIDITY_GAS_LIMIT = 1_000_000
@@ -123,9 +131,54 @@ export function estimateFeeUlunaAmountForGasLimit(gasLimit: number): bigint {
   return BigInt(Math.ceil(effectiveGasPriceUluna() * gasLimit))
 }
 
-export function gasLimitForLimitOrderBatch(rungCount: number): number {
-  const n = Math.max(1, Math.floor(rungCount))
-  return PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT + PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT * n
+/** Clamp to the contract's supported insert-walk range; missing legacy fields use the retail default. */
+export function limitOrderAdjustStepsForGas(value: unknown): number {
+  if (value == null) return LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI
+  return Math.min(LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI, Math.max(0, Math.floor(parsed)))
+}
+
+/** Gas for one bounded insert walk above the message's fixed work. */
+export function gasLimitForLimitOrderInsert(
+  baseGas: number,
+  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+): number {
+  return baseGas + PLACE_LIMIT_ORDER_INSERT_STEP_GAS_LIMIT * limitOrderAdjustStepsForGas(maxAdjustSteps)
+}
+
+/** Default-tier compatibility values for callers/tests that need a named baseline. */
+export const PLACE_LIMIT_ORDER_GAS_LIMIT = gasLimitForLimitOrderInsert(PLACE_LIMIT_ORDER_GAS_BASE_LIMIT)
+export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = gasLimitForLimitOrderInsert(UPDATE_LIMIT_ORDER_PRICE_GAS_BASE_LIMIT)
+
+function totalAdjustStepsForOrders(orders: unknown[] | undefined, rungCount: number): number {
+  if (!orders?.length) return LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT * Math.max(1, Math.floor(rungCount))
+  return orders.reduce((total, order) => {
+    if (order == null || typeof order !== 'object') return total + LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI
+    return total + limitOrderAdjustStepsForGas((order as { max_adjust_steps?: unknown }).max_adjust_steps)
+  }, 0)
+}
+
+/** Batch gas from fixed work plus the conservative sum of every rung's search budget. */
+function gasLimitForLimitOrderBatchStepBudget(rungCount: number, totalAdjustSteps: number): number {
+  const n = Number.isFinite(rungCount) ? Math.max(1, Math.floor(rungCount)) : 1
+  const maxTotalSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI * n
+  const steps = Number.isFinite(totalAdjustSteps)
+    ? Math.min(maxTotalSteps, Math.max(0, Math.floor(totalAdjustSteps)))
+    : maxTotalSteps
+  return (
+    PLACE_LIMIT_ORDER_BATCH_BASE_GAS_LIMIT +
+    PLACE_LIMIT_ORDER_BATCH_PER_RUNG_GAS_LIMIT * n +
+    PLACE_LIMIT_ORDER_INSERT_STEP_GAS_LIMIT * steps
+  )
+}
+
+export function gasLimitForLimitOrderBatch(
+  rungCount: number,
+  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+): number {
+  const n = Number.isFinite(rungCount) ? Math.max(1, Math.floor(rungCount)) : 1
+  return gasLimitForLimitOrderBatchStepBudget(n, limitOrderAdjustStepsForGas(maxAdjustSteps) * n)
 }
 
 export function gasLimitForLimitOrderCancelBatch(orderCount: number): number {
@@ -389,19 +442,28 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     return WRAP_GAS_LIMIT
   }
   if ('place_limit_order' in executeMsg) {
-    return PLACE_LIMIT_ORDER_GAS_LIMIT
+    const place = executeMsg.place_limit_order as { max_adjust_steps?: unknown } | undefined
+    return gasLimitForLimitOrderInsert(PLACE_LIMIT_ORDER_GAS_BASE_LIMIT, place?.max_adjust_steps)
   }
   if ('place_limit_order_batch' in executeMsg || 'place_limit_order_ladder' in executeMsg) {
     const batch = executeMsg.place_limit_order_batch as { orders?: unknown[] } | undefined
-    const ladder = executeMsg.place_limit_order_ladder as { ladder?: { count?: number } } | undefined
+    const ladder = executeMsg.place_limit_order_ladder as
+      | {
+          ladder?: { count?: number; max_adjust_steps?: unknown }
+        }
+      | undefined
     const n = batch?.orders?.length ?? ladder?.ladder?.count ?? 1
-    return gasLimitForLimitOrderBatch(n)
+    const totalSteps = batch
+      ? totalAdjustStepsForOrders(batch.orders, n)
+      : limitOrderAdjustStepsForGas(ladder?.ladder?.max_adjust_steps) * Math.max(1, Math.floor(n))
+    return gasLimitForLimitOrderBatchStepBudget(n, totalSteps)
   }
   if ('cancel_limit_order' in executeMsg) {
     return CANCEL_LIMIT_ORDER_GAS_LIMIT
   }
   if ('update_limit_order_price' in executeMsg) {
-    return UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT
+    const update = executeMsg.update_limit_order_price as { max_adjust_steps?: unknown } | undefined
+    return gasLimitForLimitOrderInsert(UPDATE_LIMIT_ORDER_PRICE_GAS_BASE_LIMIT, update?.max_adjust_steps)
   }
   if ('cancel_limit_orders' in executeMsg) {
     const batch = executeMsg.cancel_limit_orders as { order_ids?: unknown[] }
@@ -437,15 +499,23 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
       try {
         const inner = JSON.parse(atob(sendMsg.msg)) as Record<string, unknown>
         if ('place_limit_order' in inner) {
-          return PLACE_LIMIT_ORDER_GAS_LIMIT
+          const place = inner.place_limit_order as { max_adjust_steps?: unknown } | undefined
+          return gasLimitForLimitOrderInsert(PLACE_LIMIT_ORDER_GAS_BASE_LIMIT, place?.max_adjust_steps)
         }
         if ('place_limit_order_batch' in inner) {
           const batch = inner.place_limit_order_batch as { orders?: unknown[] }
-          return gasLimitForLimitOrderBatch(batch.orders?.length ?? 1)
+          const rungCount = batch.orders?.length ?? 1
+          return gasLimitForLimitOrderBatchStepBudget(rungCount, totalAdjustStepsForOrders(batch.orders, rungCount))
         }
         if ('place_limit_order_ladder' in inner) {
-          const ladder = inner.place_limit_order_ladder as { ladder?: { count?: number } }
-          return gasLimitForLimitOrderBatch(ladder.ladder?.count ?? 1)
+          const ladder = inner.place_limit_order_ladder as {
+            ladder?: { count?: number; max_adjust_steps?: unknown }
+          }
+          const rungCount = ladder.ladder?.count ?? 1
+          return gasLimitForLimitOrderBatchStepBudget(
+            rungCount,
+            limitOrderAdjustStepsForGas(ladder.ladder?.max_adjust_steps) * Math.max(1, Math.floor(rungCount))
+          )
         }
         if ('swap' in inner) {
           if (innerSwapUsesHybrid(inner)) {

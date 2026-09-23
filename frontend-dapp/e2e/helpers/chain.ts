@@ -86,6 +86,15 @@ export async function assertSuccessTxGasUsedLtWanted(
   const txHash = (await link.getAttribute('title'))?.trim() ?? ''
   expect(txHash, 'explorer title must be a tx hash').toMatch(/^[0-9A-Fa-f]{64}$/)
 
+  return { txHash, ...(await assertTxGasUsedLtWanted(request, txHash)) }
+}
+
+/** Check a known successful transaction against the fee gas limit it actually signed. */
+export async function assertTxGasUsedLtWanted(
+  request: APIRequestContext,
+  txHash: string
+): Promise<{ gasWanted: number; gasUsed: number }> {
+  expect(txHash, 'transaction hash must be a tx hash').toMatch(/^[0-9A-Fa-f]{64}$/)
   const res = await lcdRequestGet(request, `/cosmos/tx/v1beta1/txs/${txHash}`)
   expect(res.ok, `LCD tx ${txHash} returned ${res.status}`).toBe(true)
   const body = (await res.json()) as {
@@ -96,7 +105,7 @@ export async function assertSuccessTxGasUsedLtWanted(
   expect(gasUsed, `gas_used for ${txHash}`).toBeGreaterThan(0)
   expect(gasWanted, `gas_wanted for ${txHash}`).toBeGreaterThan(0)
   expect(gasUsed, `OOG: gas_used ${gasUsed} >= gas_wanted ${gasWanted} (${txHash})`).toBeLessThan(gasWanted)
-  return { txHash, gasWanted, gasUsed }
+  return { gasWanted, gasUsed }
 }
 
 /**

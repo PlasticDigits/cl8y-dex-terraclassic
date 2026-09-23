@@ -32,20 +32,24 @@ export type LimitLadderPlaceGates = {
 }
 
 /**
- * Escrow + native LUNC preflight for ladder/batch place (GitLab #206).
- * Uses total escrow human amount and rung count for fee envelope math.
+ * Escrow + native LUNC preflight for ladder/batch place (GitLab #206 / #1329).
+ * Uses total escrow, rung count, and the selected insert-walk cap for fee envelope math.
  */
 export function useLimitLadderPlaceGates(
   walletAddress: string | undefined,
   escrowToken: string,
   totalHuman: string,
   escrowDecimals: number,
-  rungCount: number
+  rungCount: number,
+  maxAdjustSteps: number
 ): LimitLadderPlaceGates {
   const escrowBalanceQuery = useLimitOrderEscrowBalance(walletAddress, escrowToken)
   const nativeUlunaQuery = useNativeUlunaBalance(walletAddress)
 
-  const batchMinUluna = useMemo(() => estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount), [rungCount])
+  const batchMinUluna = useMemo(
+    () => estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount, maxAdjustSteps),
+    [rungCount, maxAdjustSteps]
+  )
   const escrowGate = useMemo(
     () =>
       evaluateLimitOrderEscrowPlaceGate(totalHuman, escrowDecimals, {
@@ -83,7 +87,7 @@ export function useLimitLadderPlaceGates(
   const inlineGate = escrowGate.userMessage ? escrowGate : nativeGasGate
 
   const gasSavingsUlunaVsSeparate =
-    estimateLimitOrderPlaceSequenceUlunaFeesTotal(1) * BigInt(Math.max(rungCount, 1)) - batchMinUluna
+    estimateLimitOrderPlaceSequenceUlunaFeesTotal(1, maxAdjustSteps) * BigInt(Math.max(rungCount, 1)) - batchMinUluna
 
   return {
     escrowGate,

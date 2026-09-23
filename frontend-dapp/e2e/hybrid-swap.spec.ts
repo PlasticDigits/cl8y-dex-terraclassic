@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { skipIfLcdUnreachable } from './helpers/chain'
+import { assertTxGasUsedLtWanted, skipIfLcdUnreachable } from './helpers/chain'
 import { assertHybridSwapCtaNotBlocked, requireDualCwPair, requireHybridControlsVisible } from './helpers/hybrid-e2e'
 import { clickSwapSubmit, openSwapAdvancedSettings, swapActionPanel, readSwapYouReceiveAmount } from './helpers/swap-ui'
 import {
@@ -210,5 +210,8 @@ test.describe('Hybrid on-chain limit book fill (LocalTerra)', () => {
       expect(bookReturn, 'hybrid swap wasm swap event should include book_return_amount').toBeTruthy()
       expect(BigInt(bookReturn!)).toBeGreaterThan(0n)
     }).toPass({ timeout: 180_000 })
+    const hybridGas = await assertTxGasUsedLtWanted(request, txHash)
+    expect(hybridGas.gasUsed).toBeLessThan(hybridGas.gasWanted)
+    console.info(`[issue-1329] LocalTerra hybrid fill gas_used=${hybridGas.gasUsed} gas_wanted=${hybridGas.gasWanted}`)
   })
 })
