@@ -4214,6 +4214,80 @@ fn hybrid_swap_rejects_min_return_above_net_output() {
     );
 }
 
+/// #1329 — a failed pool remainder rolls back an earlier book match in the same hybrid execute.
+#[test]
+fn hybrid_book_fill_reverts_when_pool_cannot_take_remainder() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    let bid_escrow = Uint128::new(20_000);
+    let order_id = place_bid(
+        &mut app,
+        &env.pair,
+        &env.user,
+        &env.token_b,
+        bid_escrow,
+        Decimal::one(),
+    );
+    let order_before = query_limit(&app, &env.pair, order_id);
+
+    let taker = Addr::unchecked("taker_pool_remainder_failure");
+    let total_in = Uint128::new(10_000);
+    transfer_tokens(&mut app, &env.token_a, &env.user, &taker, total_in);
+    let taker_before = query_cw20_balance(&app, &env.token_a, &taker);
+    let maker_before = query_cw20_balance(&app, &env.token_b, &env.user);
+
+    let swap_msg = to_json_binary(&Cw20HookMsg::Swap {
+        belief_price: None,
+        max_spread: Some(Decimal::one()),
+        min_return: Some(Uint128::one()),
+        to: None,
+        deadline: None,
+        hybrid: Some(HybridSwapParams {
+            pool_input: Uint128::new(5_000),
+            book_input: Uint128::new(5_000),
+            max_maker_fills: 8,
+            book_start_hint: None,
+        }),
+        greedy: None,
+        trader: None,
+    })
+    .unwrap();
+
+    let err = app
+        .execute_contract(
+            taker.clone(),
+            env.token_a.clone(),
+            &cw20::Cw20ExecuteMsg::Send {
+                contract: env.pair.to_string(),
+                amount: total_in,
+                msg: swap_msg,
+            },
+            &[],
+        )
+        .unwrap_err();
+    assert!(
+        err.root_cause()
+            .to_string()
+            .contains("Insufficient liquidity"),
+        "the unavailable pool remainder must return a specific liquidity error: {err}"
+    );
+
+    let order_after = query_limit(&app, &env.pair, order_id);
+    assert_eq!(order_after.order_id, order_before.order_id);
+    assert_eq!(order_after.owner, order_before.owner);
+    assert_eq!(order_after.side, order_before.side);
+    assert_eq!(order_after.price, order_before.price);
+    assert_eq!(order_after.remaining, order_before.remaining);
+    assert_eq!(order_after.expires_at, order_before.expires_at);
+    assert_eq!(order_after.prev, order_before.prev);
+    assert_eq!(order_after.next, order_before.next);
+    assert_eq!(query_cw20_balance(&app, &env.token_a, &taker), taker_before);
+    assert_eq!(
+        query_cw20_balance(&app, &env.token_b, &env.user),
+        maker_before
+    );
+}
+
 /// GitLab #197 — hybrid execute enforces unified `max_spread` (pool spread / total gross out).
 #[test]
 fn hybrid_max_spread_exact_tolerance_succeeds() {

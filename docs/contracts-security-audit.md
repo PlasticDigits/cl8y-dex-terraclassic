@@ -112,7 +112,9 @@ Each row states a property that should **always** hold (under the trust model). 
 
 ## Limit orders and hybrid swaps (pair)
 
-See invariant rows **L1–L24** above and [`limit-orders.md`](./limit-orders.md) for message shapes, pause semantics, indexer hints, and simulation limits.
+**L25 — Retail hybrid-limit gas and rollback ([#1329](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1329)).** Place, batch/ladder, and price-relink gas limits include the signed `max_adjust_steps` cap, clamped to **256**; native LUNC preflight and Max reserve use the same fee helper. Batch placement sums per-rung caps: inserts thread a cursor after success (**L12/L14**), but a skipped rung may retry a bounded head walk. A hybrid split must still sum to its offer; if the pool cannot take an unfilled book remainder, the specific liquidity error reverts the entire execute, leaving maker order state and fill events unchanged. URL `gas` / `credit` values are ignored. Regression: `hybrid_book_fill_reverts_when_pool_cannot_take_remainder`, frontend gas/error/query tests, and LocalTerra LCD `gas_used < gas_wanted` for place/fill/cancel. See [`skills/AGENTS_HYBRID_LIMIT_GAS.md`](../skills/AGENTS_HYBRID_LIMIT_GAS.md).
+
+See invariant rows **L1–L24** above plus **L25** here and [`limit-orders.md`](./limit-orders.md) for message shapes, pause semantics, indexer hints, and simulation limits.
 
 ## Attack paths considered (non-governance)
 
@@ -147,4 +149,3 @@ When adding a new execute path or economic rule:
 2. Add a **deterministic** regression test that encodes the business rule (not only line coverage).
 3. If the property is numeric or sequence-based, add or extend a **proptest** in `cl8y-dex-tests`.
 4. Run `cargo test` in `smartcontracts/` and, for coverage, see [testing.md](./testing.md) (Rust / LLVM coverage).
-

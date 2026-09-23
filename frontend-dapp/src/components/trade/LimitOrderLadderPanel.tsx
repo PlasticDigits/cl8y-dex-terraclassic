@@ -159,7 +159,8 @@ export function LimitOrderLadderPanel({
     escrowToken,
     totalHuman,
     escrowDecimals,
-    rungCount
+    rungCount,
+    maxSteps
   )
 
   const { bestBid, bestAsk, isLoading: bestBookLoading } = useTradeBestBookPrices(pairAddress, limitPriceScale)

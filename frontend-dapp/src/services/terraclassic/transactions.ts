@@ -1,5 +1,6 @@
 import { getConnectedWallet } from './wallet'
 import type { HybridSwapParams } from '@/types'
+import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
 import { hybridParamsWithSubmitCap } from './hybridSwapGas'
 import {
   buildTerraClassicFee,
@@ -28,24 +29,33 @@ function requireConnectedWalletForAddress(walletAddress: string) {
 
 /**
  * Minimum native fee (uluna) for the two-step CW20 limit place path: `increase_allowance` then
- * `send` → `place_limit_order`. Used for UI preflight so tx1 is not broadcast if the wallet cannot
- * pay tx2 ([GitLab #132](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/132)).
- * Must stay aligned with {@link getGasLimitForTx} for those message shapes.
+ * `send` → `place_limit_order_batch`. The place envelope includes rung count and the selected
+ * book insertion step cap, so preflight matches the exact message sent after allowance.
  */
-export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(rungCount = 1): bigint {
+export function estimateLimitOrderPlaceSequenceUlunaFeesTotal(
+  rungCount = 1,
+  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+): bigint {
   const allowanceGas = getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
-  const placeGas = gasLimitForLimitOrderBatch(rungCount)
+  const placeGas = gasLimitForLimitOrderBatch(rungCount, maxAdjustSteps)
   return estimateFeeUlunaAmountForGasLimit(allowanceGas) + estimateFeeUlunaAmountForGasLimit(placeGas)
 }
 
 /** Batch/ladder place: one allowance + one CW20 send (GitLab #206). */
-export function estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(rungCount: number): bigint {
-  return estimateLimitOrderPlaceSequenceUlunaFeesTotal(rungCount)
+export function estimateLimitOrderBatchPlaceSequenceUlunaFeesTotal(
+  rungCount: number,
+  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+): bigint {
+  return estimateLimitOrderPlaceSequenceUlunaFeesTotal(rungCount, maxAdjustSteps)
 }
 
 /** Single `update_limit_order_price` execute — no CW20 leg (GitLab #247). */
-export function estimateUpdateLimitOrderPriceUlunaFeesTotal(): bigint {
-  return estimateFeeUlunaAmountForGasLimit(getGasLimitForTx({ update_limit_order_price: {} }))
+export function estimateUpdateLimitOrderPriceUlunaFeesTotal(
+  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+): bigint {
+  return estimateFeeUlunaAmountForGasLimit(
+    getGasLimitForTx({ update_limit_order_price: { max_adjust_steps: maxAdjustSteps } })
+  )
 }
 
 /**

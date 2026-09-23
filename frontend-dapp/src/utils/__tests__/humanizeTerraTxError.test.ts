@@ -250,5 +250,21 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
       const out = tryHumanizeTerraTxMessage(raw)
       expect(out).toContain('book/pool split')
     })
+
+    it('explains when pool liquidity cannot take the unfilled book remainder', () => {
+      const out = tryHumanizeTerraTxMessage(
+        'failed to execute message; message index: 0: Insufficient liquidity: execute wasm contract failed'
+      )
+      expect(out).toContain('unfilled limit-book remainder')
+      expect(out).toContain('smaller amount')
+    })
+
+    it('explains when every placement rung exceeded the bounded book walk', () => {
+      const out = tryHumanizeTerraTxMessage(
+        'failed to execute message; message index: 0: Limit batch placed no rungs (2 skipped due to book-walk cap)'
+      )
+      expect(out).toContain('selected placement effort')
+      expect(out).toContain('Placement gas')
+    })
   })
 })
