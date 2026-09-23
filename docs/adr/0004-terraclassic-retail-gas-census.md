@@ -43,6 +43,10 @@ Those fixes did not produce a **single remaining-gap memo**. Three layers can st
 
 **No impl spawn.** A later bug/feature issue would need an exact execute shape + wallet class, current vs target `gas_wanted`, files to change, and explicit non-goals. G3 does not have a safe in-repo file list under this ticket’s guardrails. Optional later **copy** (Trade details one-liner mirroring `swap-wallet-fee-note`) is not opened here.
 
+## Later issue-specific evidence (2026-09-24)
+
+The separate CL8Y → UST1 report [#1328](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1328) measured one two-hop pool-only route above the generic floor and received a route-scoped fix. This does not retune the global per-hop formula or reverse the G0–G7 census decision. See [ADR 0013](./0013-cl8y-ust1-gas-floor.md) for the route evidence and invariants.
+
 ## Invariants (G-CENSUS)
 
 | ID | Meaning |

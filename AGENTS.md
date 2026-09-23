@@ -298,6 +298,7 @@ make verify-issue-666                    # #666 /charts pair-scoped 24h stats + 
 make verify-issue-680                    # #680 /charts UST1/USD hero + ?price= + page-wide invert
 make verify-issue-1266                   # #1266 /charts Select Pair first change sticks
 make verify-issue-1315                   # #1315 ALPHA pair price candles (lib + chart vitest)
+make verify-issue-1328                   # #1328 measured CL8Y→UST1 pool-only gas floor (Vitest + optional Columbus-5 simulation)
 make verify-issue-1329                   # #1329 step-aware limit place/edit gas + hybrid fill/cancel rollback and LCD checks
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
@@ -372,6 +373,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Charts UST1/USD hero + `?price=` | `make verify-issue-680` |
 | Charts Select Pair first change | `make verify-issue-1266` |
 | ALPHA pair price candles | `make verify-issue-1315` |
+| CL8Y → UST1 pool-only gas floor | `make verify-issue-1328` · `make measure-issue-1328` |
 | Hybrid limit place/fill/cancel gas | `make verify-issue-1329` (LocalTerra E2E: `VERIFY_ISSUE_1329_CHAIN=1`) |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |

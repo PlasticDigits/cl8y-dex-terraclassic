@@ -20,6 +20,8 @@ export const FAUCET_CONTRACT_ADDRESS = import.meta.env.VITE_FAUCET_ADDRESS || ''
  * Unset hides UST1 nav and shows unavailable on `/ust1`. Never overload `/mint`.
  */
 export const UST1_WINDOW_CONTRACT_ADDRESS = import.meta.env.VITE_UST1_WINDOW_ADDRESS || ''
+/** Columbus-5 UST1 address; used for exact-path gas matching when an environment omits VITE_UST1_TOKEN_ADDRESS. */
+export const MAINNET_UST1_TOKEN_ADDRESS = 'terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72'
 export const UST1_TOKEN_ADDRESS = import.meta.env.VITE_UST1_TOKEN_ADDRESS || ''
 export const VFDUSD_TOKEN_ADDRESS = import.meta.env.VITE_VFDUSD_TOKEN_ADDRESS || ''
 /** Optional — UI reads pause/staleness via window `effective_swap.oracle`. */
@@ -164,6 +166,14 @@ export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
  * 1,810,064-1,810,206 vs 1,810,000 granted; #353), so the floor is 950k/hop for real headroom.
  */
 export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
+/**
+ * CL8Y → UST1 two-hop pool-only route. Columbus-5 simulation measured 2,643,979–2,643,980 gas
+ * for CL8Y → ALPHA → UST1 on 2026-09-24; a successful reverse route through the same
+ * pairs used 2,606,968. The shared two-hop floor is 1.91M, so this route-specific
+ * 3M ceiling leaves at least 356,020 gas above the forward simulation without raising neighbors
+ * such as USTC → USTR wrap+2hop (#1328; see ADR 0013).
+ */
+export const CL8Y_UST1_TWO_HOP_POOL_GAS_LIMIT = 3_000_000
 /**
  * Extra gas when `wrap_deposit` and router `send`→`execute_swap_operations` (N≥2)
  * share one multi-msg tx ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587),
