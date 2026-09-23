@@ -22,7 +22,7 @@ services:
 
   postgres:
     # Pinned digest; bump via: docker pull postgres:16-alpine && docker inspect ...
-    image: postgres@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     ports:
       - "127.0.0.1:5432:5432"
     environment:
