@@ -72,7 +72,15 @@
     {
       "id": "keplr",
       "issue": 629,
-      "status": "in_flight",
+      "status": "recognition_merged",
+      "upstream_pr": "https://github.com/chainapsis/keplr-contract-registry/pull/132",
+      "follow_up_issues": [644],
+      "do_not_reopen": true
+    },
+    {
+      "id": "coingecko_terra_classic_platform",
+      "issue": 644,
+      "status": "human_follow_up",
       "do_not_reopen": true
     },
     {
