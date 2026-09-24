@@ -23,6 +23,8 @@ Founder direction: **256-bit**, **zero-extend** a stored `u128` into `u256`. Do 
 
 Pair cw2 for this wasm is **1.18.0**. Columbus-5 code-id migrate that loads this wasm and leaves `OBSERVATIONS` in place is an ops follow-up. This ticket does not broadcast it.
 
+Pair schema compatibility is separate from cumulative-width compatibility: if an older pair lacks `ORACLE_STATE`, pair migrate must initialize the empty-ring default while preserving any existing state and `OBSERVATIONS`. The current migration still lacks that backfill ([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232)); see [`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md). Do not treat the #1324 live migration as proof of the #1232 code invariant.
+
 ## Why zero-extend (not wrap)
 
 A live cumulative near `u128::MAX` made `checked_add` fail on both Observe and the three reserve-mutating executes. The accumulator is monotonic, so the error does not heal. Wrapping would keep the public integer in `u128` but makes `end < start` mean “crossed the modulus” and rejects a single delta that itself does not fit in `u128` ([#1224](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1224)). Widening the product and the sum fixes both. Existing decimal strings stay the same digits.
@@ -60,4 +62,5 @@ make verify-issue-1231
 - Ratio skip (do not weaken): [`AGENTS_TWAP_OBSERVE_RATIO.md`](AGENTS_TWAP_OBSERVE_RATIO.md) **O1231**
 - Math: [`smartcontracts/packages/dex-common/src/oracle.rs`](../smartcontracts/packages/dex-common/src/oracle.rs)
 - Pair: [`smartcontracts/contracts/pair/src/contract.rs`](../smartcontracts/contracts/pair/src/contract.rs) `oracle_update` / `oracle_observe_single`
+- Pair migrate storage defaults: [`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md) (**#1232**, open)
 - Charts: [`frontend-dapp/src/services/terraclassic/oracle.ts`](../frontend-dapp/src/services/terraclassic/oracle.ts)
