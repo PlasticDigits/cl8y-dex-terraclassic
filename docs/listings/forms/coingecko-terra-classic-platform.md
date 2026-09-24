@@ -1,4 +1,4 @@
-# CoinGecko Terra Classic platform draft (GitLab #639 child 5)
+# CoinGecko Terra Classic platform draft (GitLab #644 / #639 child 5)
 
 **Form:** [Partners Platform](https://partner.coingecko.com/request-form/new) → **Update coin / add contract**.  
 **Human gate:** account + captcha.
@@ -22,4 +22,4 @@ Goal: Keplr / Cosmostation `coinGeckoId: ceramicliberty-com` actually prices the
 - **Do** keep one economic id. **Don’t** invent `cl8y-terra` or similar (**L639-5**).
 - **Don’t** add UST1 / USTR / wraps on this form — they have **no** CG id yet (child 9, after volume).
 - **Don’t** advertise UST1 as `$1` or USTR as a stablecoin.
-- Keplr Job 2 USD stays blocked until this platform add lands ([#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) **K629-7**).
+- Keplr Job 2 USD stays blocked until this platform add lands ([#644](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/644), child of [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639); **K629-7** in [the Keplr registry playbook](../../../skills/AGENTS_KEPLR_CW20_REGISTRY.md)).
