@@ -14388,7 +14388,8 @@ mod wrap_router_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -15166,7 +15167,8 @@ mod wrap_router_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(50),
+                    fee_wrap_bps: Some(50),
+                    fee_unwrap_bps: Some(50),
                 },
                 &[],
                 "wrap-mapper",
@@ -15856,7 +15858,8 @@ mod wrap_integration_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -16218,7 +16221,8 @@ mod wrap_integration_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -16631,7 +16635,8 @@ mod wrap_integration_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -17183,7 +17188,8 @@ mod wrap_security_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -18055,7 +18061,8 @@ mod wrap_fuzz_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -18434,14 +18441,14 @@ mod wrap_fuzz_tests {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// D. ustr-cmm d8b0afd Feature Tests
+// D. ustr-cmm 8f76c3d Feature Tests
 //    Tests covering new upstream features: treasury wrapping pause,
 //    wrap-mapper min fee enforcement, minter verification on SetDenomMapping,
 //    and rate limit overflow protection.
 // ══════════════════════════════════════════════════════════════════════════════
 
 #[cfg(test)]
-mod ustr_cmm_d8b0afd_tests {
+mod ustr_cmm_split_fee_tests {
     use super::helpers::*;
     use cosmwasm_std::{to_json_binary, Addr, Coin, Empty, Uint128};
     use cw_multi_test::{App, AppBuilder, ContractWrapper, Executor};
@@ -18504,7 +18511,8 @@ mod ustr_cmm_d8b0afd_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -18805,7 +18813,8 @@ mod ustr_cmm_d8b0afd_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(0),
+                    fee_wrap_bps: Some(0),
+                    fee_unwrap_bps: Some(0),
                 },
                 &[],
                 "wrap-mapper-zero-fee",
@@ -18821,7 +18830,7 @@ mod ustr_cmm_d8b0afd_tests {
         );
     }
 
-    // ── D7: Wrap-mapper SetFeeBps rejects 0 ──
+    // ── D7: Wrap-mapper SetFeeWrapBps rejects 0 ──
 
     #[test]
     fn test_wrap_mapper_set_fee_zero_rejected() {
@@ -18832,7 +18841,7 @@ mod ustr_cmm_d8b0afd_tests {
             .execute_contract(
                 env.governance.clone(),
                 env.wrap_mapper.clone(),
-                &wrap_mapper::msg::ExecuteMsg::SetFeeBps { fee_bps: 0 },
+                &wrap_mapper::msg::ExecuteMsg::SetFeeWrapBps { fee_wrap_bps: 0 },
                 &[],
             )
             .unwrap_err();
@@ -18840,7 +18849,7 @@ mod ustr_cmm_d8b0afd_tests {
         assert!(
             err.root_cause().to_string().contains("Fee too low")
                 || err.root_cause().to_string().contains("FeeTooLow"),
-            "SetFeeBps(0) should be rejected, got: {}",
+            "SetFeeWrapBps(0) should be rejected, got: {}",
             err.root_cause()
         );
     }
@@ -18876,7 +18885,8 @@ mod ustr_cmm_d8b0afd_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -18957,7 +18967,8 @@ mod ustr_cmm_d8b0afd_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury.to_string(),
-                    fee_bps: Some(1),
+                    fee_wrap_bps: Some(1),
+                    fee_unwrap_bps: Some(1),
                 },
                 &[],
                 "wrap-mapper",
@@ -19173,7 +19184,8 @@ mod ustr_cmm_d8b0afd_tests {
                 &wrap_mapper::msg::InstantiateMsg {
                     governance: governance.to_string(),
                     treasury: treasury_contract.to_string(),
-                    fee_bps: Some(50),
+                    fee_wrap_bps: Some(50),
+                    fee_unwrap_bps: Some(50),
                 },
                 &[],
                 "wrap-mapper",
