@@ -202,6 +202,7 @@ make verify-issue-1219                   # #1219 named min remaining at place + 
 make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-1224                   # #1224 / #1322 TWAP cumulative Uint256 (alias of verify-issue-1322)
 make verify-issue-1322                   # #1322 / #1224 TWAP price×dt and cumulative add are Uint256
+make verify-issue-1324                   # #1324 Columbus-5 pair migrate guards; live acceptance uses read-only UPGRADE1324_PROBE_ONLY=1
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
@@ -398,6 +399,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Swap unlisted CW20 amount scale | `make verify-issue-1255` |
 | Observe query extreme-ratio skip | `make verify-issue-1231` |
 | TWAP cumulative Uint256 | `make verify-issue-1224` · `make verify-issue-1322` |
+| Columbus-5 pair TWAP migration | `make verify-issue-1324`; live read-only acceptance: `UPGRADE1324_PROBE_ONLY=1 ./scripts/upgrade-1324-pair-twap.sh`; runbook [`docs/runbooks/pair-twap-uint256-columbus5.md`](docs/runbooks/pair-twap-uint256-columbus5.md) |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
 Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need Postgres + `indexer/.env` — Cloud Agent: `make setup-indexer-postgres` (Postgres-only); full stack: [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
@@ -422,6 +424,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 
 ### Related playbooks
 
+- [skills/AGENTS_PAIR_TWAP_MIGRATION.md](skills/AGENTS_PAIR_TWAP_MIGRATION.md) — third-party agent boundary and cross-system checks for the Columbus-5 Uint256 pair migrate ([#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324)); runbook [`docs/runbooks/pair-twap-uint256-columbus5.md`](docs/runbooks/pair-twap-uint256-columbus5.md)
 - [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests; never bind-mount `indexer/` for cargo (`make test-indexer-target-ownership`)
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E
 - [skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md](skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) — QuickSwap-inspired blue + gold tokens/primitives (#488); spec [`docs/design-system.md`](docs/design-system.md)
