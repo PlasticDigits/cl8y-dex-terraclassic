@@ -43,7 +43,7 @@ run_step "docs: L687 skill + invariants + no Coolify-draft leftover" \
     set -euo pipefail
     grep -q "L687-1" skills/AGENTS_DEFILLAMA.md
     grep -q "L687-8" skills/AGENTS_DEFILLAMA.md
-    grep -q "DeFiLlama fees headline (#687)" docs/indexer-invariants.md
+    grep -q "DeFiLlama fees headline (closed #687)" docs/indexer-invariants.md
     grep -q "1786924800" docs/DEFILLAMA.md
     grep -q "2026-08-17" docs/DEFILLAMA.md
     grep -q "verify-issue-687" docs/testing.md

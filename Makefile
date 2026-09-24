@@ -1442,6 +1442,12 @@ verify-issue-1224 verify-issue-1322:
 	@chmod +x scripts/qa/verify-issue-1322.sh
 	./scripts/qa/verify-issue-1322.sh
 
+# git.cl8y.com #1324 — columbus-5 pair migrate script guards (no broadcast).
+.PHONY: verify-issue-1324
+verify-issue-1324:
+	@chmod +x scripts/qa/test-upgrade-1324-guards.sh scripts/upgrade-1324-pair-twap.sh
+	./scripts/qa/test-upgrade-1324-guards.sh
+
 .PHONY: verify-issue-646
 verify-issue-646:
 	@chmod +x scripts/qa/verify-issue-646.sh

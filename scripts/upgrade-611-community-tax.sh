@@ -4,7 +4,7 @@
 # One store from current main (must include !409 option-2). Then:
 #   cl8ydeploy  → store token + launcher + AutoLP
 #   DEX 2-of-3  → migrate canonical launcher 11614, AddWhitelistedCodeId (new token only)
-# Does NOT CMM-migrate token / AutoLP instances (admin is CMM, not the DEX multisig).
+# Does NOT migrate token / AutoLP instances owned by the CMM contract; its migrate_owned_contract requires DEX 2-of-3 governance.
 # Does NOT whitelist launcher / AutoLP / 11612 / ALPHA 8654.
 # After this crate's UpdateConfig is stored + the instance is migrated, set
 # UPGRADE611_UPDATE_CONFIG=1 to rotate token_code_id / autolp_code_id.
@@ -57,7 +57,7 @@ OLD_AUTOLP_CODE="${UPGRADE611_OLD_AUTOLP_CODE_ID:-11613}"
 UNUSED_LAUNCHER="${UPGRADE611_UNUSED_LAUNCHER:-terra1af9xm63mev4hnf4z0nmmcsnd9f4lpac2vs205rmaeg3kdqlqudhq894lyz}"
 CMM="${UPGRADE611_CMM:-$UST1_OPS_TREASURY}"
 DEX_GOV="${UPGRADE611_DEX_GOVERNANCE:-$UST1_OPS_DEX_GOVERNANCE}"
-CMM_GOV="${UPGRADE611_CMM_GOVERNANCE:-${UST1_OPS_WRAP_WASM_ADMIN:-$UST1_OPS_WINDOW_GOVERNANCE}}"
+LEGACY_CW20_ADMIN="${UPGRADE611_LEGACY_CW20_ADMIN:-${UPGRADE611_CMM_GOVERNANCE:-${UST1_OPS_WRAP_WASM_ADMIN:-$UST1_OPS_WINDOW_GOVERNANCE}}}"
 
 if [[ "${UPGRADE611_LOCAL:-0}" == "1" ]]; then
   ENV_LOCAL="$REPO_ROOT/frontend-dapp/.env.local"
@@ -340,11 +340,11 @@ fi
 echo ""
 echo "[8] leftover (not signed here)"
 cat <<EOF
-CMM migrate (admin $CMM; signer $CMM_GOV / ustr-cmm — NOT DEX 2-of-3):
-  # if ContractInfo.admin is the CMM contract, use ustr-cmm WasmMsg::Migrate
-  # if admin is $CMM_GOV:
-  terrad tx wasm migrate <token> $TOKEN_CODE '{}' --from cl8y2_admin \\
-    --chain-id columbus-5 --node https://terra-classic-rpc.publicnode.com:443 \\
+CMM-owned CW20 migrate (ContractInfo.admin = $CMM):
+  use ustr-cmm migrate_owned_contract signed by the DEX 2-of-3 after [#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526) / [#638](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/638).
+Legacy direct CW20 admin ($LEGACY_CW20_ADMIN):
+  terrad tx wasm migrate <token> $TOKEN_CODE '{}' --from cl8y2_admin \
+    --chain-id columbus-5 --node https://terra-classic-rpc.publicnode.com:443 \
     --gas auto --gas-adjustment 1.4 --gas-prices 28.325uluna
   # AutoLP instances: same, code $AUTOLP_CODE  msg '{"factory":"$FACTORY"}' if pre-#610
   # 0 token / AutoLP instances as of 2026-08-24 — no CMM migrate required.
