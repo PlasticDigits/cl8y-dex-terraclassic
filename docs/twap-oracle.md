@@ -165,6 +165,13 @@ pool's liquidity depth.
    at `u128::MAX` and do not skip forever once the counter is high.
    Playbook: [`skills/AGENTS_TWAP_CUMULATIVE_U256.md`](../skills/AGENTS_TWAP_CUMULATIVE_U256.md).
 
+   **Deployment boundary:** Pair cw2 **1.18.0** contains this fix, but the
+   Columbus-5 live-pair migration is tracked separately in
+   [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324).
+   Check the missing-key migration backfill in
+   [#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232)
+   before broadcast; preserve `OBSERVATIONS` and do not set cumulatives.
+
 5. **Arithmetic-mean sensitivity.** This oracle is an **arithmetic** mean of
    raw `reserve_b / reserve_a`. A short spike still weights by time, but it
    is **not** the geometric-mean (Uniswap v3-style tick) construction. Short
@@ -271,3 +278,15 @@ fn get_safe_price(pair: Addr, window: u32, band_feed: Addr) -> Result<Decimal> {
 | `packages/dex-common/src/pair.rs` | `Observe` and `OracleInfo` query message definitions |
 | `frontend-dapp/src/services/terraclassic/oracle.ts` | LCD `observe` → raw Decimal string |
 | `frontend-dapp/src/utils/chartsPairStats.ts` | Human TWAP display (`formatTwapHumanPrice`) |
+
+## Columbus-5 rollout
+
+Pair cw2 **1.18.0** widens the cumulative without resetting its stored ring.
+The operational acceptance also checks every factory pair, the formerly
+saturated UST1/USTR `Observe([0, 60])`, one successful reserve-moving action,
+and the independently deployed indexer and chart bundle. Follow the
+[#1324 runbook](runbooks/pair-twap-uint256-columbus5.md) and the third-party
+[migration agent playbook](../skills/AGENTS_PAIR_TWAP_MIGRATION.md). The
+underlying cumulative rules remain in
+[`AGENTS_TWAP_CUMULATIVE_U256.md`](../skills/AGENTS_TWAP_CUMULATIVE_U256.md);
+the ALPHA chart wire contract remains in [ADR 0012](adr/0012-alpha-pair-price-candles.md).

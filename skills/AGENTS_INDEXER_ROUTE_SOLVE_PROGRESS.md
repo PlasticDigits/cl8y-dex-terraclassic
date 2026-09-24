@@ -2,7 +2,7 @@
 
 Audience: third-party agents working on Swap quoting UX, indexer hybrid solve latency, or progress polling.
 
-Companion docs: [`docs/route-solver.md`](../docs/route-solver.md) (progress poll + cache TTLs), [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (#485 row), [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md), [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md). Remaining timeout / BFS-fallback census (**F5**, **Stay**): [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265); `make verify-issue-1265`.
+Companion docs: [`docs/route-solver.md`](../docs/route-solver.md) (progress poll + cache TTLs), [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (#485 row), [`AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md`](./AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md), [`AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md`](./AGENTS_FRONTEND_SWAP_QUOTE_REFETCH.md). Timeout / BFS-fallback census (**F5**, accepted **Stay**) is recorded in [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) / closed [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265), implemented by merged [PR #1289](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1289). Wallet-sim comparison remains explicitly unmeasured. Native wrap mapping landed under [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) / PR #1297; any further native-swap check stays there. Verify: `make verify-issue-1265`.
 
 ## Problem class
 

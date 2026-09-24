@@ -17,7 +17,7 @@
 #   multisig_2of3   terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7   factory admin
 #   multisig1       terra13d6jycp9hv8u64t92j2htdr53sn9f88r4uqtxm   2-of-3 signer
 #   multisig2       terra1lsewv7zjf2pe535lpdgh9dx2n928yn3ker76mq   2-of-3 signer
-#   cl8y2_admin     terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l   CMM/UST1 gov
+#   cl8y2_admin     terra1xsecn4…   window/oracle and legacy CW20 admin (not CMM governance)
 #   mywallet / multisig3 — unused
 #
 # Usage:
@@ -56,7 +56,7 @@ WANT_FACTORY_CW2="${UPGRADE635_WANT_FACTORY_CW2:-1.10.0}"
 
 CMM="${UPGRADE635_CMM:-$UST1_OPS_TREASURY}"
 DEX_GOV="${UPGRADE635_DEX_GOVERNANCE:-$UST1_OPS_DEX_GOVERNANCE}"
-CMM_GOV="${UPGRADE635_CMM_GOVERNANCE:-${UST1_OPS_WRAP_WASM_ADMIN:-$UST1_OPS_WINDOW_GOVERNANCE}}"
+LEGACY_CW20_ADMIN="${UPGRADE635_LEGACY_CW20_ADMIN:-${UPGRADE635_CMM_GOVERNANCE:-${UST1_OPS_WRAP_WASM_ADMIN:-$UST1_OPS_WINDOW_GOVERNANCE}}}"
 FACTORY="${UPGRADE635_FACTORY_ADDRESS:-${FACTORY_ADDRESS:-$UST1_OPS_FACTORY}}"
 LCD_URL="${LCD_URL:-${TERRA_LCD_URL:-$UST1_OPS_LCD_URL}}"
 LCD_URL="${LCD_URL%/}"
@@ -72,7 +72,8 @@ echo "GitLab #635 factory + CMM token leftover"
 echo "=============================================="
 echo "Factory:     $FACTORY"
 echo "CMM admin:   $CMM"
-echo "CMM gov:     $CMM_GOV  (cl8y2_admin)"
+echo "CMM app governance: $DEX_GOV (DEX 2-of-3)"
+echo "Legacy CW20 admin: $LEGACY_CW20_ADMIN (cl8y2_admin)"
 echo "DEX gov:     $DEX_GOV  (multisig_2of3)"
 echo "Store key:   $TERRAD_HOST_KEY"
 echo "LCD:         $LCD_URL"
@@ -150,13 +151,14 @@ gov_tx() {
 print_leftover() {
   cat <<EOF
 
-Leftover (not signed here unless UPGRADE635_CMM_MIGRATE=1 and admin is $CMM_GOV):
-  CMM migrate — token ContractInfo.admin is usually $CMM (not cl8y2_admin).
-  If admin is $CMM, use ustr-cmm WasmMsg::Migrate (CMM execute, signer cl8y2_admin).
-  If admin is $CMM_GOV:
-    TERRAD_HOST_KEY=cl8y2_admin terrad tx wasm migrate <token> ${TOKEN_CODE:-<new-token>} '{}' \\
-      --chain-id columbus-5 --node https://terra-classic-rpc.publicnode.com:443 \\
-      --gas auto --gas-adjustment 1.4 --gas-prices 28.325uluna
+Leftover (not handled here unless UPGRADE635_CMM_MIGRATE=1):
+  If ContractInfo.admin is the CMM contract $CMM, use upstream migrate_owned_contract via DEX 2-of-3 governance.
+  If ContractInfo.admin is the legacy CW20 EOA $LEGACY_CW20_ADMIN, direct wasm migrate uses cl8y2_admin.
+  CMM governance and wasm admin are the DEX 2-of-3 after #526/#638; do not sign the CMM execute with cl8y2_admin.
+
+  TERRAD_HOST_KEY=cl8y2_admin terrad tx wasm migrate <token> ${TOKEN_CODE:-<new-token>} '{}' \
+    --chain-id columbus-5 --node https://terra-classic-rpc.publicnode.com:443 \
+    --gas auto --gas-adjustment 1.4 --gas-prices 28.325uluna
 
 Do not factory-whitelist 8654 / 11612 / 11621 / 11622.
 Do not migrate pairs. Do not UpdateConfig pair_code_id.
@@ -282,12 +284,12 @@ else
     addr="${rest%% *}"
     admin="${rest#* }"
     echo "  $old $addr admin=$admin"
-    if [[ "$admin" == "$CMM_GOV" ]]; then
+    if [[ "$admin" == "$LEGACY_CW20_ADMIN" ]]; then
       broadcast_and_wait "migrate $addr" wasm migrate "$addr" "$TOKEN_CODE" '{}' >/dev/null
     elif [[ "$admin" == "$CMM" ]]; then
-      echo "    leftover — admin is CMM contract; use ustr-cmm WasmMsg::Migrate (signer $TERRAD_HOST_KEY)"
+      echo "    leftover — admin is CMM contract; migrate through ustr-cmm migrate_owned_contract with DEX 2-of-3 governance."
     else
-      echo "    leftover — unexpected admin $admin (not CMM / cl8y2_admin)"
+      echo "    leftover — unexpected admin $admin (not CMM / legacy CW20 admin)"
     fi
   done
   TERRAD_HOST_KEY="$saved_key"

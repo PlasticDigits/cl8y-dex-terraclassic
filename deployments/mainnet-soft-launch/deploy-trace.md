@@ -345,5 +345,7 @@ App-governance accepts from `cl8y2_admin` pending transfers. Signer `multisig_2o
 | Pending after | `proposals: []` | `new_governance: null` |
 | Wasm admin (unchanged) | `cl8y2_admin` `terra1xsecn4…` | `cl8y2_admin` `terra1xsecn4…` |
 
+Follow-up: mapper/treasury wasm admins moved to the DEX 2-of-3 on 2026-08-26; see the current [REGISTRY governance split](../mainnet-ust1-wrap/REGISTRY.md#governance-split-ops-critical) and [#638](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/638). Window/oracle and product controls remain tracked on [#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526) / [#697](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697).
+
 Window / oracle / swap / bridge accepts were **not** in this batch (still EOA). Registry: [`../mainnet-ust1-wrap/REGISTRY.md`](../mainnet-ust1-wrap/REGISTRY.md).
 

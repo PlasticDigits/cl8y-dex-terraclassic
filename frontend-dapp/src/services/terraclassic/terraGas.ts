@@ -142,7 +142,7 @@ export function limitOrderAdjustStepsForGas(value: unknown): number {
 /** Gas for one bounded insert walk above the message's fixed work. */
 export function gasLimitForLimitOrderInsert(
   baseGas: number,
-  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+  maxAdjustSteps: unknown = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
 ): number {
   return baseGas + PLACE_LIMIT_ORDER_INSERT_STEP_GAS_LIMIT * limitOrderAdjustStepsForGas(maxAdjustSteps)
 }
@@ -153,7 +153,7 @@ export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = gasLimitForLimitOrderInsert(UP
 
 function totalAdjustStepsForOrders(orders: unknown[] | undefined, rungCount: number): number {
   if (!orders?.length) return LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT * Math.max(1, Math.floor(rungCount))
-  return orders.reduce((total, order) => {
+  return orders.reduce<number>((total, order) => {
     if (order == null || typeof order !== 'object') return total + LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI
     return total + limitOrderAdjustStepsForGas((order as { max_adjust_steps?: unknown }).max_adjust_steps)
   }, 0)
@@ -206,11 +206,13 @@ function countSwapHops(msg: Record<string, unknown>): number {
 }
 
 function innerSwapUsesHybrid(inner: Record<string, unknown>): boolean {
+  // Omitted hybrid/greedy stays pool-only until the default-greedy follow-up (#718) ships.
   const sw = inner.swap as { hybrid?: unknown; greedy?: unknown } | undefined
   return !!(sw && (sw.hybrid != null || sw.greedy != null))
 }
 
 function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
+  // Keep aligned with router G12; #718 must classify omitted fields as greedy once that default ships.
   const e = msg.execute_swap_operations as
     | {
         operations?: Array<{ terra_swap?: { hybrid?: unknown; greedy?: unknown } }>

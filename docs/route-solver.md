@@ -2,6 +2,8 @@
 
 Authoritative reference for contributors and integrators using **`GET` / `POST /api/v1/route/solve`**. The solver is **advisory**: on-chain **`max_spread`** / **`min_receive`** at execute time are authoritative. This document expands [ADR 0002](./adr/0002-global-best-execution-route-solver.md) (decision record) without changing its decisions.
 
+Pair-direct integrators use this same best-execution API: optimized GET requires `amount_in`, and a one-hop pair-direct call must execute with that hop's returned `hybrid` params; omitting hybrid on a direct pair swap remains pool-only under the current contract ([I707 guide](./integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707)).
+
 **Related:** [indexer-invariants.md](./indexer-invariants.md) (HTTP matrix), [integrators.md](./integrators.md#route-discovery-and-quotes-l8), [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
 
 **F6 freeze:** `find_path` / `build_adjacency` skip frozen hops (`code_id_frozen` cache). A frozen-only market returns **404**. See [indexer-invariants.md](./indexer-invariants.md) GitLab **#585**.
@@ -193,7 +195,7 @@ Clients **must** set on-chain **`max_spread`** / **`min_receive`** (or equivalen
 
 ## Remaining failures census (docs-only)
 
-Retail quote skips / timeouts / disagreements with optimized GET are catalogued in [ADR 0007](./adr/0007-route-solve-remaining-failures.md) ([#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265)). That memo does **not** change shipped constants below. Native wrap-enter remains [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218); mixed 18/6 honesty remains [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257). Verify: `make verify-issue-1265`.
+Retail quote skips / timeouts / disagreements with optimized GET are catalogued in [ADR 0007](./adr/0007-route-solve-remaining-failures.md) (closed [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265), implemented by [PR #1289](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1289)). The accepted memo does **not** change shipped constants below; wallet simulation remains explicitly unmeasured. Native wrap mapping / solver execution landed under [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) / PR #1297; raw native GET IDs remain invalid by design. Newer pre-sign route-display work is [#1330](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1330); mixed 18/6 honesty was resolved under closed [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257). Verify: `make verify-issue-1265`.
 
 ---
 
