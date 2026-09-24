@@ -214,7 +214,7 @@ Frontend:
 
 ## Rollout
 
-One implement MR. Boot migrates, then runs the zero-row gap fill. The indexer app and the dApp are two Coolify apps and do not cut over together. Until the new client is running, `usd_leg=asset_1` rows omit `open/high/low/close`, so a cached dApp shows the empty pane for that pair. This design does not deploy.
+One implement MR. Boot migrates, then runs the zero-row gap fill. The indexer app and the dApp are two Coolify apps and do not cut over together. Until the new client is running, `usd_leg=asset_1` rows omit `open/high/low/close`, so a cached dApp shows the empty pane for that pair. This ADR does not deploy the change; production acceptance is tracked separately by [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324) and its [Columbus-5 runbook](../runbooks/pair-twap-uint256-columbus5.md).
 
 ## Rollback
 
@@ -226,7 +226,7 @@ Do not `TRUNCATE candles` as a rollback.
 
 ## Integration completion
 
-- Status on the implement MR is still **Proposed ([#1315])**.
+- ADR status stays **Proposed** until a reviewer accepts the design. Implementation and production rollout are separate; [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324) records the live indexer and dApp verification without self-accepting this ADR.
 - Slice-0 text is inserted on `main` via that MR, not left only on `cac-design-issue-1315`.
 - `make verify-issue-1315` is green without a chain.
 - Fixture UST1/ALPHA candle USD equals USD of 1 human ALPHA in both slots, and `swap_events.price_usd` is NULL when ALPHA is `asset_1`.
