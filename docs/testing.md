@@ -6,6 +6,10 @@
 
 CL8Y DEX tests focus on real contract behavior — no blockchain mocks. Unit tests exercise pure logic, integration tests deploy to a simulated chain environment, and E2E tests drive the actual frontend against LocalTerra.
 
+## Pair storage migration compatibility ([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232))
+
+**Open verification gap:** `pair::migrate` on `origin/main` (`54c4868e`) does not initialize missing `DISCOUNT_REGISTRY` / `ORACLE_STATE`, although current runtime paths hard-load both. `migration_tests::pair_migration_preserves_fee_registry_lp_admin_and_limit_book` verifies preservation of populated state; it does not cover a pre-item storage layout. Keep #1232 open until absent-key defaults, preservation/idempotence, and post-migrate hard-load behavior have regression coverage. Requirements and code cross-links: [contract reference](./contracts-terraclassic.md#pair-storage-key-migration-compatibility-1232), [audit C14](./contracts-security-audit.md), and [agent playbook](../skills/AGENTS_PAIR_STORAGE_MIGRATION.md). The newer [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324) is an ops migration issue and explicitly excludes this fix.
+
 ## P2 testing epic (GitLab #199)
 
 Consolidated coverage for production-review P2 gaps ([`TEST_GAP_MATRIX.md`](./reviews/20260409T030009Z/TEST_GAP_MATRIX.md)). Agent playbook: [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
