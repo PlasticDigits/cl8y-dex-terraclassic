@@ -16,8 +16,9 @@ Crawlers do **not** run React. nginx `try_files` rewrites every public SPA path 
 | [`public/og-image.png`](../frontend-dapp/public/og-image.png) | Shipped 1200×630 card |
 | [`brand/community-opengraph-concept.png`](../frontend-dapp/brand/community-opengraph-concept.png) | Square source — **not** the crawler URL |
 | [`scripts/compose-og-image.py`](../scripts/compose-og-image.py) | Recompose 1200×630 without stretching the square |
-| [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf) | `/og-image.png` → real PNG; other paths → `index.html` |
+| [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf) | Existing `/og-image.png` file-only exception; #1212 requires the same protection for robots and sitemap |
 | [docs/qa/issue-488/README.md](../docs/qa/issue-488/README.md) | #488 typesetting card is **not** live OG |
+| [docs/frontend.md § Crawl endpoints](../docs/frontend.md#crawl-endpoints) | CRAWL-1–CRAWL-6 for robots and sitemap |
 
 ## Invariants (OG-1–OG-8)
 
@@ -46,6 +47,14 @@ make verify-issue-578
 ```
 
 No LocalTerra, indexer, or wallet work. Manual after Coolify deploy: `curl -sL https://dex.cl8y.com/ | grep og:image` and `curl -sI https://dex.cl8y.com/og-image.png`; Telegram + X/Twitter large card (reset X cache if stale).
+
+## Crawl endpoints (GitLab #1212) {#crawl-endpoints}
+
+`/robots.txt` and `/sitemap.xml` must be real static files copied from `frontend-dapp/public/`; crawler URLs must never resolve to the shared Vite SPA shell. Add exact locations to `docker/frontend/nginx.conf` with `try_files $uri =404`, `text/plain` for robots, and `application/xml` (or `+xml`) for the sitemap. This keeps an omitted file from becoming a misleading `200 text/html` response.
+
+Keep the sitemap limited to intentionally crawlable paths on `https://dex.cl8y.com`. Omit wallet, manage, mint, trader-address, and unbounded pair routes. Do not add marketing claims, foreign hosts, or treat robots directives as access control. Do not add per-route OG tags, titles, or canonicals to work around this; the one-shell rule remains **OG-5**. Do not block a future content host.
+
+Preserve the exact `/og-image.png` exception from [#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) and hashed JS/CSS miss handling from [#706](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706). See [#1212](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/1212) for the full acceptance criteria. The verifier should check status, media type, and body shape for both present files, verify missing files return 404, and recheck the production responses after Coolify deployment. `make verify-issue-1212` is not present yet.
 
 ## Cross-links
 
