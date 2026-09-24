@@ -2,6 +2,8 @@
 
 Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail route clients against the CL8Y indexer.
 
+Pair-direct bot warning ([Forgejo #707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707)): omitted `hybrid` + `greedy` currently means pool-only. The solver is also the integrator best-execution API; a one-hop direct pair execution must carry the returned `hybrid`. See the [integrator decision table](../docs/integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707). Future default-greedy semantics remain gated by [#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718).
+
 ## Best-execution route API
 
 | Endpoint | When to use |
