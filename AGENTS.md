@@ -379,6 +379,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
+| Pair-creation fee ingest (#1209) | Pending on refreshed main; see `docs/qa/issue-1209/README.md` and `skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md` |
 | Indexer HTTP pack (docs + OpenAPI) | `make verify-issue-1204` |
 | Retail gas census (docs) | `make verify-issue-1222` |
 | Route solve remaining failures (docs) | `make verify-issue-1265` · `make verify-issue-1289` |
