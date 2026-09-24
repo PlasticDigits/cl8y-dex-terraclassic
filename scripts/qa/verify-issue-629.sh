@@ -10,6 +10,7 @@
 #   K629-6  vFDUSD address + 6 decimals
 #   K629-7  Job 2 decision documented (ceramicliberty-com + no invented price)
 #   K629-8  USTR already_registered; skill + AGENTS.md + verify target
+#   K629-9  merged upstream metadata is authoritative; local export is not a resubmission
 #
 # Refs: skills/AGENTS_KEPLR_CW20_REGISTRY.md
 #       docs/listings/keplr-contract-registry/README.md
@@ -55,7 +56,7 @@ run_frontend() {
 run_step "frontend: catalog builder matches on-disk JSON" \
   run_frontend
 
-run_step "export: drop-in tree omits already-registered USTR" \
+run_step "export: local snapshot omits already-registered USTR" \
   bash -c '
     tmp="$(mktemp -d)"
     trap "rm -rf \"$tmp\"" EXIT
@@ -66,11 +67,13 @@ run_step "export: drop-in tree omits already-registered USTR" \
     test ! -f "$tmp/images/columbus/USTR.png"
   '
 
-run_step "docs: listing pack invariants K629-1–K629-8" \
+run_step "docs: listing pack invariants K629-1–K629-9" \
   grep -qE '\*\*K629-1\*\*' docs/listings/keplr-contract-registry/README.md && \
   grep -qE '\*\*K629-8\*\*' docs/listings/keplr-contract-registry/README.md && \
+  grep -qE '\*\*K629-9\*\*' docs/listings/keplr-contract-registry/README.md && \
   grep -qE 'cosmos/columbus' docs/listings/keplr-contract-registry/README.md && \
   grep -qE 'ceramicliberty-com' docs/listings/keplr-contract-registry/README.md && \
+  grep -qE '#644' docs/listings/keplr-contract-registry/README.md && \
   grep -qE 'already listed|already_registered|already registered' \
     docs/listings/keplr-contract-registry/README.md && \
   grep -qE 'make verify-issue-629' docs/listings/keplr-contract-registry/README.md
@@ -81,11 +84,14 @@ run_step "docs: integrators + README + testing + QA note" \
   grep -qE 'keplr-contract-registry' docs/README.md && \
   grep -qE 'verify-issue-629' docs/testing.md && \
   grep -qE 'K629-1' docs/qa/issue-629/README.md && \
+  grep -qE '#644' docs/qa/issue-629/README.md && \
   grep -qE 'ceramicliberty-com' docs/CG_CMC_COMPLIANCE.md
 
 run_step "docs: skill + AGENTS.md playbook #629" \
   grep -qE '\*\*K629-1' skills/AGENTS_KEPLR_CW20_REGISTRY.md && \
   grep -qE '\*\*K629-8' skills/AGENTS_KEPLR_CW20_REGISTRY.md && \
+  grep -qE '\*\*K629-9' skills/AGENTS_KEPLR_CW20_REGISTRY.md && \
+  grep -qE '#644' skills/AGENTS_KEPLR_CW20_REGISTRY.md && \
   grep -qE 'make verify-issue-629' skills/AGENTS_KEPLR_CW20_REGISTRY.md && \
   grep -qE 'AGENTS_KEPLR_CW20_REGISTRY' AGENTS.md && \
   grep -qE 'verify-issue-629' AGENTS.md && \
