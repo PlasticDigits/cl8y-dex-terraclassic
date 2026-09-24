@@ -332,18 +332,6 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.2.0"
-source = "git+https://gitlab.com/PlasticDigits/ustr-cmm?rev=d8b0afd53e5cd28562a0beb5be1b518532e898c1#d8b0afd53e5cd28562a0beb5be1b518532e898c1"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw20",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "common"
 version = "0.2.1"
 source = "git+https://gitlab.com/PlasticDigits/ustr-cmm?rev=8f76c3d3da94522e2869345bf7d864c8c101575f#8f76c3d3da94522e2869345bf7d864c8c101575f"
 dependencies = [
@@ -1377,7 +1365,7 @@ name = "treasury"
 version = "0.2.1"
 source = "git+https://gitlab.com/PlasticDigits/ustr-cmm?rev=8f76c3d3da94522e2869345bf7d864c8c101575f#8f76c3d3da94522e2869345bf7d864c8c101575f"
 dependencies = [
- "common 0.2.1",
+ "common",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
@@ -1592,10 +1580,10 @@ dependencies = [
 
 [[package]]
 name = "wrap-mapper"
-version = "0.2.0"
-source = "git+https://gitlab.com/PlasticDigits/ustr-cmm?rev=d8b0afd53e5cd28562a0beb5be1b518532e898c1#d8b0afd53e5cd28562a0beb5be1b518532e898c1"
+version = "0.3.0"
+source = "git+https://gitlab.com/PlasticDigits/ustr-cmm?rev=8f76c3d3da94522e2869345bf7d864c8c101575f#8f76c3d3da94522e2869345bf7d864c8c101575f"
 dependencies = [
- "common 0.2.0",
+ "common",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
