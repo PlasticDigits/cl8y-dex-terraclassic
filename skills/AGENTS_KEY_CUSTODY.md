@@ -21,7 +21,7 @@ The runbook must document all six SEC-B10 items:
 2. **Named signer roster (roles)** — by role, not necessarily personal identity; filled copy kept private.
 3. **Backup signer + escalation path** — a key in `n` held out of routine signing; what to do when signers are unavailable or compromised.
 4. **Key-rotation triggers and process** — when to rotate and the high-level steps (exact command cookbook + rehearsal are SEC-D10 / [#408](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/408)).
-5. **No single EOA** controls mainnet governance / treasury / contract `admin`.
+5. **Track residual authority** — columbus-5 product EOA controls and their transfer trackers are listed in the REGISTRY governance split. Keep the custody gate open while [#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526) transfers remain; use [#697](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697) for the security attestation.
 6. Phase 0 launch-checklist gate completed with a link to the runbook.
 
 **Production multisig:** `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` ([`docs/reference/governance-multisig.md`](../docs/reference/governance-multisig.md)). Signer identities and threshold are **key-ceremony fill-ins** kept privately and linked from the launch issue ([#391](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/391)).

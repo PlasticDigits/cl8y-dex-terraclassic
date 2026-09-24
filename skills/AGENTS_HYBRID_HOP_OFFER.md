@@ -36,7 +36,7 @@ No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop
 
 ```bash
 make verify-issue-1280
-# optional wrap pool-only + same 2.71M envelope (no columbus-5 AC1 raise):
+# optional wrap pool-only + same 2.71M envelope (AC1 measured; no raise):
 make verify-issue-1264
 # optional LocalTerra E10 / columbus-5 LCD:
 VERIFY_ISSUE_1264_CHAIN=1 make verify-issue-1264

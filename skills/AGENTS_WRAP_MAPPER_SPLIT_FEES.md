@@ -59,7 +59,7 @@ Ship this frontend **before or in the same window** as wrap-mapper store + migra
 1. LCD `config` shows `fee_wrap_bps=200`, `fee_unwrap_bps=51` (not `fee_bps` only).
 2. `/wrap` wrap 10 000 → **9 800** CW20; unwrap 10 000 → **≈9 800** native (not 9 653).
 3. Fee notes stay honest (“fee; You Receive after burn tax”) — never “2% flat”.
-4. Mapper `set_fees` and wasm **migrate** are DEX 2-of-3 after [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525) / [#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526) (`set-contract-admin` 2026-08-26).
+4. Mapper set_fees / pause and mapper + treasury wasm migrate use the DEX 2-of-3 after the [#525](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/525) / [#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526) app accepts and [#638](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/638) admin rotations (2026-08-26). Re-query config.governance and ContractInfo.admin separately. Current residuals: [#697](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697).
 
 ## Router wasm (#523)
 

@@ -8,8 +8,8 @@ Step-by-step **pause / unpause** for the ustr-cmm **wrap-mapper** used by CL8Y D
 
 ## Authority
 
-- **Signer:** wrap-mapper `config.governance`. On columbus-5 after [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525) (2026-08-25) this **is** the DEX 2-of-3 `terra1zlmv2…hep7` (`scripts/multisig-2of3-host-tx.sh`). Wasm admin is still `cl8y2_admin`.
-- Confirm on-chain before broadcast: query wrap-mapper `{"config":{}}` and match `governance`.
+- **Signer:** wrap-mapper config.governance. At columbus-5 block **30540667** (2026-09-24 09:09 UTC), config.governance and ContractInfo.admin are the DEX 2-of-3 terra1zlmv2…hep7 ([#525](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/525), [#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526), [#638](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/638)). The treasury uses the same multisig; see [REGISTRY.md](../../deployments/mainnet-ust1-wrap/REGISTRY.md#governance-split-ops-critical).
+- Before a transaction, query wrap-mapper config and LCD ContractInfo.admin separately. The health probe does not attest wasm admin; see [#697](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697).
 - Addresses: [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../../deployments/mainnet-ust1-wrap/REGISTRY.md).
 
 | Role | Address |
@@ -49,16 +49,10 @@ Or LCD:
 
 ```bash
 export WRAP_MAPPER=terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2
-export CHAIN_ID=columbus-5
-export NODE=https://terra-classic-rpc.publicnode.com:443
-# GOVERNANCE_KEY = wrap-mapper config.governance (columbus-5: multisig_2of3)
-
-terrad tx wasm execute "$WRAP_MAPPER" '{"set_paused":{"paused":true}}' \
-  --from "$GOVERNANCE_KEY" \
-  --chain-id "$CHAIN_ID" \
-  --node "$NODE" \
-  --gas auto --gas-adjustment 1.4 --fees 500000uluna \
-  -y
+export TERRAD_HOST_CHAIN_ID=columbus-5
+export TERRAD_HOST_NODE=https://terra-classic-rpc.publicnode.com:443
+# Human multisig signers run this helper; it generates, signs with two keys, and broadcasts.
+./scripts/multisig-2of3-host-tx.sh wasm execute "$WRAP_MAPPER" '{"set_paused":{"paused":true}}'
 ```
 
 **Verify:**
@@ -73,12 +67,8 @@ terrad tx wasm execute "$WRAP_MAPPER" '{"set_paused":{"paused":true}}' \
 ## Unpause
 
 ```bash
-terrad tx wasm execute "$WRAP_MAPPER" '{"set_paused":{"paused":false}}' \
-  --from "$GOVERNANCE_KEY" \
-  --chain-id "$CHAIN_ID" \
-  --node "$NODE" \
-  --gas auto --gas-adjustment 1.4 --fees 500000uluna \
-  -y
+# Human multisig signers only.
+./scripts/multisig-2of3-host-tx.sh wasm execute "$WRAP_MAPPER" '{"set_paused":{"paused":false}}'
 ```
 
 **Verify:** wrap + unwrap succeed; UI CTA cleared; `./scripts/check-ust1-wrap-ops-health.sh` shows not paused.

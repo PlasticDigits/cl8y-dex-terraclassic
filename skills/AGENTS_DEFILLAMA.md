@@ -2,7 +2,7 @@
 
 Audience: third-party agents changing `GET /api/v1/defillama/daily`, the UTC-day rollup, gem exclude, or the vendored Llama adapters under `scripts/defillama/`.
 
-**Issue:** [GitLab **#631**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) (listing + daily GET); leftover [GitLab **#687**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) (headline partial SUM + adapter start / 404)  
+**Issues:** [GitLab **#631**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) (listing + daily GET); completed [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) (headline partial SUM + adapter start / 404; upstream merged and verification passed)<br>
 **Playbook:** [`docs/DEFILLAMA.md`](../docs/DEFILLAMA.md)  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **DeFiLlama UTC-day #631**)  
 **Hybrid volume:** [`docs/integrators-hybrid-volume.md`](../docs/integrators-hybrid-volume.md) **L10** / [`AGENTS_INTEGRATOR_HYBRID_VOLUME.md`](./AGENTS_INTEGRATOR_HYBRID_VOLUME.md)  
@@ -28,13 +28,13 @@ Llama lists Terra Classic DEXes via **their** adapter repos. CL8Y `/cg/*`, `/cmc
 | **L631-6** | Fees are PFee/L7 treasury sources. `spread_amount`, burn tax, gas, hooks, and community-tax extra-debit are not `dailyFees`. SSR is `0`. |
 | **L631-7** | GET `/api/v1/defillama/daily` is O(1) rollup + 60s cache. Invalid timestamp → **400**. Missing day → **404**. Idle → `"0"`. Volume: activity + unpriced → `null`. Headline **fees** are EFee-6 partial SUM (**L687**); per-source `fees.*` stay fail-closed. Single-day param only. |
 | **L631-8** | Named wrap substitution only: cLUNC → `uluna`, cUSTC → `uusd` (1:1). No UST1=$1 / USTR hub pegs. vFDUSD / CEX FDUSD is not a pool asset. |
-| **L631-9** | This skill + `docs/DEFILLAMA.md` + `make verify-issue-631`. Keep `make verify-issue-586` / `569` / `562`. Headline null leftover: `make verify-issue-687`. |
+| **L631-9** | This skill + `docs/DEFILLAMA.md` + `make verify-issue-631`. Keep `make verify-issue-586` / `569` / `562`. Headline fee regression gate: `make verify-issue-687` (closed [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)). |
 | **L631-10** | UST1 is the **unstablecoin** on Llama Stablecoins (`peggedUSD`, crypto-backed). Circulating is CW20 `total_supply`. Price is hub / Llama — never `$1`. |
 | **L631-11** | USTR is reserve-token info on `assets.ustr` (volume, pair fees, hub price). Not a second stablecoin. Not 2.5× USTC. |
 
-## Headline fees leftover (L687 / GitLab #687)
+## Headline fees and adapter start (L687 / closed GitLab #687)
 
-Llama [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) throws when `daily_fees_usd` is JSON `null`, and axios throws on HTTP **404**. The Coolify route is **live**. Do **not** reopen [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) or [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683).
+Llama [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) is merged (2026-08-27). Its adapter throws when `daily_fees_usd` is JSON `null`, and axios throws on HTTP **404**; the live route now meets that contract. Verification passed on 2026-09-24 (`make verify-issue-687` 7/7; upstream PR tests are recorded on [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) and newer post-merge ops record [#688](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/688)). Do **not** reopen [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) or [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683).
 
 | ID | Rule |
 |----|------|
@@ -45,7 +45,7 @@ Llama [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/
 | **L687-5** | Adapter throws on JSON `null` (all-unpriced) and HTTP 5xx / malformed JSON. Does **not** throw on `"0"`. Version stays **1**. |
 | **L687-6** | Fees adapter adds Llama METRIC groups + residual only. Never `addUSDValue(total)` then add breakdown labels again. |
 | **L687-7** | GET stays O(1) rollup + 60s cache. No `from`/`to`. Refresh lookback stays **8** UTC days. Optional operator backfill of `defillama_daily_*` from `start` is OK; not a live GET scan. |
-| **L687-8** | `make verify-issue-687`. Keep `make verify-issue-631` and `make verify-issue-683` green. Patch GitHub #8987 in lockstep with `scripts/defillama/` (operator; not CI). |
+| **L687-8** | `make verify-issue-687`. Keep `make verify-issue-631` and `make verify-issue-683` green. GitHub #8987 is merged; keep future adapter changes in lockstep with `scripts/defillama/` and rerun the upstream Llama tests. |
 
 ## Do / don’t
 
@@ -82,7 +82,7 @@ make verify-issue-631
 make verify-issue-687
 ```
 
-Live Coolify (operator, after deploy): yesterday UTC `GET https://indexer.dex.cl8y.com/api/v1/defillama/daily?timestamp=<00:00_utc>`. Llama `pnpm test fees cl8y-dex` / `pnpm test dexs cl8y-dex` (yesterday + `start`) is operator follow-up on [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987).
+Live Coolify check (2026-09-24): yesterday UTC and `start` returned HTTP 200; `start - 86400` returned 404. For future adapter edits, rerun Llama `pnpm test fees cl8y-dex` / `pnpm test dexs cl8y-dex` for yesterday + `start` on [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987).
 
 ## Related
 
@@ -93,4 +93,4 @@ Live Coolify (operator, after deploy): yesterday UTC `GET https://indexer.dex.cl
 - [`AGENTS_INDEXER_ECONOMIC_FEE_USD.md`](./AGENTS_INDEXER_ECONOMIC_FEE_USD.md) — daily fees inherit stamped CL8Y / economic `fee_usd` ([#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683)); headline partial SUM ([#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687))
 - [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) Llama pricing coverage
 - [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) other listing venues — [`AGENTS_LISTINGS.md`](./AGENTS_LISTINGS.md)
-- [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) Llama fees null/404 leftover — `make verify-issue-687`
+- [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) closed: Llama fees headline partial SUM + adapter start — regression gate `make verify-issue-687`; post-merge ops record [#688](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/688)

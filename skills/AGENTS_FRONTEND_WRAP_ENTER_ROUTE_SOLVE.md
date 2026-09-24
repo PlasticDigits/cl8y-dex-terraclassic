@@ -40,3 +40,12 @@ Issue **#1218 is implemented**. Client maps wrap-mapper CW20s **before** `GET /a
 ```bash
 make verify-issue-1218
 ```
+
+The verifier uses a dedicated `dex_indexer_test_1218` database so another
+worktree's SQLx migration checksums cannot mask this route test. It restores the
+original `indexer/.env` on exit. Run `make setup-indexer-postgres` when the
+Postgres service or `indexer/.env` is missing. LocalTerra wrap-swap E7/E8 is an
+optional chain check (`VERIFY_ISSUE_1218_CHAIN=1`); the fixture and unit checks
+cover the routing invariants without a chain. The broader failure-mode census
+stays in [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265)
+and [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md).
