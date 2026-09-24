@@ -175,6 +175,10 @@ make smoke-pool-swap
 
 See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks/launch-checklist.md`](./runbooks/launch-checklist.md) (Phase 5 go/no-go gate — `make verify-issue-391`).
 
+## Pending issue verification
+
+- **Community SKU/settings invoice ingest (#1210):** still open and absent from `FeeSource`, parser, fee rollups, DeFiLlama, and UI labels. [`make verify-issue-1213`](../Makefile) checks only the design/home map; there is no `make verify-issue-1210` until implementation. See [the verification record](./qa/issue-1210/README.md) and third-party agent contract [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1210-1–L1210-8**).
+
 ## Test Types
 
 ### Indexer (Rust)
