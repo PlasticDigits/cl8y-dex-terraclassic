@@ -2,6 +2,8 @@
 
 **Audience:** CoinGecko, CoinMarketCap, Vyntrex, DeFiLlama dimension adapters, portfolio trackers, and any indexer that ingests CL8Y swap or limit-book data.
 
+Execution choice is separate from volume attribution: pair-direct pool-only swaps skip resting orders, while solver-returned hybrid operations may include book volume. See [I707 pair-direct vs best-execution guidance](./integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707) before interpreting the [pool/book leg totals](#decision-tree).
+
 DeFiLlama `dailyVolume` uses this same parent-swap rule on a **UTC calendar day** (not trailing 24h) via `GET /api/v1/defillama/daily` — see [`DEFILLAMA.md`](./DEFILLAMA.md) and [`skills/AGENTS_DEFILLAMA.md`](../skills/AGENTS_DEFILLAMA.md) ([#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631)).
 
 **GitLab:** [#216](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/216) (accuracy + docs); consolidated listing fields in [#189](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/189); wasm columns in [#82](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/82).

@@ -2,6 +2,8 @@
 
 Authoritative reference for contributors and integrators using **`GET` / `POST /api/v1/route/solve`**. The solver is **advisory**: on-chain **`max_spread`** / **`min_receive`** at execute time are authoritative. This document expands [ADR 0002](./adr/0002-global-best-execution-route-solver.md) (decision record) without changing its decisions.
 
+Pair-direct integrators use this same best-execution API: optimized GET requires `amount_in`, and a one-hop pair-direct call must execute with that hop's returned `hybrid` params; omitting hybrid on a direct pair swap remains pool-only under the current contract ([I707 guide](./integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707)).
+
 **Related:** [indexer-invariants.md](./indexer-invariants.md) (HTTP matrix), [integrators.md](./integrators.md#route-discovery-and-quotes-l8), [skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md](../skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md).
 
 **F6 freeze:** `find_path` / `build_adjacency` skip frozen hops (`code_id_frozen` cache). A frozen-only market returns **404**. See [indexer-invariants.md](./indexer-invariants.md) GitLab **#585**.

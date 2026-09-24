@@ -43,6 +43,8 @@ sequenceDiagram
     Pair->>Hook: AfterSwap(pair, sender, offer_asset, return_asset, commission_amount, spread_amount)
 ```
 
+This sequence is the pool-only path. Under the current pair/router contract, omitting both `hybrid` and `greedy` skips the limit book; Pattern C `hybrid` or explicit `greedy` opts into book execution. Integrators seeking best execution use the solver and returned operations, including the returned `hybrid` for a one-hop pair-direct call ([I707 guide](./integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707)). [#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718) tracks a future default change and owns reconciliation when its rollout lands.
+
 ## Fee Discount Flow
 
 When a pair has a discount registry configured, the swap path includes a discount lookup:

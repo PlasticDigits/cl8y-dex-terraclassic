@@ -2,7 +2,31 @@
 
 Audience: protocols, indexers, and wallets integrating with CL8Y pair hooks, hybrid swaps, and the on-chain limit book. End-user UX lives elsewhere.
 
-**Read API pack:** copy-paste curls for swaps, pools, fees, hook burns, and volume windows are in [indexer-http.md](./indexer-http.md) ([#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)). This page is execute-path hybrid and the on-chain book. On-chain pair swap versus solver execute stays [#707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707).
+## Pair swaps: pool-only or best execution (I707) {#pair-swap-pool-only-vs-best-execution-forgejo-707}
+
+**A direct `Swap {}` does not automatically use the limit book.** Under the current pair/router contract, omitting both `hybrid` and `greedy` is pool-only; the book is consulted only with positive `book_input` or explicit `greedy`. This is intentional.
+
+| Goal | Call | Result |
+|------|------|--------|
+| Classic pool-only pair swap | CW20 `Send` → pair `Swap` with `hybrid` and `greedy` omitted | AMM only; resting orders are skipped. |
+| Best execution across the venue | `GET https://indexer.dex.cl8y.com/api/v1/route/solve?token_in=…&token_out=…&amount_in=…` | Read the bounded `optimality_scope`; execute the returned `router_operations`. `amount_in` is required for optimization. A one-hop result can execute pair-direct only when it carries that hop's returned `hybrid`; multi-hop results use the router. |
+| Caller-declared pool + book split | Query `HybridSimulation` with a known `HybridSwapParams`, then execute with those same params | Pattern C; do not guess `book_input`. Use the solver or a matching `HybridSimulation` quote. |
+| Explicit pool-only quote | `GET /route/solve` with `pool_only=true`, or `HybridSimulation` with `book_input = 0` | Pool-only quote through the current hybrid query API; legacy pair `Simulation` is removed. |
+| Opt-in greedy book-first | Set `greedy` explicitly on pair `Swap` / router `TerraSwap` | Separate bounded heuristic from #708–#710, not the route solver's global best-execution search. |
+
+### Integrator invariants
+
+- **I707-1 — omission is pool-only today:** pair `hybrid: None` plus `greedy: None` and router `TerraSwap.hybrid: null` with no `greedy` do not walk the book ([G1](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/708)).
+- **I707-2 — solver is the best-execution entry point:** optimized `GET /api/v1/route/solve` requires `amount_in`; execute its returned operations and respect `optimality_scope` and on-chain slippage checks ([route-solver guide](./route-solver.md), [L8](./contracts-security-audit.md)).
+- **I707-3 — quote and execute must agree:** book-inclusive Pattern C quotes and executes use the same `HybridSwapParams` for the same snapshot. Never invent a split; `book_start_hint` must point at a live order on the matcher side ([L17](./contracts-security-audit.md), [hint security playbook](../skills/AGENTS_BOOK_MATCH_HINT_SECURITY.md)).
+- **I707-4 — the dApp remains solver-driven:** Swap and Trade market use `/route/solve`; integrator guidance does not add a retail pool-only toggle ([#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596), [hybrid quoting skill](../skills/AGENTS_HYBRID_QUOTING.md)).
+- **I707-5 — greedy is distinct:** explicit `greedy` is a capped book-first heuristic, not a caller split or a substitute for global routing ([#708](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/708), [greedy skill](../skills/AGENTS_GREEDY_BOOK_FIRST.md)).
+- **I707-6 — arb does not improve the taker's fill retroactively:** arbitrage may later close a pool/book price gap; a pool-only taker has already accepted the pool price.
+- **I707-7 — future default changes have a separate gate:** #718 proposes omitted-parameter greedy behavior and owns the pair/router rollout plus this wording change. Until that rollout lands, this page documents current pool-only omission semantics.
+
+For execution gas, use the existing [hybrid/greedy gas guidance](../skills/AGENTS_TERRACLASSIC_GAS.md); do not invent a flat book-walk limit. For pool/book reporting, use [hybrid volume reconciliation](./integrators-hybrid-volume.md) and its [agent playbook](../skills/AGENTS_INTEGRATOR_HYBRID_VOLUME.md).
+
+**Read API pack:** copy-paste curls for swaps, pools, fees, hook burns, and volume windows are in [indexer-http.md](./indexer-http.md) ([#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)). This page covers execute-path hybrid behavior and the on-chain book; the HTTP quote/execute boundary is [#707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707).
 
 ## Hybrid swaps and post-swap hooks (invariant L7)
 
