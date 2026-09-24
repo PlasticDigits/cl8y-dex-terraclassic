@@ -1,10 +1,10 @@
-# Agent skill: greedy book-first swap (GitLab #708 / leftovers #709 #710)
+# Agent skill: greedy book-first swap (GitLab #708 / leftovers #709 #710 / follow-up #718)
 
 ## When to use
 
 You touch **pair `Cw20HookMsg::Swap`**, **router `TerraSwap`**, **`match_bids` / `match_asks` / `simulate_match_*`**, **hybrid gas**, or docs that mention Pattern C vs pool-only.
 
-Greedy is an **opt-in** on-chain walk: fill live same-side makers that **strictly beat** the residual pool spot, then dump the leftover offer into the pool. It is **not** the official dApp default (that stays indexer **`GET /route/solve`**, [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501) / [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)). Full split search stays off-chain.
+Greedy is an **opt-in** on-chain walk: fill live same-side makers that **strictly beat** the residual pool spot, then dump the leftover offer into the pool. Current pair and router wasm still treat omitted `hybrid` and `greedy` as pool-only; the proposed default flip is tracked by [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) and is not shipped. It is **not** the official dApp default (that stays indexer **`GET /route/solve`**, [#501](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/501) / [#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596)). Full split search stays off-chain.
 
 Leftovers from [!480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/merge_requests/480): [#709](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/709) (query mutex, `remainder_to_pool`, pool-spot overflow) and [#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710) (tax / pause / blacklist / AfterSwap L7).
 
@@ -12,7 +12,7 @@ Leftovers from [!480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/m
 
 | Id | Rule |
 |----|------|
-| **G1** | hybrid: None and greedy: None is **pool-only**. The book is not read. Do not flip this to greedy-by-default (owner note on #708 is a follow-up, not this MR). The separate open default-greedy proposal [Forgejo #718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718) stays gated on live head-clog [#1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225) and pair/indexer simulation parity. |
+| **G1** | Current shipped behavior: `hybrid: None` and `greedy: None` is **pool-only**. The book is not read. Do not implement or document greedy-by-default until [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) lands and the pair + router wasm are migrated. The separate #718 default-greedy proposal remains gated on resolving live in-band head-clog [#1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225) and pair/indexer simulation parity. |
 | **G2** | Caller does **not** pass `pool_input` / `book_input` on greedy. Only `max_maker_fills` + optional `book_start_hint`. |
 | **G3** | Stop when the next **priceable** live maker's **net Decimal rate** (price after book taker commission) does **not strictly beat** the pool spot `output/input` after `effective_fee_bps`. Equal is a stop. Integer 1-raw-unit CP dumps floor to 0 on large reserves — rates match the 1-unit *marginal* intent. Unpriceable makers (price zero or no inverse) are skipped (L18 / L20), not a stop. This is not a fix for in-band rows that repeatedly floor to zero: [#1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225) remains open until placement/park, scan-prefix, bid-side, and pair/indexer parity evidence passes. Unpriceable **pool** spot (`Decimal::checked_from_ratio` overflow) is also **Skip**, not a VM panic (**A7** / #709). |
 | **G4** | Not the solver. Do **not** search interior splits, grids, or multi-hop on-chain. Greedy ≤ indexer `GET /route/solve`; greedy ≥ pool-only when the book strictly beats the pool (modulo fees/dust). Official dApp stays on the solver. |
@@ -23,8 +23,8 @@ Leftovers from [!480](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/m
 | **G9** | Unfilled offer after the walk goes to the AMM. Wasm `greedy_stop=remainder_to_pool` when makers were filled and offer remains (not `empty`). |
 | **G10** | Reuse `match_bids` / `match_asks` / `simulate_match_*` — do not fork a second walker. |
 | **G11** | New serde shape `GreedySwapParams`. Do **not** overload Pattern C `pool_input=0, book_input=offer`. Setting both `hybrid` and `greedy` **rejects** on pair query, pair execute, router sim, and router execute. |
-| **G12** | Router greedy is **optional and explicit** per hop. `hybrid: null` on a hop stays pool-only. Reverse sim (`HybridReverseSimulation` / `ReverseSimulateSwapOperations`) does **not** take `greedy` — pool-only / declared hybrid only (document, do not silently quote greedy). |
-| **G13** | Map greedy in `getGasLimitForTx` / swarm `gas.ts`. Unmapped must **throw or use the hybrid envelope**, never silent 600k (#475). Hook string stays `"swap"`. |
+| **G12** | Router greedy is **optional and explicit** per hop. `hybrid: null` and `greedy: null` stays pool-only until [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) ships; explicit `hybrid` stays Pattern C. Reverse sim (`HybridReverseSimulation` / `ReverseSimulateSwapOperations`) does **not** take `greedy` — pool-only / declared hybrid only (document, do not silently quote greedy). |
+| **G13** | Map greedy in `getGasLimitForTx` / swarm `gas.ts`. Unmapped must **throw or use the hybrid envelope**, never silent 600k (#475). Hook string stays `"swap"`. Until [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) flips the on-chain default, omitted fields still take the pool-only gas path; when it lands, omitted pair/router swap shapes must use the greedy envelope too. |
 | **G14** | Pattern C JSON unchanged: `HybridSimulationResponse.greedy_stop` is `skip_serializing_if` none. Existing Pattern C tests stay green. Pair wasm migrate on columbus-5 is **ops follow-up**, not this MR. |
 
 ## Stop reasons (`greedy_stop` wire)
@@ -71,7 +71,7 @@ make verify-issue-710
 
 ## Canonical docs
 
-- Issues: [GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708) · [#709](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/709) · [#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710)
+- Issues: [GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708) · [#709](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/709) · [#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710) · [#718 default-greedy follow-up](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718)
 - ADR: [`docs/adr/0001-hybrid-quoting-and-routing.md`](../docs/adr/0001-hybrid-quoting-and-routing.md)
 - Product: [`docs/limit-orders.md`](../docs/limit-orders.md)
 - Integrators: [`docs/integrators.md`](../docs/integrators.md)

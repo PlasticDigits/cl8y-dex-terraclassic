@@ -2,7 +2,7 @@
 
 Use when changing **router/pair declared `hybrid`**, indexer **`GET /route/solve` hybrid emission**, or dApp **submit preflight** for Pattern C splits.
 
-This is **construction drift**, not a request to drop the sum invariant and not greedy-default work ([#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718)).
+This is **construction drift**, not a request to drop the sum invariant. [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) separately tracks the pending omitted-parameter greedy default; that change must preserve this per-hop sum invariant. Current greedy rules live in [`AGENTS_GREEDY_BOOK_FIRST.md`](./AGENTS_GREEDY_BOOK_FIRST.md).
 
 ## Policy A (locked)
 

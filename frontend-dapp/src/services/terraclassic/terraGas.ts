@@ -206,11 +206,13 @@ function countSwapHops(msg: Record<string, unknown>): number {
 }
 
 function innerSwapUsesHybrid(inner: Record<string, unknown>): boolean {
+  // Omitted hybrid/greedy stays pool-only until the default-greedy follow-up (#718) ships.
   const sw = inner.swap as { hybrid?: unknown; greedy?: unknown } | undefined
   return !!(sw && (sw.hybrid != null || sw.greedy != null))
 }
 
 function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
+  // Keep aligned with router G12; #718 must classify omitted fields as greedy once that default ships.
   const e = msg.execute_swap_operations as
     | {
         operations?: Array<{ terra_swap?: { hybrid?: unknown; greedy?: unknown } }>

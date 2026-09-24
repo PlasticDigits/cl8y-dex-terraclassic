@@ -8730,7 +8730,7 @@ mod greedy_book_first_708 {
         (env, taker)
     }
 
-    /// **G1** — `hybrid: None` never reads the book even when a better bid rests.
+    /// **G1** — current `hybrid: None` / `greedy: None` never reads the book even with a better bid; #718 tracks the pending default flip.
     #[test]
     fn g1_pool_only_skips_better_bid() {
         let mut app = App::default();

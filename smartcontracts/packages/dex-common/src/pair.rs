@@ -102,7 +102,8 @@ pub fn pool_only_hybrid_template() -> HybridSwapParams {
 ///
 /// Caller supplies only a maker cap and optional `book_start_hint` — **no** `pool_input` /
 /// `book_input` (**G2**). Distinct JSON from [`HybridSwapParams`] so a declared split cannot
-/// deserialize as greedy (**G11** / **A10**). `hybrid: None` on `Swap` stays pool-only (**G1**).
+/// deserialize as greedy (**G11** / **A10**). `hybrid: None` on `Swap` stays pool-only (**G1**);
+/// omitted-parameter default greedy is a separate, not-yet-shipped follow-up ([#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718)).
 #[cw_serde]
 pub struct GreedySwapParams {
     /// Stop after touching this many distinct maker orders (clamped to [`MAX_MAKER_FILLS_HARD_CAP`]).
@@ -166,7 +167,8 @@ pub enum SwapHybridMode {
     Greedy(GreedySwapParams),
 }
 
-/// Pick exactly one of declared hybrid, greedy, or pool-only.
+/// Pick exactly one of declared hybrid, explicit greedy, or pool-only.
+/// Omitted-parameter default greedy is tracked separately and not implemented here (#718).
 ///
 /// `max_maker_fills == 0` on greedy is rejected (**G5**). Oversize fills are clamped, not panicked.
 pub fn resolve_swap_hybrid_mode(
