@@ -21,13 +21,23 @@ Founder direction: **256-bit**, **zero-extend** a stored `u128` into `u256`. Do 
 | **O1322-7** | Same-block (`block_time <= last_ts`), zero reserves, and the first zero-cumulative seed do not add a delta. Observe does not write `RESERVES` or `OBSERVATIONS`. |
 | **O1322-8** | The only execute writer of `price_*_cumulative` is `oracle_update` (plus the first zero seed inside it). Limit place, cancel, claim, and reprice do not call it. Migrate cannot set a cumulative. |
 
-Pair cw2 for this wasm is **1.18.0**. Columbus-5 migration is tracked by
-[#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324) and is
-separate from code verification. Before broadcast, resolve or explicitly verify
-the missing-key backfill in
-[#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232). Preserve
-`OBSERVATIONS`; do not write or reset cumulatives. This skill does not
-authorize a live migration.
+Pair cw2 for this wasm is **1.18.0**. Columbus-5 deployment and live acceptance
+were verified under [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324)
+on 2026-09-24. This skill remains the contract/math reference; migration
+procedure and current-state checks live in the
+[`#1324 runbook`](../docs/runbooks/pair-twap-uint256-columbus5.md) and
+[`AGENTS_PAIR_TWAP_MIGRATION.md`](AGENTS_PAIR_TWAP_MIGRATION.md). Production
+state can drift; re-run its read-only probe before making a current-state
+claim. Do not infer that this skill authorizes a store, migrate, or reserve move.
+
+Pair schema compatibility is separate from cumulative-width compatibility: if
+an older pair lacks `DISCOUNT_REGISTRY` or `ORACLE_STATE`, pair migrate must
+backfill only the absent defaults while preserving existing state and
+`OBSERVATIONS`. The current migration still lacks those backfills
+([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232)); see
+[`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md).
+Before broadcast, resolve or explicitly verify this missing-key gap. Do not
+treat the #1324 live migration as proof of the #1232 code invariant.
 
 ## Why zero-extend (not wrap)
 
@@ -66,4 +76,5 @@ make verify-issue-1231
 - Ratio skip (do not weaken): [`AGENTS_TWAP_OBSERVE_RATIO.md`](AGENTS_TWAP_OBSERVE_RATIO.md) **O1231**
 - Math: [`smartcontracts/packages/dex-common/src/oracle.rs`](../smartcontracts/packages/dex-common/src/oracle.rs)
 - Pair: [`smartcontracts/contracts/pair/src/contract.rs`](../smartcontracts/contracts/pair/src/contract.rs) `oracle_update` / `oracle_observe_single`
+- Pair migrate storage defaults: [`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md) (**#1232**, open)
 - Charts: [`frontend-dapp/src/services/terraclassic/oracle.ts`](../frontend-dapp/src/services/terraclassic/oracle.ts)
