@@ -11,6 +11,7 @@ This is the **design/home map**. It does **not** add a `FeeSource`, migration CH
 **Window ingest pattern:** [`AGENTS_INDEXER_UST1_WINDOW_FEES.md`](./AGENTS_INDEXER_UST1_WINDOW_FEES.md) (**I614**)  
 **Catalog ≠ fees:** [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) (**I594**)  
 **Invariants table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **Fee-ledger home #1213**)  
+**Pair-creation QA/status:** [`docs/qa/issue-1209/README.md`](../docs/qa/issue-1209/README.md) — #1209 remains open until the parser and focused verification target ship.
 **Marketing pointers (not a fee service):** [`PlasticDigits/cl8y-marketing` `strategy/fee-ledger-home.md`](https://git.cl8y.com/PlasticDigits/cl8y-marketing/src/branch/main/strategy/fee-ledger-home.md) and [`research/snapshots/README.md`](https://git.cl8y.com/PlasticDigits/cl8y-marketing/src/branch/main/research/snapshots/README.md) — companion [PR #7](https://git.cl8y.com/PlasticDigits/cl8y-marketing/pulls/7) until merged.  
 **Verify:** `make verify-issue-1213`
 
@@ -36,7 +37,7 @@ Related, **not this epic:**
 | ID | Rule |
 |----|------|
 | **L1213-1** | Indexer `protocol_fee_events` is the governed ledger. Marketing stores pointers and labeled snapshots only. Do not implement a second public `/protocol/fees` or wasm parser in `PlasticDigits/cl8y-marketing`. |
-| **L1213-2** | Pair-creation ingest is **#1209**. Do not count instantiate gas, overpay refunds, or `reply_instantiate_pair` as treasury. Audit item 11 stays discovery-only until #1209 ships. |
+| **L1213-2** | Pair-creation ingest is **#1209**. Accept only positive emitted `creation_fee_uluna` from the reserved `_contract_address` equal to pinned `FACTORY_ADDRESS`; ignore spoof/unreserved emitters. One create yields at most one fee row; exclude instantiate gas, fee-payer burn, overpay refunds, `reply_instantiate_pair`, and a second count of the treasury bank send. Keep the event's `pair_id` NULL and inherit #1269's non-pair partial unique key. Audit item 11 stays discovery-only until #1209 ships. Full checklist: [`docs/qa/issue-1209/README.md`](../docs/qa/issue-1209/README.md). |
 | **L1213-3** | SKU unlock + settings-batch invoices are **#1210**. `community_token_events` answers “which token unlocked which SKU,” not treasury USD. One paid invoice → one fee row. Do not mix into `pair_creation` or `swap_amm`. |
 | **L1213-4** | Cohort split is **#1211** (aggregate retail / MM / unjoined as-of height). Unregistered `traders.tier_id = 0` is **not** Tier 0 MM. No wallet lists, no person-to-wallet map, no `campaign_id` on fee rows. `traders.total_fees_paid` must not drive `/protocol` headlines. |
 | **L1213-5** | Marketing #1 / #4 / #5 stay **closed** trackers. Do not reopen them for implement/ready. Historical “closed tracker” mentions may remain if they also name the dex replacement. |
@@ -68,4 +69,5 @@ Docs-only. Child ingest tickets keep `make verify-issue-586` / `make verify-issu
 - [`AGENTS_INDEXER_COMMUNITY_TOKENS.md`](./AGENTS_INDEXER_COMMUNITY_TOKENS.md) — catalog only
 - [`docs/audits/factory-treasury-bank-send.md`](../docs/audits/factory-treasury-bank-send.md) — item 11 until #1209
 - [`docs/qa/issue-1213/README.md`](../docs/qa/issue-1213/README.md)
+- [`docs/qa/issue-1209/README.md`](../docs/qa/issue-1209/README.md) — pending parser/API/UI behavior and required verification
 - Marketing `strategy/fee-ledger-home.md` — pointer table only; do **not** implement wasm parsers there
