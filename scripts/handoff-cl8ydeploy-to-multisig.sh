@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Move leftover cl8ydeploy powers to the DEX 2-of-3 multisig (columbus-5).
 #
-# Does NOT touch the UST1 / wrap stack (cl8y2_admin, invariant O6).
+# Does NOT change ust1-window/oracle EOA controls or product minter/admin residuals tracked by #526/#697.
 # Extra CW20 minters (faucet, cl8y-bridge-v2) are left in place.
 #
 # Usage:

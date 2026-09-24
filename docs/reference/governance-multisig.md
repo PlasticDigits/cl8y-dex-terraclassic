@@ -2,6 +2,8 @@
 
 Canonical on-chain address for **governance**, **wasm contract admin**, and **contract upgrades** across the CL8Y DEX stack (factory, router, pair, fee-discount, treasury, wrap-mapper, hooks).
 
+Authority is contract-specific. On columbus-5, wrap-mapper and CMM treasury app governance and wasm admin are the DEX 2-of-3. ust1-window/oracle and listed wrap product token controls still have documented EOA residuals. See the [live registry split](../../deployments/mainnet-ust1-wrap/REGISTRY.md#governance-split-ops-critical), the [#526 accept queue](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526), and [#697 security close-out](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697). Query config.governance and ContractInfo.admin independently before signing.
+
 | Role | Address |
 |------|---------|
 | **Governance / admin / upgrade** | `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7` |
@@ -11,7 +13,7 @@ Canonical on-chain address for **governance**, **wasm contract admin**, and **co
 - **Factory `config.governance`** — fees, hooks, pause, whitelist, blacklist, treasury pointer
 - **Fee-discount `config.governance`** — tier registry, trusted routers
 - **Router `SetWrapMapper`** — must be signed as this address (router checks factory governance; EOAs get `Unauthorized`)
-- **Treasury / wrap-mapper `governance` + wasm admin** — pause, `set_fees`, wrap custody, migrate (columbus-5 app gov accepted 2026-08-25; wasm admin rotated 2026-08-26, [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525)/[#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526))
+- **Treasury / wrap-mapper governance + wasm admin** — pause, set_fees, wrap custody, migrate (columbus-5 app gov accepted 2026-08-25; wasm admin rotated 2026-08-26, [#525](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/525)/[#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526))
 - **Wasm `--admin`** on every instantiate — migration and `set-contract-admin`
 
 Mainnet router wrap-mapper wiring evidence: [`deployments/mainnet-soft-launch/deploy-trace.md`](../../deployments/mainnet-soft-launch/deploy-trace.md) (Post–soft-launch section, [#502](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/502)).

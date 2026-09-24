@@ -24,7 +24,7 @@ Operator + agent runbook for **monitoring, pause playbooks, and registry complet
 | **O3** | Primary incident controls: **ust1-window `set_paused`**, **ust1-oracle pause** (governance), **wrap-mapper `set_paused`**, treasury **`set_wrapping_paused`**. Prefer pause over panic whitelist changes (**O7**). |
 | **O4** | Treasury **vFDUSD balance + allowance to ust1-window** bound withdraw capacity — monitor both. |
 | **O5** | Wrap solvency (**W1**): treasury native `uluna`/`uusd` ≥ cLUNC/cUSTC `total_supply`. On breach, pause unwrap before refill. |
-| **O6** | Confirm on-chain `config.governance` before pause. After [#525](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/525)/[#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526): wrap-mapper + CMM treasury **app** governance **and wasm admin** are DEX 2-of-3 `terra1zlmv2…` (wasm rotate 2026-08-26). ust1-window / oracle stay `cl8y2_admin` `terra1xsecn4…`. |
+| **O6** | App governance and wasm admin are separate. At columbus-5 block **30540667** (2026-09-24 09:09 UTC), wrap-mapper + CMM treasury governance and ContractInfo.admin are DEX 2-of-3 terra1zlmv2… ([#525](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/525)/[#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526); admin rotation [#638](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/638)). ust1-window + oracle governance and wasm admin remain cl8y2_admin terra1xsecn4…, pending [ust1-window#30](https://gitlab.com/PlasticDigits/ust1-window/-/work_items/30). The wider attestation is tracked by [#697](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697). Query both fields before preparing a pause. |
 | **O7** | Do not silently widen factory CW20 whitelist during UST1/wrap incidents — follow [`cw20-whitelist-policy.md`](./cw20-whitelist-policy.md). |
 | **O8** | On-call **roles** named (oracle bot operator + treasury/wrap governance); silence-alert and pause-drill evidence attached on [#503](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/503) (not committed secrets). |
 
@@ -161,7 +161,7 @@ See [`wrap-mapper-pause.md`](./wrap-mapper-pause.md). LocalTerra: `make smoke-wr
 
 ### C. Treasury `set_wrapping_paused`
 
-Secondary control on the CMM treasury (ustr-cmm). Use when wrap-mapper pause is insufficient or treasury-side wrapping must stop. Treasury execute is **`set_wrapping_paused` only** — do not send wrap-mapper/window `set_paused` to the treasury address. **Who:** treasury `config.governance` — DEX 2-of-3 after 2026-08-25 accept ([#526](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/526)). Use `scripts/multisig-2of3-host-tx.sh`, not `cl8y2_admin`.
+Secondary control on the CMM treasury (ustr-cmm). Use when wrap-mapper pause is insufficient or treasury-side wrapping must stop. Treasury execute is **`set_wrapping_paused` only** — do not send wrap-mapper/window `set_paused` to the treasury address. **Who:** treasury `config.governance` — DEX 2-of-3 after 2026-08-25 accept ([#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526)). Use `scripts/multisig-2of3-host-tx.sh`, not `cl8y2_admin`.
 
 ```bash
 export TREASURY_ADDR=terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2

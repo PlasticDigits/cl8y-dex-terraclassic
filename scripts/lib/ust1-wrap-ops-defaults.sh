@@ -20,8 +20,9 @@
 : "${UST1_OPS_CLUNC:=terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg}"
 : "${UST1_OPS_CUSTC:=terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch}"
 
-# Governance (queried on-chain; defaults match 2026-08-25 after #525/#526 accept)
-# Mapper + CMM treasury app governance is the DEX 2-of-3. Window/oracle + wasm admin leftover stay EOA.
+# Current authority split, re-attested at columbus-5 block 30540667 on 2026-09-24.
+# Mapper + CMM treasury app governance and wasm admin are DEX 2-of-3.
+# Window/oracle governance and wasm admin remain the EOA. UST1_OPS_WRAP_WASM_ADMIN is a legacy CW20 admin fallback for upgrade probes, not mapper/treasury admin.
 : "${UST1_OPS_WRAP_GOVERNANCE:=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7}"
 : "${UST1_OPS_DEX_GOVERNANCE:=terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7}"
 : "${UST1_OPS_WRAP_WASM_ADMIN:=terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l}"
