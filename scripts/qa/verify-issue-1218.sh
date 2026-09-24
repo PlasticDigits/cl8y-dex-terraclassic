@@ -16,6 +16,29 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+# Keep sqlx history isolated from sibling issue worktrees. Shared test databases
+# can contain another branch's migration checksum and fail before these tests run.
+if [ ! -f "$REPO_ROOT/indexer/.env" ]; then
+  echo "[bootstrap] indexer/.env missing — running make setup-indexer-postgres…"
+  make setup-indexer-postgres
+fi
+
+ENV_BACKUP="$(mktemp)"
+cp "$REPO_ROOT/indexer/.env" "$ENV_BACKUP"
+restore_indexer_env() {
+  cp "$ENV_BACKUP" "$REPO_ROOT/indexer/.env"
+  rm -f "$ENV_BACKUP"
+}
+trap restore_indexer_env EXIT
+
+POSTGRES_TEST_DB=dex_indexer_test_1218 "$REPO_ROOT/scripts/setup-postgres-dev-databases.sh" >/dev/null
+# The test helpers load indexer/.env with override semantics; configure their
+# per-issue database and file lock there, then restore the caller's env on exit.
+# shellcheck source=scripts/lib/upsert-dotenv.sh
+source "$REPO_ROOT/scripts/lib/upsert-dotenv.sh"
+upsert_dotenv_var "$REPO_ROOT/indexer/.env" TEST_DB_LOCK_FILE \
+  /tmp/cl8y-dex-indexer-test-1218.seed.lock
+
 PASS=0
 FAIL=0
 declare -a RESULTS=()
