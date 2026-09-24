@@ -30,7 +30,14 @@ procedure and current-state checks live in the
 state can drift; re-run its read-only probe before making a current-state
 claim. Do not infer that this skill authorizes a store, migrate, or reserve move.
 
-Pair schema compatibility is separate from cumulative-width compatibility: if an older pair lacks `ORACLE_STATE`, pair migrate must initialize the empty-ring default while preserving any existing state and `OBSERVATIONS`. The current migration still lacks that backfill ([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232)); see [`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md). Do not treat the #1324 live migration as proof of the #1232 code invariant.
+Pair schema compatibility is separate from cumulative-width compatibility: if
+an older pair lacks `DISCOUNT_REGISTRY` or `ORACLE_STATE`, pair migrate must
+backfill only the absent defaults while preserving existing state and
+`OBSERVATIONS`. The current migration still lacks those backfills
+([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232)); see
+[`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md).
+Before broadcast, resolve or explicitly verify this missing-key gap. Do not
+treat the #1324 live migration as proof of the #1232 code invariant.
 
 ## Why zero-extend (not wrap)
 
