@@ -21,7 +21,14 @@ Founder direction: **256-bit**, **zero-extend** a stored `u128` into `u256`. Do 
 | **O1322-7** | Same-block (`block_time <= last_ts`), zero reserves, and the first zero-cumulative seed do not add a delta. Observe does not write `RESERVES` or `OBSERVATIONS`. |
 | **O1322-8** | The only execute writer of `price_*_cumulative` is `oracle_update` (plus the first zero seed inside it). Limit place, cancel, claim, and reprice do not call it. Migrate cannot set a cumulative. |
 
-Pair cw2 for this wasm is **1.18.0**. Columbus-5 code-id migrate that loads this wasm and leaves `OBSERVATIONS` in place is an ops follow-up. This ticket does not broadcast it.
+Pair cw2 for this wasm is **1.18.0**. Columbus-5 deployment and live acceptance
+were verified under [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324)
+on 2026-09-24. This skill remains the contract/math reference; migration
+procedure and current-state checks live in the
+[`#1324 runbook`](../docs/runbooks/pair-twap-uint256-columbus5.md) and
+[`AGENTS_PAIR_TWAP_MIGRATION.md`](AGENTS_PAIR_TWAP_MIGRATION.md). Production
+state can drift; re-run its read-only probe before making a current-state
+claim. Do not infer that this skill authorizes a store, migrate, or reserve move.
 
 ## Why zero-extend (not wrap)
 
