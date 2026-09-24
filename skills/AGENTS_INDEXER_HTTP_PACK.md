@@ -7,7 +7,7 @@ This pack does **not** add routes, query params, ingest, or frontend copy.
 **Pack:** [`docs/indexer-http.md`](../docs/indexer-http.md)  
 **Issue:** [Forgejo **#1204**](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)  
 **Invariants:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (row **HTTP pack #1204**, plus **L10**)  
-**Execute path (not this pack):** [#707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707)  
+**Execute path (not this pack):** [#707 pair-direct vs solver guidance](../docs/integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707)
 **Verify:** `make verify-issue-1204`
 
 ## Invariants (I1204-1–I1204-8)

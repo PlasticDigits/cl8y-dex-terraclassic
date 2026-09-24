@@ -1,6 +1,6 @@
 # DeFiLlama listing (TVL + volume + fees)
 
-**Issue:** [GitLab **#631**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) (listing + daily GET); leftover [GitLab **#687**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) (headline partial SUM + adapter `start`)  
+**Issues:** [GitLab **#631**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) (listing + daily GET); completed [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) (fees headline partial SUM + adapter `start`; verified and closed after upstream merge)<br>
 **Skill:** [`skills/AGENTS_DEFILLAMA.md`](../skills/AGENTS_DEFILLAMA.md)  
 **Invariants:** [`indexer-invariants.md`](./indexer-invariants.md) row **DeFiLlama UTC-day (#631)**  
 **Adapter copies:** [`scripts/defillama/`](../scripts/defillama/)  
@@ -118,17 +118,19 @@ TVL keys by **contract/denom**, not symbol (A9). Volume exclude is by **address*
 | Adapter | Upstream PR |
 |---------|-------------|
 | TVL `projects/cl8y-dex` | [DefiLlama-Adapters#20676](https://github.com/DefiLlama/DefiLlama-Adapters/pull/20676) |
-| Volume `dexs/cl8y-dex` + fees `fees/cl8y-dex` | [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) (route is live; leftover is headline `null` / 404 vs crawler — [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687). Re-test after indexer partial SUM + `start: "2026-08-17"`.) |
+| Volume `dexs/cl8y-dex` + fees `fees/cl8y-dex` | [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) (merged 2026-08-27; fees partial SUM + `start: "2026-08-17"`; verified under [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)) |
 | Icons / metadata | Follow-up if Llama asks |
 | UST1 Stablecoins | [peggedassets-server#903](https://github.com/DefiLlama/peggedassets-server/pull/903) (`ust1`, draft). Circulating is on-chain `token_info` (no Coolify dependency). |
 
 After merge: `https://defillama.com/protocol/cl8y-dex` should show Terra Classic + `dex.cl8y.com`.
 
+**#687 verification record (2026-09-24):** `make verify-issue-687` passed 7/7, including `verify-issue-631` and `verify-issue-683`. The live daily endpoint returned HTTP 200 with numeric fees for yesterday UTC and for adapter start `1786924800`; `1786838400` returned 404. Upstream [dimension-adapters#8987](https://github.com/DefiLlama/dimension-adapters/pull/8987) is merged. The newer post-merge ops tracker [#688](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/688) is closed; no #687 verification item remains open.
+
 In-repo copies: [`scripts/defillama/README.md`](../scripts/defillama/README.md). Local TVL check: `node test.js projects/cl8y-dex/index.js` in a DefiLlama-Adapters clone (~$13.3k Llama-priced cLUNC/cUSTC; unpriced CW20s omitted).
 
-## Close is blocked
+## Regression conditions
 
-Volume includes gems or fills; TVL is sourced from indexer USD; fees include `spread_amount` or token tax; unpriced activity is published as `$0`; SSR is non-zero; adapter `start` still walks May 2026 404s.
+Treat the listing as regressed if volume includes gems or fills; TVL comes from indexer USD; fees include `spread_amount` or token tax; unpriced activity is published as `$0`; SSR is non-zero; or adapter `start` walks May 2026 404s.
 
 ## Related
 
@@ -140,4 +142,4 @@ Volume includes gems or fills; TVL is sourced from indexer USD; fees include `sp
 - [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) CG/CMC (do not conflate)
 - [#639](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/639) listing venue catalog (do not reopen Llama adapters there)
 - [#683](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/683) economic `fee_usd` stamps (EFee-6)
-- [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) Llama fees headline partial SUM + adapter start
+- [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687) closed: Llama fees headline partial SUM + adapter start; post-merge verification recorded on [#688](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/688)

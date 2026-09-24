@@ -2,7 +2,7 @@
 
 Use when changing **router/pair declared `hybrid`**, indexer **`GET /route/solve` hybrid emission**, or dApp **submit preflight** for Pattern C splits.
 
-This is **construction drift**, not a request to drop the sum invariant and not greedy-default work ([#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718)).
+This is **construction drift**, not a request to drop the sum invariant. [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) separately tracks the pending omitted-parameter greedy default; that change must preserve this per-hop sum invariant. Current greedy rules live in [`AGENTS_GREEDY_BOOK_FIRST.md`](./AGENTS_GREEDY_BOOK_FIRST.md).
 
 ## Policy A (locked)
 
@@ -36,7 +36,7 @@ No columbus-5 router/pair migrate for this ticket (no rescale in `reply_swap_hop
 
 ```bash
 make verify-issue-1280
-# optional wrap pool-only + same 2.71M envelope (no columbus-5 AC1 raise):
+# optional wrap pool-only + same 2.71M envelope (AC1 measured; no raise):
 make verify-issue-1264
 # optional LocalTerra E10 / columbus-5 LCD:
 VERIFY_ISSUE_1264_CHAIN=1 make verify-issue-1264

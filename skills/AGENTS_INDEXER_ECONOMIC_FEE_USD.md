@@ -19,7 +19,7 @@ AMM / book commission is **ask-denominated**. Buying CL8Y with UST1 stores the f
 | **EFee-3** | Exclude #562 gems (**addr + ticker**). Exclude Terra vFDUSD / FDUSD (X4 / #580). Hub wraps stay on P522-Q. Community-tax CW20s are economic only if factory-listed and not in the gem set. |
 | **EFee-4** | Persist marks in sibling table `economic_token_marks` — **not** GET `/hub-prices`. Hub card stays **four** cells (**H11**). Extra `hub_prices.ticker` (`cl8y`, `javascript:`) still **400**. |
 | **EFee-5** | Stamp `fee_usd` at ingest. **NULL-only** backfill after hub refresh (as-of, not historical MTM). Never `UPDATE` a non-null stamp (**C568-1**). |
-| **EFee-6** | Partial windows stay priced SUM. Idle → `"0"`. All activity unpriced → `null` / `—`. GET `/overview` and `/protocol/fees` stay O(1) rollup / 60s cache (**PFee-8**). Llama headline `daily_fees_usd` uses the same partial SUM ([#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)); gem-pair exclude unchanged. |
+| **EFee-6** | Partial windows stay priced SUM. Idle → `"0"`. All activity unpriced → `null` / `—`. GET `/overview` and `/protocol/fees` stay O(1) rollup / 60s cache (**PFee-8**). Llama headline `daily_fees_usd` uses the same partial SUM (closed [#687](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/687)); gem-pair exclude unchanged. |
 | **EFee-7** | Volume / TVL stay P522-Q + hub. This is **fee-token USD**, not a second volume catalog and not a fifth hub column. |
 | **EFee-8** | Verify: `make verify-issue-683`. Related: `586` / `613` / `614` / `556` / `569` / `631`. |
 

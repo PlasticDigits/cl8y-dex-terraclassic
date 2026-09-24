@@ -2,6 +2,8 @@
 
 Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail route clients against the CL8Y indexer.
 
+Pair-direct bot warning ([Forgejo #707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707)): omitted `hybrid` + `greedy` currently means pool-only. The solver is also the integrator best-execution API; a one-hop direct pair execution must carry the returned `hybrid`. See the [integrator decision table](../docs/integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707). Future default-greedy semantics remain gated by [#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718).
+
 ## Best-execution route API
 
 | Endpoint | When to use |
@@ -25,7 +27,7 @@ Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail rou
 | `hybrid_notes` | Degradation + liability boundary |
 | `quote_kind` | `indexer_hybrid_db`, `indexer_hybrid_db_degraded`, `indexer_pool_db`, or legacy `*_lcd` kinds |
 
-Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md), full guide: [route-solver.md](../docs/route-solver.md)). Remaining retail quote skips / timeouts / BFS fallback: [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) ([#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265), **R-CENSUS-1–R-CENSUS-8**). Decision: **Stay** — do **not** bump `MAX_PATH_CANDIDATES` / hop caps / cache from that ticket. Native wrap-enter stays [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218). Mixed 18/6 stays [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257). Verify: `make verify-issue-1265`.
+Read `optimality_scope` before marketing “best price” — optimality is **within documented search bounds** only ([ADR 0002](../docs/adr/0002-global-best-execution-route-solver.md), full guide: [route-solver.md](../docs/route-solver.md)). The accepted retail quote failure census is [ADR 0007](../docs/adr/0007-route-solve-remaining-failures.md) (closed [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265), merged implementation [PR #1289](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1289), invariants **R-CENSUS-1–R-CENSUS-8**). **Stay** — do **not** bump `MAX_PATH_CANDIDATES` / hop caps / cache from that census; wallet sim vs `estimated_amount_out` remains explicitly unmeasured. Native wrap mapping / solver execution landed under [#1218](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1218) / PR #1297; any further native-swap verification stays there. Adjacent Swap route-display verification is [#1330](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1330). Verify: `make verify-issue-1265`; closeout: [QA record](../docs/qa/issue-1265/README.md).
 
 **Community tax net ranking (GitLab #615):** winner is max **`estimated_amount_out_net`** (catalog buy split when `token_out` is a tax token). `estimated_amount_out` stays pre-tax hop/router sim (**H-01**). Option-2 wasm: paths that **sell** a catalogued tax token as a **middle** hop are skipped. Unmigrated **11611** hops stay Honest (no skip). Cache key includes tax identity. Playbook: [`AGENTS_INDEXER_TAX_AWARE_ROUTING.md`](./AGENTS_INDEXER_TAX_AWARE_ROUTING.md).
 
