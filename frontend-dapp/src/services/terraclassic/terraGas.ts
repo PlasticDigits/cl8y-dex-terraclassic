@@ -142,7 +142,7 @@ export function limitOrderAdjustStepsForGas(value: unknown): number {
 /** Gas for one bounded insert walk above the message's fixed work. */
 export function gasLimitForLimitOrderInsert(
   baseGas: number,
-  maxAdjustSteps = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
+  maxAdjustSteps: unknown = LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT
 ): number {
   return baseGas + PLACE_LIMIT_ORDER_INSERT_STEP_GAS_LIMIT * limitOrderAdjustStepsForGas(maxAdjustSteps)
 }
@@ -153,7 +153,7 @@ export const UPDATE_LIMIT_ORDER_PRICE_GAS_LIMIT = gasLimitForLimitOrderInsert(UP
 
 function totalAdjustStepsForOrders(orders: unknown[] | undefined, rungCount: number): number {
   if (!orders?.length) return LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT * Math.max(1, Math.floor(rungCount))
-  return orders.reduce((total, order) => {
+  return orders.reduce<number>((total, order) => {
     if (order == null || typeof order !== 'object') return total + LIMIT_ORDER_MAX_ADJUST_STEPS_MAX_UI
     return total + limitOrderAdjustStepsForGas((order as { max_adjust_steps?: unknown }).max_adjust_steps)
   }, 0)
