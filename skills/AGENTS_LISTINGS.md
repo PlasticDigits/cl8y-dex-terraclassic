@@ -14,7 +14,8 @@ This is the **parent catalog**. It does **not** add indexer APIs.
 | Surface | Issue | Skill |
 |---------|-------|-------|
 | DeFiLlama TVL / volume / fees | [#631](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/631) | [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md) |
-| Keplr Add Token CW20 pack | [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629) | [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md) |
+| Keplr Add Token CW20 recognition | [#629](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/629), merged via [keplr-contract-registry#132](https://github.com/chainapsis/keplr-contract-registry/pull/132) | [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md) |
+| CoinGecko Terra Classic platform (Keplr price follow-up) | [#644](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/644) | [`coingecko-terra-classic-platform.md`](../docs/listings/forms/coingecko-terra-classic-platform.md) |
 | `/cg/*` `/cmc/*` crawler shape | [#224](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/224) (timestamps) / [#685](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/685) (field truth) | [`docs/CG_CMC_COMPLIANCE.md`](../docs/CG_CMC_COMPLIANCE.md) · [`AGENTS_INDEXER_CG_CMC_LISTING.md`](./AGENTS_INDEXER_CG_CMC_LISTING.md) |
 
 ## Invariants (L639-1–L639-8)
@@ -24,7 +25,7 @@ This is the **parent catalog**. It does **not** add indexer APIs.
 | **L639-1** | Catalog + go/no-go only. No new indexer endpoint. Children are **one venue per issue**. |
 | **L639-2** | Permanent six CW20s only. Same pins/decimals as **K629-2** / **K629-3**. No gems / ALPHA / USTRIX / SpaceUSD / tax templates. |
 | **L639-3** | Exchange forms use `https://indexer.dex.cl8y.com/cg/` and `/cmc/`. Never CoinGecko Pro v3. |
-| **L639-4** | Llama = #631, Keplr = #629, crawler timestamps = #224, crawler field truth = #685. Do not reopen those here. |
+| **L639-4** | Llama = #631, Keplr recognition = #629 / PR #132, Keplr price platform = #644, crawler timestamps = #224, crawler field truth = #685. Do not duplicate those here. |
 | **L639-5** | UST1 is an **unstablecoin** (never `$1`). USTR is **not** a stablecoin. Do not invent a second CG id (`ceramicliberty-com`). |
 | **L639-6** | Skip Coinhall, DexScreener, LuncScan Telegram, Token Terminal, CMC DexScan, Leap-own-repo, `terra-money/assets`. |
 | **L639-7** | Do not open upstream PRs from CI. Forms may need a human captcha/login click. |
@@ -38,7 +39,7 @@ This is the **parent catalog**. It does **not** add indexer APIs.
 4. **Leap is chain-registry.** `suggestCW20Token` is per-user; official metadata is Cosmos Directory.
 5. **GeckoTerminal is not Uniswap-V2 auto-detect.** Terra Classic is absent from GT networks. Non-EVM adapters are live at indexer `/gt/*` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646), `make verify-issue-646`). Event `reserves` are post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684), `make verify-issue-684`). `/gt/events` row cap **5000** → 400 ([#694](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/694), `make verify-issue-694`). Do not point GT at `/cg/*`.
 6. **Trust Wallet is paid.** Skip unless product asks.
-7. **This repo does not merge GitHub listing PRs.** Export the pack, open the upstream PR, link it on the child issue.
+7. **This repo does not merge GitHub listing PRs.** Keplr PR #132 is already merged; its upstream metadata is authoritative, so do not re-export the pre-merge local snapshot. The CoinGecko token platform request is #644 and needs a human account/CAPTCHA submit.
 
 ## Verification
 
@@ -51,6 +52,7 @@ No LocalTerra, indexer, or wallet. Child venue PRs and form submits are operator
 ## Cross-links
 
 - Keplr pack: [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md)
+- CoinGecko Terra Classic platform form: [#644](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/644) · [`coingecko-terra-classic-platform.md`](../docs/listings/forms/coingecko-terra-classic-platform.md)
 - DeFiLlama: [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md)
 - GeckoTerminal event reserves: [`AGENTS_INDEXER_GT_EVENT_RESERVES.md`](./AGENTS_INDEXER_GT_EVENT_RESERVES.md) · [#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)
 - Cosmostation (archived): [`AGENTS_COSMOSTATION.md`](./AGENTS_COSMOSTATION.md) · [#640](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/640)
