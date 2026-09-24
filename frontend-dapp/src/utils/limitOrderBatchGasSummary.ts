@@ -15,10 +15,10 @@ export function formatLimitBatchGasSavingsLine(rungCount: number, batchMinUluna:
 /** Pre-submit ladder summary: path, expected rungs, gas model (GitLab #268). */
 export function formatLimitLadderPlacementSummary(
   rungCount: number,
-  _maxAdjustSteps: number,
+  maxAdjustSteps: number,
   plan: LimitLadderPlacementPlan | null | undefined
 ): string {
-  const gasLimit = gasLimitForLimitOrderBatch(rungCount)
+  const gasLimit = gasLimitForLimitOrderBatch(rungCount, maxAdjustSteps)
   const gasUluna = estimateFeeUlunaAmountForGasLimit(gasLimit)
   const gasApprox = formatTokenAmount(gasUluna.toString(), 6, 4)
   const pathLabel =

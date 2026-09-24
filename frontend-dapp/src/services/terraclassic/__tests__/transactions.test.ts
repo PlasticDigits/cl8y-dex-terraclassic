@@ -374,14 +374,14 @@ describe('gas limit selection (tested indirectly)', () => {
     expect(fee.gasLimit).toBe(BigInt(450000))
   })
 
-  it('uses batch gas for place_limit_order_batch by rung count', async () => {
+  it('uses batch gas for place_limit_order_batch with its insert-walk step cap', async () => {
     const fee = await getFeeForMsg({
       place_limit_order_batch: {
         side: 'bid',
         orders: [{ price: '1', amount: '100', max_adjust_steps: 32 }],
       },
     })
-    expect(fee.gasLimit).toBe(BigInt(1_180_000))
+    expect(fee.gasLimit).toBe(BigInt(1_980_000))
   })
 
   it('uses batch gas for send with inner place_limit_order_batch', async () => {
@@ -394,7 +394,7 @@ describe('gas limit selection (tested indirectly)', () => {
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBe(BigInt(1_180_000))
+    expect(fee.gasLimit).toBe(BigInt(1_980_000))
   })
 
   it('uses PLACE_LIMIT_ORDER_GAS_LIMIT for send with inner place_limit_order (#625)', async () => {
@@ -409,7 +409,37 @@ describe('gas limit selection (tested indirectly)', () => {
       })
     )
     const fee = await getFeeForMsg({ send: { msg: inner } })
-    expect(fee.gasLimit).toBe(BigInt(1_200_000))
+    expect(fee.gasLimit).toBe(BigInt(2_000_000))
+  })
+
+  it('scales the place, batch, and edit envelopes from signed message fields only', async () => {
+    const innerBatch = btoa(
+      JSON.stringify({
+        place_limit_order_batch: {
+          side: 'bid',
+          orders: [
+            { price: '1', amount: '100', max_adjust_steps: 16 },
+            { price: '0.9', amount: '100', max_adjust_steps: 128 },
+          ],
+        },
+        gas: 1,
+        credit: 1,
+      })
+    )
+    const placeFee = await getFeeForMsg({ send: { msg: innerBatch, gas: 1, credit: 1 } })
+    expect(placeFee.gasLimit).toBe(BigInt(4_960_000))
+
+    const cappedBatchFee = await getFeeForMsg({
+      place_limit_order_batch: {
+        orders: [{ price: '1', amount: '100', max_adjust_steps: 9999 }],
+        gas: 1,
+        credit: 1,
+      },
+    })
+    expect(cappedBatchFee.gasLimit).toBe(BigInt(7_580_000))
+
+    const updateFee = await getFeeForMsg({ update_limit_order_price: { max_adjust_steps: 128 } })
+    expect(updateFee.gasLimit).toBe(BigInt(3_550_000))
   })
 
   it('uses quote-driven hybrid gas for send with inner swap (deep book cap)', async () => {
@@ -551,8 +581,14 @@ describe('executeCw20AllowanceThen', () => {
 describe('estimateLimitOrderPlaceSequenceUlunaFeesTotal', () => {
   it('sums fee uluna for increase_allowance + batch place gas at effective gas price', () => {
     const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal(1)
-    // allowance 200k + batch 1.18M gas × 28.325 uluna (#206 / #625 tax Send)
-    expect(total).toBe(39_088_500n)
+    // allowance 200k + batch 1.18M + 32×25k insert-walk gas × 28.325 uluna (#1329)
+    expect(total).toBe(61_748_500n)
+  })
+
+  it('charges the same step-aware envelope used by a High placement preset', () => {
+    const total = estimateLimitOrderPlaceSequenceUlunaFeesTotal(1, 128)
+    // allowance 200k + batch 1.18M + 128×25k gas × 28.325 uluna
+    expect(total).toBe(129_728_500n)
   })
 })
 

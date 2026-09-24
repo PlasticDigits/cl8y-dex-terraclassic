@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures/dev-wallet'
-import { skipIfLcdUnreachable } from './helpers/chain'
+import { assertTxGasUsedLtWanted, skipIfLcdUnreachable } from './helpers/chain'
 import {
   assertLimitPlaceCtaNotBlocked,
   fillValidLimitPrice,
@@ -8,6 +8,7 @@ import {
   requireLimitTxPair,
   selectLimitPairByFactoryIndex,
   selectLimitSide,
+  selectPlacementGasPreset,
   submitPlaceLimitAndExpectTx,
   submitLadderPlaceAndExpectTx,
   submitPanelCancelPlacementAndExpectTx,
@@ -17,6 +18,7 @@ import {
   fetchTxJson,
   gotoAndCaptureFactoryPairsPage,
   readTxHashFromAlertLink,
+  txJsonPlaceLimitMaxAdjustSteps,
   txJsonHasWasmAction,
 } from './helpers/lcd'
 
@@ -35,6 +37,7 @@ test.describe('Limit orders funded txs', () => {
 
     const placeCard = placeLimitCard(page)
     await fillValidLimitPrice(page, 'ask')
+    await selectPlacementGasPreset(page, placeCard, 'High')
     await placeCard.getByPlaceholder('0.0').fill('0.001')
     const placeBtn = placeCard.getByRole('button', { name: /^Place limit$/i })
     await expect(placeBtn).toBeVisible({ timeout: 60_000 })
@@ -48,7 +51,13 @@ test.describe('Limit orders funded txs', () => {
       const json = await fetchTxJson(request, txHash)
       if (!json) throw new Error('LCD tx not indexed yet')
       expect(txJsonHasWasmAction(json, 'place_limit_order')).toBe(true)
+      expect(txJsonPlaceLimitMaxAdjustSteps(json)).toBe(128)
     }).toPass({ timeout: 180_000 })
+    const placeGas = await assertTxGasUsedLtWanted(request, txHash)
+    expect(placeGas.gasUsed).toBeLessThan(placeGas.gasWanted)
+    expect(placeGas.gasWanted).toBe(4_380_000)
+    console.info(`[issue-1329] LocalTerra place gas_used=${placeGas.gasUsed} gas_wanted=${placeGas.gasWanted}`)
+    await expect(placeCard.locator('.alert-error')).toHaveCount(0)
   })
 
   test('cancel limit via my open limits panel after place (#419)', async ({ page, connectWallet, request }) => {
@@ -88,6 +97,9 @@ test.describe('Limit orders funded txs', () => {
       if (!json) throw new Error('LCD tx not indexed yet')
       expect(txJsonHasWasmAction(json, 'cancel_limit_order')).toBe(true)
     }).toPass({ timeout: 180_000 })
+    const cancelGas = await assertTxGasUsedLtWanted(request, cancelHash)
+    expect(cancelGas.gasUsed).toBeLessThan(cancelGas.gasWanted)
+    console.info(`[issue-1329] LocalTerra cancel gas_used=${cancelGas.gasUsed} gas_wanted=${cancelGas.gasWanted}`)
   })
 
   test('place 5-rung ladder in one tx (batch hook)', async ({ page, connectWallet, request }) => {
@@ -120,5 +132,8 @@ test.describe('Limit orders funded txs', () => {
       expect(txJsonHasWasmAction(json, 'place_limit_order_batch')).toBe(true)
       expect(txJsonHasWasmAction(json, 'place_limit_order')).toBe(true)
     }).toPass({ timeout: 180_000 })
+    const ladderGas = await assertTxGasUsedLtWanted(request, txHash)
+    expect(ladderGas.gasUsed).toBeLessThan(ladderGas.gasWanted)
+    console.info(`[issue-1329] LocalTerra ladder gas_used=${ladderGas.gasUsed} gas_wanted=${ladderGas.gasWanted}`)
   })
 })

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Assemble a drop-in tree for a keplr-contract-registry fork (GitLab #629).
+# Assemble the local verification snapshot for GitLab #629.
+# Upstream PR #132 is merged; align metadata with on-chain token_info before any future submission.
 # Usage: ./scripts/qa/export-keplr-cw20-pack.sh DEST [--include-registered]
+# Output is a local verification snapshot, not a current upstream resubmission.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -12,7 +14,7 @@ for arg in "$@"; do
   case "$arg" in
     --include-registered) INCLUDE_REGISTERED=1 ;;
     --help|-h)
-      echo "Usage: $0 DEST [--include-registered]"
+      echo "Usage: $0 DEST [--include-registered] (local verification snapshot)"
       exit 0
       ;;
     *)
@@ -53,5 +55,5 @@ for src in "$PACK/cosmos/columbus/tokens/"*.json; do
   cp "$src_png" "$DEST/images/columbus/$image_file"
 done
 
-echo "exported Keplr CW20 pack → $DEST"
+echo "exported local Keplr CW20 verification snapshot → $DEST"
 find "$DEST" -type f | sort

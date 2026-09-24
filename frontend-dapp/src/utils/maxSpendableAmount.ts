@@ -50,6 +50,8 @@ export type ComputeMaxSpendableHumanAmountInput = {
   payAmountRaw?: string
   /** Limit place batch rung count (default 1). */
   limitPlaceRungCount?: number
+  /** Limit place insert-walk cap for native-fee reserve calculation (default 32). */
+  limitPlaceMaxAdjustSteps?: number
   /** Community tax extra-debit sell (#593). Caps declared so debit ≤ spendable. */
   extraDebitSellBps?: number | null
 }
@@ -83,6 +85,7 @@ export function maxAmountReserveUlunaForContext(
     | 'nativeWrapDepositCount'
     | 'marketUsesHybrid'
     | 'limitPlaceRungCount'
+    | 'limitPlaceMaxAdjustSteps'
     | 'zapInHints'
     | 'zapOutUnwrap'
   > = {}
@@ -99,7 +102,10 @@ export function maxAmountReserveUlunaForContext(
     case 'zap_out':
       return estimateZapOutUlunaFeesTotal({ unwrap: options.zapOutUnwrap === true })
     case 'limit_place':
-      return estimateLimitOrderPlaceSequenceUlunaFeesTotal(options.limitPlaceRungCount ?? 1)
+      return estimateLimitOrderPlaceSequenceUlunaFeesTotal(
+        options.limitPlaceRungCount ?? 1,
+        options.limitPlaceMaxAdjustSteps
+      )
     case 'market_swap':
       return estimateMarketPairSwapSequenceUlunaFeesTotal(!!options.marketUsesHybrid)
     case 'provide_liquidity_cw20':

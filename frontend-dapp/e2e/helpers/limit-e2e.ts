@@ -122,7 +122,7 @@ export async function selectPlacementGasPreset(
   tier: PlacementGasPresetTier,
   customSteps?: number
 ): Promise<void> {
-  const details = card.locator('details').filter({ hasText: 'Placement gas (book walk)' })
+  const details = card.locator('details').filter({ hasText: /^Advanced/ })
   await expect(details).toBeVisible({ timeout: 30_000 })
   const presetGroup = card.getByRole('group', { name: 'Placement gas preset' })
   if (!(await presetGroup.isVisible().catch(() => false))) {

@@ -63,6 +63,12 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
       'Check hybrid split and pool liquidity, or set a belief price for book-heavy routes.'
     )
   }
+  if (/Limit batch placed no rungs|LimitInsertStepsExceeded|insert exceeded max adjust steps/i.test(inner)) {
+    return 'No limit orders fit within the selected placement effort. Increase Placement gas or choose a price closer to the book.'
+  }
+  if (/Insufficient liquidity/i.test(inner)) {
+    return 'The pool cannot take this size or the unfilled limit-book remainder. Try a smaller amount or a deeper route.'
+  }
   if (/addr_validate errored|decoding bech32 failed|invalid checksum/i.test(inner)) {
     return INVALID_TERRA_ADDRESS_CHECKSUM_TX_MSG
   }

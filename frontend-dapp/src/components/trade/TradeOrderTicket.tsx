@@ -255,10 +255,11 @@ function TradeOrderTicketContent({
     escrowDecimals,
     assetIsNativeUluna: escrowToken === 'uluna',
     limitPlaceRungCount: 1,
+    limitPlaceMaxAdjustSteps: maxSteps,
     setLimitEscrowAmountFromMaxReapply,
   })
-  const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(), [])
-  const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(), [])
+  const limitPlaceMinUlunaFees = useMemo(() => estimateLimitOrderPlaceSequenceUlunaFeesTotal(1, maxSteps), [maxSteps])
+  const updatePriceMinUlunaFees = useMemo(() => estimateUpdateLimitOrderPriceUlunaFeesTotal(maxSteps), [maxSteps])
 
   const {
     effectiveFeeBps,
@@ -857,6 +858,7 @@ function TradeOrderTicketContent({
               walletConnected={isWalletConnected}
               maxContext="limit_place"
               assetIsNativeUluna={escrowToken === 'uluna'}
+              limitPlaceMaxAdjustSteps={maxSteps}
               escrowUsdNotionalApprox={escrowUsdNotionalApprox}
             />
             <LimitOrderSideFlipButton compact onFlip={() => handleSideChange(side === 'bid' ? 'ask' : 'bid')} />
