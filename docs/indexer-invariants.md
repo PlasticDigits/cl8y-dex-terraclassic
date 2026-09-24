@@ -9,6 +9,17 @@ This document describes **on-chain indexing** and **read-only HTTP API** behavio
 - **Shared state:** `AppState` (pool, LCD client, USTC price cache, ticker map cache, orderbook cache, optional `router_address` for route simulation).
 - **Protocol fee uniqueness (#1269):** `swap_amm` is pair-scoped; wrap/window/book/place stay NULL `pair_id`. Decision: [ADR 0005](./adr/0005-protocol-fee-multihop-hops.md). Overview: [architecture.md](./architecture.md#indexer-protocol-fee-ledger).
 
+## Pending community invoice fees (#1210)
+
+As of 2026-09-24, [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) remains open: `protocol_fee_events` has no `sku_unlock` or `settings_fee` source, and `community_token_events` is catalog data, not a treasury ledger. This contract is pending implementation; the current verification is recorded in [QA #1210](./qa/issue-1210/README.md), and the third-party agent playbook is [`AGENTS_INDEXER_FEE_LEDGER_HOME.md`](../skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) (**L1210-1–L1210-8**).
+
+- Count only one positive invoice per actual CMM UST1 inflow: pinned launcher `create_token.sku_count × 50_000_000`, one token `EnableFeature.invoice`, or one flat `UpdateSettings.invoice`. Do not count `create_token_ready`, launcher/token duplicates, per-field multiples, zero-SKU creates, no-ops, or reverted transactions.
+- Parse per-action flattened wasm and trust only reserved `_contract_address`; require the exact launcher pin for create-time invoices and verified catalog-token provenance for token invoices. `GetLauncherOrigin` alone is not proof while [#1229](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1229) is open. Pin UST1 by CW20 identity; fail closed on missing, malformed, or non-positive amounts.
+- Exclude catalog-only rows, migrate-adopt, tax / AutoLP / gas, #595 swap or wrap legs, factory `pair_creation` (#1209), and MM subscription (#597). Keep cohort attribution (#1211) separate.
+- Add sources to the rollups, `/protocol/fees`, `/protocol/fees/daily`, DeFiLlama, and UI without live scans: GET stays O(1) / 60s cached; unconfigured sources are omitted, configured idle is `"0"`, and unpriced activity is `null`.
+- Inherit #1269 uniqueness: pair-scoped key for non-null `pair_id`, plus `(tx_hash, source, ordinal)` partial uniqueness when `pair_id IS NULL`. Do not restore an unconditional nullable three-column key.
+- Close only with parser/API/UI regressions, catalog regressions, `make verify-issue-1210`, and a paid transaction evidence row. That verify target and feature are not present yet; #1213 verifies the home map only. Later #1237/#1239 fixed on-chain no-op charging but do not implement this ingest.
+
 ## API invariants
 
 | Invariant | Enforcement | Unhappy path | Tests |
