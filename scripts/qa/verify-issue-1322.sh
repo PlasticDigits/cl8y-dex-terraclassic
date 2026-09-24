@@ -117,6 +117,26 @@ if "O1322" not in text or "O1231" not in text:
 print("audit matrix")
 PY
 
+run_step "docs: live-pair migrate follow-ups cross-linked" \
+  python3 - <<'PY'
+import pathlib, sys
+paths = (
+    "docs/twap-oracle.md",
+    "docs/integrators.md",
+    "docs/contracts-security-audit.md",
+    "docs/testing.md",
+    "skills/AGENTS_TWAP_CUMULATIVE_U256.md",
+    "AGENTS.md",
+)
+for name in paths:
+    text = pathlib.Path(name).read_text()
+    for issue in ("#1324", "#1232"):
+        if issue not in text:
+            print(f"{name} missing {issue} rollout/preflight link", file=sys.stderr)
+            sys.exit(1)
+print("#1324 live-pair migrate and #1232 preflight backfill linked")
+PY
+
 run_step "skill: AGENTS_TWAP_CUMULATIVE_U256 O1322-1" \
   grep -q 'O1322-1' skills/AGENTS_TWAP_CUMULATIVE_U256.md
 

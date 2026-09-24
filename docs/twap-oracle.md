@@ -165,6 +165,13 @@ pool's liquidity depth.
    at `u128::MAX` and do not skip forever once the counter is high.
    Playbook: [`skills/AGENTS_TWAP_CUMULATIVE_U256.md`](../skills/AGENTS_TWAP_CUMULATIVE_U256.md).
 
+   **Deployment boundary:** Pair cw2 **1.18.0** contains this fix, but the
+   Columbus-5 live-pair migration is tracked separately in
+   [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324).
+   Check the missing-key migration backfill in
+   [#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232)
+   before broadcast; preserve `OBSERVATIONS` and do not set cumulatives.
+
 5. **Arithmetic-mean sensitivity.** This oracle is an **arithmetic** mean of
    raw `reserve_b / reserve_a`. A short spike still weights by time, but it
    is **not** the geometric-mean (Uniswap v3-style tick) construction. Short
