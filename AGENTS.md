@@ -202,6 +202,7 @@ make verify-issue-1219                   # #1219 named min remaining at place + 
 make verify-issue-1231                   # #1231 Observe query checked_from_ratio skip (no VM panic)
 make verify-issue-1224                   # #1224 / #1322 TWAP cumulative Uint256 (alias of verify-issue-1322)
 make verify-issue-1322                   # #1322 / #1224 TWAP price×dt and cumulative add are Uint256
+make verify-issue-1324                   # #1324 Columbus-5 pair migrate guards; live acceptance uses read-only UPGRADE1324_PROBE_ONLY=1
 make verify-issue-599                    # #599 unwrap+≥2hop USTR→USTC gas combo (Vitest)
 make verify-issue-600                    # #600 post-merge !400 LocalTerra E9 + columbus-5 unwrap gas
 make verify-issue-595                    # #595 pay-with-any-token invoice module (Vitest + docs)
@@ -378,6 +379,8 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
 | Fee-ledger home (docs) | `make verify-issue-1213` |
+| Community SKU/settings invoice ingest (open) | [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210); see [`docs/qa/issue-1210/README.md`](docs/qa/issue-1210/README.md) and the fee-ledger skill. No verifier target until implementation. |
+| Pair-creation fee ingest (#1209) | Pending on refreshed main; see `docs/qa/issue-1209/README.md` and `skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md` |
 | Indexer HTTP pack (docs + OpenAPI) | `make verify-issue-1204` |
 | Retail gas census (docs) | `make verify-issue-1222` |
 | Route solve remaining failures (docs) | `make verify-issue-1265` · `make verify-issue-1289` |
@@ -397,6 +400,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Swap unlisted CW20 amount scale | `make verify-issue-1255` |
 | Observe query extreme-ratio skip | `make verify-issue-1231` |
 | TWAP cumulative Uint256 | `make verify-issue-1224` · `make verify-issue-1322` |
+| Columbus-5 pair TWAP migration | `make verify-issue-1324`; live read-only acceptance: `UPGRADE1324_PROBE_ONLY=1 ./scripts/upgrade-1324-pair-twap.sh`; runbook [`docs/runbooks/pair-twap-uint256-columbus5.md`](docs/runbooks/pair-twap-uint256-columbus5.md) |
 | Docs drift | `python3 scripts/check_fee_discount_tier_docs.py` |
 
 Frontend unit tests need Node **24** on `PATH`. Indexer integration tests need Postgres + `indexer/.env` — Cloud Agent: `make setup-indexer-postgres` (Postgres-only); full stack: [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md).
@@ -421,6 +425,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 
 ### Related playbooks
 
+- [skills/AGENTS_PAIR_TWAP_MIGRATION.md](skills/AGENTS_PAIR_TWAP_MIGRATION.md) — third-party agent boundary and cross-system checks for the Columbus-5 Uint256 pair migrate ([#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324)); runbook [`docs/runbooks/pair-twap-uint256-columbus5.md`](docs/runbooks/pair-twap-uint256-columbus5.md)
 - [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests; never bind-mount `indexer/` for cargo (`make test-indexer-target-ownership`)
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E
 - [skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md](skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) — QuickSwap-inspired blue + gold tokens/primitives (#488); spec [`docs/design-system.md`](docs/design-system.md)
@@ -486,7 +491,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md](skills/AGENTS_INDEXER_WRAP_FEE_INGEST.md) — wrap/unwrap protocol-fee ingest from captured mapper `notify_deposit` / `unwrap` `fee` (**I613-1–I613-8**, [#613](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/613)); `make verify-issue-613`
 - [skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md](skills/AGENTS_INDEXER_PROTOCOL_FEE_HOPS.md) — persist every multihop AMM hop in `protocol_fee_events` (**F1269-1–F1269-8**, [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269)); `make verify-issue-1269`
 - [skills/AGENTS_INDEXER_EVIDENCE_DAILY.md](skills/AGENTS_INDEXER_EVIDENCE_DAILY.md) — redacted UTC-day `GET /api/v1/evidence/daily` (**E1205-1–E1205-8**, [#1205](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1205)); `make verify-issue-1205`
-- [skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md](skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) — fee-ledger home is this indexer (**L1213-1–L1213-8**, [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); ingest children [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) / [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) / [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211); do not implement parsers on the epic or in marketing; `make verify-issue-1213`
+- [skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md](skills/AGENTS_INDEXER_FEE_LEDGER_HOME.md) — fee-ledger home is this indexer (**L1213-1–L1213-8**, open #1210 child invariants **L1210-1–L1210-8** and [QA record](docs/qa/issue-1210/README.md), [#1213](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1213)); ingest children [#1209](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1209) / [#1210](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1210) / [#1211](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1211); do not implement parsers on the epic or in marketing; `make verify-issue-1213`
 - [skills/AGENTS_INDEXER_HTTP_PACK.md](skills/AGENTS_INDEXER_HTTP_PACK.md) — indexer HTTP pack for swaps, pools, fees, burns, and volume windows (**I1204-1–I1204-8**, [#1204](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1204)); `make verify-issue-1204`
 - [skills/AGENTS_INDEXER_VENUS_VFDUSD.md](skills/AGENTS_INDEXER_VENUS_VFDUSD.md) — `/protocol` vFDUSD **FDUSD reference price** + Venus **1 vFDUSD Price** (**V571-1–V571-10**, [#571](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/571)); `make verify-issue-571`
 - [skills/AGENTS_INDEXER_PAIR_PRICE_USD.md](skills/AGENTS_INDEXER_PAIR_PRICE_USD.md) — pair tape/candles human quote-per-base + USD of 1 human base (**P522-1–P522-5**, [#522](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/522)); registry USDT contract-pinned advisory $1 (**#1258**); `make verify-issue-522` · `make verify-issue-1258`
@@ -549,6 +554,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_UST1_SECONDARY_AMM.md](skills/AGENTS_UST1_SECONDARY_AMM.md) — UST1 secondary AMM create/seed or Path B waiver ([#508](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/508), invariants **U1–U7**); `make verify-issue-508`
 - [skills/AGENTS_FEE_DISCOUNT_TIERS.md](skills/AGENTS_FEE_DISCOUNT_TIERS.md) — CL8Y tier ladder + **I13** limit-placement discount shift (tier 9 place = 0; swap/take unchanged) + [`scripts/upgrade-514-limit-discount.sh`](scripts/upgrade-514-limit-discount.sh) ([#514](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/514)); `make verify-issue-514`
 - [skills/AGENTS_FACTORY_DISCOUNT_REGISTRY.md](skills/AGENTS_FACTORY_DISCOUNT_REGISTRY.md) — factory `config.discount_registry` snapshot on `CreatePair` so new pairs are wired (**F5** / **I14**, [#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536)); LocalTerra inherit + dApp `GetDiscountRegistry` first (**F538-1–F538-3**, [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538)); `make verify-issue-536` / `make verify-issue-538`
+- [skills/AGENTS_PAIR_STORAGE_MIGRATION.md](skills/AGENTS_PAIR_STORAGE_MIGRATION.md) — pair migrate must backfill missing `DISCOUNT_REGISTRY` / `ORACLE_STATE` without overwriting state or wiring discounts (**#1232**, open; separate from ops migration [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324))
 - [skills/AGENTS_CW20_CODE_ID_PIN.md](skills/AGENTS_CW20_CODE_ID_PIN.md) — listed CW20 `code_id` pin + write-path whitelist re-check so `MsgMigrateContract` cannot leave the listing template (**F6**, [#582](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/582) / [#1234](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1234) reprice + `CleanLimitBook`); factory-first migrate [`scripts/upgrade-582-code-id-pin.sh`](scripts/upgrade-582-code-id-pin.sh) ([#584](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/584)) including `UpdateConfig { pair_code_id }` + LCD whitelist retries; `make verify-issue-582` · `make verify-issue-584` · `make verify-issue-1234`
 - [skills/AGENTS_CW20_CODE_ID_AUDIT.md](skills/AGENTS_CW20_CODE_ID_AUDIT.md) — generalized CW20 code-id audit harness: LCD pin + decomp + catalogue + Layer A/B (**C589-1–C589-9**, [#589](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/589)); gates [#581](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/581) 8266 go; `make verify-issue-589`
 - [skills/AGENTS_CW20_CODE_ID_TAX_ON.md](skills/AGENTS_CW20_CODE_ID_TAX_ON.md) — named tax-on Layer B (**C623-1–C623-8**, [#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623)); do **not** merge into B-lt; `make verify-issue-623`; leftover live [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625)

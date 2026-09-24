@@ -45,6 +45,7 @@ Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, *
 
 ## Related
 
+- Columbus-5 TWAP rollout checks also verify this independently deployed chart bundle and indexer candle wire: [`AGENTS_PAIR_TWAP_MIGRATION.md`](AGENTS_PAIR_TWAP_MIGRATION.md), [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324), and [runbook](../docs/runbooks/pair-twap-uint256-columbus5.md).
 - Pair display invert (UST1 other-side USD, pill): [`AGENTS_FRONTEND_TRADE_PAIR_INVERT.md`](./AGENTS_FRONTEND_TRADE_PAIR_INVERT.md) ([#524](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/524))
 - Newest-N candle GET + interval chip: [`AGENTS_INDEXER_CANDLES_NEWEST_N.md`](./AGENTS_INDEXER_CANDLES_NEWEST_N.md) ([#705](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/705))
 - USD candle invert (`invertUsd`, adaptive axis): [`AGENTS_FRONTEND_USD_CANDLE_INVERT.md`](./AGENTS_FRONTEND_USD_CANDLE_INVERT.md) ([#543](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/543))
