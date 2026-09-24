@@ -81,7 +81,7 @@ Mapper: **`getGasLimitForTx`**. Unmapped keys fall through to **`BASE_GAS_LIMIT`
 | Router pool N-hop | `execute_swap_operations` / send inner | N=1 **1.4M**; N=2 **1.91M**; N=4 **3.81M** | Yes (ops or `hopCount`) | same | 2-hop sat **1,810,064** vs wanted 1,810,000 (floor raised). Current hash: **unmeasured** |
 | Mixed hybrid + pool router | hop1 `hybrid` + pool hops | **6,785,500** (8 makers + 3×950k + 2.15M) | Yes **iff** `cw20RouterOperations` | Station WC residual ~4,158 LUNC | **Dated 2026-09-11:** see measurement table |
 | Unknown hybrid all hops | `hybrid: {}` on every hop | **15M** once (#249) | same as mixed | same | Fallback, not a live hub sample |
-| Wrap + ≥2hop | wrap + router send N≥2 | **2,710,000** | Yes (native wrap path, pool-only) | same | Gem 2.31M too tight (#587). Columbus-5 success: **unmeasured** |
+| Wrap + ≥2hop | wrap + router send N≥2 | **2,710,000** | Yes (native wrap path, pool-only) | same | Gem 2.31M too tight (#587). USTC→USTR columbus-5 success: **2,630,228 gas used** under #1264. |
 | Unwrap + ≥2hop | router N≥2 + `unwrap_output` | **3,110,000** | Yes | same | OOG at 2.71M hop+unwrap sum (#599). Success hash: **unmeasured** (operator [#600](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/600)) |
 | Wrap+1hop | wrap + router 1 | **1,800,000** (no combo) | Yes | same | **unmeasured** |
 | Router 1-hop + unwrap | | **2,200,000** (no unwrap combo) | Yes | same | **unmeasured** |
@@ -101,15 +101,16 @@ Wallet rows apply to every family: **Keplr extension** honors `preferNoSetFee` (
 
 ## Dated measurements
 
-Re-fetched **2026-09-11** from `https://terra-classic-lcd.publicnode.com/cosmos/tx/v1beta1/txs/{hash}` (public LCD only).
+The original rows were re-fetched **2026-09-11** from `https://terra-classic-lcd.publicnode.com/cosmos/tx/v1beta1/txs/{hash}` (public LCD only). The #1264 AC1 row below is the later columbus-5 measurement recorded on **2026-09-21**.
 
 | Sample | Hash | Height | `gas_wanted` | `gas_used` | Fee | Notes |
 |--------|------|--------|--------------|------------|-----|-------|
 | Mixed 4-hop cLUNC→USTR (hop1 book/8, hops 2–4 pool) | [`AB8BE4F75E051837BB01C364DEDE6611727E47F0F857AADF04B17C39F360446D`](https://finder.terraclassic.community/columbus-5/tx/AB8BE4F75E051837BB01C364DEDE6611727E47F0F857AADF04B17C39F360446D) | **30121174** | **6,785,500** | **5,026,176** | **192,199,288 uluna** (~192.20 LUNC @ 28.325), `code=0` | Matches current mixed envelope. Margin 1,759,324 (~35%). **Not** Station’s ~147M / ~4,158 LUNC class. |
+| Wrap+2hop USTC→USTR AC1 ([#1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264)) | [`53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36`](https://finder.terraclassic.community/columbus-5/tx/53B06B653D78AF3683F51A065FC640074A3A2E76CAE343A97B3E0F0BD79BAC36) | **30495717** | **2,710,000** | **2,630,228** | — | Successful pool-only route USTC → cUSTC → UST1 → USTR; 79,772 gas margin. Recorded 2026-09-21; envelope unchanged. |
 | Direct unwrap OOG (historical) | `3C3B382A…287AD` | — | 550,000 | ~550,559 | — | Ceiling below cost; current `UNWRAP_GAS_LIMIT` is 800k. Partial hash in `constants.ts` comment. |
 | Wrap LCD | — | — | 400,000 ceiling | ~303k | — | Code comment; **unmeasured** on columbus-5 this census |
 | Unwrap+2hop success | — | — | 3,110,000 | — | — | **Unmeasured.** Record via existing `VERIFY600_COLUMBUS_TX` (#600). Do not bump `UNWRAP_GAS_LIMIT` from this ADR. |
-| Wrap+2hop success | — | — | 2,710,000 | — | — | **Unmeasured** on columbus-5 this census. Envelope already above gem 2.31M. |
+| Wrap+2hop success | [#1264 AC1](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) | **30495717** | **2,710,000** | **2,630,228** | — | Measured 2026-09-21; success, 79,772 gas margin. Keep the current envelope. |
 
 Current code identity for the mixed path (must stay **> 5,026,176** and **< 15M**):
 

@@ -197,6 +197,16 @@ Honest token upgrades: whitelist the new id → migrate instances → `RefreshPa
 
 ## Pair
 
+### Pair storage-key migration compatibility ([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232))
+
+Pair `migrate` must initialize required storage added after older pair wasm, because current execute, simulation, and oracle paths intentionally use hard `.load()` calls. Preserve the distinction between a missing key and a stored `None`:
+
+- Missing `DISCOUNT_REGISTRY` → save `None`. Preserve an existing `Some(addr)` or explicit `None`; do not copy the factory pointer or wire existing pairs here. Factory wiring remains [#535](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/535), [#536](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/536), and [#538](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/538).
+- Missing `ORACLE_STATE` → save the instantiate default (`DEFAULT_OBSERVATION_CARDINALITY`, index `0`, initialized count `0`). Preserve an existing state and all `OBSERVATIONS`; do not synthesize cumulative values. The first later `oracle_update` seeds the empty ring.
+- Keep hard `.load()` behavior and the existing migrate backfills. Do not add a public initialization execute or reset populated items.
+
+**Current status:** this remains an open gap in `origin/main` at `54c4868e`: [`pair::migrate`](../smartcontracts/contracts/pair/src/contract.rs) backfills order/escrow/config and asset-code items, but not `DISCOUNT_REGISTRY` or `ORACLE_STATE`. Do not treat a pre-item pair as migration-safe until [#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232) ships with missing-key and idempotence coverage. The newer columbus-5 migration task [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324) explicitly leaves this code fix separate. See the [pair migration playbook](../skills/AGENTS_PAIR_STORAGE_MIGRATION.md), [audit invariant C14](./contracts-security-audit.md), and [migration test guide](./testing.md#pair-storage-migration-compatibility-1232).
+
 ### InstantiateMsg (PairInstantiateMsg)
 
 | Field              | Type             | Description                       |

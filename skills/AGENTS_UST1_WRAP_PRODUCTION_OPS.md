@@ -11,6 +11,7 @@ Use when hardening **production monitoring**, **pause playbooks**, **address reg
 | Doc / code | Purpose |
 |------------|---------|
 | [`docs/runbooks/ust1-wrap-production-ops.md`](../docs/runbooks/ust1-wrap-production-ops.md) | Ops hub — invariants **O1–O8**, checks, oracle env, on-call roles |
+| [docs/reference/governance-multisig.md](../docs/reference/governance-multisig.md) | DEX authority address and contract-specific control split |
 | [`docs/runbooks/wrap-mapper-pause.md`](../docs/runbooks/wrap-mapper-pause.md) | Columbus-5 wrap-mapper pause/unpause + smoke record |
 | [`deployments/mainnet-ust1-wrap/REGISTRY.md`](../deployments/mainnet-ust1-wrap/REGISTRY.md) | Canonical Phase 2–4 addresses (no secrets) |
 | [`deployments/mainnet-ust1-wrap/coolify.env.example`](../deployments/mainnet-ust1-wrap/coolify.env.example) | Coolify `VITE_*` pack |
@@ -27,7 +28,7 @@ Use when hardening **production monitoring**, **pause playbooks**, **address reg
 | **O3** | Pause is primary: window `set_paused`, oracle pause, wrap-mapper `set_paused`, treasury `set_wrapping_paused`. |
 | **O4** | Monitor treasury vFDUSD **balance and allowance** to ust1-window. |
 | **O5** | Wrap solvency: treasury native ≥ CW20 supply; pause unwrap on breach. |
-| **O6** | Confirm on-chain `governance` before pause. Mapper + CMM treasury **app** gov is DEX 2-of-3 (`terra1zlmv2…`) after #525/#526; window/oracle stay `cl8y2_admin`. Wasm admin on mapper/treasury is still the EOA. |
+| **O6** | Check app governance and wasm admin independently before preparing a pause. At columbus-5 block **30540667** (2026-09-24 09:09 UTC), wrap-mapper + CMM treasury both fields are the DEX 2-of-3 (terra1zlmv2…). Window/oracle governance and wasm admin remain cl8y2_admin (terra1xsecn4…) pending [ust1-window#30](https://gitlab.com/PlasticDigits/ust1-window/-/work_items/30). The [#526](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/526) transfer queue remains open; [#697](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/697) tracks broader authority attestation. |
 | **O7** | Do not widen factory CW20 whitelist in ops panic. |
 | **O8** | On-call roles named; silence-alert + pause-drill evidence on #503. |
 
@@ -36,7 +37,7 @@ Do not confuse with UI **U1–U8** ([`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_W
 ## Rules of thumb
 
 1. **Registry first** — edit `deployments/mainnet-ust1-wrap/REGISTRY.md` when addresses change; mirror Coolify + upstream repos.
-2. **Read-only probes** — `./scripts/check-ust1-wrap-ops-health.sh` before any governance pause.
+2. **Read-only probes** — scripts/check-ust1-wrap-ops-health.sh before a governance pause. This health probe does not check ContractInfo.admin; query it separately for O6.
 3. **Oracle bot** — `verify_oracle_operator_env` runs in **ust1-window**; Coolify `ORACLE_MAX_SILENCE_SECS=21600` (6h, ≤ `max_oracle_age_sec`); attach silence-alert evidence on #503.
 4. **Wrap pause smoke** — LocalTerra `make smoke-wrap-mapper-pause`; mainnet in `wrap-mapper-pause.md`.
 5. **429 ≠ wrap rate limit** — indexer HTTP 429 is off-chain; read wrap-mapper `rate_limit` / `set_rate_limit` in the ops runbook.
