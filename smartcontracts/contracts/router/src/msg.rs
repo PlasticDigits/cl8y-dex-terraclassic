@@ -19,9 +19,9 @@ pub enum SwapOperation {
     TerraSwap {
         offer_asset_info: AssetInfo,
         ask_asset_info: AssetInfo,
-        /// Pattern C: per-hop book vs pool split (None = 100% pool, TerraSwap-compatible default).
+        /// Pattern C: per-hop book vs pool split (None + no greedy = 100% pool today; default-greedy follow-up: #718).
         hybrid: Option<HybridSwapParams>,
-        /// Opt-in greedy book-first on this hop (GitLab #708). Mutually exclusive with `hybrid`.
+        /// Opt-in greedy book-first on this hop (GitLab #708). Mutually exclusive with `hybrid`; omitted-field default is not shipped (#718).
         #[serde(default)]
         greedy: Option<GreedySwapParams>,
         /// Per-hop minimum net ask output when this hop has `book_input > 0` without `belief_price`.
