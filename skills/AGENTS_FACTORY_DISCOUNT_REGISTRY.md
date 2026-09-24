@@ -14,6 +14,7 @@ Parent ops for **already listed** economic pairs: [#535](https://gitlab.com/Plas
 | Factory `Config.discount_registry` | [`factory/src/state.rs`](../smartcontracts/contracts/factory/src/state.rs) |
 | Pair `GetDiscountRegistry` | [`dex_common::pair`](../smartcontracts/packages/dex-common/src/pair.rs) |
 | Tier ladder / I10 fail-closed | [`AGENTS_FEE_DISCOUNT_TIERS.md`](./AGENTS_FEE_DISCOUNT_TIERS.md) |
+| Pair storage-key migration gap | [`AGENTS_PAIR_STORAGE_MIGRATION.md`](./AGENTS_PAIR_STORAGE_MIGRATION.md) (**#1232**) |
 
 ## Invariants (F5 / I14)
 
@@ -27,6 +28,10 @@ Parent ops for **already listed** economic pairs: [#535](https://gitlab.com/Plas
 8. **Existing pairs** — not retroactively wired. That is #535.
 9. **Post-migrate pointer (F538-1)** — after factory 1.8.0 migrate, `config.discount_registry` is `None` until All/Batch or `UpdateConfig`. Columbus-5 already set the pointer (wasm **11585**).
 10. **Live inherit (F538-2)** — a new `create_pair` must match the factory pointer with no follow-up `SetDiscountRegistry`. Dedicated LocalTerra check: [`scripts/qa/localterra-create-pair-inherit.sh`](../scripts/qa/localterra-create-pair-inherit.sh).
+
+### Missing key is not stored `None` (#1232)
+
+`DISCOUNT_REGISTRY` is `Item<Option<Addr>>`: a missing key still makes the pair's hard `.load()` paths fail, even though `GetDiscountRegistry` uses `may_load`. Pair migrate must backfill only an absent key to `None`, preserving explicit `None` and `Some(addr)`. This does not wire the factory pointer into existing pairs; the backfill is a separate open issue, [#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232). Current `origin/main` lacks it. Follow the [pair storage migration playbook](./AGENTS_PAIR_STORAGE_MIGRATION.md); do not claim a legacy pair is safe based only on `GetDiscountRegistry`.
 
 ## Versions
 
