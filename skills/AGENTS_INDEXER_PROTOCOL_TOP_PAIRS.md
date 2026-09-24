@@ -2,8 +2,9 @@
 
 Audience: third-party agents changing `/protocol` ranking, `GET /api/v1/protocol/top-pairs`, or `pair_volume_30d`.
 
-**Issue:** [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263)  
+**Issues:** [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263) (shipped baseline) · [#1317](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1317) (open CMM-held LP extension)<br>
 **UI invariants:** [`AGENTS_FRONTEND_PROTOCOL_STATS.md`](./AGENTS_FRONTEND_PROTOCOL_STATS.md) (**P1263-1–P1263-8**)  
+**System invariant table:** [`docs/indexer-invariants.md`](../docs/indexer-invariants.md) (I1263 + pending I1317)<br>
 **24h pair list (not this):** [`AGENTS_INDEXER_PAIR_VOLUME_USD.md`](./AGENTS_INDEXER_PAIR_VOLUME_USD.md) (**PVol** — `GET /pairs` `volume_usd_24h`)  
 **Current TVL stamp:** [`AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md`](./AGENTS_INDEXER_PAIR_LIQUIDITY_USD.md) (**P655**)  
 **Gem exclude:** [`AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md`](./AGENTS_FRONTEND_RETAIL_TEST_TOKENS.md) (**P562**) / [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md) (`COLUMBUS5_GEM_ADDRESSES`)
@@ -24,6 +25,22 @@ Global 30d volume and total TVL cannot rank **which pool** is earning its keep. 
 | **I1263-6** | Query allowlist: `limit` omitted or `5`; `window` omitted or `30d`. `limit=1`/`6`, `window=24h`, `from`, `to`, `sort`, `ticker` → **400** (do not truncate). 60s cache is a single slot; junk keys ignored. |
 | **I1263-7** | Do **not** add `sort=volume_usd_30d` to `GET /pairs`. Do **not** change `GET /overview` shape. Do **not** N+1 `/stats`. |
 | **I1263-8** | Same USD catalog as #548 / #556 / #569. Never vFDUSD, never `$1` UST1, never `2.5×` USTR, never CG `liquidity_in_usd`. |
+
+## Pending extension: CMM-held LP census (#1317)
+
+The current API, SQL, response type, and table implement **#1263 only**. The open #1317 acceptance criteria are not met on `origin/main`; do not imply that the following fields or columns exist, and do not close #1317 based on `make verify-issue-1263`.
+
+| ID | Required invariant before #1317 can close |
+|----|--------------------------------------------|
+| **I1317-1** | Preserve #1263 top-five membership/order, gem exclusion, full-pool `liquidity_usd`, and `volume_per_tvl`; the CMM metrics do not rerank rows or redefine Vol/LP. |
+| **I1317-2** | `cmm_lp_usd_30d` is the trailing-30d time-weighted USD of factory LP shares actually held by the configured CMM custodian. Resolve bare LP-token transfers or seed the integral from an off-request balance observation. Never substitute spot TVL or “pool minus CMM.” |
+| **I1317-3** | `trading_fees_usd_30d` includes only priced pair `swap_amm`, `book_take`, and `limit_place` fees; wrap/unwrap and UST1 mint/redeem fees are excluded. Unpriced activity is `NULL`, not zero; idle is zero. |
+| **I1317-4** | Refresh volume, fee, and LP-seconds stamps off-request. `GET /api/v1/protocol/top-pairs` reads stamps only: no `swap_events`, `protocol_fee_events`, `liquidity_events` scan, or LCD fanout. Extend the 60s response cache for the additive fields. |
+| **I1317-5** | `fees_bps_per_cmm_lp = trading_fees_usd_30d / cmm_lp_usd_30d * 10_000`; `volume_per_cmm_lp = volume_usd_30d / cmm_lp_usd_30d`. Missing, non-positive, or ≥10^20 denominator/ratio serializes `null`; UI shows an em dash. No APR, farm, points, fee split, or `FEE_CONFIG` change. |
+
+**Implementation map:** [`protocol_top_pairs.rs`](../indexer/src/api/protocol_top_pairs.rs), [ranking SQL](../indexer/src/db/queries/protocol_top_pairs.rs), [`protocol_fees.rs`](../indexer/src/db/queries/protocol_fees.rs), [`liquidity.rs`](../indexer/src/db/queries/liquidity.rs), [`ProtocolTopPairs.tsx`](../frontend-dapp/src/components/protocol/ProtocolTopPairs.tsx), and [`docs/frontend.md` § Protocol](../docs/frontend.md#protocol-page). Related issues: [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263) baseline, [#1269](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1269) complete multihop fee ingestion, [#558](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/558) custodian LP operations, and [#1207](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1207) separate yield research.
+
+Before closing #1317, add indexer fixtures for the LP-seconds integral, transfer-gap choice, fee-source filter, null/overflow rules, and GET query plan/cache; add API/OpenAPI and frontend column/copy/null/four-old-columns regressions. Keep the #1263 verifier as a baseline, not a substitute.
 
 ## Do / don’t
 
