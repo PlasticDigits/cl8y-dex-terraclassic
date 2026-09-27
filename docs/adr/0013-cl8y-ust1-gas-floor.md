@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. The measured route-specific floor is implemented in this change. A signed Columbus-5 swap and toast check remain operator QA.
+Superseded for broadcast fees by [ADR 0014](./0014-swap-auto-gas.md) ([#1360](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1360)). The 3,000,000 figure remains a historical Columbus-5 measurement. It is not an input to `Fee.gas` or the Network fee row. A failed simulate of this two-hop route uses the global per-hop fallback **1,910,000**. A successful simulate signs `ceil(gas_used × 1.2)`.
 
 ## Context
 
@@ -14,9 +14,9 @@ A successful reverse swap through the same two pool contracts provides an on-cha
 
 ## Decision
 
-Use a **3,000,000 gas** envelope only when the execute payload is a continuous, two-hop pool-only CW20 route whose first offer is the configured CL8Y token and final ask is the configured UST1 token. Match the endpoints and hop continuity rather than pinning the intermediate token or pair address, because route solving can choose a different middle token.
+The 2026-09-24 measurement justified a route-specific floor. [#1360](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1360) stops extending that pattern. `getGasLimitForTx` no longer matches CL8Y and UST1 addresses. See [ADR 0014](./0014-swap-auto-gas.md).
 
-The special case lives inside the shared `getGasLimitForTx` path. Swap's Network fee estimate already uses the same router operations and therefore receives the same limit. The generic per-hop floor, wrap/unwrap envelopes, route selection, and fee denomination remain independent.
+Historical decision, retained as the measurement record: a **3,000,000 gas** envelope was applied only when the execute payload was a continuous, two-hop pool-only CW20 route whose first offer was the configured CL8Y token and final ask was the configured UST1 token. That predicate has been removed from the fee path.
 
 ## Invariants G1328-1–G1328-7
 

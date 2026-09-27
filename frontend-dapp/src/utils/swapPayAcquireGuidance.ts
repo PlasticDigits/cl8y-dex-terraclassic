@@ -248,6 +248,11 @@ export function acquireGuidanceShowsQuoteOnly(g: SwapPayAcquireGuidance, hasSett
   return g.kind === 'disconnected_quote' && hasSettledQuote
 }
 
+/** The reduce control edits the pay field. Hide it while a broadcast is in flight (#1360). */
+export function acquireReduceHiddenForBroadcastPhase(phase: string | null | undefined): boolean {
+  return phase === 'recovering' || phase === 'confirming'
+}
+
 export function acquireGuidanceBlocksSubmit(g: SwapPayAcquireGuidance): boolean {
   return (
     g.kind === 'insufficient_generic' ||

@@ -5,7 +5,8 @@ import { estimateFeeUlunaAmountForGasLimit, getGasLimitForTx, totalGasLimitForEx
 
 /**
  * Single source for Terra Classic tx fee envelopes (gas limit × {@link effectiveGasPriceUluna}).
- * Used by broadcast, balance gates, Max reserve, and UI fee hints — not LCD simulation or Terra v2 defaults.
+ * Static per-message envelope (broadcast fallback and the fee row before a simulate resolves).
+ * A successful swap simulate replaces this gas with `ceil(gas_used × 1.2)` (#1360).
  */
 export type TerraClassicFeeEstimate = {
   gasLimit: number

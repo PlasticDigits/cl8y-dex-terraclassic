@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { tryHumanizeTerraTxMessage, stripNestedTransactionFailedPrefixes } from '../humanizeTerraTxError'
+import {
+  OUT_OF_GAS_SHORT_ESTIMATE_MESSAGE,
+  tryHumanizeTerraTxMessage,
+  stripNestedTransactionFailedPrefixes,
+} from '../humanizeTerraTxError'
 
 describe('stripNestedTransactionFailedPrefixes', () => {
   it('strips a single prefix', () => {
@@ -165,12 +169,26 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
   })
 
   describe('out of gas', () => {
-    it('matches "out of gas" anywhere in the message', () => {
-      const raw = 'Transaction failed: out of gas in location: WriteFlat; gasWanted: 200000, gasUsed: 215000'
+    it('uses a fixed sentence when used exceeds wanted by more than 1,000 (#1360)', () => {
+      const raw =
+        'out of gas in location: WriteFlat; gasWanted: 1910000, gasUsed: 1937976: execute wasm contract failed'
       const out = tryHumanizeTerraTxMessage(raw)
-      expect(out).not.toBeNull()
-      expect(out).toContain('gas')
-      expect(out).toContain('Try again')
+      expect(out).toBe(OUT_OF_GAS_SHORT_ESTIMATE_MESSAGE)
+      expect(out).not.toMatch(/try again/i)
+      expect(out).not.toMatch(/vary slightly/i)
+      expect(out).not.toMatch(/1910000|1937976|terra1/)
+    })
+
+    it('uses the same fixed sentence for a smaller overage still above 1,000', () => {
+      const raw = 'Transaction failed: out of gas in location: WriteFlat; gasWanted: 200000, gasUsed: 215000'
+      expect(tryHumanizeTerraTxMessage(raw)).toBe(OUT_OF_GAS_SHORT_ESTIMATE_MESSAGE)
+    })
+
+    it('keeps the retry sentence when the overage is within 1,000 or the log has no pair of figures', () => {
+      expect(
+        tryHumanizeTerraTxMessage('out of gas in location: WriteFlat; gasWanted: 1910000, gasUsed: 1910500')
+      ).toMatch(/try again/i)
+      expect(tryHumanizeTerraTxMessage('Transaction failed: out of gas')).toMatch(/vary slightly/i)
     })
   })
 

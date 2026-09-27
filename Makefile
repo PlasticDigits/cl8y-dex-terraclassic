@@ -693,13 +693,20 @@ verify-issue-1315:
 .PHONY: verify-issue-1315
 
 # Forgejo #1328 — measured CL8Y → UST1 pool-only router gas envelope.
-.PHONY: verify-issue-1328 measure-issue-1328
+.PHONY: verify-issue-1328 measure-issue-1328 verify-issue-1360 measure-issue-1360
 verify-issue-1328:
 	@chmod +x scripts/qa/verify-issue-1328.sh scripts/with-node.sh
 	bash scripts/qa/verify-issue-1328.sh
 
 measure-issue-1328:
 	bash scripts/with-node.sh --cwd frontend-dapp -- node scripts/measureIssue1328Columbus.mjs
+
+verify-issue-1360:
+	@chmod +x scripts/qa/verify-issue-1360.sh scripts/with-node.sh
+	bash scripts/qa/verify-issue-1360.sh
+
+measure-issue-1360:
+	bash scripts/with-node.sh --cwd frontend-dapp -- node scripts/measureIssue1360Columbus.mjs
 
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
