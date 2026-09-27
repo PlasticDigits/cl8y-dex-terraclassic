@@ -66,6 +66,15 @@ describe('lookupByCW20', () => {
     expect(entry!.logoURI).toContain('/tokenlist/images/DO.png')
   })
 
+  it('returns KENA for Kenalinu (6 decimals)', () => {
+    const entry = lookupByCW20('terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67')
+    expect(entry).toBeDefined()
+    expect(entry!.symbol).toBe('KENA')
+    expect(entry!.name).toBe('Kenalinu')
+    expect(entry!.decimals).toBe(6)
+    expect(entry!.logoURI).toContain('/tokenlist/images/KENA.jpg')
+  })
+
   it('is case-insensitive', () => {
     expect(lookupByCW20('TERRA16WTML2Q66G82FDKX66TAP0QJKAHQWP4LWQ3NGTYGACG5Q0KZYCGQVHPAX3')).toBeDefined()
   })

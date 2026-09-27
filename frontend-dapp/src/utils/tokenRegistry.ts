@@ -108,6 +108,13 @@ export const TOKENS: TokenRegistryEntry[] = [
     type: 'cw20',
     logoURI: 'https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/DO.png',
   },
+  {
+    symbol: 'KENA',
+    name: 'Kenalinu',
+    decimals: 6,
+    type: 'cw20',
+    logoURI: 'https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/KENA.jpg',
+  },
 ]
 
 // Allowlist only — unknown bank/IBC denoms stay raw (GitLab #630).
@@ -127,6 +134,7 @@ const CW20_MAP: Record<string, string> = {
   terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl: 'SpaceUSD',
   [REGISTRY_USDT_CW20_ADDRESS]: 'USDT',
   terra15p8su45k45axng8ue59rl6zph4at27s49u3agr6uqrx3dhcxpg3qt0ekdt: 'DO',
+  terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67: 'KENA',
 }
 
 if (LUNC_C_TOKEN_ADDRESS) CW20_MAP[LUNC_C_TOKEN_ADDRESS.toLowerCase()] = 'cLUNC'

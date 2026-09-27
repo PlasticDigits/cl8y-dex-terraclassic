@@ -4,7 +4,7 @@
   "version": {
     "major": 1,
     "minor": 0,
-    "patch": 5
+    "patch": 6
   },
   "keywords": ["terra-classic", "cl8y", "dex"],
   "tokens": [
@@ -115,6 +115,15 @@
       "decimals": 6,
       "logoURI": "https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/DO.png",
       "website": "https://luncverse.io"
+    },
+    {
+      "symbol": "KENA",
+      "name": "Kenalinu",
+      "address": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67",
+      "type": "cw20",
+      "decimals": 6,
+      "logoURI": "https://git.cl8y.com/code/cl8y-dex-terraclassic/raw/branch/main/tokenlist/images/KENA.jpg",
+      "website": "https://x.com/kenalinu"
     }
   ]
 }
