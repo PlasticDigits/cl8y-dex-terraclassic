@@ -167,13 +167,24 @@ export const ROUTER_SINGLE_HOP_GAS_LIMIT = 1_400_000
  */
 export const ROUTER_SWAP_OPS_MIN_GAS_PER_HOP = 950_000
 /**
- * CL8Y → UST1 two-hop pool-only route. Columbus-5 simulation measured 2,643,979–2,643,980 gas
- * for CL8Y → ALPHA → UST1 on 2026-09-24; a successful reverse route through the same
- * pairs used 2,606,968. The shared two-hop floor is 1.91M, so this route-specific
- * 3M ceiling leaves at least 356,020 gas above the forward simulation without raising neighbors
- * such as USTC → USTR wrap+2hop (#1328; see ADR 0013).
+ * Historical Columbus-5 measurement for CL8Y → UST1 two-hop pool-only gas (#1328, ADR 0013).
+ * Forward simulate was 2,643,979–2,643,980; this 3M figure sat above that.
+ * It is **not** a broadcast or Network-fee input (#1360, ADR 0014). Signed swap gas is
+ * `ceil(simulated gas_used × AUTO_GAS_ADJUSTMENT)` or the global per-hop fallback.
  */
 export const CL8Y_UST1_TWO_HOP_POOL_GAS_LIMIT = 3_000_000
+/**
+ * Multiplier on a successful LCD `gas_used` for the signed swap `Fee.gas` (#1360).
+ * Distinct from {@link SWAP_GAS_BUFFER}, which only scales the static per-hop formula.
+ */
+export const AUTO_GAS_ADJUSTMENT = 1.2
+/**
+ * Simulated `gas_used` below this is a failed auto-gas attempt (truncated or dummy body).
+ * Far under every measured retail swap; not a pair floor (#1360).
+ */
+export const AUTO_GAS_MIN_USED = 100_000
+/** One LCD simulate attempt. A hang selects the static per-hop fallback. */
+export const AUTO_GAS_SIMULATE_TIMEOUT_MS = 8_000
 /**
  * Extra gas when `wrap_deposit` and router `send`→`execute_swap_operations` (N≥2)
  * share one multi-msg tx ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587),
