@@ -10,7 +10,7 @@ Decision record: [ADR 0014](../docs/adr/0014-swap-auto-gas.md). The CL8Y → UST
 
 ## Do this
 
-- Simulate the execute once (`POST /cosmos/tx/v1beta1/simulate`) and sign `ceil(gas_used × AUTO_GAS_ADJUSTMENT)` with `AUTO_GAS_ADJUSTMENT = 1.2`.
+- Simulate the execute (`POST /cosmos/tx/v1beta1/simulate`) and sign `ceil(gas_used × AUTO_GAS_ADJUSTMENT)` with `AUTO_GAS_ADJUSTMENT = 1.2`. If that simulate does not finish, raise the query gas from the static envelope by `AUTO_GAS_FALLBACK_STEP` (**200,000**) until a simulate returns `gas_used` or three replies are empty. Do this before the signature.
 - Keep `Fee.amount` in `uluna` via `effectiveGasPriceUluna()`.
 - On simulate failure, use `getGasLimitForTx` / `totalGasLimitForExecuteMsgs` (two hops **1,910,000**, wrap+1hop **1,800,000**).
 - Cap a usable `gas_used` at `HYBRID_SWAP_GAS_LIMIT` (**15,000,000**). Reject `gas_used` below `AUTO_GAS_MIN_USED` (**100,000**).
@@ -42,7 +42,7 @@ Decision record: [ADR 0014](../docs/adr/0014-swap-auto-gas.md). The CL8Y → UST
 | **G1360-2** | Timeout, bad HTTP, unusable `gas_used`, below 100,000, or above 15,000,000 → static fallback. Never sign `ceil(147_000_000 × 1.2)`. |
 | **G1360-3** | Same hop count and same `gas_used` produce the same gas for every CW20 address. Failed two-hop is **1,910,000**. Failed wrap+1hop is **1,800,000**. |
 | **G1360-4** | Network fee row matches that resolved amount. |
-| **G1360-5** | One simulate and one broadcast per submit. No automatic retry after `code` 11. |
+| **G1360-5** | One signature and one broadcast. Failed simulates climb by **200,000** before that signature. No automatic retry after `code` 11. |
 | **G1360-6** | One impact percent. Reduce control hidden during `recovering` / `confirming`. |
 | **G1360-7** | Short-estimate out-of-gas copy is a constant. |
 | **G1360-8** | `preferNoSetFee` remains. Query gas ≠ signed gas unless the 1.2× math happens to match. |

@@ -6,8 +6,10 @@
  */
 import {
   AUTO_GAS_ADJUSTMENT,
+  AUTO_GAS_FALLBACK_STEP,
   AUTO_GAS_MIN_USED,
   AUTO_GAS_SIMULATE_TIMEOUT_MS,
+  AUTO_GAS_STEP_TRANSPORT_LIMIT,
   TERRA_LCD_URL,
   effectiveGasPriceUluna,
 } from '@/utils/constants'
@@ -31,6 +33,24 @@ export type SwapGasReadRequest = {
   entries: AutoGasExecuteEntry[]
   lcdUrl?: string
   timeoutMs?: number
+  /** Gas limit placed in the simulate tx so the query can finish. Not the signed fee. */
+  queryGasLimit?: number
+}
+
+export type SimulateAttempt = 'success' | 'step' | 'stop'
+
+/**
+ * A finished simulate is a usable `gas_used` below the query budget.
+ * Filling that budget means the query ran out of room, so the next attempt adds 200k.
+ * Junk and over-cap figures stop the climb.
+ */
+export function simulateAttemptDecision(gasUsed: unknown, queryGasLimit: number): SimulateAttempt {
+  if (gasUsed == null) return 'step'
+  const parsed = parseAutoGasUsed(gasUsed)
+  if (parsed == null) return 'stop'
+  if (parsed > AUTO_GAS_SIMULATE_CAP || parsed < AUTO_GAS_MIN_USED) return 'stop'
+  if (parsed >= queryGasLimit && queryGasLimit < AUTO_GAS_SIMULATE_CAP) return 'step'
+  return 'success'
 }
 
 export type SwapGasReader = (request: SwapGasReadRequest) => Promise<unknown>
@@ -122,6 +142,7 @@ async function defaultSwapGasReader(request: SwapGasReadRequest): Promise<unknow
     signer: request.signer,
     entries: request.entries,
     timeoutMs: request.timeoutMs ?? AUTO_GAS_SIMULATE_TIMEOUT_MS,
+    queryGasLimit: request.queryGasLimit,
   })
 }
 
@@ -148,7 +169,8 @@ export async function readSwapGasUsed(request: SwapGasReadRequest): Promise<unkn
   }
   try {
     const value = await swapGasReader(request)
-    if (autoGasWantedFromUsed(value) != null) {
+    const queryGas = request.queryGasLimit ?? AUTO_GAS_SIMULATE_CAP
+    if (simulateAttemptDecision(value, queryGas) === 'success') {
       successCache = { key, value, at: now }
     }
     return value
@@ -157,15 +179,56 @@ export async function readSwapGasUsed(request: SwapGasReadRequest): Promise<unkn
   }
 }
 
-/** One simulate for swap-shaped messages. Other executes keep the static envelope. */
+export type AutoGasResolution = { gasLimit: number; source: 'simulate' | 'fallback' }
+
+/**
+ * First simulate uses the 15M query ceiling. If that attempt does not finish,
+ * raise the query gas from the static envelope in 200k steps until a simulate
+ * returns a usable `gas_used`, then sign `ceil(gas_used × 1.2)`. Still one signature.
+ * Three replies with no `gas_used` stop the climb. An included `code` 11 is not resent.
+ */
+export async function resolveSwapAutoGas(
+  fallbackGasLimit: number,
+  request: SwapGasReadRequest
+): Promise<AutoGasResolution> {
+  const first = await readAttempt(request, AUTO_GAS_SIMULATE_CAP)
+  if (first === 'stop') return { gasLimit: fallbackGasLimit, source: 'fallback' }
+  if (typeof first === 'number') return { gasLimit: first, source: 'simulate' }
+
+  let transportFails = first === 'transport' ? 1 : 0
+  for (
+    let queryGas = fallbackGasLimit + AUTO_GAS_FALLBACK_STEP;
+    queryGas <= AUTO_GAS_SIMULATE_CAP && transportFails < AUTO_GAS_STEP_TRANSPORT_LIMIT;
+    queryGas += AUTO_GAS_FALLBACK_STEP
+  ) {
+    const attempt = await readAttempt(request, queryGas)
+    if (attempt === 'stop') return { gasLimit: fallbackGasLimit, source: 'fallback' }
+    if (typeof attempt === 'number') return { gasLimit: attempt, source: 'simulate' }
+    transportFails = attempt === 'transport' ? transportFails + 1 : 0
+  }
+  return { gasLimit: fallbackGasLimit, source: 'fallback' }
+}
+
+async function readAttempt(
+  request: SwapGasReadRequest,
+  queryGasLimit: number
+): Promise<number | 'transport' | 'step' | 'stop'> {
+  const used = await readSwapGasUsed({ ...request, queryGasLimit })
+  const decision = simulateAttemptDecision(used, queryGasLimit)
+  if (decision === 'success') return autoGasWantedFromUsed(used) ?? 'stop'
+  if (decision === 'stop') return 'stop'
+  if (used == null) return 'transport'
+  return 'step'
+}
+
+/** Swap-shaped messages simulate before the signature. Other executes keep the static envelope. */
 export async function resolveBroadcastGasLimit(
   entries: AutoGasExecuteEntry[],
   signer: string
-): Promise<{ gasLimit: number; source: 'simulate' | 'fallback' }> {
+): Promise<AutoGasResolution> {
   const fallback = fallbackGasLimitForEntries(entries)
   if (!entriesUseSwapAutoGas(entries)) {
     return { gasLimit: fallback, source: 'fallback' }
   }
-  const used = await readSwapGasUsed({ signer, entries })
-  return resolveAutoGasLimit(used, fallback)
+  return resolveSwapAutoGas(fallback, { signer, entries })
 }

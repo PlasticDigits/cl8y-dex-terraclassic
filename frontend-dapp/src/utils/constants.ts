@@ -186,6 +186,13 @@ export const AUTO_GAS_MIN_USED = 100_000
 /** One LCD simulate attempt. A hang selects the static per-hop fallback. */
 export const AUTO_GAS_SIMULATE_TIMEOUT_MS = 8_000
 /**
+ * Added to the static envelope and retried, before any signature, when a simulate
+ * does not finish (#1360). The climb stops at the 15,000,000 auto-gas cap.
+ */
+export const AUTO_GAS_FALLBACK_STEP = 200_000
+/** Consecutive simulate calls that return no `gas_used` before the static envelope is signed. */
+export const AUTO_GAS_STEP_TRANSPORT_LIMIT = 3
+/**
  * Extra gas when `wrap_deposit` and router `send`→`execute_swap_operations` (N≥2)
  * share one multi-msg tx ([GitLab #587](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/587),
  * [Forgejo #1264](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1264) **G1264-1**).

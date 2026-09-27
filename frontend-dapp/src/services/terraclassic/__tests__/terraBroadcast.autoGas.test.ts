@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { broadcastTerraExecuteContracts } from '../terraBroadcast'
-import { installSwapGasReaderForTests, type SwapGasReader } from '../swapAutoGas'
+import { installSwapGasReaderForTests, type SwapGasReadRequest, type SwapGasReader } from '../swapAutoGas'
+import { AUTO_GAS_FALLBACK_STEP, AUTO_GAS_STEP_TRANSPORT_LIMIT } from '@/utils/constants'
 import { sendHookExecuteSwapOperationsMsg } from '../terraGas'
 
 const mockBroadcastTx = vi.fn()
@@ -57,7 +58,27 @@ describe('broadcastTerraExecuteContracts auto gas (#1360)', () => {
     expect(unsigned.msgs[0].data.msg.execute_swap_operations.minimum_receive).toBe('1')
   })
 
-  it('signs the two-hop fallback once when simulate rejects, and does not rebroadcast code 11', async () => {
+  it('steps the query by 200k until simulate succeeds, then signs once', async () => {
+    const reader = vi.fn(async (request: SwapGasReadRequest) => {
+      const query = request.queryGasLimit ?? 0
+      if (query === 1_910_000 + AUTO_GAS_FALLBACK_STEP) return 1_937_976
+      return null
+    })
+    installSwapGasReaderForTests(reader)
+    mockBroadcastTx.mockResolvedValue('HASHSTEP')
+    mockPollTx.mockResolvedValue({ txResponse: { code: 0, rawLog: '', logs: [] } })
+
+    await broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [twoHop])
+
+    expect(reader.mock.calls.length).toBeGreaterThan(1)
+    expect(mockBroadcastTx).toHaveBeenCalledTimes(1)
+    expect(signedGas()).toBe(2_325_572n)
+    const queries = reader.mock.calls.map((call) => call[0].queryGasLimit as number)
+    expect(queries).toContain(1_910_000 + AUTO_GAS_FALLBACK_STEP)
+    expect(queries.some((query) => query > 15_000_000)).toBe(false)
+  })
+
+  it('stops after empty simulates and still signs the fallback once, with no code 11 resend', async () => {
     const reader = vi.fn(async () => {
       throw new Error('timeout')
     })
@@ -74,7 +95,7 @@ describe('broadcastTerraExecuteContracts auto gas (#1360)', () => {
     await expect(broadcastTerraExecuteContracts(mockWallet as never, 'terra1sender', [twoHop])).rejects.toThrow(
       /gas estimate was short/
     )
-    expect(reader).toHaveBeenCalledTimes(1)
+    expect(reader).toHaveBeenCalledTimes(AUTO_GAS_STEP_TRANSPORT_LIMIT)
     expect(mockBroadcastTx).toHaveBeenCalledTimes(1)
     expect(signedGas()).toBe(1_910_000n)
   })
