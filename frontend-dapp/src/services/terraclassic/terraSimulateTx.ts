@@ -30,9 +30,17 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-export function base64ToBytes(value: string): Uint8Array {
+/** TS 5.9 types `Uint8Array` as `ArrayBufferLike`. protobuf-es fields want a plain `ArrayBuffer`. */
+function protobufBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  const copy = new Uint8Array(buffer)
+  copy.set(bytes)
+  return copy
+}
+
+export function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   const binary = atob(value)
-  const out = new Uint8Array(binary.length)
+  const out = new Uint8Array(new ArrayBuffer(binary.length))
   for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i)
   return out
 }
@@ -69,9 +77,9 @@ export function encodeSwapSimulateTxBytes(input: {
   const fee = new CosmosTxV1beta1Fee({ amount: [], gasLimit: queryGas })
   const auth = new CosmosTxV1beta1AuthInfo({ signerInfos: [signerInfo], fee })
   const raw = new CosmosTxV1beta1TxRaw({
-    bodyBytes: body.toBinary(),
-    authInfoBytes: auth.toBinary(),
-    signatures: [new Uint8Array()],
+    bodyBytes: protobufBytes(body.toBinary()),
+    authInfoBytes: protobufBytes(auth.toBinary()),
+    signatures: [new Uint8Array(new ArrayBuffer(0))],
   })
   return raw.toBinary()
 }
