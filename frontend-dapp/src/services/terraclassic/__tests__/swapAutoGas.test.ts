@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { AUTO_GAS_ADJUSTMENT, AUTO_GAS_MIN_USED, WRAP_GAS_LIMIT } from '@/utils/constants'
+import { AUTO_GAS_ADJUSTMENT, AUTO_GAS_FALLBACK_STEP, AUTO_GAS_MIN_USED, WRAP_GAS_LIMIT } from '@/utils/constants'
 import { HYBRID_SWAP_GAS_LIMIT } from '../hybridSwapGas'
 import { estimateSwapNetworkFee, swapAutoGasProbeEntries } from '../swapNetworkFee'
 import {
@@ -8,7 +8,11 @@ import {
   autoGasWantedFromUsed,
   fallbackGasLimitForEntries,
   feeEstimateForGasLimit,
+  installSwapGasReaderForTests,
   resolveAutoGasLimit,
+  resolveSwapAutoGas,
+  simulateAttemptDecision,
+  type SwapGasReadRequest,
 } from '../swapAutoGas'
 import { gasLimitForRouterExecuteSwapOperations, sendHookExecuteSwapOperationsMsg } from '../terraGas'
 
@@ -33,6 +37,10 @@ function twoHopSend(offer: string, ask: string) {
   ])
 }
 
+afterEach(() => {
+  installSwapGasReaderForTests(null)
+})
+
 describe('swap auto gas (#1360)', () => {
   it('turns the measured CL8Y → KENA gas_used into ceil × 1.2', () => {
     expect(AUTO_GAS_ADJUSTMENT).toBe(1.2)
@@ -48,6 +56,27 @@ describe('swap auto gas (#1360)', () => {
       expect(decision).toEqual({ gasLimit: 1_910_000, source: 'fallback' })
       expect(decision.gasLimit).not.toBe(Math.ceil(147_000_000 * 1.2))
     }
+  })
+
+  it('climbs 200k when the query budget is full, then signs 1.2× of a finished simulate', async () => {
+    expect(simulateAttemptDecision(2_110_000, 2_110_000)).toBe('step')
+    expect(simulateAttemptDecision(1_937_976, 2_110_000 + AUTO_GAS_FALLBACK_STEP)).toBe('success')
+    expect(simulateAttemptDecision(147_000_000, 15_000_000)).toBe('stop')
+
+    const fallback = 1_910_000
+    installSwapGasReaderForTests(async (request: SwapGasReadRequest) => {
+      const query = request.queryGasLimit ?? 0
+      if (query === AUTO_GAS_SIMULATE_CAP) return null
+      if (query === fallback + AUTO_GAS_FALLBACK_STEP) return query
+      if (query === fallback + AUTO_GAS_FALLBACK_STEP * 2) return 1_937_976
+      return null
+    })
+
+    const decision = await resolveSwapAutoGas(fallback, {
+      signer: 'terra1sender',
+      entries: [{ contract: TOKEN_A, msg: twoHopSend(TOKEN_A, TOKEN_B) }],
+    })
+    expect(decision).toEqual({ gasLimit: 2_325_572, source: 'simulate' })
   })
 
   it('accepts the cap and rejects one gas above it', () => {

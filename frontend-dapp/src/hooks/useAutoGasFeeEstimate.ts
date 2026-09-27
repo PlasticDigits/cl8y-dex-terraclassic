@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import type { TerraClassicFeeEstimate } from '@/services/terraclassic/terraClassicFeeEstimate'
 import {
   feeEstimateForGasLimit,
-  readSwapGasUsed,
-  resolveAutoGasLimit,
+  resolveSwapAutoGas,
   type SwapGasReadRequest,
 } from '@/services/terraclassic/swapAutoGas'
 
@@ -13,8 +12,8 @@ function probeKey(probe: SwapGasReadRequest | null): string {
 }
 
 /**
- * Static fallback until one simulate resolves. A failed simulate keeps the fallback
- * so the Network fee row matches what `broadcastTerraExecuteContracts` will sign (#1360).
+ * Static fallback until simulate resolves. A failed first simulate climbs in 200k
+ * steps before the signature so the Network fee matches the signed gas (#1360).
  */
 export function useAutoGasFeeEstimate(
   fallback: TerraClassicFeeEstimate,
@@ -27,9 +26,8 @@ export function useAutoGasFeeEstimate(
   useEffect(() => {
     if (!probe) return
     let cancelled = false
-    void readSwapGasUsed(probe).then((used) => {
+    void resolveSwapAutoGas(fallback.gasLimit, probe).then((decision) => {
       if (cancelled) return
-      const decision = resolveAutoGasLimit(used, fallback.gasLimit)
       setResolvedKey(key)
       setResolved(decision.source === 'simulate' ? feeEstimateForGasLimit(decision.gasLimit) : null)
     })

@@ -27,7 +27,7 @@ The gas limit inside the simulate request exists so the query can finish. It is 
 
 The Network fee row uses the same rule: the 1.2× amount after a successful simulate, otherwise the static uluna amount. Preview messages can omit the submit-time deadline, so the displayed uluna can differ in the last digits from the signed fee. The signed fee is always one fresh simulate of the exact messages, unless an identical successful simulate is still in the 15s cache.
 
-One simulate per submit. An included `code` 11 does not broadcast again. `max_spread` and `minimum_receive` are unchanged. Keplr and Station extension keep `preferNoSetFee`. Station WalletConnect atomic post remains the [ADR 0004](./0004-terraclassic-retail-gas-census.md) **G-AUTO-8** residual.
+The first simulate uses the 15,000,000 query ceiling. If it does not finish, the query gas starts at the static envelope plus **200,000** and climbs by **200,000** until a simulate returns a usable `gas_used` or three replies contain no `gas_used`. That climb happens before the signature. An included `code` 11 does not broadcast again. `max_spread` and `minimum_receive` are unchanged. Keplr and Station extension keep `preferNoSetFee`. Station WalletConnect atomic post remains the [ADR 0004](./0004-terraclassic-retail-gas-census.md) **G-AUTO-8** residual.
 
 While broadcast phase is `recovering` or `confirming`, the pay-field control **Use {amount} instead** is hidden. When route slippage is above 5%, the percent outside collapsed trade details is that route figure, not a different worst-hop percent.
 
@@ -47,7 +47,7 @@ A `gas_used` of 1 is rejected (below 100,000) so a dummy body cannot sign a 2-ga
 | **G1360-2** | Timeout, non-success HTTP, missing or non-integer `gas_used`, `gas_used` below **100,000**, or `gas_used` above **15,000,000** selects the static envelope. Do not multiply an over-cap result. |
 | **G1360-3** | No token-address gas constant. Failed two-hop sim is **1,910,000**. Failed wrap+1hop is **1,800,000**. Successful sim is not raised to **3,000,000**. |
 | **G1360-4** | Swap and Trade market Network fee show that resolved uluna amount. |
-| **G1360-5** | Submit simulates once and broadcasts once. Included `code` 11 does not broadcast again. |
+| **G1360-5** | One signature and one broadcast. A failed simulate climbs the query gas by **200,000** until a simulate finishes or three replies have no `gas_used`. Included `code` 11 does not broadcast again. |
 | **G1360-6** | High-impact route slippage and the outside percent are the same figure. **Use {amount} instead** is hidden during `recovering` and `confirming` and does not broadcast. |
 | **G1360-7** | Out-of-gas copy when used exceeds wanted by more than **1,000** is a fixed sentence with no raw-log interpolation. |
 | **G1360-8** | `preferNoSetFee` stays on for Keplr and Station extension. The simulate-request gas limit is not the signed fee. Fixtures do not embed a trader address. |
