@@ -110,3 +110,4 @@ Add an object to the `tokens` array in `tokenlist/tokenlist.json`:
 | vFDUSD | Venus FDUSD (bridged) | cw20 | ![vFDUSD](images/VFDUSD.png) |
 | USDT | Tether USD | cw20 | ![USDT](images/USDT.png) |
 | DO | Lunc Cookie Do Coin | cw20 | ![DO](images/DO.png) |
+| KENA | Kenalinu | cw20 | ![KENA](images/KENA.jpg) |
