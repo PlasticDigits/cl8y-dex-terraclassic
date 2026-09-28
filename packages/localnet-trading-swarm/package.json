@@ -18,7 +18,7 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "@goblinhunt/cosmes": "0.0.71-ghunt.21",
+    "@goblinhunt/cosmes": "0.0.71-ghunt.22",
     "@scure/bip39": "^1.4.0"
   },
   "devDependencies": {
