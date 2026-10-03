@@ -1,6 +1,6 @@
-# Hourly $200 cUSTC mint → best-solver UST1 swap
+# Randomized cUSTC mint → best-solver UST1 swap
 
-Operator script that **mints $200 of cUSTC every hour** (sized at the indexer **USTC/USD** oracle), swaps it to **UST1** via the indexer **best-execution solver**, then **sends that UST1 to CMM** until CMM’s **vFDUSD CW20 × Venus × FDUSD/USD** is **$500**. Live default **loops** until that on-chain figure is met.
+Operator script that uses a **$200 base cUSTC budget with ±20% randomness** (sized at the indexer **USTC/USD** oracle), swaps it to **UST1** via the indexer **best-execution solver**, then **sends that UST1 to CMM** until CMM’s **vFDUSD CW20 × Venus × FDUSD/USD** is **$500**. Live default **loops** until that on-chain figure is met, waiting **45–75 minutes after each tick**.
 
 Script: [`scripts/mint-swap-custc-ust1.sh`](../../scripts/mint-swap-custc-ust1.sh)  
 Math: [`scripts/lib/custc-ust1-buyback-math.py`](../../scripts/lib/custc-ust1-buyback-math.py) (`self-test`); router send-hook in [`ust1-clunc-buyback-math.py`](../../scripts/lib/ust1-clunc-buyback-math.py)  
@@ -44,7 +44,11 @@ How long that takes depends on third-party window deposits, not on ~$200 of UST1
 
 Pin `CUSTC_UST1_VFDUSD_USD` to skip Venus × CEX (USD per 1 human vFDUSD). Pin `CUSTC_UST1_USTC_USD` to skip the USTC oracle used for mint sizing.
 
-Live default sleeps **3600s** between ticks (`CUSTC_UST1_LOOP=1`). Dry-run is one tick unless `CUSTC_UST1_LOOP=1`.
+Live default waits **3600s ±900s** between ticks (`CUSTC_UST1_LOOP=1`). Each amount and wait is independently drawn from operating-system randomness. The wait starts after the tick finishes, including failed ticks; it does not align to the clock. The first tick runs immediately. Dry-run is one tick unless `CUSTC_UST1_LOOP=1`.
+
+With `CUSTC_UST1_MINT_USD=50`, each tick spends **$40–$60 of cUSTC input**. The received token amount depends on the quote. Set `CUSTC_UST1_AMOUNT_JITTER_PERCENT=0` or `CUSTC_UST1_INTERVAL_JITTER_SEC=0` to disable the respective randomization. Interval jitter must be smaller than the base interval; amount jitter must be below 100%.
+
+Requires Bash **4.4+**. Each tick validates the quote's token endpoints and builds the router hook **before minting**. HTTP failures, empty or invalid quotes, and hook-build failures abort that tick without minting. A failed single-tick preview exits nonzero; loop mode sleeps and retries.
 
 State file (swap telemetry): `$HOME/.cl8y-dex/custc-ust1-buyback-state.json`.
 
@@ -53,28 +57,21 @@ State file (swap telemetry): `$HOME/.cl8y-dex/custc-ust1-buyback-state.json`.
 ```bash
 python3 scripts/lib/custc-ust1-buyback-math.py self-test
 DRY_RUN=1 ./scripts/mint-swap-custc-ust1.sh
-# live hourly loop until CMM vFDUSD USD >= 500:
+# live randomized loop until CMM vFDUSD USD >= 500:
 read -rs TERRAD_HOST_KEYRING_PASS; export TERRAD_HOST_KEYRING_PASS
 CUSTC_UST1_YES=1 ./scripts/mint-swap-custc-ust1.sh
 # single tick only:
 CUSTC_UST1_LOOP=0 CUSTC_UST1_YES=1 ./scripts/mint-swap-custc-ust1.sh
 ```
 
-Cron (one tick per hour; set `CUSTC_UST1_LOOP=0`):
-
-```bash
-0 * * * * cd /home/answorld/repos/cl8y-dex-terraclassic && \
-  TERRAD_HOST_KEYRING_PASS=… CUSTC_UST1_YES=1 CUSTC_UST1_LOOP=0 \
-  ./scripts/mint-swap-custc-ust1.sh \
-  >>/var/log/custc-ust1-buyback.log 2>&1
-```
+Use the built-in loop for randomized waits. A fixed cron schedule with `CUSTC_UST1_LOOP=0` only randomizes the amount. Restart the running script to load changed settings.
 
 Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multisig2`, `multisig_2of3`, `cl8ydeploy`) must share that passphrase.
 
 ## What success looks like
 
-1. Each tick mints at most **$200 of cUSTC** at the live USTC oracle (skips when admin already holds that much).
-2. Swap uses indexer `GET /api/v1/route/solve/best` (`trader`/`sender` = admin) and executes those `router_operations` with a **5%** `minimum_receive` floor. Book hops also get per-hop `min_return` from pair `hybrid_simulation` (#334; indexer quotes omit it).
+1. Each tick draws **$160–$240 of cUSTC input** with the default $200 base, then tops up the admin balance at the live USTC oracle (skips when admin already holds that much).
+2. Swap uses indexer `GET /api/v1/route/solve/best` (`trader`/`sender` = admin) and executes those `router_operations` with a **0.25%** slippage tolerance: `minimum_receive` is 99.75% of the quote, rounded down to atomic units. Book hops also get per-hop `min_return` from pair `hybrid_simulation` (#334; indexer quotes omit it).
 3. Default dest **CW20-transfers only the UST1 received this tick to CMM**. Does not unwrap, does not window-redeem, does not burn cUSTC, LP, or vFDUSD already on CMM.
 4. After each tick the script re-queries CMM vFDUSD and **exits 0** once that USD ≥ **500**. The swap itself does not move that number; window-mint arb does. Failed ticks sleep and retry; they do not abort the loop.
 
@@ -82,12 +79,14 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multis
 
 | Env | Purpose |
 |-----|---------|
-| `CUSTC_UST1_MINT_USD` | USD of cUSTC per tick (default `200`) |
+| `CUSTC_UST1_MINT_USD` | Base USD of cUSTC per tick (default `200`) |
+| `CUSTC_UST1_AMOUNT_JITTER_PERCENT` | Random budget range ± this percent (default `20`) |
 | `CUSTC_UST1_TARGET_USD` | Stop USD (default `500`) |
-| `CUSTC_UST1_INTERVAL_SEC` | Loop sleep (default `3600`) |
+| `CUSTC_UST1_INTERVAL_SEC` | Base wait after each tick (default `3600`) |
+| `CUSTC_UST1_INTERVAL_JITTER_SEC` | Random wait range ± this many seconds (default `900`) |
 | `CUSTC_UST1_LOOP` | Live default `1`; dry-run default `0`; set `0` for a single tick / cron |
 | `CUSTC_UST1_DEST` | `cmm` (default), `hold`, or `burn` |
-| `CUSTC_UST1_SLIPPAGE_PERCENT` | `minimum_receive` floor (default `5`) |
+| `CUSTC_UST1_SLIPPAGE_PERCENT` | Tolerance below the quote for `minimum_receive` (default `0.25`) |
 | `CUSTC_UST1_MAX_SPREAD` | Router `max_spread` (default `0.20`) |
 | `CUSTC_UST1_USTC_USD` | Skip indexer USTC oracle |
 | `CUSTC_UST1_VFDUSD_USD` | Skip Venus × FDUSD; USD per 1 human vFDUSD |
