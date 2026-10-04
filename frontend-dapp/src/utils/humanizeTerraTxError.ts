@@ -18,6 +18,22 @@ import { humanizeCosmwasmLimitOrderMissingMessage } from './limitOrderCancelUser
 import { humanizeExpiredLimitClaimMessage } from './limitClaimUserMessage'
 import { INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE } from './taxPreviewMaxSpend'
 
+/**
+ * Included `code` 11 where `gas_used` exceeded `gas_wanted` by more than 1,000 (#1360).
+ * A constant — no raw log, address, or amount interpolation. A retry at the same limit fails again.
+ */
+export const OUT_OF_GAS_SHORT_ESTIMATE_MESSAGE = 'The gas estimate was short, so this transaction was not completed.'
+
+function outOfGasShortEstimate(inner: string): boolean {
+  const wanted = inner.match(/gasWanted:\s*(\d+)/i)
+  const used = inner.match(/gasUsed:\s*(\d+)/i)
+  if (!wanted?.[1] || !used?.[1]) return false
+  const gasWanted = Number(wanted[1])
+  const gasUsed = Number(used[1])
+  if (!Number.isSafeInteger(gasWanted) || !Number.isSafeInteger(gasUsed)) return false
+  return gasUsed > gasWanted + 1_000
+}
+
 /** Strip repeated `Transaction failed:` prefixes from nested throws. */
 export function stripNestedTransactionFailedPrefixes(message: string): string {
   let s = message.trim()
@@ -131,6 +147,7 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
     return 'Insufficient LUNC for transaction fees. Top up your wallet and try again.'
   }
   if (/out of gas/i.test(inner)) {
+    if (outOfGasShortEstimate(inner)) return OUT_OF_GAS_SHORT_ESTIMATE_MESSAGE
     return 'Transaction needed more gas than estimated. Try again — gas usage can vary slightly between blocks.'
   }
   if (/assert_deadline|deadline exceeded/i.test(inner)) {
