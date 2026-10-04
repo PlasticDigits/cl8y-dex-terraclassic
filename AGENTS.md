@@ -429,6 +429,8 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 
 ### Related playbooks
 
+- [skills/AGENTS_FRONTEND_SCROLL_INVARIANTS.md](skills/AGENTS_FRONTEND_SCROLL_INVARIANTS.md) — bundled after-scroll picker/header/ticket/chart checks (**S1316-1–S1316-5**, [#1316](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1316)); `make verify-issue-1316` (Chromium, no chain).
+
 - [skills/AGENTS_PAIR_TWAP_MIGRATION.md](skills/AGENTS_PAIR_TWAP_MIGRATION.md) — third-party agent boundary and cross-system checks for the Columbus-5 Uint256 pair migrate ([#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324)); runbook [`docs/runbooks/pair-twap-uint256-columbus5.md`](docs/runbooks/pair-twap-uint256-columbus5.md)
 - [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests; never bind-mount `indexer/` for cargo (`make test-indexer-target-ownership`)
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E

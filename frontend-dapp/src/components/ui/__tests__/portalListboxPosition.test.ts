@@ -49,7 +49,7 @@ describe('computePortalListboxStyle', () => {
       gap: 8,
     })
     expect(style.top).toBe('auto')
-    expect(style.bottom).toBe(844 - 820 + 8)
+    expect(style.bottom).toBe(72 + PORTAL_LISTBOX_VIEWPORT_PAD)
   })
 
   it('clamps horizontal position inside the viewport', () => {
@@ -120,5 +120,26 @@ describe('computePortalListboxStyle', () => {
     })
     expect(style.left).toBe(16)
     expect(style.width).toBe(344)
+  })
+
+  it('keeps a menu in the usable band after its trigger scrolls behind the header (#1316)', () => {
+    const style = computePortalListboxStyle({
+      anchor: rect(16, -40, 343, 48),
+      viewport: { width: 375, height: 667, topInset: 64, bottomInset: 100 },
+    })
+    expect(style.top).toBe(64 + PORTAL_LISTBOX_VIEWPORT_PAD)
+    expect(style.maxHeight).toBeGreaterThan(0)
+    expect(menuBottom(style)).toBeLessThanOrEqual(667 - 100 - PORTAL_LISTBOX_VIEWPORT_PAD)
+  })
+
+  it('keeps an above menu inside the reserved band after its trigger scrolls below the viewport (#1316)', () => {
+    const style = computePortalListboxStyle({
+      anchor: rect(16, 700, 343, 48),
+      viewport: { width: 375, height: 667, topInset: 64, bottomInset: 100 },
+    })
+    expect(style.top).toBe('auto')
+    expect(style.bottom).toBe(100 + PORTAL_LISTBOX_VIEWPORT_PAD)
+    const bottom = 667 - (style.bottom as number)
+    expect(bottom - (style.maxHeight as number)).toBeGreaterThanOrEqual(64 + PORTAL_LISTBOX_VIEWPORT_PAD)
   })
 })

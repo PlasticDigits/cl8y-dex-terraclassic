@@ -76,4 +76,22 @@ describe('readPortalListboxViewport (GitLab #632)', () => {
     expect(vp.bottomInset).toBeGreaterThan(56)
     expect(Number.isFinite(vp.bottomInset)).toBe(true)
   })
+
+  it('reserves the larger of sticky-header and visual-viewport top occlusion (#1316)', () => {
+    const args = {
+      innerWidth: 375,
+      innerHeight: 667,
+      tabBarInset: 56,
+      headerInset: 64,
+      inAppChrome: false,
+      coarseNarrow: true,
+    }
+    expect(readPortalListboxViewport(args).topInset).toBe(64)
+    expect(
+      readPortalListboxViewport({
+        ...args,
+        visualViewport: { width: 375, height: 500, offsetTop: 90, offsetLeft: 0 },
+      }).topInset
+    ).toBe(90)
+  })
 })

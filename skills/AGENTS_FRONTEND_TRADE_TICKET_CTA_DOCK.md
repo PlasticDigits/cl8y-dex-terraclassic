@@ -72,3 +72,9 @@ Issue: [GitLab **#527**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/
 - Ticket heading + no compact wallet chip; Buy/Sell colors: [`AGENTS_FRONTEND_TRADE_TICKET_HEADING.md`](./AGENTS_FRONTEND_TRADE_TICKET_HEADING.md) (`#563`) — footer **Connect Wallet** remains the disconnected money-path CTA
 - Slippage chips stay in the ticket body (not this footer): [`AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md`](./AGENTS_FRONTEND_SLIPPAGE_PRESET_ALIGN.md) (`#528`)
 - Open-limits Cancel reachability (panel **above** footer): [`AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md`](./AGENTS_FRONTEND_LIMIT_CANCEL_OPEN.md) (`#530`)
+
+## After-scroll regression (#1316)
+
+See [layout scroll invariants](AGENTS_FRONTEND_SCROLL_INVARIANTS.md) for the
+bundled picker/header/ticket/chart regression, `make verify-issue-1316`, and
+agent verification instructions with explicit unavailable-check reporting.

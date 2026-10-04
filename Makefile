@@ -692,6 +692,11 @@ verify-issue-1315:
 
 .PHONY: verify-issue-1315
 
+# Scroll geometry and chart refresh at desktop/phone widths; no chain required.
+.PHONY: verify-issue-1316
+verify-issue-1316:
+	bash scripts/qa/verify-issue-1316.sh
+
 # Forgejo #1328 — measured CL8Y → UST1 pool-only router gas envelope.
 .PHONY: verify-issue-1328 measure-issue-1328 verify-issue-1360 measure-issue-1360
 verify-issue-1328:

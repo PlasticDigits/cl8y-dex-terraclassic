@@ -8,7 +8,7 @@ export type PortalListboxViewport = {
   height: number
   /** Fixed chrome + IME / in-app reserve below the layout viewport (GitLab #632). */
   bottomInset?: number
-  /** Visual-viewport offset from the top of the layout viewport (IME / pinch). */
+  /** Visible top band reserved for sticky chrome or visual-viewport offset. */
   topInset?: number
   /** Visual-viewport offset from the left of the layout viewport. */
   offsetLeft?: number
@@ -25,8 +25,8 @@ export type PortalListboxPositionArgs = {
  * Fixed coordinates for a portaled listbox anchored to a trigger rect.
  * Pure function — safe to unit test and call during render when the anchor ref is set.
  *
- * `position: fixed` is layout-viewport-relative. Pass visualViewport occlusion as
- * `topInset` / `bottomInset` (see `readPortalListboxViewport`) so the menu stays
+ * `position: fixed` is layout-viewport-relative. Pass visualViewport and chrome
+ * occlusion as `topInset` / `bottomInset` (see `readPortalListboxViewport`) so the menu stays
  * inside the visible band and above DEX / in-app chrome (GitLab #632).
  */
 export function computePortalListboxStyle({
@@ -48,18 +48,22 @@ export function computePortalListboxStyle({
     originLeft + vw - PORTAL_LISTBOX_VIEWPORT_PAD - width
   )
 
-  const spaceBelow = vh - anchor.bottom - gap - PORTAL_LISTBOX_VIEWPORT_PAD - bottomBar
-  const spaceAbove = anchor.top - gap - PORTAL_LISTBOX_VIEWPORT_PAD - topBar
+  const visibleTop = topBar + PORTAL_LISTBOX_VIEWPORT_PAD
+  const visibleBottom = Math.max(visibleTop, vh - bottomBar - PORTAL_LISTBOX_VIEWPORT_PAD)
+  // A scroll can carry an open picker trigger behind fixed chrome or out of
+  // view. Clamp the attachment point as well as the height so its portal stays
+  // usable until the user selects an option or dismisses it (#1316).
+  const belowTop = Math.min(visibleBottom, Math.max(visibleTop, anchor.bottom + gap))
+  const aboveBottom = Math.min(visibleBottom, Math.max(visibleTop, anchor.top - gap))
+  const availBelow = visibleBottom - belowTop
+  const availAbove = aboveBottom - visibleTop
 
-  const availBelow = Math.max(0, spaceBelow)
-  const availAbove = Math.max(0, spaceAbove)
-
-  const preferBelow = spaceBelow >= PORTAL_LISTBOX_MIN_MENU_HEIGHT || spaceBelow >= spaceAbove
+  const preferBelow = availBelow >= PORTAL_LISTBOX_MIN_MENU_HEIGHT || availBelow >= availAbove
 
   if (preferBelow) {
     return {
       position: 'fixed',
-      top: anchor.bottom + gap,
+      top: belowTop,
       left,
       width,
       maxHeight: Math.min(preferredMaxHeight, availBelow),
@@ -73,7 +77,7 @@ export function computePortalListboxStyle({
     left,
     width,
     maxHeight: Math.min(preferredMaxHeight, availAbove),
-    bottom: vh - anchor.top + gap,
+    bottom: vh - aboveBottom,
   }
 }
 

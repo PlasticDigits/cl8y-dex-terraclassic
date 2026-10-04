@@ -21,6 +21,8 @@ export type ReadPortalListboxViewportArgs = {
   innerHeight: number
   visualViewport?: VisualViewportLike | null
   tabBarInset: number
+  /** Layout-viewport bottom of visible sticky header chrome (#1316). */
+  headerInset?: number
   inAppChrome: boolean
   coarseNarrow: boolean
 }
@@ -31,7 +33,7 @@ function finiteNonNegative(n: unknown, fallback: number): number {
 
 /**
  * Layout-viewport coords for `position: fixed`, with visualViewport occlusion
- * and optional in-app chrome folded into insets (GitLab #632).
+ * and sticky / optional in-app chrome folded into insets (#632 / #1316).
  *
  * Spoofed / extreme visualViewport values clamp to a usable box — never throw
  * and never treat the reserved band as tappable menu space.
@@ -57,7 +59,7 @@ export function readPortalListboxViewport(args: ReadPortalListboxViewportArgs): 
     width: vvW,
     height: innerH,
     offsetLeft,
-    topInset: offsetTop,
+    topInset: Math.max(offsetTop, Math.min(innerH, finiteNonNegative(args.headerInset, 0))),
     bottomInset: tab + bottomOccluded + inApp + finger,
   }
 }
@@ -68,6 +70,9 @@ export function getPortalListboxViewport(): PortalListboxViewport {
     return { width: 1, height: 1, bottomInset: 0 }
   }
   const vv = window.visualViewport
+  const header = document.querySelector<HTMLElement>('.app-top-sticky')
+  const headerInset =
+    header && getComputedStyle(header).display !== 'none' ? Math.max(0, header.getBoundingClientRect().bottom) : 0
   return readPortalListboxViewport({
     innerWidth: window.innerWidth,
     innerHeight: window.innerHeight,
@@ -80,6 +85,7 @@ export function getPortalListboxViewport(): PortalListboxViewport {
         }
       : null,
     tabBarInset: getMobileBottomNavInsetPx(),
+    headerInset,
     inAppChrome: detectWalletInAppBrowser().isInAppBrowser,
     coarseNarrow: isCoarseNarrowViewport(),
   })
