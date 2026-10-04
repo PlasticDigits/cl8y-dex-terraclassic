@@ -25,7 +25,11 @@ import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { executeCw20AllowanceThen } from '@/services/terraclassic/transactions'
-import { estimateTradeMarketNetworkFeeUluna } from '@/services/terraclassic/swapNetworkFee'
+import {
+  estimateSwapNetworkFee,
+  estimateTradeMarketNetworkFeeUluna,
+  swapAutoGasProbeEntries,
+} from '@/services/terraclassic/swapNetworkFee'
 import {
   POOL_ONLY_QUOTE_DISCLOSURE,
   quoteDirectHybridSwap,
@@ -48,11 +52,13 @@ import {
 import { useAssetDecimals } from '@/hooks/useAssetDecimals'
 import { toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
 import { isTheaterRouteQuote } from '@/utils/swapQuoteAmountScale'
-import { resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
+import { impactAsideOutsideDetails, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
-import { acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
+import { acquireGuidanceShowsQuoteOnly, acquireReduceHiddenForBroadcastPhase } from '@/utils/swapPayAcquireGuidance'
+import { useAutoGasFeeEstimate } from '@/hooks/useAutoGasFeeEstimate'
+import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
 import { LIMIT_ORDER_ESCROW_MSG_INSUFFICIENT } from '@/utils/limitOrderEscrowBalanceGate'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -354,7 +360,7 @@ export function TradeMarketOrderPanel({
 
   // Hybrid (GET or Advanced override) reserves hybrid gas; prefer settled solver / manual split params.
   // Multi-hop market shares the mixed-hop helper (#679) — no second formula.
-  const marketGasMin = useMemo(
+  const staticMarketGasMin = useMemo(
     () =>
       estimateTradeMarketNetworkFeeUluna(
         simQuery.data?.indexerOperations,
@@ -362,6 +368,60 @@ export function TradeMarketOrderPanel({
       ),
     [simQuery.data?.indexerOperations, liveHybrid, solverHybridForGas]
   )
+  const marketSwapFallback = useMemo(() => {
+    const ops = simQuery.data?.indexerOperations
+    const hybridOn = !!(liveHybrid ?? solverHybridForGas)
+    if (ops && ops.length >= 2) {
+      return estimateSwapNetworkFee({
+        isDirectWrap: false,
+        needsWrapInput: false,
+        hopCount: ops.length,
+        cw20RouterOperations: ops,
+      })
+    }
+    return estimateSwapNetworkFee({
+      isDirectWrap: false,
+      needsWrapInput: false,
+      hopCount: 1,
+      cw20DirectPair: true,
+      cw20Hybrid: hybridOn,
+    })
+  }, [simQuery.data?.indexerOperations, liveHybrid, solverHybridForGas])
+  const marketAutoGasProbe = useMemo(() => {
+    if (!isWalletConnected || !address || !fromToken.startsWith('terra1')) return null
+    const ops = simQuery.data?.indexerOperations
+    const entries = swapAutoGasProbeEntries({
+      hints: {
+        isDirectWrap: false,
+        needsWrapInput: false,
+        hopCount: ops && ops.length >= 2 ? ops.length : 1,
+        cw20RouterOperations: ops && ops.length >= 2 ? ops : undefined,
+        cw20DirectPair: !ops || ops.length < 2,
+        cw20Hybrid: !!(liveHybrid ?? solverHybridForGas),
+      },
+      payContract: fromToken,
+      payAmount: rawInputAmount,
+      pairContract: selectedPair?.contract_addr,
+      maxSpread: (slippageTolerance / 100).toString(),
+    })
+    if (!entries) return null
+    return { signer: address, entries }
+  }, [
+    isWalletConnected,
+    address,
+    fromToken,
+    rawInputAmount,
+    selectedPair?.contract_addr,
+    slippageTolerance,
+    simQuery.data?.indexerOperations,
+    liveHybrid,
+    solverHybridForGas,
+  ])
+  const marketSwapFee = useAutoGasFeeEstimate(marketSwapFallback, marketAutoGasProbe)
+  const marketGasMin = useMemo(() => {
+    const delta = marketSwapFee.feeUluna - marketSwapFallback.feeUluna
+    return delta > 0n ? staticMarketGasMin + delta : staticMarketGasMin
+  }, [marketSwapFee.feeUluna, marketSwapFallback.feeUluna, staticMarketGasMin])
 
   const placeNativeGasGate = useMemo(
     () =>
@@ -396,6 +456,10 @@ export function TradeMarketOrderPanel({
     simQuery.data?.routeSlippagePercent,
     simQuery.data?.routePreflight?.worstSpreadPercent ?? null
   )
+  const marketImpactAside = impactAsideOutsideDetails({
+    routeSlippagePct: expectedSlippagePct,
+    worstHopPercent: simQuery.data?.routePreflight?.worstSpreadPercent,
+  })
   const theaterRouteQuote = isTheaterRouteQuote(expectedSlippagePct)
 
   const hybridSubmitSnapshot = useMemo(
@@ -615,9 +679,7 @@ export function TradeMarketOrderPanel({
     payRaw: tryParseBigInt(rawInputAmount),
     payBalanceRaw:
       isWalletConnected && escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
-    expectedSlippagePct: simQuery.data?.routePreflight
-      ? parseFloat(simQuery.data.routePreflight.worstSpreadPercent)
-      : null,
+    expectedSlippagePct,
   })
   const showQuoteOnly = acquireGuidanceShowsQuoteOnly(payAcquireGuidance, hasSettledSimQuote)
 
@@ -892,11 +954,16 @@ export function TradeMarketOrderPanel({
                     </p>
                   </div>
                 )}
-                {simQuery.data.routePreflight && (
-                  <p style={{ color: 'var(--ink-dim)' }}>
-                    Worst hop spread (sim): {simQuery.data.routePreflight.worstSpreadPercent}%
+                {marketImpactAside?.kind === 'route' ? (
+                  <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
+                    Expected slippage {marketImpactAside.percent}%.
                   </p>
-                )}
+                ) : marketImpactAside?.kind === 'worst_hop' ? (
+                  <p style={{ color: 'var(--ink-dim)' }} data-testid="trade-market-impact-aside">
+                    Worst hop spread (sim): {marketImpactAside.percent}%
+                  </p>
+                ) : null}
+                <TerraClassicTxFeeHint estimate={marketSwapFee} compact data-testid="trade-market-network-fee" />
                 {marketRouteLine && (
                   <div
                     data-testid="trade-market-route-summary"
@@ -930,6 +997,7 @@ export function TradeMarketOrderPanel({
       <SwapPayAcquireGuidanceBanner
         guidance={payAcquireGuidance}
         testIdPrefix="trade-market"
+        hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
         onReduce={(human) => setMarketAmountHuman(human)}
       />
       <LimitOrderEscrowPlaceGuardMessage

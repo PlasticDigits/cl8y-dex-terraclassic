@@ -300,7 +300,8 @@ make verify-issue-666                    # #666 /charts pair-scoped 24h stats + 
 make verify-issue-680                    # #680 /charts UST1/USD hero + ?price= + page-wide invert
 make verify-issue-1266                   # #1266 /charts Select Pair first change sticks
 make verify-issue-1315                   # #1315 ALPHA pair price candles (lib + chart vitest)
-make verify-issue-1328                   # #1328 measured CL8Y→UST1 pool-only gas floor (Vitest + optional Columbus-5 simulation)
+make verify-issue-1328                   # #1328 CL8Y→UST1 measurement; fee path is the #1360 fallback (Vitest + optional simulation)
+make verify-issue-1360                   # #1360 swap auto gas 1.2× simulate, per-hop fallback (Vitest + optional Columbus-5 simulation)
 make verify-issue-1329                   # #1329 step-aware limit place/edit gas + hybrid fill/cancel rollback and LCD checks
 make verify-issue-613                    # #613 /protocol Wrap/Unwrap ingest (captured notify_deposit + fee)
 make verify-issue-614                    # #614 /protocol UST1 window mint/redeem treasury fees
@@ -375,7 +376,8 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Charts UST1/USD hero + `?price=` | `make verify-issue-680` |
 | Charts Select Pair first change | `make verify-issue-1266` |
 | ALPHA pair price candles | `make verify-issue-1315` |
-| CL8Y → UST1 pool-only gas floor | `make verify-issue-1328` · `make measure-issue-1328` |
+| CL8Y → UST1 pool-only gas measurement | `make verify-issue-1328` · `make measure-issue-1328` |
+| Swap auto gas 1.2× | `make verify-issue-1360` · `make measure-issue-1360` |
 | Hybrid limit place/fill/cancel gas | `make verify-issue-1329` (LocalTerra E2E: `VERIFY_ISSUE_1329_CHAIN=1`) |
 | Keplr CW20 pack | `make verify-issue-629` |
 | Listing venue catalog | `make verify-issue-639` |
@@ -585,6 +587,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - cLUNC/cUSTC v2 LP to $10k in USD rungs → CMM: [`scripts/rebalance-mint-clunc-custc-lp.sh`](scripts/rebalance-mint-clunc-custc-lp.sh) / [`docs/runbooks/rebalance-mint-clunc-custc-lp.md`](docs/runbooks/rebalance-mint-clunc-custc-lp.md)
 - [skills/AGENTS_MINT_CLUNC_CUSTC_LP.md](skills/AGENTS_MINT_CLUNC_CUSTC_LP.md) — add ~$10k cLUNC/cUSTC v2 LP at the **live ratio** (no swap; keep cLUNC premium) → CMM ([`scripts/mint-clunc-custc-lp.sh`](scripts/mint-clunc-custc-lp.sh))
 - cLUNC/USDT v2 seed $1k+$1k (mint cLUNC, never mint USDT) → CMM: [`scripts/mint-clunc-usdt-lp.sh`](scripts/mint-clunc-usdt-lp.sh) / `make test-clunc-usdt-lp`
+- USDT-Bridge-Debt + 10k/10k USDT/UST1 v2 LP → CMM: [`scripts/deploy-usdt-ust1-lp.sh`](scripts/deploy-usdt-ust1-lp.sh) / [`docs/runbooks/deploy-usdt-ust1-lp.md`](docs/runbooks/deploy-usdt-ust1-lp.md)
 - Hourly 50 UST1 → best-solver cLUNC burn until CMM bank uluna × LUNC oracle is $2500: [`scripts/mint-swap-burn-ust1-clunc.sh`](scripts/mint-swap-burn-ust1-clunc.sh) / [`docs/runbooks/mint-swap-burn-ust1-clunc.md`](docs/runbooks/mint-swap-burn-ust1-clunc.md) / [`skills/AGENTS_MINT_SWAP_BURN_UST1_CLUNC.md`](skills/AGENTS_MINT_SWAP_BURN_UST1_CLUNC.md)
 - Hourly $200 cUSTC → best-solver UST1 until CMM vFDUSD × Venus × FDUSD oracle is $500: [`scripts/mint-swap-custc-ust1.sh`](scripts/mint-swap-custc-ust1.sh) / [`docs/runbooks/mint-swap-custc-ust1.md`](docs/runbooks/mint-swap-custc-ust1.md) / [`skills/AGENTS_MINT_SWAP_CUSTC_UST1.md`](skills/AGENTS_MINT_SWAP_CUSTC_UST1.md)
 - [skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md](skills/AGENTS_EXPIRED_LIMIT_PARK_REASON.md) — park `reason` discriminator so bots do not treat dust-filled parks as unfilled expiry ([#504](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/504), invariant **L22**)

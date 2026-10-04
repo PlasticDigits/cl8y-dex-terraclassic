@@ -1,3 +1,5 @@
+import { SWAP_FUNDED_HIGH_IMPACT_PCT } from '@/utils/swapPayAcquireGuidance'
+
 /** Retail swap guard: block submit above this unless Expert Mode is on (GitLab #293). */
 export const SWAP_EXPERT_MODE_SLIPPAGE_BLOCK_PCT = 30
 
@@ -56,6 +58,27 @@ export function resolveSwapExpectedSlippagePercent(
   if (hopSpreadPercent == null) return null
   const hop = parseFloat(hopSpreadPercent)
   return Number.isFinite(hop) ? hop : null
+}
+
+export type ImpactAsideOutsideDetails = { kind: 'route'; percent: string } | { kind: 'worst_hop'; percent: string }
+
+/**
+ * Percent shown outside collapsed trade details (#1360).
+ * When route slippage is above the high-impact threshold, that route figure is the only percent.
+ * A different worst-hop percent is not shown beside "This size moves the pool".
+ */
+export function impactAsideOutsideDetails(input: {
+  routeSlippagePct: number | null
+  worstHopPercent: string | null | undefined
+}): ImpactAsideOutsideDetails | null {
+  const route = input.routeSlippagePct
+  if (route != null && Number.isFinite(route) && route > SWAP_FUNDED_HIGH_IMPACT_PCT) {
+    return { kind: 'route', percent: route.toFixed(2) }
+  }
+  const hopRaw = input.worstHopPercent?.trim()
+  const hop = parseSlippagePercent(hopRaw)
+  if (!hopRaw || hop == null) return null
+  return { kind: 'worst_hop', percent: hopRaw }
 }
 
 export function slippageSeverityClass(pct: number): string {

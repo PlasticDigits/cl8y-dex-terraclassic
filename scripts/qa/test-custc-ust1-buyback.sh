@@ -8,6 +8,7 @@ cd "$REPO_ROOT"
 echo "custc-ust1-buyback static checks"
 python3 scripts/lib/custc-ust1-buyback-math.py self-test
 python3 scripts/lib/ust1-clunc-buyback-math.py self-test
+python3 scripts/qa/test-custc-ust1-buyback-failures.py
 bash -n scripts/mint-swap-custc-ust1.sh
 bash -n scripts/lib/custc-ust1-buyback-defaults.sh
 rg -q 'route/solve/best' scripts/mint-swap-custc-ust1.sh
