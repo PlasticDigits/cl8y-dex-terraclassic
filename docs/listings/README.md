@@ -82,7 +82,13 @@ Indexer already speaks the crawler dialects. Child tasks are **submit + chase**,
 | **GeckoTerminal** | Terra Classic is **not** in `GET https://api.geckoterminal.com/api/v2/networks`. **DEX Addition** form submitted 2026-08-26. Live Non-EVM adapters: `GET https://indexer.dex.cl8y.com/gt/{latest-block,asset,pair,events}` ([#646](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/646), [`scripts/geckoterminal/`](../../scripts/geckoterminal/)). Event `reserves` = post-event AMM state ([#684](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/684)). Pack: [`forms/geckoterminal.md`](./forms/geckoterminal.md). Not Uniswap-V2 auto-detect. |
 | **CoinPaprika / Coinranking / LiveCoinWatch / CoinCodex** | Public token forms. Coinranking already has CL8Y with a **stale** Classic address `terra1u9c7…` — fix that contract. |
 
-### 3. Skip (document only)
+### 3. DEX / community directories — GitHub PR
+
+| Venue | How |
+|-------|-----|
+| **terra-classic.io** | [#1261](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1261): one CL8Y DEX object in [terra-classic-io/website](https://github.com/terra-classic-io/website) `src/data/projects.ts`, plus `public/logos/dex/cl8y.png`. Markets - DEX and Applications; onchain. [Exact pack](./terra-classic-io/README.md), [skill](../../skills/AGENTS_TERRA_CLASSIC_IO.md), `make verify-issue-1261`. Submitted [PR #55](https://github.com/terra-classic-io/website/pull/55); awaiting maintainer review. Operator/agent GitHub submission outside CI (**L639-7**). |
+
+### 4. Skip (document only)
 
 | Venue | Verdict |
 |-------|---------|
