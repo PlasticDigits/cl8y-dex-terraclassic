@@ -51,7 +51,8 @@ source_guards() {
   grep -qE "liquidity_usd" indexer/src/api/pairs.rs
   grep -qE "PairListSort::LiquidityUsd" indexer/src/db/queries/pairs.rs
   grep -qE "LEFT JOIN pair_liquidity_usd" indexer/src/db/queries/pairs.rs
-  grep -qE "pair_liquidity_usd::replace_pair_liquidity_usd" indexer/src/indexer/protocol_tvl.rs
+  grep -qE "publish_liquidity_refresh" indexer/src/indexer/protocol_tvl.rs
+  grep -qE "pair_liquidity_usd::replace_pair_liquidity_usd_tx" indexer/src/db/queries/liquidity_snapshots.rs
   grep -qE "pool-sort-lp-usd" frontend-dapp/src/components/pool/PoolPairsTable.tsx
   grep -qE "formatProtocolUsd" frontend-dapp/src/components/pool/PoolPairsTable.tsx
   grep -qE "colSpan=\{7\}" frontend-dapp/src/components/pool/PoolPairsTable.tsx
@@ -89,7 +90,7 @@ playwright_pool_table() {
   PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3173}" \
     PLAYWRIGHT_BASE_URL="http://127.0.0.1:${PLAYWRIGHT_WEB_PORT:-3173}" \
     bash scripts/with-node.sh --cwd frontend-dapp -- \
-    ./node_modules/.bin/playwright test e2e/pool-table-547.spec.ts --project=e2e-smoke --workers=5
+    ./node_modules/.bin/playwright test e2e/pool-table-547.spec.ts --project=e2e-smoke --workers="${PLAYWRIGHT_WORKERS:-5}" --output="${PLAYWRIGHT_OUTPUT_DIR:-test-results}"
 }
 
 echo "================================================================"

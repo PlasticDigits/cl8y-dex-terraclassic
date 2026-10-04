@@ -10,6 +10,32 @@ use tokio::sync::RwLock;
 
 pub use types::*;
 
+/// Limit the decoded HTTP body before allocating/deserializing an untrusted snapshot.
+/// Enforce the limit while streaming as Content-Length can be absent or dishonest.
+async fn bounded_response_text(
+    mut response: reqwest::Response,
+    max_bytes: usize,
+) -> Result<String, LcdError> {
+    if response
+        .content_length()
+        .is_some_and(|n| n > max_bytes as u64)
+    {
+        return Err(LcdError::Deserialize(format!(
+            "LCD response exceeds {max_bytes} byte limit"
+        )));
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if chunk.len() > max_bytes.saturating_sub(body.len()) {
+            return Err(LcdError::Deserialize(format!(
+                "LCD response exceeds {max_bytes} byte limit"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+    String::from_utf8(body).map_err(|_| LcdError::Deserialize("LCD response is not UTF-8".into()))
+}
+
 /// Redact LCD path for WARN logs (GitLab #379 L-04).
 fn lcd_log_path(path: &str) -> &'static str {
     if path.starts_with("/cosmwasm/") {
@@ -28,8 +54,8 @@ pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
     AllEndpointsFailed(String),
     /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`,
-/// or foreign contract `unknown variant \`pair\``). Not an LCD outage — do not
-/// fan out to other endpoints or WARN.
+    /// or foreign contract `unknown variant \`pair\``). Not an LCD outage — do not
+    /// fan out to other endpoints or WARN.
     #[error("LCD contract query rejected: {0}")]
     ContractQueryRejected(String),
     #[error("Request error: {0}")]
@@ -116,6 +142,14 @@ impl LcdClient {
     }
 
     pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, LcdError> {
+        self.get_with_body_limit(path, None).await
+    }
+
+    async fn get_with_body_limit<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        max_bytes: Option<usize>,
+    ) -> Result<T, LcdError> {
         let mut errors = Vec::new();
 
         let endpoint_count = {
@@ -143,8 +177,26 @@ impl LcdClient {
             match self.inner.client.get(&full_url).send().await {
                 Ok(resp) => {
                     let status = resp.status();
+                    let text = match max_bytes {
+                        Some(limit) => match bounded_response_text(resp, limit).await {
+                            Ok(body) => body,
+                            Err(e) => {
+                                errors.push(format!("endpoint[{idx}] {log_path}: {e}"));
+                                // A hostile contract's size/encoding rejection is local
+                                // to that query. It must not cool down healthy pair reads.
+                                if matches!(&e, LcdError::Request(_)) {
+                                    self.mark_failed(idx).await;
+                                }
+                                continue;
+                            }
+                        },
+                        None if status.is_success() => {
+                            resp.text().await.map_err(LcdError::Request)?
+                        }
+                        None => resp.text().await.unwrap_or_default(),
+                    };
                     if !status.is_success() {
-                        let body = resp.text().await.unwrap_or_default();
+                        let body = text;
                         let body_snippet = body.chars().take(200).collect::<String>();
                         if is_deterministic_contract_query_reject(status, path, &body) {
                             // Expected on mainnet when foreign contracts emit compatible swap
@@ -159,9 +211,8 @@ impl LcdClient {
                             );
                             return Err(LcdError::ContractQueryRejected(body_snippet));
                         }
-                        let msg = format!(
-                            "endpoint[{idx}] {log_path} returned {status}: {body_snippet}"
-                        );
+                        let msg =
+                            format!("endpoint[{idx}] {log_path} returned {status}: {body_snippet}");
                         errors.push(msg);
                         if status.as_u16() == 429 {
                             // Public LCD mirrors rate-limit aggressively during catch-up.
@@ -194,7 +245,6 @@ impl LcdClient {
                         }
                         continue;
                     }
-                    let text = resp.text().await.map_err(LcdError::Request)?;
                     match serde_json::from_str::<T>(&text) {
                         Ok(val) => return Ok(val),
                         Err(e) => {
@@ -252,6 +302,27 @@ impl LcdClient {
         contract_addr: &str,
         query: &serde_json::Value,
     ) -> Result<T, LcdError> {
+        self.query_contract_with_body_limit(contract_addr, query, None)
+            .await
+    }
+
+    /// Bounded response variant for pool/book mirrors. The cap covers success and error bodies.
+    pub async fn query_contract_bounded<T: DeserializeOwned>(
+        &self,
+        contract_addr: &str,
+        query: &serde_json::Value,
+        max_bytes: usize,
+    ) -> Result<T, LcdError> {
+        self.query_contract_with_body_limit(contract_addr, query, Some(max_bytes))
+            .await
+    }
+
+    async fn query_contract_with_body_limit<T: DeserializeOwned>(
+        &self,
+        contract_addr: &str,
+        query: &serde_json::Value,
+        max_bytes: Option<usize>,
+    ) -> Result<T, LcdError> {
         let query_bytes = serde_json::to_vec(query)
             .map_err(|e| LcdError::Deserialize(format!("Failed to serialize query: {}", e)))?;
         let query_b64 = base64::engine::general_purpose::STANDARD.encode(&query_bytes);
@@ -261,7 +332,7 @@ impl LcdClient {
             contract_addr, query_b64
         );
 
-        let resp: SmartQueryResponse = self.get(&path).await?;
+        let resp: SmartQueryResponse = self.get_with_body_limit(&path, max_bytes).await?;
 
         serde_json::from_value(resp.data)
             .map_err(|e| LcdError::Deserialize(format!("Failed to parse contract response: {}", e)))
@@ -288,8 +359,20 @@ impl LcdClient {
     }
 
     pub async fn get_latest_block_height(&self) -> Result<i64, LcdError> {
+        self.get_latest_block_height_with_body_limit(None).await
+    }
+
+    pub async fn get_latest_block_height_bounded(&self, max_bytes: usize) -> Result<i64, LcdError> {
+        self.get_latest_block_height_with_body_limit(Some(max_bytes))
+            .await
+    }
+
+    async fn get_latest_block_height_with_body_limit(
+        &self,
+        max_bytes: Option<usize>,
+    ) -> Result<i64, LcdError> {
         let resp: BlockResponse = self
-            .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
+            .get_with_body_limit("/cosmos/base/tendermint/v1beta1/blocks/latest", max_bytes)
             .await?;
         resp.block
             .header
@@ -412,6 +495,76 @@ pub struct BlockTxsResult {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn bounded_body_caps_chunked_response_without_content_length() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 1024];
+            socket.read(&mut request).await.unwrap();
+            socket.write_all(
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n14\r\nxxxxxxxxxxxxxxxxxxxx\r\n14\r\nxxxxxxxxxxxxxxxxxxxx\r\n0\r\n\r\n",
+            ).await.unwrap();
+        });
+        let response = reqwest::Client::new()
+            .get(format!("http://{address}"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.content_length(), None);
+        let error = super::bounded_response_text(response, 32)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("exceeds 32 byte limit"));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn bounded_contract_response_rejects_huge_success_and_error_bodies() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        for status in [200, 500] {
+            let server = MockServer::start().await;
+            Mock::given(method("GET"))
+                .respond_with(ResponseTemplate::new(status).set_body_string("x".repeat(65_537)))
+                .mount(&server)
+                .await;
+            let lcd = super::LcdClient::new(vec![server.uri()], 1000, 1000);
+            let result = lcd
+                .query_contract_bounded::<serde_json::Value>(
+                    "terra1pair",
+                    &serde_json::json!({ "pool": {} }),
+                    65_536,
+                )
+                .await;
+            let error = result.unwrap_err().to_string();
+            assert!(error.contains("exceeds 65536 byte limit"));
+            assert!(
+                !error.contains(&"x".repeat(20)),
+                "oversized bodies never enter errors/logs"
+            );
+            server.reset().await;
+            Mock::given(method("GET"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_body_json(serde_json::json!({"data": {"healthy": true}})),
+                )
+                .mount(&server)
+                .await;
+            let healthy = lcd
+                .query_contract_bounded::<serde_json::Value>(
+                    "terra1healthy",
+                    &serde_json::json!({"pool": {}}),
+                    65_536,
+                )
+                .await
+                .expect("one oversized pair cannot cool down healthy pair queries");
+            assert_eq!(healthy["healthy"], true);
+        }
+    }
+
     use super::*;
     use serde_json::json;
     use wiremock::matchers::{method, path, query_param};
@@ -725,6 +878,9 @@ mod tests {
             .mount(&server)
             .await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
-        assert_eq!(lcd.get_contract_code_id("terra1token").await.unwrap(), 10184);
+        assert_eq!(
+            lcd.get_contract_code_id("terra1token").await.unwrap(),
+            10184
+        );
     }
 }

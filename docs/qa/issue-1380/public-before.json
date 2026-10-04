@@ -1,0 +1,706 @@
+{
+  "observed_at_utc": "2026-10-04T08:16:32.197151+00:00",
+  "base_url": "https://indexer.dex.cl8y.com/api/v1",
+  "reads": {
+    "overview": {
+      "status": "ok",
+      "payload": {
+        "total_liquidity_usd": "247930.03236144637175048300",
+        "liquidity_change_24h_pct": "1.79531436689719565200",
+        "liquidity_change_30d_pct": "111.16101709398609424300",
+        "priced_pair_count": 11,
+        "unpriced_pair_count": 11,
+        "total_liquidity_usd_24h_ago": "243557.41116712018823976600",
+        "total_liquidity_usd_30d_ago": "117412.78564267128926710100"
+      }
+    },
+    "hourly": {
+      "status": "ok",
+      "payload": {
+        "grain": "hourly",
+        "limit": 72,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_hour": "2026-10-01T09",
+            "liquidity_usd": "227567.15798598755412866200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T10",
+            "liquidity_usd": "228974.43837211935609942500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T11",
+            "liquidity_usd": "228186.74387134255328320400",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T12",
+            "liquidity_usd": "228208.29518365605018812700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T13",
+            "liquidity_usd": "227015.32840593440262148500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T14",
+            "liquidity_usd": "226396.37622132796136248700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T15",
+            "liquidity_usd": "227422.51988220885305626600",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T16",
+            "liquidity_usd": "232165.22322854835585644200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T17",
+            "liquidity_usd": "232341.99758776441127671300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T18",
+            "liquidity_usd": "231887.64261617362242360500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T19",
+            "liquidity_usd": "232832.86209879212784518000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T20",
+            "liquidity_usd": "230815.91022533317362696600",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T21",
+            "liquidity_usd": "230459.16066592111125101700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T22",
+            "liquidity_usd": "229500.31002047435231283500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-01T23",
+            "liquidity_usd": "230667.27954012213292091400",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T00",
+            "liquidity_usd": "103512.43527524567898674200",
+            "priced_pair_count": 1
+          },
+          {
+            "utc_hour": "2026-10-02T01",
+            "liquidity_usd": "231471.10079474534819665900",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T02",
+            "liquidity_usd": "232456.80613551883838857000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T03",
+            "liquidity_usd": "232263.02441157055913031300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T04",
+            "liquidity_usd": "234872.84899982226569002200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T05",
+            "liquidity_usd": "218.5713203111132400",
+            "priced_pair_count": 2
+          },
+          {
+            "utc_hour": "2026-10-02T06",
+            "liquidity_usd": "233549.63033312356782243100",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T07",
+            "liquidity_usd": "236158.22387072938201621200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T08",
+            "liquidity_usd": "234873.09948494588976793300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T09",
+            "liquidity_usd": "232246.95309244299619564400",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T10",
+            "liquidity_usd": "232175.53777933062813120900",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T11",
+            "liquidity_usd": "231972.90504308508243596300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T12",
+            "liquidity_usd": "232557.31882963807874592000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T13",
+            "liquidity_usd": "231736.86619729395345705700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T14",
+            "liquidity_usd": "229826.58377004861409557200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T15",
+            "liquidity_usd": "229698.52235649981497450700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T16",
+            "liquidity_usd": "229169.67524440988215338700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T17",
+            "liquidity_usd": "228468.13748375695159791000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T18",
+            "liquidity_usd": "224691.10292912664748098300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T19",
+            "liquidity_usd": "224761.68191128612366222600",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T20",
+            "liquidity_usd": "224066.00290935794857103900",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T21",
+            "liquidity_usd": "224119.19815056114677682800",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T22",
+            "liquidity_usd": "224290.88815190540473103900",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-02T23",
+            "liquidity_usd": "226542.62739742098525954000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T00",
+            "liquidity_usd": "227495.42170357474501860300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T01",
+            "liquidity_usd": "226797.11733310830810042300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T02",
+            "liquidity_usd": "227633.21695577743247501100",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T03",
+            "liquidity_usd": "226899.40063556809801479400",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T04",
+            "liquidity_usd": "226671.10969437383218587100",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T05",
+            "liquidity_usd": "226531.92403498158663217100",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T06",
+            "liquidity_usd": "225598.19366353566966655200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T07",
+            "liquidity_usd": "223741.68210193045717816600",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_hour": "2026-10-03T08",
+            "liquidity_usd": "243487.16620727758261371900",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T09",
+            "liquidity_usd": "242706.76709613856778431100",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T10",
+            "liquidity_usd": "243515.60759225065042962500",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T11",
+            "liquidity_usd": "244070.5700336287171897",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T12",
+            "liquidity_usd": "244770.29957402890346282000",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T13",
+            "liquidity_usd": "245547.60116718405475573300",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T14",
+            "liquidity_usd": "245891.25252575693385546700",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T15",
+            "liquidity_usd": "245767.74458544130478618900",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T16",
+            "liquidity_usd": "246935.35359926330648259600",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T17",
+            "liquidity_usd": "247431.12256592038018257000",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T18",
+            "liquidity_usd": "246801.66155462922950505200",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T19",
+            "liquidity_usd": "247009.45950817652282824000",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T20",
+            "liquidity_usd": "247157.40665135451781251000",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T21",
+            "liquidity_usd": "246906.00570443595534357800",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T22",
+            "liquidity_usd": "246844.38170313227980882700",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-03T23",
+            "liquidity_usd": "247489.18357153102905355200",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T00",
+            "liquidity_usd": "246837.66125107021348670300",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T01",
+            "liquidity_usd": "247034.67634996021753635900",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T02",
+            "liquidity_usd": "0",
+            "priced_pair_count": 0
+          },
+          {
+            "utc_hour": "2026-10-04T03",
+            "liquidity_usd": "247791.32549127019248437500",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T04",
+            "liquidity_usd": "249094.23176342269398385400",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T05",
+            "liquidity_usd": "248931.18285712071424916800",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T06",
+            "liquidity_usd": "248995.14365698975715957500",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T07",
+            "liquidity_usd": "249705.12106562787211425100",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_hour": "2026-10-04T08",
+            "liquidity_usd": "248269.00742695036780394000",
+            "priced_pair_count": 11
+          }
+        ]
+      }
+    },
+    "daily": {
+      "status": "ok",
+      "payload": {
+        "grain": "daily",
+        "limit": 35,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_day": "2026-08-31",
+            "liquidity_usd": "108728.32790458444612517700",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-01",
+            "liquidity_usd": "107528.88674649176317366800",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-02",
+            "liquidity_usd": "105327.45669112844121996200",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-03",
+            "liquidity_usd": "107488.12407404927081961100",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-04",
+            "liquidity_usd": "117145.61705594166897874000",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-05",
+            "liquidity_usd": "119099.35930482934357406900",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-06",
+            "liquidity_usd": "119552.53217393805284715900",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-07",
+            "liquidity_usd": "120228.59019606158092922800",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-08",
+            "liquidity_usd": "119673.01430580838818372700",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-09",
+            "liquidity_usd": "116513.99996103533613398900",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-10",
+            "liquidity_usd": "151032.40302051096515832900",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-11",
+            "liquidity_usd": "156858.80704279207366702500",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_day": "2026-09-12",
+            "liquidity_usd": "162875.61162247290321653200",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-13",
+            "liquidity_usd": "159207.04201957396309128800",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-14",
+            "liquidity_usd": "159782.75252166389210767300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-15",
+            "liquidity_usd": "153814.27095573132862734100",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-16",
+            "liquidity_usd": "155384.58074026356918139100",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-17",
+            "liquidity_usd": "145412.10789066088697030800",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-18",
+            "liquidity_usd": "153468.28453613263888776500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-19",
+            "liquidity_usd": "153410.55482733080867873800",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-20",
+            "liquidity_usd": "163858.23262515523392703500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-21",
+            "liquidity_usd": "162419.70281320540282480700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-22",
+            "liquidity_usd": "165681.14872363698966389000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-23",
+            "liquidity_usd": "157809.87214908334136005000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-24",
+            "liquidity_usd": "159936.29029264027958078700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-25",
+            "liquidity_usd": "168008.30585956478111279000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-26",
+            "liquidity_usd": "167313.32013974697874891500",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-27",
+            "liquidity_usd": "167163.96956843831024772600",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-28",
+            "liquidity_usd": "228799.12703249416985592700",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-29",
+            "liquidity_usd": "227257.07690871885999556000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-09-30",
+            "liquidity_usd": "228042.02766439851261580300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-10-01",
+            "liquidity_usd": "230667.27954012213292091400",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-10-02",
+            "liquidity_usd": "226542.62739742098525954000",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_day": "2026-10-03",
+            "liquidity_usd": "247489.18357153102905355200",
+            "priced_pair_count": 11
+          },
+          {
+            "utc_day": "2026-10-04",
+            "liquidity_usd": "248269.00742695036780394000",
+            "priced_pair_count": 11
+          }
+        ]
+      }
+    },
+    "monthly": {
+      "status": "ok",
+      "payload": {
+        "grain": "monthly",
+        "limit": 24,
+        "timezone": "UTC",
+        "methodology": "protocol_catalog",
+        "series": [
+          {
+            "utc_month": "2024-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2024-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-08",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-09",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-10",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-11",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2025-12",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-01",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-02",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-03",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-04",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-05",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-06",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-07",
+            "liquidity_usd": null,
+            "priced_pair_count": 0
+          },
+          {
+            "utc_month": "2026-08",
+            "liquidity_usd": "108728.32790458444612517700",
+            "priced_pair_count": 9
+          },
+          {
+            "utc_month": "2026-09",
+            "liquidity_usd": "228042.02766439851261580300",
+            "priced_pair_count": 10
+          },
+          {
+            "utc_month": "2026-10",
+            "liquidity_usd": "248269.00742695036780394000",
+            "priced_pair_count": 11
+          }
+        ]
+      }
+    }
+  }
+}

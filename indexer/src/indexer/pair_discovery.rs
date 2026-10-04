@@ -124,6 +124,7 @@ pub async fn sync_all_pairs(
 
     let mut start_after: Option<[serde_json::Value; 2]> = None;
     let mut total = 0u32;
+    let mut complete = true;
 
     loop {
         let query = match &start_after {
@@ -144,6 +145,7 @@ pub async fn sync_all_pairs(
             Ok(r) => r,
             Err(e) => {
                 tracing::error!("Failed to query factory pairs: {}", e);
+                complete = false;
                 break;
             }
         };
@@ -168,6 +170,7 @@ pub async fn sync_all_pairs(
                 }
                 Err(e) => {
                     tracing::error!("Failed to sync pair {}: {}", pair_info.contract_addr, e);
+                    complete = false;
                 }
             }
         }
@@ -183,7 +186,17 @@ pub async fn sync_all_pairs(
         }
     }
 
-    tracing::info!("Pair discovery complete: {} pairs synced", total);
+    // Empty DB alone is never evidence of an empty factory. Only a complete successful
+    // enumeration (including persistence of every pair) establishes inventory knowledge.
+    if complete {
+        crate::db::queries::state::set_state(
+            pool,
+            "factory_inventory_observed_at",
+            &chrono::Utc::now().to_rfc3339(),
+        )
+        .await?;
+    }
+    tracing::info!(complete, "Pair discovery complete: {} pairs synced", total);
     Ok(())
 }
 

@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use bigdecimal::BigDecimal;
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 #[derive(Debug, Clone)]
 pub struct PairLiquidityStamp {
@@ -14,26 +14,26 @@ pub struct PairLiquidityStamp {
     pub liquidity_usd: BigDecimal,
 }
 
-/// Replace the full stamp set so unpriced pairs drop out (no `$0` leftover).
-pub async fn replace_pair_liquidity_usd(
-    pool: &PgPool,
+/// Replace stamps inside the global publication transaction; omitted pairs disappear.
+pub async fn replace_pair_liquidity_usd_tx(
+    tx: &mut Transaction<'_, Postgres>,
     rows: &[PairLiquidityStamp],
+    generation: i64,
 ) -> Result<(), sqlx::Error> {
-    let mut tx = pool.begin().await?;
     sqlx::query("DELETE FROM pair_liquidity_usd")
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     for row in rows {
         sqlx::query(
-            r#"INSERT INTO pair_liquidity_usd (pair_id, liquidity_usd, updated_at)
-               VALUES ($1, $2, NOW())"#,
+            r#"INSERT INTO pair_liquidity_usd (pair_id, liquidity_usd, updated_at, generation)
+               VALUES ($1, $2, NOW(), $3)"#,
         )
         .bind(row.pair_id)
         .bind(&row.liquidity_usd)
-        .execute(&mut *tx)
+        .bind(generation)
+        .execute(&mut **tx)
         .await?;
     }
-    tx.commit().await?;
     Ok(())
 }
 

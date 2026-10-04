@@ -1,0 +1,15 @@
+                                          QUERY PLAN
+-----------------------------------------------------------------------------------------------
+ Index Scan using global_stats_24h_pkey on global_stats_24h  (cost=0.14..8.16 rows=1 width=78)
+   Index Cond: (id = 1)
+(2 rows)
+
+                                                                            QUERY PLAN
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=9.52..9.53 rows=2 width=162)
+   Sort Key: utc_hour
+   ->  Bitmap Heap Scan on protocol_hourly_liquidity  (cost=4.17..9.51 rows=2 width=162)
+         Recheck Cond: ((utc_hour >= '2026-10-01 00:00:00+00'::timestamp with time zone) AND (utc_hour <= '2026-10-04 00:00:00+00'::timestamp with time zone))
+         ->  Bitmap Index Scan on protocol_hourly_liquidity_hour_idx  (cost=0.00..4.17 rows=2 width=0)
+               Index Cond: ((utc_hour >= '2026-10-01 00:00:00+00'::timestamp with time zone) AND (utc_hour <= '2026-10-04 00:00:00+00'::timestamp with time zone))
+(6 rows)

@@ -110,9 +110,18 @@ bash scripts/with-node.sh --cwd frontend-dapp -- npx playwright test e2e/swap-ro
 |------|---------|-------|
 | `trader-page.spec.ts` | `e2e-smoke` | Indexer positions section for connected dev wallet |
 | `protocol-page.spec.ts` | `e2e-smoke` | Factory + router audit addresses |
+| `protocol-liquidity-quality.spec.ts` | `e2e-smoke` | Synthetic #1380 coverage loss, unknown gaps, partial lower bounds, expiry/recovery and verified zero; phone + desktop, tap + keyboard |
 | `blacklist-swap.spec.ts` | `e2e-smoke` | LCD mock via `helpers/blacklist-lcd-mock.ts` — disabled **Trading restricted** CTA |
 
 Indexer required for `trader-page.spec.ts` (`bash scripts/e2e-start-indexer.sh`).
+
+The liquidity quality suite mocks every indexer request and needs no chain or indexer. From the repository root:
+
+```bash
+PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=3380 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test e2e/protocol-liquidity-quality.spec.ts --project=e2e-smoke --workers=1 --reporter=list
+```
+
+It writes synthetic screenshots to `/tmp/issue-1380-liquidity-390.png` and `/tmp/issue-1380-liquidity-1280.png`. Quality rules and the shared indexer contract are documented in [the Protocol agent playbook](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md) and [the frontend guide](../../docs/frontend.md). The browser tests assert that unavailable data never becomes a zero or -100% headline, partial terminal history becomes a gap, and genuine qualified zero remains visible. Clock-controlled expiry changes only `Date`; timers keep running so lazy page loading and the independent liquidity freshness timer remain exercised.
 
 ## Limit order transaction tests (`limit-orders-tx.spec.ts`)
 
