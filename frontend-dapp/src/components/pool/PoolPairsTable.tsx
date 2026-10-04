@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { IndexerPair, PairInfo } from '@/types'
 import { indexerPairToPairInfo } from '@/types'
 import { Link } from 'react-router-dom'
@@ -116,6 +117,7 @@ export function PoolPairsTable({
   expandedAddr,
   onToggleManage,
 }: PoolPairsTableProps) {
+  useNumberDisplayMode()
   return (
     <div className="overflow-x-auto" data-testid="pool-pairs-table-wrap">
       <table className="w-full text-xs min-w-[50rem]" data-testid="pool-pairs-table" aria-label="Liquidity pools">

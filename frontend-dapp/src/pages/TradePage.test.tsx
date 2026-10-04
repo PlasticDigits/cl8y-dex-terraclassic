@@ -1297,7 +1297,8 @@ describe('TradePage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('trade-ticket-heading')).toHaveTextContent('Buy AAA')
       })
-      expect(screen.getByTestId('trade-pair-invert-pill')).toHaveTextContent('AAA/BBB')
+      // ALPHA human-price panes suppress the USD inversion pill (#1315).
+      expect(screen.queryByTestId('trade-pair-invert-pill')).not.toBeInTheDocument()
     })
   })
 

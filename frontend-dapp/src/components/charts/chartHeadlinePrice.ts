@@ -1,4 +1,4 @@
-import { formatNum } from '@/utils/formatAmount'
+import { formatPairPrice } from '@/utils/formatAmount'
 import type { ChartCandlePoint } from './priceChartCandles'
 
 /**
@@ -14,11 +14,11 @@ export function resolveTradeChartHeadlineUsd(
   const raw = tapeLastPriceUsd?.trim()
   if (raw) {
     const n = parseFloat(raw)
-    if (!Number.isNaN(n)) return formatNum(raw, 6)
+    if (!Number.isNaN(n)) return formatPairPrice(raw, 6)
   }
   if (chartPoints.length > 0) {
     const close = chartPoints[chartPoints.length - 1].close
-    return formatNum(close, 6)
+    return formatPairPrice(close, 6)
   }
   return null
 }

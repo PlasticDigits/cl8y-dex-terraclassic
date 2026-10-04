@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
+import { NUMBER_DISPLAY_MODE_KEY } from '../numberDisplayPreference'
 import * as copy from '../oneSidedLiquidityCopy'
 import { formatHumanMinSwapLine, oneSidedAddPreSignAmountLines } from '../oneSidedLiquidityCopy'
 
 describe('oneSidedLiquidityCopy (GitLab #559 T-Z12 AC7 / #660 T20)', () => {
+  it.each(['compact', 'full'])('groups full Zap Add pay and minimum swap in %s mode (#1259)', (mode) => {
+    localStorage.setItem(NUMBER_DISPLAY_MODE_KEY, mode)
+    expect(oneSidedAddPreSignAmountLines('12345.678901', '9007199254740993000000000000000001', 18)).toEqual([
+      '12,345.678901 in',
+      'min swap 9,007,199,254,740,993.000000000000000001',
+    ])
+    localStorage.removeItem(NUMBER_DISPLAY_MODE_KEY)
+  })
+
   it('T-Z12 pre-sign min-swap is human for a 6-dec token — not raw 500571', () => {
     const line = formatHumanMinSwapLine('500571', 6)
     expect(line).toMatch(/^min swap /)

@@ -26,6 +26,27 @@ Global UI invariant ([GitLab **#653**](https://gitlab.com/PlasticDigits/cl8y-dex
 
 Regression: `make verify-issue-653`. Trade workspace still: `make verify-issue-561`. Swap flip plate on the Pay/Receive seam: `make verify-issue-659` ([#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)).
 
+## Number display preference {#number-display-preference}
+
+[Issue #1259](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1259) adds **Compact** / **Full** chips to retail Swap Settings (`#swap-slippage-settings`). Compact remains the first-visit default, as confirmed in the issue comment. Full uses en-US thousands grouping without K/M/B/T. The preference applies across shared amount formatters and updates mounted chrome without refetching quotes. Agent playbook: [`AGENTS_FRONTEND_NUMBER_DISPLAY.md`](../skills/AGENTS_FRONTEND_NUMBER_DISPLAY.md); acceptance and attack checklist: [`issue-1259`](./qa/issue-1259/README.md); regression: `make verify-issue-1259`.
+
+Implementation: [`numberDisplayPreference.ts`](../frontend-dapp/src/utils/numberDisplayPreference.ts) stores and subscribes to the mode, [`formatAmount.ts`](../frontend-dapp/src/utils/formatAmount.ts) dispatches amount rendering and exact grouping, and [`SwapPage.tsx`](../frontend-dapp/src/pages/SwapPage.tsx) contains the retail control.
+
+| ID | Invariant |
+| --- | --- |
+| **Q1259-1** | `NumberDisplayMode` has only `compact` and `full`. Missing, unknown, hostile, or inaccessible localStorage falls back to Compact. Failed writes preserve the last readable value. Persistence uses `cl8y-dex-number-display-mode`; no query, locale, or Share URL persistence. |
+| **Q1259-2** | `formatNum`, `formatTokenAmount`, and `formatTokenAmountAbbrev` share one dispatcher. Compact preserves existing significant-figure strings; Full groups human amounts using en-US comma thousands / period decimal separators. Whole token amounts above `MAX_SAFE_INTEGER` keep exact integer digits. |
+| **Q1259-3** | Humanize raw token integers with the resolved pair leg / token decimals before formatting (0–18). Unresolved or invalid decimals and hostile raw strings remain `—`. Preserve `PAIR_STATS_VOLUME_DISPLAY_CAP` (24); never enlarge it to accommodate Full. |
+| **Q1259-4** | Display mode never changes `toRawAmount`, `fromRawAmount`, typed amount drafts, quote / simulate / execute JSON, min received, or wallet messages. You Pay, editable Receive, book size, limit price / size, custom slippage, and deadline remain plain decimal strings. |
+| **Q1259-5** | Swap, limit, and pool provide / withdraw pre-submit amounts always use exact grouping, independent of Settings: Swap uses `fromRawAmount` + `formatHumanAmountGrouped`; limit / pool use `formatTokenAmountGrouped`. Required LUNC gas-balance messages also keep full digits. Grouping keeps full raw-to-human digits; signing chrome never abbreviates amounts. |
+| **Q1259-6** | `formatPairPrice` ignores the preference. Pair spot / TWAP, tape Price, and limit entry prices remain non-compact in both modes. Dust's existing significant-figure display does not authorize scientific notation in inputs or execution payloads. |
+| **Q1259-7** | Preference changes notify mounted displays, including memoized consumers. Changing the mode does not invalidate React Query keys, refetch the indexer, call `setSearchParams`, or reset amount inputs. Cross-tab storage events use the same legal-value parser. |
+| **Q1259-8** | Settings chips and preview are text content inside the existing Settings card, with a labeled group, pressed state, and 44px hit targets. No new `shell-panel*` / `card-glass`, HTML evaluation, or locale library. **C653** remains enforced. |
+| **Q1259-9** | Expert Mode, slippage / confirm-again thresholds, hybrid always-on, blacklist / pause / freeze checks, and production gem hiding remain unchanged. The display preference grants no execution or discovery capability. |
+| **Q1259-10** | Verification records executed PASS, real FAIL, and unavailable SKIP separately. Agents may mark the overall issue verification **PASS with SKIPs** when runnable checks pass; unavailable wallet / chain / visual checks do not create a hold. Real failures must be fixed or reported as FAIL. |
+
+Related invariants: [#522](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/522) price scale, [#557](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/557) tape human amounts, [#564](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/564) hostile volume guards, [#169](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/169) decimal drafts, [#713](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/713) canonical Share URLs, and [#678](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/678) execution protection. This display preference retains [#46](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/46) tier consistency and leaves [#413](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/413) integrator Advanced disclosure separate.
+
 ## Tech Stack
 
 | Layer          | Library                                   |

@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { RetryError, Skeleton } from '@/components/ui'
@@ -56,6 +57,7 @@ function TopPairRow({ item, index }: { item: ProtocolTopPairItem; index: number 
 }
 
 export function ProtocolTopPairs({ query }: { query: UseQueryResult<ProtocolTopPairsResponse, Error> }) {
+  useNumberDisplayMode()
   if (query.isError && isProtocolTopPairsUnavailable(query.error)) {
     return null
   }

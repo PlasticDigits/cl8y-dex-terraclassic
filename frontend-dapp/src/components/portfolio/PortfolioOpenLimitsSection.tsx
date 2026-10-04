@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { formatNum } from '@/utils/formatAmount'
+import { formatPairPrice } from '@/utils/formatAmount'
 import { sounds } from '@/lib/sounds'
 import type { IndexerLimitPlacement } from '@/types'
 import { placementLifecycleLabel } from '@/utils/limitPlacementLifecycle'
@@ -97,7 +97,7 @@ export function PortfolioOpenLimitsSection({
                     {row.side === 'bid' ? 'Buy' : row.side === 'ask' ? 'Sell' : '—'}
                   </td>
                   <td className="py-1.5 px-2 text-right" style={{ color: 'var(--ink)' }}>
-                    {row.price != null ? formatNum(row.price, 6) : '—'}
+                    {row.price != null ? formatPairPrice(row.price, 6) : '—'}
                   </td>
                   <td className="py-1.5 px-2" style={{ color: 'var(--ink-subtle)' }}>
                     {placementLifecycleLabel(row)}

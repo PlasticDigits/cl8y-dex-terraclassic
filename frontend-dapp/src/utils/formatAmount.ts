@@ -1,5 +1,6 @@
 import type { AssetInfo } from '@/types'
 import { lookupByAssetInfo } from './tokenRegistry'
+import { readNumberDisplayMode, type NumberDisplayMode } from './numberDisplayPreference'
 
 function renderSigFigs(n: number, sigfigs: number): string {
   if (n === 0) return '0'
@@ -13,8 +14,29 @@ function renderSigFigs(n: number, sigfigs: number): string {
   return sign + (fracPart ? `${fmtInt}.${fracPart}` : fmtInt)
 }
 
+/** Exact en-US grouping for display only. Never feed its output to an amount parser. */
+export function formatHumanAmountGrouped(value: string): string {
+  if (value.length > 128 || !/^-?\d+(?:\.\d+)?$/.test(value)) return '—'
+  const negative = value.startsWith('-')
+  const [integer, fraction = ''] = (negative ? value.slice(1) : value).split('.')
+  const whole = integer.replace(/^0+(?=\d)/, '')
+  const tail = fraction.replace(/0+$/, '')
+  const sign = negative && (whole !== '0' || tail !== '') ? '-' : ''
+  return sign + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (tail ? `.${tail}` : '')
+}
+
+/** Full signing amounts preserve every raw digit, including dust and values above 2^53. */
+export function formatTokenAmountGrouped(rawAmount: string, decimals: unknown): string {
+  if (!isPairLegDecimals(decimals)) return '—'
+  if (rawAmount.length > 128 || !/^-?\d+$/.test(rawAmount)) return '—'
+  const negative = rawAmount.startsWith('-')
+  const digits = (negative ? rawAmount.slice(1) : rawAmount).replace(/^0+(?=\d)/, '')
+  return formatHumanAmountGrouped((negative ? '-' : '') + fromRawAmount(digits, decimals))
+}
+
 /**
- * Format a human-scale number with K / M / B / T abbreviations
+ * Format human-scale display numbers using the saved mode (Compact by default).
+ * Compact uses K / M / B / T abbreviations
  * using significant figures rather than fixed decimal places.
  *
  *   formatNum(13230, 4)       → "13.23K"
@@ -22,7 +44,18 @@ function renderSigFigs(n: number, sigfigs: number): string {
  *   formatNum(1234567, 4)     → "1.235M"
  *   formatNum(42.195, 3)      → "42.2"
  */
-export function formatNum(val: string | number, sigfigs = 4): string {
+export function formatNum(
+  val: string | number,
+  sigfigs = 4,
+  mode: NumberDisplayMode = readNumberDisplayMode()
+): string {
+  if (mode === 'full') {
+    // Keep decimal strings exact rather than coercing large balances through Number.
+    if (typeof val === 'string' && /^-?\d+(?:\.\d+)?$/.test(val)) return formatHumanAmountGrouped(val)
+    const number = Number(val)
+    if (!Number.isFinite(number)) return '—'
+    return number.toLocaleString('en-US', { maximumFractionDigits: 20, useGrouping: true })
+  }
   const n = typeof val === 'string' ? parseFloat(val) : val
   if (isNaN(n) || n === 0) return '0'
 
@@ -70,12 +103,16 @@ const PAIR_STATS_VOLUME_DISPLAY_CAP = 24
  * - Zero raw → `0`
  * - Missing / non-integer / out-of-range decimals, non-numeric, negative, `<>` → `—`
  */
-export function formatPairStatsVolume(raw: string | null | undefined, decimals: unknown): string {
+export function formatPairStatsVolume(
+  raw: string | null | undefined,
+  decimals: unknown,
+  mode: NumberDisplayMode = readNumberDisplayMode()
+): string {
   if (!isPairLegDecimals(decimals)) return '—'
   if (raw == null || raw === '') return '—'
   if (typeof raw !== 'string') return '—'
   if (raw.length > 78) return '—'
-  if (/[<>]/.test(raw)) return '—'
+  if (!/^\d+$/.test(raw)) return '—'
   let n: bigint
   try {
     n = BigInt(raw)
@@ -84,7 +121,7 @@ export function formatPairStatsVolume(raw: string | null | undefined, decimals: 
   }
   if (n < 0n) return '—'
   if (n === 0n) return '0'
-  const formatted = formatTokenAmount(raw, decimals)
+  const formatted = formatTokenAmount(raw, decimals, 4, mode)
   if (!formatted || formatted.length > PAIR_STATS_VOLUME_DISPLAY_CAP) return '—'
   return formatted
 }
@@ -119,8 +156,16 @@ export function formatQuoteVolume24h(
  *   formatTokenAmount("502498500503", 6)  → "502.5K"   (502,498.50 LUNC)
  *   formatTokenAmount("1000000", 6)       → "1"        (1 LUNC)
  */
-export function formatTokenAmount(rawAmount: string, decimals: number, sigfigs = 4): string {
+export function formatTokenAmount(
+  rawAmount: string,
+  decimals: number,
+  sigfigs = 4,
+  mode: NumberDisplayMode = readNumberDisplayMode()
+): string {
+  if (!isPairLegDecimals(decimals) || rawAmount.length > 128) return '—'
+  if (mode === 'full') return formatTokenAmountGrouped(rawAmount, decimals)
   if (!rawAmount || rawAmount === '0') return '0'
+  if (!/^-?\d+$/.test(rawAmount)) return '0'
 
   let raw: bigint
   try {
@@ -133,7 +178,7 @@ export function formatTokenAmount(rawAmount: string, decimals: number, sigfigs =
   const absHuman = humanStr.startsWith('-') ? humanStr.slice(1) : humanStr
   const intPart = absHuman.split('.')[0] || '0'
   if (BigInt(intPart || '0') <= BigInt(Number.MAX_SAFE_INTEGER)) {
-    return formatNum(humanStr, sigfigs)
+    return formatNum(humanStr, sigfigs, mode)
   }
 
   const divisor = BigInt(10) ** BigInt(decimals)
@@ -146,7 +191,7 @@ export function formatTokenAmount(rawAmount: string, decimals: number, sigfigs =
     return formatWholeTokensAbbrev(absWhole, sign)
   }
 
-  return formatNum(humanStr, sigfigs)
+  return formatNum(humanStr, sigfigs, mode)
 }
 
 /**
@@ -240,8 +285,16 @@ function formatWholeTokensAbbrev(absWhole: bigint, sign: string): string {
  * Like formatTokenAmount (K/M/B/T) but omits meaningless decimals for whole
  * token counts (e.g. "1" and "5K" instead of "1.000" and "5.000K").
  */
-export function formatTokenAmountAbbrev(rawAmount: string, decimals: number, sigfigs = 4): string {
+export function formatTokenAmountAbbrev(
+  rawAmount: string,
+  decimals: number,
+  sigfigs = 4,
+  mode: NumberDisplayMode = readNumberDisplayMode()
+): string {
+  if (!isPairLegDecimals(decimals) || rawAmount.length > 128) return '—'
+  if (mode === 'full') return formatTokenAmountGrouped(rawAmount, decimals)
   if (!rawAmount || rawAmount === '0') return '0'
+  if (!/^-?\d+$/.test(rawAmount)) return '0'
   let raw: bigint
   try {
     raw = BigInt(rawAmount)
@@ -265,7 +318,7 @@ export function formatTokenAmountAbbrev(rawAmount: string, decimals: number, sig
   const absHuman = humanStr.startsWith('-') ? humanStr.slice(1) : humanStr
   const intPart = absHuman.split('.')[0] || '0'
   if (BigInt(intPart || '0') <= BigInt(Number.MAX_SAFE_INTEGER)) {
-    return stripTrailingZerosAbbrevDisplay(formatNum(humanStr, sigfigs))
+    return stripTrailingZerosAbbrevDisplay(formatNum(humanStr, sigfigs, mode))
   }
 
   return `${sign}${absWhole.toLocaleString('en-US')}`

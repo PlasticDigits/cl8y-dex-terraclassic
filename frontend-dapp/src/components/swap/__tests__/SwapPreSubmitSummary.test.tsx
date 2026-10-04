@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SwapPreSubmitSummary } from '../SwapPreSubmitSummary'
+import { NUMBER_DISPLAY_MODE_KEY } from '@/utils/numberDisplayPreference'
 import { shortenAddress } from '@/utils/tokenDisplay'
 
 const DIRECT_PAIR = 'terra1pairabababababababababababababababab'
@@ -8,6 +9,24 @@ const HOP_PAIR_0 = 'terra1pair00000000000000000000000000000001'
 const HOP_PAIR_1 = 'terra1pair11111111111111111111111111111111'
 
 describe('SwapPreSubmitSummary (GitLab #409 / SEC-D11)', () => {
+  it.each(['compact', 'full'])('keeps exact grouped signing amounts in %s mode (#1259)', (mode) => {
+    localStorage.setItem(NUMBER_DISPLAY_MODE_KEY, mode)
+    render(
+      <SwapPreSubmitSummary
+        offerSymbol="AAA"
+        receiveSymbol="BBB"
+        offerAmountHuman="12345.678901"
+        receiveAmountHuman="9007199254740993.000000000000000001"
+        maxSpreadPercent={0.5}
+        minReceiveHuman="0.000000000000000001"
+      />
+    )
+    expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent('12,345.678901 AAA')
+    expect(screen.getByTestId('swap-confirm-receive')).toHaveTextContent('9,007,199,254,740,993.000000000000000001 BBB')
+    expect(screen.getByTestId('swap-confirm-min-return')).toHaveTextContent('0.000000000000000001 BBB')
+    localStorage.removeItem(NUMBER_DISPLAY_MODE_KEY)
+  })
+
   it('renders labeled action, pair, amounts, max spread, min return, and chain', () => {
     render(
       <SwapPreSubmitSummary

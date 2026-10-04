@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import React, { memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -92,6 +93,7 @@ const TierRow = memo(function TierRow({
   canSelfRegister: boolean
   baseFee: number
 }) {
+  useNumberDisplayMode()
   const { tier_id, tier } = entry
   const showRegister = !tier.governance_only && canSelfRegister && !isCurrentTier
   const hold = holdPhrase(tier)
@@ -275,6 +277,7 @@ function HowItWorksMobileRow({
 }
 
 export default function TiersPage() {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
 

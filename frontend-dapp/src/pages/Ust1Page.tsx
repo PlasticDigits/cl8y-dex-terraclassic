@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -48,6 +49,7 @@ function tokenLogoProps(address: string, symbol: string) {
 }
 
 export default function Ust1Page() {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()

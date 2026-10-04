@@ -12,7 +12,7 @@ import {
   type CandleVolumeScale,
   type ChartLegRef,
 } from './priceChartCandles'
-import { formatNum, isPairLegDecimals } from '@/utils/formatAmount'
+import { formatPairPrice, isPairLegDecimals } from '@/utils/formatAmount'
 import { PairDisplayInvertPill } from '@/components/trade/PairDisplayInvertControls'
 import { resolveTradeChartHeadlineUsd } from './chartHeadlinePrice'
 import { chartPointsToRsiLine, chartPointsToSmaLine } from './priceChartIndicators'
@@ -112,7 +112,7 @@ export default function PriceChart({
 
   const humanLast = useMemo(() => {
     if (!humanPane || chartPoints.length === 0) return null
-    return formatNum(chartPoints[chartPoints.length - 1].close, 6)
+    return formatPairPrice(chartPoints[chartPoints.length - 1].close, 6)
   }, [humanPane, chartPoints])
 
   const quotePerBaseLabel = `${chartAsset1?.symbol?.trim() || 'Quote'} per ${chartAsset0?.symbol?.trim() || 'Base'}`

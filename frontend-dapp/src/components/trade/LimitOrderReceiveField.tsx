@@ -1,7 +1,8 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { ReactNode } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { Spinner } from '@/components/ui'
-import { formatTokenAmount } from '@/utils/formatAmount'
+import { formatNum, formatTokenAmount } from '@/utils/formatAmount'
 
 type Props = {
   receiveLabel: string
@@ -25,8 +26,13 @@ export function LimitOrderReceiveField({
   receiveUsdNotionalApprox,
   compact,
 }: Props) {
+  const [numberDisplayMode] = useNumberDisplayMode()
   const showUsd = receiveUsdNotionalApprox !== undefined
-  const displayAmount = receiveAmountHuman ?? '—'
+  const receiveAmount = receiveAmountHuman != null ? Number(receiveAmountHuman) : null
+  const displayAmount =
+    receiveAmount != null && Number.isFinite(receiveAmount) && receiveAmount > 0
+      ? formatNum(receiveAmountHuman!, receiveAmount >= 1 ? 6 : receiveAmount >= 0.000001 ? 8 : 4, numberDisplayMode)
+      : '—'
   const textSize = compact ? 'text-[10px]' : 'text-xs'
 
   let balanceContent: ReactNode = '—'

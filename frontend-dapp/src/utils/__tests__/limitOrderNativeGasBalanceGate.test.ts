@@ -99,7 +99,7 @@ describe('evaluateLimitOrderNativeGasPlaceGate', () => {
 describe('limitOrderNativeGasInsufficientMessage', () => {
   it('includes a human-readable LUNC estimate', () => {
     const msg = limitOrderNativeGasInsufficientMessage(32_573_750n)
-    expect(msg).toMatch(/32\.574/)
+    expect(msg).toContain('32.57375 LUNC')
     expect(msg).toMatch(/allowance \+ place order/)
   })
 })

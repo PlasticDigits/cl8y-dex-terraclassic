@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AddressRow } from '@/components/ui/AddressRow'
+import { formatHumanAmountGrouped } from '@/utils/formatAmount'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
 import { SLIPPAGE_PROTECTION_LABEL } from '@/utils/slippageProtectionCopy'
 
@@ -8,6 +9,7 @@ export type SwapPreSubmitSummaryProps = {
   actionLabel?: string
   offerSymbol: string
   receiveSymbol: string
+  /** Plain decimal strings from raw transaction/quote amounts; this signing card always groups in full (#1259). */
   offerAmountHuman: string
   receiveAmountHuman: string
   /** Slippage protection passed on-chain as max_spread (percent). */
@@ -107,16 +109,20 @@ export function SwapPreSubmitSummary({
             testId="swap-confirm-pair-contracts"
           />
         ) : null}
-        <SummaryRow label="You pay" value={`${offerAmountHuman} ${offerSymbol}`} testId="swap-confirm-offer" />
+        <SummaryRow
+          label="You pay"
+          value={`${formatHumanAmountGrouped(offerAmountHuman)} ${offerSymbol}`}
+          testId="swap-confirm-offer"
+        />
         <SummaryRow
           label="You receive (est.)"
-          value={`${receiveAmountHuman} ${receiveSymbol}`}
+          value={`${formatHumanAmountGrouped(receiveAmountHuman)} ${receiveSymbol}`}
           testId="swap-confirm-receive"
         />
         <SummaryRow label={SLIPPAGE_PROTECTION_LABEL} value={`${maxSpreadPercent}%`} testId="swap-confirm-max-spread" />
         <SummaryRow
           label="Min return"
-          value={minReceiveHuman != null ? `${minReceiveHuman} ${receiveSymbol}` : '—'}
+          value={minReceiveHuman != null ? `${formatHumanAmountGrouped(minReceiveHuman)} ${receiveSymbol}` : '—'}
           testId="swap-confirm-min-return"
         />
         <SummaryRow label="Chain" value={chainFullLabel} testId="swap-confirm-chain" />

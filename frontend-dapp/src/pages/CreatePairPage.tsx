@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -40,6 +41,7 @@ function useCodeIdCheck(tokenAddr: string) {
 }
 
 export default function CreatePairPage() {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const toastApi = useOptionalToast()
   const [searchParams, setSearchParams] = useSearchParams()

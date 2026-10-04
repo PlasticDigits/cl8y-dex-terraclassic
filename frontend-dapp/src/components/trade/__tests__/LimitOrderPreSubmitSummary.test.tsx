@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { NUMBER_DISPLAY_MODE_KEY } from '@/utils/numberDisplayPreference'
 import { LimitOrderPreSubmitSummary } from '../LimitOrderPreSubmitSummary'
 
 const baseProps = {
@@ -16,6 +17,13 @@ const baseProps = {
 }
 
 describe('LimitOrderPreSubmitSummary', () => {
+  it.each(['compact', 'full'])('preserves every gas fee digit in %s mode (#1259)', (mode) => {
+    localStorage.setItem(NUMBER_DISPLAY_MODE_KEY, mode)
+    render(<LimitOrderPreSubmitSummary {...baseProps} placeSequenceMinUluna={12345678901n} />)
+    expect(screen.getByTestId('limit-order-pre-submit-summary-gas')).toHaveTextContent('~12,345.678901 LUNC')
+    localStorage.removeItem(NUMBER_DISPLAY_MODE_KEY)
+  })
+
   it('renders deviation and compact maker fee when data is ready (#419 / #488)', () => {
     render(<LimitOrderPreSubmitSummary {...baseProps} />)
     expect(screen.getByTestId('limit-order-pre-submit-summary-vs-ref')).toHaveTextContent('-10.0%')

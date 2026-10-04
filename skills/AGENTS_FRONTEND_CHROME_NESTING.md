@@ -66,6 +66,7 @@ Trade chrome still: `make verify-issue-561`. Charts numbers: `make verify-issue-
 
 ## Related
 
+- [`AGENTS_FRONTEND_NUMBER_DISPLAY.md`](./AGENTS_FRONTEND_NUMBER_DISPLAY.md) — Compact / Full preference chips stay inside existing retail Swap Settings; no new panel or card ([#1259](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1259), **Q1259-8**).
 - [`AGENTS_FRONTEND_DESIGN_SYSTEM.md`](./AGENTS_FRONTEND_DESIGN_SYSTEM.md) — tokens / primitives (#488)
 - [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md) — `/trade` sibling panels (**L561**)
 - [`AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md`](./AGENTS_FRONTEND_TRADE_TICKET_FLATTEN.md) — inner ticket flatten: no Side/Market/Limit `TicketSection` ([#693](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/693)). Coolify leftover: [#702](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/702)

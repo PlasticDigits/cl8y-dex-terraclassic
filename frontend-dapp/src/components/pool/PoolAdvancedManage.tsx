@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 /**
  * Pair-scoped Manage panel (GitLab #547 / #660).
  * Mount only when the table row is expanded so default /pool paint does not
@@ -49,7 +50,13 @@ import { PairTokenLinks } from '@/components/ui/PairTokenLinks'
 import { PoolPreSubmitSummary } from '@/components/pool/PoolPreSubmitSummary'
 import { getTokenDisplaySymbol, formatPoolAssetFieldLabel, poolProvideAmountAriaLabel } from '@/utils/tokenDisplay'
 import { provideWrapDefaultOn } from '@/utils/poolProvideWrapDefault'
-import { formatTokenAmount, getDecimals, toRawAmount, fromRawAmount } from '@/utils/formatAmount'
+import {
+  formatTokenAmount,
+  formatTokenAmountGrouped,
+  getDecimals,
+  toRawAmount,
+  fromRawAmount,
+} from '@/utils/formatAmount'
 import { formatPairListVolumeUsd } from '@/utils/chartsOverviewStats'
 import { POOL_VOL_HEADER_TITLE } from '@/utils/trailingWindowCopy'
 import { isLpBurnExceedsBalance, withdrawMinAssetAmounts, estimateWithdrawAssetAmounts } from '@/utils/rawAmountMath'
@@ -91,6 +98,7 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
   volumeUsd24h?: string | null
   listBadges: PairListBadges
 }) {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const slippageTolerance = useDexStore((s) => s.slippageTolerance)
   const queryClient = useQueryClient()
@@ -413,14 +421,22 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
     receiveWrapped || !nativeEquivB ? displayB.displayLabel : getTokenDisplaySymbol(nativeEquivB)
 
   const withdrawPreSubmitAmountLines = useMemo(() => {
-    const lines = [`${lpAmount} LP`]
+    const lines = [`${formatTokenAmountGrouped(rawLpWithdraw, LP_DECIMALS)} LP`]
     if (withdrawExpectedAssets) {
       lines.push(
-        `~${formatTokenAmount(withdrawExpectedAssets[0], decimalsA)} ${withdrawReceiveLabelA} + ~${formatTokenAmount(withdrawExpectedAssets[1], decimalsB)} ${withdrawReceiveLabelB}`
+        `~${formatTokenAmountGrouped(withdrawExpectedAssets[0], decimalsA)} ${withdrawReceiveLabelA} + ~${formatTokenAmountGrouped(withdrawExpectedAssets[1], decimalsB)} ${withdrawReceiveLabelB}`
       )
     }
     return lines
-  }, [lpAmount, withdrawExpectedAssets, decimalsA, decimalsB, withdrawReceiveLabelA, withdrawReceiveLabelB])
+  }, [
+    rawLpWithdraw,
+    LP_DECIMALS,
+    withdrawExpectedAssets,
+    decimalsA,
+    decimalsB,
+    withdrawReceiveLabelA,
+    withdrawReceiveLabelB,
+  ])
 
   const addMutation = useTerraBroadcastMutation({
     toastSuccess: 'Liquidity added.',
@@ -962,7 +978,10 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
             <PoolPreSubmitSummary
               actionLabel="Provide Liquidity"
               pairLabel={`${displayA.displayLabel} / ${displayB.displayLabel}`}
-              amountLines={[`${amountA} ${displayA.displayLabel}`, `${amountB} ${displayB.displayLabel}`]}
+              amountLines={[
+                `${formatTokenAmountGrouped(rawAddA, decimalsA)} ${displayA.displayLabel}`,
+                `${formatTokenAmountGrouped(rawAddB, decimalsB)} ${displayB.displayLabel}`,
+              ]}
               data-testid="pool-provide-pre-submit-summary"
             />
           )}
@@ -1145,14 +1164,15 @@ export const PoolAdvancedManage = memo(function PoolAdvancedManage({
           {lpAmount && withdrawExpectedAssets && (
             <div className="text-xs space-y-1" style={{ color: 'var(--ink-dim)' }}>
               <p data-testid="pool-withdraw-estimated-receive">
-                Expected receive (0% slippage): ~{formatTokenAmount(withdrawExpectedAssets[0], decimalsA)}{' '}
-                {withdrawReceiveLabelA} + ~{formatTokenAmount(withdrawExpectedAssets[1], decimalsB)}{' '}
+                Expected receive (0% slippage): ~{formatTokenAmountGrouped(withdrawExpectedAssets[0], decimalsA)}{' '}
+                {withdrawReceiveLabelA} + ~{formatTokenAmountGrouped(withdrawExpectedAssets[1], decimalsB)}{' '}
                 {withdrawReceiveLabelB}
               </p>
               {withdrawMinAssets && (
                 <p data-testid="pool-withdraw-minimum-receive">
-                  Minimum receive ({withdrawSlippage}% slippage): {formatTokenAmount(withdrawMinAssets[0], decimalsA)}{' '}
-                  {withdrawReceiveLabelA} + {formatTokenAmount(withdrawMinAssets[1], decimalsB)} {withdrawReceiveLabelB}
+                  Minimum receive ({withdrawSlippage}% slippage):{' '}
+                  {formatTokenAmountGrouped(withdrawMinAssets[0], decimalsA)} {withdrawReceiveLabelA} +{' '}
+                  {formatTokenAmountGrouped(withdrawMinAssets[1], decimalsB)} {withdrawReceiveLabelB}
                 </p>
               )}
             </div>

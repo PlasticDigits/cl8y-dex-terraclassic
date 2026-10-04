@@ -1,15 +1,9 @@
-import { formatPairPrice, formatTokenAmount, isPairLegDecimals } from './formatAmount'
+import { formatPairPrice, formatPairStatsVolume, isPairLegDecimals } from './formatAmount'
 import { rawLimitPriceToHuman } from './limitOrderPriceScale'
 import { formatInvertedDecimal, invertFinitePositive } from './tradePairDisplayOrientation'
 
 /** Cap USD / TWAP display strings (overview **A4** class, GitLab #564). */
 const PAIR_STATS_DISPLAY_CAP = 24
-
-/**
- * CosmWasm asset decimals are typically 0..=18. Pair JSON may send a wider i16;
- * out-of-range values must not pad/pow into a tab lock (GitLab #565).
- */
-const PAIR_TOKEN_DECIMALS_MAX = 18
 
 /**
  * Human compact token volume for Charts pair 24h stats.
@@ -22,17 +16,7 @@ export function formatChartsPairTokenVolume(
   raw: string | null | undefined,
   decimals: number | null | undefined
 ): string {
-  if (typeof decimals !== 'number' || !Number.isInteger(decimals)) return '—'
-  if (decimals < 0 || decimals > PAIR_TOKEN_DECIMALS_MAX) return '—'
-  if (raw == null || raw === '') return '—'
-  if (typeof raw !== 'string') return '—'
-  if (raw.length > 128) return '—'
-  if (!/^-?\d+$/.test(raw)) return '—'
-  try {
-    return formatTokenAmount(raw, decimals)
-  } catch {
-    return '—'
-  }
+  return formatPairStatsVolume(raw, decimals)
 }
 
 /**

@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '@/test-utils'
 import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
+import { NUMBER_DISPLAY_MODE_KEY } from '@/utils/numberDisplayPreference'
 import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
 import type { Invoice, PayInvoiceQuote } from '@/utils/payInvoice'
 import { PayWithAnyToken } from './PayWithAnyToken'
@@ -72,6 +73,17 @@ describe('PayWithAnyToken (GitLab #595)', () => {
     quotePayInvoice.mockResolvedValue(DIRECT_OK)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     useDexStore.setState({ slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT })
+  })
+
+  it.each(['compact', 'full'])('uses full exact invoice and pay amounts in %s mode (#1259)', async (mode) => {
+    localStorage.setItem(NUMBER_DISPLAY_MODE_KEY, mode)
+    const raw = '12345678901'
+    quotePayInvoice.mockResolvedValue({ ...DIRECT_OK, payRaw: raw })
+    renderWithProviders(<PayWithAnyToken invoice={{ ...INVOICE_PROP, invoiceAmount: raw }} tokens={[UST1]} />)
+    expect(screen.getByTestId('pay-invoice-amount')).toHaveTextContent('12,345.678901 UST1')
+    await waitFor(() => expect(screen.getByTestId('pay-invoice-summary')).toHaveTextContent('12,345.678901'))
+    expect(screen.getByTestId('pay-invoice-summary')).not.toHaveTextContent('K')
+    localStorage.removeItem(NUMBER_DISPLAY_MODE_KEY)
   })
 
   it('renders disconnected with Pay gated and invoice copy (not Swap CTA)', async () => {

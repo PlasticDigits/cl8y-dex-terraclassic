@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { ReactNode } from 'react'
 import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
@@ -38,6 +39,7 @@ export function TraderPositionsTable({
   headerAction,
   showTestPairDivider = false,
 }: TraderPositionsTableProps) {
+  useNumberDisplayMode()
   const liveMarks = useTraderUsdMarks()
   const usdMarks = usdMarksProp ?? liveMarks
   return (

@@ -1,5 +1,6 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useId } from 'react'
-import { formatNum } from '@/utils/formatAmount'
+import { formatNum, formatPairPrice } from '@/utils/formatAmount'
 import {
   anchorUsdForLimitPrice,
   formatLimitPriceDeviationChipLabel,
@@ -78,6 +79,7 @@ export function LimitOrderPriceDeviationChrome({
   compact,
   includeInvalidAlert = true,
 }: DeviationChromeProps) {
+  useNumberDisplayMode()
   const chipsUnavailableId = useId()
   const limit = parsePositivePriceHuman(price)
   const dev = ref != null && limit != null ? limitPriceDeviationPercent(limit, ref) : null
@@ -128,7 +130,7 @@ export function LimitOrderPriceDeviationChrome({
       >
         {ref != null && ref > 0 && (
           <span className="tabular-nums" style={{ color: 'var(--ink-subtle)' }}>
-            Ref {formatNum(ref, 6)}
+            Ref {formatPairPrice(ref, 6)}
           </span>
         )}
         {dev != null && limit != null && (

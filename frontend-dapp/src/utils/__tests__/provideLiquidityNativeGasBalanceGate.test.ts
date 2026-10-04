@@ -110,7 +110,7 @@ describe('evaluateProvideLiquidityCw20NativeGasGate', () => {
 describe('provideLiquidityCw20NativeGasInsufficientMessage', () => {
   it('includes a human-readable LUNC estimate and three-tx wording', () => {
     const msg = provideLiquidityCw20NativeGasInsufficientMessage(25_492_500n)
-    expect(msg).toMatch(/25\.492/)
+    expect(msg).toContain('25.4925 LUNC')
     expect(msg).toMatch(/allowance A \+ allowance B \+ provide liquidity/)
   })
 })

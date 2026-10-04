@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
@@ -24,7 +25,7 @@ import { queryWrapMapperConfig, wrapMapperFeeBps, wrapTreasuryMatchesEnv } from 
 import { WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useDexStore } from '@/stores/dex'
 import { assetInfoLabel, tokenAssetInfo, type PairInfo } from '@/types'
-import { getDecimals, toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { getDecimals, toRawAmount, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
 import { pairInfoMenuLabel } from '@/utils/pairMenuOptions'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
@@ -42,6 +43,7 @@ const POOL_LP_RISK_DOC =
   'https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/frontend.md#pool-lp-risk-disclosure'
 
 export function OneSidedAddCard({ pair, factoryPairs }: { pair: PairInfo; factoryPairs: PairInfo[] }) {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const queryClient = useQueryClient()
@@ -328,7 +330,7 @@ export function OneSidedAddCard({ pair, factoryPairs }: { pair: PairInfo; factor
           actionLabel={ONE_SIDED_ADD_TITLE}
           pairLabel={snapshot.pairLabel}
           amountLines={oneSidedAddPreSignAmountLines(
-            amount,
+            fromRawAmount(rawAmount, decimals),
             snapshot.swapMinReturn,
             getDecimals(tokenAssetInfo(snapshot.askCw20))
           )}

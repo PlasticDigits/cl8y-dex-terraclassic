@@ -106,7 +106,8 @@ import { LcdQueryGate } from '@/components/common/LcdQueryGate'
 import { TerraClassicTxFeeHint } from '@/components/common/TerraClassicTxFeeHint'
 import { MarketDataServiceOutageBanner } from '@/components/common/MarketDataServiceOutageBanner'
 import { fetchCW20TokenInfo, getTokenDisplaySymbol } from '@/utils/tokenDisplay'
-import { formatTokenAmount, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, formatTokenAmount, fromRawAmount, toRawAmount } from '@/utils/formatAmount'
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { registrySwapDecimals } from '@/utils/swapAssetDecimals'
 import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { isPositiveRawAmount, spreadPercentFromRawSim } from '@/utils/rawAmountMath'
@@ -224,6 +225,7 @@ export default function SwapPage() {
   const { slippageTolerance, setSlippageTolerance, deadlineSeconds, setDeadlineSeconds, expertMode, setExpertMode } =
     useDexStore()
   const queryClient = useQueryClient()
+  const [numberDisplayMode, setNumberDisplayMode] = useNumberDisplayMode()
 
   const swapCustomSlippagePctInputId = useId()
   const swapCustomDeadlineInputId = useId()
@@ -1604,14 +1606,12 @@ export default function SwapPage() {
   }, [fromToken, toToken, debouncedInputAmount, exactField])
 
   const reversePayHuman =
-    reverseQuoteReady && reverseOfferRaw && offerDecimals != null
-      ? formatTokenAmount(reverseOfferRaw, offerDecimals)
-      : ''
+    reverseQuoteReady && reverseOfferRaw && offerDecimals != null ? fromRawAmount(reverseOfferRaw, offerDecimals) : ''
   const payInputValue = reverseQuoteActive ? reversePayHuman : inputAmount
   const quotedReceiveHuman = theaterRouteQuote
     ? '—'
     : simData && outputAmount && receiveAssetInfo && receiveDecimals != null
-      ? formatTokenAmount(outputAmount, receiveDecimals)
+      ? fromRawAmount(outputAmount, receiveDecimals)
       : ''
   const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
   const showReversePayCalculating = reverseQuoteActive && !reverseQuoteReady && isPositiveDecimalAmount(inputAmount)
@@ -1832,6 +1832,36 @@ export default function SwapPage() {
                       Must be between 0.5 and 60 minutes
                     </p>
                   )}
+                </div>
+                <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <p className="label-glass mb-3">Number display</p>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Number display">
+                    {(['compact', 'full'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={numberDisplayMode === mode}
+                        data-testid={`swap-number-display-${mode}`}
+                        onClick={() => {
+                          sounds.playButtonPress()
+                          setNumberDisplayMode(mode)
+                        }}
+                        className={`tab-glass min-h-[44px] min-w-[44px] !text-xs !px-3 ${
+                          numberDisplayMode === mode ? 'tab-glass-active' : 'tab-glass-inactive'
+                        }`}
+                      >
+                        {mode === 'compact' ? 'Compact' : 'Full'}
+                      </button>
+                    ))}
+                  </div>
+                  <p
+                    className="mt-2 text-xs break-words"
+                    style={{ color: 'var(--ink-subtle)' }}
+                    data-testid="swap-number-display-preview"
+                    aria-live="polite"
+                  >
+                    Example: {formatNum(1234567, 4, numberDisplayMode)}
+                  </p>
                 </div>
                 <div className="mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                   <label
@@ -2427,18 +2457,18 @@ export default function SwapPage() {
               <SwapPreSubmitSummary
                 offerSymbol={getTokenDisplaySymbol(fromToken)}
                 receiveSymbol={getTokenDisplaySymbol(toToken)}
-                offerAmountHuman={reverseQuoteActive ? reversePayHuman : inputAmount}
+                offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
                 receiveAmountHuman={
                   theaterRouteQuote
                     ? '—'
                     : outputAmount && receiveAssetInfo && receiveDecimals != null
-                      ? formatTokenAmount(outputAmount, receiveDecimals)
+                      ? fromRawAmount(outputAmount, receiveDecimals)
                       : '—'
                 }
                 maxSpreadPercent={slippageTolerance}
                 minReceiveHuman={
                   !showQuoteOnly && minReceived != null && receiveAssetInfo && receiveDecimals != null
-                    ? formatTokenAmount(minReceived, receiveDecimals)
+                    ? fromRawAmount(minReceived, receiveDecimals)
                     : null
                 }
                 pairContractAddresses={swapBlacklistProbe.pairAddresses}

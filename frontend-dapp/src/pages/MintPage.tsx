@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -10,6 +11,7 @@ import { sounds } from '@/lib/sounds'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 
 export default function MintPage() {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
   const [selectedToken, setSelectedToken] = useState('')

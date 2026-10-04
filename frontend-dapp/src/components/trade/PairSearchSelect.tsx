@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePortalListbox } from '@/components/ui/PortalListbox'
@@ -90,6 +91,7 @@ export function PairSearchSelect({
   onOptionIntent,
   selectedLabelOverride,
 }: PairSearchSelectProps) {
+  useNumberDisplayMode()
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)

@@ -309,6 +309,7 @@ make verify-issue-577                    # #577 token/trader/pair/global 24h rol
 make verify-issue-1277                   # #1277 trader rolling raw volume NUMERIC(38,0) + aggregator overflow
 make verify-issue-522                    # #522 pair Price (USD) human scale + oracle conversion
 make verify-issue-1258                   # #1258 USDT-quoted Charts Price (USD) + 24h OHLC catalog pin
+make verify-issue-1259                   # #1259 Compact default / Full grouped display, signing/input/price exceptions
 make verify-issue-551                    # #551 portfolio/trader P&L human scale + USD totals
 make verify-issue-676                    # #676 /positions 18-dec trade_count + NUMERIC(78,18)
 make verify-issue-557                    # #557 human tape / wallet Amount in/out/Price
@@ -436,6 +437,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_LOCAL_POSTGRES_DEV.md](skills/AGENTS_LOCAL_POSTGRES_DEV.md) — Postgres URLs, bootstrap, indexer integration tests; never bind-mount `indexer/` for cargo (`make test-indexer-target-ownership`)
 - [skills/AGENTS_E2E_STRICT_CHAIN.md](skills/AGENTS_E2E_STRICT_CHAIN.md) — Playwright strict on-chain E2E
 - [skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md](skills/AGENTS_FRONTEND_DESIGN_SYSTEM.md) — QuickSwap-inspired blue + gold tokens/primitives (#488); spec [`docs/design-system.md`](docs/design-system.md)
+- [skills/AGENTS_FRONTEND_NUMBER_DISPLAY.md](skills/AGENTS_FRONTEND_NUMBER_DISPLAY.md) — Compact first-visit default / Full grouped Settings (**Q1259-1–Q1259-10**, [#1259](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1259)); `make verify-issue-1259`; [acceptance and agent skip policy](docs/qa/issue-1259/README.md)
 - [skills/AGENTS_FRONTEND_CHROME_NESTING.md](skills/AGENTS_FRONTEND_CHROME_NESTING.md) — one chrome layer / anti-nesting: no metric-grid `card-glass` inside `shell-panel*` (**C653-1–C653-8**, [#653](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/653)); `make verify-issue-653`
 - [skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md](skills/AGENTS_FRONTEND_SWAP_DIRECTION_SEAM.md) — Swap Pay/Receive flip plate occludes the seam hairline (**S659-1–S659-8**, [#659](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/659)); `make verify-issue-659`
 - [skills/AGENTS_FRONTEND_PRODUCT_LINKS.md](skills/AGENTS_FRONTEND_PRODUCT_LINKS.md) — footer official CL8Y Homepage + Bridge HTTPS allowlist (**P663-1–P663-8**, [#663](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/663)); `make verify-issue-663`

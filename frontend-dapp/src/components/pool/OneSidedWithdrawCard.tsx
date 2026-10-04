@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
@@ -22,7 +23,13 @@ import { queryWrapMapperConfig, wrapMapperFeeBps, wrapTreasuryMatchesEnv } from 
 import { WRAP_MAPPER_CONTRACT_ADDRESS, isNativeWrapEnabled } from '@/utils/constants'
 import { useDexStore } from '@/stores/dex'
 import { assetInfoLabel, getNativeEquivalent, tokenAssetInfo, type PairInfo } from '@/types'
-import { getDecimals, toRawAmount, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
+import {
+  getDecimals,
+  toRawAmount,
+  formatTokenAmount,
+  formatTokenAmountGrouped,
+  fromRawAmount,
+} from '@/utils/formatAmount'
 import {
   PAIR_LP_CW20_DECIMALS,
   conservativeZapOutExecution,
@@ -41,6 +48,7 @@ import { ONE_SIDED_WITHDRAW_TITLE } from '@/utils/oneSidedLiquidityCopy'
 import { ONE_SIDED_EMPTY_POOL_ERROR } from '@/utils/oneSidedLiquidityQuote'
 
 export function OneSidedWithdrawCard({ pair }: { pair: PairInfo }) {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const queryClient = useQueryClient()
@@ -328,7 +336,10 @@ export function OneSidedWithdrawCard({ pair }: { pair: PairInfo }) {
         <PoolPreSubmitSummary
           actionLabel={ONE_SIDED_WITHDRAW_TITLE}
           pairLabel={`${legs[0]} / ${legs[1]}`}
-          amountLines={[`${amount} LP`, asToken ? `as ${asToken}` : '']}
+          amountLines={[
+            `${formatTokenAmountGrouped(toRawAmount(amount, PAIR_LP_CW20_DECIMALS), PAIR_LP_CW20_DECIMALS)} LP`,
+            asToken ? `as ${asToken}` : '',
+          ]}
           data-testid="pool-one-sided-withdraw-pre-submit"
         />
       )}

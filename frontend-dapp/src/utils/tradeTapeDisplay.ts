@@ -76,7 +76,7 @@ export function formatTapeAmount(
   symbol?: string | null
 ): string {
   if (decimals == null) return TAPE_MISSING
-  if (raw == null || raw === '') return TAPE_MISSING
+  if (raw == null || raw === '' || raw.length > 78 || !/^\d+$/.test(raw)) return TAPE_MISSING
   // Indexer must emit plain integer digits (`bd_plain_string`). `1e+19` is not a BigInt.
   let n: bigint
   try {
@@ -86,6 +86,7 @@ export function formatTapeAmount(
   }
   if (n < 0n) return TAPE_MISSING
   const human = formatTokenAmount(raw, decimals)
+  if (human === TAPE_MISSING) return TAPE_MISSING
   const trimmed = (symbol ?? '').trim()
   return trimmed ? `${human} ${trimmed}` : human
 }

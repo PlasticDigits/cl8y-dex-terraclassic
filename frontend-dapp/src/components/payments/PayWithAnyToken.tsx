@@ -3,6 +3,7 @@
  * Callers (#593 Create Token / manager Save, later #597) pass `Invoice` only.
  */
 
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TokenSearchSelect } from '@/components/trade/TokenSearchSelect'
@@ -22,7 +23,7 @@ import { useDexStore } from '@/stores/dex'
 import { isNativeDenom, tokenAssetInfo } from '@/types'
 import { TRADE_SLIPPAGE_PRESET_CLASS } from '@/utils/tradeMoneyCta'
 import { WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
-import { formatTokenAmount, fromRawAmount, getDecimals } from '@/utils/formatAmount'
+import { formatTokenAmountGrouped, getDecimals } from '@/utils/formatAmount'
 import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import {
   buildPayInvoiceMsgs,
@@ -56,6 +57,7 @@ export function PayWithAnyToken({
   cta = 'pay',
   onPaid,
 }: PayWithAnyTokenProps) {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const slippageTolerance = useDexStore((s) => s.slippageTolerance)
@@ -66,7 +68,7 @@ export function PayWithAnyToken({
 
   const invoiceDec = getDecimals(tokenAssetInfo(invoice.invoiceToken))
   const payDec = getDecimals(tokenAssetInfo(payToken || invoice.invoiceToken))
-  const invoiceHuman = fromRawAmount(invoice.invoiceAmount, invoiceDec)
+  const invoiceHuman = formatTokenAmountGrouped(invoice.invoiceAmount, invoiceDec)
 
   const wrapConfigQuery = useQuery({
     queryKey: ['wrapMapperConfig'],
@@ -153,7 +155,7 @@ export function PayWithAnyToken({
   const paySymbolQuery = useTokenDisplayInfo(tokenAssetInfo(payToken || invoice.invoiceToken))
   const summary = quoteOk
     ? payInvoiceSummaryLine({
-        payHuman: formatTokenAmount(quoteOk.payRaw, payDec),
+        payHuman: formatTokenAmountGrouped(quoteOk.payRaw, payDec),
         paySymbol: paySymbolQuery.symbol || paySymbolQuery.displayLabel,
         invoiceHuman,
         invoiceSymbol,
@@ -200,7 +202,7 @@ export function PayWithAnyToken({
 
       {feeEst && (
         <p className="text-xs" style={{ color: 'var(--ink-dim)' }} data-testid="pay-invoice-network-fee">
-          Network fee (est.) ~{fromRawAmount(feeEst.feeUluna.toString(), 6)} LUNC
+          Network fee (est.) ~{formatTokenAmountGrouped(feeEst.feeUluna.toString(), 6)} LUNC
         </p>
       )}
 

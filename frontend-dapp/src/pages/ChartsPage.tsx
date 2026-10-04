@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useState, useDeferredValue, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -75,6 +76,7 @@ const ORDER_OPTIONS: MenuSelectOption[] = [
 ]
 
 export default function ChartsPage() {
+  useNumberDisplayMode()
   const { pairAddr: routePair } = useParams<{ pairAddr?: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
