@@ -1,6 +1,7 @@
 /**
  * Catalog buy-split net for You Receive (GitLab #615).
- * Does **not** resize hop `amount_in` (H-01 / T592-1). Max extra-debit is sell-side only.
+ * Legacy direct-pair display conversion only. Supported route-funded v1 router
+ * simulations already include every buy/sell tax; do not apply this haircut again.
  */
 
 import { COMMUNITY_TAX_BPS_DENOM } from '@/utils/communityTaxSku'
@@ -54,10 +55,10 @@ export function displayReceiveNet(rawWalletOut: string, buyTaxBps: number | null
 }
 
 /** Pair-direct fallback: You Receive is net; `executeAmountOut` stays pre-tax for min_return. */
-export function withBuyTaxReceiveDisplay<T extends { return_amount: string; executeAmountOut?: string }>(
-  quoted: T,
-  buyBps: number | null | undefined
-): T {
+export function withBuyTaxReceiveDisplay<
+  T extends { return_amount: string; executeAmountOut?: string; taxFundingVersion?: 1 },
+>(quoted: T, buyBps: number | null | undefined): T {
+  if (quoted.taxFundingVersion === 1) return quoted
   const net = displayReceiveNet(quoted.return_amount, buyBps)
   if (net === quoted.return_amount) return quoted
   return { ...quoted, return_amount: net, executeAmountOut: quoted.executeAmountOut ?? quoted.return_amount }

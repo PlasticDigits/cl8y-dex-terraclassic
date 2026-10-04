@@ -12,11 +12,7 @@ import type { TerraExecuteContractEntry } from '@/services/terraclassic/terraBro
 import type { SwapOperation } from '@/services/terraclassic/router'
 import type { AutoGasExecuteEntry } from '@/services/terraclassic/swapAutoGas'
 import { ROUTER_CONTRACT_ADDRESS, TREASURY_CONTRACT_ADDRESS, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
-import {
-  estimateFeeUlunaAmountForGasLimit,
-  getGasLimitForTx,
-  sendHookExecuteSwapOperationsMsg,
-} from '@/services/terraclassic/terraGas'
+import { sendHookExecuteSwapOperationsMsg } from '@/services/terraclassic/terraGas'
 import type { HybridSwapParams } from '@/types'
 import {
   estimateTerraClassicFeeForEntries,
@@ -30,6 +26,7 @@ import {
 } from './transactions'
 
 export type SwapNetworkFeeHints = NativeSwapFeeHints & {
+  taxFundingVersion?: 1
   /** Direct unwrap (CW20 → native via wrap-mapper, not router). */
   isDirectUnwrap?: boolean
   /** CW20↔CW20 single-hop pair `swap` (not router). */
@@ -71,11 +68,13 @@ export function estimateSwapNetworkFee(hints: SwapNetworkFeeHints): TerraClassic
   }
 
   const routerOps = hints.cw20RouterOperations
-  if (routerOps && routerOps.length >= 2) {
+  if (routerOps && (routerOps.length >= 2 || (hints.taxFundingVersion === 1 && routerOps.length >= 1))) {
     const operations = routerOps.map((op) => ({
       terra_swap: op.terra_swap as unknown as Record<string, unknown>,
     }))
-    return estimateTerraClassicFeeForMsg(sendHookExecuteSwapOperationsMsg(operations))
+    return estimateTerraClassicFeeForMsg(
+      sendHookExecuteSwapOperationsMsg(operations, { funding_version: hints.taxFundingVersion })
+    )
   }
 
   const hopCount = Math.max(1, hints.hopCount ?? 1)
@@ -86,6 +85,7 @@ export function estimateSwapNetworkFee(hints: SwapNetworkFeeHints): TerraClassic
         needsWrapInput: false,
         needsUnwrapOutput: false,
         hopCount,
+        taxFundingVersion: hints.taxFundingVersion,
       })
     )
   )
@@ -150,12 +150,17 @@ export function swapAutoGasProbeEntries(input: SwapAutoGasProbeInput): AutoGasEx
   }
 
   const routerOps = hints.cw20RouterOperations
-  if (routerOps && routerOps.length >= 2 && input.payContract) {
+  if (
+    routerOps &&
+    (routerOps.length >= 2 || (hints.taxFundingVersion === 1 && routerOps.length >= 1)) &&
+    input.payContract
+  ) {
     const operations = routerOps.map((op) => ({
       terra_swap: op.terra_swap as unknown as Record<string, unknown>,
     }))
     const hook: Record<string, unknown> = {
-      execute_swap_operations: {
+      [hints.taxFundingVersion === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+        ...(hints.taxFundingVersion === 1 ? { funding_version: 1 } : {}),
         operations,
         max_spread: spread,
         ...(minimum ? { minimum_receive: minimum } : {}),
@@ -193,19 +198,18 @@ export function swapAutoGasProbeEntries(input: SwapAutoGasProbeInput): AutoGasEx
  */
 export function estimateTradeMarketNetworkFeeUluna(
   routerOperations: SwapOperation[] | undefined,
-  hybrid?: HybridSwapParams | null
+  hybrid?: HybridSwapParams | null,
+  taxFundingVersion?: 1
 ): bigint {
-  if (routerOperations && routerOperations.length >= 2) {
+  if (routerOperations && (routerOperations.length >= 2 || (taxFundingVersion === 1 && routerOperations.length > 0))) {
     const swap = estimateSwapNetworkFee({
       isDirectWrap: false,
       needsWrapInput: false,
       hopCount: routerOperations.length,
       cw20RouterOperations: routerOperations,
+      taxFundingVersion,
     })
-    const allowance = estimateFeeUlunaAmountForGasLimit(
-      getGasLimitForTx({ increase_allowance: { spender: '', amount: '' } })
-    )
-    return allowance + swap.feeUluna
+    return swap.feeUluna
   }
   return estimateMarketPairSwapSequenceUlunaFeesTotal(true, hybrid ?? undefined)
 }

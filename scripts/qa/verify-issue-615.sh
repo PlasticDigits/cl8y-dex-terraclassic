@@ -2,10 +2,10 @@
 # Automated verification for GitLab #615 — tax-aware route/solve ranking.
 #
 # Proves:
-#   1. R615 invariants + 11611 pin written in skills + docs + ADR
-#   2. Indexer ranking + cache identity lib tests
+#   1. Historical R615 legacy rules + current route-local v1 override in skills/docs
+#   2. Independent trading discovery + funded ranking/cache/boundary lib tests
 #   3. Frontend You Receive net helpers
-#   4. #607 classify / Honest hops still green
+#   4. #607 legacy direct compatibility + authenticated route-local security still green
 #
 # Refs: skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md
 set -euo pipefail
@@ -44,24 +44,32 @@ fi
 
 run_docs() {
   set -euo pipefail
-  rg -q "R615-1" skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md
-  rg -q "COMMUNITY_TAX_OPTION2_CODE_IDS" skills/AGENTS_COMMUNITY_TAX_ROUTER.md
-  rg -q "estimated_amount_out_net" docs/route-solver.md
-  rg -q "#615" docs/adr/0002-global-best-execution-route-solver.md
-  rg -q "tax_identity" docs/indexer-invariants.md
-  rg -q "verify-issue-615" docs/testing.md
-  rg -q "AGENTS_INDEXER_TAX_AWARE_ROUTING" AGENTS.md
-  rg -q "AGENTS_INDEXER_TAX_AWARE_ROUTING" skills/AGENTS_HYBRID_QUOTING.md
-  rg -q "AGENTS_INDEXER_TAX_AWARE_ROUTING" skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md
-  rg -q "11611" indexer/src/api/community_tax_rank.rs
-  rg -q "estimated_amount_out_net" indexer/src/api/route_solver.rs
-  rg -q "executeAmountOut" frontend-dapp/src/utils/cw20RouteSolveQuote.ts
-  # Must not treat unmigrated 11611 as option 2 by default.
-  rg -q "COLUMBUS5_COMMUNITY_TAX_CODE_ID" indexer/src/api/community_tax_rank.rs
+  rg -q "R615-1" skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md || return 1
+  rg -q "COMMUNITY_TAX_OPTION2_CODE_IDS" skills/AGENTS_COMMUNITY_TAX_ROUTER.md || return 1
+  rg -q "estimated_amount_out_net" docs/route-solver.md || return 1
+  rg -q "#615" docs/adr/0002-global-best-execution-route-solver.md || return 1
+  rg -q "tax_identity" docs/indexer-invariants.md || return 1
+  rg -q "verify-issue-615" docs/testing.md || return 1
+  rg -q "AGENTS_INDEXER_TAX_AWARE_ROUTING" AGENTS.md || return 1
+  rg -q "AGENTS_INDEXER_TAX_AWARE_ROUTING" skills/AGENTS_HYBRID_QUOTING.md || return 1
+  rg -q "AGENTS_INDEXER_TAX_AWARE_ROUTING" skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md || return 1
+  rg -q "11611" indexer/src/api/community_tax_rank.rs || return 1
+  rg -q "estimated_amount_out_net" indexer/src/api/route_solver.rs || return 1
+  rg -q "executeAmountOut" frontend-dapp/src/utils/cw20RouteSolveQuote.ts || return 1
+  # Legacy 11611 is not automatically upgraded to route-local funding.
+  rg -q "COLUMBUS5_COMMUNITY_TAX_CODE_ID" indexer/src/api/community_tax_rank.rs || return 1
+  rg -q "route_local_v1" indexer/src/api/community_tax_rank.rs || return 1
+  rg -q "TRADING_ROUTE_TAX_CODE_IDS" indexer/src/config.rs || return 1
+  rg -q "route_tax_capability" indexer/src/api/trading_tax_discovery.rs || return 1
+  rg -q "1381" skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md || return 1
+  rg -q "1381" docs/route-solver.md || return 1
 }
 
 run_indexer_lib() {
   (cd indexer && cargo test --lib community_tax_rank -- --test-threads=1 &&
+    cargo test --lib trading_tax_discovery -- --test-threads=1 &&
+    cargo test --lib funded_policy_a -- --test-threads=1 &&
+    cargo test --lib route_exact_output_funded -- --test-threads=1 &&
     cargo test --lib hybrid_cache_key -- --test-threads=1 &&
     cargo test --lib merge_picks_max_net -- --test-threads=1)
 }
@@ -79,15 +87,15 @@ run_607() {
 
 echo ""
 echo "── first pass ──"
-run_step "docs: R615 + 11611 pin + ADR + skills" run_docs
-run_step "indexer: ranking + cache identity lib" run_indexer_lib
+run_step "docs: legacy R615 + route-local v1 + ADR + skills" run_docs
+run_step "indexer: discovery + funded ranking/boundaries + cache identity lib" run_indexer_lib
 run_step "frontend: You Receive net + no Max double-count" run_frontend
 run_step "no-regress: verify-issue-607" run_607
 
 echo ""
 echo "── retest ──"
-run_step "retest docs: R615 + 11611 pin + ADR + skills" run_docs
-run_step "retest indexer: ranking + cache identity lib" run_indexer_lib
+run_step "retest docs: legacy R615 + route-local v1 + ADR + skills" run_docs
+run_step "retest indexer: discovery + funded ranking/boundaries + cache identity lib" run_indexer_lib
 run_step "retest frontend: You Receive net + no Max double-count" run_frontend
 
 echo ""

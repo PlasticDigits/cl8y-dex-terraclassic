@@ -58,6 +58,19 @@ export function tryHumanizeTerraTxMessage(message: string): string | null {
   if (claim) {
     return claim
   }
+  if (/InsufficientTokenBalance|Insufficient token balance/i.test(inner)) {
+    return 'Insufficient token balance for the authorized input. Check your wallet balance and refresh the quote.'
+  }
+  if (/RouteFundingShortfall|route.local token funding shortfall/i.test(inner)) {
+    return 'Route token funding did not match the quote. Refresh the quote or choose another route. No transaction was resent.'
+  }
+  if (
+    /UnsupportedRouteTax|unsupported route.tax funding|RouteTaxContext|RouteTaxFundingUnavailable|route tax funding could not be verified|route.local tax funding capability|unsupported token trading capability|taxed routes require execute_route_swap_operations/i.test(
+      inner
+    )
+  ) {
+    return 'This route tax version is unavailable. Refresh the quote or choose another route. No transaction was resent.'
+  }
   if (/InsufficientForSellTax|Insufficient balance for extra-debit sell tax/i.test(inner)) {
     return INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
   }

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Verification for Forgejo #1280 — declared hybrid split must equal hop offer.
+# Verification for Forgejo #1280 — declared hybrid split equals the economic hop offer.
+# Route-local v1 (#1381): gross includes sell tax; partitions use funded economic input.
+# Legacy/ordinary zero-tax split tests remain separate compatibility/security regressions.
 #
 # Layers (no LocalTerra required):
-#   1. Indexer unit: hop0-only retail plan + partition
+#   1. Indexer unit: hop0-only retail plan + funded economic/net propagation
 #   2. Frontend Vitest: strip interior GET hybrid, hop0 preflight, wrap hops omit hybrid
 #   3. Docs/skills H1280 crosslinks
 #   4. Retest unit + docs
@@ -39,8 +41,9 @@ echo "  Forgejo #1280 — declared hybrid hop-offer partition (Policy A)"
 echo "════════════════════════════════════════════════════════════════"
 
 run_indexer_unit() {
-  (cd indexer && cargo test --lib retail_plan_keeps_hop0 -- --test-threads=1)
-  (cd indexer && cargo test --lib hop0_only_strip_recomputes_grid_out -- --test-threads=1)
+  (cd indexer && cargo test --lib retail_plan_keeps_hop0 -- --test-threads=1) || return 1
+  (cd indexer && cargo test --lib hop0_only_strip_recomputes_grid_out -- --test-threads=1) || return 1
+  (cd indexer && cargo test --lib funded_policy_a -- --test-threads=1)
 }
 
 run_indexer_db_hybrid() {
@@ -51,8 +54,9 @@ run_indexer_db_hybrid() {
 run_wasm_multitest() {
   (
     cd smartcontracts
-    cargo test -p cl8y-dex-tests -- --test-threads=1 router_declared_split_mismatch_reverts_hop0
-    cargo test -p cl8y-dex-tests -- --test-threads=1 router_two_hop_interior_hybrid_mismatch_reverts
+    cargo test -p cl8y-dex-tests -- --test-threads=1 router_declared_split_mismatch_reverts_hop0 || exit 1
+    cargo test -p cl8y-dex-tests -- --test-threads=1 router_two_hop_interior_hybrid_mismatch_reverts || exit 1
+    cargo test -p dex-common --lib route_tax -- --test-threads=1
   )
 }
 
@@ -66,25 +70,28 @@ run_frontend_unit() {
 
 run_docs() {
   set -euo pipefail
-  rg -q 'retail_declared_hybrid_plan_hop0_only' indexer/src/api/hybrid_route_opt.rs
-  rg -q 'retail_declared_hybrid_plan_hop0_only' indexer/src/api/best_execution.rs
-  rg -q 'propagate_offer_through_plan' indexer/src/api/best_execution.rs
-  rg -q 'route_solve_db_hybrid_2hop_live_book_fidelity' indexer/tests/api_route_solve_db_hybrid.rs
-  rg -q 'stripInteriorDeclaredHybrid' frontend-dapp/src/utils/cw20RouteSolveQuote.ts
-  rg -q 'assertHop0DeclaredHybridPartitionsOffer' frontend-dapp/src/services/terraclassic/router.ts
-  rg -q 'never copy hybrid' frontend-dapp/src/services/terraclassic/router.ts
-  rg -q '#1280' skills/AGENTS_HYBRID_HOP_OFFER.md
-  rg -q 'H1280-1' skills/AGENTS_HYBRID_HOP_OFFER.md
-  rg -q 'hop 0 only' docs/integrators.md
-  rg -q '#1280' docs/route-solver.md
-  rg -q 'H1280' docs/contracts-security-audit.md
-  rg -q 'verify-issue-1280' AGENTS.md
-  rg -q 'AGENTS_HYBRID_HOP_OFFER' AGENTS.md
-  rg -q 'verify-issue-1280' docs/testing.md
-  rg -q '#1280' skills/AGENTS_HYBRID_QUOTING.md
-  rg -q '#1280' skills/AGENTS_TESTING_MULTIHOP_HYBRID.md
-  rg -q '#1280' skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md
-  rg -q '#1280' docs/adr/0001-hybrid-quoting-and-routing.md
+  rg -q 'retail_declared_hybrid_plan_hop0_only' indexer/src/api/hybrid_route_opt.rs || return 1
+  rg -q 'retail_declared_hybrid_plan_hop0_only' indexer/src/api/best_execution.rs || return 1
+  rg -q 'propagate_offer_through_plan' indexer/src/api/best_execution.rs || return 1
+  rg -q 'route_solve_db_hybrid_2hop_live_book_fidelity' indexer/tests/api_route_solve_db_hybrid.rs || return 1
+  rg -q 'optimize_funded_route' indexer/src/api/hybrid_route_opt.rs || return 1
+  rg -q 'funded_policy_a' indexer/src/api/hybrid_route_opt.rs || return 1
+  rg -q '1381' docs/route-solver.md || return 1
+  rg -q 'stripInteriorDeclaredHybrid' frontend-dapp/src/utils/cw20RouteSolveQuote.ts || return 1
+  rg -q 'assertHop0DeclaredHybridPartitionsOffer' frontend-dapp/src/services/terraclassic/router.ts || return 1
+  rg -q 'never copy hybrid' frontend-dapp/src/services/terraclassic/router.ts || return 1
+  rg -q '#1280' skills/AGENTS_HYBRID_HOP_OFFER.md || return 1
+  rg -q 'H1280-1' skills/AGENTS_HYBRID_HOP_OFFER.md || return 1
+  rg -q 'hop 0 only' docs/integrators.md || return 1
+  rg -q '#1280' docs/route-solver.md || return 1
+  rg -q 'H1280' docs/contracts-security-audit.md || return 1
+  rg -q 'verify-issue-1280' AGENTS.md || return 1
+  rg -q 'AGENTS_HYBRID_HOP_OFFER' AGENTS.md || return 1
+  rg -q 'verify-issue-1280' docs/testing.md || return 1
+  rg -q '#1280' skills/AGENTS_HYBRID_QUOTING.md || return 1
+  rg -q '#1280' skills/AGENTS_TESTING_MULTIHOP_HYBRID.md || return 1
+  rg -q '#1280' skills/AGENTS_INDEXER_HYBRID_BEST_EXECUTION.md || return 1
+  rg -q '#1280' docs/adr/0001-hybrid-quoting-and-routing.md || return 1
 }
 
 echo ""

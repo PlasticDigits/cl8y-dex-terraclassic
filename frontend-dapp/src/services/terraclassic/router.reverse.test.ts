@@ -1,3 +1,4 @@
+vi.mock('./routeTaxFunding', () => ({ assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined) }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PairInfo } from '@/types'
 

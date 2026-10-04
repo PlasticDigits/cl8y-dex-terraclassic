@@ -1,5 +1,14 @@
 # Testing
 
+Route-local tax funding [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381):
+`make verify-issue-1381` runs protocol/accounting, trading discovery/API and
+frontend gross-budget checks twice, then static checks and isolated LocalTerra
+execution. [Acceptance/agent checklist](qa/issue-1381/README.md),
+[current invariants](../skills/AGENTS_ROUTE_LOCAL_TAX.md),
+[migration runbook](runbooks/route-local-tax-1381.md).
+Agents may report **PASS with explicit skips** for checks they cannot run, with
+concrete reasons; executed failures remain FAIL and skipped deployment is unverified.
+
 **Master verification checklist:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — executable Local/QA scenarios and **REG-00** / **LR-00** regression gates referenced below.
 
 ## Philosophy

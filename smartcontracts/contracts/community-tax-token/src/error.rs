@@ -71,6 +71,15 @@ pub enum ContractError {
     #[error("Official router hop requires a trusted non-exempt trader")]
     RouterTraderRequired {},
 
+    #[error("Route-local tax funding capability or authenticated context unavailable")]
+    RouteTaxContext {},
+
+    #[error("Route-local token funding shortfall")]
+    RouteFundingShortfall {},
+
+    #[error("Insufficient token balance")]
+    InsufficientBalance {},
+
     #[error("Trading is not enabled")]
     TradingDisabled {},
 

@@ -23,6 +23,7 @@ import {
 } from '@/utils/pairCatalogRank'
 import { netAfterWrapMapperFee, queryWrapMapperFeeBps, wrapGrossForNetCw20 } from './wrapMapper'
 import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
+import { assertRouteTaxFunding } from './routeTaxFunding'
 import { poolOnlyNativeExecuteOps } from '@/utils/nativeWrapRouteSolve'
 
 /** Result of `simulateNativeSwap` (direct wrap/unwrap + native-routed swaps). */
@@ -40,6 +41,7 @@ export type NativeSwapSimResult = {
    */
   routerMinReceiveBase: string
   isDirectWrapUnwrap: boolean
+  taxFundingVersion?: 1
 }
 
 export interface SwapOperation {
@@ -73,6 +75,7 @@ export function serializeTerraSwap(ts: SwapOperation['terra_swap']) {
 
 interface SimulateResponse {
   amount: string
+  taxFundingVersion?: 1
 }
 
 export async function simulateMultiHopSwap(
@@ -80,19 +83,21 @@ export async function simulateMultiHopSwap(
   operations: SwapOperation[],
   quoteTrader?: QuoteTraderOptions
 ): Promise<SimulateResponse> {
+  const taxFundingVersion = await assertRouteTaxFunding(operations, quoteTrader?.signal)
   const msg: Record<string, unknown> = {
     offer_amount: offerAmount,
     operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
   }
   if (quoteTrader?.trader) msg.trader = quoteTrader.trader
   if (quoteTrader?.sender) msg.sender = quoteTrader.sender
-  return queryContract<SimulateResponse>(
+  const result = await queryContract<SimulateResponse>(
     ROUTER_CONTRACT_ADDRESS,
     {
       simulate_swap_operations: msg,
     },
     ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
   )
+  return { ...result, taxFundingVersion }
 }
 
 export async function reverseSimulateMultiHopSwap(
@@ -100,19 +105,21 @@ export async function reverseSimulateMultiHopSwap(
   operations: SwapOperation[],
   quoteTrader?: QuoteTraderOptions
 ): Promise<SimulateResponse> {
+  const taxFundingVersion = await assertRouteTaxFunding(operations, quoteTrader?.signal)
   const msg: Record<string, unknown> = {
     ask_amount: askAmount,
     operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
   }
   if (quoteTrader?.trader) msg.trader = quoteTrader.trader
   if (quoteTrader?.sender) msg.sender = quoteTrader.sender
-  return queryContract<SimulateResponse>(
+  const result = await queryContract<SimulateResponse>(
     ROUTER_CONTRACT_ADDRESS,
     {
       reverse_simulate_swap_operations: msg,
     },
     ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
   )
+  return { ...result, taxFundingVersion }
 }
 
 export async function executeMultiHopSwap(
@@ -125,10 +132,12 @@ export async function executeMultiHopSwap(
   to?: string,
   deadline?: number
 ): Promise<string> {
-  assertHop0DeclaredHybridPartitionsOffer(operations, amount)
+  const taxFundingVersion = await assertRouteTaxFunding(operations)
+  if (taxFundingVersion !== 1) assertHop0DeclaredHybridPartitionsOffer(operations, amount)
   const swapMsg = btoa(
     JSON.stringify({
-      execute_swap_operations: {
+      [taxFundingVersion === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+        ...(taxFundingVersion === 1 ? { funding_version: 1 } : {}),
         operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
         max_spread: maxSpread,
         minimum_receive: minimumReceive,
@@ -381,12 +390,14 @@ export async function simulateNativeSwap(
       amount: receive.toString(),
       routerMinReceiveBase: routerMinReceiveBase.toString(),
       isDirectWrapUnwrap: false,
+      taxFundingVersion: result.taxFundingVersion,
     }
   }
   return {
     amount: result.amount,
     routerMinReceiveBase: result.amount,
     isDirectWrapUnwrap: false,
+    taxFundingVersion: result.taxFundingVersion,
   }
 }
 
@@ -452,8 +463,10 @@ export async function executeNativeSwap(
   // Pool-only hops — never copy hybrid / book_input
   // (#587 / #599 / #1264 / #1280 / **H596-7** / #1218). Solver ops are stripped above;
   // BFS `findRoute` never had hybrid.
+  const taxFundingVersion = await assertRouteTaxFunding(routeInfo.operations)
   const swapHookMsg = {
-    execute_swap_operations: {
+    [taxFundingVersion === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+      ...(taxFundingVersion === 1 ? { funding_version: 1 } : {}),
       operations: routeInfo.operations.map((op) => ({
         terra_swap: serializeTerraSwap({
           offer_asset_info: op.terra_swap.offer_asset_info,

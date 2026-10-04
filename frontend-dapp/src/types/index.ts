@@ -786,6 +786,8 @@ export interface IndexerRouteSolveResponse {
   estimated_amount_out?: string
   /** Catalog buy-split net (#615). Execute / min_return still use `estimated_amount_out`. */
   estimated_amount_out_net?: string
+  /** Gross input and all-tax net output; verified route funding protocol (#1381). */
+  tax_funding_version?: 1
   tax_kind?: string
   buy_tax_bps?: number
   sell_tax_bps?: number

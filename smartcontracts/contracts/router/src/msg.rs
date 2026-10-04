@@ -51,6 +51,15 @@ pub enum ExecuteMsg {
 /// TerraSwap-compatible CW20 hook message for the router.
 #[cw_serde]
 pub enum Cw20HookMsg {
+    ExecuteRouteSwapOperations {
+        funding_version: u16,
+        operations: Vec<SwapOperation>,
+        max_spread: Decimal,
+        minimum_receive: Option<Uint128>,
+        to: Option<String>,
+        deadline: Option<u64>,
+        unwrap_output: Option<bool>,
+    },
     ExecuteSwapOperations {
         operations: Vec<SwapOperation>,
         max_spread: Decimal,
@@ -64,12 +73,13 @@ pub enum Cw20HookMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(dex_common::route_tax::RouteTaxContextResponse)]
+    RouteTaxContext {},
     #[returns(ConfigResponse)]
     Config {},
     #[returns(SimulateSwapOperationsResponse)]
-    /// Chains explicit per-hop amounts (no router balance query). Execution matches when the
-    /// router has no pre-existing dust on intermediate/output tokens; see invariant **R4**
-    /// ([`docs/contracts-security-audit.md`](../../../../docs/contracts-security-audit.md)).
+    /// Gross input budget → all-tax net output, using exactly the funded per-hop
+    /// flow of execute. Output deltas isolate pre-existing router dust (R4).
     SimulateSwapOperations {
         offer_amount: Uint128,
         operations: Vec<SwapOperation>,
@@ -102,6 +112,7 @@ pub fn simulate_swap_operations_undiscounted(
 
 #[cw_serde]
 pub struct ConfigResponse {
+    pub funding_version: u16,
     pub factory: Addr,
     pub wrap_mapper: Option<Addr>,
 }

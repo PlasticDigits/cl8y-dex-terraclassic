@@ -2,9 +2,9 @@
 mod common;
 
 use axum_test::TestServer;
-use bigdecimal::{num_bigint::BigUint, ToPrimitive};
+use bigdecimal::{ToPrimitive, num_bigint::BigUint};
 use common::lcd_mock;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use serial_test::serial;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
@@ -15,11 +15,55 @@ async fn forward_mock(
     pools: Vec<(String, String, u128, u128, u16)>,
     discounted: bool,
 ) -> MockServer {
-    let mock = MockServer::start().await;
+    forward_tax_mock(pools, discounted, Default::default(), false).await
+}
+
+async fn forward_tax_mock(
+    pools: Vec<(String, String, u128, u128, u16)>,
+    discounted: bool,
+    taxes: std::collections::HashMap<String, (u16, u16)>,
+    exempt: bool,
+) -> MockServer {
+    let mock = lcd_mock::start_ordinary_code_mock().await;
+    let registered = taxes.clone();
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+$"))
+        .respond_with(move |request: &Request| {
+            let addr = request.url.path().rsplit('/').next().unwrap();
+            ResponseTemplate::new(200).set_body_json(json!({"contract_info":{
+                "code_id":if registered.contains_key(addr){"11667"}else{"10184"},"admin":""
+            }}))
+        })
+        .with_priority(1)
+        .mount(&mock)
+        .await;
     Mock::given(method("GET"))
         .and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
         .respond_with(move |request: &Request| {
             let q = lcd_mock::smart_query_from_request(request);
+            if q.get("config").is_some() {
+                return ResponseTemplate::new(200)
+                    .set_body_json(json!({"data":{"funding_version":1}}));
+            }
+            if q.get("route_tax_capability").is_some() {
+                let addr = request
+                    .url
+                    .path()
+                    .split("/contract/")
+                    .nth(1)
+                    .unwrap()
+                    .split('/')
+                    .next()
+                    .unwrap();
+                let (buy, sell) = taxes[addr];
+                return ResponseTemplate::new(200).set_body_json(json!({"data":{
+                    "funding_version":1,"router":"terra1routertest","buy_bps":buy,"sell_bps":sell
+                }}));
+            }
+            if q.get("is_protocol_exempt").is_some() {
+                return ResponseTemplate::new(200)
+                    .set_body_json(json!({"data":{"manager":exempt,"protocol":false}}));
+            }
             if q.get("is_paused").is_some() {
                 return ResponseTemplate::new(200).set_body_json(json!({"data":{"paused":false}}));
             }
@@ -61,6 +105,15 @@ async fn forward_mock(
                 } else {
                     (*r1, *r0)
                 };
+                let sell = if exempt {
+                    0
+                } else {
+                    taxes.get(a).map(|(_, sell)| *sell).unwrap_or(0)
+                };
+                offer = ((BigUint::from(offer) * BigUint::from(10000u32) + BigUint::from(9999u32))
+                    / BigUint::from(10000u32 + u32::from(sell)))
+                .to_u128()
+                .unwrap();
                 let k = BigUint::from(rin) * BigUint::from(rout);
                 let den = BigUint::from(rin.checked_add(offer).unwrap());
                 let remain = ((k + &den - BigUint::from(1u32)) / den).to_u128().unwrap();
@@ -70,6 +123,14 @@ async fn forward_mock(
                     - (BigUint::from(gross) * BigUint::from(eff) / BigUint::from(10000u32))
                         .to_u128()
                         .unwrap();
+                let buy = if exempt {
+                    0
+                } else {
+                    taxes.get(b).map(|(buy, _)| *buy).unwrap_or(0)
+                };
+                offer -= (BigUint::from(offer) * BigUint::from(buy) / BigUint::from(10000u32))
+                    .to_u128()
+                    .unwrap();
             }
             ResponseTemplate::new(200).set_body_json(json!({"data":{"amount":offer.to_string()}}))
         })
@@ -83,6 +144,7 @@ fn config(mock: &MockServer) -> cl8y_dex_indexer::config::Config {
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(mock)];
     cfg.router_address = Some("terra1routertest".into());
     cfg.fee_discount_address = Some("terra1fees".into());
+    cfg.trading_route_tax_code_ids.insert(11667);
     cfg
 }
 
@@ -128,7 +190,14 @@ async fn route_exact_output_real_10_100_cold_repeat_and_exact_target_identity() 
         assert_eq!(body["target_amount_out"], target);
         assert_eq!(body["sizing_mode"], "pool_only_exact_output");
         assert_eq!(body["fidelity_check"], "passed");
-        assert!(body["spot_amount_out"].as_str().unwrap().parse::<u128>().unwrap() > 0);
+        assert!(
+            body["spot_amount_out"]
+                .as_str()
+                .unwrap()
+                .parse::<u128>()
+                .unwrap()
+                > 0
+        );
         assert!(body["slippage_percent"].as_str().is_some());
         assert_eq!(body["snapshot_block_height"], 100);
         assert!(body["snapshot_age_ms"].as_u64().unwrap() < 30000);
@@ -203,10 +272,12 @@ async fn route_exact_output_competing_path_beats_direct_and_unusable_first_path(
                 .unwrap()
                 < 1100000
         );
-        assert!(body["optimality_scope"]
-            .as_str()
-            .unwrap()
-            .contains("pool-only"));
+        assert!(
+            body["optimality_scope"]
+                .as_str()
+                .unwrap()
+                .contains("pool-only")
+        );
     }
 }
 
@@ -242,7 +313,7 @@ async fn route_exact_output_fee_tier_and_sender_match_forward() {
 async fn route_exact_output_validation_fails_closed_and_rejects_modes() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_with_mirror(&pool).await;
-    let mock = MockServer::start().await;
+    let mock = lcd_mock::start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
         .respond_with(|request: &Request| {
@@ -302,12 +373,20 @@ async fn route_exact_output_stale_empty_and_infeasible_are_finite() {
         .await;
     resp.assert_status_unprocessable_entity();
     assert!(resp.text().contains("fresh reserves"));
-    assert!(mock.received_requests().await.unwrap().is_empty());
+    assert!(
+        mock.received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .all(|request| lcd_mock::smart_query_from_request(request)
+                .get("simulate_swap_operations")
+                .is_none())
+    );
 }
 
 #[serial]
 #[tokio::test]
-async fn route_exact_output_buy_tax_net_and_sell_extra_debit_are_not_double_counted() {
+async fn route_exact_output_route_local_buy_sell_gross_budget_not_double_counted() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_with_mirror(&pool).await;
     for (addr, buy, sell) in [(&seed.token_a, 0i16, 200i16), (&seed.token_b, 1000, 0)] {
@@ -315,8 +394,15 @@ async fn route_exact_output_buy_tax_net_and_sell_extra_debit_are_not_double_coun
             .bind(addr).bind(buy).bind(sell).execute(&pool).await.unwrap();
     }
     let deep = 10000000000000u128;
-    let mock = forward_mock(
+    let mock = forward_tax_mock(
         vec![(seed.token_a.clone(), seed.token_b.clone(), deep, deep, 30)],
+        false,
+        [
+            (seed.token_a.clone(), (0, 200)),
+            (seed.token_b.clone(), (1000, 0)),
+        ]
+        .into_iter()
+        .collect(),
         false,
     )
     .await;
@@ -354,15 +440,20 @@ async fn route_exact_output_buy_tax_net_and_sell_extra_debit_are_not_double_coun
             .unwrap()
             .parse::<u128>()
             .unwrap()
-            < 1120000,
-        "pool funding excludes extra debit; client checks debit separately"
+            < 1150000,
+        "authorized gross input includes locally funded sell tax"
     );
     sqlx::query("UPDATE community_tokens SET buy_bps=10000 WHERE contract_address=$1")
         .bind(&seed.token_b)
         .execute(&pool)
         .await
         .unwrap();
-    server.get(&url).await.assert_status_unprocessable_entity();
+    // Catalog cache edits cannot override trusted live route capability rates.
+    let unchanged = server.get(&url).await;
+    unchanged.assert_status_ok();
+    let refreshed: Value = unchanged.json();
+    assert_eq!(refreshed["buy_tax_bps"], 1000);
+    assert_eq!(refreshed["required_amount_in"], body["required_amount_in"]);
 }
 
 #[serial]
@@ -434,12 +525,15 @@ async fn route_exact_output_sender_only_exemption_matches_execution_context() {
     sqlx::query("INSERT INTO community_tokens (contract_address,code_id,buy_bps,sell_bps,features) VALUES ($1,11611,1000,0,'{\"exemption_directory\":true}'::jsonb)")
         .bind(&seed.token_b).execute(&pool).await.unwrap();
     let deep = 10000000000000u128;
-    let mock = forward_mock(
+    let mock = forward_tax_mock(
         vec![(seed.token_a.clone(), seed.token_b.clone(), deep, deep, 30)],
         false,
+        [(seed.token_b.clone(), (1000, 0))].into_iter().collect(),
+        true,
     )
     .await;
     Mock::given(method("GET"))
+        .and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
         .and(|r: &Request| {
             lcd_mock::smart_query_from_request(r)
                 .get("is_protocol_exempt")
@@ -463,7 +557,7 @@ async fn route_exact_output_sender_only_exemption_matches_execution_context() {
     let resp = server.get(&format!("/api/v1/route/solve?token_in={}&token_out={}&amount_out=1000000&sender=terra1000000000000000000000000000000000002",seed.token_a,seed.token_b)).await;
     resp.assert_status_ok();
     let body: Value = resp.json();
-    assert_eq!(body["tax_kind"], "exempt");
+    assert_eq!(body["tax_kind"], "route_local_v1");
     assert_eq!(body["buy_tax_bps"], 0);
     assert!(
         body["required_amount_in"]
@@ -610,5 +704,13 @@ async fn route_exact_output_present_standard_reference_unavailable_fails_closed(
         .await;
     resp.assert_status_service_unavailable();
     assert!(resp.text().contains("fair-route reference"));
-    assert!(mock.received_requests().await.unwrap().is_empty());
+    assert!(
+        mock.received_requests()
+            .await
+            .unwrap()
+            .iter()
+            .all(|request| lcd_mock::smart_query_from_request(request)
+                .get("simulate_swap_operations")
+                .is_none())
+    );
 }

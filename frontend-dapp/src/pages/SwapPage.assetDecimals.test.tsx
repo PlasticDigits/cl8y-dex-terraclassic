@@ -1,3 +1,13 @@
+import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
+vi.mock('@/utils/swapReceiveQuote', () => ({
+  quoteSwapReceiveViaSolver: vi.fn().mockResolvedValue({
+    offerAmount: '1000000000000000000',
+    return_amount: '1000000000000000000',
+    spread_amount: '100',
+    commission_amount: '3000',
+    indexerOperations: [],
+  }),
+}))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -136,7 +146,7 @@ import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { findRoute, getAllTokens } from '@/services/terraclassic/router'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { queryContract, getTokenBalance } from '@/services/terraclassic/queries'
-import { simulateSwap, reverseSimulateSwap } from '@/services/terraclassic/pair'
+import { simulateSwap } from '@/services/terraclassic/pair'
 import * as indexerClient from '@/services/indexer/client'
 import { TRADING_BLACKLIST_ALLOWED } from '@/test/tradingBlacklistMocks'
 import { useTradingBlacklist } from '@/hooks/useTradingBlacklist'
@@ -319,8 +329,8 @@ describe('SwapPage unlisted CW20 decimals (#1255)', () => {
     await user.type(receive, '1')
     await waitFor(
       () => {
-        expect(reverseSimulateSwap).toHaveBeenCalled()
-        expect(vi.mocked(reverseSimulateSwap).mock.calls[0][2]).toBe('1000000000000000000')
+        expect(quoteSwapReceiveViaSolver).toHaveBeenCalled()
+        expect(vi.mocked(quoteSwapReceiveViaSolver).mock.calls.at(-1)?.[0].targetRaw).toBe('1000000000000000000')
       },
       { timeout: 5000 }
     )

@@ -1,5 +1,17 @@
 # Indexer hybrid best execution + consolidated listing (GitLab #189, #209)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Audience: third-party agents integrating Vyntrex, CG/CMC crawlers, or retail route clients against the CL8Y indexer.
 
 Pair-direct bot warning ([Forgejo #707](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/707)): omitted `hybrid` + `greedy` currently means pool-only. The solver is also the integrator best-execution API; a one-hop direct pair execution must carry the returned `hybrid`. See the [integrator decision table](../docs/integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707). Future default-greedy semantics remain gated by [#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718).

@@ -29,7 +29,7 @@ use crate::tax::{self, is_protocol_exempt};
 const CONTRACT_NAME: &str = "crates.io:cl8y-community-tax-token";
 /// Dedicated cw2 (workspace package stays 1.0.0 so AutoLP/launcher are not bumped).
 /// ALPHA on columbus-5 is 1.0.0; same-version migrate is rejected (#1246).
-pub(crate) const CONTRACT_VERSION: &str = "1.1.0";
+pub(crate) const CONTRACT_VERSION: &str = "1.2.0";
 
 pub fn instantiate(
     mut deps: DepsMut,
@@ -208,6 +208,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::RouteTransfer { recipient, amount } => {
+            tax::execute_route_transfer(deps, env, info, recipient, amount)
+        }
         ExecuteMsg::Transfer { recipient, amount } => {
             execute_transfer(deps, env, info, recipient, amount)
         }
@@ -569,6 +572,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::DownloadLogo {} => {
             to_json_binary(&cw20_base::contract::query_download_logo(deps)?)
         }
+        QueryMsg::RouteTaxCapability {} => to_json_binary(&tax::route_capability(deps)?),
+        QueryMsg::RouteTaxPreview {
+            kind,
+            amount,
+            trader,
+            pair,
+        } => to_json_binary(&tax::route_preview(deps, kind, amount, trader, pair)?),
         QueryMsg::GetConfig {} => to_json_binary(&query_config(deps)?),
         QueryMsg::GetFeatures {} => to_json_binary(&query_features(deps)?),
         QueryMsg::GetExemptions { start_after, limit } => {

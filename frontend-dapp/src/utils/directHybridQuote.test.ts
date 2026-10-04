@@ -1,3 +1,8 @@
+import { queryRouterTaxFundingVersion } from '@/services/terraclassic/routeTaxFunding'
+import * as router from '@/services/terraclassic/router'
+vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
+  queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
+}))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { quoteDirectHybridSwap, quoteDisclosureForIndexerKind } from './directHybridQuote'
 import * as indexerClient from '@/services/indexer/client'
@@ -16,6 +21,7 @@ const ASK = { token: { contract_addr: 'terra1to' } }
 
 describe('quoteDirectHybridSwap (#418, #471)', () => {
   beforeEach(() => {
+    vi.mocked(queryRouterTaxFundingVersion).mockResolvedValue(undefined)
     vi.spyOn(swapRoutePreflight, 'preflightSwapRouteSpread').mockResolvedValue({
       worstSpreadPercent: '0.25',
       anyHopExceedsMaxSpread: false,
@@ -155,5 +161,36 @@ describe('quoteDisclosureForIndexerKind', () => {
     expect(quoteDisclosureForIndexerKind('indexer_hybrid_lcd')).toMatch(/limit book \+ pool/i)
     expect(quoteDisclosureForIndexerKind(undefined)).toMatch(/limit book \+ pool/i)
     expect(quoteDisclosureForIndexerKind(undefined)).not.toMatch(/hybrid_simulation|Pattern C/i)
+  })
+})
+
+describe('funded manual hybrid (#1381)', () => {
+  it('uses authorized gross input, net output and versioned router operations', async () => {
+    vi.mocked(queryRouterTaxFundingVersion).mockResolvedValue(1)
+    vi.spyOn(indexerClient, 'postRouteSolve').mockRejectedValue(new Error('503 unavailable'))
+    vi.spyOn(swapRoutePreflight, 'enrichSwapOperationsWithHopMinReturns').mockImplementation(async (ops) => ops)
+    vi.spyOn(swapRoutePreflight, 'preflightSwapRouteSpread').mockResolvedValue({
+      worstSpreadPercent: '0.25',
+      anyHopExceedsMaxSpread: false,
+      anyHopMissingSlippageFloor: false,
+    })
+    const sim = vi.spyOn(router, 'simulateMultiHopSwap').mockResolvedValue({ amount: '955000', taxFundingVersion: 1 })
+    const result = await quoteDirectHybridSwap({
+      pairAddress: 'terra1pair',
+      fromToken: 'terra1from',
+      toToken: 'terra1to',
+      offerAssetInfo: OFFER,
+      askAssetInfo: ASK,
+      simRaw: '1010000',
+      hybrid: { ...HYBRID, pool_input: '810000' },
+      maxSpreadStr: '0.01',
+      quoteTrader: { trader: 'terra1synthetic' },
+    })
+    expect(result).toMatchObject({ return_amount: '955000', taxFundingVersion: 1 })
+    expect(result.indexerOperations?.[0].terra_swap.hybrid).toMatchObject({
+      pool_input: '810000',
+      book_input: '200000',
+    })
+    expect(sim).toHaveBeenCalledWith('1010000', expect.any(Array), expect.objectContaining({ taxFundingVersion: 1 }))
   })
 })

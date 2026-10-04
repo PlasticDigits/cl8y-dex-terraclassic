@@ -1,9 +1,15 @@
+import { assertRouteTaxFunding } from '@/services/terraclassic/routeTaxFunding'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { quoteCw20ViaRouteSolve, quoteCw20ExactOutputViaRouteSolve } from './cw20RouteSolveQuote'
 import * as indexerClient from '@/services/indexer/client'
 import * as router from '@/services/terraclassic/router'
 import { getPair } from '@/services/terraclassic/factory'
 import * as preflight from '@/services/terraclassic/swapRoutePreflight'
+
+vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
+  assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
+  ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
+}))
 
 vi.mock('@/services/indexer/client', () => ({
   getRouteSolve: vi.fn(),
@@ -35,6 +41,7 @@ describe('quoteCw20ViaRouteSolve (#501)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(assertRouteTaxFunding).mockResolvedValue(undefined)
   })
 
   it('quotes via GET /route/solve and wallet simulate_swap_operations', async () => {
@@ -273,6 +280,7 @@ describe('exact-output selected route validation (#1376)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(assertRouteTaxFunding).mockResolvedValue(undefined)
     vi.mocked(getPair).mockResolvedValue({
       contract_addr: 'terra1pair',
       liquidity_token: 'terra1lp',
@@ -355,4 +363,107 @@ describe('exact-output selected route validation (#1376)', () => {
       expect(router.simulateMultiHopSwap).not.toHaveBeenCalled()
     }
   )
+})
+
+describe('all-tax net route quotes (#1381)', () => {
+  it('does not haircut an already-net router result and keeps gross input for one hop', async () => {
+    vi.mocked(assertRouteTaxFunding).mockResolvedValue(1)
+    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+      token_in: 'terra1alpha',
+      token_out: 'terra1ask',
+      tax_kind: 'route_local_v1',
+      buy_tax_bps: 450,
+      hops: [{ pair: 'terra1pair', offer_token: 'terra1alpha', ask_token: 'terra1ask' }],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: 'terra1alpha' } },
+            ask_asset_info: { token: { contract_addr: 'terra1ask' } },
+          },
+        },
+      ],
+    })
+    vi.mocked(router.simulateMultiHopSwap).mockResolvedValue({ amount: '955000', taxFundingVersion: 1 })
+    const result = await quoteCw20ViaRouteSolve({
+      fromToken: 'terra1alpha',
+      toToken: 'terra1ask',
+      simRaw: '1010000',
+      maxMakerFills: 8,
+      slippageTolerancePercent: 1,
+      maxSpreadStr: '0.01',
+    })
+    expect(result).toMatchObject({ return_amount: '955000', taxFundingVersion: 1 })
+    expect(result?.executeAmountOut).toBeUndefined()
+    expect(router.simulateMultiHopSwap).toHaveBeenLastCalledWith(
+      '1010000',
+      expect.any(Array),
+      expect.objectContaining({ taxFundingVersion: 1 })
+    )
+  })
+})
+
+describe('authorized route identity (#1381)', () => {
+  it('rejects a versioned quote whose executable path pays a different receive token', async () => {
+    vi.mocked(assertRouteTaxFunding).mockClear()
+    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+      token_in: 'terra1offer',
+      token_out: 'terra1wanted',
+      tax_kind: 'route_local_v1',
+      hops: [{ pair: 'terra1pair', offer_token: 'terra1offer', ask_token: 'terra1foreign' }],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: 'terra1offer' } },
+            ask_asset_info: { token: { contract_addr: 'terra1foreign' } },
+          },
+        },
+      ],
+    })
+    await expect(
+      quoteCw20ViaRouteSolve({
+        fromToken: 'terra1offer',
+        toToken: 'terra1wanted',
+        simRaw: '1010000',
+        maxMakerFills: 8,
+        slippageTolerancePercent: 1,
+        maxSpreadStr: '0.01',
+      })
+    ).rejects.toThrow('receive token does not match')
+    expect(assertRouteTaxFunding).not.toHaveBeenCalled()
+  })
+  it('rejects disconnected funded operation segments before trusting a capability', async () => {
+    vi.mocked(indexerClient.getRouteSolve).mockResolvedValue({
+      token_in: 'terra1offer',
+      token_out: 'terra1wanted',
+      tax_kind: 'route_local_v1',
+      hops: [
+        { pair: 'terra1pair1', offer_token: 'terra1offer', ask_token: 'terra1middle' },
+        { pair: 'terra1pair2', offer_token: 'terra1foreign', ask_token: 'terra1wanted' },
+      ],
+      router_operations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: 'terra1offer' } },
+            ask_asset_info: { token: { contract_addr: 'terra1middle' } },
+          },
+        },
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: 'terra1foreign' } },
+            ask_asset_info: { token: { contract_addr: 'terra1wanted' } },
+          },
+        },
+      ],
+    })
+    await expect(
+      quoteCw20ViaRouteSolve({
+        fromToken: 'terra1offer',
+        toToken: 'terra1wanted',
+        simRaw: '1010000',
+        maxMakerFills: 8,
+        slippageTolerancePercent: 1,
+        maxSpreadStr: '0.01',
+      })
+    ).rejects.toThrow('operations do not match')
+  })
 })

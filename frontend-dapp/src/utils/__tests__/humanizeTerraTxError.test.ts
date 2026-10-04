@@ -26,7 +26,9 @@ describe('tryHumanizeTerraTxMessage — existing branches (regression coverage)'
     const raw =
       'failed to execute message; message index: 0: Insufficient balance for extra-debit sell tax: execute wasm contract failed'
     const out = tryHumanizeTerraTxMessage(raw)
-    expect(out).toBe('Not enough tokens after sell tax. Reduce the amount or tap Max.')
+    expect(out).toBe(
+      'Token funding is insufficient or this route uses an unsupported tax version. Refresh the quote or choose another route.'
+    )
     expect(out).not.toMatch(/message index/i)
     expect(out).not.toMatch(/1267|GitLab|Forgejo/i)
     expect(tryHumanizeTerraTxMessage('InsufficientForSellTax')).toBe(out)
@@ -284,5 +286,22 @@ describe('tryHumanizeTerraTxMessage — new branches (GitLab #134)', () => {
       expect(out).toContain('selected placement effort')
       expect(out).toContain('Placement gas')
     })
+  })
+})
+
+describe('routed funding failure recovery (#1381)', () => {
+  it('distinguishes ordinary insufficiency, version/context and gross-funding mismatch', () => {
+    const ordinary = tryHumanizeTerraTxMessage('Insufficient token balance')
+    const capability = tryHumanizeTerraTxMessage(
+      'Route-local tax funding capability or authenticated context unavailable'
+    )
+    const shortfall = tryHumanizeTerraTxMessage('Route-local token funding shortfall')
+    expect(ordinary).toMatch(/authorized input/)
+    expect(capability).toMatch(/version is unavailable/)
+    expect(shortfall).toMatch(/did not match the quote/)
+    for (const message of [ordinary, capability, shortfall])
+      expect(message).not.toMatch(/buy|acquire|intermediate reserve/i)
+    expect(capability).toMatch(/No transaction was resent/)
+    expect(shortfall).toMatch(/No transaction was resent/)
   })
 })

@@ -72,3 +72,5 @@ pub mod entry {
         crate::contract::migrate(deps, env, msg)
     }
 }
+
+mod route_tax;

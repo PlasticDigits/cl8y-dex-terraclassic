@@ -4,15 +4,14 @@
 use std::collections::{HashMap, HashSet};
 
 use axum::http::StatusCode;
-use bigdecimal::{num_bigint::BigUint, ToPrimitive};
+use bigdecimal::{ToPrimitive, num_bigint::BigUint};
 
 use super::{
-    best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
+    AppState, best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
     route_exact_output::{MAX_GRAPH_PAIRS, PATH_WORK_BUDGET},
     route_graph::RouteGraphSnapshot,
     route_paths, route_slippage,
     route_solver::{self, RouteHop},
-    AppState,
 };
 
 type Error = (StatusCode, String);
@@ -172,8 +171,19 @@ fn price_from_paths(
         }
         let output = hops.iter().try_fold(one_unit, |offer, h| {
             let m = mirrors.get(&h.pair)?;
-            let out =
-                dbsim::simulate_pool_only_from_mirror(m, &h.offer_token, offer, discount).ok()?;
+            let funded = taxes.path_route_local(hops);
+            let economic = if funded {
+                tax::sell_economic(offer, taxes.sell_bps(&h.offer_token))
+            } else {
+                offer
+            };
+            let out = dbsim::simulate_pool_only_from_mirror(m, &h.offer_token, economic, discount)
+                .ok()?;
+            let out = if funded {
+                tax::buy_split_net(out, taxes.buy_bps(&h.ask_token))
+            } else {
+                out
+            };
             let reserve = if h.offer_token.eq_ignore_ascii_case(&m.asset_0_addr) {
                 m.reserve_1
             } else {
@@ -252,17 +262,15 @@ pub(crate) async fn load(
         .chain(out_paths.iter())
         .flat_map(|h| tax::extra_addrs_from_hops(h))
         .collect();
-    // Strict catalog coverage includes all reference intermediaries, without new LCD calls.
-    let rows = crate::db::queries::community_tokens::get_by_addresses(&state.pool, &extras)
-        .await
-        .map_err(super::internal_err)?;
-    let mut reference_taxes = taxes.clone();
-    for row in &rows {
-        let row = tax::CataloguedTaxToken::from_row(row);
-        reference_taxes
-            .by_addr
-            .insert(row.contract_address.clone(), row);
-    }
+    // Reference paths use the same live trading capabilities as executable paths. Never
+    // overwrite upgraded instance metadata with a narrower/stale Create catalog row.
+    let mut reference_taxes =
+        tax::try_load_tax_rank_snapshot(state, token_in, token_out, &extras, None)
+            .await
+            .map_err(super::internal_err)?;
+    reference_taxes
+        .exempt_tokens
+        .extend(taxes.exempt_tokens.iter().cloned());
     let addrs: Vec<_> = in_paths
         .iter()
         .chain(out_paths.iter())

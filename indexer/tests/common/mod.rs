@@ -6,7 +6,7 @@ use std::os::unix::io::AsRawFd;
 use std::sync::Once;
 
 use axum::Router;
-use cl8y_dex_indexer::api::{build_router, AppState};
+use cl8y_dex_indexer::api::{AppState, build_router};
 use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::PgPool;
@@ -85,6 +85,9 @@ pub fn test_config() -> Config {
         cmm_governance_addr: None,
         community_tax_option2_code_ids: std::collections::HashSet::new(),
         community_tax_option2_data_hashes: std::collections::HashSet::new(),
+        trading_route_tax_code_ids: Default::default(),
+        trading_route_tax_data_hashes: Default::default(),
+        trading_tax_free_code_ids: [10184].into_iter().collect(),
     }
 }
 

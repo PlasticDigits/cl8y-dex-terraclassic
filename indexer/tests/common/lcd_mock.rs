@@ -11,17 +11,29 @@
 //! Production CG/CMC depth: hybrid merge [`hybrid_orderbook_sim`](cl8y_dex_indexer::api::hybrid_orderbook_sim) + pool walk [`orderbook_sim`](cl8y_dex_indexer::api::orderbook_sim) (**#220**, **#210**). Use [`start_hybrid_orderbook_mock`] for limit+pool tests.
 
 use base64::Engine;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
+/// Existing ordinary CW20 fixtures explicitly attest immutable honest implementation.
+pub async fn start_ordinary_code_mock() -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "contract_info":{"code_id":"10184","admin":""}
+        })))
+        .mount(&server)
+        .await;
+    server
+}
 
 /// Decode the JSON cosmwasm smart query from a `/smart/{base64}` LCD path.
 pub fn smart_query_from_request(req: &Request) -> Value {
     let path = req.url.path();
-    let b64 = path
-        .split("/smart/")
-        .nth(1)
-        .expect("path should contain /smart/");
+    let Some(b64) = path.split("/smart/").nth(1) else {
+        return Value::Null; // ContractInfo attestation requests are not smart queries.
+    };
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(b64)
         .expect("valid base64 query");
@@ -86,7 +98,7 @@ pub async fn start_tier_aware_route_optimizer_mock(tier5_addrs: &[&str]) -> Mock
         };
         ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
     };
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)
@@ -96,7 +108,9 @@ pub async fn start_tier_aware_route_optimizer_mock(tier5_addrs: &[&str]) -> Mock
 }
 
 /// Router sim only — counts `hybrid_simulation` LCD calls (Phase 1c: grid must not use them).
-pub async fn start_router_only_route_mock(sim_amount: &str) -> (MockServer, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+pub async fn start_router_only_route_mock(
+    sim_amount: &str,
+) -> (MockServer, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
     let hybrid_hits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let hits = hybrid_hits.clone();
     let amount = sim_amount.to_string();
@@ -112,7 +126,7 @@ pub async fn start_router_only_route_mock(sim_amount: &str) -> (MockServer, std:
         };
         ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
     };
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)
@@ -160,7 +174,7 @@ pub async fn start_hybrid_route_optimizer_mock() -> MockServer {
         };
         ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
     };
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)
@@ -208,7 +222,7 @@ pub async fn start_hybrid_degraded_mock() -> MockServer {
         }
         ResponseTemplate::new(200).set_body_json(json!({ "data": null }))
     };
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)
@@ -249,7 +263,7 @@ pub async fn start_multi_path_router_mock() -> MockServer {
         };
         ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
     };
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)
@@ -260,7 +274,7 @@ pub async fn start_multi_path_router_mock() -> MockServer {
 
 /// Smart-query stub: returns `{"data": ...}` for any wasm contract smart GET (router simulate, pool query, etc.).
 pub async fn start_smart_query_data_mock(data: Value) -> MockServer {
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     let body = json!({ "data": data });
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
@@ -300,7 +314,7 @@ fn pool_only_orderbook_responder(req: &Request) -> ResponseTemplate {
 
 /// CG/CMC orderbook LCD stub: pool + fee + **empty** limit book (hybrid merge = pool-only).
 pub async fn start_pool_query_mock() -> MockServer {
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(pool_only_orderbook_responder)
@@ -366,7 +380,7 @@ pub async fn start_hybrid_orderbook_mock() -> MockServer {
         };
         ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
     };
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(responder)
@@ -458,7 +472,7 @@ pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer 
         ResponseTemplate::new(200).set_body_json(json!({ "data": data }))
     };
 
-    let server = MockServer::start().await;
+    let server = start_ordinary_code_mock().await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(book_responder)
@@ -466,7 +480,9 @@ pub async fn start_book_snapshot_mock(block_height: Option<&str>) -> MockServer 
         .await;
     if let Some(height) = height {
         Mock::given(method("GET"))
-            .and(path_regex(r"^/cosmos/base/tendermint/v1beta1/blocks/latest$"))
+            .and(path_regex(
+                r"^/cosmos/base/tendermint/v1beta1/blocks/latest$",
+            ))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "block": { "header": { "height": height, "time": "2026-06-05T00:00:00Z" } }
             })))

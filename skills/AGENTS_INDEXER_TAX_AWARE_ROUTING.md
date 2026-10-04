@@ -1,5 +1,17 @@
 # Agent playbook: tax-aware route/solve ranking (GitLab #615)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing **`GET /api/v1/route/solve`** winner pick, hybrid GET cache keys, Swap/Trade **You Receive**, or community-tax catalog bps that feed the solver.
 
 This is a **score / display / path-eligibility** layer. Do **not** teach pair/router wasm to size extra-debit (**H-01** / **T592-1**). Official dApp stays on GET best-execution (**#596**).

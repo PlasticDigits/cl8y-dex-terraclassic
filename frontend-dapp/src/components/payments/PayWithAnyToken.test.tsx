@@ -1,3 +1,4 @@
+const { balanceState } = vi.hoisted(() => ({ balanceState: { raw: '50000000' as string | undefined } }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import { renderWithProviders } from '@/test-utils'
@@ -49,7 +50,7 @@ vi.mock('@/services/terraclassic/wrapMapper', () => ({
 }))
 
 vi.mock('@/hooks/useTokenBalance', () => ({
-  useTokenBalance: () => ({ data: '50000000', isLoading: false }),
+  useTokenBalance: () => ({ data: balanceState.raw, isLoading: false }),
 }))
 
 vi.mock('@/hooks/useNativeUlunaBalance', () => ({
@@ -70,6 +71,7 @@ const INVOICE_PROP: Invoice = { ...INVOICE }
 describe('PayWithAnyToken (GitLab #595)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    balanceState.raw = '50000000'
     quotePayInvoice.mockResolvedValue(DIRECT_OK)
     useWalletStore.setState({ address: null, walletType: null, error: null })
     useDexStore.setState({ slippageTolerance: DEFAULT_SLIPPAGE_TOLERANCE_PERCENT })
@@ -122,4 +124,12 @@ describe('PayWithAnyToken (GitLab #595)', () => {
     expect(screen.getByTestId('pay-invoice-cta')).toBeDisabled()
     expect(screen.getByTestId('pay-invoice-cta')).toHaveTextContent('Enable')
   })
+})
+
+it('blocks invoice signing when the required input balance is unavailable (#1381)', async () => {
+  balanceState.raw = undefined
+  useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+  renderWithProviders(<PayWithAnyToken invoice={INVOICE_PROP} tokens={[UST1]} />)
+  await waitFor(() => expect(quotePayInvoice).toHaveBeenCalled())
+  expect(screen.getByTestId('pay-invoice-cta')).toBeDisabled()
 })

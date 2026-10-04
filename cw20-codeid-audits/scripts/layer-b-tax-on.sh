@@ -378,22 +378,30 @@ print("tax-on: pair-direct ignores spoofed trader (from extra-debited)")
 ' "$VICTIM_BEFORE" "$VICTIM_AFTER" "$SPOOF_USER_BEFORE" "$SPOOF_USER_AFTER" \
   "$TAX_ON_SWAP_RAW" "$EXPECT_TAX"
 
-# --- Official-router ≥2hop: extra-debit trader; pair→router 1:1 ---
+# --- Official-router ≥2hop: explicit v1 gross funding or historical legacy ---
+ROUTE_FUNDING_VERSION="$(tax_on_route_funding_version "$TOKEN_ADDR" "$VITE_ROUTER_ADDRESS")"
+ROUTE_ECONOMIC="$TAX_ON_SWAP_RAW"
+ROUTE_SELL_TAX="$EXPECT_TAX"
+if [[ "$ROUTE_FUNDING_VERSION" == "1" ]]; then
+  ROUTE_PREVIEW="$(tax_on_preview_route_sell "$TOKEN_ADDR" "$TRADER" "$PAIR_ADDR" "$TAX_ON_SWAP_RAW" "$SELL_BPS")"
+  ROUTE_ECONOMIC="$(printf '%s' "$ROUTE_PREVIEW" | jq -r '.economic')"
+  ROUTE_SELL_TAX="$(printf '%s' "$ROUTE_PREVIEW" | jq -r '.tax')"
+fi
 resolve_second_hop || {
   echo "FAIL: no EMBER second hop (CORAL/JADE/ONYX/cUSTC/cLUNC pair). Redeploy gems." >&2
   exit 1
 }
 echo "tax-on: 2hop TAX→EMBER→$(echo "$HOP2_TOKEN" | cut -c1-16)… via $HOP2_PAIR"
-ROUTER_HOOK="$(jq -nc --arg tax "$TOKEN_ADDR" --arg ember "$VITE_TOKEN_EMBER_ADDRESS" --arg hop2 "$HOP2_TOKEN" \
+ROUTER_HOOK="$(jq -nc --arg tax "$TOKEN_ADDR" --arg ember "$VITE_TOKEN_EMBER_ADDRESS" --arg hop2 "$HOP2_TOKEN" --argjson version "$ROUTE_FUNDING_VERSION" \
   '{
-    execute_swap_operations:{
+    (if $version == 1 then "execute_route_swap_operations" else "execute_swap_operations" end):{
       operations:[
         {terra_swap:{offer_asset_info:{token:{contract_addr:$tax}},ask_asset_info:{token:{contract_addr:$ember}}}},
         {terra_swap:{offer_asset_info:{token:{contract_addr:$ember}},ask_asset_info:{token:{contract_addr:$hop2}}}}
       ],
       max_spread:"1"
     }
-  }')"
+  } | if $version == 1 then .execute_route_swap_operations.funding_version = 1 else . end')"
 R_USER_B="$(layer_cw20_balance "$TOKEN_ADDR" "$TRADER")"
 R_PAIR_B="$(layer_cw20_balance "$TOKEN_ADDR" "$PAIR_ADDR")"
 R_ROUTER_B="$(layer_cw20_balance "$TOKEN_ADDR" "$VITE_ROUTER_ADDRESS")"
@@ -407,6 +415,11 @@ R_USER_A="$(layer_cw20_balance_changed "$TOKEN_ADDR" "$TRADER" "$R_USER_B")"
 R_PAIR_A="$(layer_cw20_balance_changed "$TOKEN_ADDR" "$PAIR_ADDR" "$R_PAIR_B")"
 R_ROUTER_A="$(layer_cw20_balance "$TOKEN_ADDR" "$VITE_ROUTER_ADDRESS")"
 R_SINK_A="$(layer_cw20_balance "$TOKEN_ADDR" "$TREASURY")"
+if [[ "$ROUTE_FUNDING_VERSION" == "1" ]]; then
+  tax_on_assert_route_funded_sell "$R_USER_B" "$R_USER_A" "$R_PAIR_B" "$R_PAIR_A" "$R_ROUTER_B" "$R_ROUTER_A" \
+    "$R_SINK_B" "$R_SINK_A" "$TAX_ON_SWAP_RAW" "$ROUTE_ECONOMIC" "$ROUTE_SELL_TAX"
+else
+  # Historical legacy behavior is asserted only for matching legacy instances.
 python3 -c '
 import sys
 ub, ua, pb, pa, rb, ra, sb, sa, amt, tax = (int(x) for x in sys.argv[1:])
@@ -425,6 +438,8 @@ if sa - sb != tax:
 print("tax-on: official-router ≥2hop extra-debits trader; pair credit 1:1")
 ' "$R_USER_B" "$R_USER_A" "$R_PAIR_B" "$R_PAIR_A" "$R_ROUTER_B" "$R_ROUTER_A" \
   "$R_SINK_B" "$R_SINK_A" "$TAX_ON_SWAP_RAW" "$EXPECT_TAX"
+
+fi
 
 # --- Missing router trader fail-closes (probe token: config.router = test2) ---
 echo "tax-on: missing-trader probe (router=test2)…"
@@ -456,6 +471,18 @@ if ! layer_execute_rejected "$MISSING_OUT"; then
   exit 1
 fi
 echo "tax-on: missing router trader fail-closes"
+
+# A trader field and EOA named as official router cannot forge live v1 context.
+if [[ "$ROUTE_FUNDING_VERSION" == "1" ]]; then
+  PROBE_VICTIM_B="$(layer_cw20_balance "$PROBE_TOKEN" "$TEST_ADDRESS")"
+  PROBE_ROUTER_B="$(layer_cw20_balance "$PROBE_TOKEN" "$TEST2")"
+  PROBE_FORGED_HOOK="$(jq -nc --arg trader "$TEST_ADDRESS" '{swap:{max_spread:"1",trader:$trader}}' | base64 -w0)"
+  PROBE_FORGED_OUT="$(tax_on_try_tx_from test2 wasm execute "$PROBE_TOKEN" "$(jq -nc --arg c "$PROBE_PAIR" --arg amt "$TAX_ON_SWAP_RAW" --arg m "$PROBE_FORGED_HOOK" '{send:{contract:$c,amount:$amt,msg:$m}}')")"
+  layer_execute_rejected "$PROBE_FORGED_OUT" || { echo "FAIL: forged route-local context executed" >&2; exit 1; }
+  [[ "$(layer_cw20_balance "$PROBE_TOKEN" "$TEST_ADDRESS")" == "$PROBE_VICTIM_B" && \
+     "$(layer_cw20_balance "$PROBE_TOKEN" "$TEST2")" == "$PROBE_ROUTER_B" ]] || { echo "FAIL: forged context changed balances" >&2; exit 1; }
+  echo "tax-on: forged v1 router context rejected without wallet or router debit"
+fi
 
 # --- Place-limit Send 1:1 after register (must not extra-debit Place) ---
 PAIR_INFO="$(layer_smart "$PAIR_ADDR" '{"pair":{}}')"
@@ -584,6 +611,10 @@ tax_on_exec_ok wasm execute "$AUTOLP_ADDR" "$CLEAR_MIN" >/dev/null
 echo "tax-on: restored skim_min_return so leftover re-runs are not stuck"
 
 jq -nc \
+  --argjson funding "$ROUTE_FUNDING_VERSION" \
+  --arg gross "$TAX_ON_SWAP_RAW" \
+  --arg economic "$ROUTE_ECONOMIC" \
+  --arg route_tax "$ROUTE_SELL_TAX" \
   --arg source "$SOURCE" \
   --arg token "$TOKEN_ADDR" \
   --arg pair "$PAIR_ADDR" \
@@ -601,6 +632,13 @@ jq -nc \
   --arg probe "$PROBE_TOKEN" \
   '{
     executed: true,
+    route_tax_funding_version: $funding,
+    route_local_funded: ($funding == 1),
+    wallet_funded_legacy: ($funding == 0),
+    route_gross_budget: $gross,
+    route_economic_input: $economic,
+    route_sell_tax: $route_tax,
+    forged_route_context_rejected: ($funding == 1),
     source: $source,
     pair_direct_sell: true,
     pair_direct_buy: true,

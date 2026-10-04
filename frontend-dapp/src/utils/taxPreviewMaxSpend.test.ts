@@ -56,14 +56,16 @@ describe('taxPreviewMaxSpend (#593 extra-debit sell)', () => {
     expect(applyExtraDebitSellCap(10_000_000n, effectiveExtraDebitSellBps(500, true))).toBe(10_000_000n)
   })
 
-  it('router hops extra-debit the trader and disclose tax (#607 option 2)', () => {
+  it('router uses gross budget and direct pair retains extra-debit (#1381)', () => {
     expect(communityTaxExecuteUsesRouter(1)).toBe(false)
     expect(communityTaxExecuteUsesRouter(2)).toBe(true)
     expect(communityTaxExecuteUsesRouter(1, true)).toBe(true)
     expect(extraDebitSellBpsForExecute(500, false)).toBe(500)
-    expect(extraDebitSellBpsForExecute(500, true)).toBe(500)
+    expect(extraDebitSellBpsForExecute(500, true)).toBeNull()
     expect(communityTaxRouteHint({ payIsTax: true, usesRouter: false, sellBps: 500 })).toBe(SELL_TAX_EXTRA_HINT)
-    expect(communityTaxRouteHint({ payIsTax: true, usesRouter: true, sellBps: 500 })).toBe(SELL_TAX_EXTRA_HINT)
+    expect(communityTaxRouteHint({ payIsTax: true, usesRouter: true, sellBps: 500 })).toBe(
+      'Swap taxes included in route funds'
+    )
     expect(communityTaxRouteHint({ payIsTax: false, receiveIsTax: true, usesRouter: true })).toBe(BUY_TAX_HINT)
     expect(COMMUNITY_TAX_SCOPE_COPY).toBe('Buy/sell tax applies on every listed-pair swap.')
   })
@@ -114,9 +116,9 @@ describe('extra-debit submit gate (#1267)', () => {
     expect(roundTrip).toBe(extraDebitMaxDeclaredRaw(balance, 500, 6))
   })
 
-  it('T4: pair-direct and router both keep extra-debit bps (R607-7)', () => {
+  it('T4: only legacy pair-direct retains extra-debit bps (#1381)', () => {
     expect(extraDebitSellBpsForExecute(500, false)).toBe(500)
-    expect(extraDebitSellBpsForExecute(500, true)).toBe(500)
+    expect(extraDebitSellBpsForExecute(500, true)).toBeNull()
     const full = extraDebitSubmitGate({
       declaredRaw: 1_050_000n,
       balanceRaw: 1_050_000n,
@@ -125,7 +127,7 @@ describe('extra-debit submit gate (#1267)', () => {
       extraDebitUnresolved: false,
       isNativePay: false,
     })
-    expect(full.blockSubmit).toBe(true)
+    expect(full.blockSubmit).toBe(false)
   })
 
   it('T5: live GetConfig sell_bps is independent of catalog pin / code_id', () => {
@@ -290,4 +292,51 @@ describe('taxPreview execute debit (#1285)', () => {
       })
     ).toBe(1_050_000n)
   })
+})
+
+// Route budgets never depend on an intermediate reserve or an unknown input balance.
+describe('authorized gross budget (#1381)', () => {
+  it('permits gross Max without adding wallet sell tax', () => {
+    expect(
+      extraDebitSubmitGate({
+        declaredRaw: 1010000n,
+        balanceRaw: 1010000n,
+        debitRaw: null,
+        sellBps: extraDebitSellBpsForExecute(100, true),
+        extraDebitUnresolved: false,
+        isNativePay: false,
+      }).blockSubmit
+    ).toBe(false)
+  })
+  it('blocks a required input balance that has not resolved', () => {
+    expect(
+      extraDebitSubmitGate({
+        declaredRaw: 1010000n,
+        balanceRaw: null,
+        debitRaw: null,
+        sellBps: 100,
+        extraDebitUnresolved: false,
+        isNativePay: false,
+      }).blockSubmit
+    ).toBe(true)
+  })
+  it('rejects hostile numeric metadata without parsing enormous strings', () => {
+    expect(parseUintString('1'.repeat(100000))).toBeNull()
+    expect(parseUintString(Number.MAX_SAFE_INTEGER + 1)).toBeNull()
+    expect(parseCommunityTaxSellBps({ sell_bps: 10001 }).kind).toBe('unresolved')
+  })
+})
+
+it('blocks a failed balance refetch even with retained input balance (#1381)', () => {
+  expect(
+    extraDebitSubmitGate({
+      declaredRaw: 1010000n,
+      balanceRaw: 1010000n,
+      balanceUnresolved: true,
+      debitRaw: null,
+      sellBps: null,
+      extraDebitUnresolved: false,
+      isNativePay: false,
+    }).blockSubmit
+  ).toBe(true)
 })

@@ -112,6 +112,7 @@ import { registrySwapDecimals } from '@/utils/swapAssetDecimals'
 import { isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
 import { isPositiveRawAmount, spreadPercentFromRawSim } from '@/utils/rawAmountMath'
 import { computeMaxSpendableHumanAmount } from '@/utils/maxSpendableAmount'
+import { useRouterTaxFunding } from '@/hooks/useRouterTaxFunding'
 import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
 import { grossBuyTaxForTargetNet, withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import {
@@ -119,7 +120,7 @@ import {
   communityTaxRouteHint,
   extraDebitSellBpsForExecute,
   extraDebitSubmitGate,
-  INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE,
+  TAX_FUNDING_UNRESOLVED_MESSAGE,
 } from '@/utils/taxPreviewMaxSpend'
 import { estimateSwapNetworkFee, swapAutoGasProbeEntries } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
@@ -192,6 +193,7 @@ import { SlippageProtectionPresets } from '@/components/common/SlippageProtectio
 /** Wallet-side simulation result with optional indexer-routing metadata. */
 interface SwapSimData {
   return_amount: string
+  taxFundingVersion?: 1
   /** Pre-tax wallet sim when `return_amount` is post-buy-split (#615). */
   executeAmountOut?: string
   spread_amount: string
@@ -239,6 +241,7 @@ export default function SwapPage() {
   const [inputAmount, setInputAmount] = useState('')
   const [exactField, setExactField] = useState<'input' | 'output'>('input')
   const [fromToken, setFromToken] = useState<string>('')
+  const routerTaxFunding = useRouterTaxFunding()
   const taxSell = useCommunityTaxSellBps(fromToken.startsWith('terra1') ? fromToken : null)
   const [toToken, setToToken] = useState<string>('')
   const taxReceive = useCommunityTaxSellBps(toToken.startsWith('terra1') ? toToken : null)
@@ -536,13 +539,14 @@ export default function SwapPage() {
       context: payIsNativeUluna ? 'swap_native' : 'swap_cw20',
       nativeSwapHints: payIsNativeUluna
         ? {
+            taxFundingVersion: routerTaxFunding.data === 1 ? 1 : undefined,
             isDirectWrap: wrapUnwrapType === 'wrap',
             needsWrapInput: nativeNeedsWrapInput,
             needsUnwrapOutput: nativeNeedsUnwrapOutput,
             hopCount: nativeSwapHopCount,
           }
         : undefined,
-      extraDebitSellBps: extraDebitSellBpsForExecute(taxSell.sellBps, isMultiHop),
+      extraDebitSellBps: extraDebitSellBpsForExecute(taxSell.sellBps, isMultiHop || routerTaxFunding.data === 1),
     })
   }, [
     balanceQuery.data,
@@ -554,6 +558,7 @@ export default function SwapPage() {
     nativeSwapHopCount,
     taxSell.sellBps,
     isMultiHop,
+    routerTaxFunding.data,
   ])
 
   const wrapMapperActive =
@@ -761,6 +766,7 @@ export default function SwapPage() {
         unwrapFeeBps ?? null,
         wrapMapperConfig != null,
         taxReceive.buyBps ?? null,
+        routerTaxFunding.data,
       ] as const,
     [
       reverseQuoteActive,
@@ -781,6 +787,7 @@ export default function SwapPage() {
       unwrapFeeBps,
       wrapMapperConfig,
       taxReceive.buyBps,
+      routerTaxFunding.data,
     ]
   )
 
@@ -846,6 +853,7 @@ export default function SwapPage() {
             return withIndexerOutageFlag({
               return_amount: returnAmount,
               executeAmountOut: quoted.executeAmountOut,
+              taxFundingVersion: quoted.taxFundingVersion,
               spread_amount: quoted.spread_amount,
               commission_amount: quoted.commission_amount,
               routeSlippagePercent: quoted.routeSlippagePercent,
@@ -872,23 +880,22 @@ export default function SwapPage() {
           if (nativeRouteInfo.needsWrapInput) {
             preflightOffer = (await netCw20AfterNativeWrap(BigInt(simRaw), fromToken)).toString()
           }
-          routePreflight = await preflightSwapRouteSpread(
-            nativeRouteInfo.operations,
-            preflightOffer,
-            maxSpreadStr,
-            quoteTrader
-          )
+          routePreflight = await preflightSwapRouteSpread(nativeRouteInfo.operations, preflightOffer, maxSpreadStr, {
+            ...quoteTrader,
+            taxFundingVersion: result.taxFundingVersion,
+          })
         }
         return withIndexerOutageFlag(
           withBuyTaxReceiveDisplay(
             {
               return_amount: result.amount,
+              taxFundingVersion: result.taxFundingVersion,
               spread_amount: '0',
               commission_amount: '0',
               routerMinReceiveBase: result.routerMinReceiveBase,
               routePreflight,
             },
-            taxReceive.buyBps
+            result.taxFundingVersion === 1 ? 0 : taxReceive.buyBps
           )
         )
       }
@@ -947,6 +954,7 @@ export default function SwapPage() {
             return {
               return_amount: quoted.return_amount,
               executeAmountOut: quoted.executeAmountOut,
+              taxFundingVersion: quoted.taxFundingVersion,
               spread_amount: quoted.spread_amount,
               commission_amount: quoted.commission_amount,
               routeSlippagePercent: quoted.routeSlippagePercent,
@@ -1003,22 +1011,36 @@ export default function SwapPage() {
             )
           )
         }
+        if (routerTaxFunding.data === 1) {
+          const result = await simulateMultiHopSwap(simRaw, route, quoteTrader)
+          const fundedTrader = { ...quoteTrader, taxFundingVersion: result.taxFundingVersion }
+          return withIndexerOutageFlag({
+            return_amount: result.amount,
+            taxFundingVersion: result.taxFundingVersion,
+            indexerOperations: route,
+            spread_amount: '0',
+            commission_amount: '0',
+            routePreflight: await preflightSwapRouteSpread(route, simRaw, maxSpreadStr, fundedTrader),
+          })
+        }
         const offerInfo = tokenAssetInfo(fromToken)
         const r = await simulateSwap(directPair.contract_addr, offerInfo, simRaw, quoteTrader)
         return withIndexerOutageFlag(withBuyTaxReceiveDisplay(r, taxReceive.buyBps))
       }
       if (isMultiHop && route) {
         const result = await simulateMultiHopSwap(simRaw, route, quoteTrader)
-        const routePreflight = await preflightSwapRouteSpread(route, simRaw, maxSpreadStr, quoteTrader)
+        const fundedTrader = { ...quoteTrader, taxFundingVersion: result.taxFundingVersion }
+        const routePreflight = await preflightSwapRouteSpread(route, simRaw, maxSpreadStr, fundedTrader)
         return withIndexerOutageFlag(
           withBuyTaxReceiveDisplay(
             {
               return_amount: result.amount,
+              taxFundingVersion: result.taxFundingVersion,
               spread_amount: '0',
               commission_amount: '0',
               routePreflight,
             },
-            taxReceive.buyBps
+            result.taxFundingVersion === 1 ? 0 : taxReceive.buyBps
           )
         )
       }
@@ -1132,10 +1154,12 @@ export default function SwapPage() {
   const communityTaxHint = communityTaxRouteHint({
     payIsTax: taxSell.isTaxToken,
     receiveIsTax: taxReceive.isTaxToken,
-    usesRouter: communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
+    usesRouter:
+      simData?.taxFundingVersion === 1 || communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop),
     sellBps: taxSell.sellBps,
   })
-  const extraDebitUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop)
+  const extraDebitUsesRouter =
+    simData?.taxFundingVersion === 1 || communityTaxExecuteUsesRouter(simData?.indexerOperations?.length, isMultiHop)
   const taxPreviewMaxSpread = (slippageTolerance / 100).toString()
   const taxPreviewQuery = useMemo(
     () =>
@@ -1163,10 +1187,11 @@ export default function SwapPage() {
   const taxPreview = useCommunityTaxPreviewDebit({
     token: fromToken.startsWith('terra1') ? fromToken : null,
     amount: rawInputAmount,
-    enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+    enabled: !extraDebitUsesRouter && taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
     previewQuery: taxPreviewQuery,
   })
   const extraDebitGate = extraDebitSubmitGate({
+    balanceUnresolved: balanceQuery.isError,
     declaredRaw: tryParseBigInt(rawInputAmount),
     balanceRaw: balanceQuery.data !== undefined ? tryParseBigInt(balanceQuery.data) : null,
     debitRaw: taxPreview.debitRaw,
@@ -1233,9 +1258,7 @@ export default function SwapPage() {
         throw new Error('Token decimals unavailable')
       }
       if (extraDebitGate.blockSubmit) {
-        throw new Error(
-          extraDebitGate.insufficientBalance ? 'Insufficient Balance' : INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
-        )
+        throw new Error(extraDebitGate.insufficientBalance ? 'Insufficient Balance' : TAX_FUNDING_UNRESOLVED_MESSAGE)
       }
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
       if (snapshottedHybrid) {
@@ -1276,13 +1299,11 @@ export default function SwapPage() {
       const idxOps = simData.indexerOperations
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
 
-      if (swapOpsRequireRouter(idxOps)) {
-        const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
-          idxOps!,
-          payRaw,
-          slippageTolerance,
-          quoteTrader
-        )
+      if (swapOpsRequireRouter(idxOps) || (simData.taxFundingVersion === 1 && idxOps?.length)) {
+        const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(idxOps!, payRaw, slippageTolerance, {
+          ...quoteTrader,
+          taxFundingVersion: simData.taxFundingVersion,
+        })
         return executeMultiHopSwap(
           address,
           fromToken,
@@ -1328,12 +1349,10 @@ export default function SwapPage() {
 
       if (isMultiHop && route) {
         const minReceive = submitMinReceived ?? undefined
-        const routeForSubmit = await enrichSwapOperationsWithHopMinReturns(
-          route,
-          payRaw,
-          slippageTolerance,
-          quoteTrader
-        )
+        const routeForSubmit = await enrichSwapOperationsWithHopMinReturns(route, payRaw, slippageTolerance, {
+          ...quoteTrader,
+          taxFundingVersion: simData.taxFundingVersion,
+        })
         return executeMultiHopSwap(address, fromToken, payRaw, routeForSubmit, maxSpread, minReceive)
       }
 
@@ -1456,8 +1475,12 @@ export default function SwapPage() {
     const cw20HopCount = simData?.indexerOperations?.length ?? route?.length ?? 1
     const indexerHopCount = simData?.indexerOperations?.length ?? 0
     const wrapOrNative = Boolean(isWrapOrUnwrap || wrapSolvePair || nativeRouteInfo)
-    const cw20RouterOperations = !wrapOrNative && indexerHopCount >= 2 ? simData?.indexerOperations : undefined
+    const cw20RouterOperations =
+      !wrapOrNative && (indexerHopCount >= 2 || (simData?.taxFundingVersion === 1 && indexerHopCount >= 1))
+        ? simData?.indexerOperations
+        : undefined
     return {
+      taxFundingVersion: simData?.taxFundingVersion ?? (routerTaxFunding.data === 1 ? 1 : undefined),
       isDirectWrap: wrapUnwrapType === 'wrap',
       isDirectUnwrap: wrapUnwrapType === 'unwrap',
       needsWrapInput: nativeNeedsWrapInput || Boolean(wrapSolvePair?.needsWrapInput),
@@ -1468,7 +1491,7 @@ export default function SwapPage() {
           : wrapOrNative
             ? (nativeRouteInfo?.operations?.length ?? nativeSwapHopCount)
             : cw20HopCount,
-      cw20DirectPair: !!isDirect && !wrapOrNative,
+      cw20DirectPair: !!isDirect && !wrapOrNative && simData?.taxFundingVersion !== 1,
       cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
       cw20RouterOperations,
     }
@@ -1483,6 +1506,8 @@ export default function SwapPage() {
     isDirect,
     bookInputHuman,
     simData?.indexerOperations,
+    simData?.taxFundingVersion,
+    routerTaxFunding.data,
     route?.length,
   ])
   const swapNetworkFeeFallback = useMemo(() => estimateSwapNetworkFee(swapNetworkFeeHints), [swapNetworkFeeHints])

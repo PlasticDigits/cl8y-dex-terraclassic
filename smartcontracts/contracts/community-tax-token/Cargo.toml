@@ -1,6 +1,6 @@
 [package]
 name = "cl8y-community-tax-token"
-version.workspace = true
+version = "1.2.0"
 edition.workspace = true
 
 [lib]

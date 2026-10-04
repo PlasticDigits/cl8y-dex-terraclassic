@@ -11,6 +11,7 @@ mod compliance;
 mod defillama;
 mod evidence;
 mod gt;
+mod trading_tax_discovery;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use defillama::reset_defillama_cache;
 mod consolidated_stats;
@@ -66,14 +67,14 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use axum::http::{header, HeaderValue, Method, StatusCode};
-use axum::routing::get;
 use axum::Router;
+use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::routing::get;
 use serde::Serialize;
 use sqlx::PgPool;
+use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::key_extractor::PeerIpKeyExtractor;
-use tower_governor::GovernorLayer;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
@@ -140,11 +141,11 @@ pub fn internal_err(e: impl std::fmt::Display) -> (StatusCode, String) {
 #[allow(unused_imports)] // re-exported for integration tests (#694)
 pub use compliance::{MAX_BLACKLIST_PAIRS, MAX_BLACKLIST_TOKENS};
 #[allow(unused_imports)] // re-exported for integration tests (tests/security.rs)
-pub use errors::{lcd_gateway_err, LCD_UPSTREAM_GATEWAY_MSG};
+pub use errors::{LCD_UPSTREAM_GATEWAY_MSG, lcd_gateway_err};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
 pub use gt::{GT_EVENT_ROW_CAP_MSG, MAX_EVENT_BLOCK_SPAN, MAX_GT_EVENT_ROWS};
 #[allow(unused_imports)] // re-exported for integration tests (#694)
-pub use route_solver::{reset_discount_bps_cache, DISCOUNT_BPS_CACHE_TTL};
+pub use route_solver::{DISCOUNT_BPS_CACHE_TTL, reset_discount_bps_cache};
 
 // GitLab #288: 60s TTL cache for CG/CMC ticker/summary endpoints. Set-based 24h stats
 // (not per-pair N+1) plus this cache keep concurrent aggregator traffic off the pool.
@@ -703,10 +704,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             "/api/v1/defillama/daily",
             get(defillama::get_defillama_daily),
         )
-        .route(
-            "/api/v1/evidence/daily",
-            get(evidence::get_evidence_daily),
-        )
+        .route("/api/v1/evidence/daily", get(evidence::get_evidence_daily))
         .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
         .route(
             "/api/v1/hub-prices/{ticker}",
@@ -987,10 +985,24 @@ mod openapi_pack_tests {
     fn openapi_route_exact_output_documents_target_response_and_failures() {
         let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
         let get = &value["paths"]["/api/v1/route/solve"]["get"];
-        assert!(get["parameters"].as_array().unwrap().iter().any(|p| p["name"] == "amount_out"));
-        for status in ["422", "429", "503", "504"] { assert!(!get["responses"][status].is_null()); }
+        assert!(
+            get["parameters"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["name"] == "amount_out")
+        );
+        for status in ["422", "429", "503", "504"] {
+            assert!(!get["responses"][status].is_null());
+        }
         let properties = &value["components"]["schemas"]["RouteSolveResponse"]["properties"];
-        for field in ["required_amount_in", "target_amount_out", "sizing_mode", "snapshot_age_ms", "snapshot_block_height"] {
+        for field in [
+            "required_amount_in",
+            "target_amount_out",
+            "sizing_mode",
+            "snapshot_age_ms",
+            "snapshot_block_height",
+        ] {
             assert!(!properties[field].is_null(), "missing {field}");
         }
     }

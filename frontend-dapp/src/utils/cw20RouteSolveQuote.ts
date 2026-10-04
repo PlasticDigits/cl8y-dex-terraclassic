@@ -1,3 +1,4 @@
+import { assertRouteTaxFunding, ROUTE_TAX_FUNDING_UNAVAILABLE } from '@/services/terraclassic/routeTaxFunding'
 import { getPair } from '@/services/terraclassic/factory'
 import { getRouteSolve, getRouteSolveExactOutput } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
@@ -9,6 +10,7 @@ import {
   type SwapRoutePreflightSpread,
 } from '@/services/terraclassic/swapRoutePreflight'
 import type { IndexerRouteQuoteKind, IndexerRouteSolveResponse, PairInfo } from '@/types'
+import { assetInfoLabel } from '@/types'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
@@ -34,6 +36,7 @@ import {
  */
 export type Cw20RouteSolveQuote = {
   return_amount: string
+  taxFundingVersion?: 1
   /** Pre-tax wallet sim for `min_return` when `return_amount` is post-buy-split (#615). */
   executeAmountOut?: string
   spread_amount: string
@@ -86,7 +89,6 @@ async function validateRouteSolveQuote(
   } = input
 
   input.signal?.throwIfAborted()
-  const quoteTrader = input.signal ? { ...baseQuoteTrader, signal: input.signal } : baseQuoteTrader
 
   const tin = idx.token_in.trim().toLowerCase()
   const tout = idx.token_out.trim().toLowerCase()
@@ -105,8 +107,28 @@ async function validateRouteSolveQuote(
   }
 
   const mapped = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
+  let currentToken = tin
+  for (const [i, op] of mapped.entries()) {
+    const offer = assetInfoLabel(op.terra_swap.offer_asset_info).trim().toLowerCase()
+    const ask = assetInfoLabel(op.terra_swap.ask_asset_info).trim().toLowerCase()
+    if (
+      offer !== currentToken ||
+      idx.hops[i].offer_token.trim().toLowerCase() !== offer ||
+      idx.hops[i].ask_token.trim().toLowerCase() !== ask
+    ) {
+      throw new Error('Route operations do not match the quoted token path. Refresh the quote.')
+    }
+    currentToken = ask
+  }
+  if (currentToken !== tout) throw new Error('Route receive token does not match the quote. Refresh the quote.')
   const ops = omitAllHybrid ? stripAllDeclaredHybrid(mapped) : stripInteriorDeclaredHybrid(mapped)
-  if (!omitAllHybrid) {
+  const fundingVersion = await assertRouteTaxFunding(ops, input.signal)
+  if ((idx.tax_funding_version === 1 || idx.tax_kind === 'route_local_v1') && fundingVersion !== 1) {
+    throw new Error(ROUTE_TAX_FUNDING_UNAVAILABLE)
+  }
+  const fundedTrader = { ...baseQuoteTrader, taxFundingVersion: fundingVersion }
+  const quoteTrader = input.signal ? { ...fundedTrader, signal: input.signal } : fundedTrader
+  if (!omitAllHybrid && fundingVersion !== 1) {
     assertHop0DeclaredHybridPartitionsOffer(ops, simRaw)
   }
   const opsForQuote = await enrichSwapOperationsWithHopMinReturns(ops, simRaw, slippageTolerancePercent, quoteTrader)
@@ -127,11 +149,12 @@ async function validateRouteSolveQuote(
   }
 
   const rawWallet = result.amount
-  const buyBps = idx.buy_tax_bps ?? 0
+  const buyBps = fundingVersion === 1 ? 0 : (idx.buy_tax_bps ?? 0)
   const displayNet = displayReceiveNet(rawWallet, buyBps)
 
   return {
     return_amount: displayNet,
+    taxFundingVersion: fundingVersion,
     executeAmountOut: displayNet !== rawWallet ? rawWallet : undefined,
     spread_amount: '0',
     commission_amount: '0',

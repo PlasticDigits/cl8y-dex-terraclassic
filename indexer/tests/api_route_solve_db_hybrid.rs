@@ -38,7 +38,7 @@ async fn route_solve_db_hybrid_no_pair_level_lcd_calls() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v4");
+    assert_eq!(j["solver_version"], "global_v6_funded");
     let kind = j["quote_kind"].as_str().unwrap_or("");
     assert!(
         kind == "indexer_pool_db" || kind == "indexer_hybrid_db",
@@ -66,7 +66,7 @@ async fn route_solve_db_hybrid_empty_book_skips_full_grid() {
         seed.token_a, seed.token_b
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v4");
+    assert_eq!(j["solver_version"], "global_v6_funded");
     assert_eq!(j["quote_kind"], "indexer_pool_db");
     assert!(j["router_operations"][0]["terra_swap"]["hybrid"].is_null());
     let db_q = j["db_hybrid_queries"].as_u64().unwrap_or(u64::MAX);
@@ -147,7 +147,7 @@ async fn route_solve_db_hybrid_skips_zero_reserve_path_candidate() {
         let resp = server.get(&path).await;
         resp.assert_status_ok();
         let j: Value = resp.json();
-        assert_eq!(j["solver_version"], "global_v4");
+        assert_eq!(j["solver_version"], "global_v6_funded");
         assert_eq!(
             j["hops"].as_array().unwrap().len(),
             1,
@@ -299,7 +299,7 @@ async fn route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan() {
         seed.token_a, seed.token_c
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v4");
+    assert_eq!(j["solver_version"], "global_v6_funded");
     assert_eq!(j["hops"].as_array().unwrap().len(), 2);
     let ops = j["router_operations"].as_array().unwrap();
     assert!(ops[1]["terra_swap"]["hybrid"].is_null());
@@ -513,7 +513,7 @@ async fn route_solve_db_hybrid_skip_unusable_admits_honest_3hop() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v4");
+    assert_eq!(j["solver_version"], "global_v6_funded");
     let hops = j["hops"].as_array().expect("hops");
     assert_eq!(
         hops.len(),

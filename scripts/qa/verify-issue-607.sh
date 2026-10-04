@@ -90,27 +90,27 @@ run_poc() {
 }
 
 run_token() {
-  (cd smartcontracts && cargo test -p cl8y-community-tax-token --offline --lib -- --test-threads=1 \
-    router_sell_extra_debits_authenticated_trader \
-    router_sell_without_trader_fail_closes \
-    router_sell_rejects_protocol_exempt_trader \
-    pair_direct_ignores_spoofed_trader \
-    router_to_user_is_buy_outbound_split \
-    manager_exempt_hop_trader_skips_router_sell_tax)
+  # Full coverage avoids obsolete wallet-debit filter names silently selecting no tests.
+  (cd smartcontracts && cargo test -p cl8y-community-tax-token --offline --lib -- --test-threads=1)
+}
+run_funded_routes() {
+  (cd smartcontracts && cargo test -p cl8y-dex-tests --offline issue1381 -- --test-threads=1)
 }
 
 echo ""
 echo "── first pass ──"
 run_step "docs: T592-13 + C593-14 + R607 option 2" run_docs
 run_step "frontend: extra-debit Max + Create/Manage copy" run_frontend
-run_step "token: router hop classify + extra-debit" run_token
+run_step "token: authenticated funding and legacy direct classification" run_token
+run_step "funded routes: zero wallets, conservation, context and rollback" run_funded_routes
 run_step "poc: inverted router hop tax" run_poc
 
 echo ""
 echo "── retest ──"
 run_step "retest docs: T592-13 + C593-14 + R607 option 2" run_docs
 run_step "retest frontend: extra-debit Max + Create/Manage copy" run_frontend
-run_step "retest token: router hop classify + extra-debit" run_token
+run_step "retest token: authenticated funding and legacy direct classification" run_token
+run_step "retest funded routes: zero wallets, conservation, context and rollback" run_funded_routes
 run_step "retest poc: inverted router hop tax" run_poc
 
 echo ""

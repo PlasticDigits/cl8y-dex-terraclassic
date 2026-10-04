@@ -20,6 +20,7 @@ use dex_common::wrap_mapper;
 const CONTRACT_NAME: &str = "cl8y-dex-router";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SWAP_REPLY_ID: u64 = 1;
+const SETTLEMENT_REPLY_ID: u64 = 2;
 const MAX_HOPS: usize = 4;
 
 pub fn instantiate(
@@ -108,6 +109,36 @@ fn execute_receive(
 
     let hook_msg: Cw20HookMsg = from_json(&cw20_msg.msg)?;
     match hook_msg {
+        Cw20HookMsg::ExecuteRouteSwapOperations {
+            funding_version,
+            operations,
+            minimum_receive,
+            to,
+            deadline,
+            unwrap_output,
+            max_spread,
+        } => {
+            if funding_version != dex_common::route_tax::FUNDING_VERSION {
+                return Err(cosmwasm_std::StdError::generic_err(
+                    "unsupported route tax funding version",
+                )
+                .into());
+            }
+            assert_deadline(&env, deadline)?;
+            execute_swap_operations(
+                deps,
+                env,
+                sender,
+                input_token,
+                amount,
+                operations,
+                minimum_receive,
+                to,
+                unwrap_output,
+                max_spread,
+            )
+        }
+
         Cw20HookMsg::ExecuteSwapOperations {
             operations,
             minimum_receive,
@@ -116,6 +147,25 @@ fn execute_receive(
             unwrap_output,
             max_spread,
         } => {
+            for op in &operations {
+                if let SwapOperation::TerraSwap {
+                    offer_asset_info,
+                    ask_asset_info,
+                    ..
+                } = op
+                {
+                    for asset in [offer_asset_info, ask_asset_info] {
+                        if let Some(c) = crate::route_tax::capability(
+                            deps.as_ref(),
+                            &Addr::unchecked(asset.assert_is_token()?),
+                        )? {
+                            if c.buy_bps > 0 || c.sell_bps > 0 {
+                                return Err(cosmwasm_std::StdError::generic_err("taxed routes require execute_route_swap_operations funding_version 1").into());
+                            }
+                        }
+                    }
+                }
+            }
             assert_deadline(&env, deadline)?;
             execute_swap_operations(
                 deps,
@@ -210,7 +260,7 @@ fn execute_swap_operations(
         } => (hybrid.clone(), *min_return),
         SwapOperation::NativeSwap { .. } => return Err(ContractError::NativeSwapNotSupported {}),
     };
-    validate_hybrid_declared_split_for_no_belief(amount, &first_hybrid_precheck)?;
+
     validate_hybrid_hop_execute_slippage_floor(&first_hybrid_precheck, first_hop_min_return)?;
 
     if SWAP_STATE.may_load(deps.storage)?.is_some() {
@@ -250,10 +300,42 @@ fn execute_swap_operations(
     let pre_hop_balance =
         query_router_cw20_balance(deps.as_ref(), &env.contract.address, &output_token)?;
 
+    let funded = crate::route_tax::preview(
+        deps.as_ref(),
+        &input_token,
+        &pair_addr,
+        amount,
+        dex_common::route_tax::RouteTaxKind::Sell,
+        Some(sender.to_string()),
+        Some(&env.contract.address),
+    )?;
+    let residue = amount.checked_sub(funded.economic.checked_add(funded.tax)?)?;
+    let refunds = if residue.is_zero() {
+        vec![]
+    } else {
+        vec![dex_common::route_tax::RouteTransfer {
+            token: input_token.clone(),
+            recipient: sender.clone(),
+            amount: residue,
+        }]
+    };
+    let tax_context = dex_common::route_tax::RouteTaxContextResponse {
+        funding_version: dex_common::route_tax::FUNDING_VERSION,
+        trader: sender.clone(),
+        pair: pair_addr.clone(),
+        offer_token: input_token.clone(),
+        ask_token: output_token.clone(),
+        gross: amount,
+        economic: funded.economic,
+        transfers: vec![],
+        acquired_tokens: vec![],
+    };
     SWAP_STATE.save(
         deps.storage,
         &SwapState {
             sender: sender.clone(),
+            tax_context,
+            refunds,
             recipient: recipient.clone(),
             remaining_operations: remaining,
             minimum_receive,
@@ -273,6 +355,20 @@ fn execute_swap_operations(
         } => (hybrid.clone(), greedy.clone(), *min_return),
         SwapOperation::NativeSwap { .. } => (None, None, None),
     };
+    let first_min_return = first_min_return
+        .map(|m| {
+            crate::route_tax::reverse_buy(
+                deps.as_ref(),
+                &SWAP_STATE.load(deps.storage)?.output_token,
+                &pair_addr,
+                m,
+                Some(sender.to_string()),
+                &env.contract.address,
+            )
+        })
+        .transpose()?;
+    let first_hybrid = crate::route_tax::funded_hybrid(first_hybrid, amount, funded.economic)?;
+    validate_hybrid_declared_split_for_no_belief(funded.economic, &first_hybrid)?;
     validate_greedy_hop_mutex(&first_hybrid, &first_greedy)?;
     validate_greedy_hop_execute_slippage_floor(&first_greedy, first_min_return)?;
 
@@ -292,7 +388,7 @@ fn execute_swap_operations(
             contract_addr: input_token.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_addr.to_string(),
-                amount,
+                amount: funded.economic,
                 msg: to_json_binary(&swap_msg)?,
             })?,
             funds: vec![],
@@ -346,6 +442,10 @@ fn resolve_operation(
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         SWAP_REPLY_ID => reply_swap_hop(deps, env),
+        SETTLEMENT_REPLY_ID => {
+            SWAP_STATE.remove(deps.storage);
+            Ok(Response::new().add_attribute("action", "route_settled"))
+        }
         id => Err(ContractError::Std(cosmwasm_std::StdError::generic_err(
             format!("unknown reply id: {id}"),
         ))),
@@ -366,10 +466,18 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let balance_after =
         query_router_cw20_balance(deps.as_ref(), &env.contract.address, &state.output_token)?;
     let hop_output = hop_output_from_balance(balance_after, state.pre_hop_balance)?;
+    if !state
+        .tax_context
+        .acquired_tokens
+        .contains(&state.output_token)
+    {
+        state
+            .tax_context
+            .acquired_tokens
+            .push(state.output_token.clone());
+    }
 
     if state.remaining_operations.is_empty() {
-        SWAP_STATE.remove(deps.storage);
-
         let wrap_mapper_addr = if state.unwrap_output {
             Some(
                 WRAP_MAPPER
@@ -398,6 +506,21 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             }
         }
 
+        state.tax_context.transfers = state.refunds.clone();
+        state
+            .tax_context
+            .transfers
+            .push(dex_common::route_tax::RouteTransfer {
+                token: state.output_token.clone(),
+                recipient: state.recipient.clone(),
+                amount: hop_output,
+            });
+        SWAP_STATE.save(deps.storage, &state)?;
+        let refund_messages = state
+            .refunds
+            .iter()
+            .map(|r| crate::route_tax::transfer(deps.as_ref(), &r.token, &r.recipient, r.amount))
+            .collect::<StdResult<Vec<_>>>()?;
         let output_msg = if let Some(mapper) = wrap_mapper_addr {
             let unwrap_hook = wrap_mapper::Cw20HookMsg::Unwrap {
                 recipient: Some(state.recipient.to_string()),
@@ -413,18 +536,17 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 funds: vec![],
             })
         } else {
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: state.output_token.to_string(),
-                msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: state.recipient.to_string(),
-                    amount: hop_output,
-                })?,
-                funds: vec![],
-            })
+            crate::route_tax::transfer(
+                deps.as_ref(),
+                &state.output_token,
+                &state.recipient,
+                hop_output,
+            )?
         };
 
         return Ok(Response::new()
-            .add_message(output_msg)
+            .add_messages(refund_messages)
+            .add_submessage(SubMsg::reply_on_success(output_msg, SETTLEMENT_REPLY_ID))
             .add_attribute("action", "swap_complete")
             .add_attribute("output_amount", hop_output)
             .add_attribute("recipient", state.recipient));
@@ -442,6 +564,34 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     state.pre_hop_balance =
         query_router_cw20_balance(deps.as_ref(), &env.contract.address, &state.output_token)?;
 
+    let funded = crate::route_tax::preview(
+        deps.as_ref(),
+        &current_token,
+        &pair_addr,
+        hop_output,
+        dex_common::route_tax::RouteTaxKind::Sell,
+        Some(state.sender.to_string()),
+        Some(&env.contract.address),
+    )?;
+    let residue = hop_output.checked_sub(funded.economic.checked_add(funded.tax)?)?;
+    if !residue.is_zero() {
+        state.refunds.push(dex_common::route_tax::RouteTransfer {
+            token: current_token.clone(),
+            recipient: state.sender.clone(),
+            amount: residue,
+        });
+    }
+    state.tax_context = dex_common::route_tax::RouteTaxContextResponse {
+        funding_version: dex_common::route_tax::FUNDING_VERSION,
+        trader: state.sender.clone(),
+        pair: pair_addr.clone(),
+        offer_token: current_token.clone(),
+        ask_token: state.output_token.clone(),
+        gross: hop_output,
+        economic: funded.economic,
+        transfers: vec![],
+        acquired_tokens: state.tax_context.acquired_tokens.clone(),
+    };
     SWAP_STATE.save(deps.storage, &state)?;
 
     let (hop_hybrid, hop_greedy, hop_min_return) = match &next_op {
@@ -453,8 +603,21 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         } => (hybrid.clone(), greedy.clone(), *min_return),
         SwapOperation::NativeSwap { .. } => (None, None, None),
     };
+    let hop_min_return = hop_min_return
+        .map(|m| {
+            crate::route_tax::reverse_buy(
+                deps.as_ref(),
+                &state.output_token,
+                &pair_addr,
+                m,
+                Some(state.sender.to_string()),
+                &env.contract.address,
+            )
+        })
+        .transpose()?;
+    let hop_hybrid = crate::route_tax::funded_hybrid(hop_hybrid, hop_output, funded.economic)?;
     validate_greedy_hop_mutex(&hop_hybrid, &hop_greedy)?;
-    validate_hybrid_declared_split_for_no_belief(hop_output, &hop_hybrid)?;
+    validate_hybrid_declared_split_for_no_belief(funded.economic, &hop_hybrid)?;
     validate_hybrid_hop_execute_slippage_floor(&hop_hybrid, hop_min_return)?;
     validate_greedy_hop_execute_slippage_floor(&hop_greedy, hop_min_return)?;
 
@@ -474,7 +637,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             contract_addr: current_token.to_string(),
             msg: to_json_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_addr.to_string(),
-                amount: hop_output,
+                amount: funded.economic,
                 msg: to_json_binary(&swap_msg)?,
             })?,
             funds: vec![],
@@ -489,8 +652,9 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .add_attribute("amount", hop_output))
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        QueryMsg::RouteTaxContext {} => to_json_binary(&SWAP_STATE.load(deps.storage)?.tax_context),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::SimulateSwapOperations {
             offer_amount,
@@ -499,6 +663,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             sender,
         } => to_json_binary(&query_simulate_swap_operations(
             deps,
+            &env.contract.address,
             offer_amount,
             operations,
             trader,
@@ -510,7 +675,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             trader,
             sender,
         } => to_json_binary(&query_reverse_simulate_swap_operations(
-            deps, ask_amount, operations, trader, sender,
+            deps,
+            &env.contract.address,
+            ask_amount,
+            operations,
+            trader,
+            sender,
         )?),
     }
 }
@@ -519,6 +689,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let factory = FACTORY.load(deps.storage)?;
     let wrap_mapper = WRAP_MAPPER.may_load(deps.storage)?;
     Ok(ConfigResponse {
+        funding_version: dex_common::route_tax::FUNDING_VERSION,
         factory,
         wrap_mapper,
     })
@@ -610,6 +781,7 @@ fn hybrid_book_slippage_floor_router_error(e: CheckMaxSpreadError) -> ContractEr
 /// When `hybrid` is set, legs must sum to the per-hop offer amount.
 fn query_simulate_swap_operations(
     deps: Deps,
+    router: &Addr,
     offer_amount: Uint128,
     operations: Vec<SwapOperation>,
     trader: Option<String>,
@@ -660,7 +832,20 @@ fn query_simulate_swap_operations(
                     ));
                 }
 
-                let (sim_hybrid, sim_greedy) = match (hybrid, greedy) {
+                let gross = current_amount;
+                let funded = crate::route_tax::preview(
+                    deps,
+                    &Addr::unchecked(offer_asset_info.assert_is_token()?),
+                    &pair_response.pair.contract_addr,
+                    gross,
+                    dex_common::route_tax::RouteTaxKind::Sell,
+                    trader.clone(),
+                    Some(router),
+                )?;
+                current_amount = funded.economic;
+                let funded_hybrid =
+                    crate::route_tax::funded_hybrid(hybrid.clone(), gross, current_amount)?;
+                let (sim_hybrid, sim_greedy) = match (&funded_hybrid, greedy) {
                     (_, Some(g)) => {
                         if g.max_maker_fills == 0 {
                             return Err(cosmwasm_std::StdError::generic_err(
@@ -698,7 +883,16 @@ fn query_simulate_swap_operations(
                         belief_price: None,
                     },
                 )?;
-                current_amount = sim.return_amount;
+                current_amount = crate::route_tax::preview(
+                    deps,
+                    &Addr::unchecked(ask_asset_info.assert_is_token()?),
+                    &pair_response.pair.contract_addr,
+                    sim.return_amount,
+                    dex_common::route_tax::RouteTaxKind::Buy,
+                    trader.clone(),
+                    Some(router),
+                )?
+                .net;
             }
         }
     }
@@ -711,6 +905,7 @@ fn query_simulate_swap_operations(
 /// Reverse-simulates via pair `HybridReverseSimulation` (pool-only when `hybrid` is unset).
 fn query_reverse_simulate_swap_operations(
     deps: Deps,
+    router: &Addr,
     ask_amount: Uint128,
     operations: Vec<SwapOperation>,
     trader: Option<String>,
@@ -744,6 +939,7 @@ fn query_reverse_simulate_swap_operations(
                 offer_asset_info,
                 ask_asset_info,
                 hybrid,
+                greedy,
                 ..
             } => {
                 let pair_response: dex_common::factory::PairResponse =
@@ -754,6 +950,39 @@ fn query_reverse_simulate_swap_operations(
                         },
                     )?;
 
+                current_amount = crate::route_tax::reverse_buy(
+                    deps,
+                    &Addr::unchecked(ask_asset_info.assert_is_token()?),
+                    &pair_response.pair.contract_addr,
+                    current_amount,
+                    trader.clone(),
+                    router,
+                )?;
+                if hybrid.is_some() && greedy.is_some() {
+                    return Err(cosmwasm_std::StdError::generic_err(
+                        "cannot set both hybrid and greedy on a hop",
+                    ));
+                }
+                if let Some(greedy) = greedy {
+                    let economic = crate::route_tax::reverse_greedy_offer(
+                        deps,
+                        &pair_response.pair.contract_addr,
+                        offer_asset_info,
+                        current_amount,
+                        greedy,
+                        trader.clone(),
+                        sender.clone(),
+                    )?;
+                    current_amount = crate::route_tax::reverse_sell(
+                        deps,
+                        &Addr::unchecked(offer_asset_info.assert_is_token()?),
+                        &pair_response.pair.contract_addr,
+                        economic,
+                        trader.clone(),
+                        router,
+                    )?;
+                    continue;
+                }
                 let hybrid_params = match hybrid {
                     None => pair::pool_only_hybrid_template(),
                     Some(h) => h.clone(),
@@ -771,7 +1000,14 @@ fn query_reverse_simulate_swap_operations(
                         belief_price: None,
                     },
                 )?;
-                current_amount = sim.offer_amount;
+                current_amount = crate::route_tax::reverse_sell(
+                    deps,
+                    &Addr::unchecked(offer_asset_info.assert_is_token()?),
+                    &pair_response.pair.contract_addr,
+                    sim.offer_amount,
+                    trader.clone(),
+                    router,
+                )?;
             }
         }
     }

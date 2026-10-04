@@ -1,5 +1,17 @@
 # Agent playbook: LocalTerra community-tax seed (GitLab #620)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing **`make deploy-local`** community-tax wiring, LocalTerra funding (Mint vs Transfer), or indexer/dApp env pins for the QA tax market.
 
 This is **stack wiring only**. Do **not** reopen [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) / [#601](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/601) / [#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610) / [#615](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/615) unless an on-chain invariant is wrong. Sibling follow-ups: tax-aware swarm [#621](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/621) ([`AGENTS_LOCALNET_SWARM_TAX.md`](./AGENTS_LOCALNET_SWARM_TAX.md)), Playwright `e2e-tx` [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622) ([`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md), `make verify-issue-622`), named tax-on Layer B [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) ([#623](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/623); seed pins are optional inputs). Post-merge leftover live after !414: [#624](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/624) ([`AGENTS_POST_MERGE_OPS_624.md`](./AGENTS_POST_MERGE_OPS_624.md), `make verify-issue-624`). Live leftovers after !415–!417: [#625](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/625) ([`AGENTS_POST_MERGE_OPS_625.md`](./AGENTS_POST_MERGE_OPS_625.md), `make verify-issue-625`).

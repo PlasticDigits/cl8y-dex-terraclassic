@@ -8,7 +8,7 @@ import { SIM_QUOTE_DEBOUNCE_MS } from '@/utils/quoteDebounce'
 import type { PairInfo } from '@/types'
 
 const { taxPreviewMock } = vi.hoisted(() => ({
-  taxPreviewMock: { debitRaw: null as bigint | null },
+  taxPreviewMock: { debitRaw: null as bigint | null, fundingVersion: undefined as 1 | undefined },
 }))
 
 const PAIR_ADDR = 'terra1pair00000000000000000000000000000001'
@@ -20,6 +20,14 @@ const selectedPair: PairInfo = {
   liquidity_token: 'terra1lp000000000000000000000000000000001',
   asset_infos: [{ token: { contract_addr: TERRA_A } }, { token: { contract_addr: TERRA_B } }],
 }
+
+vi.mock('@/hooks/useRouterTaxFunding', () => ({
+  useRouterTaxFunding: () => ({ data: taxPreviewMock.fundingVersion }),
+}))
+vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
+  assertRouteTaxFunding: vi.fn(async () => taxPreviewMock.fundingVersion),
+  ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
+}))
 
 vi.mock('@/hooks/useCommunityTaxSellBps', () => ({
   useCommunityTaxSellBps: (addr: string | null | undefined) => ({
@@ -130,6 +138,7 @@ import * as pair from '@/services/terraclassic/pair'
 describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
   beforeEach(() => {
     taxPreviewMock.debitRaw = null
+    taxPreviewMock.fundingVersion = undefined
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.clearAllMocks()
     useWalletStore.setState({
@@ -195,5 +204,33 @@ describe('TradeMarketOrderPanel extra-debit sell gate (#1267)', () => {
     const amount = screen.getByTestId('limit-order-escrow-amount-input') as HTMLInputElement
     expect(amount.value).toBe('1')
     expect(screen.getByTestId('trade-market-submit')).not.toHaveTextContent(/insufficient balance/i)
+  })
+})
+
+describe('Trade gross router input (#1381)', () => {
+  it('Max keeps the full balance for a supported router quote', async () => {
+    taxPreviewMock.fundingVersion = 1
+    taxPreviewMock.debitRaw = null
+    useWalletStore.setState({
+      address: 'terra1wallet000000000000000000000000001',
+      walletType: 'simulated',
+      error: null,
+    })
+    const user = userEvent.setup()
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    await user.click(screen.getByTestId('limit-order-escrow-max'))
+    expect((screen.getByTestId('limit-order-escrow-amount-input') as HTMLInputElement).value).toBe('1.05')
+    await waitFor(() =>
+      expect(screen.getByTestId('trade-market-submit')).not.toHaveTextContent(/insufficient balance/i)
+    )
+    expect(pair.swap).not.toHaveBeenCalled()
   })
 })

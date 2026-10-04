@@ -1,5 +1,17 @@
 # Route solver — in-depth guide
 
+## Route-local tax funding (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](../skills/AGENTS_ROUTE_LOCAL_TAX.md)
+and the [protocol/migration runbook](./runbooks/route-local-tax-1381.md).
+Router input is a gross budget; taxes consume only this route's funds, pair credit
+matches the declared economic hook amount, and pair→router buys are charged once.
+Supported taxed intermediates remain eligible with net executable ranking. Older
+T592-13/R607/R615 wallet-extra-debit, raw-output and middle-hop exclusion descriptions
+in the historical sections below describe legacy deployments only. They are
+superseded for v1; direct-pair Sell/SendFrom compatibility remains unchanged.
+[QA evidence and agent checklist](./qa/issue-1381/README.md); `make verify-issue-1381`.
+
 Authoritative reference for contributors and integrators using **`GET` / `POST /api/v1/route/solve`**. The solver is **advisory**: on-chain **`max_spread`** / **`min_receive`** at execute time are authoritative. This document expands [ADR 0002](./adr/0002-global-best-execution-route-solver.md) (decision record) without changing its decisions.
 
 Pair-direct integrators use this same best-execution API: optimized GET requires `amount_in`, and a one-hop pair-direct call must execute with that hop's returned `hybrid` params; omitting hybrid on a direct pair swap remains pool-only under the current contract ([I707 guide](./integrators.md#pair-swap-pool-only-vs-best-execution-forgejo-707)).
@@ -309,3 +321,31 @@ The fair-reference engine in [`route_exact_output_reference.rs`](../indexer/src/
 `spot_amount_out` and `slippage_percent` are mandatory positive-reference fields on successful exact-output responses. Cross-rate products, decimal scaling, rounding and symmetric deviation use checked integer arithmetic. Server selection rejects ≥99% deviation and may try an alternate; lower deviations preserve the existing 5/30 consent and Expert behavior. The frontend requires the reference, recomputes deviation against fresh wallet output and rechecks spread/slippage at mutation entry. Missing/stale/unrepresentable references never silently remove these protections.
 
 Execution remains an offer-in transaction protected by existing spread and minimum-receive semantics. A successful sizing quote is not a guarantee against changes between quote and inclusion. Review [E1376 invariants](frontend.md#solver-receive-sizing), [agent protocol](../skills/AGENTS_SWAP_EXACT_OUTPUT.md), and [the verification/migration checklist](qa/issue-1376/README.md).
+
+## Funded trading capability and quote identity (#1381)
+
+`TRADING_TAX_FREE_CODE_IDS` registers reviewed ordinary CW20 implementations.
+`TRADING_ROUTE_TAX_CODE_IDS` / `TRADING_ROUTE_TAX_DATA_HASHES` register reviewed
+funding-v1 community-tax implementations. These trading registrations do not
+alter `COMMUNITY_TAX_CODE_ID`, launcher/admin provenance or Create/Manage catalog
+attestation. Set the ordinary local mintable and newly stored supported token
+codes in LocalTerra; deployments must use actual stored immutable code identities.
+
+Discovery resolves candidate instance/code/hash and live capability/router/rates,
+including ALPHA absent from the catalog. Unknown, untrusted, legacy or failed
+capabilities are unavailable for execution. Per-token manager/directory exemptions
+are independent; an exemption on ALPHA cannot waive another token's tax. Limits:
+64 candidate assets, four global concurrent discovery calls, three-second query
+budget, five-second bounded cache, 512 entries. Cache identities include the LCD
+client/chain deployment, router, policy and all observed candidate asset versions,
+rates and exemption state; invalidate/restart caches during migrations.
+
+Funded GET/POST, exact-output and progress responses identify `tax_kind=route_local_v1`.
+Both `estimated_amount_out` and `estimated_amount_out_net` are already net. The
+router's funded simulation is the final quote authority; a DB hybrid plan must
+size its book/pool allocation using the funded economic input and each next hop's
+post-buy net budget. Exact-output returns a sufficient gross input and validates
+it through forward quoting. Preserve the existing hop0-only Policy A and route
+caps. Client fallback requires live compatible funding and cannot restore a
+wallet-funded intermediate route. [RT1381 invariants](../skills/AGENTS_ROUTE_LOCAL_TAX.md)
+and [agent checks](qa/issue-1381/README.md) govern all these paths.

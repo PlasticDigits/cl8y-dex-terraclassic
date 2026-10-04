@@ -634,8 +634,9 @@ fn poc_autov2lp_paid_but_never_bound() {
 
 // ============================================================================
 // T592-13 / #607 improved option 2 (was audit C-2 / option 1 Honest hops).
-// Official router Send+Swap extra-debits authenticated Swap.trader; missing
-// trader fail-closes. Pair→router stays 1:1; router→user is buy outbound split.
+// Route-local v1 requires the configured router's live authenticated context.
+// A trader field alone cannot authorize a swap or a wallet side debit. Unrelated
+// pair→router movements and low-level router Transfers retain legacy classification.
 // Address named "router" (PROTOCOL_EXEMPT + config.router), not router wasm.
 // ============================================================================
 #[test]
@@ -675,8 +676,9 @@ fn poc_router_exemption_full_tax_bypass() {
         "{err:?}"
     );
 
-    // Sell via router with authenticated trader (official router wasm sets this).
-    hub.app
+    // Spoofing the legacy router address plus trader field cannot debit alice.
+    let err = hub
+        .app
         .execute_contract(
             Addr::unchecked("router"),
             token.clone(),
@@ -687,22 +689,26 @@ fn poc_router_exemption_full_tax_bypass() {
             },
             &[],
         )
-        .unwrap();
+        .unwrap_err();
+    assert!(err
+        .root_cause()
+        .to_string()
+        .contains("Route-local tax funding"));
     assert_eq!(
         bal(&hub.app, &token, "router"),
-        900_000,
-        "router debited declared amount only"
+        1_000_000,
+        "invalid context leaves router budget unchanged"
     );
-    assert_eq!(bal(&hub.app, &token, pair.as_str()), 100_000);
+    assert_eq!(bal(&hub.app, &token, pair.as_str()), 0);
     assert_eq!(
         bal(&hub.app, &token, "alice"),
-        10_000_000 - 5_000,
-        "alice extra-debit 5% sell tax"
+        10_000_000,
+        "alice wallet cannot fund a routed hop"
     );
     assert_eq!(
         bal(&hub.app, &token, "treasury"),
-        5_000,
-        "sell tax collected on router hop"
+        0,
+        "invalid route tax distributions roll back"
     );
 
     // Pair-direct EOA sell still extra-debits the sender (spoofed trader ignored).
@@ -720,7 +726,7 @@ fn poc_router_exemption_full_tax_bypass() {
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "alice"),
-        10_000_000 - 5_000 - 105_000,
+        10_000_000 - 105_000,
         "EOA paid 5% sell tax on pair-direct"
     );
     assert_eq!(
@@ -743,7 +749,7 @@ fn poc_router_exemption_full_tax_bypass() {
         .unwrap();
     assert_eq!(
         bal(&hub.app, &token, "router"),
-        900_000 + 100_000,
+        1_000_000 + 100_000,
         "router buy credit 1:1"
     );
     hub.app

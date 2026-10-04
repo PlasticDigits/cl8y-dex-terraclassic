@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::api::AppState;
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
 use crate::api::hybrid_route_opt::{
     self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta,
@@ -12,18 +13,17 @@ use crate::api::route_graph::{self, RouteGraphSnapshot};
 use crate::api::route_paths;
 use crate::api::route_solve_progress;
 use crate::api::route_solver::{
+    FidelityCheck, GET_DEFAULT_MAX_HOPS, RouteHop, RouteQuoteKind, RouteSolveResponse,
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
-    FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, GET_DEFAULT_MAX_HOPS,
 };
-use crate::api::AppState;
 use axum::http::StatusCode;
 use sqlx::PgPool;
 
 /// LCD-grid solver generation (legacy).
-pub const SOLVER_VERSION_LCD: &str = "global_v3";
+pub const SOLVER_VERSION_LCD: &str = "global_v5_funded";
 
 /// Postgres-mirror hybrid grid (#319 Phase 1c; cache-key bump #324).
-pub const SOLVER_VERSION_DB: &str = "global_v4";
+pub const SOLVER_VERSION_DB: &str = "global_v6_funded";
 
 /// Max simple paths evaluated per request after skip-unusable fill (hop-count order).
 pub const MAX_PATH_CANDIDATES: usize = 5;
@@ -36,10 +36,11 @@ pub const PATH_ENUM_POOL: usize = 32;
 pub const SOLVE_CONCURRENCY: usize = MAX_PATH_CANDIDATES;
 
 /// Documented optimality scope for clients.
-pub const OPTIMALITY_SCOPE: &str = "optimal within top-5 usable simple paths (skip ~100% hop-spread / hop_sim_implausible while filling K, hop-count order) and per-hop hybrid split grid (17 book fractions), with 2-pass coordinate refinement across hops";
+pub const OPTIMALITY_SCOPE: &str = "optimal within top-5 usable simple paths (skip ~100% hop-spread / hop_sim_implausible while filling K, hop-count order); route-local v1 uses 17 funded hop-0 book fractions then pool-only later hops; ordinary routes retain per-hop hybrid grids and 2-pass coordinate refinement before Policy A hop-0-only emission";
 
 /// Additive #615 note: rank is catalog net; hop sims unchanged.
-pub const TAX_RANK_NOTE: &str = "Ranking is net of catalog buy/sell policy for this snapshot (GitLab #615); hop LCD/DB sims unchanged";
+pub const TAX_RANK_NOTE: &str =
+    "Ranking includes route-local per-hop buy/sell taxes in executable net output (issue #1381)";
 
 /// Upper bound on pair-level hybrid simulations per request (worst-case estimate for docs/tests).
 /// Post-#319 each hop is priced from the DB orderbook mirror, not live LCD; this constant
@@ -211,6 +212,22 @@ fn hybrid_sim_gateway_err(e: HybridSimError) -> (StatusCode, String) {
             format!("no route within {} hops", GET_DEFAULT_MAX_HOPS),
         ),
     }
+}
+
+/// Candidate asset identity used by both quote/progress caches. Includes intermediates.
+pub(crate) async fn candidate_tax_addresses(
+    state: &AppState,
+    token_in: &str,
+    token_out: &str,
+) -> Result<Vec<String>, (StatusCode, String)> {
+    let graph = route_graph::get_route_graph_snapshot(&state.pool).await?;
+    Ok(
+        enumerate_path_candidates(&graph, token_in, token_out, GET_DEFAULT_MAX_HOPS)
+            .await?
+            .iter()
+            .flat_map(|c| crate::api::community_tax_rank::extra_addrs_from_hops(&c.hops))
+            .collect(),
+    )
 }
 
 fn estimate_lcd_calls(hop_count: usize) -> u32 {
@@ -398,16 +415,44 @@ async fn evaluate_candidate(
         None
     };
 
-    let (hybrid_plan, opt_meta, grid_out) = match hybrid_route_opt::optimize_multihop_hybrid_joint(
-        &source,
-        mm,
-        &hops_desc,
-        amount_in,
-        max_maker_fills,
-        &quote_trader,
+    let taxes = crate::api::community_tax_rank::load_tax_rank_snapshot(
+        &state,
+        &token_in,
+        &token_out,
+        &crate::api::community_tax_rank::extra_addrs_from_hops(&cand.hops),
+        quote_trader
+            .trader
+            .as_deref()
+            .or(quote_trader.sender.as_deref()),
     )
-    .await
-    {
+    .await;
+    let funded = taxes.path_route_local(&cand.hops);
+    if crate::api::community_tax_rank::path_sells_middle_tax_hop(&cand.hops, &token_in, &taxes) {
+        return Ok(None);
+    }
+    let optimized = if funded {
+        hybrid_route_opt::optimize_funded_route(
+            &source,
+            mm,
+            &hops_desc,
+            amount_in,
+            max_maker_fills,
+            &quote_trader,
+            &taxes,
+        )
+        .await
+    } else {
+        hybrid_route_opt::optimize_multihop_hybrid_joint(
+            &source,
+            mm,
+            &hops_desc,
+            amount_in,
+            max_maker_fills,
+            &quote_trader,
+        )
+        .await
+    };
+    let (hybrid_plan, opt_meta, grid_out) = match optimized {
         Ok(v) => v,
         Err(HybridSimError::PathUnusable) => {
             tracing::debug!(
@@ -435,7 +480,7 @@ async fn evaluate_candidate(
     opt_meta.any_book_leg = hybrid_route_opt::plan_has_book_leg(&hybrid_plan);
 
     // Fidelity must DB-sim the emitted (stripped) ops, not the joint ranking plan.
-    let grid_out = if db_mode && hops_desc.len() > 1 {
+    let grid_out = if db_mode && hops_desc.len() > 1 && !funded {
         match hybrid_route_opt::propagate_offer_through_plan(
             &source,
             Some(&mut mirror_meta),
@@ -487,6 +532,9 @@ async fn evaluate_candidate(
         crate::api::route_solver::maybe_simulate(&state, Some(&amount_raw), &ops, &quote_trader)
             .await?;
 
+    if funded && estimated.is_none() {
+        return Ok(None);
+    }
     let out_u = estimated
         .as_ref()
         .and_then(|s| s.parse::<u128>().ok())
@@ -573,7 +621,7 @@ async fn preload_mirrors_with_progress(
     let mut mirrors = HashMap::new();
     if progress_key.is_some() {
         use crate::api::db_orderbook_sim::{
-            load_hop_mirror, DbSimError, HopMirror, MirrorFreshness,
+            DbSimError, HopMirror, MirrorFreshness, load_hop_mirror,
         };
         use crate::db::queries::pairs;
         use chrono::Utc;
@@ -1129,7 +1177,7 @@ fn apply_tax_rank_fields(
 
 #[cfg(test)]
 mod concurrent_solve_tests {
-    use super::{merge_candidate_evaluations, CandidateEval, RouteHop, SOLVE_CONCURRENCY};
+    use super::{CandidateEval, RouteHop, SOLVE_CONCURRENCY, merge_candidate_evaluations};
     use crate::api::route_solver::{RouteQuoteKind, RouteSolveResponse};
     use std::time::{Duration, Instant};
 
@@ -1137,11 +1185,11 @@ mod concurrent_solve_tests {
         CandidateEval {
             index,
             body: RouteSolveResponse {
-        required_amount_in: None,
-        target_amount_out: None,
-        sizing_mode: None,
-        snapshot_age_ms: None,
-        snapshot_block_height: None,
+                required_amount_in: None,
+                target_amount_out: None,
+                sizing_mode: None,
+                snapshot_age_ms: None,
+                snapshot_block_height: None,
                 token_in: "in".into(),
                 token_out: "out".into(),
                 hops: vec![RouteHop {
@@ -1250,7 +1298,7 @@ mod concurrent_solve_tests {
             search_truncated: true,
             ..Default::default()
         };
-        let notes = hybrid_notes_for_global(&meta, "global_v4");
+        let notes = hybrid_notes_for_global(&meta, "global_v6_funded");
         assert!(
             notes.contains("truncated"),
             "hybrid_notes must warn when search_truncated: {notes}"

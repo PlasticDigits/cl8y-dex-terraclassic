@@ -1,5 +1,17 @@
 # Agent playbook: extra-debit Sell submit gate (Forgejo #1267)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing Swap / Trade Market **sell** CTA, Max, `TaxPreview`, or community-tax detection on the pay CW20.
 
 This is a **dApp execute gate**. Pair/router wasm stay unchanged (**H-01** / **T592-1**). Do **not** reopen [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) (Max) or [#1228](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1228) (SendFrom allowance). Do **not** add FoT math.

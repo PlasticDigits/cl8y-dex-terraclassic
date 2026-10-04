@@ -1,3 +1,5 @@
+import { act } from '@testing-library/react'
+import { queryContract } from '@/services/terraclassic/queries'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -12,9 +14,13 @@ vi.mock('@/utils/constants', async (importOriginal) => {
   return {
     ...actual,
     COMMUNITY_TAX_CODE_ID: 11630,
-    isCommunityTaxEnabled: () => true,
+    isCommunityTaxEnabled: () => false,
   }
 })
+
+vi.mock('@/services/terraclassic/queries', () => ({
+  queryContract: vi.fn().mockRejectedValue(new Error('unknown variant')),
+}))
 
 vi.mock('@/services/terraclassic/communityTaxToken', () => ({
   queryCommunityTaxConfig: vi.fn(),
@@ -64,6 +70,32 @@ describe('useCommunityTaxSellBps (#1267 catalog pin ≠ sell detection)', () => 
     expect(result.current.isTaxToken).toBe(false)
     expect(result.current.sellBps).toBeNull()
     expect(result.current.extraDebitUnresolved).toBe(false)
+  })
+
+  it('keeps established tax protection after a failed 503 refetch', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const provider = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+    vi.mocked(queryCommunityTaxConfig).mockResolvedValue({ sell_bps: 100, buy_bps: 450 } as never)
+    const { result } = renderHook(() => useCommunityTaxSellBps(TOKEN), { wrapper: provider })
+    await waitFor(() => expect(result.current.sellBps).toBe(100))
+    vi.mocked(queryCommunityTaxConfig).mockRejectedValue(new Error('503 unavailable'))
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['communityTaxSellBps', TOKEN] })
+    })
+    expect(result.current.isTaxToken).toBe(true)
+    expect(result.current.sellBps).toBe(100)
+    await waitFor(() => expect(result.current.extraDebitUnresolved).toBe(true))
+  })
+
+  it('legacy tax API prevents unsupported GetConfig from becoming honest', async () => {
+    vi.mocked(queryCommunityTaxConfig).mockRejectedValue(new Error('unknown variant get_config'))
+    vi.mocked(queryContract).mockResolvedValueOnce({ tax_rate: '0.05' })
+    const { result } = renderHook(() => useCommunityTaxSellBps(TOKEN), { wrapper })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.detection).toBe('unresolved')
+    expect(result.current.extraDebitUnresolved).toBe(true)
   })
 
   it('unknown exempt keeps sell_bps (fail closed)', async () => {

@@ -140,24 +140,11 @@ fn require_hop_trader(
         .ok_or(ContractError::RouterTraderRequired {})
 }
 
-/// Economic kind **before** the manager-directory tax skip (**T592-7**, **#609**) + **T592-13**.
-///
-/// Launch guards (`trading_enabled`, cooldown, `max_wallet`) use this so exemption
-/// is tax-only and does not disable **T592-11**.
-///
-/// - **Sell** — `Send` **or `SendFrom`** to a registered listed pair whose hook is
-///   `Cw20HookMsg::Swap` **and** (`from` is not protocol-exempt **or** `from` is
-///   the official router). Pair-direct extra-debits `from` (owner). Router hop
-///   extra-debits the authenticated `Swap.trader` (official router already
-///   passes the user; **H-01** / no FoT). Pair is credited exactly `amount`
-///   (inbound 1:1 / **T592-1**). **A-allow (#1228):** `SendFrom` allowance
-///   covers `TaxPreview.debit`, not declared `amount`.
-/// - **Buy** — `Transfer`/`Send` **from** a registered listed pair **or** the official
-///   router to a non-protocol-exempt recipient. Debit `amount`; trader + sinks = `amount`.
-///   Pair→router stays 1:1. Pair→EOA `Transfer` is also withdraw / limit refund (same
-///   primitive). Provide (`TransferFrom`) and limit `PlaceLimitOrder*` `Send` stay 1:1.
-/// - **Transfer** — TransferTax SKU, neither side protocol- or manager-exempt.
-/// - **Honest** — everything else. Do not un-exempt the router (option 3 bricks hops).
+/// Economic kind before manager/directory exemption. Direct pair sells debit
+/// amount+tax and credit exactly amount; route-local v1 uses the same economic
+/// basis but charges only the authenticated router budget. Active routed buys
+/// are recognized by `apply_transfer` against the configured router's context.
+/// Provide, escrow and unrelated protocol movements preserve their classification.
 pub fn classify_trade(
     storage: &dyn Storage,
     self_addr: &Addr,
@@ -215,7 +202,15 @@ pub fn classify(
 ) -> (TaxKind, u16) {
     let (kind, bps) = classify_trade(storage, self_addr, from, to, send_msg, features, config);
     let hop = hop_trader_addr(storage, self_addr, config, from, to, send_msg);
-    apply_manager_directory_tax_skip(storage, from, to, hop.as_ref(), kind, bps)
+    if let Some(trader) = hop.as_ref() {
+        if is_manager_exempt(storage, trader) {
+            (TaxKind::Honest, 0)
+        } else {
+            (kind, bps)
+        }
+    } else {
+        apply_manager_directory_tax_skip(storage, from, to, None, kind, bps)
+    }
 }
 
 fn apply_manager_directory_tax_skip(
@@ -258,7 +253,7 @@ pub fn preview(
     let tax = tax_amount(amount, bps);
     let router_sell = matches!(kind, TaxKind::Sell) && is_official_router(&config, from);
     let (debit, credit) = match kind {
-        TaxKind::Sell if router_sell => (amount, amount),
+        TaxKind::Sell if router_sell => (amount.checked_add(tax)?, amount),
         TaxKind::Sell => (amount.checked_add(tax)?, amount),
         TaxKind::Buy | TaxKind::Transfer => (amount, amount.checked_sub(tax)?),
         TaxKind::Honest => (amount, amount),
@@ -270,11 +265,7 @@ pub fn preview(
         credit,
         tax,
         hop_trader: hop.clone(),
-        hop_trader_debit: if router_sell && !tax.is_zero() {
-            Some(tax)
-        } else {
-            None
-        },
+        hop_trader_debit: None,
     })
 }
 
@@ -456,7 +447,7 @@ fn sub_balance(
     BALANCES.update(storage, addr, |bal| -> Result<_, ContractError> {
         let bal = bal.unwrap_or_default();
         bal.checked_sub(amount)
-            .map_err(|_| ContractError::InsufficientForSellTax {})
+            .map_err(|_| ContractError::InsufficientBalance {})
     })?;
     Ok(())
 }
@@ -474,7 +465,7 @@ pub fn apply_transfer(
     let config = CONFIG.load(deps.storage)?;
     let features = FEATURES.load(deps.storage)?;
     // Guards use economic kind so #609 tax skip cannot disable T592-11.
-    let (trade_kind, trade_bps) = classify_trade(
+    let (mut trade_kind, mut trade_bps) = classify_trade(
         deps.storage,
         self_addr,
         from,
@@ -483,7 +474,7 @@ pub fn apply_transfer(
         &features,
         &config,
     );
-    let hop = if is_router_sell_hop(deps.storage, &config, from, to, send_msg) {
+    let mut hop = if is_router_sell_hop(deps.storage, &config, from, to, send_msg) {
         Some(require_hop_trader(
             deps.storage,
             self_addr,
@@ -495,18 +486,60 @@ pub fn apply_transfer(
     } else {
         None
     };
-    let (kind, bps) = apply_manager_directory_tax_skip(
-        deps.storage,
-        from,
-        to,
-        hop.as_ref(),
-        trade_kind.clone(),
-        trade_bps,
-    );
+    // The official router supplies identity through its live state, not a
+    // user-controlled hook. Buy is recognized only from the executing pair's
+    // ask token; provide, escrow and offer refunds cannot enter this boundary.
+    let mut already_checked = false;
+    if let Some(trader) = &hop {
+        let ctx = route_context(deps.as_ref(), &config)?;
+        already_checked = ctx.acquired_tokens.contains(self_addr);
+        if ctx.trader != *trader
+            || ctx.pair != *to
+            || ctx.offer_token != *self_addr
+            || ctx.economic != amount
+            || amount.checked_add(tax_amount(
+                amount,
+                if is_manager_exempt(deps.storage, trader) {
+                    0
+                } else {
+                    config.sell_bps
+                },
+            ))? > ctx.gross
+        {
+            return Err(ContractError::RouteTaxContext {});
+        }
+    }
+    if is_listed_pair(deps.storage, from) && is_official_router(&config, to) {
+        if let Ok(ctx) = route_context(deps.as_ref(), &config) {
+            if ctx.pair == *from && ctx.ask_token == *self_addr {
+                trade_kind = TaxKind::Buy;
+                trade_bps = config.buy_bps;
+                hop = Some(ctx.trader);
+            }
+        }
+    }
+    // Route exemptions belong only to the authenticated trader. A protocol
+    // source/recipient manager role must not waive another user's taxes.
+    let (kind, bps) = if let Some(trader) = hop.as_ref() {
+        if is_manager_exempt(deps.storage, trader) {
+            (TaxKind::Honest, 0)
+        } else {
+            (trade_kind.clone(), trade_bps)
+        }
+    } else {
+        apply_manager_directory_tax_skip(
+            deps.storage,
+            from,
+            to,
+            None,
+            trade_kind.clone(),
+            trade_bps,
+        )
+    };
     let tax = tax_amount(amount, bps);
-    let router_sell = matches!(kind, TaxKind::Sell) && hop.is_some();
+    let router_sell = matches!(kind, TaxKind::Sell) && is_official_router(&config, from);
     let (debit, credit) = match kind {
-        TaxKind::Sell if router_sell => (amount, amount),
+        TaxKind::Sell if router_sell => (amount.checked_add(tax)?, amount),
         TaxKind::Sell => {
             let debit = amount.checked_add(tax)?;
             (debit, amount)
@@ -519,7 +552,15 @@ pub fn apply_transfer(
         .may_load(deps.storage, from)?
         .unwrap_or_default()
         .checked_sub(debit)
-        .map_err(|_| ContractError::InsufficientForSellTax {})?;
+        .map_err(|_| {
+            if router_sell {
+                ContractError::RouteFundingShortfall {}
+            } else if matches!(kind, TaxKind::Sell) {
+                ContractError::InsufficientForSellTax {}
+            } else {
+                ContractError::InsufficientBalance {}
+            }
+        })?;
     let to_bal_after = BALANCES
         .may_load(deps.storage, to)?
         .unwrap_or_default()
@@ -532,7 +573,7 @@ pub fn apply_transfer(
         self_addr,
         from,
         to,
-        hop.as_ref(),
+        if already_checked { None } else { hop.as_ref() },
         &trade_kind,
         credit,
         to_bal_after,
@@ -540,13 +581,17 @@ pub fn apply_transfer(
 
     BALANCES.save(deps.storage, from, &from_bal_after)?;
     add_balance(deps.storage, to, credit)?;
-    if router_sell {
-        if let Some(trader) = &hop {
-            sub_balance(deps.storage, trader, tax)?;
-        }
-    }
 
     let sinks = sink_credits(deps.storage, &features, &config, tax)?;
+    if hop.is_some()
+        && sinks.iter().any(|(addr, share, burn)| {
+            !burn
+                && !share.is_zero()
+                && (config.router.as_ref() == Some(addr) || is_listed_pair(deps.storage, addr))
+        })
+    {
+        return Err(ContractError::RouteTaxContext {});
+    }
     let mut info = TOKEN_INFO.load(deps.storage)?;
     let mut burned = Uint128::zero();
     for (addr, share, is_burn) in &sinks {
@@ -584,7 +629,7 @@ pub fn apply_transfer(
     if let Some(trader) = &hop {
         resp = resp.add_attribute("hop_trader", trader);
         if router_sell && !tax.is_zero() {
-            resp = resp.add_attribute("hop_trader_debit", tax);
+            resp = resp.add_attribute("tax_funding", "route");
         }
     }
     for (addr, share, is_burn) in &sinks {
@@ -627,4 +672,126 @@ pub fn burn_tokens(
         info.total_supply = info.total_supply.checked_sub(amount)?;
         Ok(info)
     })
+}
+
+pub fn route_capability(
+    deps: Deps,
+) -> StdResult<dex_common::route_tax::RouteTaxCapabilityResponse> {
+    let c = CONFIG.load(deps.storage)?;
+    Ok(dex_common::route_tax::RouteTaxCapabilityResponse {
+        funding_version: dex_common::route_tax::FUNDING_VERSION,
+        router: c.router,
+        buy_bps: c.buy_bps,
+        sell_bps: c.sell_bps,
+    })
+}
+
+pub fn route_preview(
+    deps: Deps,
+    kind: dex_common::route_tax::RouteTaxKind,
+    amount: Uint128,
+    trader: Option<String>,
+    pair: String,
+) -> StdResult<dex_common::route_tax::RouteTaxPreviewResponse> {
+    let c = CONFIG.load(deps.storage)?;
+    let pair = deps.api.addr_validate(&pair)?;
+    if !is_listed_pair(deps.storage, &pair) {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "route pair is not registered",
+        ));
+    }
+    let trader = trader.map(|t| deps.api.addr_validate(&t)).transpose()?;
+    let exempt = trader
+        .as_ref()
+        .is_some_and(|t| is_manager_exempt(deps.storage, t));
+    let p = match kind {
+        dex_common::route_tax::RouteTaxKind::Sell => {
+            dex_common::route_tax::sell_from_gross(amount, if exempt { 0 } else { c.sell_bps })
+        }
+        dex_common::route_tax::RouteTaxKind::Buy => {
+            dex_common::route_tax::buy_from_gross(amount, if exempt { 0 } else { c.buy_bps })
+        }
+    }?;
+    let features = FEATURES.load(deps.storage)?;
+    let sinks = sink_credits(deps.storage, &features, &c, p.tax)
+        .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))?;
+    if sinks.iter().any(|(addr, share, burn)| {
+        !burn
+            && !share.is_zero()
+            && (c.router.as_ref() == Some(addr) || is_listed_pair(deps.storage, addr))
+    }) {
+        return Err(cosmwasm_std::StdError::generic_err(
+            "route tax sink cannot credit router or listed pair",
+        ));
+    }
+    Ok(p)
+}
+
+fn route_context(
+    deps: Deps,
+    config: &Config,
+) -> Result<dex_common::route_tax::RouteTaxContextResponse, ContractError> {
+    let router = config
+        .router
+        .as_ref()
+        .ok_or(ContractError::RouteTaxContext {})?;
+    let ctx: dex_common::route_tax::RouteTaxContextResponse = deps
+        .querier
+        .query_wasm_smart(
+            router,
+            &dex_common::route_tax::RouterQueryMsg::RouteTaxContext {},
+        )
+        .map_err(|_| ContractError::RouteTaxContext {})?;
+    if ctx.funding_version != dex_common::route_tax::FUNDING_VERSION {
+        return Err(ContractError::RouteTaxContext {});
+    }
+    Ok(ctx)
+}
+
+/// Settlement is authorized by the router's live transaction state, never a
+/// caller-supplied trader/recipient. Final delivery and owned rounding refunds
+/// bypass a second buy tax, while max-wallet protection remains enforced.
+pub fn execute_route_transfer(
+    deps: DepsMut,
+    env: Env,
+    info: cosmwasm_std::MessageInfo,
+    recipient: String,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    if !is_official_router(&config, &info.sender) {
+        return Err(ContractError::Unauthorized {});
+    }
+    let to = deps.api.addr_validate(&recipient)?;
+    let ctx = route_context(deps.as_ref(), &config)?;
+    if !ctx
+        .transfers
+        .iter()
+        .any(|x| x.token == env.contract.address && x.recipient == to && x.amount == amount)
+    {
+        return Err(ContractError::RouteTaxContext {});
+    }
+    let features = FEATURES.load(deps.storage)?;
+    let to_bal = BALANCES
+        .may_load(deps.storage, &to)?
+        .unwrap_or_default()
+        .checked_add(amount)?;
+    apply_launch_guards(
+        deps.storage,
+        &env,
+        &features,
+        &env.contract.address,
+        &info.sender,
+        &to,
+        None,
+        &TaxKind::Honest,
+        amount,
+        to_bal,
+    )?;
+    sub_balance(deps.storage, &info.sender, amount)?;
+    add_balance(deps.storage, &to, amount)?;
+    Ok(Response::new()
+        .add_attribute("action", "route_transfer")
+        .add_attribute("amount", amount)
+        .add_attribute("recipient", to))
 }

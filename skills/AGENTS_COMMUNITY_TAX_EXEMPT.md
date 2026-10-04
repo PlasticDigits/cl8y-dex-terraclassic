@@ -1,5 +1,17 @@
 # Agent playbook: ExemptionDirectory full tax skip (GitLab #609)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing manager-directory exemptions on the community tax CW20, Swap/Trade extra-debit Max for that template, or Create/Manage Token exemption copy.
 
 Parent template [#592](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) ([`AGENTS_COMMUNITY_TAX_CW20.md`](./AGENTS_COMMUNITY_TAX_CW20.md)). Audit **M-5** in [`INTERNAL_KIMIK3_1787468843`](../audits/INTERNAL_KIMIK3_1787468843.md). Create Token SKU hint [#593](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/593) ([`AGENTS_FRONTEND_CREATE_TOKEN.md`](./AGENTS_FRONTEND_CREATE_TOKEN.md)).

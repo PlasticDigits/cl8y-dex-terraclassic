@@ -195,6 +195,10 @@ pub struct Config {
     pub community_tax_option2_code_ids: HashSet<i64>,
     /// Known option-2 wasm data hashes (lowercase hex, no 0x). GitLab #615.
     pub community_tax_option2_data_hashes: HashSet<String>,
+    /// Immutable trading code allowlists, independent of the Create catalog.
+    pub trading_route_tax_code_ids: HashSet<i64>,
+    pub trading_route_tax_data_hashes: HashSet<String>,
+    pub trading_tax_free_code_ids: HashSet<i64>,
 }
 
 /// Catalog env snapshot shared by API + probe (GitLab #594).
@@ -207,6 +211,9 @@ pub struct CommunityTaxCatalogConfig {
     pub option2_code_ids: HashSet<i64>,
     /// Known option-2 `data_hash` values (lowercase hex). Unmigrated 11611 is never implied.
     pub option2_data_hashes: HashSet<String>,
+    pub route_tax_code_ids: HashSet<i64>,
+    pub route_tax_data_hashes: HashSet<String>,
+    pub tax_free_code_ids: HashSet<i64>,
 }
 
 impl CommunityTaxCatalogConfig {
@@ -217,6 +224,9 @@ impl CommunityTaxCatalogConfig {
             cmm_governance: c.cmm_governance_addr.clone(),
             option2_code_ids: c.community_tax_option2_code_ids.clone(),
             option2_data_hashes: c.community_tax_option2_data_hashes.clone(),
+            route_tax_code_ids: c.trading_route_tax_code_ids.clone(),
+            route_tax_data_hashes: c.trading_route_tax_data_hashes.clone(),
+            tax_free_code_ids: c.trading_tax_free_code_ids.clone(),
         }
     }
 
@@ -464,6 +474,9 @@ impl Config {
             community_tax_option2_data_hashes: parse_hash_set_env(
                 "COMMUNITY_TAX_OPTION2_DATA_HASHES",
             ),
+            trading_route_tax_code_ids: parse_i64_set_env("TRADING_ROUTE_TAX_CODE_IDS"),
+            trading_route_tax_data_hashes: parse_hash_set_env("TRADING_ROUTE_TAX_DATA_HASHES"),
+            trading_tax_free_code_ids: parse_i64_set_env("TRADING_TAX_FREE_CODE_IDS"),
         })
     }
 

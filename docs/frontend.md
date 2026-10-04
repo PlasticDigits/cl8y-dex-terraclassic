@@ -854,7 +854,7 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 | **I595-1** Canonical invoice | SKU / settings batch stay **50 UST1** (or `N × 50` for SKU count) on-chain. The module only acquires ≥ invoice of that CW20. |
 | **I595-2** One broadcast | `buildPayInvoiceMsgs` → one `executeTerraContractMulti`. Two user txs is a fail. |
 | **I595-3** Exact payee credit | Swap `to` = user; last `Send` amount = invoice. Excess invoice token refunds to the user. Do not set swap `to = payee`. |
-| **I595-4** No pair FoT math | Existing router + pairs only (**H-01**). |
+| **I595-4** Explicit route protocol | Route-funded v1 invoices use gross reverse input and all-tax net forward output; legacy direct invoice Send retains its existing classification. Pair declared credit remains exact (**RT1381-3**). |
 | **I595-5** Reuse solver | `GET /route/solve` (path) + `ReverseSimulateSwapOperations` (`amount_in`) + forward sim `out ≥ invoice`. Invoice retains reverse sizing; Swap now has bounded server receive sizing (#1376). |
 | **I595-6** Invoice is a floor | `minimum_receive` ≥ invoice. Slippage scales **max_in** only (`applySlippagePercentCeiling`). |
 | **I595-7** No route | Frozen / gem-bridge / unroutable → disable + **No route**. |
@@ -885,18 +885,18 @@ Retail create/manage for the #592 template ([GitLab **#593**](https://gitlab.com
 | **C593-8** Template | Manage requires `code_id ==` env pin (columbus-5 **11630** after #635; **11626** was the #628 store). After #626 adopt, the same address is that pin and Manage shows tax SKUs (**P11**). 6036/10184/8266/8654 stay hidden. |
 | **M626** Migrate Token | `/token/migrate` is free (no invoice). Source gate is `VITE_COMMUNITY_MIGRATE_CODE_IDS` (default 6036,10184,8266,8654) — not factory whitelist. **Do not append 3** ([#627](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/627)). Create Token links **Migrate here** and stays code-id-free (**M628-7**). Retail lead is title + **Unlock {X} features…** headline + one examples paragraph ([#670](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/670) **M670-1–M670-8**; X derived, today 7; no Minting; access ≠ auto-enable). No env-var / 50 UST1 / cw2 essay on the card. Confirm still owns LP/pause/Terraport facts. Launcher stays CMM-only. Post-merge leftovers: [#628](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/628) / `make verify-issue-628`. Verify why-copy: `make verify-issue-670`. |
 | **M634** Migrate inventory | Confirm + success show CL8Y / other-DEX / GDEX venues. Register only factory-verified CL8Y after adopt when pins match. ALPHA/Open Terraport rows always overlay. `#633` owns new Create Pair register + Manage highest-LP. LocalTerra mintable analogue: [`localterra-634-migrate-inventory.sh`](../scripts/qa/localterra-634-migrate-inventory.sh). [#634](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/634) / `make verify-issue-634`. |
-| **C593-9** Extra-debit Max | Swap/Trade sell max reduced by sell tax on **pair-direct and router-hop** sells (**T592-13**). Manager-directory wallets skip extra-debit (**#609** / **E609-7**); unknown exempt stays fail-closed. Typed 100% / reverse offer still must not submit when `TaxPreview.debit > balance` (**S1267**, [#1267](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1267) / [`AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md`](../skills/AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md); `make verify-issue-1267`). |
-| **S1267-1** LCD debit is a floor | When `sell_bps > 0`, debit is `max(TaxPreview.debit, local extraDebitFromDeclared)`. Honest LCD (`debit === declared`) cannot enable a 100% tax sell. Classic `amount > balance` stays Insufficient Balance. No pair/router FoT. |
+| **C593-9** Direct pair / route Max | Legacy direct-pair Max reserves extra-debit; supported router v1 Max authorizes the full gross balance and taxes reduce proceeds. Unknown exemption never waives tax. See **RT1381-F1**, [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381). |
+| **S1267-1** Legacy direct-pair debit floor | Direct-pair positive sell tax uses `max(TaxPreview.debit, local extraDebitFromDeclared)` against current input balance. Supported v1 routes size taxes inside the authorized gross input instead. |
 | **S1267-2** Max round-trip | Max declared stays `debit ≤ balance` after `fromRawAmount` → `toRawAmount`. |
 | **S1267-3** Pin ≠ detector | Catalog `VITE_COMMUNITY_TAX_CODE_ID` is Create/Manage only. Sell detection is live `GetConfig.sell_bps`. |
 | **S1267-4** Unknown exempt | Manager skip only when `true`. Loading/error keep extra-debit. |
-| **S1267-5** Pair + router | Same extra-debit gate; preview `to` is pair or official router. |
-| **S1267-6** Honest / 0-bps | Native, unknown-query CW20, `sell_bps = 0` stay `amount ≤ balance`. Hostile shape / loading tax detection fail-closed. |
-| **S1267-7** Humanize | `InsufficientForSellTax` → reduce amount or Max. No ticket ids in copy. |
+| **S1267-5** Pair/router compatibility | Direct pair retains legacy `TaxPreview` extra-debit; supported router v1 authorizes gross input and takes tax locally (**RT1381-1**). |
+| **S1267-6** Unknown capability | Unsupported `GetConfig` alone does not prove an honest token: inspect legacy `tax_map`/`tax_info`. Required unknown input balance, transport failures, and malformed configuration block submit. Native/verified ordinary input still uses `amount ≤ balance`. |
+| **S1267-7** Humanize | Ordinary insufficient token balance, unavailable funding version, and ambiguous legacy sell-tax errors have distinct recovery copy. Never advise buying intermediate reserves or automatically resend. |
 | **S1267-8** Scope | dApp only. Do not reopen #593 / #1228 / #607 classify. |
 | **S1285-1** Pair `send_msg` | Pair-direct `TaxPreview` includes pair `Swap` CW20 hook (same classification as execute). |
-| **S1285-2** Router hop debit | Router preview uses router→listed-pair + `trader`; gate debit is `declared + hop_trader_debit` when present. |
-| **S1285-3** Vitest LCD shapes | Unit tests cover sell `debit` and router `hop_trader_debit`, not only `debitRaw: null`. |
+| **S1285-2** Versioned router preview | `RouteTaxPreview` v1 takes gross budget and returns economic/net/tax amounts. Supported execution never charges `hop_trader_debit`. Legacy previews cannot attest supported route quotes. |
+| **S1285-3** Vitest LCD shapes | Retain legacy direct-pair debit tests and add funded gross/economic/net, disabled Create Token discovery, failed refetch, missing balance, and mounted Swap/Trade/invoice safeguards. |
 | **S1285-4** Inline humanize | Swap/Trade inline `TxResultAlert` uses `humanizeUserFacingErrorFromUnknown` for broadcast errors. |
 | **C593-10** Payee from env | Never URL. |
 | **C593-11** No Swap dump | Not auto-listed (#562). After create, Create Token may still copy-address to `/create`; `/create?a=<cw20>` prefill is allowed after [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) (**C542-11** / **P402-5**). Prefill is not a substitute for reading the picker. |
@@ -2550,6 +2550,27 @@ See `.env.example` for the full list.
 | **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, 5/30/99 spread and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
 | **E1376-8** | Verification records revision, scope and PASS/FAIL/SKIP honestly. Deployment inventory, public token resolution and block/snapshot probes distinguish shipped behavior from mocked tests. |
 | **E1376-9** | Frontend/indexer deployment never proves pair migration. Require complete factory count, matching factory pair-code pointer and every listed pair on cw2 1.19.0 for migrated acceptance. An explicit operator-custody closure waiver does not convert a failed live query into PASS or claim full production completion. [Live evidence and waiver](qa/issue-1376/live-verification.md). |
+
+### Route-funded swap budgets (#1381)
+
+[Issue #1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381) replaces wallet-funded router-hop tax rules. The canonical protocol and rollout checklist are [route solver documentation](./route-solver.md) and [agent playbook](../skills/AGENTS_ROUTE_LOCAL_TAX.md), with **RT1381** invariants.
+
+| Invariant | Frontend behavior |
+| --- | --- |
+| **RT1381-F1** Gross authorization | Swap/Trade typed amounts, fractions, Max and receive sizing authorize exactly the initial gross amount. Supported one-hop routes use the versioned router too. Sell sizing and net buy proceeds apply before each later hop; an intermediate reserve or allowance is never requested. |
+| **RT1381-F2** Protocol identity | Live router `config.funding_version=1` and indexer `tax_kind=route_local_v1` identify all-tax net quotes. The new `execute_route_swap_operations` CW20 hook carries `funding_version=1`; old routers reject the variant. Recheck live capability before signing. |
+| **RT1381-F3** Discovery uncertainty | Create/Manage configuration does not gate trading discovery. Failed refetch retains established tax rates and blocks unresolved submission; missing input balances block. Unsupported `GetConfig` probes actual legacy tax APIs. A successful unrelated/malformed schema cannot classify a token as tax-free. |
+| **RT1381-F4** Quote parity | Per-hop preflight and minimum returns use `RouteTaxPreview` economic sells and net buys. All-tax net router output is displayed once, without a final buy-tax haircut. Legacy direct-pair quotes keep their separate pre-tax minimum and extra-debit semantics. |
+| **RT1381-F5** Fallback and invoices | Client fallback repeats capability checks rather than bypassing solver rejection. Routed invoice reverse sizing includes tax in the authorized gross budget; forward net output must cover the invoice. Current wallet/balance/route identity is rechecked at invoice mutation entry. |
+| **RT1381-F6** Recovery | Unresolved funding is not presented as insufficient sell-tax balance. Ordinary token balance errors and unsupported funding versions get distinct messages. There is no request to buy an intermediate reserve and no automatic resend. |
+
+Agent verification: run `make verify-issue-1381` from the issue worktree, then inspect funded mounted Swap/Trade tests and actual `routeTaxFundingBudget` preflight/builder tests. Retain legacy direct-pair tests. Repeat after changes to tax arithmetic or protocol metadata. Record unavailable deployment/device/LocalTerra items as **SKIP**, with reasons and their effect on acceptance; implementation verification may pass runnable checks with skips, but skips are not completed criteria or evidence of deployment. See the linked playbook for execution and migration checks.
+
+Legacy client tax-API probes are supplementary containment, not attestation of arbitrary fee-on-transfer implementations. Execute still relies on factory whitelist and live pair asset code pins; v1 additionally recognizes supported token/router context and known ordinary CW2 identities. A client bps/config response cannot waive an on-chain fee or replace immutable code policy.
+
+Funded invoice planning keeps the selected hybrid book/pool ratio and fill cap, then re-enriches every sizing candidate against its actual economic input and each net intermediate output. The final plan is rebuilt after the slippage ceiling and native-wrap rounding; its net forward output must cover the invoice before that exact gross `Send` can be signed. Original seed integers and minimum returns cannot survive a changed gross budget. Manual Swap/Trade book partitions likewise use supported one-hop router v1 and a net book minimum.
+
+Route-funded v1 static gas fallback uses **600,000 + 1,700,000 × hop count** (2.3M/4.0M/5.7M/7.4M for 1–4 hops), plus existing book-walk excess and native wrap/unwrap/combo costs. The 1–3 hop floor covers 1.2× observed issue #1381 LocalTerra gas (1,872,341 / 3,077,463 / 4,530,025); the four-hop figure is a conservative extrapolation. These are LocalTerra measurements, not mainnet measurements. Auto gas remains 1.2× actual simulation; legacy fee constants remain unchanged. Versioned fee hints, Native Max, signed router entries, and invoice entries use the same message decoder and fallback. See [the issue QA evidence](./qa/issue-1381/README.md) for revision and chain results.
 
 ## Protocol liquidity quality
 

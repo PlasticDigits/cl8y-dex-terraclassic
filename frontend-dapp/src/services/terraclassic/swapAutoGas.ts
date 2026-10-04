@@ -124,10 +124,21 @@ function sendHookInner(msg: Record<string, unknown>): Record<string, unknown> | 
 }
 
 export function messageUsesSwapAutoGas(msg: Record<string, unknown>): boolean {
-  if ('execute_swap_operations' in msg || 'swap' in msg || 'wrap_deposit' in msg) return true
+  if (
+    'execute_route_swap_operations' in msg ||
+    'execute_swap_operations' in msg ||
+    'swap' in msg ||
+    'wrap_deposit' in msg
+  )
+    return true
   const inner = sendHookInner(msg)
   if (!inner) return false
-  return 'execute_swap_operations' in inner || 'unwrap' in inner || 'swap' in inner
+  return (
+    'execute_route_swap_operations' in inner ||
+    'execute_swap_operations' in inner ||
+    'unwrap' in inner ||
+    'swap' in inner
+  )
 }
 
 export function entriesUseSwapAutoGas(entries: Array<{ msg: Record<string, unknown> }>): boolean {
