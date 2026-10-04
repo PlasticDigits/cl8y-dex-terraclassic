@@ -30,3 +30,9 @@ Use when changing **`MenuSelect`**, **`TokenSelect`**, **`TokenSearchSelect`**, 
 - Trade page layout: [`AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md`](./AGENTS_FRONTEND_TRADE_PAGE_LAYOUT.md)
 - Mobile tab bar inset for flip-above: `getMobileBottomNavInsetPx` ([`mobileBottomNav.ts`](../frontend-dapp/src/lib/mobileBottomNav.ts))
 - Visual viewport + in-app chrome + browse-without-IME: [`AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_VIEWPORT.md) ([GitLab **#632**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/632)); `make verify-issue-632`
+
+## After-scroll regression (#1316)
+
+See [layout scroll invariants](AGENTS_FRONTEND_SCROLL_INVARIANTS.md) for the
+bundled picker/header/ticket/chart regression, `make verify-issue-1316`, and
+agent verification instructions with explicit unavailable-check reporting.

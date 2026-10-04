@@ -55,3 +55,9 @@ Manual (required — Playwright cannot drive Keplr chrome): Android Keplr in-app
 - Keyboard APG: [`AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md`](./AGENTS_FRONTEND_PORTAL_LISTBOX_KEYBOARD.md) ([#244](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/244))
 - In-app connect path: [`AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md`](./AGENTS_FRONTEND_WALLETCONNECT_MOBILE.md) (**WC-M7**)
 - `/tiers` phone cards: [`AGENTS_FRONTEND_TIERS_PHONE.md`](./AGENTS_FRONTEND_TIERS_PHONE.md) ([#651](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/651)) — not a `visualViewport` picker issue
+
+## After-scroll regression (#1316)
+
+See [layout scroll invariants](AGENTS_FRONTEND_SCROLL_INVARIANTS.md) for the
+bundled picker/header/ticket/chart regression, `make verify-issue-1316`, and
+agent verification instructions with explicit unavailable-check reporting.

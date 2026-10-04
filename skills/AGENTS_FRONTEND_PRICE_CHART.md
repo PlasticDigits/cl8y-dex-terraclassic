@@ -56,3 +56,9 @@ Use when changing **`PriceChart.tsx`**, **`PriceChartLightweightCanvas.tsx`**, *
 - Local indexer + wallet QA: [`AGENTS_LOCALNET_TRADING_SWARM.md`](./AGENTS_LOCALNET_TRADING_SWARM.md), [`AGENTS_BUNDLE_DEV_WALLET.md`](./AGENTS_BUNDLE_DEV_WALLET.md)
 - QA / Playwright workers: [`.cursor/rules/playwright-workers.mdc`](../.cursor/rules/playwright-workers.mdc)
 - Accessibility CI (axe, canvas summary, attribution): [`AGENTS_FRONTEND_A11Y_CI.md`](./AGENTS_FRONTEND_A11Y_CI.md) ([#214](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/214))
+
+## After-scroll regression (#1316)
+
+See [layout scroll invariants](AGENTS_FRONTEND_SCROLL_INVARIANTS.md) for the
+bundled picker/header/ticket/chart regression, `make verify-issue-1316`, and
+agent verification instructions with explicit unavailable-check reporting.
