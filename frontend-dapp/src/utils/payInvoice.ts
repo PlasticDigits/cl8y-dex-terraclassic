@@ -19,7 +19,7 @@ import {
   simulateMultiHopSwap,
   type SwapOperation,
 } from '@/services/terraclassic/router'
-import { netAfterWrapMapperFee } from '@/services/terraclassic/wrapMapper'
+import { netAfterWrapMapperFee, wrapGrossForNetCw20 } from '@/services/terraclassic/wrapMapper'
 import { assetInfoLabel, getWrappedEquivalent, isNativeDenom, tokenAssetInfo } from '@/types'
 import {
   isNativeWrapEnabled,
@@ -134,11 +134,7 @@ export function validateInvoice(invoice: Invoice): string | null {
   return null
 }
 
-export function wrapGrossForNetCw20(netCw20: bigint, feeBps: number): bigint {
-  const keep = 10000n - BigInt(Math.min(10_000, Math.max(0, Math.trunc(feeBps))))
-  if (keep <= 0n) return netCw20
-  return (netCw20 * 10000n + keep - 1n) / keep
-}
+export { wrapGrossForNetCw20 } from '@/services/terraclassic/wrapMapper'
 
 function slippageToMaxSpread(percent: number): string {
   const bps = slippagePercentToBps(percent)
@@ -231,7 +227,13 @@ export async function quotePayInvoice(
   let offerCw20 = payToken
   let wrapDenom: string | null = null
   if (isNativeDenom(payToken)) {
-    if (!isNativeWrapEnabled() || input.wrapFeeBps == null) {
+    if (
+      !isNativeWrapEnabled() ||
+      input.wrapFeeBps == null ||
+      !Number.isInteger(input.wrapFeeBps) ||
+      input.wrapFeeBps < 0 ||
+      input.wrapFeeBps >= 10_000
+    ) {
       return { status: 'unavailable', disableReason: PAY_INVOICE_WRAP_UNAVAILABLE }
     }
     const wrapped = getWrappedEquivalent(payToken)

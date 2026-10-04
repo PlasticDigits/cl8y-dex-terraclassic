@@ -34,8 +34,8 @@ LCD: `GET ${LCD}/terra/tax/v1beta1/params` → `params.burn_tax_rate` (e.g. `"0.
 
 | ID | Rule |
 |----|------|
-| **W8** | Direct **wrap** / wrap-input mint quotes use **mapper wrap fee only** (`fee_wrap_bps`, or transitional `fee_bps`) — never burn-tax `wrap_deposit` gross. Display for 10 000 @ 200 bps = **9 800**, not ~9 751. |
-| **W9** | Direct **unwrap** / `unwrap_output` **You Receive** = post-**unwrap**-fee then post–burn-tax. `routerMinReceiveBase` stays post-fee pre-tax for router `minimum_receive` (**R3**). |
+| **W8** | Direct **wrap** / wrap-input mint quotes use **mapper wrap fee only** (`fee_wrap_bps`, or transitional `fee_bps`) — never burn-tax `wrap_deposit` gross. Display for 10 000 @ 200 bps = **9 800**, not ~9 751. Reverse receive sizing grosses native pay to cover the target CW20 mint; never subtract burn tax from wrap input ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). |
+| **W9** | Direct **unwrap** / `unwrap_output` **You Receive** = post-**unwrap**-fee then post–burn-tax. `routerMinReceiveBase` stays post-fee pre-tax for router `minimum_receive` (**R3**). Reverse receive sizing inverts the same fee/tax/cap sequence with integer rounding; typed native receive is net ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). |
 | **W10** | Unwrap fee line discloses burn tax on payout (single line; no permanent essay — still **W7**). Do not claim “2% flat” if that implies tax-free. |
 | **W11** | Unwrap UI warns: withdraw to **own wallet** first — exchanges often ignore contract-initiated deposits (even with memo). |
 
@@ -52,6 +52,8 @@ Split-fee field rules: **W12–W15** in [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./A
 | [`poolProvideCounterpart.ts`](../frontend-dapp/src/utils/poolProvideCounterpart.ts) | Provide auto-fill: wrap-fee-only net |
 
 ## Related playbooks
+
+- [`AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md`](./AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md) — #1256 native/client reverse receive quotes preserve **W8** / **W9**
 
 - [`AGENTS_WRAP_MAPPER_SPLIT_FEES.md`](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — #516 dual fees + retune
 - [`AGENTS_NATIVE_WRAP_TAX.md`](./AGENTS_NATIVE_WRAP_TAX.md) — history of #342; superseded for wrap mint by **W8**

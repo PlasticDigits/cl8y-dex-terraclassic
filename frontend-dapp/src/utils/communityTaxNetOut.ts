@@ -5,6 +5,22 @@
 
 import { COMMUNITY_TAX_BPS_DENOM } from '@/utils/communityTaxSku'
 
+/**
+ * Minimum pre-buy-tax ask for a typed net receive (#1256 / #615).
+ * Does not gross up sell extra-debit or change execute min_return accounting.
+ */
+export function grossBuyTaxForTargetNet(rawNet: string, buyBps: number | null | undefined): string {
+  if (!/^\d+$/.test(rawNet)) throw new Error('Invalid receive amount for reverse quote')
+  const bps = buyBps ?? 0
+  if (!Number.isInteger(bps) || bps < 0 || bps >= COMMUNITY_TAX_BPS_DENOM) {
+    throw new Error('Invalid buy tax for reverse quote')
+  }
+  const target = BigInt(rawNet)
+  if (target <= 0n) return '0'
+  const denominator = BigInt(COMMUNITY_TAX_BPS_DENOM)
+  return (((target - 1n) * denominator) / (denominator - BigInt(bps)) + 1n).toString()
+}
+
 /** `raw - floor(raw * buyBps / 10000)` — matches on-chain TaxPreview buy credit. */
 export function applyBuyTaxNet(rawOut: string, buyBps: number | null | undefined): string {
   if (!rawOut || !/^\d+$/.test(rawOut)) return rawOut

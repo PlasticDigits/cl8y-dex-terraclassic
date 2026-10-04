@@ -354,6 +354,7 @@ From repo root (see [README.md](README.md) and [docs/testing.md](docs/testing.md
 | Swap/Trade acquire guidance | `make verify-issue-678` |
 | Swap query params (`/` / `/swap`) | `make verify-issue-711` |
 | Swap URL sync / reverse / Share / Create+Trade prefill | `make verify-issue-713` |
+| Editable Swap receive on native/client routes | `make verify-issue-1256` |
 | Swap tokenlist symbols / unique-ticker CI / Share logos | `make verify-issue-715` |
 | One chrome layer / anti-nesting | `make verify-issue-653` |
 | Protocol mixed-case tickers | `make verify-issue-1240` |
@@ -602,6 +603,7 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_UST1_WINDOW_UI.md](skills/AGENTS_UST1_WINDOW_UI.md) — `/ust1` oracle vFDUSD↔UST1 mint/redeem (CW20 Send + `effective_swap`); not faucet Mint ([#506](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/506)); protocol mint/redeem fees **PFee-13** / **I614** ([#614](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/614)); `make verify-issue-506` · `make verify-issue-614`
 - [skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md](skills/AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — Swap/Trade unfunded pay + UST1 `/ust1` Guide + quote-only (**A678-1–A678-11**, [#678](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/678)); `make verify-issue-678`
 - [skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md](skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — Swap `/` + `/swap` Uniswap/Terra query aliases (**Q711-1–Q711-8**, [#711](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/711)); `make verify-issue-711`
+- [skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md](skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md) — native/client receive sizing (**R1256-1–R1256-6**, [#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)); `make verify-issue-1256`; [review checklist](docs/qa/issue-1256/README.md)
 - [skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md](skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md) — Swap URL rewrite, reverse quotes, Share, Create/Trade prefill (**Q713-1–Q713-10**, [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)); `make verify-issue-713`
 - [skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md](skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — tokenlist unique symbols, Swap `from=`/`to=` encode, Share logos (**TL/QS/SH**, [#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)); `make verify-issue-715`
 - [skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md](skills/AGENTS_FRONTEND_SWAP_USTR_USDT_SCALE.md) — USTR→USDT mixed 18/6 hop honesty + Expert no-waive ≥99% (**Q1257-1–Q1257-8**, closed [#1257](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1257)); F1 census record [ADR 0007](docs/adr/0007-route-solve-remaining-failures.md) / closed [#1265](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1265); `make verify-issue-1257` · `make verify-issue-1265`

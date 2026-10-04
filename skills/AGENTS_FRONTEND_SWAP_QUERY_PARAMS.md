@@ -19,7 +19,7 @@ Audience: third-party agents touching Swap routing, share/aggregator deep links,
 | **Q711-3** | `terra1…` must pass `isValidTerraBech32Address`. Hostile / overlong / `javascript:` / `data:` / `http(s):` / `//` / `0x` / `ibc/` / `factory/` / `ETH`/`BNB`/`WETH` → ignore that side. Never echo the raw string into the combobox. |
 | **Q711-4** | Production hides gems (`isRetailHiddenTestToken`). Never honor `?showGems=1` (**X8**). LocalTerra / `VITE_SHOW_TEST_TOKENS=true` may apply factory-listed gems. |
 | **Q711-5** | Tickers: unique bundled `tokenlist.json` symbols (ASCII fold) plus `uluna`/`uusd` and inbound-only `UST` → `uusd` ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). Display stays LUNC/USTC (**#630**). Spoofed `symbol=UST1` on a gem address does not win (**X1**). |
-| **Q711-6** | Optional amount: `exactAmount` / `amount` / `value` / `amountIn` when `isPositiveDecimalAmount` and ≤ 24 chars. `exactField=output` on a **direct pair** is a reverse quote ([#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713)); execute stays offer-in. Never auto-submit, auto-connect, or skip #678 / 5–30–99 / blacklist / pause / freeze. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize`. |
+| **Q711-6** | Optional amount: `exactAmount` / `amount` / `value` / `amountIn` when `isPositiveDecimalAmount` and ≤ 24 chars. `exactField=output` is a reverse quote on direct factory CW20, wrap/unwrap, or client operation routes ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)); indexer-only without operations silently ignores output as a reverse source. Execute stays offer-in. Never auto-submit, auto-connect, or skip #678 / 5–30–99 / blacklist / pause / freeze. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize`. |
 | **Q711-7** | Apply inbound search once after `allTokens` is ready. Then write canonical `/?from=&to=` on picker/flip/amount (`replace`). Query wins over `defaultRetailSwapTokenPair`. Picker / flip afterward is not re-forced from the **inbound** string. |
 | **Q711-8** | Create Pair `/create?a=&b=` prefill and Trade `?from=&to=` resolve are **#713** (**C542-11** / **Q713-6/7**). A Swap deep link to UST1 is AMM, not mint/redeem (**U1**). No lecture banner when a link is ignored (**#489**). |
 
@@ -68,6 +68,8 @@ Vitest: `swapQueryParams.test.ts`, `SwapAliasRedirect.test.tsx`, `SwapPage.query
 Playwright (when Vite + factory tokens): `e2e/swap-query-params.spec.ts` plus existing `/swap` viewport/CLS specs.
 
 ## Related
+
+- [`AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md`](./AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md) — #1256 extends **Q711-6** / **Q713-4** to native/client receive sizing
 
 - [`AGENTS_FRONTEND_SHELL_NAV.md`](./AGENTS_FRONTEND_SHELL_NAV.md) — Swap tab is `/`; `/swap` preserves search
 - [`AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md`](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — amount prefill is not a submit bypass (**A678**)
