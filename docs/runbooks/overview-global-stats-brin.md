@@ -180,3 +180,20 @@ Re-run `EXPLAIN (ANALYZE, BUFFERS)` on the live aggregate periodically if you re
 | `token_volume_stats` | Per-asset rolling windows for token endpoints; idle windows **zeroed** on refresh ([#577](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/577) **D1**, offer-side only) |
 
 Human invariants: [`docs/indexer-invariants.md`](../indexer-invariants.md) (**Protocol global stats #550**, **Trailing window decay #577**). Agent playbooks: [`skills/AGENTS_FRONTEND_PROTOCOL_STATS.md`](../../skills/AGENTS_FRONTEND_PROTOCOL_STATS.md), [`skills/AGENTS_INDEXER_VOLUME_PAGINATION.md`](../../skills/AGENTS_INDEXER_VOLUME_PAGINATION.md), [`skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md`](../../skills/AGENTS_INDEXER_VOLUME_WINDOW_DECAY.md).
+
+## Liquidity quality and atomic generations (#1380)
+
+Liquidity rollups now have nullable current totals, independent as-of/quality,
+coverage identity and generation. Both refresh entry points use the same serialized
+atomic publisher; ordinary volume refresh does not advance liquidity age. Source
+history is a bounded terminal observation per four-minute UTC slot, including
+unknown/degraded attempts; all three liquidity grains retain terminal quality.
+`GET /overview` and series GET still read materialized rows only. Existing cached
+responses are independently expired on every response. Legacy historical rows are
+unknown until trustworthy historical evidence exists. The additive metadata and
+nullable-total rollout require coordinated frontend/indexer deployment; old backend
+code cannot safely read newly nullable rows. Scoped public anomaly repair retains
+original rows in `liquidity_quality_repair_evidence`.
+See [release/repair and reviewer instructions](../qa/issue-1380/README.md),
+[Q1380 invariants](../indexer-invariants.md#protocol-liquidity-quality-1380), and
+[agent playbook](../../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).

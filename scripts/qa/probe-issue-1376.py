@@ -51,6 +51,8 @@ def main():
     try:
         block = get("/cosmos/base/tendermint/v1beta1/blocks/latest")["block"]["header"]
         evidence["block"] = {key: block[key] for key in ("height", "chain_id", "time")}
+        evidence["factory"] = {"pair_code_id": smart(args.factory, {"config": {}})["pair_code_id"],
+                               "pair_count": smart(args.factory, {"get_pair_count": {}})["count"]}
         cursor = None
         for _ in range(10):  # Finite inventory; flag truncation rather than looping forever.
             pairs = smart(args.factory, {"pairs": {"start_after": cursor, "limit": 30}})["pairs"]
@@ -109,8 +111,14 @@ def main():
         evidence["unavailable"] = str(error)
         print(json.dumps(evidence, indent=2))
         return 2
+    evidence["inventory_complete"] = (not evidence.get("inventory_truncated") and
+                                      len(evidence["inventory"]) == int(evidence["factory"]["pair_count"]))
+    evidence["migration_complete"] = (evidence["inventory_complete"] and bool(evidence["inventory"]) and all(
+        str(row["code_id"]) == str(evidence["factory"]["pair_code_id"]) and
+        (row.get("cw2") or {}).get("version") == "1.19.0" for row in evidence["inventory"]))
     print(json.dumps(evidence, indent=2))
-    return int(args.expect_fixed and any(row["status"] != "PASS" or not row.get("forward_sufficient") for row in evidence["reverse"]))
+    return int(args.expect_fixed and (not evidence["migration_complete"] or any(
+        row["status"] != "PASS" or not row.get("forward_sufficient") for row in evidence["reverse"])))
 
 
 if __name__ == "__main__":

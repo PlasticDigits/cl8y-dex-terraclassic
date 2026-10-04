@@ -42,7 +42,7 @@ Audience: third-party agents changing `/pool` columns, `GET /api/v1/pairs` JSON,
 3. **P655-3** — JSON field is optional string when priced; omitted/`null` when not. Additive; `volume_quote_24h` unchanged.
 4. **P655-4** — First header click is `sort=liquidity_usd&order=desc`; toggle asc/desc; `aria-sort` on that `<th>` only. Catalog default (no click) still `volume_24h` + client catalog rank (**P547-3**). Search stays indexer `relevance` until the query is cleared.
 5. **P655-5** — Stamp = `protocol_pair_tvl` (both legs `h0×usd0+h1×usd1`; one catalogued leg `2×`; never `$1` UST1 / `2.5×` USTR / vFDUSD). Identity is contract/denom.
-6. **P655-6** — Unpriced / stale / zero / same-asset / overflow → **no rollup row** (LEFT JOIN NULL), UI **—**, sort **NULLS LAST**.
+6. **P655-6** — Unpriced / stale / invalid / same-asset / overflow → **no rollup row**; validated fresh zeros retain actual valuation (#1380) (LEFT JOIN NULL), UI **—**, sort **NULLS LAST**.
 7. **P655-7** — Default `/pool` paint does not add LCD pair queries. Production still omits gems (**P562-3**).
 8. **P655-8** — Manage expand `colSpan` matches the new column count (7). Invalid `sort` (including `tvl`, injection) → **400**. `limit=-1` clamps to 1.
 
@@ -65,3 +65,5 @@ Related: `make verify-issue-547` · `make verify-issue-569`.
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — no nested chrome
 - GitLab [#664](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/664) — same `pair_liquidity_usd` stamp on **single-pair** `GET /api/v1/pairs/{addr}` (list JOIN + `/pool` column stay this issue)
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md). Do **not** reopen #655 unless a merged invariant is wrong.
+
+Quality and atomic stamp generations: [Q1380 playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md); [review/skip policy](../docs/qa/issue-1380/README.md).

@@ -2,10 +2,11 @@
 
 Implementation: [PR #1378](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1378).
 Issue: [#1376](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1376).
-Invariants: [E1376-1–E1376-8](../../frontend.md#solver-receive-sizing).
+Invariants: [E1376-1–E1376-9](../../frontend.md#solver-receive-sizing).
 API/search scope: [exact-output sizing](../../route-solver.md#exact-output-sizing).
 Third-party agent protocol: [AGENTS_SWAP_EXACT_OUTPUT.md](../../../skills/AGENTS_SWAP_EXACT_OUTPUT.md).
-Execution evidence: [verification.md](verification.md).
+Implementation evidence: [verification.md](verification.md).
+Latest deployment, live failure and explicit custody waiver: [live-verification.md](live-verification.md).
 
 Exact-output is receive sizing for an offer-in transaction. The supported solver scope is pool-only, up to four hops and the first five feasible fresh candidates among 32 structural paths. Hybrid book optimization remains offer-in; receive sizing does not claim an unrestricted optimum. Existing mapper-only inverse quotes and router/invoice reverse consumers remain supported.
 
@@ -17,7 +18,7 @@ Exact-output is receive sizing for an offer-in transaction. The supported solver
 4. Attempt `make has-localterra` then provision `make setup-cloud-localterra` when feasible. Use test-funded simulated-wallet transactions for native-enter, direct and multi-hop routes. Capture exact gross send and operations/minimums; verify target coverage or protected failure after state changes. Set `VERIFY_ISSUE_1376_CHAIN_COMMAND` to the actual chain test command when running the verifier. For dedicated Vite ports, merge their explicit local origins with `scripts/lib/indexer-cors-playwright.sh` and restart the test indexer; do not change production CORS. Run funded tests serially and use a unique Playwright `--output` directory.
 5. After authorized deployment, perform the versioned inventory/probes and fresh-browser replay below. Record bundle/indexer revisions, pair code/cw2, token resolution, block and snapshots. Production migration/signing is separate from a test-fixture pass.
 
-For fresh read-only browser replay, run `node scripts/qa/browser-probe-issue-1376.cjs --expect-fixed`; set `PROBE_1376_BASE_URL` for a test deployment. It uses two new disconnected contexts, records public bundle paths and selected quote fields, and clicks no wallet or transaction control. Inspect matching forward operations as part of AC1; browser probe output alone is insufficient for funded execution.
+For fresh read-only browser replay, run `node scripts/qa/browser-probe-issue-1376.cjs --expect-fixed --matrix`; set `PROBE_1376_BASE_URL` for a test deployment. The matrix uses 16 new disconnected contexts across `/` and `/swap`, Compact/Full and cold/warm reload, records public bundle paths and selected quote fields, and clicks no wallet or transaction control. Inspect matching forward operations as part of AC1; browser probe output alone is insufficient for funded execution.
 
 An agent may report **PASS with explicit skips** when it cannot complete a check and all completed checks pass. Record **SKIP**, the precise missing capability/prerequisite and remaining scope for every unavailable item. A skipped item is never a passed item; an executed failing assertion remains **FAIL**. This task explicitly allows unavailable holds/gates to be skipped for overall implementation review, without changing runtime safety or claiming production completion. Do not assign verification work to the human.
 
@@ -64,3 +65,29 @@ Compare every inventory row's new code/version, reverse/forward outputs and stat
 Local test-only migration helper: `python3 scripts/qa/migrate-local-pairs-1376.py --factory <local-factory> --evidence-file /tmp/issue1376-local.json`. It refuses every chain except `localterra`, verifies test-account admin internally, verifies artifact version, updates factory code and checks each migrated pair code/cw2 and unchanged pool response. Resume with `--code-id <stored-id>` only when the stored checksum matches the final artifact. [Completed local migration receipts](localterra-migrations.json) are test evidence, not Columbus-5 migration evidence.
 
 Funded execution and native guard check: `PLAYWRIGHT_WEB_PORT=3086 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test --project=e2e-tx --workers=1 --output=/tmp/issue1376-chain-artifacts e2e/swap-receive-1376-tx.spec.ts`. A native guard annotation is proof of protection, not proof of a native broadcast.
+
+## Optional custody-dependent rollout
+
+The live verification task explicitly allows skip-and-close for work requiring
+unavailable operator custody. Closure under that waiver preserves the failed
+legacy reverse result; it does not mean pair migration or full chain acceptance
+passed. See [the recorded disposition](live-verification.md). No operator action
+is a prerequisite to that waived closure.
+
+The prepared workstation command is:
+
+```bash
+bash /home/answorld/repos/cl8y-dex-verify-1376/scripts/qa/complete-issue-1376.sh --migrate
+```
+
+The agent prepared the tested artifact (SHA-256
+`4ad54cd3b9a5ff3d28b80bfec21800b39fee97ca9295bb524353db7590005bba`)
+in this worktree. The command checks that checksum and unchanged contract
+sources, selects cw2 1.19.0, then uses the existing file-keyring / 2-of-3 tool.
+`--dry-run` validates the artifact without signing; `--check` only probes.
+The existing migration tool checks pair count/admin and preserved observation
+bytes. A partial rollout can resume with `UPGRADE1324_SKIP_STORE=1` and
+`UPGRADE1324_PAIR_CODE_ID`; the wrapper checks the stored Wasm checksum before
+reuse. Keep custody input and transaction working files local. If a guard
+fails, stop and let an agent investigate; never bypass it or automatically
+downgrade pair code. Agents own post-migration probe review.

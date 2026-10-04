@@ -67,7 +67,8 @@ run_step "code: stamp JOIN on GET; no live reserves in get_pair; list does not e
     set -euo pipefail
     grep -q "liquidity_usd" indexer/src/api/pairs.rs
     grep -q "get_pair_liquidity_usd" indexer/src/api/pairs.rs
-    grep -q "replace_pair_liquidity_usd" indexer/src/indexer/protocol_tvl.rs
+    grep -q "publish_liquidity_refresh" indexer/src/indexer/protocol_tvl.rs
+    grep -q "replace_pair_liquidity_usd_tx" indexer/src/db/queries/liquidity_snapshots.rs
     grep -q "collect_priced_pair_tvls" indexer/src/indexer/protocol_tvl.rs
     python3 - <<'"'"'PY'"'"'
 from pathlib import Path
@@ -130,7 +131,7 @@ run_step "frontend: formatPairV2LpUsd + PairTokenLinks + Trade/Charts #664" \
 
 run_step "Playwright smoke E1–E3 (5 workers, no e2e-tx / no globalSetup seed)" \
   bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30664 bash scripts/with-node.sh --cwd frontend-dapp -- \
-    ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 \
+    ./node_modules/.bin/playwright test --project=e2e-smoke --workers="${PLAYWRIGHT_WORKERS:-5}" --output="${PLAYWRIGHT_OUTPUT_DIR:-test-results}" \
     e2e/trade-identity-lp-664.spec.ts'
 
 echo ""

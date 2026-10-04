@@ -2549,6 +2549,7 @@ See `.env.example` for the full list.
 | **E1376-6** | All money uses checked integer arithmetic with sufficient-offer rounding. Pool-only contract reverse validates the exact pool inverse without full-range bisection; hybrid search retains explicit call limits and errors on exhaustion. |
 | **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, 5/30/99 spread and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
 | **E1376-8** | Verification records revision, scope and PASS/FAIL/SKIP honestly. Deployment inventory, public token resolution and block/snapshot probes distinguish shipped behavior from mocked tests. |
+| **E1376-9** | Frontend/indexer deployment never proves pair migration. Require complete factory count, matching factory pair-code pointer and every listed pair on cw2 1.19.0 for migrated acceptance. An explicit operator-custody closure waiver does not convert a failed live query into PASS or claim full production completion. [Live evidence and waiver](qa/issue-1376/live-verification.md). |
 
 ### Route-funded swap budgets (#1381)
 
@@ -2570,3 +2571,20 @@ Legacy client tax-API probes are supplementary containment, not attestation of a
 Funded invoice planning keeps the selected hybrid book/pool ratio and fill cap, then re-enriches every sizing candidate against its actual economic input and each net intermediate output. The final plan is rebuilt after the slippage ceiling and native-wrap rounding; its net forward output must cover the invoice before that exact gross `Send` can be signed. Original seed integers and minimum returns cannot survive a changed gross budget. Manual Swap/Trade book partitions likewise use supported one-hop router v1 and a net book minimum.
 
 Route-funded v1 static gas fallback uses **600,000 + 1,700,000 × hop count** (2.3M/4.0M/5.7M/7.4M for 1–4 hops), plus existing book-walk excess and native wrap/unwrap/combo costs. The 1–3 hop floor covers 1.2× observed issue #1381 LocalTerra gas (1,872,341 / 3,077,463 / 4,530,025); the four-hop figure is a conservative extrapolation. These are LocalTerra measurements, not mainnet measurements. Auto gas remains 1.2× actual simulation; legacy fee constants remain unchanged. Versioned fee hints, Native Max, signed router entries, and invoice entries use the same message decoder and fallback. See [the issue QA evidence](./qa/issue-1381/README.md) for revision and chain results.
+
+## Protocol liquidity quality
+
+[#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380) makes
+`IndexerOverview.total_liquidity_usd` nullable and adds independent quality/as-of,
+coverage identity, generation, bounded reasons and max-age fields. The headline
+shows an em dash with an explanation for unknown/unavailable/stale, `≥` for a
+partial lower bound, and true zero only for qualified current observations.
+Only fresh/verified-empty current quality can show the existing 24h delta;
+backend baseline coverage must also match. Legacy positive values are labeled
+coverage unknown and legacy zero cannot prove emptiness. Liquidity chart
+partial/unknown samples are accessible explained gaps; verified known zero is
+preserved. Volume/Fees remain flow series with existing behavior. Both keyboard
+focus and mobile tap expose quality/as-of. Cached fresh data expires using its
+original liquidity time, independently of volume polling.
+See [QA and agent verification](qa/issue-1380/README.md), [Q1380 invariants](indexer-invariants.md#protocol-liquidity-quality-1380),
+and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).

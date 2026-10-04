@@ -1,0 +1,539 @@
+{
+  "utc": "2026-10-04T04:44:08.406253+00:00",
+  "lcd": "https://terra-classic-lcd.publicnode.com",
+  "probe_only": true,
+  "inventory": [
+    {
+      "pair": "terra1klwuxas6x7p6fjde60kq70t0hu86wvt3fvyr2vgs0nn32fnv0q4qwznwp4",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1y5xxv980jn0qu7n7y3slhtjehta6nlpqjkgcxl80uetdx84dxa4qegjhtx",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra16827w2c7zcvetck9xz8d6ds3379v77gelwra6jdafqkx9q9u0r8qvkluu0",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1ra7cugjhchr45kdupxe2al5fna0zxu6syl8xhpanfk8dsvkq9lksf6fm9l",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1nqjvd2xatac5ydcs6nstw7zp2yjc20p632ycxtevtf3rr2554fqswstx0n",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra12k67cvfs7y7g8lca3qr4g4py6s6j69fu24gze5pjfamfpckv8mps7cymme"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1havxdjfyphjazc342r3cj2n3kslsptac2eunvw8uzayusywg9t4shtuz7v",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra17dpnjlpgsnm8muu4msfjra4f2hrptnjp2jdpkka4p0e3px42ayxq0pmc2z"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1p0sd0t2ggm9ye43gp0ryadx3wwkz5hzn99hnz93ve99397xvuufsvsmw73",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1fga508hzx8dd7x8q4uhm6mdhkqv6fxrtsea3r27smdqmv5k2jgxq5zk9fc"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1mp72n97rzwmqwudzycjj0e4jveetjnp622gnprv6ugqt3hfxg60sr5gkjm",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1dmuruhht32x8f47nvm73pwp6q7uf2jtfhdt3nxcql4mmqkyfsraqn2dt94"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra17dpnjlpgsnm8muu4msfjra4f2hrptnjp2jdpkka4p0e3px42ayxq0pmc2z"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra16k6huf87gzvnlgpvf85f8xfgawl6y2l5d4d5qdpyhknqaran9s5qx63c3r",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1k6cqupylk0wp4pj273pntwhv9py0q5guyqye8ssvukn9xq7mes7sdlmena"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra18fzufz8cs7ez49xjwgs248x85za5v50yug55fj7lyxp9hapxyr7qnh3czs"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1pc7dvcucrl9sr4r2nhr2rv3ywhthskqqtvtvaerx9cff7l8gesdskjgmn6",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1ejq3mjjgnklpa3pg4jterlfwsny055gpmcjf3fz0ev3ueajnzeysz6xxgr"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra178fgrfzv7njtmdp9vghyf2dx77sah8u8jluzs7ym562chaxnmj2s6mn6m9"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1ceprjsxp86ggftf5e38wwt34l83e5gq7penkdnv4wsatkwcs8v6qccw55f",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra16vxrhpvpcucu05y0nr862vf9hnqeh274uaff4s7hz4n0ea74006qf5hgqy",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1vy3kc0swag2rhn7jz6n72jp0l2ns0p6r6ez5grxq5uhj2rvs97fqfsetxv"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1su5363453fj326u4t0kqar30f35cm3n0dc9yksg379u6875z350s4mm7h4",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1q5karg99p5hc0jvplgn2fd8akg39r4ss00cu5rwkm600yqvmssgqhwqvq0",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra15rl8g308yzzt5kxu4skgwlahrvm8adyv0s2cupsmvte0akgs2ttsszau38",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1xx5t5em3aza3lst0s5yc7rjgx9psapa3345v2vzfqkrprhw3vv6q3hahxy",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1cvd5cgrs8rrl96hte34n57497u5f9cwuv3e6ztxgetkx4uzmcdyswv79zl"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1tz5vwrungh6drd9nt95qym3k892vs3as8nqmu7sg4ypek7wxvv4qm89upc",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1vwsq6jd2kxkt4d5w6435fajla3qxgr2vvhjvvufxvlerp3pfjsesm9gpds",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra163qm8z5rjgp8av6c6sg673lq2v4kfa0we5uhtzj8alfwhddfhjfs27k40z",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1rmdtckz5gd0usja36ydwat6prnmew639ry37yq72xh9ek4s3m83sehn5u6",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra17l7eqc5j8vkm09up55etfggpr6y92ka6p03yc765mt3nerqcnhdsl6l7jq",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1437qslye72t7qmmahn4t5chz50r8a62g45phwkquwpyu2l62u6ksqssgdg"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4"
+          }
+        }
+      ]
+    },
+    {
+      "pair": "terra1qfa8hn0tnu33mnpahl382ekyd4873gmp2vsvcm3apw526tnrh8aqtrknvf",
+      "code_id": "11676",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.18.0"
+      },
+      "asset_infos": [
+        {
+          "token": {
+            "contract_addr": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+          }
+        },
+        {
+          "token": {
+            "contract_addr": "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4"
+          }
+        }
+      ]
+    }
+  ],
+  "reverse": [
+    {
+      "human_target": 10,
+      "raw_target": "10000000000000000000",
+      "quote": {
+        "offer_amount": "1218369992",
+        "spread_amount": "41681035363843243",
+        "commission_amount": "183299389040484416",
+        "pool_commission_amount": "183299389040484416",
+        "book_commission_amount": "0",
+        "book_return_amount": "0",
+        "pool_return_amount": "10000000002097538733"
+      },
+      "status": "PASS",
+      "snapshot_pool_offer": "1218369992",
+      "forward": {
+        "return_amount": "10000000002097538733",
+        "spread_amount": "41681035363843243",
+        "commission_amount": "183299389040484416",
+        "pool_commission_amount": "183299389040484416",
+        "book_commission_amount": "0",
+        "book_return_amount": "0",
+        "pool_return_amount": "10000000002097538733",
+        "limit_book_offer_consumed": "0"
+      },
+      "forward_sufficient": true
+    },
+    {
+      "human_target": 100,
+      "raw_target": "100000000000000000000",
+      "status": "FAIL",
+      "reason": "HTTP 500: Generic error: Hybrid reverse simulation exceeded iteration cap: query wasm contract failed: unknown request",
+      "snapshot_pool_offer": "12649685215",
+      "forward": {
+        "return_amount": "100000000005328338879",
+        "spread_amount": "4327519392035392836",
+        "commission_amount": "1832993890118034724",
+        "pool_commission_amount": "1832993890118034724",
+        "book_commission_amount": "0",
+        "book_return_amount": "0",
+        "pool_return_amount": "100000000005328338879",
+        "limit_book_offer_consumed": "0"
+      },
+      "forward_sufficient": true
+    }
+  ],
+  "block": {
+    "height": "30683510",
+    "chain_id": "columbus-5",
+    "time": "2026-10-04T04:43:58.377128235Z"
+  },
+  "factory": {
+    "pair_code_id": 11676,
+    "pair_count": 22
+  },
+  "pair": "terra1tz5vwrungh6drd9nt95qym3k892vs3as8nqmu7sg4ypek7wxvv4qm89upc",
+  "pool": {
+    "assets": [
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+          }
+        },
+        "amount": "2498115414904458263864"
+      },
+      {
+        "info": {
+          "token": {
+            "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+          }
+        },
+        "amount": "297665983808"
+      }
+    ],
+    "total_share": "27269103075921389"
+  },
+  "fee_bps": 180,
+  "tokens": [
+    {
+      "contract": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+      "symbol": "CL8Y-cb",
+      "decimals": 18
+    },
+    {
+      "contract": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+      "symbol": "cUSTC",
+      "decimals": 6
+    }
+  ],
+  "inventory_complete": true,
+  "migration_complete": false
+}

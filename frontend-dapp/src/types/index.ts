@@ -433,6 +433,9 @@ export interface IndexerPairStats {
   close_price_usd?: string | null
 }
 
+/** Liquidity valuation quality (#1380); unknown also covers legacy history. */
+export type LiquidityQuality = 'fresh' | 'partial' | 'stale' | 'unavailable' | 'verified_empty' | 'unknown'
+
 export interface IndexerOverview {
   /** Raw mixed-decimal `SUM(offer_amount)` for integrators — Charts must not display this (#548). */
   total_volume_24h: string
@@ -456,8 +459,15 @@ export interface IndexerOverview {
   custc_price_usd?: string | null
   ust1_price_usd?: string | null
   ustr_price_usd?: string | null
-  /** Humanized factory pool TVL in USD (GitLab #569). `"0"` when idle. Optional until indexer ships. */
+  /** Humanized factory AMM TVL (#569/#1380). Null means unavailable; zero requires a qualified observation. */
   total_liquidity_usd?: string | null
+  /** Partial totals are lower bounds. Age is independent of the overview/volume cache. */
+  liquidity_quality?: LiquidityQuality
+  liquidity_as_of?: string | null
+  liquidity_max_age_seconds?: number
+  liquidity_coverage_identity?: string | null
+  liquidity_generation?: number
+  liquidity_reasons?: Record<string, number>
   /** Signed percent vs ~24h snapshot. JSON `null` / missing → em-dash. */
   liquidity_change_24h_pct?: string | number | null
   /** Signed percent vs ~30d snapshot. JSON `null` / missing → em-dash. */
@@ -511,6 +521,12 @@ export interface ProtocolLiquidityDailyPoint {
   utc_hour?: string
   utc_month?: string
   liquidity_usd: string | null
+  /** Terminal observation quality; historical samples are evaluated at their bucket, not the current time. */
+  quality?: LiquidityQuality
+  as_of?: string | null
+  coverage_identity?: string | null
+  generation?: number
+  reasons?: Record<string, number>
   priced_pair_count?: number
 }
 

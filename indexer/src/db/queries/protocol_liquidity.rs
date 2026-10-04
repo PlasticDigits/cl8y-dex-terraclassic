@@ -6,7 +6,7 @@
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Duration, Months, NaiveDate, Utc};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, Postgres, Transaction};
 
 use crate::db::queries::liquidity_snapshots::SNAPSHOT_RETENTION;
 use crate::db::queries::protocol_volume::{
@@ -21,6 +21,11 @@ pub struct ProtocolDailyLiquidityRow {
     pub liquidity_usd: Option<BigDecimal>,
     pub priced_pair_count: i32,
     pub refreshed_at: DateTime<Utc>,
+    pub quality: String,
+    pub as_of: Option<DateTime<Utc>>,
+    pub coverage_identity: String,
+    pub generation: i64,
+    pub reasons: serde_json::Value,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -29,6 +34,11 @@ pub struct ProtocolHourlyLiquidityRow {
     pub liquidity_usd: Option<BigDecimal>,
     pub priced_pair_count: i32,
     pub refreshed_at: DateTime<Utc>,
+    pub quality: String,
+    pub as_of: Option<DateTime<Utc>>,
+    pub coverage_identity: String,
+    pub generation: i64,
+    pub reasons: serde_json::Value,
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -37,6 +47,11 @@ pub struct ProtocolMonthlyLiquidityRow {
     pub liquidity_usd: Option<BigDecimal>,
     pub priced_pair_count: i32,
     pub refreshed_at: DateTime<Utc>,
+    pub quality: String,
+    pub as_of: Option<DateTime<Utc>>,
+    pub coverage_identity: String,
+    pub generation: i64,
+    pub reasons: serde_json::Value,
 }
 
 pub async fn get_daily_rows(
@@ -45,7 +60,7 @@ pub async fn get_daily_rows(
     to_day: NaiveDate,
 ) -> Result<Vec<ProtocolDailyLiquidityRow>, sqlx::Error> {
     sqlx::query_as::<_, ProtocolDailyLiquidityRow>(
-        r#"SELECT utc_day, liquidity_usd, priced_pair_count, refreshed_at
+        r#"SELECT utc_day, liquidity_usd, priced_pair_count, refreshed_at, quality, as_of, coverage_identity, generation, reasons
            FROM protocol_daily_liquidity
            WHERE utc_day >= $1 AND utc_day <= $2
            ORDER BY utc_day ASC"#,
@@ -62,7 +77,7 @@ pub async fn get_hourly_rows(
     to_hour: DateTime<Utc>,
 ) -> Result<Vec<ProtocolHourlyLiquidityRow>, sqlx::Error> {
     sqlx::query_as::<_, ProtocolHourlyLiquidityRow>(
-        r#"SELECT utc_hour, liquidity_usd, priced_pair_count, refreshed_at
+        r#"SELECT utc_hour, liquidity_usd, priced_pair_count, refreshed_at, quality, as_of, coverage_identity, generation, reasons
            FROM protocol_hourly_liquidity
            WHERE utc_hour >= $1 AND utc_hour <= $2
            ORDER BY utc_hour ASC"#,
@@ -79,7 +94,7 @@ pub async fn get_monthly_rows(
     to_month: NaiveDate,
 ) -> Result<Vec<ProtocolMonthlyLiquidityRow>, sqlx::Error> {
     sqlx::query_as::<_, ProtocolMonthlyLiquidityRow>(
-        r#"SELECT utc_month, liquidity_usd, priced_pair_count, refreshed_at
+        r#"SELECT utc_month, liquidity_usd, priced_pair_count, refreshed_at, quality, as_of, coverage_identity, generation, reasons
            FROM protocol_monthly_liquidity
            WHERE utc_month >= $1 AND utc_month <= $2
            ORDER BY utc_month ASC"#,
@@ -90,141 +105,116 @@ pub async fn get_monthly_rows(
     .await
 }
 
-/// Last snapshot per UTC hour over the hourly lookback; prune older than ~10d.
-pub async fn refresh_protocol_hourly(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let now_hour = utc_hour_start(Utc::now());
-    let from = now_hour - Duration::hours(HOURLY_LOOKBACK_HOURS);
-    let to_exclusive = now_hour + Duration::hours(1);
-    sqlx::query(
-        r#"
-        INSERT INTO protocol_hourly_liquidity
-            (utc_hour, liquidity_usd, priced_pair_count, refreshed_at)
-        SELECT
-            h.utc_hour,
-            a.liquidity_usd,
-            COALESCE(a.priced_pair_count, 0),
-            NOW()
-        FROM generate_series($1::timestamptz, $2::timestamptz - interval '1 hour', interval '1 hour')
-            AS h(utc_hour)
-        LEFT JOIN (
-            SELECT DISTINCT ON (
-                date_trunc('hour', sampled_at AT TIME ZONE 'UTC')
+/// Trusted constants only; never accepts request-controlled SQL identifiers.
+async fn refresh_grain_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    now: DateTime<Utc>,
+    grain: &str,
+) -> Result<(), sqlx::Error> {
+    let (table, key, from, to, prune) = match grain {
+        "hour" => {
+            let start = utc_hour_start(now);
+            (
+                "protocol_hourly_liquidity",
+                "utc_hour",
+                start - Duration::hours(HOURLY_LOOKBACK_HOURS),
+                start + Duration::hours(1),
+                start - Duration::hours(HOURLY_PRUNE_AFTER_HOURS),
             )
-                (date_trunc('hour', sampled_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS utc_hour,
-                total_liquidity_usd AS liquidity_usd,
-                priced_pair_count
-            FROM global_liquidity_snapshots
-            WHERE sampled_at >= $1 AND sampled_at < $2
-            ORDER BY date_trunc('hour', sampled_at AT TIME ZONE 'UTC'), sampled_at DESC
-        ) a ON a.utc_hour = h.utc_hour
-        ON CONFLICT (utc_hour) DO UPDATE SET
-            liquidity_usd = EXCLUDED.liquidity_usd,
-            priced_pair_count = EXCLUDED.priced_pair_count,
-            refreshed_at = EXCLUDED.refreshed_at
-        "#,
-    )
-    .bind(from)
-    .bind(to_exclusive)
-    .execute(pool)
-    .await?;
-    let prune_before = now_hour - Duration::hours(HOURLY_PRUNE_AFTER_HOURS);
-    sqlx::query("DELETE FROM protocol_hourly_liquidity WHERE utc_hour < $1")
-        .bind(prune_before)
-        .execute(pool)
+        }
+        "day" => {
+            let start = utc_day_start(now);
+            (
+                "protocol_daily_liquidity",
+                "utc_day",
+                start - SNAPSHOT_RETENTION,
+                start + Duration::days(1),
+                start - Duration::days(PRUNE_AFTER_DAYS),
+            )
+        }
+        "month" => {
+            let prune = utc_month_start(now)
+                .checked_sub_months(Months::new(MONTHLY_PRUNE_AFTER_MONTHS))
+                .expect("month prune in range")
+                .and_hms_opt(0, 0, 0)
+                .expect("midnight")
+                .and_utc();
+            (
+                "protocol_monthly_liquidity",
+                "utc_month",
+                now - SNAPSHOT_RETENTION,
+                now + Duration::hours(1),
+                prune,
+            )
+        }
+        _ => {
+            return Err(sqlx::Error::Protocol(
+                "invalid internal liquidity grain".into(),
+            ));
+        }
+    };
+    let bucket = if grain == "hour" {
+        format!("date_trunc('{grain}',sampled_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'")
+    } else {
+        format!("date_trunc('{grain}',sampled_at AT TIME ZONE 'UTC')::date")
+    };
+    // DISTINCT ON selects the terminal observation even when its total is NULL.
+    // Monthly must update degraded terminal rows; a NULL sample is not no sample.
+    let query = format!(
+        "INSERT INTO {table}({key},liquidity_usd,priced_pair_count,refreshed_at,
+        quality,as_of,coverage_identity,generation,reasons)
+        SELECT DISTINCT ON ({bucket}) {bucket},total_liquidity_usd,priced_pair_count,NOW(),
+        quality,as_of,coverage_identity,generation,reasons FROM global_liquidity_snapshots
+        WHERE sampled_at >= $1 AND sampled_at < $2 ORDER BY {bucket},sampled_at DESC
+        ON CONFLICT({key}) DO UPDATE SET liquidity_usd=EXCLUDED.liquidity_usd,
+        priced_pair_count=EXCLUDED.priced_pair_count,refreshed_at=EXCLUDED.refreshed_at,
+        quality=EXCLUDED.quality,as_of=EXCLUDED.as_of,coverage_identity=EXCLUDED.coverage_identity,
+        generation=EXCLUDED.generation,reasons=EXCLUDED.reasons"
+    );
+    sqlx::query(&query)
+        .bind(from)
+        .bind(to)
+        .execute(&mut **tx)
         .await?;
+    let query = format!("DELETE FROM {table} WHERE {key} < $1");
+    if grain == "hour" {
+        sqlx::query(&query).bind(prune).execute(&mut **tx).await?;
+    } else {
+        sqlx::query(&query)
+            .bind(prune.date_naive())
+            .execute(&mut **tx)
+            .await?;
+    }
     Ok(())
 }
-
-/// Last snapshot per UTC day over snapshot retention (~35d). Does **not** generate_series
-/// 90 idle days (that would NULL-out older daily rows after snapshots prune).
+async fn refresh_grain(pool: &PgPool, grain: &str) -> Result<(), sqlx::Error> {
+    let mut tx = super::liquidity_snapshots::begin_liquidity_refresh(pool).await?;
+    refresh_grain_tx(&mut tx, Utc::now(), grain).await?;
+    tx.commit().await?;
+    Ok(())
+}
+pub async fn refresh_protocol_hourly(pool: &PgPool) -> Result<(), sqlx::Error> {
+    refresh_grain(pool, "hour").await
+}
 pub async fn refresh_protocol_daily(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let today = utc_day_start(Utc::now());
-    let from = today - SNAPSHOT_RETENTION;
-    let to_exclusive = today + Duration::days(1);
-    sqlx::query(
-        r#"
-        INSERT INTO protocol_daily_liquidity
-            (utc_day, liquidity_usd, priced_pair_count, refreshed_at)
-        SELECT
-            d.utc_day,
-            a.liquidity_usd,
-            COALESCE(a.priced_pair_count, 0),
-            NOW()
-        FROM generate_series(($1::timestamptz AT TIME ZONE 'UTC')::date,
-                             ($2::timestamptz AT TIME ZONE 'UTC')::date - 1,
-                             interval '1 day') AS d(utc_day)
-        LEFT JOIN (
-            SELECT DISTINCT ON ((sampled_at AT TIME ZONE 'UTC')::date)
-                (sampled_at AT TIME ZONE 'UTC')::date AS utc_day,
-                total_liquidity_usd AS liquidity_usd,
-                priced_pair_count
-            FROM global_liquidity_snapshots
-            WHERE sampled_at >= $1 AND sampled_at < $2
-            ORDER BY (sampled_at AT TIME ZONE 'UTC')::date, sampled_at DESC
-        ) a ON a.utc_day = d.utc_day
-        ON CONFLICT (utc_day) DO UPDATE SET
-            liquidity_usd = EXCLUDED.liquidity_usd,
-            priced_pair_count = EXCLUDED.priced_pair_count,
-            refreshed_at = EXCLUDED.refreshed_at
-        "#,
-    )
-    .bind(from)
-    .bind(to_exclusive)
-    .execute(pool)
-    .await?;
-    let prune_before = (today - Duration::days(PRUNE_AFTER_DAYS)).date_naive();
-    sqlx::query("DELETE FROM protocol_daily_liquidity WHERE utc_day < $1")
-        .bind(prune_before)
-        .execute(pool)
-        .await?;
-    Ok(())
+    refresh_grain(pool, "day").await
 }
-
-/// Last snapshot per UTC calendar month among snapshots still in the table.
-/// Does not generate empty months (would wipe history after 35d snapshot prune).
 pub async fn refresh_protocol_monthly(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let this_month = utc_month_start(Utc::now());
-    let from = Utc::now() - SNAPSHOT_RETENTION;
-    let to_exclusive = Utc::now() + Duration::hours(1);
-    sqlx::query(
-        r#"
-        INSERT INTO protocol_monthly_liquidity
-            (utc_month, liquidity_usd, priced_pair_count, refreshed_at)
-        SELECT
-            (date_trunc('month', sampled_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date AS utc_month,
-            (array_agg(total_liquidity_usd ORDER BY sampled_at DESC))[1],
-            (array_agg(priced_pair_count ORDER BY sampled_at DESC))[1],
-            NOW()
-        FROM global_liquidity_snapshots
-        WHERE sampled_at >= $1 AND sampled_at < $2
-        GROUP BY 1
-        ON CONFLICT (utc_month) DO UPDATE SET
-            liquidity_usd = EXCLUDED.liquidity_usd,
-            priced_pair_count = EXCLUDED.priced_pair_count,
-            refreshed_at = EXCLUDED.refreshed_at
-        -- Do not NULL/zero an existing month when this refresh saw no snapshot
-        -- (35d snapshot prune must not wipe Monthly stock).
-        WHERE EXCLUDED.liquidity_usd IS NOT NULL
-        "#,
-    )
-    .bind(from)
-    .bind(to_exclusive)
-    .execute(pool)
-    .await?;
-    let prune_before = this_month
-        .checked_sub_months(Months::new(MONTHLY_PRUNE_AFTER_MONTHS))
-        .expect("month prune in range");
-    sqlx::query("DELETE FROM protocol_monthly_liquidity WHERE utc_month < $1")
-        .bind(prune_before)
-        .execute(pool)
-        .await?;
+    refresh_grain(pool, "month").await
+}
+/// Refresh all grains before source pruning, including unknown terminal values.
+pub async fn refresh_protocol_liquidity_rollups_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    now: DateTime<Utc>,
+) -> Result<(), sqlx::Error> {
+    for grain in ["hour", "day", "month"] {
+        refresh_grain_tx(tx, now, grain).await?;
+    }
     Ok(())
 }
-
-/// Hourly + daily + monthly stock rollups. Call **before** snapshot prune.
 pub async fn refresh_protocol_liquidity_rollups(pool: &PgPool) -> Result<(), sqlx::Error> {
-    refresh_protocol_hourly(pool).await?;
-    refresh_protocol_daily(pool).await?;
-    refresh_protocol_monthly(pool).await?;
+    let mut tx = super::liquidity_snapshots::begin_liquidity_refresh(pool).await?;
+    refresh_protocol_liquidity_rollups_tx(&mut tx, Utc::now()).await?;
+    tx.commit().await?;
     Ok(())
 }

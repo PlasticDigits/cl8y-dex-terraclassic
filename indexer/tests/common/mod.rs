@@ -371,6 +371,15 @@ pub async fn seed_db(pool: &PgPool) -> SeedData {
     cl8y_dex_indexer::db::queries::volume::refresh_pair_volumes_30d(pool)
         .await
         .expect("refresh pair_volume_30d for tests");
+    // This controlled seed contains its complete expected factory inventory.
+    cl8y_dex_indexer::db::queries::state::set_state(
+        pool,
+        "factory_inventory_observed_at",
+        &chrono::Utc::now().to_rfc3339(),
+    )
+    .await
+    .expect("complete fixture inventory");
+
     cl8y_dex_indexer::db::queries::volume::refresh_global_stats(pool)
         .await
         .expect("refresh global_stats_24h for tests");

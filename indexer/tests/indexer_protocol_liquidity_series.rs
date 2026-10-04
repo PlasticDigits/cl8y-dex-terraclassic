@@ -39,6 +39,9 @@ async fn snap(
     liquidity_snapshots::insert_snapshot(pool, at, &bd(usd), priced)
         .await
         .expect("snapshot");
+    sqlx::query("UPDATE global_liquidity_snapshots SET quality='fresh',as_of=sampled_at,
+        coverage_identity='fixture-coverage',generation=1,reasons='{}' WHERE sampled_at=$1")
+        .bind(at).execute(pool).await.unwrap();
 }
 
 #[serial]

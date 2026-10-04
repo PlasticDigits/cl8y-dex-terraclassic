@@ -1,0 +1,8 @@
+{
+  "observed_at_utc": "2026-10-04T08:41:56.573525+00:00",
+  "url": "https://indexer.dex.cl8y.com/health",
+  "payload": {
+    "status": "ok",
+    "git_sha": "3f9310652ac83818749f5d32c4e32057b08817bc"
+  }
+}

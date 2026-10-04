@@ -137,7 +137,11 @@ pub enum DbSimError {
 
 pub fn snapshot_age_ms(at: DateTime<Utc>) -> u64 {
     let now = Utc::now();
-    now.signed_duration_since(at).num_milliseconds().max(0) as u64
+    // A future timestamp is impossible evidence of freshness (clock skew or poison).
+    if at > now {
+        return u64::MAX;
+    }
+    now.signed_duration_since(at).num_milliseconds() as u64
 }
 
 pub fn is_snapshot_stale(at: DateTime<Utc>, max_staleness_ms: u64) -> bool {
@@ -705,6 +709,13 @@ pub fn simulate_pool_only_from_mirror(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn future_snapshot_is_stale_instead_of_age_zero() {
+        let future = chrono::Utc::now() + chrono::Duration::minutes(1);
+        assert_eq!(super::snapshot_age_ms(future), u64::MAX);
+        assert!(super::is_snapshot_stale(future, 20_000));
+    }
+
     use super::*;
     use std::collections::HashMap;
     fn bd(s: &str) -> BigDecimal {

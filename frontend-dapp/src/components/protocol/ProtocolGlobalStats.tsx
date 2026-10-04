@@ -1,4 +1,6 @@
 import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
+import { useEffect, useState } from 'react'
+import { overviewLiquidityDisplay } from '@/utils/protocolLiquidityQuality'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError, type StatDelta } from '@/components/ui'
 import { formatProtocolCount, formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
@@ -30,19 +32,6 @@ const STATS: Array<{
   value: (o: IndexerOverview | undefined) => string
   deltas?: (o: IndexerOverview | undefined) => StatDelta[]
 }> = [
-  {
-    testId: 'protocol-stat-liquidity',
-    label: 'Total liquidity',
-    value: (o) => formatProtocolUsd(o?.total_liquidity_usd),
-    deltas: (o) => [
-      {
-        value: formatProtocolPct(o?.liquidity_change_24h_pct),
-        label: '24h',
-        testId: 'protocol-stat-liquidity-24h',
-        title: TRAILING_LIQUIDITY_24H_TITLE,
-      },
-    ],
-  },
   {
     testId: 'protocol-stat-volume-24h',
     label: PROTOCOL_VOLUME_24H_LABEL,
@@ -113,6 +102,12 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
   useNumberDisplayMode()
   const overview = overviewQuery.data
   const loading = overviewQuery.isLoading
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const liquidity = overviewLiquidityDisplay(overview, now)
 
   return (
     <div className="shell-panel" data-testid="protocol-global-stats">
@@ -128,6 +123,24 @@ export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps)
         <RetryError message="Failed to load global stats" onRetry={() => void overviewQuery.refetch()} />
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        <div data-testid="protocol-stat-liquidity" className="min-w-0 overflow-hidden">
+          <StatBox
+            variant="flat"
+            label="Total liquidity"
+            value={liquidity.value}
+            valueAriaLabel={`Total liquidity ${liquidity.value}. ${liquidity.hint}`}
+            loading={loading}
+            hint={liquidity.hint}
+            deltas={[
+              {
+                value: formatProtocolPct(liquidity.comparable ? overview?.liquidity_change_24h_pct : null),
+                label: '24h',
+                testId: 'protocol-stat-liquidity-24h',
+                title: TRAILING_LIQUIDITY_24H_TITLE,
+              },
+            ]}
+          />
+        </div>
         {STATS.map((stat) => (
           <div key={stat.testId} data-testid={stat.testId} className="min-w-0 overflow-hidden">
             <StatBox
