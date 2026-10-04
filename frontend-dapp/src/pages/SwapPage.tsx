@@ -81,7 +81,13 @@ import { WrapRateLimitStatus } from '@/components/wrap/WrapRateLimitStatus'
 import { DOCS_GITLAB_BASE, WRAP_MAPPER_CONTRACT_ADDRESS } from '@/utils/constants'
 import { useSwapPayAcquireGuidance } from '@/hooks/useSwapPayAcquireGuidance'
 import { SwapPayAcquireGuidanceBanner } from '@/components/swap/SwapPayAcquireGuidanceBanner'
-import { SWAP_FUNDED_HIGH_IMPACT_PCT, acquireGuidanceShowsQuoteOnly } from '@/utils/swapPayAcquireGuidance'
+import {
+  SWAP_FUNDED_HIGH_IMPACT_PCT,
+  acquireGuidanceShowsQuoteOnly,
+  acquireReduceHiddenForBroadcastPhase,
+} from '@/utils/swapPayAcquireGuidance'
+import { useAutoGasFeeEstimate } from '@/hooks/useAutoGasFeeEstimate'
+import { SwapImpactAside } from '@/components/swap/SwapImpactAside'
 import {
   assetInfoLabel,
   tokenAssetInfo,
@@ -112,7 +118,7 @@ import {
   extraDebitSubmitGate,
   INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE,
 } from '@/utils/taxPreviewMaxSpend'
-import { estimateSwapNetworkFee } from '@/services/terraclassic/swapNetworkFee'
+import { estimateSwapNetworkFee, swapAutoGasProbeEntries } from '@/services/terraclassic/swapNetworkFee'
 import { evaluateSwapNativeGasGate } from '@/utils/swapNativeGasBalanceGate'
 import { defaultNativeNeedsWrapInput, defaultNativeWrapHopCount, isNativeUlunaDenom } from '@/utils/nativeWrapSwapHints'
 import { AmountBalanceActions } from '@/components/common/AmountBalanceActions'
@@ -1330,12 +1336,12 @@ export default function SwapPage() {
   const showRouteIntermediateReconciledLabel = !!simData?.indexerRouteIntermediateReconciled
   const showDirectHybridAmountReconciledLabel = !!simData?.indexerAmountReconciled
 
-  const swapNetworkFeeEstimate = useMemo(() => {
+  const swapNetworkFeeHints = useMemo(() => {
     const cw20HopCount = simData?.indexerOperations?.length ?? route?.length ?? 1
     const indexerHopCount = simData?.indexerOperations?.length ?? 0
     const wrapOrNative = Boolean(isWrapOrUnwrap || wrapSolvePair || nativeRouteInfo)
     const cw20RouterOperations = !wrapOrNative && indexerHopCount >= 2 ? simData?.indexerOperations : undefined
-    return estimateSwapNetworkFee({
+    return {
       isDirectWrap: wrapUnwrapType === 'wrap',
       isDirectUnwrap: wrapUnwrapType === 'unwrap',
       needsWrapInput: nativeNeedsWrapInput || Boolean(wrapSolvePair?.needsWrapInput),
@@ -1349,7 +1355,7 @@ export default function SwapPage() {
       cw20DirectPair: !!isDirect && !wrapOrNative,
       cw20Hybrid: !!isDirect && isPositiveDecimalAmount(bookInputHuman.trim()),
       cw20RouterOperations,
-    })
+    }
   }, [
     wrapUnwrapType,
     nativeNeedsWrapInput,
@@ -1363,6 +1369,32 @@ export default function SwapPage() {
     simData?.indexerOperations,
     route?.length,
   ])
+  const swapNetworkFeeFallback = useMemo(() => estimateSwapNetworkFee(swapNetworkFeeHints), [swapNetworkFeeHints])
+  const swapAutoGasProbe = useMemo(() => {
+    if (!isWalletConnected || !address) return null
+    const nativeDenom = isNativeDenom(fromToken) ? fromToken : undefined
+    const entries = swapAutoGasProbeEntries({
+      hints: swapNetworkFeeHints,
+      payContract: fromToken,
+      payAmount: rawInputAmount,
+      pairContract: directPair?.contract_addr,
+      maxSpread: (slippageTolerance / 100).toString(),
+      minimumReceive: minReceived ?? undefined,
+      nativeDenom,
+    })
+    if (!entries) return null
+    return { signer: address, entries }
+  }, [
+    isWalletConnected,
+    address,
+    fromToken,
+    rawInputAmount,
+    directPair?.contract_addr,
+    slippageTolerance,
+    minReceived,
+    swapNetworkFeeHints,
+  ])
+  const swapNetworkFeeEstimate = useAutoGasFeeEstimate(swapNetworkFeeFallback, swapAutoGasProbe)
 
   const swapGasGate =
     offerDecimals == null
@@ -2205,11 +2237,17 @@ export default function SwapPage() {
                           {priceImpact}%
                         </span>
                       </div>
-                      {simData?.routeSlippagePercent && (
-                        <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
-                          Hop spread: {hopSpreadPercent ?? '—'}%.
-                        </p>
-                      )}
+                      {simData?.routeSlippagePercent &&
+                        !(
+                          expectedSlippagePct != null &&
+                          expectedSlippagePct > SWAP_FUNDED_HIGH_IMPACT_PCT &&
+                          hopSpreadPercent != null &&
+                          Math.abs(parseFloat(hopSpreadPercent) - expectedSlippagePct) > 0.009
+                        ) && (
+                          <p className="col-span-2 text-[10px] leading-snug" style={{ color: 'var(--ink-subtle)' }}>
+                            Hop spread: {hopSpreadPercent ?? '—'}%.
+                          </p>
+                        )}
                     </>
                   )}
                   <button
@@ -2241,19 +2279,10 @@ export default function SwapPage() {
             </div>
           )}
 
-          {simData?.routePreflight && (
-            <p className="card-glass mb-3 text-[11px] sm:text-xs" style={{ color: 'var(--ink-dim)' }}>
-              Worst hop spread ≈ {simData.routePreflight.worstSpreadPercent}%.{' '}
-              <a
-                href="https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/blob/main/docs/swap-max-spread-ux.md"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                Docs
-              </a>
-            </p>
-          )}
+          <SwapImpactAside
+            routeSlippagePct={expectedSlippagePct}
+            worstHopPercent={simData?.routePreflight?.worstSpreadPercent}
+          />
           {routeSlippageBlocked && (
             <div className="alert-error mb-3 text-xs" role="alert" data-testid="swap-slippage-blocked">
               <p className="font-semibold mb-1">Slippage is too high</p>
@@ -2370,6 +2399,7 @@ export default function SwapPage() {
           <SwapPayAcquireGuidanceBanner
             guidance={payAcquireGuidance}
             testIdPrefix="swap"
+            hideReduce={acquireReduceHiddenForBroadcastPhase(swapMutation.phase)}
             onReduce={(human) => {
               setExactField('input')
               setInputAmount(human)

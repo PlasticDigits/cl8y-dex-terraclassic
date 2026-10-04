@@ -8,7 +8,7 @@ import {
   walletIsNanoLedger,
 } from '@/services/terraclassic/keplrExtensionConfig'
 import { prepareStationExtensionForTerraClassicSign } from '@/services/terraclassic/stationExtensionConfig'
-import { estimateTerraClassicFeeForEntries } from '@/services/terraclassic/terraClassicFeeEstimate'
+import { resolveBroadcastGasLimit } from '@/services/terraclassic/swapAutoGas'
 import { pollTxUntilRecoveryDeadline } from '@/services/terraclassic/terraTxRecoveryPoll'
 import {
   bumpWalletCachedSequence,
@@ -295,8 +295,8 @@ export async function broadcastTerraExecuteContracts(
     memo: '',
   }
 
-  const feeEstimate = estimateTerraClassicFeeForEntries(entries)
-  const fee = buildTerraClassicFee(feeEstimate.gasLimit)
+  const { gasLimit } = await resolveBroadcastGasLimit(entries, walletAddress)
+  const fee = buildTerraClassicFee(gasLimit)
 
   if (wallet.id === WalletName.STATION && wallet.type === WalletType.EXTENSION) {
     await prepareStationExtensionForTerraClassicSign(wallet)
