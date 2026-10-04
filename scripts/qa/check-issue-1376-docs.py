@@ -3,7 +3,7 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-for number in range(1, 9):
+for number in range(1, 10):
     assert f"**E1376-{number}**" in (root / "docs/frontend.md").read_text()
 for file in ("AGENTS.md", "docs/testing.md", "docs/route-solver.md",
              "docs/frontend.md", "docs/qa/issue-1376/README.md"):

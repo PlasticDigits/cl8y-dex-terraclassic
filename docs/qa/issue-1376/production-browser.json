@@ -1,0 +1,2158 @@
+{
+  "utc": "2026-10-04T04:45:52.936Z",
+  "probe_only": true,
+  "results": [
+    {
+      "target": "10",
+      "path": "/",
+      "display": "compact",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 6514,
+          "snapshot_block_height": 30683500,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/",
+      "display": "compact",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 4341,
+          "snapshot_block_height": 30683503,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/",
+      "display": "compact",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 10475,
+          "snapshot_block_height": 30683503,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/",
+      "display": "compact",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 10604,
+          "snapshot_block_height": 30683505,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/",
+      "display": "full",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 2677,
+          "snapshot_block_height": 30683510,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/",
+      "display": "full",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 5422,
+          "snapshot_block_height": 30683512,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/",
+      "display": "full",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 11600,
+          "snapshot_block_height": 30683512,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/",
+      "display": "full",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 6879,
+          "snapshot_block_height": 30683515,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/swap",
+      "display": "compact",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/marketDataOutage-CSM9G4E6.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 13522,
+          "snapshot_block_height": 30683515,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/swap",
+      "display": "compact",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 8616,
+          "snapshot_block_height": 30683517,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/swap",
+      "display": "compact",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 375,
+          "snapshot_block_height": 30683520,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/swap",
+      "display": "compact",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 10045,
+          "snapshot_block_height": 30683520,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/swap",
+      "display": "full",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/LcdQueryGate-CxplC9-3.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 1773,
+          "snapshot_block_height": 30683522,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "10",
+      "path": "/swap",
+      "display": "full",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "10000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "1218369992",
+          "target_amount_out": "10000000000000000000",
+          "estimated_amount_out": "10000000002097538733",
+          "estimated_amount_out_net": "10000000002097538733",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 12158,
+          "snapshot_block_height": 30683522,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "1218369992",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "10000000002097538733"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/swap",
+      "display": "full",
+      "cache": "cold",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 4218,
+          "snapshot_block_height": 30683524,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    },
+    {
+      "target": "100",
+      "path": "/swap",
+      "display": "full",
+      "cache": "warm",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/index-tjoY6huT.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/SwapPage-Dn5GBz-D.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-Cma8adgo.js",
+        "/assets/client-BR9HzcsZ.js",
+        "/assets/swapQuoteAmountScale-BHEiAZEA.js",
+        "/assets/rawAmountMath-9hhNpi9Z.js",
+        "/assets/pair-lrv8fu9q.js",
+        "/assets/transactions-NJAM38cc.js",
+        "/assets/settings-DejRaJEO.js",
+        "/assets/cw20RouteSolveQuote-BVd4viNm.js",
+        "/assets/router-BErPpNVG.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ust1Window-Dl_c3RuF.js",
+        "/assets/SlippageProtectionPresets-Br8GMPIr.js",
+        "/assets/communityTaxToken-43ErYx5N.js",
+        "/assets/useTokenDisplayInfo-C0FQdzAP.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/terraBroadcastUi-BHPT8OCP.js",
+        "/assets/swapQueryParams-DkpFjW1S.js",
+        "/assets/ShareLinkButton-DJ4sTsT4.js",
+        "/assets/optionTapStability-VIlosc_P.js",
+        "/assets/portalListboxKeyboard-BYs_b1ri.js",
+        "/assets/WrapRateLimitStatus-B97ywoIm.js",
+        "/assets/TokenSearchSelect-DL0B1NW5.js",
+        "/assets/usePairPaused-DymvsdvY.js",
+        "/assets/feeDiscount-CBa2bpDg.js",
+        "/assets/useTradingBlacklist-BNtVB5V1.js",
+        "/assets/TxResultAlert-CLuvb2eB.js",
+        "/assets/TerraBroadcastPendingLink-Vse9zMjt.js",
+        "/assets/LcdQueryGate-CxplC9-3.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/maxSpendableAmount-BvCLCiPc.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/PairCodeIdFrozenBanner-CLMg-LQv.js",
+        "/assets/assetCodeIdFreeze-XeKhgBZB.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": null,
+          "amount_out": "100000000000000000000",
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "required_amount_in": "12649685215",
+          "target_amount_out": "100000000000000000000",
+          "estimated_amount_out": "100000000005328338879",
+          "estimated_amount_out_net": "100000000005328338879",
+          "solver_version": "pool_exact_output_v1",
+          "sizing_mode": "pool_only_exact_output",
+          "fidelity_check": "passed",
+          "snapshot_age_ms": 13681,
+          "snapshot_block_height": 30683524,
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": null,
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "forwards": [
+        {
+          "offer_amount": "12649685215",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                }
+              }
+            }
+          ],
+          "amount": "100000000005328338879"
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/swap?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "12907.842056",
+      "receive": "100",
+      "status": "PASS"
+    }
+  ]
+}

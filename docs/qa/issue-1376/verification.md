@@ -1,5 +1,9 @@
 # Implementation verification — #1376
 
+Historical pre-rollout report. The later [live verification](live-verification.md)
+records deployment `3f93106`, current contract failure, and the explicit user
+operator-custody waiver governing closure.
+
 Implementation: [PR #1378](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1378).
 Reviewed branch: `fix/issue-1376-receive-solver`, based on main `918461ca`.
 Issue and comments were read with `bao-exec` + `fj`; no comments were present.
@@ -40,7 +44,7 @@ See [agent checklist](README.md), [E1376 invariants](../../frontend.md#solver-re
 
 [Production inventory](migration-inventory-before.json) at Columbus-5 block **30682397** found 22 factory pairs on code **11676**, cw2 **1.18.0**. The actual public CL8Y contract metadata says **CL8Y-cb**, while the deployed ticker resolves CL8Y. The 10 target reverse succeeds; the 100 target returns the iteration-cap error, although its pool-only forward offer is sufficient. [Fresh disconnected browser baseline](browser-before.json) records published bundle paths and the offer-in solver version `global_v4`; 10 Pay resolved to `1243.234685`, while 100 Pay stayed empty. These are pre-fix evidence, not deployed-fix acceptance.
 
-Production rollout was not performed as part of this PR delivery. Deploy the matching indexer/frontend, rebuild and migrate the inventoried production pairs to 1.19.0, then run the read-only probe and fresh-browser procedure in [README.md](README.md). Record actual revisions/code IDs/block/snapshots and repeat direct/router/invoice checks. Do not close the issue solely because this implementation review passed.
+Production rollout was not performed as part of this PR delivery. Deploy the matching indexer/frontend, rebuild and migrate the inventoried production pairs to 1.19.0, then run the read-only probe and fresh-browser procedure in [README.md](README.md). Record actual revisions/code IDs/block/snapshots and repeat direct/router/invoice checks. Do not close solely on this implementation review. A later explicit user custody waiver and live disposition are recorded in [live-verification.md](live-verification.md).
 
 ## Reproduction notes for agents
 
