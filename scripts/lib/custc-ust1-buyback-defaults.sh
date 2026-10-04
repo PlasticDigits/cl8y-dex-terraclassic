@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Columbus-5 defaults for hourly $200 cUSTC mint → best-solver UST1 swap until
+# Columbus-5 defaults for randomized $200-base cUSTC mint → best-solver UST1 swap until
 # CMM vFDUSD CW20 × Venus × FDUSD oracle is $500.
 # Addresses: deployments/mainnet-ust1-wrap/REGISTRY.md
 # shellcheck shell=bash
@@ -21,12 +21,15 @@
 : "${CUSTC_UST1_ADMIN_KEY:=cl8ydeploy}"
 : "${CUSTC_UST1_ADMIN_ADDR:=terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv}"
 
-# $200 of cUSTC / hour (USTC oracle); stop when CMM vFDUSD USD >= 500.
+# $200-base cUSTC ±20% (USTC oracle), waiting 3600s ±900s after each tick.
+# Stop when CMM vFDUSD USD >= 500. Set either jitter to 0 to disable it.
 : "${CUSTC_UST1_MINT_USD:=200}"
+: "${CUSTC_UST1_AMOUNT_JITTER_PERCENT:=20}"
 : "${CUSTC_UST1_TARGET_USD:=500}"
 : "${CUSTC_UST1_INTERVAL_SEC:=3600}"
+: "${CUSTC_UST1_INTERVAL_JITTER_SEC:=900}"
 : "${CUSTC_UST1_DEST:=cmm}"
-: "${CUSTC_UST1_SLIPPAGE_PERCENT:=5}"
+: "${CUSTC_UST1_SLIPPAGE_PERCENT:=0.25}"
 : "${CUSTC_UST1_MAX_SPREAD:=0.20}"
 
 : "${CUSTC_UST1_INDEXER:=https://indexer.dex.cl8y.com}"
