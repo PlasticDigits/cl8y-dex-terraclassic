@@ -8,13 +8,19 @@ const { chromium } = requireFrontend('@playwright/test')
 async function main() {
   const base = process.env.PROBE_1376_BASE_URL || 'https://dex.cl8y.com/'
   const expectFixed = process.argv.includes('--expect-fixed')
+  const matrix = process.argv.includes('--matrix')
+  const cases = matrix
+    ? ['/', '/swap'].flatMap(path => ['compact', 'full'].flatMap(display => ['10', '100'].flatMap(target =>
+        ['cold', 'warm'].map(cache => ({ path, display, target, cache })))))
+    : ['10', '100'].map(target => ({ path: new URL(base).pathname, display: 'compact', target, cache: 'cold' }))
   const browser = await chromium.launch({ headless: true })
   const results = []
   try {
-    for (const target of ['10', '100']) {
+    for (const { path, display, target, cache } of cases) {
       const context = await browser.newContext()
+      if (display === 'full') await context.addInitScript(() => localStorage.setItem('cl8y-dex-number-display-mode', 'full'))
       const page = await context.newPage()
-      const record = { target, bundles: [], sizing: [], forwards: [], reverseErrors: [] }
+      const record = { target, path, display, cache, bundles: [], sizing: [], forwards: [], reverseErrors: [] }
       page.on('response', async response => {
         const url = new URL(response.url())
         if (url.pathname.endsWith('.js')) record.bundles.push(url.pathname)
@@ -43,8 +49,16 @@ async function main() {
         }
       })
       const url = new URL(base)
+      url.pathname = path
       url.search = new URLSearchParams({ from: 'USTC', to: 'CL8Y', exactAmount: target, exactField: 'output' }).toString()
       await page.goto(url.toString(), { waitUntil: 'domcontentloaded', timeout: 30000 })
+      if (cache === 'warm') {
+        await page.getByTestId('swap-you-pay-amount').waitFor({ timeout: 30000 })
+        await page.waitForFunction(() => Boolean(document.querySelector('[data-testid="swap-you-pay-amount"]')?.value), null, { timeout: 80000 }).catch(() => {})
+        record.sizing.length = 0
+        record.forwards.length = 0
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 })
+      }
       // A finite observation window; no wallet connection or transaction controls are clicked.
       if (expectFixed) {
         await page.waitForFunction(() => {

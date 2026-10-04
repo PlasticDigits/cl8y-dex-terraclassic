@@ -2549,6 +2549,7 @@ See `.env.example` for the full list.
 | **E1376-6** | All money uses checked integer arithmetic with sufficient-offer rounding. Pool-only contract reverse validates the exact pool inverse without full-range bisection; hybrid search retains explicit call limits and errors on exhaustion. |
 | **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, 5/30/99 spread and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
 | **E1376-8** | Verification records revision, scope and PASS/FAIL/SKIP honestly. Deployment inventory, public token resolution and block/snapshot probes distinguish shipped behavior from mocked tests. |
+| **E1376-9** | Frontend/indexer deployment never proves pair migration. Require complete factory count, matching factory pair-code pointer and every listed pair on cw2 1.19.0 for migrated acceptance. An explicit operator-custody closure waiver does not convert a failed live query into PASS or claim full production completion. [Live evidence and waiver](qa/issue-1376/live-verification.md). |
 
 ## Protocol liquidity quality
 
