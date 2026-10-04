@@ -1,0 +1,30 @@
+[package]
+name = "bridge-debt"
+version.workspace = true
+edition.workspace = true
+description = "Mints bridged tokens for CMM LP and a 1:1 Bridge-Debt receipt to the CMM"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+library = []
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw2 = { workspace = true }
+cw20 = { workspace = true }
+thiserror = { workspace = true }
+schemars = { workspace = true }
+
+[dev-dependencies]
+bridge-debt-token = { path = "../bridge-debt-token" }
+cw20 = { workspace = true }
+cw20-base = { workspace = true }
+cw-multi-test = { workspace = true }
+
+[[bin]]
+name = "schema"
+path = "src/bin/schema.rs"
