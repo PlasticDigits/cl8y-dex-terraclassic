@@ -47,6 +47,8 @@ pub use protocol_top_pairs::reset_protocol_top_pairs_cache;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
+mod route_exact_output;
+mod route_exact_output_reference;
 mod route_graph;
 #[allow(unused_imports)] // re-exported for integration tests
 pub use route_graph::reset_route_graph_cache;
@@ -980,6 +982,18 @@ mod rate_limit_quota_tests {
 mod openapi_pack_tests {
     use super::ApiDoc;
     use utoipa::OpenApi;
+
+    #[test]
+    fn openapi_route_exact_output_documents_target_response_and_failures() {
+        let value = serde_json::to_value(ApiDoc::openapi()).unwrap();
+        let get = &value["paths"]["/api/v1/route/solve"]["get"];
+        assert!(get["parameters"].as_array().unwrap().iter().any(|p| p["name"] == "amount_out"));
+        for status in ["422", "429", "503", "504"] { assert!(!get["responses"][status].is_null()); }
+        let properties = &value["components"]["schemas"]["RouteSolveResponse"]["properties"];
+        for field in ["required_amount_in", "target_amount_out", "sizing_mode", "snapshot_age_ms", "snapshot_block_height"] {
+            assert!(!properties[field].is_null(), "missing {field}");
+        }
+    }
 
     /// #1204 AC8/AC9: five evidence surfaces plus health/compliance stay in ApiDoc.
     #[test]

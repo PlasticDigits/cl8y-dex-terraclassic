@@ -687,6 +687,27 @@ export async function getRouteSolve(
   })
 }
 
+/** Bounded server-side net receive sizing (#1376); execution remains offer-in. */
+export async function getRouteSolveExactOutput(
+  tokenIn: string,
+  tokenOut: string,
+  amountOut: string,
+  options?: Pick<GetRouteSolveOptions, 'trader' | 'sender' | 'signal'>
+): Promise<IndexerRouteSolveResponse> {
+  const sp = new URLSearchParams({
+    token_in: tokenIn.trim(),
+    token_out: tokenOut.trim(),
+    amount_out: amountOut,
+    pool_only: 'true',
+  })
+  if (options?.trader?.trim()) sp.set('trader', options.trader.trim())
+  if (options?.sender?.trim()) sp.set('sender', options.sender.trim())
+  return fetchJson<IndexerRouteSolveResponse>(`/api/v1/route/solve?${sp}`, {
+    signal: options?.signal,
+    timeoutMs: ROUTE_SOLVE_TIMEOUT_MS,
+  })
+}
+
 /**
  * Advisory progress for an in-flight hybrid solve (GitLab #485).
  * Same query params as {@link getRouteSolve}; uses the default indexer timeout (not 45s).

@@ -19,7 +19,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 | **Q713-1** | Picker / flip / amount → canonical `/?from=&to=` via `setSearchParams({ replace: true })`. Amount debounce = `SIM_QUOTE_DEBOUNCE_MS` (350). No history spam. |
 | **Q713-2** | Uniswap aliases still apply, then rewrite to `from`/`to` (aliases leave the bar). |
 | **Q713-3** | Write follows live state. Apply does not snap the user back to the inbound query. |
-| **Q713-4** | You Receive is an `<input>`; `exactField=output` reverses direct factory CW20 (`reverseSimulateSwap`), direct wrap/unwrap (shared fee/tax math), and client operation routes (router reverse), including native ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). Execute stays offer-in + min received. Indexer-only without operations silently ignores output as a reverse source (**#489**); no indexer exact-out. |
+| **Q713-4** | You Receive stays an input. CW20 route targets use explicit server `amount_out` with current wallet forward validation (#1376), including indexer-only/native-mapped routes. Mapper-only wrap/unwrap uses shared fee/tax inverses. Execute stays offer-in + minimum receive. |
 | **Q713-5** | Swap header **Share** next to Settings (`data-testid="swap-share-link"`). Visible **Share {pay logo} → {receive logo}** ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). No new `shell-panel*` / `card-glass` (**C653**). Coarse+narrow: Web Share; else `copyToClipboard` (**Link copied**). `AbortError` silent. Never `window.location.href`. |
 | **Q713-6** | `/create?a=&b=` prefills catalog or checksum custom. Hostile / native ignored per side. No auto-submit. No runtime HTTP catalog. |
 | **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Zero or multiple matches → ignore. Path stays canonical. Ticket not auto-placed. |
@@ -42,7 +42,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 
 - **Do** set `appliedSwapQueryKeyRef` to the **canonical** search before/as you `replace`, so self-authored rewrites are not re-applied.
 - **Do** reuse `ShareLinkButton`. Desktop: pass `canShare={() => false}` unless `useCoarseNarrowViewport()`.
-- **Don’t** fake exact-out via `quoteCw20ViaRouteSolve` / binary search on `/route/solve`.
+- **Do** use explicit server receive sizing (#1376); **don’t** fake exact-out by repeatedly calling the offer-in `quoteCw20ViaRouteSolve` endpoint.
 - **Don’t** share leftover `recipient` / WC / Uniswap keys.
 - **Don’t** feed Swap’s factory graph into Create Pair prefill (**C542-8**).
 - **Don’t** `navigate` Trade to anything except `/trade/{bech32}`.
@@ -73,3 +73,5 @@ python3 scripts/check_chrome_nesting.py
 - [`AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md`](./AGENTS_FRONTEND_HYBRID_ALWAYS_ON.md) — ignore `pool_only` / `hybrid_optimize` from URL
 - [`AGENTS_FRONTEND_CHROME_NESTING.md`](./AGENTS_FRONTEND_CHROME_NESTING.md) — no extra Share chrome
 - [`AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md`](./AGENTS_FRONTEND_COPY_COGNITIVE_LOAD.md) — silent fail-closed (#489)
+
+Current receive-sizing extension: [#1376 agent protocol](AGENTS_SWAP_EXACT_OUTPUT.md), with explicit bounded solver sizing and finite disconnected errors. This supersedes earlier no-indexer-exact-out restrictions.

@@ -62,7 +62,7 @@ run_step "docs: expanded Q711/Q713, reverse invariants, and agent/QA crosslinks"
     for file in skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md skills/AGENTS_WRAP_UNWRAP_BURN_TAX.md AGENTS.md docs/testing.md; do
       grep -Fq "AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md" "$file"
     done
-    grep -Fq "Indexer-only" skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md
+    grep -Fq "amount_out" skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md
     grep -Fq "W8" skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md
     grep -Fq "W9" skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md
     grep -Fq "routerMinReceiveBase" skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md
@@ -72,14 +72,14 @@ run_step "docs: expanded Q711/Q713, reverse invariants, and agent/QA crosslinks"
 run_step "guard: chrome nesting" python3 scripts/check_chrome_nesting.py
 
 if [[ -n "${VERIFY_ISSUE_1256_SKIP_BROWSER_REASON:-}" ]]; then
-  skip_step "browser: mocked-LCD receive input/URL (5 workers)" "$VERIFY_ISSUE_1256_SKIP_BROWSER_REASON"
+  skip_step "browser: mocked-LCD receive input/URL (2 workers)" "$VERIFY_ISSUE_1256_SKIP_BROWSER_REASON"
 elif [[ ! -x frontend-dapp/node_modules/.bin/playwright ]]; then
-  skip_step "browser: mocked-LCD receive input/URL (5 workers)" "Playwright dependencies unavailable (install dependencies/browser, then rerun)"
+  skip_step "browser: mocked-LCD receive input/URL (2 workers)" "Playwright dependencies unavailable (install dependencies/browser, then rerun)"
 else
-  run_step "browser: mocked-LCD receive input/URL (5 workers; no chain needed)" \
+  run_step "browser: mocked-LCD receive input/URL (2 workers; no chain needed)" \
     env E2E_SWAP_RECEIVE_1256=1 PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT="${PLAYWRIGHT_WEB_PORT:-3026}" \
       bash scripts/with-node.sh --cwd frontend-dapp -- \
-      ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 e2e/swap-receive-1256.spec.ts
+      ./node_modules/.bin/playwright test --project=e2e-smoke --workers=2 e2e/swap-receive-1256.spec.ts
 fi
 
 printf '\n'

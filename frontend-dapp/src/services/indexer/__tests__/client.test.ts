@@ -591,3 +591,23 @@ describe('getLeaderboard pair query (GitLab #666)', () => {
     expect(injected).not.toMatch(/traders\/leaderboard\/';/)
   })
 })
+
+describe('exact-output route solver transport (#1376)', () => {
+  it('sends only a net output target with pool-only execution and trader/cancellation context', async () => {
+    const { getRouteSolveExactOutput } = await import('../client')
+    const signal = new AbortController().signal
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ required_amount_in: '2' }), { status: 200 }))
+    )
+    await getRouteSolveExactOutput(' terra1in ', 'terra1out', '100000000000000000000', {
+      trader: 'terra1trader',
+      signal,
+    })
+    const url = new URL(vi.mocked(fetch).mock.calls.at(-1)![0] as string)
+    expect(url.searchParams.get('amount_out')).toBe('100000000000000000000')
+    expect(url.searchParams.has('amount_in')).toBe(false)
+    expect(url.searchParams.get('pool_only')).toBe('true')
+    expect(url.searchParams.get('trader')).toBe('terra1trader')
+  })
+})

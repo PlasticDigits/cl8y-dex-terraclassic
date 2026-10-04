@@ -497,7 +497,9 @@ fn simulate_pool_leg(
     if input_reserve == 0 || output_reserve == 0 {
         return Err(DbSimError::InsufficientLiquidity);
     }
-    let new_in = input_reserve.saturating_add(pool_input);
+    let new_in = input_reserve
+        .checked_add(pool_input)
+        .ok_or(DbSimError::InvalidNumeric)?;
     if new_in == 0 {
         return Err(DbSimError::InvalidNumeric);
     }
@@ -649,6 +651,36 @@ pub async fn preload_mirrors_for_pairs(
                 tracing::warn!(pair = %addr, "preload mirror failed: {}", e);
             }
         }
+    }
+    Ok(out)
+}
+
+/// Bounded pool-only mirror loader (#1376). Never loads resting orders: exact-output
+/// sizing excludes books, so loading an entire per-pair book would waste unbounded memory.
+pub async fn preload_pool_mirrors_for_pairs(
+    pool: &PgPool,
+    pair_addresses: &[String],
+    id_to_addr: &HashMap<i32, String>,
+    max_staleness_ms: u64,
+) -> Result<HashMap<String, HopMirror>, sqlx::Error> {
+    let mut out = HashMap::new();
+    for addr in pair_addresses {
+        let Some(pair) = pairs::get_pair_by_address(pool, addr).await? else { continue; };
+        let Some(reserves) = pair_reserves::get_pair_reserves(pool, pair.id).await? else { continue; };
+        let (Some(reserve_0), Some(reserve_1)) = (parse_u128(&reserves.reserve_0), parse_u128(&reserves.reserve_1)) else { continue; };
+        let (Some(asset_0_addr), Some(asset_1_addr)) = (id_to_addr.get(&pair.asset_0_id), id_to_addr.get(&pair.asset_1_id)) else { continue; };
+        // Both reserves, fee, height and timestamp are one atomic snapshot row.
+        let freshness = if pool_reserves_unusable(reserve_0, reserve_1) {
+            MirrorFreshness::EmptyPool
+        } else if is_snapshot_stale(reserves.snapshot_at, max_staleness_ms) {
+            MirrorFreshness::Stale
+        } else { MirrorFreshness::Fresh };
+        if !(0..=10_000).contains(&reserves.fee_bps) { continue; }
+        out.insert(addr.clone(), HopMirror {
+            pair_id: pair.id, asset_0_addr: asset_0_addr.clone(), asset_1_addr: asset_1_addr.clone(),
+            reserve_0, reserve_1, fee_bps: reserves.fee_bps as u16, block_height: reserves.block_height,
+            snapshot_at: reserves.snapshot_at, freshness, bids: vec![], asks: vec![],
+        });
     }
     Ok(out)
 }

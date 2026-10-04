@@ -1433,6 +1433,11 @@ verify-issue-713:
 	@chmod +x scripts/qa/verify-issue-713.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-713.sh
 
+# Forgejo #1376 — solver receive sizing and reverse cap repair.
+.PHONY: verify-issue-1376
+verify-issue-1376:
+	bash scripts/qa/verify-issue-1376.sh
+
 # Forgejo #1256 — editable Swap receive on native/client routes.
 .PHONY: verify-issue-1256
 verify-issue-1256:

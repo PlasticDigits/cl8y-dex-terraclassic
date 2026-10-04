@@ -4,15 +4,18 @@ import { TERRA_LCD_URL } from '@/utils/constants'
 const LCD_TIMEOUT_MS = 10_000
 const LCD_MAX_RETRIES = 1
 
-async function lcdFetch(url: string): Promise<Response> {
+async function lcdFetch(url: string, signal?: AbortSignal): Promise<Response> {
   let lastError: Error | null = null
   for (let attempt = 0; attempt <= LCD_MAX_RETRIES; attempt++) {
+    signal?.throwIfAborted()
     const controller = new AbortController()
+    const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal
     const timer = setTimeout(() => controller.abort(), LCD_TIMEOUT_MS)
     try {
-      const response = await fetch(url, { signal: controller.signal })
+      const response = await fetch(url, { signal: requestSignal })
       return response
     } catch (err) {
+      signal?.throwIfAborted()
       lastError = err instanceof Error ? err : new Error(String(err))
       if (err instanceof DOMException && err.name === 'AbortError') {
         lastError = new Error(`LCD request timed out after ${LCD_TIMEOUT_MS}ms`)
@@ -43,7 +46,11 @@ export async function getChainContractInfo(
   }
 }
 
-export async function queryContract<T>(contractAddress: string, queryMsg: Record<string, unknown>): Promise<T> {
+export async function queryContract<T>(
+  contractAddress: string,
+  queryMsg: Record<string, unknown>,
+  signal?: AbortSignal
+): Promise<T> {
   const addr = contractAddress.trim()
   if (!addr) {
     throw new Error(
@@ -52,7 +59,7 @@ export async function queryContract<T>(contractAddress: string, queryMsg: Record
   }
   const queryBase64 = btoa(JSON.stringify(queryMsg))
   const url = `${TERRA_LCD_URL}/cosmwasm/wasm/v1/contract/${addr}/smart/${queryBase64}`
-  const response = await lcdFetch(url)
+  const response = await lcdFetch(url, signal)
   if (!response.ok) {
     let errorDetail = `Query failed: ${response.status}`
     try {

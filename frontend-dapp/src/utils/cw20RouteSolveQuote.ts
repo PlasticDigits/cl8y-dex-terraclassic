@@ -1,4 +1,5 @@
-import { getRouteSolve } from '@/services/indexer/client'
+import { getPair } from '@/services/terraclassic/factory'
+import { getRouteSolve, getRouteSolveExactOutput } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import type { QuoteTraderOptions } from '@/services/terraclassic/pair'
 import { simulateMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
@@ -7,7 +8,7 @@ import {
   preflightSwapRouteSpread,
   type SwapRoutePreflightSpread,
 } from '@/services/terraclassic/swapRoutePreflight'
-import type { IndexerRouteQuoteKind } from '@/types'
+import type { IndexerRouteQuoteKind, IndexerRouteSolveResponse, PairInfo } from '@/types'
 import { reconcileSwapRouteIntermediateTokens } from '@/utils/swapRouteDisplay'
 import { resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 import { shouldRejectGemBridgeQuote } from '@/utils/pairCatalogRank'
@@ -40,13 +41,14 @@ export type Cw20RouteSolveQuote = {
   routeSlippagePercent?: string
   spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
+  indexerPairs?: PairInfo[]
   indexerOperations: SwapOperation[]
   indexerIntermediateTokens?: string[]
   indexerRouteIntermediateReconciled?: boolean
   routePreflight?: SwapRoutePreflightSpread
 }
 
-export async function quoteCw20ViaRouteSolve(input: {
+type RouteSolveQuoteInput = {
   fromToken: string
   toToken: string
   simRaw: string
@@ -57,24 +59,35 @@ export async function quoteCw20ViaRouteSolve(input: {
   signal?: AbortSignal
   /** Strip hop-0 hybrid too so wrap-enter quote = pool-only execute (#1218 / **H596-7**). */
   omitAllHybrid?: boolean
-}): Promise<Cw20RouteSolveQuote | null> {
+}
+
+export async function quoteCw20ViaRouteSolve(input: RouteSolveQuoteInput): Promise<Cw20RouteSolveQuote | null> {
+  const idx = await getRouteSolve(input.fromToken, input.toToken, input.simRaw, {
+    maxMakerFills: input.maxMakerFills,
+    trader: input.quoteTrader?.trader,
+    sender: input.quoteTrader?.sender,
+    signal: input.signal,
+  })
+  return validateRouteSolveQuote(input, idx)
+}
+
+async function validateRouteSolveQuote(
+  input: RouteSolveQuoteInput,
+  idx: IndexerRouteSolveResponse
+): Promise<Cw20RouteSolveQuote | null> {
   const {
     fromToken,
     toToken,
     simRaw,
-    maxMakerFills,
     slippageTolerancePercent,
     maxSpreadStr,
-    quoteTrader,
-    signal,
+    quoteTrader: baseQuoteTrader,
     omitAllHybrid,
   } = input
 
-  const idx = await getRouteSolve(fromToken, toToken, simRaw, {
-    maxMakerFills,
-    trader: quoteTrader?.trader,
-    signal,
-  })
+  input.signal?.throwIfAborted()
+  const quoteTrader = input.signal ? { ...baseQuoteTrader, signal: input.signal } : baseQuoteTrader
+
   const tin = idx.token_in.trim().toLowerCase()
   const tout = idx.token_out.trim().toLowerCase()
   if (tin !== fromToken.trim().toLowerCase() || tout !== toToken.trim().toLowerCase()) {
@@ -130,4 +143,82 @@ export async function quoteCw20ViaRouteSolve(input: {
     indexerRouteIntermediateReconciled: routeIntermediateMismatch,
     routePreflight,
   }
+}
+
+function isPositiveUint128Raw(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= 39 &&
+    /^\d+$/.test(value) &&
+    BigInt(value) > 0n &&
+    BigInt(value) <= (1n << 128n) - 1n
+  )
+}
+
+/** Server selection + authoritative wallet validation of that exact offer/path. No browser search. */
+export async function quoteCw20ExactOutputViaRouteSolve(
+  input: Omit<RouteSolveQuoteInput, 'simRaw'> & { targetRaw: string }
+): Promise<Cw20RouteSolveQuote & { offerAmount: string }> {
+  const idx = await getRouteSolveExactOutput(input.fromToken, input.toToken, input.targetRaw, {
+    trader: input.quoteTrader?.trader,
+    sender: input.quoteTrader?.sender,
+    signal: input.signal,
+  })
+  if (
+    idx.sizing_mode !== 'pool_only_exact_output' ||
+    idx.target_amount_out !== input.targetRaw ||
+    !isPositiveUint128Raw(idx.required_amount_in) ||
+    idx.fidelity_check !== 'passed'
+  ) {
+    throw new Error('Receive sizing returned an invalid or stale offer. Retry the quote.')
+  }
+  // Exact sizing must retain the global route reference used by the 5/30/99 protections.
+  if (!isPositiveUint128Raw(idx.spot_amount_out)) {
+    throw new Error('Receive sizing fair price reference is unavailable or invalid. Retry the quote.')
+  }
+  if (!idx.hops.length || idx.hops.length > 4) throw new Error('Invalid receive route hop count')
+  if (
+    !Array.isArray(idx.router_operations) ||
+    idx.router_operations.some((op) => {
+      const ts = (op as { terra_swap?: Record<string, unknown> } | null)?.terra_swap
+      return (
+        !ts ||
+        ts.hybrid != null ||
+        Object.keys(ts).some((key) => !['offer_asset_info', 'ask_asset_info', 'hybrid', 'min_return'].includes(key))
+      )
+    })
+  )
+    throw new Error('Unsupported receive route execution policy')
+  const ops = swapOperationsFromIndexerResponse(idx.router_operations as unknown[], idx.hops.length)
+  let token = input.fromToken
+  for (const [i, op] of ops.entries()) {
+    const hop = idx.hops[i]
+    if (
+      !('token' in op.terra_swap.offer_asset_info) ||
+      !('token' in op.terra_swap.ask_asset_info) ||
+      op.terra_swap.offer_asset_info.token.contract_addr !== token ||
+      hop.offer_token !== token ||
+      op.terra_swap.ask_asset_info.token.contract_addr !== hop.ask_token ||
+      op.terra_swap.hybrid
+    ) {
+      throw new Error('Invalid or unsupported receive route operations')
+    }
+    token = hop.ask_token
+  }
+  if (token !== input.toToken) throw new Error('Invalid receive route endpoint')
+  const indexerPairs: PairInfo[] = []
+  for (const [i, op] of ops.entries()) {
+    input.signal?.throwIfAborted()
+    const pair = await getPair(
+      [op.terra_swap.offer_asset_info, op.terra_swap.ask_asset_info],
+      ...(input.signal ? ([input.signal] as const) : ([] as const))
+    )
+    if (pair.contract_addr !== idx.hops[i].pair) throw new Error('Receive route pair is not the listed factory pair')
+    indexerPairs.push(pair)
+  }
+  const quote = await validateRouteSolveQuote({ ...input, simRaw: idx.required_amount_in, omitAllHybrid: true }, idx)
+  if (!quote || BigInt(quote.return_amount) < BigInt(input.targetRaw)) {
+    throw new Error('Fresh route output cannot satisfy the receive target. Retry the quote.')
+  }
+  return { ...quote, indexerPairs, offerAmount: idx.required_amount_in }
 }

@@ -754,6 +754,11 @@ export type IndexerRouteQuoteKind =
   | 'indexer_hybrid_db_degraded'
 
 export interface IndexerRouteSolveResponse {
+  /** Exact-output sizing metadata (#1376); target is net CW20 raw units. */
+  required_amount_in?: string
+  target_amount_out?: string
+  sizing_mode?: 'pool_only_exact_output'
+
   token_in: string
   token_out: string
   hops: IndexerRouteHop[]
@@ -770,7 +775,7 @@ export interface IndexerRouteSolveResponse {
   sell_tax_bps?: number
   tax_notes?: string
   router_hops_tax?: boolean
-  /** Fair output at best-route token cross-rate (raw integer). GitLab #293. */
+  /** Fair output at best-route token cross-rate (raw integer). Required positive Uint128 for exact-output sizing (#1376); optional for offer-in (#293). */
   spot_amount_out?: string
   /** Symmetric deviation vs spot cross-rate (percent string). GitLab #293. */
   slippage_percent?: string

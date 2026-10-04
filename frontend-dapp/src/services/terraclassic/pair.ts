@@ -23,6 +23,8 @@ export type { LimitPriceDecimals }
 
 /** Optional wallet for CL8Y fee-tier parity on hybrid LCD quotes (GitLab #245). */
 export interface QuoteTraderOptions {
+  /** Cancellation/total quote deadline, never serialized into contract JSON. */
+  signal?: AbortSignal
   trader?: string
   sender?: string
 }
@@ -84,19 +86,23 @@ export async function simulateHybridSwap(
   options?: QuoteTraderOptions
 ): Promise<HybridSimulationResponse> {
   const offerAsset: Asset = { info: offerAssetInfo, amount: offerAmount }
-  return queryContract<HybridSimulationResponse>(pairAddress, {
-    hybrid_simulation: {
-      offer_asset: offerAsset,
-      hybrid: {
-        pool_input: hybrid.pool_input,
-        book_input: hybrid.book_input,
-        max_maker_fills: hybrid.max_maker_fills,
-        book_start_hint: hybrid.book_start_hint ?? undefined,
+  return queryContract<HybridSimulationResponse>(
+    pairAddress,
+    {
+      hybrid_simulation: {
+        offer_asset: offerAsset,
+        hybrid: {
+          pool_input: hybrid.pool_input,
+          book_input: hybrid.book_input,
+          max_maker_fills: hybrid.max_maker_fills,
+          book_start_hint: hybrid.book_start_hint ?? undefined,
+        },
+        trader: options?.trader,
+        sender: options?.sender,
       },
-      trader: options?.trader,
-      sender: options?.sender,
     },
-  })
+    ...(options?.signal ? ([options.signal] as const) : ([] as const))
+  )
 }
 
 /** Pool-only reverse quote via `hybrid_reverse_simulation` (GitLab #190). */

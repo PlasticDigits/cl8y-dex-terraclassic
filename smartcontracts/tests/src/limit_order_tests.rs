@@ -9661,3 +9661,71 @@ mod greedy_book_first_708 {
         let _ = MAX_MAKER_FILLS_HARD_CAP;
     }
 }
+
+/// #1376: existing router/invoice reverse consumers retain their query schema
+/// and receive the exact pair minimum beyond the former 32-call failure boundary.
+#[test]
+fn issue1376_router_reverse_large_target_fixture() {
+    let mut app = App::default();
+    let env = setup_full_env(&mut app);
+    // A read-only snapshot fixture: query math consumes tracked reserves, without
+    // minting or broadcasting the production quantities represented by this state.
+    {
+        let mut storage = app.contract_storage_mut(&env.pair);
+        cl8y_dex_pair::state::RESERVES
+            .save(
+                &mut *storage,
+                &(
+                    Uint128::new(297_665_983_808),
+                    Uint128::new(2_498_115_414_904_458_263_864),
+                ),
+            )
+            .unwrap();
+        cl8y_dex_pair::state::FEE_CONFIG
+            .save(
+                &mut *storage,
+                &dex_common::types::FeeConfig {
+                    fee_bps: 180,
+                    treasury: env.treasury.clone(),
+                },
+            )
+            .unwrap();
+    }
+    let operations = vec![cl8y_dex_router::msg::SwapOperation::TerraSwap {
+        offer_asset_info: asset_info_token(&env.token_a),
+        ask_asset_info: asset_info_token(&env.token_b),
+        hybrid: None,
+        greedy: None,
+        min_return: None,
+    }];
+    for (target, expected) in [
+        (10_000_000_000_000_000_000, 1_218_369_992),
+        (100_000_000_000_000_000_000, 12_649_685_215),
+    ] {
+        let reverse: cl8y_dex_router::msg::SimulateSwapOperationsResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.router.to_string(),
+                &cl8y_dex_router::msg::QueryMsg::ReverseSimulateSwapOperations {
+                    ask_amount: Uint128::new(target),
+                    operations: operations.clone(),
+                    trader: None,
+                    sender: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(reverse.amount, Uint128::new(expected));
+        assert!(
+            router_simulate_amount(&app, &env.router, reverse.amount, &operations)
+                >= Uint128::new(target)
+        );
+        assert!(
+            router_simulate_amount(
+                &app,
+                &env.router,
+                reverse.amount - Uint128::one(),
+                &operations
+            ) < Uint128::new(target)
+        );
+    }
+}

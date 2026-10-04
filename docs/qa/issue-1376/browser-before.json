@@ -1,0 +1,161 @@
+{
+  "utc": "2026-10-04T02:59:39.523Z",
+  "probe_only": true,
+  "results": [
+    {
+      "target": "10",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-yBJojDdC.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/SwapPage-eoUYCfFy.js",
+        "/assets/swapRouteDisplay-CygeM6RJ.js",
+        "/assets/settings-CfdY_Veu.js",
+        "/assets/rawAmountMath-Cy6W9qAb.js",
+        "/assets/ust1Window-5FjmfBPS.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/pair-DqSX4ull.js",
+        "/assets/cw20RouteSolveQuote-D9fI_NyB.js",
+        "/assets/client-BNg19BYl.js",
+        "/assets/communityTaxToken-CoSLwktz.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/swapQuoteAmountScale-DddohMUe.js",
+        "/assets/SlippageProtectionPresets-C0XfrKFM.js",
+        "/assets/router-DrRTSZDK.js",
+        "/assets/transactions-C_Ir4PEr.js",
+        "/assets/maxSpendableAmount-CTco9XqR.js",
+        "/assets/ShareLinkButton-DjqWmEfU.js",
+        "/assets/usePairPaused-DFmFfCk4.js",
+        "/assets/useTradingBlacklist-CfJypsQC.js",
+        "/assets/TxResultAlert-BxtExDiK.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/assetCodeIdFreeze-CeeU745M.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/PairCodeIdFrozenBanner-C-x7YQ1I.js",
+        "/assets/useTokenDisplayInfo-cBPx4XaX.js",
+        "/assets/feeDiscount-DyrFFT3q.js",
+        "/assets/terraBroadcastUi-D730q5Q1.js",
+        "/assets/optionTapStability-wLA6woDx.js",
+        "/assets/WrapRateLimitStatus-BM1JZzdo.js",
+        "/assets/LcdQueryGate-BDphRNeh.js",
+        "/assets/TerraBroadcastPendingLink-CV92E_w_.js",
+        "/assets/TokenSearchSelect-DAt_tGlB.js",
+        "/assets/swapQueryParams-ZPjkAvMP.js",
+        "/assets/portalListboxKeyboard-DCnGZyBU.js",
+        "/assets/marketDataOutage-CSM9G4E6.js"
+      ],
+      "sizing": [
+        {
+          "amount_in": "1218369992",
+          "amount_out": null,
+          "status": 200,
+          "token_in": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch",
+          "token_out": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3",
+          "estimated_amount_out": "10133046819371426731",
+          "estimated_amount_out_net": "10133046819371426731",
+          "solver_version": "global_v4",
+          "fidelity_check": "passed",
+          "router_operations": [
+            {
+              "terra_swap": {
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3"
+                  }
+                },
+                "hybrid": {
+                  "book_input": "1218369992",
+                  "book_start_hint": 1107,
+                  "max_maker_fills": 8,
+                  "pool_input": "0"
+                },
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "reverseErrors": [],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=10&exactField=output",
+      "pay": "1243.234685",
+      "receive": "10",
+      "status": "FAIL"
+    },
+    {
+      "target": "100",
+      "bundles": [
+        "/bootstrap/theme.js",
+        "/bootstrap/trade-shell.js",
+        "/assets/crypto-DTQ8O1tF.js",
+        "/assets/vendor-state-DbRNHhEP.js",
+        "/assets/index-yBJojDdC.js",
+        "/assets/vendor-react-_peu2KPp.js",
+        "/assets/wallet-terra-BIAY_q8C.js",
+        "/assets/useDebouncedValue-COobZORi.js",
+        "/assets/swapRouteDisplay-CygeM6RJ.js",
+        "/assets/client-BNg19BYl.js",
+        "/assets/swapQuoteAmountScale-DddohMUe.js",
+        "/assets/SwapPage-eoUYCfFy.js",
+        "/assets/rawAmountMath-Cy6W9qAb.js",
+        "/assets/settings-CfdY_Veu.js",
+        "/assets/pair-DqSX4ull.js",
+        "/assets/ust1Window-5FjmfBPS.js",
+        "/assets/limitOrderFeeSummary-Cj74fAt9.js",
+        "/assets/cw20RouteSolveQuote-D9fI_NyB.js",
+        "/assets/SlippageProtectionPresets-C0XfrKFM.js",
+        "/assets/useTokenDisplayInfo-cBPx4XaX.js",
+        "/assets/router-DrRTSZDK.js",
+        "/assets/usePairPaused-DFmFfCk4.js",
+        "/assets/ust1WindowGates-Dd_ZmY3M.js",
+        "/assets/ShareLinkButton-DjqWmEfU.js",
+        "/assets/LcdQueryGate-BDphRNeh.js",
+        "/assets/terraBroadcastUi-D730q5Q1.js",
+        "/assets/communityTaxToken-CoSLwktz.js",
+        "/assets/transactions-C_Ir4PEr.js",
+        "/assets/portalListboxKeyboard-DCnGZyBU.js",
+        "/assets/useTradingBlacklist-CfJypsQC.js",
+        "/assets/TokenSearchSelect-DAt_tGlB.js",
+        "/assets/swapQueryParams-ZPjkAvMP.js",
+        "/assets/WrapRateLimitStatus-BM1JZzdo.js",
+        "/assets/TokenLogo-LRFEYCOB.js",
+        "/assets/feeDiscount-DyrFFT3q.js",
+        "/assets/TxResultAlert-BxtExDiK.js",
+        "/assets/TerraBroadcastPendingLink-CV92E_w_.js",
+        "/assets/maxSpendableAmount-CTco9XqR.js",
+        "/assets/marketDataOutage-CSM9G4E6.js",
+        "/assets/assetCodeIdFreeze-CeeU745M.js",
+        "/assets/indexerErrors--txBjI0N.js",
+        "/assets/PairCodeIdFrozenBanner-C-x7YQ1I.js",
+        "/assets/optionTapStability-wLA6woDx.js"
+      ],
+      "sizing": [],
+      "reverseErrors": [
+        {
+          "status": 500,
+          "message": "Generic error: Querier contract error: Generic error: Hybrid reverse simulation exceeded iteration cap: query wasm contract failed: query wasm contract failed: unknown request"
+        },
+        {
+          "status": 500,
+          "message": "Generic error: Querier contract error: Generic error: Hybrid reverse simulation exceeded iteration cap: query wasm contract failed: query wasm contract failed: unknown request"
+        },
+        {
+          "status": 500,
+          "message": "Generic error: Querier contract error: Generic error: Hybrid reverse simulation exceeded iteration cap: query wasm contract failed: query wasm contract failed: unknown request"
+        }
+      ],
+      "url": "https://dex.cl8y.com/?from=USTC&to=CL8Y&exactAmount=100&exactField=output",
+      "pay": "",
+      "receive": "100",
+      "status": "FAIL"
+    }
+  ]
+}

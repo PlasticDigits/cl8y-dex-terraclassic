@@ -53,10 +53,14 @@ export async function getAllPairsPaginated(maxPairs = 200): Promise<PairsRespons
   return { pairs: allPairs }
 }
 
-export async function getPair(assetInfos: [AssetInfo, AssetInfo]): Promise<PairInfo> {
-  const resp = await queryContract<PairResponse>(requireFactoryAddress(), {
-    pair: { asset_infos: assetInfos },
-  })
+export async function getPair(assetInfos: [AssetInfo, AssetInfo], signal?: AbortSignal): Promise<PairInfo> {
+  const resp = await queryContract<PairResponse>(
+    requireFactoryAddress(),
+    {
+      pair: { asset_infos: assetInfos },
+    },
+    ...(signal ? ([signal] as const) : ([] as const))
+  )
   return resp.pair
 }
 

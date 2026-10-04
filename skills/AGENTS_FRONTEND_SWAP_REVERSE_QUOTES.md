@@ -1,4 +1,4 @@
-# Agent playbook: Swap receive sizing on native and client routes (#1256)
+# Agent playbook: Swap receive sizing across solver and mapper routes (#1256 / #1376)
 
 Use when changing Swap's editable You Receive field, reverse quote routing, wrap fee/tax gross-ups, or reverse submit alignment.
 
@@ -7,7 +7,7 @@ Use when changing Swap's editable You Receive field, reverse quote routing, wrap
 ## Quote and execution protocol
 
 1. Keep You Receive an `<input>` when a token is selected. Validate legal human amounts with the existing 24-character cap and `isPositiveDecimalAmount`. Preserve `SIM_QUOTE_DEBOUNCE_MS`, `exactField=output`, canonical URL replacement, and clear/flip behavior (**Q713-1**, **Q713-4**, **Q711-6**).
-2. Dispatch reverse quotes by route class: direct factory CW20 pair → `reverseSimulateSwap`; client operations → `reverseSimulateMultiHopSwap`; native operations → `reverseSimulateNativeSwap`; mapper-only wrap/unwrap → shared inverse math. Do not send native denoms into pair reverse. Indexer-only without operations silently ignores output as a reverse source; never binary-search `/route/solve`.
+2. Dispatch mapper-only wrap/unwrap to shared fee/tax inverse math. All supported CW20 route receive sizing (including native-mapped CW20 hops and indexer-only paths) uses the explicit server `amount_out` mode and fresh wallet forward validation (#1376). Preserve legacy pair/router reverse for invoice and existing integrations. Never send native denoms into pair reverse or binary-search the public offer-in endpoint from the browser.
 3. Size wrap pay with shared `wrapGrossForNetCw20` and mapper wrap fee. Invert unwrap receive through post-fee then post-burn-tax, including LCD tax caps. Use integer amounts, preserve **W8**/**W9**, and keep `routerMinReceiveBase` post-fee pre-tax (**R3**). Invoice reuses the same wrap helper.
 4. Community-tax receive is net. `grossBuyTaxForTargetNet` covers the requested net receive; `executeAmountOut` and `min_return` remain pre-tax. Forward verification and hop-tax accounting remain authoritative; extra-debit counts once.
 5. Submit the reverse offer raw through existing forward simulation, min-receive, hop floors, and `assertSubmitQuotePayRawAligned` / hybrid checks. Never submit the typed ask as offer. Max/fractions switch to input. Keep quote-only, balance, impact/Expert, pause, freeze, and blacklist checks.
@@ -50,3 +50,5 @@ If a check cannot be completed, record **SKIP**, the precise missing capability/
 - [Mapper split fees](./AGENTS_WRAP_MAPPER_SPLIT_FEES.md) — live fee config, transitional fallback
 - [Router minimum receive](./AGENTS_ROUTER_MINIMUM_RECEIVE.md) — **R3**, forward hop floors
 - [Swap acquire guidance](./AGENTS_FRONTEND_SWAP_ACQUIRE_GUIDANCE.md) — #678 quote-only, balance, impact guards
+
+Current receive-sizing extension: [#1376 agent protocol](AGENTS_SWAP_EXACT_OUTPUT.md), with explicit bounded solver sizing and finite disconnected errors. This supersedes earlier no-indexer-exact-out restrictions.

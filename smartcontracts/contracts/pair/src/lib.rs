@@ -69,7 +69,14 @@
 //!   Execute/limit paths cache registry lookups for [`dex_common::pair::DISCOUNT_CACHE_TTL_SECONDS`]
 //!   (GitLab #251); simulation reads cache but does not write.
 //!   See `docs/limit-orders.md` and invariant L8 in `docs/contracts-security-audit.md`.
-//!   Reverse quotes seed from pool CP math and cap full sims at 32 per query (GitLab #257).
+//!   **R1376-P1:** pool-only reverse uses the exact minimum integer pool inverse, then
+//!   one full forward validation; its work does not depend on raw offer magnitude.
+//!   **R1376-P2:** declared-book reverse keeps the 32 full-simulation cap, checked
+//!   offer brackets and an explicit exhaustion error; it reuses the sufficient
+//!   response. No approximate or budget-exhausted quote is returned as success.
+//!   **R1376-P3:** reverse, forward and execute share Uint256 fee products and
+//!   the same floor commission. Pair cw2 1.19.0 changes no storage layout.
+//!   See `docs/qa/issue-1376/README.md` and `skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md`.
 //!
 //! ## Auth model
 //!

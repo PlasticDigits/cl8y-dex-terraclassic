@@ -45,7 +45,11 @@ export async function preflightSwapRouteSpread(
   for (const op of operations) {
     const ts = op.terra_swap
     const assetTuple: [AssetInfo, AssetInfo] = [ts.offer_asset_info, ts.ask_asset_info]
-    const pairRow = await getPair(assetTuple)
+    quoteTrader?.signal?.throwIfAborted()
+    const pairRow = await getPair(
+      assetTuple,
+      ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
+    )
     const pairAddr = pairRow.contract_addr
 
     const hybrid = ts.hybrid != null ? ts.hybrid : poolOnlyHybridParams(currentOffer)
@@ -126,7 +130,11 @@ export async function enrichSwapOperationsWithHopMinReturns(
     const bookIn = BigInt(hybrid.book_input)
     let minReturn = ts.min_return ?? undefined
     const assetTuple: [AssetInfo, AssetInfo] = [ts.offer_asset_info, ts.ask_asset_info]
-    const pairRow = await getPair(assetTuple)
+    quoteTrader?.signal?.throwIfAborted()
+    const pairRow = await getPair(
+      assetTuple,
+      ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
+    )
     const sim = await simulateHybridSwap(pairRow.contract_addr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
     if (bookIn > 0n && hybridBookRequiresSlippageFloor(bookIn, null, minReturn)) {
       const computed = applySlippagePercentFloor(sim.return_amount, slippagePercent)

@@ -1,0 +1,25 @@
+{
+  "chain_id": "localterra",
+  "txhash": "1752491D721BD01FC9D533305A2D4C1FC3F2C8A7F27D7C2A24A7026B28D09115",
+  "height": "410448",
+  "code": 0,
+  "hops": [
+    {
+      "offer_asset": "terra1z6henk6wm327uxg3mp9lshvvccynxyjk8842udpaau8jmrysgn5sgpj4ml",
+      "ask_asset": "terra1xxwrzgpnatcxztcc3ed3hrtmn7xy593hpqnchj0aqu4e38e9nvts04mmk0",
+      "offer_amount": "104",
+      "return_amount": "10012",
+      "spread_amount": "0",
+      "commission_amount": "183"
+    },
+    {
+      "offer_asset": "terra1xxwrzgpnatcxztcc3ed3hrtmn7xy593hpqnchj0aqu4e38e9nvts04mmk0",
+      "ask_asset": "terra1u4nryg95kg49ja3uxr70ur0vqstvqu58vw49tuqj35muulq7f00q5dczjl",
+      "offer_amount": "10012",
+      "return_amount": "1002862",
+      "spread_amount": "10",
+      "commission_amount": "18382"
+    }
+  ],
+  "gas_used": "2372420"
+}

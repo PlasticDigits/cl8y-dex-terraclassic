@@ -81,9 +81,9 @@ pub fn swap_fee_amount(gross_output: u128, fee_bps: u16) -> u128 {
     if fee_bps == 0 || gross_output == 0 {
         return 0;
     }
-    gross_output
-        .saturating_mul(fee_bps as u128)
-        .saturating_div(10_000)
+    // Split before multiplying so valid Uint128 amounts retain exact fee rounding.
+    (gross_output / 10_000) * u128::from(fee_bps.min(10_000))
+        + (gross_output % 10_000) * u128::from(fee_bps.min(10_000)) / 10_000
 }
 
 /// Base amount for step `i` (1-based) per CG/CMC spec: `R0 * (i / depth) * 0.10`.
