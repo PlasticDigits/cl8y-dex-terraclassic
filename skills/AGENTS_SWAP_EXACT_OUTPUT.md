@@ -18,3 +18,20 @@ Agent checklist and evidence: [issue 1376 QA](../docs/qa/issue-1376/README.md).
 Reviewers may record **PASS with explicit skips** when completed checks pass and unavailable checks have a precise reason and remaining scope. An executed failing assertion remains FAIL; a skipped check remains unverified. This task permits unavailable gates to be skipped, but does not change runtime wallet, inventory, tax, spread, pause, blacklist or credential protections. Never invent deployment, signing or chain evidence.
 
 Related: [receive inverses](AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md), [URL sync](AGENTS_FRONTEND_SWAP_URL_SYNC.md), [query parameters](AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md), [hop partition](AGENTS_HYBRID_HOP_OFFER.md), [local Postgres](AGENTS_LOCAL_POSTGRES_DEV.md).
+
+## Live verification and closure waiver
+
+[2026-10-04 live evidence](../docs/qa/issue-1376/live-verification.md)
+records both Coolify deployments on `3f93106` and the separate pair inventory.
+E1376-9 requires complete factory-count/pointer/cw2 checks; the production
+100-target legacy reverse query still fails on 1.18.0. The explicit user
+permission to skip unavailable operator-custody work and close supersedes the
+older production closure hold for this verification task only. Preserve the
+FAIL result and deferred migration scope; never describe it as migrated or
+all-green production acceptance. Agent work remains first. Do not request
+passphrases or override runtime protection. The optional
+[`complete-issue-1376.sh`](../scripts/qa/complete-issue-1376.sh) is read-only by
+default; `--migrate` uses the pinned artifact and existing 2-of-3 tool, while
+`--dry-run` never signs. Repeat live probes after any future migration;
+[the TWAP runbook](../docs/runbooks/pair-twap-uint256-columbus5.md) remains
+the state-preservation contract.

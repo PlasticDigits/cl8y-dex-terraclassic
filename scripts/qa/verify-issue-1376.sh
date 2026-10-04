@@ -61,7 +61,7 @@ if [[ "${VERIFY_ISSUE_1376_LIVE:-0}" == 1 ]]; then
   run "live migrated pair inventory and 10/100 probes" python3 scripts/qa/probe-issue-1376.py --expect-fixed
   run "fresh live browser 10/100 replay" node scripts/qa/browser-probe-issue-1376.cjs --expect-fixed
 else
-  skip "live deployment/browser replay" "${VERIFY_ISSUE_1376_SKIP_LIVE_REASON:-new versions have not been deployed; follow docs/qa/issue-1376/README.md}"
+  skip "live deployment/browser replay" "${VERIFY_ISSUE_1376_SKIP_LIVE_REASON:-live probes not selected in this invocation; set VERIFY_ISSUE_1376_LIVE=1 and follow docs/qa/issue-1376/README.md}"
 fi
 if [[ -n "${VERIFY_ISSUE_1376_CHAIN_COMMAND:-}" ]]; then
   run "LocalTerra execution" bash -c "$VERIFY_ISSUE_1376_CHAIN_COMMAND"

@@ -93,3 +93,16 @@ wrapper's `--list` prints names only; it does not reveal values. See the
 - Pair migration and observation storage: [`contract.rs`](../../smartcontracts/contracts/pair/src/contract.rs), [`state.rs`](../../smartcontracts/contracts/pair/src/state.rs), and [`upgrade-1324-pair-twap.sh`](../../scripts/upgrade-1324-pair-twap.sh).
 - Indexer production wire: [`evidence.rs`](../../indexer/src/api/evidence.rs), [`pairs.rs`](../../indexer/src/api/pairs.rs), and [candle migration `20260922120000`](../../indexer/migrations/20260922120000_candle_usd_leg_1315.up.sql).
 - dApp chart mapping: [`AGENTS_FRONTEND_PRICE_CHART.md`](../../skills/AGENTS_FRONTEND_PRICE_CHART.md) and [ADR 0012](../adr/0012-alpha-pair-price-candles.md).
+
+## Receive reverse-query successor (#1376)
+
+The completed 1.18.0 TWAP rollout is historical evidence and remains closed.
+[#1376](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1376) /
+[PR #1378](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1378) adds
+the 1.19.0 reverse-budget repair with unchanged storage. The two Coolify
+services deploying `3f93106` does not migrate any pair. See the
+[live inventory/waiver](../qa/issue-1376/live-verification.md),
+[optional checksum-pinned command](../../scripts/qa/complete-issue-1376.sh),
+and [third-party agent protocol](../../skills/AGENTS_SWAP_EXACT_OUTPUT.md).
+The command explicitly selects 1.19.0; do not reuse the older script default
+or downgrade TWAP cumulatives.
