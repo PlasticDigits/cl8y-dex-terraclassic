@@ -30,11 +30,13 @@ shopt -s inherit_errexit
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/custc-ust1-buyback-defaults.sh
 source "$SCRIPT_DIR/lib/custc-ust1-buyback-defaults.sh"
+# Use an independent Columbus-5 RPC for this buyback. Set before the shared
+# helper initializes its general default; explicit operator overrides win.
+TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://rpc.terra-classic.hexxagon.io:443}"
 # shellcheck source=lib/terrad-host.sh
 source "$SCRIPT_DIR/lib/terrad-host.sh"
 
 TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
-TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:443}"
 # Hybrid solver hops can sim low vs execute; 1.6 matches this workload better than 1.4.
 TERRAD_HOST_GAS_ADJUSTMENT="${TERRAD_HOST_GAS_ADJUSTMENT:-1.6}"
 
@@ -271,7 +273,7 @@ broadcast_msig() {
   sig2="$workdir/sig2.json"
   signed="$workdir/signed.json"
   # shellcheck disable=SC2046
-  terrad_host_exec tx wasm execute "$contract" "$msg" \
+  terrad_host_exec_retry tx wasm execute "$contract" "$msg" \
     --from "$MSIG_KEY" \
     --generate-only \
     $(terrad_host_common_flags) \
@@ -281,15 +283,15 @@ broadcast_msig() {
   jq -e '.body.messages | length > 0' "$unsigned" >/dev/null \
     || die "unsigned mint tx invalid ($label)"
   # shellcheck disable=SC2046
-  terrad_host_exec tx sign "$unsigned" \
+  terrad_host_exec_retry tx sign "$unsigned" \
     --from "$SIGNER1" --multisig "$MSIG_KEY" --sign-mode amino-json \
     $(terrad_host_common_flags) --output json >"$sig1"
   # shellcheck disable=SC2046
-  terrad_host_exec tx sign "$unsigned" \
+  terrad_host_exec_retry tx sign "$unsigned" \
     --from "$SIGNER2" --multisig "$MSIG_KEY" --sign-mode amino-json \
     $(terrad_host_common_flags) --output json >"$sig2"
   # shellcheck disable=SC2046
-  terrad_host_exec tx multisign "$unsigned" "$MSIG_KEY" "$sig1" "$sig2" \
+  terrad_host_exec_retry tx multisign "$unsigned" "$MSIG_KEY" "$sig1" "$sig2" \
     $(terrad_host_common_flags) --output json >"$signed"
   # shellcheck disable=SC2046
   out="$(terrad_host_exec tx broadcast "$signed" \
@@ -371,6 +373,7 @@ print_header() {
   echo "cUSTC → UST1 best-solver buyback"
   echo "=============================================="
   echo "Router:     $ROUTER"
+  echo "RPC:        $TERRAD_HOST_NODE"
   echo "Treasury:   $TREASURY"
   echo "Admin key:  $ADMIN_KEY ($ADMIN_ADDR)"
   echo "Multisig:   $MSIG_KEY ($MSIG_ADDR)"

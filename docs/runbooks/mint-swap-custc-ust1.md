@@ -50,6 +50,10 @@ With `CUSTC_UST1_MINT_USD=50`, each tick spends **$40–$60 of cUSTC input**. Th
 
 Requires Bash **4.4+**. Each tick validates the quote's token endpoints and builds the router hook **before minting**. HTTP failures, empty or invalid quotes, and hook-build failures abort that tick without minting. A failed single-tick preview exits nonzero; loop mode sleeps and retries.
 
+The buyback RPC defaults to **`https://rpc.terra-classic.hexxagon.io:443`**, an independent Columbus-5 endpoint in the [Cosmos chain registry](https://github.com/cosmos/chain-registry/blob/master/terra/chain.json). This script sets its default before loading the shared host helpers; other operator scripts retain their existing defaults. `TERRAD_HOST_NODE` overrides it, and the header prints the actual RPC in use.
+
+Mint preparation (`--generate-only`, both signer commands, and multisign) retries transient RPC errors such as HTTP 503 up to **six attempts**, waiting **4, 6, 8, 10, and 12 seconds** between attempts. Failed attempts' partial stdout is discarded before writing transaction/signature JSON. Permanent errors fail immediately; exhausted retries fail the tick and enter the usual randomized wait. The multisig broadcast remains a single attempt. Hot-wallet swaps/transfers continue to use the shared transaction retry helper.
+
 State file (swap telemetry): `$HOME/.cl8y-dex/custc-ust1-buyback-state.json`.
 
 ## One command
@@ -95,3 +99,6 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multis
 | `CUSTC_UST1_YES=1` | Skip interactive confirm |
 | `CUSTC_UST1_STATE_FILE` | Swap telemetry JSON |
 | `TERRAD_HOST_GAS_ADJUSTMENT` | Default **1.6** for this script (hybrid hops) |
+| `TERRAD_HOST_NODE` | Buyback RPC override (default Hexxagon above) |
+| `TERRAD_HOST_TX_RETRIES` | Maximum attempts per mint-preparation command (default `6`) |
+| `TERRAD_HOST_TX_RETRY_DELAY_SEC` | Initial short-retry wait, increasing by 2 seconds (default `4`) |
