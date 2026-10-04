@@ -139,7 +139,9 @@ pub fn buy_split_net(raw_out: u128, buy_bps: u16) -> u128 {
     if buy_bps == 0 || raw_out == 0 {
         return raw_out;
     }
-    let tax = raw_out.saturating_mul(u128::from(buy_bps)) / TAX_BPS_DENOM;
+    let bps = u128::from(buy_bps.min(10_000));
+    let tax = (raw_out / TAX_BPS_DENOM) * bps
+        + (raw_out % TAX_BPS_DENOM) * bps / TAX_BPS_DENOM;
     raw_out.saturating_sub(tax)
 }
 
@@ -328,6 +330,20 @@ pub async fn load_tax_rank_snapshot(
     extra_addrs: &[String],
     trader: Option<&str>,
 ) -> TaxRankSnapshot {
+    try_load_tax_rank_snapshot(state, token_in, token_out, extra_addrs, trader).await
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "community tax catalog lookup failed; ranking without tax layer");
+            TaxRankSnapshot {policy: RouterHopTaxPolicy::from_catalog(&state.community_tax), ..Default::default()}
+        })
+}
+
+pub(crate) async fn try_load_tax_rank_snapshot(
+    state: &AppState,
+    token_in: &str,
+    token_out: &str,
+    extra_addrs: &[String],
+    trader: Option<&str>,
+) -> Result<TaxRankSnapshot, sqlx::Error> {
     let policy = RouterHopTaxPolicy::from_catalog(&state.community_tax);
     let mut addrs = Vec::with_capacity(2 + extra_addrs.len());
     addrs.push(token_in.trim().to_ascii_lowercase());
@@ -341,16 +357,7 @@ pub async fn load_tax_rank_snapshot(
     addrs.sort();
     addrs.dedup();
 
-    let rows = match community_tokens::get_by_addresses(&state.pool, &addrs).await {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "community tax catalog lookup failed; ranking without tax layer");
-            return TaxRankSnapshot {
-                policy,
-                ..Default::default()
-            };
-        }
-    };
+    let rows = community_tokens::get_by_addresses(&state.pool, &addrs).await?;
 
     let mut by_addr = HashMap::new();
     for row in &rows {
@@ -368,13 +375,13 @@ pub async fn load_tax_rank_snapshot(
             resolve_trader_exempt(&state.lcd, &token_in_row, &token_out_row, addr).await;
     }
 
-    TaxRankSnapshot {
+    Ok(TaxRankSnapshot {
         token_in: token_in_row,
         token_out: token_out_row,
         by_addr,
         policy,
         trader_exempt,
-    }
+    })
 }
 
 #[derive(Debug, Deserialize)]

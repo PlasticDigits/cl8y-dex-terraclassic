@@ -17,8 +17,9 @@ import { useWalletStore } from '@/hooks/useWallet'
 import { useDexStore } from '@/stores/dex'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
-import { simulateSwap, swap, getPool, reverseSimulateSwap } from '@/services/terraclassic/pair'
+import { simulateSwap, swap, getPool } from '@/services/terraclassic/pair'
 import { quoteDirectHybridSwap, DIRECT_HYBRID_AMOUNT_RECONCILED_COPY } from '@/utils/directHybridQuote'
+import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
 import { wrapMappedSolvePair } from '@/utils/nativeWrapRouteSolve'
 import {
@@ -33,7 +34,6 @@ import {
   findRoute,
   getAllTokens,
   simulateMultiHopSwap,
-  reverseSimulateMultiHopSwap,
   reverseSimulateNativeSwap,
   executeMultiHopSwap,
   type SwapOperation,
@@ -205,6 +205,7 @@ interface SwapSimData {
   routeSlippagePercent?: string
   spotAmountOut?: string
   indexerQuoteKind?: IndexerRouteQuoteKind
+  indexerPairs?: import('@/types').PairInfo[]
   indexerOperations?: SwapOperation[]
   indexerIntermediateTokens?: string[]
   /** Per-hop pair simulations for router/indexer/native multihop quotes (router sim omits spread). See `docs/swap-max-spread-ux.md` (GitLab #134). */
@@ -483,7 +484,9 @@ export default function SwapPage() {
     setSearchParams(canonical, { replace: true })
   }, [allTokens, fromToken, toToken, debouncedInputAmount, exactField, searchParams, setSearchParams])
 
-  const needsWrapCheck = isWrapOrUnwrap ? wrapUnwrapType === 'wrap' : (nativeRouteInfo?.needsWrapInput ?? false)
+  const needsWrapCheck = isWrapOrUnwrap
+    ? wrapUnwrapType === 'wrap'
+    : nativeRouteInfo?.needsWrapInput || wrapSolvePair?.needsWrapInput || false
   const wrapDenom = needsWrapCheck ? (isNativeDenom(fromToken) ? fromToken : null) : null
 
   /** Denom for wrap-mapper rate_limit query (wrap input, unwrap output, or wrapped CW20's native). */
@@ -555,7 +558,11 @@ export default function SwapPage() {
 
   const wrapMapperActive =
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
-    (needsWrapCheck || (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') || (nativeRouteInfo?.needsUnwrapOutput ?? false))
+    (needsWrapCheck ||
+      (isWrapOrUnwrap && wrapUnwrapType === 'unwrap') ||
+      nativeRouteInfo?.needsUnwrapOutput ||
+      wrapSolvePair?.needsUnwrapOutput ||
+      false)
 
   const showWrapRateLimitStatus =
     !!WRAP_MAPPER_CONTRACT_ADDRESS &&
@@ -573,7 +580,7 @@ export default function SwapPage() {
   const unwrapBurnTaxDenom =
     wrapUnwrapType === 'unwrap' && isNativeDenom(toToken)
       ? toToken
-      : nativeRouteInfo?.needsUnwrapOutput && isNativeDenom(toToken)
+      : (nativeRouteInfo?.needsUnwrapOutput || wrapSolvePair?.needsUnwrapOutput) && isNativeDenom(toToken)
         ? toToken
         : null
 
@@ -594,63 +601,89 @@ export default function SwapPage() {
   const wrapMapperConfig = wrapMapperConfigQuery.data ?? null
   const wrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'wrap')
   const unwrapFeeBps = wrapMapperFeeBps(wrapMapperConfig, 'unwrap')
-  // Reverse quotes only use client-known operations; GET /route/solve stays offer-in (#1256).
-  const directCw20Reverse = !!directPair && isDirect && fromToken.startsWith('terra1') && toToken.startsWith('terra1')
-  const canReverseQuote = isWrapOrUnwrap || !!nativeRouteInfo?.operations.length || directCw20Reverse || !!route?.length
-  // The draft field owns direction immediately, including clearing/debounce. Never interpret an ask as pay.
-  const reverseQuoteActive = exactField === 'output' && canReverseQuote
-  useEffect(() => {
-    // A client route is required for receive sizing; indexer-only links stay pay-sided silently.
-    if (pairsQuery.isSuccess && fromToken && toToken && exactField === 'output' && !canReverseQuote) {
-      setExactField('input')
-    }
-  }, [pairsQuery.isSuccess, fromToken, toToken, exactField, canReverseQuote])
+  // Output intent stays output-sided even when only the server graph has a route (#1376).
+  const canReverseQuote = hasRoute
+  const reverseQuoteActive = exactField === 'output' && !!fromToken && !!toToken
   const reverseAskRaw =
     reverseQuoteActive && receiveDecimals != null && isPositiveDecimalAmount(debouncedInputAmount)
       ? toRawAmount(debouncedInputAmount, receiveDecimals)
       : '0'
 
+  const reverseQueryKey = [
+    'reverseSimulation',
+    fromToken,
+    toToken,
+    directPair?.contract_addr,
+    reverseAskRaw,
+    receiveDecimals,
+    JSON.stringify(route),
+    JSON.stringify(nativeRouteInfo),
+    wrapUnwrapType,
+    wrapFeeBps,
+    unwrapFeeBps,
+    wrapMapperConfigQuery.dataUpdatedAt,
+    wrapMapperConfigQuery.isFetched,
+    taxReceive.buyBps,
+    address,
+    slippageTolerance,
+    debouncedHybridMaxMakers,
+    debouncedBookInputHuman,
+    unwrapBurnTaxQuery.dataUpdatedAt,
+  ] as const
   const reverseQuery = useQuery({
-    queryKey: [
-      'reverseSimulation',
-      fromToken,
-      toToken,
-      directPair?.contract_addr,
-      reverseAskRaw,
-      receiveDecimals,
-      JSON.stringify(route),
-      JSON.stringify(nativeRouteInfo),
-      wrapUnwrapType,
-      wrapFeeBps,
-      unwrapFeeBps,
-      taxReceive.buyBps,
-      address,
-    ],
-    queryFn: async () => {
+    queryKey: reverseQueryKey,
+    queryFn: async ({ signal }): Promise<{ offerAmount: string; quote?: SwapSimData }> => {
+      if (!canReverseQuote) throw new Error('No eligible receive route found')
+      if ((isWrapOrUnwrap || wrapSolvePair) && wrapMapperConfig == null) {
+        throw new Error('Wrap fee configuration is unavailable. Retry the quote.')
+      }
+      if (debouncedBookInputHuman && isPositiveDecimalAmount(debouncedBookInputHuman)) {
+        throw new Error('Clear the manual book leg before sizing a receive target')
+      }
+      if (!isWrapOrUnwrap) {
+        const result = await quoteSwapReceiveViaSolver({
+          fromToken,
+          toToken,
+          targetRaw: reverseAskRaw,
+          maxMakerFills: debouncedHybridMaxMakers,
+          slippageTolerancePercent: slippageTolerance,
+          maxSpreadStr: (slippageTolerance / 100).toString(),
+          quoteTrader: address ? { trader: address } : undefined,
+          signal,
+        })
+        return { offerAmount: result.offerAmount, quote: result }
+      }
       const askRaw = grossBuyTaxForTargetNet(reverseAskRaw, taxReceive.buyBps)
-      if (isWrapOrUnwrap || nativeRouteInfo) {
-        return (
-          await reverseSimulateNativeSwap(askRaw, fromToken, toToken, pairs, address ? { trader: address } : undefined)
-        ).amount
-      }
-      if (directCw20Reverse && directPair && receiveAssetInfo) {
-        return (await reverseSimulateSwap(directPair.contract_addr, receiveAssetInfo, askRaw)).offer_amount
-      }
-      if (route?.length)
-        return (await reverseSimulateMultiHopSwap(askRaw, route, address ? { trader: address } : undefined)).amount
-      throw new Error('No client reverse route')
+      const result = await reverseSimulateNativeSwap(
+        askRaw,
+        fromToken,
+        toToken,
+        pairs,
+        address ? { trader: address } : undefined
+      )
+      return { offerAmount: result.amount }
     },
+    // Deterministic liquidity/arithmetic failures never auto-retry or interval-refetch.
+    retry: false,
+    refetchOnWindowFocus: false,
     enabled:
       decimalsResolved &&
       reverseQuoteActive &&
       reverseAskRaw !== '0' &&
       !taxReceive.isLoading &&
-      (!(isWrapOrUnwrap || nativeRouteInfo) || wrapMapperConfig != null),
+      (!(isWrapOrUnwrap || wrapSolvePair) || wrapMapperConfig != null || wrapMapperConfigQuery.isFetched),
     // Prior-key offers are unsafe when the receive draft or route changes.
-    refetchInterval: simQuoteRefetchInterval,
+    refetchInterval: (query) => (query.state.status === 'error' ? false : simQuoteRefetchInterval(query)),
   })
 
-  const reverseOfferRaw = reverseQuery.isError ? null : (reverseQuery.data ?? null)
+  const reverseRetry = useQueryManualRetry(reverseQueryKey, reverseQuery)
+  const receiveTargetBelowPrecision =
+    reverseQuoteActive &&
+    receiveDecimals != null &&
+    isPositiveDecimalAmount(inputAmount) &&
+    toRawAmount(inputAmount, receiveDecimals) === '0'
+  const receiveDecimalsUnavailable = reverseQuoteActive && !decimalsResolved && !decimalsPending
+  const reverseOfferRaw = reverseQuery.isError ? null : (reverseQuery.data?.offerAmount ?? null)
   const reverseQuoteReady =
     reverseQuoteActive &&
     inputAmount === debouncedInputAmount &&
@@ -658,7 +691,7 @@ export default function SwapPage() {
     !!reverseOfferRaw &&
     isPositiveRawAmount(reverseOfferRaw) &&
     !taxReceive.isLoading &&
-    (!(isWrapOrUnwrap || nativeRouteInfo) || wrapMapperConfig != null) &&
+    (!(isWrapOrUnwrap || wrapSolvePair) || wrapMapperConfig != null) &&
     !reverseQuery.isFetching
   const rawInputAmount = reverseQuoteActive ? (reverseQuoteReady ? reverseOfferRaw : '0') : typedPayRaw
   const debouncedRawInputAmount = reverseQuoteActive
@@ -711,6 +744,7 @@ export default function SwapPage() {
     () =>
       [
         'simulation',
+        reverseQuoteActive ? reverseQuery.dataUpdatedAt : null,
         fromToken,
         toToken,
         debouncedRawInputAmount,
@@ -729,6 +763,8 @@ export default function SwapPage() {
         taxReceive.buyBps ?? null,
       ] as const,
     [
+      reverseQuoteActive,
+      reverseQuery.dataUpdatedAt,
       fromToken,
       toToken,
       debouncedRawInputAmount,
@@ -757,6 +793,7 @@ export default function SwapPage() {
       if (!isPositiveDecimalAmount(debouncedInputAmount)) throw new Error('Missing params')
 
       const simRaw = debouncedRawInputAmount
+      if (reverseQuoteActive && reverseQuery.data?.quote) return reverseQuery.data.quote
       const maxSpreadStr = (slippageTolerance / 100).toString()
       let indexerTransportFailed = false
 
@@ -993,8 +1030,8 @@ export default function SwapPage() {
       isPositiveDecimalAmount(debouncedInputAmount) &&
       debouncedRawInputAmount !== '0' &&
       (!reverseQuoteActive || reverseQuoteReady),
-    // Skip interval while fetching so slow multi-hop quotes are not cancel/restarted (#484).
-    refetchInterval: simQuoteRefetchInterval,
+    // Receive refresh belongs to reverseQuery so offer and operations refresh together.
+    refetchInterval: reverseQuoteActive ? false : simQuoteRefetchInterval,
   })
 
   const simRetry = useQueryManualRetry(simQueryKey, simQuery)
@@ -1084,7 +1121,7 @@ export default function SwapPage() {
   } = useSubmitAlignedSimQuote({
     rawInputAmount,
     debouncedRawInputAmount,
-    simQuery,
+    simQuery: reverseQuoteActive && !reverseQuoteReady ? { ...simQuery, data: undefined } : simQuery,
     slippageTolerance,
     hybrid: {
       enabled: true,
@@ -1159,13 +1196,13 @@ export default function SwapPage() {
 
     const pairAddresses = resolveSwapRoutePairAddresses({
       routeOps,
-      pairs,
+      pairs: [...(simData?.indexerPairs ?? []), ...pairs],
       directPair,
       fromToken,
       toToken,
     })
     return { tokens: [...tokens], pairAddresses }
-  }, [route, nativeRouteInfo, simData?.indexerOperations, directPair, pairs, fromToken, toToken])
+  }, [route, nativeRouteInfo, simData?.indexerOperations, simData?.indexerPairs, directPair, pairs, fromToken, toToken])
 
   const tradingBlacklist = useTradingBlacklist({
     wallet: address,
@@ -1205,7 +1242,14 @@ export default function SwapPage() {
         assertSubmitHybridAligned(hybridStaleLive, snapshottedHybrid)
       }
       if (reverseQuoteActive && !reverseQuoteReady) throw new Error('Quote unavailable')
+      if (simQuoteStale || simQuery.isPlaceholderData || simQuery.isFetching || simQuery.isError) {
+        throw new Error('Quote unavailable')
+      }
       if (!simData) throw new Error('Quote unavailable')
+      if (routeSlippageBlocked) throw new Error('Slippage is too high')
+      if (simData.routePreflight?.anyHopExceedsMaxSpread) {
+        throw new Error('Hop spread exceeds slippage protection')
+      }
       const payRaw = submitPayRaw
       // Display min uses post-tax `return_amount`; router R3 checks post-fee pre-tax (#512).
       const submitMinReceived =
@@ -1251,9 +1295,10 @@ export default function SwapPage() {
         )
       }
 
-      if (!route) throw new Error('No route found')
+      const selectedDirectPair = idxOps?.length === 1 ? (simData.indexerPairs?.[0] ?? directPair) : directPair
+      if (!route && !selectedDirectPair) throw new Error('No route found')
 
-      if (isDirect && directPair) {
+      if ((isDirect || idxOps?.length === 1) && selectedDirectPair) {
         let hybrid: HybridSwapParams | undefined = hybridFromSingleHopIndexerOps(idxOps)
         if (!hybrid && submitDirectHybrid) {
           hybrid = submitDirectHybrid
@@ -1264,7 +1309,7 @@ export default function SwapPage() {
         const directMinReturn =
           hybrid && BigInt(hybrid.book_input) > 0n
             ? await computeDirectHybridMinReturn(
-                directPair.contract_addr,
+                selectedDirectPair.contract_addr,
                 tokenAssetInfo(fromToken),
                 payRaw,
                 hybrid,
@@ -1274,7 +1319,7 @@ export default function SwapPage() {
             : reverseQuoteActive
               ? (submitMinReceived ?? undefined)
               : undefined
-        return swap(address, fromToken, directPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
+        return swap(address, fromToken, selectedDirectPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
           hybrid,
           minReturn: directMinReturn,
           deadline,
@@ -1544,7 +1589,11 @@ export default function SwapPage() {
     buttonText = swapGasGate.userMessage ?? 'Need LUNC for network fee'
     buttonDisabled = true
   } else if (reverseQuoteActive && !reverseQuoteReady) {
-    buttonText = reverseQuery.isError ? 'Quote unavailable' : 'Calculating...'
+    buttonText = receiveTargetBelowPrecision
+      ? 'Increase receive amount'
+      : reverseQuery.isError || receiveDecimalsUnavailable
+        ? 'Quote unavailable'
+        : 'Calculating...'
     buttonDisabled = true
   } else if (simQuoteUnavailable) {
     buttonText = 'Quote unavailable'
@@ -1614,7 +1663,13 @@ export default function SwapPage() {
       ? fromRawAmount(outputAmount, receiveDecimals)
       : ''
   const receiveInputValue = reverseQuoteActive ? inputAmount : quotedReceiveHuman
-  const showReversePayCalculating = reverseQuoteActive && !reverseQuoteReady && isPositiveDecimalAmount(inputAmount)
+  const showReversePayCalculating =
+    reverseQuoteActive &&
+    !reverseQuoteReady &&
+    !reverseQuery.isError &&
+    !receiveTargetBelowPrecision &&
+    !receiveDecimalsUnavailable &&
+    isPositiveDecimalAmount(inputAmount)
 
   const applyTypedAmount = (value: string, field: 'input' | 'output') => {
     if (value.length <= 24 && (value === '' || /^\d*\.?\d*$/.test(value))) {
@@ -1719,6 +1774,32 @@ export default function SwapPage() {
           )}
 
           {showFeeDiscountRegistryWarning && <FeeDiscountRegistryWarning testId="swap-fee-discount-registry-warning" />}
+
+          {receiveTargetBelowPrecision && (
+            <p role="alert" className="alert-error text-xs mb-4" data-testid="swap-receive-amount-error">
+              Receive target is below token precision. Increase the receive amount.
+            </p>
+          )}
+
+          {reverseQuoteActive && (reverseQuery.isError || receiveDecimalsUnavailable) && hasPositiveInputAmount && (
+            <RetryError
+              data-testid="swap-receive-quote-retry-error"
+              message={
+                receiveDecimalsUnavailable
+                  ? 'Token decimals are unavailable. Retry token metadata to size this receive target.'
+                  : humanizeUserFacingErrorFromUnknown(reverseQuery.error)
+              }
+              isRetrying={reverseRetry.isRetrying}
+              onRetry={() => {
+                if (receiveDecimalsUnavailable) {
+                  void queryClient.invalidateQueries({ queryKey: ['cw20-token-info-decimals'] })
+                  void queryClient.invalidateQueries({ queryKey: ['indexer-tokens-list'] })
+                } else if ((isWrapOrUnwrap || wrapSolvePair) && wrapMapperConfig == null)
+                  void wrapMapperConfigQuery.refetch()
+                else reverseRetry.retry()
+              }}
+            />
+          )}
 
           {showSimRetryError && (
             <RetryError

@@ -26,7 +26,7 @@ const FACTORY_VERSION: &str = "1.10.0";
 const FACTORY_PRIOR_VERSION: &str = "1.8.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
-const PAIR_VERSION: &str = "1.18.0";
+const PAIR_VERSION: &str = "1.19.0";
 const PAIR_PRIOR_VERSION: &str = "1.16.0";
 
 const FEE_DISCOUNT_NAME: &str = "crates.io:cl8y-dex-fee-discount";
@@ -714,4 +714,38 @@ fn pair_migration_checks_version() {
         err_msg.contains("newer") || err_msg.contains("99.0.0"),
         "Expected downgrade rejection error, got: {err_msg}"
     );
+}
+
+/// #1376 migration from the immediately preceding deployed-compatible version
+/// preserves reserves, discount configuration, LP administration and FIFO escrow.
+#[test]
+fn issue1376_pair_118_to_119_migration_preserves_state() {
+    let mut app = App::default();
+    let env = setup_migration_env(&mut app);
+    let before = snapshot_pair(&app, &env);
+    downgrade_cw2_version(&mut app, &env.pair, PAIR_NAME, "1.18.0");
+    app.migrate_contract(
+        env.governance.clone(),
+        env.pair.clone(),
+        &cl8y_dex_pair::msg::MigrateMsg {},
+        env.pair_code_id,
+    )
+    .unwrap();
+    assert_eq!(
+        get_contract_version(&*app.contract_storage(&env.pair))
+            .unwrap()
+            .version,
+        "1.19.0"
+    );
+    assert_eq!(snapshot_pair(&app, &env), before);
+    // The existing cw2 guard rejects downgrades (equal-version migrations are idempotent).
+    downgrade_cw2_version(&mut app, &env.pair, PAIR_NAME, "2.0.0");
+    assert!(app
+        .migrate_contract(
+            env.governance.clone(),
+            env.pair.clone(),
+            &cl8y_dex_pair::msg::MigrateMsg {},
+            env.pair_code_id,
+        )
+        .is_err());
 }

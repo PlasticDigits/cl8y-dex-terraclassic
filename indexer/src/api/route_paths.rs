@@ -94,11 +94,28 @@ pub(crate) fn find_paths_top_k_instrumented(
     max_hops: usize,
     max_paths: usize,
 ) -> (Vec<Vec<PathHop>>, u64) {
+    let (paths, expansions, _) = find_paths_bounded(start, goal, pair_rows, max_hops, max_paths, u64::MAX);
+    (paths, expansions)
+}
+
+/// Exact-output callers cap edge visits so a cancelled spawn_blocking task has bounded work.
+pub(crate) fn find_paths_top_k_with_work_budget(
+    start: i32, goal: i32, pair_rows: &[db_pairs::PairRow], max_hops: usize,
+    max_paths: usize, max_work: u64,
+) -> (Vec<Vec<PathHop>>, bool) {
+    let (paths, _, truncated) = find_paths_bounded(start, goal, pair_rows, max_hops, max_paths, max_work);
+    (paths, truncated)
+}
+
+fn find_paths_bounded(
+    start: i32, goal: i32, pair_rows: &[db_pairs::PairRow], max_hops: usize,
+    max_paths: usize, max_work: u64,
+) -> (Vec<Vec<PathHop>>, u64, bool) {
     if start == goal {
-        return (vec![vec![]], 0);
+        return (vec![vec![]], 0, false);
     }
     if max_paths == 0 || max_hops == 0 {
-        return (Vec::new(), 0);
+        return (Vec::new(), 0, false);
     }
 
     let adj = build_adjacency(pair_rows);
@@ -110,11 +127,12 @@ pub(crate) fn find_paths_top_k_instrumented(
     let dist = hop_distance_to_goal(goal, &adj, max_hops);
     let min_depth = match dist.get(&start) {
         Some(d) if *d <= max_hops => *d,
-        _ => return (Vec::new(), 0),
+        _ => return (Vec::new(), 0, false),
     };
 
     let mut found: Vec<Vec<PathHop>> = Vec::new();
     let mut expansions: u64 = 0;
+    let mut work_left = max_work;
 
     // Enumerate simple paths of *exactly* `depth` edges from `u` to `goal`, pruning any neighbour
     // that cannot itself reach the goal within the edges that remain. Collecting at a fixed depth
@@ -131,7 +149,9 @@ pub(crate) fn find_paths_top_k_instrumented(
         visited: &mut Vec<i32>,
         found: &mut Vec<Vec<PathHop>>,
         expansions: &mut u64,
+        work_left: &mut u64,
     ) {
+        if *work_left == 0 { return; }
         *expansions += 1;
         if found.len() >= max_paths {
             return;
@@ -145,6 +165,8 @@ pub(crate) fn find_paths_top_k_instrumented(
         // Edges left after stepping to a neighbour, for a route of exactly `depth` edges.
         let remaining = depth - path.len() - 1;
         for (v, pair) in adj.get(&u).into_iter().flatten() {
+            if *work_left == 0 { return; }
+            *work_left -= 1;
             if *v == goal {
                 // The goal is valid only as the final edge of this depth; reaching it earlier is a
                 // shorter route, already enumerated in a previous (shallower) pass.
@@ -165,7 +187,7 @@ pub(crate) fn find_paths_top_k_instrumented(
             visited.push(*v);
             path.push((pair.clone(), u, *v));
             dfs_exact(
-                *v, goal, depth, max_paths, adj, dist, path, visited, found, expansions,
+                *v, goal, depth, max_paths, adj, dist, path, visited, found, expansions, work_left,
             );
             path.pop();
             visited.pop();
@@ -184,7 +206,7 @@ pub(crate) fn find_paths_top_k_instrumented(
     // one, is never crowded out by longer alternatives (GitLab #286). `dfs_exact` leaves `path`
     // empty and `visited` reset to just `start` between passes, so the buffers are reused safely.
     for depth in min_depth..=max_hops {
-        if found.len() >= max_paths {
+        if found.len() >= max_paths || work_left == 0 {
             break;
         }
         dfs_exact(
@@ -198,6 +220,7 @@ pub(crate) fn find_paths_top_k_instrumented(
             &mut visited,
             &mut found,
             &mut expansions,
+            &mut work_left,
         );
     }
 
@@ -209,7 +232,7 @@ pub(crate) fn find_paths_top_k_instrumented(
             .then_with(|| cmp_path_pair_addresses(a, b))
     });
     found.truncate(max_paths);
-    (found, expansions)
+    (found, expansions, work_left == 0)
 }
 
 fn cmp_path_pair_addresses(left: &[PathHop], right: &[PathHop]) -> Ordering {
@@ -246,6 +269,16 @@ mod tests {
             created_at: t,
             updated_at: t,
         }
+    }
+
+    #[test]
+    fn route_exact_output_path_enumeration_has_explicit_work_budget() {
+        let rows = vec![mk_pair(1, 0, 1), mk_pair(2, 1, 2), mk_pair(3, 0, 2)];
+        let (_, truncated) = find_paths_top_k_with_work_budget(0, 2, &rows, 4, 32, 1);
+        assert!(truncated);
+        let (paths, truncated) = find_paths_top_k_with_work_budget(0, 2, &rows, 4, 32, 100);
+        assert!(!truncated);
+        assert_eq!(paths.len(), 2);
     }
 
     /// Reference enumeration WITHOUT the reachability gate (mirrors the pre-#286 DFS): bounds depth

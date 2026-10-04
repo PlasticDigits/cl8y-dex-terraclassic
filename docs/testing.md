@@ -702,3 +702,7 @@ The reference workflow [`.github/workflows/test.yml`](../.github/workflows/test.
 - Place E2E tests in `frontend-dapp/e2e/`
 - Use `renderWithProviders()` from `src/test/helpers.tsx` for component tests
 - Use the dev-wallet fixture from `e2e/fixtures/dev-wallet.ts` for E2E tests
+
+### Receive sizing #1376
+
+Run `make verify-issue-1376` for pair integer/call-budget fixtures, exact-output solver/API tests, receive UI/services/browser coverage, and docs/type/lint checks. [Agent checklist and evidence](qa/issue-1376/README.md), [third-party agent protocol](../skills/AGENTS_SWAP_EXACT_OUTPUT.md), [legacy receive playbook](../skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md). Record unavailable checks separately; PASS with explicit skips does not assert skipped execution or deployed versions.

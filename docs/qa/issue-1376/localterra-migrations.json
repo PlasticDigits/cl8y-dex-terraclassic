@@ -1,0 +1,268 @@
+{
+  "chain_id": "localterra",
+  "pair_code_id": "54",
+  "version": "1.19.0",
+  "pairs": [
+    {
+      "pair": "terra1y7uf7chf0lhv7jtu2c9ggdjth4qmfkqcd836smc3d9fgrcznakfs9rfxut",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "17C6EC8DAEFE35F637FD3F3E8C9E4C017E186253C38D83F76837E461B8A8033C",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1pfqg88nf2mwrry5f9tjkxusc508s938pxqc6s4unfkccmedxmqpswd2akh",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "97D69B9C94879C08DC300B363ABC01F26829BC18C5578DF684B1A5C5FC01B325",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1pf90vpxaz9l02ccs7qk3q8ma809h05wlwr8gyhfy6ppxm2g0f3cqmu3378",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "48694FFC620E4775E66B56E7B67A16CF27340AABD5EB1BEDA127817B62B766E5",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1ey2wl7udf7pw370k2ep9yl8su54yyc8jrwamksan8w7stmukzwmqkjrgqs",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "D7FFBE203DC240CD549F26E59433C5FF1E9B11D63B4B6C759BA136882DBC17FD",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1wa46jhqcdhzn5hu8vauz4zsukeq30qjsmc2jmuxrxgvcn6m20qzq5p78ju",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "678BB6C7096BCE93583D7CB51B9023CDD20C0668C98F630AD0B2C8C6F729CD05",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1tlpae4yg4glnj25sq27xuhrll7xpa7ug3a8dzjddlgkqy7kjl3fqcm0qfl",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "37EA1A14C45FD074EF8113E5A70F6300FBD4096D56F6B8DE7AE96BD85F476BCF",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1wu9q8fxa058syk0xk4uf5vxgm49nju7530tplctsftctgexqrdnsmt2mp5",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "BE2DF28905346B64A6091B328F3D8F45F1ED3DC9035170CD7B3E01DD585C7A93",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1pft9ey4tjyfr86r90f0j5774809lkq37vearpdv42zp2e39ypj5qz9eeap",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "553B36E3806122601D80AF5D8F0394AE1214A3A2B4425ECA9FE184424C8463CF",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1nkceq8q9dxnm8tumclm7dxnc6375p8yptg42qgxf5usd0n6trhvsfmqppw",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "3BC9174DBC00F67784E904652807DE62C646DBDFEFE1D69609F8E60BEE7579C5",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1aj3h6xzj58llyazyev4cuxz5eraz5lpf7z9qyr25taf8u3wrr0sq7a5u77",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "9BD55994641CDEDCC5DC1C95BB062F66A841CF41BFA98F92314FA26FB6ECF30B",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1fy4tp8mck47ejeg9qkrgru4wu66ag3zzcr9wxszptyrgr6z4r9nsx3rxx6",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "D83E9B24208F39856961764F85125AF0DAE160E164D3028CF8C5461DBF234226",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1sq22r9p2g3st8kt84cmujpjnss3xw0kdm5jp6dw5cudpt0ydmqespdts5p",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "A1AF0C19BB0A19C3BC859439D8D44C580D20F457FFAED1D6CECD4951030C1B2E",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1t059dwtuhpl5y72atd4xsxyq56dnuueh46puml6w8rfamwx0ymcqjr25ps",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "5D6E45F41F8C7ED04FDF7EFB2B2B59A17D3EC448FE40C6182516E168D74330FB",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1520mkjwwda7mtvf5wkztyjup2hh4ws26zdhqg0sg86wnxjms5h5se24rmv",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "975DD65DE649AD3FCEA3D720BC67D37BCA454346429A685D8D85D31DD32845B1",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1yf5raw99pte9wvp459pzu0sesg7jmjrxeaddtya0acepyxfqkrzss7l5kk",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "4EEFA520E78B2A4C772B4899D708A25D887D5BCD6FFED247DD10743D6C532160",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1ss47p95d9cw5gk8h7mt0kzmr4zhn837pcea7rauthcxj5dvc5fpqqzaejn",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "07676AC3D233CDE54E75AA1A5539D13B14D04C17FED63C6D9956AB99143B3576",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1vrrhx3m9rz494f6gchfp2nh8gwn2mf77xhclud3e0mn3rreme44q45tfn9",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "39B9C894F0C209C0D7D46EE157453761F7B143E15810302DBE88CE9D545817B4",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1lzrzrlu8qhza30cpu266gqzzfz8l8ulfetmeyghfaqq885492jws5l5x56",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "7026AAD8BE5EE4161AE6023FCDA7439EAE62F52335176158D43150C8821B8260",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra16swzqdqmeudtzm2mg8vegvk7zqtedgkt4c98r3x2p4cp6lsugypszfsczk",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "F81F43C3ADC96EE5CCDF079D5021524F08360DAB82ACCB3222C9C4F0BC8CCB6E",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1vvg2dqr2anwvfw89ny0cgarpcwgq3es4qrhty8ns9e5j8aspunwq72egjh",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "CEC8090A7509424E23966D7479F17D3C9DC429AC7FDF5F98E6684DBE72C2BDD6",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1hq07c3jzpv6gya0ml0dpu06fmej7mq2la4mxwpc39y38kzevqmdsuyuthz",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "90C9C194AE8B7987D4E22A26D00DA0693634D8E5CC2AB4E7754352B55B320383",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra14hur74k30an0jpnh87u3fv5fn3sm7ea7kakz0da4n06xw2cz2pgqwql6t8",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "C532543F636CA0E0A38E24C4BC6643B6D2339E8AC6EDC001706FF33B07FE0D02",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra1chwqhma6wdd59umsq9yj0j9e5uk5skygpzj6m84teq39qafveyxq4z8fhc",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "771134FF82915DE3B3D91D1F61CE295F63E78E363CBB2B7E6BA4BCC348A45670",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra14llxd4vqq6s6tr4g8wwt3celp8ylvy0p3swdpfjfk058tlfk5gus5xhvas",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "F555F320CF2F9DB4F20FFAC17B39DE2D75AD8771141270380C9EDB296F7CC07B",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra163938pzg9u5084h00fw46zreneusz5df4f9tuy5ptejzke5f4xnstmsvjj",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "BDC9A7BAF32B1FBE20C3C76424572B64CF2CF8860ACF49C42EE0A94B136F75A8",
+      "pool_state_preserved": true
+    },
+    {
+      "pair": "terra19eudcj08vfkrffd29z6fdv5p9ws5p6ls2zv5qady5squs34ywtys0kvdn9",
+      "code_id": "54",
+      "cw2": {
+        "contract": "cl8y-dex-pair",
+        "version": "1.19.0"
+      },
+      "txhash": "584F689EE18ED5BD8278BFB31D8C2A25B4148308007D6BDA7C2E19AC5F5B66CF",
+      "pool_state_preserved": true
+    }
+  ],
+  "artifact_sha256": "4ad54cd3b9a5ff3d28b80bfec21800b39fee97ca9295bb524353db7590005bba"
+}

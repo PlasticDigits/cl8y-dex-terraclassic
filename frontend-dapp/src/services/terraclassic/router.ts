@@ -86,9 +86,13 @@ export async function simulateMultiHopSwap(
   }
   if (quoteTrader?.trader) msg.trader = quoteTrader.trader
   if (quoteTrader?.sender) msg.sender = quoteTrader.sender
-  return queryContract<SimulateResponse>(ROUTER_CONTRACT_ADDRESS, {
-    simulate_swap_operations: msg,
-  })
+  return queryContract<SimulateResponse>(
+    ROUTER_CONTRACT_ADDRESS,
+    {
+      simulate_swap_operations: msg,
+    },
+    ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
+  )
 }
 
 export async function reverseSimulateMultiHopSwap(
@@ -102,9 +106,13 @@ export async function reverseSimulateMultiHopSwap(
   }
   if (quoteTrader?.trader) msg.trader = quoteTrader.trader
   if (quoteTrader?.sender) msg.sender = quoteTrader.sender
-  return queryContract<SimulateResponse>(ROUTER_CONTRACT_ADDRESS, {
-    reverse_simulate_swap_operations: msg,
-  })
+  return queryContract<SimulateResponse>(
+    ROUTER_CONTRACT_ADDRESS,
+    {
+      reverse_simulate_swap_operations: msg,
+    },
+    ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
+  )
 }
 
 export async function executeMultiHopSwap(
@@ -283,7 +291,7 @@ export async function netNativeAfterUnwrap(
 }
 
 /** Invert W9: wallet net → pre-tax native payout → pre-mapper-fee CW20. */
-async function wrappedForNativeReceive(target: bigint, nativeDenom: string): Promise<bigint> {
+export async function wrappedForNativeReceive(target: bigint, nativeDenom: string): Promise<bigint> {
   const params = await fetchNativeTransferTaxParams(nativeDenom)
   const preTax = grossUlunaForTargetNet(target, params)
   return wrapGrossForNetCw20(preTax, await queryWrapMapperFeeBps('unwrap'))

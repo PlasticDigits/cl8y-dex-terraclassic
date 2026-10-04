@@ -9,22 +9,22 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use sqlx::PgPool;
 
-use crate::api::AppState;
 use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
 use crate::api::route_graph;
 use crate::api::route_solve_progress;
+use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
-use crate::hybrid_limits::{MAX_MAKER_FILLS_HARD_CAP, clamp_max_maker_fills};
+use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
 
 pub use hybrid_route_opt::HybridHopJson;
 
@@ -49,6 +49,10 @@ pub struct SolveRouteParams {
     pub token_out: String,
     /// Raw integer offer amount (optional). When set on GET (and `pool_only` is not true), runs **global_v1** best execution: top-5 paths, joint hybrid optimization, max **4 hops**. Required for `/route/solve/best`.
     pub amount_in: Option<String>,
+    /// Exact-output sizing: positive raw NET CW20 target. Mutually exclusive with amount_in.
+    /// Uses bounded fresh pool-only candidates; execution remains offer-in.
+    #[serde(default)]
+    pub amount_out: Option<String>,
     /// Deprecated alias: `hybrid_optimize=false` or `pool_only=true` for pool-only routing.
     #[serde(default)]
     pub hybrid_optimize: Option<bool>,
@@ -77,6 +81,9 @@ pub struct SolveRoutePostBody {
     pub token_out: String,
     /// Raw integer offer amount for optional router `simulate_swap_operations`.
     pub amount_in: Option<String>,
+    /// Exact-output is supported on GET only; providing this on POST is rejected.
+    #[serde(default)]
+    pub amount_out: Option<String>,
     /// Integrator override: one entry per hop after BFS. `null` = pool-only for that hop. Length must equal hop count when present.
     #[serde(default)]
     pub hybrid_by_hop: Option<Vec<Option<HybridHopJson>>>,
@@ -246,6 +253,20 @@ pub struct RouteHop {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RouteSolveResponse {
+    /// Exact-output required raw CW20 offer; absent on offer-in/discovery responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_amount_in: Option<String>,
+    /// Requested raw NET CW20 output; execution remains offer-in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_amount_out: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sizing_mode: Option<String>,
+    /// Oldest selected reserve snapshot age at validation time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot_age_ms: Option<u64>,
+    /// Lowest indexed reserve block among selected hops.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snapshot_block_height: Option<i64>,
     pub token_in: String,
     pub token_out: String,
     /// Ordered swap legs: pair contract plus offer/ask CW20 per hop.
@@ -938,6 +959,15 @@ async fn execute_hybrid_route_solve(
     Ok(Json(json_body))
 }
 
+async fn exact_output_get(
+    state: &AppState,
+    q: &SolveRouteParams,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let target = crate::api::route_exact_output::validate_request(q)?;
+    let trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
+    crate::api::route_exact_output::solve(state, q, target, &trader).await
+}
+
 /// Retail / integrator best-execution route: server-chosen hybrid splits (GitLab #189).
 #[utoipa::path(
     get,
@@ -948,6 +978,10 @@ async fn execute_hybrid_route_solve(
         (status = 400, description = "Missing or invalid amount_in, or unknown token"),
         (status = 404, description = "No route within 4 hops"),
         (status = 502, description = "Hybrid optimization LCD failure (sanitized body)"),
+        (status = 422, description = "Receive target infeasible with fresh supported pool paths"),
+        (status = 429, description = "Exact-output concurrency limit"),
+        (status = 503, description = "Fresh router validation unavailable or rejected"),
+        (status = 504, description = "Exact-output sizing exceeded time budget"),
     ),
     tag = "Routing"
 )]
@@ -955,6 +989,9 @@ pub async fn solve_route_best(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if q.amount_out.is_some() {
+        return exact_output_get(&state, &q).await;
+    }
     let Some(amount_raw) = q
         .amount_in
         .as_ref()
@@ -988,6 +1025,10 @@ pub async fn solve_route_best(
         (status = 200, description = "Route with hops and TerraSwap operations", body = RouteSolveResponse),
         (status = 400, description = "token_in or token_out not found in indexer assets"),
         (status = 404, description = "No route within hop limit"),
+        (status = 422, description = "Receive target infeasible with fresh supported pool paths"),
+        (status = 429, description = "Exact-output concurrency limit"),
+        (status = 503, description = "Fresh router validation unavailable or rejected"),
+        (status = 504, description = "Exact-output sizing exceeded time budget"),
     ),
     tag = "Routing"
 )]
@@ -995,6 +1036,9 @@ pub async fn solve_route(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if q.amount_out.is_some() {
+        return exact_output_get(&state, &q).await;
+    }
     let amount_raw = parse_amount_in(q.amount_in.as_ref());
     let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
 
@@ -1033,6 +1077,11 @@ pub async fn solve_route(
 
     let intermediate_tokens = build_intermediate_tokens(&resolved);
     let mut body = RouteSolveResponse {
+        required_amount_in: None,
+        target_amount_out: None,
+        sizing_mode: None,
+        snapshot_age_ms: None,
+        snapshot_block_height: None,
         token_in: resolved.token_in,
         token_out: resolved.token_out,
         intermediate_tokens,
@@ -1092,6 +1141,12 @@ pub async fn solve_route_post(
     State(state): State<AppState>,
     Json(body): Json<SolveRoutePostBody>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if body.amount_out.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "amount_out is supported on GET only".into(),
+        ));
+    }
     let quote_trader = parse_quote_trader(body.trader.clone(), body.sender.clone())?;
     let resolved = resolve_route(&state.pool, &body.token_in, &body.token_out).await?;
     let intermediate_tokens = build_intermediate_tokens(&resolved);
@@ -1119,6 +1174,11 @@ pub async fn solve_route_post(
     let quote_kind = quote_kind_after_sim(&estimated, base_kind);
 
     let mut out = RouteSolveResponse {
+        required_amount_in: None,
+        target_amount_out: None,
+        sizing_mode: None,
+        snapshot_age_ms: None,
+        snapshot_block_height: None,
         token_in: resolved.token_in,
         token_out: resolved.token_out,
         hops: resolved.hops,
@@ -1206,7 +1266,10 @@ mod discount_bps_cache_tests {
     fn parse_progress_discount_bps_accepts_none_and_cap() {
         assert_eq!(parse_progress_discount_bps(None).unwrap(), None);
         assert_eq!(parse_progress_discount_bps(Some(0)).unwrap(), Some(0));
-        assert_eq!(parse_progress_discount_bps(Some(10_000)).unwrap(), Some(10_000));
+        assert_eq!(
+            parse_progress_discount_bps(Some(10_000)).unwrap(),
+            Some(10_000)
+        );
         let err = parse_progress_discount_bps(Some(10_001)).unwrap_err();
         assert_eq!(err.0, StatusCode::BAD_REQUEST);
     }
@@ -1324,7 +1387,7 @@ mod hybrid_cache_key_tests {
 
 #[cfg(test)]
 mod cache_ttl_tests {
-    use super::{ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT, cache_ttl_for_hops};
+    use super::{cache_ttl_for_hops, ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT};
     use std::time::Duration;
 
     #[test]

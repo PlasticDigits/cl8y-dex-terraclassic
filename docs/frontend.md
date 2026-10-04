@@ -855,7 +855,7 @@ Code: [`payInvoice.ts`](../frontend-dapp/src/utils/payInvoice.ts), [`PayWithAnyT
 | **I595-2** One broadcast | `buildPayInvoiceMsgs` → one `executeTerraContractMulti`. Two user txs is a fail. |
 | **I595-3** Exact payee credit | Swap `to` = user; last `Send` amount = invoice. Excess invoice token refunds to the user. Do not set swap `to = payee`. |
 | **I595-4** No pair FoT math | Existing router + pairs only (**H-01**). |
-| **I595-5** Reuse solver | `GET /route/solve` (path) + `ReverseSimulateSwapOperations` (`amount_in`) + forward sim `out ≥ invoice`. Indexer exact-out is a follow-up. |
+| **I595-5** Reuse solver | `GET /route/solve` (path) + `ReverseSimulateSwapOperations` (`amount_in`) + forward sim `out ≥ invoice`. Invoice retains reverse sizing; Swap now has bounded server receive sizing (#1376). |
 | **I595-6** Invoice is a floor | `minimum_receive` ≥ invoice. Slippage scales **max_in** only (`applySlippagePercentCeiling`). |
 | **I595-7** No route | Frozen / gem-bridge / unroutable → disable + **No route**. |
 | **I595-8** Same-asset Send | Pay token = invoice token → one `Send`, no router. |
@@ -996,7 +996,7 @@ Parser: [`swapQueryParams.ts`](../frontend-dapp/src/utils/swapQueryParams.ts). F
 | **Q711-3** | Bech32 checksum (#382). Hostile / overlong / `javascript:` / `0x` / `ETH` / `ibc/` / `factory/` → ignore that side; never echo raw strings. |
 | **Q711-4** | Production gem hide (#562). `?showGems=1` has no effect (**X8**). Rewrite and Share never emit gem ids. |
 | **Q711-5** | Inbound tickers: unique bundled [`tokenlist.json`](../tokenlist/tokenlist.json) symbols (ASCII fold) plus `uluna`/`uusd` and inbound-only `UST` → `uusd` ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). Display still **LUNC** / **USTC** (#630). LCD `token_info.symbol` does not win (**X1**). |
-| **Q711-6** | Legal human amount (≤ 24 chars, `isPositiveDecimalAmount`) prefills the independent field. `exactField=output` makes You Receive independent on direct factory pairs, direct wrap/unwrap, and client-operation routes ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). You Pay is the reverse offer; **broadcast stays offer-in + min received**. Indexer-only routes without client operations silently ignore output as a reverse source (#489); no indexer exact-out. Never auto-submit; #678 quote-only / 5–30–99 / Expert / blacklist / pause / freeze still apply. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize` (#596). |
+| **Q711-6** | Legal human amount (≤ 24 chars, `isPositiveDecimalAmount`) prefills the independent field. `exactField=output` makes You Receive independent on direct factory pairs, direct wrap/unwrap, and client-operation routes ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). You Pay is the reverse offer; **broadcast stays offer-in + min received**. Indexer-only routes preserve output intent through explicit solver `amount_out` sizing ([#1376](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1376)). Never auto-submit; #678 quote-only / 5–30–99 / Expert / blacklist / pause / freeze still apply. Ignore `slippage`, `expertMode`, `recipient`, `pool_only`, `hybrid_optimize` (#596). |
 | **Q711-7** | Apply inbound search once after tokens load. Then picker / flip / amount **write** canonical `/?from=&to=` via `setSearchParams({ replace: true })` (debounced amount). Incoming aliases disappear from the bar. User picker is not snapped back to the inbound query. |
 | **Q711-8** | UST1 Swap links are AMM, not mint/redeem (**U1**). Silent fail-closed (#489). Create Pair query prefill and Trade `?from=&to=` resolve are [#713](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/713) (**Q713** / **C542-11**). |
 
@@ -1011,13 +1011,13 @@ Follow-up to #711 ([GitLab **#713**](https://gitlab.com/PlasticDigits/cl8y-dex-t
 | **Q713-1** | Picker / flip / amount update the bar to canonical `from`/`to` (`exactAmount` / `exactField` when set) with **replace**, not push. Amount debounce is `SIM_QUOTE_DEBOUNCE_MS` (350). |
 | **Q713-2** | Inbound Uniswap aliases still apply (#711), then rewrite to first-party keys. |
 | **Q713-3** | Write follows live state; apply does not fight a later picker change. |
-| **Q713-4** | You Receive remains an `<input>` when selected. Direct factory CW20 reverse uses `reverseSimulateSwap`; client operations use router reverse; direct wrap/unwrap use fee/tax math ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). Indexer-only without operations silently ignores output as a reverse source. `GET /route/solve` stays offer-in. Execute is still offer-in + min received. |
+| **Q713-4** | You Receive remains an `<input>` when selected. CW20 route receive intent uses explicit solver `amount_out` sizing (#1376); direct wrap/unwrap use shared fee/tax math. Legacy pair/router reverse remains available to existing consumers. `GET /route/solve?amount_in=` remains offer-in. Execute is still offer-in + min received. |
 | **Q713-5** | Swap header **Share** (`data-testid="swap-share-link"`) next to Settings — no new `shell-panel*` (**C653**). Visible label is **Share {pay logo} → {receive logo}** ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715) **SH-1**). Coarse+narrow: Web Share; else copy **Link copied**. Abort silent. Payload from resolved ids only. |
 | **Q713-6** | `/create?a=&b=` (aliases `tokenA`/`token_a`, `tokenB`/`token_b`) prefills catalog or checksum custom. Hostile / native ignored per side. **No** auto-submit. Catalog still has no runtime HTTP. |
 | **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Ambiguous / missing / same-token: ignore. `/trade/:pairAddr` stays canonical. Ticket not auto-placed. |
 | **Q713-8** | Production cannot share or rewrite a gem. `?showGems=1` still ignored. |
 | **Q713-9** | Canonical compare breaks apply↔write loops. Share/rewrite use `URL` + `URLSearchParams` only. |
-| **Q713-10** | No lecture banners when a field is ignored (#489). No `localStorage` persistence. No indexer exact-out solver. |
+| **Q713-10** | No lecture banners when a field is ignored (#489). No amount `localStorage` persistence. Explicit solver receive sizing follows **E1376**. |
 
 Regression: `make verify-issue-713`, `make verify-issue-711`, and `make verify-issue-715`. Playbooks: [`skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md`](../skills/AGENTS_FRONTEND_SWAP_URL_SYNC.md), [`skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](../skills/AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md), [`skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](../skills/AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md).
 
@@ -1028,11 +1028,11 @@ Regression: `make verify-issue-713`, `make verify-issue-711`, and `make verify-i
 | ID | Rule |
 |----|------|
 | **R1256-1** | You Receive is a decimal `<input>` for selected tokens, including wrap/native and client multi-hop. Legal typed values use the existing 24-character amount validation, debounce, canonical `replace`, and `exactField=output`. Clearing removes amount and exact field from the URL. |
-| **R1256-2** | Direct factory CW20 uses pair reverse; client operations use `ReverseSimulateSwapOperations`; mapper-only wrap/unwrap uses shared fee/tax inverses. No native denom enters pair reverse. No operations means silent pay-sided fallback and canonical URLs drop `exactField=output`; never binary-search `GET /route/solve`. |
+| **R1256-2** | CW20 route receive intent uses explicit solver `amount_out`, including indexer-only routes (#1376). Mapper-only wrap/unwrap uses shared fee/tax inverses. Existing pair/router reverse consumers remain supported. No native denom enters pair reverse; never binary-search the public offer-in endpoint from the browser. |
 | **R1256-3** | Wrap-input You Pay is native gross sufficient to mint the reverse CW20 offer, using mapper wrap fee only (**W8**). Unwrap-output typed receive is post-fee then post-burn-tax (**W9**); `routerMinReceiveBase` remains post-fee pre-tax (**R3**). Gross-ups use integer rounding and the current LCD fee/rate/cap, including transitional mapper `fee_bps`. |
 | **R1256-4** | Community-tax receive targets net; `executeAmountOut` / `min_return` remain pre-tax. Extra-debit is counted once. Forward verification handles route taxes; reverse quote errors fail closed. |
 | **R1256-5** | Submit uses reverse offer raw, then existing forward quote, hop floors, and quote-pay alignment. Direct reverse swaps include a forward-quote `min_return`, using the pre-tax base for community tokens. Quote-only, insufficient funds, 5–30–99 impact/Expert, blacklist, pause, and freeze still block as before. Max and fractions switch back to pay-sided. Flip preserves quote direction. |
-| **R1256-6** | No automatic wallet action, indexer exact-out endpoint, contract schema change, amount persistence, new chrome layer, or lecture banner. UST1 links remain AMM (**U1**); URL safety/settings remain **Q711-6**. |
+| **R1256-6** | No automatic wallet action, amount persistence, new chrome layer, or lecture banner. #1376 adds explicit solver sizing and repairs reverse arithmetic without changing offer-in execute semantics. UST1 links remain AMM (**U1**); URL safety/settings remain **Q711-6**. |
 
 Regression: `make verify-issue-1256`, `make verify-issue-713`, `make verify-issue-678`, `make verify-issue-512`, and `python3 scripts/check_chrome_nesting.py`. Agent instructions: [`AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md`](../skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md). Review/acceptance evidence: [`docs/qa/issue-1256/README.md`](qa/issue-1256/README.md).
 
@@ -2534,3 +2534,18 @@ QA **11.1.4** is the phone-width `/tiers` checklist. Layout only — do not chan
 | `VITE_FEE_DISCOUNT_ADDRESS` | `terra1def...`  | Fee discount registry contract address |
 
 See `.env.example` for the full list.
+
+## Solver receive sizing
+
+[#1376](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1376) extends the earlier Q711/Q713/R1256 route boundary. [API and search scope](route-solver.md#exact-output-sizing), [agent playbook](../skills/AGENTS_SWAP_EXACT_OUTPUT.md), and [verification checklist](qa/issue-1376/README.md) describe the implementation together.
+
+| ID | Invariant |
+|----|-----------|
+| **E1376-1** | Receive intent is independent on every selected route, including indexer-only discovery. Preserve its exact human value and canonical URL through retries; Max/fractions remain pay-sided. |
+| **E1376-2** | CW20 route sizing uses a bounded server `amount_out` request. Compare eligible pool-only candidates within documented scope. Native enters/exits use shared integer fee/tax inverses; unsupported hybrid native operations remain excluded. |
+| **E1376-3** | A current authoritative forward simulation on matching operations must cover the net target. Mandatory integer fair-reference metadata preserves symmetric 5/30/99 protections; wallet validation and mutation entry recheck them. Broadcast remains offer-in with existing minimum-receive/spread protection. Net receive, pre-tax minimum bases and extra-debit balances remain distinct. |
+| **E1376-4** | Loading, no-route and failed sizing are visible without wallet connection. Failure clears executable pay/operations and preserves receive intent; deterministic errors have bounded retries and a manual retry affordance. The entire receive pipeline has a 70-second deadline and propagates cancellation through solver and wallet validation; dust below token precision is a finite input error. |
+| **E1376-5** | Target, tokens, settings or trader changes invalidate executable sizing immediately. Late responses, cached results and background refetch errors cannot revive a prior offer or submit the typed target as pay. |
+| **E1376-6** | All money uses checked integer arithmetic with sufficient-offer rounding. Pool-only contract reverse validates the exact pool inverse without full-range bisection; hybrid search retains explicit call limits and errors on exhaustion. |
+| **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, 5/30/99 spread and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
+| **E1376-8** | Verification records revision, scope and PASS/FAIL/SKIP honestly. Deployment inventory, public token resolution and block/snapshot probes distinguish shipped behavior from mocked tests. |

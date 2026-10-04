@@ -1,3 +1,5 @@
+import { CL8Y_TOKEN_ADDRESS } from '@/utils/constants'
+import { buildTokenlistQueryMaps, publishedTokenlistQueryRows } from '@/utils/tokenlistQueryCatalog'
 import { describe, expect, it } from 'vitest'
 import { COLUMBUS5_GEM_ADDRESSES, isGemTokenId } from '@/utils/pairCatalogRank'
 import {
@@ -51,7 +53,11 @@ describe('resolveSwapQueryTokenValue (#711)', () => {
     expect(resolveSwapQueryTokenValue('uusd')).toBe('uusd')
     expect(resolveSwapQueryTokenValue('USTC')).toBe('uusd')
     expect(resolveSwapQueryTokenValue('UST')).toBe('uusd')
-    expect(resolveSwapQueryTokenValue('CL8Y')).toBe(CL8Y)
+    expect(resolveSwapQueryTokenValue('CL8Y')).toBe(CL8Y_TOKEN_ADDRESS)
+    // Explicit production catalog case, independent of generated LocalTerra Vite overlays.
+    const published = buildTokenlistQueryMaps(publishedTokenlistQueryRows(), {})
+    expect(published.symbolToId.get('cl8y')).toBe(CL8Y)
+    expect(resolveSwapQueryTokenValue(CL8Y)).toBe(CL8Y)
     expect(resolveSwapQueryTokenValue('UST1')).toBe(lookupTokenIdByProductTicker('UST1'))
     expect(resolveSwapQueryTokenValue('cLUNC')).toBe(lookupTokenIdByProductTicker('cLUNC'))
     expect(resolveSwapQueryTokenValue('cUSTC')).toBe(lookupTokenIdByProductTicker('cUSTC'))

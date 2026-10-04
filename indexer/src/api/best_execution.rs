@@ -503,6 +503,11 @@ async fn evaluate_candidate(
     };
     let intermediate_tokens = build_intermediate_tokens(&resolved_route);
     let body = RouteSolveResponse {
+        required_amount_in: None,
+        target_amount_out: None,
+        sizing_mode: None,
+        snapshot_age_ms: None,
+        snapshot_block_height: None,
         token_in,
         token_out,
         hops,
@@ -1132,6 +1137,11 @@ mod concurrent_solve_tests {
         CandidateEval {
             index,
             body: RouteSolveResponse {
+        required_amount_in: None,
+        target_amount_out: None,
+        sizing_mode: None,
+        snapshot_age_ms: None,
+        snapshot_block_height: None,
                 token_in: "in".into(),
                 token_out: "out".into(),
                 hops: vec![RouteHop {

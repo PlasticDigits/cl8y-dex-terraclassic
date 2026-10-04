@@ -51,7 +51,8 @@ run_step "code: canonical write-back, reverse sim, Share, create/trade parsers" 
     grep -q "canonicalSwapSearch" frontend-dapp/src/pages/SwapPage.tsx
     grep -q "setSearchParams" frontend-dapp/src/pages/SwapPage.tsx
     grep -q "replace: true" frontend-dapp/src/pages/SwapPage.tsx
-    grep -q "reverseSimulateSwap" frontend-dapp/src/pages/SwapPage.tsx
+    # #1376 extends receive intent to explicit server sizing; legacy pair reverse is separate.
+    grep -q "quoteSwapReceiveViaSolver" frontend-dapp/src/pages/SwapPage.tsx
     grep -q "data-testid=\"swap-share-link\"" frontend-dapp/src/pages/SwapPage.tsx
     grep -q "buildCanonicalSwapShareUrl" frontend-dapp/src/utils/sharePageLink.ts
     grep -q "parseCreatePairQuery" frontend-dapp/src/pages/CreatePairPage.tsx

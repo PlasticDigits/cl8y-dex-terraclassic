@@ -17,6 +17,11 @@ const receiveTax = vi.hoisted(() => ({ buyBps: null as number | null }))
 vi.mock('@/utils/constants', async (importActual) => ({
   ...(await importActual<typeof import('@/utils/constants')>()),
   WRAP_MAPPER_CONTRACT_ADDRESS: 'terra1mapper',
+  UST1_TOKEN_ADDRESS: UST1,
+  LUNC_C_TOKEN_ADDRESS: 'terra1luncwrapped',
+  USTC_C_TOKEN_ADDRESS: 'terra1ustcwrapped',
+  NATIVE_WRAPPED_PAIRS: { uluna: 'terra1luncwrapped', uusd: 'terra1ustcwrapped' },
+  CL8Y_TOKEN_ADDRESS: 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3',
   TREASURY_CONTRACT_ADDRESS: 'terra1treasury',
   isNativeWrapEnabled: () => true,
 }))
@@ -127,6 +132,8 @@ vi.mock('@/services/terraclassic/router', () => ({
   netNativeAfterUnwrap: vi.fn(async (amount: bigint) => ({ receive: amount, routerMinReceiveBase: amount })),
   executeNativeSwap: vi.fn().mockResolvedValue('tx'),
 }))
+vi.mock('@/utils/swapReceiveQuote', () => ({ quoteSwapReceiveViaSolver: vi.fn() }))
+
 vi.mock('@/lib/sounds', () => ({
   sounds: {
     playButtonPress: vi.fn(),
@@ -136,6 +143,7 @@ vi.mock('@/lib/sounds', () => ({
   },
 }))
 
+import { queryWrapMapperConfig } from '@/services/terraclassic/wrapMapper'
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
 import {
   findRoute,
@@ -148,6 +156,7 @@ import {
   simulateMultiHopSwap,
   executeNativeSwap,
 } from '@/services/terraclassic/router'
+import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
 import { reverseSimulateSwap, simulateSwap, swap } from '@/services/terraclassic/pair'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -245,6 +254,24 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     vi.mocked(simulateNativeSwap).mockResolvedValue({ amount: '1000000' })
     vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000' })
     seedFactoryTokens()
+    vi.mocked(quoteSwapReceiveViaSolver).mockImplementation(async (input) => ({
+      offerAmount: '2000000',
+      return_amount: input.targetRaw,
+      spotAmountOut: receiveTax.buyBps ? '1000000' : input.targetRaw,
+      routeSlippagePercent: '0.00',
+      executeAmountOut: receiveTax.buyBps ? '1000000' : undefined,
+      spread_amount: '0',
+      commission_amount: '0',
+      indexerOperations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: LISTED } },
+            ask_asset_info: { token: { contract_addr: UST1 } },
+          },
+        },
+      ],
+      indexerIntermediateTokens: [LISTED, UST1],
+    }))
     vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unavailable'))
   })
 
@@ -257,7 +284,9 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(receive).toHaveValue('1.5')
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
     await waitFor(() =>
-      expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', 'uluna', 'uusd', expect.any(Array), undefined)
+      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(
+        expect.objectContaining({ targetRaw: '1500000', fromToken: 'uluna', toToken: 'uusd' })
+      )
     )
     await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await waitFor(() => expect(screen.getByTestId('receive-search-probe')).toHaveTextContent('exactField=output'))
@@ -281,39 +310,131 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     }
   )
 
-  it('direct CW20 output quote uses the pair reverse query', async () => {
-    seedCw20Route()
+  it.each([false, true])('CW20 output intent asks the solver for a selected route (multihop %s)', async (multihop) => {
+    seedCw20Route(multihop)
     renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1.5`)
     await waitForSwapReady()
     await waitFor(() =>
-      expect(reverseSimulateSwap).toHaveBeenCalledWith(
-        expect.any(String),
-        { token: { contract_addr: UST1 } },
-        '1500000'
+      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromToken: LISTED,
+          toToken: UST1,
+          targetRaw: '1500000',
+        })
       )
     )
-    expect(reverseSimulateNativeSwap).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
-  })
-
-  it('client multihop output quote uses the complete reverse route', async () => {
-    const operations = seedCw20Route(true)
-    renderWithSearch(`/?from=${LISTED}&to=${UST1}`)
-    await waitForSwapReady()
-    fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '1.5' } })
-    await waitFor(() => expect(reverseSimulateMultiHopSwap).toHaveBeenCalledWith('1500000', operations, undefined))
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
-  })
-
-  it('indexer-only output deep link stays pay-sided and performs no reverse request', async () => {
-    vi.mocked(findRoute).mockReturnValue(null)
-    renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1.5`)
-    await waitForSwapReady()
-    expect(screen.getByTestId('swap-you-receive').tagName).toBe('INPUT')
-    await waitFor(() => expect(screen.getByTestId('receive-search-probe')).not.toHaveTextContent('exactField=output'))
     expect(reverseSimulateSwap).not.toHaveBeenCalled()
     expect(reverseSimulateMultiHopSwap).not.toHaveBeenCalled()
-    expect(reverseSimulateNativeSwap).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
+  })
+
+  it('indexer-only output intent remains output-sided and asks the server', async () => {
+    vi.mocked(findRoute).mockReturnValue(null)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
+    renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1.5`)
+    await waitForSwapReady()
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalled())
+    expect(screen.getByTestId('receive-search-probe')).toHaveTextContent('exactField=output')
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
+  })
+
+  it('positive targets below receive precision show an actionable finite error without querying', async () => {
+    renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=0.0000001')
+    await waitForSwapReady()
+    await waitFor(() =>
+      expect(screen.getByTestId('swap-receive-amount-error')).toHaveTextContent('below token precision')
+    )
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.0000001')
+    expect(screen.getByTestId('swap-you-pay-amount')).not.toHaveAttribute('aria-busy', 'true')
+    expect(quoteSwapReceiveViaSolver).not.toHaveBeenCalled()
+  })
+
+  it('native server-only receive sizing loads mapper configuration and preserves output intent', async () => {
+    vi.mocked(findRoute).mockReturnValue(null)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
+    renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=100')
+    await waitForSwapReady()
+    await waitFor(() => expect(queryWrapMapperConfig).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(expect.objectContaining({ targetRaw: '100000000' }))
+    )
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('100')
+  })
+
+  it('mapper configuration failure exposes a finite disconnected error', async () => {
+    vi.mocked(queryWrapMapperConfig).mockRejectedValueOnce(new Error('LCD unavailable'))
+    vi.mocked(findRoute).mockReturnValue(null)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
+    renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=100')
+    await waitForSwapReady()
+    await waitFor(() =>
+      expect(screen.getByTestId('swap-receive-quote-retry-error')).toHaveTextContent('configuration is unavailable')
+    )
+    expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    expect(quoteSwapReceiveViaSolver).not.toHaveBeenCalled()
+    expect(screen.getByTestId('retry-error-button')).toBeEnabled()
+  })
+
+  it('server-only single-hop CW20 submit uses the verified factory pair instead of a client route', async () => {
+    vi.mocked(findRoute).mockReturnValue(null)
+    vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
+    const wallet = 'terra1wallet000000000000000000000000000001'
+    useWalletStore.setState({ address: wallet, walletType: 'dev' })
+    vi.mocked(getConnectedWallet).mockReturnValue({} as never)
+    vi.mocked(quoteSwapReceiveViaSolver).mockResolvedValue({
+      offerAmount: '2000000',
+      return_amount: '1000000',
+      spread_amount: '0',
+      commission_amount: '0',
+      indexerOperations: [
+        {
+          terra_swap: {
+            offer_asset_info: { token: { contract_addr: LISTED } },
+            ask_asset_info: { token: { contract_addr: UST1 } },
+          },
+        },
+      ],
+      indexerPairs: [
+        {
+          contract_addr: 'terra1verifiedpair',
+          liquidity_token: 'terra1lp',
+          asset_infos: [{ token: { contract_addr: LISTED } }, { token: { contract_addr: UST1 } }],
+        },
+      ],
+    })
+    renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1`)
+    await waitForSwapReady()
+    const submit = await screen.findByRole('button', { name: /^swap$/i })
+    await waitFor(() => expect(submit).toBeEnabled())
+    fireEvent.click(submit)
+    await waitFor(() =>
+      expect(swap).toHaveBeenCalledWith(
+        wallet,
+        LISTED,
+        'terra1verifiedpair',
+        '2000000',
+        undefined,
+        '0.05',
+        undefined,
+        expect.objectContaining({ minReturn: '950000' })
+      )
+    )
+  })
+
+  it('wallet context changes request fresh output sizing with the new trader', async () => {
+    seedCw20Route()
+    renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1`)
+    await waitForSwapReady()
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(1))
+    act(() => useWalletStore.setState({ address: 'terra1newtrader', walletType: 'dev' }))
+    await waitFor(() =>
+      expect(quoteSwapReceiveViaSolver).toHaveBeenLastCalledWith(
+        expect.objectContaining({ quoteTrader: { trader: 'terra1newtrader' } })
+      )
+    )
+    expect(screen.getByTestId('swap-you-receive')).toHaveValue('1')
   })
 
   it('clearing receive clears both fields and removes the output amount from the URL', async () => {
@@ -334,7 +455,9 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
     await waitFor(() =>
-      expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', 'uusd', 'uluna', expect.any(Array), undefined)
+      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(
+        expect.objectContaining({ targetRaw: '1500000', fromToken: 'uusd', toToken: 'uluna' })
+      )
     )
   })
 
@@ -372,20 +495,14 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     for (const value of ['1', '12', '123'])
       fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value } })
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('123')
-    await waitFor(() => expect(reverseSimulateNativeSwap).toHaveBeenCalledTimes(1))
-    expect(reverseSimulateNativeSwap).toHaveBeenLastCalledWith(
-      '123000000',
-      'uluna',
-      'uusd',
-      expect.any(Array),
-      undefined
-    )
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(1))
+    expect(quoteSwapReceiveViaSolver).toHaveBeenLastCalledWith(expect.objectContaining({ targetRaw: '123000000' }))
   })
 
   it('a stale reverse completion never supplies the pay amount for a newer target', async () => {
-    let resolveOld!: (value: { amount: string }) => void
-    let resolveNew!: (value: { amount: string }) => void
-    vi.mocked(reverseSimulateNativeSwap)
+    let resolveOld!: (value: Awaited<ReturnType<typeof quoteSwapReceiveViaSolver>>) => void
+    let resolveNew!: (value: Awaited<ReturnType<typeof quoteSwapReceiveViaSolver>>) => void
+    vi.mocked(quoteSwapReceiveViaSolver)
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -401,26 +518,42 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     renderWithSearch()
     await waitForSwapReady()
     fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '1' } })
-    await waitFor(() => expect(reverseSimulateNativeSwap).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(1))
     fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '3' } })
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
-    await waitFor(() => expect(reverseSimulateNativeSwap).toHaveBeenCalledTimes(2))
-    await act(async () => resolveOld({ amount: '2000000' }))
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(2))
+    await act(async () =>
+      resolveOld({
+        offerAmount: '2000000',
+        return_amount: '1000000',
+        spread_amount: '0',
+        commission_amount: '0',
+        indexerOperations: [],
+      })
+    )
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('3')
     expect(simulateNativeSwap).not.toHaveBeenCalled()
     expect(swap).not.toHaveBeenCalled()
-    await act(async () => resolveNew({ amount: '6000000' }))
+    await act(async () =>
+      resolveNew({
+        offerAmount: '6000000',
+        return_amount: '3000000',
+        spread_amount: '0',
+        commission_amount: '0',
+        indexerOperations: [],
+      })
+    )
     await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('6'))
   })
 
-  it('buy-tax output intent gross-ups the requested net amount before reverse simulation', async () => {
+  it('buy-tax output intent sends the net target for server inversion exactly once', async () => {
     receiveTax.buyBps = 1000
     seedCw20Route()
     renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=0.9`)
     await waitForSwapReady()
     await waitFor(() =>
-      expect(reverseSimulateSwap).toHaveBeenCalledWith(expect.any(String), expect.any(Object), '999999')
+      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(expect.objectContaining({ targetRaw: '900000' }))
     )
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.9')
   })
@@ -436,7 +569,9 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await waitForSwapReady()
     await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await waitFor(() =>
-      expect(simulateSwap).toHaveBeenCalledWith(expect.any(String), expect.any(Object), '2000000', { trader: wallet })
+      expect(quoteSwapReceiveViaSolver).toHaveBeenCalledWith(
+        expect.objectContaining({ quoteTrader: { trader: wallet } })
+      )
     )
     const submit = await screen.findByRole('button', { name: /^swap$/i })
     await waitFor(() => expect(submit).toBeEnabled())
@@ -475,7 +610,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
         '0.05',
         '950000',
         expect.any(Number),
-        undefined
+        expect.any(Array)
       )
     )
   })
@@ -493,12 +628,14 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
   })
 
   it('failed reverse quote clears pay and cannot start forward simulation', async () => {
-    vi.mocked(reverseSimulateNativeSwap).mockRejectedValue(new Error('reverse quote unavailable'))
+    vi.mocked(quoteSwapReceiveViaSolver).mockRejectedValue(new Error('reverse quote unavailable'))
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=1.5')
     await waitForSwapReady()
-    await waitFor(() => expect(reverseSimulateNativeSwap).toHaveBeenCalled())
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalled())
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
+    expect(screen.getByTestId('swap-receive-quote-retry-error')).toHaveTextContent('Could not estimate output')
+    expect(screen.getByTestId('retry-error-button')).toBeEnabled()
     expect(simulateNativeSwap).not.toHaveBeenCalled()
     expect(swap).not.toHaveBeenCalled()
   })
@@ -513,7 +650,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     const submit = await screen.findByRole('button', { name: /^swap$/i })
     await waitFor(() => expect(submit).toBeEnabled())
     let rejectRefetch!: (reason: Error) => void
-    vi.mocked(reverseSimulateSwap).mockImplementationOnce(
+    vi.mocked(quoteSwapReceiveViaSolver).mockImplementationOnce(
       () =>
         new Promise((_resolve, reject) => {
           rejectRefetch = reject
@@ -522,7 +659,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     act(() => {
       void queryClient.invalidateQueries({ queryKey: ['reverseSimulation'] })
     })
-    await waitFor(() => expect(reverseSimulateSwap).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(quoteSwapReceiveViaSolver).toHaveBeenCalledTimes(2))
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
     expect(screen.getByRole('button', { name: /calculating/i })).toBeDisabled()
     await act(async () => rejectRefetch(new Error('reverse refetch unavailable')))

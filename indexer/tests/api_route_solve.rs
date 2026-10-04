@@ -793,6 +793,7 @@ async fn route_solve_invalid_sender_returns_400() {
 #[tokio::test]
 async fn route_solve_progress_idle_then_terminal_after_solve() {
     // GitLab #485: progress poll is advisory; idle before solve, terminal after.
+    // Unique amount bucket keeps prior route tests from warming this advisory cache.
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_2hop(&pool).await;
     let mock = lcd_mock::start_hybrid_route_optimizer_mock().await;
@@ -803,7 +804,7 @@ async fn route_solve_progress_idle_then_terminal_after_solve() {
     let server = TestServer::new(app);
 
     let progress_url = format!(
-        "/api/v1/route/solve/progress?token_in={}&token_out={}&amount_in=1000000",
+        "/api/v1/route/solve/progress?token_in={}&token_out={}&amount_in=13760000001",
         seed.token_a, seed.token_c
     );
     let idle: Value = server.get(&progress_url).await.json();
@@ -811,7 +812,7 @@ async fn route_solve_progress_idle_then_terminal_after_solve() {
     assert!(idle["estimated_amount_out"].is_null());
 
     let solve_url = format!(
-        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=1000000",
+        "/api/v1/route/solve?token_in={}&token_out={}&amount_in=13760000001",
         seed.token_a, seed.token_c
     );
     server.get(&solve_url).await.assert_status_ok();

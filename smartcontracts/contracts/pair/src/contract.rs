@@ -49,8 +49,9 @@ use dex_common::types::{Asset, AssetInfo, FeeConfig};
 const CONTRACT_NAME: &str = "cl8y-dex-pair";
 /// Columbus-5 listed pairs are already cw2 1.16.0 (greedy #712 / store 11639).
 /// 1.17.0 was #1227/#1230/#1231 (#1246). 1.18.0 is the Uint256 TWAP cumulative
-/// (#1224 / #1322). Same-version migrate is rejected.
-const CONTRACT_VERSION: &str = "1.18.0";
+/// (#1224 / #1322). 1.19.0 fixes integer pool reverse sizing (#1376),
+/// with no storage rewrite. The cw2 guard rejects migration from a newer version.
+const CONTRACT_VERSION: &str = "1.19.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -1273,13 +1274,14 @@ fn execute_swap(
             });
         }
 
-        let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
-        pool_commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
+        pool_commission_amount =
+            crate::hybrid_reverse::pool_commission(gross_output, effective_fee_bps)?;
         return_amount = gross_output.checked_sub(pool_commission_amount)?;
 
-        let commission_remainder =
-            fee_numerator - pool_commission_amount.checked_mul(Uint128::new(10000))?;
-        if commission_remainder >= Uint128::new(10000) {
+        let commission_remainder = u256(gross_output)
+            .checked_mul(Uint256::from(effective_fee_bps))?
+            - u256(pool_commission_amount).checked_mul(Uint256::from(10000u32))?;
+        if commission_remainder >= Uint256::from(10000u32) {
             return Err(ContractError::InvariantViolation {
                 reason: format!(
                     "commission rounding exceeds 1 token: remainder={commission_remainder}"
@@ -2662,8 +2664,8 @@ fn simulate_hybrid_swap_with_fee(
         )?;
         let gross_output = output_reserve.checked_sub(new_output_reserve)?;
 
-        let fee_numerator = gross_output.checked_mul(Uint128::new(effective_fee_bps as u128))?;
-        pool_commission_amount = fee_numerator.checked_div(Uint128::new(10000))?;
+        pool_commission_amount =
+            crate::hybrid_reverse::pool_commission(gross_output, effective_fee_bps)?;
         return_amount = gross_output.checked_sub(pool_commission_amount)?;
 
         spread_amount = spot_linear_spread_over_gross(
@@ -2761,7 +2763,10 @@ fn query_hybrid_reverse_simulation(
     sender: Option<String>,
     belief_price: Option<Decimal>,
 ) -> StdResult<HybridReverseSimulationResponse> {
-    use crate::hybrid_reverse::{seed_upper_offer_from_pool_math, MAX_HYBRID_REVERSE_SIM_CALLS};
+    use crate::hybrid_reverse::{
+        bounded_hybrid_reverse_search, min_pool_input_for_net_output,
+        seed_upper_offer_from_pool_math,
+    };
 
     let pair_info = PAIR_INFO.load(deps.storage)?;
     let offer_info = if ask_asset.info.equal(&pair_info.asset_infos[0]) {
@@ -2812,14 +2817,7 @@ fn query_hybrid_reverse_simulation(
         ));
     };
 
-    let mut sim_calls: u32 = 0;
-    let mut run_sim = |offer: Uint128| -> StdResult<HybridSimulationResponse> {
-        if sim_calls >= MAX_HYBRID_REVERSE_SIM_CALLS {
-            return Err(cosmwasm_std::StdError::generic_err(
-                "Hybrid reverse simulation exceeded iteration cap",
-            ));
-        }
-        sim_calls += 1;
+    let run_sim = |offer: Uint128| -> StdResult<HybridSimulationResponse> {
         simulate_hybrid_swap_with_fee(
             deps,
             env,
@@ -2836,46 +2834,40 @@ fn query_hybrid_reverse_simulation(
         .map_err(|e| cosmwasm_std::StdError::generic_err(e.to_string()))
     };
 
-    let mut hi = seed_upper_offer_from_pool_math(
-        &hybrid,
-        input_reserve,
-        output_reserve,
-        effective_fee_bps,
-        ask_target,
-    )
-    .unwrap_or(Uint128::one());
-    if hi.is_zero() {
-        hi = Uint128::one();
-    }
-
-    loop {
-        let sim = run_sim(hi)?;
-        if sim.return_amount >= ask_target {
-            break;
+    let (offer, sim) = if hybrid.book_input.is_zero() {
+        // #1376: this seed is already the proven minimum pool offer. A second
+        // full-range hybrid bisection made valid large amounts hit the 32-call cap.
+        let offer = min_pool_input_for_net_output(
+            input_reserve,
+            output_reserve,
+            effective_fee_bps,
+            ask_target,
+        )?;
+        let sim = run_sim(offer)?;
+        if sim.return_amount < ask_target {
+            return Err(StdError::generic_err(
+                "pool reverse forward validation failed",
+            ));
         }
-        hi = hi
-            .checked_mul(Uint128::new(2u128))
-            .map_err(|_| cosmwasm_std::StdError::generic_err("offer overflow"))?;
-    }
-
-    let mut lo = Uint128::new(1u128);
-    let mut r_hi = hi;
-    while lo < r_hi {
-        let mid = lo.checked_add(r_hi)?.checked_div(Uint128::new(2u128))?;
-        if mid.is_zero() {
-            break;
-        }
-        let sim_mid = run_sim(mid)?;
-        if sim_mid.return_amount >= ask_target {
-            r_hi = mid;
-        } else {
-            lo = mid.checked_add(Uint128::new(1u128))?;
-        }
-    }
-
-    let sim = run_sim(r_hi)?;
+        (offer, sim)
+    } else {
+        let seed = seed_upper_offer_from_pool_math(
+            &hybrid,
+            input_reserve,
+            output_reserve,
+            effective_fee_bps,
+            ask_target,
+        )
+        .unwrap_or(Uint128::one());
+        bounded_hybrid_reverse_search(
+            seed,
+            Uint128::MAX.checked_sub(input_reserve)?,
+            ask_target,
+            run_sim,
+        )?
+    };
     Ok(HybridReverseSimulationResponse {
-        offer_amount: r_hi,
+        offer_amount: offer,
         spread_amount: sim.spread_amount,
         commission_amount: sim.commission_amount,
         pool_commission_amount: sim.pool_commission_amount,
@@ -3842,5 +3834,123 @@ mod oracle_u256_tests {
         assert_eq!(obs.price_a_cumulative, live());
         assert_eq!(obs.price_b_cumulative, Uint256::from(11u128));
         assert_eq!(obs.timestamp, 1000);
+    }
+}
+
+#[cfg(test)]
+mod reverse_issue1376_tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+
+    /// Query the real pair implementation without mocking its reserve math. The same
+    /// JSON query/response is used by router reverse and invoice reverse consumers.
+    #[test]
+    fn issue1376_pool_reverse_real_query_both_orientations() {
+        let small = Uint128::new(297_665_983_808);
+        let large = Uint128::new(2_498_115_414_904_458_263_864);
+        for reversed in [false, true] {
+            let mut deps = mock_dependencies();
+            let small_token = AssetInfo::Token {
+                contract_addr: "custc".into(),
+            };
+            let large_token = AssetInfo::Token {
+                contract_addr: "cl8y".into(),
+            };
+            let assets = if reversed {
+                [large_token.clone(), small_token.clone()]
+            } else {
+                [small_token.clone(), large_token.clone()]
+            };
+            PAIR_INFO
+                .save(
+                    deps.as_mut().storage,
+                    &PairInfoState {
+                        asset_infos: assets,
+                        lp_token: Addr::unchecked("lp"),
+                        factory: Addr::unchecked("factory"),
+                    },
+                )
+                .unwrap();
+            RESERVES
+                .save(
+                    deps.as_mut().storage,
+                    &if reversed {
+                        (large, small)
+                    } else {
+                        (small, large)
+                    },
+                )
+                .unwrap();
+            FEE_CONFIG
+                .save(
+                    deps.as_mut().storage,
+                    &FeeConfig {
+                        fee_bps: 180,
+                        treasury: Addr::unchecked("treasury"),
+                    },
+                )
+                .unwrap();
+            DISCOUNT_REGISTRY
+                .save(deps.as_mut().storage, &None)
+                .unwrap();
+            for (ask_info, offer_info, target, expected) in [
+                (
+                    large_token.clone(),
+                    small_token.clone(),
+                    10_000_000_000_000_000_000,
+                    Some(1_218_369_992),
+                ),
+                (
+                    large_token.clone(),
+                    small_token.clone(),
+                    100_000_000_000_000_000_000,
+                    Some(12_649_685_215),
+                ),
+                (small_token.clone(), large_token.clone(), 100_000_000, None),
+            ] {
+                let msg = QueryMsg::HybridReverseSimulation {
+                    ask_asset: Asset {
+                        info: ask_info,
+                        amount: Uint128::new(target),
+                    },
+                    hybrid: dex_common::pair::pool_only_hybrid_template(),
+                    trader: None,
+                    sender: None,
+                    belief_price: None,
+                };
+                let reverse: HybridReverseSimulationResponse =
+                    cosmwasm_std::from_json(query(deps.as_ref(), mock_env(), msg).unwrap())
+                        .unwrap();
+                if let Some(expected) = expected {
+                    assert_eq!(reverse.offer_amount, Uint128::new(expected));
+                }
+                let forward = |amount| {
+                    query_hybrid_simulation(
+                        deps.as_ref(),
+                        &mock_env(),
+                        Asset {
+                            info: offer_info.clone(),
+                            amount,
+                        },
+                        Some(dex_common::pair::pool_only_hybrid_params(amount)),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .unwrap()
+                };
+                assert!(forward(reverse.offer_amount).return_amount >= Uint128::new(target));
+                assert!(
+                    forward(reverse.offer_amount - Uint128::one()).return_amount
+                        < Uint128::new(target)
+                );
+                assert_eq!(reverse.book_return_amount, Uint128::zero());
+                assert_eq!(
+                    reverse.pool_return_amount,
+                    forward(reverse.offer_amount).return_amount
+                );
+            }
+        }
     }
 }
