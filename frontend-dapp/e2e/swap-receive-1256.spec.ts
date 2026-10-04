@@ -36,6 +36,11 @@ async function mockSwapLcd(page: Page) {
       })
     if (smart) {
       const query = JSON.parse(Buffer.from(decodeURIComponent(smart[2]), 'base64').toString('utf8'))
+      // These fixtures are ordinary CW20s. A successful empty tax response is
+      // unresolved capability, not evidence of an untaxed legacy route (#1381).
+      if (query.get_config || query.tax_map || query.tax_info) {
+        return fulfill({ message: `unknown variant '${Object.keys(query)[0]}'` }, 400)
+      }
       let data: unknown = {}
       if (query.pairs) data = { pairs }
       else if (query.pair) {
@@ -265,6 +270,20 @@ test.describe('Receive amount editing (#1256)', () => {
     await page.getByTestId('retry-error-button').click()
     await expect(page.getByTestId('swap-receive-quote-retry-error')).toBeVisible()
     await expect(page.getByTestId('swap-you-receive')).toHaveValue('100')
+  })
+
+  test('malformed tax discovery blocks quoting without losing the receive target (#1381)', async ({ page }) => {
+    await page.route('**/contract/*/smart/*', async (route) => {
+      const encoded = new URL(route.request().url()).pathname.split('/').at(-1)!
+      const query = JSON.parse(Buffer.from(decodeURIComponent(encoded), 'base64').toString('utf8'))
+      if (!query.get_config) return route.fallback()
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: {} }) })
+    })
+    await openSwap(page, '?from=USTC&to=CL8Y&exactAmount=100&exactField=output')
+    await expect(page.getByTestId('swap-receive-quote-retry-error')).toContainText('route tax version is unavailable')
+    await expect(page.getByTestId('swap-you-pay-amount')).toHaveValue('')
+    await expect(page.getByTestId('swap-you-receive')).toHaveValue('100')
+    expect(reverseRequests).toContainEqual({ amount: `100${'0'.repeat(18)}`, kind: 'solver', hops: 1 })
   })
 
   test('rapid 10 to 100 to 10 edits retain only the latest target and offer', async ({ page }) => {
