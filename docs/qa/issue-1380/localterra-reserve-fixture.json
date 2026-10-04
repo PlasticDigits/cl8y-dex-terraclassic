@@ -1,0 +1,15 @@
+{
+  "latest_block_time_utc": "2026-10-04T08:20:43.659392645Z",
+  "chain": "localterra",
+  "latest_height_probe": "478260",
+  "provenance": "Read-only factory pairs(limit=1), pool query, then latest height. Height is a separate probe, not a pinned pool-query height. Deterministic tests replay these unchanged raw amounts; this is not a live LP withdrawal or an induced live-chain outage.",
+  "factory_address": "terra1hrpna9v7vs3stzyd4z3xf00676kf78zpe2u5ksvljswn2vnjp3ysc6mpf5",
+  "pair_address": "terra16jd56eylzgwr2jyx97wymajp7u5h9rdn9jqh0nkfm6jswec66qkq3tdy0g",
+  "pool": {
+    "assets": [
+      {"info": {"token": {"contract_addr": "terra1wl59k23zngj34l7d42y9yltask7rjlnxgccawc7ltrknp6n52fps4umj85"}}, "amount": "97736550469"},
+      {"info": {"token": {"contract_addr": "terra1dt3lk455ed360pna38fkhqn0p8y44qndsr77qu73ghyaz2zv4whqqgep4d"}}, "amount": "95145132477"}
+    ],
+    "total_share": "96432136972"
+  }
+}

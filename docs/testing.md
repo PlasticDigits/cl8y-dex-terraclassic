@@ -706,3 +706,10 @@ The reference workflow [`.github/workflows/test.yml`](../.github/workflows/test.
 ### Receive sizing #1376
 
 Run `make verify-issue-1376` for pair integer/call-budget fixtures, exact-output solver/API tests, receive UI/services/browser coverage, and docs/type/lint checks. [Agent checklist and evidence](qa/issue-1376/README.md), [third-party agent protocol](../skills/AGENTS_SWAP_EXACT_OUTPUT.md), [legacy receive playbook](../skills/AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md). Record unavailable checks separately; PASS with explicit skips does not assert skipped execution or deployed versions.
+
+Protocol liquidity coverage/outage quality (#1380): `make verify-issue-1380`
+repeats valuation, reserve refresh, persistence/API and frontend checks, then runs
+browser and 569/689/655/664/1263 regressions. See [agent checklist and explicit skip
+policy](qa/issue-1380/README.md), [invariants](indexer-invariants.md#protocol-liquidity-quality-1380)
+and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md). Use an isolated
+Postgres database and unique `TEST_DB_LOCK_FILE` for parallel worktrees.

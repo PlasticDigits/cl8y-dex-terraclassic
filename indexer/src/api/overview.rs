@@ -11,8 +11,8 @@ use utoipa::ToSchema;
 
 use super::{internal_err, AppState};
 use crate::db::queries::{assets, hub_prices, pairs, volume};
-use crate::indexer::protocol_fees::overview_fee_usd_field;
 use crate::indexer::hub_usd::HubTicker;
+use crate::indexer::protocol_fees::overview_fee_usd_field;
 
 // GitLab #281 / #333: /overview reads materialized global_stats_24h on cache miss;
 // cache the whole response for 1 minute so a request burst can't hammer the DB.
@@ -54,9 +54,16 @@ pub struct OverviewResponse {
     pub active_pairs_24h: i64,
     /// Distinct swap senders in last 24h (materialized).
     pub unique_traders_24h: i64,
-    /// Humanized USD TVL of priced factory `pair_reserves` (GitLab #569). `"0"` when idle.
+    /// Humanized USD TVL of factory reserves. Partial is a labeled lower bound; unknown is null.
     /// Not volume, not CG `liquidity_in_usd`, not book escrow.
-    pub total_liquidity_usd: String,
+    pub total_liquidity_usd: Option<String>,
+    /// fresh / verified_empty / partial / stale / unavailable / unknown.
+    pub liquidity_quality: String,
+    pub liquidity_as_of: Option<String>,
+    pub liquidity_coverage_identity: String,
+    pub liquidity_generation: i64,
+    pub liquidity_reasons: serde_json::Value,
+    pub liquidity_max_age_seconds: u64,
     /// Signed percent vs ~24h snapshot. JSON `null` if no baseline / then=0 / overflow.
     pub liquidity_change_24h_pct: Option<String>,
     /// Signed percent vs ~30d snapshot. JSON `null` if no baseline / then=0 / overflow.
@@ -78,6 +85,37 @@ pub struct OverviewResponse {
     pub volume_change_24h_pct: Option<String>,
     pub volume_change_7d_pct: Option<String>,
     pub volume_change_30d_pct: Option<String>,
+}
+
+/// Qualify cached and newly built values without changing their observation time.
+fn qualify_liquidity_age(resp: &mut OverviewResponse) {
+    let now = Utc::now();
+    let current = resp
+        .liquidity_as_of
+        .as_deref()
+        .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
+        .is_some_and(|at| {
+            at <= now
+                && now.signed_duration_since(at)
+                    <= chrono::Duration::seconds(resp.liquidity_max_age_seconds as i64)
+        });
+    if matches!(
+        resp.liquidity_quality.as_str(),
+        "fresh" | "partial" | "verified_empty"
+    ) && !current
+    {
+        resp.liquidity_quality = "stale".into();
+    }
+    if !matches!(resp.liquidity_quality.as_str(), "fresh" | "verified_empty") {
+        resp.liquidity_change_24h_pct = None;
+        resp.liquidity_change_30d_pct = None;
+    }
+    if !matches!(
+        resp.liquidity_quality.as_str(),
+        "fresh" | "verified_empty" | "partial"
+    ) {
+        resp.total_liquidity_usd = None;
+    }
 }
 
 /// Map rollup USD + trade count to the overview JSON contract (#548).
@@ -106,7 +144,9 @@ pub async fn get_overview(
     if let Ok(guard) = overview_cache().lock() {
         if let Some((resp, at)) = guard.as_ref() {
             if Instant::now().duration_since(*at) <= OVERVIEW_CACHE_TTL {
-                return Ok(Json(resp.clone()));
+                let mut cached = resp.clone();
+                qualify_liquidity_age(&mut cached);
+                return Ok(Json(cached));
             }
         }
     }
@@ -115,6 +155,11 @@ pub async fn get_overview(
         .await
         .map_err(internal_err)?;
 
+    let liquidity_max_age_seconds = if global.liquidity_quality.status == "verified_empty" {
+        crate::indexer::protocol_tvl::FACTORY_INVENTORY_MAX_AGE_SECONDS as u64
+    } else {
+        crate::indexer::protocol_tvl::max_staleness_from_env().as_secs()
+    };
     let cutoff_30d = Utc::now() - chrono::Duration::days(30);
     let token_count = assets::count_pair_leg_assets(&state.pool)
         .await
@@ -137,7 +182,7 @@ pub async fn get_overview(
             .map(|r| r.price_usd.to_string())
     };
 
-    let resp = OverviewResponse {
+    let mut resp = OverviewResponse {
         total_volume_24h: global.total_volume_24h.to_string(),
         total_volume_24h_usd: overview_volume_usd_field(
             global.total_trades_24h,
@@ -158,7 +203,13 @@ pub async fn get_overview(
         pairs_added_30d,
         active_pairs_24h: global.active_pairs_24h,
         unique_traders_24h: global.unique_traders_24h,
-        total_liquidity_usd: global.total_liquidity_usd.to_string(),
+        total_liquidity_usd: global.total_liquidity_usd.map(|v| v.to_string()),
+        liquidity_quality: global.liquidity_quality.status,
+        liquidity_as_of: global.liquidity_quality.as_of.map(|v| v.to_rfc3339()),
+        liquidity_coverage_identity: global.liquidity_quality.coverage_identity,
+        liquidity_generation: global.liquidity_quality.generation,
+        liquidity_reasons: global.liquidity_quality.reasons,
+        liquidity_max_age_seconds,
         liquidity_change_24h_pct: global.liquidity_change_24h_pct.map(|p| p.to_string()),
         liquidity_change_30d_pct: global.liquidity_change_30d_pct.map(|p| p.to_string()),
         priced_pair_count: i64::from(global.priced_pair_count),
@@ -185,7 +236,15 @@ pub async fn get_overview(
         volume_change_30d_pct: global.volume_change_30d_pct.map(|p| p.to_string()),
     };
 
+    qualify_liquidity_age(&mut resp);
     if let Ok(mut guard) = overview_cache().lock() {
+        if let Some((current, _)) = guard.as_ref() {
+            if current.liquidity_generation > resp.liquidity_generation {
+                let mut newer = current.clone();
+                qualify_liquidity_age(&mut newer);
+                return Ok(Json(newer));
+            }
+        }
         *guard = Some((resp.clone(), Instant::now()));
     }
 

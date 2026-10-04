@@ -29,8 +29,8 @@ struct LiquidityCacheKey {
     limit: i32,
 }
 
-fn liquidity_cache()
--> &'static Mutex<HashMap<LiquidityCacheKey, (ProtocolLiquidityDailyResponse, Instant)>> {
+fn liquidity_cache(
+) -> &'static Mutex<HashMap<LiquidityCacheKey, (ProtocolLiquidityDailyResponse, Instant)>> {
     static CACHE: OnceLock<
         Mutex<HashMap<LiquidityCacheKey, (ProtocolLiquidityDailyResponse, Instant)>>,
     > = OnceLock::new();
@@ -60,6 +60,11 @@ pub struct ProtocolLiquidityDailyPoint {
     /// Last snapshot USD in the bucket. JSON `null` when no sample (not `"0"`).
     pub liquidity_usd: Option<String>,
     pub priced_pair_count: i32,
+    pub quality: String,
+    pub as_of: Option<String>,
+    pub coverage_identity: String,
+    pub generation: i64,
+    pub reasons: serde_json::Value,
 }
 
 #[derive(Serialize, ToSchema, Clone)]
@@ -175,7 +180,19 @@ async fn build_daily_series(
                 utc_hour: None,
                 utc_day: Some(day.to_string()),
                 utc_month: None,
-                liquidity_usd: row.liquidity_usd.as_ref().map(|v| v.to_string()),
+                liquidity_usd: if matches!(
+                    row.quality.as_str(),
+                    "fresh" | "verified_empty" | "partial"
+                ) {
+                    row.liquidity_usd.as_ref().map(|v| v.to_string())
+                } else {
+                    None
+                },
+                quality: row.quality.clone(),
+                as_of: row.as_of.map(|v| v.to_rfc3339()),
+                coverage_identity: row.coverage_identity.clone(),
+                generation: row.generation,
+                reasons: row.reasons.clone(),
                 priced_pair_count: row.priced_pair_count,
             },
             None => ProtocolLiquidityDailyPoint {
@@ -183,6 +200,11 @@ async fn build_daily_series(
                 utc_day: Some(day.to_string()),
                 utc_month: None,
                 liquidity_usd: None,
+                quality: "unknown".into(),
+                as_of: None,
+                coverage_identity: String::new(),
+                generation: 0,
+                reasons: serde_json::json!({"missing_bucket":1}),
                 priced_pair_count: 0,
             },
         };
@@ -213,7 +235,19 @@ async fn build_hourly_series(
                 utc_hour: Some(vol_q::format_utc_hour(hour)),
                 utc_day: None,
                 utc_month: None,
-                liquidity_usd: row.liquidity_usd.as_ref().map(|v| v.to_string()),
+                liquidity_usd: if matches!(
+                    row.quality.as_str(),
+                    "fresh" | "verified_empty" | "partial"
+                ) {
+                    row.liquidity_usd.as_ref().map(|v| v.to_string())
+                } else {
+                    None
+                },
+                quality: row.quality.clone(),
+                as_of: row.as_of.map(|v| v.to_rfc3339()),
+                coverage_identity: row.coverage_identity.clone(),
+                generation: row.generation,
+                reasons: row.reasons.clone(),
                 priced_pair_count: row.priced_pair_count,
             },
             None => ProtocolLiquidityDailyPoint {
@@ -221,6 +255,11 @@ async fn build_hourly_series(
                 utc_day: None,
                 utc_month: None,
                 liquidity_usd: None,
+                quality: "unknown".into(),
+                as_of: None,
+                coverage_identity: String::new(),
+                generation: 0,
+                reasons: serde_json::json!({"missing_bucket":1}),
                 priced_pair_count: 0,
             },
         };
@@ -255,7 +294,19 @@ async fn build_monthly_series(
                 utc_hour: None,
                 utc_day: None,
                 utc_month: Some(vol_q::format_utc_month(month)),
-                liquidity_usd: row.liquidity_usd.as_ref().map(|v| v.to_string()),
+                liquidity_usd: if matches!(
+                    row.quality.as_str(),
+                    "fresh" | "verified_empty" | "partial"
+                ) {
+                    row.liquidity_usd.as_ref().map(|v| v.to_string())
+                } else {
+                    None
+                },
+                quality: row.quality.clone(),
+                as_of: row.as_of.map(|v| v.to_rfc3339()),
+                coverage_identity: row.coverage_identity.clone(),
+                generation: row.generation,
+                reasons: row.reasons.clone(),
                 priced_pair_count: row.priced_pair_count,
             },
             None => ProtocolLiquidityDailyPoint {
@@ -263,6 +314,11 @@ async fn build_monthly_series(
                 utc_day: None,
                 utc_month: Some(vol_q::format_utc_month(month)),
                 liquidity_usd: None,
+                quality: "unknown".into(),
+                as_of: None,
+                coverage_identity: String::new(),
+                generation: 0,
+                reasons: serde_json::json!({"missing_bucket":1}),
                 priced_pair_count: 0,
             },
         };

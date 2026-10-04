@@ -440,7 +440,8 @@ async fn overview_api_exposes_additive_fields_and_pair_leg_tokens() {
     assert!(body["tokens_added_30d"].as_i64().unwrap() >= 2);
     assert!(body["pairs_added_30d"].as_i64().unwrap() >= 1);
     assert_eq!(body["active_pairs_24h"].as_i64().unwrap(), 1);
-    assert!(body["total_liquidity_usd"].is_string());
+    assert!(body["total_liquidity_usd"].is_null());
+    assert!(body["liquidity_quality"].is_string());
     assert!(body.get("liquidity_change_24h_pct").is_some());
     assert!(body.get("volume_change_24h_pct").is_some());
     assert!(body.get("volume_change_7d_pct").is_some());

@@ -51,7 +51,7 @@ Retail must tell **cUSTC / cLUNC (wrap hub)** from **USTC / LUNC (CEX)** and **v
 | **P569-3** | GET `/overview` stays O(1) rollup. Compute TVL on the aggregator / hub refresh, not on the request path. Snapshot insert is periodic; prune ≥ 35 days. |
 | **P569-4** | Same USD catalog as volume: USTC/cUSTC/`uusd` → USTC oracle; LUNC/cLUNC/`uluna` → LUNC; UST1/USTR → `hub_prices`. Never `$1` UST1 or `2.5×` USTR. Oracle/hub down → omit that handle. |
 | **P569-5** | Both legs priced → `h0×usd0 + h1×usd1`. Exactly one catalogued → `2×` that leg (CPAMM). Neither → omit. Omitted ≠ `$0`. Identity is contract/denom (A1); spoof natives skipped. |
-| **P569-6** | Humanize decimals (`humanize_raw_amount` + `fits_numeric_38_18`). Overflow / non-positive → skip the pair. Double-count across pools is correct. |
+| **P569-6** | Humanize decimals (`humanize_raw_amount` + `fits_numeric_38_18`). Overflow / negative / invalid → skip the pair; validated fresh zero reserves retain their actual valuation (#1380). Double-count across pools is correct. |
 | **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Δ% is visually grouped with its headline (`justify-start` / wrap via `.stat-value-row`), not spaced `justify-between` to the next column ([#667](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/667) **P667-1**). Optional UTC grain bar chart (`protocol-volume-daily-chart`, [#668](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/668)) sits under the volume row. Do not headline `unique_traders_24h`. Charts overview strip stays additive-compatible. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **P569-7** | Liquidity + volume + census live **inside** `protocol-global-stats`. Volume tiles show USD + prior-window Δ% in the same cell. Optional UTC-day bar chart (`protocol-volume-daily-chart`) sits under the volume row. Do not headline `unique_traders_24h`. `/charts` does not render this census ([#666](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/666)). New overview JSON fields stay optional on `IndexerOverview`. Metric cells use `StatBox variant="flat"` — no nested `card-glass` ([#652](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/652)). |
 | **P569-8** | Cold start / `--fresh` / indexer younger than 24h/30d → Δ% empty until windows fill. Copy must not claim on-chain 30d genesis TVL. Flash LP inside one snapshot interval may move current TVL; Δ% uses snapshots. |
@@ -251,3 +251,11 @@ make verify-issue-1290  # leftover #1306 (Q22 / B1290; aliases verify-issue-1302
 - [`AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md`](./AGENTS_INDEXER_PROTOCOL_TOP_PAIRS.md) — `GET /protocol/top-pairs` stamp + gem exclude + 60s/400 (**I1263**, [#1263](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1263))
 - Post-merge leftover: [#673](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/673) / `make verify-issue-673` / [`AGENTS_POST_MERGE_OPS_673.md`](./AGENTS_POST_MERGE_OPS_673.md)
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)
+
+## Liquidity quality extension (Q1380)
+
+P569 omission means unknown, not current zero. Nullable overview totals and
+quality/as-of/generation must follow [Q1380](../docs/indexer-invariants.md#protocol-liquidity-quality-1380).
+Do not render partial or unknown history as a complete liquidity point, or restore
+an unqualified delta. See [liquidity playbook](AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md)
+and [agent review/skip policy](../docs/qa/issue-1380/README.md); run `make verify-issue-1380`.

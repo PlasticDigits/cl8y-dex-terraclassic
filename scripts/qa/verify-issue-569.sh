@@ -55,7 +55,7 @@ run_step "docs: invariants + skills + AGENTS crosslinks" \
     test -f indexer/migrations/20260820120000_global_stats_pool_tvl.sql
   '
 
-run_step "source: overview additive TVL; GET does not scan snapshots; CG mislabel documented" \
+run_step "source: overview additive TVL; GET does not scan snapshots; CG stamped TVL contract" \
   bash -c '
     set -euo pipefail
     grep -q total_liquidity_usd indexer/src/api/overview.rs
@@ -64,7 +64,7 @@ run_step "source: overview additive TVL; GET does not scan snapshots; CG mislabe
     grep -q refresh_protocol_liquidity indexer/src/db/queries/volume.rs
     grep -q protocol-stat-liquidity frontend-dapp/src/components/protocol/ProtocolGlobalStats.tsx
     grep -q formatProtocolPct frontend-dapp/src/utils/formatProtocolStats.ts
-    grep -q "GitLab #569" indexer/src/api/cg.rs
+    grep -q "listing_liquidity_in_usd" indexer/src/api/cg.rs
     if grep -nF "liquidity_in_usd" frontend-dapp/src/components/protocol/ProtocolGlobalStats.tsx \
          frontend-dapp/src/pages/ProtocolPage.tsx 2>/dev/null; then
       echo "Protocol UI must not read CG liquidity_in_usd" >&2
@@ -93,14 +93,14 @@ fi
 
 if [[ "${VERIFY_ISSUE_569_SKIP_E2E:-}" == "1" ]]; then
   echo ""
-  echo "[playwright e2e-smoke protocol-page (5 workers)] skipped (VERIFY_ISSUE_569_SKIP_E2E=1)"
+  echo "[playwright e2e-smoke protocol-page (configured workers)] skipped (VERIFY_ISSUE_569_SKIP_E2E=1)"
   ok "playwright e2e-smoke protocol-page (skipped)"
 elif [ -d "$REPO_ROOT/frontend-dapp/node_modules/@playwright/test" ] || [ -d "$REPO_ROOT/frontend-dapp/node_modules/playwright" ]; then
-  run_step "playwright e2e-smoke protocol-page (5 workers)" \
-    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30569 PLAYWRIGHT_BASE_URL=http://127.0.0.1:30569 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 e2e/protocol-page.spec.ts'
+  run_step "playwright e2e-smoke protocol-page (configured workers)" \
+    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30569 PLAYWRIGHT_BASE_URL=http://127.0.0.1:30569 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test --project=e2e-smoke --workers="${PLAYWRIGHT_WORKERS:-5}" --output="${PLAYWRIGHT_OUTPUT_DIR:-test-results}" e2e/protocol-page.spec.ts'
 else
   echo ""
-  echo "[playwright e2e-smoke protocol-page (5 workers)] SKIP (no Playwright install)"
+  echo "[playwright e2e-smoke protocol-page (configured workers)] SKIP (no Playwright install)"
   ok "playwright e2e-smoke protocol-page (skipped — no node_modules playwright)"
 fi
 

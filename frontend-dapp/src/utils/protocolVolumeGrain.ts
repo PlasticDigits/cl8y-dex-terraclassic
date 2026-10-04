@@ -7,6 +7,8 @@
  * X-axis labels use step 1 or 2 (hourly may widen when step 2 collides).
  * Do not rotate tick text.
  */
+import type { LiquidityQuality } from '@/types'
+import { liquidityQualityForValue, validLiquidityUsd } from './protocolLiquidityQuality'
 
 export const PROTOCOL_VOLUME_GRAINS = ['hourly', 'daily', 'monthly'] as const
 export type ProtocolVolumeGrain = (typeof PROTOCOL_VOLUME_GRAINS)[number]
@@ -95,11 +97,22 @@ export type ProtocolVolumeSeriesPoint = {
   fees_usd?: string | null
   trade_count?: number
   priced_pair_count?: number
+  quality?: LiquidityQuality
+  as_of?: string | null
+  coverage_identity?: string | null
+  generation?: number
+  reasons?: Record<string, number>
   event_count?: number
 }
 
 export function pointValueUsd(point: ProtocolVolumeSeriesPoint, metric: ProtocolUtcMetric = 'volume'): string | null {
-  if (metric === 'liquidity') return point.liquidity_usd ?? null
+  if (metric === 'liquidity') {
+    const raw = validLiquidityUsd(point.liquidity_usd)
+    const quality = liquidityQualityForValue(point.quality, raw)
+    // Legacy positive subtotals can be coverage outages, so history requires explicit quality.
+    if (quality !== 'fresh' && quality !== 'verified_empty') return null
+    return raw
+  }
   if (metric === 'fees') return point.fees_usd ?? null
   return point.volume_usd ?? null
 }
@@ -190,10 +203,7 @@ export function usdAxisTicks(peak: number): number[] {
   return [0, peak * 0.25, peak * 0.5, peak * 0.75, peak]
 }
 
-export function maxPricedUsd(
-  points: Array<{ volume_usd?: string | null; liquidity_usd?: string | null; fees_usd?: string | null }>,
-  metric: ProtocolUtcMetric = 'volume'
-): number {
+export function maxPricedUsd(points: ProtocolVolumeSeriesPoint[], metric: ProtocolUtcMetric = 'volume'): number {
   let max = 0
   for (const p of points) {
     const raw = pointValueUsd(p, metric)

@@ -61,9 +61,7 @@ fn asset_ref(
     }
 }
 
-pub async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx::Error> {
-    let rows: Vec<PairReserveJoinRow> = sqlx::query_as(
-        "SELECT
+const RESERVE_INVENTORY_QUERY: &str = "SELECT
             p.id AS pair_id,
             p.contract_address AS pair_address,
             a0.id AS a0_id,
@@ -84,10 +82,12 @@ pub async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx:
          FROM pairs p
          JOIN assets a0 ON a0.id = p.asset_0_id
          JOIN assets a1 ON a1.id = p.asset_1_id
-         LEFT JOIN pair_reserves r ON r.pair_id = p.id",
-    )
-    .fetch_all(pool)
-    .await?;
+         LEFT JOIN pair_reserves r ON r.pair_id = p.id";
+
+pub async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx::Error> {
+    let rows: Vec<PairReserveJoinRow> = sqlx::query_as(RESERVE_INVENTORY_QUERY)
+        .fetch_all(pool)
+        .await?;
 
     Ok(rows
         .into_iter()
@@ -115,6 +115,46 @@ pub async fn list_reserve_pairs(pool: &PgPool) -> Result<Vec<ReservePair>, sqlx:
                 reserve_1: r.reserve_1?,
                 snapshot_at: r.snapshot_at?,
             })
+        })
+        .collect())
+}
+
+/// Full factory inventory for TVL, including missing reserve rows. A missing observation
+/// carries the minimum timestamp sentinel and must be classified before zero reserves.
+pub async fn list_protocol_reserve_pairs_tx(
+    tx: &mut Transaction<'_, Postgres>,
+) -> Result<Vec<ReservePair>, sqlx::Error> {
+    let rows: Vec<PairReserveJoinRow> = sqlx::query_as(RESERVE_INVENTORY_QUERY)
+        .fetch_all(&mut **tx)
+        .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| ReservePair {
+            pair_id: r.pair_id,
+            pair_address: r.pair_address,
+            asset_0: asset_ref(
+                r.a0_id,
+                r.a0_symbol,
+                r.a0_denom,
+                r.a0_contract,
+                r.a0_is_cw20,
+                r.a0_decimals,
+            ),
+            asset_1: asset_ref(
+                r.a1_id,
+                r.a1_symbol,
+                r.a1_denom,
+                r.a1_contract,
+                r.a1_is_cw20,
+                r.a1_decimals,
+            ),
+            snapshot_at: if r.reserve_0.is_some() && r.reserve_1.is_some() {
+                r.snapshot_at.unwrap_or(DateTime::<Utc>::MIN_UTC)
+            } else {
+                DateTime::<Utc>::MIN_UTC
+            },
+            reserve_0: r.reserve_0.unwrap_or_default(),
+            reserve_1: r.reserve_1.unwrap_or_default(),
         })
         .collect())
 }

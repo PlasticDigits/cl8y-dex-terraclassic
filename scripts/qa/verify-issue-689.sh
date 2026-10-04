@@ -65,7 +65,8 @@ run_step "source: sibling GETs; stock vs flow; no Llama N+1; no GET event/snapsh
     grep -q get_protocol_fees_daily indexer/src/api/protocol_fee_series.rs
     grep -q refresh_protocol_liquidity_rollups indexer/src/db/queries/protocol_liquidity.rs
     grep -q refresh_protocol_fee_series_rollups indexer/src/db/queries/protocol_fee_series.rs
-    grep -q refresh_protocol_liquidity_rollups indexer/src/indexer/protocol_tvl.rs
+    grep -q publish_liquidity_refresh indexer/src/indexer/protocol_tvl.rs
+    grep -q refresh_protocol_liquidity_rollups_tx indexer/src/db/queries/liquidity_snapshots.rs
     grep -q refresh_protocol_fee_series_rollups indexer/src/indexer/volume_aggregator.rs
     grep -q protocol-utc-metric- frontend-dapp/src/components/protocol/ProtocolVolumeDailyChart.tsx
     grep -q getProtocolLiquiditySeries frontend-dapp/src/services/indexer/client.ts
@@ -144,14 +145,14 @@ fi
 
 if [[ "${VERIFY_ISSUE_689_SKIP_E2E:-}" == "1" ]]; then
   echo ""
-  echo "[playwright e2e-smoke protocol-page (5 workers)] skipped (VERIFY_ISSUE_689_SKIP_E2E=1)"
+  echo "[playwright e2e-smoke protocol-page (configured workers)] skipped (VERIFY_ISSUE_689_SKIP_E2E=1)"
   ok "playwright e2e-smoke protocol-page (skipped)"
 elif [ -d "$REPO_ROOT/frontend-dapp/node_modules/@playwright/test" ] || [ -d "$REPO_ROOT/frontend-dapp/node_modules/playwright" ]; then
-  run_step "playwright e2e-smoke protocol-page (5 workers)" \
-    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30689 PLAYWRIGHT_BASE_URL=http://127.0.0.1:30689 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test --project=e2e-smoke --workers=5 e2e/protocol-page.spec.ts'
+  run_step "playwright e2e-smoke protocol-page (configured workers)" \
+    bash -c 'PLAYWRIGHT_SKIP_CHAIN=1 PLAYWRIGHT_WEB_PORT=30689 PLAYWRIGHT_BASE_URL=http://127.0.0.1:30689 bash scripts/with-node.sh --cwd frontend-dapp -- ./node_modules/.bin/playwright test --project=e2e-smoke --workers="${PLAYWRIGHT_WORKERS:-5}" --output="${PLAYWRIGHT_OUTPUT_DIR:-test-results}" e2e/protocol-page.spec.ts'
 else
   echo ""
-  echo "[playwright e2e-smoke protocol-page (5 workers)] SKIP (no Playwright install)"
+  echo "[playwright e2e-smoke protocol-page (configured workers)] SKIP (no Playwright install)"
   ok "playwright e2e-smoke protocol-page (skipped — no node_modules playwright)"
 fi
 

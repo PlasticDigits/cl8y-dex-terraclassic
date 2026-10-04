@@ -2549,3 +2549,20 @@ See `.env.example` for the full list.
 | **E1376-6** | All money uses checked integer arithmetic with sufficient-offer rounding. Pool-only contract reverse validates the exact pool inverse without full-range bisection; hybrid search retains explicit call limits and errors on exhaustion. |
 | **E1376-7** | Wallet consent, balances/LUNC gas, pause/freeze/blacklist, mapper limits, 5/30/99 spread and Expert behavior remain enforced. URL parameters never change these protections or persist wallet identity/amounts. |
 | **E1376-8** | Verification records revision, scope and PASS/FAIL/SKIP honestly. Deployment inventory, public token resolution and block/snapshot probes distinguish shipped behavior from mocked tests. |
+
+## Protocol liquidity quality
+
+[#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380) makes
+`IndexerOverview.total_liquidity_usd` nullable and adds independent quality/as-of,
+coverage identity, generation, bounded reasons and max-age fields. The headline
+shows an em dash with an explanation for unknown/unavailable/stale, `≥` for a
+partial lower bound, and true zero only for qualified current observations.
+Only fresh/verified-empty current quality can show the existing 24h delta;
+backend baseline coverage must also match. Legacy positive values are labeled
+coverage unknown and legacy zero cannot prove emptiness. Liquidity chart
+partial/unknown samples are accessible explained gaps; verified known zero is
+preserved. Volume/Fees remain flow series with existing behavior. Both keyboard
+focus and mobile tap expose quality/as-of. Cached fresh data expires using its
+original liquidity time, independently of volume polling.
+See [QA and agent verification](qa/issue-1380/README.md), [Q1380 invariants](indexer-invariants.md#protocol-liquidity-quality-1380),
+and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).

@@ -248,3 +248,21 @@ When adding a new query parameter that influences SQL or ordering:
 2. Cap numeric inputs.
 3. Add a **happy** and **unhappy** test (400/404/429 as appropriate).
 4. Update this matrix if the invariant is user-visible.
+
+## Protocol liquidity quality (#1380)
+
+| ID | Rule |
+| --- | --- |
+| Q1380-1 | Full expected factory inventory is censused, including missing reserve rows. Unsupported-only pairs are a separate reason. Cold nonempty subsets need completed-enumeration provenance before totals can be qualified. Configured contract/denom identity determines supported scope; symbols cannot create USD handles. |
+| Q1380-2 | Canonical total is nullable. Fresh means supported coverage complete; partial is an explicit lower bound; stale/unavailable/unknown are null. Validated current drained pools or recently confirmed empty factory inventory can be zero. Cold empty DB is unknown. |
+| Q1380-3 | Both supported legs require available prices. One-sided 2× depends on catalog membership, never temporary quote availability. Existing human scale, USD source selection, floors, bounds and book-escrow exclusion remain. Real changes are never smoothed. |
+| Q1380-4 | Advisory serialization precedes input reads, with bounded table-lock/statement waits. One transaction publishes monotonic generation, headline, per-pool stamps, bounded source sample, grains and prune. Failure rolls back every stage; an older generation is rejected. |
+| Q1380-5 | Independent liquidity as-of retains the oldest used reserve/hub input time or original empty enumeration. Overview qualifies every cache response and frontend expires cached data. Volume timestamps cannot freshen liquidity. Future timestamps are invalid; missing/stale quotes never become pegs. |
+| Q1380-6 | Each four-minute UTC source slot and each hour/day/month retains its terminal attempt, even unknown. No earlier valid sample is relabeled a close. Baselines first select nearest terminal then qualify fresh quality and matching identity, not counts. |
+| Q1380-7 | Legacy numbers lack quality provenance and remain unknown. Fixed public anomaly hours have scoped idempotent unknown repair with original evidence retained; only affected terminal derived closes are invalidated. Never replace history with current TVL. |
+| Q1380-8 | Background reserve jobs, deadlines, book walks and cadence are bounded; failures retain prior reserve/book amounts and timestamp. Solver TTL is unchanged. Diagnostics expose cycle duration, latency/failure, reserve age and bounded valuation reason counts. |
+| Q1380-9 | Overview GET remains materialized O(1); history GET reads allowlisted bounded grain tables, no LCD/event/snapshot scan. Protocol reveals quality and as-of with keyboard/tap access. Volume/Fees behavior and UTC retention remain. |
+
+Implementation/reviewer checklist: [issue-1380 QA](qa/issue-1380/README.md).
+Third-party agent contract: [playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
+Verification: `make verify-issue-1380` plus `569`, `689`, `655`, `664`, `1263`.

@@ -403,7 +403,7 @@ test.describe('Protocol UTC metric toggle (GitLab #689)', () => {
     await page.goto('/protocol')
     await page.waitForLoadState('domcontentloaded')
     await expect(page.getByRole('heading', { name: /^protocol$/i })).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible()
+    await expect(page.getByTestId('protocol-stat-liquidity-24h')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('protocol-stat-liquidity-30d')).toHaveCount(0)
     const chart = page.getByTestId('protocol-volume-daily-chart')
     if (!(await chart.count())) return

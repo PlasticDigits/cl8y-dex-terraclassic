@@ -109,6 +109,9 @@ const overviewOk = {
   unique_traders_24h: 9,
   ustc_price_usd: '0.005',
   total_liquidity_usd: '8900.25',
+  liquidity_quality: 'fresh' as const,
+  liquidity_as_of: new Date().toISOString(),
+  liquidity_max_age_seconds: 300,
   liquidity_change_24h_pct: '-3.5',
   liquidity_change_30d_pct: '12.5',
   total_fees_24h_usd: '12.5',
@@ -237,17 +240,17 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       methodology: 'protocol_catalog',
       series:
         grain === 'hourly'
-          ? [{ utc_hour: '2026-08-26T12', liquidity_usd: '80', priced_pair_count: 2 }]
+          ? [{ utc_hour: '2026-08-26T12', liquidity_usd: '80', quality: 'fresh', priced_pair_count: 2 }]
           : grain === 'monthly'
-            ? [{ utc_month: '2026-08', liquidity_usd: '90', priced_pair_count: 2 }]
+            ? [{ utc_month: '2026-08', liquidity_usd: '90', quality: 'fresh', priced_pair_count: 2 }]
             : [
-                { utc_day: '2026-08-20', liquidity_usd: '50', priced_pair_count: 1 },
-                { utc_day: '2026-08-21', liquidity_usd: '60', priced_pair_count: 1 },
+                { utc_day: '2026-08-20', liquidity_usd: '50', quality: 'fresh', priced_pair_count: 1 },
+                { utc_day: '2026-08-21', liquidity_usd: '60', quality: 'fresh', priced_pair_count: 1 },
                 { utc_day: '2026-08-22', liquidity_usd: null, priced_pair_count: 0 },
-                { utc_day: '2026-08-23', liquidity_usd: '70', priced_pair_count: 1 },
-                { utc_day: '2026-08-24', liquidity_usd: '72', priced_pair_count: 1 },
-                { utc_day: '2026-08-25', liquidity_usd: '74', priced_pair_count: 1 },
-                { utc_day: '2026-08-26', liquidity_usd: '76', priced_pair_count: 1 },
+                { utc_day: '2026-08-23', liquidity_usd: '70', quality: 'fresh', priced_pair_count: 1 },
+                { utc_day: '2026-08-24', liquidity_usd: '72', quality: 'fresh', priced_pair_count: 1 },
+                { utc_day: '2026-08-25', liquidity_usd: '74', quality: 'fresh', priced_pair_count: 1 },
+                { utc_day: '2026-08-26', liquidity_usd: '76', quality: 'fresh', priced_pair_count: 1 },
               ],
     }))
     vi.mocked(indexerClient.getProtocolFeesSeries).mockImplementation(async (grain, limit) => ({
@@ -553,6 +556,9 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
       pair_count: 0,
       token_count: 0,
       total_liquidity_usd: '0',
+      liquidity_quality: 'verified_empty',
+      liquidity_as_of: new Date().toISOString(),
+      liquidity_max_age_seconds: 300,
       liquidity_change_24h_pct: null,
       liquidity_change_30d_pct: null,
     })
@@ -563,6 +569,88 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.queryByTestId('protocol-stat-liquidity-30d')).not.toBeInTheDocument()
     expect(screen.queryByText('Infinity')).not.toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
+  })
+
+  it.each(['partial', 'stale', 'unavailable', 'unknown'] as const)(
+    'qualifies %s liquidity and suppresses misleading deltas (#1380)',
+    async (quality) => {
+      vi.mocked(indexerClient.getOverview).mockResolvedValue({
+        ...overviewOk,
+        liquidity_quality: quality,
+        total_liquidity_usd: quality === 'partial' ? '218' : '0',
+        liquidity_change_24h_pct: '-100',
+      })
+      renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+      const liquidity = await screen.findByTestId('protocol-stat-liquidity')
+      await waitFor(() => expect(liquidity).toHaveTextContent(quality === 'partial' ? '≥ $' : '—'))
+      expect(within(liquidity).getByTestId('protocol-stat-liquidity-24h')).toHaveTextContent('—')
+      expect(liquidity).not.toHaveTextContent('-100%')
+      expect(liquidity).not.toHaveTextContent('$0')
+      expect(screen.getByTestId('protocol-stat-volume-24h')).toHaveTextContent('$')
+    }
+  )
+
+  it('fails closed on an old zero payload (#1380)', async () => {
+    vi.mocked(indexerClient.getOverview).mockResolvedValue({
+      ...overviewOk,
+      liquidity_quality: undefined,
+      liquidity_as_of: undefined,
+      total_liquidity_usd: '0',
+      priced_pair_count: 0,
+      liquidity_change_24h_pct: '-100',
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    const liquidity = await screen.findByTestId('protocol-stat-liquidity')
+    await waitFor(() => expect(liquidity).toHaveTextContent('liquidity unknown'))
+    expect(liquidity).not.toHaveTextContent('$0')
+    expect(liquidity).not.toHaveTextContent('-100%')
+  })
+
+  it('shows partial/unknown history as accessible gaps and verified empty as zero (#1380)', async () => {
+    const user = userEvent.setup()
+    vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
+      grain: 'daily',
+      limit: 7,
+      timezone: 'UTC',
+      methodology: 'protocol_catalog',
+      series: [
+        { utc_day: '2026-10-01', liquidity_usd: '218', quality: 'partial', as_of: '2026-10-01T23:59:00Z' },
+        { utc_day: '2026-10-02', liquidity_usd: '0', priced_pair_count: 0 },
+        { utc_day: '2026-10-03', liquidity_usd: '0', quality: 'verified_empty' },
+        { utc_day: '2026-10-04', liquidity_usd: '249000', quality: 'fresh' },
+        { utc_day: '2026-10-05', liquidity_usd: '249000', quality: 'verified_empty' },
+        { utc_day: '2026-10-06', liquidity_usd: '218.57', priced_pair_count: 2 },
+      ],
+    })
+    renderWithProviders(<ProtocolPage />, { route: '/protocol' })
+    await screen.findByTestId('protocol-volume-daily-chart')
+    await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
+    const gap = await screen.findByTestId('protocol-volume-bar-0')
+    await waitFor(() => expect(gap).toHaveAttribute('stroke-dasharray', '3 3'))
+    await user.click(gap)
+    expect(await screen.findByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Partial · lower bound: ≥ $')
+    expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('As of 2026-10-01T23:59:00Z')
+    const unknown = screen.getByTestId('protocol-volume-bar-1')
+    unknown.focus()
+    await waitFor(() =>
+      expect(screen.getByTestId('protocol-volume-chart-tooltip')).toHaveTextContent('Unknown liquidity')
+    )
+    await user.keyboard('{Escape}')
+    expect(screen.queryByTestId('protocol-volume-chart-tooltip')).not.toBeInTheDocument()
+    expect(screen.getByTestId('protocol-volume-bar-2')).toHaveAttribute('aria-label', expect.stringContaining('$0'))
+    expect(screen.getByTestId('protocol-volume-bar-2')).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('Verified empty')
+    )
+    expect(screen.getByTestId('protocol-volume-bar-3')).not.toHaveAttribute('stroke-dasharray')
+    const contradictory = screen.getByTestId('protocol-volume-bar-4')
+    expect(contradictory).toHaveAttribute('stroke-dasharray', '3 3')
+    expect(contradictory).toHaveAttribute('aria-label', expect.stringContaining('Coverage unknown'))
+    expect(contradictory).not.toHaveAttribute('aria-label', expect.stringContaining('Verified empty'))
+    const legacyPositive = screen.getByTestId('protocol-volume-bar-5')
+    expect(legacyPositive).toHaveAttribute('stroke-dasharray', '3 3')
+    expect(legacyPositive).toHaveAttribute('aria-label', expect.stringContaining('Unknown liquidity'))
+    expect(legacyPositive).not.toHaveAttribute('aria-label', expect.stringContaining('$218'))
   })
 
   it('keeps volume and fee 30d tiles while liquidity stays 24h-only (GitLab #677)', async () => {
@@ -1007,6 +1095,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     const monthlyLiq = Array.from({ length: 6 }, (_, i) => ({
       utc_month: `2026-0${i + 1}`,
       liquidity_usd: '80',
+      quality: 'fresh' as const,
       priced_pair_count: 1,
     }))
     vi.mocked(indexerClient.getProtocolVolumeSeries).mockImplementation(async (grain, limit) => {
@@ -1131,7 +1220,7 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     expect(screen.queryByTestId('protocol-volume-chart-tooltip')).not.toBeInTheDocument()
   })
 
-  it('shows No liquidity yet for an all-null stock series (GitLab #689)', async () => {
+  it('shows explicit unknown gaps for an all-null stock series (#1380)', async () => {
     const user = userEvent.setup()
     vi.mocked(indexerClient.getProtocolLiquiditySeries).mockResolvedValue({
       grain: 'daily',
@@ -1146,8 +1235,10 @@ describe('ProtocolPage (GitLab #550 / #378 / #569)', () => {
     renderWithProviders(<ProtocolPage />, { route: '/protocol' })
     await screen.findByTestId('protocol-volume-daily-chart')
     await user.click(screen.getByTestId('protocol-utc-metric-liquidity'))
-    expect(await screen.findByTestId('protocol-volume-daily-empty')).toHaveTextContent('No liquidity yet')
-    expect(screen.queryByTestId('protocol-volume-daily-bars')).not.toBeInTheDocument()
+    const gap = await screen.findByTestId('protocol-volume-bar-0')
+    expect(gap).toHaveAttribute('stroke-dasharray', '3 3')
+    expect(gap).toHaveAttribute('aria-label', expect.stringContaining('Unknown liquidity'))
+    expect(screen.getByTestId('protocol-liquidity-quality-help')).toHaveTextContent('not zero')
   })
 
   it('hides the liquidity plot on 404 but keeps Volume (GitLab #689)', async () => {

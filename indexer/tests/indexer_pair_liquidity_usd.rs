@@ -29,6 +29,12 @@ async fn insert_native(pool: &sqlx::PgPool, denom: &str, symbol: &str, decimals:
 }
 
 async fn insert_cw20(pool: &sqlx::PgPool, addr: &str, symbol: &str, decimals: i16) -> i32 {
+    let addr = match symbol {
+        "UST1" => cl8y_dex_indexer::config::DEFAULT_HUB_UST1_ADDRESS,
+        "USTR" => cl8y_dex_indexer::config::DEFAULT_HUB_USTR_ADDRESS,
+        "cUSTC" => cl8y_dex_indexer::config::DEFAULT_HUB_CUSTC_ADDRESS,
+        _ => addr,
+    };
     sqlx::query_scalar(
         "INSERT INTO assets (contract_address, is_cw20, name, symbol, decimals)
          VALUES ($1, true, $2, $2, $3) RETURNING id",
@@ -42,7 +48,7 @@ async fn insert_cw20(pool: &sqlx::PgPool, addr: &str, symbol: &str, decimals: i1
 }
 
 async fn insert_pair(pool: &sqlx::PgPool, addr: &str, a0: i32, a1: i32) -> i32 {
-    sqlx::query_scalar(
+    let pair_id = sqlx::query_scalar(
         "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
          VALUES ($1, $2, $3, $4, 30) RETURNING id",
     )
@@ -52,7 +58,15 @@ async fn insert_pair(pool: &sqlx::PgPool, addr: &str, a0: i32, a1: i32) -> i32 {
     .bind(format!("{addr}lp"))
     .fetch_one(pool)
     .await
-    .expect("pair")
+    .expect("pair");
+    cl8y_dex_indexer::db::queries::state::set_state(
+        pool,
+        "factory_inventory_observed_at",
+        &Utc::now().to_rfc3339(),
+    )
+    .await
+    .expect("complete fixture inventory");
+    pair_id
 }
 
 async fn insert_reserves(
@@ -231,13 +245,18 @@ async fn i6_i7_stale_zero_and_hub_down_omit() {
     let app = common::build_test_app(pool).await;
     let server = TestServer::new(app);
     let body: Value = server.get("/api/v1/pairs?limit=100").await.json();
-    for addr in ["terra1stale655", "terra1zero655", "terra1hubdown655"] {
+    for addr in ["terra1stale655", "terra1hubdown655"] {
         let row = item_for(&body, addr);
         assert!(
             row.get("liquidity_usd").is_none() || row["liquidity_usd"].is_null(),
             "{addr} must omit liquidity_usd, got {row}"
         );
     }
+    // A fresh zero on one leg is a genuine withdrawal, not a missing observation.
+    assert_eq!(
+        parse_usd(item_for(&body, "terra1zero655")),
+        Some(bd("0.0001"))
+    );
 }
 
 #[serial]
