@@ -16,7 +16,7 @@ Crawlers do **not** run React. nginx `try_files` rewrites every public SPA path 
 | [`public/og-image.png`](../frontend-dapp/public/og-image.png) | Shipped 1200×630 card |
 | [`brand/community-opengraph-concept.png`](../frontend-dapp/brand/community-opengraph-concept.png) | Square source — **not** the crawler URL |
 | [`scripts/compose-og-image.py`](../scripts/compose-og-image.py) | Recompose 1200×630 without stretching the square |
-| [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf) | Existing `/og-image.png` file-only exception; #1212 requires the same protection for robots and sitemap |
+| [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf) | File-only exceptions for `/og-image.png`, robots, and sitemap; HTML noindex |
 | [docs/qa/issue-488/README.md](../docs/qa/issue-488/README.md) | #488 typesetting card is **not** live OG |
 | [docs/frontend.md § Crawl endpoints](../docs/frontend.md#crawl-endpoints) | CRAWL-1–CRAWL-6 for robots and sitemap |
 
@@ -48,13 +48,11 @@ make verify-issue-578
 
 No LocalTerra, indexer, or wallet work. Manual after Coolify deploy: `curl -sL https://dex.cl8y.com/ | grep og:image` and `curl -sI https://dex.cl8y.com/og-image.png`; Telegram + X/Twitter large card (reset X cache if stale).
 
-## Crawl endpoints (GitLab #1212) {#crawl-endpoints}
+## Crawl endpoints (Forgejo #1212) {#crawl-endpoints}
 
-`/robots.txt` and `/sitemap.xml` must be real static files copied from `frontend-dapp/public/`; crawler URLs must never resolve to the shared Vite SPA shell. Add exact locations to `docker/frontend/nginx.conf` with `try_files $uri =404`, `text/plain` for robots, and `application/xml` (or `+xml`) for the sitemap. This keeps an omitted file from becoming a misleading `200 text/html` response.
+`/robots.txt` and `/sitemap.xml` are real Vite public files served by exact nginx locations with file-only 404 behavior. The sitemap is an empty namespaced `urlset`; robots uses an empty `Disallow:` directive to permit fetching the DEX origin and pins its sitemap URL to `https://dex.cl8y.com/sitemap.xml`. HTML carries `X-Robots-Tag: noindex, nofollow`. This policy preserves the one-shell metadata rule **OG-5**, the exact `/og-image.png` exception, and #706 hashed-asset caching/404 behavior.
 
-Keep the sitemap limited to intentionally crawlable paths on `https://dex.cl8y.com`. Omit wallet, manage, mint, trader-address, and unbounded pair routes. Do not add marketing claims, foreign hosts, or treat robots directives as access control. Do not add per-route OG tags, titles, or canonicals to work around this; the one-shell rule remains **OG-5**. Do not block a future content host.
-
-Preserve the exact `/og-image.png` exception from [#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) and hashed JS/CSS miss handling from [#706](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706). See [#1212](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/1212) for the full acceptance criteria. The verifier should check status, media type, and body shape for both present files, verify missing files return 404, and recheck the production responses after Coolify deployment. `make verify-issue-1212` is not present yet.
+Run `make verify-issue-1212`; the [crawl-file playbook](./AGENTS_FRONTEND_CRAWL_FILES.md) documents **CRAWL-1–CRAWL-6** and local/build/live modes. Use the [issue #1212 QA checklist](../docs/qa/issue-1212/README.md) to distinguish local checks from production acceptance and record unavailable checks accurately. Keep wallet, manage, mint, trader-address, and unbounded pair routes out of the sitemap. Do not add foreign hosts, product claims, route-specific titles/canonicals, or policies for a future content host.
 
 ## Cross-links
 

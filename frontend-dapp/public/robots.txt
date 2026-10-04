@@ -1,0 +1,3 @@
+User-agent: *
+Disallow:
+Sitemap: https://dex.cl8y.com/sitemap.xml

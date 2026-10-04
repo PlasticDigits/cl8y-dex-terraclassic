@@ -1399,6 +1399,11 @@ verify-issue-578:
 	@chmod +x scripts/qa/verify-issue-578.sh
 	./scripts/qa/verify-issue-578.sh
 
+# Forgejo #1212 — honest crawl files, media types, and missing-file 404s.
+.PHONY: verify-issue-1212
+verify-issue-1212:
+	bash scripts/qa/verify-issue-1212.sh
+
 # GitLab #695 — production VITE_DEV_MODE reject (FE-01 Simulated Wallet chrome).
 .PHONY: verify-issue-695
 verify-issue-695:

@@ -64,7 +64,7 @@ run_step "code: nginx PNG is a real file; SPA routes share index.html" \
   grep -qE 'location = /og-image.png' docker/frontend/nginx.conf && \
   grep -qE 'try_files \$uri =404' docker/frontend/nginx.conf && \
   grep -qE 'try_files \$uri \$uri/ /index.html' docker/frontend/nginx.conf && \
-  grep -qE 'Cache-Control "no-cache"' docker/frontend/nginx.conf && \
+  grep -qE 'Cache-Control "no-cache, must-revalidate"' docker/frontend/nginx.conf && \
   grep -qE 'X-Frame-Options DENY' docker/frontend/nginx.conf && \
   grep -qE 'X-Content-Type-Options nosniff' docker/frontend/nginx.conf
 

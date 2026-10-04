@@ -13,6 +13,7 @@
 # VERIFY706_REQUIRE_E2E=1 — FAIL when Playwright cannot run.
 # VERIFY706_REQUIRE_NGINX=1 — FAIL when docker nginx smoke cannot run.
 # VERIFY706_REQUIRE_LIVE=1 or VERIFY706_IID=706 — FAIL when Coolify curl cannot run.
+# PLAYWRIGHT_WEB_PORT=<unused-port> — isolate Vite in parallel worktrees.
 #
 # Refs: skills/AGENTS_FRONTEND_LAZY_CHUNK_LOAD.md, docs/frontend.md § Lazy route chunks
 set -euo pipefail
@@ -61,7 +62,7 @@ echo "  GitLab #706 — stale lazy-chunk reload after Coolify deploy"
 echo "════════════════════════════════════════════════════════════════"
 
 export PATH="/usr/local/cargo/bin:${HOME}/.cargo/bin:${PATH}"
-unset PLAYWRIGHT_WEB_PORT || true
+# Keep an explicit dedicated port; :3000 may belong to another worktree/service.
 unset PLAYWRIGHT_BASE_URL || true
 unset VITE_PLAYWRIGHT_E2E || true
 unset CI || true
