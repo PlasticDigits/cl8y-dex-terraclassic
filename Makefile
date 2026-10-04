@@ -1447,6 +1447,10 @@ verify-issue-639:
 	@chmod +x scripts/qa/verify-issue-639.sh scripts/qa/listings_catalog_validate.py
 	./scripts/qa/verify-issue-639.sh
 
+.PHONY: verify-issue-642
+verify-issue-642:
+	python3 scripts/qa/cosmos_chain_registry_validate.py
+
 # #1261 — terra-classic.io CL8Y DEX listing pack (offline; no upstream PR).
 .PHONY: verify-issue-1261
 verify-issue-1261:

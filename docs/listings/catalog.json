@@ -16,12 +16,25 @@
     "indexer": "https://indexer.dex.cl8y.com",
     "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
     "cg_base": "https://indexer.dex.cl8y.com/cg/",
-    "cg_paths": ["/pairs", "/tickers", "/orderbook", "/historical_trades"],
+    "cg_paths": [
+      "/pairs",
+      "/tickers",
+      "/orderbook",
+      "/historical_trades"
+    ],
     "cmc_base": "https://indexer.dex.cl8y.com/cmc/",
-    "cmc_paths": ["/summary", "/assets", "/ticker", "/orderbook/:pair", "/trades/:pair"],
+    "cmc_paths": [
+      "/summary",
+      "/assets",
+      "/ticker",
+      "/orderbook/:pair",
+      "/trades/:pair"
+    ],
     "llama_daily_path": "/api/v1/defillama/daily",
     "coingecko_id": "ceramicliberty-com",
-    "coingecko_id_platforms_today": ["binance-smart-chain"],
+    "coingecko_id_platforms_today": [
+      "binance-smart-chain"
+    ],
     "cl8y_bsc": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
     "logos": "tokenlist/images/"
   },
@@ -37,7 +50,7 @@
       "symbol": "UST1",
       "decimals": 6,
       "contract": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72",
-      "notes": "No CoinGecko id. Unstablecoin — never advertise $1."
+      "notes": "No CoinGecko id. Unstablecoin \u2014 never advertise $1."
     },
     {
       "symbol": "USTR",
@@ -74,7 +87,9 @@
       "issue": 629,
       "status": "recognition_merged",
       "upstream_pr": "https://github.com/chainapsis/keplr-contract-registry/pull/132",
-      "follow_up_issues": [644],
+      "follow_up_issues": [
+        644
+      ],
       "do_not_reopen": true
     },
     {
@@ -124,7 +139,9 @@
       "priority": 3,
       "upstream": "https://github.com/cosmos/chain-registry",
       "path": "terra/assetlist.json",
-      "notes": "type_asset: cw20. Leap metadata comes from here — no Leap CW20 repo."
+      "notes": "type_asset: cw20. Leap metadata comes from here \u2014 no Leap CW20 repo.",
+      "pack": "docs/listings/cosmos-chain-registry/",
+      "upstream_pr": "https://github.com/cosmos/chain-registry/pull/7910"
     },
     {
       "id": "trust-wallet",
@@ -205,7 +222,7 @@
       "agentic": true,
       "priority": 8,
       "form": "https://coinranking.com/coin-listing",
-      "notes": "CL8Y token exists (BSC + stale Classic terra1u9c7…). Fix the Classic contract. Exchange = JS driver PR + email."
+      "notes": "CL8Y token exists (BSC + stale Classic terra1u9c7\u2026). Fix the Classic contract. Exchange = JS driver PR + email."
     },
     {
       "id": "livecoinwatch",
