@@ -7,9 +7,10 @@ Router send-hook / min-receive live in ust1-clunc-buyback-math.py (shared).
 from __future__ import annotations
 
 import argparse
+import secrets
 import sys
 from decimal import Decimal, ROUND_DOWN, getcontext
-from typing import Any
+from typing import Any, Callable
 
 getcontext().prec = 80
 
@@ -105,7 +106,59 @@ def remaining_usd(current_usd: str, target_usd: str) -> Decimal:
     return rem if rem > 0 else Decimal(0)
 
 
+def amount_jitter_bounds(usd: str, percent: str) -> tuple[Decimal, int]:
+    base, delta = _d(usd), _d(percent)
+    if not base.is_finite() or base <= 0:
+        raise ValueError("base mint USD must be positive and finite")
+    if not delta.is_finite() or not 0 <= delta < 100:
+        raise ValueError("amount jitter percent must be >= 0 and < 100")
+    bps = delta * 100
+    if bps != bps.to_integral_value():
+        raise ValueError("amount jitter percent supports at most two decimal places")
+    return base, int(bps)
+
+
+def interval_jitter_bounds(interval: int, jitter: int) -> tuple[int, int]:
+    if interval <= 0 or jitter < 0 or jitter >= interval:
+        raise ValueError("interval must be positive and jitter >= 0 and smaller than interval")
+    return interval - jitter, interval + jitter
+
+
+def random_amount_usd(
+    usd: str, percent: str, *, randbelow: Callable[[int], int] = secrets.randbelow,
+) -> Decimal:
+    base, bps = amount_jitter_bounds(usd, percent)
+    offset = randbelow(2 * bps + 1) - bps if bps else 0
+    return base * (Decimal(10000 + offset) / 10000)
+
+
+def random_interval_sec(
+    interval: int, jitter: int, *, randbelow: Callable[[int], int] = secrets.randbelow,
+) -> int:
+    lower, upper = interval_jitter_bounds(interval, jitter)
+    return lower + randbelow(upper - lower + 1) if jitter else interval
+
+
 def self_test() -> None:
+    # Exercise both inclusive endpoints without relying on a lucky random draw.
+    for draw, usd, wait in ((lambda n: 0, "40", 2700), (lambda n: n - 1, "60", 4500)):
+        assert random_amount_usd("50", "20", randbelow=draw) == Decimal(usd)
+        assert random_interval_sec(3600, 900, randbelow=draw) == wait
+    assert random_amount_usd("50", "0") == Decimal("50")
+    assert random_interval_sec(3600, 0) == 3600
+    assert random_amount_usd("200", "20", randbelow=lambda n: n - 1) == Decimal("240")
+    for base, percent in (("0", "20"), ("NaN", "20"), ("50", "100"), ("50", "-1"), ("50", "0.001")):
+        try:
+            amount_jitter_bounds(base, percent)
+            raise AssertionError("invalid amount randomization should reject")
+        except ValueError:
+            pass
+    for interval, jitter in ((0, 0), (900, 900), (3600, -1)):
+        try:
+            interval_jitter_bounds(interval, jitter)
+            raise AssertionError("invalid interval randomization should reject")
+        except ValueError:
+            pass
     assert usd_to_raw("50", "0.008", 6) == 6_250_000_000
     assert usd_to_raw("200", "0.008", 6) == 25_000_000_000
     assert usd_to_raw("50", "0.01", 6) == 5_000_000_000
@@ -172,9 +225,33 @@ def main() -> int:
     p.add_argument("--current", required=True)
     p.add_argument("--target", required=True)
 
+    p = sub.add_parser("random-amount-usd")
+    p.add_argument("--usd", required=True)
+    p.add_argument("--percent", required=True)
+
+    p = sub.add_parser("random-interval-sec")
+    p.add_argument("--interval", type=int, required=True)
+    p.add_argument("--jitter", type=int, required=True)
+
+    p = sub.add_parser("validate-randomization")
+    p.add_argument("--usd", required=True)
+    p.add_argument("--percent", required=True)
+    p.add_argument("--interval", type=int, required=True)
+    p.add_argument("--jitter", type=int, required=True)
+
     args = parser.parse_args()
     if args.cmd == "self-test":
         self_test()
+        return 0
+    if args.cmd == "random-amount-usd":
+        print(format(random_amount_usd(args.usd, args.percent), "f"))
+        return 0
+    if args.cmd == "random-interval-sec":
+        print(random_interval_sec(args.interval, args.jitter))
+        return 0
+    if args.cmd == "validate-randomization":
+        amount_jitter_bounds(args.usd, args.percent)
+        interval_jitter_bounds(args.interval, args.jitter)
         return 0
     if args.cmd == "mint-raw-usd":
         print(usd_to_raw(args.usd, args.price, args.decimals))

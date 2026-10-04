@@ -219,7 +219,7 @@ broadcast_msig() {
   sig2="$workdir/sig2.json"
   signed="$workdir/signed.json"
   # shellcheck disable=SC2046
-  terrad_host_exec tx wasm execute "$contract" "$msg" \
+  terrad_host_exec_retry tx wasm execute "$contract" "$msg" \
     --from "$MSIG_KEY" \
     --generate-only \
     $(terrad_host_common_flags) \
@@ -229,18 +229,19 @@ broadcast_msig() {
   jq -e '.body.messages | length > 0' "$unsigned" >/dev/null \
     || die "unsigned mint tx invalid ($label)"
   # shellcheck disable=SC2046
-  terrad_host_exec tx sign "$unsigned" \
+  terrad_host_exec_retry tx sign "$unsigned" \
     --from "$SIGNER1" --multisig "$MSIG_KEY" --sign-mode amino-json \
     $(terrad_host_common_flags) --output json >"$sig1"
   # shellcheck disable=SC2046
-  terrad_host_exec tx sign "$unsigned" \
+  terrad_host_exec_retry tx sign "$unsigned" \
     --from "$SIGNER2" --multisig "$MSIG_KEY" --sign-mode amino-json \
     $(terrad_host_common_flags) --output json >"$sig2"
   # shellcheck disable=SC2046
-  terrad_host_exec tx multisign "$unsigned" "$MSIG_KEY" "$sig1" "$sig2" \
+  terrad_host_exec_retry tx multisign "$unsigned" "$MSIG_KEY" "$sig1" "$sig2" \
     $(terrad_host_common_flags) --output json >"$signed"
+  # Same signed bytes on a 503 retry. Rebroadcast does not mint twice.
   # shellcheck disable=SC2046
-  out="$(terrad_host_exec tx broadcast "$signed" \
+  out="$(terrad_host_exec_retry tx broadcast "$signed" \
     $(terrad_host_common_flags) \
     --broadcast-mode "${TERRAD_HOST_BROADCAST_MODE:-sync}" \
     -y --output json)"

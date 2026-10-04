@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Hourly mint $200 of cUSTC → indexer best-solver swap to UST1 until CMM vFDUSD
+# Mint a $200 base ±20% of cUSTC → indexer best-solver swap to UST1 until CMM vFDUSD
 # CW20 × Venus redeem × CEX FDUSD/USD is $500.
 #
 # Flow (each tick):
 #   1. Price CMM vFDUSD at Venus fdusd_per_vfdusd × indexer FDUSD/USD.
 #   2. Stop when that USD >= CUSTC_UST1_TARGET_USD (default 500).
-#   3. 2-of-3 extra-minter mint of $200 cUSTC (USTC oracle) → admin (top-up only).
-#   4. GET /api/v1/route/solve/best cUSTC→UST1 and execute router ops.
+#   3. GET /api/v1/route/solve/best cUSTC→UST1 and validate router ops.
+#   4. 2-of-3 extra-minter mint of the randomized cUSTC budget → admin (top-up
+#      only), then execute the validated router ops.
 #   5. Default dest transfers received UST1 to CMM. Does not unwrap (cUSTC is
 #      wrap) and does not window-redeem (that would drain CMM vFDUSD). The tick
 #      does not raise vFDUSD; DEX UST1 premium vs the window is meant to pull
 #      third-party vFDUSD deposits into CMM.
-#   6. Live default: sleep 1h and repeat until CMM vFDUSD USD hits target.
+#   6. Live default: wait 45–75 minutes after each tick, then repeat until target.
 #
 # Usage:
 #   DRY_RUN=1 ./scripts/mint-swap-custc-ust1.sh
@@ -23,6 +24,8 @@
 #
 # Never commit TERRAD_HOST_KEYRING_PASS.
 set -euo pipefail
+# Keep query/build failures fatal inside command substitutions as well.
+shopt -s inherit_errexit
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/custc-ust1-buyback-defaults.sh
@@ -51,8 +54,10 @@ UST1="${CUSTC_UST1_UST1}"
 CUSTC="${CUSTC_UST1_CUSTC}"
 VFDUSD="${CUSTC_UST1_VFDUSD}"
 MINT_USD="${CUSTC_UST1_MINT_USD}"
+AMOUNT_JITTER_PERCENT="${CUSTC_UST1_AMOUNT_JITTER_PERCENT}"
 TARGET_USD="${CUSTC_UST1_TARGET_USD}"
 INTERVAL_SEC="${CUSTC_UST1_INTERVAL_SEC}"
+INTERVAL_JITTER_SEC="${CUSTC_UST1_INTERVAL_JITTER_SEC}"
 DEST="${CUSTC_UST1_DEST}"
 SLIP="${CUSTC_UST1_SLIPPAGE_PERCENT}"
 MAX_SPREAD="${CUSTC_UST1_MAX_SPREAD}"
@@ -334,7 +339,7 @@ quote_best() {
   local amount="$1" url raw
   url="${INDEXER}/api/v1/route/solve/best?token_in=${CUSTC}&token_out=${UST1}&amount_in=${amount}&trader=${ADMIN_ADDR}&sender=${ADMIN_ADDR}"
   echo "  GET $url" >&2
-  raw="$(curl -sS --connect-timeout 10 --max-time "$QUOTE_TIMEOUT" -H "User-Agent: $HTTP_UA" "$url")" \
+  raw="$(curl -fsS --connect-timeout 10 --max-time "$QUOTE_TIMEOUT" -H "User-Agent: $HTTP_UA" "$url")" \
     || die "indexer quote request failed"
   if ! jq -e '.router_operations | type == "array" and length > 0' >/dev/null <<<"$raw"; then
     echo "$raw" | jq -c '.' >&2 || true
@@ -342,6 +347,10 @@ quote_best() {
   fi
   jq -e '.estimated_amount_out != null and (.estimated_amount_out | tonumber) > 0' >/dev/null <<<"$raw" \
     || die "indexer quote missing estimated_amount_out"
+  jq -e --arg offer "$CUSTC" --arg ask "$UST1" '
+    .router_operations[0].terra_swap.offer_asset_info.token.contract_addr == $offer and
+    .router_operations[-1].terra_swap.ask_asset_info.token.contract_addr == $ask
+  ' >/dev/null <<<"$raw" || die "indexer quote token endpoints do not match requested swap"
   printf '%s' "$raw"
 }
 
@@ -365,10 +374,10 @@ print_header() {
   echo "Treasury:   $TREASURY"
   echo "Admin key:  $ADMIN_KEY ($ADMIN_ADDR)"
   echo "Multisig:   $MSIG_KEY ($MSIG_ADDR)"
-  echo "Mint/tick:  \$${MINT_USD} cUSTC (USTC oracle)"
+  echo "Mint/tick:  \$${MINT_USD} cUSTC ±${AMOUNT_JITTER_PERCENT}% (USTC oracle)"
   echo "Target USD: $TARGET_USD  (CMM vFDUSD × Venus × FDUSD/USD)"
   echo "Dest:       $DEST"
-  echo "Interval:   ${INTERVAL_SEC}s  LOOP=${CUSTC_UST1_LOOP}"
+  echo "Interval:   ${INTERVAL_SEC}s ±${INTERVAL_JITTER_SEC}s after each tick  LOOP=${CUSTC_UST1_LOOP}"
   echo "Slippage:   ${SLIP}%"
   echo "DRY_RUN:    ${DRY_RUN:-0}"
   echo "State:      $STATE_FILE"
@@ -414,6 +423,7 @@ one_tick() {
   local ustc_usd fdusd_usd venus mint_raw have need quote est min_recv hops hook_json hook_b64 send_msg
   local before after delta hop_returns marks
   local state swapped_raw swapped_usd rounds
+  local tick_usd
 
   echo ""
   echo "[oracle]"
@@ -438,8 +448,9 @@ one_tick() {
   echo "  swapped this campaign raw=$swapped_raw  usd=\$${swapped_usd}  rounds=$rounds  (telemetry only)"
   stop_if_target || return $?
 
-  mint_raw="$(python3 "$MATH_PY" mint-raw-usd --usd "$MINT_USD" --price "$ustc_usd" --decimals "$DEC_CUSTC")"
-  echo "[mint] \$${MINT_USD} → $mint_raw cUSTC raw"
+  tick_usd="$(python3 "$MATH_PY" random-amount-usd --usd "$MINT_USD" --percent "$AMOUNT_JITTER_PERCENT")"
+  mint_raw="$(python3 "$MATH_PY" mint-raw-usd --usd "$tick_usd" --price "$ustc_usd" --decimals "$DEC_CUSTC")"
+  echo "[mint] \$${tick_usd} → $mint_raw cUSTC raw (base=\$${MINT_USD} ±${AMOUNT_JITTER_PERCENT}%)"
   warn_wrap_solvency "$mint_raw"
   have="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
   if python3 -c "import sys; sys.exit(0 if int('$have') < int('$mint_raw') else 1)"; then
@@ -448,15 +459,6 @@ one_tick() {
     need="0"
   fi
   echo "  have cUSTC=$have need=$need (tick=$mint_raw)"
-  mint_if_needed "$need"
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    echo "  [DRY_RUN] assuming mint credited; quoting $mint_raw"
-  else
-    have="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
-    python3 -c "import sys; sys.exit(0 if int('$have') >= int('$mint_raw') else 1)" \
-      || die "admin cUSTC $have < mint size $mint_raw"
-  fi
-
   echo "[quote] $mint_raw cUSTC → UST1 via /route/solve/best"
   quote="$(quote_best "$mint_raw")"
   hops="$(jq -r '.hops | length' <<<"$quote")"
@@ -487,8 +489,10 @@ one_tick() {
   hook_b64="$(lcd_b64 "$hook_json")"
   send_msg="$(jq -nc --arg c "$ROUTER" --arg a "$mint_raw" --arg m "$hook_b64" \
     '{send:{contract:$c,amount:$a,msg:$m}}')"
-  echo "  hop min_return=$(jq -c '[.execute_swap_operations.operations[].terra_swap.min_return // null]' <<<"$hook_json")"
+  echo "  hop min_return=$(jq -c '[.execute_swap_operations.operations[] | .terra_swap.min_return // null]' <<<"$hook_json")"
 
+  # Do not mint until the quote and complete router hook have been validated.
+  mint_if_needed "$need"
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     echo "  [DRY_RUN] would swap $mint_raw cUSTC via router ($hops hops, min $min_recv UST1)"
     case "$DEST" in
@@ -498,6 +502,10 @@ one_tick() {
     esac
     return 0
   fi
+
+  have="$(cw20_balance "$CUSTC" "$ADMIN_ADDR")"
+  python3 -c "import sys; sys.exit(0 if int('$have') >= int('$mint_raw') else 1)" \
+    || die "admin cUSTC $have < mint size $mint_raw"
 
   broadcast_admin "solver swap $mint_raw cUSTC → UST1 ($hops hops)" \
     wasm execute "$CUSTC" "$send_msg" >/dev/null
@@ -555,6 +563,8 @@ one_tick() {
 
 python3 "$MATH_PY" self-test >/dev/null
 python3 "$HOOK_PY" self-test >/dev/null
+python3 "$MATH_PY" validate-randomization --usd "$MINT_USD" --percent "$AMOUNT_JITTER_PERCENT" \
+  --interval "$INTERVAL_SEC" --jitter "$INTERVAL_JITTER_SEC"
 
 print_header
 echo ""
@@ -589,17 +599,21 @@ if [[ "${CUSTC_UST1_LOOP}" == "1" ]]; then
     if [[ "$st" == "10" ]]; then
       exit 0
     fi
+    # Draw a fresh wait after the completed/failed tick, never a wall-clock slot.
+    wait_sec="$(python3 "$MATH_PY" random-interval-sec --interval "$INTERVAL_SEC" --jitter "$INTERVAL_JITTER_SEC")"
     if [[ "$st" != "0" ]]; then
-      echo "WARN: tick failed (exit $st); sleeping ${INTERVAL_SEC}s then retry" >&2
+      echo "WARN: tick failed (exit $st); sleeping ${wait_sec}s then retry" >&2
     else
-      echo "sleep ${INTERVAL_SEC}s until next tick"
+      echo "sleep ${wait_sec}s until next tick"
     fi
-    sleep "$INTERVAL_SEC"
+    sleep "$wait_sec"
   done
 fi
 
 set +e
-one_tick
+# Capture status outside a strict subshell; disabling errexit around one_tick
+# itself allowed failed quote/build commands to print a successful dry-run.
+( set -euo pipefail; one_tick )
 st=$?
 set -e
 if [[ "$st" == "10" || "$st" == "0" ]]; then
