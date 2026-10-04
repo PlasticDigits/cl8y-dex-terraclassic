@@ -1,0 +1,109 @@
+{
+  "chain_name": "binancesmartchain",
+  "assets": [
+    {
+      "description": "CL8Y (Ceramic Liberty) is the BNB Smart Chain token bridged to Terra Classic through CL8Y Bridge.",
+      "socials": {
+        "website": "https://cl8y.com"
+      },
+      "type_asset": "erc20",
+      "address": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+      "denom_units": [
+        {
+          "denom": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+          "exponent": 0
+        },
+        {
+          "denom": "cl8y",
+          "exponent": 18
+        }
+      ],
+      "base": "0x8f452a1fdd388a45e1080992eff051b4dd9048d2",
+      "name": "CeramicLiberty.com",
+      "display": "cl8y",
+      "symbol": "CL8Y",
+      "logo_URIs": {
+        "png": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/binancesmartchain/images/cl8y.png"
+      },
+      "images": [
+        {
+          "png": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/binancesmartchain/images/cl8y.png"
+        }
+      ],
+      "coingecko_id": "ceramicliberty-com"
+    },
+    {
+      "description": "Venus FDUSD is the Venus Protocol receipt token for FDUSD on BNB Smart Chain.",
+      "socials": {
+        "website": "https://venus.io"
+      },
+      "type_asset": "erc20",
+      "address": "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
+      "denom_units": [
+        {
+          "denom": "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
+          "exponent": 0
+        },
+        {
+          "denom": "vfdusd",
+          "exponent": 8
+        }
+      ],
+      "base": "0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
+      "name": "Venus FDUSD",
+      "display": "vfdusd",
+      "symbol": "vFDUSD",
+      "logo_URIs": {
+        "png": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/binancesmartchain/images/vfdusd.png"
+      },
+      "images": [
+        {
+          "png": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/binancesmartchain/images/vfdusd.png"
+        }
+      ]
+    },
+    {
+      "description": "BUSD-T gives you the joint benefits of open blockchain technology and traditional currency by converting your cash into a stable digital currency equivalent.",
+      "type_asset": "erc20",
+      "address": "0x55d398326f99059fF775485246999027B3197955",
+      "denom_units": [
+        {
+          "denom": "0x55d398326f99059fF775485246999027B3197955",
+          "exponent": 0
+        },
+        {
+          "denom": "usdt",
+          "exponent": 18
+        }
+      ],
+      "base": "0x55d398326f99059fF775485246999027B3197955",
+      "name": "Binance Bridged USDT",
+      "display": "usdt",
+      "symbol": "USDT",
+      "traces": [
+        {
+          "type": "bridge",
+          "counterparty": {
+            "chain_name": "ethereum",
+            "base_denom": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+          },
+          "provider": "Binance Bridge"
+        }
+      ],
+      "coingecko_id": "binance-bridged-usdt-bnb-smart-chain",
+      "images": [
+        {
+          "image_sync": {
+            "chain_name": "ethereum",
+            "base_denom": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+          },
+          "svg": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/ethereum/images/usdt.svg",
+          "png": "https://raw.githubusercontent.com/cosmos/chain-registry/master/_non-cosmos/ethereum/images/usdt.png",
+          "theme": {
+            "circle": true
+          }
+        }
+      ]
+    }
+  ]
+}

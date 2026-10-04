@@ -55,6 +55,8 @@ No LocalTerra, indexer, or wallet. Child venue PRs and form submits are operator
 
 ## Cross-links
 
+- Cosmos chain-registry: [`AGENTS_COSMOS_CHAIN_REGISTRY.md`](./AGENTS_COSMOS_CHAIN_REGISTRY.md), upstream [PR #7910](https://github.com/cosmos/chain-registry/pull/7910), `make verify-issue-642`. Only its pack includes the #1260 USDT exception; the shared catalog remains the permanent six.
+
 - Keplr pack: [`AGENTS_KEPLR_CW20_REGISTRY.md`](./AGENTS_KEPLR_CW20_REGISTRY.md)
 - CoinGecko Terra Classic platform form: [#644](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/644) · [`coingecko-terra-classic-platform.md`](../docs/listings/forms/coingecko-terra-classic-platform.md)
 - DeFiLlama: [`AGENTS_DEFILLAMA.md`](./AGENTS_DEFILLAMA.md)
