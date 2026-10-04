@@ -23,7 +23,9 @@ use dex_common::pair::{
 use dex_common::types::{pair_key, AssetInfo, PairInfo};
 
 const CONTRACT_NAME: &str = "cl8y-dex-factory";
-const CONTRACT_VERSION: &str = "1.10.0";
+// A distinct release permits the reviewed artifact rollout from production
+// 1.10.0; same-version migrations are intentionally rejected by cw2.
+const CONTRACT_VERSION: &str = "1.11.0";
 
 // ---------------------------------------------------------------------------
 // Instantiate

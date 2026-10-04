@@ -1443,6 +1443,11 @@ verify-issue-1376:
 verify-issue-1381:
 	bash scripts/qa/verify-issue-1381.sh
 
+# Production rollout automation: behavioral tests and retest, no signing keys.
+.PHONY: verify-route-tax-rollout
+verify-route-tax-rollout:
+	bash scripts/qa/verify-route-tax-rollout.sh
+
 # Forgejo #1256 — editable Swap receive on native/client routes.
 .PHONY: verify-issue-1256
 verify-issue-1256:

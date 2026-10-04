@@ -9,6 +9,9 @@ pin 11630 are distinct. A catalog pin change does not upgrade funding semantics.
 Invariants **RT1381-1–RT1381-10** and third-party agent instructions live in
 [the playbook](../../skills/AGENTS_ROUTE_LOCAL_TAX.md). Review/acceptance evidence
 and skip policy: [QA checklist](../qa/issue-1381/README.md).
+Production automation has separate
+[RTROLL1381-1–RTROLL1381-10](../../skills/AGENTS_ROUTE_TAX_ROLLOUT.md) and an
+[agent rollout review checklist](../qa/issue-1381-rollout/README.md).
 
 ## Amount and identity protocol
 
@@ -49,31 +52,165 @@ freeze checks continue to apply.
 
 ## Coordinated rollout
 
+Use [`upgrade-1381-route-tax.sh`](../../scripts/upgrade-1381-route-tax.sh)
+and its [engine](../../scripts/lib/route_tax_rollout.py) to prepare the inventory,
+reviewed plan, stores, migrations, factory/launcher template rotation and affected
+pair pin refresh. The [CLI transport](../../scripts/lib/route_tax_rollout_cli.py)
+implements live queries and local SDK signing. The default planning/probing path
+is read-only. Adding this script
+to a PR does not run production transactions. Keep its manifest, journal and public
+receipts in a directory outside the checkout, not in tracked evidence files.
+
+Prepare and inspect the plan without signing:
+
+```bash
+bash scripts/upgrade-1381-route-tax.sh --help
+# Requires the reviewed optimized artifacts and their checksums.txt.
+bash scripts/upgrade-1381-route-tax.sh \
+  --artifacts smartcontracts/artifacts \
+  --checksums smartcontracts/artifacts/checksums.txt \
+  --state-dir ~/.local/state/cl8y-dex/route-tax-1381
+```
+
+The defaults select Columbus-5 and the official factory/router/launcher/CMM and
+ALPHA addresses. Use repeated `--token <address>` to add known affected instances
+to discovery. Override `--node`/`--lcd` for working public endpoints. For an isolated
+LocalTerra rehearsal, explicitly use `--chain-id localterra`, fixture addresses
+through `--factory`/`--router`/`--launcher`/`--cmm`/`--governance`/`--alpha`, fixture endpoints
+and the appropriate test keyring. Never reuse a production journal for a test chain.
+
+Optional reviewed prerequisite artifacts use `--cmm-wasm <path>` with
+`--cmm-sha256 <reviewed-hash>`, or `--launcher-wasm <path>` with
+`--launcher-sha256 <reviewed-hash>`. This release targets launcher **1.0.0**;
+its optional artifact migrates an older launcher to that version. A current
+compatible 1.0.0 launcher needs configuration rotation only. Replacing a current
+launcher with different wasm requires a properly versioned future release and
+updated reviewed target; the script cannot force same-version migration.
+Follow `--help` for complete supported options.
+
+For a live CMM below 0.2.2, set `ROLL1381_CMM_WASM` to the reviewed treasury
+artifact path and `ROLL1381_CMM_SHA256` to its checksum from the reviewed release
+record, then include both arguments when planning and on every subsequent mode:
+
+```bash
+bash scripts/upgrade-1381-route-tax.sh \
+  --artifacts smartcontracts/artifacts \
+  --checksums smartcontracts/artifacts/checksums.txt \
+  --cmm-wasm "$ROLL1381_CMM_WASM" \
+  --cmm-sha256 "$ROLL1381_CMM_SHA256" \
+  --state-dir ~/.local/state/cl8y-dex/route-tax-1381
+```
+
+This example remains read-only. Append `--execute` only when the operator is
+actually performing the reviewed rollout, then use the same CMM inputs for
+`--verify` and `--finalize`. The script stores/migrates the prerequisite treasury
+through its inventoried administrator before dispatching owned-token migrations.
+
+Only the operator runs the mutation modes after reviewing the immutable plan:
+
+```bash
+# Actual transactions: local keyring prompts and 2-of-3 signatures.
+bash scripts/upgrade-1381-route-tax.sh --execute \
+  --state-dir ~/.local/state/cl8y-dex/route-tax-1381
+# Read-only confirmation after the contract rollout.
+bash scripts/upgrade-1381-route-tax.sh --verify \
+  --state-dir ~/.local/state/cl8y-dex/route-tax-1381
+# After deployment.env has been applied and application/live checks pass:
+bash scripts/upgrade-1381-route-tax.sh --finalize \
+  --state-dir ~/.local/state/cl8y-dex/route-tax-1381
+```
+
+Every invocation uses the same artifacts and address/key overrides as planning;
+changed inputs must not silently reuse the journal. An uncertain submitted hash
+normally stops resume for reconciliation. `--rebroadcast-pending` explicitly permits
+only the exact checkpointed signed bytes, never a new transaction with a new
+sequence. `--max-total-fee-uluna` bounds cumulative transaction fees (default
+5,000,000,000 uluna); review the budget for the actual fleet before execution.
+`deployment.env` contains public application pins/registries for the handoff,
+not secret credentials. This PR's source review does not run any production mode.
+
+The rollout retains official contract addresses. It targets router and community
+tax tokens **1.2.0**, factory **1.11.0**, pair **1.19.0**, and launcher **1.0.0**.
+Production factory 1.10.0 has a different stored hash from the repository artifact;
+this PR changes only factory CW2 metadata relative to repository code, to 1.11.0,
+to permit its reviewed upgrade. Review the exact deployed artifact hash rather
+than inferring wasm equivalence from a shared version label. The
+[read-only baseline and release targets](../qa/issue-1381-rollout/README.md#release-targets-and-read-only-baseline)
+record the observed code IDs; re-probe them before a new production plan.
+Factory/pair migrations are prerequisites only when their live versions are behind
+these reviewed artifacts. The launcher can retain its current compatible wasm and
+rotate `token_code_id` through configuration; it must preserve AutoLP configuration.
+A same-version deployment with a different hash is not a safe skip and cannot be
+forced through the contracts' increasing-version migration guards. Resolve it with
+a reviewed, properly versioned release before the corresponding mutation.
+
+Inventory includes all factory pair CW20 assets, the launcher template pin and its
+deployed code instances, and explicit affected tokens such as ALPHA. Include KENA
+and other community-tax instances with zero current tax rates when bound to the
+official factory/router; they can enable tax later and still need compatible code.
+Reject unexpected bindings/admins. Token symbols and catalog pins do not establish
+code provenance or funding capability.
+
+The supplied local keys have distinct roles:
+
+| Key | Role |
+|---|---|
+| `cl8ydeploy` | Store reviewed wasm; its public address is `terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv`. |
+| `multisig_2of3` | Treasury/governance custody where live ownership proves it; address `terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7`. |
+| `multisig1`, `multisig2` | Default two component signatures; `multisig3` is the alternative third component, not an additional administrator. |
+| `cl8y2_admin` | Optional direct EOA migrations only for contracts whose actual admin is `terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l`. |
+
+The operator enters the keyring passphrase once; the process retains it only in
+memory. ALPHA's admin is CMM, so its migration is a CMM `migrate_owned_contract`
+execution through the actual CMM owner/governance dispatcher. Prove compatible
+CMM dispatch support (**>=0.2.2**) before attempting it. If missing, include the
+reviewed CMM prerequisite artifact and upgrade its real administrator first.
+An available EOA key cannot bypass contract-admin custody.
+
+Execution journals submitted transaction hashes and inclusion receipts. If a
+terminal or network failure occurs, resume the same manifest/journal and reconcile
+pending transaction hashes before any resend. Do not create a new plan to conceal
+an uncertain transaction. Pauses introduced during this transition stay in place
+on a partial failure; existing pauses remain preserved. Explicit finalization
+restores only markets this rollout paused, after application rollout and live
+checks described below.
+
 1. Build/test the exact revision, generate schemas, record router/token wasm hashes
    and run `make verify-issue-1381`. Use isolated LocalTerra fixtures first.
 2. Inventory live router, token instances, administrators, configured factory/router,
    code IDs/hashes, registered pairs, rates and exemption directories. Keep the
    Create/Manage catalog provenance and pin policy separate from trading capability.
-3. Store the reviewed router/token artifacts using the existing authorized release
-   facilities. Migrate the official router and community-tax instances together.
+3. Store the reviewed artifacts using the existing authorized release facilities.
+   Upgrade prerequisite factory/pair versions and CMM dispatch support where
+   needed. Migrate the official router and community-tax instances together.
    ALPHA's admin is CMM: use governance `migrate_owned_contract`, not an EOA
    `wasm migrate` pretending to own ALPHA. Existing tooling is
    [`upgrade-1246-alpha.sh`](../../scripts/upgrade-1246-alpha.sh) and its treasury
    governance helpers; select the new reviewed code, never reuse 11666 as v1 proof.
-4. Whitelist only the proven new tax-token wasm in the factory, preserve old pins
-   during migration, and refresh affected pair asset code IDs through factory
+4. Whitelist only the proven new tax-token wasm in the factory, preserve required
+   old whitelist entries during migration, rotate factory `pair_code_id` and
+   launcher `token_code_id` to reviewed templates without changing AutoLP settings,
+   and refresh affected pair asset code IDs through factory
    `refresh_pair_asset_code_ids`/batch after token migration. Verify pauses,
    registration, live pins and exact tax sinks before resuming swaps.
-5. Configure indexer trusted route-tax code/hash identities from actual stores;
+5. Use the emitted public deployment environment snippets to configure indexer
+   `TRADING_ROUTE_TAX_CODE_IDS`/`TRADING_ROUTE_TAX_DATA_HASHES` and reviewed
+   `TRADING_TAX_FREE_CODE_IDS` from actual stores. Align Create/Manage catalog pins
+   with the new launcher template while retaining independent provenance checks;
    restart/invalidate old route caches and refresh independent live capabilities.
    Roll out indexer and frontend together so funded net quotes and gross input
    submission use version 1. An unsupported legacy tax route stays explicitly
    unavailable; it cannot fall back to wallet extra debit.
-6. Run read-only code/hash/config/capability/preview probes, then bounded execution
-   smoke with an independently funded synthetic initial-offer account and zero
-   intermediate balances. Compare quote, sink/supply ledger, pair credit, final
-   net output, refunds and gas against the recorded input. Read-only previews alone
-   do not establish execution success.
+6. Run read-only code/hash/config/capability/preview probes while affected markets
+   remain paused. After the application rollout and these checks, explicitly
+   finalize to restore only markets that were unpaused before this rollout.
+   Immediately conduct an authorized bounded execution smoke with an independently
+   funded synthetic initial-offer account and zero intermediate balances. Compare
+   quote, sink/supply ledger, pair credit, final net output, refunds and gas against
+   the recorded input. Re-pause affected markets if the live smoke fails and
+   investigate before further trades. Paused markets cannot execute that smoke;
+   read-only previews alone do not establish execution success. Record public
+   migration/smoke receipts against AC9.
 
 Probe example (no signing):
 
@@ -93,3 +230,8 @@ cached v1 routes. Do not re-enable a wallet-funded taxed intermediate route whil
 the client still promises a gross-only budget. Keep unsupported-version exclusion
 until a verified coordinated deployment exists. Source implementation, test-chain
 execution and Columbus-5 deployment are distinct evidence.
+The script does not promise automatic downgrade: increasing-version guards and
+storage compatibility can reject a previously stored wasm. Follow
+[SEC-H05 rollback limitations](wasm-admin-migration.md#rollback-and-limitations-sec-h05),
+keep the partial fleet contained and prepare a reviewed forward repair when a
+downgrade is unsupported.

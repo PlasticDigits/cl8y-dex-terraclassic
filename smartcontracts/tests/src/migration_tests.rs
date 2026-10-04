@@ -22,7 +22,7 @@ use crate::helpers::*;
 use crate::tier_fixtures::STANDARD_PRODUCTION_TIERS;
 
 const FACTORY_NAME: &str = "cl8y-dex-factory";
-const FACTORY_VERSION: &str = "1.10.0";
+const FACTORY_VERSION: &str = "1.11.0";
 const FACTORY_PRIOR_VERSION: &str = "1.8.0";
 
 const PAIR_NAME: &str = "cl8y-dex-pair";
