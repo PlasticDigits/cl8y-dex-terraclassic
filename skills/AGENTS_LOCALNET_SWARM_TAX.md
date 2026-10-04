@@ -1,5 +1,17 @@
 # Agent playbook: tax-aware LocalTerra swarm (GitLab #621)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing **localnet swarm** pair picking, CW20 `Send` sizing, or workers that might hit the listed community-tax token.
 
 Sibling seed/funding is [#620](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/620). Do **not** reopen swarm liquidity ([#293](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/293)) unless OE-1 gem hub checks regress. Do **not** turn hybrid off to “make tax apply” ([#596](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/596) / **H-01**).

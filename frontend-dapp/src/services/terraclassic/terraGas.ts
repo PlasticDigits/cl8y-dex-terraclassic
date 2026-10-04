@@ -34,6 +34,14 @@ import {
 export { HYBRID_SWAP_GAS_LIMIT }
 export { gasLimitForHybridSwap, gasLimitForHybridParams } from './hybridSwapGas'
 
+/** #1381 LocalTerra measured v1 route envelope, covering 1.2× the observed
+ * 1/2/3-hop maxima. This is a conservative fallback, not a live gas measurement. */
+export const ROUTE_LOCAL_SWAP_BASE_GAS_LIMIT = 600_000
+export const ROUTE_LOCAL_SWAP_PER_HOP_GAS_LIMIT = 1_700_000
+export function gasLimitForRouteLocalSwapOperations(hops: number): number {
+  return ROUTE_LOCAL_SWAP_BASE_GAS_LIMIT + Math.max(1, hops) * ROUTE_LOCAL_SWAP_PER_HOP_GAS_LIMIT
+}
+
 export const BASE_GAS_LIMIT = 200000
 
 /**
@@ -197,7 +205,9 @@ export function buildTerraClassicFee(gasLimit: number): Fee {
 }
 
 function countSwapHops(msg: Record<string, unknown>): number {
-  const ops = (msg as { execute_swap_operations?: { operations?: unknown[] } }).execute_swap_operations
+  const ops = (msg.execute_route_swap_operations ?? msg.execute_swap_operations) as
+    | { operations?: unknown[] }
+    | undefined
   return ops?.operations?.length ?? 1
 }
 
@@ -209,7 +219,7 @@ function innerSwapUsesHybrid(inner: Record<string, unknown>): boolean {
 
 function executeSwapOpsUsesHybrid(msg: Record<string, unknown>): boolean {
   // Keep aligned with router G12; #718 must classify omitted fields as greedy once that default ships.
-  const e = msg.execute_swap_operations as
+  const e = (msg.execute_route_swap_operations ?? msg.execute_swap_operations) as
     | {
         operations?: Array<{ terra_swap?: { hybrid?: unknown; greedy?: unknown } }>
       }
@@ -276,7 +286,9 @@ function poolOnlyRouterHopGas(hops: number): number {
  *   (some book walks, some pool hops).
  */
 export function gasLimitForHybridRouterOperations(msg: Record<string, unknown>): number {
-  const e = msg.execute_swap_operations as { operations?: RouterOp[] } | undefined
+  const e = (msg.execute_route_swap_operations ?? msg.execute_swap_operations) as
+    | { operations?: RouterOp[] }
+    | undefined
   const ops = e?.operations
   if (!ops?.length) return HYBRID_SWAP_GAS_LIMIT
 
@@ -321,13 +333,14 @@ export function gasLimitForHybridRouterOperations(msg: Record<string, unknown>):
  */
 export function sendHookExecuteSwapOperationsMsg(
   operations: Array<{ terra_swap: Record<string, unknown> }>,
-  extras?: { unwrap_output?: boolean }
+  extras?: { unwrap_output?: boolean; funding_version?: 1 }
 ): Record<string, unknown> {
   return {
     send: {
       msg: btoa(
         JSON.stringify({
-          execute_swap_operations: {
+          [extras?.funding_version === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+            ...(extras?.funding_version === 1 ? { funding_version: 1 } : {}),
             operations,
             ...(extras?.unwrap_output ? { unwrap_output: true } : {}),
           },
@@ -338,7 +351,9 @@ export function sendHookExecuteSwapOperationsMsg(
 }
 
 function unwrapOutputFromExecuteSwapOps(msg: Record<string, unknown>): boolean {
-  const e = msg.execute_swap_operations as { unwrap_output?: boolean } | undefined
+  const e = (msg.execute_route_swap_operations ?? msg.execute_swap_operations) as
+    | { unwrap_output?: boolean }
+    | undefined
   return e?.unwrap_output === true
 }
 
@@ -357,6 +372,10 @@ function gasLimitForSwapOperationsMsg(msg: Record<string, unknown>): number {
   let limit = gasLimitForRouterExecuteSwapOperations(hops)
   if (executeSwapOpsUsesHybrid(msg)) {
     limit = Math.max(limit, gasLimitForHybridRouterOperations(msg))
+  }
+  if ('execute_route_swap_operations' in msg) {
+    // Keep existing book-walk cost and add the measured route-context overhead.
+    limit += Math.max(0, gasLimitForRouteLocalSwapOperations(hops) - gasLimitForRouterExecuteSwapOperations(hops))
   }
   if (unwrapOutputFromExecuteSwapOps(msg)) {
     limit += UNWRAP_GAS_LIMIT + unwrapRouterComboOverheadGas(hops, true)
@@ -426,7 +445,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
     const batch = executeMsg.claim_expired_limit_orders as { order_ids?: unknown[] }
     return gasLimitForLimitOrderCancelBatch(batch.order_ids?.length ?? 1)
   }
-  if ('execute_swap_operations' in executeMsg) {
+  if ('execute_route_swap_operations' in executeMsg || 'execute_swap_operations' in executeMsg) {
     return gasLimitForSwapOperationsMsg(executeMsg)
   } else if ('swap' in executeMsg) {
     if (innerSwapUsesHybrid(executeMsg)) {
@@ -477,7 +496,7 @@ export function getGasLimitForTx(executeMsg: Record<string, unknown>): number {
         if ('unwrap' in inner) return UNWRAP_GAS_LIMIT
         if ('deposit' in inner || 'withdraw' in inner) return UST1_WINDOW_SEND_GAS_LIMIT
         if (isPayInvoiceHookInner(inner)) return PAY_INVOICE_SEND_GAS_LIMIT
-        if ('execute_swap_operations' in inner) {
+        if ('execute_route_swap_operations' in inner || 'execute_swap_operations' in inner) {
           return gasLimitForSwapOperationsMsg(inner)
         }
       } catch (err) {
@@ -515,11 +534,11 @@ function decodeSendHookInner(msg: Record<string, unknown>): Record<string, unkno
 }
 
 function routerHopCountFromExecuteMsg(msg: Record<string, unknown>): number {
-  if ('execute_swap_operations' in msg) {
+  if ('execute_route_swap_operations' in msg || 'execute_swap_operations' in msg) {
     return countSwapHops(msg)
   }
   const inner = decodeSendHookInner(msg)
-  if (inner && 'execute_swap_operations' in inner) {
+  if (inner && ('execute_route_swap_operations' in inner || 'execute_swap_operations' in inner)) {
     return countSwapHops(inner)
   }
   return 0

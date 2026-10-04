@@ -411,3 +411,56 @@ tax_on_read_bps() {
   cfg="$(layer_smart "$token" '{"get_config":{}}')"
   echo "$cfg" | jq -r '"\(.buy_bps) \(.sell_bps) \(.treasury // "") \(.router // "") \(.autolp // "")"'
 }
+
+# #1381: capability is an explicit token+official-router protocol revision.
+# A mixed rollout must fail clearly; never retry through the wallet-funded hook.
+tax_on_route_funding_version() {
+  local token="$1" router="$2" router_cfg token_cap rv tv
+  router_cfg="$(layer_smart "$router" '{"config":{}}')" || return 1
+  rv="$(printf '%s' "$router_cfg" | jq -er '.funding_version // 0')" || return 1
+  token_cap="$(layer_smart "$token" '{"route_tax_capability":{}}' 2>/dev/null || true)"
+  tv="$(printf '%s' "$token_cap" | jq -r '.funding_version // 0' 2>/dev/null)"
+  tv="${tv:-0}"
+  if [[ "$rv" == "1" && "$tv" == "1" ]]; then
+    printf '%s' "$token_cap" | jq -e --arg router "$router" '.router == $router' >/dev/null || {
+      echo "FAIL: route-local token does not trust the configured router" >&2
+      return 1
+    }
+    printf '1'
+  elif [[ "$rv" == "0" && "$tv" == "0" ]]; then
+    printf '0' # Explicit historical compatibility evidence, never v1 acceptance.
+  else
+    echo "FAIL: incompatible route tax funding token=$tv router=$rv; use coordinated instances (#1381)" >&2
+    return 1
+  fi
+}
+
+# Validate maximal integer economic sizing from this route's authorized gross.
+tax_on_preview_route_sell() {
+  local token="$1" trader="$2" pair="$3" gross="$4" bps="$5" preview
+  preview="$(layer_smart "$token" "$(jq -nc --arg trader "$trader" --arg pair "$pair" --arg amount "$gross" \
+    '{route_tax_preview:{kind:"sell",amount:$amount,trader:$trader,pair:$pair}}')")" || return 1
+  python3 -c '
+import json,sys
+p=json.loads(sys.argv[1]); g=int(sys.argv[2]); bps=int(sys.argv[3])
+s=int(p["economic"]); t=int(p["tax"])
+assert p["funding_version"] == 1 and int(p["gross"]) == g
+assert int(p["net"]) == s and t == s*bps//10000
+assert s+t <= g and (s+1)+(s+1)*bps//10000 > g
+print(json.dumps(p,separators=(",",":")))
+' "$preview" "$gross" "$bps"
+}
+
+tax_on_assert_route_funded_sell() {
+  python3 -c '
+import sys
+ub,ua,pb,pa,rb,ra,sb,sa,g,s,t=map(int,sys.argv[1:])
+residue=g-s-t
+assert residue >= 0, "route overspent its authorized gross budget"
+assert ub-ua == g-residue, "wallet debit must be initial gross less owned residue"
+assert pa-pb == s, "pair credit must equal declared economic CW20 hook amount"
+assert ra == rb, "pre-existing router dust cannot fund tax or retain route residue"
+assert sa-sb == t, "configured sell tax must reach its sink exactly once"
+print("tax-on: v1 official-router sell funded locally; economic pair credit, owned residue and dust reconcile")
+' "$@"
+}

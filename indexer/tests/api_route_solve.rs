@@ -2,7 +2,7 @@ mod common;
 
 use axum_test::TestServer;
 use common::lcd_mock;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use serial_test::serial;
 
 /// Retail GET Policy A (#1280): hop 0 may carry a declared split; hops 1+ are pool-only.
@@ -553,9 +553,13 @@ async fn route_solve_global_picks_best_path_not_shortest() {
     let resp = server.get(&url).await;
     resp.assert_status_ok();
     let j: Value = resp.json();
-    assert_eq!(j["solver_version"], "global_v3");
+    assert_eq!(j["solver_version"], "global_v5_funded");
     assert_eq!(j["paths_considered"], 2);
-    assert_eq!(j["hops"].as_array().unwrap().len(), 2, "2-hop path beats 1-hop");
+    assert_eq!(
+        j["hops"].as_array().unwrap().len(),
+        2,
+        "2-hop path beats 1-hop"
+    );
     assert_eq!(j["estimated_amount_out"], "9000000");
     assert!(
         j["optimality_scope"]
@@ -583,7 +587,7 @@ async fn route_solve_global_response_metadata_contract() {
         seed.token_a, seed.token_c
     );
     let j: Value = server.get(&url).await.json();
-    assert_eq!(j["solver_version"], "global_v3");
+    assert_eq!(j["solver_version"], "global_v5_funded");
     assert!(j["paths_considered"].as_u64().unwrap_or(0) >= 1);
     assert!(!j["hybrid_notes"].as_str().unwrap_or("").is_empty());
     assert!(j["lcd_hybrid_queries"].as_u64().unwrap_or(0) > 0);
@@ -675,14 +679,9 @@ const UNKNOWN_SENDER: &str = "terra1unknownsender0000000000000000000000";
 async fn route_solve_get_cache_tier_isolation() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_2hop(&pool).await;
-    common::seed_traders_with_tiers(
-        &pool,
-        &[(TIER0_SENDER, 0), (TIER5_SENDER_A, 5)],
-    )
-    .await;
+    common::seed_traders_with_tiers(&pool, &[(TIER0_SENDER, 0), (TIER5_SENDER_A, 5)]).await;
 
-    let mock =
-        lcd_mock::start_tier_aware_route_optimizer_mock(&[TIER5_SENDER_A]).await;
+    let mock = lcd_mock::start_tier_aware_route_optimizer_mock(&[TIER5_SENDER_A]).await;
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
@@ -725,17 +724,10 @@ async fn route_solve_get_cache_tier_isolation() {
 async fn route_solve_get_cache_same_tier_reuses_lcd() {
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve_2hop(&pool).await;
-    common::seed_traders_with_tiers(
-        &pool,
-        &[(TIER5_SENDER_A, 5), (TIER5_SENDER_B, 5)],
-    )
-    .await;
+    common::seed_traders_with_tiers(&pool, &[(TIER5_SENDER_A, 5), (TIER5_SENDER_B, 5)]).await;
 
-    let mock = lcd_mock::start_tier_aware_route_optimizer_mock(&[
-        TIER5_SENDER_A,
-        TIER5_SENDER_B,
-    ])
-    .await;
+    let mock =
+        lcd_mock::start_tier_aware_route_optimizer_mock(&[TIER5_SENDER_A, TIER5_SENDER_B]).await;
     let mut cfg = common::test_config();
     cfg.lcd_urls = vec![lcd_mock::lcd_base_url(&mock)];
     cfg.router_address = Some("terra1routertest".to_string());
@@ -763,11 +755,7 @@ async fn route_solve_get_cache_same_tier_reuses_lcd() {
         .json();
     assert_eq!(tier5_b["estimated_amount_out"], TIER5_ROUTE_AMOUNT);
 
-    let lcd_calls_after_second = mock
-        .received_requests()
-        .await
-        .expect("request log")
-        .len();
+    let lcd_calls_after_second = mock.received_requests().await.expect("request log").len();
     assert_eq!(
         lcd_calls_after_first, lcd_calls_after_second,
         "same-tier senders should share hybrid GET cache (no extra LCD sim calls)"
@@ -868,7 +856,11 @@ async fn route_solve_progress_trader_reuses_discount_bps_cache() {
     let reqs = mock.received_requests().await.expect("request log");
     let get_discount = reqs
         .iter()
-        .filter(|r| lcd_mock::smart_query_from_request(r).get("get_discount").is_some())
+        .filter(|r| {
+            lcd_mock::smart_query_from_request(r)
+                .get("get_discount")
+                .is_some()
+        })
         .count();
     assert_eq!(
         get_discount, 1,
@@ -879,10 +871,10 @@ async fn route_solve_progress_trader_reuses_discount_bps_cache() {
 #[serial]
 #[tokio::test]
 async fn route_solve_excludes_code_id_frozen_pair() {
-    use std::collections::HashSet;
     use cl8y_dex_indexer::indexer::asset_code_id_freeze::{
         replace_frozen_pair_addresses, snapshot_frozen_pair_addresses,
     };
+    use std::collections::HashSet;
 
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;

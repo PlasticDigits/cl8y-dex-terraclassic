@@ -1,10 +1,7 @@
 /**
- * Extra-debit sell max (GitLab #593 / #592 T592-2) + route policy (#607 / T592-13)
- * and Swap/Trade submit gate ([#1267](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1267)).
- * Pair-direct and official-router sells debit the trader `declared + tax` (router hop:
- * user Sends `declared` 1:1, then extra-debit `tax` from leftover). Max must leave
- * room so Swap/Trade cannot offer 100% of balance (**R607-7**). Typed 100% / reverse
- * offer must not broadcast when `TaxPreview.debit > balance` (**S1267**).
+ * Legacy direct-pair extra-debit sizing and shared authorized input gate.
+ * Route-funded router swaps authorize the gross budget itself (#1381), with tax
+ * taken from proceeds at each swap boundary. Direct pair callers retain legacy sizing.
  */
 
 import { fromRawAmount, toRawAmount } from '@/utils/formatAmount'
@@ -63,12 +60,12 @@ export function extraDebitFromDeclared(declaredRaw: bigint, sellBps: number): bi
 /** Parse LCD uint strings; hostile / non-numeric → `null` (no `BigInt` throw). */
 export function parseUintString(value: unknown): bigint | null {
   if (typeof value === 'number') {
-    if (!Number.isInteger(value) || !Number.isFinite(value) || value < 0) return null
+    if (!Number.isSafeInteger(value) || !Number.isFinite(value) || value < 0) return null
     return BigInt(value)
   }
   if (typeof value !== 'string') return null
   const s = value.trim()
-  if (!/^\d+$/.test(s)) return null
+  if (!/^\d{1,78}$/.test(s)) return null
   try {
     return BigInt(s)
   } catch {
@@ -83,10 +80,10 @@ export function parseCommunityTaxSellBps(cfg: unknown): CommunityTaxConfigParse 
   if (cfg == null || typeof cfg !== 'object') return { kind: 'unresolved' }
   const bps = (cfg as { sell_bps?: unknown }).sell_bps
   if (bps === undefined) return { kind: 'not_tax' }
-  if (typeof bps === 'number' && Number.isFinite(bps) && bps >= 0) {
+  if (typeof bps === 'number' && Number.isInteger(bps) && bps >= 0 && bps <= COMMUNITY_TAX_BPS_DENOM) {
     return { kind: 'tax', sellBps: Math.floor(bps) }
   }
-  if (typeof bps === 'string' && /^\d+$/.test(bps)) {
+  if (typeof bps === 'string' && /^\d{1,5}$/.test(bps) && Number(bps) <= COMMUNITY_TAX_BPS_DENOM) {
     return { kind: 'tax', sellBps: Number.parseInt(bps, 10) }
   }
   return { kind: 'unresolved' }
@@ -98,7 +95,7 @@ export function parseCommunityTaxSellBps(cfg: unknown): CommunityTaxConfigParse 
  */
 export function classifyCommunityTaxQueryError(err: unknown): 'not_tax' | 'unresolved' {
   const msg = err instanceof Error ? err.message : String(err ?? '')
-  if (/unknown variant/i.test(msg) || /Error parsing into type/i.test(msg) || /unknown query/i.test(msg)) {
+  if (/unknown variant/i.test(msg) || /unknown query/i.test(msg)) {
     return 'not_tax'
   }
   return 'unresolved'
@@ -192,6 +189,7 @@ export type ExtraDebitSubmitGate = {
 export function extraDebitSubmitGate(input: {
   declaredRaw: bigint | null
   balanceRaw: bigint | null
+  balanceUnresolved?: boolean
   debitRaw: bigint | null
   sellBps: number | null
   extraDebitUnresolved: boolean
@@ -200,8 +198,8 @@ export function extraDebitSubmitGate(input: {
   if (input.declaredRaw == null || input.declaredRaw <= 0n) {
     return { insufficientBalance: false, blockSubmit: false }
   }
-  if (input.balanceRaw == null) {
-    return { insufficientBalance: false, blockSubmit: false }
+  if (input.balanceRaw == null || input.balanceUnresolved) {
+    return { insufficientBalance: false, blockSubmit: true }
   }
   if (input.declaredRaw > input.balanceRaw) {
     return { insufficientBalance: true, blockSubmit: true }
@@ -230,7 +228,10 @@ export function extraDebitSubmitGate(input: {
   return { insufficientBalance: false, blockSubmit: false }
 }
 
-export const INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE = 'Not enough tokens after sell tax. Reduce the amount or tap Max.'
+export const INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE =
+  'Token funding is insufficient or this route uses an unsupported tax version. Refresh the quote or choose another route.'
+export const TAX_FUNDING_UNRESOLVED_MESSAGE =
+  'Token funding could not be verified. Wait for balances and tax capability, then refresh the quote.'
 
 export const SELL_TAX_EXTRA_HINT = 'Sell tax extra'
 export const BUY_TAX_HINT = 'Buy tax applies'
@@ -244,9 +245,9 @@ export function communityTaxExecuteUsesRouter(opsLength: number | undefined, cli
   return (opsLength ?? 0) >= 2 || clientMultiHop
 }
 
-/** Extra-debit Max on pair-direct **and** router-hop sells (**C593-9** / **R607-7**). */
+/** Direct-pair legacy only. Versioned router entry spends the already-authorized gross budget. */
 export function extraDebitSellBpsForExecute(sellBps: number | null | undefined, usesRouter?: boolean): number | null {
-  void usesRouter
+  if (usesRouter) return null
   if (sellBps == null || sellBps <= 0) return null
   return sellBps
 }
@@ -258,7 +259,7 @@ export function communityTaxRouteHint(input: {
   sellBps?: number | null
 }): string | null {
   if (input.payIsTax && input.sellBps != null && input.sellBps > 0) {
-    return SELL_TAX_EXTRA_HINT
+    return input.usesRouter ? 'Swap taxes included in route funds' : SELL_TAX_EXTRA_HINT
   }
   if (input.receiveIsTax) {
     return BUY_TAX_HINT

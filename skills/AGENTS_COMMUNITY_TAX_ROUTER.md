@@ -1,5 +1,17 @@
 # Agent playbook: community tax router hops tax the original trader (GitLab #607)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing **community tax** classification, Swap/Trade copy for `code_id` **11611**, extra-debit Max, or anything that could tax (or skip tax on) a **router** hop.
 
 This is the **C-2 design close**. Chosen option: **improved 2 — tax the original trader on official-router hops**. Do **not** revert to option 1 (disclose-only Honest hops) or implement option 3 (un-exempt the router) unless a new issue reopens H-01 or drops hybrid for this template.

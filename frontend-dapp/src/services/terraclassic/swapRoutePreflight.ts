@@ -1,3 +1,5 @@
+import { previewRouteTax } from './routeTaxFunding'
+import { assetInfoLabel } from '@/types'
 import { getPair } from './factory'
 import { simulateHybridSwap, type QuoteTraderOptions } from './pair'
 import { poolOnlyHybridParams } from './poolOnlyHybrid'
@@ -12,6 +14,28 @@ import {
   spreadRatioStrictlyExceedsMax,
 } from '@/utils/swapMaxSpread'
 import { applySlippagePercentFloor } from '@/utils/rawAmountMath'
+
+/** Mirror router v1's gross-ratio partition on its funded economic input. */
+function fundedHybridForQuote(
+  hybrid: HybridSwapParams | null | undefined,
+  gross: string,
+  economic: string,
+  fundingVersion?: 1,
+  ratioTemplate = false
+): HybridSwapParams {
+  if (!hybrid) return poolOnlyHybridParams(economic)
+  const total = BigInt(hybrid.pool_input) + BigInt(hybrid.book_input)
+  if (ratioTemplate) {
+    if (total <= 0n) throw new Error('Hybrid ratio template must have a positive total')
+    const book = (BigInt(economic) * BigInt(hybrid.book_input)) / total
+    return { ...hybrid, book_input: book.toString(), pool_input: (BigInt(economic) - book).toString() }
+  }
+  if (fundingVersion !== 1) return hybrid
+  if (total === BigInt(economic)) return hybrid
+  if (total !== BigInt(gross) || BigInt(gross) === 0n) throw new Error('Hybrid swap split mismatch')
+  const book = (BigInt(economic) * BigInt(hybrid.book_input)) / BigInt(gross)
+  return { ...hybrid, book_input: book.toString(), pool_input: (BigInt(economic) - book).toString() }
+}
 
 export interface SwapRoutePreflightSpread {
   /** Max over hops of contract-style spread % (2 decimal places). */
@@ -52,14 +76,27 @@ export async function preflightSwapRouteSpread(
     )
     const pairAddr = pairRow.contract_addr
 
-    const hybrid = ts.hybrid != null ? ts.hybrid : poolOnlyHybridParams(currentOffer)
-    const offerBn = BigInt(currentOffer)
+    let economicOffer = currentOffer
+    if (quoteTrader?.taxFundingVersion === 1) {
+      economicOffer = (
+        await previewRouteTax({
+          token: assetInfoLabel(ts.offer_asset_info),
+          kind: 'sell',
+          amount: currentOffer,
+          trader: quoteTrader.trader,
+          pair: pairRow.contract_addr,
+          signal: quoteTrader.signal,
+        })
+      ).economic
+    }
+    const hybrid = fundedHybridForQuote(ts.hybrid, currentOffer, economicOffer, quoteTrader?.taxFundingVersion)
+    const offerBn = BigInt(economicOffer)
     const poolIn = BigInt(hybrid.pool_input)
     const bookIn = BigInt(hybrid.book_input)
     if (hybridBookRequiresSlippageFloor(bookIn, null, ts.min_return)) {
       anyMissingFloor = true
     }
-    const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
+    const sim = await simulateHybridSwap(pairAddr, ts.offer_asset_info, economicOffer, hybrid, quoteTrader)
     const materialRejectAfterSim = hybridNoBeliefMaterialPoolReject(
       offerBn,
       poolIn,
@@ -85,7 +122,19 @@ export async function preflightSwapRouteSpread(
       worstPctNum = spreadCmp
       worstPctDen = totalGrossOut
     }
-    currentOffer = sim.return_amount
+    currentOffer =
+      quoteTrader?.taxFundingVersion === 1
+        ? (
+            await previewRouteTax({
+              token: assetInfoLabel(ts.ask_asset_info),
+              kind: 'buy',
+              amount: sim.return_amount,
+              trader: quoteTrader.trader,
+              pair: pairRow.contract_addr,
+              signal: quoteTrader.signal,
+            })
+          ).net
+        : sim.return_amount
   }
 
   return {
@@ -117,7 +166,8 @@ export async function enrichSwapOperationsWithHopMinReturns(
   operations: SwapOperation[],
   offerAmount: string,
   slippagePercent: number,
-  quoteTrader?: QuoteTraderOptions
+  quoteTrader?: QuoteTraderOptions,
+  options?: { hybridRatioTemplate?: boolean }
 ): Promise<SwapOperation[]> {
   if (operations.length === 0) return operations
 
@@ -126,28 +176,60 @@ export async function enrichSwapOperationsWithHopMinReturns(
 
   for (const op of operations) {
     const ts = op.terra_swap
-    const hybrid = ts.hybrid != null ? ts.hybrid : poolOnlyHybridParams(currentOffer)
-    const bookIn = BigInt(hybrid.book_input)
-    let minReturn = ts.min_return ?? undefined
+    let minReturn = options?.hybridRatioTemplate ? undefined : (ts.min_return ?? undefined)
     const assetTuple: [AssetInfo, AssetInfo] = [ts.offer_asset_info, ts.ask_asset_info]
     quoteTrader?.signal?.throwIfAborted()
     const pairRow = await getPair(
       assetTuple,
       ...(quoteTrader?.signal ? ([quoteTrader.signal] as const) : ([] as const))
     )
-    const sim = await simulateHybridSwap(pairRow.contract_addr, ts.offer_asset_info, currentOffer, hybrid, quoteTrader)
+    const economicOffer =
+      quoteTrader?.taxFundingVersion === 1
+        ? (
+            await previewRouteTax({
+              token: assetInfoLabel(ts.offer_asset_info),
+              kind: 'sell',
+              amount: currentOffer,
+              trader: quoteTrader.trader,
+              pair: pairRow.contract_addr,
+              signal: quoteTrader.signal,
+            })
+          ).economic
+        : currentOffer
+    const hybrid = fundedHybridForQuote(
+      ts.hybrid,
+      currentOffer,
+      economicOffer,
+      quoteTrader?.taxFundingVersion,
+      options?.hybridRatioTemplate
+    )
+    const bookIn = BigInt(hybrid.book_input)
+    const sim = await simulateHybridSwap(pairRow.contract_addr, ts.offer_asset_info, economicOffer, hybrid, quoteTrader)
+    const netOutput =
+      quoteTrader?.taxFundingVersion === 1
+        ? (
+            await previewRouteTax({
+              token: assetInfoLabel(ts.ask_asset_info),
+              kind: 'buy',
+              amount: sim.return_amount,
+              trader: quoteTrader.trader,
+              pair: pairRow.contract_addr,
+              signal: quoteTrader.signal,
+            })
+          ).net
+        : sim.return_amount
     if (bookIn > 0n && hybridBookRequiresSlippageFloor(bookIn, null, minReturn)) {
-      const computed = applySlippagePercentFloor(sim.return_amount, slippagePercent)
+      const computed = applySlippagePercentFloor(netOutput, slippagePercent)
       minReturn = computed != null && !hybridBookRequiresSlippageFloor(bookIn, null, computed) ? computed : undefined
     }
     out.push({
       terra_swap: {
         ...ts,
-        hybrid: ts.hybrid ?? undefined,
+        hybrid: ts.hybrid ? (options?.hybridRatioTemplate ? hybrid : ts.hybrid) : undefined,
         min_return: minReturn,
       },
     })
-    currentOffer = sim.return_amount
+    currentOffer = netOutput
   }
 
   return out

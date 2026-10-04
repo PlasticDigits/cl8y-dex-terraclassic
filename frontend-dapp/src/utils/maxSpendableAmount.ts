@@ -24,6 +24,7 @@ export type MaxAmountContext =
   | 'book_leg'
 
 export type NativeSwapMaxHints = {
+  taxFundingVersion?: 1
   isDirectWrap: boolean
   needsWrapInput: boolean
   /** Router `unwrap_output` sub-message (CW20→native, GitLab #343). */

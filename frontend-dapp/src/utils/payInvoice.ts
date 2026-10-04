@@ -1,3 +1,4 @@
+import { enrichSwapOperationsWithHopMinReturns } from '@/services/terraclassic/swapRoutePreflight'
 /**
  * Shared pay-with-any-token invoice module (GitLab #595).
  *
@@ -10,6 +11,7 @@
  * Do not fork Swap quote/execute into Create Token / manager settings / #597.
  */
 
+import { assertRouteTaxFunding } from '@/services/terraclassic/routeTaxFunding'
 import { getRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import type { TerraExecuteContractEntry } from '@/services/terraclassic/terraBroadcast'
@@ -63,6 +65,7 @@ export type PayInvoiceQuoteKind = 'direct' | 'routed' | 'wrap_routed'
 export type PayInvoiceQuoteOk = {
   status: 'ok'
   kind: PayInvoiceQuoteKind
+  taxFundingVersion?: 1
   payToken: string
   /** CW20 offered to the router (wrapped equivalent when pay token is native). */
   offerCw20: string
@@ -100,12 +103,16 @@ export type PayInvoiceQuoteDeps = {
   getRouteSolve: typeof getRouteSolve
   reverseSimulate: typeof reverseSimulateMultiHopSwap
   forwardSimulate: typeof simulateMultiHopSwap
+  assertFunding?: typeof assertRouteTaxFunding
+  enrichOperations?: typeof enrichSwapOperationsWithHopMinReturns
 }
 
 const defaultQuoteDeps: PayInvoiceQuoteDeps = {
   getRouteSolve,
   reverseSimulate: reverseSimulateMultiHopSwap,
   forwardSimulate: simulateMultiHopSwap,
+  assertFunding: assertRouteTaxFunding,
+  enrichOperations: enrichSwapOperationsWithHopMinReturns,
 }
 
 const FORWARD_BUMP_GUARD = 8
@@ -177,11 +184,14 @@ async function bumpOfferUntilInvoice(input: {
   invoiceAmount: string
   trader?: string
   forwardSimulate: PayInvoiceQuoteDeps['forwardSimulate']
+  buildOperations: (offer: string) => Promise<SwapOperation[]>
+  quoteTrader?: QuoteTraderOptions
 }): Promise<string | null> {
   let offer = input.offer
-  const trader = quoteTrader(input.trader)
+  const trader = input.quoteTrader ?? quoteTrader(input.trader)
   for (let i = 0; i < FORWARD_BUMP_GUARD; i++) {
-    const sim = await input.forwardSimulate(offer, input.operations, trader)
+    const operations = await input.buildOperations(offer)
+    const sim = await input.forwardSimulate(offer, operations, trader)
     if (BigInt(sim.amount) >= BigInt(input.invoiceAmount)) return offer
     offer = ((BigInt(offer) * 10001n) / 10000n + 1n).toString()
   }
@@ -269,9 +279,11 @@ export async function quotePayInvoice(
   const pathErr = assertOperationsMatchPayPath(ops, offerCw20, invoice.invoiceToken)
   if (pathErr) return { status: 'unavailable', disableReason: pathErr }
 
+  let taxFundingVersion: 1 | undefined
   let reverseOffer: string
   try {
-    reverseOffer = (await deps.reverseSimulate(invoice.invoiceAmount, ops)).amount
+    taxFundingVersion = await deps.assertFunding?.(ops, input.signal)
+    reverseOffer = (await deps.reverseSimulate(invoice.invoiceAmount, ops, quoteTrader(input.trader))).amount
   } catch {
     return { status: 'unavailable', disableReason: PAY_INVOICE_NO_ROUTE }
   }
@@ -279,6 +291,12 @@ export async function quotePayInvoice(
     return { status: 'unavailable', disableReason: PAY_INVOICE_NO_ROUTE }
   }
 
+  const seedOps = ops
+  const fundedTrader: QuoteTraderOptions = { ...quoteTrader(input.trader), taxFundingVersion, signal: input.signal }
+  const buildOperations = async (gross: string) =>
+    deps.enrichOperations
+      ? deps.enrichOperations(seedOps, gross, input.slippagePercent, fundedTrader, { hybridRatioTemplate: true })
+      : seedOps
   let offer = reverseOffer
   try {
     const bumped = await bumpOfferUntilInvoice({
@@ -287,6 +305,8 @@ export async function quotePayInvoice(
       invoiceAmount: invoice.invoiceAmount,
       trader: input.trader,
       forwardSimulate: deps.forwardSimulate,
+      buildOperations,
+      quoteTrader: fundedTrader,
     })
     if (!bumped) return { status: 'unavailable', disableReason: PAY_INVOICE_NO_ROUTE }
     offer = bumped
@@ -308,7 +328,19 @@ export async function quotePayInvoice(
   }
 
   try {
-    payRaw = await applyTaxDebit(payRaw, input.taxPreviewExtraDebit)
+    // Rebuild again after the slippage ceiling and native wrap rounding. The
+    // frozen plan and its net book floors must match the actual authorized Send.
+    ops = await buildOperations(cw20SendAmount)
+    const final = await deps.forwardSimulate(cw20SendAmount, ops, fundedTrader)
+    if (!isPositiveRawAmount(final.amount) || BigInt(final.amount) < BigInt(invoice.invoiceAmount)) {
+      return { status: 'unavailable', disableReason: PAY_INVOICE_NO_ROUTE }
+    }
+  } catch {
+    return { status: 'unavailable', disableReason: PAY_INVOICE_NO_ROUTE }
+  }
+
+  try {
+    if (taxFundingVersion !== 1) payRaw = await applyTaxDebit(payRaw, input.taxPreviewExtraDebit)
   } catch {
     return { status: 'unavailable', disableReason: PAY_INVOICE_INSUFFICIENT }
   }
@@ -321,6 +353,7 @@ export async function quotePayInvoice(
   return {
     status: 'ok',
     kind: wrap ? 'wrap_routed' : 'routed',
+    taxFundingVersion,
     payToken,
     offerCw20,
     payRaw,
@@ -413,11 +446,11 @@ export function assertPayInvoiceMsgs(msgs: TerraExecuteContractEntry[], input: B
 
   const swapSend = msgs.find((m) => {
     const inner = decodeSendHook(m.msg)
-    return inner != null && 'execute_swap_operations' in inner
+    return inner != null && ('execute_swap_operations' in inner || 'execute_route_swap_operations' in inner)
   })
   if (!swapSend) throw new PayInvoiceBuilderError('routed pay requires execute_swap_operations')
   const inner = decodeSendHook(swapSend.msg)!
-  const exec = inner.execute_swap_operations as {
+  const exec = (inner.execute_route_swap_operations ?? inner.execute_swap_operations) as {
     minimum_receive?: string
     to?: string
     operations?: unknown[]
@@ -477,7 +510,8 @@ export function buildPayInvoiceMsgs(input: BuildPayInvoiceMsgsInput): TerraExecu
 
   const maxSpread = slippageToMaxSpread(input.slippagePercent)
   const swapHook = {
-    execute_swap_operations: {
+    [input.quote.taxFundingVersion === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+      ...(input.quote.taxFundingVersion === 1 ? { funding_version: 1 } : {}),
       operations: input.quote.operations.map((op) => ({
         terra_swap: serializeTerraSwap(op.terra_swap),
       })),

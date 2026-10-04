@@ -110,6 +110,32 @@ run_601_docs_still() {
   rg -q "8654" skills/AGENTS_COMMUNITY_TAX_CW20.md
 }
 
+run_route_local_accounting_helpers() (
+  set -euo pipefail
+  source "$AUDIT/scripts/lib-tax-on.sh"
+  # Pure protocol probes: no shared chain deployment or custody required.
+  local ROUTER_V=1 TOKEN_V=1
+  layer_smart() {
+    if [[ "$1" == "router" ]]; then printf '{"funding_version":%s}' "$ROUTER_V";
+    elif [[ "$2" == '{"route_tax_capability":{}}' ]]; then printf '{"funding_version":%s,"router":"router"}' "$TOKEN_V";
+    else printf '{"funding_version":1,"gross":"1010000","economic":"1000000","tax":"10000","net":"1000000"}'; fi
+  }
+  [[ "$(tax_on_route_funding_version token router)" == 1 ]]
+  tax_on_preview_route_sell token trader pair 1010000 100 >/dev/null
+  tax_on_assert_route_funded_sell 1010000 0 0 1000000 123 123 0 10000 1010000 1000000 10000 >/dev/null
+  # Rounding residue belongs to this route's payer, never pre-existing router dust.
+  tax_on_assert_route_funded_sell 100 1 0 99 123 123 0 0 100 99 0 >/dev/null
+  if tax_on_assert_route_funded_sell 1020000 0 0 1000000 123 123 0 10000 1010000 1000000 10000 2>/dev/null; then return 1; fi
+  if tax_on_assert_route_funded_sell 1010000 0 0 1010000 123 123 0 10000 1010000 1000000 10000 2>/dev/null; then return 1; fi
+  if tax_on_assert_route_funded_sell 1010000 0 0 1000000 123 122 0 10000 1010000 1000000 10000 2>/dev/null; then return 1; fi
+  ROUTER_V=0
+  if tax_on_route_funding_version token router >/dev/null 2>&1; then return 1; fi
+  TOKEN_V=0
+  [[ "$(tax_on_route_funding_version token router)" == 0 ]]
+  ROUTER_V=1
+  if tax_on_route_funding_version token router >/dev/null 2>&1; then return 1; fi
+)
+
 run_layer_b_tax_on() {
   set -euo pipefail
   chmod +x "$TAX_ON" "$AUDIT/scripts/lib-tax-on.sh" "$AUDIT/scripts/lib-layer-lt.sh"
@@ -136,7 +162,11 @@ run_layer_b_tax_on() {
       and .buy_tx != ""
       and .router_tx != ""
       and .limit_tx != ""
-      and .skim_tx != ""' "$OUT_JSON" >/dev/null
+      and .skim_tx != ""
+      and ((.route_tax_funding_version == 1 and .route_local_funded == true
+            and .wallet_funded_legacy == false and .forged_route_context_rejected == true)
+           or (.route_tax_funding_version == 0 and .wallet_funded_legacy == true
+               and .route_local_funded == false))' "$OUT_JSON" >/dev/null
     echo "Layer B tax-on executed (not a stub). JSON=$OUT_JSON"
     return 0
   fi
@@ -153,6 +183,7 @@ run_step "docs: C623 + REPORT split + no 8654/11611 whitelist" run_docs
 run_step "B-lt: still 1:1; no RegisterListedPair / tax math" run_blt_untouched
 run_step "known-bad FoT mutant stays red" run_known_bad
 run_step "crates: community-tax-token + AutoLP" run_token_crates
+run_step "route-local v1 helper math + incompatible-version rejection" run_route_local_accounting_helpers
 run_step "#601 docs still tax-off B-lt + no 8654 whitelist" run_601_docs_still
 run_step "Layer B tax-on LocalTerra (fail-closed, not stub)" run_layer_b_tax_on
 
@@ -160,6 +191,7 @@ echo ""
 echo "── retest ──"
 run_step "retest docs: C623 + REPORT split" run_docs
 run_step "retest B-lt untouched" run_blt_untouched
+run_step "retest route-local v1 helper accounting" run_route_local_accounting_helpers
 run_step "retest known-bad FoT red" run_known_bad
 run_step "retest #601 docs tax-off B-lt" run_601_docs_still
 

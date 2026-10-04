@@ -98,3 +98,35 @@ describe('CL8Y → UST1 pool-only route gas (#1328 / #1360)', () => {
     expect(totalGasLimitForExecuteMsgs(fixture.msgs)).toBe(2_710_000)
   })
 })
+
+describe('measured route-funded v1 fallback envelope (#1381)', () => {
+  it.each([
+    [1, 1_872_341],
+    [2, 3_077_463],
+    [3, 4_530_025],
+  ])('%i hop fallback covers 1.2× measured LocalTerra gas and matches the fee hint', (hops, measured) => {
+    const operations = Array.from({ length: hops }, (_, i) => ({
+      terra_swap: {
+        offer_asset_info: { token: { contract_addr: `terra1token${i}` } },
+        ask_asset_info: { token: { contract_addr: `terra1token${i + 1}` } },
+      },
+    }))
+    const funded = sendHookExecuteSwapOperationsMsg(operations, { funding_version: 1 })
+    const fallback = getGasLimitForTx(funded)
+    expect(fallback).toBe(600_000 + 1_700_000 * hops)
+    expect(fallback).toBeGreaterThanOrEqual(Math.ceil(measured * 1.2))
+    const hint = estimateSwapNetworkFee({
+      isDirectWrap: false,
+      needsWrapInput: false,
+      taxFundingVersion: 1,
+      cw20RouterOperations: operations,
+      hopCount: hops,
+    })
+    expect(hint.gasLimit).toBe(fallback)
+    const send = funded.send as { msg: string }
+    expect(JSON.parse(atob(send.msg))).toMatchObject({ execute_route_swap_operations: { funding_version: 1 } })
+    expect(getGasLimitForTx(sendHookExecuteSwapOperationsMsg(operations))).toBe(
+      gasLimitForRouterExecuteSwapOperations(hops)
+    )
+  })
+})

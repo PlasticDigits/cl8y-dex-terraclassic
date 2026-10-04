@@ -240,3 +240,18 @@ describe('maxSpendableAmount (GitLab #213)', () => {
     })
   })
 })
+
+it('funded native Max reserves the same measured router/wrap fee envelope (#1381)', () => {
+  const hints = { isDirectWrap: false, needsWrapInput: true, hopCount: 3, taxFundingVersion: 1 as const }
+  const balance = 10_000_000_000n
+  const max = computeMaxSpendableHumanAmount({
+    balanceRaw: balance.toString(),
+    decimals: 6,
+    assetIsNativeUluna: true,
+    context: 'swap_native',
+    nativeSwapHints: hints,
+  })
+  expect(max.reserveUluna).toBe(estimateNativeSwapUlunaFeesTotal(hints))
+  expect(max.reserveUluna).toBeGreaterThan(estimateNativeSwapUlunaFeesTotal({ ...hints, taxFundingVersion: undefined }))
+  expect(max.spendableRaw + max.reserveUluna).toBeLessThanOrEqual(balance)
+})

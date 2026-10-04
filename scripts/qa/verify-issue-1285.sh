@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Automated verification for Forgejo #1285 — TaxPreview send_msg + hop_trader_debit leftover (#1267).
+# #1285 legacy direct preview compatibility plus #1381 gross-only funded route safety.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -28,11 +28,12 @@ echo "════════════════════════�
 echo "  Forgejo #1285 — TaxPreview execute-aligned preview"
 echo "════════════════════════════════════════════════════════════════"
 
-run_step "frontend: preview query + hop debit + hook tests" \
+run_step "frontend: legacy preview + funded gross budget + hook tests" \
   bash -c 'bash scripts/with-node.sh --cwd frontend-dapp -- npm test -- --run \
     src/utils/communityTaxPreviewQuery.test.ts \
     src/utils/taxPreviewMaxSpend.test.ts \
     src/hooks/__tests__/useCommunityTaxSellBps.test.tsx \
+    src/services/terraclassic/routeTaxFundingBudget.test.ts \
     src/pages/SwapPage.extraDebitSell.test.tsx \
     src/components/trade/__tests__/TradeMarketOrderPanel.extraDebitSell.test.tsx'
 

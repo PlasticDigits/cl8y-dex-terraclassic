@@ -1,0 +1,37 @@
+{
+  "utc": "2026-10-04T10:05:14.549650+00:00",
+  "probe_only": true,
+  "lcd": "https://terra-classic-lcd.publicnode.com",
+  "router": "terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw",
+  "tokens": [
+    {
+      "contract": "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz",
+      "code_id": "11666",
+      "admin": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+      "data_hash": "45D1CCFBAE79D2E8D17F3C63D47831E8E47E854ED37217D31A307EC55F8603F6",
+      "capability_error": "HTTP 500"
+    }
+  ],
+  "block": {
+    "chain_id": "columbus-5",
+    "height": "30686762",
+    "time": "2026-10-04T10:05:04.401096789Z"
+  },
+  "router_inventory": {
+    "code_id": "11640",
+    "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+    "data_hash": "E74689EF0F31BCD6164DC8F2D78775DBA2BC49C1243B4BB4750654F194301ACC"
+  },
+  "router_config": {
+    "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+    "wrap_mapper": "terra1xuuuhpmyd5t29ry7mydg7ra2q2phrwhx7j28nx7x9sjw6zznkumsz0nmd2"
+  },
+  "limitations": [
+    "Read-only probes do not establish execution success or immutable-code trust configuration"
+  ],
+  "errors": [
+    "Router does not advertise funding version 1",
+    "Token capability unavailable: terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz"
+  ],
+  "status": "FAIL"
+}

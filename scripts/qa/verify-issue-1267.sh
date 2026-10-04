@@ -47,10 +47,11 @@ run_step "code: sell detection is GetConfig sell_bps not pin equality" \
     ! grep -qE "COMMUNITY_TAX_CODE_ID.*===|code_id === COMMUNITY_TAX" frontend-dapp/src/hooks/useCommunityTaxSellBps.ts && \
     grep -q "Catalog pin equality is \*\*not\*\* the sell detector" frontend-dapp/src/hooks/useCommunityTaxSellBps.ts'
 
-run_step "code: no pair/router FoT / wasm change in this ticket" \
-  bash -c 'grep -q "S1267-8" skills/AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md && \
-    grep -q "Do \\*\\*not\\*\\* add FoT math" skills/AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md && \
-    grep -q "Do not change pair or router contracts" skills/AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md'
+run_step "code: legacy extra debit and explicit v1 gross funding keep exact pair credit" \
+  bash -c 'rg -q "S1267-8" skills/AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md && \
+    rg -q "Current funding-version rule" skills/AGENTS_FRONTEND_EXTRA_DEBIT_SELL.md && \
+    rg -q "RT1381-2" skills/AGENTS_ROUTE_LOCAL_TAX.md && \
+    rg -q execute_route_swap_operations frontend-dapp/src/services/terraclassic/router.ts'
 
 run_step "docs: S1267 + testing + skill + AGENTS" \
   bash -c 'grep -qE "S1267-1" docs/frontend.md && \

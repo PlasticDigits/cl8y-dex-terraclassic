@@ -1,13 +1,20 @@
+import { queryRouterTaxFundingVersion } from '@/services/terraclassic/routeTaxFunding'
+import { simulateMultiHopSwap } from '@/services/terraclassic/router'
 import { postRouteSolve } from '@/services/indexer/client'
 import { swapOperationsFromIndexerResponse } from '@/services/indexer/routeOperations'
 import { simulateHybridSwap, type QuoteTraderOptions } from '@/services/terraclassic/pair'
-import { preflightSwapRouteSpread, type SwapRoutePreflightSpread } from '@/services/terraclassic/swapRoutePreflight'
+import {
+  enrichSwapOperationsWithHopMinReturns,
+  preflightSwapRouteSpread,
+  type SwapRoutePreflightSpread,
+} from '@/services/terraclassic/swapRoutePreflight'
 import type { SwapOperation } from '@/services/terraclassic/router'
 import type { AssetInfo, HybridSwapParams, IndexerRouteQuoteKind } from '@/types'
 import { indexerWalletAmountMismatch, resolveRouteSlippagePercent } from '@/utils/swapRouteSlippage'
 
 export type DirectHybridQuoteResult = {
   return_amount: string
+  taxFundingVersion?: 1
   spread_amount: string
   commission_amount: string
   indexerQuoteKind?: IndexerRouteQuoteKind
@@ -60,6 +67,64 @@ export async function quoteDirectHybridSwap(input: {
 }): Promise<DirectHybridQuoteResult> {
   const { pairAddress, fromToken, toToken, offerAssetInfo, askAssetInfo, simRaw, hybrid, maxSpreadStr, quoteTrader } =
     input
+
+  const fundingVersion = await queryRouterTaxFundingVersion(quoteTrader?.signal)
+  if (fundingVersion === 1) {
+    // Advanced's typed partition is a gross ratio. Router v1 and preflight both
+    // resize it against the funded economic offer, with net per-hop floors.
+    const operations: SwapOperation[] = [
+      {
+        terra_swap: {
+          offer_asset_info: offerAssetInfo,
+          ask_asset_info: askAssetInfo,
+          hybrid,
+        },
+      },
+    ]
+    const fundedTrader = { ...quoteTrader, taxFundingVersion: fundingVersion }
+    const fundedOps = await enrichSwapOperationsWithHopMinReturns(
+      operations,
+      simRaw,
+      Number(maxSpreadStr) * 100,
+      fundedTrader
+    )
+    const walletSim = await simulateMultiHopSwap(simRaw, fundedOps, fundedTrader)
+    const routePreflight = await preflightSwapRouteSpread(fundedOps, simRaw, maxSpreadStr, fundedTrader)
+    let indexerQuoteKind: IndexerRouteQuoteKind | undefined
+    let spotAmountOut: string | undefined
+    let indexerAmountReconciled: boolean | undefined
+    let indexerSlippage: string | undefined
+    try {
+      const idx = await postRouteSolve(fromToken, toToken, simRaw, [hybrid], quoteTrader)
+      if (
+        idx.token_in === fromToken &&
+        idx.token_out === toToken &&
+        idx.hops.length === 1 &&
+        idx.hops[0].pair === pairAddress &&
+        idx.tax_kind === 'route_local_v1'
+      ) {
+        indexerQuoteKind = idx.quote_kind
+        spotAmountOut = idx.spot_amount_out
+        indexerSlippage = idx.slippage_percent
+        indexerAmountReconciled =
+          !!idx.estimated_amount_out && indexerWalletAmountMismatch(idx.estimated_amount_out, walletSim.amount)
+      }
+    } catch {
+      // Authoritative router simulation/preflight is also the supported manual fallback.
+    }
+    return {
+      return_amount: walletSim.amount,
+      taxFundingVersion: 1,
+      spread_amount: '0',
+      commission_amount: '0',
+      indexerQuoteKind,
+      indexerOperations: fundedOps,
+      routePreflight,
+      spotAmountOut,
+      indexerAmountReconciled,
+      routeSlippagePercent: resolveRouteSlippagePercent(walletSim.amount, spotAmountOut, indexerSlippage),
+    }
+  }
 
   let lastError: unknown
   try {

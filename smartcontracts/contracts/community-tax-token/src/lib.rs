@@ -2,21 +2,15 @@
 //!
 //! ## Invariants (T592)
 //!
-//! - **T592-1** — Inbound `Transfer`/`Send`/`TransferFrom`/`SendFrom` to pair, router,
-//!   this contract, AutoLP, or other protocol-exempt addresses credits **exactly**
-//!   `amount` (no inbound FoT). Pair/router wasm is unchanged (**H-01**).
-//! - **T592-2** — Sell tax is **extra-debit** on `Send` **or `SendFrom`** + pair
-//!   `Cw20HookMsg::Swap`. Pair-direct: seller (`from` / owner) is debited
-//!   `amount + tax`. Official-router hop: router is debited `amount`,
-//!   authenticated `Swap.trader` is extra-debited `tax`. Pair is credited
-//!   `amount` (no inbound FoT). **A-allow (#1228):** `SendFrom` deducts
-//!   `TaxPreview.debit` from remaining allowance (pair-direct Sell =
-//!   `amount + tax`); insufficient allowance reverts before balances move.
-//!   `TransferFrom` stays 1:1 (**T592-7**). Live ALPHA 11630 is cw2 1.0.0 until
-//!   store+migrate to **1.1.0** (#1246). Keep 11630 listed until Refresh.
-//! - **T592-3** — Buy tax is an **outbound split** when `from` is a registered listed
-//!   pair **or** the official router (router→user). Debit `amount`; trader + sinks =
-//!   `amount`. Pair→router stays 1:1 (**T592-1**).
+//! - **T592-1** — Pair inbound credit equals its CW20 hook declared economic
+//!   amount exactly. Authenticated routed buys credit net proceeds to the router.
+//! - **T592-2** — Direct pair `Send`/`SendFrom` debit amount + sell tax; allowance
+//!   covers the actual debit. Route-local v1 debits the official router's funded
+//!   economic amount + tax, never the trader wallet. The router sizes the maximal
+//!   economic amount within the explicitly authorized gross route budget.
+//! - **T592-3** — Buy tax applies once at the active pair → official-router ask
+//!   boundary. Authenticated route settlement/refunds avoid a second buy charge.
+//!   Legacy pair → wallet and unrelated router → wallet retain their classification.
 //! - **T592-4** — SKU unlock and settings batch each cost exactly **50 UST1**, forwarded
 //!   to CMM treasury. Wrong token / wrong amount / no-op / unactivated SKU → revert,
 //!   fee not kept. AutoLP no-op is sister `GetConfig` identity (not "key present").
@@ -34,11 +28,10 @@
 //!   (**#609** / **E609-1**). `config.manager` is the same skip without a
 //!   `MANAGER_EXEMPT` row (**#633** / **R633-1**). Launch guards still use the
 //!   economic kind (**T592-11**). The manager is **not** protocol-exempt.
-//! - **T592-13** — Router hops charge buy/sell. Sell: extra-debit authenticated
-//!   `Swap.trader` when `from` is `config.router` (router wasm already sets this;
-//!   pair-direct ignores spoofed `trader`). Buy: outbound split on official
-//!   router→non-exempt. Missing trader fail-closes (`RouterTraderRequired`).
-//!   Pair/router swap math unchanged (**H-01**).
+//! - **T592-13** — Route-local v1 binds pair, assets, gross/economic amount and
+//!   trader to the configured router's active context. `Swap.trader` alone cannot
+//!   attest funding. Missing context rejects; wallet extra-debit fallback is absent.
+//!   See `docs/qa/issue-1381/README.md` and shared `dex-common::route_tax` protocol.
 //! - **T592-8** — No reflection, rebase, pause, or blacklist manager APIs.
 //! - **T592-9** — Protocol exemptions cannot be removed. `RegisterListedPair` requires
 //!   factory `Pair` lookup. Manager directory is a full tax skip for those three

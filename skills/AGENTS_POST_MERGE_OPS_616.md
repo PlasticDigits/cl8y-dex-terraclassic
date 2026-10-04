@@ -1,5 +1,17 @@
 # Agent playbook: post-merge !409–!413 option-2 wasm, wrap/window fees, AutoLP, tax ranking (GitLab #616)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Audience: third-party agents verifying the integrated tip after [!409](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/merge_requests/409)–[!413](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/merge_requests/413) landed on `main`. Child `make verify-issue-{607,610,613,614,615}` already passed on the merge commits. Columbus-5 store/rotate shared [#611](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/611). Enable Feature migrate remainder is [#612](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/612).
 
 **Issue:** [GitLab **#616**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/616)  

@@ -104,6 +104,7 @@ export function estimateProvideLiquidityCw20SequenceUlunaFeesTotal(): bigint {
 }
 
 export type NativeSwapFeeHints = {
+  taxFundingVersion?: 1
   isDirectWrap: boolean
   needsWrapInput: boolean
   /** Router `unwrap_output` sub-message (CW20→native, GitLab #343). */
@@ -124,7 +125,8 @@ export function nativeSwapFeeExecuteMsgs(hints: NativeSwapFeeHints): Array<{ msg
 
   const hopCount = Math.max(1, hints.hopCount ?? 1)
   const swapHookMsg = {
-    execute_swap_operations: {
+    [hints.taxFundingVersion === 1 ? 'execute_route_swap_operations' : 'execute_swap_operations']: {
+      ...(hints.taxFundingVersion === 1 ? { funding_version: 1 } : {}),
       operations: Array.from({ length: hopCount }, () => ({ terra_swap: {} })),
       max_spread: '0',
       ...(hints.needsUnwrapOutput ? { unwrap_output: true } : {}),

@@ -249,15 +249,30 @@ pub async fn solve_route_progress(
         None => resolve_discount_bps(&state, &quote_trader).await,
     };
     let solver_version = solver_version_for(&state);
-    let tax_identity = crate::api::community_tax_rank::load_tax_rank_snapshot(
+    let cache_assets =
+        crate::api::best_execution::candidate_tax_addresses(&state, &q.token_in, &q.token_out)
+            .await?;
+    let taxes = crate::api::community_tax_rank::load_tax_rank_snapshot(
         &state,
         &q.token_in,
         &q.token_out,
-        &[],
-        quote_trader.trader.as_deref(),
+        &cache_assets,
+        quote_trader
+            .trader
+            .as_deref()
+            .or(quote_trader.sender.as_deref()),
     )
-    .await
-    .cache_identity();
+    .await;
+    let tax_identity = taxes.cache_identity();
+    let bucket = if taxes
+        .by_addr
+        .values()
+        .any(|t| t.route_funding_version == Some(1))
+    {
+        amount_u
+    } else {
+        bucket
+    };
     let ck = hybrid_cache_key(
         solver_version,
         &q.token_in,

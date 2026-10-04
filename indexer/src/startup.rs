@@ -79,6 +79,9 @@ mod tests {
             cmm_governance_addr: None,
             community_tax_option2_code_ids: std::collections::HashSet::new(),
             community_tax_option2_data_hashes: std::collections::HashSet::new(),
+            trading_route_tax_code_ids: Default::default(),
+            trading_route_tax_data_hashes: Default::default(),
+            trading_tax_free_code_ids: Default::default(),
         }
     }
 

@@ -5,19 +5,18 @@ use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use axum::{http::StatusCode, Json};
-use bigdecimal::{num_bigint::BigUint, ToPrimitive};
+use axum::{Json, http::StatusCode};
+use bigdecimal::{ToPrimitive, num_bigint::BigUint};
 use serde_json::Value;
 use tokio::sync::Semaphore;
 
 use super::{
-    best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
+    AppState, best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
     hybrid_route_opt::QuoteTrader,
     route_exact_output_reference as reference, route_graph, route_paths,
     route_solver::{
         self, FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, SolveRouteParams,
     },
-    AppState,
 };
 
 type Error = (StatusCode, String);
@@ -26,7 +25,7 @@ pub const VALIDATION_TIMEOUT: Duration = Duration::from_secs(3);
 pub const MAX_CONCURRENT_REQUESTS: usize = 4;
 pub const PATH_WORK_BUDGET: u64 = 100_000;
 pub const MAX_GRAPH_PAIRS: usize = 8192;
-pub const OPTIMALITY_SCOPE: &str = "minimum raw offer within the first 5 feasible fresh pool-only simple paths among 32 hop-count-ordered structural paths, at most 4 hops; indexed snapshot minimum, fresh router validation required; excludes hybrid books and option-2 taxed middle hops";
+pub const OPTIMALITY_SCOPE: &str = "minimum raw offer within the first 5 feasible fresh pool-only simple paths among 32 hop-count-ordered structural paths, at most 4 hops; indexed snapshot minimum, fresh router validation required; excludes hybrid books and unsupported legacy-tax hops; route-local v1 taxes sized per hop";
 
 pub(crate) fn validate_request(q: &SolveRouteParams) -> Result<u128, Error> {
     if q.amount_in.is_some() || q.hybrid_optimize == Some(true) || q.pool_only == Some(false) {
@@ -102,14 +101,36 @@ fn size_path(
     if !tax_info.eligible {
         return None;
     }
-    let mut required = inverse_net(target, tax_info.buy_tax_bps)?;
+    let funded = tax_snapshot.path_route_local(hops);
+    let mut required = if funded {
+        target
+    } else {
+        inverse_net(target, tax_info.buy_tax_bps)?
+    };
     for h in hops.iter().rev() {
+        if funded {
+            required = inverse_net(required, tax_snapshot.buy_bps(&h.ask_token))?;
+        }
         required = inverse_pool(mirrors.get(&h.pair)?, &h.offer_token, required, discount)?;
+        if funded {
+            required = required.checked_add(tax::tax_amount(
+                required,
+                tax_snapshot.sell_bps(&h.offer_token),
+            ))?;
+        }
     }
     let mut out = required;
     for h in hops {
         let m = mirrors.get(&h.pair)?;
-        out = dbsim::simulate_pool_only_from_mirror(m, &h.offer_token, out, discount).ok()?;
+        let economic = if funded {
+            tax::sell_economic(out, tax_snapshot.sell_bps(&h.offer_token))
+        } else {
+            out
+        };
+        out = dbsim::simulate_pool_only_from_mirror(m, &h.offer_token, economic, discount).ok()?;
+        if funded {
+            out = tax::buy_split_net(out, tax_snapshot.buy_bps(&h.ask_token));
+        }
         let rout = if h.offer_token.eq_ignore_ascii_case(&m.asset_0_addr) {
             m.reserve_1
         } else {
@@ -401,10 +422,10 @@ async fn solve_inner(
             sell_tax_bps: Some(scored.sell_tax_bps),
             tax_notes: Some(scored.tax_notes),
             router_hops_tax: Some(scored.router_hops_tax),
-            solver_version: Some("pool_exact_output_v1".into()),
+            solver_version: Some("pool_exact_output_v2_funded".into()),
             paths_considered: Some(paths_considered),
             optimality_scope: Some(OPTIMALITY_SCOPE.into()),
-            hybrid_notes: Some("Pool-only sizing; execution remains offer-in. Snapshot minimum is not an atomic exact-output guarantee; mapper gross-up and sell trader debit are client responsibilities.".into()),
+            hybrid_notes: Some("Pool-only sizing; execution remains offer-in. Snapshot minimum is not an atomic exact-output guarantee; route-local v1 required input is the complete authorized gross budget.".into()),
             lcd_hybrid_queries: Some(0),
             db_hybrid_queries: Some(paths_considered),
             fidelity_check: Some(FidelityCheck::Passed),
@@ -571,6 +592,7 @@ mod tests {
             buy_bps: 1000,
             sell_bps: 100,
             exemption_directory: false,
+            route_funding_version: None,
         };
         taxes.token_out = Some(taxed.clone());
         taxes.by_addr.insert("b".into(), taxed);
@@ -595,6 +617,45 @@ mod tests {
         assert!(!fidelity_passed(100, 50, 100));
         assert!(!fidelity_passed(100, 200, 100));
         assert!(!fidelity_passed(1, 0, 100));
+    }
+    #[test]
+    fn route_exact_output_funded_buy_sell_boundaries_are_minimal() {
+        let mut taxes = tax::TaxRankSnapshot {
+            router_funding_supported: true,
+            ..Default::default()
+        };
+        for addr in ["a", "b"] {
+            taxes.by_addr.insert(
+                addr.into(),
+                tax::CataloguedTaxToken {
+                    contract_address: addr.into(),
+                    code_id: Some(11667),
+                    data_hash: None,
+                    buy_bps: 450,
+                    sell_bps: 100,
+                    exemption_directory: true,
+                    route_funding_version: Some(1),
+                },
+            );
+        }
+        let hops = [RouteHop {
+            pair: "p".into(),
+            offer_token: "a".into(),
+            ask_token: "b".into(),
+        }];
+        let mirrors = HashMap::from([("p".into(), mirror(1_000_000, 1_000_000, 30))]);
+        for target in [1, 100, 10_000, 50_000] {
+            let (gross, net) = size_path(&hops, &mirrors, target, 0, &taxes, "a").unwrap();
+            assert!(net >= target);
+            let economic = tax::sell_economic(gross - 1, 100);
+            let raw =
+                dbsim::simulate_pool_only_from_mirror(&mirrors["p"], "a", economic, 0).unwrap();
+            assert!(
+                tax::buy_split_net(raw, 450) < target,
+                "reverse input must be minimal at target {}",
+                target
+            );
+        }
     }
 }
 
@@ -665,6 +726,7 @@ mod path_tests {
                 buy_bps: 100,
                 sell_bps: 200,
                 exemption_directory: false,
+                route_funding_version: None,
             },
         );
         assert!(size_path(&hops, &mirrors, 1000000, 0, &taxes, "t0").is_none());

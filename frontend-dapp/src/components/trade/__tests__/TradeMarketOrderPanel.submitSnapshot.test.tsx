@@ -1,3 +1,8 @@
+vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
+  assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined),
+  queryRouterTaxFundingVersion: vi.fn().mockResolvedValue(undefined),
+  ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
+}))
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "cl8y-community-tax-token"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "cl8y-community-tax-autolp",
  "cosmwasm-schema",
@@ -303,7 +303,7 @@ dependencies = [
 
 [[package]]
 name = "cl8y-dex-router"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -337,6 +337,7 @@ dependencies = [
 name = "cl8y-dex-tests"
 version = "1.0.0"
 dependencies = [
+ "cl8y-community-tax-token",
  "cl8y-dex-burn-hook",
  "cl8y-dex-factory",
  "cl8y-dex-faucet",

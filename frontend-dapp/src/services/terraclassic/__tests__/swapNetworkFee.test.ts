@@ -121,3 +121,23 @@ describe('estimateSwapNetworkFee (GitLab #587)', () => {
     expect(Number(est.feeUluna) / 1_000_000).toBeLessThan(400)
   })
 })
+
+it('funded native wrap/unwrap fee uses the same versioned router floor as broadcast (#1381)', () => {
+  const hints = {
+    isDirectWrap: false,
+    needsWrapInput: true,
+    needsUnwrapOutput: true,
+    hopCount: 3,
+    taxFundingVersion: 1 as const,
+  }
+  const msgs = nativeSwapFeeExecuteMsgs(hints)
+  const send = msgs[1].msg.send as { msg: string }
+  expect(JSON.parse(atob(send.msg))).toMatchObject({
+    execute_route_swap_operations: {
+      funding_version: 1,
+      unwrap_output: true,
+    },
+  })
+  expect(estimateSwapNetworkFee(hints).gasLimit).toBe(totalGasLimitForExecuteMsgs(msgs))
+  expect(estimateSwapNetworkFee(hints).gasLimit).toBeGreaterThan(5_700_000)
+})

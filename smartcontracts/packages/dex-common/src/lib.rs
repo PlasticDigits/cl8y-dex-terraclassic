@@ -12,3 +12,5 @@ pub mod pagination;
 pub mod pair;
 pub mod types;
 pub mod wrap_mapper;
+
+pub mod route_tax;

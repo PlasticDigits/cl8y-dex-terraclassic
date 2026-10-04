@@ -20,9 +20,10 @@ import { simulateSwap, swap } from '@/services/terraclassic/pair'
 import {
   computeDirectHybridMinReturn,
   enrichSwapOperationsWithHopMinReturns,
+  preflightSwapRouteSpread,
   type SwapRoutePreflightSpread,
 } from '@/services/terraclassic/swapRoutePreflight'
-import { executeMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
+import { executeMultiHopSwap, simulateMultiHopSwap, type SwapOperation } from '@/services/terraclassic/router'
 import { hybridParamsWithSubmitCap } from '@/services/terraclassic/hybridSwapGas'
 import { hybridFromSingleHopIndexerOps, swapOpsRequireRouter } from '@/services/terraclassic/swapRouting'
 import { executeCw20AllowanceThen } from '@/services/terraclassic/transactions'
@@ -67,13 +68,14 @@ import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalan
 import { evaluateMarketSwapNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
 import { getDirectHybridBookSplit, getIndexerHybridExecutionSummary } from '@/utils/swapDisclosure'
 import { LimitOrderEscrowAmountField } from '@/components/trade/LimitOrderEscrowAmountField'
+import { useRouterTaxFunding } from '@/hooks/useRouterTaxFunding'
 import { useCommunityTaxPreviewDebit, useCommunityTaxSellBps } from '@/hooks/useCommunityTaxSellBps'
 import {
   communityTaxExecuteUsesRouter,
   communityTaxRouteHint,
   extraDebitSellBpsForExecute,
   extraDebitSubmitGate,
-  INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE,
+  TAX_FUNDING_UNRESOLVED_MESSAGE,
 } from '@/utils/taxPreviewMaxSpend'
 import { withBuyTaxReceiveDisplay } from '@/utils/communityTaxNetOut'
 import { SwapPreSubmitSummary } from '@/components/swap/SwapPreSubmitSummary'
@@ -88,6 +90,7 @@ import { TradeMarketSubmitChrome, type TradeMarketSubmitChromeModel } from '@/co
 
 interface MarketSimData {
   return_amount: string
+  taxFundingVersion?: 1
   /** Pre-tax wallet sim when `return_amount` is post-buy-split (#615). */
   executeAmountOut?: string
   spread_amount: string
@@ -167,6 +170,7 @@ export function TradeMarketOrderPanel({
   const token0 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[0]) : ''
   const token1 = selectedPair ? assetInfoLabel(selectedPair.asset_infos[1]) : ''
   const fromToken = side === 'bid' ? token1 : token0
+  const routerTaxFunding = useRouterTaxFunding()
   const taxSell = useCommunityTaxSellBps(fromToken?.startsWith('terra1') ? fromToken : null)
   const toToken = side === 'bid' ? token0 : token1
   const taxReceive = useCommunityTaxSellBps(toToken?.startsWith('terra1') ? toToken : null)
@@ -267,6 +271,7 @@ export function TradeMarketOrderPanel({
       slippageTolerance,
       address,
       taxReceive.buyBps ?? null,
+      routerTaxFunding.data,
     ],
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }): Promise<MarketSimData> => {
@@ -292,6 +297,7 @@ export function TradeMarketOrderPanel({
         return withBuyTaxReceiveDisplay(
           {
             return_amount: quoted.return_amount,
+            taxFundingVersion: quoted.taxFundingVersion,
             spread_amount: quoted.spread_amount,
             commission_amount: quoted.commission_amount,
             quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
@@ -321,6 +327,7 @@ export function TradeMarketOrderPanel({
             return {
               return_amount: quoted.return_amount,
               executeAmountOut: quoted.executeAmountOut,
+              taxFundingVersion: quoted.taxFundingVersion,
               spread_amount: quoted.spread_amount,
               commission_amount: quoted.commission_amount,
               quoteDisclosure: quoteDisclosureForIndexerKind(quoted.indexerQuoteKind),
@@ -335,6 +342,24 @@ export function TradeMarketOrderPanel({
         }
       }
 
+      if (routerTaxFunding.data === 1) {
+        const operations: SwapOperation[] = [{ terra_swap: { offer_asset_info: offerInfo, ask_asset_info: askInfo } }]
+        const sim = await simulateMultiHopSwap(simRaw, operations, quoteTrader)
+        const routePreflight = await preflightSwapRouteSpread(operations, simRaw, maxSpreadStr, {
+          ...quoteTrader,
+          taxFundingVersion: sim.taxFundingVersion,
+          signal,
+        })
+        return {
+          return_amount: sim.amount,
+          taxFundingVersion: sim.taxFundingVersion,
+          indexerOperations: operations,
+          spread_amount: '0',
+          commission_amount: '0',
+          routePreflight,
+          quoteDisclosure: POOL_ONLY_QUOTE_DISCLOSURE,
+        }
+      }
       const sim = await simulateSwap(selectedPair.contract_addr, offerInfo, simRaw, quoteTrader)
       return withBuyTaxReceiveDisplay(
         {
@@ -366,19 +391,21 @@ export function TradeMarketOrderPanel({
     () =>
       estimateTradeMarketNetworkFeeUluna(
         simQuery.data?.indexerOperations,
-        liveHybrid ?? solverHybridForGas ?? undefined
+        liveHybrid ?? solverHybridForGas ?? undefined,
+        simQuery.data?.taxFundingVersion
       ),
-    [simQuery.data?.indexerOperations, liveHybrid, solverHybridForGas]
+    [simQuery.data?.indexerOperations, simQuery.data?.taxFundingVersion, liveHybrid, solverHybridForGas]
   )
   const marketSwapFallback = useMemo(() => {
     const ops = simQuery.data?.indexerOperations
     const hybridOn = !!(liveHybrid ?? solverHybridForGas)
-    if (ops && ops.length >= 2) {
+    if (ops && (ops.length >= 2 || simQuery.data?.taxFundingVersion === 1)) {
       return estimateSwapNetworkFee({
         isDirectWrap: false,
         needsWrapInput: false,
         hopCount: ops.length,
         cw20RouterOperations: ops,
+        taxFundingVersion: simQuery.data?.taxFundingVersion,
       })
     }
     return estimateSwapNetworkFee({
@@ -388,7 +415,7 @@ export function TradeMarketOrderPanel({
       cw20DirectPair: true,
       cw20Hybrid: hybridOn,
     })
-  }, [simQuery.data?.indexerOperations, liveHybrid, solverHybridForGas])
+  }, [simQuery.data?.indexerOperations, simQuery.data?.taxFundingVersion, liveHybrid, solverHybridForGas])
   const marketAutoGasProbe = useMemo(() => {
     if (!isWalletConnected || !address || !fromToken.startsWith('terra1')) return null
     const ops = simQuery.data?.indexerOperations
@@ -397,8 +424,9 @@ export function TradeMarketOrderPanel({
         isDirectWrap: false,
         needsWrapInput: false,
         hopCount: ops && ops.length >= 2 ? ops.length : 1,
-        cw20RouterOperations: ops && ops.length >= 2 ? ops : undefined,
-        cw20DirectPair: !ops || ops.length < 2,
+        taxFundingVersion: simQuery.data?.taxFundingVersion,
+        cw20RouterOperations: ops && (ops.length >= 2 || simQuery.data?.taxFundingVersion === 1) ? ops : undefined,
+        cw20DirectPair: (!ops || ops.length < 2) && simQuery.data?.taxFundingVersion !== 1,
         cw20Hybrid: !!(liveHybrid ?? solverHybridForGas),
       },
       payContract: fromToken,
@@ -416,6 +444,7 @@ export function TradeMarketOrderPanel({
     selectedPair?.contract_addr,
     slippageTolerance,
     simQuery.data?.indexerOperations,
+    simQuery.data?.taxFundingVersion,
     liveHybrid,
     solverHybridForGas,
   ])
@@ -484,7 +513,8 @@ export function TradeMarketOrderPanel({
       snapshotted: hybridSubmitSnapshot,
     },
   })
-  const tradeUsesRouter = communityTaxExecuteUsesRouter(simData?.indexerOperations?.length)
+  const tradeUsesRouter =
+    simData?.taxFundingVersion === 1 || communityTaxExecuteUsesRouter(simData?.indexerOperations?.length)
   const communityTaxHint = communityTaxRouteHint({
     payIsTax: taxSell.isTaxToken,
     receiveIsTax: taxReceive.isTaxToken,
@@ -509,10 +539,11 @@ export function TradeMarketOrderPanel({
   const taxPreview = useCommunityTaxPreviewDebit({
     token: fromToken?.startsWith('terra1') ? fromToken : null,
     amount: rawInputAmount,
-    enabled: taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
+    enabled: !tradeUsesRouter && taxSell.isTaxToken && taxSell.sellBps != null && taxSell.sellBps > 0,
     previewQuery: taxPreviewQuery,
   })
   const extraDebitGate = extraDebitSubmitGate({
+    balanceUnresolved: escrowBalanceQuery.isError,
     declaredRaw: tryParseBigInt(rawInputAmount),
     balanceRaw: escrowBalanceQuery.data !== undefined ? tryParseBigInt(escrowBalanceQuery.data) : null,
     debitRaw: taxPreview.debitRaw,
@@ -528,9 +559,7 @@ export function TradeMarketOrderPanel({
       if (offerDecimals == null || receiveDecimals == null) throw new Error('Token decimals unavailable')
       if (!fromToken.startsWith('terra1')) throw new Error('Market swap requires CW20 pay token')
       if (extraDebitGate.blockSubmit) {
-        throw new Error(
-          extraDebitGate.insufficientBalance ? 'Insufficient Balance' : INSUFFICIENT_FOR_SELL_TAX_TX_MESSAGE
-        )
+        throw new Error(extraDebitGate.insufficientBalance ? 'Insufficient Balance' : TAX_FUNDING_UNRESOLVED_MESSAGE)
       }
       assertSubmitQuotePayRawAligned(rawInputAmount, debouncedRawInputAmount)
       if (snapshottedHybrid) {
@@ -559,25 +588,23 @@ export function TradeMarketOrderPanel({
       const maxSpread = maxSpreadStr
       const deadline = Math.floor(Date.now() / 1000) + deadlineSeconds
       const idxOps = simData.indexerOperations
+      if (swapOpsRequireRouter(idxOps) || (simData.taxFundingVersion === 1 && idxOps?.length)) {
+        const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(idxOps!, payRaw, slippageTolerance, {
+          trader: address,
+          taxFundingVersion: simData.taxFundingVersion,
+        })
+        return executeMultiHopSwap(
+          address,
+          fromToken,
+          payRaw,
+          opsForSubmit,
+          maxSpread,
+          submitMinReceived ?? undefined,
+          undefined,
+          deadline
+        )
+      }
       return executeCw20AllowanceThen(address, fromToken, selectedPair.contract_addr, payRaw, async () => {
-        if (swapOpsRequireRouter(idxOps)) {
-          const opsForSubmit = await enrichSwapOperationsWithHopMinReturns(
-            idxOps!,
-            payRaw,
-            slippageTolerance,
-            address ? { trader: address } : undefined
-          )
-          return executeMultiHopSwap(
-            address,
-            fromToken,
-            payRaw,
-            opsForSubmit,
-            maxSpread,
-            submitMinReceived ?? undefined,
-            undefined,
-            deadline
-          )
-        }
         // Prefer solver hybrid from GET quote; Advanced manual split is the fallback (#501).
         // Cap max_maker_fills like Swap so gas preflight matches the on-chain payload (#249).
         let hopHybrid = hybridFromSingleHopIndexerOps(idxOps) ?? debouncedHybrid ?? undefined
@@ -781,7 +808,7 @@ export function TradeMarketOrderPanel({
         maxContext="market_swap"
         assetIsNativeUluna={fromToken === 'uluna'}
         marketUsesHybrid={true}
-        extraDebitSellBps={extraDebitSellBpsForExecute(taxSell.sellBps, tradeUsesRouter)}
+        extraDebitSellBps={extraDebitSellBpsForExecute(taxSell.sellBps, tradeUsesRouter || routerTaxFunding.data === 1)}
       />
       {communityTaxHint && (
         <p className="text-[10px]" style={{ color: 'var(--ink-dim)' }} data-testid="trade-sell-tax-extra">

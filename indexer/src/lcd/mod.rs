@@ -28,8 +28,8 @@ pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
     AllEndpointsFailed(String),
     /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`,
-/// or foreign contract `unknown variant \`pair\``). Not an LCD outage — do not
-/// fan out to other endpoints or WARN.
+    /// or foreign contract `unknown variant \`pair\``). Not an LCD outage — do not
+    /// fan out to other endpoints or WARN.
     #[error("LCD contract query rejected: {0}")]
     ContractQueryRejected(String),
     #[error("Request error: {0}")]
@@ -89,10 +89,13 @@ struct LcdClientInner {
     endpoints: RwLock<Vec<Endpoint>>,
     client: Client,
     cooldown_duration: Duration,
+    discovery_namespace: usize,
 }
 
 impl LcdClient {
     pub fn new(urls: Vec<String>, timeout_ms: u64, cooldown_ms: u64) -> Self {
+        static NEXT_NAMESPACE: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(1);
         let endpoints = urls
             .into_iter()
             .map(|url| Endpoint {
@@ -111,6 +114,8 @@ impl LcdClient {
                 endpoints: RwLock::new(endpoints),
                 client,
                 cooldown_duration: Duration::from_millis(cooldown_ms),
+                discovery_namespace: NEXT_NAMESPACE
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             }),
         }
     }
@@ -159,9 +164,8 @@ impl LcdClient {
                             );
                             return Err(LcdError::ContractQueryRejected(body_snippet));
                         }
-                        let msg = format!(
-                            "endpoint[{idx}] {log_path} returned {status}: {body_snippet}"
-                        );
+                        let msg =
+                            format!("endpoint[{idx}] {log_path} returned {status}: {body_snippet}");
                         errors.push(msg);
                         if status.as_u16() == 429 {
                             // Public LCD mirrors rate-limit aggressively during catch-up.
@@ -245,6 +249,23 @@ impl LcdClient {
         if let Some(ep) = eps.get_mut(idx) {
             ep.cooldown_until = Some(Instant::now() + self.inner.cooldown_duration);
         }
+    }
+
+    /// Process-local identity: isolates bounded discovery caches by LCD client/chain.
+    pub(crate) fn cache_namespace(&self) -> usize {
+        self.inner.discovery_namespace
+    }
+
+    pub async fn get_code_data_hash(&self, code_id: u64) -> Result<String, LcdError> {
+        let value: serde_json::Value = self
+            .get(&format!("/cosmwasm/wasm/v1/code/{}", code_id))
+            .await?;
+        value
+            .get("code_info")
+            .and_then(|c| c.get("data_hash"))
+            .and_then(|v| v.as_str())
+            .map(str::to_owned)
+            .ok_or_else(|| LcdError::Deserialize("missing code data hash".into()))
     }
 
     pub async fn query_contract<T: DeserializeOwned>(
@@ -501,8 +522,8 @@ mod tests {
 
     #[tokio::test]
     async fn rate_limit_429_cools_down_and_fails_over() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -601,8 +622,8 @@ mod tests {
 
     #[tokio::test]
     async fn wasm_query_reject_does_not_fan_out() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -646,8 +667,8 @@ mod tests {
 
     #[tokio::test]
     async fn infra_500_still_fans_out() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -681,8 +702,8 @@ mod tests {
 
     #[tokio::test]
     async fn gateway_502_cools_down_and_fails_over() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -725,6 +746,9 @@ mod tests {
             .mount(&server)
             .await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
-        assert_eq!(lcd.get_contract_code_id("terra1token").await.unwrap(), 10184);
+        assert_eq!(
+            lcd.get_contract_code_id("terra1token").await.unwrap(),
+            10184
+        );
     }
 }

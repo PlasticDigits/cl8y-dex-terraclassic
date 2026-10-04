@@ -1145,6 +1145,8 @@ POLL_INTERVAL_MS=2000
 RATE_LIMIT_RPS=0
 # LCD-heavy routes keep explicit 10 RPS cap for QA template (#363); applies even when global RATE_LIMIT_RPS=0.
 RATE_LIMIT_LCD_HEAVY_RPS=10
+# #1381: immutable ordinary trading implementation; independent of Create catalog.
+TRADING_TAX_FREE_CODE_IDS=$CW20_CODE_ID
 ENVEOF
 if [ -n "${COMMUNITY_TAX_CODE_ID:-}" ] && [ -n "${COMMUNITY_TOKEN_LAUNCHER:-}" ]; then
   cat >> "$REPO_ROOT/indexer/.env" <<TAXEOF
@@ -1153,6 +1155,8 @@ COMMUNITY_TAX_CODE_ID=$COMMUNITY_TAX_CODE_ID
 COMMUNITY_TOKEN_LAUNCHER=$COMMUNITY_TOKEN_LAUNCHER
 CMM_GOVERNANCE_ADDR=$TEST_ADDRESS
 COMMUNITY_TAX_OPTION2_CODE_IDS=$COMMUNITY_TAX_CODE_ID
+# Supported local funding-v1 wasm is freshly stored by this revision's deploy.
+TRADING_ROUTE_TAX_CODE_IDS=$COMMUNITY_TAX_CODE_ID
 TAXEOF
 fi
 echo "  Written to indexer/.env"

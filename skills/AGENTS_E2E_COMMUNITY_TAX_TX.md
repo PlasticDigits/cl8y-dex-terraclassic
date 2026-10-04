@@ -1,5 +1,17 @@
 # Agent playbook: community-tax Playwright e2e-tx (GitLab #622)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing **tax-pair Swap / Pool / Limits / Trade Market** on-chain Playwright, `community-tax-env.ts` smoke-vs-tx pins, or LocalTerra seed funding that the tax spec consumes.
 
 This is **retail path coverage** for the #620 QA tax/EMBER market. Do **not** add pair/router FoT math (**H-01** / **T592-1**). Do **not** turn hybrid off (**#596**). Wrap stays cLUNC/cUSTC. Gem `e2e-tx` specs stay on the first dual-CW20 pair (EMBER/CORAL).

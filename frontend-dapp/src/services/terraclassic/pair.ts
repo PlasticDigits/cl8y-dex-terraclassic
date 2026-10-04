@@ -25,6 +25,8 @@ export type { LimitPriceDecimals }
 export interface QuoteTraderOptions {
   /** Cancellation/total quote deadline, never serialized into contract JSON. */
   signal?: AbortSignal
+  /** Authenticated route-funded quote protocol (#1381). Never a fee exemption. */
+  taxFundingVersion?: 1
   trader?: string
   sender?: string
 }

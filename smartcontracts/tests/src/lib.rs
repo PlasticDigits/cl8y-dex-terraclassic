@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod adversarial_token;
+#[cfg(test)]
+mod route_tax_1381_tests;
 
 #[cfg(test)]
 mod cw20_codeid_harness;

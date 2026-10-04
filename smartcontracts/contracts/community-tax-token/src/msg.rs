@@ -161,6 +161,11 @@ pub struct MintInit {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// Authenticated settlement/refund of already taxed route proceeds.
+    RouteTransfer {
+        recipient: String,
+        amount: Uint128,
+    },
     Transfer {
         recipient: String,
         amount: Uint128,
@@ -218,6 +223,15 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(dex_common::route_tax::RouteTaxCapabilityResponse)]
+    RouteTaxCapability {},
+    #[returns(dex_common::route_tax::RouteTaxPreviewResponse)]
+    RouteTaxPreview {
+        kind: dex_common::route_tax::RouteTaxKind,
+        amount: Uint128,
+        trader: Option<String>,
+        pair: String,
+    },
     #[returns(cw20::BalanceResponse)]
     Balance { address: String },
     #[returns(cw20::TokenInfoResponse)]
@@ -343,7 +357,7 @@ pub enum TaxKind {
 pub struct TaxPreviewResponse {
     pub kind: TaxKind,
     pub declared: Uint128,
-    /// Amount debited from `from` (pair-direct sell = declared + tax; router sell = declared).
+    /// Amount debited from `from` (pair-direct sell = declared + tax; router sell = declared + tax).
     pub debit: Uint128,
     /// Amount credited to `to` (buy/transfer = declared − tax).
     pub credit: Uint128,
@@ -351,7 +365,7 @@ pub struct TaxPreviewResponse {
     /// Authenticated hop trader when `from` is the official router (**T592-13** / #607).
     #[serde(default)]
     pub hop_trader: Option<Addr>,
-    /// Extra-debit taken from [`Self::hop_trader`] on a router sell (pair still credited `declared`).
+    /// Legacy field retained for decoding; v1 never debits the hop trader wallet.
     #[serde(default)]
     pub hop_trader_debit: Option<Uint128>,
 }

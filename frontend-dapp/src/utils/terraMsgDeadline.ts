@@ -5,7 +5,7 @@ function deadlineFromDecodedMsg(msg: Record<string, unknown>): number | null {
   if (typeof msg.deadline === 'number' && Number.isFinite(msg.deadline)) {
     return msg.deadline
   }
-  for (const key of ['swap', 'execute_swap_operations'] as const) {
+  for (const key of ['swap', 'execute_swap_operations', 'execute_route_swap_operations'] as const) {
     const inner = msg[key]
     if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
       const d = (inner as Record<string, unknown>).deadline

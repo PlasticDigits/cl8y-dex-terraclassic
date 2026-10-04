@@ -1,5 +1,17 @@
 # Agent skill: retail hybrid always-on (GitLab #596)
 
+## Current funding-version rule (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](./AGENTS_ROUTE_LOCAL_TAX.md)
+and the [migration runbook](../docs/runbooks/route-local-tax-1381.md): taxes use
+this route's gross budget, never an intermediate trader wallet; pair credit
+matches the economic hook, buys are charged once, and supported routes remain
+eligible with net quotes. The older instructions below are **historical compatibility**
+rules for legacy deployments only. Direct-pair Sell/SendFrom remains legacy.
+[Agent checks and explicit skips](../docs/qa/issue-1381/README.md); `make verify-issue-1381`.
+
+## Legacy-version reference
+
 Use when changing **Swap** (`/`) or **Trade market** (`/trade/:pairAddr` → **Market**) quote/submit, Advanced book-leg controls, or copy that could re-introduce a pool-only opt-out.
 
 Follow-on to **#501** (GET `/route/solve` as the default quote). **#596** is the product rule: the official dApp **must always** consider resting limit orders. Users must not opt in, and must not opt out, to receive best pricing.

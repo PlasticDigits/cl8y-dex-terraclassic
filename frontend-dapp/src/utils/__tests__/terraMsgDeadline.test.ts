@@ -28,3 +28,20 @@ describe('resolveTerraTxRecoveryDeadlineUnix (GitLab #359)', () => {
     expect(deadline).toBe(now + 300)
   })
 })
+
+it('reads funded v1 router deadline without changing recovery behavior (#1381)', () => {
+  const inner = btoa(JSON.stringify({ execute_route_swap_operations: { funding_version: 1, deadline: 1800000000 } }))
+  expect(
+    resolveTerraTxRecoveryDeadlineUnix(
+      [
+        {
+          contract: 'terra1input',
+          msg: {
+            send: { contract: 'terra1router', amount: '1010000', msg: inner },
+          },
+        },
+      ],
+      1700000000
+    )
+  ).toBe(1800000000)
+})

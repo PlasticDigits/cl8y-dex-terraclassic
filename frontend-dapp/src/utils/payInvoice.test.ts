@@ -7,12 +7,18 @@ import {
   PAY_INVOICE_NO_ROUTE,
   defaultPayToken,
   quotePayInvoice,
+  buildPayInvoiceMsgs,
   resolveInvoicePayee,
   wrapGrossForNetCw20,
   type Invoice,
   type PayInvoiceQuoteDeps,
 } from './payInvoice'
 import { payInvoiceCtaLabel, payInvoiceSummaryLine } from './payInvoiceCopy'
+
+vi.mock('@/utils/constants', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/constants')>()),
+  ROUTER_CONTRACT_ADDRESS: 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v',
+}))
 
 const UST1 = 'terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v'
 const CLUNC = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
@@ -104,7 +110,11 @@ describe('quotePayInvoice (GitLab #595)', () => {
     expect(q.hopCount).toBe(1)
     expect(q.minInvoiceOut).toBe('50000000')
     expect(q.payRaw).toBe(applySlippagePercentCeiling('100000000', 5))
-    expect(d.reverseSimulate).toHaveBeenCalledWith('50000000', expect.any(Array))
+    expect(d.reverseSimulate).toHaveBeenCalledWith(
+      '50000000',
+      expect.any(Array),
+      expect.objectContaining({ trader: 'terra1xsecn4snv94ezcez0z3vq8an9j4h4kxxcydp8l' })
+    )
     expect(d.forwardSimulate).toHaveBeenCalled()
     expect(d.getRouteSolve).toHaveBeenCalledWith(CLUNC, UST1, '50000000', expect.objectContaining({ trader: PAYEE }))
   })
@@ -220,3 +230,39 @@ describe('pay invoice helpers', () => {
 function netAfter(gross: bigint, feeBps: number): bigint {
   return gross - (gross * BigInt(feeBps)) / 10000n
 }
+
+describe('route-funded invoice gross budget (#1381)', () => {
+  it('uses funded reverse and net forward without adding another wallet debit', async () => {
+    const extra = vi.fn(async () => '999999999')
+    const q = await quotePayInvoice(
+      {
+        invoice: INVOICE,
+        payToken: CLUNC,
+        slippagePercent: 0,
+        trader: PAYEE,
+        payTokenBalance: '100000000',
+        taxPreviewExtraDebit: extra,
+      },
+      deps({ assertFunding: vi.fn(async () => 1 as const) })
+    )
+    expect(q).toMatchObject({
+      status: 'ok',
+      taxFundingVersion: 1,
+      payRaw: '100000000',
+      cw20SendAmount: '100000000',
+      minInvoiceOut: '50000000',
+    })
+    expect(extra).not.toHaveBeenCalled()
+    if (q.status !== 'ok') throw new Error('Expected executable invoice quote')
+    const msgs = buildPayInvoiceMsgs({ invoice: INVOICE, quote: q, walletAddress: CLUNC, slippagePercent: 0 })
+    const send = msgs[0].msg.send as { amount: string; msg: string }
+    expect(send.amount).toBe(q.payRaw)
+    expect(JSON.parse(atob(send.msg))).toMatchObject({
+      execute_route_swap_operations: {
+        funding_version: 1,
+        minimum_receive: INVOICE.invoiceAmount,
+        to: CLUNC,
+      },
+    })
+  })
+})

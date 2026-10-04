@@ -2876,7 +2876,7 @@ fn instantiate_launch_guards_and_initial_exempt() {
             },
         )
         .unwrap();
-    assert!(ex.manager.iter().any(|a| a == &user));
+    assert!(ex.manager.iter().any(|a| a == user));
 }
 
 #[test]
@@ -2962,120 +2962,51 @@ fn instantiate_rejects_protocol_initial_exempt() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn router_sell_extra_debits_authenticated_trader() {
-    let mut e = clean(vec![], None);
-    register_listed_pair(&mut e);
-    fund_router(&mut e, 1_000_000);
-    let router = Addr::unchecked("router");
-    let user_before = balance(&e.app, &e.token, e.user.as_str());
-    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
-    let treasury_before = balance(&e.app, &e.token, e.treasury.as_str());
-
-    e.app
-        .execute_contract(
-            router.clone(),
-            e.token.clone(),
-            &ExecuteMsg::Send {
-                contract: e.pair.to_string(),
-                amount: Uint128::new(1_000_000),
-                msg: swap_hook_trader(e.user.as_str()),
-            },
-            &[],
-        )
-        .unwrap();
-
-    assert_eq!(
-        balance(&e.app, &e.token, router.as_str()),
-        0,
-        "router debited declared amount only"
-    );
-    assert_eq!(
-        balance(&e.app, &e.token, e.pair.as_str()),
-        pair_before + 1_000_000,
-        "pair inbound 1:1"
-    );
-    assert_eq!(
-        balance(&e.app, &e.token, e.user.as_str()),
-        user_before - 50_000,
-        "trader extra-debit 5%"
-    );
-    assert_eq!(
-        balance(&e.app, &e.token, e.treasury.as_str()),
-        treasury_before + 50_000
-    );
-
-    let p = preview(
-        &e,
-        &router,
-        &e.pair,
-        1_000_000,
-        Some(swap_hook_trader(e.user.as_str())),
-    );
-    assert_eq!(p.kind, TaxKind::Sell);
-    assert_eq!(p.debit, Uint128::new(1_000_000));
-    assert_eq!(p.credit, Uint128::new(1_000_000));
-    assert_eq!(p.tax, Uint128::new(50_000));
-    assert_eq!(p.hop_trader.as_ref(), Some(&e.user));
-    assert_eq!(p.hop_trader_debit, Some(Uint128::new(50_000)));
-}
-
-/// **T592-13** / **#710** — official-router greedy hop extra-debits authenticated `trader`, not the router.
-#[test]
-fn greedy_router_sell_extra_debits_authenticated_trader() {
-    let mut e = clean(vec![], None);
-    register_listed_pair(&mut e);
-    fund_router(&mut e, 1_000_000);
-    let router = Addr::unchecked("router");
-    let user_before = balance(&e.app, &e.token, e.user.as_str());
-    let pair_before = balance(&e.app, &e.token, e.pair.as_str());
-    let treasury_before = balance(&e.app, &e.token, e.treasury.as_str());
-
-    e.app
-        .execute_contract(
-            router.clone(),
-            e.token.clone(),
-            &ExecuteMsg::Send {
-                contract: e.pair.to_string(),
-                amount: Uint128::new(1_000_000),
-                msg: greedy_swap_hook_trader(e.user.as_str()),
-            },
-            &[],
-        )
-        .unwrap();
-
-    assert_eq!(
-        balance(&e.app, &e.token, router.as_str()),
-        0,
-        "router debited declared amount only"
-    );
-    assert_eq!(
-        balance(&e.app, &e.token, e.pair.as_str()),
-        pair_before + 1_000_000,
-        "pair inbound 1:1"
-    );
-    assert_eq!(
-        balance(&e.app, &e.token, e.user.as_str()),
-        user_before - 50_000,
-        "trader extra-debit 5%"
-    );
-    assert_eq!(
-        balance(&e.app, &e.token, e.treasury.as_str()),
-        treasury_before + 50_000
-    );
-
-    let p = preview(
-        &e,
-        &router,
-        &e.pair,
-        1_000_000,
-        Some(greedy_swap_hook_trader(e.user.as_str())),
-    );
-    assert_eq!(p.kind, TaxKind::Sell);
-    assert_eq!(p.debit, Uint128::new(1_000_000));
-    assert_eq!(p.credit, Uint128::new(1_000_000));
-    assert_eq!(p.tax, Uint128::new(50_000));
-    assert_eq!(p.hop_trader.as_ref(), Some(&e.user));
-    assert_eq!(p.hop_trader_debit, Some(Uint128::new(50_000)));
+fn issue1381_legacy_router_cannot_debit_trader_wallet() {
+    for greedy in [false, true] {
+        let mut e = clean(vec![], None);
+        register_listed_pair(&mut e);
+        fund_router(&mut e, 1_050_000);
+        let user_before = balance(&e.app, &e.token, e.user.as_str());
+        let pair_before = balance(&e.app, &e.token, e.pair.as_str());
+        let hook = if greedy {
+            greedy_swap_hook_trader(e.user.as_str())
+        } else {
+            swap_hook_trader(e.user.as_str())
+        };
+        let err = e
+            .app
+            .execute_contract(
+                Addr::unchecked("router"),
+                e.token.clone(),
+                &ExecuteMsg::Send {
+                    contract: e.pair.to_string(),
+                    amount: Uint128::new(1_000_000),
+                    msg: hook,
+                },
+                &[],
+            )
+            .unwrap_err();
+        assert!(
+            err.root_cause()
+                .to_string()
+                .contains("Route-local tax funding"),
+            "{err:?}"
+        );
+        assert_eq!(balance(&e.app, &e.token, e.user.as_str()), user_before);
+        assert_eq!(balance(&e.app, &e.token, e.pair.as_str()), pair_before);
+        assert_eq!(balance(&e.app, &e.token, "router"), 1_050_000);
+        let p = preview(
+            &e,
+            &Addr::unchecked("router"),
+            &e.pair,
+            1_000_000,
+            Some(swap_hook_trader(e.user.as_str())),
+        );
+        assert_eq!(p.debit, Uint128::new(1_050_000));
+        assert_eq!(p.credit, Uint128::new(1_000_000));
+        assert_eq!(p.hop_trader_debit, None);
+    }
 }
 
 #[test]
@@ -3221,16 +3152,13 @@ fn manager_exempt_hop_trader_skips_router_sell_tax() {
             },
             &[],
         )
-        .unwrap();
+        .unwrap_err();
     assert_eq!(
         balance(&e.app, &e.token, e.user.as_str()),
         user_before,
         "directory hop trader is not extra-debited"
     );
-    assert_eq!(
-        balance(&e.app, &e.token, e.pair.as_str()),
-        pair_before + 1_000_000
-    );
+    assert_eq!(balance(&e.app, &e.token, e.pair.as_str()), pair_before);
 }
 
 /// #633 / R633-1: `config.manager` skips tax without a `MANAGER_EXEMPT` row or SKU.
@@ -3317,16 +3245,13 @@ fn manager_role_hop_trader_skips_without_directory() {
             },
             &[],
         )
-        .unwrap();
+        .unwrap_err();
     assert_eq!(
         balance(&e.app, &e.token, e.manager.as_str()),
         mgr_before,
         "role manager hop trader is not extra-debited"
     );
-    assert_eq!(
-        balance(&e.app, &e.token, e.pair.as_str()),
-        pair_before + 1_000_000
-    );
+    assert_eq!(balance(&e.app, &e.token, e.pair.as_str()), pair_before);
 }
 
 #[test]

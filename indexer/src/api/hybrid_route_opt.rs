@@ -703,6 +703,54 @@ pub async fn propagate_offer_through_plan(
     Ok(running)
 }
 
+/// Retail Policy A funded plan: optimize hop zero against its economic input, then
+/// propagate net proceeds through pool hops. Frozen partitions never use pre-tax funds.
+pub async fn optimize_funded_route(
+    source: &HybridSimSource<'_>,
+    mut mirror_meta: Option<&mut MirrorLoadMeta>,
+    hops: &[HopDescriptor],
+    gross: u128,
+    max_maker_fills: u32,
+    quote_trader: &QuoteTrader,
+    taxes: &super::community_tax_rank::TaxRankSnapshot,
+) -> Result<(Vec<Option<HybridHopJson>>, OptimizationMeta, u128), HybridSimError> {
+    let mut running = gross;
+    let mut plan = Vec::with_capacity(hops.len());
+    let mut meta = OptimizationMeta::default();
+    for (idx, hop) in hops.iter().enumerate() {
+        let economic =
+            super::community_tax_rank::sell_economic(running, taxes.sell_bps(&hop.offer_token));
+        let (hybrid, raw_out) = if idx == 0 {
+            optimize_one_hop(
+                source,
+                mirror_meta.as_deref_mut(),
+                hop,
+                economic,
+                max_maker_fills,
+                &mut meta,
+                quote_trader,
+            )
+            .await?
+        } else {
+            (
+                None,
+                pool_only_or_zero(
+                    source,
+                    mirror_meta.as_deref_mut(),
+                    hop,
+                    economic,
+                    1,
+                    quote_trader,
+                )
+                .await?,
+            )
+        };
+        running = super::community_tax_rank::buy_split_net(raw_out, taxes.buy_bps(&hop.ask_token));
+        plan.push(hybrid);
+    }
+    Ok((plan, meta, running))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -986,5 +1034,79 @@ mod tests {
             drift_bps > 100,
             "unstripped fidelity would exceed default 100 bps; drift_bps={drift_bps}"
         );
+    }
+    #[tokio::test]
+    async fn funded_policy_a_simulates_economic_inputs_and_net_intermediate_proceeds() {
+        use super::super::community_tax_rank::{self as tax, CataloguedTaxToken, TaxRankSnapshot};
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let mirrors = HashMap::from([
+            (
+                "terra1pairab".into(),
+                fresh_mirror_pair("terra1token0", "terra1token1", vec![]),
+            ),
+            (
+                "terra1pairbc".into(),
+                fresh_mirror_pair("terra1token1", "terra1token2", vec![]),
+            ),
+        ]);
+        let source = HybridSimSource::Db {
+            lcd_fallback: &lcd,
+            mirrors: &mirrors,
+            discount_bps: 0,
+        };
+        let mut taxes = TaxRankSnapshot {
+            router_funding_supported: true,
+            ..Default::default()
+        };
+        for addr in ["terra1token0", "terra1token1", "terra1token2"] {
+            taxes.by_addr.insert(
+                addr.into(),
+                CataloguedTaxToken {
+                    contract_address: addr.into(),
+                    code_id: Some(11667),
+                    data_hash: None,
+                    buy_bps: 450,
+                    sell_bps: 100,
+                    exemption_directory: true,
+                    route_funding_version: Some(1),
+                },
+            );
+        }
+        let gross = 1_010_000;
+        let economic0 = tax::sell_economic(gross, 100);
+        assert_eq!(economic0, 1_000_000);
+        let raw0 = crate::api::db_orderbook_sim::simulate_pool_only_from_mirror(
+            &mirrors["terra1pairab"],
+            "terra1token0",
+            economic0,
+            0,
+        )
+        .unwrap();
+        let net0 = tax::buy_split_net(raw0, 450);
+        let economic1 = tax::sell_economic(net0, 100);
+        let raw1 = crate::api::db_orderbook_sim::simulate_pool_only_from_mirror(
+            &mirrors["terra1pairbc"],
+            "terra1token1",
+            economic1,
+            0,
+        )
+        .unwrap();
+        let expected = tax::buy_split_net(raw1, 450);
+        let mut meta = MirrorLoadMeta::default();
+        let (plan, _, net) = optimize_funded_route(
+            &source,
+            Some(&mut meta),
+            &[hop_ab(), hop_bc()],
+            gross,
+            8,
+            &QuoteTrader::default(),
+            &taxes,
+        )
+        .await
+        .unwrap();
+        assert_eq!(net, expected);
+        assert!(plan.iter().all(Option::is_none));
+        assert_eq!(meta.db_hybrid_queries, 2);
+        assert_eq!(meta.lcd_fallback_queries, 0);
     }
 }

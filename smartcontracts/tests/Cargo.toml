@@ -24,3 +24,5 @@ treasury = { workspace = true }
 wrap-mapper = { workspace = true }
 serde = { workspace = true }
 proptest = "1"
+
+cl8y-community-tax-token = { path = "../contracts/community-tax-token", features = ["library"] }

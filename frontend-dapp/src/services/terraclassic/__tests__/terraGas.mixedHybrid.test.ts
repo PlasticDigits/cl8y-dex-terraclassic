@@ -212,7 +212,7 @@ describe('mixed hybrid router gas (GitLab #679)', () => {
     expect(est.gasLimit).toBeLessThan(HYBRID_SWAP_GAS_LIMIT)
   })
 
-  it('Trade market multi-hop shares the mixed-hop helper (allowance + send)', () => {
+  it('Trade market multi-hop shares the mixed-hop helper without an unused allowance', () => {
     const ops: SwapOperation[] = [
       {
         terra_swap: {
@@ -235,7 +235,6 @@ describe('mixed hybrid router gas (GitLab #679)', () => {
       hopCount: 2,
       cw20RouterOperations: ops,
     })
-    const allowance = estimateTerraClassicFeeForMsg({ increase_allowance: { spender: '', amount: '' } })
-    expect(total).toBe(allowance.feeUluna + swap.feeUluna)
+    expect(total).toBe(swap.feeUluna)
   })
 })

@@ -1,3 +1,4 @@
+import { queryContract } from '@/services/terraclassic/queries'
 import { useQuery } from '@tanstack/react-query'
 import {
   queryCommunityTaxConfig,
@@ -5,7 +6,6 @@ import {
   queryTaxPreview,
 } from '@/services/terraclassic/communityTaxToken'
 import { useWalletStore } from '@/hooks/useWallet'
-import { isCommunityTaxEnabled } from '@/utils/constants'
 import { isValidTerraBech32Address } from '@/utils/terraAddressValidation'
 import { effectiveBuyTaxBps } from '@/utils/communityTaxNetOut'
 import {
@@ -19,35 +19,57 @@ import type { CommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 
 export type CommunityTaxDetection = 'tax' | 'honest' | 'unresolved'
 
+async function assertNoSupportedLegacyTaxApi(token: string): Promise<void> {
+  for (const name of ['tax_map', 'tax_info']) {
+    try {
+      await queryContract(token, { [name]: {} })
+    } catch (error) {
+      if (classifyCommunityTaxQueryError(error) === 'not_tax') continue
+      throw error
+    }
+    throw new Error('Legacy token tax capability requires a supported route version')
+  }
+}
+
 /**
  * LCD sell_bps for extra-debit Max + submit (#593 / #609 / #1267).
  * Catalog pin equality is **not** the sell detector — `GetConfig` on the pay contract is.
- * `isCommunityTaxEnabled()` only means Create Token env is present; it does not require
- * `code_id === VITE_COMMUNITY_TAX_CODE_ID` for this wallet's pay token.
+ * Trading discovery is independent of the Create Token feature configuration.
+ * Previously observed tax remains protected after a failed config refetch.
  */
 export function useCommunityTaxSellBps(tokenAddr: string | null | undefined) {
   const wallet = useWalletStore((s) => s.address)
-  const enabled = isCommunityTaxEnabled() && !!tokenAddr && isValidTerraBech32Address(tokenAddr)
+  const enabled = !!tokenAddr && isValidTerraBech32Address(tokenAddr)
   const cfg = useQuery({
     queryKey: ['communityTaxSellBps', tokenAddr],
-    queryFn: () => queryCommunityTaxConfig(tokenAddr!),
+    queryFn: async () => {
+      let config
+      try {
+        config = await queryCommunityTaxConfig(tokenAddr!)
+      } catch (error) {
+        if (classifyCommunityTaxQueryError(error) !== 'not_tax') throw error
+        await assertNoSupportedLegacyTaxApi(tokenAddr!)
+        throw error
+      }
+      if (config != null && typeof config === 'object' && 'sell_bps' in config) return config
+      // A successful unrelated configuration schema is not tax attestation either.
+      await assertNoSupportedLegacyTaxApi(tokenAddr!)
+      throw new Error('Token tax configuration is malformed or unsupported')
+    },
     enabled,
     staleTime: 30_000,
     retry: false,
   })
-  const parsed = cfg.isSuccess ? parseCommunityTaxSellBps(cfg.data) : null
+  const parsed = cfg.data != null ? parseCommunityTaxSellBps(cfg.data) : null
   let detection: CommunityTaxDetection = 'honest'
   if (enabled) {
-    if (cfg.isLoading) {
+    // React Query retains established configuration after a failed refetch.
+    if (parsed?.kind === 'tax') {
+      detection = 'tax'
+    } else if (cfg.isLoading || parsed?.kind === 'unresolved') {
       detection = 'unresolved'
     } else if (cfg.isError) {
-      // Unknown-query and LCD transport: honest. TaxPreview fail-closed runs after
-      // this instance is already classified tax (#1267 T13).
-      detection = 'honest'
-    } else if (parsed?.kind === 'tax') {
-      detection = 'tax'
-    } else if (parsed?.kind === 'unresolved') {
-      detection = 'unresolved'
+      detection = classifyCommunityTaxQueryError(cfg.error) === 'not_tax' ? 'honest' : 'unresolved'
     }
   }
   const isTax = detection === 'tax'
@@ -60,14 +82,14 @@ export function useCommunityTaxSellBps(tokenAddr: string | null | undefined) {
     staleTime: 15_000,
     retry: false,
   })
-  const managerExempt = isTax ? (exempt.data?.manager ?? null) : false
+  const managerExempt = isTax ? (exempt.isError ? null : (exempt.data?.manager ?? null)) : false
   return {
     sellBps: isTax ? effectiveExtraDebitSellBps(rawSellBps, managerExempt) : null,
     buyBps: isTax ? effectiveBuyTaxBps(cfg.data?.buy_bps ?? null, managerExempt) : null,
     isTaxToken: isTax,
     isLoading: cfg.isLoading || (isTax && exempt.isLoading),
     detection,
-    extraDebitUnresolved: detection === 'unresolved',
+    extraDebitUnresolved: detection === 'unresolved' || (isTax && cfg.isError),
   }
 }
 

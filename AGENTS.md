@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Current route-tax protocol
+
+For routed community-tax swaps, use
+[skills/AGENTS_ROUTE_LOCAL_TAX.md](skills/AGENTS_ROUTE_LOCAL_TAX.md)
+(**RT1381-1–RT1381-10**, [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381)).
+Funding version 1 spends only the authorized gross route input, collects tax from
+route amounts, and preserves exact pair credit/hook parity. Older wallet-funded
+router-hop instructions are legacy compatibility only. Run `make verify-issue-1381`;
+[agent review checklist and explicit skip policy](docs/qa/issue-1381/README.md).
+
 Guidance for AI coding agents working in this repository.
 
 ## Git commits

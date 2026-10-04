@@ -10,6 +10,8 @@ pub const WRAP_MAPPER: Item<Addr> = Item::new("wrap_mapper");
 #[cw_serde]
 pub struct SwapState {
     pub sender: Addr,
+    pub tax_context: dex_common::route_tax::RouteTaxContextResponse,
+    pub refunds: Vec<dex_common::route_tax::RouteTransfer>,
     pub recipient: Addr,
     pub remaining_operations: Vec<SwapOperation>,
     pub minimum_receive: Option<Uint128>,

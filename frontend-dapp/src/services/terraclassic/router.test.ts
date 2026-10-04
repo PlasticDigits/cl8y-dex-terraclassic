@@ -1,3 +1,4 @@
+vi.mock('./routeTaxFunding', () => ({ assertRouteTaxFunding: vi.fn().mockResolvedValue(undefined) }))
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 
 const { MOCK_LUNC_C, MOCK_USTC_C } = vi.hoisted(() => ({

@@ -9,22 +9,22 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use sqlx::PgPool;
 
+use crate::api::AppState;
 use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
 use crate::api::route_graph;
 use crate::api::route_solve_progress;
-use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
-use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
+use crate::hybrid_limits::{MAX_MAKER_FILLS_HARD_CAP, clamp_max_maker_fills};
 
 pub use hybrid_route_opt::HybridHopJson;
 
@@ -283,22 +283,23 @@ pub struct RouteSolveResponse {
     pub router_operations: Vec<serde_json::Value>,
     /// LCD router `simulate_swap_operations` output when `amount_in` and `ROUTER_ADDRESS` are set — **not** a guaranteed fill.
     pub estimated_amount_out: Option<String>,
-    /// Catalog buy-split net of `estimated_amount_out` (GitLab #615). Same as raw when no buy tax.
-    /// Execute / `min_return` still use `estimated_amount_out`.
+    /// Final executable NET output. For route_local_v1 this equals estimated_amount_out:
+    /// all per-hop tax has already been applied by the router simulation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub estimated_amount_out_net: Option<String>,
-    /// `buy` / `sell_in` / `exempt` / `honest_hops` / `none` / `skipped_middle_sell`.
+    /// `route_local_v1` means the authorized offer is gross and simulated output is already net.
+    /// Legacy compatibility labels: buy / sell_in / exempt / honest_hops / none / skipped_middle_sell.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tax_kind: Option<String>,
     /// Effective buy bps used for `estimated_amount_out_net` (0 when exempt / Honest hops).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub buy_tax_bps: Option<u16>,
-    /// Catalog sell bps on `token_in` (informational; not re-ranked).
+    /// Effective token_in sell bps; route_local_v1 simulation includes its gross/economic split.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sell_tax_bps: Option<u16>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tax_notes: Option<String>,
-    /// True when a catalogued token on this quote uses option-2 router-hop tax.
+    /// True when a token on this route uses authenticated router-hop tax; v1 charges route funds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub router_hops_tax: Option<bool>,
     /// Solver generation label on global best-execution GET (shipped: `global_v1`). Absent on discovery-only GET and POST.
@@ -539,6 +540,47 @@ pub(crate) fn parse_quote_trader(
         .map(|s| validate_optional_terra_address("sender", s))
         .transpose()?;
     Ok(hybrid_route_opt::QuoteTrader { trader, sender })
+}
+
+pub(crate) async fn validate_route_tax(
+    state: &AppState,
+    hops: &[RouteHop],
+    token_in: &str,
+    token_out: &str,
+    trader: &hybrid_route_opt::QuoteTrader,
+) -> Result<crate::api::community_tax_rank::TaxRankSnapshot, (StatusCode, String)> {
+    let taxes = crate::api::community_tax_rank::load_tax_rank_snapshot(
+        state,
+        token_in,
+        token_out,
+        &crate::api::community_tax_rank::extra_addrs_from_hops(hops),
+        trader.trader.as_deref().or(trader.sender.as_deref()),
+    )
+    .await;
+    if crate::api::community_tax_rank::path_sells_middle_tax_hop(hops, token_in, &taxes) {
+        return Err((StatusCode::UNPROCESSABLE_ENTITY,
+            "Trading tax capability unavailable or unsupported legacy route; refresh or choose a supported route".into()));
+    }
+    Ok(taxes)
+}
+fn apply_route_tax_fields(
+    body: &mut RouteSolveResponse,
+    taxes: &crate::api::community_tax_rank::TaxRankSnapshot,
+) {
+    let Some(out) = body
+        .estimated_amount_out
+        .as_deref()
+        .and_then(|n| n.parse::<u128>().ok())
+    else {
+        return;
+    };
+    let score = crate::api::community_tax_rank::score_path(out, &body.hops, &body.token_in, taxes);
+    body.estimated_amount_out_net = Some(score.net_out.to_string());
+    body.tax_kind = Some(score.tax_kind.into());
+    body.tax_notes = Some(score.tax_notes);
+    body.router_hops_tax = Some(score.router_hops_tax);
+    body.buy_tax_bps = Some(score.buy_tax_bps);
+    body.sell_tax_bps = Some(score.sell_tax_bps);
 }
 
 pub(crate) async fn maybe_simulate(
@@ -887,15 +929,29 @@ async fn execute_hybrid_route_solve(
     let bucket = amount_cache_key(amount_u);
     let discount_bps = resolve_discount_bps(state, quote_trader).await;
     let solver_version = crate::api::best_execution::solver_version_for(state);
-    let tax_identity = crate::api::community_tax_rank::load_tax_rank_snapshot(
+    let cache_assets =
+        crate::api::best_execution::candidate_tax_addresses(state, token_in, token_out).await?;
+    let cache_taxes = crate::api::community_tax_rank::load_tax_rank_snapshot(
         state,
         token_in,
         token_out,
-        &[],
-        quote_trader.trader.as_deref(),
+        &cache_assets,
+        quote_trader
+            .trader
+            .as_deref()
+            .or(quote_trader.sender.as_deref()),
     )
-    .await
-    .cache_identity();
+    .await;
+    let tax_identity = cache_taxes.cache_identity();
+    let bucket = if cache_taxes
+        .by_addr
+        .values()
+        .any(|t| t.route_funding_version == Some(1))
+    {
+        amount_u
+    } else {
+        bucket
+    };
     let ck = hybrid_cache_key(
         solver_version,
         token_in,
@@ -907,7 +963,13 @@ async fn execute_hybrid_route_solve(
     );
     route_solve_progress::progress_begin(&ck);
 
-    if let Some((cached, cached_amount_in)) = cache_get(&ck) {
+    if let Some((cached, cached_amount_in)) = cache_get(&ck).filter(|(_, amount)| {
+        *amount == amount_u
+            || !cache_taxes
+                .by_addr
+                .values()
+                .any(|t| t.route_funding_version == Some(1))
+    }) {
         let mut body: RouteSolveResponse =
             serde_json::from_value(cached).map_err(crate::api::internal_err)?;
         route_solve_progress::progress_update(
@@ -953,6 +1015,11 @@ async fn execute_hybrid_route_solve(
     };
 
     let ttl = cache_ttl_for_hops(body.hops.len());
+    let ttl = if body.tax_kind.as_deref() == Some("route_local_v1") {
+        ttl.min(crate::api::trading_tax_discovery::DISCOVERY_TTL)
+    } else {
+        ttl
+    };
     let json_body = serde_json::to_value(&body).map_err(internal_err)?;
     cache_put(ck.clone(), json_body.clone(), amount_u, ttl);
     route_solve_progress::progress_complete(&ck, false);
@@ -1064,7 +1131,25 @@ pub async fn solve_route(
     let max_hops = get_pool_only_max_hops(&q);
     let resolved =
         resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, max_hops).await?;
+    let taxes = if amount_raw.is_some() {
+        validate_route_tax(
+            &state,
+            &resolved.hops,
+            &resolved.token_in,
+            &resolved.token_out,
+            &quote_trader,
+        )
+        .await?
+    } else {
+        Default::default()
+    };
     let estimated = maybe_simulate(&state, amount_raw, &resolved.ops, &quote_trader).await?;
+    if taxes.path_route_local(&resolved.hops) && amount_raw.is_some() && estimated.is_none() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Route-local tax quote requires funded router simulation".into(),
+        ));
+    }
 
     let quote_kind = quote_kind_after_sim(
         &estimated,
@@ -1110,6 +1195,7 @@ pub async fn solve_route(
         router_hops_tax: None,
     };
 
+    apply_route_tax_fields(&mut body, &taxes);
     if let Some(amount_raw) = amount_raw {
         crate::api::route_slippage::enrich_route_slippage(
             &state,
@@ -1156,7 +1242,25 @@ pub async fn solve_route_post(
         resolved.ops
     };
 
+    let taxes = if body.amount_in.is_some() {
+        validate_route_tax(
+            &state,
+            &resolved.hops,
+            &resolved.token_in,
+            &resolved.token_out,
+            &quote_trader,
+        )
+        .await?
+    } else {
+        Default::default()
+    };
     let estimated = maybe_simulate(&state, body.amount_in.as_deref(), &ops, &quote_trader).await?;
+    if taxes.path_route_local(&resolved.hops) && body.amount_in.is_some() && estimated.is_none() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Route-local tax quote requires funded router simulation".into(),
+        ));
+    }
 
     let any_hybrid = body
         .hybrid_by_hop
@@ -1207,6 +1311,7 @@ pub async fn solve_route_post(
         router_hops_tax: None,
     };
 
+    apply_route_tax_fields(&mut out, &taxes);
     if let Some(ref amount_raw) = body.amount_in {
         let max_maker_fills = body
             .hybrid_by_hop
@@ -1387,7 +1492,7 @@ mod hybrid_cache_key_tests {
 
 #[cfg(test)]
 mod cache_ttl_tests {
-    use super::{cache_ttl_for_hops, ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT};
+    use super::{ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT, cache_ttl_for_hops};
     use std::time::Duration;
 
     #[test]

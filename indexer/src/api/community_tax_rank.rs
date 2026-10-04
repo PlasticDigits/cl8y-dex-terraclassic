@@ -1,10 +1,7 @@
-//! Tax-aware route/solve ranking (GitLab #615).
-//!
-//! Score / eligibility / display layer **on top of** unchanged hop LCD/DB sims.
-//! Pair/router inbound stays 1:1 (**T592-1** / **H-01**). `estimated_amount_out` stays
-//! pre-tax `raw_out` for execute / `min_return`.
-//!
-//! Invariants **R615-1–R615-8** — see `skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md`.
+//! Route-local trading tax discovery, funded sizing and net ranking (#1381).
+//! Upgraded hop simulations already include taxes; scoring never applies a second haircut.
+//! Pair economic credit equals its declared hook amount; wallet authorization is gross.
+//! See `skills/AGENTS_INDEXER_TAX_AWARE_ROUTING.md` and `docs/route-solver.md`.
 
 use std::collections::{HashMap, HashSet};
 
@@ -30,6 +27,9 @@ pub struct RouterHopTaxPolicy {
     pub option2_code_ids: HashSet<i64>,
     /// `COMMUNITY_TAX_OPTION2_DATA_HASHES` — known option-2 wasm hashes (lowercase hex).
     pub option2_data_hashes: HashSet<String>,
+    pub route_tax_code_ids: HashSet<i64>,
+    pub route_tax_data_hashes: HashSet<String>,
+    pub tax_free_code_ids: HashSet<i64>,
 }
 
 impl RouterHopTaxPolicy {
@@ -37,6 +37,9 @@ impl RouterHopTaxPolicy {
         Self {
             option2_code_ids: cfg.option2_code_ids.clone(),
             option2_data_hashes: cfg.option2_data_hashes.clone(),
+            route_tax_code_ids: cfg.route_tax_code_ids.clone(),
+            route_tax_data_hashes: cfg.route_tax_data_hashes.clone(),
+            tax_free_code_ids: cfg.tax_free_code_ids.clone(),
         }
     }
 }
@@ -49,6 +52,7 @@ pub struct CataloguedTaxToken {
     pub buy_bps: u16,
     pub sell_bps: u16,
     pub exemption_directory: bool,
+    pub route_funding_version: Option<u16>,
 }
 
 impl CataloguedTaxToken {
@@ -62,9 +66,10 @@ impl CataloguedTaxToken {
             contract_address: row.contract_address.trim().to_ascii_lowercase(),
             code_id: row.code_id,
             data_hash: None,
-            buy_bps: row.buy_bps.unwrap_or(0).max(0) as u16,
-            sell_bps: row.sell_bps.unwrap_or(0).max(0) as u16,
+            buy_bps: row.buy_bps.unwrap_or(0).clamp(0, 10_000) as u16,
+            sell_bps: row.sell_bps.unwrap_or(0).clamp(0, 10_000) as u16,
             exemption_directory,
+            route_funding_version: None,
         }
     }
 
@@ -83,6 +88,11 @@ pub struct TaxRankSnapshot {
     pub policy: RouterHopTaxPolicy,
     /// Manager-directory exempt (`true`) or unknown/not (`false` — fail closed).
     pub trader_exempt: bool,
+    /// Exemption belongs to one token only; never inherited by another hop.
+    pub exempt_tokens: HashSet<String>,
+    pub unresolved: HashSet<String>,
+    pub instance_identity: Vec<String>,
+    pub router_funding_supported: bool,
 }
 
 impl TaxRankSnapshot {
@@ -140,8 +150,7 @@ pub fn buy_split_net(raw_out: u128, buy_bps: u16) -> u128 {
         return raw_out;
     }
     let bps = u128::from(buy_bps.min(10_000));
-    let tax = (raw_out / TAX_BPS_DENOM) * bps
-        + (raw_out % TAX_BPS_DENOM) * bps / TAX_BPS_DENOM;
+    let tax = (raw_out / TAX_BPS_DENOM) * bps + (raw_out % TAX_BPS_DENOM) * bps / TAX_BPS_DENOM;
     raw_out.saturating_sub(tax)
 }
 
@@ -154,23 +163,48 @@ pub fn buy_tax_applies(token_out_taxed: bool, hop_count: usize, router_hops_tax:
     hop_count <= 1 || router_hops_tax
 }
 
-/// Drop paths that **sell** a catalogued tax token as a middle hop (not `token_in`)
-/// when that token's wasm taxes official-router hops. Fail-closed only for option 2.
+/// Reject unresolved implementations and incompatible funding versions at every boundary.
+/// Supported v1 community intermediates remain eligible; ordinary implementations are attested.
 pub fn path_sells_middle_tax_hop(
     hops: &[RouteHop],
     token_in: &str,
     snapshot: &TaxRankSnapshot,
 ) -> bool {
+    if snapshot.path_route_local(hops) && !snapshot.router_funding_supported {
+        return true;
+    }
     let tin = token_in.trim().to_ascii_lowercase();
     for hop in hops {
         let offer = hop.offer_token.trim().to_ascii_lowercase();
+        if snapshot.unresolved.contains(&offer)
+            || snapshot
+                .unresolved
+                .contains(&hop.ask_token.to_ascii_lowercase())
+        {
+            return true;
+        }
+        if snapshot.by_addr.get(&offer).is_some_and(|t| {
+            t.route_funding_version.is_none() && t.sell_bps > 0 && snapshot.router_funding_supported
+        }) {
+            return true;
+        }
         if offer == tin {
             continue;
+        }
+        if snapshot.unresolved.contains(&offer)
+            || snapshot
+                .unresolved
+                .contains(&hop.ask_token.to_ascii_lowercase())
+        {
+            return true;
         }
         let Some(row) = snapshot.by_addr.get(&offer) else {
             continue;
         };
-        if row.router_hops_tax(&snapshot.policy) {
+        if row.route_funding_version == Some(1) && snapshot.router_funding_supported {
+            continue;
+        }
+        if row.router_hops_tax(&snapshot.policy) || row.buy_bps > 0 || row.sell_bps > 0 {
             return true;
         }
     }
@@ -184,6 +218,15 @@ pub fn score_path(
     snapshot: &TaxRankSnapshot,
 ) -> TaxRankResult {
     let hop_count = hops.len();
+    if snapshot.path_route_local(hops) {
+        let eligible = !path_sells_middle_tax_hop(hops, token_in, snapshot);
+        return TaxRankResult { raw_out, net_out: raw_out, eligible,
+            buy_tax_bps: snapshot.token_out.as_ref().map(|t| snapshot.buy_bps(&t.contract_address)).unwrap_or(0),
+            sell_tax_bps: snapshot.token_in.as_ref().map(|t| snapshot.sell_bps(&t.contract_address)).unwrap_or(0),
+            tax_kind: "route_local_v1",
+            tax_notes: "Route-local v1: authorized gross input; all hop taxes included exactly once in simulated net output.".into(),
+            router_hops_tax: true };
+    }
     let eligible = !path_sells_middle_tax_hop(hops, token_in, snapshot);
 
     let out_row = snapshot.token_out.as_ref();
@@ -198,12 +241,12 @@ pub fn score_path(
 
     let buy_catalog = out_row.map(|r| r.buy_bps).unwrap_or(0);
     let sell_catalog = in_row.map(|r| r.sell_bps).unwrap_or(0);
-    let buy_tax_bps = if snapshot.trader_exempt {
+    let buy_tax_bps = if out_row.is_some_and(|t| snapshot.is_exempt(&t.contract_address)) {
         0
     } else {
         buy_catalog
     };
-    let sell_tax_bps = if snapshot.trader_exempt {
+    let sell_tax_bps = if in_row.is_some_and(|t| snapshot.is_exempt(&t.contract_address)) {
         0
     } else {
         sell_catalog
@@ -248,7 +291,7 @@ fn tax_kind_and_notes(
     if !eligible {
         return (
             "skipped_middle_sell",
-            "Path sells a catalogued tax token as a middle hop under option-2 wasm; skipped (GitLab #615).".into(),
+            "Unsupported or unavailable trading tax capability; migrate/register compatible route-local funding.".into(),
         );
     }
     if exempt && (token_out_tax || token_in_tax) {
@@ -283,32 +326,106 @@ fn tax_kind_and_notes(
 }
 
 pub fn tax_cache_identity(snapshot: &TaxRankSnapshot) -> String {
-    if !snapshot.has_catalog_tax() && !snapshot.policy_has_option2() {
-        return TAX_CACHE_IDENTITY_NONE.to_string();
+    if !snapshot.has_catalog_tax()
+        && snapshot.unresolved.is_empty()
+        && snapshot.instance_identity.is_empty()
+        && !snapshot.policy_has_option2()
+    {
+        return TAX_CACHE_IDENTITY_NONE.into();
     }
-    let in_buy = snapshot.token_in.as_ref().map(|r| r.buy_bps).unwrap_or(0);
-    let in_sell = snapshot.token_in.as_ref().map(|r| r.sell_bps).unwrap_or(0);
-    let out_buy = snapshot.token_out.as_ref().map(|r| r.buy_bps).unwrap_or(0);
-    let out_sell = snapshot.token_out.as_ref().map(|r| r.sell_bps).unwrap_or(0);
-    let rh = snapshot
-        .token_in
-        .as_ref()
-        .map(|r| r.router_hops_tax(&snapshot.policy))
-        .unwrap_or(false)
-        || snapshot
-            .token_out
-            .as_ref()
-            .map(|r| r.router_hops_tax(&snapshot.policy))
-            .unwrap_or(false);
+    let mut entries: Vec<_> = snapshot
+        .by_addr
+        .iter()
+        .map(|(addr, t)| {
+            format!(
+                "{}:c{:?}:h{:?}:v{:?}:b{}:s{}:e{}:rh{}",
+                addr,
+                t.code_id,
+                t.data_hash,
+                t.route_funding_version,
+                t.buy_bps,
+                t.sell_bps,
+                snapshot.is_exempt(addr),
+                t.router_hops_tax(&snapshot.policy)
+            )
+        })
+        .collect();
+    entries.extend(snapshot.instance_identity.clone());
+    entries.extend(
+        snapshot
+            .unresolved
+            .iter()
+            .map(|a| format!("{}:unresolved", a)),
+    );
+    entries.sort();
+    // Identity contains protocol facts rather than time, so long-running progress remains
+    // observable across discovery refreshes. Funded quote cache TTL is bounded separately.
     format!(
-        "b{}s{}/b{}s{}/rh{}/e{}",
-        in_buy,
-        in_sell,
-        out_buy,
-        out_sell,
-        u8::from(rh),
-        u8::from(snapshot.trader_exempt)
+        "v1:r{}:{}",
+        snapshot.router_funding_supported,
+        entries.join("|")
     )
+}
+
+/// Largest economic sell funded by gross, preserving tax's economic rate basis.
+pub fn sell_economic(gross: u128, bps: u16) -> u128 {
+    let mut lo = 0u128;
+    let mut hi = gross;
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2 + (hi - lo) % 2;
+        let tax = tax_amount(mid, bps);
+        if mid.checked_add(tax).is_some_and(|total| total <= gross) {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    lo
+}
+pub fn tax_amount(amount: u128, bps: u16) -> u128 {
+    (amount / TAX_BPS_DENOM) * u128::from(bps.min(10_000))
+        + (amount % TAX_BPS_DENOM) * u128::from(bps.min(10_000)) / TAX_BPS_DENOM
+}
+impl TaxRankSnapshot {
+    pub fn is_exempt(&self, addr: &str) -> bool {
+        let addr = addr.to_ascii_lowercase();
+        self.exempt_tokens.contains(&addr)
+            || (self.trader_exempt
+                && self.exempt_tokens.is_empty()
+                && !self
+                    .by_addr
+                    .get(&addr)
+                    .is_some_and(|t| t.route_funding_version == Some(1)))
+    }
+    pub fn path_route_local(&self, hops: &[RouteHop]) -> bool {
+        hops.iter().any(|h| {
+            [&h.offer_token, &h.ask_token].iter().any(|a| {
+                self.by_addr
+                    .get(&a.to_ascii_lowercase())
+                    .is_some_and(|t| t.route_funding_version == Some(1))
+            })
+        })
+    }
+    pub fn sell_bps(&self, addr: &str) -> u16 {
+        if self.is_exempt(addr) {
+            return 0;
+        }
+        self.by_addr
+            .get(&addr.to_ascii_lowercase())
+            .filter(|t| t.route_funding_version == Some(1))
+            .map(|t| t.sell_bps)
+            .unwrap_or(0)
+    }
+    pub fn buy_bps(&self, addr: &str) -> u16 {
+        if self.is_exempt(addr) {
+            return 0;
+        }
+        self.by_addr
+            .get(&addr.to_ascii_lowercase())
+            .filter(|t| t.route_funding_version == Some(1))
+            .map(|t| t.buy_bps)
+            .unwrap_or(0)
+    }
 }
 
 impl RouterHopTaxPolicy {
@@ -330,10 +447,18 @@ pub async fn load_tax_rank_snapshot(
     extra_addrs: &[String],
     trader: Option<&str>,
 ) -> TaxRankSnapshot {
-    try_load_tax_rank_snapshot(state, token_in, token_out, extra_addrs, trader).await
+    try_load_tax_rank_snapshot(state, token_in, token_out, extra_addrs, trader)
+        .await
         .unwrap_or_else(|e| {
-            tracing::warn!(error = %e, "community tax catalog lookup failed; ranking without tax layer");
-            TaxRankSnapshot {policy: RouterHopTaxPolicy::from_catalog(&state.community_tax), ..Default::default()}
+            tracing::warn!(error = %e, "trading tax discovery failed; route unavailable");
+            TaxRankSnapshot {
+                policy: RouterHopTaxPolicy::from_catalog(&state.community_tax),
+                unresolved: [token_in, token_out]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+                ..Default::default()
+            }
         })
 }
 
@@ -357,31 +482,94 @@ pub(crate) async fn try_load_tax_rank_snapshot(
     addrs.sort();
     addrs.dedup();
 
-    let rows = community_tokens::get_by_addresses(&state.pool, &addrs).await?;
-
-    let mut by_addr = HashMap::new();
-    for row in &rows {
-        let tok = CataloguedTaxToken::from_row(row);
-        by_addr.insert(tok.contract_address.clone(), tok);
-    }
-    let tin = token_in.trim().to_ascii_lowercase();
-    let tout = token_out.trim().to_ascii_lowercase();
-    let token_in_row = by_addr.get(&tin).cloned();
-    let token_out_row = by_addr.get(&tout).cloned();
-
-    let mut trader_exempt = false;
-    if let Some(addr) = trader.map(str::trim).filter(|s| !s.is_empty()) {
-        trader_exempt =
-            resolve_trader_exempt(&state.lcd, &token_in_row, &token_out_row, addr).await;
-    }
-
-    Ok(TaxRankSnapshot {
-        token_in: token_in_row,
-        token_out: token_out_row,
-        by_addr,
+    use super::trading_tax_discovery::{self, TradingTax};
+    let mut snapshot = TaxRankSnapshot {
+        instance_identity: vec![format!(
+            "lcd{}:router{:?}",
+            state.lcd.cache_namespace(),
+            state.router_address
+        )],
         policy,
-        trader_exempt,
-    })
+        ..Default::default()
+    };
+    if addrs.len() > trading_tax_discovery::MAX_DISCOVERY_ASSETS {
+        snapshot.unresolved.extend(addrs);
+        return Ok(snapshot);
+    }
+    // Catalog is supplemental evidence only. Its failure cannot erase actual trading metadata.
+    let rows = community_tokens::get_by_addresses(&state.pool, &addrs)
+        .await
+        .unwrap_or_default();
+    let mut tasks = tokio::task::JoinSet::new();
+    for addr in addrs {
+        let state = state.clone();
+        let policy = snapshot.policy.clone();
+        tasks.spawn(async move {
+            let discovered = trading_tax_discovery::discover(&state, &addr, &policy).await;
+            (addr, discovered)
+        });
+    }
+    while let Some(result) = tasks.join_next().await {
+        let (addr, discovered) = result.map_err(|e| sqlx::Error::Protocol(e.to_string()))?;
+        match discovered {
+            TradingTax::Ordinary { code_id } => snapshot
+                .instance_identity
+                .push(format!("{}:ordinary:{:?}", addr, code_id)),
+            TradingTax::Community(token) => {
+                // Any wallet-funded legacy charge is containment only, never advertised v1.
+                if token.route_funding_version.is_none() {
+                    snapshot.unresolved.insert(addr.clone());
+                }
+                snapshot.by_addr.insert(addr, token);
+            }
+            TradingTax::Unsupported | TradingTax::Unavailable => {
+                snapshot.unresolved.insert(addr);
+            }
+        }
+    }
+    for row in rows {
+        let addr = row.contract_address.trim().to_ascii_lowercase();
+        if !snapshot.by_addr.contains_key(&addr) && snapshot.unresolved.contains(&addr) {
+            snapshot
+                .by_addr
+                .insert(addr, CataloguedTaxToken::from_row(&row));
+        }
+    }
+    snapshot.token_in = snapshot
+        .by_addr
+        .get(&token_in.trim().to_ascii_lowercase())
+        .cloned();
+    snapshot.token_out = snapshot
+        .by_addr
+        .get(&token_out.trim().to_ascii_lowercase())
+        .cloned();
+    snapshot.router_funding_supported = if snapshot
+        .by_addr
+        .values()
+        .any(|t| t.route_funding_version == Some(1))
+    {
+        trading_tax_discovery::router_funding_supported(state).await
+    } else {
+        false
+    };
+    if let Some(trader) = trader.map(str::trim).filter(|s| !s.is_empty()) {
+        let mut queries = tokio::task::JoinSet::new();
+        for token in snapshot.by_addr.values().filter(|t| t.exemption_directory) {
+            let lcd = state.lcd.clone();
+            let token = token.clone();
+            let trader = trader.to_owned();
+            queries.spawn(async move {
+                let exempt = resolve_token_exempt(&lcd, &token, &trader).await;
+                (token.contract_address, exempt)
+            });
+        }
+        while let Some(Ok((addr, exempt))) = queries.join_next().await {
+            if exempt {
+                snapshot.exempt_tokens.insert(addr);
+            }
+        }
+    }
+    Ok(snapshot)
 }
 
 #[derive(Debug, Deserialize)]
@@ -394,36 +582,19 @@ struct IsExemptLcd {
 
 /// LCD `IsProtocolExempt` also returns the manager-directory flag (#609).
 /// Unknown / LCD failure → fail closed (keep catalog bps).
-async fn resolve_trader_exempt(
-    lcd: &LcdClient,
-    token_in: &Option<CataloguedTaxToken>,
-    token_out: &Option<CataloguedTaxToken>,
-    trader: &str,
-) -> bool {
-    for tok in [token_in.as_ref(), token_out.as_ref()]
-        .into_iter()
-        .flatten()
-    {
-        if !tok.exemption_directory {
-            continue;
-        }
-        let q = serde_json::json!({ "is_protocol_exempt": { "address": trader } });
-        match lcd
-            .query_contract::<IsExemptLcd>(&tok.contract_address, &q)
+async fn resolve_token_exempt(lcd: &LcdClient, token: &CataloguedTaxToken, trader: &str) -> bool {
+    let query = serde_json::json!({"is_protocol_exempt":{"address":trader}});
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        let _permit = super::trading_tax_discovery::discovery_semaphore()
+            .acquire()
+            .await;
+        lcd.query_contract::<IsExemptLcd>(&token.contract_address, &query)
             .await
-        {
-            Ok(v) if v.manager || v.protocol => return true,
-            Ok(_) => {}
-            Err(e) => {
-                tracing::debug!(
-                    error = %e,
-                    token = %tok.contract_address,
-                    "tax exempt LCD failed; fail closed (keep bps)"
-                );
-            }
-        }
-    }
-    false
+    })
+    .await
+    .ok()
+    .and_then(Result::ok)
+    .is_some_and(|v| v.manager || (token.route_funding_version != Some(1) && v.protocol))
 }
 
 pub fn extra_addrs_from_hops(hops: &[RouteHop]) -> Vec<String> {
@@ -452,6 +623,7 @@ mod tests {
             buy_bps: buy,
             sell_bps: sell,
             exemption_directory: true,
+            route_funding_version: None,
         }
     }
 
@@ -474,6 +646,7 @@ mod tests {
             by_addr,
             policy,
             trader_exempt: exempt,
+            ..Default::default()
         }
     }
 
@@ -534,15 +707,18 @@ mod tests {
     }
 
     #[test]
-    fn unmigrated_11611_middle_hop_stays_eligible() {
+    fn legacy_taxed_middle_hop_is_contained_until_registered_upgrade() {
         let t = tax_tok(TAX, COLUMBUS5_COMMUNITY_TAX_CODE_ID, 100, 200);
         let mut s = snap(None, None, RouterHopTaxPolicy::default(), false);
         s.by_addr.insert(TAX.to_string(), t);
         let via_tax = vec![hop(UST1, TAX), hop(TAX, USTR)];
         let r = score_path(5_000_000, &via_tax, UST1, &s);
-        assert!(r.eligible, "11611 Honest hops must not skip middle TAX");
+        assert!(
+            !r.eligible,
+            "unknown legacy funding cannot attest route-local execution"
+        );
         assert_eq!(r.net_out, 5_000_000);
-        assert_eq!(r.tax_kind, "none");
+        assert_eq!(r.tax_kind, "skipped_middle_sell");
     }
 
     #[test]
@@ -656,5 +832,109 @@ mod tests {
         let a = score_path(50, &[hop(TAX, UST1)], TAX, &s);
         let b = score_path(50, &[hop(TAX, USTR), hop(USTR, UST1)], TAX, &s);
         assert_eq!(a.net_out, b.net_out);
+    }
+    #[test]
+    fn funded_sell_uses_maximal_economic_integer_and_no_overflow() {
+        assert_eq!(sell_economic(1_010_000, 100), 1_000_000);
+        for bps in [0, 1, 100, 450, 10_000] {
+            for gross in [1, 99, 100, 10_000, 1_010_000, u128::MAX] {
+                let economic = sell_economic(gross, bps);
+                assert!(economic.checked_add(tax_amount(economic, bps)).unwrap() <= gross);
+                if let Some(next) = economic.checked_add(1) {
+                    assert!(
+                        next.checked_add(tax_amount(next, bps))
+                            .is_none_or(|total| total > gross)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn upgraded_intermediate_eligible_and_net_simulation_not_haircut_twice() {
+        let mut s = TaxRankSnapshot {
+            router_funding_supported: true,
+            ..Default::default()
+        };
+        let mut token = tax_tok(TAX, 11667, 450, 100);
+        token.route_funding_version = Some(1);
+        s.by_addr.insert(TAX.into(), token.clone());
+        let hops = [hop(UST1, TAX), hop(TAX, USTR)];
+        let result = score_path(955_000, &hops, UST1, &s);
+        assert!(result.eligible);
+        assert_eq!(result.net_out, 955_000);
+        assert_eq!(result.tax_kind, "route_local_v1");
+        s.token_out = Some(token);
+        let result = score_path(955_000, &[hop(UST1, TAX)], UST1, &s);
+        assert_eq!(result.buy_tax_bps, 450);
+        assert_eq!(result.net_out, result.raw_out);
+        s.router_funding_supported = false;
+        assert!(!score_path(955_000, &hops, UST1, &s).eligible);
+    }
+
+    #[test]
+    fn token_exemption_and_intermediate_migration_config_are_cache_identity() {
+        let mut s = TaxRankSnapshot {
+            router_funding_supported: true,
+            ..Default::default()
+        };
+        let mut a = tax_tok(TAX, 11667, 450, 100);
+        a.route_funding_version = Some(1);
+        let mut b = tax_tok(USTR, 11667, 300, 200);
+        b.route_funding_version = Some(1);
+        s.by_addr.insert(TAX.into(), a);
+        s.by_addr.insert(USTR.into(), b);
+        let initial = s.cache_identity();
+        s.exempt_tokens.insert(TAX.into());
+        assert_eq!(s.sell_bps(TAX), 0);
+        assert_eq!(s.sell_bps(USTR), 200);
+        assert_ne!(s.cache_identity(), initial);
+        let exempt = s.cache_identity();
+        s.by_addr.get_mut(TAX).unwrap().code_id = Some(11668);
+        assert_ne!(s.cache_identity(), exempt);
+        let migrated = s.cache_identity();
+        s.by_addr.get_mut(TAX).unwrap().buy_bps = 500;
+        assert_ne!(s.cache_identity(), migrated);
+        s.unresolved.insert(TAX.into());
+        assert!(path_sells_middle_tax_hop(
+            &[hop(UST1, TAX), hop(TAX, USTR)],
+            UST1,
+            &s
+        ));
+    }
+    #[tokio::test]
+    async fn route_local_trader_protocol_flag_cannot_waive_tax() {
+        use wiremock::matchers::{method, path_regex};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r".*/smart/.*"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "data":{"manager":false,"protocol":true}
+            })))
+            .mount(&server)
+            .await;
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000);
+        let mut token = tax_tok(TAX, 11667, 450, 100);
+        token.route_funding_version = Some(1);
+        assert!(!resolve_token_exempt(&lcd, &token, "terra1synthetictrader").await);
+        let mut snapshot = TaxRankSnapshot {
+            trader_exempt: true,
+            router_funding_supported: true,
+            ..Default::default()
+        };
+        snapshot.by_addr.insert(TAX.into(), token);
+        assert_eq!(
+            snapshot.sell_bps(TAX),
+            100,
+            "legacy global exemption cannot waive v1 trader tax"
+        );
+        assert_eq!(snapshot.buy_bps(TAX), 450);
+        snapshot.exempt_tokens.insert(TAX.into());
+        assert_eq!(
+            snapshot.sell_bps(TAX),
+            0,
+            "explicit per-token manager exemption remains supported"
+        );
     }
 }

@@ -9,7 +9,7 @@ const { TERRA_A, TERRA_B, WALLET, taxPreviewMock } = vi.hoisted(() => ({
   TERRA_A: 'terra1from00000000000000000000000000000001',
   TERRA_B: 'terra1to00000000000000000000000000000001',
   WALLET: 'terra1wallet000000000000000000000000000001',
-  taxPreviewMock: { debitRaw: null as bigint | null },
+  taxPreviewMock: { debitRaw: null as bigint | null, fundingVersion: undefined as 1 | undefined },
 }))
 
 vi.mock('@/utils/pairCatalogRank', async (importActual) => {
@@ -19,6 +19,14 @@ vi.mock('@/utils/pairCatalogRank', async (importActual) => {
     defaultRetailSwapTokenPair: () => [TERRA_A, TERRA_B] as [string, string],
   }
 })
+
+vi.mock('@/hooks/useRouterTaxFunding', () => ({
+  useRouterTaxFunding: () => ({ data: taxPreviewMock.fundingVersion }),
+}))
+vi.mock('@/services/terraclassic/routeTaxFunding', () => ({
+  assertRouteTaxFunding: vi.fn(async () => taxPreviewMock.fundingVersion),
+  ROUTE_TAX_FUNDING_UNAVAILABLE: 'Route tax funding could not be verified.',
+}))
 
 vi.mock('@/hooks/useCommunityTaxSellBps', () => ({
   useCommunityTaxSellBps: (addr: string | null | undefined) => ({
@@ -151,7 +159,7 @@ vi.mock('@/lib/sounds', () => ({
 }))
 
 import { getAllPairsPaginated } from '@/services/terraclassic/factory'
-import { findRoute, getAllTokens } from '@/services/terraclassic/router'
+import { findRoute, getAllTokens, executeMultiHopSwap, simulateMultiHopSwap } from '@/services/terraclassic/router'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { swap } from '@/services/terraclassic/pair'
@@ -183,6 +191,7 @@ function seedPair() {
 describe('SwapPage extra-debit sell gate (#1267)', () => {
   beforeEach(() => {
     taxPreviewMock.debitRaw = null
+    taxPreviewMock.fundingVersion = undefined
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
@@ -228,5 +237,26 @@ describe('SwapPage extra-debit sell gate (#1267)', () => {
     expect(pay.value).toBe('1')
     expect(screen.getByTestId('swap-submit')).not.toHaveTextContent(/insufficient balance/i)
     expect(swap).not.toHaveBeenCalled()
+  })
+})
+
+describe('Swap gross router input (#1381)', () => {
+  it('Max keeps the full authorized balance for supported one-hop client fallback', async () => {
+    taxPreviewMock.fundingVersion = 1
+    taxPreviewMock.debitRaw = null
+    seedPair()
+    useWalletStore.setState({ address: WALLET, walletType: 'simulated', error: null })
+    vi.mocked(getTokenBalance).mockResolvedValue('1050000')
+    vi.mocked(simulateMultiHopSwap).mockResolvedValue({ amount: '1000000', taxFundingVersion: 1 })
+    vi.spyOn(indexerClient, 'getRouteSolve').mockRejectedValue(new Error('indexer unavailable'))
+    vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
+    const user = userEvent.setup()
+    renderWithProviders(<SwapPage />)
+    await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+    await user.click(await screen.findByTestId('swap-pay-max'))
+    expect((screen.getByTestId('swap-you-pay-amount') as HTMLInputElement).value).toBe('1.05')
+    await waitFor(() => expect(screen.getByTestId('swap-submit')).not.toHaveTextContent(/insufficient balance/i))
+    expect(swap).not.toHaveBeenCalled()
+    expect(executeMultiHopSwap).not.toHaveBeenCalled()
   })
 })

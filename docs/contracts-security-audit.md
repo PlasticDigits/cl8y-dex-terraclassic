@@ -1,5 +1,17 @@
 # CL8Y DEX — Contracts Security Audit (Repository)
 
+## Route-local tax funding (#1381)
+
+Funding version **1** follows [RT1381-1–RT1381-10](../skills/AGENTS_ROUTE_LOCAL_TAX.md)
+and the [protocol/migration runbook](./runbooks/route-local-tax-1381.md).
+Router input is a gross budget; taxes consume only this route's funds, pair credit
+matches the declared economic hook amount, and pair→router buys are charged once.
+Supported taxed intermediates remain eligible with net executable ranking. Older
+T592-13/R607/R615 wallet-extra-debit, raw-output and middle-hop exclusion descriptions
+in the historical sections below describe legacy deployments only. They are
+superseded for v1; direct-pair Sell/SendFrom compatibility remains unchanged.
+[QA evidence and agent checklist](./qa/issue-1381/README.md); `make verify-issue-1381`.
+
 This document is the **in-repo security audit and invariant matrix** for the CosmWasm contracts under `smartcontracts/`. It complements [security-model.md](./security-model.md) (operational trust assumptions), [security-posture.md](./security-posture.md) (public launch posture linked from the dApp footer), [exploit-replay-matrix.md](./exploit-replay-matrix.md) (historical Cosmos/CosmWasm incident replay — SEC-D01 / [#406](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/406)), and [testing.md](./testing.md) (how to run tests and coverage).
 
 ## Trust model (explicit)

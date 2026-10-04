@@ -16,6 +16,8 @@ import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { useTokenDisplayInfo } from '@/hooks/useTokenDisplayInfo'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { assertRouteTaxFunding, ROUTE_TAX_FUNDING_UNAVAILABLE } from '@/services/terraclassic/routeTaxFunding'
+import { parseUintString } from '@/utils/taxPreviewMaxSpend'
 import { executeTerraContractMulti } from '@/services/terraclassic/transactions'
 import { estimateTerraClassicFeeForEntries } from '@/services/terraclassic/terraClassicFeeEstimate'
 import { queryWrapMapperConfig, wrapMapperFeeBps } from '@/services/terraclassic/wrapMapper'
@@ -142,7 +144,25 @@ export function PayWithAnyToken({
 
   const payMutation = useTerraBroadcastMutation({
     mutationFn: async () => {
-      if (!address || msgs.length === 0) throw new Error('Quote updating…')
+      if (
+        !address ||
+        !quoteOk ||
+        msgs.length === 0 ||
+        quoteQuery.isFetching ||
+        quoteQuery.isError ||
+        quoteOk.payToken !== payToken ||
+        debouncedPay !== payToken
+      )
+        throw new Error('Quote updating…')
+      const balance = parseUintString(isNativeDenom(payToken) ? nativeUlunaQuery.data : payBalanceQuery.data)
+      const balanceUnavailable = isNativeDenom(payToken) ? nativeUlunaQuery.isError : payBalanceQuery.isError
+      if (balance == null || balanceUnavailable)
+        throw new Error('Input balance is unavailable. Refresh your wallet balance.')
+      if (balance < BigInt(quoteOk.payRaw)) throw new Error('Insufficient Balance')
+      if (quoteOk.kind !== 'direct') {
+        const version = await assertRouteTaxFunding(quoteOk.operations)
+        if (version !== quoteOk.taxFundingVersion) throw new Error(ROUTE_TAX_FUNDING_UNAVAILABLE)
+      }
       return executeTerraContractMulti(address, msgs)
     },
     onSuccess: (txHash) => {
@@ -168,7 +188,14 @@ export function PayWithAnyToken({
   const disableReason = !payToken ? null : quoteQuery.isFetching ? PAY_INVOICE_CALCULATING : quoteDisable
 
   const submitBlocked =
-    payMutation.isPending || !!disableReason || !quoteOk || msgs.length === 0 || quoteQuery.isFetching
+    payMutation.isPending ||
+    !!disableReason ||
+    !quoteOk ||
+    msgs.length === 0 ||
+    quoteQuery.isFetching ||
+    quoteQuery.isError ||
+    (isNativeDenom(payToken) ? nativeUlunaQuery.isError : payBalanceQuery.isError) ||
+    parseUintString(isNativeDenom(payToken) ? nativeUlunaQuery.data : payBalanceQuery.data) == null
 
   return (
     <div className="shell-panel-strong space-y-3" data-testid="pay-with-any-token">
