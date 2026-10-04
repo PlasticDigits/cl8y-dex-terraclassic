@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import * as React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { IndexerLimitCancellation, IndexerLimitFill, IndexerPair, IndexerTrade } from '@/types'
@@ -152,6 +153,7 @@ export function WalletIndexerHistoryPanel({
   activePair,
   inverted = false,
 }: WalletIndexerHistoryPanelProps) {
+  useNumberDisplayMode()
   const enabled = walletAddress.length > 0 && pairAddress.startsWith('terra1')
   const slug = walletAddress.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) || 'wallet'
 

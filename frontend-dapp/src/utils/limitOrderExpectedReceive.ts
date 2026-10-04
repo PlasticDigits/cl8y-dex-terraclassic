@@ -1,18 +1,12 @@
-import { formatNum, toRawAmount } from '@/utils/formatAmount'
+import { toRawAmount } from '@/utils/formatAmount'
 import { makerPlacementFeeBps } from '@/utils/limitOrderFeeSummary'
 import { parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
-
-function formatReceiveHuman(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '—'
-  if (n >= 1) return formatNum(n, 6)
-  if (n >= 0.000001) return formatNum(n, 8)
-  return formatNum(n, 4)
-}
 
 /**
  * Human-scale counter-asset if the resting limit fully fills at the typed price.
  * Mirrors placement escrow after maker fee (`floor(amount × maker_bps / 10000)`) and
  * on-chain fill math: bid → token0 = floor(remaining_token1 / price); ask → token1 = floor(remaining_token0 × price).
+ * Returns a plain decimal for notional calculations; rendering owns the display preference.
  */
 export function limitOrderExpectedReceiveHuman(params: {
   side: 'bid' | 'ask'
@@ -46,5 +40,5 @@ export function limitOrderExpectedReceiveHuman(params: {
       : Math.floor(remainingHuman * price * 1e12) / 1e12
 
   if (!Number.isFinite(receiveHuman) || receiveHuman <= 0) return null
-  return formatReceiveHuman(receiveHuman)
+  return receiveHuman.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 12 })
 }

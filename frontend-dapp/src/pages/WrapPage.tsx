@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -82,6 +83,7 @@ function tokenLogoProps(tokenId: string) {
 }
 
 export default function WrapPage() {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<WrapMode>('wrap')

@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { TraderIdentity } from '@/components/trader/TraderIdentity'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { StatBox } from '@/components/ui/StatBox'
@@ -27,6 +28,7 @@ function usdHint(summary: { pricedPairs: number; unpricedPairs: number }): strin
 
 /** Indexer trader profile header + aggregate stats (GitLab #212 / #551 / #553 / #560 / #675 shared with `/trader`). */
 export function TraderSummaryStats({ trader, positions, isOwnProfile, addressRowTestId }: TraderSummaryStatsProps) {
+  useNumberDisplayMode()
   const marks = useTraderUsdMarks()
   const pnlUsd = sumRealizedPnlUsd(positions, marks)
   const unrealizedUsd = sumUnrealizedPnlUsd(positions, marks)

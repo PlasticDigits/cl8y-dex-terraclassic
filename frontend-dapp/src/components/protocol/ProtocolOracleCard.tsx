@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { KeyboardEvent } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError, Skeleton } from '@/components/ui'
@@ -31,6 +32,7 @@ export function ProtocolOracleCard({
   historyQuery,
   venusQuery,
 }: ProtocolOracleCardProps) {
+  useNumberDisplayMode()
   const label = PROTOCOL_ORACLE_TICKER_LABEL[ticker]
   const isVfdusd = ticker === 'vfdusd'
   const heading = isVfdusd ? label : `${label} / USD`

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useLocation } from 'react-router-dom'
 import { renderWithProviders } from '@/test-utils'
 import SwapPage from './SwapPage'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -205,6 +206,12 @@ import { SWAP_SETTINGS_ADVANCED_OPEN_KEY } from '@/utils/swapSettingsAdvanced'
 import { useDexStore } from '@/stores/dex'
 import { DEFAULT_SLIPPAGE_TOLERANCE_PERCENT } from '@/utils/slippageProtectionCopy'
 import { sounds } from '@/lib/sounds'
+import { NUMBER_DISPLAY_MODE_KEY, readNumberDisplayMode } from '@/utils/numberDisplayPreference'
+
+function SwapLocationProbe() {
+  const { pathname, search } = useLocation()
+  return <output data-testid="swap-location-probe">{pathname + search}</output>
+}
 
 async function expandSwapAdvancedSettings(user: ReturnType<typeof userEvent.setup>) {
   const toggle = screen.getByTestId('swap-advanced-settings-toggle')
@@ -222,6 +229,7 @@ async function openSwapSettingsWithAdvanced(user: ReturnType<typeof userEvent.se
 describe('SwapPage', () => {
   beforeEach(() => {
     window.localStorage.removeItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)
+    window.localStorage.removeItem(NUMBER_DISPLAY_MODE_KEY)
     useDexStore.setState({ expertMode: false })
     vi.mocked(useTradingBlacklist).mockReturnValue(TRADING_BLACKLIST_ALLOWED)
     vi.mocked(getAllPairsPaginated).mockResolvedValue({ pairs: [] })
@@ -358,6 +366,7 @@ describe('SwapPage', () => {
       const retailPanel = within(document.getElementById('swap-slippage-settings') as HTMLElement)
       expect(retailPanel.getByText('Slippage protection')).toBeInTheDocument()
       expect(retailPanel.getByText('Transaction deadline')).toBeInTheDocument()
+      expect(retailPanel.getByRole('group', { name: 'Number display' })).toBeInTheDocument()
       expect(retailPanel.getByTestId('swap-expert-mode-toggle')).toBeInTheDocument()
       expect(screen.getByTestId('swap-advanced-settings-toggle')).toHaveAttribute('aria-expanded', 'false')
       expect(screen.queryByTestId('swap-indexer-route-check')).not.toBeInTheDocument()
@@ -389,6 +398,95 @@ describe('SwapPage', () => {
       await expandSwapAdvancedSettings(user)
 
       expect(window.localStorage.getItem(SWAP_SETTINGS_ADVANCED_OPEN_KEY)).toBe('1')
+    })
+
+    it('persists accessible number-display chips and restores Full on remount (#1259)', async () => {
+      const user = userEvent.setup()
+      mockDirectCwPair()
+      const view = renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+      const group = screen.getByRole('group', { name: 'Number display' })
+      const compact = within(group).getByRole('button', { name: 'Compact', pressed: true })
+      const full = within(group).getByRole('button', { name: 'Full', pressed: false })
+      expect(compact).toHaveClass('min-h-[44px]', 'min-w-[44px]')
+      expect(full).toHaveClass('min-h-[44px]', 'min-w-[44px]')
+      expect(screen.getByTestId('swap-number-display-preview')).toHaveTextContent('1.235M')
+
+      vi.mocked(sounds.playButtonPress).mockClear()
+      await user.click(full)
+      expect(full).toHaveAttribute('aria-pressed', 'true')
+      expect(compact).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByTestId('swap-number-display-preview')).toHaveTextContent('1,234,567')
+      expect(readNumberDisplayMode()).toBe('full')
+      expect(window.localStorage.getItem(NUMBER_DISPLAY_MODE_KEY)).toBe('full')
+      expect(sounds.playButtonPress).toHaveBeenCalledTimes(1)
+
+      view.unmount()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+      expect(screen.getByTestId('swap-number-display-full')).toHaveAttribute('aria-pressed', 'true')
+      await user.click(screen.getByTestId('swap-number-display-compact'))
+      expect(readNumberDisplayMode()).toBe('compact')
+      expect(screen.getByTestId('swap-number-display-preview')).toHaveTextContent('1.235M')
+    })
+
+    it.each([
+      ['1234.', '1,234'],
+      ['1234.5678919', '1,234.567891'],
+    ])('signing amount matches raw precision for draft %s (#1259)', async (draft, signingAmount) => {
+      const user = userEvent.setup()
+      mockDirectCwPair()
+      renderWithProviders(<SwapPage />)
+      await waitFor(() => expect(screen.queryByText(/loading pairs/i)).not.toBeInTheDocument())
+      const input = screen.getByTestId('swap-you-pay-amount')
+      await user.type(input, draft)
+      await waitFor(() => expect(screen.getByTestId('swap-confirm-offer')).toHaveTextContent(signingAmount))
+      expect(input).toHaveValue(draft)
+    })
+
+    it('changes display without rewriting inputs, route URL, or quote requests (#1259)', async () => {
+      const user = userEvent.setup()
+      const { terraA, terraB } = mockDirectCwPair()
+      vi.mocked(simulateSwap).mockResolvedValue({
+        return_amount: '1234567000000',
+        spread_amount: '0',
+        commission_amount: '0',
+      })
+      renderWithProviders(
+        <>
+          <SwapPage />
+          <SwapLocationProbe />
+        </>,
+        { route: `/swap?pay=${terraA}&receive=${terraB}&amount=1234.567` }
+      )
+      await waitFor(() => expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234567'))
+      await user.click(screen.getByRole('button', { name: 'Settings' }))
+
+      const input = screen.getByTestId('swap-you-pay-amount')
+      const location = screen.getByTestId('swap-location-probe').textContent
+      const swapCalls = vi.mocked(simulateSwap).mock.calls.length
+      const routeCalls = vi.mocked(indexerClient.getRouteSolve).mock.calls.length
+      const postCalls = vi.mocked(indexerClient.postRouteSolve).mock.calls.length
+
+      await user.click(screen.getByTestId('swap-number-display-full'))
+      expect(screen.getByTestId('swap-number-display-preview')).toHaveTextContent('1,234,567')
+      expect(input).toHaveValue('1234.567')
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234567')
+      expect(screen.getByTestId('swap-location-probe').textContent).toBe(location)
+      expect(simulateSwap).toHaveBeenCalledTimes(swapCalls)
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(routeCalls)
+      expect(indexerClient.postRouteSolve).toHaveBeenCalledTimes(postCalls)
+
+      await user.click(screen.getByTestId('swap-number-display-compact'))
+      expect(input).toHaveValue('1234.567')
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('1234567')
+      expect(screen.getByTestId('swap-location-probe').textContent).toBe(location)
+      expect(simulateSwap).toHaveBeenCalledTimes(swapCalls)
+      expect(indexerClient.getRouteSolve).toHaveBeenCalledTimes(routeCalls)
+      expect(indexerClient.postRouteSolve).toHaveBeenCalledTimes(postCalls)
     })
   })
 
@@ -607,7 +705,7 @@ describe('SwapPage', () => {
     expect(reconciled).toHaveTextContent(/Receive amount adjusted/i)
     expect(screen.queryByText(/9\.999/)).not.toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByTestId('swap-you-receive')).toHaveValue('5.000')
+      expect(screen.getByTestId('swap-you-receive')).toHaveValue('5')
     })
   })
 

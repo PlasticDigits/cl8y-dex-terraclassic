@@ -591,6 +591,11 @@ verify-issue-1258:
 	@chmod +x scripts/qa/verify-issue-1258.sh scripts/with-node.sh
 	./scripts/qa/verify-issue-1258.sh
 
+# Forgejo #1259 — persisted Compact / Full display preference, display-only exceptions.
+.PHONY: verify-issue-1259
+verify-issue-1259:
+	bash scripts/qa/verify-issue-1259.sh
+
 # GitLab #551 — portfolio/trader P&L human scale + USD totals (drop mixed-unit sums).
 verify-issue-551:
 	@chmod +x scripts/qa/verify-issue-551.sh scripts/setup-cloud-agent-indexer-postgres.sh scripts/with-node.sh

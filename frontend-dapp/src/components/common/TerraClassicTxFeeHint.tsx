@@ -2,6 +2,7 @@ import {
   formatTerraClassicFeeLunc,
   type TerraClassicFeeEstimate,
 } from '@/services/terraclassic/terraClassicFeeEstimate'
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 
 export type TerraClassicTxFeeHintProps = {
   estimate: TerraClassicFeeEstimate
@@ -29,6 +30,7 @@ export function TerraClassicTxFeeHint({
   className = '',
   'data-testid': testId = 'terra-classic-tx-fee-hint',
 }: TerraClassicTxFeeHintProps) {
+  useNumberDisplayMode()
   const textSize = compact ? 'text-[10px]' : 'text-xs'
   const lunc = formatTerraClassicFeeLunc(estimate.feeUluna)
 

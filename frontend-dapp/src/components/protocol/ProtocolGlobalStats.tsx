@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError, type StatDelta } from '@/components/ui'
 import { formatProtocolCount, formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
@@ -109,6 +110,7 @@ const STATS: Array<{
 ]
 
 export function ProtocolGlobalStats({ overviewQuery }: ProtocolGlobalStatsProps) {
+  useNumberDisplayMode()
   const overview = overviewQuery.data
   const loading = overviewQuery.isLoading
 

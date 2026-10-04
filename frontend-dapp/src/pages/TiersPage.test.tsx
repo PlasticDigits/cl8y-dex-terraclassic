@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithProviders } from '@/test-utils'
 import { useWalletStore } from '@/hooks/useWallet'
@@ -38,6 +38,9 @@ vi.mock('@/services/terraclassic/settings', () => ({
 import TiersPage from './TiersPage'
 import { getTiers, getRegistration, register, deregister } from '@/services/terraclassic/feeDiscount'
 import { getFactoryConfig } from '@/services/terraclassic/settings'
+import { writeNumberDisplayMode } from '@/utils/numberDisplayPreference'
+
+afterEach(() => localStorage.clear())
 
 const WALLET = 'terra16wtml2q66g82fdkx66tap0qjkahqwp4lwq3ngtygacg5q0kzycgqvhpax3'
 
@@ -151,6 +154,7 @@ async function renderTiers() {
 
 describe('TiersPage (#651)', () => {
   beforeEach(() => {
+    localStorage.clear()
     vi.clearAllMocks()
     mockFeeDiscountAddr.current = 'terra1feediscount000000000000000000000000000'
     useWalletStore.setState({ address: null, walletType: null, error: null })
@@ -167,6 +171,21 @@ describe('TiersPage (#651)', () => {
       pair_creation_fee_uluna: '0',
       discount_registry: 'terra1feediscount000000000000000000000000000',
     })
+  })
+
+  it('updates tier thresholds and How it works immediately when the display preference changes (#1259)', async () => {
+    await renderTiers()
+    expect(screen.getByTestId('tier-hold-9')).toHaveTextContent('Hold 7.5K CL8Y')
+    const tiersCalls = vi.mocked(getTiers).mock.calls.length
+
+    act(() => writeNumberDisplayMode('full'))
+    expect(screen.getByTestId('tier-hold-9')).toHaveTextContent('Hold 7,500 CL8Y')
+    expect(screen.getByTestId('tiers-how-it-works-table')).toHaveTextContent('7,500')
+    expect(screen.getByTestId('tiers-how-it-works-mobile')).toHaveTextContent('7,500')
+    expect(getTiers).toHaveBeenCalledTimes(tiersCalls)
+
+    act(() => writeNumberDisplayMode('compact'))
+    expect(screen.getByTestId('tier-hold-9')).toHaveTextContent('Hold 7.5K CL8Y')
   })
 
   it('disconnected: connect banner, no Your Status, no Register, hold phrases intact', async () => {

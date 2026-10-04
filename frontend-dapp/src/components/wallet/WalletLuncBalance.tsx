@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useNativeUlunaBalance } from '@/hooks/useNativeUlunaBalance'
 import { formatTokenAmount } from '@/utils/formatAmount'
 import { Spinner } from '@/components/ui'
@@ -14,6 +15,7 @@ type WalletLuncBalanceProps = {
  * Shares React Query cache with swap/pool/trade via `useNativeUlunaBalance`.
  */
 export function WalletLuncBalance({ address, className = '' }: WalletLuncBalanceProps) {
+  useNumberDisplayMode()
   const query = useNativeUlunaBalance(address)
 
   if (query.isLoading) {

@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { IndexerTrade, IndexerPair } from '@/types'
 import { getExplorerTxUrl, shortenTxHashForDisplay } from '@/utils/terraExplorer'
 import {
@@ -19,6 +20,7 @@ export interface TradesTableProps {
 }
 
 export function TradesTable({ trades, formatTimeFn, activePair, inverted = false, ariaLabel }: TradesTableProps) {
+  useNumberDisplayMode()
   if (trades.length === 0) {
     return (
       <p className="text-center py-6 text-sm" style={{ color: 'var(--ink-dim)' }}>

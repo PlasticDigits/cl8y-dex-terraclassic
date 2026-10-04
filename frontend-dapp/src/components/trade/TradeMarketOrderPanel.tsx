@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useMemo, useState, useId, useLayoutEffect } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -50,7 +51,7 @@ import {
   type PairInfo,
 } from '@/types'
 import { useAssetDecimals } from '@/hooks/useAssetDecimals'
-import { toRawAmount, formatTokenAmount } from '@/utils/formatAmount'
+import { toRawAmount, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 import { isTheaterRouteQuote } from '@/utils/swapQuoteAmountScale'
 import { impactAsideOutsideDetails, resolveSwapExpectedSlippagePercent } from '@/utils/swapRouteSlippage'
 import { isDecimalAmountDraft, isPositiveDecimalAmount, tryParseBigInt } from '@/utils/decimalAmountInput'
@@ -142,6 +143,7 @@ export function TradeMarketOrderPanel({
   onSubmitChromeChange?: (model: TradeMarketSubmitChromeModel | null) => void
   initialAmountHuman?: string | null
 }) {
+  useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
@@ -981,10 +983,18 @@ export function TradeMarketOrderPanel({
                 actionLabel="Market swap"
                 offerSymbol={getTokenDisplaySymbol(fromToken)}
                 receiveSymbol={getTokenDisplaySymbol(toToken)}
-                offerAmountHuman={marketAmountHuman}
-                receiveAmountHuman={receiveHuman}
+                offerAmountHuman={offerDecimals != null ? fromRawAmount(rawInputAmount, offerDecimals) : '—'}
+                receiveAmountHuman={
+                  !theaterRouteQuote && simData?.return_amount && receiveDecimals != null
+                    ? fromRawAmount(simData.return_amount, receiveDecimals)
+                    : '—'
+                }
                 maxSpreadPercent={slippageTolerance}
-                minReceiveHuman={!showQuoteOnly && minReceived != null && minReceived !== '' ? minReceiveHuman : null}
+                minReceiveHuman={
+                  !showQuoteOnly && !theaterRouteQuote && minReceived && receiveDecimals != null
+                    ? fromRawAmount(minReceived, receiveDecimals)
+                    : null
+                }
                 pairContractAddresses={marketPairContractAddresses}
                 chainFullLabel={getNetworkBadgeCopy().fullLabel}
                 data-testid="trade-market-pre-submit-summary"

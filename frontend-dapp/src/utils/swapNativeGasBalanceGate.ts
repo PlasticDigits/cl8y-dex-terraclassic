@@ -4,7 +4,7 @@
  *
  * Same pattern as limit-place / provide-liquidity gates (#132 / #147).
  */
-import { formatTokenAmount, toRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmountGrouped, toRawAmount } from '@/utils/formatAmount'
 import type { EscrowBalanceQueryLike } from '@/utils/limitOrderEscrowBalanceGate'
 
 export const SWAP_NATIVE_GAS_MSG_LOADING = 'Loading LUNC balance…'
@@ -17,7 +17,7 @@ export type SwapNativeGasGateResult = {
 }
 
 export function swapNativeGasInsufficientMessage(requiredUluna: bigint): string {
-  const approx = formatTokenAmount(requiredUluna.toString(), 6, 5)
+  const approx = formatTokenAmountGrouped(requiredUluna.toString(), 6)
   return `Need ~${approx} LUNC for network fee.`
 }
 

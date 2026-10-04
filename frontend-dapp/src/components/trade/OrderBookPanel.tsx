@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useQuery } from '@tanstack/react-query'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { getPairLimitPlacements } from '@/services/indexer/client'
@@ -8,7 +9,7 @@ import type { LimitOrderCancelInput } from '@/hooks/useLimitOrderCancelMutation'
 import { Spinner } from '@/components/ui'
 import type { IndexerPair, IndexerShallowLimitOrder, PairInfo } from '@/types'
 import type { LimitBookTicketDraft } from '@/types/limitBookTicketDraft'
-import { formatNum, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
+import { formatPairPrice, formatTokenAmount, fromRawAmount } from '@/utils/formatAmount'
 import { orderIdHasIndexedCancellation } from '@/utils/limitOrderCancelUserMessage'
 import { partitionLimitPlacementsByLifecycle } from '@/utils/limitPlacementLifecycle'
 import { TRADE_PANEL_BOOK_UNAVAILABLE } from '@/utils/indexerTradeOutageCopy'
@@ -34,7 +35,7 @@ function formatBookPrice(
 ): string {
   const human = scaleRawLimitPriceForDisplay(raw, scale)
   const shown = inverted ? (factoryToken1PerToken0ToDisplayPrice(human, true) ?? human) : human
-  return formatNum(shown, 7)
+  return formatPairPrice(shown, 7)
     .replace(/(\.\d*?[1-9])0+$/, '$1')
     .replace(/\.0+$/, '')
 }
@@ -398,6 +399,7 @@ export function OrderBookPanel({
   displayBaseSymbol,
   displayQuoteSymbol,
 }: OrderBookPanelProps) {
+  useNumberDisplayMode()
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddress],
     queryFn: () => getPairLimitPlacements(pairAddress, { limit: 100 }),

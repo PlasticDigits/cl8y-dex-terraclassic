@@ -6,6 +6,12 @@
 
 CL8Y DEX tests focus on real contract behavior — no blockchain mocks. Unit tests exercise pure logic, integration tests deploy to a simulated chain environment, and E2E tests drive the actual frontend against LocalTerra.
 
+## Number display preference (#1259)
+
+`make verify-issue-1259` checks Compact / Full helpers, hostile storage, price and input exceptions, signing summaries, Settings persistence, docs, and chrome nesting with five Vitest workers. `VERIFY_ISSUE_1259_BROWSER=1 make verify-issue-1259` also runs the isolated Settings browser smoke; it mocks LCD reads to mount the real Swap UI and never proves chain execution. Run `make test-frontend` for the full unit suite, then rerun the targeted verifier after any fix.
+
+See [**Q1259-1–Q1259-10**](./frontend.md#number-display-preference), the [agent playbook](../skills/AGENTS_FRONTEND_NUMBER_DISPLAY.md), and the [acceptance / abuse checklist](./qa/issue-1259/README.md). Agents may skip checks they cannot complete and report overall **PASS with SKIPs** if every runnable check passes. List each skipped check with the reason and unverified scope; never relabel a real failure or an unexecuted check as PASS. No unavailable check creates a hold for this issue.
+
 ## Pair storage migration compatibility ([#1232](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1232))
 
 **Open verification gap:** `pair::migrate` on `origin/main` (`54c4868e`) does not initialize missing `DISCOUNT_REGISTRY` / `ORACLE_STATE`, although current runtime paths hard-load both. `migration_tests::pair_migration_preserves_fee_registry_lp_admin_and_limit_book` verifies preservation of populated state; it does not cover a pre-item storage layout. Keep #1232 open until absent-key defaults, preservation/idempotence, and post-migrate hard-load behavior have regression coverage. Requirements and code cross-links: [contract reference](./contracts-terraclassic.md#pair-storage-key-migration-compatibility-1232), [audit C14](./contracts-security-audit.md), and [agent playbook](../skills/AGENTS_PAIR_STORAGE_MIGRATION.md). The newer [#1324](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1324) is an ops migration issue and explicitly excludes this fix.

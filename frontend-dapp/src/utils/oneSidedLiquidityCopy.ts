@@ -1,4 +1,4 @@
-import { formatTokenAmount } from '@/utils/formatAmount'
+import { formatTokenAmountGrouped, formatHumanAmountGrouped } from '@/utils/formatAmount'
 
 /** Retail zap + pair-manage copy (GitLab #533 / #559 / #489 / #660). Labels stay ≤ ~5 words. */
 
@@ -22,7 +22,7 @@ export const ONE_SIDED_WRAP_PAUSED = 'Wrapping is Temporarily Paused'
 
 /** AC7 / T-Z12: pre-sign min-swap is human units, never a raw uint like `500571`. */
 export function formatHumanMinSwapLine(minReturnRaw: string, askDecimals: number): string {
-  return `min swap ${formatTokenAmount(minReturnRaw, askDecimals)}`
+  return `min swap ${formatTokenAmountGrouped(minReturnRaw, askDecimals)}`
 }
 
 /** Pay line (already human) + human min-swap for Zap Add pre-sign. */
@@ -31,5 +31,5 @@ export function oneSidedAddPreSignAmountLines(
   minReturnRaw: string,
   askDecimals: number
 ): [string, string] {
-  return [`${payHuman} in`, formatHumanMinSwapLine(minReturnRaw, askDecimals)]
+  return [`${formatHumanAmountGrouped(payHuman)} in`, formatHumanMinSwapLine(minReturnRaw, askDecimals)]
 }

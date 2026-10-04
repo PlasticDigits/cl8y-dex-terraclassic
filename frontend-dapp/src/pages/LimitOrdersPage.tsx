@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useMemo, useState, useEffect, useId, useCallback } from 'react'
 import { useQuery, useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useTerraBroadcastMutation } from '@/hooks/useTerraBroadcastMutation'
@@ -29,7 +30,7 @@ import { MarketDataLoadingStatus } from '@/components/common/MarketDataLoadingSt
 import { detectMarketDataOutage } from '@/utils/marketDataOutage'
 import { LIMITS_MARKET_DATA_OUTAGE_LEAD, MARKET_DATA_SERVICE_OUTAGE_TITLE } from '@/utils/marketDataServiceCopy'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair } from '@/types'
-import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, formatTokenAmountGrouped, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { resolveTapeLastPriceUsd } from '@/utils/pairPriceUsd'
 import { evaluateLimitOrderEscrowPlaceGate } from '@/utils/limitOrderEscrowBalanceGate'
 import { evaluateLimitOrderNativeGasPlaceGate } from '@/utils/limitOrderNativeGasBalanceGate'
@@ -75,6 +76,7 @@ import {
 } from '@/utils/limitOrderPriceEdit'
 
 export default function LimitOrdersPage() {
+  const [numberDisplayMode] = useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const openWalletModal = useWalletStore((s) => s.openWalletModal)
   const wallet = getConnectedWallet()
@@ -218,8 +220,8 @@ export default function LimitOrdersPage() {
     if (amt == null) return null
     const usd = escrowAmountUsdAnchorNotional(amt, side === 'ask', refToken1PerToken0, tapeHeadlineUsd)
     if (usd == null || !Number.isFinite(usd)) return null
-    return `$${formatNum(usd, 4)}`
-  }, [amountHuman, side, refToken1PerToken0, tapeHeadlineUsd])
+    return `$${formatNum(usd, 4, numberDisplayMode)}`
+  }, [amountHuman, side, refToken1PerToken0, tapeHeadlineUsd, numberDisplayMode])
 
   const expectedReceiveHuman = useMemo(
     () =>
@@ -238,8 +240,8 @@ export default function LimitOrdersPage() {
     if (amt == null) return null
     const usd = escrowAmountUsdAnchorNotional(amt, side === 'bid', refToken1PerToken0, tapeHeadlineUsd)
     if (usd == null || !Number.isFinite(usd)) return null
-    return `$${formatNum(usd, 4)}`
-  }, [expectedReceiveHuman, side, refToken1PerToken0, tapeHeadlineUsd])
+    return `$${formatNum(usd, 4, numberDisplayMode)}`
+  }, [expectedReceiveHuman, side, refToken1PerToken0, tapeHeadlineUsd, numberDisplayMode])
 
   const handleSideChange = useCallback(
     (next: 'bid' | 'ask') => {
@@ -553,6 +555,9 @@ export default function LimitOrdersPage() {
   const token1Display = token1 ? getTokenDisplaySymbol(token1) : 'Quote'
   const { bidLabel: directionBidLabel, askLabel: directionAskLabel } = tradeDirectionSideLabels(token0Display)
   const escrowDisplay = getTokenDisplaySymbol(escrowToken || '—')
+  const escrowAmountLabel = `${
+    amountHuman.trim() ? formatTokenAmountGrouped(toRawAmount(amountHuman.trim(), escrowDecimals), escrowDecimals) : '—'
+  } ${escrowDisplay}`
   const receiveDisplay = getTokenDisplaySymbol(receiveToken || '—')
 
   return (
@@ -725,9 +730,7 @@ export default function LimitOrdersPage() {
                         <LimitOrderPreSubmitSummary
                           pairLabel={`${token0Display} / ${token1Display}`}
                           sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
-                          escrowAmountLabel={
-                            amountHuman.trim() ? `${amountHuman.trim()} ${escrowDisplay}` : `— ${escrowDisplay}`
-                          }
+                          escrowAmountLabel={escrowAmountLabel}
                           placeSequenceMinUluna={limitPlaceMinUlunaFees}
                           refToken1PerToken0={refToken1PerToken0}
                           typedPrice={price}
@@ -748,9 +751,7 @@ export default function LimitOrdersPage() {
                           <LimitOrderPreSubmitSummary
                             pairLabel={`${token0Display} / ${token1Display}`}
                             sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
-                            escrowAmountLabel={
-                              amountHuman.trim() ? `${amountHuman.trim()} ${escrowDisplay}` : `— ${escrowDisplay}`
-                            }
+                            escrowAmountLabel={escrowAmountLabel}
                             placeSequenceMinUluna={limitPlaceMinUlunaFees}
                             refToken1PerToken0={refToken1PerToken0}
                             typedPrice={price}

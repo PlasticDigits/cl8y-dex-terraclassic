@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { queryRateLimit } from '@/services/terraclassic/wrapMapper'
@@ -27,6 +28,7 @@ export function WrapRateLimitStatus({
   testId = 'wrap-rate-limit-status',
   className = '',
 }: WrapRateLimitStatusProps) {
+  useNumberDisplayMode()
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
 
   const query = useQuery({

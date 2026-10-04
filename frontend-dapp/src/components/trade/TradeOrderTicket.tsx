@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useMemo, useState, useEffect, useId, useRef, useCallback } from 'react'
 import type { UseMutationResult } from '@tanstack/react-query'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,7 +23,7 @@ import { sounds } from '@/lib/sounds'
 import { Spinner, TokenLogo, TxResultAlert } from '@/components/ui'
 import { terraBroadcastPendingButtonLabel } from '@/utils/terraBroadcastUi'
 import { assetInfoLabel, tokenAssetInfo, type IndexerPair, type IndexerTrade, type PairInfo } from '@/types'
-import { formatNum, getDecimals, toRawAmount } from '@/utils/formatAmount'
+import { formatNum, formatTokenAmountGrouped, getDecimals, toRawAmount } from '@/utils/formatAmount'
 import { evaluateLimitOrderEscrowPlaceGate, LIMIT_ORDER_MIN_PLACE_MSG } from '@/utils/limitOrderEscrowBalanceGate'
 import { LIMIT_ORDER_DUST_FLUSH_THRESHOLD } from '@/utils/limitPlacementLifecycle'
 import { LIMIT_ORDER_MAX_ADJUST_STEPS_DEFAULT } from '@/utils/limitOrderExpiry'
@@ -145,6 +146,7 @@ function TradeOrderTicketContent({
   initialMarketAmount = null,
   initialSide = null,
 }: TradeOrderTicketContentProps) {
+  const [numberDisplayMode] = useNumberDisplayMode()
   const address = useWalletStore((s) => s.address)
   const openWalletModalStore = useWalletStore((s) => s.openWalletModal)
   const openWalletModal = () => {
@@ -233,8 +235,8 @@ function TradeOrderTicketContent({
       factoryTapeHeadlineUsd ?? tapeHeadlineUsd
     )
     if (usd == null || !Number.isFinite(usd)) return null
-    return `$${formatNum(usd, 4)}`
-  }, [amountHuman, factorySide, refToken1PerToken0, factoryTapeHeadlineUsd, tapeHeadlineUsd])
+    return `$${formatNum(usd, 4, numberDisplayMode)}`
+  }, [amountHuman, factorySide, refToken1PerToken0, factoryTapeHeadlineUsd, tapeHeadlineUsd, numberDisplayMode])
 
   const handleSideChange = useCallback(
     (next: 'bid' | 'ask') => {
@@ -290,8 +292,15 @@ function TradeOrderTicketContent({
       factoryTapeHeadlineUsd ?? tapeHeadlineUsd
     )
     if (usd == null || !Number.isFinite(usd)) return null
-    return `$${formatNum(usd, 4)}`
-  }, [expectedReceiveHuman, factorySide, refToken1PerToken0, factoryTapeHeadlineUsd, tapeHeadlineUsd])
+    return `$${formatNum(usd, 4, numberDisplayMode)}`
+  }, [
+    expectedReceiveHuman,
+    factorySide,
+    refToken1PerToken0,
+    factoryTapeHeadlineUsd,
+    tapeHeadlineUsd,
+    numberDisplayMode,
+  ])
 
   const placementsQuery = useQuery({
     queryKey: ['limitPlacements', pairAddr, address],
@@ -897,7 +906,9 @@ function TradeOrderTicketContent({
                   pairLabel={`${displayBase} / ${displayQuote}`}
                   sideLabel={side === 'bid' ? directionBidLabel : directionAskLabel}
                   escrowAmountLabel={
-                    amountHuman.trim() ? `${amountHuman.trim()} ${sideAction.pay}` : `— ${sideAction.pay}`
+                    amountHuman.trim()
+                      ? `${formatTokenAmountGrouped(toRawAmount(amountHuman.trim(), escrowDecimals), escrowDecimals)} ${sideAction.pay}`
+                      : `— ${sideAction.pay}`
                   }
                   placeSequenceMinUluna={limitPlaceMinUlunaFees}
                   refToken1PerToken0={refToken1PerToken0}

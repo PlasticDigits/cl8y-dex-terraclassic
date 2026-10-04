@@ -1,5 +1,5 @@
 import { DOCS_GITLAB_BASE } from '@/utils/constants'
-import { formatTokenAmount } from '@/utils/formatAmount'
+import { formatTokenAmountGrouped } from '@/utils/formatAmount'
 import { bpsToPercentLabel } from '@/utils/limitOrderFeeSummary'
 import { limitPriceDeviationPercent, parsePositivePriceHuman } from '@/utils/limitOrderPriceReference'
 import { getNetworkBadgeCopy } from '@/utils/networkDisplay'
@@ -13,7 +13,7 @@ export type LimitOrderPreSubmitSummaryProps = {
   pairLabel: string
   /** Side label, e.g. "Buy EMBER" / "Sell EMBER". */
   sideLabel: string
-  /** Escrow amount line, e.g. "12.5 CORAL". */
+  /** Full grouped escrow amount from the raw transaction value, e.g. "12,345.678901 CORAL" (#1259). */
   escrowAmountLabel: string
   /** Minimum uluna for increase_allowance + place (sequence estimate). */
   placeSequenceMinUluna: bigint
@@ -69,7 +69,7 @@ export function LimitOrderPreSubmitSummary({
   const limit = parsePositivePriceHuman(typedPrice)
   const dev = refToken1PerToken0 != null && limit != null ? limitPriceDeviationPercent(limit, refToken1PerToken0) : null
 
-  const gasHuman = formatTokenAmount(placeSequenceMinUluna.toString(), 6, 4)
+  const gasHuman = formatTokenAmountGrouped(placeSequenceMinUluna.toString(), 6)
   const makerPct = makerBps != null ? bpsToPercentLabel(makerBps) : null
 
   return (

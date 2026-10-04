@@ -5,7 +5,7 @@ export type PoolPreSubmitSummaryProps = {
   actionLabel: string
   /** Pair label, e.g. "EMBER / CORAL". */
   pairLabel: string
-  /** Ordered amount lines, e.g. ["12.5 EMBER", "8.0 CORAL"] (provide) or ["3.0 LP"] (withdraw). */
+  /** Full grouped signing amounts from raw transaction values; never pass preference-formatted K/M/B/T (#1259). */
   amountLines: string[]
   /** Active Terra Classic network label (defaults to env badge copy). */
   chainFullLabel?: string

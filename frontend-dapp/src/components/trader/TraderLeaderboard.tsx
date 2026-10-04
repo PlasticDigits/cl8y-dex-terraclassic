@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useState } from 'react'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -29,6 +30,7 @@ export type TraderLeaderboardProps = {
  * Charts passes `pairAddress` for pair ranks (#666 CS-7 / CS-14).
  */
 export function TraderLeaderboard({ highlightAddress, pairAddress, enabled = true }: TraderLeaderboardProps) {
+  useNumberDisplayMode()
   const pairTrim = pairAddress?.trim() || ''
   const tabs = pairTrim ? PAIR_LEADERBOARD_TABS : LEADERBOARD_TABS
   const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>(DEFAULT_LEADERBOARD_SORT)

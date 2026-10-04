@@ -1,4 +1,4 @@
-import { formatTokenAmount, toRawAmount } from '@/utils/formatAmount'
+import { formatTokenAmountGrouped, toRawAmount } from '@/utils/formatAmount'
 import type { EscrowBalanceQueryLike, LimitOrderEscrowPlaceGateTone } from '@/utils/limitOrderEscrowBalanceGate'
 
 export const PROVIDE_LIQ_NATIVE_GAS_MSG_LOADING = 'Loading LUNC balance…'
@@ -6,7 +6,7 @@ export const PROVIDE_LIQ_NATIVE_GAS_MSG_UNAVAILABLE =
   'Cannot verify LUNC balance. Wait and retry, or check your connection.'
 
 export function provideLiquidityCw20NativeGasInsufficientMessage(requiredUluna: bigint): string {
-  const approx = formatTokenAmount(requiredUluna.toString(), 6, 5)
+  const approx = formatTokenAmountGrouped(requiredUluna.toString(), 6)
   return `Not enough LUNC for gas. You need at least ~${approx} LUNC to cover all three transactions (allowance A + allowance B + provide liquidity).`
 }
 

@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { Link } from 'react-router-dom'
 import { RetryError } from '@/components/ui/RetryError'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -25,6 +26,7 @@ export function PortfolioLpOverviewSection({
   isError,
   onRetry,
 }: PortfolioLpOverviewSectionProps) {
+  useNumberDisplayMode()
   return (
     <div className="shell-panel-strong" data-testid="portfolio-lp-overview-section">
       <h3 className="text-sm font-semibold uppercase tracking-wide mb-1 font-heading" style={{ color: 'var(--ink)' }}>

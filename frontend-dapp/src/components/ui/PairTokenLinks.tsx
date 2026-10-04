@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { AddressRow } from '@/components/ui/AddressRow'
 import { TokenIdentity } from '@/components/ui/TokenIdentity'
 import type { AssetInfo } from '@/types'
@@ -33,6 +34,7 @@ export function PairTokenLinks({
   className = '',
   'data-testid': testId = 'pair-token-links',
 }: PairTokenLinksProps) {
+  useNumberDisplayMode()
   const pair = pairAddress?.trim() ?? ''
   if (!isPairIdentityAddress(pair)) return null
 

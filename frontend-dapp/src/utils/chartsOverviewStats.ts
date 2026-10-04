@@ -25,7 +25,7 @@ export function formatIndexedVolumeUsd(usd: string | null | undefined, trades: n
   if (n == null) return '—'
   if (n < 0) return '—'
   if (n === 0) return trades > 0 ? '—' : '$0'
-  const compact = formatNum(n, 4)
+  const compact = formatNum(usd!, 4)
   const out = `$${compact}`
   if (out.length > OVERVIEW_DISPLAY_CAP) return '—'
   return out

@@ -1,4 +1,4 @@
-import { formatNum } from '@/utils/formatAmount'
+import { formatNum, formatPairPrice } from '@/utils/formatAmount'
 
 const EM_DASH = '—'
 
@@ -44,7 +44,7 @@ export function formatProtocolOracleUsd(raw: string | number | null | undefined,
   if (raw == null || raw === '') return EM_DASH
   const n = typeof raw === 'number' ? raw : Number(raw)
   if (!Number.isFinite(n)) return EM_DASH
-  return `$${formatNum(raw, digits)}`
+  return `$${formatPairPrice(raw, digits)}`
 }
 
 /** Human FDUSD per 1 vFDUSD: missing / non-finite / ≤0 → em-dash (never Infinity, never a fake 1.0). */
@@ -52,7 +52,7 @@ export function formatProtocolFdusdOut(raw: string | number | null | undefined, 
   if (raw == null || raw === '') return EM_DASH
   const n = typeof raw === 'number' ? raw : Number(raw)
   if (!Number.isFinite(n) || n <= 0) return EM_DASH
-  return formatNum(raw, digits)
+  return formatPairPrice(raw, digits)
 }
 
 /**

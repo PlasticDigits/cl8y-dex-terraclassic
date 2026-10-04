@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { type UseQueryResult } from '@tanstack/react-query'
 import { StatBox, RetryError } from '@/components/ui'
 import { formatProtocolPct, formatProtocolUsd } from '@/utils/formatProtocolStats'
@@ -58,6 +59,7 @@ function overviewHasFeeFields(o: IndexerOverview | undefined): boolean {
 }
 
 export function ProtocolFeeStats({ overviewQuery, feesQuery }: ProtocolFeeStatsProps) {
+  useNumberDisplayMode()
   const overview = overviewQuery.data
   const fees = feesQuery.data
   const showPanel = overviewHasFeeFields(overview) || feesQuery.isSuccess

@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RetryError } from '@/components/ui'
 import { formatProtocolUsd } from '@/utils/formatProtocolStats'
@@ -82,6 +83,7 @@ function chartAria(metric: ProtocolUtcMetric, grain: ProtocolVolumeGrain): strin
 }
 
 export function ProtocolVolumeDailyChart() {
+  useNumberDisplayMode()
   const [metric, setMetric] = useState<ProtocolUtcMetric>('volume')
   const [grain, setGrain] = useState<ProtocolVolumeGrain>('daily')
   const [limit, setLimit] = useState(() => PROTOCOL_VOLUME_GRAIN_MIN.daily)

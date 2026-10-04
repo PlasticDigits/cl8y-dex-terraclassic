@@ -259,7 +259,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await waitFor(() =>
       expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', 'uluna', 'uusd', expect.any(Array), undefined)
     )
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await waitFor(() => expect(screen.getByTestId('receive-search-probe')).toHaveTextContent('exactField=output'))
     await waitFor(() => expect(screen.getByTestId('receive-search-probe')).toHaveTextContent('exactAmount=1.5'))
     expect(swap).not.toHaveBeenCalled()
@@ -276,7 +276,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       await waitFor(() =>
         expect(reverseSimulateNativeSwap).toHaveBeenCalledWith('1500000', from, to, expect.any(Array), undefined)
       )
-      await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+      await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
       expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
     }
   )
@@ -293,7 +293,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
       )
     )
     expect(reverseSimulateNativeSwap).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
   })
 
   it('client multihop output quote uses the complete reverse route', async () => {
@@ -302,7 +302,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     await waitForSwapReady()
     fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '1.5' } })
     await waitFor(() => expect(reverseSimulateMultiHopSwap).toHaveBeenCalledWith('1500000', operations, undefined))
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
   })
 
   it('indexer-only output deep link stays pay-sided and performs no reverse request', async () => {
@@ -319,7 +319,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
   it('clearing receive clears both fields and removes the output amount from the URL', async () => {
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=1.5')
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     fireEvent.change(screen.getByTestId('swap-you-receive'), { target: { value: '' } })
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('')
     expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('')
@@ -330,7 +330,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     const user = userEvent.setup()
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=1.5')
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await user.click(screen.getByRole('button', { name: 'Swap pay and receive tokens' }))
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('1.5')
     await waitFor(() =>
@@ -411,7 +411,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(simulateNativeSwap).not.toHaveBeenCalled()
     expect(swap).not.toHaveBeenCalled()
     await act(async () => resolveNew({ amount: '6000000' }))
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('6.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('6'))
   })
 
   it('buy-tax output intent gross-ups the requested net amount before reverse simulation', async () => {
@@ -434,7 +434,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     vi.mocked(simulateSwap).mockResolvedValue({ return_amount: '1000000', spread_amount: '0', commission_amount: '0' })
     renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=0.9`)
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await waitFor(() =>
       expect(simulateSwap).toHaveBeenCalledWith(expect.any(String), expect.any(Object), '2000000', { trader: wallet })
     )
@@ -461,7 +461,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     renderWithSearch('/?from=LUNC&to=USTC&exactField=output&exactAmount=1')
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     const submit = await screen.findByRole('button', { name: /^swap$/i })
     await waitFor(() => expect(submit).toBeEnabled())
     fireEvent.click(submit)
@@ -487,7 +487,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     vi.mocked(getTokenBalance).mockResolvedValue('1000000')
     renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1`)
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     await waitFor(() => expect(screen.getByRole('button', { name: /^insufficient balance$/i })).toBeDisabled())
     expect(swap).not.toHaveBeenCalled()
   })
@@ -509,7 +509,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)
     const queryClient = renderWithSearch(`/?from=${LISTED}&to=${UST1}&exactField=output&exactAmount=1`)
     await waitForSwapReady()
-    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2.000'))
+    await waitFor(() => expect(screen.getByTestId('swap-you-pay-amount')).toHaveValue('2'))
     const submit = await screen.findByRole('button', { name: /^swap$/i })
     await waitFor(() => expect(submit).toBeEnabled())
     let rejectRefetch!: (reason: Error) => void

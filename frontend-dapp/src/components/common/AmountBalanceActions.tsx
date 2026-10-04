@@ -1,3 +1,4 @@
+import { useNumberDisplayMode } from '@/utils/numberDisplayPreference'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { sounds } from '@/lib/sounds'
 import { Spinner } from '@/components/ui'
@@ -51,6 +52,7 @@ export function AmountBalanceActions({
   testIdHalf,
   testIdFractionPrefix,
 }: Props) {
+  useNumberDisplayMode()
   if (!walletConnected || !showBalance) return null
 
   const disabled =
