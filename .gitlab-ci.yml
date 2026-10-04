@@ -44,7 +44,7 @@ gitleaks:
 lint-indexer-log-secrets:
   extends: .security-rules-default-branch
   stage: security
-  image: alpine:3.21
+  image: alpine:3.24
   rules:
     - !reference [.security-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
