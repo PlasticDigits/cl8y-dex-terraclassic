@@ -92,6 +92,9 @@ terrad_host_exec_retry() {
       return 0
     fi
     if grep -qiE 'connection reset|EOF|i/o timeout|broken pipe|TLS handshake|temporarily unavailable|503|502|429' "$errf"; then
+      if [[ "$i" -eq "$attempts" ]]; then
+        break
+      fi
       echo "[terrad-host] transient RPC (attempt $i/$attempts), retry in ${delay}s" >&2
       head -c 400 "$errf" >&2
       echo >&2

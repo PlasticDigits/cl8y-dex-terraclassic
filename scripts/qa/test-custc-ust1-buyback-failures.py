@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise buyback failure paths with mocked HTTP and terrad; never broadcast."""
+import json
 import os
 from decimal import Decimal
 from pathlib import Path
@@ -69,9 +70,44 @@ with open(os.environ["MOCK_TX_LOG"],"a") as f:
 sys.exit(99)
 '''
 
+PREPARE_TERRAD = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+if args[:2] == ["keys", "show"]:
+    print("terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv")
+    sys.exit(0)
+stage = "generate" if "--generate-only" in args else args[1]
+if stage == "sign":
+    stage += ":" + args[args.index("--from") + 1]
+node = args[args.index("--node") + 1]
+counter = Path(os.environ["MOCK_PREPARE_CALLS"])
+calls = json.loads(counter.read_text()) if counter.exists() else []
+attempt = 1 + sum(call["stage"] == stage for call in calls)
+calls.append({"stage": stage, "attempt": attempt, "node": node})
+counter.write_text(json.dumps(calls))
+if stage == "broadcast":
+    print("mock broadcast deliberately disabled", file=sys.stderr)
+    sys.exit(99)
+mode = os.environ["MOCK_PREPARE_MODE"]
+if mode == "permanent":
+    print("unauthorized minter", file=sys.stderr)
+    sys.exit(1)
+if mode == "exhaust" or attempt <= (2 if stage == "generate" else 1):
+    print("PARTIAL FAILED STDOUT")
+    print("503 Service Unavailable: upstream temporarily unavailable", file=sys.stderr)
+    sys.exit(1)
+# Parse previous-stage files to catch partial failed stdout leaking into JSON.
+for arg in args:
+    if arg.endswith(".json"):
+        json.loads(Path(arg).read_text())
+print(json.dumps({"body": {"messages": [{}]}}))
+'''
+
 
 class BuybackFailures(unittest.TestCase):
-    def run_tick(self, mode, *, live=False, loop=False, target_met=False, randomized=False, ticks=1):
+    def run_tick(self, mode, *, live=False, loop=False, target_met=False, randomized=False, ticks=1,
+                 prepare_mode=None, node_override=None):
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
             # End a failed loop after its first tick, without waiting an hour.
@@ -79,12 +115,15 @@ class BuybackFailures(unittest.TestCase):
 import os, sys
 from pathlib import Path
 print("mock sleep seconds=" + sys.argv[1], file=sys.stderr)
+if int(sys.argv[1]) < 2700:
+    raise SystemExit(0)
 counter = Path(os.environ["MOCK_SLEEP_COUNT"])
 count = int(counter.read_text()) + 1 if counter.exists() else 1
 counter.write_text(str(count))
 raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
 '''
-            for name, body in (("curl", CURL), ("terrad", TERRAD), ("sleep", sleep)):
+            terrad = PREPARE_TERRAD if prepare_mode else TERRAD
+            for name, body in (("curl", CURL), ("terrad", terrad), ("sleep", sleep)):
                 executable = work / name
                 executable.write_text(body)
                 executable.chmod(0o755)
@@ -102,13 +141,18 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
                 TERRAD_HOST_KEYRING_BACKEND="test", TERRAD_HOST_KEYRING_PASS="fixture-only",
                 MOCK_QUOTE_MODE=mode, MOCK_TX_LOG=str(work / "transactions"),
                 MOCK_SLEEP_COUNT=str(work / "sleeps"), MOCK_TICKS=str(ticks),
+                MOCK_PREPARE_CALLS=str(work / "prepare.json"), MOCK_PREPARE_MODE=prepare_mode or "",
+                TMPDIR=str(work),
                 MOCK_CMM_BALANCE="4000000000000000000000" if target_met else "0",
             )
+            if node_override:
+                env["TERRAD_HOST_NODE"] = node_override
             result = subprocess.run(
                 ["bash", str(ROOT / "scripts/mint-swap-custc-ust1.sh")],
                 env=env, capture_output=True, text=True, timeout=30,
             )
             self.assertFalse((work / "transactions").exists(), result.stdout + result.stderr)
+            self.prepare_calls = json.loads((work / "prepare.json").read_text()) if (work / "prepare.json").exists() else []
             return result
 
     def test_bad_quotes_stop_before_mint_in_dry_and_live_ticks(self):
@@ -154,6 +198,30 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
         self.assertEqual(len(waits), 2, result.stderr)
         self.assertEqual(waits, logged_waits)
         self.assertTrue(all(2700 <= int(wait) <= 4500 for wait in waits))
+
+    def test_mint_preparation_retries_without_retrying_broadcast(self):
+        result = self.run_tick("valid", live=True, prepare_mode="transient")
+        self.assertEqual(result.returncode, 99, result.stdout + result.stderr)
+        counts = {stage: sum(call["stage"] == stage for call in self.prepare_calls)
+                  for stage in ("generate", "sign:multisig1", "sign:multisig2", "multisign", "broadcast")}
+        self.assertEqual(counts, {"generate": 3, "sign:multisig1": 2, "sign:multisig2": 2,
+                                  "multisign": 2, "broadcast": 1})
+        self.assertTrue(all(call["node"] == "https://rpc.terra-classic.hexxagon.io:443" for call in self.prepare_calls))
+        self.assertEqual(re.findall(r"mock sleep seconds=(\d+)", result.stderr), ["4", "6", "4", "4", "4"])
+        self.assertNotIn("PARTIAL FAILED STDOUT", result.stdout)
+
+    def test_exhausted_rpc_retries_stop_before_signing_and_broadcast(self):
+        result = self.run_tick("valid", live=True, prepare_mode="exhaust")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual([call["stage"] for call in self.prepare_calls], ["generate"] * 6)
+        self.assertEqual(re.findall(r"mock sleep seconds=(\d+)", result.stderr), ["4", "6", "8", "10", "12"])
+        self.assertIn("exhausted 6 RPC retries", result.stderr)
+
+    def test_permanent_mint_errors_are_not_retried_and_node_override_wins(self):
+        result = self.run_tick("valid", live=True, prepare_mode="permanent", node_override="https://operator-rpc.test:443")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(self.prepare_calls, [{"stage": "generate", "attempt": 1, "node": "https://operator-rpc.test:443"}])
+        self.assertNotIn("mock sleep seconds=", result.stderr)
 
 
 if __name__ == "__main__":
