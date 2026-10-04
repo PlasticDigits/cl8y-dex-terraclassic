@@ -73,6 +73,42 @@ terrad_host_gas_flags() {
   fi
 }
 
+# Retry terrad_host_exec when the public RPC returns a transient error
+# (503 / "upstream temporarily unavailable" on simulate or broadcast).
+# Successful stdout is printed once. A failed attempt writes nothing to stdout.
+terrad_host_exec_retry() {
+  local attempts="${TERRAD_HOST_TX_RETRIES:-6}"
+  local delay="${TERRAD_HOST_TX_RETRY_DELAY_SEC:-4}"
+  local i out st errf
+  errf="$(mktemp)"
+  for i in $(seq 1 "$attempts"); do
+    set +e
+    out="$(terrad_host_exec "$@" 2>"$errf")"
+    st=$?
+    set -e
+    if [[ "$st" -eq 0 ]]; then
+      printf '%s' "$out"
+      rm -f "$errf"
+      return 0
+    fi
+    if grep -qiE 'connection reset|EOF|i/o timeout|broken pipe|TLS handshake|temporarily unavailable|503|502|429' "$errf"; then
+      echo "[terrad-host] transient RPC (attempt $i/$attempts), retry in ${delay}s" >&2
+      head -c 400 "$errf" >&2
+      echo >&2
+      sleep "$delay"
+      delay=$((delay + 2))
+      continue
+    fi
+    cat "$errf" >&2
+    rm -f "$errf"
+    return "$st"
+  done
+  echo "[terrad-host] exhausted $attempts RPC retries" >&2
+  cat "$errf" >&2 || true
+  rm -f "$errf"
+  return 1
+}
+
 # Run terrad, feeding keyring passphrase on stdin when TERRAD_HOST_KEYRING_PASS is set.
 # File backend + --gas auto may unlock more than once per command.
 #

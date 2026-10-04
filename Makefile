@@ -693,13 +693,20 @@ verify-issue-1315:
 .PHONY: verify-issue-1315
 
 # Forgejo #1328 — measured CL8Y → UST1 pool-only router gas envelope.
-.PHONY: verify-issue-1328 measure-issue-1328
+.PHONY: verify-issue-1328 measure-issue-1328 verify-issue-1360 measure-issue-1360
 verify-issue-1328:
 	@chmod +x scripts/qa/verify-issue-1328.sh scripts/with-node.sh
 	bash scripts/qa/verify-issue-1328.sh
 
 measure-issue-1328:
 	bash scripts/with-node.sh --cwd frontend-dapp -- node scripts/measureIssue1328Columbus.mjs
+
+verify-issue-1360:
+	@chmod +x scripts/qa/verify-issue-1360.sh scripts/with-node.sh
+	bash scripts/qa/verify-issue-1360.sh
+
+measure-issue-1360:
+	bash scripts/with-node.sh --cwd frontend-dapp -- node scripts/measureIssue1360Columbus.mjs
 
 # GitLab #576 — trailing 24h/7d/30d volume copy (not calendar-day reset).
 verify-issue-576:
@@ -1235,7 +1242,7 @@ test-oracle-rebalance:
 
 # Columbus-5: rebalance cLUNC/cUSTC to LUNC+USTC oracles, mint $10k LP in rungs, send to CMM.
 # DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + CLUNC_LP_YES=1 (or TTY confirm).
-.PHONY: rebalance-mint-clunc-custc-lp mint-clunc-custc-lp test-clunc-custc-lp
+.PHONY: rebalance-mint-clunc-custc-lp mint-clunc-custc-lp mint-add-custc-lp test-clunc-custc-lp
 rebalance-mint-clunc-custc-lp:
 	@chmod +x scripts/rebalance-mint-clunc-custc-lp.sh scripts/lib/clunc-custc-lp-math.py
 	./scripts/rebalance-mint-clunc-custc-lp.sh
@@ -1246,6 +1253,13 @@ mint-clunc-custc-lp:
 	@chmod +x scripts/mint-clunc-custc-lp.sh scripts/rebalance-mint-clunc-custc-lp.sh \
 		scripts/lib/clunc-custc-lp-math.py
 	./scripts/mint-clunc-custc-lp.sh
+
+# Columbus-5: add +$50k UST1/cUSTC and +$20k cLUNC/cUSTC LP at the live ratio (no swap) → CMM.
+# DRY_RUN=1 skips txs. Live: TERRAD_HOST_KEYRING_PASS + UST1_LP_YES=1 + CLUNC_LP_YES=1.
+mint-add-custc-lp:
+	@chmod +x scripts/mint-add-custc-lp.sh scripts/rebalance-mint-ust1-lp.sh \
+		scripts/mint-clunc-custc-lp.sh scripts/rebalance-mint-clunc-custc-lp.sh
+	./scripts/mint-add-custc-lp.sh
 
 test-clunc-custc-lp:
 	@chmod +x scripts/qa/test-clunc-custc-lp.sh scripts/mint-clunc-custc-lp.sh \
@@ -1263,6 +1277,13 @@ test-clunc-usdt-lp:
 	@chmod +x scripts/qa/test-clunc-usdt-lp.sh scripts/mint-clunc-usdt-lp.sh \
 		scripts/lib/clunc-usdt-lp-defaults.sh scripts/lib/clunc-usdt-lp-math.py
 	./scripts/qa/test-clunc-usdt-lp.sh
+
+# Columbus-5: store USDT-Bridge-Debt, issue 10k USDT + mint 10k UST1, create the v2 pair, send LP to CMM.
+# Dry run is the default. Live: TERRAD_HOST_KEYRING_PASS + USDT_UST1_LP_YES=1. BUILD_WASM=1 runs the workspace optimizer first.
+.PHONY: deploy-usdt-ust1-lp
+deploy-usdt-ust1-lp:
+	@chmod +x scripts/deploy-usdt-ust1-lp.sh
+	./scripts/deploy-usdt-ust1-lp.sh
 
 # Columbus-5: mint 50 UST1/hour, best-solver swap to cLUNC, burn until CMM bank uluna × oracle is $2500.
 # DRY_RUN=1 skips txs (one tick). Live loops hourly: TERRAD_HOST_KEYRING_PASS + UST1_CLUNC_YES=1.
@@ -1578,7 +1599,7 @@ help:
 
 	@echo "Frontend:        make dev | build-frontend | test-frontend | test-frontend-charts | test-charts-integration | test-e2e-tx | test-e2e-indexer-outage | lint-frontend"
 	@echo "Indexer:         make indexer-dev | test-indexer-integration | test-indexer-target-ownership | verify-issue-676 | verify-issue-1276 | verify-issue-1265 | verify-issue-1204 | indexer-reorg-recover HEIGHT=<H> [APPLY=1] [CLEANUP=1] | verify-issue-1277"
-	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback | make mint-swap-custc-ust1 | make test-custc-ust1-buyback"
+	@echo "Ops:             make rebalance-mint-ust1-lp (DRY_RUN=1 to plan only) | make rebalance-oracle-mint-swap-burn | make test-oracle-rebalance | make rebalance-mint-clunc-custc-lp | make mint-clunc-custc-lp | make mint-add-custc-lp | make test-clunc-custc-lp | make mint-clunc-usdt-lp | make test-clunc-usdt-lp | make deploy-usdt-ust1-lp | make mint-swap-burn-ust1-clunc | make test-ust1-clunc-buyback | make mint-swap-custc-ust1 | make test-custc-ust1-buyback"
 	@echo "Docs:            scripts/qa/README.md"
 
 # Smart contracts — two different builds:

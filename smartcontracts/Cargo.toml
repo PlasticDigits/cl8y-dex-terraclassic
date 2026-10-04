@@ -12,6 +12,8 @@ members = [
   "contracts/community-tax-token",
   "contracts/community-tax-autolp",
   "contracts/community-token-launcher",
+  "contracts/bridge-debt-token",
+  "contracts/bridge-debt",
   "packages/dex-common",
   "tests",
 ]
