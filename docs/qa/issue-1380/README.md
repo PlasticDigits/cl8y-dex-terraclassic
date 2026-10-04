@@ -1,7 +1,7 @@
 # Protocol liquidity quality (#1380)
 
 Issue: [#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380).
-Implementation: PR link is recorded in [verification.md](verification.md).
+Implementation: [PR #1382](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1382); results are in [verification.md](verification.md).
 Contract/invariants: [Q1380](../../indexer-invariants.md#protocol-liquidity-quality-1380).
 Agent playbook: [AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md](../../../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 Frontend: [liquidity quality](../../frontend.md#protocol-liquidity-quality).

@@ -3,6 +3,7 @@
 Use for protocol TVL valuation, reserve cadence, overview, liquidity history,
 percentage baselines, migration repair and their frontend consumers.
 Issue: [#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380).
+Implementation: [PR #1382](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1382).
 Invariants: [Q1380](../docs/indexer-invariants.md#protocol-liquidity-quality-1380).
 Review/run instructions and skip policy: [QA](../docs/qa/issue-1380/README.md).
 Evidence/PR: [verification](../docs/qa/issue-1380/verification.md).

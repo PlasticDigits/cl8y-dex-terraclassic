@@ -1,7 +1,9 @@
 # Implementation verification receipt
 
 Issue: [#1380](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1380).
-Implementation PR: pending publication.
+Implementation: [PR #1382](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1382).
+Tested implementation commit: `a18e5db3dab8beb0e11dfdb08df227d2c7b59d96`;
+the following publication commit updates documentation links only.
 Review/checklist: [README](README.md).
 Invariants: [Q1380](../../indexer-invariants.md#protocol-liquidity-quality-1380).
 Agent protocol: [playbook](../../../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
@@ -29,7 +31,9 @@ Completed independent checks:
   concurrent writers, replay rejection, rollback after every persistence stage,
   restart/cache age, all grains, and scoped repair replay after healthy recovery.
 - Frontend: **88 targeted tests passed twice**, plus **200 existing consumer tests**;
-  TypeScript, ESLint, source formatting and gitleaks passed.
+  TypeScript, ESLint, source formatting and gitleaks passed. Commit hooks also
+  passed contract formatting/Clippy and frontend staged lint/format checks; the
+  88 frontend tests passed again after hook formatting.
 - Browser: **3 new quality** and **13 existing Protocol tests** passed together on
   final product/test code, with desktop/mobile widths, keyboard/tap, unknown legacy
   positive gaps, partial lower bounds, cached expiry, recovery and true zero.

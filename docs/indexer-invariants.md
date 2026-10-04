@@ -263,6 +263,7 @@ When adding a new query parameter that influences SQL or ordering:
 | Q1380-8 | Background reserve jobs, deadlines, book walks and cadence are bounded; failures retain prior reserve/book amounts and timestamp. Solver TTL is unchanged. Diagnostics expose cycle duration, latency/failure, reserve age and bounded valuation reason counts. |
 | Q1380-9 | Overview GET remains materialized O(1); history GET reads allowlisted bounded grain tables, no LCD/event/snapshot scan. Protocol reveals quality and as-of with keyboard/tap access. Volume/Fees behavior and UTC retention remain. |
 
+Implementation: [PR #1382](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1382).
 Implementation/reviewer checklist: [issue-1380 QA](qa/issue-1380/README.md).
 Third-party agent contract: [playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 Verification: `make verify-issue-1380` plus `569`, `689`, `655`, `664`, `1263`.
