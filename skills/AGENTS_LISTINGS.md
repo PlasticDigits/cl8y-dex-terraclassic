@@ -41,6 +41,10 @@ This is the **parent catalog**. It does **not** add indexer APIs.
 6. **Trust Wallet is paid.** Skip unless product asks.
 7. **This repo does not merge GitHub listing PRs.** Keplr PR #132 is already merged; its upstream metadata is authoritative, so do not re-export the pre-merge local snapshot. The CoinGecko token platform request is #644 and needs a human account/CAPTCHA submit.
 
+## Terra Classic community directory
+
+[terra-classic.io #1261](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1261) is a separate DEX directory child: one CL8Y DEX object plus repository logo in `terra-classic-io/website`. Pack: [`terra-classic-io/`](../docs/listings/terra-classic-io/README.md). Playbook: [`AGENTS_TERRA_CLASSIC_IO.md`](./AGENTS_TERRA_CLASSIC_IO.md). Verify: `make verify-issue-1261`. Submit through GitHub outside CI (L639-7); record the upstream PR without reopening #639.
+
 ## Verification
 
 ```bash

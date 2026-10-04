@@ -222,6 +222,19 @@
       "agentic": true,
       "priority": 8,
       "notes": "FAQ request form. Exchange is email-only."
+    },
+    {
+      "id": "terra-classic-io",
+      "kind": "dex",
+      "channel": "pr",
+      "agentic": true,
+      "priority": 11,
+      "upstream": "https://github.com/terra-classic-io/website",
+      "path": "src/data/projects.ts",
+      "pack": "docs/listings/terra-classic-io/",
+      "upstream_pr": "https://github.com/terra-classic-io/website/pull/55",
+      "status": "submitted",
+      "notes": "CL8Y DEX dApp only. Markets - DEX plus applications; onchain. Copy logo to public/logos/dex/cl8y.png. Submit through GitHub outside CI (#1261)."
     }
   ],
   "skip": [
@@ -316,6 +329,14 @@
       "venue": "trust-wallet",
       "issue": 649,
       "title": "Trust Wallet paid PR"
+    },
+    {
+      "order": 11,
+      "venue": "terra-classic-io",
+      "issue": 1261,
+      "title": "terra-classic.io CL8Y DEX directory PR",
+      "upstream_pr": "https://github.com/terra-classic-io/website/pull/55",
+      "status": "submitted"
     }
   ]
 }

@@ -262,6 +262,10 @@ Reuse the Keplr permanent-six pins (CL8Y 18, USTR 18, others 6). UST1 is an **un
 
 Invariants **L639-1–L639-8**: [`listings/README.md`](./listings/README.md). Pins: [`listings/catalog.json`](./listings/catalog.json). Form drafts: [`listings/forms/`](./listings/forms/). Agent playbook: [`skills/AGENTS_LISTINGS.md`](../skills/AGENTS_LISTINGS.md). Verify: `make verify-issue-639`.
 
+## terra-classic.io CL8Y DEX directory (#1261) {#terra-classic-io-1261}
+
+The [#1261](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1261) pack adds one CL8Y DEX project to Markets - DEX and Applications in `terra-classic-io/website`. DApp URL `https://dex.cl8y.com`, onchain indicator, and local repository logo. [Pack and submission instructions](./listings/terra-classic-io/README.md), [playbook](../skills/AGENTS_TERRA_CLASSIC_IO.md), `make verify-issue-1261`. Operator/agent submits the upstream GitHub PR outside CI; maintainers merge and deploy.
+
 ## Cosmostation / Mintscan CW20s (GitLab #640) {#cosmostation-cw20-gitlab-640}
 
 Cosmostation and Mintscan read [cosmostation/chainlist](https://github.com/cosmostation/chainlist) **`chain/terra/cw20_2.json`** (Classic — not phoenix). This repo vendors a six-row fragment + PNGs to append. Same permanent-six pins as Keplr. `coinGeckoId` is `ceramicliberty-com` on CL8Y only; others are `""`. UST1 is an **unstablecoin**; USTR is **USTC Repeg**, not a stablecoin. **Upstream is archived** (2026-07); Cosmostation Wallet apps end **2026-09-01**. Treat #640 as pack-ready / blocked — do not open a GitHub PR.
