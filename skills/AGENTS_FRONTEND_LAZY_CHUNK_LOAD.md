@@ -16,6 +16,7 @@ Use when a **long-lived tab** hits **Page unavailable** after a frontend roll, w
 | [`ErrorBoundary.tsx`](../frontend-dapp/src/components/common/ErrorBoundary.tsx) | Updating… then one-shot reload; guarded **Reload app** + **Try Again** |
 | [`RouteContentReadyMarker.tsx`](../frontend-dapp/src/components/common/RouteContentReadyMarker.tsx) | Clears the sessionStorage guard on successful lazy mount |
 | [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf) | HTML `no-cache, must-revalidate`; hashed 200 `immutable`; 404 JS `no-store` |
+| [AGENTS_FRONTEND_CRAWL_FILES.md](./AGENTS_FRONTEND_CRAWL_FILES.md) | #1212 crawler file/sibling 404 and HTML noindex must preserve **L706-7** |
 | [docs/runbooks/rollback-decision.md](../docs/runbooks/rollback-decision.md) | Stale `index.html` / CDN cache-key |
 
 ## Invariants (L706-1–L706-8)
@@ -73,6 +74,7 @@ make verify-issue-706
 VERIFY706_SKIP_E2E=1 make verify-issue-706
 VERIFY706_REQUIRE_LIVE=1 make verify-issue-706
 VERIFY706_REQUIRE_NGINX=1 make verify-issue-706
+PLAYWRIGHT_WEB_PORT=5189 PLAYWRIGHT_HTML_OPEN=never make verify-issue-706
 ```
 
 No LocalTerra, indexer schema, or wallet work for the default gate. Optional Playwright is `e2e/stale-chunk-reload-706.spec.ts` at **5 workers** (`e2e-smoke`). Optional docker nginx header smoke needs Docker. Live `curl -sI https://dex.cl8y.com/` SKIP unless reachable (FAIL when `VERIFY706_REQUIRE_LIVE=1`).
@@ -85,3 +87,5 @@ No LocalTerra, indexer schema, or wallet work for the default gate. Optional Pla
 - User-facing errors: [`AGENTS_FRONTEND_USER_ERRORS.md`](./AGENTS_FRONTEND_USER_ERRORS.md)
 - Production CSP / no SW: [`AGENTS_FRONTEND_TRUST_BOUNDARIES.md`](./AGENTS_FRONTEND_TRUST_BOUNDARIES.md)
 - Rollback / stale HTML: [`AGENTS_ROLLBACK_DECISION.md`](./AGENTS_ROLLBACK_DECISION.md)
+
+For parallel worktrees, choose an unused `PLAYWRIGHT_WEB_PORT` so Playwright starts a dedicated Vite server instead of reusing another service on port 3000. `PLAYWRIGHT_HTML_OPEN=never` keeps failed runs from opening a report server.

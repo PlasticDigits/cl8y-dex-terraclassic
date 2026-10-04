@@ -594,20 +594,24 @@ Production bake lives in [`viteOg.ts`](../frontend-dapp/viteOg.ts) (`og-absolute
 
 - **CW20 allowances:** before `ProvideLiquidity`, the dApp must ensure both CW20 tokens have sufficient allowance for the Pair contract.
 
-### Crawl endpoints (GitLab #1212) {#crawl-endpoints}
+### Crawl endpoints (Forgejo #1212) {#crawl-endpoints}
 
-`/robots.txt` and `/sitemap.xml` are static crawler endpoints, not SPA routes. They must be shipped as real files from [`frontend-dapp/public/`](../frontend-dapp/public/) and handled by exact nginx locations in [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf). Each location must serve the file with its crawler media type (`text/plain` for robots and `application/xml` or `+xml` for the sitemap) and return **404** when the file is absent; neither endpoint may fall through to the shared [`index.html`](../frontend-dapp/index.html) shell.
+[`robots.txt`](../frontend-dapp/public/robots.txt) and [`sitemap.xml`](../frontend-dapp/public/sitemap.xml) are real static files copied by Vite to the dist root. Exact locations in [`docker/frontend/nginx.conf`](../docker/frontend/nginx.conf) serve them as `text/plain` and `application/xml`, respectively, using `try_files $uri =404`. A deploy that omits either file returns **404** instead of a misleading SPA HTML 200.
+
+The DEX sitemap is an empty, namespaced XML `urlset`. The transaction UI has no intentionally indexable content pages. Robots permits crawling (`User-agent: *`, `Disallow:` (empty)) and points only to `https://dex.cl8y.com/sitemap.xml`; HTML responses carry `X-Robots-Tag: noindex, nofollow`. Allowing fetches lets compliant crawlers observe that header. This policy applies to the DEX origin and imposes no policy on a future content host.
 
 | Invariant | Meaning |
 |-----------|---------|
-| **CRAWL-1** Real files | `robots.txt` contains robots syntax and `sitemap.xml` contains an XML `urlset`; a 200 status with SPA HTML is a failure. |
-| **CRAWL-2** Exact 404 | Exact nginx locations use a file-only lookup (`try_files $uri =404`) so a missing deploy artifact cannot be disguised as the SPA shell. |
-| **CRAWL-3** Bounded sitemap | Sitemap URLs use only the DEX origin and intentionally crawlable paths. Omit wallet, manage, mint, trader-address, and unbounded pair routes. Do not add unverified product claims or foreign URLs. |
-| **CRAWL-4** Not access control | `robots.txt` is crawler guidance, never a security boundary. Do not use this change to block a future content host or to add route-specific titles/canonicals to the one-shell SPA (**OG-5**). |
-| **CRAWL-5** Preserve asset behavior | Keep `/og-image.png` as a real image (`#578`) and missing hashed JS/CSS as 404 (`#706`); crawler locations must not widen the SPA fallback or alter these rules. |
-| **CRAWL-6** Verify deployed bytes | Check HTTP status, `Content-Type`, and body shape after Coolify deploy. The required local `make verify-issue-1212` gate must also cover missing-file 404 behavior before this issue can close. |
+| **CRAWL-1** Real files | Robots has `User-agent` syntax; sitemap parses as a sitemap-namespace XML `urlset`. Check status, media type, and body together; HTML with a crawler media type still fails. |
+| **CRAWL-2** Exact 404 | Exact nginx file-only locations reject missing files with 404. Sibling variants such as `/robots.txt/`, `/robots.txt.bak`, `/sitemap.xml/`, and `/sitemap_index.xml` must not fall through to SPA HTML 200. |
+| **CRAWL-3** Empty sitemap | Keep the DEX `urlset` empty until an intentionally crawlable DEX content surface exists. Wallet, manage, mint, trader-address, and unbounded pair routes are omitted. Any future entries must use `https://dex.cl8y.com` only and require an explicit policy review. |
+| **CRAWL-4** Crawler policy | HTML carries `X-Robots-Tag: noindex, nofollow`; browsers still receive the app. Robots is guidance, never access control. Keep the one-shell OG/title behavior (**OG-5**) and leave future content hosts independent. |
+| **CRAWL-5** Preserve assets | `/og-image.png` remains a real PNG (#578). Existing JS/CSS stay immutable; missing hashed assets remain 404 with `no-store` (#706). HTML remains `no-cache, must-revalidate`. |
+| **CRAWL-6** Separate local/live evidence | [`make verify-issue-1212`](../scripts/qa/verify-issue-1212.sh) checks the files, nginx HTTP behavior, and missing-file regression. A post-Coolify production check remains distinct from local success; report unavailable checks as SKIP with a reason. |
 
-**Current verification:** on 2026-09-24, production returned `200 text/html` with the same shell ETag for both endpoints. The implementation and local verifier are not present yet, so [#1212](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/1212) remains open. Keep [#578](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/578) and [#706](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/706) intact as the neighboring image and hashed-asset protections. The third-party agent checklist is [`skills/AGENTS_FRONTEND_OPENGRAPH.md`](../skills/AGENTS_FRONTEND_OPENGRAPH.md#crawl-endpoints).
+The issue's September 2026 production baseline returned `200 text/html` for both crawler endpoints. The fix and verifier are now present; local success does not establish that Coolify serves the new image. Run `make verify-issue-1212`, `make verify-issue-578`, and `make verify-issue-706`, then follow the [issue #1212 QA checklist](./qa/issue-1212/README.md) for production checks and result reporting.
+
+**Third-party / agent context:** [`skills/AGENTS_FRONTEND_CRAWL_FILES.md`](../skills/AGENTS_FRONTEND_CRAWL_FILES.md); neighboring [Open Graph playbook](../skills/AGENTS_FRONTEND_OPENGRAPH.md#crawl-endpoints).
 
 ### LCD / RPC connectivity (W11-C2) {#lcd-rpc-connectivity}
 
