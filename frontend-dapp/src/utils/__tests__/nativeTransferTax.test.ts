@@ -49,4 +49,23 @@ describe('nativeTransferTax (Classic burn tax / #512)', () => {
     expect(formatBurnTaxPercentLabel('0.01')).toBe('1%')
     expect(formatBurnTaxPercentLabel('0')).toBeNull()
   })
+
+  it.each(['0', '0.015', '0.5', '0.9999'])('inverts taxed receipt exactly with cap and dust at rate %s', (rate) => {
+    for (const capUluna of [0n, 1n, 100n, 1_000_000_000_000_000n]) {
+      const params = { rate, capUluna }
+      for (const target of [1n, 50n, 10000n, 10n ** 40n]) {
+        const gross = grossUlunaForTargetNet(target, params)
+        expect(netUlunaAfterTransferTax(gross, params)).toBe(target)
+        expect(netUlunaAfterTransferTax(gross - 1n, params)).toBeLessThan(target)
+      }
+    }
+  })
+
+  it.each(['1', '1.01', '-0.01', 'NaN', '', 'junk'])('rejects invalid or impossible reverse tax rate %s', (rate) => {
+    expect(() => grossUlunaForTargetNet(1n, { rate, capUluna: 100n })).toThrow('Invalid native transfer tax')
+  })
+
+  it('rejects a negative reverse tax cap', () => {
+    expect(() => grossUlunaForTargetNet(1n, { rate: '0.015', capUluna: -1n })).toThrow('Invalid native transfer tax')
+  })
 })

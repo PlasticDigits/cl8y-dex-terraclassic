@@ -19,7 +19,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 | **Q713-1** | Picker / flip / amount → canonical `/?from=&to=` via `setSearchParams({ replace: true })`. Amount debounce = `SIM_QUOTE_DEBOUNCE_MS` (350). No history spam. |
 | **Q713-2** | Uniswap aliases still apply, then rewrite to `from`/`to` (aliases leave the bar). |
 | **Q713-3** | Write follows live state. Apply does not snap the user back to the inbound query. |
-| **Q713-4** | `exactField=output` on a **direct factory pair**: You Receive is independent; You Pay is `reverseSimulateSwap` offer; execute is still offer-in + min received. Multihop / wrap-mapper: ignore output field (pay-sided, silent **#489**). No indexer exact-out. |
+| **Q713-4** | You Receive is an `<input>`; `exactField=output` reverses direct factory CW20 (`reverseSimulateSwap`), direct wrap/unwrap (shared fee/tax math), and client operation routes (router reverse), including native ([#1256](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1256)). Execute stays offer-in + min received. Indexer-only without operations silently ignores output as a reverse source (**#489**); no indexer exact-out. |
 | **Q713-5** | Swap header **Share** next to Settings (`data-testid="swap-share-link"`). Visible **Share {pay logo} → {receive logo}** ([#715](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/715)). No new `shell-panel*` / `card-glass` (**C653**). Coarse+narrow: Web Share; else `copyToClipboard` (**Link copied**). `AbortError` silent. Never `window.location.href`. |
 | **Q713-6** | `/create?a=&b=` prefills catalog or checksum custom. Hostile / native ignored per side. No auto-submit. No runtime HTTP catalog. |
 | **Q713-7** | `/trade?from=&to=` `replace`s to `/trade/{uniquePair}`. Zero or multiple matches → ignore. Path stays canonical. Ticket not auto-placed. |
@@ -52,6 +52,7 @@ Land as a **new MR on top of !481**. Do not expand !481 after review has started
 
 ```bash
 make verify-issue-713
+make verify-issue-1256
 make verify-issue-711
 make verify-issue-715
 make verify-issue-542
@@ -61,6 +62,8 @@ python3 scripts/check_chrome_nesting.py
 ```
 
 ## Related
+
+- [`AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md`](./AGENTS_FRONTEND_SWAP_REVERSE_QUOTES.md) — #1256 native/client receive sizing, **R1256-1–R1256-6**, wrap tax, and review checklist
 
 - [`AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md`](./AGENTS_FRONTEND_SWAP_QUERY_PARAMS.md) — inbound parse (**Q711**)
 - [`AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md`](./AGENTS_FRONTEND_SWAP_TOKENLIST_SYMBOLS.md) — unique tickers + symbol encode + Share logos (#715)

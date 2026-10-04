@@ -215,6 +215,19 @@ export function netAfterWrapMapperFee(amount: bigint, feeBps: number): bigint {
 }
 
 /**
+ * Minimum gross that mints/redeems the target after mapper fee (W8/W9, #1256).
+ * The skim rounds down: net = ceil(gross × (10000 − bps) / 10000).
+ * Keep this shared with invoice payment so native deposits cannot under-fund Send.
+ */
+export function wrapGrossForNetCw20(targetNet: bigint, feeBps: number): bigint {
+  if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps >= 10_000) {
+    throw new Error('Invalid wrap mapper fee for reverse quote')
+  }
+  if (targetNet <= 0n) return 0n
+  return ((targetNet - 1n) * 10_000n) / (10_000n - BigInt(feeBps)) + 1n
+}
+
+/**
  * Minimum pre-fee amount such that `netAfterWrapMapperFee(amount, feeBps) >= targetNet`.
  * Used when inverting pool provide auto-fill from pool-ratio net → user gross (#507).
  */

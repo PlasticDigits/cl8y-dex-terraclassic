@@ -110,24 +110,17 @@ export async function netUlunaAfterTransferTaxAsync(grossUluna: bigint, denom = 
  * (e.g. future unwrap gross-up; pool paths that still model taxed native legs).
  */
 export function grossUlunaForTargetNet(targetNet: bigint, params: NativeTransferTaxParams): bigint {
+  const rate = params.rate.trim()
+  const { num, den } = parseTaxRateToScaled(rate)
+  if (!/^\d+(?:\.\d+)?$/.test(rate) || num >= den || params.capUluna < 0n) {
+    throw new Error('Invalid native transfer tax for reverse quote')
+  }
   if (targetNet <= 0n) return 0n
-
-  let lo = targetNet
-  let hi = targetNet + 1n
-  while (netUlunaAfterTransferTax(hi, params) < targetNet) {
-    lo = hi
-    hi *= 2n
-  }
-
-  while (lo < hi) {
-    const mid = (lo + hi) / 2n
-    if (netUlunaAfterTransferTax(mid, params) >= targetNet) {
-      hi = mid
-    } else {
-      lo = mid + 1n
-    }
-  }
-  return lo
+  // Net is the larger of uncapped-tax net and gross − cap. Invert both,
+  // then choose the first gross that satisfies either branch (W9 / #1256).
+  const uncappedGross = ((targetNet - 1n) * den) / (den - num) + 1n
+  const cappedGross = targetNet + params.capUluna
+  return uncappedGross < cappedGross ? uncappedGross : cappedGross
 }
 
 /** Format burn tax rate for short UI fee notes (e.g. `1.5%`). */

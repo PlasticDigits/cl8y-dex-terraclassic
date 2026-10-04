@@ -9,7 +9,11 @@ import {
 } from '@/utils/constants'
 import type { AssetInfo, HybridSwapParams, PairInfo } from '@/types'
 import { tokenAssetInfo, assetInfoLabel, isNativeDenom, getWrappedEquivalent } from '@/types'
-import { netUlunaAfterTransferTaxAsync } from '@/utils/nativeTransferTax'
+import {
+  fetchNativeTransferTaxParams,
+  grossUlunaForTargetNet,
+  netUlunaAfterTransferTaxAsync,
+} from '@/utils/nativeTransferTax'
 import {
   isGemTokenId,
   isTestPair,
@@ -17,7 +21,7 @@ import {
   pairInfoLegSymbols,
   retailExposeTestTokens,
 } from '@/utils/pairCatalogRank'
-import { netAfterWrapMapperFee, queryWrapMapperFeeBps } from './wrapMapper'
+import { netAfterWrapMapperFee, queryWrapMapperFeeBps, wrapGrossForNetCw20 } from './wrapMapper'
 import { assertHop0DeclaredHybridPartitionsOffer } from '@/utils/hybridHopOfferPartition'
 import { poolOnlyNativeExecuteOps } from '@/utils/nativeWrapRouteSolve'
 
@@ -89,13 +93,17 @@ export async function simulateMultiHopSwap(
 
 export async function reverseSimulateMultiHopSwap(
   askAmount: string,
-  operations: SwapOperation[]
+  operations: SwapOperation[],
+  quoteTrader?: QuoteTraderOptions
 ): Promise<SimulateResponse> {
+  const msg: Record<string, unknown> = {
+    ask_amount: askAmount,
+    operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
+  }
+  if (quoteTrader?.trader) msg.trader = quoteTrader.trader
+  if (quoteTrader?.sender) msg.sender = quoteTrader.sender
   return queryContract<SimulateResponse>(ROUTER_CONTRACT_ADDRESS, {
-    reverse_simulate_swap_operations: {
-      ask_amount: askAmount,
-      operations: operations.map((op) => ({ terra_swap: serializeTerraSwap(op.terra_swap) })),
-    },
+    reverse_simulate_swap_operations: msg,
   })
 }
 
@@ -274,6 +282,53 @@ export async function netNativeAfterUnwrap(
   return { receive, routerMinReceiveBase: afterFee }
 }
 
+/** Invert W9: wallet net → pre-tax native payout → pre-mapper-fee CW20. */
+async function wrappedForNativeReceive(target: bigint, nativeDenom: string): Promise<bigint> {
+  const params = await fetchNativeTransferTaxParams(nativeDenom)
+  const preTax = grossUlunaForTargetNet(target, params)
+  return wrapGrossForNetCw20(preTax, await queryWrapMapperFeeBps('unwrap'))
+}
+
+/**
+ * Size the offer for a typed wallet receive (#1256). This is quote direction only:
+ * execution still sends the offer through the existing forward quote/minimum path.
+ * Native output ask includes InstantWithdraw tax; native input is gross deposit
+ * with mapper fee only (W8/W9). Direct wrap/unwrap never calls a router or pair.
+ */
+export async function reverseSimulateNativeSwap(
+  askAmount: string,
+  fromToken: string,
+  toToken: string,
+  pairs: PairInfo[],
+  quoteTrader?: QuoteTraderOptions
+): Promise<{ amount: string; isDirectWrapUnwrap: boolean }> {
+  if (!/^\d+$/.test(askAmount) || BigInt(askAmount) <= 0n) {
+    throw new Error('Invalid receive amount for reverse quote')
+  }
+  const target = BigInt(askAmount)
+  const direct = isDirectWrapUnwrap(fromToken, toToken)
+  if (direct === 'wrap') {
+    const gross = wrapGrossForNetCw20(target, await queryWrapMapperFeeBps('wrap'))
+    return { amount: gross.toString(), isDirectWrapUnwrap: true }
+  }
+  if (direct === 'unwrap') {
+    const gross = await wrappedForNativeReceive(target, toToken)
+    return { amount: gross.toString(), isDirectWrapUnwrap: true }
+  }
+
+  const route = findRouteWithNativeSupport(pairs, fromToken, toToken)
+  if (!route?.operations.length) throw new Error('No route found')
+  const routerAsk = route.needsUnwrapOutput ? await wrappedForNativeReceive(target, toToken) : target
+  const reverse = await reverseSimulateMultiHopSwap(routerAsk.toString(), route.operations, quoteTrader)
+  if (!/^\d+$/.test(reverse.amount) || BigInt(reverse.amount) <= 0n) {
+    throw new Error('Invalid reverse swap offer')
+  }
+  const offer = route.needsWrapInput
+    ? wrapGrossForNetCw20(BigInt(reverse.amount), await queryWrapMapperFeeBps('wrap'))
+    : BigInt(reverse.amount)
+  return { amount: offer.toString(), isDirectWrapUnwrap: false }
+}
+
 /**
  * Simulate a swap that may involve native tokens by substituting with wrapped equivalents.
  * Direct wrap/unwrap and unwrap_output paths apply on-chain wrap / unwrap mapper fees (#507 / #516)
@@ -283,7 +338,8 @@ export async function simulateNativeSwap(
   offerAmount: string,
   fromToken: string,
   toToken: string,
-  pairs: PairInfo[]
+  pairs: PairInfo[],
+  quoteTrader?: QuoteTraderOptions
 ): Promise<NativeSwapSimResult> {
   const direct = isDirectWrapUnwrap(fromToken, toToken)
   if (direct === 'wrap') {
@@ -310,7 +366,7 @@ export async function simulateNativeSwap(
     simOffer = (await netCw20AfterNativeWrap(BigInt(offerAmount), fromToken)).toString()
   }
 
-  const result = await simulateMultiHopSwap(simOffer, routeInfo.operations)
+  const result = await simulateMultiHopSwap(simOffer, routeInfo.operations, quoteTrader)
   if (routeInfo.needsUnwrapOutput) {
     const { receive, routerMinReceiveBase } = await netNativeAfterUnwrap(BigInt(result.amount), toToken)
     return {

@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 import { getLocalTerraTestMnemonic } from './e2e/localterra-mnemonic'
 import { COMMUNITY_TAX_E2E_VITE_ENV } from './e2e/helpers/community-tax-env'
 import { UST1_E2E_VITE_ENV } from './e2e/helpers/ust1-window-lcd-mock'
+import { SWAP_RECEIVE_1256_VITE_ENV } from './e2e/helpers/swap-receive-env'
 
 const devMnemonic = getLocalTerraTestMnemonic()
 
@@ -70,6 +71,8 @@ export default defineConfig({
       ...UST1_E2E_VITE_ENV,
       /** Bake Create Token env so `/token/create` is not the unavailable stub (#602). */
       ...COMMUNITY_TAX_E2E_VITE_ENV,
+      /** Isolated mocked native receive tests; opt in so other suites keep their chain pins. */
+      ...(process.env.E2E_SWAP_RECEIVE_1256 === '1' ? SWAP_RECEIVE_1256_VITE_ENV : {}),
     },
   },
   projects: [
