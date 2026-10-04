@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gasLimitForHybridSwapPublic, getGasLimitForExecuteMsg } from './gas'
+import { gasLimitForHybridSwapPublic, getGasLimitForExecuteMsg } from './gas.js'
 
 describe('getGasLimitForExecuteMsg hybrid parity (GitLab #260, #262)', () => {
   it('shallow book (2 makers) matches dApp scan/park envelope', () => {
