@@ -57,7 +57,7 @@ Only the following scope remains unverified/deferred:
 Optional operator command (artifact already prepared and dry-run checked):
 
 ```bash
-bash /home/answorld/repos/cl8y-dex-verify-1376/scripts/qa/complete-issue-1376.sh --migrate
+bash scripts/qa/complete-issue-1376.sh --migrate
 ```
 
 The [wrapper](../../../scripts/qa/complete-issue-1376.sh) pins SHA-256
@@ -66,6 +66,12 @@ selects 1.19.0 explicitly and delegates custody to the existing 2-of-3 script.
 `--check` is read-only and currently fails, correctly; `--dry-run` never signs.
 Agents own all preparation and follow-up. Closure does not request this command
 or make it a new obligation.
+
+Merge compatibility on 2026-10-04: the wrapper's whole-contract-tree guard now
+pins `ef873dcc5a1680b059d839b3578801211d8091f2`, the tested #1381 contract tree,
+while retaining the identical pair checksum above. The preceding `3f93106` pin
+would reject the later router/token changes before reaching a dry-run. Production
+pair rollout and acceptance are tracked in [#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386).
 
 ## Invariants and system links
 

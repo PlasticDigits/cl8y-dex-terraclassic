@@ -15,7 +15,9 @@ export UPGRADE1324_PAIR_WASM="$PWD/smartcontracts/artifacts/cl8y_dex_pair.wasm"
 if [[ "$mode" != --check ]]; then
   # Never substitute a newly built/different artifact into a reviewed release.
   printf '%s  %s\n' 4ad54cd3b9a5ff3d28b80bfec21800b39fee97ca9295bb524353db7590005bba "$UPGRADE1324_PAIR_WASM" | sha256sum --check --status
-  git diff --quiet 3f9310652ac83818749f5d32c4e32057b08817bc -- smartcontracts
+  # The #1381 contract tree passed the combined merge checks and retains the
+  # identical reviewed pair artifact. Keep the whole-tree source guard pinned.
+  git diff --quiet ef873dcc5a1680b059d839b3578801211d8091f2 -- smartcontracts
   if [[ "$mode" == --dry-run ]]; then
     DRY_RUN=1 bash scripts/upgrade-1324-pair-twap.sh
     exit 0
