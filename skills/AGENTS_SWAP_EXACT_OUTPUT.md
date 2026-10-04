@@ -1,5 +1,6 @@
 # Agent playbook: bounded receive sizing (#1376)
 
+Implementation: [PR #1378](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1378).
 Apply when changing receive intent, solver sizing, reverse arithmetic, or quote failure handling.
 
 Issue: [#1376](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1376).

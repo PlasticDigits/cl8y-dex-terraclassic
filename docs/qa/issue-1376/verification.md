@@ -1,5 +1,6 @@
 # Implementation verification — #1376
 
+Implementation: [PR #1378](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1378).
 Reviewed branch: `fix/issue-1376-receive-solver`, based on main `918461ca`.
 Issue and comments were read with `bao-exec` + `fj`; no comments were present.
 See [agent checklist](README.md), [E1376 invariants](../../frontend.md#solver-receive-sizing), and [AGENTS_SWAP_EXACT_OUTPUT.md](../../../skills/AGENTS_SWAP_EXACT_OUTPUT.md).

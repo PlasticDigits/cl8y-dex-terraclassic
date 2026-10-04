@@ -1,5 +1,6 @@
 # Receive sizing and reverse budget repair (#1376)
 
+Implementation: [PR #1378](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1378).
 Issue: [#1376](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1376).
 Invariants: [E1376-1–E1376-8](../../frontend.md#solver-receive-sizing).
 API/search scope: [exact-output sizing](../../route-solver.md#exact-output-sizing).
