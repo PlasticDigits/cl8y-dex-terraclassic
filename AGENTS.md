@@ -19,6 +19,10 @@ operator actions. Script verification does not establish production deployment.
 
 Guidance for AI coding agents working in this repository.
 
+For Bridge-Debt markets, use [skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md](skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md)
+(**BD1393-1–BD1393-10**, [#1393](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1393)).
+Run `make verify-issue-1393`; [agent checklist and explicit skip policy](docs/qa/issue-1393/README.md).
+
 ## Git commits
 
 ### Commit identity (who signs the commit)

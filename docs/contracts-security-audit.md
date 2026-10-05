@@ -1,5 +1,17 @@
 # CL8Y DEX — Contracts Security Audit (Repository)
 
+## Bridge-Debt market pins (#1393)
+
+[BD1393-1–BD1393-10](../skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md) specify independent
+receipt/underlying code pins, exact minter/cap snapshots, paired supply/accounting
+checks, finite issuance quotas, coordinated upgrade acceptance, explicit legacy
+migration identities and recipient-accepted owner transfer. Defaults affect future
+registration only. Issue starts disabled; pause and pending upgrades block Issue
+without blocking consistent Repay/Recover. Governance/code approval and wasm-admin
+migration remain trusted powers; `$1` valuation is display-only. See the
+[runbook](./runbooks/deploy-usdt-ust1-lp.md) and
+[verification/skip procedure](./qa/issue-1393/README.md); `make verify-issue-1393`.
+
 ## Route-local tax funding (#1381)
 
 Funding version **1** follows [RT1381-1–RT1381-10](../skills/AGENTS_ROUTE_LOCAL_TAX.md)

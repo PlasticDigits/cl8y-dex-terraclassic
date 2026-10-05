@@ -1443,6 +1443,10 @@ verify-issue-1376:
 verify-issue-1381:
 	bash scripts/qa/verify-issue-1381.sh
 
+.PHONY: verify-issue-1393
+verify-issue-1393:
+	bash scripts/qa/verify-issue-1393.sh
+
 # Production rollout automation: behavioral tests and retest, no signing keys.
 .PHONY: verify-route-tax-rollout
 verify-route-tax-rollout:

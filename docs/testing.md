@@ -1,5 +1,12 @@
 # Testing
 
+Bridge-Debt [#1393](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1393):
+`make verify-issue-1393` runs focused tests and optimized standalone LocalTerra
+fixtures twice, plus full contracts, touched-crate static checks and deployment
+script regressions. [Build instructions, criteria and explicit skip policy](qa/issue-1393/README.md),
+[BD1393 invariants](../skills/AGENTS_BRIDGE_DEBT_MARKET_PINS.md),
+[operator messages](runbooks/deploy-usdt-ust1-lp.md).
+
 Route-local tax funding [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381):
 `make verify-issue-1381` runs protocol/accounting, trading discovery/API and
 frontend gross-budget checks twice, then static checks and isolated LocalTerra

@@ -21,7 +21,13 @@ use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MarketResponse, MarketsResponse,
     MigrateMsg, QueryMsg,
 };
-use crate::state::{Config, Market, CONFIG, CONTRACT_NAME, CONTRACT_VERSION, DEBT_TOKENS, MARKETS};
+use crate::state::{
+    Config, IssuanceLimits, Market, MarketPins, UnderlyingPolicy, UpgradePins, CONFIG,
+    CONTRACT_NAME, CONTRACT_VERSION, DEBT_TOKENS, MARKETS, UNDERLYING_CODES,
+};
+#[path = "security.rs"]
+mod security;
+use security::*;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -39,6 +45,7 @@ pub fn instantiate(
         &Config {
             owner,
             debt_code_id: None,
+            pending_owner: None,
         },
     )?;
 
@@ -56,6 +63,33 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     reject_funds(&info)?;
     match msg {
+        ExecuteMsg::ApproveUnderlyingCode {
+            code_id,
+            multi_minter,
+        } => approve_underlying(deps, info, code_id, multi_minter),
+        ExecuteMsg::ConfigureMarket {
+            underlying,
+            limits,
+            paused,
+        } => configure_market(deps, env, info, underlying, limits, paused),
+        ExecuteMsg::ProposeMarketUpgrade {
+            underlying,
+            debt_code_id,
+            underlying_code_id,
+        } => propose_upgrade(
+            deps,
+            env,
+            info,
+            underlying,
+            debt_code_id,
+            underlying_code_id,
+        ),
+        ExecuteMsg::AcceptMarketUpgrade { underlying } => {
+            accept_upgrade(deps, env, info, underlying)
+        }
+        ExecuteMsg::CancelMarketUpgrade { underlying } => cancel_upgrade(deps, info, underlying),
+        ExecuteMsg::AcceptOwner {} => accept_owner(deps, info),
+        ExecuteMsg::CancelOwnerTransfer {} => cancel_owner(deps, info),
         ExecuteMsg::SetDebtCodeId { code_id } => execute_set_debt_code_id(deps, info, code_id),
         ExecuteMsg::RegisterMarket {
             underlying,
@@ -71,7 +105,7 @@ pub fn execute(
             underlying,
             recipient,
             amount,
-        } => execute_recover(deps, info, underlying, recipient, amount),
+        } => execute_recover(deps, env, info, underlying, recipient, amount),
         ExecuteMsg::UpdateOwner { owner } => execute_update_owner(deps, info, owner),
     }
 }
@@ -118,7 +152,20 @@ fn execute_register_market(
         return Err(ContractError::DebtTokenInUse {});
     }
 
-    let debt = inspect_debt_token(deps.as_ref(), &env, &debt_token)?;
+    let debt_code_id = config.debt_code_id.ok_or(ContractError::DebtCodeUnset {})?;
+    let debt = inspect_debt_token(deps.as_ref(), &env, &debt_token, debt_code_id)?;
+    let underlying_code_id = contract_code(deps.as_ref(), &underlying)?;
+    let policy = UNDERLYING_CODES
+        .may_load(deps.storage, underlying_code_id)?
+        .ok_or(ContractError::UnapprovedImplementation {})?;
+    let pins = inspect_underlying(
+        deps.as_ref(),
+        &env,
+        &underlying,
+        debt_code_id,
+        underlying_code_id,
+        policy.multi_minter,
+    )?;
     let decimals = underlying_decimals(deps.as_ref(), &underlying)?;
     if debt.decimals != decimals {
         return Err(ContractError::DecimalsMismatch {});
@@ -136,6 +183,12 @@ fn execute_register_market(
         debtor: debt.debtor,
         decimals,
         outstanding: Uint128::zero(),
+        pins: Some(pins),
+        limits: None,
+        paused: false,
+        epoch: 0,
+        epoch_issued: Uint128::zero(),
+        pending_upgrade: None,
     };
     MARKETS.save(deps.storage, &underlying, &market)?;
     DEBT_TOKENS.save(deps.storage, &debt_token, &cosmwasm_std::Empty {})?;
@@ -167,6 +220,7 @@ fn execute_issue(
     let mut market = load_market(deps.as_ref(), &underlying)?;
     assert_market_consistent(deps.as_ref(), &env, &market)?;
 
+    consume_limit(&mut market, &env, amount)?;
     market.outstanding = market
         .outstanding
         .checked_add(amount)
@@ -220,6 +274,12 @@ fn execute_receive(
     }
 
     market.outstanding -= msg.amount;
+    if let Some(pending) = &mut market.pending_upgrade {
+        pending.underlying_supply = pending
+            .underlying_supply
+            .checked_sub(msg.amount)
+            .map_err(|_| ContractError::DebtSupplyDiverged {})?;
+    }
     MARKETS.save(deps.storage, &info.sender, &market)?;
 
     let burn_underlying = WasmMsg::Execute {
@@ -249,6 +309,7 @@ fn execute_receive(
 
 fn execute_recover(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     underlying: String,
     recipient: String,
@@ -262,6 +323,7 @@ fn execute_recover(
     let underlying = deps.api.addr_validate(&underlying)?;
     let recipient = deps.api.addr_validate(&recipient)?;
     let market = load_market(deps.as_ref(), &underlying)?;
+    assert_market_consistent(deps.as_ref(), &env, &market)?;
 
     let transfer = WasmMsg::Execute {
         contract_addr: market.underlying.to_string(),
@@ -288,10 +350,10 @@ fn execute_update_owner(
     let mut config = load_config(deps.as_ref())?;
     must_owner(&config, &info)?;
     let owner = deps.api.addr_validate(&owner)?;
-    config.owner = owner.clone();
+    config.pending_owner = Some(owner.clone());
     CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
-        .add_attribute("action", "update_owner")
+        .add_attribute("action", "propose_owner")
         .add_attribute("owner", owner))
 }
 
@@ -310,6 +372,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
     Ok(ConfigResponse {
         owner: config.owner,
+        pending_owner: config.pending_owner,
         debt_code_id: config.debt_code_id,
     })
 }
@@ -346,9 +409,8 @@ fn query_markets(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    Ok(Response::new().add_attribute("action", "migrate"))
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrate_markets(deps, env, msg)
 }
 
 struct DebtView {
@@ -357,9 +419,12 @@ struct DebtView {
     total_supply: Uint128,
 }
 
-fn inspect_debt_token(deps: Deps, env: &Env, debt_token: &Addr) -> Result<DebtView, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
-    let allowed = config.debt_code_id.ok_or(ContractError::DebtCodeUnset {})?;
+fn inspect_debt_token(
+    deps: Deps,
+    env: &Env,
+    debt_token: &Addr,
+    allowed: u64,
+) -> Result<DebtView, ContractError> {
     let code: ContractInfoResponse =
         deps.querier
             .query(&QueryRequest::Wasm(WasmQuery::ContractInfo {
@@ -404,7 +469,31 @@ fn inspect_debt_token(deps: Deps, env: &Env, debt_token: &Addr) -> Result<DebtVi
 }
 
 fn assert_market_consistent(deps: Deps, env: &Env, market: &Market) -> Result<(), ContractError> {
-    let debt = inspect_debt_token(deps, env, &market.debt_token)?;
+    let pins = market
+        .pins
+        .as_ref()
+        .ok_or(ContractError::UnapprovedImplementation {})?;
+    let debt = inspect_debt_token(deps, env, &market.debt_token, pins.debt_code_id)?;
+    let current = inspect_underlying(
+        deps,
+        env,
+        &market.underlying,
+        pins.debt_code_id,
+        pins.underlying_code_id,
+        pins.multi_minter,
+    )?;
+    if &current != pins {
+        return Err(ContractError::UnderlyingMinterMismatch {});
+    }
+    let balance: cw20::BalanceResponse = deps.querier.query_wasm_smart(
+        &market.debt_token,
+        &Cw20QueryMsg::Balance {
+            address: market.debtor.to_string(),
+        },
+    )?;
+    if balance.balance != market.outstanding {
+        return Err(ContractError::DebtSupplyDiverged {});
+    }
     if debt.debtor != market.debtor {
         return Err(ContractError::DebtorMismatch {});
     }
@@ -426,6 +515,9 @@ fn underlying_decimals(deps: Deps, underlying: &Addr) -> Result<u8, ContractErro
         .querier
         .query_wasm_smart(underlying, &Cw20QueryMsg::TokenInfo {})
         .map_err(|_| ContractError::InvalidUnderlying {})?;
+    if info.decimals > 18 {
+        return Err(ContractError::InvalidUnderlying {});
+    }
     Ok(info.decimals)
 }
 
@@ -462,6 +554,14 @@ fn market_response(market: Market) -> MarketResponse {
         debtor: market.debtor,
         decimals: market.decimals,
         outstanding: market.outstanding,
+        debt_code_id: market.pins.as_ref().map(|p| p.debt_code_id),
+        underlying_code_id: market.pins.as_ref().map(|p| p.underlying_code_id),
+        pins: market.pins,
+        limits: market.limits,
+        paused: market.paused,
+        epoch: market.epoch,
+        epoch_issued: market.epoch_issued,
+        pending_upgrade: market.pending_upgrade,
     }
 }
 
@@ -482,686 +582,5 @@ struct MintersProbe {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::{Addr, Coin};
-    use cw20::Cw20QueryMsg;
-    use cw20_base::msg::{ExecuteMsg as Cw20ExecuteMsgBase, InstantiateMsg as Cw20InstantiateMsg};
-    use cw_multi_test::{App, ContractWrapper, Executor};
-
-    const OWNER: &str = "terra1owner000000000000000000000000000000000";
-    const CMM: &str = "terra1cmm00000000000000000000000000000000000";
-    const LP: &str = "terra1user00000000000000000000000000000000";
-    const OTHER: &str = "terra1dest000000000000000000000000000000000";
-
-    fn units(whole: u128) -> Uint128 {
-        Uint128::new(whole) * Uint128::new(1_000_000_000_000_000_000)
-    }
-
-    fn issuer_code(app: &mut App) -> u64 {
-        app.store_code(Box::new(ContractWrapper::new(execute, instantiate, query)))
-    }
-
-    fn debt_code(app: &mut App) -> u64 {
-        app.store_code(Box::new(ContractWrapper::new(
-            bridge_debt_token::contract::execute,
-            bridge_debt_token::contract::instantiate,
-            bridge_debt_token::contract::query,
-        )))
-    }
-
-    fn cw20_code(app: &mut App) -> u64 {
-        app.store_code(Box::new(ContractWrapper::new(
-            cw20_base::contract::execute,
-            cw20_base::contract::instantiate,
-            cw20_base::contract::query,
-        )))
-    }
-
-    struct World {
-        app: App,
-        issuer: Addr,
-        usdt: Addr,
-        debt: Addr,
-        debt_code_id: u64,
-        cw20_code_id: u64,
-    }
-
-    fn instantiate_cw20(
-        app: &mut App,
-        code_id: u64,
-        symbol: &str,
-        decimals: u8,
-        minter: &Addr,
-    ) -> Addr {
-        instantiate_cw20_with(app, code_id, symbol, decimals, minter, vec![])
-    }
-
-    fn instantiate_cw20_with(
-        app: &mut App,
-        code_id: u64,
-        symbol: &str,
-        decimals: u8,
-        minter: &Addr,
-        initial_balances: Vec<cw20::Cw20Coin>,
-    ) -> Addr {
-        app.instantiate_contract(
-            code_id,
-            Addr::unchecked(OWNER),
-            &Cw20InstantiateMsg {
-                name: symbol.to_string(),
-                symbol: symbol.to_string(),
-                decimals,
-                initial_balances,
-                mint: Some(cw20::MinterResponse {
-                    minter: minter.to_string(),
-                    cap: None,
-                }),
-                marketing: None,
-            },
-            &[],
-            symbol,
-            None,
-        )
-        .unwrap()
-    }
-
-    fn shows(err: &cw_multi_test::error::AnyError, text: &str) -> bool {
-        format!("{err:?}").contains(text)
-    }
-
-    fn instantiate_debt(
-        app: &mut App,
-        code_id: u64,
-        symbol: &str,
-        decimals: u8,
-        minter: &Addr,
-        debtor: &str,
-    ) -> Addr {
-        app.instantiate_contract(
-            code_id,
-            Addr::unchecked(OWNER),
-            &bridge_debt_token::msg::InstantiateMsg {
-                name: symbol.to_string(),
-                symbol: symbol.to_string(),
-                decimals,
-                minter: minter.to_string(),
-                debtor: debtor.to_string(),
-                cap: None,
-            },
-            &[],
-            symbol,
-            None,
-        )
-        .unwrap()
-    }
-
-    fn world() -> World {
-        let mut app = App::default();
-        let debt_code_id = debt_code(&mut app);
-        let cw20_code_id = cw20_code(&mut app);
-        let issuer_id = issuer_code(&mut app);
-        let issuer = app
-            .instantiate_contract(
-                issuer_id,
-                Addr::unchecked(OWNER),
-                &InstantiateMsg {
-                    owner: OWNER.to_string(),
-                },
-                &[],
-                "bridge-debt",
-                None,
-            )
-            .unwrap();
-        let usdt = instantiate_cw20(&mut app, cw20_code_id, "USDT", 18, &issuer);
-        let debt = instantiate_debt(&mut app, debt_code_id, "USDT-Bridge-Debt", 18, &issuer, CMM);
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::SetDebtCodeId {
-                code_id: debt_code_id,
-            },
-            &[],
-        )
-        .unwrap();
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::RegisterMarket {
-                underlying: usdt.to_string(),
-                debt_token: debt.to_string(),
-            },
-            &[],
-        )
-        .unwrap();
-
-        World {
-            app,
-            issuer,
-            usdt,
-            debt,
-            debt_code_id,
-            cw20_code_id,
-        }
-    }
-
-    fn balance(app: &App, token: &Addr, account: &str) -> Uint128 {
-        let response: cw20::BalanceResponse = app
-            .wrap()
-            .query_wasm_smart(
-                token,
-                &Cw20QueryMsg::Balance {
-                    address: account.to_string(),
-                },
-            )
-            .unwrap();
-        response.balance
-    }
-
-    fn supply(app: &App, token: &Addr) -> Uint128 {
-        let info: TokenInfoResponse = app
-            .wrap()
-            .query_wasm_smart(token, &Cw20QueryMsg::TokenInfo {})
-            .unwrap();
-        info.total_supply
-    }
-
-    fn outstanding(app: &App, issuer: &Addr, underlying: &Addr) -> Uint128 {
-        let market: MarketResponse = app
-            .wrap()
-            .query_wasm_smart(
-                issuer,
-                &QueryMsg::Market {
-                    underlying: underlying.to_string(),
-                },
-            )
-            .unwrap();
-        market.outstanding
-    }
-
-    fn issue(world: &mut World, recipient: &str, amount: Uint128) {
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                world.issuer.clone(),
-                &ExecuteMsg::Issue {
-                    underlying: world.usdt.to_string(),
-                    recipient: recipient.to_string(),
-                    amount,
-                },
-                &[],
-            )
-            .unwrap();
-    }
-
-    #[test]
-    fn ten_thousand_usdt_for_cmm_lp_mints_matching_debt() {
-        let mut world = world();
-        let amount = units(10_000);
-        issue(&mut world, LP, amount);
-
-        assert_eq!(balance(&world.app, &world.usdt, LP), amount);
-        assert_eq!(balance(&world.app, &world.debt, CMM), amount);
-        assert_eq!(supply(&world.app, &world.debt), amount);
-        assert_eq!(outstanding(&world.app, &world.issuer, &world.usdt), amount);
-        assert_eq!(balance(&world.app, &world.debt, LP), Uint128::zero());
-
-        let info: TokenInfoResponse = world
-            .app
-            .wrap()
-            .query_wasm_smart(&world.debt, &Cw20QueryMsg::TokenInfo {})
-            .unwrap();
-        assert_eq!(info.symbol, "USDT-Bridge-Debt");
-        assert_eq!(info.decimals, 18);
-    }
-
-    #[test]
-    fn debt_receipt_cannot_leave_the_cmm() {
-        let mut world = world();
-        issue(&mut world, LP, units(1));
-
-        let err = world
-            .app
-            .execute_contract(
-                Addr::unchecked(CMM),
-                world.debt.clone(),
-                &bridge_debt_token::msg::ExecuteMsg::Transfer {
-                    recipient: OTHER.to_string(),
-                    amount: units(1),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(shows(&err, "Debt tokens stay with the debtor"), "{err:?}");
-        assert_eq!(balance(&world.app, &world.debt, CMM), units(1));
-    }
-
-    #[test]
-    fn repay_burns_usdt_and_cmm_debt_together() {
-        let mut world = world();
-        issue(&mut world, LP, units(10_000));
-
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(LP),
-                world.usdt.clone(),
-                &Cw20ExecuteMsgBase::Send {
-                    contract: world.issuer.to_string(),
-                    amount: units(1_000),
-                    msg: to_json_binary(&Cw20HookMsg::Repay {}).unwrap(),
-                },
-                &[],
-            )
-            .unwrap();
-
-        assert_eq!(balance(&world.app, &world.usdt, LP), units(9_000));
-        assert_eq!(balance(&world.app, &world.debt, CMM), units(9_000));
-        assert_eq!(
-            outstanding(&world.app, &world.issuer, &world.usdt),
-            units(9_000)
-        );
-        assert_eq!(supply(&world.app, &world.usdt), units(9_000));
-
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(LP),
-                world.usdt.clone(),
-                &Cw20ExecuteMsgBase::Send {
-                    contract: world.issuer.to_string(),
-                    amount: units(9_000),
-                    msg: to_json_binary(&Cw20HookMsg::Repay {}).unwrap(),
-                },
-                &[],
-            )
-            .unwrap();
-        assert_eq!(balance(&world.app, &world.usdt, LP), Uint128::zero());
-        assert_eq!(balance(&world.app, &world.debt, CMM), Uint128::zero());
-        assert_eq!(
-            outstanding(&world.app, &world.issuer, &world.usdt),
-            Uint128::zero()
-        );
-    }
-
-    #[test]
-    fn repay_above_outstanding_is_rejected() {
-        let mut app = App::default();
-        let debt_code_id = debt_code(&mut app);
-        let cw20_code_id = cw20_code(&mut app);
-        let issuer_id = issuer_code(&mut app);
-        let issuer = app
-            .instantiate_contract(
-                issuer_id,
-                Addr::unchecked(OWNER),
-                &InstantiateMsg {
-                    owner: OWNER.to_string(),
-                },
-                &[],
-                "bridge-debt",
-                None,
-            )
-            .unwrap();
-        // Pre-existing bridged USDT (a normal bridge mint) is not debt.
-        let usdt = instantiate_cw20_with(
-            &mut app,
-            cw20_code_id,
-            "USDT",
-            18,
-            &issuer,
-            vec![cw20::Cw20Coin {
-                address: LP.to_string(),
-                amount: units(5),
-            }],
-        );
-        let debt = instantiate_debt(&mut app, debt_code_id, "USDT-Bridge-Debt", 18, &issuer, CMM);
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::SetDebtCodeId {
-                code_id: debt_code_id,
-            },
-            &[],
-        )
-        .unwrap();
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::RegisterMarket {
-                underlying: usdt.to_string(),
-                debt_token: debt.to_string(),
-            },
-            &[],
-        )
-        .unwrap();
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::Issue {
-                underlying: usdt.to_string(),
-                recipient: LP.to_string(),
-                amount: units(1),
-            },
-            &[],
-        )
-        .unwrap();
-
-        let err = app
-            .execute_contract(
-                Addr::unchecked(LP),
-                usdt.clone(),
-                &Cw20ExecuteMsgBase::Send {
-                    contract: issuer.to_string(),
-                    amount: units(2),
-                    msg: to_json_binary(&Cw20HookMsg::Repay {}).unwrap(),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(shows(&err, "exceeds outstanding"), "{err:?}");
-        assert_eq!(balance(&app, &debt, CMM), units(1));
-        assert_eq!(balance(&app, &usdt, LP), units(6));
-    }
-
-    #[test]
-    fn plain_transfer_does_not_reduce_debt_and_can_be_recovered() {
-        let mut world = world();
-        issue(&mut world, LP, units(5));
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(LP),
-                world.usdt.clone(),
-                &Cw20ExecuteMsgBase::Transfer {
-                    recipient: world.issuer.to_string(),
-                    amount: units(1),
-                },
-                &[],
-            )
-            .unwrap();
-        assert_eq!(
-            outstanding(&world.app, &world.issuer, &world.usdt),
-            units(5)
-        );
-
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                world.issuer.clone(),
-                &ExecuteMsg::Recover {
-                    underlying: world.usdt.to_string(),
-                    recipient: OTHER.to_string(),
-                    amount: units(1),
-                },
-                &[],
-            )
-            .unwrap();
-        assert_eq!(balance(&world.app, &world.usdt, OTHER), units(1));
-        assert_eq!(balance(&world.app, &world.debt, CMM), units(5));
-    }
-
-    #[test]
-    fn second_asset_uses_its_own_bridge_debt_token() {
-        let mut world = world();
-        issue(&mut world, LP, units(10_000));
-
-        let xxx = instantiate_cw20(&mut world.app, world.cw20_code_id, "XXX", 18, &world.issuer);
-        let xxx_debt = instantiate_debt(
-            &mut world.app,
-            world.debt_code_id,
-            "XXX-Bridge-Debt",
-            18,
-            &world.issuer,
-            CMM,
-        );
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                world.issuer.clone(),
-                &ExecuteMsg::RegisterMarket {
-                    underlying: xxx.to_string(),
-                    debt_token: xxx_debt.to_string(),
-                },
-                &[],
-            )
-            .unwrap();
-        world
-            .app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                world.issuer.clone(),
-                &ExecuteMsg::Issue {
-                    underlying: xxx.to_string(),
-                    recipient: LP.to_string(),
-                    amount: units(2),
-                },
-                &[],
-            )
-            .unwrap();
-
-        assert_eq!(balance(&world.app, &xxx, LP), units(2));
-        assert_eq!(balance(&world.app, &xxx_debt, CMM), units(2));
-        assert_eq!(balance(&world.app, &world.debt, CMM), units(10_000));
-        assert_eq!(outstanding(&world.app, &world.issuer, &xxx), units(2));
-
-        let listed: MarketsResponse = world
-            .app
-            .wrap()
-            .query_wasm_smart(
-                &world.issuer,
-                &QueryMsg::Markets {
-                    start_after: None,
-                    limit: None,
-                },
-            )
-            .unwrap();
-        assert_eq!(listed.markets.len(), 2);
-    }
-
-    #[test]
-    fn register_rejects_plain_cw20_and_wrong_code() {
-        let mut app = App::default();
-        let debt_code_id = debt_code(&mut app);
-        let cw20_code_id = cw20_code(&mut app);
-        let issuer_id = issuer_code(&mut app);
-        let issuer = app
-            .instantiate_contract(
-                issuer_id,
-                Addr::unchecked(OWNER),
-                &InstantiateMsg {
-                    owner: OWNER.to_string(),
-                },
-                &[],
-                "bridge-debt",
-                None,
-            )
-            .unwrap();
-        let usdt = instantiate_cw20(&mut app, cw20_code_id, "USDT", 18, &issuer);
-
-        let err = app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                issuer.clone(),
-                &ExecuteMsg::RegisterMarket {
-                    underlying: usdt.to_string(),
-                    debt_token: usdt.to_string(),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(
-            shows(&err, "code id is not set") || shows(&err, "different"),
-            "{err:?}"
-        );
-
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::SetDebtCodeId {
-                code_id: cw20_code_id,
-            },
-            &[],
-        )
-        .unwrap();
-        let fake_debt = instantiate_cw20(&mut app, cw20_code_id, "FAKE", 18, &issuer);
-        let err = app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                issuer.clone(),
-                &ExecuteMsg::RegisterMarket {
-                    underlying: usdt.to_string(),
-                    debt_token: fake_debt.to_string(),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(shows(&err, "debtor"), "{err:?}");
-
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::SetDebtCodeId {
-                code_id: debt_code_id,
-            },
-            &[],
-        )
-        .unwrap();
-        let six = instantiate_cw20(&mut app, cw20_code_id, "SIX", 6, &issuer);
-        let debt = instantiate_debt(&mut app, debt_code_id, "USDT-Bridge-Debt", 18, &issuer, CMM);
-        let err = app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                issuer.clone(),
-                &ExecuteMsg::RegisterMarket {
-                    underlying: six.to_string(),
-                    debt_token: debt.to_string(),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(shows(&err, "decimals"), "{err:?}");
-    }
-
-    #[test]
-    fn only_owner_can_issue() {
-        let mut world = world();
-        let err = world
-            .app
-            .execute_contract(
-                Addr::unchecked(LP),
-                world.issuer.clone(),
-                &ExecuteMsg::Issue {
-                    underlying: world.usdt.to_string(),
-                    recipient: LP.to_string(),
-                    amount: units(1),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(shows(&err, "Unauthorized"), "{err:?}");
-
-        let err = world
-            .app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                world.issuer.clone(),
-                &ExecuteMsg::Issue {
-                    underlying: world.usdt.to_string(),
-                    recipient: LP.to_string(),
-                    amount: Uint128::zero(),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(shows(&err, "greater than zero"), "{err:?}");
-    }
-
-    #[test]
-    fn rejects_native_funds() {
-        use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-
-        let mut deps = mock_dependencies();
-        instantiate(
-            deps.as_mut(),
-            mock_env(),
-            mock_info("creator", &[]),
-            InstantiateMsg {
-                owner: OWNER.to_string(),
-            },
-        )
-        .unwrap();
-
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(OWNER, &[Coin::new(1u128, "uluna")]),
-            ExecuteMsg::Issue {
-                underlying: "terra1usdt00000000000000000000000000000000".to_string(),
-                recipient: LP.to_string(),
-                amount: units(1),
-            },
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::UnexpectedFunds {});
-    }
-
-    #[test]
-    fn issue_fails_when_this_contract_cannot_mint_underlying() {
-        let mut app = App::default();
-        let debt_code_id = debt_code(&mut app);
-        let cw20_code_id = cw20_code(&mut app);
-        let issuer_id = issuer_code(&mut app);
-        let issuer = app
-            .instantiate_contract(
-                issuer_id,
-                Addr::unchecked(OWNER),
-                &InstantiateMsg {
-                    owner: OWNER.to_string(),
-                },
-                &[],
-                "bridge-debt",
-                None,
-            )
-            .unwrap();
-        let usdt = instantiate_cw20(&mut app, cw20_code_id, "USDT", 18, &Addr::unchecked(OWNER));
-        let debt = instantiate_debt(&mut app, debt_code_id, "USDT-Bridge-Debt", 18, &issuer, CMM);
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::SetDebtCodeId {
-                code_id: debt_code_id,
-            },
-            &[],
-        )
-        .unwrap();
-        app.execute_contract(
-            Addr::unchecked(OWNER),
-            issuer.clone(),
-            &ExecuteMsg::RegisterMarket {
-                underlying: usdt.to_string(),
-                debt_token: debt.to_string(),
-            },
-            &[],
-        )
-        .unwrap();
-        let err = app
-            .execute_contract(
-                Addr::unchecked(OWNER),
-                issuer,
-                &ExecuteMsg::Issue {
-                    underlying: usdt.to_string(),
-                    recipient: LP.to_string(),
-                    amount: units(1),
-                },
-                &[],
-            )
-            .unwrap_err();
-        assert!(
-            shows(&err, "Unauthorized") || shows(&err, "mint"),
-            "{err:?}"
-        );
-    }
-}
+#[path = "tests.rs"]
+mod tests;
