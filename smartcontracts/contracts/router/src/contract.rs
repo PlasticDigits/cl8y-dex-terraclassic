@@ -11,7 +11,7 @@ use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg,
     SimulateSwapOperationsResponse, SwapOperation,
 };
-use crate::state::{SwapState, FACTORY, SWAP_STATE, WRAP_MAPPER};
+use crate::state::{allocate_route_id, SwapState, FACTORY, LAST_ROUTE_ID, SWAP_STATE, WRAP_MAPPER};
 use dex_common::max_spread::{self, CheckMaxSpreadError};
 use dex_common::pair;
 use dex_common::types::Asset;
@@ -22,6 +22,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SWAP_REPLY_ID: u64 = 1;
 const SETTLEMENT_REPLY_ID: u64 = 2;
 const MAX_HOPS: usize = 4;
+const _: () = assert!(MAX_HOPS < dex_common::route_tax::MAX_SETTLEMENT_SLOTS);
 
 pub fn instantiate(
     deps: DepsMut,
@@ -314,12 +315,15 @@ fn execute_swap_operations(
         vec![]
     } else {
         vec![dex_common::route_tax::RouteTransfer {
+            slot: 0,
             token: input_token.clone(),
             recipient: sender.clone(),
             amount: residue,
         }]
     };
+    let route_id = allocate_route_id(deps.storage)?;
     let tax_context = dex_common::route_tax::RouteTaxContextResponse {
+        route_id,
         funding_version: dex_common::route_tax::FUNDING_VERSION,
         trader: sender.clone(),
         pair: pair_addr.clone(),
@@ -511,6 +515,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             .tax_context
             .transfers
             .push(dex_common::route_tax::RouteTransfer {
+                slot: state.refunds.len() as u32,
                 token: state.output_token.clone(),
                 recipient: state.recipient.clone(),
                 amount: hop_output,
@@ -519,7 +524,9 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         let refund_messages = state
             .refunds
             .iter()
-            .map(|r| crate::route_tax::transfer(deps.as_ref(), &r.token, &r.recipient, r.amount))
+            .map(|r| {
+                crate::route_tax::transfer(deps.as_ref(), &r.token, &r.recipient, r.amount, r.slot)
+            })
             .collect::<StdResult<Vec<_>>>()?;
         let output_msg = if let Some(mapper) = wrap_mapper_addr {
             let unwrap_hook = wrap_mapper::Cw20HookMsg::Unwrap {
@@ -541,6 +548,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 &state.output_token,
                 &state.recipient,
                 hop_output,
+                state.refunds.len() as u32,
             )?
         };
 
@@ -576,12 +584,14 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let residue = hop_output.checked_sub(funded.economic.checked_add(funded.tax)?)?;
     if !residue.is_zero() {
         state.refunds.push(dex_common::route_tax::RouteTransfer {
+            slot: state.refunds.len() as u32,
             token: current_token.clone(),
             recipient: state.sender.clone(),
             amount: residue,
         });
     }
     state.tax_context = dex_common::route_tax::RouteTaxContextResponse {
+        route_id: state.tax_context.route_id,
         funding_version: dex_common::route_tax::FUNDING_VERSION,
         trader: state.sender.clone(),
         pair: pair_addr.clone(),
@@ -689,6 +699,8 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let factory = FACTORY.load(deps.storage)?;
     let wrap_mapper = WRAP_MAPPER.may_load(deps.storage)?;
     Ok(ConfigResponse {
+        settlement_version: dex_common::route_tax::SETTLEMENT_VERSION,
+        last_route_id: LAST_ROUTE_ID.may_load(deps.storage)?.unwrap_or_default(),
         funding_version: dex_common::route_tax::FUNDING_VERSION,
         factory,
         wrap_mapper,

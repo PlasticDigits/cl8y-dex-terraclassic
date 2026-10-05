@@ -349,3 +349,5 @@ it through forward quoting. Preserve the existing hop0-only Policy A and route
 caps. Client fallback requires live compatible funding and cannot restore a
 wallet-funded intermediate route. [RT1381 invariants](../skills/AGENTS_ROUTE_LOCAL_TAX.md)
 and [agent checks](qa/issue-1381/README.md) govern all these paths.
+
+Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.

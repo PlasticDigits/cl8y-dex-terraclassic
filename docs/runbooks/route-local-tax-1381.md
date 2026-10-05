@@ -130,7 +130,7 @@ sequence. `--max-total-fee-uluna` bounds cumulative transaction fees (default
 not secret credentials. This PR's source review does not run any production mode.
 
 The rollout retains official contract addresses. It targets router and community
-tax tokens **1.2.0**, factory **1.11.0**, pair **1.19.0**, and launcher **1.0.0**.
+tax tokens **1.3.0**, factory **1.11.0**, pair **1.19.0**, and launcher **1.0.0**.
 Production factory 1.10.0 has a different stored hash from the repository artifact;
 this PR changes only factory CW2 metadata relative to repository code, to 1.11.0,
 to permit its reviewed upgrade. Review the exact deployed artifact hash rather
@@ -235,3 +235,8 @@ storage compatibility can reject a previously stored wasm. Follow
 [SEC-H05 rollback limitations](wasm-admin-migration.md#rollback-and-limitations-sec-h05),
 keep the partial fleet contained and prepare a reviewed forward repair when a
 downgrade is unsupported.
+
+Router/token 1.3.0 trust recovery and single-use settlement: follow the
+[router trust runbook](router-trust-1388.md) and
+[agent checklist](../qa/issue-1388/README.md). Immediate rollout must preserve the
+router address and reject every inventoried stored binding mismatch before mutation.

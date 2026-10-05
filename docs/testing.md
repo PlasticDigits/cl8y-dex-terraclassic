@@ -732,3 +732,5 @@ browser and 569/689/655/664/1263 regressions. See [agent checklist and explicit 
 policy](qa/issue-1380/README.md), [invariants](indexer-invariants.md#protocol-liquidity-quality-1380)
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md). Use an isolated
 Postgres database and unique `TEST_DB_LOCK_FILE` for parallel worktrees.
+
+Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.
