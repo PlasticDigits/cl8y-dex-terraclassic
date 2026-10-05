@@ -1,7 +1,7 @@
 # Oracle integrity and hub containment (#1391)
 
 Issue: [#1391](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1391).
-Implementation: linked in [verification.md](verification.md).
+Implementation: [PR #1412](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1412); results and revision in [verification.md](verification.md).
 Invariants: [O1391](../../indexer-invariants.md#oracle-integrity-and-hub-containment-1391).
 Agent playbook: [AGENTS_ORACLE_SAFETY.md](../../../skills/AGENTS_ORACLE_SAFETY.md).
 API: [external oracle](../../runbooks/indexer-external-oracle.md).

@@ -1,9 +1,10 @@
 # #1391 verification receipt
 
 Issue [#1391](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1391).
-Implementation: branch `fix/1391-oracle-integrity`, based on
-`9944ada10ee711ff8ffaa91f4c19b0f292de3924`. PR and implementation revision are
-linked below after publication.
+Implementation: [PR #1412](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1412),
+[revision 421ef59f](https://git.cl8y.com/code/cl8y-dex-terraclassic/src/commit/421ef59f3a1978e9cd5f88c76ecbf4c90eaad925),
+branch `fix/1391-oracle-integrity`, based on
+`9944ada10ee711ff8ffaa91f4c19b0f292de3924`. Publication-link updates do not change the verified implementation.
 [Policy/checklist](README.md), [O1391 invariants](../../indexer-invariants.md#oracle-integrity-and-hub-containment-1391),
 [third-party agent instructions](../../../skills/AGENTS_ORACLE_SAFETY.md).
 
