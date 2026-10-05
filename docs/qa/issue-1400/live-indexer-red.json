@@ -1,0 +1,53 @@
+{
+  "scope": "synthetic-indexer-assertion",
+  "pr": 1418,
+  "pipeline": 310,
+  "commit": "700597b4b18c30053fb71832b1824e3f75420cb7",
+  "pipeline_status": "failure",
+  "failed_test": "indexer::pair_discovery::tests::discover_new_pair_negative_caches_unlisted_pair",
+  "synthetic_change": "expected cloned-client factory query count 2 instead of actual 1",
+  "required_status": [
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "failure",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/310/1",
+      "description": "Pipeline failed",
+      "created_at": "2026-10-05T10:06:54Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/310/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:47:56Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/310/1",
+      "description": "Pipeline is running",
+      "created_at": "2026-10-05T09:47:56Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/310/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:42:49Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/310/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:42:49Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/310/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:42:49Z"
+    }
+  ]
+}

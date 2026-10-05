@@ -1,0 +1,53 @@
+{
+  "scope": "synthetic-contract-assertion",
+  "pr": 1416,
+  "pipeline": 308,
+  "commit": "9e33fc5cd0fde62cf7beba114d65be8f5a162af9",
+  "pipeline_status": "failure",
+  "failed_test": "route_tax::tests::maximal_offer_and_extreme_conservation",
+  "synthetic_change": "expected sell tax 10001 instead of actual 10000",
+  "required_status": [
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "failure",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/308/1",
+      "description": "Pipeline failed",
+      "created_at": "2026-10-05T09:47:56Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/308/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:44:27Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/308/1",
+      "description": "Pipeline is running",
+      "created_at": "2026-10-05T09:44:27Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/308/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:42:26Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/308/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:42:26Z"
+    },
+    {
+      "context": "ci/woodpecker/pr/woodpecker",
+      "status": "pending",
+      "target_url": "https://ci.cl8y.com/repos/7/pipeline/308/1",
+      "description": "Pipeline is pending",
+      "created_at": "2026-10-05T09:42:26Z"
+    }
+  ]
+}
