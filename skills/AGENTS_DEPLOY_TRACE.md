@@ -37,3 +37,7 @@ No LocalTerra or Postgres required.
 - Launch go/no-go gate: [`AGENTS_LAUNCH_GO_NO_GO.md`](./AGENTS_LAUNCH_GO_NO_GO.md)
 - Supply-chain wasm policy: [`AGENTS_SUPPLY_CHAIN_SECURITY.md`](./AGENTS_SUPPLY_CHAIN_SECURITY.md)
 - Redeploy decision after code changes: [`AGENTS_QA_REDEPLOY_DECISION.md`](./AGENTS_QA_REDEPLOY_DECISION.md)
+
+## Build trust (#1400)
+
+Before promotion verify the source/lock/image/toolchain/output provenance receipt and compare an independent cold rebuild. See [CI1400 instructions](AGENTS_FORGEJO_FUNCTIONAL_CI.md) and [review checklist](../docs/qa/issue-1400/README.md). Build receipts never replace live code-ID/chain/post-deploy evidence.

@@ -1,0 +1,19 @@
+FROM golang:1.26-bookworm@sha256:a688600ca24f8a4d3ca77f95b0dd40704a9fc787c826660eb7ba0b641b8b175d AS build
+WORKDIR /build
+ENV GOMAXPROCS=2
+COPY scripts/ci/trusted-policy/ ./
+RUN go mod download && go mod verify
+RUN go test -mod=readonly ./... && CGO_ENABLED=0 go build -mod=readonly -trimpath -o /trusted-policy .
+COPY .woodpecker.yaml /source/.woodpecker.yaml
+COPY .gitleaks.toml /source/.gitleaks.toml
+COPY scripts/ci/functional-run.sh scripts/ci/gitleaks-scan-tracked.sh /source/scripts/ci/
+RUN /trusted-policy bundle /source > /config.json
+
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+COPY --from=build /trusted-policy /usr/local/bin/trusted-policy
+COPY --from=build /config.json /policy/config.json
+COPY scripts/ci/trusted-policy/woodpecker-public.pem /policy/woodpecker-public.pem
+USER 10001:10001
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["/usr/local/bin/trusted-policy", "health"]
+ENTRYPOINT ["/usr/local/bin/trusted-policy"]

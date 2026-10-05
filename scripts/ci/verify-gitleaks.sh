@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2}"
+GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-ghcr.io/gitleaks/gitleaks:v8.24.2@sha256:b5918eb91b8d2473cec722f066abb4352e4ffdc4ec9f4283ec143aba9ec9ebc4}"
 CONFIG="${ROOT}/.gitleaks.toml"
 FIXTURE_CONFIG="${ROOT}/scripts/ci/gitleaks-fixture.toml"
 FIXTURE="${ROOT}/scripts/ci/gitleaks-fixture"

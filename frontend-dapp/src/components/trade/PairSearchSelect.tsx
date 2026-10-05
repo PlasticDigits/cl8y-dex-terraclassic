@@ -96,6 +96,7 @@ export function PairSearchSelect({
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const optionTapRectRef = useRef<DOMRect | null>(null)
+  const focusLeaveTimerRef = useRef<number | null>(null)
   const listId = useId()
   const browseWithoutIme = useCoarseNarrowViewport()
 
@@ -126,6 +127,13 @@ export function PairSearchSelect({
     const timer = setTimeout(() => setDebouncedSearch(searchText.trim()), 300)
     return () => clearTimeout(timer)
   }, [searchText])
+
+  useEffect(
+    () => () => {
+      if (focusLeaveTimerRef.current !== null) window.clearTimeout(focusLeaveTimerRef.current)
+    },
+    []
+  )
 
   useEffect(() => {
     activeIndexRef.current = activeIndex
@@ -331,7 +339,9 @@ export function PairSearchSelect({
   const activeOptionId = open && options.length > 0 ? portalListboxOptionId(listId, activeIndex) : undefined
 
   const closeIfFocusLeft = useCallback(() => {
-    window.setTimeout(() => {
+    if (focusLeaveTimerRef.current !== null) window.clearTimeout(focusLeaveTimerRef.current)
+    focusLeaveTimerRef.current = window.setTimeout(() => {
+      focusLeaveTimerRef.current = null
       const ae = document.activeElement
       if (rootRef.current?.contains(ae)) return
       if (dropdownRef.current?.contains(ae)) return

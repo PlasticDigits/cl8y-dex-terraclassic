@@ -2,6 +2,8 @@
 
 Use when changing `.gitlab-ci.yml`, dependency lockfiles, `.gitleaks.toml`, or DinD build jobs.
 
+See also [Forgejo functional CI invariants CI1400-1–CI1400-10](AGENTS_FORGEJO_FUNCTIONAL_CI.md) and the [review checklist](../docs/qa/issue-1400/README.md). Required policy comes from the signed exclusive extension; neither PR YAML nor shared executable caches are an authority.
+
 ## Canonical references
 
 | Doc / path | Purpose |

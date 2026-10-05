@@ -215,19 +215,7 @@ echo ""
 echo "[3] Uploading CW20 Mintable wasm..."
 if [ ! -f "$ARTIFACTS_DIR/cw20_mintable.wasm" ] && [ ! -f "$ARTIFACTS_DIR/cw20_base.wasm" ]; then
     echo "  cw20_mintable.wasm not found in artifacts — building from source..."
-    CW20_TMP_DIR=$(mktemp -d)
-    git clone --depth 1 https://github.com/PlasticDigits/cw20-mintable.git "$CW20_TMP_DIR" 2>&1 | tail -1
-    docker run --rm -v "$CW20_TMP_DIR":/code \
-        --mount type=volume,source=cw20_mintable_cache,target=/code/target \
-        --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-        cosmwasm/workspace-optimizer:0.16.1
-    cp "$CW20_TMP_DIR/artifacts/cw20_mintable.wasm" "$ARTIFACTS_DIR/"
-    # workspace-optimizer writes root-owned files under CW20_TMP_DIR
-    if [ -d "$CW20_TMP_DIR" ]; then
-      docker run --rm -v "$CW20_TMP_DIR":/w alpine:3.20 rm -rf /w 2>/dev/null \
-        || rm -rf "$CW20_TMP_DIR" 2>/dev/null \
-        || true
-    fi
+    python3 "$(dirname "$0")/ci/build-locked-fixtures.py" cw20 --artifacts "$ARTIFACTS_DIR"
     echo "  cw20_mintable.wasm built and copied to artifacts."
     docker cp "$ARTIFACTS_DIR/cw20_mintable.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
 fi
@@ -391,20 +379,7 @@ echo ""
 echo "[9b.1] Uploading treasury.wasm..."
 if [ ! -f "$ARTIFACTS_DIR/treasury.wasm" ] || [ ! -f "$ARTIFACTS_DIR/wrap_mapper.wasm" ]; then
     echo "  treasury.wasm or wrap_mapper.wasm missing — building from ustr-cmm source..."
-    USTR_TMP_DIR=$(mktemp -d)
-    git clone --depth 1 https://gitlab.com/PlasticDigits/ustr-cmm.git "$USTR_TMP_DIR" 2>&1 | tail -1
-    git -C "$USTR_TMP_DIR" submodule update --init --recursive 2>&1 | tail -1
-    docker run --rm -v "$USTR_TMP_DIR/contracts":/code \
-        --mount type=volume,source=ustr_cmm_cache,target=/code/target \
-        --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-        cosmwasm/workspace-optimizer:0.16.1
-    cp "$USTR_TMP_DIR/contracts/artifacts/treasury.wasm" "$ARTIFACTS_DIR/"
-    cp "$USTR_TMP_DIR/contracts/artifacts/wrap_mapper.wasm" "$ARTIFACTS_DIR/"
-    if [ -d "$USTR_TMP_DIR" ]; then
-      docker run --rm -v "$USTR_TMP_DIR":/w alpine:3.20 rm -rf /w 2>/dev/null \
-        || rm -rf "$USTR_TMP_DIR" 2>/dev/null \
-        || true
-    fi
+    python3 "$(dirname "$0")/ci/build-locked-fixtures.py" ustr --artifacts "$ARTIFACTS_DIR"
     echo "  treasury.wasm and wrap_mapper.wasm built and copied to artifacts."
     docker cp "$ARTIFACTS_DIR/treasury.wasm" "$CONTAINER_NAME:/tmp/artifacts/"
     docker cp "$ARTIFACTS_DIR/wrap_mapper.wasm" "$CONTAINER_NAME:/tmp/artifacts/"

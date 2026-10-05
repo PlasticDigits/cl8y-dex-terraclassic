@@ -1913,3 +1913,7 @@ front:
 .PHONY: verify-issue-1380
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
+# Issue #1400: functional Forgejo policy, cache isolation and immutable inputs.
+.PHONY: verify-issue-1400
+verify-issue-1400:
+	bash scripts/qa/verify-issue-1400.sh

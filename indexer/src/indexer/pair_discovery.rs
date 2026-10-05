@@ -21,22 +21,35 @@ type BoxError = Box<dyn std::error::Error + Send + Sync>;
 const PAIR_REJECT_CACHE_TTL: Duration = Duration::from_secs(3600);
 const PAIR_REJECT_CACHE_MAX: usize = 10_000;
 
+/// A rejection is specific to one client/chain lifetime and factory inventory.
+/// Cloned clients share entries; independent clients and factories never do.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct RejectCacheKey {
+    lcd_namespace: usize,
+    factory_address: String,
+    pair_address: String,
+}
+
+impl RejectCacheKey {
+    fn new(lcd: &LcdClient, factory_address: &str, pair_address: &str) -> Self {
+        Self {
+            lcd_namespace: lcd.cache_namespace(),
+            factory_address: factory_address.to_owned(),
+            pair_address: pair_address.to_owned(),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum DiscoverPairError {
-    #[error(
-        "unlisted/foreign pair {pair_address} (not listed in factory {factory_address})"
-    )]
+    #[error("unlisted/foreign pair {pair_address} (not listed in factory {factory_address})")]
     Unlisted {
         pair_address: String,
         factory_address: String,
     },
-    #[error(
-        "non-pair/foreign contract {pair_address} (does not support pair query)"
-    )]
+    #[error("non-pair/foreign contract {pair_address} (does not support pair query)")]
     NotAPair { pair_address: String },
-    #[error(
-        "unlisted/foreign pair {pair_address} (recently rejected; skipping rediscovery)"
-    )]
+    #[error("unlisted/foreign pair {pair_address} (recently rejected; skipping rediscovery)")]
     RejectedCached { pair_address: String },
 }
 
@@ -44,51 +57,40 @@ pub fn is_rejected_pair_error(err: &(dyn std::error::Error + 'static)) -> bool {
     err.downcast_ref::<DiscoverPairError>().is_some()
 }
 
-fn reject_cache() -> &'static Mutex<HashMap<String, Instant>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
+fn reject_cache() -> &'static Mutex<HashMap<RejectCacheKey, Instant>> {
+    static CACHE: OnceLock<Mutex<HashMap<RejectCacheKey, Instant>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn reject_cache_get(pair_addr: &str) -> bool {
+fn reject_cache_get(key: &RejectCacheKey) -> bool {
     let Ok(mut g) = reject_cache().lock() else {
         return false;
     };
     let now = Instant::now();
     g.retain(|_, at| now.duration_since(*at) <= PAIR_REJECT_CACHE_TTL);
-    g.contains_key(pair_addr)
+    g.contains_key(key)
 }
 
-fn reject_cache_insert(pair_addr: &str) {
+fn reject_cache_insert(key: &RejectCacheKey) {
     let Ok(mut g) = reject_cache().lock() else {
         return;
     };
     let now = Instant::now();
     g.retain(|_, at| now.duration_since(*at) <= PAIR_REJECT_CACHE_TTL);
-    if g.len() >= PAIR_REJECT_CACHE_MAX && !g.contains_key(pair_addr) {
+    if g.len() >= PAIR_REJECT_CACHE_MAX && !g.contains_key(key) {
         // Evict oldest entry when at capacity.
-        if let Some(oldest) = g
-            .iter()
-            .min_by_key(|(_, at)| *at)
-            .map(|(k, _)| k.clone())
-        {
+        if let Some(oldest) = g.iter().min_by_key(|(_, at)| *at).map(|(k, _)| k.clone()) {
             g.remove(&oldest);
         }
     }
-    g.insert(pair_addr.to_string(), now);
-}
-
-#[cfg(test)]
-fn reject_cache_clear() {
-    if let Ok(mut g) = reject_cache().lock() {
-        g.clear();
-    }
+    g.insert(key.clone(), now);
 }
 
 fn lcd_err_is_pair_not_found(err: &LcdError) -> bool {
     match err {
-        LcdError::ContractQueryRejected(msg) | LcdError::AllEndpointsFailed(msg) => msg
-            .to_ascii_lowercase()
-            .contains("pair not found"),
+        LcdError::ContractQueryRejected(msg) | LcdError::AllEndpointsFailed(msg) => {
+            msg.to_ascii_lowercase().contains("pair not found")
+        }
         _ => false,
     }
 }
@@ -105,9 +107,9 @@ fn lcd_err_is_not_a_pair_contract(err: &LcdError) -> bool {
     }
 }
 
-fn remember_rejected_pair(pair_addr: &str, reason: &str) {
-    reject_cache_insert(pair_addr);
-    tracing::info!(pair = %pair_addr, reason, "Skipping unlisted/foreign pair");
+fn remember_rejected_pair(key: &RejectCacheKey, reason: &str) {
+    reject_cache_insert(key);
+    tracing::info!(pair = %key.pair_address, reason, "Skipping unlisted/foreign pair");
 }
 
 pub async fn sync_all_pairs(
@@ -348,7 +350,8 @@ pub async fn discover_new_pair(
     factory_addr: &str,
     pair_contract_addr: &str,
 ) -> Result<PairRow, BoxError> {
-    if reject_cache_get(pair_contract_addr) {
+    let cache_key = RejectCacheKey::new(lcd, factory_addr, pair_contract_addr);
+    if reject_cache_get(&cache_key) {
         tracing::debug!(
             pair = %pair_contract_addr,
             "Skipping rediscovery of recently rejected unlisted/foreign pair"
@@ -367,7 +370,7 @@ pub async fn discover_new_pair(
     {
         Ok(info) => info,
         Err(e) if lcd_err_is_not_a_pair_contract(&e) => {
-            remember_rejected_pair(pair_contract_addr, "does not support pair query");
+            remember_rejected_pair(&cache_key, "does not support pair query");
             return Err(DiscoverPairError::NotAPair {
                 pair_address: pair_contract_addr.to_string(),
             }
@@ -394,7 +397,7 @@ pub async fn discover_new_pair(
     {
         Ok(()) => {}
         Err(e) if is_rejected_pair_error(&*e) => {
-            remember_rejected_pair(pair_contract_addr, "not listed in factory");
+            remember_rejected_pair(&cache_key, "not listed in factory");
             return Err(e);
         }
         Err(e) => return Err(e),
@@ -507,7 +510,6 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_rejects_unlisted_pair() {
-        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, true).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -516,10 +518,7 @@ mod tests {
         let err = verify_factory_provenance(&lcd, FACTORY, ATTACKER_PAIR, &assets)
             .await
             .unwrap_err();
-        assert!(
-            is_rejected_pair_error(&*err),
-            "unexpected error: {err}"
-        );
+        assert!(is_rejected_pair_error(&*err), "unexpected error: {err}");
         assert!(
             err.to_string().contains("unlisted/foreign pair"),
             "unexpected error: {err}"
@@ -528,7 +527,6 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_accepts_factory_listed_pair() {
-        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, true).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -541,7 +539,6 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_skipped_when_factory_empty() {
-        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, false).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -554,7 +551,6 @@ mod tests {
 
     #[tokio::test]
     async fn verify_factory_provenance_fails_when_factory_has_no_pair() {
-        reject_cache_clear();
         let server = MockServer::start().await;
         mount_pair_and_factory_mocks(&server, true, false).await;
         let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
@@ -563,15 +559,11 @@ mod tests {
         let err = verify_factory_provenance(&lcd, FACTORY, ATTACKER_PAIR, &assets)
             .await
             .unwrap_err();
-        assert!(
-            is_rejected_pair_error(&*err),
-            "unexpected error: {err}"
-        );
+        assert!(is_rejected_pair_error(&*err), "unexpected error: {err}");
     }
 
     #[tokio::test]
     async fn discover_new_pair_negative_caches_unlisted_pair() {
-        reject_cache_clear();
         let server = MockServer::start().await;
         let factory_hits = Arc::new(AtomicUsize::new(0));
         let hits = factory_hits.clone();
@@ -593,7 +585,8 @@ mod tests {
                     return ResponseTemplate::new(200)
                         .set_body_json(json!({ "data": pair_info_json(ATTACKER_PAIR) }));
                 }
-                if contract == FACTORY && query.get("pair").is_some() {
+                if matches!(contract, FACTORY | "terra1otherfactory") && query.get("pair").is_some()
+                {
                     hits.fetch_add(1, Ordering::SeqCst);
                     return ResponseTemplate::new(500).set_body_json(json!({
                         "code": 2,
@@ -617,7 +610,7 @@ mod tests {
         assert!(is_rejected_pair_error(&*err1), "unexpected: {err1}");
         assert_eq!(factory_hits.load(Ordering::SeqCst), 1);
 
-        let err2 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
+        let err2 = discover_new_pair(&pool, &lcd.clone(), FACTORY, ATTACKER_PAIR)
             .await
             .unwrap_err();
         assert!(
@@ -630,13 +623,40 @@ mod tests {
         assert_eq!(
             factory_hits.load(Ordering::SeqCst),
             1,
-            "second discover must not re-hit factory LCD"
+            "cloned client must reuse the factory rejection"
         );
+
+        // A rejection by one factory says nothing about another factory's inventory.
+        let other_factory_error =
+            discover_new_pair(&pool, &lcd, "terra1otherfactory", ATTACKER_PAIR)
+                .await
+                .unwrap_err();
+        assert!(
+            matches!(
+                other_factory_error.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::Unlisted { .. })
+            ),
+            "another factory must check provenance: {other_factory_error}"
+        );
+        assert_eq!(factory_hits.load(Ordering::SeqCst), 2);
+
+        // Even identical endpoints must not inherit a prior client's chain lifetime.
+        let fresh_lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let fresh_client_error = discover_new_pair(&pool, &fresh_lcd, FACTORY, ATTACKER_PAIR)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                fresh_client_error.downcast_ref::<DiscoverPairError>(),
+                Some(DiscoverPairError::Unlisted { .. })
+            ),
+            "independent client must check provenance: {fresh_client_error}"
+        );
+        assert_eq!(factory_hits.load(Ordering::SeqCst), 3);
     }
 
     #[tokio::test]
     async fn lcd_pair_not_found_does_not_fan_out_to_other_endpoints() {
-        reject_cache_clear();
         let server_a = MockServer::start().await;
         let server_b = MockServer::start().await;
         let hits_b = Arc::new(AtomicUsize::new(0));
@@ -683,7 +703,6 @@ mod tests {
 
     #[tokio::test]
     async fn discover_new_pair_negative_caches_non_pair_contract() {
-        reject_cache_clear();
         let server = MockServer::start().await;
         let hits = Arc::new(AtomicUsize::new(0));
         let h = hits.clone();
@@ -736,7 +755,6 @@ mod tests {
 
     #[tokio::test]
     async fn lcd_unknown_variant_pair_does_not_fan_out() {
-        reject_cache_clear();
         let server_a = MockServer::start().await;
         let server_b = MockServer::start().await;
         let hits_b = Arc::new(AtomicUsize::new(0));

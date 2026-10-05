@@ -4,7 +4,7 @@
 # Build context: repository root
 #   docker build -f docker/indexer/Dockerfile -t cl8y-dex-indexer .
 
-FROM rust:1.96-bookworm AS builder
+FROM rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663 AS builder
 
 WORKDIR /build
 RUN apt-get update \
@@ -15,10 +15,10 @@ COPY indexer/ ./
 # sqlx::migrate!() embeds ./migrations at compile time.
 # Swagger UI is vendored via utoipa-swagger-ui (feature "vendored") so this
 # step does not download swagger-ui from GitHub at compile time.
-RUN cargo build --release \
+RUN cargo build --locked --release \
   && strip target/release/cl8y-dex-indexer
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS runtime
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates libssl3 curl \

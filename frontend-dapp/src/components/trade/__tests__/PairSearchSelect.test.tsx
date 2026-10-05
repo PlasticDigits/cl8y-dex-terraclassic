@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PairSearchSelect, type PairSearchSelectProps } from '@/components/trade/PairSearchSelect'
@@ -35,6 +35,23 @@ describe('PairSearchSelect degraded mode (GitLab #314)', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('cancels deferred focus checks when the selector unmounts', () => {
+    vi.useFakeTimers()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+    const { unmount } = render(
+      <QueryClientProvider client={client}>
+        <PairSearchSelect value="" onChange={() => {}} factoryPairs={factoryPairs} />
+      </QueryClientProvider>
+    )
+    act(() => vi.advanceTimersByTime(300))
+    expect(vi.getTimerCount()).toBe(0)
+    fireEvent.blur(screen.getByRole('combobox'))
+    expect(vi.getTimerCount()).toBe(1)
+    unmount()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('filters factory pairs locally when indexer errors and user types a symbol', async () => {

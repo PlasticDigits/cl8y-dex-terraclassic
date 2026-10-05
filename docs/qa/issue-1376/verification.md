@@ -14,7 +14,7 @@ See [agent checklist](README.md), [E1376 invariants](../../frontend.md#solver-re
 | Check | Result and scope |
 |-------|------------------|
 | Full contract workspace, repeated after fixes | PASS: 878 tests. Workspace formatting/standard Clippy and pair all-target Clippy passed. |
-| Full indexer library, serialized | PASS: 449 tests. Serialization avoids an existing shared negative-cache test collision. |
+| Full indexer library, serialized | PASS: 449 tests. Serialization avoided the then-existing shared negative-cache test collision; [#1400](../issue-1400/README.md) repairs client/factory isolation and verifies parallel repeats. |
 | Exact-output Postgres API | PASS: 12 tests, including real 10/100 math, competing paths, alternate after unusable candidates, fee/sender/exemption context, net taxes, freshness/fidelity, malformed modes, and fair-rate protection. |
 | Existing route API / DB hybrid regressions | PASS: 29 + 8 tests. Indexer Clippy passed with existing warnings. |
 | Focused receive frontend suite, repeated | PASS: 192 tests per verifier pass; covers sizing, rounding, cancellation/deadline, URL/parser, taxes, invoice compatibility, partitions and stale state. |

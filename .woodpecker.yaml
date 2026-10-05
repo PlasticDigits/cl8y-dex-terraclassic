@@ -1,6 +1,7 @@
-# Trusted Woodpecker PR/main gate. Forgejo branch protection requires
-# context `ci/woodpecker/pr/woodpecker`. Functional cargo/frontend/indexer
-# jobs stay on the local Make matrix until a follow-up ports GitLab CI.
+# Required Woodpecker PR/main functional gate (#1400). Forgejo requires
+# context `ci/woodpecker/pr/woodpecker`. Every PR, including docs-only, runs
+# this complete matrix. The exclusive trusted configuration extension embeds
+# the reviewed helper scripts; PR changes cannot remove required jobs.
 # Merge recipe: docs/runbooks/forgejo-pr-merge.md (never force_merge).
 #
 # Digest-pinned images. Do not float tags.
@@ -10,6 +11,13 @@ when:
     branch: main
   - event: pull_request
 
+clone:
+  - name: git
+    image: woodpeckerci/plugin-git:2.9.3@sha256:b2d65ece33918fd8763192effb11b226ff4631faa1f3568c941ae69462b1f1be
+    settings:
+      lfs: false
+      recursive: false
+
 steps:
   - name: gitleaks
     image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
@@ -17,10 +25,57 @@ steps:
       - |
         set -euo pipefail
         apk add --no-cache bash curl git
+        bash scripts/ci/functional-run.sh init
         curl -fsSL -o /tmp/gitleaks.tgz \
           https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz
         echo "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e  /tmp/gitleaks.tgz" | sha256sum -c
         tar -xzf /tmp/gitleaks.tgz -C /tmp gitleaks
         install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
-        chmod +x scripts/ci/gitleaks-scan-tracked.sh
-        ./scripts/ci/gitleaks-scan-tracked.sh --verbose --exit-code 1
+        timeout 300 bash scripts/ci/functional-run.sh gitleaks
+
+  - name: contracts
+    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    depends_on: [gitleaks]
+    commands:
+      - timeout --signal=TERM --kill-after=30s 35m bash scripts/ci/functional-run.sh contracts
+
+  - name: frontend
+    image: node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
+    depends_on: [contracts]
+    commands:
+      - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh frontend
+
+  - name: indexer-lib
+    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    depends_on: [frontend]
+    commands:
+      - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
+      - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh indexer-lib
+
+  - name: indexer-postgres
+    image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
+    depends_on: [indexer-lib]
+    environment:
+      TEST_DATABASE_URL: postgres://cl8y_ci:cl8y_ci@postgres:5432/dex_indexer_ci_test
+    commands:
+      - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config postgresql-client
+      - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh indexer-postgres
+
+  - name: functional-required
+    image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    depends_on: [gitleaks, contracts, frontend, indexer-lib, indexer-postgres]
+    when:
+      - status: [success, failure]
+    commands:
+      - apk add --no-cache bash
+      - bash scripts/ci/functional-run.sh aggregate
+
+# A service on the workflow's ephemeral network: no host socket, privileged
+# container, host mount, shared volume, persisted cache, or production secret.
+services:
+  - name: postgres
+    image: postgres:16@sha256:1a6ab3f5345eb6dbe04a1349529caabdb0ab09293a09590fad07b2246bfa4b54
+    environment:
+      POSTGRES_USER: cl8y_ci
+      POSTGRES_PASSWORD: cl8y_ci
+      POSTGRES_DB: dex_indexer_ci_test

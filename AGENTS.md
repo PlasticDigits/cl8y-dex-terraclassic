@@ -635,3 +635,5 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_SWAP_EXACT_OUTPUT.md](skills/AGENTS_SWAP_EXACT_OUTPUT.md) — bounded solver receive sizing and pair reverse budget repair (#1376), E1376-1–E1376-8; `make verify-issue-1376`; [review/migration checklist](docs/qa/issue-1376/README.md).
 
 - [skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md](skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md) — reserve coverage cannot become false zero/low complete TVL (#1380), Q1380-1–Q1380-9; `make verify-issue-1380`; [review, repair and agent skip policy](docs/qa/issue-1380/README.md).
+
+- [skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md](skills/AGENTS_FORGEJO_FUNCTIONAL_CI.md) — signed exclusive Woodpecker functional policy, fresh executable build state, immutable inputs, provenance and parallel discovery-cache isolation (#1400), **CI1400-1–CI1400-10**; `make verify-issue-1400`; [review checklist and explicit agent skip policy](docs/qa/issue-1400/README.md).
