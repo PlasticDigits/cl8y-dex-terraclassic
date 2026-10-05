@@ -3,6 +3,7 @@
 Issue: [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381).
 Protocol/invariants: [RT1381-1–RT1381-10](../../../skills/AGENTS_ROUTE_LOCAL_TAX.md).
 Deployment/version compatibility: [runbook](../../runbooks/route-local-tax-1381.md).
+Production script review: [rollout checklist](../issue-1381-rollout/README.md).
 Routing: [solver](../../route-solver.md); product flows: [frontend](../../frontend.md).
 
 The required outcome is actual route-funded execution, including zero intermediate

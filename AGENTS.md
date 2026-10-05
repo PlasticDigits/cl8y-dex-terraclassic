@@ -10,6 +10,13 @@ route amounts, and preserves exact pair credit/hook parity. Older wallet-funded
 router-hop instructions are legacy compatibility only. Run `make verify-issue-1381`;
 [agent review checklist and explicit skip policy](docs/qa/issue-1381/README.md).
 
+For production rollout automation, use
+[skills/AGENTS_ROUTE_TAX_ROLLOUT.md](skills/AGENTS_ROUTE_TAX_ROLLOUT.md)
+(**RTROLL1381-1–RTROLL1381-10**) and the
+[rollout script checklist](docs/qa/issue-1381-rollout/README.md).
+Planning/probing is read-only; execution and pause restoration are explicit
+operator actions. Script verification does not establish production deployment.
+
 Guidance for AI coding agents working in this repository.
 
 ## Git commits

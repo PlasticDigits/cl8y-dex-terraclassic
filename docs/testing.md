@@ -9,6 +9,16 @@ execution. [Acceptance/agent checklist](qa/issue-1381/README.md),
 Agents may report **PASS with explicit skips** for checks they cannot run, with
 concrete reasons; executed failures remain FAIL and skipped deployment is unverified.
 
+Production rollout script review uses the separate
+[rollout checklist](qa/issue-1381-rollout/README.md) and
+[RTROLL1381-1–RTROLL1381-10](../skills/AGENTS_ROUTE_TAX_ROLLOUT.md).
+Test and retest inventory, custody dispatch, immutable plans, transaction resume,
+template rotation and original-pause restoration before operator execution.
+Read-only production probes and source tests do not satisfy live deployment AC9.
+Run `make verify-route-tax-rollout`; the behavioral suite is also directly
+available as `python3 scripts/qa/test-route-tax-rollout.py`. Its fake transport
+does not establish SDK signing or on-chain migration success.
+
 **Master verification checklist:** [GitLab **#337**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/337) — executable Local/QA scenarios and **REG-00** / **LR-00** regression gates referenced below.
 
 ## Philosophy

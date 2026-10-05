@@ -10,6 +10,8 @@ Canonical references: [protocol and migration](../docs/runbooks/route-local-tax-
 [shared protocol](../smartcontracts/packages/dex-common/src/route_tax.rs),
 [security invariants](../docs/contracts-security-audit.md),
 [solver](../docs/route-solver.md), [frontend](../docs/frontend.md).
+Production automation: [rollout playbook](AGENTS_ROUTE_TAX_ROLLOUT.md) and
+[rollout script checklist](../docs/qa/issue-1381-rollout/README.md).
 
 ## Invariants
 
