@@ -19,6 +19,11 @@ operator actions. Script verification does not establish production deployment.
 
 Guidance for AI coding agents working in this repository.
 
+For economic event ingestion, use
+[skills/AGENTS_INDEXER_EVENT_AMOUNTS.md](skills/AGENTS_INDEXER_EVENT_AMOUNTS.md)
+(**A1395-1–A1395-8**, [#1395](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1395)).
+Run `make verify-issue-1395`; [agent checklist and explicit skip policy](docs/qa/issue-1395/README.md).
+
 ## Git commits
 
 ### Commit identity (who signs the commit)

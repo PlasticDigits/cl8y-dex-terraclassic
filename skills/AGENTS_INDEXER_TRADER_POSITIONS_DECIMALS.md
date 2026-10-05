@@ -22,7 +22,7 @@ Root cause: `trader_positions` used `NUMERIC(38, 18)` (`|x| < 10^20`). ~100 huma
 
 | ID | Rule |
 |----|------|
-| **P676-1** | `trader_positions` amount columns and `traders` P&L / fee columns are **`NUMERIC(78, 18)`**. Do not revert to `NUMERIC(38, 18)`. |
+| **P676-1** | `trader_positions` amount/price/cost and trader raw fees are **`NUMERIC(78,18)`**; position/trader raw realized P&L is **`NUMERIC(114,18)`** ([#1395](../docs/qa/issue-1395/README.md)). Do not revert to `NUMERIC(38, 18)`. |
 | **P676-2** | Stored units stay **raw** (#551). Do not humanize in the indexer. |
 | **P676-3** | Every ingested `swap_events` row for `(sender, pair_id)` increments that position’s `trade_count` by 1 — 6/6, 6/18, and 18/6. |
 | **P676-4** | A pair with swaps must appear on `GET /positions` (unless the pair row is missing). Do not drop a row because a raw amount is large. |
@@ -69,5 +69,5 @@ cd indexer && cargo test --lib position_tracker -- --quiet
 - [`AGENTS_FRONTEND_HUB_PNL.md`](./AGENTS_FRONTEND_HUB_PNL.md) — header USD (**P560**)
 - [`AGENTS_LIMIT_PRICE_DECIMALS.md`](./AGENTS_LIMIT_PRICE_DECIMALS.md) — contract 6-vs-18 band (#529)
 - [`AGENTS_FRONTEND_TAPE_AMOUNTS.md`](./AGENTS_FRONTEND_TAPE_AMOUNTS.md) — tape plain strings (#557)
-- [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md) — rolling volume is **`NUMERIC(38, 0)`**, not this `(78, 18)` P&L type ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277))
+- [`AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md`](./AGENTS_INDEXER_TRADER_ROLLING_NUMERIC.md) — rolling volume is **`NUMERIC(58, 0)`** (#1395), not this `(78, 18)` P&L type ([#1277](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1277))
 - Post-merge leftover: [#686](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/686) / `make verify-issue-686` / [`AGENTS_POST_MERGE_OPS_686.md`](./AGENTS_POST_MERGE_OPS_686.md)

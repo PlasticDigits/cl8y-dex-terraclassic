@@ -1911,5 +1911,9 @@ front:
 	cd frontend-dapp && bash -c '. "$$HOME/.nvm/nvm.sh" && nvm use && VITE_NETWORK=local npm run dev -- --host'
 
 .PHONY: verify-issue-1380
+.PHONY: verify-issue-1395
+verify-issue-1395:
+	bash scripts/qa/verify-issue-1395.sh
+
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
