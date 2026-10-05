@@ -1,8 +1,8 @@
 # Exact event amounts (#1395)
 
 Issue: [#1395](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1395).
-Implementation: branch `fix/issue-1395-strict-event-amounts` (PR linked in
-[verification.md](verification.md)).
+Implementation: [PR #1406](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1406); results and tested revision are in
+[verification.md](verification.md).
 Invariants: [A1395](../../indexer-invariants.md#exact-event-amounts-1395).
 Agent playbook: [AGENTS_INDEXER_EVENT_AMOUNTS.md](../../../skills/AGENTS_INDEXER_EVENT_AMOUNTS.md).
 

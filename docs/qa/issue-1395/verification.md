@@ -2,8 +2,9 @@
 
 Result: **PASS for implementation and isolated synthetic acceptance**.
 Recorded 2026-10-05 08:16:12 UTC. Branch: `fix/issue-1395-strict-event-amounts`.
-Base revision: `9944ada10ee711ff8ffaa91f4c19b0f292de3924`. The commit containing this receipt identifies the tested
-implementation; PR head links the published revision.
+Base revision: `9944ada10ee711ff8ffaa91f4c19b0f292de3924`. Tested implementation: [`59f1860a`](https://git.cl8y.com/code/cl8y-dex-terraclassic/src/commit/59f1860a9ecc1a08ed4a68d06cf060b909a53182).
+Publication: [PR #1406](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1406). Subsequent documentation-only links preserve
+the tested functional patch.
 Staged functional patch SHA-256 (`git diff --cached --binary -- indexer scripts Makefile`):
 `1d8bfb9b004fa1475d0a25fd26b9c57152b45679710977d3681e6153c8ab4eb3`.
 
