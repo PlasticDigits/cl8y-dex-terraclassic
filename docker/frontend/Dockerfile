@@ -87,7 +87,7 @@ RUN test -n "$VITE_FACTORY_ADDRESS" \
   && case "$VITE_INDEXER_URL" in https://*) ;; *) echo "VITE_INDEXER_URL must be https://" >&2; exit 1 ;; esac \
   && npm run build
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
