@@ -37,6 +37,9 @@ steps:
     image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
     depends_on: [gitleaks]
     commands:
+      # Official Rust images use a minimal toolchain without cargo-fmt.
+      # rustup verifies the component for the image's exact installed version.
+      - timeout --signal=TERM --kill-after=30s 5m rustup component add rustfmt
       - timeout --signal=TERM --kill-after=30s 35m bash scripts/ci/functional-run.sh contracts
 
   - name: frontend

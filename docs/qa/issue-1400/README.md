@@ -8,7 +8,7 @@
 The required Forgejo workflow now defines gitleaks, locked contract workspace
 tests, frontend lint/unit/cold production build, indexer library tests, and
 isolated Postgres tests (`security`, `api_hooks`, `api_route_tax_funding1381`,
-`indexer_ingestion_hardening`). Every PR includes these jobs. A final
+`indexer_ingestion_hardening`). Every PR includes these jobs. The trusted initializer rejects deletion or symlink substitution of the workflow/scanner source mirrors before executing source; configuration deletion cannot become a green missing-job result. A final
 `functional-required` step checks completeness; the trusted engine's step
 exit/status remains authoritative. Receipts in the shared checkout are
 bookkeeping and are not an adversarial authentication boundary.
@@ -31,7 +31,7 @@ verification handoff. Record revision, UTC time, commands and outcomes.
 - [ ] Run `cargo test --locked --workspace` in `smartcontracts`, frontend
   `npm ci`, `npm run lint`, `npm run test:run -- --maxWorkers=2`, and
   `VITE_WC_PROJECT_ID=ci-build-typecheck VITE_DEV_MODE=false npm run build`.
-  Cold builds must ignore preexisting target/node_modules outputs.
+  Cold builds must ignore preexisting target/node_modules outputs. The minimal pinned Rust image installs its matching checksum-verified rustfmt component before contract formatting; a missing component remains a failure.
 - [ ] Run indexer `cargo test --locked --lib -- --test-threads=16` repeatedly;
   repeat `indexer::pair_discovery::tests` at least 20 times. Confirm independent
   client/factory keys and no global cache clearing by unrelated tests.

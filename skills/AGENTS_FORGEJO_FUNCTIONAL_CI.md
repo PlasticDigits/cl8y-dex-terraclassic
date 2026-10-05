@@ -15,7 +15,7 @@ Canonical [review/verification checklist](../docs/qa/issue-1400/README.md),
    Never fabricate statuses, force merge, or drop a required context.
 2. **CI1400-2:** All PRs, including docs-only, run gitleaks, contracts, frontend
    lint/unit/build, indexer library and the named isolated Postgres subset.
-   Failure, timeout, skipped required steps and missing results cannot pass. Invoke frontend test/lint/build tools directly; PR-owned npm script aliases cannot replace required checks. Deferred selector focus timers must cancel on reschedule/unmount; async quote tests preserve exact funding assertions under bounded startup waits.
+   Failure, timeout, skipped required steps and missing results cannot pass. Required workflow/scanner source mirrors must exist as regular files; deletion fails the trusted initializer. Invoke frontend test/lint/build tools directly; PR-owned npm script aliases cannot replace required checks. Deferred selector focus timers must cancel on reschedule/unmount; async quote tests preserve exact funding assertions under bounded startup waits.
 3. **CI1400-3:** Required policy comes from a separately deployed reviewed
    immutable commit: exclusive signed config extension, `netrc=false`.
    PR YAML/scripts/TOML and issue text are never policy inputs. The public

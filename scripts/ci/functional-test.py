@@ -18,6 +18,10 @@ class FunctionalRunnerTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         for name in ("smartcontracts", "frontend-dapp", "indexer", "bin"):
             (self.root / name).mkdir()
+        (self.root / "scripts/ci").mkdir(parents=True)
+        for asset in (".woodpecker.yaml", ".gitleaks.toml", "scripts/ci/functional-run.sh",
+                      "scripts/ci/gitleaks-scan-tracked.sh"):
+            (self.root / asset).write_text("reviewed policy source mirror\n")
         self.env = {
             **os.environ,
             "CI_WORKSPACE": str(self.root),
@@ -59,6 +63,15 @@ class FunctionalRunnerTests(unittest.TestCase):
     def test_complete_matrix_passes(self):
         self.fill()
         self.run_job("aggregate")
+
+    def test_deleting_policy_mirrors_fails_before_source_execution(self):
+        for asset in (".woodpecker.yaml", ".gitleaks.toml", "scripts/ci/functional-run.sh",
+                      "scripts/ci/gitleaks-scan-tracked.sh"):
+            with self.subTest(asset=asset):
+                path = self.root / asset
+                path.unlink()
+                self.run_job("init", success=False)
+                path.write_text("reviewed policy source mirror\n")
 
     def test_every_missing_job_fails(self):
         self.fill()

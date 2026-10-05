@@ -11,7 +11,7 @@ Canonical [checklist and skip policy](README.md),
 
 | Check | Command / evidence | Result and scope |
 |---|---|---|
-| Functional runner regressions | `python3 scripts/ci/functional-test.py`, repeated | PASS: failure, missing/stale/symlink receipts, fresh targets and synthetic cache contamination. Engine exit/status is authoritative; receipts are bookkeeping. |
+| Functional runner regressions | `python3 scripts/ci/functional-test.py`, repeated | PASS: 10 tests repeated, covering deleted policy source mirrors, command failures, missing/stale/symlink receipts, fresh targets and synthetic cache contamination. Engine exit/status is authoritative; receipts are bookkeeping. |
 | Build input regressions | `python3 scripts/ci/test-build-inputs.py`, repeated | PASS: poisoned binary replacement, fresh dual optimizer overlays/cleanup, source/lock/recipe/image/output tampering, frozen fixture Git selection and graph-preserving lock conversion. |
 | Immutable image declarations/manifests | `python3 scripts/ci/verify-image-pins.py --registry` | PASS: 13 reviewed manifest references, including checkout plugin; original Alpine and gitleaks download checksum preserved. |
 | Signed config policy | `go test -mod=readonly -v -count=2 ./...` in `scripts/ci/trusted-policy` | PASS on checksum-verified Go 1.26.8: signed requests, wrong repository, forwarded credentials, unsigned requests, deleted/empty/skipped/malicious contributor config, reviewed asset embedding and escaped shell variables. Local test execution used RAM-backed temporary compiler state to avoid host I/O saturation. |
@@ -73,3 +73,5 @@ that every parsed package/version/revision/checksum remains identical.
 GitLab QA publication source rules and synthetic branch/event evaluation PASS: both jobs refuse feature/unprotected refs, including manual web triggers; protected default-branch web remains eligible. Live GitLab protection/readback remains unverified.
 
 Tracked-file gitleaks PASS. Three generic-key false positives were artifact SHA256 values labeled with token contract filenames; the public comparison now separates file names from sha256 fields. No scanner allowlist or secret-scan bypass was added. Four critical browser cases are confirmed by Playwright --list; collection is not execution.
+
+Live rollout: the separately deployed policy HTTPS endpoint passed health/hash readback; repo 7 now uses exclusive signed configuration with netrc forwarding disabled, fork approval preserved, timeout 120 minutes, and no volume/security trust escalation. Initial real pipeline 303 FAILED because the pinned Rust 1.96.1 minimal image lacks cargo-fmt; mandatory downstream steps were skipped and the final completeness step also failed. The workflow now installs the checksum-verified matching rustfmt component before contract checks; corrected hosted evidence remains pending.

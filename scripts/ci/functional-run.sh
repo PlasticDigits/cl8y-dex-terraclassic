@@ -14,6 +14,11 @@ fail() { printf 'functional gate: %s\n' "$*" >&2; exit 1; }
 
 case "$job" in
   init)
+    # The externally served policy remains authoritative, but its source
+    # mirrors must remain buildable. Deletion cannot become missing-job success.
+    for asset in .woodpecker.yaml .gitleaks.toml scripts/ci/functional-run.sh scripts/ci/gitleaks-scan-tracked.sh; do
+      [[ -f "$root/$asset" && ! -L "$root/$asset" ]] || fail "missing policy source: $asset"
+    done
     # Checkout contents cannot supply stale success receipts.
     rm -rf "$state"
     mkdir -m 0700 "$state"
