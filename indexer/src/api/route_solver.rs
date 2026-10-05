@@ -9,22 +9,22 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
 
 use sqlx::PgPool;
 
-use crate::api::AppState;
 use crate::api::hybrid_route_opt;
 use crate::api::internal_err;
 use crate::api::route_graph;
 use crate::api::route_solve_progress;
+use crate::api::AppState;
 use crate::db::queries::{assets, pairs as db_pairs};
-use crate::hybrid_limits::{MAX_MAKER_FILLS_HARD_CAP, clamp_max_maker_fills};
+use crate::hybrid_limits::{clamp_max_maker_fills, MAX_MAKER_FILLS_HARD_CAP};
 
 pub use hybrid_route_opt::HybridHopJson;
 
@@ -426,11 +426,12 @@ pub(crate) fn apply_hybrid_by_hop(
 
 async fn resolve_route_with_max_hops(
     pool: &PgPool,
+    namespace: &str,
     token_in: &str,
     token_out: &str,
     max_hops: usize,
 ) -> Result<ResolvedRoute, (StatusCode, String)> {
-    let snapshot = route_graph::get_route_graph_snapshot(pool).await?;
+    let snapshot = route_graph::get_route_graph_snapshot(pool, namespace).await?;
     let (id_to_addr, addr_to_id) = (&snapshot.id_to_addr, &snapshot.addr_to_id);
 
     let start = resolve_id(addr_to_id, token_in).ok_or_else(|| {
@@ -465,10 +466,11 @@ async fn resolve_route_with_max_hops(
 
 async fn resolve_route(
     pool: &PgPool,
+    namespace: &str,
     token_in: &str,
     token_out: &str,
 ) -> Result<ResolvedRoute, (StatusCode, String)> {
-    resolve_route_with_max_hops(pool, token_in, token_out, GET_POOL_ONLY_MAX_HOPS).await
+    resolve_route_with_max_hops(pool, namespace, token_in, token_out, GET_POOL_ONLY_MAX_HOPS).await
 }
 
 fn parse_amount_in(raw: Option<&String>) -> Option<&str> {
@@ -799,13 +801,22 @@ pub(crate) async fn resolve_discount_bps(
         (Some(t), Some(s)) => (t.trim(), s.trim()),
     };
 
-    let cache_key = discount_bps_cache_key(trader, sender);
+    if state.lcd.require_verified_chain().await.is_err() {
+        return 0;
+    }
+    let cache_key = format!(
+        "{}|{}",
+        state.lcd.chain_cache_namespace(),
+        discount_bps_cache_key(trader, sender)
+    );
     if let Some(bps) = discount_bps_cache_get(&cache_key) {
         return bps;
     }
 
     let bps = resolve_discount_bps_uncached(state, quote_trader, trader, sender).await;
-    discount_bps_cache_put(&cache_key, bps);
+    if state.lcd.require_verified_chain().await.is_ok() {
+        discount_bps_cache_put(&cache_key, bps);
+    }
     bps
 }
 
@@ -925,6 +936,9 @@ async fn execute_hybrid_route_solve(
         ));
     }
 
+    state.lcd.require_verified_chain().await.map_err(|_| (
+        StatusCode::SERVICE_UNAVAILABLE, "No endpoint attests the expected chain".to_string(),
+    ))?;
     let max_makers = clamp_max_maker_fills(max_maker_fills);
     let bucket = amount_cache_key(amount_u);
     let discount_bps = resolve_discount_bps(state, quote_trader).await;
@@ -942,7 +956,11 @@ async fn execute_hybrid_route_solve(
             .or(quote_trader.sender.as_deref()),
     )
     .await;
-    let tax_identity = cache_taxes.cache_identity();
+    let tax_identity = format!(
+        "{}|{}",
+        state.lcd.chain_cache_namespace(),
+        cache_taxes.cache_identity()
+    );
     let bucket = if cache_taxes
         .by_addr
         .values()
@@ -1129,8 +1147,14 @@ pub async fn solve_route(
     }
 
     let max_hops = get_pool_only_max_hops(&q);
-    let resolved =
-        resolve_route_with_max_hops(&state.pool, &q.token_in, &q.token_out, max_hops).await?;
+    let resolved = resolve_route_with_max_hops(
+        &state.pool,
+        &state.lcd.chain_cache_namespace(),
+        &q.token_in,
+        &q.token_out,
+        max_hops,
+    )
+    .await?;
     let taxes = if amount_raw.is_some() {
         validate_route_tax(
             &state,
@@ -1234,7 +1258,13 @@ pub async fn solve_route_post(
         ));
     }
     let quote_trader = parse_quote_trader(body.trader.clone(), body.sender.clone())?;
-    let resolved = resolve_route(&state.pool, &body.token_in, &body.token_out).await?;
+    let resolved = resolve_route(
+        &state.pool,
+        &state.lcd.chain_cache_namespace(),
+        &body.token_in,
+        &body.token_out,
+    )
+    .await?;
     let intermediate_tokens = build_intermediate_tokens(&resolved);
     let ops = if let Some(ref hybrid) = body.hybrid_by_hop {
         apply_hybrid_by_hop(resolved.ops, hybrid)?
@@ -1492,7 +1522,7 @@ mod hybrid_cache_key_tests {
 
 #[cfg(test)]
 mod cache_ttl_tests {
-    use super::{ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT, cache_ttl_for_hops};
+    use super::{cache_ttl_for_hops, ROUTE_CACHE_TTL, ROUTE_CACHE_TTL_DISTANT};
     use std::time::Duration;
 
     #[test]

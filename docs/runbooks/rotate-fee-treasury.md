@@ -102,3 +102,9 @@ make qa-verify-deploy-config
 ```
 
 Invariant **F4** in [`docs/contracts-security-audit.md`](../contracts-security-audit.md).
+
+## Chain attestation (#1392)
+
+Apply the shared [endpoint policy](chain-attestation.md) before financial reads
+and each transaction preparation/retry. Review [NET1392 checks](../qa/issue-1392/README.md);
+dry-run preserves its no-broadcast behavior and performs identity preflight.

@@ -635,3 +635,5 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_SWAP_EXACT_OUTPUT.md](skills/AGENTS_SWAP_EXACT_OUTPUT.md) — bounded solver receive sizing and pair reverse budget repair (#1376), E1376-1–E1376-8; `make verify-issue-1376`; [review/migration checklist](docs/qa/issue-1376/README.md).
 
 - [skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md](skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md) — reserve coverage cannot become false zero/low complete TVL (#1380), Q1380-1–Q1380-9; `make verify-issue-1380`; [review, repair and agent skip policy](docs/qa/issue-1380/README.md).
+
+- [skills/AGENTS_CHAIN_ATTESTATION.md](skills/AGENTS_CHAIN_ATTESTATION.md) — LCD and treasury endpoint identity, freshness, retry and cache boundaries (**NET1392-1–NET1392-10**, [#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392)); `make verify-issue-1392`; [agent checklist and explicit skips](docs/qa/issue-1392/README.md).

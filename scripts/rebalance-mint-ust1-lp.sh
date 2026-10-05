@@ -32,7 +32,7 @@ source "$SCRIPT_DIR/lib/terrad-host.sh"
 
 TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:443}"
-LCD_URL="${UST1_LP_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${UST1_LP_LCD_URL%/}}"
 MATH_PY="$SCRIPT_DIR/lib/ust1-lp-rebalance-math.py"
 MSIG_KEY="${UST1_LP_MSIG_KEY}"
 SIGNER1="${UST1_LP_SIGNER1}"
@@ -205,6 +205,7 @@ broadcast_admin() {
 }
 
 broadcast_msig() {
+  terrad_host_attest || return 1
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2
@@ -471,6 +472,10 @@ python3 "$MATH_PY" --self-test
 if [[ "${DRY_RUN:-0}" != "1" ]]; then
   command -v terrad >/dev/null || die "terrad required on PATH"
 fi
+
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $UST1_LP_FACTORY $UST1 $CUSTC $USTR $PAIR_CUSTC $PAIR_USTR $TREASURY"
+terrad_host_attest || die "chain/protocol trust preflight failed"
 
 USTC_USD="$(fetch_ustc_usd)" || die "oracle USTC/USD unavailable (set UST1_LP_USTC_USD)"
 [[ -n "$USTC_USD" ]] || die "empty USTC/USD"

@@ -102,3 +102,9 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multis
 | `TERRAD_HOST_NODE` | Buyback RPC override (default Hexxagon above) |
 | `TERRAD_HOST_TX_RETRIES` | Maximum attempts per mint-preparation command (default `6`) |
 | `TERRAD_HOST_TX_RETRY_DELAY_SEC` | Initial short-retry wait, increasing by 2 seconds (default `4`) |
+
+## Endpoint identity preflight (#1392)
+
+Apply the shared [chain-attestation policy](chain-attestation.md) before reads,
+dry-run planning and every transaction attempt. Failed or stale LCD/RPC identity
+cannot authorize a tick. Review [the verification checklist](../qa/issue-1392/README.md).

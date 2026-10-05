@@ -36,3 +36,10 @@ UST1_CLUNC_LOOP=0 UST1_CLUNC_YES=1 ./scripts/mint-swap-burn-ust1-clunc.sh
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — quote = execute via `/route/solve`
 - [`AGENTS_WRAP_UNWRAP_BURN_TAX.md`](./AGENTS_WRAP_UNWRAP_BURN_TAX.md) — why unwrap is forbidden here
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+## Chain identity (#1392)
+
+Use [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md) and the shared
+[endpoint policy](../docs/runbooks/chain-attestation.md). A signing `--chain-id`
+is not node attestation. Run `make verify-issue-1392`; recheck identity on each
+tick and retry, including dry runs. Never treat a skipped check as deployment evidence.

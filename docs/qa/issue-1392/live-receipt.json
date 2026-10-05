@@ -1,0 +1,16 @@
+{
+  "checked_at_utc": "2026-10-05T06:31:40Z",
+  "base_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "source_scope": "Issue #1392 working-tree implementation; commit was not yet created",
+  "command": "python3 scripts/lib/chain-attestation.py --lcd https://terra-classic-lcd.publicnode.com --rpc https://terra-classic-rpc.publicnode.com:443 --expected-chain columbus-5 --timeout 10",
+  "exit_code": 0,
+  "scope": "Read-only network, freshness, height-lag and common-height block-hash corroboration. No protocol contract pins were requested. No transaction preparation, signing, broadcast or deployment acceptance.",
+  "receipt": {
+    "rpc": "https://terra-classic-rpc.publicnode.com:443",
+    "expected_chain_id": "columbus-5",
+    "observed_chain_id": "columbus-5",
+    "height": 30699178,
+    "block_hash": "2a3cbf6b2b28aface523e1e637365f3ebe5e7d4787c7da34af0646c1eda72967",
+    "identities": {}
+  }
+}

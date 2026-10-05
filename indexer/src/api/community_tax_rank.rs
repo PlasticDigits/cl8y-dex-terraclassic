@@ -7,8 +7,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use crate::api::AppState;
 use crate::api::route_solver::RouteHop;
+use crate::api::AppState;
 use crate::db::queries::community_tokens::{self, CommunityTokenRow};
 use crate::lcd::LcdClient;
 
@@ -486,7 +486,7 @@ pub(crate) async fn try_load_tax_rank_snapshot(
     let mut snapshot = TaxRankSnapshot {
         instance_identity: vec![format!(
             "lcd{}:router{:?}",
-            state.lcd.cache_namespace(),
+            state.lcd.chain_cache_namespace(),
             state.router_address
         )],
         policy,
@@ -907,6 +907,7 @@ mod tests {
         use wiremock::matchers::{method, path_regex};
         use wiremock::{Mock, MockServer, ResponseTemplate};
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path_regex(r".*/smart/.*"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -914,7 +915,7 @@ mod tests {
             })))
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000);
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
         let mut token = tax_tok(TAX, 11667, 450, 100);
         token.route_funding_version = Some(1);
         assert!(!resolve_token_exempt(&lcd, &token, "terra1synthetictrader").await);

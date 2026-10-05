@@ -41,3 +41,10 @@ UST1_LP_BURN_ONLY=1 UST1_LP_YES=1 ./scripts/rebalance-mint-ust1-lp.sh
 - [`AGENTS_INDEXER_PAIR_PRICE_USD.md`](./AGENTS_INDEXER_PAIR_PRICE_USD.md) — ingest uses hub_prices for UST1/USTR
 - [`AGENTS_ROTATE_FEE_TREASURY.md`](./AGENTS_ROTATE_FEE_TREASURY.md) — CMM fee sink (not LP)
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+## Chain identity (#1392)
+
+Use [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md) and the shared
+[endpoint policy](../docs/runbooks/chain-attestation.md). A signing `--chain-id`
+is not node attestation. Run `make verify-issue-1392`; recheck identity on each
+tick and retry, including dry runs. Never treat a skipped check as deployment evidence.

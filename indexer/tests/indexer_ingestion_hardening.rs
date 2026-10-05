@@ -20,7 +20,7 @@ fn block_json(height: i64, hash: &str) -> serde_json::Value {
     json!({
         "block_id": { "hash": hash },
         "block": {
-            "header": {
+            "header": { "chain_id": "columbus-5",
                 "height": height.to_string(),
                 "time": "2024-01-01T00:00:00Z"
             }
@@ -109,6 +109,7 @@ fn lcd_client(server: &MockServer) -> LcdClient {
         vec![server.uri().trim_end_matches('/').to_string()],
         5000,
         30000,
+        "columbus-5",
     )
 }
 
@@ -126,6 +127,7 @@ async fn cursor_does_not_advance_on_parser_failure() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 500i64;
     let hash = "ABC500HASH";
     let pair_address = "terra1pair236test";
@@ -196,6 +198,7 @@ async fn cursor_advances_on_empty_block_success() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 601i64;
     let hash = "HASH601";
 
@@ -226,6 +229,7 @@ async fn reorg_detection_halts_on_hash_mismatch() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 700i64;
     let stored_hash = "ORIGINAL_HASH";
     let canonical_hash = "REORG_HASH";
@@ -249,6 +253,7 @@ async fn stale_poller_height_is_resync_not_reorg() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let lcd = lcd_client(&server);
 
     state::set_indexer_checkpoint(&pool, 800, "HASH800")
@@ -392,6 +397,7 @@ async fn reorg_recovery_rewind_allows_catch_up() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 900i64;
     let old_hash = "OLD900";
     let new_hash = "NEW900";
@@ -443,6 +449,7 @@ async fn multi_page_block_txs_ingested_count_matches_lcd_total() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 800i64;
     let hash = "HASH800";
 
@@ -483,6 +490,7 @@ async fn missing_tx_timestamp_uses_block_header_time() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 900i64;
     let hash = "HASH900";
 
@@ -515,6 +523,7 @@ async fn invalid_tx_and_header_timestamp_fails_block() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 901i64;
     let hash = "HASH901";
 
@@ -526,7 +535,7 @@ async fn invalid_tx_and_header_timestamp_fails_block() {
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "block_id": { "hash": hash },
             "block": {
-                "header": {
+                "header": { "chain_id": "columbus-5",
                     "height": height.to_string(),
                     "time": "not-a-valid-time"
                 }

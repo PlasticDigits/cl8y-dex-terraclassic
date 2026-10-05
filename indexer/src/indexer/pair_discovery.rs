@@ -86,9 +86,9 @@ fn reject_cache_clear() {
 
 fn lcd_err_is_pair_not_found(err: &LcdError) -> bool {
     match err {
-        LcdError::ContractQueryRejected(msg) | LcdError::AllEndpointsFailed(msg) => msg
-            .to_ascii_lowercase()
-            .contains("pair not found"),
+        LcdError::ContractQueryRejected(msg) | LcdError::AllEndpointsFailed(msg) => {
+            msg.to_ascii_lowercase().contains("pair not found")
+        }
         _ => false,
     }
 }
@@ -105,8 +105,8 @@ fn lcd_err_is_not_a_pair_contract(err: &LcdError) -> bool {
     }
 }
 
-fn remember_rejected_pair(pair_addr: &str, reason: &str) {
-    reject_cache_insert(pair_addr);
+fn remember_rejected_pair(lcd: &LcdClient, pair_addr: &str, reason: &str) {
+    reject_cache_insert(&format!("{}|{pair_addr}", lcd.chain_cache_namespace()));
     tracing::info!(pair = %pair_addr, reason, "Skipping unlisted/foreign pair");
 }
 
@@ -348,7 +348,11 @@ pub async fn discover_new_pair(
     factory_addr: &str,
     pair_contract_addr: &str,
 ) -> Result<PairRow, BoxError> {
-    if reject_cache_get(pair_contract_addr) {
+    lcd.require_verified_chain().await?;
+    if reject_cache_get(&format!(
+        "{}|{pair_contract_addr}",
+        lcd.chain_cache_namespace()
+    )) {
         tracing::debug!(
             pair = %pair_contract_addr,
             "Skipping rediscovery of recently rejected unlisted/foreign pair"
@@ -367,7 +371,7 @@ pub async fn discover_new_pair(
     {
         Ok(info) => info,
         Err(e) if lcd_err_is_not_a_pair_contract(&e) => {
-            remember_rejected_pair(pair_contract_addr, "does not support pair query");
+            remember_rejected_pair(lcd, pair_contract_addr, "does not support pair query");
             return Err(DiscoverPairError::NotAPair {
                 pair_address: pair_contract_addr.to_string(),
             }
@@ -394,7 +398,7 @@ pub async fn discover_new_pair(
     {
         Ok(()) => {}
         Err(e) if is_rejected_pair_error(&*e) => {
-            remember_rejected_pair(pair_contract_addr, "not listed in factory");
+            remember_rejected_pair(lcd, pair_contract_addr, "not listed in factory");
             return Err(e);
         }
         Err(e) => return Err(e),
@@ -509,8 +513,9 @@ mod tests {
     async fn verify_factory_provenance_rejects_unlisted_pair() {
         reject_cache_clear();
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, true).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(ATTACKER_PAIR).asset_infos;
 
         let err = verify_factory_provenance(&lcd, FACTORY, ATTACKER_PAIR, &assets)
@@ -530,8 +535,9 @@ mod tests {
     async fn verify_factory_provenance_accepts_factory_listed_pair() {
         reject_cache_clear();
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, true).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(CANONICAL_PAIR).asset_infos;
 
         verify_factory_provenance(&lcd, FACTORY, CANONICAL_PAIR, &assets)
@@ -543,8 +549,9 @@ mod tests {
     async fn verify_factory_provenance_skipped_when_factory_empty() {
         reject_cache_clear();
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, false).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(ATTACKER_PAIR).asset_infos;
 
         verify_factory_provenance(&lcd, "", ATTACKER_PAIR, &assets)
@@ -556,8 +563,9 @@ mod tests {
     async fn verify_factory_provenance_fails_when_factory_has_no_pair() {
         reject_cache_clear();
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, false).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(ATTACKER_PAIR).asset_infos;
 
         let err = verify_factory_provenance(&lcd, FACTORY, ATTACKER_PAIR, &assets)
@@ -573,6 +581,7 @@ mod tests {
     async fn discover_new_pair_negative_caches_unlisted_pair() {
         reject_cache_clear();
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let factory_hits = Arc::new(AtomicUsize::new(0));
         let hits = factory_hits.clone();
 
@@ -609,7 +618,7 @@ mod tests {
         // Pool is unused on the reject path (fails before sync_single_pair).
         let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1/unused")
             .expect("lazy pool");
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
 
         let err1 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -638,7 +647,9 @@ mod tests {
     async fn lcd_pair_not_found_does_not_fan_out_to_other_endpoints() {
         reject_cache_clear();
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -665,7 +676,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30000,
+            "columbus-5",
+        );
         let err = lcd
             .query_contract::<serde_json::Value>(FACTORY, &json!({"pair": {"asset_infos": []}}))
             .await
@@ -685,6 +701,7 @@ mod tests {
     async fn discover_new_pair_negative_caches_non_pair_contract() {
         reject_cache_clear();
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let hits = Arc::new(AtomicUsize::new(0));
         let h = hits.clone();
 
@@ -703,7 +720,7 @@ mod tests {
 
         let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1/unused")
             .expect("lazy pool");
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
 
         let err1 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -738,7 +755,9 @@ mod tests {
     async fn lcd_unknown_variant_pair_does_not_fan_out() {
         reject_cache_clear();
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -761,7 +780,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30000,
+            "columbus-5",
+        );
         let err = lcd
             .query_contract::<serde_json::Value>(ATTACKER_PAIR, &json!({"pair": {}}))
             .await

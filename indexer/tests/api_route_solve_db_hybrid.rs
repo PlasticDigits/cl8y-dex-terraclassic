@@ -238,7 +238,7 @@ async fn route_solve_db_hybrid_2hop_live_book_fidelity_uses_stripped_plan() {
         db_orderbook_sim::preload_mirrors_for_pairs(&pool, &pair_addrs, &id_to_addr, 60_000)
             .await
             .expect("preload mirrors");
-    let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+    let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000, "columbus-5");
     let source = HybridSimSource::Db {
         lcd_fallback: &lcd,
         mirrors: &mirrors,

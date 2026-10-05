@@ -5,18 +5,18 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
+use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::api::AppState;
 use crate::api::best_execution::solver_version_for;
 use crate::api::route_solver::{
-    SolveRouteParams, amount_cache_key, hybrid_cache_key, parse_progress_discount_bps,
-    parse_quote_trader, resolve_discount_bps,
+    amount_cache_key, hybrid_cache_key, parse_progress_discount_bps, parse_quote_trader,
+    resolve_discount_bps, SolveRouteParams,
 };
+use crate::api::AppState;
 use crate::hybrid_limits::clamp_max_maker_fills;
 
 const MAX_ENTRIES: usize = 256;
@@ -263,7 +263,11 @@ pub async fn solve_route_progress(
             .or(quote_trader.sender.as_deref()),
     )
     .await;
-    let tax_identity = taxes.cache_identity();
+    let tax_identity = format!(
+        "{}|{}",
+        state.lcd.chain_cache_namespace(),
+        taxes.cache_identity()
+    );
     let bucket = if taxes
         .by_addr
         .values()

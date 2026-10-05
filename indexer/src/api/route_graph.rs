@@ -34,9 +34,10 @@ impl RouteGraphSnapshot {
     }
 }
 
-fn graph_cache() -> &'static Mutex<Option<(Arc<RouteGraphSnapshot>, Instant)>> {
-    static CACHE: OnceLock<Mutex<Option<(Arc<RouteGraphSnapshot>, Instant)>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(None))
+type GraphCache = HashMap<String, (Arc<RouteGraphSnapshot>, Instant)>;
+fn graph_cache() -> &'static Mutex<GraphCache> {
+    static CACHE: OnceLock<Mutex<GraphCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 async fn load_graph_snapshot(
@@ -50,10 +51,11 @@ async fn load_graph_snapshot(
 /// Return a TTL-cached graph snapshot (double-checked locking).
 pub async fn get_route_graph_snapshot(
     pool: &PgPool,
+    namespace: &str,
 ) -> Result<Arc<RouteGraphSnapshot>, (StatusCode, String)> {
     let now = Instant::now();
     if let Ok(guard) = graph_cache().lock() {
-        if let Some((snap, at)) = guard.as_ref() {
+        if let Some((snap, at)) = guard.get(namespace) {
             if now.duration_since(*at) <= ROUTE_GRAPH_CACHE_TTL {
                 return Ok(Arc::clone(snap));
             }
@@ -63,12 +65,19 @@ pub async fn get_route_graph_snapshot(
     let snapshot = load_graph_snapshot(pool).await?;
 
     if let Ok(mut guard) = graph_cache().lock() {
-        if let Some((snap, at)) = guard.as_ref() {
+        if let Some((snap, at)) = guard.get(namespace) {
             if now.duration_since(*at) <= ROUTE_GRAPH_CACHE_TTL {
                 return Ok(Arc::clone(snap));
             }
         }
-        *guard = Some((Arc::clone(&snapshot), Instant::now()));
+        guard.retain(|_, (_, at)| at.elapsed() <= ROUTE_GRAPH_CACHE_TTL);
+        if guard.len() >= 32 {
+            guard.clear();
+        }
+        guard.insert(
+            namespace.to_string(),
+            (Arc::clone(&snapshot), Instant::now()),
+        );
     }
 
     Ok(snapshot)
@@ -77,7 +86,7 @@ pub async fn get_route_graph_snapshot(
 /// Drop the process-local graph snapshot (integration tests after TRUNCATE/reseed).
 pub fn reset_route_graph_cache() {
     if let Ok(mut guard) = graph_cache().lock() {
-        *guard = None;
+        guard.clear();
     }
 }
 

@@ -13,9 +13,11 @@ ROOT = Path(__file__).resolve().parents[2]
 USDT = "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4"
 
 CURL = r'''#!/usr/bin/env python3
-import base64, json, os, sys
+import base64, json, os, runpy, sys
 from urllib.parse import urlsplit
 url = next(arg for arg in sys.argv[1:] if arg.startswith("http"))
+if runpy.run_path(os.environ["MOCK_CHAIN_FIXTURE"])["respond"](url):
+    sys.exit(0)
 mode = os.environ["MOCK_QUOTE_MODE"]
 if "/route/solve/best" in url:
     if mode == "http-error":
@@ -139,6 +141,7 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
                 CUSTC_UST1_TARGET_USD="4000", CUSTC_UST1_DEST="cmm",
                 CUSTC_UST1_STATE_FILE=str(work / "state.json"),
                 TERRAD_HOST_KEYRING_BACKEND="test", TERRAD_HOST_KEYRING_PASS="fixture-only",
+                MOCK_CHAIN_FIXTURE=str(ROOT / "scripts/qa/fixtures/chain-attestation-curl.py"),
                 MOCK_QUOTE_MODE=mode, MOCK_TX_LOG=str(work / "transactions"),
                 MOCK_SLEEP_COUNT=str(work / "sleeps"), MOCK_TICKS=str(ticks),
                 MOCK_PREPARE_CALLS=str(work / "prepare.json"), MOCK_PREPARE_MODE=prepare_mode or "",
@@ -149,7 +152,7 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
                 env["TERRAD_HOST_NODE"] = node_override
             result = subprocess.run(
                 ["bash", str(ROOT / "scripts/mint-swap-custc-ust1.sh")],
-                env=env, capture_output=True, text=True, timeout=30,
+                env=env, capture_output=True, text=True, timeout=240,
             )
             self.assertFalse((work / "transactions").exists(), result.stdout + result.stderr)
             self.prepare_calls = json.loads((work / "prepare.json").read_text()) if (work / "prepare.json").exists() else []

@@ -1,4 +1,8 @@
+mod chain_identity;
 pub mod types;
+pub use chain_identity::{valid_chain_id, ChainIdentityHealth, EndpointIdentity};
+#[cfg(test)]
+pub(crate) use chain_identity::mock_chain_identity;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -53,6 +57,8 @@ fn lcd_log_path(path: &str) -> &'static str {
 pub enum LcdError {
     #[error("All LCD endpoints failed: {0}")]
     AllEndpointsFailed(String),
+    #[error("Chain identity rejected: {0}")]
+    ChainIdentity(String),
     /// Deterministic CosmWasm smart-query reject (e.g. factory `pair not found`,
     /// or foreign contract `unknown variant \`pair\``). Not an LCD outage — do not
     /// fan out to other endpoints or WARN.
@@ -104,6 +110,10 @@ fn should_cooldown_endpoint(status: reqwest::StatusCode) -> bool {
 struct Endpoint {
     url: String,
     cooldown_until: Option<Instant>,
+    observed_chain_id: Option<String>,
+    verified: bool,
+    identity_error: Option<String>,
+    identity_checked_at: Option<String>,
 }
 
 #[derive(Clone)]
@@ -116,10 +126,21 @@ struct LcdClientInner {
     client: Client,
     cooldown_duration: Duration,
     discovery_namespace: usize,
+    expected_chain_id: String,
 }
 
 impl LcdClient {
-    pub fn new(urls: Vec<String>, timeout_ms: u64, cooldown_ms: u64) -> Self {
+    pub fn new(
+        urls: Vec<String>,
+        timeout_ms: u64,
+        cooldown_ms: u64,
+        expected_chain_id: impl Into<String>,
+    ) -> Self {
+        let expected_chain_id = expected_chain_id.into();
+        assert!(
+            valid_chain_id(&expected_chain_id),
+            "invalid expected chain identifier"
+        );
         static NEXT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
         let endpoints = urls
@@ -127,10 +148,15 @@ impl LcdClient {
             .map(|url| Endpoint {
                 url: url.trim_end_matches('/').to_string(),
                 cooldown_until: None,
+                observed_chain_id: None,
+                verified: false,
+                identity_error: None,
+                identity_checked_at: None,
             })
             .collect();
 
         let client = Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_millis(timeout_ms))
             .build()
             .expect("failed to build reqwest client");
@@ -138,6 +164,7 @@ impl LcdClient {
         Self {
             inner: Arc::new(LcdClientInner {
                 endpoints: RwLock::new(endpoints),
+                expected_chain_id,
                 client,
                 cooldown_duration: Duration::from_millis(cooldown_ms),
                 discovery_namespace: NEXT_NAMESPACE
@@ -174,6 +201,11 @@ impl LcdClient {
             };
 
             if is_cooled_down {
+                continue;
+            }
+
+            if let Err(e) = self.attest_endpoint(idx, &url).await {
+                errors.push(e.to_string());
                 continue;
             }
 
@@ -250,6 +282,17 @@ impl LcdClient {
                         }
                         continue;
                     }
+                    // Node identity and block payload must agree independently (#1392).
+                    // Historical blocks retain their original timestamps; identity has no age exemption.
+                    if path.starts_with("/cosmos/base/tendermint/v1beta1/blocks/") {
+                        if let Err(e) = chain_identity::validate_block_chain(&text, self.expected_chain_id()) {
+                            errors.push(format!("endpoint[{idx}]: {e}"));
+                            self.mark_failed(idx).await;
+                            let mut eps = self.inner.endpoints.write().await;
+                            eps[idx].identity_error = Some(e.to_string());
+                            continue;
+                        }
+                    }
                     match serde_json::from_str::<T>(&text) {
                         Ok(val) => return Ok(val),
                         Err(e) => {
@@ -299,12 +342,8 @@ impl LcdClient {
         let mut eps = self.inner.endpoints.write().await;
         if let Some(ep) = eps.get_mut(idx) {
             ep.cooldown_until = Some(Instant::now() + self.inner.cooldown_duration);
+            ep.verified = false;
         }
-    }
-
-    /// Process-local identity: isolates bounded discovery caches by LCD client/chain.
-    pub(crate) fn cache_namespace(&self) -> usize {
-        self.inner.discovery_namespace
     }
 
     pub async fn get_code_data_hash(&self, code_id: u64) -> Result<String, LcdError> {
@@ -549,11 +588,12 @@ mod tests {
         use wiremock::{Mock, MockServer, ResponseTemplate};
         for status in [200, 500] {
             let server = MockServer::start().await;
+            crate::lcd::mock_chain_identity(&server, "columbus-5").await;
             Mock::given(method("GET"))
                 .respond_with(ResponseTemplate::new(status).set_body_string("x".repeat(65_537)))
                 .mount(&server)
                 .await;
-            let lcd = super::LcdClient::new(vec![server.uri()], 1000, 1000);
+            let lcd = super::LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
             let result = lcd
                 .query_contract_bounded::<serde_json::Value>(
                     "terra1pair",
@@ -568,6 +608,7 @@ mod tests {
                 "oversized bodies never enter errors/logs"
             );
             server.reset().await;
+            crate::lcd::mock_chain_identity(&server, "columbus-5").await;
             Mock::given(method("GET"))
                 .respond_with(
                     ResponseTemplate::new(200)
@@ -605,6 +646,7 @@ mod tests {
     #[tokio::test]
     async fn get_block_txs_single_page() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let height = 42i64;
         Mock::given(method("GET"))
             .and(path("/cosmos/tx/v1beta1/txs"))
@@ -618,7 +660,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let result = lcd.get_block_txs(height, 100, 10).await.unwrap();
         assert_eq!(result.txs.len(), 2);
         assert_eq!(result.page_count, 1);
@@ -627,6 +669,7 @@ mod tests {
     #[tokio::test]
     async fn get_block_txs_multi_page() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let height = 99i64;
         let page1: Vec<_> = (0..100).map(|i| tx_at(height, i)).collect();
         let page2: Vec<_> = (100..150).map(|i| tx_at(height, i)).collect();
@@ -651,7 +694,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let result = lcd.get_block_txs(height, 100, 10).await.unwrap();
         assert_eq!(result.txs.len(), 150);
         assert_eq!(result.page_count, 2);
@@ -660,6 +703,7 @@ mod tests {
     #[tokio::test]
     async fn get_block_txs_rejects_incomplete_total() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path("/cosmos/tx/v1beta1/txs"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -669,19 +713,21 @@ mod tests {
             .mount(&server)
             .await;
 
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let err = lcd.get_block_txs(1, 100, 1).await.unwrap_err();
         assert!(err.to_string().contains("incomplete tx fetch"));
     }
 
     #[tokio::test]
     async fn rate_limit_429_cools_down_and_fails_over() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -701,7 +747,12 @@ mod tests {
             .await;
 
         // Short cooldown so a follow-up request still skips endpoint A.
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 60_000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            60_000,
+            "columbus-5",
+        );
         let val: serde_json::Value = lcd
             .query_contract("terra1pair", &json!({"pair": {}}))
             .await
@@ -776,12 +827,14 @@ mod tests {
 
     #[tokio::test]
     async fn wasm_query_reject_does_not_fan_out() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -804,7 +857,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30_000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30_000,
+            "columbus-5",
+        );
         let err = lcd
             .query_contract::<serde_json::Value>(
                 "terra1pair",
@@ -821,12 +879,14 @@ mod tests {
 
     #[tokio::test]
     async fn infra_500_still_fans_out() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -845,7 +905,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30_000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30_000,
+            "columbus-5",
+        );
         let val: serde_json::Value = lcd
             .query_contract("terra1pair", &json!({"pair": {}}))
             .await
@@ -856,12 +921,14 @@ mod tests {
 
     #[tokio::test]
     async fn gateway_502_cools_down_and_fails_over() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -880,7 +947,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 60_000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            60_000,
+            "columbus-5",
+        );
         let val: serde_json::Value = lcd
             .query_contract("terra1pair", &json!({"pair": {}}))
             .await
@@ -892,6 +964,7 @@ mod tests {
     #[tokio::test]
     async fn get_contract_code_id_parses_string_and_number() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path("/cosmwasm/wasm/v1/contract/terra1token"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -899,7 +972,7 @@ mod tests {
             })))
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         assert_eq!(
             lcd.get_contract_code_id("terra1token").await.unwrap(),
             10184

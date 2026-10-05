@@ -43,7 +43,7 @@ fn block_json(height: i64, hash: &str) -> serde_json::Value {
     json!({
         "block_id": { "hash": hash },
         "block": {
-            "header": {
+            "header": { "chain_id": "columbus-5",
                 "height": height.to_string(),
                 "time": "2024-01-01T00:00:00Z"
             }
@@ -76,6 +76,7 @@ fn lcd_client(server: &MockServer) -> LcdClient {
         vec![server.uri().trim_end_matches('/').to_string()],
         5000,
         30000,
+        "columbus-5",
     )
 }
 
@@ -105,6 +106,7 @@ async fn registration_event_updates_trader_within_block() {
     clean_db(&pool).await;
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let height = 1200i64;
     let hash = "HASH1200";
     mount_register_block(&server, height, hash).await;
@@ -150,6 +152,7 @@ async fn reconcile_corrects_missed_registration_event() {
     .expect("seed stale trader");
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     mount_get_registration(&server, registration_lcd_body(5, true)).await;
 
     let lcd = lcd_client(&server);

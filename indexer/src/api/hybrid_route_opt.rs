@@ -845,7 +845,7 @@ mod tests {
 
     #[tokio::test]
     async fn empty_book_short_circuits_grid() {
-        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000, "columbus-5");
         let mut mirrors = HashMap::new();
         mirrors.insert("terra1pair".into(), fresh_mirror(vec![], vec![]));
         let source = HybridSimSource::Db {
@@ -918,7 +918,7 @@ mod tests {
 
     #[tokio::test]
     async fn live_book_still_runs_grid() {
-        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000, "columbus-5");
         let mut mirrors = HashMap::new();
         mirrors.insert(
             "terra1pair".into(),
@@ -962,7 +962,7 @@ mod tests {
 
     #[tokio::test]
     async fn hop0_only_strip_recomputes_grid_out_below_joint() {
-        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000, "columbus-5");
         let mut mirrors = HashMap::new();
         mirrors.insert(
             "terra1pairab".into(),
@@ -1038,7 +1038,7 @@ mod tests {
     #[tokio::test]
     async fn funded_policy_a_simulates_economic_inputs_and_net_intermediate_proceeds() {
         use super::super::community_tax_rank::{self as tax, CataloguedTaxToken, TaxRankSnapshot};
-        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000);
+        let lcd = LcdClient::new(vec!["http://127.0.0.1:9".into()], 50, 1_000, "columbus-5");
         let mirrors = HashMap::from([
             (
                 "terra1pairab".into(),

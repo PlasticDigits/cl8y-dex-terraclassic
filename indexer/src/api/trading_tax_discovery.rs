@@ -66,9 +66,12 @@ pub async fn discover(state: &AppState, addr: &str, policy: &RouterHopTaxPolicy)
     if !addr.starts_with("terra1") {
         return TradingTax::Ordinary { code_id: None };
     }
+    if state.lcd.require_verified_chain().await.is_err() {
+        return TradingTax::Unavailable;
+    }
     let key = format!(
         "{}:{:?}:{}:{}",
-        state.lcd.cache_namespace(),
+        state.lcd.chain_cache_namespace(),
         policy,
         state.router_address.as_deref().unwrap_or(""),
         addr
@@ -169,6 +172,9 @@ pub async fn discover(state: &AppState, addr: &str, policy: &RouterHopTaxPolicy)
     })
     .await;
     let value = result.ok().flatten().unwrap_or(TradingTax::Unavailable);
+    if matches!(value, TradingTax::Unavailable) {
+        return value; // Identity or upstream failures must never populate discovery caches.
+    }
     if let Ok(mut cache) = cache().lock() {
         cache.retain(|_, (at, _)| at.elapsed() < DISCOVERY_TTL);
         if cache.len() >= MAX_CACHE_ENTRIES {
@@ -242,10 +248,20 @@ mod tests {
 
     #[test]
     fn discovery_cache_cannot_cross_lcd_client_or_chain_lifetimes() {
-        let first = crate::lcd::LcdClient::new(vec!["http://chain-a.invalid".into()], 100, 100);
+        let first = crate::lcd::LcdClient::new(
+            vec!["http://chain-a.invalid".into()],
+            100,
+            100,
+            "columbus-5",
+        );
         let clone = first.clone();
-        let second = crate::lcd::LcdClient::new(vec!["http://chain-b.invalid".into()], 100, 100);
-        assert_eq!(first.cache_namespace(), clone.cache_namespace());
-        assert_ne!(first.cache_namespace(), second.cache_namespace());
+        let second = crate::lcd::LcdClient::new(
+            vec!["http://chain-b.invalid".into()],
+            100,
+            100,
+            "columbus-5",
+        );
+        assert_eq!(first.chain_cache_namespace(), clone.chain_cache_namespace());
+        assert_ne!(first.chain_cache_namespace(), second.chain_cache_namespace());
     }
 }

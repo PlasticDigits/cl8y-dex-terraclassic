@@ -31,3 +31,10 @@ Runbook: [`docs/runbooks/rotate-fee-treasury.md`](../docs/runbooks/rotate-fee-tr
 `set_pair_treasury_batch_paginates_and_covers_all_pairs`  
 `set_pair_treasury_all_rejects_when_pair_count_exceeds_cap`  
 `test_pair_update_treasury_unauthorized`
+
+## Chain attestation (#1392)
+
+Apply [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md), the
+[shared endpoint policy](../docs/runbooks/chain-attestation.md) and
+[agent review/verification checklist](../docs/qa/issue-1392/README.md).
+Failover and retries never waive network identity; dry runs also attest.

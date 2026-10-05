@@ -22,6 +22,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Select explicit LocalTerra defaults before the shared production defaults.
+if [[ "${ROTATE_TREASURY_LOCAL:-0}" == "1" ]]; then
+  TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-localterra}"
+  TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-http://127.0.0.1:26657}"
+  TERRAD_HOST_KEY="${TERRAD_HOST_KEY:-test1}"
+fi
 # shellcheck source=lib/terrad-host.sh
 source "$SCRIPT_DIR/lib/terrad-host.sh"
 # shellcheck source=lib/terrad-tx-events.sh
@@ -53,7 +59,7 @@ if [[ "${ROTATE_TREASURY_LOCAL:-0}" == "1" ]]; then
 fi
 
 FACTORY="${ROTATE_TREASURY_FACTORY_ADDRESS:-${FACTORY_ADDRESS:-$UST1_OPS_FACTORY}}"
-LCD_URL="${LCD_URL:-${TERRA_LCD_URL:-https://terra-classic-lcd.publicnode.com}}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${LCD_URL:-${TERRA_LCD_URL:-https://terra-classic-lcd.publicnode.com}}}"
 LCD_URL="${LCD_URL%/}"
 
 echo "=============================================="
@@ -61,7 +67,7 @@ echo "Rotate DEX fee treasury → CMM"
 echo "=============================================="
 echo "Factory:  $FACTORY"
 echo "Treasury: $CMM"
-echo "LCD:      $LCD_URL"
+echo "LCD:      configured endpoint"
 echo "DRY_RUN:  ${DRY_RUN:-0}"
 echo "LOCAL:    ${ROTATE_TREASURY_LOCAL:-0}"
 echo ""
@@ -76,6 +82,7 @@ need_wasm() {
 broadcast_and_wait() {
   local label="$1"
   shift
+  terrad_host_attest || return 1
   echo "  → $label" >&2
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     echo "    DRY_RUN skip" >&2
@@ -115,6 +122,8 @@ query_json() {
   fi
   lcd_decode_smart_data "$(lcd_smart_query_raw "$LCD_URL" "$contract" "$msg")"
 }
+
+terrad_host_attest || die "chain trust preflight failed"
 
 echo "[1] preflight"
 [[ -n "$FACTORY" ]] || die "set ROTATE_TREASURY_FACTORY_ADDRESS or FACTORY_ADDRESS"

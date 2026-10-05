@@ -1,0 +1,22 @@
+{
+  "recorded_at_utc": "2026-10-05T07:26:07.401161+00:00",
+  "base_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "source_scope": "Issue #1392 working-tree implementation with final freshness recheck",
+  "command": "python3 scripts/lib/chain-attestation.py --expected-chain localterra --lcd http://172.22.0.3:1317 --rpc http://172.22.0.3:26657 --max-age 3600 --contracts terra1hrpna9v7vs3stzyd4z3xf00676kf78zpe2u5ksvljswn2vnjp3ysc6mpf5",
+  "exit_code": 0,
+  "scope": "Read-only shared LocalTerra block/factory identity with explicit one-hour local test age bound. No transaction preparation/signing/broadcast.",
+  "freshness_note": "Shared local validator clock fell more than 900 seconds behind the host under load. The default 120-second policy and prior 900-second local policy reject it as stale. 3600 seconds is an explicit bounded test-only policy; production default remains 120 seconds.",
+  "receipt": {
+    "rpc": "http://172.22.0.3:26657",
+    "expected_chain_id": "localterra",
+    "observed_chain_id": "localterra",
+    "height": 838695,
+    "block_hash": "4a8bf5d156f5284608af81d0068f2c4400a44eba6d730035ea1c86aace5c94fc",
+    "identities": {
+      "terra1hrpna9v7vs3stzyd4z3xf00676kf78zpe2u5ksvljswn2vnjp3ysc6mpf5": {
+        "code_id": 3,
+        "checksum": "0422927baf44992848442f62065cd42685b5b1391e8e966b79687cda05c9a8b3"
+      }
+    }
+  }
+}

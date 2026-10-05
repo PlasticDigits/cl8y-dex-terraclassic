@@ -11,6 +11,7 @@ use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 async fn mock_tax_lcd(taxed: &str, version: Option<u16>, fail: bool) -> MockServer {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     let tax = taxed.to_owned();
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+$"))
@@ -131,7 +132,13 @@ async fn failed_discovery_and_untrusted_spoofed_capability_never_waive_tax() {
             .post("/api/v1/route/solve")
             .json(&json!({"token_in":seed.token_a,"token_out":seed.token_c,"amount_in":"1010000"}))
             .await;
-        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        // A failed discovery cools down this endpoint. The next request cannot
+        // reuse quote caches while no healthy endpoint attests the chain (#1392).
+        response.assert_status(if fail {
+            axum::http::StatusCode::SERVICE_UNAVAILABLE
+        } else {
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY
+        });
     }
 }
 

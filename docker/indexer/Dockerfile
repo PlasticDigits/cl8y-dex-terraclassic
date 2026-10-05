@@ -1,5 +1,5 @@
 # Multi-stage build for Coolify (no docker-compose).
-# Deploy at https://indexer.dex.cl8y.com — set RUN_MODE=prod and operator LCD_URLS.
+# Deploy at https://indexer.dex.cl8y.com — set RUN_MODE=prod, EXPECTED_CHAIN_ID=columbus-5 and operator LCD_URLS.
 #
 # Build context: repository root
 #   docker build -f docker/indexer/Dockerfile -t cl8y-dex-indexer .
@@ -45,7 +45,7 @@ ENV GIT_SHA=${GIT_SHA} \
 EXPOSE 3001
 
 # Required at runtime (Coolify env): DATABASE_URL, FACTORY_ADDRESS, CORS_ORIGINS,
-# RUN_MODE=prod, LCD_URLS (non-default). See docs/runbooks/mainnet-soft-launch.md
+# RUN_MODE=prod, EXPECTED_CHAIN_ID, LCD_URLS (non-default). See docs/runbooks/mainnet-soft-launch.md
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${API_PORT}/health" >/dev/null || exit 1
 

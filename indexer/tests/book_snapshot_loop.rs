@@ -26,7 +26,12 @@ async fn snapshot_populates_reserves_and_resting_book() {
     let seed = common::seed_db(&pool).await;
 
     let mock = common::lcd_mock::start_book_snapshot_mock(Some("12345")).await;
-    let lcd = LcdClient::new(vec![common::lcd_mock::lcd_base_url(&mock)], 5000, 30000);
+    let lcd = LcdClient::new(
+        vec![common::lcd_mock::lcd_base_url(&mock)],
+        5000,
+        30000,
+        "columbus-5",
+    );
 
     book_snapshot::snapshot_all_pairs(&pool, &lcd)
         .await
@@ -90,12 +95,13 @@ async fn snapshot_skips_failed_pair_and_keeps_prior_snapshot() {
     .unwrap();
 
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(
             r"^/cosmos/base/tendermint/v1beta1/blocks/latest$",
         ))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "block": { "header": { "height": "500", "time": "2026-06-05T00:00:00Z" } }
+            "block": { "header": { "chain_id": "columbus-5", "height": "500", "time": "2026-06-05T00:00:00Z" } }
         })))
         .mount(&server)
         .await;
@@ -134,6 +140,7 @@ async fn snapshot_skips_failed_pair_and_keeps_prior_snapshot() {
         vec![server.uri().trim_end_matches('/').to_string()],
         5000,
         30000,
+        "columbus-5",
     );
 
     book_snapshot::snapshot_all_pairs(&pool, &lcd)
@@ -169,7 +176,12 @@ async fn snapshot_block_height_none_when_lcd_height_fails() {
     let seed = common::seed_db(&pool).await;
 
     let mock = common::lcd_mock::start_book_snapshot_mock(None).await;
-    let lcd = LcdClient::new(vec![common::lcd_mock::lcd_base_url(&mock)], 5000, 30000);
+    let lcd = LcdClient::new(
+        vec![common::lcd_mock::lcd_base_url(&mock)],
+        5000,
+        30000,
+        "columbus-5",
+    );
 
     book_snapshot::snapshot_all_pairs(&pool, &lcd)
         .await
@@ -226,6 +238,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         .unwrap()
         .unwrap();
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(
             r"^/cosmos/base/tendermint/v1beta1/blocks/latest$",
@@ -233,7 +246,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         .respond_with(
             ResponseTemplate::new(200)
                 .set_body_json(json!({
-                    "block": { "header": { "height": "999", "time": "2026-10-04T00:00:00Z" } }
+                    "block": { "header": { "chain_id": "columbus-5", "height": "999", "time": "2026-10-04T00:00:00Z" } }
                 }))
                 .set_delay(Duration::from_secs(3)),
         )
@@ -260,7 +273,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
         })
         .mount(&server)
         .await;
-    let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+    let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
     let budgets = SnapshotLimits {
         concurrency: 2,
         pair_timeout: Duration::from_millis(500),
@@ -313,6 +326,7 @@ async fn slow_book_is_bounded_healthy_pair_refreshes_and_timeout_recovers() {
 
     // Remove delays: unchanged positive LCD amounts recover naturally on the next cycle.
     server.reset().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
         .respond_with(move |req: &wiremock::Request| {
@@ -352,6 +366,7 @@ async fn only_successful_full_factory_enumeration_marks_empty_inventory_known() 
         .await
         .unwrap();
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(
             r"^/cosmwasm/wasm/v1/contract/terra1factory/smart/",
@@ -361,7 +376,7 @@ async fn only_successful_full_factory_enumeration_marks_empty_inventory_known() 
         )
         .mount(&server)
         .await;
-    let lcd = LcdClient::new(vec![server.uri()], 1000, 1000);
+    let lcd = LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
     pair_discovery::sync_all_pairs(&pool, &lcd, "terra1factory")
         .await
         .unwrap();
@@ -370,6 +385,7 @@ async fn only_successful_full_factory_enumeration_marks_empty_inventory_known() 
         .unwrap()
         .is_none());
     server.reset().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(
             r"^/cosmwasm/wasm/v1/contract/terra1factory/smart/",

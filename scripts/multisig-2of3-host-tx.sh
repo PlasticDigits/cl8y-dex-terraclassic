@@ -36,6 +36,8 @@ if [[ "${1:-}" == "wasm" && ( "${2:-}" == "migrate" || "${2:-}" == "execute" ) ]
   fi
 fi
 
+terrad_host_attest || exit 1
+
 terrad_host_resolve_keyring_backend
 mkdir -p "$WORKDIR"
 UNSIGNED="$WORKDIR/unsigned.json"
@@ -45,7 +47,7 @@ SIGNED="$WORKDIR/signed.json"
 GENERR="$WORKDIR/generate.err"
 rm -f "$UNSIGNED" "$SIG1" "$SIG2" "$SIGNED" "$GENERR"
 
-echo "node:    $TERRAD_HOST_NODE"
+echo "node:    configured endpoint"
 echo "chain:   $TERRAD_HOST_CHAIN_ID"
 echo "keyring: $TERRAD_HOST_KEYRING_BACKEND"
 echo "from:    $MSIG  (signers $SIGNER1 + $SIGNER2)"
