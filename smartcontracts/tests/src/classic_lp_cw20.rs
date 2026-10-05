@@ -26,8 +26,8 @@ pub fn instantiate(
             "Ticker symbol is not in expected format [a-zA-Z\\-]{3,12}",
         ));
     }
-    let name_len = msg.name.as_bytes().len();
-    if name_len < 3 || name_len > 50 {
+    let name_len = msg.name.len();
+    if !(3..=50).contains(&name_len) {
         return Err(StdError::generic_err(
             "Name is not in the expected format (3-50 UTF-8 bytes)",
         ));

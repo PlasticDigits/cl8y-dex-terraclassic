@@ -2876,7 +2876,7 @@ fn instantiate_launch_guards_and_initial_exempt() {
             },
         )
         .unwrap();
-    assert!(ex.manager.iter().any(|a| a == user));
+    assert!(ex.manager.contains(&user));
 }
 
 #[test]
