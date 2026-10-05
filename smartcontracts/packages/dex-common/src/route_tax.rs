@@ -54,6 +54,12 @@ pub struct RouteTaxContextResponse {
     pub gross: Uint128,
     pub economic: Uint128,
     pub transfers: Vec<RouteTransfer>,
+    /// Exact residue of the payer's original authorized input debit (#1390).
+    /// Only this transfer back to `trader` restores owned funds above max_wallet;
+    /// purchased intermediate residue and final output must never populate it.
+    /// Missing fields from older routers confer no max-wallet exception.
+    #[serde(default)]
+    pub original_input_refund: Option<RouteTransfer>,
     /// Tokens already acquired and checked in this same authenticated route.
     pub acquired_tokens: Vec<Addr>,
 }

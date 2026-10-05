@@ -65,3 +65,8 @@ RTL + Vitest only. LocalTerra execute is not required for this gate.
 - Assume 0-tax when GetConfig `sell_bps` shape is hostile or detection is still loading.
 - Skip the mutation guard because the CTA is disabled (race / keyboard).
 - Surface raw CosmWasm logs or ticket numbers on the CTA.
+
+Launch-guard refinement: [LG1390](AGENTS_ROUTE_LAUNCH_GUARDS.md) defines
+repeated-capable-asset rejection, authenticated original-input restoration and
+protocol-trader preview/error parity. [Agent checks](../docs/qa/issue-1390/README.md):
+`make verify-issue-1390`.

@@ -1,0 +1,181 @@
+{
+  "baseline_revision": "9944ada10ee711ff8ffaa91f4c19b0f292de3924",
+  "utc": "2026-10-05T08:39:34.612963+00:00",
+  "scope": "implementation source and synthetic LocalTerra; production unverified",
+  "verifiers": {
+    "1390": {
+      "utc": "2026-10-05T08:30:29.460141+00:00",
+      "summary": "PASS=15 FAIL=0 SKIP=1",
+      "log_sha256": "7b7f41535b7ca8d3f401ba755c44ca2cf2d8445de38727977cb7d9ba633a98bc",
+      "skip": "production deployment and bounded live execution acceptance"
+    },
+    "1381": {
+      "utc": "2026-10-05T08:30:07.186754+00:00",
+      "summary": "PASS=13 FAIL=0 SKIP=1",
+      "log_sha256": "5b633f0410f1aacb48d25e120a9d3029eba44692f3e63f16a7c2afece13ae057",
+      "skip": "production deployment and bounded live execution acceptance"
+    }
+  },
+  "commands": {
+    "1390": "env CARGO_HOME=/tmp/cl8y-dex-1390-cargo CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=2 INDEXER_CARGO_TEST_DEBUG=0 INDEXER_CARGO_INCREMENTAL=0 VERIFY_ISSUE_1390_CHAIN_COMMAND=\"bash /tmp/dex-1390-chain-check.sh\" VERIFY_ISSUE_1390_SKIP_LIVE_REASON=\"Production deployment is outside this implementation PR; no updated production contract or bounded live execution receipt is claimed.\" make verify-issue-1390",
+    "1381": "env CARGO_HOME=/tmp/cl8y-dex-1390-cargo CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=2 INDEXER_CARGO_TEST_DEBUG=0 INDEXER_CARGO_INCREMENTAL=0 VERIFY_ISSUE_1381_CONTAINER=cl8y-dex-issue1390-localterra VERIFY_ISSUE_1381_CODE_CACHE=/tmp/dex-1390-isolated-codes.json VERIFY_ISSUE_1381_CHAIN_EVIDENCE=/tmp/dex-1390-regression-funded.json VERIFY_ISSUE_1381_FLOW_EVIDENCE=/tmp/dex-1390-regression-flows.json VERIFY_ISSUE_1381_LEGACY_ARTIFACTS=/tmp/dex-1390-pre-v1-artifacts VERIFY_ISSUE_1381_WRAP_STACK_ENV=/tmp/dex-1390-wrap.env VERIFY_ISSUE_1381_SKIP_LIVE_REASON=\"No production rollout performed for this implementation PR; production code/version and bounded execution acceptance remain unverified.\" make verify-issue-1381"
+  },
+  "1390_chain_runner": "#!/usr/bin/env bash\nset -euo pipefail\ncp /tmp/dex-1390-cw20_mintable.wasm smartcontracts/artifacts/cw20_mintable.wasm\npython3 scripts/qa/localterra-route-tax-1381.py --container cl8y-dex-issue1390-localterra --isolated-owner --artifacts smartcontracts/artifacts --code-cache /tmp/dex-1390-isolated-codes.json --evidence-file /tmp/dex-1390-funded.json\npython3 scripts/qa/localterra-route-guards-1390.py --container cl8y-dex-issue1390-localterra --fixture /tmp/dex-1390-funded.json --evidence-file /tmp/dex-1390-guards.json\n",
+  "source_files": [
+    {
+      "path": "frontend-dapp/src/components/trade/TradeMarketOrderPanel.tsx",
+      "sha256": "65ee7d83668b00118ccdf3af6d603c409406e4f94b8224fee96be272f46cfc43"
+    },
+    {
+      "path": "frontend-dapp/src/components/trade/__tests__/TradeMarketOrderPanel.submitSnapshot.test.tsx",
+      "sha256": "2b560f2c2d583c7ac7a3db7a29e3fc03b56c4201f2b0cda5edc4bcd83731705d"
+    },
+    {
+      "path": "frontend-dapp/src/pages/SwapPage.test.tsx",
+      "sha256": "40c7d38c14f9e64a34dfb28385bbc72e486919ae24274c8423f4028d1c246ab1"
+    },
+    {
+      "path": "frontend-dapp/src/pages/SwapPage.tsx",
+      "sha256": "33560c9471bb764fa2a095c78918ff3788ae60b194343bc0bd956dad9e5b628d"
+    },
+    {
+      "path": "frontend-dapp/src/services/indexer/__tests__/client.test.ts",
+      "sha256": "979257a7ea4d5c2772f884b86d2f4625b5331af81b0bbc31904fd48ee3e24d7a"
+    },
+    {
+      "path": "frontend-dapp/src/services/terraclassic/routeTaxFunding.ts",
+      "sha256": "40ef9a30add7c6b91238d3e6dcb10c1673faf3b16f27c957e1caf9cc1be6ed2a"
+    },
+    {
+      "path": "frontend-dapp/src/services/terraclassic/routeTaxPath.test.ts",
+      "sha256": "051015a8f0134b70f1ca5b76246617cfdb2ee62948602d97bbfe9ede41f9324c"
+    },
+    {
+      "path": "frontend-dapp/src/services/terraclassic/routeTaxPath.ts",
+      "sha256": "879aad8417c984fad233d63cbd719ba69223eb55e46ff8a9a1b0c10592cfcb89"
+    },
+    {
+      "path": "frontend-dapp/src/services/terraclassic/swapRoutePreflight.ts",
+      "sha256": "99f50e8a12c44612d0ba54f7aaee2362b83acb48c9844d640efc826647e4cf0f"
+    },
+    {
+      "path": "frontend-dapp/src/utils/__tests__/indexerErrors.test.ts",
+      "sha256": "b7eaa4c8255e22d0654e5f0b3935fa5a7bf7f9b7be3526b1a02e489162c3a0ab"
+    },
+    {
+      "path": "frontend-dapp/src/utils/humanizeOffChainError.ts",
+      "sha256": "f0d855125a3b51186548ee7831598c7d1d14018ba88f94d89af55b8582cbe326"
+    },
+    {
+      "path": "frontend-dapp/src/utils/indexerErrors.ts",
+      "sha256": "431ce2a0820fbe10bdf353edf467fd574cff6e019246cd05d6bdaa5ee98d8ce7"
+    },
+    {
+      "path": "frontend-dapp/src/utils/payInvoice.test.ts",
+      "sha256": "7a1d4e266a598d85d509ffac70c00c1f3d8916b97d662d0db3960d03f3261d2d"
+    },
+    {
+      "path": "indexer/src/api/best_execution.rs",
+      "sha256": "01ce9e0ae74adbbbc1ab5fa9518a57b1a3fa00aa9fe35827ea80f1ead62aab52"
+    },
+    {
+      "path": "indexer/src/api/community_tax_rank.rs",
+      "sha256": "f37971c28db982ee59e340ef05deb41872e1daef4967ffa8c793eea3076ed984"
+    },
+    {
+      "path": "indexer/src/api/route_exact_output.rs",
+      "sha256": "2b6b5471ba5b0e7171d29a24f85303db6d7f7a6847bcd33a3142ec2ced0dbe81"
+    },
+    {
+      "path": "indexer/src/api/route_solver.rs",
+      "sha256": "91c38d9e37803dedac4f0012b513cce5d41084099a92cc0e609ef987944c947a"
+    },
+    {
+      "path": "scripts/qa/check-issue-1390-docs.py",
+      "sha256": "7cea2f0062b571de687d74748a637ea6fbc1f9ae32fb3100d4ca58c31c50896f"
+    },
+    {
+      "path": "scripts/qa/localterra-route-guards-1390.py",
+      "sha256": "0d21a6622c139a9baa85a9af136d86e4ae0308648f041c93c991717088038b80"
+    },
+    {
+      "path": "scripts/qa/localterra-route-tax-1381.py",
+      "sha256": "963135eee1fdfdc01729289e825508522baff5388feb256b4ec31d425f4dc1c9"
+    },
+    {
+      "path": "scripts/qa/localterra-route-tax-flows-1381.py",
+      "sha256": "fcd4748c9fab64e80cbbf5e25c33f493180581e45a68dacf6f5d38587c98d5b3"
+    },
+    {
+      "path": "scripts/qa/verify-issue-1381.sh",
+      "sha256": "f361a31f2b0506f1efbeaa025458e6ea4d9fb324e7b89fc34052dcbe430defd8"
+    },
+    {
+      "path": "scripts/qa/verify-issue-1390.sh",
+      "sha256": "ce92e48a08f4b329309adbcd80063208eb2f24c38b9e0deb30e91cb71119d5f3"
+    },
+    {
+      "path": "smartcontracts/Cargo.lock",
+      "sha256": "88664a74678d841e5bb1cb76e97f4892c136d7b1ff30b22cd95c6ce7353655bd"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/Cargo.toml",
+      "sha256": "6d38f6477330b269e91d32f2225d1443b9f13ee54d3bb0505a505fbf7307dce4"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/contract.rs",
+      "sha256": "71b0fd4278d5318d2f08c73e2860486ce6a889fbea15da1d3cab69ee658197b5"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/route_tax_tests.rs",
+      "sha256": "84b3fe3c6b1b5d10f04287942ae3b93b56f978c8bc0f9a3dca7f799841e5f894"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/tax.rs",
+      "sha256": "5091d213874f82570af21683df7b739304cd873096f4c570039dfdec8977fdd4"
+    },
+    {
+      "path": "smartcontracts/contracts/router/Cargo.toml",
+      "sha256": "2d33caf5fad63287e3896631f557878344b46aa5aa8fe413fd2684d4b5a689b6"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/contract.rs",
+      "sha256": "8fb6f61bd8b815802f2aed9df573b4d85c42b9183eb01ccb03fee6387c9d4299"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/route_tax.rs",
+      "sha256": "c4dbc5c12ae19626ba8a1b41fb24a44b0c336fbcbc8a5677dfc65729c14fab17"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/route_tax.rs",
+      "sha256": "fe354cd4e0ea3bc3685d3571dfbac0743f4d127b873ea6d34f3200b358a65faa"
+    },
+    {
+      "path": "smartcontracts/tests/src/route_tax_1381_tests.rs",
+      "sha256": "054d10018b8a42cdc39627c8ae99cf1aa342873d54610d1648427d23aed621c4"
+    },
+    {
+      "path": "smartcontracts/tests/src/route_tax_1390_tests.rs",
+      "sha256": "67958f6430cdb4079665878f22b12f1ac05ae38a9dd68de9c5bac0e5aadc8af9"
+    }
+  ],
+  "artifacts": [
+    {
+      "artifact": "cl8y_dex_router.wasm",
+      "sha256": "072ee7196e690653431f528f50cb56247ecb8596a07f8971bf78247da7418cd2"
+    },
+    {
+      "artifact": "cl8y_community_tax_token.wasm",
+      "sha256": "79dddc1cfbf2443f9347b69386956c540103c64b98780d576c0a5184a79fb104"
+    },
+    {
+      "artifact": "cl8y_community_token_launcher.wasm",
+      "sha256": "ca20fbd88ad71a082a70531aad860d32df729adecc0d5dda513a8b1a5ba644b0"
+    }
+  ],
+  "post_hook_checks": {
+    "clippy": "PASS: cargo clippy -- -D warnings -A clippy::uninlined_format_args",
+    "gitleaks": "PASS: gitleaks protect --staged -c .gitleaks.toml",
+    "optimized_wasm": "PASS: rebuilt after lint fixes; hashes identical to executed synthetic receipts"
+  }
+}

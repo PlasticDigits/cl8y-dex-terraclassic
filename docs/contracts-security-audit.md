@@ -1,5 +1,18 @@
 # CL8Y DEX — Contracts Security Audit (Repository)
 
+## Route launch guards (#1390)
+
+Logical routes visit the first offer and each ask once. Repeated route-tax-capable
+assets are rejected by execute, forward/reverse quotes, solver and client
+preflight even with zero rates, disabled guards or an exempt manager. Ordinary
+intermediate buy/sell remains valid; independent routes keep per-wallet cooldown.
+Only authenticated original-input residue restored to its payer can bypass
+max-wallet. Bought output, intermediate residue and other recipients remain
+capped. Protocol-exempt routed traders are rejected in previews and execution.
+See [LG1390 invariants](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md) and
+[agent review/verification checklist](qa/issue-1390/README.md).
+
+
 ## Route-local tax funding (#1381)
 
 Funding version **1** follows [RT1381-1–RT1381-10](../skills/AGENTS_ROUTE_LOCAL_TAX.md)

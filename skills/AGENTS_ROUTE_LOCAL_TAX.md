@@ -71,3 +71,8 @@ For chain work, use a separate worktree and the test-only
 creates fresh contracts/pools without resetting shared volumes. It rejects every
 chain except LocalTerra. For deployment, follow the coordinated migration order
 and read-only capability probes in the runbook; never publish secret/key material.
+
+Launch-guard refinement: [LG1390](AGENTS_ROUTE_LAUNCH_GUARDS.md) rejects repeated
+capable assets, authenticates original-input restoration and aligns protocol-trader
+preview rejection. [Agent checks](../docs/qa/issue-1390/README.md):
+`make verify-issue-1390` alongside this funding verifier.

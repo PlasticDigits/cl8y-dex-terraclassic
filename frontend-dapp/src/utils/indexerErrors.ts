@@ -13,6 +13,11 @@ export function isIndexerClientError(err: unknown): boolean {
   return err instanceof Error && /Indexer API error:\s*4\d{2}\b/.test(err.message)
 }
 
+/** Authoritative route/guard rejection (#1390); never downgrade to a client fallback quote. */
+export function isIndexerRouteValidationError(err: unknown): boolean {
+  return err instanceof Error && /Indexer API error:\s*422\b/.test(err.message)
+}
+
 /** True when the indexer HTTP API is unreachable or returns 5xx (not 4xx semantic errors). */
 export function isIndexerUnavailableError(err: unknown): boolean {
   if (!err || !(err instanceof Error)) return false

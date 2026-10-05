@@ -29,9 +29,10 @@ def main():
     fixture = json.loads(args.fixture.read_text())
     assert fixture["chain_id"] == "localterra" and len(fixture["checks"]) >= 6
     chain = module.LocalTerra(args.container)
+    chain.owner_key = fixture.get("owner_key", "test1")
     tokens, router, factory = fixture["tokens"], fixture["router"], fixture["factory"]
     assert chain.smart(router, {"config": {}})["funding_version"] == 1
-    owner, sink = chain.address("test1"), chain.address("test2")
+    owner, sink = chain.address(chain.owner_key), chain.address("test2")
     evidence = {"chain_id": "localterra", "synthetic_only": True, "checks": [], "status": "PARTIAL"}
 
     def snapshot(trader):

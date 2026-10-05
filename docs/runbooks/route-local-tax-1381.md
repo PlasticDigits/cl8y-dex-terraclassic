@@ -235,3 +235,19 @@ storage compatibility can reject a previously stored wasm. Follow
 [SEC-H05 rollback limitations](wasm-admin-migration.md#rollback-and-limitations-sec-h05),
 keep the partial fleet contained and prepare a reviewed forward repair when a
 downgrade is unsupported.
+
+## Launch-guard refinement (#1390)
+
+Router and community-tax-token **1.2.1** retain funding version **1** and introduce
+[LG1390](../../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md). Update both contracts in the
+coordinated migration inventory above, refresh factory whitelist/pair code-id
+pins and capability caches, then verify actual code hashes and cw2 versions.
+The router rejects repeated capable assets and publishes an optional authenticated
+original-input refund label. The token uses that label only to restore the
+payer's original integer residue above a lowered cap; old contexts without it
+retain cap enforcement. Acquired output, intermediate residue and other
+recipients remain capped. Public Sell/Buy previews reject protocol-exempt traders.
+
+Follow [the agent review and test-chain checklist](../qa/issue-1390/README.md).
+An implementation PR or local receipt does not establish production deployment;
+record unavailable live work as an explicit skip.

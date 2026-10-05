@@ -1,5 +1,18 @@
 # Route solver — in-depth guide
 
+## Route launch guards (#1390)
+
+Logical routes visit the first offer and each ask once. Repeated route-tax-capable
+assets are rejected by execute, forward/reverse quotes, solver and client
+preflight even with zero rates, disabled guards or an exempt manager. Ordinary
+intermediate buy/sell remains valid; independent routes keep per-wallet cooldown.
+Only authenticated original-input residue restored to its payer can bypass
+max-wallet. Bought output, intermediate residue and other recipients remain
+capped. Protocol-exempt routed traders are rejected in previews and execution.
+See [LG1390 invariants](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md) and
+[agent review/verification checklist](qa/issue-1390/README.md).
+
+
 ## Route-local tax funding (#1381)
 
 Funding version **1** follows [RT1381-1–RT1381-10](../skills/AGENTS_ROUTE_LOCAL_TAX.md)
@@ -349,3 +362,19 @@ it through forward quoting. Preserve the existing hop0-only Policy A and route
 caps. Client fallback requires live compatible funding and cannot restore a
 wallet-funded intermediate route. [RT1381 invariants](../skills/AGENTS_ROUTE_LOCAL_TAX.md)
 and [agent checks](qa/issue-1381/README.md) govern all these paths.
+
+### Deterministic route preview rejection (#1390)
+
+Forward GET/POST and exact-output solves return HTTP 422 with
+`router_preview_rejected` when fresh router simulation reports a contract
+validation rejection. The response omits raw LCD details and wallet addresses.
+Best execution may use another valid candidate; if no candidate succeeds it
+preserves the explicit rejection. A protocol-exempt routed trader is rejected
+by token Sell/Buy previews. Current previews do not certify future cooldown,
+trading-enabled or recipient max-wallet state; execution remains responsible
+for those mutable launch controls. See [LG1390](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md).
+
+Indexer GET/POST choose simple paths from endpoint tokens. POST only overrides
+hybrid quantities on those hops; caller-selected asset paths/operations are not
+API inputs. Amount-less responses are structural only. Executable amount quotes
+use the same capable-token eligibility policy.

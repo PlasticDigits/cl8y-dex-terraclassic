@@ -1,0 +1,79 @@
+{
+  "status": "PASS",
+  "synthetic_only": true,
+  "chain_id": "localterra",
+  "container": "cl8y-dex-issue1390-localterra",
+  "codes": {
+    "treasury": {
+      "code_id": 1,
+      "sha256": "e2fd7dafe9d057555dcd5be4987d164a0b00e4f037361f92f061be0abf636028"
+    },
+    "wrap_mapper": {
+      "code_id": 2,
+      "sha256": "6e48fd4e17b6061f103d358fd0dacaaf016141bead98dab9160570e723863b8b"
+    },
+    "cw20_mintable": {
+      "code_id": 3,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "treasury": "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+  "mapper": "terra1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrquka9l6",
+  "wrapped": "terra17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9jfksztgw5uh69wac2pgsydrqk7",
+  "receipts": [
+    {
+      "txhash": "18deaef40f1e7388ac6f19cc39958b14e5a99c742ab80215670e375bdc06f736",
+      "height": "636",
+      "code": 0,
+      "gas_used": "178067"
+    },
+    {
+      "txhash": "9fd455ba118f67d0bb2aff9e3fd891a08e86d941afdff8cb0164ee1103e295d9",
+      "height": "638",
+      "code": 0,
+      "gas_used": "2263490"
+    },
+    {
+      "txhash": "0047e6ecfa91539afec8d9a8a63ac4bf426f6ff3ddd8cc2265d0fb517369c3cd",
+      "height": "641",
+      "code": 0,
+      "gas_used": "1850506"
+    },
+    {
+      "txhash": "4e1f1f57ffc06aee7efb443b96f3ffd862a00805462a61f148259a4c6170a62f",
+      "height": "649",
+      "code": 0,
+      "gas_used": "2219008"
+    },
+    {
+      "txhash": "de96eea5628d4c0dd1d3cc87e575db353a5f702fc9e4cb709366d76f04c0983b",
+      "height": "652",
+      "code": 0,
+      "gas_used": "174631"
+    },
+    {
+      "txhash": "a02ae8b79657ebf98807fdef3867508fc552b5480ee4533ddf7f4f3d4c7ea5bd",
+      "height": "655",
+      "code": 0,
+      "gas_used": "182327"
+    },
+    {
+      "txhash": "5d7d5c50ebdbc2785306fe06fe5a2ed28b82c5b538438cfbd1fd77bdba5e045e",
+      "height": "667",
+      "code": 0,
+      "gas_used": "181310"
+    },
+    {
+      "txhash": "2d65e3baf39e22f3f30ad96f72288cd103e8e1e1f54b17847e26b0a129c9bec1",
+      "height": "669",
+      "code": 0,
+      "gas_used": "206107"
+    },
+    {
+      "txhash": "9175b031336bb4b9b35c34bcd192715ac546cb68e631e9a1f08ff64896fe5165",
+      "height": "671",
+      "code": 0,
+      "gas_used": "133028"
+    }
+  ]
+}

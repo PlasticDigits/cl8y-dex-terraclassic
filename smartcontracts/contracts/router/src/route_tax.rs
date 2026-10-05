@@ -58,6 +58,53 @@ pub fn capability(deps: Deps, token: &Addr) -> StdResult<Option<RouteTaxCapabili
     }
 }
 
+/// LG1390-1: capability, not current rates or guard settings, determines whether
+/// a token may appear only once in [initial offer, each ask]. The adjacent buy
+/// and sell of one intermediate is one logical occurrence, so its authenticated
+/// cooldown continuation remains safe. Quotes and execution share this check.
+pub fn validate_asset_path(
+    deps: Deps,
+    operations: &[crate::msg::SwapOperation],
+    input_token: Option<&Addr>,
+) -> StdResult<()> {
+    let mut seen = Vec::<Addr>::new();
+    let mut previous_ask: Option<Addr> = None;
+    for op in operations {
+        let crate::msg::SwapOperation::TerraSwap {
+            offer_asset_info,
+            ask_asset_info,
+            ..
+        } = op
+        else {
+            return Err(StdError::generic_err("Native swaps are not supported"));
+        };
+        let offer = deps
+            .api
+            .addr_validate(offer_asset_info.assert_is_token()?)?;
+        let ask = deps.api.addr_validate(ask_asset_info.assert_is_token()?)?;
+        if let Some(previous) = &previous_ask {
+            if previous != offer {
+                return Err(StdError::generic_err("disconnected swap asset path"));
+            }
+        } else {
+            if input_token.is_some_and(|input| input != offer) {
+                return Err(StdError::generic_err(
+                    "swap input token does not match asset path",
+                ));
+            }
+            seen.push(offer);
+        }
+        if seen.contains(&ask) && capability(deps, &ask)?.is_some() {
+            return Err(StdError::generic_err(format!(
+                "repeated route-tax-capable asset in swap path: {ask}"
+            )));
+        }
+        seen.push(ask.clone());
+        previous_ask = Some(ask);
+    }
+    Ok(())
+}
+
 pub fn preview(
     deps: Deps,
     token: &Addr,
