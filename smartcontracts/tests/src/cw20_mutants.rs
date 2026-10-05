@@ -729,7 +729,7 @@ pub fn mutant_query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::AllAccounts { start_after, limit } => {
             let limit = limit.unwrap_or(30).min(30) as usize;
-            let min = start_after.as_deref().map(|s| Bound::exclusive(s));
+            let min = start_after.as_deref().map(Bound::exclusive);
             let accounts: Vec<String> = BALANCES
                 .range(deps.storage, min, None, Order::Ascending)
                 .take(limit)

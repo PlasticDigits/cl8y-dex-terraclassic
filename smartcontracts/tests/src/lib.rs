@@ -12587,8 +12587,7 @@ mod multi_user_tests {
         );
 
         let pool_before = query_pool(&app, &env.pair);
-        let k_before = pool_before.assets[0].amount.u128() as u128
-            * pool_before.assets[1].amount.u128() as u128;
+        let k_before = pool_before.assets[0].amount.u128() * pool_before.assets[1].amount.u128();
 
         let u1_b_before = query_cw20_balance(&app, &env.token_b, &env.user);
         let u2_a_before = query_cw20_balance(&app, &env.token_a, &user2);
@@ -12621,8 +12620,7 @@ mod multi_user_tests {
         );
 
         let pool_after = query_pool(&app, &env.pair);
-        let k_after =
-            pool_after.assets[0].amount.u128() as u128 * pool_after.assets[1].amount.u128() as u128;
+        let k_after = pool_after.assets[0].amount.u128() * pool_after.assets[1].amount.u128();
         assert!(
             k_after >= k_before,
             "K invariant must hold after both swaps"
@@ -12789,8 +12787,7 @@ mod multi_user_tests {
             Uint128::new(5_000_000),
         );
         let pool0 = query_pool(&app, &env.pair);
-        let k_initial =
-            pool0.assets[0].amount.u128() as u128 * pool0.assets[1].amount.u128() as u128;
+        let k_initial = pool0.assets[0].amount.u128() * pool0.assets[1].amount.u128();
 
         // Interleaved operations from different users
         provide_liquidity(
@@ -12812,8 +12809,7 @@ mod multi_user_tests {
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(20_000));
 
         let pool_final = query_pool(&app, &env.pair);
-        let k_final =
-            pool_final.assets[0].amount.u128() as u128 * pool_final.assets[1].amount.u128() as u128;
+        let k_final = pool_final.assets[0].amount.u128() * pool_final.assets[1].amount.u128();
         assert!(k_final >= k_initial, "K must not decrease after mixed ops");
 
         // total_share should equal sum of all outstanding LP balances + minimum_liquidity (locked)
@@ -14107,17 +14103,14 @@ mod reentrancy_tests {
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
 
         let pool_mid = query_pool(&app, &env.pair);
-        let k_before = pool_before.assets[0].amount.u128() as u128
-            * pool_before.assets[1].amount.u128() as u128;
-        let k_mid =
-            pool_mid.assets[0].amount.u128() as u128 * pool_mid.assets[1].amount.u128() as u128;
+        let k_before = pool_before.assets[0].amount.u128() * pool_before.assets[1].amount.u128();
+        let k_mid = pool_mid.assets[0].amount.u128() * pool_mid.assets[1].amount.u128();
 
         // Immediately do another swap (simulates what reentrancy would attempt)
         swap_a_to_b(&mut app, &env, &env.user, Uint128::new(10_000));
 
         let pool_after = query_pool(&app, &env.pair);
-        let k_after =
-            pool_after.assets[0].amount.u128() as u128 * pool_after.assets[1].amount.u128() as u128;
+        let k_after = pool_after.assets[0].amount.u128() * pool_after.assets[1].amount.u128();
 
         // State must be consistent: K never decreases
         assert!(k_mid >= k_before, "K must not decrease after first swap");
