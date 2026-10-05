@@ -635,3 +635,5 @@ Use **Keplr (extension)** for wallet QA on LocalTerra, or **Simulated Wallet** (
 - [skills/AGENTS_SWAP_EXACT_OUTPUT.md](skills/AGENTS_SWAP_EXACT_OUTPUT.md) — bounded solver receive sizing and pair reverse budget repair (#1376), E1376-1–E1376-8; `make verify-issue-1376`; [review/migration checklist](docs/qa/issue-1376/README.md).
 
 - [skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md](skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md) — reserve coverage cannot become false zero/low complete TVL (#1380), Q1380-1–Q1380-9; `make verify-issue-1380`; [review, repair and agent skip policy](docs/qa/issue-1380/README.md).
+
+- [skills/AGENTS_ORACLE_SAFETY.md](skills/AGENTS_ORACLE_SAFETY.md) — #1391 CEX quorum/freshness, fixed hub references and financial preparation guards (**O1391-1–O1391-10**); `make verify-issue-1391`; [agent checklist and skip policy](docs/qa/issue-1391/README.md).

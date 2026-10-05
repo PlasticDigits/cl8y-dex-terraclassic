@@ -39,6 +39,7 @@ pub struct DailyAssetRow {
     pub fee_event_count: i64,
     pub fee_unpriced_count: i64,
     pub price_usd: Option<BigDecimal>,
+    pub price_as_of: Option<DateTime<Utc>>,
     pub circulating_raw: Option<BigDecimal>,
 }
 
@@ -76,7 +77,7 @@ pub async fn get_daily_assets(
 ) -> Result<Vec<DailyAssetRow>, sqlx::Error> {
     sqlx::query_as::<_, DailyAssetRow>(
         r#"SELECT utc_day, ticker, volume_usd, trade_count, unpriced_trade_count,
-                  fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw
+                  fees_usd, fee_event_count, fee_unpriced_count, price_usd, circulating_raw, price_as_of
            FROM defillama_daily_assets
            WHERE utc_day = $1
            ORDER BY ticker"#,

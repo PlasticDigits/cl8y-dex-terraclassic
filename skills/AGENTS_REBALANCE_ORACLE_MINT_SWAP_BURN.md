@@ -40,3 +40,8 @@ ORACLE_RB_BURN_ONLY=1 ORACLE_RB_YES=1 ./scripts/rebalance-oracle-mint-swap-burn.
 - [`docs/runbooks/rebalance-mint-clunc-custc-lp.md`](../docs/runbooks/rebalance-mint-clunc-custc-lp.md) — same cLUNC peg, then $10k rungs
 - [`AGENTS_MINT_CLUNC_CUSTC_LP.md`](./AGENTS_MINT_CLUNC_CUSTC_LP.md) — no swap, keep premium
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+Current price validation: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md),
+[O1391 policy/checklist](../docs/qa/issue-1391/README.md). Live source/age/quorum
+validation is mandatory before preparation; numeric overrides are dry-run only.
+Run `make verify-issue-1391` and record unavailable checks explicitly.

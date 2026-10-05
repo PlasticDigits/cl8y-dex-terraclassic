@@ -153,13 +153,12 @@ async fn fill_pair(
     configured_ustc_denom: Option<&str>,
     configured_usdt_address: &str,
 ) -> Result<PairFillStats, BoxError> {
-    let pair = sqlx::query_as::<_, (i32, i32)>(
-        "SELECT asset_0_id, asset_1_id FROM pairs WHERE id = $1",
-    )
-    .bind(pair_id)
-    .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| FillError(format!("pair {pair_id} missing")))?;
+    let pair =
+        sqlx::query_as::<_, (i32, i32)>("SELECT asset_0_id, asset_1_id FROM pairs WHERE id = $1")
+            .bind(pair_id)
+            .fetch_optional(pool)
+            .await?
+            .ok_or_else(|| FillError(format!("pair {pair_id} missing")))?;
     let base = assets::get_asset_by_id(pool, pair.0)
         .await?
         .ok_or_else(|| FillError(format!("asset {} missing", pair.0)))?;
@@ -238,7 +237,10 @@ async fn oracle_as_of(
 ) -> Result<Option<BigDecimal>, sqlx::Error> {
     sqlx::query_scalar(
         "SELECT price_usd FROM oracle_prices
-          WHERE ticker = $1 AND source = 'average' AND fetched_at <= $2 AND price_usd > 0
+          WHERE ticker = $1 AND source = 'average' AND fetched_at <= $2
+            AND fetched_at >= $2 - INTERVAL '300 seconds'
+            AND cardinality(accepted_sources) >= 2
+            AND price_usd BETWEEN 0.000000000001 AND 1000000
           ORDER BY fetched_at DESC
           LIMIT 1",
     )

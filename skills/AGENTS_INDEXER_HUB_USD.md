@@ -1,3 +1,7 @@
+> Current #1391 safety contract: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md)
+> and [policy/checklist](../docs/qa/issue-1391/README.md) supersede legacy conversion
+> defaults and self-valued TVL eligibility. Run `make verify-issue-1391`.
+
 # Agent playbook: DEX hub USD (cUSTC / LUNC / UST1 / USTR) (GitLab #556 / #570)
 
 Audience: third-party agents touching pair `price_usd`, `volume_usd`, Protocol, or Charts **Price (USD)** for UST1/USTR/cUSTC/LUNC.
@@ -15,13 +19,13 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 | ID | Rule |
 |----|------|
 | **H1** | `usd(cUSTC)` = `usd(uusd)` = #515 USTC CEX oracle. Oracle down → NULL, not `$1`. |
-| **H2** | `usd(UST1)` from the **largest USD-TVL** factory pair whose legs are hub **cUSTC + UST1** (contract/denom), via humanized **reserves** (not last print, not `$1`). |
-| **H3** | `usd(USTR)` from the **largest USD-TVL** factory pair vs already-priced cUSTC or UST1. **USTR is set by the market, not a fixed peg** — launch `2.5 ×` USTC is ops seed only. |
+| **H2** | `usd(UST1)` from the **deepest independently priced leg** factory pair whose legs are hub **cUSTC + UST1** (contract/denom), via humanized **reserves** (not last print, not `$1`). |
+| **H3** | `usd(USTR)` from the **deepest independently priced leg** factory pair vs already-priced cUSTC or UST1. **USTR is set by the market, not a fixed peg** — launch `2.5 ×` USTC is ops seed only. |
 | **H4** | Pair `price_usd` / candles USD use hub quote USD **as-of ingest or current-bucket marks**. Do **not** rewrite historical tape from the live snapshot ([#568](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/568)). UI invert (#524 / #543) stays frontend `invertUsd`. |
 | **H5** | `/protocol` shows a **DEX hub prices** card (`protocol-dex-hub-prices`) with **cUSTC**, **cLUNC**, UST1, USTR ([#570](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/570) / [#1240](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1240)). CEX tabs stay `ustc` \| `lunc` \| `vfdusd` (native **USTC** / **LUNC** labels). |
 | **H6** | `GET /api/v1/oracle/price/ustr` (and `ust1`, `custc`) remain **400**. Use `GET /api/v1/hub-prices`. `GET /hub-prices/lunc` is the DEX-card snapshot, distinct from CEX `/oracle/price/lunc`. |
 | **H7** | `volume_usd` ingest uses hub USD for UST1/USTR quotes. Still **not** vFDUSD. |
-| **H8** | Dust (`< $100` TVL default), stale reserves, unlisted pairs, and symbol-spoof natives cannot win ranking. Identity is **contract/denom**. |
+| **H8** | Dust (`< $100` independently priced leg depth default), stale reserves, unlisted pairs, and symbol-spoof natives cannot win ranking. Identity is **contract/denom**. |
 | **H9** | This skill + invariants + `make verify-issue-556`. Wrap identity / LUNC column: `make verify-issue-570`. |
 | **H10** | CG/CMC `last_price` stays human quote-per-base. |
 | **H11** | Hub card column order: **cUSTC**, **cLUNC**, UST1, USTR (API tickers `custc` \| `lunc` \| `ust1` \| `ustr`; visible LUNC wrap `<dt>` is `cLUNC / USD`). Grid `sm:grid-cols-2 xl:grid-cols-4`. Four cells stay painted on hub 502 (USD `—`; wrap rows from env overlay). |
@@ -33,8 +37,8 @@ P522-Q hardcoded **UST1 = $1** and **USTR = 2.5 × USTC**. Those are launch-seed
 
 ## Ranking
 
-- TVL = human(`reserve_0`)×usd(asset_0) + human(`reserve_1`)×usd(asset_1). Not raw integers (18-dec vs 6-dec).
-- Ties: max TVL, then lexicographic pair address.
+- Eligibility/ranking = human reserve of independently priced leg × its USD mark. Total self-valued TVL is descriptive only (18-dec vs 6-dec remain checked).
+- Ties: max independent depth, then lexicographic pair address; retain eligible pinned source and confirm a switch under the fixed reference bounds.
 - Bootstrap order is fixed (no UST1 from UST1/USTR using the old peg).
 - Materialized in `hub_prices`; refresh on book-snapshot cadence + oracle tick. GET is O(1).
 

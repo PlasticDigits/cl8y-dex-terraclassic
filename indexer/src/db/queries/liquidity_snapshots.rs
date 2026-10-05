@@ -121,7 +121,7 @@ pub async fn begin_liquidity_refresh(
     // Acquire all input-table locks before reads. READ COMMITTED sees the newest
     // committed inputs after waiting for a prior writer; SHARE locks keep those
     // inputs stable through publication without a stale pre-lock MVCC snapshot.
-    sqlx::query("LOCK TABLE assets,pairs,pair_reserves,oracle_prices,hub_prices,indexer_state IN SHARE MODE")
+    sqlx::query("LOCK TABLE assets,pairs,pair_reserves,oracle_prices,oracle_state,hub_prices,indexer_state IN SHARE MODE")
         .execute(&mut *tx).await?;
     Ok(tx)
 }

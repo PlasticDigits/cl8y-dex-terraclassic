@@ -38,3 +38,8 @@ CUSTC_UST1_LOOP=0 CUSTC_UST1_YES=1 ./scripts/mint-swap-custc-ust1.sh
 - [`AGENTS_INDEXER_VENUS_VFDUSD.md`](./AGENTS_INDEXER_VENUS_VFDUSD.md) — Venus redeem is not CEX FDUSD/USD
 - [`AGENTS_HYBRID_QUOTING.md`](./AGENTS_HYBRID_QUOTING.md) — quote = execute via `/route/solve`
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
+
+Current price validation: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md),
+[O1391 policy/checklist](../docs/qa/issue-1391/README.md). Live source/age/quorum
+validation is mandatory before preparation; numeric overrides are dry-run only.
+Run `make verify-issue-1391` and record unavailable checks explicitly.

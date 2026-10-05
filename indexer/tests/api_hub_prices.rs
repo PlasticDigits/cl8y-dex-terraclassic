@@ -16,6 +16,20 @@ fn bd(s: &str) -> BigDecimal {
     BigDecimal::from_str(s).unwrap()
 }
 
+async fn seed_quorum(pool: &sqlx::PgPool, ticker: &str, price: &str) {
+    sqlx::query(
+        "INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of,observed_at)
+        VALUES($1,$2,'fresh',ARRAY['mexc','kucoin'],NOW(),NOW())
+        ON CONFLICT(ticker) DO UPDATE SET price_usd=EXCLUDED.price_usd,
+          quality='fresh',accepted_sources=EXCLUDED.accepted_sources,as_of=NOW(),observed_at=NOW()",
+    )
+    .bind(ticker)
+    .bind(bd(price))
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
 #[tokio::test]
 async fn hub_prices_catalog_is_dex_not_cex() {
     let pool = common::setup_pool().await;
@@ -105,7 +119,7 @@ async fn oracle_price_still_rejects_hub_tickers() {
 
 #[serial]
 #[tokio::test]
-async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
+async fn hub_refresh_canonical_ust1_pool_and_overview_fields() {
     let pool = common::setup_pool().await;
     common::clean_db(&pool).await;
 
@@ -125,11 +139,18 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
     .fetch_one(&pool)
     .await
     .unwrap();
+    let spoof: i32 = sqlx::query_scalar(
+        "INSERT INTO assets(contract_address,is_cw20,name,symbol,decimals)
+        VALUES('terra1spoofust1',true,'UST1','UST1',6) RETURNING id",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     let thin: i32 = sqlx::query_scalar(
         "INSERT INTO pairs (contract_address, asset_0_id, asset_1_id, lp_token, fee_bps)
          VALUES ('terra1thin556', $1, $2, 'terra1lpthin', 30) RETURNING id",
     )
-    .bind(ust1)
+    .bind(spoof)
     .bind(custc)
     .fetch_one(&pool)
     .await
@@ -164,12 +185,30 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
     .await
     .unwrap();
 
+    seed_quorum(&pool, "ustc", "0.005").await;
     let mut cfg = common::test_config();
     cfg.book_snapshot_interval_ms = 10_000;
     let hub_cfg = HubUsdConfig::from_indexer_config(&cfg);
     hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
         .expect("refresh");
+    assert!(
+        hub_prices::get_hub_price(&pool, cl8y_dex_indexer::indexer::hub_usd::HubTicker::Ust1)
+            .await
+            .unwrap()
+            .is_none(),
+        "bootstrap is observing, never immediate healthy"
+    );
+    // Fixture establishes a prior canonical observation without a real-time sleep.
+    sqlx::query(
+        "UPDATE hub_price_references SET pending_since = pending_since - INTERVAL '61 seconds'",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+        .await
+        .unwrap();
     cl8y_dex_indexer::db::queries::volume::refresh_global_stats(&pool)
         .await
         .expect("global stats rollup");
@@ -203,6 +242,18 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
         .unwrap();
     assert!((u - 1.0).abs() < 1e-9, "ust1 usd {u}");
     assert_eq!(ust1_p["source_pair"], "terra1deep556");
+    assert_eq!(ust1_p["quality"], "bounded_spot");
+    assert_eq!(ust1_p["oracle_grade"], false);
+    assert_eq!(ust1_p["policy"], "hub-fixed-reference-v1");
+    assert!(ust1_p["as_of"].is_string());
+    assert_eq!(
+        ust1_p["priced_leg_depth_usd"]
+            .as_str()
+            .unwrap()
+            .parse::<f64>()
+            .unwrap(),
+        250.0
+    );
     assert!(prices.iter().find(|p| p["ticker"] == "ustr").unwrap()["price_usd"].is_null());
 
     let one: serde_json::Value = server.get("/api/v1/hub-prices/ust1").await.json();
@@ -214,6 +265,78 @@ async fn hub_refresh_picks_deepest_ust1_pool_and_overview_fields() {
     assert!(ov["custc_price_usd"].as_str().unwrap().starts_with("0.005"));
     assert!(ov["ust1_price_usd"].as_str().unwrap().starts_with("1"));
     assert!(ov["ustr_price_usd"].is_null());
+
+    // Manipulate the actual canonical pair reserve ratio, never a duplicate pool.
+    sqlx::query("UPDATE pair_reserves SET reserve_0=125000000,snapshot_at=NOW() WHERE pair_id=$1")
+        .bind(deep)
+        .execute(&pool)
+        .await
+        .unwrap();
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+        .await
+        .unwrap();
+    let rejected: serde_json::Value = server.get("/api/v1/hub-prices/ust1").await.json();
+    assert!(rejected["price_usd"].is_null());
+    assert_eq!(rejected["quality"], "divergent");
+    assert_eq!(
+        rejected["divergence_pct"]
+            .as_str()
+            .unwrap()
+            .parse::<f64>()
+            .unwrap(),
+        100.0
+    );
+    assert!(hub_prices::load_quote_usd(&pool)
+        .await
+        .unwrap()
+        .ust1
+        .is_none());
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, None, None)
+        .await
+        .unwrap();
+    let baseline: BigDecimal =
+        sqlx::query_scalar("SELECT reference_ratio FROM hub_price_references WHERE ticker='ust1'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        baseline,
+        bd("200"),
+        "outage must not reset reference toward attack"
+    );
+
+    // Restore canonical reserves; independent depth below $100 still cannot publish.
+    sqlx::query("UPDATE pair_reserves SET reserve_0=50000000,reserve_1=10000000000,snapshot_at=NOW() WHERE pair_id=$1")
+        .bind(deep).execute(&pool).await.unwrap();
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+        .await
+        .unwrap();
+    assert!(hub_prices::load_quote_usd(&pool)
+        .await
+        .unwrap()
+        .ust1
+        .is_none());
+    sqlx::query("UPDATE pair_reserves SET reserve_0=250000000,reserve_1=50000000000,snapshot_at=NOW() WHERE pair_id=$1")
+        .bind(deep).execute(&pool).await.unwrap();
+    hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
+        .await
+        .unwrap();
+    assert!(hub_prices::load_quote_usd(&pool)
+        .await
+        .unwrap()
+        .ust1
+        .is_some());
+
+    // New no-quorum state immediately invalidates a still-fresh materialized mark.
+    sqlx::query("UPDATE oracle_state SET quality='degraded',price_usd=NULL,accepted_sources='{}',as_of=NULL WHERE ticker='ustc'")
+        .execute(&pool).await.unwrap();
+    assert!(hub_prices::load_quote_usd(&pool)
+        .await
+        .unwrap()
+        .ust1
+        .is_none());
+    let degraded: serde_json::Value = server.get("/api/v1/hub-prices/ust1").await.json();
+    assert!(degraded["price_usd"].is_null());
 }
 
 #[serial]
@@ -243,6 +366,7 @@ async fn hub_lunc_survives_ustc_outage_and_does_not_use_ustc_price() {
         .await
         .unwrap();
     let hub_cfg = HubUsdConfig::from_indexer_config(&common::test_config());
+    seed_quorum(&pool, "lunc", "0.00008").await;
     hub_prices::refresh_hub_prices(&pool, &hub_cfg, None, Some(&bd("0.00008")))
         .await
         .expect("refresh");
@@ -276,6 +400,7 @@ async fn hub_lunc_oracle_down_does_not_zero_custc() {
     let pool = common::setup_pool().await;
     common::clean_db(&pool).await;
     let hub_cfg = HubUsdConfig::from_indexer_config(&common::test_config());
+    seed_quorum(&pool, "ustc", "0.005").await;
     hub_prices::refresh_hub_prices(&pool, &hub_cfg, Some(&bd("0.005")), None)
         .await
         .expect("refresh");

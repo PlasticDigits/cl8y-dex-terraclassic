@@ -596,18 +596,27 @@ async fn ust1_ustr_asset_volume_fees_and_hub_price() {
     .await;
 
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, price_usd, updated_at) VALUES ('ust1', 0.97, NOW())",
+        "INSERT INTO hub_prices (ticker, price_usd, updated_at, as_of, quality) VALUES ('ust1', 0.97, NOW(),NOW(),'bounded_spot')",
     )
     .execute(&pool)
     .await
     .expect("hub ust1");
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, price_usd, updated_at) VALUES ('ustr', 0.015, NOW())",
+        "INSERT INTO hub_prices (ticker, price_usd, updated_at, as_of, quality) VALUES ('ustr', 0.015, NOW(),NOW(),'bounded_spot')",
     )
     .execute(&pool)
     .await
     .expect("hub ustr");
 
+    sqlx::query(
+        "INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of,observed_at)
+       VALUES ('ustc',0.005,'fresh',ARRAY['mexc','kucoin'],NOW(),NOW())
+       ON CONFLICT(ticker) DO UPDATE SET quality='fresh', price_usd=0.005,
+       accepted_sources=ARRAY['mexc','kucoin'],as_of=NOW(),observed_at=NOW()",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     refresh(&pool).await;
 
     let app = build_test_app(pool.clone()).await;

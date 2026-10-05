@@ -1913,3 +1913,7 @@ front:
 .PHONY: verify-issue-1380
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
+
+.PHONY: verify-issue-1391
+verify-issue-1391:
+	bash scripts/qa/verify-issue-1391.sh

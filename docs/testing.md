@@ -732,3 +732,9 @@ browser and 569/689/655/664/1263 regressions. See [agent checklist and explicit 
 policy](qa/issue-1380/README.md), [invariants](indexer-invariants.md#protocol-liquidity-quality-1380)
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md). Use an isolated
 Postgres database and unique `TEST_DB_LOCK_FILE` for parallel worktrees.
+
+Oracle integrity (#1391): `make verify-issue-1391` runs synthetic CEX/hub and
+isolated Postgres USD/API regressions, financial transaction-suppression mocks,
+and retests. See the [agent checklist and explicit skip policy](qa/issue-1391/README.md)
+and [invariants/playbook](../skills/AGENTS_ORACLE_SAFETY.md). Skipped deployment or
+live-chain checks are unverified even when implementation review reports PASS.

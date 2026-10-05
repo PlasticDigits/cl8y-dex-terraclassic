@@ -23,15 +23,17 @@ FROM (
         SELECT o.price_usd
         FROM oracle_prices o
         WHERE o.ticker = CASE
-                WHEN a1.denom = 'uusd' THEN 'ustc'
-                WHEN a1.denom = 'uluna' THEN 'lunc'
-                WHEN a1.is_cw20 AND UPPER(a1.symbol) IN ('USTC', 'CUSTC') THEN 'ustc'
-                WHEN a1.is_cw20 AND UPPER(a1.symbol) IN ('LUNC', 'CLUNC') THEN 'lunc'
+                WHEN NOT a1.is_cw20 AND a1.contract_address IS NULL AND a1.denom = 'uusd' THEN 'ustc'
+                WHEN NOT a1.is_cw20 AND a1.contract_address IS NULL AND a1.denom = 'uluna' THEN 'lunc'
+                WHEN a1.is_cw20 AND a1.denom IS NULL AND a1.contract_address = $1 THEN 'ustc'
+                WHEN a1.is_cw20 AND a1.denom IS NULL AND a1.contract_address = $2 THEN 'lunc'
                 ELSE NULL
             END
           AND o.source = 'average'
           AND o.fetched_at <= se2.block_timestamp
-          AND o.price_usd > 0
+          AND o.fetched_at >= se2.block_timestamp - INTERVAL '300 seconds'
+          AND o.price_usd BETWEEN 0.000000000001 AND 1000000
+          AND cardinality(o.accepted_sources) >= 2
         ORDER BY o.fetched_at DESC
         LIMIT 1
     ) op ON TRUE
@@ -40,16 +42,24 @@ FROM (
       AND se2.price * op.price_usd > 0
       AND se2.price * op.price_usd < POWER(10::numeric, 20)
       AND (
-            a1.denom IN ('uusd', 'uluna')
+            (NOT a1.is_cw20 AND a1.contract_address IS NULL AND a1.denom IN ('uusd', 'uluna'))
             OR (
                 a1.is_cw20
                 AND COALESCE(a1.contract_address, '') <> ''
-                AND UPPER(a1.symbol) IN ('USTC', 'CUSTC', 'LUNC', 'CLUNC')
+                AND a1.denom IS NULL AND a1.contract_address IN ($1, $2)
             )
           )
 ) sub
 WHERE se.id = sub.id
 "#,
+    )
+    .bind(
+        std::env::var("HUB_CUSTC_ADDRESS")
+            .unwrap_or_else(|_| crate::config::DEFAULT_HUB_CUSTC_ADDRESS.into()),
+    )
+    .bind(
+        std::env::var("HUB_CLUNC_ADDRESS")
+            .unwrap_or_else(|_| crate::config::DEFAULT_HUB_CLUNC_ADDRESS.into()),
     )
     .execute(pool)
     .await?;
@@ -76,15 +86,17 @@ FROM (
         SELECT o.price_usd
         FROM oracle_prices o
         WHERE o.ticker = CASE
-                WHEN a1.denom = 'uusd' THEN 'ustc'
-                WHEN a1.denom = 'uluna' THEN 'lunc'
-                WHEN a1.is_cw20 AND UPPER(a1.symbol) IN ('USTC', 'CUSTC') THEN 'ustc'
-                WHEN a1.is_cw20 AND UPPER(a1.symbol) IN ('LUNC', 'CLUNC') THEN 'lunc'
+                WHEN NOT a1.is_cw20 AND a1.contract_address IS NULL AND a1.denom = 'uusd' THEN 'ustc'
+                WHEN NOT a1.is_cw20 AND a1.contract_address IS NULL AND a1.denom = 'uluna' THEN 'lunc'
+                WHEN a1.is_cw20 AND a1.denom IS NULL AND a1.contract_address = $1 THEN 'ustc'
+                WHEN a1.is_cw20 AND a1.denom IS NULL AND a1.contract_address = $2 THEN 'lunc'
                 ELSE NULL
             END
           AND o.source = 'average'
           AND o.fetched_at <= c2.open_time
-          AND o.price_usd > 0
+          AND o.fetched_at >= c2.open_time - INTERVAL '300 seconds'
+          AND o.price_usd BETWEEN 0.000000000001 AND 1000000
+          AND cardinality(o.accepted_sources) >= 2
         ORDER BY o.fetched_at DESC
         LIMIT 1
     ) op ON TRUE
@@ -96,16 +108,24 @@ FROM (
       AND c2.high_human * op.price_usd > 0
       AND c2.high_human * op.price_usd < POWER(10::numeric, 20)
       AND (
-            a1.denom IN ('uusd', 'uluna')
+            (NOT a1.is_cw20 AND a1.contract_address IS NULL AND a1.denom IN ('uusd', 'uluna'))
             OR (
                 a1.is_cw20
                 AND COALESCE(a1.contract_address, '') <> ''
-                AND UPPER(a1.symbol) IN ('USTC', 'CUSTC', 'LUNC', 'CLUNC')
+                AND a1.denom IS NULL AND a1.contract_address IN ($1, $2)
             )
           )
 ) sub
 WHERE c.id = sub.id
 "#,
+    )
+    .bind(
+        std::env::var("HUB_CUSTC_ADDRESS")
+            .unwrap_or_else(|_| crate::config::DEFAULT_HUB_CUSTC_ADDRESS.into()),
+    )
+    .bind(
+        std::env::var("HUB_CLUNC_ADDRESS")
+            .unwrap_or_else(|_| crate::config::DEFAULT_HUB_CLUNC_ADDRESS.into()),
     )
     .execute(pool)
     .await?;

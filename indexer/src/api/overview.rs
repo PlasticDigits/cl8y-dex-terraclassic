@@ -36,6 +36,11 @@ pub struct OverviewResponse {
     pub ustc_price_usd: Option<String>,
     /// DEX hub USD of 1 human cUSTC (wrap = USTC oracle). Null when unresolved (#556).
     pub custc_price_usd: Option<String>,
+    /// Hub spot values are advisory and must not drive automated financial actions (#1391).
+    pub hub_oracle_grade: bool,
+    pub hub_price_policy: String,
+    /// Each live USD mark includes source, original timestamp and confidence policy.
+    pub hub_price_quality: Vec<super::hub_prices::HubPriceEntry>,
     /// DEX hub USD of 1 human UST1 from the deepest cUSTC/UST1 pool. Null when unresolved.
     pub ust1_price_usd: Option<String>,
     /// DEX hub USD of 1 human USTR from the deepest vs cUSTC or UST1. Null when unresolved.
@@ -118,6 +123,59 @@ fn qualify_liquidity_age(resp: &mut OverviewResponse) {
     }
 }
 
+async fn qualify_live_prices(
+    resp: &mut OverviewResponse,
+    state: &AppState,
+) -> Result<(), (StatusCode, String)> {
+    resp.ustc_price_usd = crate::db::queries::oracle::get_latest_average_price(
+        &state.pool,
+        crate::indexer::oracle::OracleTicker::Ustc,
+    )
+    .await
+    .map_err(internal_err)?
+    .map(|v| v.to_string());
+    let mut rows = hub_prices::get_all_hub_prices(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    if state
+        .oracle_prices
+        .invalidates(crate::indexer::oracle::OracleTicker::Ustc, None)
+        .await
+    {
+        resp.ustc_price_usd = None;
+    }
+    super::hub_prices::qualify_process_prices(&mut rows, &state).await;
+    let references = hub_prices::get_hub_references(&state.pool)
+        .await
+        .map_err(internal_err)?;
+    resp.hub_price_quality = [
+        HubTicker::Custc,
+        HubTicker::Lunc,
+        HubTicker::Ust1,
+        HubTicker::Ustr,
+    ]
+    .into_iter()
+    .map(|ticker| {
+        super::hub_prices::entry_for(
+            ticker,
+            rows.iter().find(|r| r.ticker == ticker.as_str()),
+            &state.hub_usd,
+            references.iter().find(|r| r.ticker == ticker.as_str()),
+        )
+    })
+    .collect();
+    let price = |ticker: &str| {
+        resp.hub_price_quality
+            .iter()
+            .find(|r| r.ticker == ticker)
+            .and_then(|r| r.price_usd.clone())
+    };
+    resp.custc_price_usd = price("custc");
+    resp.ust1_price_usd = price("ust1");
+    resp.ustr_price_usd = price("ustr");
+    Ok(())
+}
+
 /// Map rollup USD + trade count to the overview JSON contract (#548).
 pub fn overview_volume_usd_field(trades: i64, usd: &BigDecimal) -> Option<String> {
     if trades <= 0 {
@@ -141,14 +199,16 @@ pub fn overview_volume_usd_field(trades: i64, usd: &BigDecimal) -> Option<String
 pub async fn get_overview(
     State(state): State<AppState>,
 ) -> Result<Json<OverviewResponse>, (StatusCode, String)> {
-    if let Ok(guard) = overview_cache().lock() {
-        if let Some((resp, at)) = guard.as_ref() {
-            if Instant::now().duration_since(*at) <= OVERVIEW_CACHE_TTL {
-                let mut cached = resp.clone();
-                qualify_liquidity_age(&mut cached);
-                return Ok(Json(cached));
-            }
-        }
+    let cached = overview_cache().lock().ok().and_then(|guard| {
+        guard
+            .as_ref()
+            .filter(|(_, at)| Instant::now().duration_since(*at) <= OVERVIEW_CACHE_TTL)
+            .map(|(resp, _)| resp.clone())
+    });
+    if let Some(mut cached) = cached {
+        qualify_liquidity_age(&mut cached);
+        qualify_live_prices(&mut cached, &state).await?;
+        return Ok(Json(cached));
     }
 
     let global = volume::get_global_stats(&state.pool)
@@ -178,7 +238,7 @@ pub async fn get_overview(
     let hub_usd = |ticker: HubTicker| {
         hub_rows
             .iter()
-            .find(|r| r.ticker == ticker.as_str())
+            .find(|r| r.ticker == ticker.as_str() && hub_prices::row_usable(r, Utc::now()))
             .map(|r| r.price_usd.to_string())
     };
 
@@ -193,6 +253,9 @@ pub async fn get_overview(
         token_count,
         ustc_price_usd: ustc_price.map(|p| p.to_string()),
         custc_price_usd: hub_usd(HubTicker::Custc),
+        hub_oracle_grade: false,
+        hub_price_policy: crate::indexer::hub_guard::HUB_POLICY.into(),
+        hub_price_quality: Vec::new(),
         ust1_price_usd: hub_usd(HubTicker::Ust1),
         ustr_price_usd: hub_usd(HubTicker::Ustr),
         total_volume_7d_usd: global.total_volume_7d_usd.to_string(),
@@ -237,15 +300,24 @@ pub async fn get_overview(
     };
 
     qualify_liquidity_age(&mut resp);
-    if let Ok(mut guard) = overview_cache().lock() {
-        if let Some((current, _)) = guard.as_ref() {
-            if current.liquidity_generation > resp.liquidity_generation {
-                let mut newer = current.clone();
-                qualify_liquidity_age(&mut newer);
-                return Ok(Json(newer));
-            }
+    qualify_live_prices(&mut resp, &state).await?;
+    let newer = if let Ok(mut guard) = overview_cache().lock() {
+        if let Some((current, _)) = guard
+            .as_ref()
+            .filter(|(current, _)| current.liquidity_generation > resp.liquidity_generation)
+        {
+            Some(current.clone())
+        } else {
+            *guard = Some((resp.clone(), Instant::now()));
+            None
         }
-        *guard = Some((resp.clone(), Instant::now()));
+    } else {
+        None
+    };
+    if let Some(mut newer) = newer {
+        qualify_liquidity_age(&mut newer);
+        qualify_live_prices(&mut newer, &state).await?;
+        return Ok(Json(newer));
     }
 
     Ok(Json(resp))
