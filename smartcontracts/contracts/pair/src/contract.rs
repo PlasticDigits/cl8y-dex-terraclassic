@@ -1556,6 +1556,8 @@ fn execute_update_limit_order_price(
             });
         }
     }
+    dex_common::limit_placement::validate_limit_order_fillability(&o.side, o.remaining, price)
+        .map_err(|_| ContractError::LimitOrderUnfillable {})?;
     orderbook::relink_limit_order_price(
         deps.storage,
         order_id,
@@ -1631,11 +1633,17 @@ fn execute_claim_expired_limit_order(
 
     EXPIRED_LIMIT_CLAIMS.remove(deps.storage, order_id);
 
-    Ok(Response::new()
-        .add_message(refund_msg)
+    let response = Response::new()
         .add_attribute("action", "claim_expired_limit_order")
         .add_attribute("order_id", order_id.to_string())
-        .add_attribute("owner", row.owner.as_str()))
+        .add_attribute("owner", row.owner.as_str());
+    // Legacy zero-escrow linked rows can be parked by #1399. Finalize their claims
+    // without depending on a CW20 implementation accepting a zero transfer.
+    Ok(if row.remaining.is_zero() {
+        response
+    } else {
+        response.add_message(refund_msg)
+    })
 }
 
 fn execute_cancel_limit_order(
@@ -3951,6 +3959,89 @@ mod reverse_issue1376_tests {
                     forward(reverse.offer_amount).return_amount
                 );
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod economic_unfillable_claim_tests {
+    use super::*;
+    use crate::state::ExpiredLimitRefund;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use dex_common::pair::ExpiredLimitParkReason;
+
+    #[test]
+    fn economic_zero_unfillable_claim_checks_owner_and_omits_zero_transfer() {
+        for side in [LimitOrderSide::Bid, LimitOrderSide::Ask] {
+            let mut deps = mock_dependencies();
+            let owner = Addr::unchecked("maker");
+            PAIR_INFO
+                .save(
+                    deps.as_mut().storage,
+                    &PairInfoState {
+                        asset_infos: [
+                            AssetInfo::Token {
+                                contract_addr: "token0".into(),
+                            },
+                            AssetInfo::Token {
+                                contract_addr: "token1".into(),
+                            },
+                        ],
+                        lp_token: Addr::unchecked("lp"),
+                        factory: Addr::unchecked("factory"),
+                    },
+                )
+                .unwrap();
+            let refund = ExpiredLimitRefund {
+                owner: owner.clone(),
+                side: side.clone(),
+                remaining: Uint128::zero(),
+                expires_at: None,
+                reason: Some(ExpiredLimitParkReason::Unfillable),
+            };
+            EXPIRED_LIMIT_CLAIMS
+                .save(deps.as_mut().storage, 1, &refund)
+                .unwrap();
+            // Other makers' collateral must remain untouched by a zero-value claim.
+            PENDING_ESCROW_TOKEN0
+                .save(deps.as_mut().storage, &Uint128::new(100))
+                .unwrap();
+            PENDING_ESCROW_TOKEN1
+                .save(deps.as_mut().storage, &Uint128::new(100))
+                .unwrap();
+            assert!(matches!(
+                execute_claim_expired_limit_order(
+                    deps.as_mut(),
+                    mock_env(),
+                    mock_info("other", &[]),
+                    1
+                ),
+                Err(ContractError::Unauthorized {})
+            ));
+            assert_eq!(
+                EXPIRED_LIMIT_CLAIMS.load(deps.as_ref().storage, 1).unwrap(),
+                refund
+            );
+            let response = execute_claim_expired_limit_order(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(owner.as_str(), &[]),
+                1,
+            )
+            .unwrap();
+            assert!(response.messages.is_empty());
+            assert!(EXPIRED_LIMIT_CLAIMS
+                .may_load(deps.as_ref().storage, 1)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                PENDING_ESCROW_TOKEN0.load(deps.as_ref().storage).unwrap(),
+                Uint128::new(100)
+            );
+            assert_eq!(
+                PENDING_ESCROW_TOKEN1.load(deps.as_ref().storage).unwrap(),
+                Uint128::new(100)
+            );
         }
     }
 }
