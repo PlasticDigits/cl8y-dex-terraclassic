@@ -1,5 +1,7 @@
 # Agent protocol: reverse-query availability (#1389)
 
+Implementation: [PR #1407](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1407).
+
 Apply when changing pair/router reverse sizing, exact-output admission, Observe,
 or receive-quote failure handling. Issue: [#1389](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1389).
 Invariants and limits: [route solver](../docs/route-solver.md#reverse-query-availability-1389).

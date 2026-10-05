@@ -1,5 +1,7 @@
 # Reverse-query availability review (#1389)
 
+Implementation: [PR #1407](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1407).
+
 Issue [#1389](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1389).
 Invariants: [RQ1389-1–RQ1389-8](../../route-solver.md#reverse-query-availability-1389).
 Third-party agent protocol: [AGENTS_REVERSE_QUERY_BUDGET.md](../../../skills/AGENTS_REVERSE_QUERY_BUDGET.md).
