@@ -275,7 +275,7 @@ async fn transient_500_and_timeout_do_not_negative_cache_legitimate_pairs() {
         mount(&server, move |req| {
             if c.fetch_add(1, Ordering::SeqCst) == 0 {
                 if timeout {
-                    success_response(req, &f, &p).set_delay(Duration::from_millis(250))
+                    success_response(req, &f, &p).set_delay(Duration::from_secs(2))
                 } else {
                     ResponseTemplate::new(500).set_body_string("temporary upstream unavailable")
                 }
@@ -284,7 +284,7 @@ async fn transient_500_and_timeout_do_not_negative_cache_legitimate_pairs() {
             }
         })
         .await;
-        let lcd = LcdClient::new(vec![server.uri()], if timeout { 80 } else { 1_000 }, 0);
+        let lcd = LcdClient::new(vec![server.uri()], if timeout { 1_000 } else { 5_000 }, 0);
         let err = discover_new_pair(&pool, &lcd, &factory, &pair)
             .await
             .unwrap_err();

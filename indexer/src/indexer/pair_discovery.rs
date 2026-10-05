@@ -894,7 +894,7 @@ mod tests {
                 if h.fetch_add(1, Ordering::SeqCst) == 0 {
                     ResponseTemplate::new(500)
                         .set_body_string("gateway unavailable; pair not found")
-                        .set_delay(std::time::Duration::from_millis(200))
+                        .set_delay(std::time::Duration::from_secs(2))
                 } else {
                     ResponseTemplate::new(500)
                         .set_body_json(json!({"message": "unknown variant pair"}))
@@ -902,7 +902,7 @@ mod tests {
             })
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 50, 0);
+        let lcd = LcdClient::new(vec![server.uri()], 500, 0);
         let pool = unused_pool();
         let first = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -1034,8 +1034,8 @@ mod tests {
                 deferred += 1;
             }
         }
-        assert!(deferred > 0);
         let hits = server.received_requests().await.unwrap().len();
+        assert_eq!(hits + deferred, 200);
         assert!(hits <= 33 + (started.elapsed().as_secs_f64() * 8.0) as usize);
         // A different factory receives its own fresh budget even on the same LCD.
         let err = discover_new_pair(&pool, &lcd, &synthetic_address(250), ATTACKER_PAIR)
