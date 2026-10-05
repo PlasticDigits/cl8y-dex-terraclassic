@@ -1,5 +1,7 @@
 # Agent playbook: LCD and treasury chain attestation (#1392)
 
+Implementation: [PR #1413](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1413).
+
 Use when changing indexer LCD reads, discovery caches, network health, treasury
 endpoint selection or host transaction helpers. Issue [#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392)
 tracks implementation; the audit report alone did not remediate it.

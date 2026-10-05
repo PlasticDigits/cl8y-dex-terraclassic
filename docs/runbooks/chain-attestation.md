@@ -1,5 +1,7 @@
 # Chain identity for indexer reads and treasury ticks (#1392)
 
+Implementation: [PR #1413](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1413).
+
 Issue [#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392).
 [NET1392 invariants](../../skills/AGENTS_CHAIN_ATTESTATION.md),
 [agent checks](../qa/issue-1392/README.md) and

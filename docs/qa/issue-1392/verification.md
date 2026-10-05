@@ -1,5 +1,7 @@
 # Verification record — issue #1392
 
+Implementation: [PR #1413](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1413).
+
 Issue [#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392).
 Base revision: `9944ada10ee711ff8ffaa91f4c19b0f292de3924`.
 Branch: `fix/issue-1392-chain-attestation`. Verified 2026-10-05 UTC.
@@ -21,6 +23,9 @@ Branch: `fix/issue-1392-chain-attestation`. Verified 2026-10-05 UTC.
 | Documentation links/invariants/env generation | PASS | PASS |
 
 Shell syntax, changed-source whitespace and new identity-module formatting passed.
+Commit hooks also passed contract formatting, contract Clippy and staged gitleaks
+(no leaks). Their optional frontend checks were skipped because this worktree has
+no frontend dependencies and this change contains no frontend code.
 Independent source review and adversarial HTTP/transaction mocks passed, including
 credential-path receipts and sparse/duplicate fallback selection. Existing Rust
 unused/dead-code warnings remain outside this remediation; no executed final

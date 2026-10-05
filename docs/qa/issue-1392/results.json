@@ -72,5 +72,13 @@
   "buyback_failure_tests_per_run": 7,
   "runs": 2,
   "deployment": "UNVERIFIED",
-  "live_signing": "UNVERIFIED"
+  "live_signing": "UNVERIFIED",
+  "implementation_commit": "016ae67d3019233f4242f902ba00172836eb0af1",
+  "pull_request": "https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1413",
+  "commit_hooks": {
+    "contract_fmt": "PASS",
+    "contract_clippy": "PASS",
+    "gitleaks": "PASS",
+    "frontend": "SKIP: no frontend changes/dependencies in this worktree"
+  }
 }

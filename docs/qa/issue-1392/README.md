@@ -1,5 +1,7 @@
 # Issue #1392 — agent review and verification checklist
 
+Implementation: [PR #1413](https://git.cl8y.com/code/cl8y-dex-terraclassic/pulls/1413).
+
 Issue [#1392](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1392),
 [NET1392 invariants](../../../skills/AGENTS_CHAIN_ATTESTATION.md),
 [endpoint runbook](../../runbooks/chain-attestation.md),
