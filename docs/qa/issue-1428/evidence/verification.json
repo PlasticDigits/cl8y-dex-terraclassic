@@ -75,5 +75,6 @@
     "findings": "Initial broad working-folder scan matched public SHA256 identifiers and random uppercase transaction hashes only; public receipt arrays and equivalent lowercase transaction identifiers avoid false positives without rule exemptions.",
     "independent_review": "../review.md",
     "independent_review_sha256": "35702e513d65067a8902d48029216779aabea44152aac992408829cc2c4ea0f4"
-  }
+  },
+  "remote_ci": "remote-ci.json: FAIL in separate hosted policy, not a passing local check"
 }

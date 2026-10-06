@@ -40,7 +40,7 @@ cases also pass in both directions.
 | `make verify-issue-1390` | PASS with one production-execution skip; **15 groups, 0 failures**. Source checks repeated; lint/types/build and all **16 isolated chain guard checks** pass on migrated router 1.5.0. |
 | Independent review | Router tests (24), all-target router Clippy with warnings denied, harness integrity tests (8), saved fuzz regression and first chain/provenance receipts pass. Final disposition: [independent review](review.md). |
 
-All executed final acceptance failures were repaired and retested. Earlier failed
+All executed local final acceptance failures were repaired and retested. Earlier failed
 attempts and exploratory failures are retained/disclosed below. This receipt does
 not claim that every command ever executed passed.
 
@@ -150,3 +150,17 @@ not create an implementation hold. Runtime protection remains enforced.
   procedure; permit explicit skips with overall PASS when all executed final checks pass.
 - [ ] Production deployment and real-provider acceptance: separate existing rollout
   issues; no production transactions were submitted in this implementation.
+
+## Remote CI disposition
+
+[Woodpecker pipeline 332](https://ci.cl8y.com/repos/7/pipeline/332/1) remains
+**FAIL** at the secret-scan gate. [Finding metadata](evidence/remote-ci.json)
+identifies three unchanged public Venus address literals in `oracle_safety.py`
+and two existing QA fixtures; their bytes match `origin/main`. The repository
+secret-scan configuration allows this public identifier, while the separate trusted
+hosted policy flags it. Contracts/frontend/indexer CI jobs did not execute after
+the gate failure. Local full verification and repository-configured secret scans
+pass; that does not establish remote CI success. Reconcile the trusted hosted
+policy separately without broad exemptions or changing the fixed oracle identity.
+The user explicitly permitted unavailable/separate gates to be overridden for
+implementation publication; the PR is open, and the actual CI failure stays visible.
