@@ -6,6 +6,18 @@ use std::str::FromStr;
 use bigdecimal::BigDecimal;
 use thiserror::Error;
 
+/// Credentials for a separate migration/QA process must never accompany the server.
+pub const PRIVILEGED_DATABASE_ENV_VARS: &[&str] = &[
+    "MIGRATION_DATABASE_URL",
+    "MIGRATOR_DATABASE_URL",
+    "DATABASE_ADMIN_URL",
+    "TEST_DATABASE_ADMIN_URL",
+    "TEST_DATABASE_URL",
+    "POSTGRES_SUPERUSER_PASSWORD",
+    "POSTGRES_MIGRATOR_PASSWORD",
+    "POSTGRES_QA_PASSWORD",
+];
+
 /// Columbus-5 tokenlist hub CW20s (GitLab #556 / #570). Override with `HUB_*_ADDRESS`.
 pub const DEFAULT_HUB_CUSTC_ADDRESS: &str =
     "terra1nap4dxh9tv35v0ynd9m4k6zt6c0dq6weszc4j5m564kjls56hu7qcr56ch";
@@ -37,10 +49,11 @@ pub enum RunMode {
 }
 
 impl RunMode {
-    fn from_env() -> Self {
+    fn from_env() -> Result<Self, ConfigError> {
         match env::var("RUN_MODE").as_deref() {
-            Ok("prod") | Ok("production") => RunMode::Prod,
-            _ => RunMode::Dev,
+            Ok("prod") | Ok("production") => Ok(RunMode::Prod),
+            Err(_) | Ok("dev" | "qa" | "test" | "local") => Ok(RunMode::Dev),
+            _ => Err(ConfigError::InvalidRunMode),
         }
     }
 }
@@ -75,6 +88,12 @@ pub const fn book_snapshot_max_staleness_ms(cadence_ms: u64) -> u64 {
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
+    #[error("server environment contains a privileged database credential ({0}); isolate migration/admin credentials in a separate process")]
+    PrivilegedDatabaseCredential(&'static str),
+    #[error("RUN_MODE=prod requires a PostgreSQL URL with a dedicated runtime user and an explicit nondefault password of at least 16 characters; credential/session overrides are forbidden")]
+    InvalidProductionDatabaseCredential,
+    #[error("RUN_MODE must be dev, qa, test, local, prod or production")]
+    InvalidRunMode,
     #[error(
         "RUN_MODE=prod requires LCD_URLS to list operator-controlled endpoints (not the built-in public defaults)"
     )]
@@ -100,6 +119,73 @@ pub enum ConfigError {
          ALLOW_ZERO_RATE_LIMITS=1 to override"
     )]
     ZeroRateLimitNonLoopbackBind,
+}
+
+fn decoded_url_credential(value: &str) -> Option<String> {
+    let mut decoded = Vec::with_capacity(value.len());
+    let bytes = value.as_bytes();
+    let mut offset = 0;
+    while offset < bytes.len() {
+        if bytes[offset] == b'%' {
+            let hex = std::str::from_utf8(bytes.get(offset + 1..offset + 3)?).ok()?;
+            decoded.push(u8::from_str_radix(hex, 16).ok()?);
+            offset += 3;
+        } else {
+            decoded.push(bytes[offset]);
+            offset += 1;
+        }
+    }
+    String::from_utf8(decoded).ok()
+}
+
+fn validate_production_database_url(database_url: &str) -> Result<(), ConfigError> {
+    let valid = (|| {
+        let url = reqwest::Url::parse(database_url).ok()?;
+        if !matches!(url.scheme(), "postgres" | "postgresql")
+            || url.host_str().is_none()
+            || url.path().trim_matches('/').is_empty()
+            || url.fragment().is_some()
+            || url.query_pairs().any(|(key, _)| {
+                !matches!(
+                    key.as_ref(),
+                    "sslmode"
+                        | "ssl-mode"
+                        | "sslrootcert"
+                        | "ssl-root-cert"
+                        | "ssl-ca"
+                        | "sslcert"
+                        | "ssl-cert"
+                        | "sslkey"
+                        | "ssl-key"
+                        | "statement-cache-capacity"
+                        | "application_name"
+                )
+            })
+        {
+            return None;
+        }
+        let user = decoded_url_credential(url.username())?;
+        if user.is_empty()
+            || matches!(
+                user.to_ascii_lowercase().as_str(),
+                "postgres" | "root" | "admin" | "dex_indexer_migrator" | "dex_indexer_qa"
+            )
+        {
+            return None;
+        }
+        let password = decoded_url_credential(url.password()?)?;
+        let lower = password.to_ascii_lowercase();
+        if password.chars().count() < 16
+            || matches!(lower.as_str(), "postgres" | "cl8y_legal")
+            || ["changeme", "change-me", "replace-me"]
+                .iter()
+                .any(|prefix| lower.starts_with(prefix))
+        {
+            return None;
+        }
+        Some(())
+    })();
+    valid.ok_or(ConfigError::InvalidProductionDatabaseCredential)
 }
 
 /// True when `bind` is a loopback address (127.0.0.0/8, ::1) or the `localhost` hostname.
@@ -244,13 +330,18 @@ impl CommunityTaxCatalogConfig {
 impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         dotenvy::dotenv().ok();
+        for &variable in PRIVILEGED_DATABASE_ENV_VARS {
+            if env::var_os(variable).is_some() {
+                return Err(ConfigError::PrivilegedDatabaseCredential(variable));
+            }
+        }
         let expected_chain_id =
             env::var("EXPECTED_CHAIN_ID").map_err(|_| ConfigError::Missing("EXPECTED_CHAIN_ID"))?;
         if !crate::lcd::valid_chain_id(&expected_chain_id) {
             return Err(ConfigError::InvalidExpectedChainId);
         }
 
-        let run_mode = RunMode::from_env();
+        let run_mode = RunMode::from_env()?;
 
         let lcd_raw = env::var("LCD_URLS").unwrap_or_else(|_| DEFAULT_LCD_URLS.to_string());
         let lcd_urls: Vec<String> = lcd_raw
@@ -288,6 +379,7 @@ impl Config {
             if database_url.trim().is_empty() {
                 return Err(ConfigError::ProdEmpty("DATABASE_URL"));
             }
+            validate_production_database_url(&database_url)?;
             if cors_origins.is_empty() {
                 return Err(ConfigError::ProdEmpty("CORS_ORIGINS"));
             }
@@ -518,9 +610,22 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
-    fn clear_config_env() {
-        env::set_var("EXPECTED_CHAIN_ID", "columbus-5");
-        for key in [
+    struct ConfigEnvironment(Vec<(&'static str, Option<std::ffi::OsString>)>);
+
+    impl Drop for ConfigEnvironment {
+        fn drop(&mut self) {
+            for (key, value) in self.0.drain(..) {
+                match value {
+                    Some(value) => env::set_var(key, value),
+                    None => env::remove_var(key),
+                }
+            }
+        }
+    }
+
+    fn clear_config_env() -> ConfigEnvironment {
+        let keys = [
+            "EXPECTED_CHAIN_ID",
             "RUN_MODE",
             "LCD_URLS",
             "DATABASE_URL",
@@ -531,15 +636,66 @@ mod tests {
             "API_BIND",
             "API_IPV6_ENABLED",
             "ALLOW_ZERO_RATE_LIMITS",
-        ] {
+        ];
+        let saved = ConfigEnvironment(
+            keys.iter()
+                .chain(PRIVILEGED_DATABASE_ENV_VARS.iter())
+                .map(|key| (*key, env::var_os(key)))
+                .collect(),
+        );
+        for key in keys.iter().chain(PRIVILEGED_DATABASE_ENV_VARS.iter()) {
             env::remove_var(key);
         }
+        env::set_var("EXPECTED_CHAIN_ID", "columbus-5");
+        saved
+    }
+
+    #[test]
+    fn production_credentials_fail_closed_without_echoing_values() {
+        for url in [
+            "postgres://dex_indexer_runtime:postgres@localhost/db",
+            "postgres://dex_indexer_runtime:changeme-long-placeholder@localhost/db",
+            "postgres://postgres:synthetic-password-1396@localhost/db",
+            "postgres://dex_indexer_runtime@localhost/db",
+            "postgres://dex_indexer_runtime:%61%61%61%61%61%61@localhost/db",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db?password=postgres",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db?options[role]=postgres",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db?unknown=synthetic-secret",
+            "postgres://p%6fstgres:synthetic-password-1396@localhost/db",
+            "mysql://dex_indexer_runtime:synthetic-password-1396@localhost/db",
+            "invalid-secret-value",
+        ] {
+            let error = validate_production_database_url(url).unwrap_err();
+            assert!(!error.to_string().contains(url));
+        }
+        assert!(validate_production_database_url(
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db?sslmode=require"
+        )
+        .is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn unknown_modes_and_privileged_server_credentials_fail_closed() {
+        let _config_env = clear_config_env();
+        env::set_var("RUN_MODE", "staging");
+        assert!(matches!(
+            RunMode::from_env(),
+            Err(ConfigError::InvalidRunMode)
+        ));
+        env::set_var("MIGRATION_DATABASE_URL", "synthetic-secret");
+        let error = Config::from_env().unwrap_err();
+        assert!(matches!(
+            error,
+            ConfigError::PrivilegedDatabaseCredential("MIGRATION_DATABASE_URL")
+        ));
+        assert!(!error.to_string().contains("synthetic-secret"));
     }
 
     #[test]
     #[serial]
     fn expected_chain_is_mandatory_and_rejects_malformed_values() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -560,13 +716,13 @@ mod tests {
                 Err(ConfigError::Missing("EXPECTED_CHAIN_ID"))
             ));
         }
-        clear_config_env();
+        let _config_env = clear_config_env();
     }
 
     #[test]
     #[serial]
     fn dev_allows_default_lcd_urls() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -578,10 +734,13 @@ mod tests {
     #[test]
     #[serial]
     fn prod_rejects_builtin_lcd_defaults() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("RUN_MODE", "prod");
         env::set_var("LCD_URLS", DEFAULT_LCD_URLS);
-        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var(
+            "DATABASE_URL",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db",
+        );
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "https://app.example.com");
         let err = Config::from_env().unwrap_err();
@@ -591,10 +750,13 @@ mod tests {
     #[test]
     #[serial]
     fn prod_accepts_explicit_lcd_urls() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("RUN_MODE", "prod");
         env::set_var("LCD_URLS", "https://lcd.example.com");
-        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var(
+            "DATABASE_URL",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db",
+        );
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "https://app.example.com");
         let c = Config::from_env().expect("prod config");
@@ -605,7 +767,7 @@ mod tests {
     #[test]
     #[serial]
     fn dev_dual_zero_rate_limits_still_loads() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -619,10 +781,13 @@ mod tests {
     #[test]
     #[serial]
     fn prod_forces_nonzero_rate_limits_when_zero() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("RUN_MODE", "prod");
         env::set_var("LCD_URLS", "https://lcd.example.com");
-        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var(
+            "DATABASE_URL",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db",
+        );
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "https://app.example.com");
         env::set_var("RATE_LIMIT_RPS", "0");
@@ -635,7 +800,7 @@ mod tests {
     #[test]
     #[serial]
     fn ipv6_bind_rejected_when_ipv6_disabled() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -647,7 +812,7 @@ mod tests {
     #[test]
     #[serial]
     fn ipv6_bind_allowed_when_ipv6_enabled() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -661,7 +826,7 @@ mod tests {
     #[test]
     #[serial]
     fn dev_allows_both_rate_limits_zero() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -675,10 +840,13 @@ mod tests {
     #[test]
     #[serial]
     fn prod_rejects_empty_cors() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("RUN_MODE", "prod");
         env::set_var("LCD_URLS", "https://lcd.example.com");
-        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var(
+            "DATABASE_URL",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db",
+        );
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "  ,  ");
         let err = Config::from_env().unwrap_err();
@@ -689,7 +857,7 @@ mod tests {
     #[test]
     #[serial]
     fn empty_factory_address_rejected_in_dev() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "   ");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -701,7 +869,7 @@ mod tests {
     #[test]
     #[serial]
     fn dev_dual_zero_rate_limits_nonloopback_bind_rejected() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -715,7 +883,7 @@ mod tests {
     #[test]
     #[serial]
     fn dev_dual_zero_rate_limits_nonloopback_bind_allowed_with_optout() {
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -732,7 +900,7 @@ mod tests {
     #[serial]
     fn dev_dual_zero_rate_limits_loopback_bind_loads() {
         // Explicit loopback bind with dual-zero must still load (Playwright / local-dev path).
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("DATABASE_URL", "postgres://localhost/db");
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "http://localhost:5173");
@@ -748,10 +916,13 @@ mod tests {
     fn prod_dual_zero_nonloopback_bind_loads_via_clamp() {
         // In prod the dual-zero limits are clamped to safe minimums, so the #458 guard never
         // fires even on a public bind.
-        clear_config_env();
+        let _config_env = clear_config_env();
         env::set_var("RUN_MODE", "prod");
         env::set_var("LCD_URLS", "https://lcd.example.com");
-        env::set_var("DATABASE_URL", "postgres://localhost/db");
+        env::set_var(
+            "DATABASE_URL",
+            "postgres://dex_indexer_runtime:synthetic-password-1396@localhost/db",
+        );
         env::set_var("FACTORY_ADDRESS", "terra1factory");
         env::set_var("CORS_ORIGINS", "https://app.example.com");
         env::set_var("RATE_LIMIT_RPS", "0");

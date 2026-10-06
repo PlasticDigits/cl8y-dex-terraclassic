@@ -11,7 +11,7 @@
 //! Production CG/CMC depth: hybrid merge [`hybrid_orderbook_sim`](cl8y_dex_indexer::api::hybrid_orderbook_sim) + pool walk [`orderbook_sim`](cl8y_dex_indexer::api::orderbook_sim) (**#220**, **#210**). Use [`start_hybrid_orderbook_mock`] for limit+pool tests.
 
 use base64::Engine;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 

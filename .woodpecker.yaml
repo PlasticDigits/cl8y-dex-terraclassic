@@ -59,7 +59,7 @@ steps:
     image: rust:1.96-bookworm@sha256:a339861ae23e9abb272cea45dfafde21760d2ce6577a70f8a926153677902663
     depends_on: [indexer-lib]
     environment:
-      TEST_DATABASE_URL: postgres://cl8y_ci:cl8y_ci@postgres:5432/dex_indexer_ci_test
+      TEST_DATABASE_ADMIN_URL: postgres://dex_indexer_qa:ci-qa-disposable@postgres:5432/dex_indexer_test
     commands:
       - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config postgresql-client
       - timeout --signal=TERM --kill-after=30s 25m bash scripts/ci/functional-run.sh indexer-postgres

@@ -231,12 +231,12 @@ When validating LocalTerra flows with **browser wallets**, fee broadcast quirks 
 
 | ID | Invariant |
 |----|-----------|
-| **PG-1** | Indexer runtime and integration tests connect as **`cl8y_legal`** on `dex_indexer` / `dex_indexer_test`. Compose creates the role on a fresh volume. External Postgres with only **`postgres:postgres`** must run [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) (superuser bootstrap) or manual role creation — see [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md). Regression: `make test-setup-postgres`. |
+| **PG-1** | Preserve [DB1396-1–DB1396-10](../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md): runtime DML only, isolated one-shot migrator and dedicated QA capability. Explicit nondefault credentials, protected schema readiness, loopback networking and per-process disposable integration DBs. No shared resets/checksum edits. `make verify-issue-1396`; [transition/rollback](runbooks/indexer-database-isolation.md). |
 
 ## Running tests
 
 - **Library tests (no Postgres):** `cd indexer && cargo test --lib` — includes parser/candle/oracle fuzz-style tests, **proptest** on `merge_candle_ohlc` and `cg_ticker_segments`, and invariant unit tests.
-- **Integration tests:** Require PostgreSQL and migrations (e.g. CI service or `TEST_DATABASE_URL`). Default local credentials are **`cl8y_legal` / `cl8y_legal`** on `dex_indexer_test` — see agent playbook [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) (stack prerequisite **PG-1**, superuser bootstrap [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)) and [Testing — shared Postgres](./testing.md#shared-postgres-and-test-parallelism). `cd indexer && cargo test --tests -j 1 -- --test-threads=1`. Orderbook routes are also covered with a **wiremock** stub of the LCD `pool` smart query ([`tests/common/lcd_mock.rs`](../indexer/tests/common/lcd_mock.rs)).
+- **Integration tests:** Require a dedicated QA PostgreSQL role and admin-owned marked control DB in private `.env.qa`. Each process creates and strictly migrates its own child DB; control history remains untouched. Run `cd indexer && cargo test --tests -j 1 -- --test-threads=1`; see [Postgres playbook](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) and [worktree isolation](testing.md#worktree-isolation-and-test-parallelism). Orderbook tests also use [wiremock LCD stubs](../indexer/tests/common/lcd_mock.rs).
 
 Integration tests **fail fast** if the database is unreachable (see [`tests/common/mod.rs`](../indexer/tests/common/mod.rs)).
 
@@ -376,3 +376,13 @@ Issue [#1395](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1395),
   True reorg cleanup removes orphaned protocol fees together
   with other height-keyed ledgers. Existing non-height-keyed state rebuilds remain
   necessary. Local verification neither deploys nor repairs historical coercion.
+
+
+## Database boundary and worktree isolation (#1396)
+
+[DB1396-1–DB1396-10](../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md) supersede
+historical shared-test database and administrative runtime guidance: isolated
+runtime/migration/QA roles, explicit loopback networking, pre-connection QA guards,
+admin-marked QA identity and disposable process databases with strict history.
+[Runbook](runbooks/indexer-database-isolation.md) ·
+[agent verification](qa/issue-1396/README.md) · `make verify-issue-1396`.

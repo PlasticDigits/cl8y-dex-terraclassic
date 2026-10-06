@@ -53,6 +53,18 @@ permits unavailable checks to remain explicit skips while runnable checks pass;
 executed failures remain FAIL. Client namespaces are local isolation, not remote
 chain attestation or production acceptance.
 
+## Indexer database isolation and QA safety
+
+Apply [DB1396-1–DB1396-10](skills/AGENTS_INDEXER_DATABASE_ISOLATION.md)
+([#1396](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1396)) for database
+startup, migrations, QA mutation, Compose and integration tests. Runtime uses a
+least-privilege role and never migrates; privileged credentials stay in separate
+jobs/private env files. Each integration process owns a disposable DB, not shared
+migration history. This supersedes historical shared `cl8y_legal`/TEST_DATABASE_URL
+instructions below. Run `make verify-issue-1396` and follow the
+[agent checklist/skip policy](docs/qa/issue-1396/README.md) and
+[role transition/rollback runbook](docs/runbooks/indexer-database-isolation.md).
+
 ## Git commits
 
 ### Commit identity (who signs the commit)
