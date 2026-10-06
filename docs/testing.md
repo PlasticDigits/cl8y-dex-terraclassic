@@ -1,5 +1,12 @@
 # Testing
 
+Token-owned AutoLP recovery [#1429](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1429):
+`make verify-issue-1429` repeats manager authorization, exact policy approval,
+unchanged settings and swap/provide rollback tests, then runs full contracts,
+formatting, offline inventory tests and documentation checks. Follow
+[LP1429 invariants](../skills/AGENTS_AUTOLP_POLICY_RECOVERY.md) and the
+[agent checklist with explicit unavailable-check skips](qa/issue-1429/README.md).
+
 Bridge-Debt [#1393](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1393):
 `make verify-issue-1393` runs focused tests and optimized standalone LocalTerra
 fixtures twice, plus full contracts, touched-crate static checks and deployment

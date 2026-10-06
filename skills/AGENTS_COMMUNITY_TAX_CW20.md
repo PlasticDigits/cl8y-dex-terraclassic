@@ -20,6 +20,10 @@ LocalTerra reused QA market: [`AGENTS_LOCALTERRA_COMMUNITY_TAX_SEED.md`](./AGENT
 
 ## Canonical references
 
+Token-owned legacy AutoLP recovery: [LP1429-1–LP1429-8](AGENTS_AUTOLP_POLICY_RECOVERY.md),
+`make verify-issue-1429` and [agent verification](../docs/qa/issue-1429/README.md).
+The explicit maintenance execute preserves **T592-4** unchanged-settings behavior.
+
 | Doc / code | Purpose |
 |------------|---------|
 | [GitLab **#592**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/592) | On-chain design |

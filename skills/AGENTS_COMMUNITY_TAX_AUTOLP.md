@@ -30,8 +30,12 @@ stored manager; permissionless spot refresh is forbidden. Query sister `GetConfi
 and `GetLpPolicy` before rebinding. Current launcher instances stamp the human
 manager, who can execute sister `UpdateConfig { pair: <same pair> }` directly.
 Token settings with an unchanged pair are a no-op (#1237) and do not initialize
-policy. A legacy token-owned sister needs an explicit authorized proxy/migration
-path; do not impersonate its stored manager or assert human direct binding works.
+policy. Token **1.4.0** provides explicit manager-only `RefreshAutolpPolicy` for
+its bound token-owned sister with an exact positive reserve/share snapshot.
+Follow [LP1429-1–LP1429-8](AGENTS_AUTOLP_POLICY_RECOVERY.md),
+`make verify-issue-1429` and the
+[migration/readback checklist](../docs/qa/issue-1429/README.md).
+Do not impersonate the stored manager or infer deployment from source tests.
 Source checks:
 `make verify-issue-1398`, [QA checklist](../docs/qa/issue-1398/README.md).
 

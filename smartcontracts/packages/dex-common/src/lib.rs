@@ -1,3 +1,4 @@
+pub mod autolp;
 pub mod blacklist;
 pub mod factory;
 pub mod fee_discount;
