@@ -1,0 +1,781 @@
+{
+  "metadata": {
+    "builder_image": "cosmwasm/workspace-optimizer:0.16.1@sha256:b9c92b2900b7ebaab3499203615c1b8589592bc557355ed3432e48851ffde69e",
+    "cache_policy": "fresh-executable-target",
+    "lockfile": {
+      "path": "smartcontracts/Cargo.lock",
+      "sha256": "e5880b7b27a929a1fd68fc803bceb13d7ece61c5194d630ca6644f05ecd07f23"
+    },
+    "schema": "cl8y-build-provenance-v1",
+    "source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+    "source_directory": "smartcontracts",
+    "source_dirty": false,
+    "source_sha256": "ab627233eb32b105d8b8b8ebb72c18f84f46fe843bbcd22fb059b0e65dff746a",
+    "toolchain": "rustc 1.81.0 (eeb90cda1 2024-09-04)\ncargo 1.81.0 (2dbb1af80 2024-08-20)\nwasm-opt version 116"
+  },
+  "source_inputs": [
+    {
+      "path": ".dockerignore",
+      "sha256": "6d20c03b6b7cc03a9302344dfa56dfd80408d635a896aa68a6c883c2ba9c0c53"
+    },
+    {
+      "path": "docker/frontend/Dockerfile",
+      "sha256": "de9f54d59fbc8975889f83c3ec933604eedb2a7d925fb5954905495203bf17a5"
+    },
+    {
+      "path": "docker/indexer/Dockerfile",
+      "sha256": "ed9b388e9f6f6c78885cecf7c045e2ba6b1e732f4caac9ec7d17a5cab7dec3ac"
+    },
+    {
+      "path": "scripts/ci/build-indexer-release.sh",
+      "sha256": "e22d8cc7d5b8680089c1c056e77560f288ea8c98807d5001c3b2b02bd495fdc7"
+    },
+    {
+      "path": "scripts/ci/build-provenance.py",
+      "sha256": "b3dd8ebf25448772d2166917ee60562d53a2117d2d75ae46e0cee92bd83f3c3c"
+    },
+    {
+      "path": "scripts/ci/image-pins.json",
+      "sha256": "ab4cd8340ca812ca5b89441663be3a14fa89b518f8aa5c29a5136bf319d5de8f"
+    },
+    {
+      "path": "smartcontracts/.cargo/audit.toml",
+      "sha256": "f63cfbe688283aeb737d0c12cfbea54600ecc7e2f179e7e605b9d0f1ca107549"
+    },
+    {
+      "path": "smartcontracts/Cargo.lock",
+      "sha256": "e5880b7b27a929a1fd68fc803bceb13d7ece61c5194d630ca6644f05ecd07f23"
+    },
+    {
+      "path": "smartcontracts/Cargo.toml",
+      "sha256": "913a9f993dc1be39eb492775d204944477a6049a327ae35acb1efb67d8bce511"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/Cargo.toml",
+      "sha256": "dc253847342407e23b8c7815b4a10d32e40ebd802c215b301bba9349da67c52d"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/bin/schema.rs",
+      "sha256": "590df5659d31ae5275e3f89c49943f8af8dbbdf2fc007b89e15430d83e4a727d"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/contract.rs",
+      "sha256": "561ebd4f1dd9d54c189019c40ab4babf55663ea1a6a1bd94ba56ff43f4fc8fe9"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/error.rs",
+      "sha256": "5bfaa3c341cd6bae07405b63b3a0043e5604950f7447337e6f92210d45010933"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/lib.rs",
+      "sha256": "54af9ffd9998c77dd999d1d6f364f34527a05d0bdf39d51922230e6eb2d53374"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/msg.rs",
+      "sha256": "d83ca59ddb488d02eab0b1c354aa6bbf8e99fdfa3c20c7d404db469488f1ffee"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/state.rs",
+      "sha256": "859f5ef227219b928ab571c2a2de31fb3be9897a8f53a5ffc9d62244d2d106c3"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt-token/src/tests.rs",
+      "sha256": "c2234afd185d66efdf0b740154702e1a9b382b4db54be69de32304dab20abaac"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/Cargo.toml",
+      "sha256": "6f3d223edf791a71b9a8ec1a01c9933bcc1a52f2a89ade023616b07275f25d4d"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/bin/schema.rs",
+      "sha256": "acbbad647e16d8ec295732f091dc559cccf3987862e5b0ea925a5ddd5690864b"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/contract.rs",
+      "sha256": "1451a99ef5ddfa4291f99673fc521ba20f6b84c4a17b6232600290b37554dec4"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/error.rs",
+      "sha256": "547c8614abd8733128f05d3149d22ebb6c079dc8a320ee7ce19eb1d19e563e32"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/lib.rs",
+      "sha256": "54af9ffd9998c77dd999d1d6f364f34527a05d0bdf39d51922230e6eb2d53374"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/msg.rs",
+      "sha256": "7a4f61b11e4b671149621035ff12f8e3ffd7e6697bf78ce4a17312bf69a234bf"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/security.rs",
+      "sha256": "2a3e0814c611ac57105e4af29fd506a1fde413536cce6193a4d6f2e5aefe919a"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/state.rs",
+      "sha256": "501e77a17c09babc27e877aa5f64688462f27411cf2b81b8797d2f91a46ea784"
+    },
+    {
+      "path": "smartcontracts/contracts/bridge-debt/src/tests.rs",
+      "sha256": "18afdb1ff66848116c923800f58b77a328ed51da5c169e383c81688b8a96a742"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/Cargo.toml",
+      "sha256": "1e2853ed180c802d26710c976f39d9ced2bf2ec9b645cc75df8a7d43c9f22c6d"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/contract.rs",
+      "sha256": "8af3d0cd6ed9c972db97473c18834033be84e5b136995e0fd1b5f41d5ad04b3f"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/error.rs",
+      "sha256": "a6b710faaf41d5fb2849291da28ddf09e378fe4ef6e7cd7506730a736069c217"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/lib.rs",
+      "sha256": "015b099f734fc0f1aace4081a15055c186ff8e5777e3b2ae000bdede9bdce72b"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/lp_guard.rs",
+      "sha256": "a2f2608850e293186e50b4ccdd1615899a4ecda543af5ff664b2f933a3874c9a"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/lp_policy_tests.rs",
+      "sha256": "055b848d6d0f708733f52ca82a3c8863287b1614c396b15511270a1c7fc17a28"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/msg.rs",
+      "sha256": "623fcf7a574f9c4eb7aa51eefabff1e6d98fdd6743f9b9f5c6dc27f4934d9ee4"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/pair.rs",
+      "sha256": "e63a06889fade43025ba8a4830f792ebbd34336eb7b6106b3cb9485b2fbb6b52"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/spread.rs",
+      "sha256": "f468f88704ffcb85b846056617d57ebcc8c308e7ff36ca5be35f1809b182f387"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/state.rs",
+      "sha256": "d35ca5c2b19f54b058015ebe9c3a7221a4262bdaeb0d4e110adb140883112f6c"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-autolp/src/tests.rs",
+      "sha256": "c733b1776df5971e00166da95e668d410d35a4f97e39b4875c2fca442b8d9966"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/Cargo.toml",
+      "sha256": "e88dc106f047cfd22413c0f0b71496ad634698e8a3213449b88d7cbfff4522f3"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/adopt.rs",
+      "sha256": "99a559bd370d92b7cfcd3637026458673841b468d48eea1e8afeb6c7d2e437ce"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/adopt_multitest.rs",
+      "sha256": "5609b6f01c636bc8335763052c56ffba0045232d6beb435e216e9819ecb844d4"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/autolp_recovery.rs",
+      "sha256": "de486d18b9486d45f074a77c795f8135943379b8e9f6f510ce49e83f933be496"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/autolp_recovery_multitest.rs",
+      "sha256": "991a536e6843acd2a349adf21501358b459d6f45e37ae8398b01766b2fcf05e0"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/bin/community_tax_schema.rs",
+      "sha256": "07a598551f5615671e32180e3dbe6c8b3bc14f46645b0a10c5a1de06d1e5526c"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/contract.rs",
+      "sha256": "e6015c30f9818003823594ebbee0bfd5ea528a60429eac5c8bca63f3ed6e8a8e"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/error.rs",
+      "sha256": "535edf63603870e7d75787dfbd252990295282bd481f5b7c1a7e3b3c69d8a6e6"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/identity.rs",
+      "sha256": "43e1275fe2a500062d5b80a0d43525bde70cdc0aeb489f0dde2b9822a8952b46"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/invoice.rs",
+      "sha256": "700b7b72ae237d484e48ec1b707d8a5e1d72da26201371e2a63d91554c0fbd7e"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/lib.rs",
+      "sha256": "5f9ace1c277651f922c8664fbf3f18238d17364c7fd08b5cbb46d37f6fa65b2f"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/msg.rs",
+      "sha256": "c644a37c2a85df3f41b9f830ccdd7d7f73505172991c2c4ec0b13bd90a4b5147"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/multitest.rs",
+      "sha256": "2378d7a6253ed4a6cedc038ed52d493b96ca32fac067a9dafc0f67f892d4b63e"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/pair_registry.rs",
+      "sha256": "047d1ab7b8487130eea18109c9e1ab897a09b2b26415104445d30d4ad1117cbd"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/route_tax_tests.rs",
+      "sha256": "d8cf7767fac1e64e02eb4217424dea56093840a7f9ca81cd9288f0c47ddbb639"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/router_trust.rs",
+      "sha256": "dfa82ee4cdc65dd5778c31f5ab3a8e2c3f53522a8dc88ac43492a18d889f9d06"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/router_trust_multitest.rs",
+      "sha256": "e0cf2f79efd7e890f11ed99e5080a74b1e1a364ed872d7db1725ef82f8abeaed"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/state.rs",
+      "sha256": "2c6205296d8ee9ea4603acb5e0c70315499fbab3927dababc2c2cd7aceadf4db"
+    },
+    {
+      "path": "smartcontracts/contracts/community-tax-token/src/tax.rs",
+      "sha256": "6d49e771b052cbca584f90267dce37d7e09097869fdcaa861b1584e645fc247f"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/Cargo.toml",
+      "sha256": "eac62388c1bfbb0d332a064b3578101f04299459829d25f889407902076ad35c"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/src/contract.rs",
+      "sha256": "686e5d083a63950ec9a2cdca6c6cb7d7404a28d7246b3ddc0b44879a230cdc24"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/src/error.rs",
+      "sha256": "653acd8016fda02d96011d5dd5fb6b381bb1acbf59ca0c0fb6e1293ed8db14d0"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/src/lib.rs",
+      "sha256": "15280be741a185c3173a68fe05364ccb1d2e18f3a935d8080c58498bba652ab8"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/src/msg.rs",
+      "sha256": "a00978ca3d6b457e272b1a50958b8dd1e74a1427688c3f5e8acfb31a661863e4"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/src/state.rs",
+      "sha256": "55aafccdd78d147320c5dcc18d17fca33f02d657e874322590e3234d360785fc"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/src/tests.rs",
+      "sha256": "5341e38bb75e81ad89c59ce22671363a65c22fca1669b73c33eface51255bf3e"
+    },
+    {
+      "path": "smartcontracts/contracts/community-token-launcher/tests/audit_poc.rs",
+      "sha256": "4cf0b7ee81d70882a51236e6fd4d45c5c7a8350d2049b137d450f4b66848c754"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/Cargo.toml",
+      "sha256": "d304698bf2159b420cb28bfa3b9f82d0003ff0ff2d1e744baf5760ea40ad6b8b"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/contract.rs",
+      "sha256": "0399639ad223320bc268ac3a3f88a5ca817918118d7a0eeddc9290ce9e7d6708"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/error.rs",
+      "sha256": "60e7c03f3aac4a657322754da2815de3e809caf8c0aa5c4fbc52e28c53d1c683"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/hook_bounds_tests.rs",
+      "sha256": "50734888f9d00c97d4e0cabe4836fe40f87fa008f392d9e610b609c827c323e9"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/lib.rs",
+      "sha256": "91b06c33c2eb04828e8d4e02e7be187fbf8c4a376ca0a42d4ea630771092a768"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/msg.rs",
+      "sha256": "63eed11e0a9fc638f918fda58613705eb96cc84600e465196953df527dd3befa"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/state.rs",
+      "sha256": "602466f433336251fb2fae9d9429948bbc0d71616587bbdf9021a3f048f7ca5f"
+    },
+    {
+      "path": "smartcontracts/contracts/factory/src/tax_register.rs",
+      "sha256": "55e93fcaae610511e62d89b21bea23d561ab41ea2f0cf964afccb0964dd1b529"
+    },
+    {
+      "path": "smartcontracts/contracts/faucet/Cargo.toml",
+      "sha256": "334aa55d9bbb2f05b847c37a52fb0d55bea3c536b879b0e060708b14af736949"
+    },
+    {
+      "path": "smartcontracts/contracts/faucet/src/contract.rs",
+      "sha256": "0cab3839592a803f63453f9eb6abec624b4c2e622b5f43cb5ebbba792fee4757"
+    },
+    {
+      "path": "smartcontracts/contracts/faucet/src/error.rs",
+      "sha256": "d0c6cca80b0a4f382ee31c2454b91afe4e20ca9d82865e598d1caa80ccd1e0c2"
+    },
+    {
+      "path": "smartcontracts/contracts/faucet/src/lib.rs",
+      "sha256": "58fd902b1365439ce16f033036590c187ac1d57dcd728bf2cc5750f4ec7bc913"
+    },
+    {
+      "path": "smartcontracts/contracts/faucet/src/msg.rs",
+      "sha256": "8d4c0a0fa4dd4841c194487ef07854e4ebae42d70b61f0149f22629940c43aaf"
+    },
+    {
+      "path": "smartcontracts/contracts/faucet/src/state.rs",
+      "sha256": "17dc8f75dccad98801d9f18d20145fd59ca446996534590938022ea5f27e4d14"
+    },
+    {
+      "path": "smartcontracts/contracts/fee-discount/Cargo.toml",
+      "sha256": "176df93280b29e084cfa6cfbaaaa02cb2662b3adef3bb99ee518e842bf370815"
+    },
+    {
+      "path": "smartcontracts/contracts/fee-discount/src/contract.rs",
+      "sha256": "546e856e2b176250ab4a007f31cbdf264524c9bd39e6b80c09ea7aa4d86d3b47"
+    },
+    {
+      "path": "smartcontracts/contracts/fee-discount/src/error.rs",
+      "sha256": "dfd0e871861eeed7997c7044fa429e6c2f9b8ee103d5d5c2aa00a4ae09d2cb98"
+    },
+    {
+      "path": "smartcontracts/contracts/fee-discount/src/lib.rs",
+      "sha256": "382de74fc47f8e4f00a29604b002959f1f97050526531e0bcbf7e1b5986a1103"
+    },
+    {
+      "path": "smartcontracts/contracts/fee-discount/src/msg.rs",
+      "sha256": "c64fbd9fe6459fe4f9b7a08e91c9259b96bdedc24ac7017dd018f3edb28acd40"
+    },
+    {
+      "path": "smartcontracts/contracts/fee-discount/src/state.rs",
+      "sha256": "3d73920e9869eeb29caecec106e9ad46e49c5c174051cf73fb8e45e571595bc0"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/README.md",
+      "sha256": "963f14612c48a8a2cac627717c77823339dfc6df7b620c2a0b3b026e9954ab2d"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/burn-hook/Cargo.toml",
+      "sha256": "f95c23e3fb6d42af7da458343f6ae546ac378cac60a67c423a39367b96749037"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/burn-hook/src/contract.rs",
+      "sha256": "2ec48b2d3bddbac0e70833a7a92d00c15522f97ab5301974828a956770eb1bed"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/burn-hook/src/error.rs",
+      "sha256": "c1dd9e8ad018d6ecf42bac0f83858012115ab6eb15ed906452396d8f150d89cf"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/burn-hook/src/lib.rs",
+      "sha256": "e26b5aecf80946c77f606ba3434e56e74a4dcf9f97d951704be895928a846b14"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/burn-hook/src/msg.rs",
+      "sha256": "cffcc2fe5f8ef6e2b3a88fd5355f46df09d61d63c5d24e94e97cf773101308ff"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/burn-hook/src/state.rs",
+      "sha256": "e30acb0b58f1d17e381cea9b42f852dc201df58cc89b219889a28b597b11fe9b"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/lp-burn-hook/Cargo.toml",
+      "sha256": "409a16b03344fa54f2d8ca53138b664edb84f6e07770bd6d933a6cf4852d32c6"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/lp-burn-hook/src/contract.rs",
+      "sha256": "34b7af35b31f60cd65ebf8fe14189cb424f4e8a82ca1695717eee5a9cbae2eb1"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/lp-burn-hook/src/error.rs",
+      "sha256": "d310a073f849480160d1c07570814448122c2d039a5579f581f479ff8e6a0910"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/lp-burn-hook/src/lib.rs",
+      "sha256": "17ec3da814261bcf30bd6522cd49b30ef68d295f61e61cef422fa70ab67070fa"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/lp-burn-hook/src/msg.rs",
+      "sha256": "c2fc50519c7cd847b98b38daf471c246384f4faa5ab753ae5a9b1dc1cdfab35f"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/lp-burn-hook/src/state.rs",
+      "sha256": "c439894668be057665359504918460dca5daf60bac313d47c64cdad223fce138"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/tax-hook/Cargo.toml",
+      "sha256": "5cd426c4ddc4e71c4c7f7437e52c5c2d6d0cffbdec70694b73518ea18181e9bf"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/tax-hook/src/contract.rs",
+      "sha256": "54b03c4e92da35d43dbfa67078ec1c17a07ef36fee293fe9fb1d15952129e0f2"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/tax-hook/src/error.rs",
+      "sha256": "c1dd9e8ad018d6ecf42bac0f83858012115ab6eb15ed906452396d8f150d89cf"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/tax-hook/src/lib.rs",
+      "sha256": "a2ddd8dd6bf0db544e3b3a079afc249b50113983f501a845223623949761ffcc"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/tax-hook/src/msg.rs",
+      "sha256": "1bc4d496cbaf1c5e1ae616242d6e882a0ae927e192740d85af9366828b28a5e0"
+    },
+    {
+      "path": "smartcontracts/contracts/hooks/tax-hook/src/state.rs",
+      "sha256": "8fb973248acabbd8bd32ab26e1cd60c556fee71470b6d06080a7be0d3a2dcfa5"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/Cargo.toml",
+      "sha256": "59967e40dc2eefc096eadfca8ff506ea43b4a00fdf180ceab28b514bd1b3e531"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/asset_code_id_guard.rs",
+      "sha256": "68f680546850a25c4e11b1fe8d199560f2dcbdebd97f2dbfbef8be134b5a1ef6"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/asset_decimals.rs",
+      "sha256": "5ea410c6358e5958a4f078325a6580687b14a9d0bbe006ffb3a8425b40e6dfd4"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/blacklist_guard.rs",
+      "sha256": "5d04a9f09182bf6bbf9055b62f86bf62cd4dacb665ecd600426baadb3a837c96"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/contract.rs",
+      "sha256": "97d3909e83826d1e732cccd445e6e05e68e9b0676afee77cef82e486338d3267"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/discount_cache.rs",
+      "sha256": "ca401369e18181f9dbf9ad6edee89d2916970f55f5742164b9941d0a5c7a580d"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/error.rs",
+      "sha256": "079ead327c37390c8137dff107227461029d089f8b77bd6c72bfc1f853c4d711"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/greedy.rs",
+      "sha256": "f17b53a9dd5578aea78d6baffdcb943b845bfe3359fd232bb36fc6200b930308"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/hook_bounds_tests.rs",
+      "sha256": "f7a7644d95a9c58dd11adc5aa7f2b9324dfa58894716af8d94617559dcfc1582"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/hybrid_reverse.rs",
+      "sha256": "5a8ac3e18a3fd4725661d2a6dc6b26ec0f951b38cc1675cbc58169d03a4e4c8e"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/lib.rs",
+      "sha256": "66e427a6a70caf04a5c73e0500c48126b834cf00d1511338fbaa601d2b3bb032"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/limit_batch_withdraw.rs",
+      "sha256": "db35bb54abfe15c2fc35b115b970f1401001d357a9a9f6285e4271a7a450c68f"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/limit_book_clean.rs",
+      "sha256": "c9daa34e50ef01c77eac5fd76cd2227db83fc4b51ac33ac1bae5e2ea1c2ba16f"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/limit_placement.rs",
+      "sha256": "4be5d63846071631fe6aa48bf4552a54f3d5f0f97237c8c7464c36f21619dc89"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/msg.rs",
+      "sha256": "6a0af083fdb5599c00db1df4fb3bdc76776f21a15ab68db84afadfbe68042f4d"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/orderbook.rs",
+      "sha256": "50952c050beb2420f2e5db267dd31400a1c91adbd113b4bbe1111a866f8f0f89"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/state.rs",
+      "sha256": "1ddec96340c840200c2297f89fc39575bfd96096faa3c757ed6c136a8881bf5a"
+    },
+    {
+      "path": "smartcontracts/contracts/pair/src/tx_swap_index.rs",
+      "sha256": "8181f0473f63b1262b67118a4b3d301a03e786ed473d27ae900f42fa8d3e6bf3"
+    },
+    {
+      "path": "smartcontracts/contracts/router/Cargo.toml",
+      "sha256": "0c3cdc86e8392678c409a163d8c65cfaa23d52685fda367a92b3a8cada1d8c31"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/bin/router_schema.rs",
+      "sha256": "0885d98c9b633620b70dc7a5d9a94ed3c4d5d14d9a9c7a3619917f7496fba5cd"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/blacklist_guard.rs",
+      "sha256": "35b65873a75657e18e57e72de09786e32344e5e2828faff1783d695a36d476a7"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/contract.rs",
+      "sha256": "0a84b0d6dea78da07614df28c992c163ca1961d7e7875c235bcd51ab29fef9d9"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/error.rs",
+      "sha256": "78fa96a80cde5bab5a08bb8fc91621e96c92d29dd722c5e7be24c8fc515b2c4c"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/issue1422_tests.rs",
+      "sha256": "6e35e42d10c8d1e21d4c27337c15657965eb1fb44e8086dd3015517cc212d0e9"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/lib.rs",
+      "sha256": "1b709773acc4f06c79170ae0831b935345b0b78cbdea148fc8caf2dced34ea37"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/msg.rs",
+      "sha256": "37cf04a9beffc4f424395b1eb1e0308a0986a4ecf544a4feb5ec22ec5bd61d55"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/reverse_query.rs",
+      "sha256": "6e4c397a71840f4fa21859f5baa6d48f02fd990cf6f3b958c6bcd40b761a9cff"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/route_quote.rs",
+      "sha256": "79c6cc416d46a4c12d090544e1f424bdaa40c9bcfed4179ed244bb52e7736b1a"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/route_tax.rs",
+      "sha256": "77b85808a714a3b99d7c0b1bb9057afad6ca97430195e7dc8aefdda83397d347"
+    },
+    {
+      "path": "smartcontracts/contracts/router/src/state.rs",
+      "sha256": "7c3eaba34c2b20918a785ba5fba46ce112e605e1c186cbd87816c3c7b265fc00"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/Cargo.toml",
+      "sha256": "e0cc7d27d65e2be5a39a0522acaf786d55e8219e1b0d9c97ff955a94f9424146"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/autolp.rs",
+      "sha256": "9f04439d7fa53f63247974f5f96ab1c91a4c0d78a8c225ea131ae78e147944df"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/blacklist.rs",
+      "sha256": "6edb5408775b545ca26191c4bd7e08c1ddf1ac6639a440dd0fd838d84b16c4aa"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/factory.rs",
+      "sha256": "5a2795aae49250bde7cb1b31db8daa5da33efc25db6ec7c3ca02e74136eefd48"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/fee_discount.rs",
+      "sha256": "4ad1ae5fca455a9b1c93d5e144ef41eeeef2f21f23e245ced8334b613269c4be"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/hook.rs",
+      "sha256": "f049be375dc1b57c93b5cb159cd9c8c02842a0cfb1116d4fa9289d7bba6092c9"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/hook_bounds_tests.rs",
+      "sha256": "b96c9482929dcfa04caf06c231b6d5893573d419b8e8f6a952edbde5e518a253"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/hook_settlement.rs",
+      "sha256": "9db85f299d5c5936264fc3f6b38429caf7ef300f04b7d5855802cc16fa534260"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/issue_1398_pricing_tests.rs",
+      "sha256": "397785244feded2d11b6317f2c14c263f057050268baed61d3b2eaee57757712"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/lib.rs",
+      "sha256": "058a319db611836f54b18a2a06a061c02c267b6ffd81af71358531684569884d"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/limit_clean.rs",
+      "sha256": "2d2468350cb6593036fd20965c55233b2fb689fafcece78c52c7421bafb16ea5"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/limit_placement.rs",
+      "sha256": "fa00310b0eb4abe03f2fc1c4f73e2375edce3218e8e7a7471669ba49e56f33fb"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/lp_symbol.rs",
+      "sha256": "45a4f4f8895f3a2b93fae6f221ad1deb93d4279f71758568474524b3539b2188"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/max_spread.rs",
+      "sha256": "889d4b838a77655ee2d019aa364acee09d53e38ef9a1a84589eef812b7109daa"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/oracle.rs",
+      "sha256": "a3bace10f85f92e01980adcc6d4a719830d04c69ebca60ea3a60b578f5d1f633"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/pagination.rs",
+      "sha256": "d3c46f5c11eecce6ec0f6b135e43517caed544e8d78d1ae708a75422bfb026a4"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/pair.rs",
+      "sha256": "c0c155e19918962434fad4561537dcb8c06acc00dc3dd1cd2f957f83b659dcb3"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/route_tax.rs",
+      "sha256": "47a2683cf9846e1a76658e4a6b81a14b44f27d507abd48f4bde98661c0e2f68d"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/types.rs",
+      "sha256": "de33bf8a5f07e9388b8ca5485b8a371a4642f15e6a61169bbb23be66810374f0"
+    },
+    {
+      "path": "smartcontracts/packages/dex-common/src/wrap_mapper.rs",
+      "sha256": "a154ae8cf7a1e2e731faa1de95dad1cbc9b59ea1411454a8f79a376ed89ac548"
+    },
+    {
+      "path": "smartcontracts/scripts/deploy.sh",
+      "sha256": "9d673b2423035b1202d8c7371882b3d296af907a3ced03f76b39f6e0cb8ae58b"
+    },
+    {
+      "path": "smartcontracts/scripts/optimize.sh",
+      "sha256": "d806db4f79504396ab79bbf138bf5ac2b0adc68c6f3708c0ae05c66d75062920"
+    },
+    {
+      "path": "smartcontracts/tests/Cargo.toml",
+      "sha256": "942fdfe8424d44b145f4ed384a0d160522ad8c1f0cd1598398e170ca5f8c815c"
+    },
+    {
+      "path": "smartcontracts/tests/proptest-regressions/lib.txt",
+      "sha256": "63d756cfa4a56eca59512aa297e385f9a4e7b725fb5545e2572c28f359d340e0"
+    },
+    {
+      "path": "smartcontracts/tests/src/adversarial_token.rs",
+      "sha256": "04207af3e2190678adab1f9eaae3511c4d46ef0495d31618d0ea61ff0abe9395"
+    },
+    {
+      "path": "smartcontracts/tests/src/asset_code_id_pin_tests.rs",
+      "sha256": "a0b9bdf39c14e54531166e6efe57bda828977edba08bf914fd09ce1c20620eb8"
+    },
+    {
+      "path": "smartcontracts/tests/src/blacklist_tests.rs",
+      "sha256": "8daef11cbaf134a0c866bad6a252f7e243ba8b1f41ca792662de94a24b2d3351"
+    },
+    {
+      "path": "smartcontracts/tests/src/classic_lp_cw20.rs",
+      "sha256": "77e2210f8f9531139fd0b511a8d81beae4305244d297ae2ac5c1cde6db2d23a6"
+    },
+    {
+      "path": "smartcontracts/tests/src/cw20_codeid_harness.rs",
+      "sha256": "c40332d59aab61d602851bd6b7b59fe85d9ba8a18b8e21700b741f9c8fd668cd"
+    },
+    {
+      "path": "smartcontracts/tests/src/cw20_mutants.rs",
+      "sha256": "4ee3327e1affd959f47e142042d2cab71d90d29b2a3be31584119663774c5b06"
+    },
+    {
+      "path": "smartcontracts/tests/src/discount_registry_inherit_tests.rs",
+      "sha256": "85b850b40ffe5d830ac3ea03b90fad3554e93bac19aa3c97e80e04f37e60d634"
+    },
+    {
+      "path": "smartcontracts/tests/src/faucet_tests.rs",
+      "sha256": "ed87689eef574e2c5efc03efa1d523238688017345f4199bd4808f3337a086b4"
+    },
+    {
+      "path": "smartcontracts/tests/src/issue_1398_tests.rs",
+      "sha256": "e024bb675d1d839ccab69dffc25fc8d93fb6ae553c5d9e698ed8831e9d1b7a18"
+    },
+    {
+      "path": "smartcontracts/tests/src/lib.rs",
+      "sha256": "e4dfa69fb6f2e88dff0c1a5996f48dfb570bd5fab223b64247d09a72ec165049"
+    },
+    {
+      "path": "smartcontracts/tests/src/limit_order_tests.rs",
+      "sha256": "66bfbfcf6cc5fb8f451d2ab304946cf68379417502d54d412acf72663b1d536c"
+    },
+    {
+      "path": "smartcontracts/tests/src/lp_symbol_tests.rs",
+      "sha256": "ea5901860c5efa740e84672626d0d3ee9014c44db397ee3ea0080d67bed64a99"
+    },
+    {
+      "path": "smartcontracts/tests/src/migration_tests.rs",
+      "sha256": "d6ae7382661e0e53c88b245283dd5f2db61cbbf94c3074d3326a0dc75ce4e9bd"
+    },
+    {
+      "path": "smartcontracts/tests/src/mock_failing_hook.rs",
+      "sha256": "8c31836b5015b208469f47abe55a9a75a772882eca95d5cdff7aeb2af253b047"
+    },
+    {
+      "path": "smartcontracts/tests/src/mock_split_fee_wrap_mapper.rs",
+      "sha256": "e13e95f69a4aa4c4727d5b4265c31d251a2462183b04dee2a67b81d05b41b96c"
+    },
+    {
+      "path": "smartcontracts/tests/src/order_status_tests.rs",
+      "sha256": "f084c22158b6f2789477f529bcf3dd3b1e1dc4ec6c38228888369681c7c5d62b"
+    },
+    {
+      "path": "smartcontracts/tests/src/route_tax_1381_tests.rs",
+      "sha256": "9f350e2a6b19cb0369fac23593c4861164d39560860833e819111a0ccc04944d"
+    },
+    {
+      "path": "smartcontracts/tests/src/route_tax_1390_tests.rs",
+      "sha256": "67958f6430cdb4079665878f22b12f1ac05ae38a9dd68de9c5bac0e5aadc8af9"
+    },
+    {
+      "path": "smartcontracts/tests/src/tier_fixtures.rs",
+      "sha256": "e477e1b6bd4d9d8b75a30c0f4f16764522ae3da0a0a243016b3724bfe20cfd91"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "smartcontracts/artifacts/bridge_debt.wasm",
+      "sha256": "e09e240412c629c35cea72f262381a5f5fda51c50d5557c9ad30c40ef2fc96b9"
+    },
+    {
+      "path": "smartcontracts/artifacts/bridge_debt_token.wasm",
+      "sha256": "cf7e121f0c0c89280b1d7ed0db113579b4634551f7be56ae4075f0b001d01b6a"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_community_tax_autolp.wasm",
+      "sha256": "829a4355647f28a1b0e2ea21bfdc786179a91718e3e1bc62ea036ce5df43613c"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_community_tax_token.wasm",
+      "sha256": "64f94a96b294c0396c7bf630ddba74e8891d7f76bd3059cc21e7c69ceac2cd15"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_community_token_launcher.wasm",
+      "sha256": "9aea86732bed77fe6b3c3ec73504c3af0efa2ee5fe69b1afb00dd5a99cac12cb"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_burn_hook.wasm",
+      "sha256": "af39f9b2763763eda9a714d5c1307d6417d1d7cef34b29d505e43f3b889fb30a"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_factory.wasm",
+      "sha256": "849400a805d90976b93260ac23107887ae36b5a40127bc6b489bb2d12151ede9"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_faucet.wasm",
+      "sha256": "578daaab4e8585fefd5e8f68bb3f2079ecb38d21f3ef87b48b71bfe7e2815885"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_fee_discount.wasm",
+      "sha256": "bf807e584226bbe8961b18ed6527ac94a7d1397b324b086bf97a893c0ae7ea20"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_lp_burn_hook.wasm",
+      "sha256": "8c671302e885a8b3ad31a7ca0a126c605971db6581431c9dfaa0252627ea5dac"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_pair.wasm",
+      "sha256": "eef6a38ec8a7bba402644c808ac192b0928bb6e9cd67bebf4b7835abce236955"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_router.wasm",
+      "sha256": "fcb38d8532c94f97905cf03a86e323f87a468be365e627be16e89335f5f739cb"
+    },
+    {
+      "path": "smartcontracts/artifacts/cl8y_dex_tax_hook.wasm",
+      "sha256": "e4a074875151c5e51b1c6348af6b5453ee714b85dbf3c419cb1826bdadc4cec4"
+    }
+  ],
+  "test_dependency": {
+    "path": "smartcontracts/artifacts/cw20_mintable.wasm",
+    "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+    "source": "reviewed unchanged fixture from docs/qa/merge-2026-10-06-final/build-provenance.json"
+  }
+}

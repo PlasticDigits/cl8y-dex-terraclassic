@@ -1,0 +1,221 @@
+{
+  "utc": "2026-10-06T08:23:57.661301+00:00",
+  "scope": "source integration and owned synthetic chains; hosted CI and production acceptance not established",
+  "source_base": "e7b54989c21fc411141c4c6c3af553c03dea1bdd",
+  "builder_source_commit": "3ba788949a6adbfd7260e95062ff72fa5f503a4c",
+  "prs": [
+    {
+      "number": 1431,
+      "merge_commit": "b5a056fe3b9437b181dbfd99b1fe7c2752ca7bc3"
+    },
+    {
+      "number": 1432,
+      "updated_head": "eb726729f20a0662ee4b7767a5113eb1fb84d9d1",
+      "merge_commit": "369b57af671de805168529f2a4e22e54ffa3a830"
+    }
+  ],
+  "implementation_issues": [
+    1428,
+    1429
+  ],
+  "versions": {
+    "factory": "1.12.0",
+    "pair": "1.21.0",
+    "router": "1.5.0",
+    "community-tax-token": "1.4.0",
+    "AutoLP": "1.1.0"
+  },
+  "checks": {
+    "verify-1429": "5 PASS, 0 FAIL, 0 SKIP; full combined workspace and focused recovery repeated",
+    "verify-1428": "9 PASS, 0 FAIL, 0 SKIP; current matrices 22 checks and 15 fresh forwards each",
+    "verify-1398": "7 PASS, 0 FAIL, 0 SKIP",
+    "verify-1237": "8 PASS, 0 FAIL",
+    "verify-1389": "8 PASS, 0 FAIL, 1 optional gas-command SKIP; integrated chain actually tested independently by #1428",
+    "verify-1381": "13 PASS, 0 FAIL, 2 SKIP: native wrap stack and production",
+    "verify-1390": "15 PASS, 0 FAIL, 1 SKIP: production",
+    "verify-1422": "10 PASS, 0 FAIL, 1 historical pre-FRQ baseline SKIP; source/client/API and actual isolated 3M queries retested",
+    "autolp-migration-recovery": "10 checks and 23 transaction receipts PASS twice on fresh fixtures",
+    "strict-contract-clippy": "PASS with --workspace --all-targets -- -D warnings",
+    "frontend-lint": "PASS, 5 existing warnings",
+    "frontend-build": "PASS with public build-only WalletConnect fixture ID",
+    "frontend-targeted": "107 PASS",
+    "optimizer-provenance": "PASS, cold pinned image, 13 owned artifacts plus unchanged reviewed CW20 dependency",
+    "formatting": "PASS contract and changed-indexer scopes",
+    "local-secret-scan": "PASS tracked and staged files"
+  },
+  "verifier_footers": {
+    "1429": [
+      "Results: 5 PASS, 0 FAIL, 0 SKIP",
+      "Overall: PASS (source scope only)"
+    ],
+    "1428": [
+      "PASS=9 FAIL=0 SKIP=0",
+      "Overall PASS"
+    ],
+    "1398": [
+      "Results: 7 PASS, 0 FAIL, 0 SKIP",
+      "Overall: PASS (source scope only)"
+    ],
+    "1237": [],
+    "1389": [
+      "SKIP isolated LocalTerra gas: no gas command supplied; follow docs/qa/issue-1389/README.md",
+      "PASS=8 FAIL=0 SKIP=1",
+      "Overall PASS with explicit skips; skipped checks remain unverified."
+    ],
+    "1381": [
+      "SKIP native wrap/unwrap: No existing LocalTerra public wrap-stack env supplied; use VERIFY_ISSUE_1381_WRAP_STACK_ENV",
+      "SKIP deployed capability and execution: Production rollout is separately tracked in #1384/#1386/#1421; this operation is a source merge",
+      "PASS=13 FAIL=0 SKIP=2",
+      "Overall PASS with explicit skips; skipped criteria remain unverified."
+    ],
+    "1390": [
+      "SKIP live execution: Production rollout is separately tracked in #1384/#1386/#1421; this operation is a source merge",
+      "PASS=15 FAIL=0 SKIP=1",
+      "Overall PASS with explicit skips; skipped criteria remain unverified."
+    ],
+    "1422": [
+      "SKIP frozen before-fix regression: No independently reviewed pre-fix artifacts supplied",
+      "PASS=10 FAIL=0 SKIP=1",
+      "Overall PASS with explicit skips; skipped criteria remain unverified."
+    ]
+  },
+  "exit_codes": {
+    "1398": 0,
+    "1237": 0,
+    "autolp-first": 0,
+    "1389": 0,
+    "clippy": 0,
+    "autolp-retest": 0,
+    "1428": 0,
+    "1381": 0,
+    "1390": 0,
+    "1422": 0,
+    "funded-retest": 0
+  },
+  "problems_and_resolutions": [
+    "Expired OpenBao session: routine workstation certificate login succeeded",
+    "Ordinary fj merge returned HTTP 405 while hosted status unmet: temporarily disabled status requirement only, merged through fj, restored original protections each time",
+    "Hosted secret-scan failure on unchanged public Venus address literals remains actual FAIL; CI explicitly skipped, trusted-policy work remains #1421",
+    "Frontend production build lacked WalletConnect project ID: repeated successfully with public build-only fixture",
+    "Bare git push lacked interactive credentials: successful OpenBao-injected ephemeral askpass retry",
+    "Combined AutoLP/token types alter four extra artifacts: cold rebuilt token, AutoLP, launcher and pair checksums replaced",
+    "Older batch logs shared the temp directory: isolated stale future receipt names by timestamp before generating this run evidence",
+    "Frozen router 1.4 matrix raw FAIL is expected reproduction, retained as FAIL/REPRODUCED; final router 1.5 assertions pass"
+  ],
+  "remaining_work": [
+    {
+      "issues": [
+        1384,
+        1386,
+        1421
+      ],
+      "work": "Production migration/provider readback, native wrap-stack setup and maximum-hook/AutoLP gas"
+    },
+    {
+      "issues": [
+        1386,
+        1421
+      ],
+      "work": "Qualify exact populated one-to-three-hop greedy requests under actual provider envelopes; admission is not universal compatibility"
+    },
+    {
+      "issues": [
+        1421
+      ],
+      "work": "Reconcile and deploy reviewed trusted hosted scan/build policy without broad scanner exclusions"
+    }
+  ],
+  "ci": {
+    "skipped_by_explicit_user_request": true,
+    "fake_success_statuses_posted": false,
+    "temporary_override": "enable_status_check only",
+    "original_protections_restored": true
+  },
+  "cleanup": {
+    "remotes_fetched": [
+      "origin",
+      "gitlab"
+    ],
+    "gitlab_main_has_new_commits": false,
+    "stashes_found": 0,
+    "original_worktrees_including_primary_preserved": 26,
+    "worker_owned_branches_and_dirty_snapshot_preserved": true,
+    "intentional_negative_ci_probe_branches_excluded_and_preserved": 4,
+    "own_temporary_branches_to_remove": [
+      "merge/update-1432-20261006",
+      "merge/sanity-1431-1432-20261006"
+    ],
+    "own_worktree_to_remove": "/tmp/dex-merge-20261006/pr1432",
+    "owned_nodes_to_remove": [
+      "dex-merge-20261006-greedy",
+      "dex-merge-20261006-funded"
+    ],
+    "owned_nodes_removed": [
+      "dex-merge-20261006-greedy",
+      "dex-merge-20261006-funded"
+    ],
+    "own_worktree_removed": true,
+    "observed_new_owned_databases_removed": 15,
+    "own_temporary_branches_removed": [
+      "merge/update-1432-20261006"
+    ]
+  },
+  "logs": [
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1429.log",
+      "sha256": "e7c7a03e2a53f3f0bcea54f4e828e14018123101d5c094e0d293e427f41fffbf"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1428.log",
+      "sha256": "e3a090cf0ea08686824b5b44965c56a2176710823d4415ee4f684e4ba5dcb868"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1398.log",
+      "sha256": "7aa729104ff47f0da2f4e27bc8daaace5191d4366cfb7df7715fa14c362a79ce"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1237.log",
+      "sha256": "cd9b2fbf314a5e8f12d9eb4313a95070c124f2c3fce563d6704a1f63f5e53b53"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1389.log",
+      "sha256": "05fe5fc71201e57e11049930c2e88fd21835db2d53bc388b0b6592079630c0e0"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1381.log",
+      "sha256": "a3e62ed4496d1c419a4cb29bf70421468566642bcc133e4905a4b4a67aae8f08"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1390.log",
+      "sha256": "3e10b0a555c5c07f55564577fd2ec81a5caf6997bd9cf6c953bcf0dbca00a297"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/verify-1422.log",
+      "sha256": "4022edb22dcaa5d50402f4118d43228652980479f2e092f99ff7d68bb3c8ee1a"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/clippy.log",
+      "sha256": "b8220f9d116fd5448d4623be2066c6f2f5cba531080347957b4d7f0a2e40b066"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/optimizer.log",
+      "sha256": "a00f79e92ad4024b0718052647f7bc61cc50135844e82e4f33812e9e6797e910"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/frontend-build.log",
+      "sha256": "8da71dc2396cd7db2f84e35a377a03c2aabd0274c0f39fa8dcda91396da8f143"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/frontend-build-retest.log",
+      "sha256": "eb3552f0f5759f6430432484843dc4e20b773a918910c612c9c21138d1b16acb"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/frontend-targeted.log",
+      "sha256": "3180e53739ecf529b3a95ecda2b63d52f1f918224a9dd0f7e202b4715e7fb9db"
+    },
+    {
+      "path": "/tmp/dex-merge-20261006/gitleaks-staged.log",
+      "sha256": "a0a6e8bdd5e59d462e7e7bc92bd14188d26d53563692131ed5b5167d45429197"
+    }
+  ]
+}
