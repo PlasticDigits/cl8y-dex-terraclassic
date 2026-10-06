@@ -209,22 +209,56 @@ pub fn reverse_sell(
         .map_err(Into::into)
 }
 
-/// Pair reverse API has no greedy mode. Invert its actual forward greedy
-/// engine instead of substituting pool-only economics. Both searches are
-/// bounded by the 128-bit amount domain and preserve the maker-fill cap.
-pub fn reverse_greedy_offer(
+/// Invert actual greedy economics within the shared request budget. The pool
+/// inverse uses checked Uint256 arithmetic in the pair and costs one simulation;
+/// a failed seed is propagated instead of triggering an unmetered fallback.
+pub(crate) struct GreedyReverseRequest<'a> {
+    pub pair_addr: &'a Addr,
+    pub offer_info: &'a dex_common::types::AssetInfo,
+    pub ask_info: &'a dex_common::types::AssetInfo,
+    pub target: Uint128,
+    pub seed_cost: u32,
+    pub greedy: &'a dex_common::pair::GreedySwapParams,
+    pub trader: Option<String>,
+    pub sender: Option<String>,
+}
+
+pub(crate) fn reverse_greedy_offer(
     deps: Deps,
-    pair_addr: &Addr,
-    offer_info: &dex_common::types::AssetInfo,
-    target: Uint128,
-    greedy: &dex_common::pair::GreedySwapParams,
-    trader: Option<String>,
-    sender: Option<String>,
+    request: GreedyReverseRequest,
+    budget: &mut crate::reverse_query::ReverseQueryBudget,
+    hop: usize,
 ) -> StdResult<Uint128> {
+    let GreedyReverseRequest {
+        pair_addr,
+        offer_info,
+        ask_info,
+        target,
+        seed_cost,
+        greedy,
+        trader,
+        sender,
+    } = request;
     if target.is_zero() {
         return Ok(Uint128::zero());
     }
-    let output = |offer| -> StdResult<Uint128> {
+    budget.charge(hop, seed_cost)?;
+    let seed: dex_common::pair::HybridReverseSimulationResponse = deps.querier.query_wasm_smart(
+        pair_addr,
+        &dex_common::pair::QueryMsg::HybridReverseSimulation {
+            ask_asset: dex_common::types::Asset {
+                info: ask_info.clone(),
+                amount: target,
+            },
+            hybrid: dex_common::pair::pool_only_hybrid_template(),
+            trader: trader.clone(),
+            sender: sender.clone(),
+            belief_price: None,
+        },
+    )?;
+    crate::reverse_query::greedy_reverse_search(target, seed.offer_amount, |offer| {
+        // Keep one per-hop slot for the mandatory fresh forward route validation.
+        budget.charge(hop, 1)?;
         let sim: dex_common::pair::HybridSimulationResponse = deps.querier.query_wasm_smart(
             pair_addr,
             &dex_common::pair::QueryMsg::HybridSimulation {
@@ -240,33 +274,5 @@ pub fn reverse_greedy_offer(
             },
         )?;
         Ok(sim.return_amount)
-    };
-    let mut hi = target;
-    let mut lo = Uint128::zero();
-    for _ in 0..128 {
-        if output(hi)? >= target {
-            break;
-        }
-        lo = hi;
-        hi = hi.checked_mul(Uint128::new(2)).unwrap_or(Uint128::MAX);
-        if hi == lo {
-            return Err(StdError::generic_err(
-                "greedy reverse target cannot be funded",
-            ));
-        }
-    }
-    if output(hi)? < target {
-        return Err(StdError::generic_err(
-            "greedy reverse target cannot be funded",
-        ));
-    }
-    while hi.u128() - lo.u128() > 1 {
-        let mid = Uint128::new(lo.u128() + (hi.u128() - lo.u128()) / 2);
-        if output(mid)? >= target {
-            hi = mid;
-        } else {
-            lo = mid;
-        }
-    }
-    Ok(hi)
+    })
 }

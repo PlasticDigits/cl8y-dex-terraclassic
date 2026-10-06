@@ -15,8 +15,9 @@ from pathlib import Path
 
 
 class LocalTerra:
-    def __init__(self, container, code_cache=None):
+    def __init__(self, container, code_cache=None, tx_key="test1"):
         self.container = container
+        self.tx_key = tx_key
         status = json.loads(self.command("curl", "-sf", "http://127.0.0.1:26657/status"))
         if status["result"]["node_info"]["network"] != "localterra":
             raise RuntimeError("Refusing every chain except localterra")
@@ -41,7 +42,8 @@ class LocalTerra:
     def address(self, key):
         return self.command("terrad", "keys", "show", key, "-a", "--keyring-backend", "test").strip()
 
-    def tx(self, *parts, key="test1", expect_failure=False):
+    def tx(self, *parts, key=None, expect_failure=False):
+        key = key or self.tx_key
         response = json.loads(self.command("terrad", "tx", *parts, "--from", key,
             "--keyring-backend", "test", "--chain-id", "localterra", "--gas", "12000000",
             "--fees", "500000000uluna", "--node", "http://127.0.0.1:26657",
@@ -102,7 +104,7 @@ class LocalTerra:
 
     def instantiate(self, code, message, label):
         receipt = self.tx("wasm", "instantiate", str(code), json.dumps(message),
-                          "--label", label, "--admin", self.address("test1"))
+                          "--label", label, "--admin", self.address(self.tx_key))
         return self.event(receipt, "instantiate", "_contract_address")
 
     def store(self, artifact):
@@ -133,7 +135,7 @@ class LocalTerra:
         key = "issue1381-" + str(time.time_ns())
         self.command("terrad", "keys", "add", key, "--keyring-backend", "test", "--output", "json")
         address = self.address(key)
-        self.tx("bank", "send", "test1", address, "10000000000uluna")
+        self.tx("bank", "send", self.tx_key, address, "10000000000uluna")
         return key, address
 
 

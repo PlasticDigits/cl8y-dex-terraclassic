@@ -746,6 +746,9 @@ browser and 569/689/655/664/1263 regressions. See [agent checklist and explicit 
 policy](qa/issue-1380/README.md), [invariants](indexer-invariants.md#protocol-liquidity-quality-1380)
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md). Use an isolated
 Postgres database and unique `TEST_DB_LOCK_FILE` for parallel worktrees.
+
+- [Reverse-query availability #1389](../skills/AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](qa/issue-1389/README.md).
+
 ## Event amount integrity (#1395)
 
 Run `make verify-issue-1395` against an isolated Postgres database configured in

@@ -98,6 +98,11 @@ pub fn pool_only_hybrid_template() -> HybridSwapParams {
     }
 }
 
+/// Shared ceiling for full pair simulations in a declared-hybrid reverse query.
+/// Routers reserve this opaque maximum before making the nested smart query.
+/// Increasing it requires measured gas evidence and updating route budgets (#1389).
+pub const MAX_HYBRID_REVERSE_SIM_CALLS: u32 = 32;
+
 /// Opt-in greedy book-first swap ([GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708)).
 ///
 /// Caller supplies only a maker cap and optional `book_start_hint` — **no** `pool_input` /
