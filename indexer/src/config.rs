@@ -88,9 +88,13 @@ pub const fn book_snapshot_max_staleness_ms(cadence_ms: u64) -> u64 {
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    #[error("server environment contains a privileged database credential ({0}); isolate migration/admin credentials in a separate process")]
+    #[error(
+        "server environment contains a privileged database credential ({0}); isolate migration/admin credentials in a separate process"
+    )]
     PrivilegedDatabaseCredential(&'static str),
-    #[error("RUN_MODE=prod requires a PostgreSQL URL with a dedicated runtime user and an explicit nondefault password of at least 16 characters; credential/session overrides are forbidden")]
+    #[error(
+        "RUN_MODE=prod requires a PostgreSQL URL with a dedicated runtime user and an explicit nondefault password of at least 16 characters; credential/session overrides are forbidden"
+    )]
     InvalidProductionDatabaseCredential,
     #[error("RUN_MODE must be dev, qa, test, local, prod or production")]
     InvalidRunMode,
@@ -610,11 +614,18 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
-    struct ConfigEnvironment(Vec<(&'static str, Option<std::ffi::OsString>)>);
+    struct ConfigEnvironment {
+        variables: Vec<(&'static str, Option<std::ffi::OsString>)>,
+        original_dir: std::path::PathBuf,
+        isolated_dir: std::path::PathBuf,
+    }
 
     impl Drop for ConfigEnvironment {
         fn drop(&mut self) {
-            for (key, value) in self.0.drain(..) {
+            std::env::set_current_dir(&self.original_dir).expect("restore config test directory");
+            std::fs::remove_file(self.isolated_dir.join(".env")).expect("remove synthetic dotenv");
+            std::fs::remove_dir(&self.isolated_dir).expect("remove config test directory");
+            for (key, value) in self.variables.drain(..) {
                 match value {
                     Some(value) => env::set_var(key, value),
                     None => env::remove_var(key),
@@ -637,12 +648,26 @@ mod tests {
             "API_IPV6_ENABLED",
             "ALLOW_ZERO_RATE_LIMITS",
         ];
-        let saved = ConfigEnvironment(
-            keys.iter()
+        // Keep dotenv discovery on the production path, with an empty synthetic
+        // file so checkout or ancestor credentials cannot contaminate fixtures.
+        let original_dir = env::current_dir().expect("config test directory");
+        let isolated_dir = env::temp_dir().join(format!(
+            "dex1396-unit-config-{}-{:016x}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        std::fs::create_dir(&isolated_dir).expect("create config test directory");
+        std::fs::write(isolated_dir.join(".env"), "").expect("write synthetic dotenv");
+        let saved = ConfigEnvironment {
+            variables: keys
+                .iter()
                 .chain(PRIVILEGED_DATABASE_ENV_VARS.iter())
                 .map(|key| (*key, env::var_os(key)))
                 .collect(),
-        );
+            original_dir,
+            isolated_dir,
+        };
+        env::set_current_dir(&saved.isolated_dir).expect("isolate config dotenv loading");
         for key in keys.iter().chain(PRIVILEGED_DATABASE_ENV_VARS.iter()) {
             env::remove_var(key);
         }
@@ -710,12 +735,10 @@ mod tests {
         assert_eq!(Config::from_env().unwrap().expected_chain_id, "localterra");
         // An explicit deployment selection is required even in dev; no production fallback.
         env::remove_var("EXPECTED_CHAIN_ID");
-        if !std::path::Path::new(".env").exists() {
-            assert!(matches!(
-                Config::from_env(),
-                Err(ConfigError::Missing("EXPECTED_CHAIN_ID"))
-            ));
-        }
+        assert!(matches!(
+            Config::from_env(),
+            Err(ConfigError::Missing("EXPECTED_CHAIN_ID"))
+        ));
         let _config_env = clear_config_env();
     }
 

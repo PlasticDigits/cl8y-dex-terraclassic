@@ -31,10 +31,10 @@ CONTAINER="$(docker run -d --rm --tmpfs /var/lib/postgresql/data:rw,size=256m -e
 POSTGRES_PORT="$(docker port "$CONTAINER" 5432/tcp | sed 's/.*://')"
 export POSTGRES_PORT
 for ((i=0; i<30; i++)); do
-  docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1 && break
+  docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1 && break
   sleep 1
 done
-docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1 || { docker logs --tail 20 "$CONTAINER" >&2; fail 'disposable Postgres unavailable'; }
+docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1 || { docker logs --tail 20 "$CONTAINER" >&2; fail 'disposable Postgres unavailable'; }
 setup_log="$BACKUP/setup.log"
 ./scripts/setup-postgres-dev-databases.sh >"$setup_log" 2>&1 || { cat "$setup_log" >&2; fail 'initial setup'; }
 ./scripts/setup-postgres-dev-databases.sh >>"$setup_log" 2>&1 || { cat "$setup_log" >&2; fail 'idempotent setup'; }

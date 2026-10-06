@@ -103,7 +103,7 @@ completed criteria; replace any skip after independently reproducing it.
   gas error remains deterministic/observable, Receive intent survives, Pay and
   executable operations clear, and no automatic retry/fallback/resend occurs.
   Verify DB exact-output sizing retains fresh forward preflight.
-- [ ] **Rollout reconciliation:** inspect reviewed router 1.3.1/pair 1.20.0 release
+- [ ] **Rollout reconciliation:** inspect integrated router 1.4.0/pair 1.21.0 release
   targets and hashes against #1384/#1386; re-probe actual deployed providers and
   affected routes read-only at their real limits before rollout acceptance.
   List provider limits, route/state/book scope and raw responses. Larger-limit
@@ -122,7 +122,10 @@ implementation PR hold. Executed failures remain **FAIL**; skip permission never
 waives runtime protections, identity checks or funding/signing safeguards, and
 does not complete the skipped acceptance criterion.
 
-Recorded implementation evidence: [RESULTS.md](RESULTS.md).
+Recorded standalone implementation evidence: [RESULTS.md](RESULTS.md).
+The integrated release keeps #1398 net execution floors and uses router 1.4.0,
+pair 1.21.0 and factory 1.12.0; its new artifacts require separate acceptance.
+The remaining populated four-hop greedy support task is [#1428](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1428).
 
 ## Verify the public build receipt
 
