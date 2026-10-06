@@ -1,5 +1,12 @@
 # Integrator reference
 
+Legacy token-owned AutoLP recovery uses token **1.4.0**
+`RefreshAutolpPolicy { expected_policy }`, signed by the configured token manager
+for its bound sister. Exact positive reserve/share/LP approval forwards only an
+explicit same-pair rebind; unchanged settings are a no-op and permissionless skim
+never updates policy. See [LP1429 invariants](../skills/AGENTS_AUTOLP_POLICY_RECOVERY.md)
+and [inventory, message shape and migration/readback](qa/issue-1429/README.md).
+
 Audience: protocols, indexers, and wallets integrating with CL8Y pair hooks, hybrid swaps, and the on-chain limit book. End-user UX lives elsewhere.
 
 ## Pair swaps: pool-only or best execution (I707) {#pair-swap-pool-only-vs-best-execution-forgejo-707}

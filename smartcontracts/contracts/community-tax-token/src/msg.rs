@@ -161,6 +161,11 @@ pub struct MintInit {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// Manager-only recovery of the bound token-owned sister's same-pair anchor.
+    /// Exact live reserve/share approval; no settings invoice or skim is run.
+    RefreshAutolpPolicy {
+        expected_policy: dex_common::autolp::LpPolicy,
+    },
     /// Live wasm admin or configured factory governance; null revokes route authority.
     RotateRouter {
         router: Option<String>,

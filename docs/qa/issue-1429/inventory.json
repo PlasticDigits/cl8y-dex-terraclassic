@@ -1,0 +1,142 @@
+{
+  "autolp_contracts_by_code": {
+    "11613": {
+      "addresses": [],
+      "next_key": null,
+      "pages": 1
+    },
+    "11621": {
+      "addresses": [],
+      "next_key": null,
+      "pages": 1
+    },
+    "11633": {
+      "addresses": [],
+      "next_key": null,
+      "pages": 1
+    }
+  },
+  "block": {
+    "chain_id": "columbus-5",
+    "height": "30714032",
+    "time": "2026-10-06T06:57:44.251349528Z"
+  },
+  "block_age_seconds": 9.554,
+  "bounds": {
+    "max_block_age_seconds": 180,
+    "max_contracts_per_code": 1000,
+    "max_pages_per_code": 10,
+    "page_size": 100,
+    "timeout_seconds": 25
+  },
+  "chain_id": "columbus-5",
+  "completed_at_utc": "2026-10-06T06:58:01.460150+00:00",
+  "endpoint": "https://lcd.terra-classic.hexxagon.io",
+  "issue": "https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1429",
+  "launcher": {
+    "address": "terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze",
+    "config": {
+      "autolp_code_id": 11633,
+      "cmm_governance": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+      "cmm_treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+      "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+      "router": "terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw",
+      "token_code_id": 11666,
+      "ust1": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+    },
+    "contract_info": {
+      "address": "terra126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze",
+      "contract_info": {
+        "admin": "terra1zlmv2xydxcusurtr6rl78wsvytdc6mfex6hep7",
+        "code_id": "11632",
+        "created": {
+          "block_height": "30072275",
+          "tx_index": "585780"
+        },
+        "creator": "terra1hu4zggf3f8yw6jw3rxrjxn2drwad675gq5k2lv",
+        "extension": null,
+        "ibc2_port_id": "wasm2126pr5323xkhwas7y03azv48sqr2fy3fxxg0sxu8xhmjdxr8v5tzqahzwze",
+        "ibc_port_id": "",
+        "label": "cl8y-community-token-launcher"
+      }
+    }
+  },
+  "observed_at_utc": "2026-10-06T06:57:53.805744+00:00",
+  "request_count": 14,
+  "schema": 1,
+  "scope": "Documented historical and current launcher pins plus discovered token bindings; endpoint observation, not chain attestation or deployment acceptance.",
+  "sisters": {},
+  "token_contracts_by_code": {
+    "11611": {
+      "addresses": [],
+      "next_key": null,
+      "pages": 1
+    },
+    "11619": {
+      "addresses": [],
+      "next_key": null,
+      "pages": 1
+    },
+    "11626": {
+      "addresses": [],
+      "next_key": null,
+      "pages": 1
+    },
+    "11630": {
+      "addresses": [
+        "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67"
+      ],
+      "next_key": null,
+      "pages": 1
+    },
+    "11666": {
+      "addresses": [
+        "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz"
+      ],
+      "next_key": null,
+      "pages": 1
+    }
+  },
+  "tokens": {
+    "terra1ps34wcgyjjp93hf2wvmt3t7v9ky9xm43yhzf6anq8kyp777egsdq0eua67": {
+      "config": {
+        "autolp": null,
+        "buy_bps": 0,
+        "cmm_treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+        "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+        "launch_guards": null,
+        "manager": "terra1l076ck9mh6gh3uwkhtdljg45ayunshkq0qcqjp",
+        "max_buy_bps": 0,
+        "max_sell_bps": 0,
+        "max_transfer_bps": 0,
+        "mint_revoked": true,
+        "router": "terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw",
+        "sell_bps": 0,
+        "sinks": [],
+        "transfer_bps": 0,
+        "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+        "ust1": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+      }
+    },
+    "terra1x6e64es6yhauhvs3prvpdg2gkqdtfru840wgnhs935x8axr7zxkqzysuxz": {
+      "config": {
+        "autolp": null,
+        "buy_bps": 450,
+        "cmm_treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+        "factory": "terra1ejpgvv7g3hj0u6fpcnxhflqp84g0w3cnaskqkg5733ygwlmf963sfchsea",
+        "launch_guards": null,
+        "manager": "terra1ljqgc0cdkl7gcc7s64eczv3hrgga32vfh8xvfj",
+        "max_buy_bps": 450,
+        "max_sell_bps": 100,
+        "max_transfer_bps": 0,
+        "mint_revoked": false,
+        "router": "terra1e7s0h9ftxakwca5gxspyt4haeuaqxds6swr08ul3tsepq7el924sprrsrw",
+        "sell_bps": 100,
+        "sinks": [],
+        "transfer_bps": 0,
+        "treasury": "terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6sem3lr2",
+        "ust1": "terra1f0eqgy9w7e5e7up97vjudqwx38tesf8ylx75x2lv3nwm0clry0pqmgfy72"
+      }
+    }
+  }
+}
