@@ -1,0 +1,1547 @@
+{
+  "scope": "synthetic isolated execution; raw receipts remain in the listed local paths",
+  "receipts": [
+    {
+      "file": "/tmp/dex-merge-20261006/matrix-baseline.json",
+      "sha256": "72c5dd4951cede4e8367f0f292531dca929cdd9f8b8667bbf14f38d673f580e5",
+      "status": "FAIL",
+      "utc": "2026-10-06T08:06:21.834090+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": "REPRODUCED",
+      "checks_count": 17,
+      "forward_validations_count": 12,
+      "contract_versions": null,
+      "checks": [
+        {
+          "label": "empty pool 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 933653,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 4 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 2381740,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1086053,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 4 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 2990942,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 947283,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 2 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1443444,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "declared whole-request denial reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+          "gas_used": 1371679,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 933652,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 4 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 2381733,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 1086042,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 4 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 2990895,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 947272,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 2 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 1443421,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "declared whole-request denial reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+          "gas_used": 1371664,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy four-hop provider gas failure reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15030236: out of gas: unknown request\n",
+          "gas_used": 12019418,
+          "query_status": "transaction_error",
+          "status": "FAIL"
+        },
+        {
+          "label": "full greedy four-hop provider gas failure reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15000280: out of gas: unknown request\n",
+          "gas_used": 12000095,
+          "query_status": "transaction_error",
+          "status": "FAIL"
+        },
+        {
+          "label": "invalid Observe horizon",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: Oracle: seconds_ago exceeds block timestamp: query wasm contract failed: unknown request\n",
+          "gas_used": 193283,
+          "query_status": "error",
+          "status": "PASS"
+        }
+      ],
+      "node": {
+        "container": "dex-merge-20261006-greedy",
+        "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+        "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+        "terrad_version": {
+          "build_tags": "netgo ledger,",
+          "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+          "cosmos_sdk_version": "v0.53.6",
+          "go": "go version go1.24.13 linux/amd64",
+          "name": "terra",
+          "version": "4.0.1"
+        },
+        "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+        "wasm_query_gas_limit": 15000000
+      },
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/matrix-first.json",
+      "sha256": "45195c7c531ff6c05bedcf828c969337cfd648804800997492f83e4515beb8cd",
+      "status": "PASS",
+      "utc": "2026-10-06T08:07:43.274788+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 22,
+      "forward_validations_count": 15,
+      "contract_versions": null,
+      "checks": [
+        {
+          "label": "empty pool 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 933653,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 4 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 2381740,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1086053,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 3 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 2356220,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 4 hops reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 947283,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 2 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1443444,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "declared whole-request denial reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+          "gas_used": 1371679,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 933652,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 4 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 2381733,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 1086042,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 3 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 2356185,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 4 hops reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 947272,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 2 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 1443421,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "declared whole-request denial reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+          "gas_used": 1371664,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy one-hop one raw ask unit max-makers=8 reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1295788,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy one-hop one human ask unit max-makers=8 reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 5882933,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy four-hop admission denial reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy one-hop one raw ask unit max-makers=8 reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 3868177,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy four-hop admission denial reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "invalid Observe horizon",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: Oracle: seconds_ago exceeds block timestamp: query wasm contract failed: unknown request\n",
+          "gas_used": 193283,
+          "query_status": "error",
+          "status": "PASS"
+        }
+      ],
+      "node": {
+        "container": "dex-merge-20261006-greedy",
+        "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+        "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+        "terrad_version": {
+          "build_tags": "netgo ledger,",
+          "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+          "cosmos_sdk_version": "v0.53.6",
+          "go": "go version go1.24.13 linux/amd64",
+          "name": "terra",
+          "version": "4.0.1"
+        },
+        "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+        "wasm_query_gas_limit": 15000000
+      },
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/matrix-retest.json",
+      "sha256": "0961549e5fd601297d1c326cc915c79b421dd151cfd90f9b9262818180557071",
+      "status": "PASS",
+      "utc": "2026-10-06T08:09:07.630143+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 22,
+      "forward_validations_count": 15,
+      "contract_versions": null,
+      "checks": [
+        {
+          "label": "empty pool 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 933653,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 4 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 2381740,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1086053,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 3 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 2356220,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 4 hops reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 1 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 947283,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 2 hops reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1443444,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "declared whole-request denial reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+          "gas_used": 1371679,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 933652,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty pool 4 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 2381733,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 1086042,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 3 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 2356185,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty greedy 4 hops reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 1 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 947272,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "empty declared 2 hops reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 1443421,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "declared whole-request denial reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed: unknown request\n",
+          "gas_used": 1371664,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy one-hop one raw ask unit max-makers=8 reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 1295788,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy one-hop one human ask unit max-makers=8 reverse=False",
+          "smart_status": "PASS",
+          "gas_used": 5882933,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy four-hop admission denial reverse=False",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy one-hop one raw ask unit max-makers=8 reverse=True",
+          "smart_status": "PASS",
+          "gas_used": 3868177,
+          "query_status": "ok",
+          "status": "PASS"
+        },
+        {
+          "label": "full greedy four-hop admission denial reverse=True",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: GREEDY_REVERSE_ROUTE_UNSUPPORTED: query wasm contract failed: unknown request\n",
+          "gas_used": 207757,
+          "query_status": "error",
+          "status": "PASS"
+        },
+        {
+          "label": "invalid Observe horizon",
+          "smart_status": "FAIL",
+          "error": "Error: rpc error: code = Unknown desc = Generic error: Oracle: seconds_ago exceeds block timestamp: query wasm contract failed: unknown request\n",
+          "gas_used": 193283,
+          "query_status": "error",
+          "status": "PASS"
+        }
+      ],
+      "node": {
+        "container": "dex-merge-20261006-greedy",
+        "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+        "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+        "terrad_version": {
+          "build_tags": "netgo ledger,",
+          "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+          "cosmos_sdk_version": "v0.53.6",
+          "go": "go version go1.24.13 linux/amd64",
+          "name": "terra",
+          "version": "4.0.1"
+        },
+        "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+        "wasm_query_gas_limit": 15000000
+      },
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/autolp-first.json",
+      "sha256": "b50dfa5538017eb1eb84636cdfa5dbebd0563be8131b57aa32b865296c86e98e",
+      "status": "PASS",
+      "utc": "2026-10-06T08:06:16.750146+00:00",
+      "completed_at_utc": "2026-10-06T08:07:12.476456+00:00",
+      "baseline_regression": null,
+      "checks_count": 10,
+      "forward_validations_count": 0,
+      "contract_versions": {
+        "token": {
+          "contract": "crates.io:cl8y-community-tax-token",
+          "version": "1.4.0"
+        },
+        "autolp": {
+          "contract": "crates.io:cl8y-community-tax-autolp",
+          "version": "1.1.0"
+        }
+      },
+      "checks": [
+        {
+          "name": "legacy policy query unsupported",
+          "status": "PASS"
+        },
+        {
+          "name": "migration preserves actual token manager and missing policy",
+          "status": "PASS"
+        },
+        {
+          "name": "canonical factory refreshes pair asset pins after token migration",
+          "status": "PASS"
+        },
+        {
+          "name": "unchanged invoice remains no-op and cannot initialize policy",
+          "status": "PASS"
+        },
+        {
+          "name": "foreign proxy refresh rejected atomically",
+          "status": "PASS"
+        },
+        {
+          "name": "human cannot impersonate sister manager",
+          "status": "PASS"
+        },
+        {
+          "name": "unapproved reserve snapshot rejected",
+          "status": "PASS"
+        },
+        {
+          "name": "manager token-mediated refresh captures exact approved anchor",
+          "status": "PASS"
+        },
+        {
+          "name": "permissionless skim mints positive LP without refreshing policy",
+          "status": "PASS"
+        },
+        {
+          "name": "failed swap reply rolls back reserves balances lock and policy",
+          "status": "PASS"
+        }
+      ],
+      "node": null,
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/autolp-retest.json",
+      "sha256": "44cf7020097e9116da6b7500a588525213d4ee5dd8c72bba0ac97537c4dcf8c2",
+      "status": "PASS",
+      "utc": "2026-10-06T08:07:21.243652+00:00",
+      "completed_at_utc": "2026-10-06T08:08:15.858848+00:00",
+      "baseline_regression": null,
+      "checks_count": 10,
+      "forward_validations_count": 0,
+      "contract_versions": {
+        "token": {
+          "contract": "crates.io:cl8y-community-tax-token",
+          "version": "1.4.0"
+        },
+        "autolp": {
+          "contract": "crates.io:cl8y-community-tax-autolp",
+          "version": "1.1.0"
+        }
+      },
+      "checks": [
+        {
+          "name": "legacy policy query unsupported",
+          "status": "PASS"
+        },
+        {
+          "name": "migration preserves actual token manager and missing policy",
+          "status": "PASS"
+        },
+        {
+          "name": "canonical factory refreshes pair asset pins after token migration",
+          "status": "PASS"
+        },
+        {
+          "name": "unchanged invoice remains no-op and cannot initialize policy",
+          "status": "PASS"
+        },
+        {
+          "name": "foreign proxy refresh rejected atomically",
+          "status": "PASS"
+        },
+        {
+          "name": "human cannot impersonate sister manager",
+          "status": "PASS"
+        },
+        {
+          "name": "unapproved reserve snapshot rejected",
+          "status": "PASS"
+        },
+        {
+          "name": "manager token-mediated refresh captures exact approved anchor",
+          "status": "PASS"
+        },
+        {
+          "name": "permissionless skim mints positive LP without refreshing policy",
+          "status": "PASS"
+        },
+        {
+          "name": "failed swap reply rolls back reserves balances lock and policy",
+          "status": "PASS"
+        }
+      ],
+      "node": null,
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/funded-first.json",
+      "sha256": "0be4efdfddeb1bc8311db26761dad9c087e33d6ac7a485fe90b09fe6b0bb73c8",
+      "status": "PASS",
+      "utc": "2026-10-06T08:20:10.345593+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 6,
+      "forward_validations_count": 0,
+      "contract_versions": {
+        "router": {
+          "contract": "cl8y-dex-router",
+          "version": "1.5.0"
+        },
+        "factory": {
+          "contract": "cl8y-dex-factory",
+          "version": "1.12.0"
+        },
+        "CL8Y/ALPHA": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "ALPHA/UST1": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "UST1/USTR": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "ALPHA/BETA": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "BETA/USTR": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "CL8Y": {
+          "contract": "crates.io:cw20-base",
+          "version": "0.1.0"
+        },
+        "UST1": {
+          "contract": "crates.io:cw20-base",
+          "version": "0.1.0"
+        },
+        "USTR": {
+          "contract": "crates.io:cw20-base",
+          "version": "0.1.0"
+        },
+        "ALPHA": {
+          "contract": "crates.io:cl8y-community-tax-token",
+          "version": "1.4.0"
+        },
+        "BETA": {
+          "contract": "crates.io:cl8y-community-tax-token",
+          "version": "1.4.0"
+        }
+      },
+      "checks": [
+        {
+          "name": "zero intermediates",
+          "status": "PASS",
+          "gas_used": "4428496"
+        },
+        {
+          "name": "multi tax intermediates",
+          "status": "PASS",
+          "gas_used": "4550844"
+        },
+        {
+          "name": "owned dust and existing balances",
+          "status": "PASS",
+          "gas_used": "4434456"
+        },
+        {
+          "name": "taxed initial gross",
+          "status": "PASS",
+          "gas_used": "3088776"
+        },
+        {
+          "name": "taxed final buy",
+          "status": "PASS",
+          "gas_used": "1890745"
+        },
+        {
+          "name": "minimum return rollback",
+          "status": "PASS",
+          "gas_used": "4172299"
+        }
+      ],
+      "node": {
+        "container": "dex-merge-20261006-funded",
+        "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+        "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+        "terrad_version": {
+          "build_tags": "netgo ledger,",
+          "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+          "cosmos_sdk_version": "v0.53.6",
+          "go": "go version go1.24.13 linux/amd64",
+          "name": "terra",
+          "version": "4.0.1"
+        },
+        "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+        "wasm_query_gas_limit": 3000000
+      },
+      "actual_smart_query_count": 18,
+      "query_checks": [
+        {
+          "scenario": "zero intermediates",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946429267575517734"
+          },
+          "probe": {
+            "txhash": "bafc0458148d41a2bad8d7e22ec86b6312cba152eed9370ae0d16bba788d00a2",
+            "height": "6192",
+            "gas_used": 1633427,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "zero intermediates",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999020096990300"
+          },
+          "probe": {
+            "txhash": "0dd87e39503e707a16a2fa76fd95b290ae5aafd28e20e602c983e3e3dd609e10",
+            "height": "6195",
+            "gas_used": 2020238,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "zero intermediates",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946429267575517734"
+          },
+          "probe": {
+            "txhash": "9de88830be19ae0f8a743e583a2085eb44bc14313a8452e2873c99a2bc918262",
+            "height": "6198",
+            "gas_used": 1633427,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894890444760655030"
+          },
+          "probe": {
+            "txhash": "b4ec903e6d86c605a3025d9f17a0054ad330cd705b660f34b79e1e85aa458d1a",
+            "height": "6247",
+            "gas_used": 1597084,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999060288001788"
+          },
+          "probe": {
+            "txhash": "9f0c3c3a1311953e72b2feba2098adf98ef877ad9f4e990e2d5846ee74ca0523",
+            "height": "6250",
+            "gas_used": 2139981,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894890444760655030"
+          },
+          "probe": {
+            "txhash": "0e7ccd60803d38df132373e9e1655a6e12421451e7f4e580f40cbc35a31a2cf5",
+            "height": "6253",
+            "gas_used": 1597084,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946421488752678839"
+          },
+          "probe": {
+            "txhash": "d16912b9a59fbd405822f026c4157b37f9f1669bb62bd3951581eef5b77a1495",
+            "height": "6315",
+            "gas_used": 1633418,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999100473034445"
+          },
+          "probe": {
+            "txhash": "ef3964d1f867fe942c6fa15b0236f1c6d7123e069eb687d6fe094211e8ad199e",
+            "height": "6318",
+            "gas_used": 2020209,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946421488752678839"
+          },
+          "probe": {
+            "txhash": "449e5dbf77cbc0c6f133ac6c980035f34423ce89215b688d08cbd15bbd6f8566",
+            "height": "6326",
+            "gas_used": 1633418,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed initial gross",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "994000246661929123"
+          },
+          "probe": {
+            "txhash": "d746f379ec3bf860bb9e92a1a31ae5931dfa24fa88f463859b0e31a410c893aa",
+            "height": "6375",
+            "gas_used": 1149409,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed initial gross",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1010000"
+          },
+          "probe": {
+            "txhash": "fc5ae31ba44dfcabf571e173fd3378c1dccfd4938f017341b9a018b16dddcb0a",
+            "height": "6378",
+            "gas_used": 1381420,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed initial gross",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "994000246661929123"
+          },
+          "probe": {
+            "txhash": "605387634008c4009a1c09bc3abb158fe77f6f9a2ac13c9436e0f9b35f713610",
+            "height": "6386",
+            "gas_used": 1149409,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed final buy",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "961650"
+          },
+          "probe": {
+            "txhash": "5f42249103e692f3983dfda3fb277d9254d77c7f1f0c9ce8609ce5c57015ac72",
+            "height": "6440",
+            "gas_used": 743658,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed final buy",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999140652088252"
+          },
+          "probe": {
+            "txhash": "1d18498f63b68a86520c61c5dbbf3f1b205e898b4c8aca817719caf72a6fffb4",
+            "height": "6443",
+            "gas_used": 898478,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed final buy",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "961650"
+          },
+          "probe": {
+            "txhash": "3a29b27c1a02913ffa7c115d3bc0832879d8dc60d865b6c2b50031605ae1b2a8",
+            "height": "6446",
+            "gas_used": 743658,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "minimum return rollback",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894880862313485362"
+          },
+          "probe": {
+            "txhash": "fda3c9dea2db315a2aa0eeaef1eba180cac834184e2987689037b458bb007628",
+            "height": "6500",
+            "gas_used": 1597048,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "minimum return rollback",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999180825163192"
+          },
+          "probe": {
+            "txhash": "60fd9f4265ccede76721d06853a429aea48e20efd84c8de18e7afddcb3bada48",
+            "height": "6503",
+            "gas_used": 2139927,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "minimum return rollback",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894880862313485362"
+          },
+          "probe": {
+            "txhash": "fa6cc1f5d0234156e01f214aac90e316d4324ac27cb66bf8cb4fb687ecfc415c",
+            "height": "6506",
+            "gas_used": 1597045,
+            "query_status": "ok"
+          }
+        }
+      ]
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/funded-retest.json",
+      "sha256": "6bd9107121372e623679cd90189504c258f6e6c49b53319803989efbe3011325",
+      "status": "PASS",
+      "utc": "2026-10-06T08:21:49.198926+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 6,
+      "forward_validations_count": 0,
+      "contract_versions": {
+        "router": {
+          "contract": "cl8y-dex-router",
+          "version": "1.5.0"
+        },
+        "factory": {
+          "contract": "cl8y-dex-factory",
+          "version": "1.12.0"
+        },
+        "CL8Y/ALPHA": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "ALPHA/UST1": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "UST1/USTR": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "ALPHA/BETA": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "BETA/USTR": {
+          "contract": "cl8y-dex-pair",
+          "version": "1.21.0"
+        },
+        "CL8Y": {
+          "contract": "crates.io:cw20-base",
+          "version": "0.1.0"
+        },
+        "UST1": {
+          "contract": "crates.io:cw20-base",
+          "version": "0.1.0"
+        },
+        "USTR": {
+          "contract": "crates.io:cw20-base",
+          "version": "0.1.0"
+        },
+        "ALPHA": {
+          "contract": "crates.io:cl8y-community-tax-token",
+          "version": "1.4.0"
+        },
+        "BETA": {
+          "contract": "crates.io:cl8y-community-tax-token",
+          "version": "1.4.0"
+        }
+      },
+      "checks": [
+        {
+          "name": "zero intermediates",
+          "status": "PASS",
+          "gas_used": "4428580"
+        },
+        {
+          "name": "multi tax intermediates",
+          "status": "PASS",
+          "gas_used": "4550927"
+        },
+        {
+          "name": "owned dust and existing balances",
+          "status": "PASS",
+          "gas_used": "4434540"
+        },
+        {
+          "name": "taxed initial gross",
+          "status": "PASS",
+          "gas_used": "3088859"
+        },
+        {
+          "name": "taxed final buy",
+          "status": "PASS",
+          "gas_used": "1890829"
+        },
+        {
+          "name": "minimum return rollback",
+          "status": "PASS",
+          "gas_used": "4172383"
+        }
+      ],
+      "node": {
+        "container": "dex-merge-20261006-funded",
+        "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+        "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+        "terrad_version": {
+          "build_tags": "netgo ledger,",
+          "commit": "9a5ee563874ce3906c3ca7069f0160de51f89c40",
+          "cosmos_sdk_version": "v0.53.6",
+          "go": "go version go1.24.13 linux/amd64",
+          "name": "terra",
+          "version": "4.0.1"
+        },
+        "terrad_version_dump_sha256": "73b55fd4717c6a1e331facf922899ba5be0d14c8b034f084f63cf4559965f50d",
+        "wasm_query_gas_limit": 3000000
+      },
+      "actual_smart_query_count": 18,
+      "query_checks": [
+        {
+          "scenario": "zero intermediates",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946429267575517734"
+          },
+          "probe": {
+            "txhash": "0984b20cca87f7904ee19628e00040418d273e5201e3d413a718c44712846487",
+            "height": "6680",
+            "gas_used": 1633427,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "zero intermediates",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999020096990300"
+          },
+          "probe": {
+            "txhash": "e6be9d572d04ee37b0b3b394ab1ac33be289f4aa819b464117564529ec784a22",
+            "height": "6683",
+            "gas_used": 2020238,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "zero intermediates",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946429267575517734"
+          },
+          "probe": {
+            "txhash": "675ffb6ae70ce42279089c1d0c1881f7d4a9c474628ebda52338672aa11a178c",
+            "height": "6686",
+            "gas_used": 1633427,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894890444760655030"
+          },
+          "probe": {
+            "txhash": "ea7ef9fc0d7baaa17944785181d73ce27f59cc47d2ca5247e2e73b39c3d37d83",
+            "height": "6739",
+            "gas_used": 1597084,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999060288001788"
+          },
+          "probe": {
+            "txhash": "b66367ab5de9afc3703c871296fd05adcb492562af11c6870218c228cf007fd5",
+            "height": "6742",
+            "gas_used": 2139981,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "multi tax intermediates",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894890444760655030"
+          },
+          "probe": {
+            "txhash": "c95e6e66597193efce5b87c9632d86f631cb5bef9b3e334acde8c35190a80b5e",
+            "height": "6745",
+            "gas_used": 1597084,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946421488752678839"
+          },
+          "probe": {
+            "txhash": "0729f1910e0a49c8408e2e8072530b06800c5c74371246f5e29cff23be1a66f3",
+            "height": "6807",
+            "gas_used": 1633418,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999100473034445"
+          },
+          "probe": {
+            "txhash": "b173726cd5c279ac734d2e465682a5a96e05ff306dc34f882a0faa3127a621da",
+            "height": "6810",
+            "gas_used": 2020209,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "owned dust and existing balances",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "946421488752678839"
+          },
+          "probe": {
+            "txhash": "69a9cd000072925ee5e7f22291767e5865da7bae11d628d70ab700a52bd6a320",
+            "height": "6813",
+            "gas_used": 1633418,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed initial gross",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "994000246661929123"
+          },
+          "probe": {
+            "txhash": "0c40a41015a6342d343c395948dde691641530a871b91bc71b72b33604e15f3c",
+            "height": "6866",
+            "gas_used": 1149409,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed initial gross",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1010000"
+          },
+          "probe": {
+            "txhash": "489e1116f479a80e94282c55b9f18d35e9b67f060c59ee408890fc8d248687ff",
+            "height": "6869",
+            "gas_used": 1381420,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed initial gross",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "994000246661929123"
+          },
+          "probe": {
+            "txhash": "5e97d50b84e9f20a92c24ed8456eef2d8e9bebe275e04358fce8d74d02f01f9f",
+            "height": "6872",
+            "gas_used": 1149409,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed final buy",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "961650"
+          },
+          "probe": {
+            "txhash": "13856e4a9abe4c3b32454baf7cf4eb513a73e16c2710dde5e4ba3b31957f9f8b",
+            "height": "6926",
+            "gas_used": 743658,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed final buy",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999140652088252"
+          },
+          "probe": {
+            "txhash": "68c582297e459c0ba7781cf611417497157a2b28c1f1e77a9a877c7b28f03536",
+            "height": "6929",
+            "gas_used": 898478,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "taxed final buy",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "961650"
+          },
+          "probe": {
+            "txhash": "0b25db7eebf211883f54290c85bcc1108e42d2c31f9840830d8031b09c4fb6bb",
+            "height": "6932",
+            "gas_used": 743658,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "minimum return rollback",
+          "kind": "forward",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894880862313485362"
+          },
+          "probe": {
+            "txhash": "ae4060f7d16e090ab06a924b609c826936d58ebffa06981beaf01ce0ecddabbc",
+            "height": "6980",
+            "gas_used": 1597048,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "minimum return rollback",
+          "kind": "reverse",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "1009999180825163192"
+          },
+          "probe": {
+            "txhash": "d798a2c4a67278e9a80522b1ee0e541ab79d4cace52a5296a5452812dc78e3b4",
+            "height": "6989",
+            "gas_used": 2139927,
+            "query_status": "ok"
+          }
+        },
+        {
+          "scenario": "minimum return rollback",
+          "kind": "fresh forward validation",
+          "smart_status": "PASS",
+          "response": {
+            "amount": "894880862313485362"
+          },
+          "probe": {
+            "txhash": "fc7449975d8d054fb3abbf4d417a585960c8887fc0cce08a0a56a8dbe31d879b",
+            "height": "6997",
+            "gas_used": 1597045,
+            "query_status": "ok"
+          }
+        }
+      ]
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/route-tax.json",
+      "sha256": "e9bc407b2e2222c444771e18d87c643a83cd4696cf3fab53f0c979d7bfe3dfe0",
+      "status": "PASS",
+      "utc": "2026-10-06T08:11:27.813025+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 6,
+      "forward_validations_count": 0,
+      "contract_versions": null,
+      "checks": [
+        {
+          "name": "zero intermediates",
+          "status": "PASS",
+          "gas_used": "4428496"
+        },
+        {
+          "name": "multi tax intermediates",
+          "status": "PASS",
+          "gas_used": "4550782"
+        },
+        {
+          "name": "owned dust and existing balances",
+          "status": "PASS",
+          "gas_used": "4434449"
+        },
+        {
+          "name": "taxed initial gross",
+          "status": "PASS",
+          "gas_used": "3088776"
+        },
+        {
+          "name": "taxed final buy",
+          "status": "PASS",
+          "gas_used": "1890745"
+        },
+        {
+          "name": "minimum return rollback",
+          "status": "PASS",
+          "gas_used": "4172299"
+        }
+      ],
+      "node": null,
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/route-tax-flows.json",
+      "sha256": "a09216bd0cfd248b7dd69b9a8fd7c6969700eae844d73f7f21bf59a525533873",
+      "status": "PASS",
+      "utc": null,
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 2,
+      "forward_validations_count": 0,
+      "contract_versions": null,
+      "checks": [
+        {
+          "name": "invoice atomic rollback",
+          "status": "PASS",
+          "gas_used": "3358337"
+        },
+        {
+          "name": "taxed route plus exact feature invoice",
+          "status": "PASS",
+          "gas_used": "3432550"
+        }
+      ],
+      "node": null,
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    },
+    {
+      "file": "/tmp/dex-merge-20261006/route-guards.json",
+      "sha256": "483824e713edb65dbbbcec244635b9ec3f87ea698600a3d36ed9c61556e92c98",
+      "status": "PASS",
+      "utc": "2026-10-06T08:15:02.892418+00:00",
+      "completed_at_utc": null,
+      "baseline_regression": null,
+      "checks_count": 16,
+      "forward_validations_count": 0,
+      "contract_versions": null,
+      "checks": [
+        {
+          "name": "cyclic forward/reverse/execute cooldown 0",
+          "status": "PASS"
+        },
+        {
+          "name": "cyclic forward/reverse/execute cooldown 0",
+          "status": "PASS"
+        },
+        {
+          "name": "cyclic forward/reverse/execute cooldown 1",
+          "status": "PASS"
+        },
+        {
+          "name": "cyclic forward/reverse/execute cooldown 1",
+          "status": "PASS"
+        },
+        {
+          "name": "cyclic forward/reverse/execute cooldown 5",
+          "status": "PASS"
+        },
+        {
+          "name": "cyclic forward/reverse/execute cooldown 5",
+          "status": "PASS"
+        },
+        {
+          "name": "zero-rate capable cycle rejected",
+          "status": "PASS"
+        },
+        {
+          "name": "owned input restoration above lowered cap",
+          "status": "PASS"
+        },
+        {
+          "name": "owned input restoration above lowered cap",
+          "status": "PASS"
+        },
+        {
+          "name": "owned input restoration above lowered cap",
+          "status": "PASS"
+        },
+        {
+          "name": "bought output capped payer",
+          "status": "PASS"
+        },
+        {
+          "name": "bought output capped other recipient",
+          "status": "PASS"
+        },
+        {
+          "name": "purchased intermediate residue capped and atomic rollback",
+          "status": "PASS"
+        },
+        {
+          "name": "protocol-exempt buy/sell previews rejected",
+          "status": "PASS"
+        },
+        {
+          "name": "ordinary guarded intermediate buy/sell",
+          "status": "PASS"
+        },
+        {
+          "name": "independent same-transaction routes cooldown and atomic rollback",
+          "status": "PASS"
+        }
+      ],
+      "node": null,
+      "actual_smart_query_count": 0,
+      "query_checks": []
+    }
+  ]
+}
