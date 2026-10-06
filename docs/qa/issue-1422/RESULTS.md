@@ -155,3 +155,12 @@ hash of the complete version dump; the pinned image still identifies the full
 binary. Local scanning/provenance checks pass. No scanner rule was disabled,
 no status was fabricated, and the existing public-address policy issue remains
 a hosted-CI limitation rather than production or source-test acceptance.
+
+[Latest hosted pipeline 327](https://ci.cl8y.com/repos/7/pipeline/327/1) confirms
+the SDK receipt findings are resolved. Its remaining three scanner findings are
+the unchanged public Venus BSC market address in `oracle_safety.py` and two
+existing oracle tests. Hosted CI remains FAIL before functional steps; fixing
+that immutable scanner policy is separate from the qualified 3M source repair.
+The final committed contract/source bytes were also checked against every
+recorded input/output hash and the reconstructed original dirty build snapshot;
+full provenance verification passed without rewriting its original revision.

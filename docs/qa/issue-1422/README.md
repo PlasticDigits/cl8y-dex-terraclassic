@@ -127,21 +127,38 @@ Recorded implementation evidence: [RESULTS.md](RESULTS.md).
 ## Verify the public build receipt
 
 The published receipt uses explicit `path`/`sha256` entries for its hash maps.
-Its `metadata` preserves the original builder receipt fields. Reconstruct the
-canonical schema before running the existing provenance verifier:
+Its `metadata` preserves the original builder receipt fields. The build used a
+recorded dirty source snapshot before the fix was committed; the verifier checks
+both its base revision and source bytes. Reconstruct that exact snapshot instead
+of treating a later documentation/implementation commit as the build revision:
 
 ```bash
 python3 - <<'PYCODE'
-import json
+import hashlib, json, shutil, subprocess, tempfile
 from pathlib import Path
-public = json.loads(Path("docs/qa/issue-1422/evidence/build-provenance.json").read_text())
+root = Path.cwd().resolve()
+public = json.loads((root / "docs/qa/issue-1422/evidence/build-provenance.json").read_text())
 receipt = dict(public["metadata"])
 for field in ("artifacts", "source_inputs"):
     receipt[field] = {entry["path"]: entry["sha256"] for entry in public[field]}
-Path("/tmp/issue1422-build-provenance.json").write_text(json.dumps(receipt))
+parent = Path(tempfile.mkdtemp(prefix="issue1422-receipt-"))
+snapshot = parent / "checkout"
+subprocess.run(["git", "worktree", "add", "--detach", str(snapshot), receipt["source_commit"]], check=True)
+for field in ("source_inputs", "artifacts"):
+    for name, digest in receipt[field].items():
+        source = (root / name).resolve()
+        assert source.is_relative_to(root)
+        assert hashlib.sha256(source.read_bytes()).hexdigest() == digest, name
+        target = snapshot / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+record = parent / "receipt.json"
+record.write_text(json.dumps(receipt))
+subprocess.run(["python3", str(root / "scripts/ci/build-provenance.py"), "--root", str(snapshot), "--verify", str(record)], check=True)
+# Removes only the newly created temporary snapshot after successful verification.
+subprocess.run(["git", "worktree", "remove", "--force", str(snapshot)], check=True)
+shutil.rmtree(parent)
 PYCODE
-python3 scripts/ci/build-provenance.py --root "$PWD" \
-  --verify /tmp/issue1422-build-provenance.json
 ```
 
 Build or provide the reviewed matching artifacts first. A receipt alone does not
