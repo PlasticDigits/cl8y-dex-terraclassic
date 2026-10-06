@@ -914,7 +914,13 @@ async fn route_solve_excludes_code_id_frozen_pair() {
 
     let pool = common::setup_pool().await;
     let seed = common::seed_route_solve(&pool).await;
-    let prev = snapshot_frozen_pair_addresses();
+    struct RestoreFrozenPairs(HashSet<String>);
+    impl Drop for RestoreFrozenPairs {
+        fn drop(&mut self) {
+            replace_frozen_pair_addresses(std::mem::take(&mut self.0));
+        }
+    }
+    let _restore = RestoreFrozenPairs(snapshot_frozen_pair_addresses());
     replace_frozen_pair_addresses(HashSet::from(["terra1pairrouteabc".to_string()]));
 
     let app = common::build_test_app(pool).await;
@@ -925,6 +931,4 @@ async fn route_solve_excludes_code_id_frozen_pair() {
     );
     let resp = server.get(&url).await;
     resp.assert_status_not_found();
-
-    replace_frozen_pair_addresses(prev);
 }

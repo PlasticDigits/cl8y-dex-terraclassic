@@ -45,6 +45,11 @@ class RetryTests(unittest.TestCase):
         chain.tx("wasm", "execute")
         self.assertEqual(chain.default_key, "guard-fixture-owner")
         self.assertIn("guard-fixture-owner", chain.calls[0])
+        chain.tx_key = "reverse-fixture-owner"
+        chain.command = lambda *parts, stdin=None: chain.calls.append(parts) or json.dumps({"code": 0, "txhash": "synthetic"})
+        chain.tx("wasm", "execute")
+        self.assertEqual(chain.owner_key, "reverse-fixture-owner")
+        self.assertIn("reverse-fixture-owner", chain.calls[1])
 
     @patch.object(funding.time, "sleep")
     def test_non_sequence_code_with_sequence_text_is_not_retried(self, sleep):

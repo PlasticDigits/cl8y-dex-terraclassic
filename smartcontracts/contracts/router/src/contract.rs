@@ -1144,7 +1144,7 @@ mod issue1389_tests {
         }
     }
     fn operations(hops: usize, mode: u8, reverse: bool) -> Vec<SwapOperation> {
-        (0..hops)
+        let mut operations: Vec<_> = (0..hops)
             .map(|hop| {
                 let mode = if mode <= 2 {
                     mode
@@ -1169,7 +1169,11 @@ mod issue1389_tests {
                     min_return: Some(Uint128::one()),
                 }
             })
-            .collect()
+            .collect();
+        if reverse {
+            operations.reverse();
+        }
+        operations
     }
     fn response(amount: Uint128) -> pair::HybridSimulationResponse {
         pair::HybridSimulationResponse {
