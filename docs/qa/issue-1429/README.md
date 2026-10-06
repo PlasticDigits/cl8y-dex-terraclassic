@@ -143,7 +143,8 @@ Source verified on **2026-10-06 at 07:13 UTC**, against base
 `fix/issue-1429-manager-policy-recovery`. Contract-source SHA256 is
 `b9cebba5b8d2ca73c56e19d28cc4d80287b2f6c7f2e34e52c624068cf0e6084e`
 over the 165 sorted tracked `smartcontracts/**/*.rs`, `Cargo.toml` and `Cargo.lock`
-source files (excluding build outputs),
+source files (excluding build outputs), ordered by path components with Python
+`sorted(Path(...))`,
 hashing each relative path, NUL, contents and NUL. Checked AC1–AC5 represent
 inventory and source/multitest evidence; deployment remains separate.
 
