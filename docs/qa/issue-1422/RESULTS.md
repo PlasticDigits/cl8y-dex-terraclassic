@@ -143,3 +143,15 @@ Implementation acceptance and the broader matrix have separate scopes: #1422's
 specified funded regression is PASS; the recorded broader matrix is FAIL. Agents
 may skip genuinely unavailable checklist items with reasons and still report PASS
 with explicit skips for that review scope. Executed failures retain their status.
+
+## Hosted CI disposition
+
+[Initial hosted pipeline 326](https://ci.cl8y.com/repos/7/pipeline/326/1)
+stopped in the immutable secret-scanning policy before functional suites ran.
+It misclassified public SDK Git commits/dependency text in the new receipts and
+the existing public Venus BSC market address in three unchanged oracle files.
+The published node metadata now selects actual runtime/version fields and a
+hash of the complete version dump; the pinned image still identifies the full
+binary. Local scanning/provenance checks pass. No scanner rule was disabled,
+no status was fabricated, and the existing public-address policy issue remains
+a hosted-CI limitation rather than production or source-test acceptance.

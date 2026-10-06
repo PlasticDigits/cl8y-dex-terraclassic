@@ -8,6 +8,7 @@ identical to LCD query-meter readings. No production queries or state resets.
 import argparse
 import base64
 import importlib.util
+import hashlib
 import json
 import re
 import subprocess
@@ -35,8 +36,17 @@ def node_metadata(chain, args):
     assert pinned_image and inspected["Config"]["Image"] == pinned_image.group(1), "Use the reviewed repository-pinned SDK53 image"
     version = chain.command("terrad", "version", "--long")
     assert "cosmos_sdk_version: v0.53." in version, "Expected SDK53 node"
+    # Image identity pins the complete binary; publish concise runtime fields.
+    # Avoid an irrelevant dependency dump being mistaken for access-token data.
+    version_fields = {}
+    for line in version.splitlines():
+        key, separator, value = line.partition(":")
+        if separator and key in {"app_name", "commit", "cosmos_sdk_version", "go",
+                                "name", "version", "wasmvm_version", "build_tags"}:
+            version_fields[key] = value.strip()
     return {"container": chain.container, "image": inspected["Config"]["Image"],
-            "image_id": inspected["Image"], "terrad_version": version,
+            "image_id": inspected["Image"], "terrad_version": version_fields,
+            "terrad_version_dump_sha256": hashlib.sha256(version.encode()).hexdigest(),
             "wasm_query_gas_limit": actual_limit}
 
 
