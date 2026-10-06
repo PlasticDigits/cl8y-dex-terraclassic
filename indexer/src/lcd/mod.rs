@@ -66,6 +66,10 @@ pub enum LcdError {
     /// fan out to other endpoints or WARN.
     #[error("LCD contract query rejected: {0}")]
     ContractQueryRejected(String),
+    /// A provider's finite smart-query gas ceiling was exhausted. Do not repeat
+    /// the same query on another endpoint or mark the provider unhealthy.
+    #[error("LCD smart-query gas limit exceeded: {0}")]
+    QueryGasLimitExceeded(String),
     #[error("Request error: {0}")]
     Request(#[from] reqwest::Error),
     #[error("Deserialization error: {0}")]
@@ -106,6 +110,17 @@ fn should_cooldown_endpoint(status: reqwest::StatusCode) -> bool {
     let code = status.as_u16();
     // Rate limits and gateway failures — back off this endpoint and try others.
     code == 429 || code == 408 || code >= 502
+}
+
+fn is_query_gas_limit_exceeded(status: reqwest::StatusCode, path: &str, body: &str) -> bool {
+    if status.as_u16() != 500
+        || !path.starts_with("/cosmwasm/wasm/v1/contract/")
+        || !path.contains("/smart/")
+    {
+        return false;
+    }
+    let lower = body.to_ascii_lowercase();
+    lower.contains("out of gas") && lower.contains("gaswanted") && lower.contains("gasused")
 }
 
 #[derive(Clone)]
@@ -239,6 +254,14 @@ impl LcdClient {
                     if !status.is_success() {
                         let body = text;
                         let body_snippet = body.chars().take(200).collect::<String>();
+                        if is_query_gas_limit_exceeded(status, path, &body) {
+                            tracing::debug!(
+                                endpoint_idx = idx,
+                                path = log_path,
+                                "LCD smart-query gas limit exceeded"
+                            );
+                            return Err(LcdError::QueryGasLimitExceeded(body_snippet));
+                        }
                         if is_deterministic_contract_query_reject(status, path, &body) {
                             // Expected on mainnet when foreign contracts emit compatible swap
                             // events but reject our pair/factory queries. Do not WARN or retry
@@ -896,6 +919,94 @@ mod tests {
             "unexpected: {err}"
         );
         assert_eq!(hits_b.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn wasm_query_gas_limit_does_not_fan_out_or_cool_down() {
+        use wiremock::matchers::path_regex;
+
+        let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
+        let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
+        let gas_rejection = Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+                "code": 2,
+                "message": "out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3043317",
+            })))
+            .expect(1)
+            .mount_as_scoped(&server_a)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "ok": true } })),
+            )
+            .expect(0)
+            .mount(&server_b)
+            .await;
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30_000,
+            "columbus-5",
+        );
+        let error = lcd
+            .query_contract::<serde_json::Value>(
+                "terra1router",
+                &json!({"simulate_swap_operations": {}}),
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(error, LcdError::QueryGasLimitExceeded(_)));
+        drop(gas_rejection);
+        Mock::given(method("GET"))
+            .and(path_regex(r"/cosmwasm/wasm/v1/contract/.+/smart/.+"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "data": { "ok": true } })),
+            )
+            .expect(1)
+            .mount(&server_a)
+            .await;
+        let quote: serde_json::Value = lcd
+            .query_contract("terra1router", &json!({"config": {}}))
+            .await
+            .unwrap();
+        assert_eq!(quote["ok"], true);
+    }
+
+    #[test]
+    fn wasm_query_gas_limit_classification_is_scoped() {
+        let path = "/cosmwasm/wasm/v1/contract/terra1router/smart/abc";
+        let body = "out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3043317";
+        let status = reqwest::StatusCode::INTERNAL_SERVER_ERROR;
+        assert!(is_query_gas_limit_exceeded(status, path, body));
+        assert!(!is_query_gas_limit_exceeded(
+            reqwest::StatusCode::BAD_GATEWAY,
+            path,
+            body
+        ));
+        assert!(!is_query_gas_limit_exceeded(
+            status,
+            "/cosmos/tx/v1beta1/txs",
+            body
+        ));
+        assert!(!is_query_gas_limit_exceeded(
+            status,
+            "/cosmwasm/wasm/v1/contract/terra1router/raw/abc",
+            body
+        ));
+        assert!(!is_query_gas_limit_exceeded(
+            status,
+            path,
+            "out of gas infrastructure failure"
+        ));
+        assert!(!is_query_gas_limit_exceeded(
+            status,
+            path,
+            "gasWanted: 3000000, gasUsed: 2000000"
+        ));
     }
 
     #[tokio::test]

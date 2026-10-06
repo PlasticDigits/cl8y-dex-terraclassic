@@ -1,0 +1,612 @@
+{
+  "utc": "2026-10-06T04:52:48.320058+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "gas_scope": "transaction including test-wrapper overhead",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c"
+    },
+    "cl8y_dex_router": {
+      "code_id": 3,
+      "sha256": "cb11ed967a31e8c7383c787a98e7a68ea83768d271f65d0eb79c2dbd555e3c2e"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    }
+  },
+  "probe_code": {
+    "code_id": 5,
+    "sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d"
+  },
+  "factory": "terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+  "router": "terra1qg5ega6dykkxc307y25pecuufrjkxkaggkkxh7nad0vhyhtuhw3slg2he2",
+  "pairs": [
+    "terra1fkwjqyfdyktgu5f59jpwhvl23zh8aav7f98ml9quly62jx2sehys0t5u5t",
+    "terra182jzjwdyl5fw43yujnlljddgtrkr04dpd30ywp2yn724u7qhtaqs4l0rrt",
+    "terra15jzyzklz8rq9gy38p4kcall0nqr8exglqg5870gglaq4c976vlxs450yxl",
+    "terra1yrnh5d60cp5tctt8ngv626u7g3ejkmmecc92etjt2wue5ff9wxsqx6ur6g"
+  ],
+  "pair_versions": {
+    "terra1fkwjqyfdyktgu5f59jpwhvl23zh8aav7f98ml9quly62jx2sehys0t5u5t": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "terra182jzjwdyl5fw43yujnlljddgtrkr04dpd30ywp2yn724u7qhtaqs4l0rrt": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "terra15jzyzklz8rq9gy38p4kcall0nqr8exglqg5870gglaq4c976vlxs450yxl": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "terra1yrnh5d60cp5tctt8ngv626u7g3ejkmmecc92etjt2wue5ff9wxsqx6ur6g": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    }
+  },
+  "router_version": {
+    "contract": "cl8y-dex-router",
+    "version": "1.3.1"
+  },
+  "tokens": [
+    "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+    "terra1xt4ahzz2x8hpkc0tk6ekte9x6crw4w6u0r67cyt3kz9syh24pd7stxg9k5",
+    "terra1kj8q8g2pmhnagmfepp9jh9g2mda7gzd0m5zdq0s08ulvac8ck4dq3zaj8s",
+    "terra1ma0g752dl0yujasnfs9yrk6uew7d0a2zrgvg62cfnlfftu2y0egqjpj90v",
+    "terra1ery8l6jquynn9a4cz2pff6khg8c68f7urt33l5n9dng2cwzz4c4qj3spm2"
+  ],
+  "decimals": [
+    6,
+    18,
+    6,
+    18,
+    6
+  ],
+  "checks": [
+    {
+      "label": "empty pool 1 hops reverse=False",
+      "gas_used": 929063,
+      "height": "160",
+      "txhash": "B24835C4DC9981EC351FDB475F15E69B6C6D3284BFB95A67FCC8312738673186",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 4 hops reverse=False",
+      "gas_used": 2363456,
+      "height": "164",
+      "txhash": "2234534959350396E9E56908DC3A1A30835DB0F6ACD2A16733D0186A8BE7DDCA",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 1 hops reverse=False",
+      "gas_used": 1074646,
+      "height": "173",
+      "txhash": "D8392DF17D3F55B48AB169198A1E667B00D7CB6465DB91D6862956C550F6BDB3",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 4 hops reverse=False",
+      "gas_used": 2945397,
+      "height": "177",
+      "txhash": "623951CD8F17B3C12FBECC164C7D4174506FD104A7D2AE7092A425AD3CC05CCA",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 1 hops reverse=False",
+      "gas_used": 942694,
+      "height": "181",
+      "txhash": "68EE66BE7B48BF5762C3EFEB5E9813D5DFBF65042B9C7275D21400E4BE3E2940",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 2 hops reverse=False",
+      "gas_used": 1434285,
+      "height": "186",
+      "txhash": "DF1D7BEDAE7E88A3D31D0E7857F3B04ECDBA5ABC8634F99CDFF8253FB1025C72",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "declared whole-request denial reverse=False",
+      "gas_used": 1369339,
+      "height": "191",
+      "txhash": "8D9FD72A378DCCFC1326D3A8466444683868593AA7F7D85C04526E912045F1AD",
+      "query_status": "error",
+      "error": "Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed",
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 1 hops reverse=True",
+      "gas_used": 929070,
+      "height": "193",
+      "txhash": "BC638BAEE3CE8BDCD662F74A03B537A166FFBA875F1BD5C7D0113EF30EE23262",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty pool 4 hops reverse=True",
+      "gas_used": 2363459,
+      "height": "197",
+      "txhash": "B35BF40E81913CA81636D4F4FFBD99D02CDC6BD0130315BE26CE8B31708FE6C3",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 1 hops reverse=True",
+      "gas_used": 1074654,
+      "height": "201",
+      "txhash": "63271448BA0D3C1FF1039CE1086CE6C8B44DD9732C1642EC1EFD5FE00DA475D6",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty greedy 4 hops reverse=True",
+      "gas_used": 2945375,
+      "height": "204",
+      "txhash": "8887DC7D961B0CAC034F9539B399B628F97C466B198D78124773899299327396",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 1 hops reverse=True",
+      "gas_used": 942691,
+      "height": "208",
+      "txhash": "6142D33BB9AF78FE8FFD3B5DE2E0A4CC06FD5921D66C4BDB4609CF74C4C7FF22",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "empty declared 2 hops reverse=True",
+      "gas_used": 1434279,
+      "height": "213",
+      "txhash": "6EF64D7872EB4D44913278F1C1CCDA163AFE33F97E0AA8517B33EAC0A75A678A",
+      "query_status": "ok",
+      "error": null,
+      "status": "PASS"
+    },
+    {
+      "label": "declared whole-request denial reverse=True",
+      "gas_used": 1369317,
+      "height": "218",
+      "txhash": "F2A1F4F71587DE3FFD2AEFF7429195E3A68A67208F1C78107441354B8454B369",
+      "query_status": "error",
+      "error": "Generic error: REVERSE_QUERY_BUDGET_EXCEEDED: query wasm contract failed"
+    }
+  ],
+  "status": "FAIL",
+  "receipts": [
+    {
+      "txhash": "EB962170D524CBE25436712C5A351B16095F08CEEF8BC1C5C406E11D188DE0CB",
+      "height": "46",
+      "code": 0,
+      "gas_used": "178041"
+    },
+    {
+      "txhash": "28F63CEB1CA184304EBA542BCDA56B14039CA1BFF0BF9E587BDD055A8939F33B",
+      "height": "48",
+      "code": 0,
+      "gas_used": "2779294"
+    },
+    {
+      "txhash": "808D88DBD0BF017BC347214C090A249C1A9002327159DD3081862E2FFBD54897",
+      "height": "56",
+      "code": 0,
+      "gas_used": "4950374"
+    },
+    {
+      "txhash": "7F2541AB1B5E68329AA9000E46010E0E916D0B894A4FC16D16449A399D985DAB",
+      "height": "65",
+      "code": 0,
+      "gas_used": "2808447"
+    },
+    {
+      "txhash": "496AF11BAF0C90781AC950E9CDFF1F9F5FBEED8AD95EE14B57DD03EC9F05EA00",
+      "height": "73",
+      "code": 0,
+      "gas_used": "2219041"
+    },
+    {
+      "txhash": "ACE2754D78E65AFD466C0522EE0A5483CE333163D4EAF953EB9E6E5A0980A9B4",
+      "height": "81",
+      "code": 0,
+      "gas_used": "1051505"
+    },
+    {
+      "txhash": "5B082D9FACA93E18CB83B2B0D5C651F5326DD48960DDE3733E097378D01846FE",
+      "height": "85",
+      "code": 0,
+      "gas_used": "178055"
+    },
+    {
+      "txhash": "1AE375B68795052F75BFEE86CAFD32F3A398F0D99852B0D12001DF122D892477",
+      "height": "88",
+      "code": 0,
+      "gas_used": "193713"
+    },
+    {
+      "txhash": "EE4FE640E48A1DE6260BC5D433DE69AA71FE56C116222C875A0E7F77DF5D259E",
+      "height": "91",
+      "code": 0,
+      "gas_used": "173529"
+    },
+    {
+      "txhash": "8B7C9BE6253E04631A415DF425F43783314BFCE031B2A248995890BCEF9C5929",
+      "height": "93",
+      "code": 0,
+      "gas_used": "160626"
+    },
+    {
+      "txhash": "D5295267F9075AFADE9009D9FE27B5AF47DE0CC1A9360C301C9879C76BFA8DD8",
+      "height": "96",
+      "code": 0,
+      "gas_used": "188500"
+    },
+    {
+      "txhash": "73FD3B50686A61C6FDD6FE6A0FD348266B21ECDBC1471BD170ACBF9861F20D1F",
+      "height": "99",
+      "code": 0,
+      "gas_used": "189778"
+    },
+    {
+      "txhash": "9E6E63156E0BDDF546BA1893672FE923A795A7FC066E7B25BEB75DF822EECA00",
+      "height": "102",
+      "code": 0,
+      "gas_used": "188500"
+    },
+    {
+      "txhash": "8EE1E2EF4FA8929AAC0A15B0EE710F2C6A20E995A5F937CA12F062C86DCD13E1",
+      "height": "105",
+      "code": 0,
+      "gas_used": "189778"
+    },
+    {
+      "txhash": "2B1B9823897958B794C54579C47D2E0315701824F4AD8F3378B1FEFAB8F16454",
+      "height": "107",
+      "code": 0,
+      "gas_used": "188500"
+    },
+    {
+      "txhash": "AE1A55A3AF03990940C785714C5D58ADBF119B785B5D5512DD2D8580121E95DC",
+      "height": "109",
+      "code": 0,
+      "gas_used": "754313"
+    },
+    {
+      "txhash": "407E43C4307F6FE0332CA02A60679CFE384578F5258E8541A64A3891266DDE48",
+      "height": "112",
+      "code": 0,
+      "gas_used": "144637"
+    },
+    {
+      "txhash": "71473487DB1D2D32928EBB5B8085E4AF83D346780EE6A93C806721B18397DD3C",
+      "height": "114",
+      "code": 0,
+      "gas_used": "145511"
+    },
+    {
+      "txhash": "476808C1756326B6251DB5B9BC2F0ACAA959C8B13B1294856697E0CC55AB9DBC",
+      "height": "116",
+      "code": 0,
+      "gas_used": "931582"
+    },
+    {
+      "txhash": "ABCB49B7A8198F81CE3088B3672225DD358D15FF6BE777C08F6490E4F3A06D4D",
+      "height": "118",
+      "code": 0,
+      "gas_used": "754325"
+    },
+    {
+      "txhash": "D9E53841B944D11E5BDD74281CFC02744F37A6C96630F5E28567993ED67001EF",
+      "height": "121",
+      "code": 0,
+      "gas_used": "145511"
+    },
+    {
+      "txhash": "43DA136C458CB5C35E2F1AC33ADB6DD3A50D6CC6906F19E68F4834932B0FE821",
+      "height": "123",
+      "code": 0,
+      "gas_used": "144637"
+    },
+    {
+      "txhash": "A803F2FDB9B27589DC19D552D468A429450A389405EB4A66562A17BBC7F3FA97",
+      "height": "125",
+      "code": 0,
+      "gas_used": "931580"
+    },
+    {
+      "txhash": "7DE78A5CB5361C914F2A19F11792C703054575C26C25C85D3D7259E8EC477204",
+      "height": "132",
+      "code": 0,
+      "gas_used": "754451"
+    },
+    {
+      "txhash": "CBFFBC7C081D025C6D8CE427FB29E09D935E557F88094AB1AF96DBA1AE0A853E",
+      "height": "135",
+      "code": 0,
+      "gas_used": "144637"
+    },
+    {
+      "txhash": "4BD2AEF93C66CD2B27DCDCAAC56A8EE63F8AB4C91557C5EF3D657936FDD0BDD2",
+      "height": "137",
+      "code": 0,
+      "gas_used": "145511"
+    },
+    {
+      "txhash": "8FC44B34C6922B64BD703DD825E424507F881B6CEE0586E41FDEACDBA33EE35C",
+      "height": "139",
+      "code": 0,
+      "gas_used": "931590"
+    },
+    {
+      "txhash": "B1FF5B95C7CA6EF1CF60458F76B65F54E315E2CC76D12FBDFD595A2C59F6F909",
+      "height": "141",
+      "code": 0,
+      "gas_used": "754451"
+    },
+    {
+      "txhash": "F96EC5C3C33B8D40214DC5A8819A94761CDD8A2F5A7035AC3E92B1E81FA12D16",
+      "height": "144",
+      "code": 0,
+      "gas_used": "145511"
+    },
+    {
+      "txhash": "BF0E5B6BEC7F6478D16D415FBC3A5C050896DF2342674752F58D9B3BDA0B38AA",
+      "height": "151",
+      "code": 0,
+      "gas_used": "144637"
+    },
+    {
+      "txhash": "5A4D193705669745AA34F4E9C2E6DF736E398FCD3A933F9EA9790063DC614064",
+      "height": "153",
+      "code": 0,
+      "gas_used": "931592"
+    },
+    {
+      "txhash": "B24835C4DC9981EC351FDB475F15E69B6C6D3284BFB95A67FCC8312738673186",
+      "height": "160",
+      "code": 0,
+      "gas_used": "929063"
+    },
+    {
+      "txhash": "2234534959350396E9E56908DC3A1A30835DB0F6ACD2A16733D0186A8BE7DDCA",
+      "height": "164",
+      "code": 0,
+      "gas_used": "2363456"
+    },
+    {
+      "txhash": "D8392DF17D3F55B48AB169198A1E667B00D7CB6465DB91D6862956C550F6BDB3",
+      "height": "173",
+      "code": 0,
+      "gas_used": "1074646"
+    },
+    {
+      "txhash": "623951CD8F17B3C12FBECC164C7D4174506FD104A7D2AE7092A425AD3CC05CCA",
+      "height": "177",
+      "code": 0,
+      "gas_used": "2945397"
+    },
+    {
+      "txhash": "68EE66BE7B48BF5762C3EFEB5E9813D5DFBF65042B9C7275D21400E4BE3E2940",
+      "height": "181",
+      "code": 0,
+      "gas_used": "942694"
+    },
+    {
+      "txhash": "DF1D7BEDAE7E88A3D31D0E7857F3B04ECDBA5ABC8634F99CDFF8253FB1025C72",
+      "height": "186",
+      "code": 0,
+      "gas_used": "1434285"
+    },
+    {
+      "txhash": "8D9FD72A378DCCFC1326D3A8466444683868593AA7F7D85C04526E912045F1AD",
+      "height": "191",
+      "code": 0,
+      "gas_used": "1369339"
+    },
+    {
+      "txhash": "BC638BAEE3CE8BDCD662F74A03B537A166FFBA875F1BD5C7D0113EF30EE23262",
+      "height": "193",
+      "code": 0,
+      "gas_used": "929070"
+    },
+    {
+      "txhash": "B35BF40E81913CA81636D4F4FFBD99D02CDC6BD0130315BE26CE8B31708FE6C3",
+      "height": "197",
+      "code": 0,
+      "gas_used": "2363459"
+    },
+    {
+      "txhash": "63271448BA0D3C1FF1039CE1086CE6C8B44DD9732C1642EC1EFD5FE00DA475D6",
+      "height": "201",
+      "code": 0,
+      "gas_used": "1074654"
+    },
+    {
+      "txhash": "8887DC7D961B0CAC034F9539B399B628F97C466B198D78124773899299327396",
+      "height": "204",
+      "code": 0,
+      "gas_used": "2945375"
+    },
+    {
+      "txhash": "6142D33BB9AF78FE8FFD3B5DE2E0A4CC06FD5921D66C4BDB4609CF74C4C7FF22",
+      "height": "208",
+      "code": 0,
+      "gas_used": "942691"
+    },
+    {
+      "txhash": "6EF64D7872EB4D44913278F1C1CCDA163AFE33F97E0AA8517B33EAC0A75A678A",
+      "height": "213",
+      "code": 0,
+      "gas_used": "1434279"
+    },
+    {
+      "txhash": "F2A1F4F71587DE3FFD2AEFF7429195E3A68A67208F1C78107441354B8454B369",
+      "height": "218",
+      "code": 0,
+      "gas_used": "1369317"
+    }
+  ],
+  "node": {
+    "scope": "prior #1389 synthetic reverse matrix only; not 3M funded-provider evidence",
+    "query_gas_limit": 15000000,
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "status": {
+      "jsonrpc": "2.0",
+      "id": -1,
+      "result": {
+        "node_info": {
+          "protocol_version": {
+            "p2p": "8",
+            "block": "11",
+            "app": "0"
+          },
+          "id": "651521afc47d94be8f16cbd045bde535f9ab492c",
+          "listen_addr": "tcp://0.0.0.0:26656",
+          "network": "localterra",
+          "version": "0.38.19",
+          "channels": "40202122233038606100",
+          "moniker": "localterra",
+          "other": {
+            "tx_index": "on",
+            "rpc_address": "tcp://0.0.0.0:26657"
+          }
+        },
+        "sync_info": {
+          "latest_block_hash": "D9D9D48A2C60B5882051CAF32460601120CD8BF52C55AC8F33C4F5C29DAAB8C3",
+          "latest_app_hash": "3CA0F95D3DCAD64DAAAFB2D7304ABD375776A540E565C11848017451BB15816E",
+          "latest_block_height": "40",
+          "latest_block_time": "2026-10-06T04:52:24.12002432Z",
+          "earliest_block_hash": "178369464F8C6CB3CC2B77AADB2AA7D958A5D0A9456798833DFC5A72C96397A0",
+          "earliest_app_hash": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+          "earliest_block_height": "1",
+          "earliest_block_time": "2026-10-06T04:52:14.934748454Z",
+          "catching_up": false
+        },
+        "validator_info": {
+          "address": "F4A84D61E1701E6740E0553C7315ED5612EF755A",
+          "pub_key": {
+            "type": "tendermint/PubKeyEd25519",
+            "value": "ytJBKP65auY5BouvnZkWynddskEOkqcF3Js+6QqveEs="
+          },
+          "voting_power": "10"
+        }
+      }
+    },
+    "terrad_version": "build_deps:\n- cel.dev/expr@v0.24.0\n- cloud.google.com/go@v0.121.2\n- cloud.google.com/go/auth@v0.16.4\n- cloud.google.com/go/auth/oauth2adapt@v0.2.8\n- cloud.google.com/go/compute/metadata@v0.8.0\n- cloud.google.com/go/iam@v1.5.2\n- cloud.google.com/go/monitoring@v1.24.2\n- cloud.google.com/go/storage@v1.53.0\n- cosmossdk.io/api@v0.9.2\n- cosmossdk.io/client/v2@v2.0.0-beta.8\n- cosmossdk.io/collections@v1.3.1\n- cosmossdk.io/core@v0.11.3\n- cosmossdk.io/depinject@v1.2.1\n- cosmossdk.io/errors@v1.0.2\n- cosmossdk.io/log@v1.6.1\n- cosmossdk.io/math@v1.5.3\n- cosmossdk.io/schema@v1.1.0\n- cosmossdk.io/store@v1.1.2\n- cosmossdk.io/x/evidence@v0.2.0\n- cosmossdk.io/x/feegrant@v0.2.0\n- cosmossdk.io/x/tx@v1.1.0\n- cosmossdk.io/x/upgrade@v0.2.0\n- filippo.io/edwards25519@v1.1.0\n- github.com/99designs/keyring@v1.2.2 => github.com/cosmos/keyring@v1.2.0\n- github.com/CosmWasm/wasmd@v0.61.8\n- github.com/CosmWasm/wasmvm/v3@v3.0.3\n- github.com/DataDog/datadog-go@v4.8.3+incompatible\n- github.com/DataDog/zstd@v1.5.7\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.29.0\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric@v0.51.0\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping@v0.51.0\n- github.com/aws/aws-sdk-go@v1.55.8\n- github.com/beorn7/perks@v1.0.1\n- github.com/bgentry/go-netrc@v0.0.0-20140422174119-9fd32a8b3d3d\n- github.com/bgentry/speakeasy@v0.2.0\n- github.com/bits-and-blooms/bitset@v1.24.3\n- github.com/bytedance/gopkg@v0.1.3\n- github.com/bytedance/sonic@v1.14.2\n- github.com/bytedance/sonic/loader@v0.4.0\n- github.com/cenkalti/backoff/v4@v4.3.0\n- github.com/cespare/xxhash/v2@v2.3.0\n- github.com/chzyer/readline@v1.5.1\n- github.com/cloudwego/base64x@v0.1.6\n- github.com/cncf/xds/go@v0.0.0-20250501225837-2ac532fd4443\n- github.com/cockroachdb/apd/v2@v2.0.2\n- github.com/cockroachdb/errors@v1.12.0\n- github.com/cockroachdb/fifo@v0.0.0-20240816210425-c5d0cb0b6fc0\n- github.com/cockroachdb/logtags@v0.0.0-20241215232642-bb51bb14a506\n- github.com/cockroachdb/pebble@v1.1.5\n- github.com/cockroachdb/redact@v1.1.6\n- github.com/cockroachdb/tokenbucket@v0.0.0-20250429170803-42689b6311bb\n- github.com/cometbft/cometbft@v0.38.21\n- github.com/cometbft/cometbft-db@v0.14.1\n- github.com/cosmos/btcutil@v1.0.5\n- github.com/cosmos/cosmos-db@v1.1.3\n- github.com/cosmos/cosmos-proto@v1.0.0-beta.5\n- github.com/cosmos/cosmos-sdk@v0.53.6\n- github.com/cosmos/go-bip39@v1.0.0\n- github.com/cosmos/gogogateway@v1.2.0\n- github.com/cosmos/gogoproto@v1.7.2\n- github.com/cosmos/iavl@v1.2.6\n- github.com/cosmos/ibc-apps/modules/ibc-hooks/v10@v10.0.0-20250826214904-d53749a559f6\n- github.com/cosmos/ibc-go/v10@v10.5.0\n- github.com/cosmos/ics23/go@v0.11.0\n- github.com/cosmos/ledger-cosmos-go@v1.0.0\n- github.com/davecgh/go-spew@v1.1.2-0.20180830191138-d8f796af33cc\n- github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.0\n- github.com/desertbit/timer@v1.0.1\n- github.com/distribution/reference@v0.5.0\n- github.com/dvsekhvalnov/jose2go@v1.8.0\n- github.com/emicklei/dot@v1.8.0\n- github.com/envoyproxy/go-control-plane/envoy@v1.32.4\n- github.com/envoyproxy/protoc-gen-validate@v1.2.1\n- github.com/ethereum/go-ethereum@v1.16.8\n- github.com/fatih/color@v1.18.0\n- github.com/felixge/httpsnoop@v1.0.4\n- github.com/fsnotify/fsnotify@v1.9.0\n- github.com/getsentry/sentry-go@v0.35.0\n- github.com/go-jose/go-jose/v4@v4.1.1\n- github.com/go-kit/kit@v0.13.0\n- github.com/go-kit/log@v0.2.1\n- github.com/go-logfmt/logfmt@v0.6.0\n- github.com/go-logr/logr@v1.4.3\n- github.com/go-logr/stdr@v1.2.2\n- github.com/go-viper/mapstructure/v2@v2.4.0\n- github.com/godbus/dbus@v0.0.0-20190726142602-4481cbc300e2\n- github.com/gogo/googleapis@v1.4.1\n- github.com/gogo/protobuf@v1.3.3 => github.com/regen-network/protobuf@v1.3.3-alpha.regen.1\n- github.com/golang/protobuf@v1.5.4\n- github.com/golang/snappy@v1.0.0\n- github.com/google/btree@v1.1.3\n- github.com/google/go-cmp@v0.7.0\n- github.com/google/gofuzz@v1.2.0\n- github.com/google/orderedcode@v0.0.1\n- github.com/google/s2a-go@v0.1.9\n- github.com/google/uuid@v1.6.0\n- github.com/googleapis/enterprise-certificate-proxy@v0.3.6\n- github.com/googleapis/gax-go/v2@v2.15.0\n- github.com/gorilla/handlers@v1.5.2\n- github.com/gorilla/mux@v1.8.1\n- github.com/gorilla/websocket@v1.5.3\n- github.com/grpc-ecosystem/go-grpc-middleware@v1.4.0\n- github.com/grpc-ecosystem/grpc-gateway@v1.16.0\n- github.com/gsterjov/go-libsecret@v0.0.0-20161001094733-a6f4afe4910c\n- github.com/hashicorp/go-cleanhttp@v0.5.2\n- github.com/hashicorp/go-getter@v1.7.9\n- github.com/hashicorp/go-hclog@v1.6.3\n- github.com/hashicorp/go-immutable-radix@v1.3.1\n- github.com/hashicorp/go-metrics@v0.5.4\n- github.com/hashicorp/go-plugin@v1.7.0\n- github.com/hashicorp/go-safetemp@v1.0.0\n- github.com/hashicorp/go-version@v1.7.0\n- github.com/hashicorp/golang-lru@v1.0.2\n- github.com/hashicorp/golang-lru/v2@v2.0.7\n- github.com/hashicorp/yamux@v0.1.2\n- github.com/hdevalence/ed25519consensus@v0.2.0\n- github.com/holiman/uint256@v1.3.2\n- github.com/huandu/skiplist@v1.2.1\n- github.com/iancoleman/strcase@v0.3.0\n- github.com/improbable-eng/grpc-web@v0.15.0\n- github.com/jmespath/go-jmespath@v0.4.0\n- github.com/klauspost/compress@v1.18.0\n- github.com/klauspost/cpuid/v2@v2.2.10\n- github.com/kr/pretty@v0.3.1\n- github.com/kr/text@v0.2.0\n- github.com/lib/pq@v1.12.0\n- github.com/manifoldco/promptui@v0.9.0\n- github.com/mattn/go-colorable@v0.1.14\n- github.com/mattn/go-isatty@v0.0.20\n- github.com/mdp/qrterminal/v3@v3.2.1\n- github.com/minio/highwayhash@v1.0.4\n- github.com/mitchellh/go-homedir@v1.1.0\n- github.com/mtibben/percent@v0.2.1\n- github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822\n- github.com/oasisprotocol/curve25519-voi@v0.0.0-20230904125328-1f23a7beb09a\n- github.com/oklog/run@v1.1.0\n- github.com/opencontainers/go-digest@v1.0.0\n- github.com/pelletier/go-toml/v2@v2.2.4\n- github.com/pkg/errors@v0.9.1\n- github.com/pmezard/go-difflib@v1.0.1-0.20181226105442-5d4384ee4fb2\n- github.com/prometheus/client_golang@v1.23.2\n- github.com/prometheus/client_model@v0.6.2\n- github.com/prometheus/common@v0.66.1\n- github.com/prometheus/procfs@v0.16.1\n- github.com/rakyll/statik@v0.1.7\n- github.com/rcrowley/go-metrics@v0.0.0-20201227073835-cf1acfcdf475\n- github.com/rogpeppe/go-internal@v1.14.1\n- github.com/rs/cors@v1.11.1\n- github.com/rs/zerolog@v1.34.0\n- github.com/sagikazarmark/locafero@v0.11.0\n- github.com/shamaton/msgpack/v2@v2.2.3\n- github.com/sourcegraph/conc@v0.3.1-0.20240121214520-5f936abd7ae8\n- github.com/spf13/afero@v1.15.0\n- github.com/spf13/cast@v1.10.0\n- github.com/spf13/cobra@v1.10.2\n- github.com/spf13/pflag@v1.0.10\n- github.com/spf13/viper@v1.21.0\n- github.com/spiffe/go-spiffe/v2@v2.5.0\n- github.com/stretchr/testify@v1.11.1\n- github.com/subosito/gotenv@v1.6.0\n- github.com/syndtr/goleveldb@v1.0.1-0.20220721030215-126854af5e6d => github.com/classic-terra/goleveldb@v0.0.0-20230914223247-2b28f6655121\n- github.com/tendermint/go-amino@v0.16.0\n- github.com/tidwall/btree@v1.8.1\n- github.com/twitchyliquid64/golang-asm@v0.15.1\n- github.com/ulikunitz/xz@v0.5.14\n- github.com/zeebo/errs@v1.4.0\n- github.com/zondax/golem@v0.27.0\n- github.com/zondax/hid@v0.9.2\n- github.com/zondax/ledger-go@v1.0.1\n- go.opentelemetry.io/auto/sdk@v1.1.0\n- go.opentelemetry.io/contrib/detectors/gcp@v1.36.0\n- go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@v0.61.0\n- go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.62.0\n- go.opentelemetry.io/otel@v1.37.0\n- go.opentelemetry.io/otel/metric@v1.37.0\n- go.opentelemetry.io/otel/sdk@v1.37.0\n- go.opentelemetry.io/otel/sdk/metric@v1.37.0\n- go.opentelemetry.io/otel/trace@v1.37.0\n- go.uber.org/mock@v0.6.0\n- go.uber.org/multierr@v1.11.0\n- go.uber.org/zap@v1.27.0\n- go.yaml.in/yaml/v2@v2.4.2\n- go.yaml.in/yaml/v3@v3.0.4\n- golang.org/x/arch@v0.17.0\n- golang.org/x/crypto@v0.45.0\n- golang.org/x/exp@v0.0.0-20250506013437-ce4c2cf36ca6 => golang.org/x/exp@v0.0.0-20250506013437-ce4c2cf36ca6\n- golang.org/x/net@v0.47.0\n- golang.org/x/oauth2@v0.30.0\n- golang.org/x/sync@v0.19.0\n- golang.org/x/sys@v0.38.0\n- golang.org/x/term@v0.37.0\n- golang.org/x/text@v0.31.0\n- golang.org/x/time@v0.12.0\n- google.golang.org/api@v0.247.0\n- google.golang.org/genproto@v0.0.0-20250603155806-513f23925822\n- google.golang.org/genproto/googleapis/api@v0.0.0-20250908214217-97024824d090\n- google.golang.org/genproto/googleapis/rpc@v0.0.0-20250826171959-ef028d996bc1\n- google.golang.org/grpc@v1.75.1\n- google.golang.org/protobuf@v1.36.10\n- gopkg.in/yaml.v2@v2.4.0\n- gopkg.in/yaml.v3@v3.0.1\n- gotest.tools/v3@v3.5.2\n- nhooyr.io/websocket@v1.8.17\n- pgregory.net/rapid@v1.2.0\n- rsc.io/qr@v0.2.0\n- sigs.k8s.io/yaml@v1.6.0\nbuild_tags: netgo ledger,\ncommit: 9a5ee563874ce3906c3ca7069f0160de51f89c40\ncosmos_sdk_version: v0.53.6\ngo: go version go1.24.13 linux/amd64\nname: terra\nserver_name: terrad\nversion: 4.0.1\n\n"
+  },
+  "failure": "Full greedy four-hop actual smart query exceeded separate15M provider limit: gasWanted15000000 gasUsed15045302; expected REVERSE_QUERY_BUDGET_EXCEEDED was not reached.",
+  "failed_smart_query": {
+    "label": "full greedy four-hop reverse=False",
+    "contract": "terra1qg5ega6dykkxc307y25pecuufrjkxkaggkkxh7nad0vhyhtuhw3slg2he2",
+    "message": {
+      "reverse_simulate_swap_operations": {
+        "ask_amount": "100000000",
+        "operations": [
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1xt4ahzz2x8hpkc0tk6ekte9x6crw4w6u0r67cyt3kz9syh24pd7stxg9k5"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          },
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1xt4ahzz2x8hpkc0tk6ekte9x6crw4w6u0r67cyt3kz9syh24pd7stxg9k5"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1kj8q8g2pmhnagmfepp9jh9g2mda7gzd0m5zdq0s08ulvac8ck4dq3zaj8s"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          },
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1kj8q8g2pmhnagmfepp9jh9g2mda7gzd0m5zdq0s08ulvac8ck4dq3zaj8s"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1ma0g752dl0yujasnfs9yrk6uew7d0a2zrgvg62cfnlfftu2y0egqjpj90v"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          },
+          {
+            "terra_swap": {
+              "offer_asset_info": {
+                "token": {
+                  "contract_addr": "terra1ma0g752dl0yujasnfs9yrk6uew7d0a2zrgvg62cfnlfftu2y0egqjpj90v"
+                }
+              },
+              "ask_asset_info": {
+                "token": {
+                  "contract_addr": "terra1ery8l6jquynn9a4cz2pff6khg8c68f7urt33l5n9dng2cwzz4c4qj3spm2"
+                }
+              },
+              "hybrid": null,
+              "greedy": {
+                "max_maker_fills": 100
+              },
+              "min_return": null
+            }
+          }
+        ]
+      }
+    },
+    "error": "out of gas in location: wasm contract; gasWanted: 15000000, gasUsed: 15045302: out of gas: unknown request",
+    "expected": "REVERSE_QUERY_BUDGET_EXCEEDED",
+    "status": "FAIL"
+  }
+}

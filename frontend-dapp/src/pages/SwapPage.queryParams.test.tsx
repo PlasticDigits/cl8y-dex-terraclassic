@@ -646,9 +646,11 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
   it.each([
     'reverse quote unavailable',
     'Reverse query work budget exhausted',
+    'out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3043317',
+    'router_query_gas_limit_exceeded: this route exceeds the provider smart-query gas limit',
     'Indexer API error: 429 Too Many Requests',
     'Indexer API error: 504 Gateway Timeout',
-  ])('failed receive refetch (%s) clears executable pay without an automatic retry (#1389)', async (failure) => {
+  ])('failed receive refetch (%s) clears executable pay without an automatic retry (#1389/#1422)', async (failure) => {
     seedCw20Route()
     useWalletStore.setState({ address: 'terra1wallet000000000000000000000000000001', walletType: 'dev' })
     vi.mocked(getConnectedWallet).mockReturnValue({} as never)

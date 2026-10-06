@@ -1,0 +1,12 @@
+{
+  "toolchain": "rustc/cargo 1.81.0",
+  "target": "wasm32-unknown-unknown",
+  "rustflags": "-C link-arg=--allow-undefined -C target-cpu=mvp",
+  "scope": "independent test-only probe; not a release contract",
+  "sources": {
+    "Cargo.toml": "e41502362e0e60bd4d7319cb955ab6bd62e5c0306fa55430110f02dea8eb7490",
+    "Cargo.lock": "0565e44250cc0e2f2cd45bf334f4c6eca336f4fa3a8d7c17f1652f1ad98d73bd",
+    "src/lib.rs": "bd68a022a3a13e377351f79c8727a7e24d886c0d8ad5c752c9eee3bf50a40097"
+  },
+  "wasm_sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d"
+}

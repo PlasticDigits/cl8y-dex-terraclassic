@@ -1958,3 +1958,7 @@ verify-issue-1388:
 .PHONY: verify-issue-1394
 verify-issue-1394:
 	bash scripts/verify-issue-1394.sh
+
+.PHONY: verify-issue-1422
+verify-issue-1422:
+	bash scripts/qa/verify-issue-1422.sh

@@ -344,6 +344,17 @@ describe('exact-output selected route validation (#1376)', () => {
     await expect(quoteCw20ExactOutputViaRouteSolve(request)).rejects.toThrow('cannot satisfy')
   })
 
+  it('propagates provider gas rejection without executable output or an alternate solver retry (#1422)', async () => {
+    vi.mocked(router.simulateMultiHopSwap).mockRejectedValueOnce(
+      new Error('out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3043317')
+    )
+    await expect(quoteCw20ExactOutputViaRouteSolve(request)).rejects.toThrow('out of gas')
+    expect(router.simulateMultiHopSwap).toHaveBeenCalledTimes(1)
+    expect(indexerClient.getRouteSolveExactOutput).toHaveBeenCalledTimes(1)
+    expect(indexerClient.getRouteSolve).not.toHaveBeenCalled()
+    expect(preflight.preflightSwapRouteSpread).not.toHaveBeenCalled()
+  })
+
   it.each(['drift', 'target', 'overflow', 'hybrid', 'disconnected', 'endpoint', 'intermediary', 'hop-limit'])(
     'rejects forged or stale %s responses before wallet work',
     async (kind) => {

@@ -370,6 +370,35 @@ direct-LCD bounds apply. This PR supplies implementation and test evidence;
 production pair rollout remains separately tracked by
 [#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386).
 
+## Funded reverse provider budget (#1422)
+
+[FRQ1422-1–FRQ1422-8](../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md) and the
+[reproducible 3M fixture/checklist](qa/issue-1422/README.md) supplement the work
+budget above. Router **1.3.1** reuses immutable capability and pair-address
+lookup results within one query. Each tax preview still runs for its exact amount,
+pair and original trader; no simulation or execution state is cached. The selected
+gross budget must pass the original fresh forward sufficiency check. Funding,
+launch guards, work bounds and signed minimum protection remain intact.
+
+The tested envelope uses actual optimized artifacts and the pinned SDK53 node's
+unchanged **3,000,000** smart-query limit for the six funded pool-route accounting
+fixtures, including CL8Y→ALPHA→BETA→USTR. Actual smart success is recorded separately
+from test-wrapper transaction gas. The 96 nested-simulation count is not a gas
+ceiling: token/pair state, active books and provider configuration contribute cost.
+No universal hybrid/book/provider or production-deployment guarantee follows.
+
+Indexer exact-output DB sizing is a separate path and requires a fresh router
+forward preflight. Provider smart-query gas exhaustion is a deterministic observable
+quote failure (`router_query_gas_limit_exceeded`, HTTP 422), not an endpoint-health
+signal to trigger fanout. Receive intent stays typed; stale Pay/operations clear;
+no automatic retry, weaker fallback or transaction resend occurs. Reconcile
+[#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384) and
+[#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386) using reviewed
+router **1.3.1** and pair **1.20.0** hashes plus real-provider read-only quote
+success at documented limits before rollout acceptance. Follow the
+[coordinated runbook](runbooks/route-local-tax-1381.md); a larger-limit node does
+not prove the 3M regression repaired or production quotes available.
+
 ## Funded trading capability and quote identity (#1381)
 
 `TRADING_TAX_FREE_CODE_IDS` registers reviewed ordinary CW20 implementations.

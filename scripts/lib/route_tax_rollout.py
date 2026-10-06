@@ -22,8 +22,8 @@ class RolloutError(RuntimeError):
 
 SPECS = {
     "factory": ("cl8y-dex-factory", "1.11.0", "cl8y_dex_factory.wasm"),
-    "pair": ("cl8y-dex-pair", "1.19.0", "cl8y_dex_pair.wasm"),
-    "router": ("cl8y-dex-router", "1.3.0", "cl8y_dex_router.wasm"),
+    "pair": ("cl8y-dex-pair", "1.20.0", "cl8y_dex_pair.wasm"),
+    "router": ("cl8y-dex-router", "1.3.1", "cl8y_dex_router.wasm"),
     "token": ("crates.io:cl8y-community-tax-token", "1.3.0", "cl8y_community_tax_token.wasm"),
     "launcher": ("crates.io:cl8y-community-token-launcher", "1.0.0", "cl8y_community_token_launcher.wasm"),
     "cmm": ("crates.io:treasury", "0.2.2", "treasury.wasm"),

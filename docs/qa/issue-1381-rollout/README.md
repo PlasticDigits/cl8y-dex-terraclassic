@@ -17,8 +17,8 @@ before preparing a new manifest; these observations are not migration receipts.
 | Component | Observed code / CW2 | Reviewed rollout action |
 |---|---|---|
 | Factory | 11629 / 1.10.0 | Store/migrate reviewed 1.11.0. The PR changes CW2 metadata only relative to repository factory code; live 1.10.0 has a different hash from the prior repository artifact, so a same-version migration is rejected. |
-| Router | 11640 / 1.1.0 | Store/migrate funding-version-1 router 1.3.0. |
-| Pair template | 11676 / 1.18.0 | Store reviewed 1.19.0, rotate factory template and migrate inventoried behind-version pairs. |
+| Router | 11640 / 1.1.0 | Store/migrate funding-version-1 router 1.3.1. |
+| Pair template | 11676 / 1.18.0 | Store reviewed 1.20.0, rotate factory template and migrate inventoried behind-version pairs. |
 | Launcher | 11632 / 1.0.0 | Retain compatible wasm, rotate `token_code_id`, preserve AutoLP/unrelated configuration. |
 | CMM | 11667 / 0.2.2 | Existing dispatcher meets the prerequisite; use actual `migrate_owned_contract` for its tokens, with no unnecessary CMM upgrade. |
 
@@ -136,3 +136,16 @@ guards and storage compatibility before choosing recovery. Keep the fleet paused
 and use a reviewed forward repair when a downgrade is unsupported.
 
 Recorded results and public synthetic receipts: [RESULTS.md](RESULTS.md).
+
+## Funded quote gas acceptance (#1422)
+
+The current pair **1.20.0** and router **1.3.1** targets supersede earlier
+pair 1.19.0/router 1.3.0 plans in #1384/#1386. Follow the
+[FRQ1422 invariants](../../../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md) and
+[reproducible checklist](../issue-1422/README.md). Before rollout acceptance,
+record reviewed hashes/cw2, provider limits, read-only funded forward/reverse
+payloads/results and the actual 3M local smart-query/probe evidence scope.
+Bounded source simulation counts are not provider gas measurements. A larger
+local limit does not establish compatibility or production deployment. Provider
+errors stay observable/deterministic; list unavailable live criteria as explicit
+skips while all feasible source/test-chain checks complete.

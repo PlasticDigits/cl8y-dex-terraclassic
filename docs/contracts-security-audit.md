@@ -192,3 +192,12 @@ When adding a new execute path or economic rule:
 **E1376 / pair 1.19.0:** pool-only reverse validates the exact minimum integer offer; fees use Uint256 products before checked narrowing. Hybrid requests retain the 32 full-simulation cap, safe brackets and cached sufficient responses. Exhaustion remains a typed error, not a minimal-offer claim. No storage schema change; every existing pair requires migration to use the new query code. [Verification and migration inventory](qa/issue-1376/README.md), [agent playbook](../skills/AGENTS_SWAP_EXACT_OUTPUT.md).
 
 Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.
+
+Funded reverse provider gas (#1422): [FRQ1422-1–FRQ1422-8](../skills/AGENTS_FUNDED_REVERSE_QUERY_BUDGET.md),
+[actual 3M fixture and agent checklist](qa/issue-1422/README.md),
+[coordinated rollout](runbooks/route-local-tax-1381.md#funded-reverse-provider-gas-validation-1422).
+Query-local immutable discovery reuse never caches tax previews or simulations;
+current amount/pair/original-trader previews, fresh forward sufficiency, bounded
+work and funding/launch/signing guards remain mandatory. Work counts are not
+provider gas limits; receipts establish only their documented fixture/overhead
+scope, and production acceptance requires independently observed live behavior.

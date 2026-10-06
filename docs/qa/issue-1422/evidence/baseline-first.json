@@ -1,0 +1,482 @@
+{
+  "utc": "2026-10-06T04:46:29.661419+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "owner_key": "issue1381-1791261969168483381",
+  "sink_key": "issue1381-1791261969903387090",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da",
+      "onchain_sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c",
+      "onchain_sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c"
+    },
+    "cl8y_dex_router": {
+      "code_id": 3,
+      "sha256": "311293710bc5d9ce9aea5e14b842a555e39876334f453aea2df85b384f43c3d4",
+      "onchain_sha256": "311293710bc5d9ce9aea5e14b842a555e39876334f453aea2df85b384f43c3d4"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "onchain_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 5,
+      "sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341",
+      "onchain_sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341"
+    }
+  },
+  "factory": "terra17s8kkfm5lf8lacz704f4fjmfxzuvyqd8cksakrlhnrass4yacvxqf3hz20",
+  "router": "terra1tn5t35tmu93fjp0xd5vlv8r7pqc9npgn2m7fj4k9jgaz7rrvhr0srf97f3",
+  "tokens": {
+    "CL8Y": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5",
+    "UST1": "terra1w4t2qpwvhyhz0g2mwgqjzgsw63dcy5hkfch0tgr8xj9qjcsauq8qmswzpq",
+    "USTR": "terra10dvlms4m555jk67qsrun5a87cn9gje967yl8hn5senjxlycdv37sx3clkg",
+    "ALPHA": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx",
+    "BETA": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+  },
+  "decimals": {
+    "CL8Y": 18,
+    "ALPHA": 6,
+    "BETA": 6,
+    "UST1": 6,
+    "USTR": 18
+  },
+  "pairs": {
+    "CL8Y/ALPHA": "terra1rnjl5kn06ssf7g443w92qe09pj7q7ekz5xg9dwvnryhpzrjaj76qmdq5gg",
+    "ALPHA/UST1": "terra1mlwtckadz8ez52cwssdjx0mvmwewaz2w63pxqep882095uqt0r3s9k49m7",
+    "UST1/USTR": "terra1uu7ggnkl4knssngtsqlnjtyy20xkln9343c7qrv6j2fj8luqr50qagzhus",
+    "ALPHA/BETA": "terra1t8r3w25qzpucwxw9e3s5fwqjkvn8uw3jvgvgukpzm9afehy7fmesv5wk4m",
+    "BETA/USTR": "terra19cxgvr0dne98yu0js67tr6v2xt57q53h7fcde3qtvgathhnqt7rqmhhqtk"
+  },
+  "checks": [],
+  "legacy_codes": {},
+  "migration_checks": [],
+  "status": "FAIL",
+  "receipts": [
+    {
+      "txhash": "2FF4109C658D58963FF3344965AEA65DD08DE77A3C5830C5A0F3CB669FEDD616",
+      "height": "5835",
+      "code": 0,
+      "gas_used": "178440"
+    },
+    {
+      "txhash": "2DA2573E57DF5A18DE92B7AE7E02DF69488037B46981BA7AF1AD0CFD0C699E8A",
+      "height": "5838",
+      "code": 0,
+      "gas_used": "191467"
+    },
+    {
+      "txhash": "651F8A72DFDB464B3EB9D91381C3B772F8FCEE44123B05CADEB68ED0FF062D1A",
+      "height": "5846",
+      "code": 0,
+      "gas_used": "197970"
+    },
+    {
+      "txhash": "5A10648DC00213141113D18DCA22BC083BD9E5F60B7F1A649DCB1BFDFD9B3F9E",
+      "height": "5849",
+      "code": 0,
+      "gas_used": "173623"
+    },
+    {
+      "txhash": "B591060A1BF894DDD6C48B875EDCE81940CA763412F5346D102F9E387FA63AE9",
+      "height": "5851",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "66E9ECC9AD069DCB34452ACB6E05F3FCF5A27E2B9BF9DB473A5A7818288431E0",
+      "height": "5854",
+      "code": 0,
+      "gas_used": "188122"
+    },
+    {
+      "txhash": "CCFCDE75D69E0658E980CD10F9569DB093E28EBF6A0B1BD0E4835B7A8F956C78",
+      "height": "5857",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "A40D8FB446F0BB844CFC6B2185F89316ACDBF513ECEE7FF5883E0B39CC0F5503",
+      "height": "5860",
+      "code": 0,
+      "gas_used": "258423"
+    },
+    {
+      "txhash": "70AE6EB6CA3289E64DBEE45567AB80A9BF31AA9E87D92E10C23170DE720DE760",
+      "height": "5863",
+      "code": 0,
+      "gas_used": "258243"
+    },
+    {
+      "txhash": "00B4783669C91D4FCC1DD6275D1D1E65537DB00B6963FACDFEC7CE37D500EF56",
+      "height": "5865",
+      "code": 0,
+      "gas_used": "969006"
+    },
+    {
+      "txhash": "226F8B7D0E5ABA0F3347AA5B949022C6575B699CD41D44CB9550A0D8DBB1B921",
+      "height": "5873",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "0C49E85634832D18E419FE1317684ECC47C7065920017A57DD6858469BFF13C7",
+      "height": "5875",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "8411B3B093AB606AE3DC153F551434D9AB289AA961C539956708D23973F826A9",
+      "height": "5877",
+      "code": 0,
+      "gas_used": "944923"
+    },
+    {
+      "txhash": "FA329949672AF179861916538D97649AF3A71215716C34D25D3BE7B954F86FD2",
+      "height": "5878",
+      "code": 0,
+      "gas_used": "968948"
+    },
+    {
+      "txhash": "BFE239BDEEF9C5DDFBCC1381C30A619DF31D1232845DE36BAC1BB9C758115ECE",
+      "height": "5881",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "1552777ABFBE170A6F493D0AAC49C7E87223DBE9A67724D557BCEA253F7E14DD",
+      "height": "5883",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "5A2884144F26090BDD742FEC857631A963411EEAAE5A0DC61CF5C812E2156ED5",
+      "height": "5885",
+      "code": 0,
+      "gas_used": "942296"
+    },
+    {
+      "txhash": "21FDDB6390D4D4B2B3B2510D95D077F95011A4FFF7FF927BDA2F6C0154B28E0A",
+      "height": "5887",
+      "code": 0,
+      "gas_used": "754903"
+    },
+    {
+      "txhash": "9F296C87AB20DDE2D4E965B5301299D728497560E587DD60C00D3A45DCFB8886",
+      "height": "5895",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "1ECA9D86A6E0B05AEE3C858F65A38FB45C6DB1AF8D5C6D2C067697F4B6D4554F",
+      "height": "5897",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "2FA8229902808305B2B5288B0CEBDB2D9DF662994A4A43FE2C1CF9E5B14DF2DD",
+      "height": "5899",
+      "code": 0,
+      "gas_used": "932262"
+    },
+    {
+      "txhash": "C712FD5A937DEEDA7B5B2FA00E4080999FC525C106E14F5967251616D53610F9",
+      "height": "5906",
+      "code": 0,
+      "gas_used": "1182873"
+    },
+    {
+      "txhash": "F0E1420A65BE1C8A51C7E732C1007AF1E31B79ADD3E88D008E0D83E99E5E1B36",
+      "height": "5909",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "9C2800830D41A96E243A8F94AD7C47D0B50CC0B4F5C8C01287E34D46BA2C042F",
+      "height": "5911",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "1C25287418398972AB559C6704126EC5C01B6BEEE4286C6E1936FB7F94269909",
+      "height": "5913",
+      "code": 0,
+      "gas_used": "954810"
+    },
+    {
+      "txhash": "154105D79002C1CE6B3FB78CBA49AAD9B0F5AE3864F408D5C1EF3A9D3A6F4179",
+      "height": "5920",
+      "code": 0,
+      "gas_used": "968828"
+    },
+    {
+      "txhash": "C0D26AD9691BDB419A124186DD99E5577484DC070CF313193ED27740723871B7",
+      "height": "5923",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "A7BFE17E3EECAF73F50EB80B65378E1347D1ADCD1613046CD514BE9A7E8B3D84",
+      "height": "5925",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "A94DBF366D04ED79B192335606C00FDEE75E6AC5F0D755D4C3E6802AE10BD9E7",
+      "height": "5932",
+      "code": 0,
+      "gas_used": "944772"
+    },
+    {
+      "txhash": "40CB5ACBD0556812F2394753DAFF6D7CFC838715FD20CB5C29CB82E44F7551E8",
+      "height": "5956",
+      "code": 0,
+      "gas_used": "160719"
+    },
+    {
+      "txhash": "3636A53CCA64DEDB1BE303FB54D8B204626A29256C61D46A62F7B4142FC848F6",
+      "height": "5959",
+      "code": 0,
+      "gas_used": "178322"
+    },
+    {
+      "txhash": "011B674773107C1088E21AD93577060F00D814C8B1AF4D3DAFBBD840AAF1E730",
+      "height": "5961",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "EC34CDEB233C56B73A5FBB8F8FB17A4CEA5327A9EE98A74D73D4F4B24AA458C9",
+      "height": "5982",
+      "code": 0,
+      "gas_used": "1721128"
+    },
+    {
+      "txhash": "50D4B2A707F345E858AF410E47B06DED78D1527B7953B09C120964AA9B2483BD",
+      "height": "5990",
+      "code": 0,
+      "gas_used": "3386934"
+    }
+  ],
+  "node": {
+    "container": "cl8y-dex-issue1422-memory-ready",
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "terrad_version": "build_deps:\n- cel.dev/expr@v0.24.0\n- cloud.google.com/go@v0.121.2\n- cloud.google.com/go/auth@v0.16.4\n- cloud.google.com/go/auth/oauth2adapt@v0.2.8\n- cloud.google.com/go/compute/metadata@v0.8.0\n- cloud.google.com/go/iam@v1.5.2\n- cloud.google.com/go/monitoring@v1.24.2\n- cloud.google.com/go/storage@v1.53.0\n- cosmossdk.io/api@v0.9.2\n- cosmossdk.io/client/v2@v2.0.0-beta.8\n- cosmossdk.io/collections@v1.3.1\n- cosmossdk.io/core@v0.11.3\n- cosmossdk.io/depinject@v1.2.1\n- cosmossdk.io/errors@v1.0.2\n- cosmossdk.io/log@v1.6.1\n- cosmossdk.io/math@v1.5.3\n- cosmossdk.io/schema@v1.1.0\n- cosmossdk.io/store@v1.1.2\n- cosmossdk.io/x/evidence@v0.2.0\n- cosmossdk.io/x/feegrant@v0.2.0\n- cosmossdk.io/x/tx@v1.1.0\n- cosmossdk.io/x/upgrade@v0.2.0\n- filippo.io/edwards25519@v1.1.0\n- github.com/99designs/keyring@v1.2.2 => github.com/cosmos/keyring@v1.2.0\n- github.com/CosmWasm/wasmd@v0.61.8\n- github.com/CosmWasm/wasmvm/v3@v3.0.3\n- github.com/DataDog/datadog-go@v4.8.3+incompatible\n- github.com/DataDog/zstd@v1.5.7\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.29.0\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric@v0.51.0\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping@v0.51.0\n- github.com/aws/aws-sdk-go@v1.55.8\n- github.com/beorn7/perks@v1.0.1\n- github.com/bgentry/go-netrc@v0.0.0-20140422174119-9fd32a8b3d3d\n- github.com/bgentry/speakeasy@v0.2.0\n- github.com/bits-and-blooms/bitset@v1.24.3\n- github.com/bytedance/gopkg@v0.1.3\n- github.com/bytedance/sonic@v1.14.2\n- github.com/bytedance/sonic/loader@v0.4.0\n- github.com/cenkalti/backoff/v4@v4.3.0\n- github.com/cespare/xxhash/v2@v2.3.0\n- github.com/chzyer/readline@v1.5.1\n- github.com/cloudwego/base64x@v0.1.6\n- github.com/cncf/xds/go@v0.0.0-20250501225837-2ac532fd4443\n- github.com/cockroachdb/apd/v2@v2.0.2\n- github.com/cockroachdb/errors@v1.12.0\n- github.com/cockroachdb/fifo@v0.0.0-20240816210425-c5d0cb0b6fc0\n- github.com/cockroachdb/logtags@v0.0.0-20241215232642-bb51bb14a506\n- github.com/cockroachdb/pebble@v1.1.5\n- github.com/cockroachdb/redact@v1.1.6\n- github.com/cockroachdb/tokenbucket@v0.0.0-20250429170803-42689b6311bb\n- github.com/cometbft/cometbft@v0.38.21\n- github.com/cometbft/cometbft-db@v0.14.1\n- github.com/cosmos/btcutil@v1.0.5\n- github.com/cosmos/cosmos-db@v1.1.3\n- github.com/cosmos/cosmos-proto@v1.0.0-beta.5\n- github.com/cosmos/cosmos-sdk@v0.53.6\n- github.com/cosmos/go-bip39@v1.0.0\n- github.com/cosmos/gogogateway@v1.2.0\n- github.com/cosmos/gogoproto@v1.7.2\n- github.com/cosmos/iavl@v1.2.6\n- github.com/cosmos/ibc-apps/modules/ibc-hooks/v10@v10.0.0-20250826214904-d53749a559f6\n- github.com/cosmos/ibc-go/v10@v10.5.0\n- github.com/cosmos/ics23/go@v0.11.0\n- github.com/cosmos/ledger-cosmos-go@v1.0.0\n- github.com/davecgh/go-spew@v1.1.2-0.20180830191138-d8f796af33cc\n- github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.0\n- github.com/desertbit/timer@v1.0.1\n- github.com/distribution/reference@v0.5.0\n- github.com/dvsekhvalnov/jose2go@v1.8.0\n- github.com/emicklei/dot@v1.8.0\n- github.com/envoyproxy/go-control-plane/envoy@v1.32.4\n- github.com/envoyproxy/protoc-gen-validate@v1.2.1\n- github.com/ethereum/go-ethereum@v1.16.8\n- github.com/fatih/color@v1.18.0\n- github.com/felixge/httpsnoop@v1.0.4\n- github.com/fsnotify/fsnotify@v1.9.0\n- github.com/getsentry/sentry-go@v0.35.0\n- github.com/go-jose/go-jose/v4@v4.1.1\n- github.com/go-kit/kit@v0.13.0\n- github.com/go-kit/log@v0.2.1\n- github.com/go-logfmt/logfmt@v0.6.0\n- github.com/go-logr/logr@v1.4.3\n- github.com/go-logr/stdr@v1.2.2\n- github.com/go-viper/mapstructure/v2@v2.4.0\n- github.com/godbus/dbus@v0.0.0-20190726142602-4481cbc300e2\n- github.com/gogo/googleapis@v1.4.1\n- github.com/gogo/protobuf@v1.3.3 => github.com/regen-network/protobuf@v1.3.3-alpha.regen.1\n- github.com/golang/protobuf@v1.5.4\n- github.com/golang/snappy@v1.0.0\n- github.com/google/btree@v1.1.3\n- github.com/google/go-cmp@v0.7.0\n- github.com/google/gofuzz@v1.2.0\n- github.com/google/orderedcode@v0.0.1\n- github.com/google/s2a-go@v0.1.9\n- github.com/google/uuid@v1.6.0\n- github.com/googleapis/enterprise-certificate-proxy@v0.3.6\n- github.com/googleapis/gax-go/v2@v2.15.0\n- github.com/gorilla/handlers@v1.5.2\n- github.com/gorilla/mux@v1.8.1\n- github.com/gorilla/websocket@v1.5.3\n- github.com/grpc-ecosystem/go-grpc-middleware@v1.4.0\n- github.com/grpc-ecosystem/grpc-gateway@v1.16.0\n- github.com/gsterjov/go-libsecret@v0.0.0-20161001094733-a6f4afe4910c\n- github.com/hashicorp/go-cleanhttp@v0.5.2\n- github.com/hashicorp/go-getter@v1.7.9\n- github.com/hashicorp/go-hclog@v1.6.3\n- github.com/hashicorp/go-immutable-radix@v1.3.1\n- github.com/hashicorp/go-metrics@v0.5.4\n- github.com/hashicorp/go-plugin@v1.7.0\n- github.com/hashicorp/go-safetemp@v1.0.0\n- github.com/hashicorp/go-version@v1.7.0\n- github.com/hashicorp/golang-lru@v1.0.2\n- github.com/hashicorp/golang-lru/v2@v2.0.7\n- github.com/hashicorp/yamux@v0.1.2\n- github.com/hdevalence/ed25519consensus@v0.2.0\n- github.com/holiman/uint256@v1.3.2\n- github.com/huandu/skiplist@v1.2.1\n- github.com/iancoleman/strcase@v0.3.0\n- github.com/improbable-eng/grpc-web@v0.15.0\n- github.com/jmespath/go-jmespath@v0.4.0\n- github.com/klauspost/compress@v1.18.0\n- github.com/klauspost/cpuid/v2@v2.2.10\n- github.com/kr/pretty@v0.3.1\n- github.com/kr/text@v0.2.0\n- github.com/lib/pq@v1.12.0\n- github.com/manifoldco/promptui@v0.9.0\n- github.com/mattn/go-colorable@v0.1.14\n- github.com/mattn/go-isatty@v0.0.20\n- github.com/mdp/qrterminal/v3@v3.2.1\n- github.com/minio/highwayhash@v1.0.4\n- github.com/mitchellh/go-homedir@v1.1.0\n- github.com/mtibben/percent@v0.2.1\n- github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822\n- github.com/oasisprotocol/curve25519-voi@v0.0.0-20230904125328-1f23a7beb09a\n- github.com/oklog/run@v1.1.0\n- github.com/opencontainers/go-digest@v1.0.0\n- github.com/pelletier/go-toml/v2@v2.2.4\n- github.com/pkg/errors@v0.9.1\n- github.com/pmezard/go-difflib@v1.0.1-0.20181226105442-5d4384ee4fb2\n- github.com/prometheus/client_golang@v1.23.2\n- github.com/prometheus/client_model@v0.6.2\n- github.com/prometheus/common@v0.66.1\n- github.com/prometheus/procfs@v0.16.1\n- github.com/rakyll/statik@v0.1.7\n- github.com/rcrowley/go-metrics@v0.0.0-20201227073835-cf1acfcdf475\n- github.com/rogpeppe/go-internal@v1.14.1\n- github.com/rs/cors@v1.11.1\n- github.com/rs/zerolog@v1.34.0\n- github.com/sagikazarmark/locafero@v0.11.0\n- github.com/shamaton/msgpack/v2@v2.2.3\n- github.com/sourcegraph/conc@v0.3.1-0.20240121214520-5f936abd7ae8\n- github.com/spf13/afero@v1.15.0\n- github.com/spf13/cast@v1.10.0\n- github.com/spf13/cobra@v1.10.2\n- github.com/spf13/pflag@v1.0.10\n- github.com/spf13/viper@v1.21.0\n- github.com/spiffe/go-spiffe/v2@v2.5.0\n- github.com/stretchr/testify@v1.11.1\n- github.com/subosito/gotenv@v1.6.0\n- github.com/syndtr/goleveldb@v1.0.1-0.20220721030215-126854af5e6d => github.com/classic-terra/goleveldb@v0.0.0-20230914223247-2b28f6655121\n- github.com/tendermint/go-amino@v0.16.0\n- github.com/tidwall/btree@v1.8.1\n- github.com/twitchyliquid64/golang-asm@v0.15.1\n- github.com/ulikunitz/xz@v0.5.14\n- github.com/zeebo/errs@v1.4.0\n- github.com/zondax/golem@v0.27.0\n- github.com/zondax/hid@v0.9.2\n- github.com/zondax/ledger-go@v1.0.1\n- go.opentelemetry.io/auto/sdk@v1.1.0\n- go.opentelemetry.io/contrib/detectors/gcp@v1.36.0\n- go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@v0.61.0\n- go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.62.0\n- go.opentelemetry.io/otel@v1.37.0\n- go.opentelemetry.io/otel/metric@v1.37.0\n- go.opentelemetry.io/otel/sdk@v1.37.0\n- go.opentelemetry.io/otel/sdk/metric@v1.37.0\n- go.opentelemetry.io/otel/trace@v1.37.0\n- go.uber.org/mock@v0.6.0\n- go.uber.org/multierr@v1.11.0\n- go.uber.org/zap@v1.27.0\n- go.yaml.in/yaml/v2@v2.4.2\n- go.yaml.in/yaml/v3@v3.0.4\n- golang.org/x/arch@v0.17.0\n- golang.org/x/crypto@v0.45.0\n- golang.org/x/exp@v0.0.0-20250506013437-ce4c2cf36ca6 => golang.org/x/exp@v0.0.0-20250506013437-ce4c2cf36ca6\n- golang.org/x/net@v0.47.0\n- golang.org/x/oauth2@v0.30.0\n- golang.org/x/sync@v0.19.0\n- golang.org/x/sys@v0.38.0\n- golang.org/x/term@v0.37.0\n- golang.org/x/text@v0.31.0\n- golang.org/x/time@v0.12.0\n- google.golang.org/api@v0.247.0\n- google.golang.org/genproto@v0.0.0-20250603155806-513f23925822\n- google.golang.org/genproto/googleapis/api@v0.0.0-20250908214217-97024824d090\n- google.golang.org/genproto/googleapis/rpc@v0.0.0-20250826171959-ef028d996bc1\n- google.golang.org/grpc@v1.75.1\n- google.golang.org/protobuf@v1.36.10\n- gopkg.in/yaml.v2@v2.4.0\n- gopkg.in/yaml.v3@v3.0.1\n- gotest.tools/v3@v3.5.2\n- nhooyr.io/websocket@v1.8.17\n- pgregory.net/rapid@v1.2.0\n- rsc.io/qr@v0.2.0\n- sigs.k8s.io/yaml@v1.6.0\nbuild_tags: netgo ledger,\ncommit: 9a5ee563874ce3906c3ca7069f0160de51f89c40\ncosmos_sdk_version: v0.53.6\ngo: go version go1.24.13 linux/amd64\nname: terra\nserver_name: terrad\nversion: 4.0.1\n\n",
+    "wasm_query_gas_limit": 3000000
+  },
+  "gas_scope": "probe transaction including transaction and wrapper overhead; actual smart-query success separately recorded",
+  "contract_versions": {
+    "router": {
+      "contract": "cl8y-dex-router",
+      "version": "1.3.0"
+    },
+    "factory": {
+      "contract": "cl8y-dex-factory",
+      "version": "1.11.0"
+    },
+    "CL8Y/ALPHA": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "ALPHA/UST1": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "UST1/USTR": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "ALPHA/BETA": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "BETA/USTR": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "CL8Y": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "UST1": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "USTR": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "ALPHA": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    },
+    "BETA": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    }
+  },
+  "probe_code": {
+    "code_id": 6,
+    "sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d",
+    "onchain_sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d"
+  },
+  "query_checks": [
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "forward",
+      "contract": "terra1tn5t35tmu93fjp0xd5vlv8r7pqc9npgn2m7fj4k9jgaz7rrvhr0srf97f3",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra10dvlms4m555jk67qsrun5a87cn9gje967yl8hn5senjxlycdv37sx3clkg"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg",
+          "sender": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "894892438757075466"
+      },
+      "probe": {
+        "txhash": "EC34CDEB233C56B73A5FBB8F8FB17A4CEA5327A9EE98A74D73D4F4B24AA458C9",
+        "height": "5982",
+        "gas_used": 1721128,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "reverse",
+      "contract": "terra1tn5t35tmu93fjp0xd5vlv8r7pqc9npgn2m7fj4k9jgaz7rrvhr0srf97f3",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "894892438757075466",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1nm3yktzcgpnvwu6qpzqgl2ktyvlgsstc7ev849dd3ulaygw75mqqf62nl5"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1fzud5q5ead20aaqze6av5uq0dqve05dzseuth4ame340qatceflsc83jyx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra17upyvvnxl0m7ggwxzvv3t0lus7uagl5lglz3hyfkhhdnrner6s3qgnve97"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra10dvlms4m555jk67qsrun5a87cn9gje967yl8hn5senjxlycdv37sx3clkg"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg",
+          "sender": "terra1h5krnahjgsmp38zrxryn05mtmqt2x8wjxgknjg"
+        }
+      },
+      "smart_status": "FAIL",
+      "error": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3050913: out of gas: unknown request\n",
+      "probe": {
+        "txhash": "50D4B2A707F345E858AF410E47B06DED78D1527B7953B09C120964AA9B2483BD",
+        "height": "5990",
+        "gas_used": 3386934,
+        "query_status": "ok"
+      }
+    }
+  ],
+  "failure": "Error: rpc error: code = Unknown desc = out of gas in location: wasm contract; gasWanted: 3000000, gasUsed: 3050913: out of gas: unknown request\n",
+  "baseline_regression": "REPRODUCED"
+}

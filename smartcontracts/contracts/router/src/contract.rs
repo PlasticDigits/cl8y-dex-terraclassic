@@ -802,9 +802,11 @@ fn query_simulate_swap_operations(
     trader: Option<String>,
     sender: Option<String>,
 ) -> StdResult<SimulateSwapOperationsResponse> {
+    let mut quote =
+        crate::route_quote::QuoteContext::new(deps, FACTORY.load(deps.storage)?, router);
     simulate_swap_operations(
         deps,
-        router,
+        &mut quote,
         offer_amount,
         operations,
         trader,
@@ -817,7 +819,7 @@ fn query_simulate_swap_operations(
 /// Scale those templates to the actual funded amount for fresh sufficiency only.
 fn simulate_swap_operations(
     deps: Deps,
-    router: &Addr,
+    quote: &mut crate::route_quote::QuoteContext,
     offer_amount: Uint128,
     operations: Vec<SwapOperation>,
     trader: Option<String>,
@@ -839,7 +841,6 @@ fn simulate_swap_operations(
     }
 
     crate::route_tax::validate_asset_path(deps, &operations, None)?;
-    let factory = FACTORY.load(deps.storage)?;
     let mut current_amount = offer_amount;
 
     for op in &operations {
@@ -856,13 +857,7 @@ fn simulate_swap_operations(
                 greedy,
                 ..
             } => {
-                let pair_response: dex_common::factory::PairResponse =
-                    deps.querier.query_wasm_smart(
-                        factory.to_string(),
-                        &dex_common::factory::QueryMsg::Pair {
-                            asset_infos: [offer_asset_info.clone(), ask_asset_info.clone()],
-                        },
-                    )?;
+                let pair_response = quote.pair(offer_asset_info, ask_asset_info)?;
 
                 if hybrid.is_some() && greedy.is_some() {
                     return Err(cosmwasm_std::StdError::generic_err(
@@ -871,14 +866,12 @@ fn simulate_swap_operations(
                 }
 
                 let gross = current_amount;
-                let funded = crate::route_tax::preview(
-                    deps,
+                let funded = quote.preview(
                     &Addr::unchecked(offer_asset_info.assert_is_token()?),
                     &pair_response.pair.contract_addr,
                     gross,
                     dex_common::route_tax::RouteTaxKind::Sell,
                     trader.clone(),
-                    Some(router),
                 )?;
                 current_amount = funded.economic;
                 let funded_hybrid = if reverse_templates {
@@ -940,16 +933,15 @@ fn simulate_swap_operations(
                         belief_price: None,
                     },
                 )?;
-                current_amount = crate::route_tax::preview(
-                    deps,
-                    &Addr::unchecked(ask_asset_info.assert_is_token()?),
-                    &pair_response.pair.contract_addr,
-                    sim.return_amount,
-                    dex_common::route_tax::RouteTaxKind::Buy,
-                    trader.clone(),
-                    Some(router),
-                )?
-                .net;
+                current_amount = quote
+                    .preview(
+                        &Addr::unchecked(ask_asset_info.assert_is_token()?),
+                        &pair_response.pair.contract_addr,
+                        sim.return_amount,
+                        dex_common::route_tax::RouteTaxKind::Buy,
+                        trader.clone(),
+                    )?
+                    .net;
             }
         }
     }
@@ -983,7 +975,8 @@ fn query_reverse_simulate_swap_operations(
     }
 
     crate::route_tax::validate_asset_path(deps, &operations, None)?;
-    let factory = FACTORY.load(deps.storage)?;
+    let mut quote =
+        crate::route_quote::QuoteContext::new(deps, FACTORY.load(deps.storage)?, router);
     let mut current_amount = ask_amount;
     let mut budget = crate::reverse_query::ReverseQueryBudget::default();
     // Reserve the fresh forward route's one full pair simulation per hop before
@@ -1006,21 +999,13 @@ fn query_reverse_simulate_swap_operations(
                 greedy,
                 ..
             } => {
-                let pair_response: dex_common::factory::PairResponse =
-                    deps.querier.query_wasm_smart(
-                        factory.to_string(),
-                        &dex_common::factory::QueryMsg::Pair {
-                            asset_infos: [offer_asset_info.clone(), ask_asset_info.clone()],
-                        },
-                    )?;
+                let pair_response = quote.pair(offer_asset_info, ask_asset_info)?;
 
-                current_amount = crate::route_tax::reverse_buy(
-                    deps,
+                current_amount = quote.reverse_buy(
                     &Addr::unchecked(ask_asset_info.assert_is_token()?),
                     &pair_response.pair.contract_addr,
                     current_amount,
                     trader.clone(),
-                    router,
                 )?;
                 if hybrid.is_some() && greedy.is_some() {
                     return Err(cosmwasm_std::StdError::generic_err(
@@ -1047,13 +1032,11 @@ fn query_reverse_simulate_swap_operations(
                         &mut budget,
                         hop,
                     )?;
-                    current_amount = crate::route_tax::reverse_sell(
-                        deps,
+                    current_amount = quote.reverse_sell(
                         &Addr::unchecked(offer_asset_info.assert_is_token()?),
                         &pair_response.pair.contract_addr,
                         economic,
                         trader.clone(),
-                        router,
                     )?;
                     continue;
                 }
@@ -1084,13 +1067,11 @@ fn query_reverse_simulate_swap_operations(
                         belief_price: None,
                     },
                 )?;
-                current_amount = crate::route_tax::reverse_sell(
-                    deps,
+                current_amount = quote.reverse_sell(
                     &Addr::unchecked(offer_asset_info.assert_is_token()?),
                     &pair_response.pair.contract_addr,
                     sim.offer_amount,
                     trader.clone(),
-                    router,
                 )?;
             }
         }
@@ -1098,7 +1079,7 @@ fn query_reverse_simulate_swap_operations(
 
     let forward = simulate_swap_operations(
         deps,
-        router,
+        &mut quote,
         current_amount,
         operations,
         trader,
@@ -1427,3 +1408,7 @@ mod issue1389_tests {
         assert_eq!(calls, 2);
     }
 }
+
+#[cfg(test)]
+#[path = "issue1422_tests.rs"]
+mod issue1422_tests;

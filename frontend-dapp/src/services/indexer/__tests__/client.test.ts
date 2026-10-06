@@ -601,6 +601,16 @@ describe('getLeaderboard pair query (GitLab #666)', () => {
 })
 
 describe('exact-output route solver transport (#1376)', () => {
+  it('does not retry a provider query gas rejection (#1422)', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('router_query_gas_limit_exceeded', { status: 422, statusText: 'Unprocessable Entity' })
+    )
+    const client = await loadModule()
+    await expect(client.getRouteSolveExactOutput('terra1a', 'terra1b', '1000')).rejects.toThrow(
+      'Indexer API error: 422'
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
   it('sends only a net output target with pool-only execution and trader/cancellation context', async () => {
     const { getRouteSolveExactOutput } = await import('../client')
     const signal = new AbortController().signal

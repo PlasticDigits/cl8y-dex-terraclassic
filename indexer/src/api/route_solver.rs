@@ -632,6 +632,12 @@ pub(crate) async fn maybe_simulate(
 /// Preserve deterministic on-chain rejection as an observable validation failure.
 /// Never expose LCD URLs, raw contract errors or trader addresses in the API response.
 fn router_preview_error(error: &crate::lcd::LcdError) -> (StatusCode, String) {
+    if matches!(error, crate::lcd::LcdError::QueryGasLimitExceeded(_)) {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "router_query_gas_limit_exceeded: this route exceeds the provider's smart-query gas limit; choose another route or retry after the provider or contract changes".into(),
+        );
+    }
     if matches!(error, crate::lcd::LcdError::ContractQueryRejected(_)) {
         return (StatusCode::UNPROCESSABLE_ENTITY,
             "router_preview_rejected: on-chain route or tax/launch guard validation rejected the preview; refresh or choose another route".into());
@@ -1398,6 +1404,21 @@ mod quote_trader_tests {
     use axum::http::StatusCode;
 
     const VALID: &str = "terra1discountwallet000000000000000000000";
+
+    #[test]
+    fn router_preview_gas_limit_is_explicit_and_sanitized() {
+        let error = crate::lcd::LcdError::QueryGasLimitExceeded(
+            "out of gas: gasWanted: 3000000, gasUsed: 3043317 terra1private http://private-lcd"
+                .into(),
+        );
+        let (status, message) = router_preview_error(&error);
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(message.starts_with("router_query_gas_limit_exceeded:"));
+        assert!(!message.contains("terra1private"));
+        assert!(!message.contains("http://"));
+        assert!(!message.contains("3043317"));
+        assert!(!message.contains("guard"));
+    }
 
     #[test]
     fn router_preview_rejection_is_explicit_and_sanitized() {

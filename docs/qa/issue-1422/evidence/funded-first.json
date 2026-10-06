@@ -1,0 +1,2202 @@
+{
+  "utc": "2026-10-06T04:47:01.550024+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "owner_key": "issue1381-1791262001433039600",
+  "sink_key": "issue1381-1791262002200704930",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da",
+      "onchain_sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c",
+      "onchain_sha256": "80b6cfe87878d039697f7bf864cc3488388d9d4541ace221dd58d22512b9485c"
+    },
+    "cl8y_dex_router": {
+      "code_id": 7,
+      "sha256": "cb11ed967a31e8c7383c787a98e7a68ea83768d271f65d0eb79c2dbd555e3c2e",
+      "onchain_sha256": "cb11ed967a31e8c7383c787a98e7a68ea83768d271f65d0eb79c2dbd555e3c2e"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4",
+      "onchain_sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 5,
+      "sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341",
+      "onchain_sha256": "971b0076c9d8a00455f3d5b31032e130639075208cd12fa2adda005c7ceb0341"
+    }
+  },
+  "factory": "terra17ptevgk0rr06mctweh66mq54ywq62yjllwh5sg0e0f3mr5sta0zqggmj0a",
+  "router": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+  "tokens": {
+    "CL8Y": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g",
+    "UST1": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx",
+    "USTR": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980",
+    "ALPHA": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh",
+    "BETA": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+  },
+  "decimals": {
+    "CL8Y": 18,
+    "ALPHA": 6,
+    "BETA": 6,
+    "UST1": 6,
+    "USTR": 18
+  },
+  "pairs": {
+    "CL8Y/ALPHA": "terra1lvwjd8fpz4z0glt8jszc0jrxv88jqk8x6pdyraywctrrtlp3umvsegkfxv",
+    "ALPHA/UST1": "terra1nn3n5szxzvtk867svqt2u7rllklpa6deqp4ckvtt24xgjx207xvssm9pze",
+    "UST1/USTR": "terra1kx566uej0k6kuaszy86phkm6qyf3chxjp3vtr8dgw46cuh4htd4svwwzsh",
+    "ALPHA/BETA": "terra15m3pprq3u29wkxt803swj9rq3lnftatfnhe8x7drpufam92x8wkqfpta55",
+    "BETA/USTR": "terra1l4yhv36atmrtjuhwg4rd3mrhx92n046h0wz4dyty3gshde0g466sg482e9"
+  },
+  "checks": [
+    {
+      "name": "zero intermediates",
+      "status": "PASS",
+      "quote": {
+        "amount": "946429267575517734"
+      },
+      "reverse": {
+        "amount": "1009999020096990300"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 946429267575517734,
+          "router": 0,
+          "sink": 2847831296616402,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 57863,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "C135CCDD76B2993074036DFD206059967BE1A61D68C4A2C3A6F6F098A21244C8",
+      "gas_used": "4428466"
+    },
+    {
+      "name": "multi tax intermediates",
+      "status": "PASS",
+      "quote": {
+        "amount": "894890444760655030"
+      },
+      "reverse": {
+        "amount": "1009999060288001788"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2847831296616402,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 57863,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 0,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 894890444760655030,
+          "router": 0,
+          "sink": 5540580879647460,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 115726,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "F78960479F38FB477674F33A760C8A9F2A751A29C5A77D6BC20C4D43B3C04B8B",
+      "gas_used": "4550807"
+    },
+    {
+      "name": "owned dust and existing balances",
+      "status": "PASS",
+      "quote": {
+        "amount": "946421488752678839"
+      },
+      "reverse": {
+        "amount": "1009999100473034445"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 2856,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 5540580879647460,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 115726,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 5712,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 946421488752678839,
+          "router": 0,
+          "sink": 8388388769575279,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 7654321,
+          "router": 1234567,
+          "sink": 173589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "A3A88D5A62065F5D026EF0B6698948E922BF6FF28B2AE69D180744BA4E5F03C0",
+      "gas_used": "4434426"
+    },
+    {
+      "name": "taxed initial gross",
+      "status": "PASS",
+      "quote": {
+        "amount": "994000246661929123"
+      },
+      "reverse": {
+        "amount": "1010000"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 5712,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 8388388769575279,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 1010000,
+          "router": 1234567,
+          "sink": 173589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 994000246661929123,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 183589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "6F75EB11824CFEC1B706CB57898A157BCFE497B5767B3936C398CDE577C15C14",
+      "gas_used": "3088756"
+    },
+    {
+      "name": "taxed final buy",
+      "status": "PASS",
+      "quote": {
+        "amount": "961650"
+      },
+      "reverse": {
+        "amount": "1009999140652088252"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 183589,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 0,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 961650,
+          "router": 1234567,
+          "sink": 231931,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "B74F61D902814DF109DD2175ED09432F0CBBFBEC8F774F5F93369866F0917237",
+      "gas_used": "1890732"
+    },
+    {
+      "name": "minimum return rollback",
+      "status": "PASS",
+      "quote": {
+        "amount": "894880862313485362"
+      },
+      "reverse": {
+        "amount": "1009999180825163192"
+      },
+      "before": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 231931,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "after": {
+        "CL8Y": {
+          "trader": 1010000000000000000,
+          "router": 0,
+          "sink": 0,
+          "supply": "1000000000000000000000000000"
+        },
+        "UST1": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 8711,
+          "supply": "1000000000000000"
+        },
+        "USTR": {
+          "trader": 0,
+          "router": 0,
+          "sink": 11379362430543972,
+          "supply": "1000000000000000000000000000"
+        },
+        "ALPHA": {
+          "trader": 0,
+          "router": 1234567,
+          "sink": 231931,
+          "supply": "1000000000000000"
+        },
+        "BETA": {
+          "trader": 0,
+          "router": 0,
+          "sink": 54548,
+          "supply": "1000000000000000"
+        }
+      },
+      "txhash": "AB3F14B30107E29E51E44E4675A28A37860EE8C5C1C59030595063E0E1F2EBC4",
+      "gas_used": "4172264"
+    }
+  ],
+  "legacy_codes": {},
+  "migration_checks": [],
+  "status": "PASS",
+  "receipts": [
+    {
+      "txhash": "3472C98F7D5F15CE64FAF1B9155C217EEEF9041059DA95E981BF59A58EC1CC38",
+      "height": "5994",
+      "code": 0,
+      "gas_used": "178377"
+    },
+    {
+      "txhash": "30AA624F843E5ACC690CD85BB8C6E39101728476F9DBE959B558C5B3120463CB",
+      "height": "5998",
+      "code": 0,
+      "gas_used": "191467"
+    },
+    {
+      "txhash": "8FE5397913130B7E79069564538FC7EB81221C012066A2BB40313AC5764771DD",
+      "height": "6005",
+      "code": 0,
+      "gas_used": "197970"
+    },
+    {
+      "txhash": "8D0768F042BBF4B7941B6526453E13219A44CDB40C574213B2C7AAA3E4DCFB02",
+      "height": "6008",
+      "code": 0,
+      "gas_used": "173623"
+    },
+    {
+      "txhash": "0EFA20576643F756ADA28E8829FEE1AD83E5FB7D79DE5A3302061FB69F2E853B",
+      "height": "6011",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "F03D93068FCC1ACFDAC7F76193296DA784FF26B86A5944C2853A34A020A314E2",
+      "height": "6014",
+      "code": 0,
+      "gas_used": "188122"
+    },
+    {
+      "txhash": "2056AC0FE5E0D1F957EB2CE1F31CA22D0305A78F086E1A54E5418954BC661726",
+      "height": "6022",
+      "code": 0,
+      "gas_used": "189401"
+    },
+    {
+      "txhash": "EE10AA1536C70810FE1918CB5271B6FFA7F237BE60A44D16E86943527CCE7611",
+      "height": "6025",
+      "code": 0,
+      "gas_used": "258423"
+    },
+    {
+      "txhash": "4647DA18B293A4EBDF4FB30A608EF90ACC7B66752070C5362E29821112F75D03",
+      "height": "6028",
+      "code": 0,
+      "gas_used": "258243"
+    },
+    {
+      "txhash": "E6F64C087721F40E6CBB2AA1B0558CB426952371C2CCCA9B576C6C31126E96F2",
+      "height": "6030",
+      "code": 0,
+      "gas_used": "969006"
+    },
+    {
+      "txhash": "BEA20365DA27B7C2D9F7D3CD98A227DD2811009CC797BB2DBEAFAEE4708E0CE7",
+      "height": "6038",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "5D2354AD6B933FFB962CE1FC1F01C96709B494E1BAEB61C30EE8867550B19872",
+      "height": "6040",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "DAE95B4A6979DC6A8FA8752CC2046F9235BD79C713FF316112AE8D9DC08574C2",
+      "height": "6042",
+      "code": 0,
+      "gas_used": "944923"
+    },
+    {
+      "txhash": "333AB0D253E40058FACB7F1073A5704CB8B5A5EAB4E64B52C8AB015AF1EC6657",
+      "height": "6044",
+      "code": 0,
+      "gas_used": "968948"
+    },
+    {
+      "txhash": "9A3FBF244ED8B30BB7536054E2353C55AE02B3D077839FED60D484C3C54C99C1",
+      "height": "6049",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "DFA3ABC7CFD95087AD91A5563A0EBD2AC02524FF2296D7538E79831ADBFC3730",
+      "height": "6051",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "8DED634E399A7AC727897432F6CFEC8E48A0F97E4FBE77EE69F5E0274367B20A",
+      "height": "6053",
+      "code": 0,
+      "gas_used": "942296"
+    },
+    {
+      "txhash": "E05EFF088126196014E124191CFA40534F630C5A9D6B4FE2858778F1097701FE",
+      "height": "6055",
+      "code": 0,
+      "gas_used": "754903"
+    },
+    {
+      "txhash": "4E9B021A3674243B742E9D5393695F893C9F3A74B7A1D1D3850ECE0B02A7EE16",
+      "height": "6063",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "9B0761B1577CB17D0DA8AB888323C129150C3F5C2650649EC69D9C27F4225934",
+      "height": "6065",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "06A0A32BC59572E33E829725755BE420C8A6EB4F0BADB3773E8CA2D50B410301",
+      "height": "6067",
+      "code": 0,
+      "gas_used": "932262"
+    },
+    {
+      "txhash": "CDFB6400029C4D3C9FCBDEB54422D2D973543D19484CF88A503A6D1FC67FE9E8",
+      "height": "6069",
+      "code": 0,
+      "gas_used": "1182873"
+    },
+    {
+      "txhash": "C52721F02A2F8F004C8D314F7AEA81BC9EAC817B44AC7762EA4F6BC7B801BDCC",
+      "height": "6072",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "85612E671B309FA14DED825567E4624E218A5ECBD01125BCE8FDD9F95B39C4E7",
+      "height": "6079",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "9BAE67089EC6E9B9369FDC14A123B28519133C517A391A5186FAF4AA6FADFAB5",
+      "height": "6081",
+      "code": 0,
+      "gas_used": "954810"
+    },
+    {
+      "txhash": "0E18E8C4A2709F1C6DDD45C1EEA4FC9D4011561B45CBC065E9279837E8EF6B89",
+      "height": "6083",
+      "code": 0,
+      "gas_used": "968828"
+    },
+    {
+      "txhash": "74874AE2336053786FD22F4B90FF01C0F51D7DBB8F31F2958F2C370AA4EE1AAA",
+      "height": "6086",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "665516E3CCA0E771593C7597DB534AA6FABD29575A6FFED9CAFF63D41CD30854",
+      "height": "6088",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "5C2177ECECF5E3096FA3A39CEB7431BEDE9EB4545E04E7D0F8F27E76C6619DB4",
+      "height": "6090",
+      "code": 0,
+      "gas_used": "944772"
+    },
+    {
+      "txhash": "20CE7E498CA9AB234469252D3F7F9F538652C08AB023EF3F9428BC93243E9EEF",
+      "height": "6114",
+      "code": 0,
+      "gas_used": "160719"
+    },
+    {
+      "txhash": "1149472C93C2AC45B32D7133875373160F8E2406C78400E9516F2D79A6EA3871",
+      "height": "6118",
+      "code": 0,
+      "gas_used": "178355"
+    },
+    {
+      "txhash": "739EC434CC3BA2A62CA3ABE5717C4C013BA8DD7938417554CDC681AC4F23FB9A",
+      "height": "6120",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "3D752DC73538DA9CADE718AAFF74AE0897CE2F89E2DEA5677CE1161DB21710AB",
+      "height": "6143",
+      "code": 0,
+      "gas_used": "1623212"
+    },
+    {
+      "txhash": "27B6AB1B52BF6903A80917137A9855BD38379CC1C486827BEF6483D86CE8F0B3",
+      "height": "6146",
+      "code": 0,
+      "gas_used": "2006605"
+    },
+    {
+      "txhash": "FDE4DDFC75C7E1BBD52FCC9B87660A89F9F7F7ECDCEC4E7A86B8EF4A23B79DBA",
+      "height": "6149",
+      "code": 0,
+      "gas_used": "1623212"
+    },
+    {
+      "txhash": "C135CCDD76B2993074036DFD206059967BE1A61D68C4A2C3A6F6F098A21244C8",
+      "height": "6151",
+      "code": 0,
+      "gas_used": "4428466"
+    },
+    {
+      "txhash": "B045860F9B8AE2DFE2C690766D8E478EAECC6E87F9F4778878D5D97704DDD1EC",
+      "height": "6172",
+      "code": 0,
+      "gas_used": "178355"
+    },
+    {
+      "txhash": "E8813C6C259A371DB8FB12D2BDBB16B412BD8820AAE533D9BD14529849718B40",
+      "height": "6174",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "D646CE9BE8E5124C15BEDFFB18F2A1D4B5C7B1FD4F04D1DB69B4CF2733806E83",
+      "height": "6195",
+      "code": 0,
+      "gas_used": "1586869"
+    },
+    {
+      "txhash": "E9B0C16500B7AB2C5A83929EF3F5626672E491C0F12F09C2BBE3D7F1BC482E62",
+      "height": "6198",
+      "code": 0,
+      "gas_used": "2126348"
+    },
+    {
+      "txhash": "ECFDA6908F6A2C717B8D81C8EC7AEE1DF0EDC14F51D7A15B91E3E20CCEBED8E4",
+      "height": "6201",
+      "code": 0,
+      "gas_used": "1586869"
+    },
+    {
+      "txhash": "F78960479F38FB477674F33A760C8A9F2A751A29C5A77D6BC20C4D43B3C04B8B",
+      "height": "6203",
+      "code": 0,
+      "gas_used": "4550807"
+    },
+    {
+      "txhash": "8EB9F41F67FA101A5E82E9B2C7CB30DC47B8F99FE49F392D9E9BD4810F4F31E7",
+      "height": "6225",
+      "code": 0,
+      "gas_used": "178355"
+    },
+    {
+      "txhash": "A1A17A6CB9077CDAAD9232A3419E2E60F1408A05799F7643A986C2FF655403C6",
+      "height": "6227",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "930BF9538D18D46627BECC28988E5E66E2AF234C4970EF1298F9BEBCDC71C97F",
+      "height": "6229",
+      "code": 0,
+      "gas_used": "149661"
+    },
+    {
+      "txhash": "F65B011BE1484F544CBFFB62F19C1D9B52AA509C054C6C37BA2455812FCFDBBF",
+      "height": "6231",
+      "code": 0,
+      "gas_used": "150777"
+    },
+    {
+      "txhash": "159E485870050DFEF22616EB9FEA9DD7CC6EA9A1AF5024EED6A33262A1DEB4AB",
+      "height": "6233",
+      "code": 0,
+      "gas_used": "137170"
+    },
+    {
+      "txhash": "526E7CFA2E61FDEB2FFE1BA0370768C621067B93A1C9C140BE14E4AC5ED0B6D2",
+      "height": "6235",
+      "code": 0,
+      "gas_used": "138089"
+    },
+    {
+      "txhash": "C7D7F3F10E0EDD8CA929FD0A10D48ECE4F94F18DF581FD9D1112AB5B0EBB1238",
+      "height": "6262",
+      "code": 0,
+      "gas_used": "1623203"
+    },
+    {
+      "txhash": "EB79B71FCCB10EA0C54109D418F6DBD284C2899FCF9017F8B23FAD2E2F7E14A8",
+      "height": "6265",
+      "code": 0,
+      "gas_used": "2006576"
+    },
+    {
+      "txhash": "0D57E5F011C4548127ABE41CF17E0B9DE790A409EE1C6860BCA7E9CE4F950CEF",
+      "height": "6273",
+      "code": 0,
+      "gas_used": "1623203"
+    },
+    {
+      "txhash": "A3A88D5A62065F5D026EF0B6698948E922BF6FF28B2AE69D180744BA4E5F03C0",
+      "height": "6275",
+      "code": 0,
+      "gas_used": "4434426"
+    },
+    {
+      "txhash": "D220E6510652C8423CEA9AD569662EAE4BC6F6F374FBB973956E0B6E73B95C35",
+      "height": "6298",
+      "code": 0,
+      "gas_used": "178355"
+    },
+    {
+      "txhash": "C0E3005944D412FE5D9CA6DAC366F761738151CBA34C68A6B30361C72654CF05",
+      "height": "6300",
+      "code": 0,
+      "gas_used": "149661"
+    },
+    {
+      "txhash": "716F2265550C91CFB363B34A0DF508721E27E400E1453132E9683C1D15290F91",
+      "height": "6321",
+      "code": 0,
+      "gas_used": "1142600"
+    },
+    {
+      "txhash": "DE395D18B09F0BEE3F2BC12049C004148B39A48C0C781DE345E3D4BFF684DA1C",
+      "height": "6324",
+      "code": 0,
+      "gas_used": "1372332"
+    },
+    {
+      "txhash": "EDA0511897F334C9CCBA30C9D3B6ACD133D8ABEA80B5DF6EB0099398938DFFA3",
+      "height": "6327",
+      "code": 0,
+      "gas_used": "1142600"
+    },
+    {
+      "txhash": "6F75EB11824CFEC1B706CB57898A157BCFE497B5767B3936C398CDE577C15C14",
+      "height": "6334",
+      "code": 0,
+      "gas_used": "3088756"
+    },
+    {
+      "txhash": "D5CA1FB96261D1117654DD3CB253026841D1035A37AFF1710C695980DEA2EE79",
+      "height": "6357",
+      "code": 0,
+      "gas_used": "178355"
+    },
+    {
+      "txhash": "662C0D07D739DA95976599FA257B200CDD91389B60A1E7395443907BF15CFD70",
+      "height": "6359",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "BA796BC23EC8CC2D1E46BEF690091ADB5E80028CF456F9CAFA197EBB5E81146C",
+      "height": "6380",
+      "code": 0,
+      "gas_used": "740253"
+    },
+    {
+      "txhash": "E1F7DE6B28210F77704CA6CC3BFF561FEBED58D768A7BA1F24C73416770C88B9",
+      "height": "6383",
+      "code": 0,
+      "gas_used": "893934"
+    },
+    {
+      "txhash": "125F62FEA951F7C9730C59F22B5E96FBCE93AA527A82183D2FE92EE0BFF02AC5",
+      "height": "6391",
+      "code": 0,
+      "gas_used": "740253"
+    },
+    {
+      "txhash": "B74F61D902814DF109DD2175ED09432F0CBBFBEC8F774F5F93369866F0917237",
+      "height": "6393",
+      "code": 0,
+      "gas_used": "1890732"
+    },
+    {
+      "txhash": "1F42AB6DDD27431193D403E6BB69B39C7C1C96142FFBBAEE30C39C7C4EA1E4A8",
+      "height": "6416",
+      "code": 0,
+      "gas_used": "178355"
+    },
+    {
+      "txhash": "4CDCFE29FF533264B13E386084F715ABB1B8AF17016DA5A0E28FBDC26D076C49",
+      "height": "6418",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "A1C22DCD839F33D5699D21B3BA2679569619027191C9ED56A5C6948AF56DE192",
+      "height": "6439",
+      "code": 0,
+      "gas_used": "1586833"
+    },
+    {
+      "txhash": "5B5F31A89B144C71FD0C41EDF4997622BA745D7171E4B94B04D8CA92BF0C9037",
+      "height": "6442",
+      "code": 0,
+      "gas_used": "2126294"
+    },
+    {
+      "txhash": "98F4291A3D44CCFFF0759646BEC43926B537D163D910C2305B2A768CBDF310AF",
+      "height": "6445",
+      "code": 0,
+      "gas_used": "1586830"
+    },
+    {
+      "txhash": "AB3F14B30107E29E51E44E4675A28A37860EE8C5C1C59030595063E0E1F2EBC4",
+      "height": "6447",
+      "code": 5,
+      "gas_used": "4172264"
+    }
+  ],
+  "node": {
+    "container": "cl8y-dex-issue1422-memory-ready",
+    "image": "ghcr.io/plasticdigits/localterra-cl8y@sha256:309cdb1215135795ca47f2803cde6c1e7045afcfc6379dd6600bf578148ae81a",
+    "image_id": "sha256:94cf1f8ed8743fe6bd04d6b510bf384e9ac588a93d5b4528119db0b9257d2251",
+    "terrad_version": "build_deps:\n- cel.dev/expr@v0.24.0\n- cloud.google.com/go@v0.121.2\n- cloud.google.com/go/auth@v0.16.4\n- cloud.google.com/go/auth/oauth2adapt@v0.2.8\n- cloud.google.com/go/compute/metadata@v0.8.0\n- cloud.google.com/go/iam@v1.5.2\n- cloud.google.com/go/monitoring@v1.24.2\n- cloud.google.com/go/storage@v1.53.0\n- cosmossdk.io/api@v0.9.2\n- cosmossdk.io/client/v2@v2.0.0-beta.8\n- cosmossdk.io/collections@v1.3.1\n- cosmossdk.io/core@v0.11.3\n- cosmossdk.io/depinject@v1.2.1\n- cosmossdk.io/errors@v1.0.2\n- cosmossdk.io/log@v1.6.1\n- cosmossdk.io/math@v1.5.3\n- cosmossdk.io/schema@v1.1.0\n- cosmossdk.io/store@v1.1.2\n- cosmossdk.io/x/evidence@v0.2.0\n- cosmossdk.io/x/feegrant@v0.2.0\n- cosmossdk.io/x/tx@v1.1.0\n- cosmossdk.io/x/upgrade@v0.2.0\n- filippo.io/edwards25519@v1.1.0\n- github.com/99designs/keyring@v1.2.2 => github.com/cosmos/keyring@v1.2.0\n- github.com/CosmWasm/wasmd@v0.61.8\n- github.com/CosmWasm/wasmvm/v3@v3.0.3\n- github.com/DataDog/datadog-go@v4.8.3+incompatible\n- github.com/DataDog/zstd@v1.5.7\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp@v1.29.0\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric@v0.51.0\n- github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping@v0.51.0\n- github.com/aws/aws-sdk-go@v1.55.8\n- github.com/beorn7/perks@v1.0.1\n- github.com/bgentry/go-netrc@v0.0.0-20140422174119-9fd32a8b3d3d\n- github.com/bgentry/speakeasy@v0.2.0\n- github.com/bits-and-blooms/bitset@v1.24.3\n- github.com/bytedance/gopkg@v0.1.3\n- github.com/bytedance/sonic@v1.14.2\n- github.com/bytedance/sonic/loader@v0.4.0\n- github.com/cenkalti/backoff/v4@v4.3.0\n- github.com/cespare/xxhash/v2@v2.3.0\n- github.com/chzyer/readline@v1.5.1\n- github.com/cloudwego/base64x@v0.1.6\n- github.com/cncf/xds/go@v0.0.0-20250501225837-2ac532fd4443\n- github.com/cockroachdb/apd/v2@v2.0.2\n- github.com/cockroachdb/errors@v1.12.0\n- github.com/cockroachdb/fifo@v0.0.0-20240816210425-c5d0cb0b6fc0\n- github.com/cockroachdb/logtags@v0.0.0-20241215232642-bb51bb14a506\n- github.com/cockroachdb/pebble@v1.1.5\n- github.com/cockroachdb/redact@v1.1.6\n- github.com/cockroachdb/tokenbucket@v0.0.0-20250429170803-42689b6311bb\n- github.com/cometbft/cometbft@v0.38.21\n- github.com/cometbft/cometbft-db@v0.14.1\n- github.com/cosmos/btcutil@v1.0.5\n- github.com/cosmos/cosmos-db@v1.1.3\n- github.com/cosmos/cosmos-proto@v1.0.0-beta.5\n- github.com/cosmos/cosmos-sdk@v0.53.6\n- github.com/cosmos/go-bip39@v1.0.0\n- github.com/cosmos/gogogateway@v1.2.0\n- github.com/cosmos/gogoproto@v1.7.2\n- github.com/cosmos/iavl@v1.2.6\n- github.com/cosmos/ibc-apps/modules/ibc-hooks/v10@v10.0.0-20250826214904-d53749a559f6\n- github.com/cosmos/ibc-go/v10@v10.5.0\n- github.com/cosmos/ics23/go@v0.11.0\n- github.com/cosmos/ledger-cosmos-go@v1.0.0\n- github.com/davecgh/go-spew@v1.1.2-0.20180830191138-d8f796af33cc\n- github.com/decred/dcrd/dcrec/secp256k1/v4@v4.4.0\n- github.com/desertbit/timer@v1.0.1\n- github.com/distribution/reference@v0.5.0\n- github.com/dvsekhvalnov/jose2go@v1.8.0\n- github.com/emicklei/dot@v1.8.0\n- github.com/envoyproxy/go-control-plane/envoy@v1.32.4\n- github.com/envoyproxy/protoc-gen-validate@v1.2.1\n- github.com/ethereum/go-ethereum@v1.16.8\n- github.com/fatih/color@v1.18.0\n- github.com/felixge/httpsnoop@v1.0.4\n- github.com/fsnotify/fsnotify@v1.9.0\n- github.com/getsentry/sentry-go@v0.35.0\n- github.com/go-jose/go-jose/v4@v4.1.1\n- github.com/go-kit/kit@v0.13.0\n- github.com/go-kit/log@v0.2.1\n- github.com/go-logfmt/logfmt@v0.6.0\n- github.com/go-logr/logr@v1.4.3\n- github.com/go-logr/stdr@v1.2.2\n- github.com/go-viper/mapstructure/v2@v2.4.0\n- github.com/godbus/dbus@v0.0.0-20190726142602-4481cbc300e2\n- github.com/gogo/googleapis@v1.4.1\n- github.com/gogo/protobuf@v1.3.3 => github.com/regen-network/protobuf@v1.3.3-alpha.regen.1\n- github.com/golang/protobuf@v1.5.4\n- github.com/golang/snappy@v1.0.0\n- github.com/google/btree@v1.1.3\n- github.com/google/go-cmp@v0.7.0\n- github.com/google/gofuzz@v1.2.0\n- github.com/google/orderedcode@v0.0.1\n- github.com/google/s2a-go@v0.1.9\n- github.com/google/uuid@v1.6.0\n- github.com/googleapis/enterprise-certificate-proxy@v0.3.6\n- github.com/googleapis/gax-go/v2@v2.15.0\n- github.com/gorilla/handlers@v1.5.2\n- github.com/gorilla/mux@v1.8.1\n- github.com/gorilla/websocket@v1.5.3\n- github.com/grpc-ecosystem/go-grpc-middleware@v1.4.0\n- github.com/grpc-ecosystem/grpc-gateway@v1.16.0\n- github.com/gsterjov/go-libsecret@v0.0.0-20161001094733-a6f4afe4910c\n- github.com/hashicorp/go-cleanhttp@v0.5.2\n- github.com/hashicorp/go-getter@v1.7.9\n- github.com/hashicorp/go-hclog@v1.6.3\n- github.com/hashicorp/go-immutable-radix@v1.3.1\n- github.com/hashicorp/go-metrics@v0.5.4\n- github.com/hashicorp/go-plugin@v1.7.0\n- github.com/hashicorp/go-safetemp@v1.0.0\n- github.com/hashicorp/go-version@v1.7.0\n- github.com/hashicorp/golang-lru@v1.0.2\n- github.com/hashicorp/golang-lru/v2@v2.0.7\n- github.com/hashicorp/yamux@v0.1.2\n- github.com/hdevalence/ed25519consensus@v0.2.0\n- github.com/holiman/uint256@v1.3.2\n- github.com/huandu/skiplist@v1.2.1\n- github.com/iancoleman/strcase@v0.3.0\n- github.com/improbable-eng/grpc-web@v0.15.0\n- github.com/jmespath/go-jmespath@v0.4.0\n- github.com/klauspost/compress@v1.18.0\n- github.com/klauspost/cpuid/v2@v2.2.10\n- github.com/kr/pretty@v0.3.1\n- github.com/kr/text@v0.2.0\n- github.com/lib/pq@v1.12.0\n- github.com/manifoldco/promptui@v0.9.0\n- github.com/mattn/go-colorable@v0.1.14\n- github.com/mattn/go-isatty@v0.0.20\n- github.com/mdp/qrterminal/v3@v3.2.1\n- github.com/minio/highwayhash@v1.0.4\n- github.com/mitchellh/go-homedir@v1.1.0\n- github.com/mtibben/percent@v0.2.1\n- github.com/munnerz/goautoneg@v0.0.0-20191010083416-a7dc8b61c822\n- github.com/oasisprotocol/curve25519-voi@v0.0.0-20230904125328-1f23a7beb09a\n- github.com/oklog/run@v1.1.0\n- github.com/opencontainers/go-digest@v1.0.0\n- github.com/pelletier/go-toml/v2@v2.2.4\n- github.com/pkg/errors@v0.9.1\n- github.com/pmezard/go-difflib@v1.0.1-0.20181226105442-5d4384ee4fb2\n- github.com/prometheus/client_golang@v1.23.2\n- github.com/prometheus/client_model@v0.6.2\n- github.com/prometheus/common@v0.66.1\n- github.com/prometheus/procfs@v0.16.1\n- github.com/rakyll/statik@v0.1.7\n- github.com/rcrowley/go-metrics@v0.0.0-20201227073835-cf1acfcdf475\n- github.com/rogpeppe/go-internal@v1.14.1\n- github.com/rs/cors@v1.11.1\n- github.com/rs/zerolog@v1.34.0\n- github.com/sagikazarmark/locafero@v0.11.0\n- github.com/shamaton/msgpack/v2@v2.2.3\n- github.com/sourcegraph/conc@v0.3.1-0.20240121214520-5f936abd7ae8\n- github.com/spf13/afero@v1.15.0\n- github.com/spf13/cast@v1.10.0\n- github.com/spf13/cobra@v1.10.2\n- github.com/spf13/pflag@v1.0.10\n- github.com/spf13/viper@v1.21.0\n- github.com/spiffe/go-spiffe/v2@v2.5.0\n- github.com/stretchr/testify@v1.11.1\n- github.com/subosito/gotenv@v1.6.0\n- github.com/syndtr/goleveldb@v1.0.1-0.20220721030215-126854af5e6d => github.com/classic-terra/goleveldb@v0.0.0-20230914223247-2b28f6655121\n- github.com/tendermint/go-amino@v0.16.0\n- github.com/tidwall/btree@v1.8.1\n- github.com/twitchyliquid64/golang-asm@v0.15.1\n- github.com/ulikunitz/xz@v0.5.14\n- github.com/zeebo/errs@v1.4.0\n- github.com/zondax/golem@v0.27.0\n- github.com/zondax/hid@v0.9.2\n- github.com/zondax/ledger-go@v1.0.1\n- go.opentelemetry.io/auto/sdk@v1.1.0\n- go.opentelemetry.io/contrib/detectors/gcp@v1.36.0\n- go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc@v0.61.0\n- go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.62.0\n- go.opentelemetry.io/otel@v1.37.0\n- go.opentelemetry.io/otel/metric@v1.37.0\n- go.opentelemetry.io/otel/sdk@v1.37.0\n- go.opentelemetry.io/otel/sdk/metric@v1.37.0\n- go.opentelemetry.io/otel/trace@v1.37.0\n- go.uber.org/mock@v0.6.0\n- go.uber.org/multierr@v1.11.0\n- go.uber.org/zap@v1.27.0\n- go.yaml.in/yaml/v2@v2.4.2\n- go.yaml.in/yaml/v3@v3.0.4\n- golang.org/x/arch@v0.17.0\n- golang.org/x/crypto@v0.45.0\n- golang.org/x/exp@v0.0.0-20250506013437-ce4c2cf36ca6 => golang.org/x/exp@v0.0.0-20250506013437-ce4c2cf36ca6\n- golang.org/x/net@v0.47.0\n- golang.org/x/oauth2@v0.30.0\n- golang.org/x/sync@v0.19.0\n- golang.org/x/sys@v0.38.0\n- golang.org/x/term@v0.37.0\n- golang.org/x/text@v0.31.0\n- golang.org/x/time@v0.12.0\n- google.golang.org/api@v0.247.0\n- google.golang.org/genproto@v0.0.0-20250603155806-513f23925822\n- google.golang.org/genproto/googleapis/api@v0.0.0-20250908214217-97024824d090\n- google.golang.org/genproto/googleapis/rpc@v0.0.0-20250826171959-ef028d996bc1\n- google.golang.org/grpc@v1.75.1\n- google.golang.org/protobuf@v1.36.10\n- gopkg.in/yaml.v2@v2.4.0\n- gopkg.in/yaml.v3@v3.0.1\n- gotest.tools/v3@v3.5.2\n- nhooyr.io/websocket@v1.8.17\n- pgregory.net/rapid@v1.2.0\n- rsc.io/qr@v0.2.0\n- sigs.k8s.io/yaml@v1.6.0\nbuild_tags: netgo ledger,\ncommit: 9a5ee563874ce3906c3ca7069f0160de51f89c40\ncosmos_sdk_version: v0.53.6\ngo: go version go1.24.13 linux/amd64\nname: terra\nserver_name: terrad\nversion: 4.0.1\n\n",
+    "wasm_query_gas_limit": 3000000
+  },
+  "gas_scope": "probe transaction including transaction and wrapper overhead; actual smart-query success separately recorded",
+  "contract_versions": {
+    "router": {
+      "contract": "cl8y-dex-router",
+      "version": "1.3.1"
+    },
+    "factory": {
+      "contract": "cl8y-dex-factory",
+      "version": "1.11.0"
+    },
+    "CL8Y/ALPHA": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "ALPHA/UST1": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "UST1/USTR": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "ALPHA/BETA": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "BETA/USTR": {
+      "contract": "cl8y-dex-pair",
+      "version": "1.20.0"
+    },
+    "CL8Y": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "UST1": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "USTR": {
+      "contract": "crates.io:cw20-base",
+      "version": "0.1.0"
+    },
+    "ALPHA": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    },
+    "BETA": {
+      "contract": "crates.io:cl8y-community-tax-token",
+      "version": "1.3.0"
+    }
+  },
+  "probe_code": {
+    "code_id": 6,
+    "sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d",
+    "onchain_sha256": "bce56143f36eb4b5853ebbba77f9b8e9e1e60ba94410800c548e6c851d50527d"
+  },
+  "query_checks": [
+    {
+      "scenario": "zero intermediates",
+      "kind": "forward",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1v03qar88w4d9mde8q0w7ejvlf6qwa7e7723mt2",
+          "sender": "terra1v03qar88w4d9mde8q0w7ejvlf6qwa7e7723mt2"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "946429267575517734"
+      },
+      "probe": {
+        "txhash": "3D752DC73538DA9CADE718AAFF74AE0897CE2F89E2DEA5677CE1161DB21710AB",
+        "height": "6143",
+        "gas_used": 1623212,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "zero intermediates",
+      "kind": "reverse",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "946429267575517734",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1v03qar88w4d9mde8q0w7ejvlf6qwa7e7723mt2",
+          "sender": "terra1v03qar88w4d9mde8q0w7ejvlf6qwa7e7723mt2"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "1009999020096990300"
+      },
+      "probe": {
+        "txhash": "27B6AB1B52BF6903A80917137A9855BD38379CC1C486827BEF6483D86CE8F0B3",
+        "height": "6146",
+        "gas_used": 2006605,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "zero intermediates",
+      "kind": "fresh forward validation",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1009999020096990300",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1v03qar88w4d9mde8q0w7ejvlf6qwa7e7723mt2",
+          "sender": "terra1v03qar88w4d9mde8q0w7ejvlf6qwa7e7723mt2"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "946429267575517734"
+      },
+      "probe": {
+        "txhash": "FDE4DDFC75C7E1BBD52FCC9B87660A89F9F7F7ECDCEC4E7A86B8EF4A23B79DBA",
+        "height": "6149",
+        "gas_used": 1623212,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "forward",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1e567wld85gluq75ydcyunkwswrv2nz64mvzxjp",
+          "sender": "terra1e567wld85gluq75ydcyunkwswrv2nz64mvzxjp"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "894890444760655030"
+      },
+      "probe": {
+        "txhash": "D646CE9BE8E5124C15BEDFFB18F2A1D4B5C7B1FD4F04D1DB69B4CF2733806E83",
+        "height": "6195",
+        "gas_used": 1586869,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "reverse",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "894890444760655030",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1e567wld85gluq75ydcyunkwswrv2nz64mvzxjp",
+          "sender": "terra1e567wld85gluq75ydcyunkwswrv2nz64mvzxjp"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "1009999060288001788"
+      },
+      "probe": {
+        "txhash": "E9B0C16500B7AB2C5A83929EF3F5626672E491C0F12F09C2BBE3D7F1BC482E62",
+        "height": "6198",
+        "gas_used": 2126348,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "multi tax intermediates",
+      "kind": "fresh forward validation",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1009999060288001788",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1e567wld85gluq75ydcyunkwswrv2nz64mvzxjp",
+          "sender": "terra1e567wld85gluq75ydcyunkwswrv2nz64mvzxjp"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "894890444760655030"
+      },
+      "probe": {
+        "txhash": "ECFDA6908F6A2C717B8D81C8EC7AEE1DF0EDC14F51D7A15B91E3E20CCEBED8E4",
+        "height": "6201",
+        "gas_used": 1586869,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "owned dust and existing balances",
+      "kind": "forward",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1qrepavhemuxcrd5c08sdsyk3ms2638v8k8m2dw",
+          "sender": "terra1qrepavhemuxcrd5c08sdsyk3ms2638v8k8m2dw"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "946421488752678839"
+      },
+      "probe": {
+        "txhash": "C7D7F3F10E0EDD8CA929FD0A10D48ECE4F94F18DF581FD9D1112AB5B0EBB1238",
+        "height": "6262",
+        "gas_used": 1623203,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "owned dust and existing balances",
+      "kind": "reverse",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "946421488752678839",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1qrepavhemuxcrd5c08sdsyk3ms2638v8k8m2dw",
+          "sender": "terra1qrepavhemuxcrd5c08sdsyk3ms2638v8k8m2dw"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "1009999100473034445"
+      },
+      "probe": {
+        "txhash": "EB79B71FCCB10EA0C54109D418F6DBD284C2899FCF9017F8B23FAD2E2F7E14A8",
+        "height": "6265",
+        "gas_used": 2006576,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "owned dust and existing balances",
+      "kind": "fresh forward validation",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1009999100473034445",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1qrepavhemuxcrd5c08sdsyk3ms2638v8k8m2dw",
+          "sender": "terra1qrepavhemuxcrd5c08sdsyk3ms2638v8k8m2dw"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "946421488752678839"
+      },
+      "probe": {
+        "txhash": "0D57E5F011C4548127ABE41CF17E0B9DE790A409EE1C6860BCA7E9CE4F950CEF",
+        "height": "6273",
+        "gas_used": 1623203,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "taxed initial gross",
+      "kind": "forward",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1fx60v4tcpjvqxrzvaashl0epcgatwzcp4vdy6v",
+          "sender": "terra1fx60v4tcpjvqxrzvaashl0epcgatwzcp4vdy6v"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "994000246661929123"
+      },
+      "probe": {
+        "txhash": "716F2265550C91CFB363B34A0DF508721E27E400E1453132E9683C1D15290F91",
+        "height": "6321",
+        "gas_used": 1142600,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "taxed initial gross",
+      "kind": "reverse",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "994000246661929123",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1fx60v4tcpjvqxrzvaashl0epcgatwzcp4vdy6v",
+          "sender": "terra1fx60v4tcpjvqxrzvaashl0epcgatwzcp4vdy6v"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "1010000"
+      },
+      "probe": {
+        "txhash": "DE395D18B09F0BEE3F2BC12049C004148B39A48C0C781DE345E3D4BFF684DA1C",
+        "height": "6324",
+        "gas_used": 1372332,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "taxed initial gross",
+      "kind": "fresh forward validation",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1sref3ggs483fxnpvyenldeqqt58l7h3a2ett2xhggvcyzkl5kx4qqxtrcx"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1fx60v4tcpjvqxrzvaashl0epcgatwzcp4vdy6v",
+          "sender": "terra1fx60v4tcpjvqxrzvaashl0epcgatwzcp4vdy6v"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "994000246661929123"
+      },
+      "probe": {
+        "txhash": "EDA0511897F334C9CCBA30C9D3B6ACD133D8ABEA80B5DF6EB0099398938DFFA3",
+        "height": "6327",
+        "gas_used": 1142600,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "taxed final buy",
+      "kind": "forward",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1wtpg9xzunjdftn8lxl7ze7dy88y7wv298wxa49",
+          "sender": "terra1wtpg9xzunjdftn8lxl7ze7dy88y7wv298wxa49"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "961650"
+      },
+      "probe": {
+        "txhash": "BA796BC23EC8CC2D1E46BEF690091ADB5E80028CF456F9CAFA197EBB5E81146C",
+        "height": "6380",
+        "gas_used": 740253,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "taxed final buy",
+      "kind": "reverse",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "961650",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1wtpg9xzunjdftn8lxl7ze7dy88y7wv298wxa49",
+          "sender": "terra1wtpg9xzunjdftn8lxl7ze7dy88y7wv298wxa49"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "1009999140652088252"
+      },
+      "probe": {
+        "txhash": "E1F7DE6B28210F77704CA6CC3BFF561FEBED58D768A7BA1F24C73416770C88B9",
+        "height": "6383",
+        "gas_used": 893934,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "taxed final buy",
+      "kind": "fresh forward validation",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1009999140652088252",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra1wtpg9xzunjdftn8lxl7ze7dy88y7wv298wxa49",
+          "sender": "terra1wtpg9xzunjdftn8lxl7ze7dy88y7wv298wxa49"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "961650"
+      },
+      "probe": {
+        "txhash": "125F62FEA951F7C9730C59F22B5E96FBCE93AA527A82183D2FE92EE0BFF02AC5",
+        "height": "6391",
+        "gas_used": 740253,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "minimum return rollback",
+      "kind": "forward",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1010000000000000000",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra107csvxzh8sfp8npnkn9556hutdncjwzg8ucwpc",
+          "sender": "terra107csvxzh8sfp8npnkn9556hutdncjwzg8ucwpc"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "894880862313485362"
+      },
+      "probe": {
+        "txhash": "A1C22DCD839F33D5699D21B3BA2679569619027191C9ED56A5C6948AF56DE192",
+        "height": "6439",
+        "gas_used": 1586833,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "minimum return rollback",
+      "kind": "reverse",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "reverse_simulate_swap_operations": {
+          "ask_amount": "894880862313485362",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra107csvxzh8sfp8npnkn9556hutdncjwzg8ucwpc",
+          "sender": "terra107csvxzh8sfp8npnkn9556hutdncjwzg8ucwpc"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "1009999180825163192"
+      },
+      "probe": {
+        "txhash": "5B5F31A89B144C71FD0C41EDF4997622BA745D7171E4B94B04D8CA92BF0C9037",
+        "height": "6442",
+        "gas_used": 2126294,
+        "query_status": "ok"
+      }
+    },
+    {
+      "scenario": "minimum return rollback",
+      "kind": "fresh forward validation",
+      "contract": "terra1wrwx4lfde2ssdf5vxq0ye34ta6mm5k9ru4s4vd8hll5c2fmt05fqj7gjrq",
+      "message": {
+        "simulate_swap_operations": {
+          "offer_amount": "1009999180825163192",
+          "operations": [
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra15hjqfzaffh0f2tcdgs5tk30fnhdu2e5lre98ef363a72p2pyl2nshyhn3g"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1xu7vcavaj3w2yputv9cu0uk0jueldgl3pw7sfd9ateayvztgry2sy44puh"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            },
+            {
+              "terra_swap": {
+                "offer_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1dg5ywvydyen9hsx8qzvyv0qvr5gxxuxglwla7zuzjea5ut9cvp9qvhvz2s"
+                  }
+                },
+                "ask_asset_info": {
+                  "token": {
+                    "contract_addr": "terra1naazzhhz5k92m26ap6phqmht5d8js52mg9uke2wynenqzzn6s63q402980"
+                  }
+                },
+                "hybrid": null,
+                "greedy": null,
+                "min_return": null
+              }
+            }
+          ],
+          "trader": "terra107csvxzh8sfp8npnkn9556hutdncjwzg8ucwpc",
+          "sender": "terra107csvxzh8sfp8npnkn9556hutdncjwzg8ucwpc"
+        }
+      },
+      "smart_status": "PASS",
+      "response": {
+        "amount": "894880862313485362"
+      },
+      "probe": {
+        "txhash": "98F4291A3D44CCFFF0759646BEC43926B537D163D910C2305B2A768CBDF310AF",
+        "height": "6445",
+        "gas_used": 1586830,
+        "query_status": "ok"
+      }
+    }
+  ]
+}

@@ -175,7 +175,7 @@ def operations(tokens):
             for a, b in zip(tokens, tokens[1:])]
 
 
-def main():
+def main(argv=None, query_observer=None, fixture_observer=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--container", default="cl8y-dex-terraclassic-localterra-1")
     parser.add_argument("--artifacts", type=Path,
@@ -185,8 +185,9 @@ def main():
     parser.add_argument("--code-cache", type=Path, help="Reuse checksum-verified test-chain stores on retest")
     parser.add_argument("--isolated-owner", action="store_true",
                         help="Fund a fresh synthetic setup signer to avoid shared-test1 sequence races")
+    parser.add_argument("--scenario", action="append", help="Run only a named synthetic scenario (repeatable)")
     parser.add_argument("--evidence-file", required=True, type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     chain = LocalTerra(args.container, args.code_cache)
     # A dedicated synthetic owner prevents sequence collisions with other agent fleets.
     chain.default_key, owner = chain.fresh_trader("200000000000uluna")
@@ -269,9 +270,19 @@ def main():
     for name in ("ALPHA", "BETA"):
         cap = chain.smart(tokens[name], {"route_tax_capability": {}})
         assert cap["funding_version"] == 1 and cap["router"] == router
-    evidence["receipts"] = chain.receipts
-    args.evidence_file.parent.mkdir(parents=True, exist_ok=True)
-    args.evidence_file.write_text(json.dumps(evidence, indent=2) + "\n")
+    def save():
+        evidence["receipts"] = chain.receipts
+        args.evidence_file.parent.mkdir(parents=True, exist_ok=True)
+        args.evidence_file.write_text(json.dumps(evidence, indent=2) + "\n")
+
+    save()
+    if fixture_observer:
+        fixture_observer(chain, evidence, save)
+
+    def observed_query(label, kind, message):
+        if query_observer:
+            return query_observer(chain, evidence, label, kind, router, message, save)
+        return chain.smart(router, message)
 
     def snapshot(trader):
         return {name: {"trader": chain.balance(token, trader), "router": chain.balance(token, router),
@@ -285,6 +296,8 @@ def main():
         ("taxed initial gross", ("ALPHA", "UST1", "USTR"), False, False, False),
         ("taxed final buy", ("CL8Y", "ALPHA"), False, False, False),
         ("minimum return rollback", ("CL8Y", "ALPHA", "BETA", "USTR"), False, False, True)):
+        if args.scenario and label not in args.scenario:
+            continue
         key, trader = chain.fresh_trader()
         offer = 101 * 10**decimals[names[0]] // 100
         chain.execute(tokens[names[0]], {"transfer": {"recipient": trader, "amount": str(offer)}})
@@ -298,12 +311,12 @@ def main():
             if not reserves:
                 assert before[name]["trader"] == 0
         ops = operations([tokens[name] for name in names])
-        quote = chain.smart(router, {"simulate_swap_operations": {
+        quote = observed_query(label, "forward", {"simulate_swap_operations": {
             "offer_amount": str(offer), "operations": ops, "trader": trader, "sender": trader}})
         expected = int(quote["amount"])
-        reverse = chain.smart(router, {"reverse_simulate_swap_operations": {
+        reverse = observed_query(label, "reverse", {"reverse_simulate_swap_operations": {
             "ask_amount": str(expected), "operations": ops, "trader": trader, "sender": trader}})
-        forward_reverse = chain.smart(router, {"simulate_swap_operations": {
+        forward_reverse = observed_query(label, "fresh forward validation", {"simulate_swap_operations": {
             "offer_amount": reverse["amount"], "operations": ops, "trader": trader, "sender": trader}})
         assert int(forward_reverse["amount"]) >= expected, "Gross reverse budget insufficient"
         hook = {"execute_route_swap_operations": {"funding_version": 1, "operations": ops, "max_spread": "0.5",

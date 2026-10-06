@@ -74,4 +74,5 @@ pub mod entry {
 }
 
 mod reverse_query;
+mod route_quote;
 mod route_tax;
