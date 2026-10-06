@@ -109,7 +109,7 @@ make build-optimized   # Build production wasm
 
 ### Indexer (Rust)
 
-The indexer has library tests (`cargo test --lib`, no Postgres) and integration tests (`cargo test --tests`) that require PostgreSQL and migrations. See [Testing — Indexer (Rust)](docs/testing.md#indexer-rust) and [Shared Postgres and test parallelism](docs/testing.md#shared-postgres-and-test-parallelism) for `TEST_DATABASE_URL` and how to avoid flaky runs when multiple tests share one database.
+The indexer has library tests (`cargo test --lib`, no Postgres) and integration tests (`cargo test --tests`) that require PostgreSQL and migrations. See [Testing — Indexer (Rust)](docs/testing.md#indexer-rust) and [Worktree isolation and test parallelism](docs/testing.md#worktree-isolation-and-test-parallelism). Use separate runtime/migrator/QA credentials and fresh databases per integration process; [#1396 instructions and verification](docs/qa/issue-1396/README.md) cover setup, rollback and explicit skips.
 
 ### Frontend
 

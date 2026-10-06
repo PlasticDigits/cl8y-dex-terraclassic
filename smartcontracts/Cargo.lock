@@ -153,6 +153,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 name = "cl8y-community-tax-autolp"
 version = "1.0.0"
 dependencies = [
+ "cl8y-dex-pair",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
@@ -160,6 +161,7 @@ dependencies = [
  "cw2",
  "cw20",
  "cw20-base",
+ "cw20-mintable",
  "dex-common",
  "schemars",
  "serde",
@@ -305,7 +307,7 @@ dependencies = [
 
 [[package]]
 name = "cl8y-dex-router"
-version = "1.3.1"
+version = "1.4.0"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",

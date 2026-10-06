@@ -45,7 +45,7 @@ chmod +x scripts/setup-postgres-dev-databases.sh scripts/lib/upsert-dotenv.sh \
 ./scripts/setup-postgres-dev-databases.sh
 
 echo ""
-echo "[setup-indexer-postgres] OK — indexer/.env has DATABASE_URL + TEST_DATABASE_URL"
+echo "[setup-indexer-postgres] OK — runtime indexer/.env and scoped private .env.migrate/.env.qa files are ready"
 echo "  Serialized integration tests:"
 echo "    make test-indexer-integration"
 echo "  #324 cache tier integration (MR !91 gap):"

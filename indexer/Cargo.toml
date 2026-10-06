@@ -5,6 +5,7 @@ edition = "2021"
 description = "CL8Y DEX indexer for Terra Classic — charting, analytics, CoinGecko/CoinMarketCap API"
 
 [dependencies]
+anyhow = "1"
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["json", "query"] }
 tower-http = { version = "0.6", features = ["cors", "trace", "timeout", "compression-full", "limit"] }

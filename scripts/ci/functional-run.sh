@@ -87,18 +87,28 @@ case "$job" in
   indexer-postgres)
     # Only the dedicated disposable PostgreSQL service is accepted. No real
     # credentials, host DBs, or .env overrides belong in a required PR job.
-    [[ "${TEST_DATABASE_URL:-}" == 'postgres://cl8y_ci:cl8y_ci@postgres:5432/dex_indexer_ci_test' ]] || fail 'isolated test database not configured'
-    [[ ! -e indexer/.env ]] || fail 'checkout .env overrides test database'
+    [[ "${TEST_DATABASE_ADMIN_URL:-}" == 'postgres://dex_indexer_qa:ci-qa-disposable@postgres:5432/dex_indexer_test' ]] || fail 'isolated QA control database not configured'
+    [[ ! -e indexer/.env && ! -e indexer/.env.qa ]] || fail 'checkout dotenv overrides test database'
     ready=false
     for ((attempt=0; attempt<30; attempt++)); do
       if pg_isready -h postgres -U cl8y_ci -d dex_indexer_ci_test >/dev/null 2>&1; then ready=true; break; fi
       sleep 2
     done
     [[ "$ready" == true ]] || fail 'PostgreSQL unavailable after 60 seconds'
+    # Bootstrap occurs only on the fixed ephemeral service as its administrator.
+    PGPASSWORD=cl8y_ci psql -h postgres -U cl8y_ci -d dex_indexer_ci_test -v ON_ERROR_STOP=1 <<'SQL'
+CREATE ROLE dex_indexer_qa LOGIN CREATEDB NOSUPERUSER NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD 'ci-qa-disposable';
+CREATE ROLE dex_indexer_runtime NOLOGIN NOCREATEDB NOSUPERUSER NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+CREATE DATABASE dex_indexer_test;
+COMMENT ON DATABASE dex_indexer_test IS 'cl8y-dex:isolated-qa:v1';
+REVOKE ALL ON DATABASE dex_indexer_test FROM PUBLIC;
+GRANT CONNECT ON DATABASE dex_indexer_test TO dex_indexer_qa;
+REVOKE CONNECT ON DATABASE dex_indexer_ci_test FROM PUBLIC;
+SQL
     cd indexer
     cargo test --locked --jobs 2 \
       --test security --test api_hooks --test api_route_tax_funding1381 \
-      --test indexer_ingestion_hardening -- --test-threads=1
+      --test indexer_ingestion_hardening --test database_isolation -- --test-threads=1
     ;;
 esac
 

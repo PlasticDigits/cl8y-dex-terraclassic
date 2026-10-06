@@ -19,18 +19,9 @@ VITE_INDEXER_URL="${VITE_INDEXER_URL:-http://127.0.0.1:3001}"
 # Use 127.0.0.1 (not localhost) so curl/Vitest avoid ::1 when LocalTerra binds IPv4 only — GitLab #131.
 VITE_TERRA_LCD_URL="${VITE_TERRA_LCD_URL:-http://127.0.0.1:1317}"
 VITE_TERRA_RPC_URL="${VITE_TERRA_RPC_URL:-http://127.0.0.1:26657}"
-CHARTS_INT_DATABASE_URL="${CHARTS_INT_DATABASE_URL:-$DATABASE_URL}"
+: "${CHARTS_INT_DATABASE_URL:?Set an explicit isolated QA database URL; runtime DATABASE_URL is never a fixture target}"
 export DATABASE_URL="$CHARTS_INT_DATABASE_URL"
-export PGPASSWORD="$POSTGRES_PASSWORD"
 
-_charts_db_name() {
-  local url="${1:?}"
-  local name="${url##*/}"
-  name="${name%%\?*}"
-  echo "$name"
-}
-
-CHARTS_DB="$(_charts_db_name "$DATABASE_URL")"
 
 _fail() {
   echo "ERROR: $*" >&2
@@ -43,60 +34,18 @@ _require_cmd() {
   command -v "$cmd" >/dev/null 2>&1 || _fail "$hint"
 }
 
-_ensure_charts_db() {
-  local exists
-  exists="$(psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -tAc \
-    "SELECT 1 FROM pg_database WHERE datname='${CHARTS_DB}'" 2>/dev/null || true)"
-  if [ "$exists" = "1" ]; then
-    echo "[test-charts-integration] database ${CHARTS_DB} already exists"
-    return 0
-  fi
-  echo "[test-charts-integration] creating database ${CHARTS_DB} (owner ${POSTGRES_USER})..."
-  psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 \
-    -c "CREATE DATABASE \"${CHARTS_DB}\" OWNER \"${POSTGRES_USER}\";"
-}
-
-_require_postgres() {
-  _require_cmd psql "psql not found. Install PostgreSQL client tools."
-  if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" >/dev/null 2>&1; then
-    _fail "Postgres unreachable at ${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}. Start Postgres (e.g. docker compose up -d postgres) or see skills/AGENTS_LOCAL_POSTGRES_DEV.md"
-  fi
-  if ! psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres -c '\q' 2>/dev/null; then
-    _fail "Cannot connect to Postgres as ${POSTGRES_USER}@${POSTGRES_HOST}:${POSTGRES_PORT}. Check credentials in scripts/lib/postgres-dev.env or repo .env"
-  fi
+_check_isolated_qa() {
+  local binary="${INDEXER_QA_BIN:-$REPO_ROOT/indexer/target/release/cl8y-dex-indexer}"
+  [[ -x "$binary" ]] || _fail 'Build the indexer binary first; isolated QA identity must be verified before fixture writes'
+  # Shared Rust policy checks mode, effective URL, authenticated role/marker and
+  # pre-applied schema. No database creation/migration or mutation in this check.
+  "$binary" seed-qa --check
 }
 
 _require_indexer() {
   if ! curl -sf "${VITE_INDEXER_URL%/}/health" >/dev/null 2>&1; then
-    _fail "Indexer HTTP not reachable at ${VITE_INDEXER_URL}. Start the indexer first (make start-qa or make indexer-dev) and ensure it uses DATABASE_URL=${DATABASE_URL}"
+    _fail "Indexer HTTP not reachable at ${VITE_INDEXER_URL}. Start the indexer first (make start-qa or make indexer-dev) and ensure it uses the explicitly prepared isolated QA database"
   fi
-}
-
-# shellcheck source=scripts/lib/docker-indexer-bind-mount.sh
-source "$REPO_ROOT/scripts/lib/docker-indexer-bind-mount.sh"
-
-_run_migrations_docker() {
-  local cid net db_url
-  _require_cmd docker "docker not found. Install Docker or run migrations manually: cd indexer && sqlx migrate run"
-  cid="$(docker compose -f "$REPO_ROOT/docker-compose.yml" ps -q postgres 2>/dev/null || true)"
-  if [ -z "$cid" ]; then
-    _fail "Postgres docker compose service is not running. Start it: docker compose up -d postgres"
-  fi
-  net="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$cid")"
-  db_url="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${CHARTS_DB}"
-  echo "[test-charts-integration] running migrations via docker network (${db_url})"
-  # Mount migrations only — never bind-mount indexer/ (root cargo/sqlx would own target/).
-  docker_sqlx_migrate_on_compose_network "$net" "$db_url" "$REPO_ROOT/indexer/migrations"
-}
-
-_run_migrations() {
-  _require_cmd sqlx "sqlx-cli not found. Install: cargo install sqlx-cli --version 0.8.6 --no-default-features --features rustls,postgres --locked"
-  echo "[test-charts-integration] running migrations against ${DATABASE_URL}"
-  if (cd "$REPO_ROOT/indexer" && timeout 45 sqlx migrate run); then
-    return 0
-  fi
-  echo "[test-charts-integration] WARN: host sqlx migrate failed or timed out; retrying via docker compose postgres network" >&2
-  _run_migrations_docker
 }
 
 _seed_fixtures() {
@@ -173,10 +122,9 @@ _run_vitest() {
       npm run test:integration
 }
 
-echo "[test-charts-integration] DATABASE_URL=${DATABASE_URL}"
-_require_postgres
-_ensure_charts_db
-_run_migrations
+echo "[test-charts-integration] checking isolated QA target (credentials omitted)"
+_check_isolated_qa
+_require_cmd psql "psql not found. Install PostgreSQL client tools."
 _seed_fixtures
 _require_indexer
 _run_vitest

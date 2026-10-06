@@ -38,7 +38,7 @@ and [RTROLL1381](AGENTS_ROUTE_TAX_ROLLOUT.md).
    silently substitute a weaker trade. Solver DB sizing still needs its own fresh
    router forward preflight; it is a separately tested path, not reverse proof.
 7. **FRQ1422-7 — rollout truth.** The current coordinated targets are router
-   **1.3.1**, pair **1.20.0**, token **1.3.0**, factory **1.11.0**. Reconcile
+   **1.4.0**, pair **1.21.0**, token **1.3.0**, factory **1.12.0**. Reconcile
    [#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384) and
    [#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386) with reviewed
    hashes and fresh read-only quotes at the actual provider's limit before rollout

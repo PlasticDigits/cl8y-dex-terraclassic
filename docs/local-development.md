@@ -110,19 +110,26 @@ docker compose down
 
 ## Postgres (indexer + integration tests)
 
-Docker Compose Postgres defaults to user **`cl8y_legal`** (not `postgres`). Deploy writes `indexer/.env` with `DATABASE_URL` and `TEST_DATABASE_URL`.
+Postgres uses separate bootstrap, runtime, migrator and QA credentials with no
+password defaults. Set private `.env` values from [the template](../.env.example).
+The old `cl8y_legal` administrative application login is legacy; existing databases
+need a reviewed ownership transition rather than a volume reset.
 
-**Stack prerequisite:** Every host running the indexer or `cargo test --tests` must have the **`cl8y_legal`** role (see [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) § Stack prerequisite; [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245)). [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) bootstraps the role via superuser when missing.
-
-```bash
-# Fresh volume after credential changes:
-make reset && make start && make wait-healthy && make deploy-local
-
-# Or ensure role + databases only:
+```sh
+COMPOSE_FILE=docker-compose.yml docker compose up -d postgres
 ./scripts/setup-postgres-dev-databases.sh
+make indexer-migrate
 ```
 
-Agent playbook (setup, test commands, troubleshooting): [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md). Human docs: [Testing — local Postgres](./testing.md#local-postgres-setup-agents).
+Setup writes scoped mode-0600 `indexer/.env`, `.env.migrate` and `.env.qa` files.
+The server never migrates and never receives migration/QA credentials. Integration
+tests create fresh databases per process. Default Postgres publication is loopback;
+use the named `docker-compose.postgres-host.yml` only for an explicit loopback-only
+host-network workaround.
+
+See [the Postgres playbook](../skills/AGENTS_LOCAL_POSTGRES_DEV.md),
+[role transition and rollback](./runbooks/indexer-database-isolation.md),
+and [issue #1396 verification](./qa/issue-1396/README.md).
 
 ## Troubleshooting
 

@@ -1,12 +1,12 @@
+mod database;
 pub mod lcd_mock;
 
-use std::env;
 use std::fs::OpenOptions;
 use std::os::unix::io::AsRawFd;
 use std::sync::Once;
 
 use axum::Router;
-use cl8y_dex_indexer::api::{AppState, build_router};
+use cl8y_dex_indexer::api::{build_router, AppState};
 use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::PgPool;
@@ -16,10 +16,10 @@ static ENV: Once = Once::new();
 
 fn load_test_env() {
     ENV.call_once(|| {
-        // Worktree `indexer/.env` must win over a parent-shell TEST_DATABASE_URL that
-        // still points at a sibling worktree's shared `dex_indexer_test`.
-        let _ = dotenvy::from_filename_override(".env");
-        let _ = dotenvy::from_filename_override("../indexer/.env");
+        // QA credentials are separate from the server's runtime environment.
+        // Explicit shell credentials win over worktree defaults (including CI).
+        let _ =
+            dotenvy::from_path(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(".env.qa"));
     });
 }
 
@@ -38,9 +38,7 @@ pub fn test_config() -> Config {
     Config {
         run_mode: cl8y_dex_indexer::config::RunMode::Dev,
         expected_chain_id: "columbus-5".to_string(),
-        database_url: env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer_test".into()
-        }),
+        database_url: database::test_database_url(),
         lcd_urls: vec!["http://localhost:9999".to_string()],
         factory_address: "terra1factory".to_string(),
         fee_discount_address: None,
@@ -94,30 +92,16 @@ pub fn test_config() -> Config {
 
 pub async fn setup_pool() -> PgPool {
     init_tracing();
-    let config = test_config();
+    load_test_env();
     hold_test_db_lock_for_process();
-    let pool = PgPool::connect(&config.database_url)
-        .await
-        .unwrap_or_else(|e| {
-            panic!(
-                "Integration tests require PostgreSQL at {}: {}.\n\
-                 Set TEST_DATABASE_URL or run `cargo test --lib` for unit tests only.",
-                config.database_url, e
-            );
-        });
-
-    sqlx::migrate!()
-        .set_ignore_missing(true) // shared dex_indexer_test may have other worktree versions
-        .run(&pool)
-        .await
-        .expect("Failed to run migrations");
+    let pool = database::setup_pool().await;
 
     cl8y_dex_indexer::api::reset_route_graph_cache();
 
     pool
 }
 
-/// Cross-process lock for shared `dex_indexer_test` (parallel `cargo test` / agents).
+/// Compatibility lock scoped to this disposable test process database.
 /// Hold the returned file for the whole mutation window — `clean_db` only locks during TRUNCATE.
 ///
 /// Do **not** call this after [`setup_pool`] (or anything that uses
@@ -127,7 +111,7 @@ pub fn lock_shared_test_db() -> std::fs::File {
     acquire_shared_test_db_lock()
 }
 
-/// Cross-process lock for the test DB (parallel `cargo test` / agents).
+/// Process-local mutation lock. Other binaries and worktrees own different databases.
 /// Held for the whole test process so rust-analyzer cannot TRUNCATE between insert and GET.
 fn hold_test_db_lock_for_process() {
     use std::sync::OnceLock;
@@ -136,8 +120,10 @@ fn hold_test_db_lock_for_process() {
 }
 
 fn acquire_shared_test_db_lock() -> std::fs::File {
-    let path = env::var("TEST_DB_LOCK_FILE")
-        .unwrap_or_else(|_| "/tmp/cl8y-dex-indexer-test.seed.lock".into());
+    let path = format!(
+        "/tmp/cl8y-dex-indexer-test-{}.seed.lock",
+        std::process::id()
+    );
     let file = OpenOptions::new()
         .create(true)
         .write(true)
@@ -150,6 +136,7 @@ fn acquire_shared_test_db_lock() -> std::fs::File {
 }
 
 async fn clean_db_tables(pool: &PgPool) {
+    database::assert_owned_pool(pool).await;
     // TRUNCATE CASCADE avoids flaky DELETE .ok() when FK rows remain.
     sqlx::query(
         "TRUNCATE TABLE

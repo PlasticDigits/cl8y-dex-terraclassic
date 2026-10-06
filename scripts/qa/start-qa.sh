@@ -153,10 +153,11 @@ if [ -z "$INDEXER_BIN" ] || [ ! -x "$INDEXER_BIN" ]; then
   INDEXER_BIN="${REPO_ROOT}/indexer/target/release/cl8y-dex-indexer"
 fi
 
+INDEXER_MIGRATION_BIN="$INDEXER_BIN" bash "$REPO_ROOT/scripts/indexer-migrate.sh"
 if [ -n "$INDEXER_BIN" ] && [ -x "$INDEXER_BIN" ]; then
-  nohup sh -c "cd \"$REPO_ROOT/indexer\" && set -a && [ -f .env ] && . ./.env && set +a && exec \"$INDEXER_BIN\"" >>"$LOGFILE" 2>&1 &
+  nohup sh -c "exec bash \"$REPO_ROOT/scripts/indexer-run.sh\" \"$INDEXER_BIN\"" >>"$LOGFILE" 2>&1 &
 else
-  nohup sh -c "cd \"$REPO_ROOT/indexer\" && set -a && [ -f .env ] && . ./.env && set +a && exec cargo run --release" >>"$LOGFILE" 2>&1 &
+  nohup sh -c "exec bash \"$REPO_ROOT/scripts/indexer-run.sh\" cargo run --release" >>"$LOGFILE" 2>&1 &
 fi
 echo $! >"$PIDFILE"
 echo "[start-qa] Indexer pid $(cat "$PIDFILE"); log: $LOGFILE"

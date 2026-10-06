@@ -117,6 +117,7 @@ vi.mock('@/services/terraclassic/swapRoutePreflight', () => ({
     anyHopExceedsMaxSpread: false,
   }),
   enrichSwapOperationsWithHopMinReturns: vi.fn(async (operations: unknown[]) => operations),
+  computeDirectHybridMinReturn: vi.fn().mockResolvedValue('950000'),
 }))
 vi.mock('@/services/terraclassic/router', () => ({
   findRoute: vi.fn(),
@@ -157,6 +158,7 @@ import {
   executeNativeSwap,
 } from '@/services/terraclassic/router'
 import { quoteSwapReceiveViaSolver } from '@/utils/swapReceiveQuote'
+import { computeDirectHybridMinReturn } from '@/services/terraclassic/swapRoutePreflight'
 import { reverseSimulateSwap, simulateSwap, swap } from '@/services/terraclassic/pair'
 import { getTokenBalance } from '@/services/terraclassic/queries'
 import { getConnectedWallet } from '@/services/terraclassic/wallet'
@@ -227,6 +229,7 @@ function renderWithSearch(route = '/?from=LUNC&to=USTC') {
 describe('SwapPage receive amount (Forgejo #1256)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(computeDirectHybridMinReturn).mockResolvedValue('950000')
     receiveTax.buyBps = null
     useWalletStore.setState({ address: null, walletType: null, error: null })
     vi.mocked(getConnectedWallet).mockReturnValue(null)
@@ -380,7 +383,8 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(screen.getByTestId('retry-error-button')).toBeEnabled()
   })
 
-  it('server-only single-hop CW20 submit uses the verified factory pair instead of a client route', async () => {
+  it('server-only single-hop CW20 submit preserves the requested floor when the fresh quote floor is weaker', async () => {
+    vi.mocked(computeDirectHybridMinReturn).mockResolvedValue('900000')
     vi.mocked(findRoute).mockReturnValue(null)
     vi.mocked(findRouteWithNativeSupport).mockReturnValue(null)
     const wallet = 'terra1wallet000000000000000000000000000001'
@@ -561,7 +565,8 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
     expect(screen.getByTestId('swap-you-receive')).toHaveValue('0.9')
   })
 
-  it('buy-tax receive target submits the reverse offer and contract spread protection', async () => {
+  it('buy-tax receive target keeps the stronger fresh net floor with the reverse offer', async () => {
+    vi.mocked(computeDirectHybridMinReturn).mockResolvedValue('980000')
     receiveTax.buyBps = 1000
     seedCw20Route()
     const wallet = 'terra1wallet000000000000000000000000000001'
@@ -588,7 +593,7 @@ describe('SwapPage receive amount (Forgejo #1256)', () => {
         undefined,
         '0.05',
         undefined,
-        expect.objectContaining({ deadline: expect.any(Number), minReturn: '950000' })
+        expect.objectContaining({ deadline: expect.any(Number), minReturn: '980000' })
       )
     )
   })

@@ -1,4 +1,4 @@
-# Stable project name so git worktrees share the same LocalTerra/Postgres stack.
+# Local chain stack. Integration tests create disposable databases (#1396).
 name: cl8y-dex-terraclassic
 
 services:
@@ -23,17 +23,21 @@ services:
   postgres:
     # Pinned digest; bump via: docker pull postgres:16-alpine && docker inspect ...
     image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    entrypoint: ["/usr/local/bin/cl8y-postgres-entrypoint.sh"]
+    command: ["postgres"]
     ports:
       - "127.0.0.1:5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-cl8y_legal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cl8y_legal}
+      # Bootstrap identity is separate from the runtime/migrator/QA logins.
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?Set a nondefault bootstrap password in .env}
       POSTGRES_DB: ${POSTGRES_DB:-dex_indexer}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+      - ./docker/postgres-entrypoint.sh:/usr/local/bin/cl8y-postgres-entrypoint.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-cl8y_legal}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 10

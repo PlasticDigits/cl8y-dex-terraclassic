@@ -6,6 +6,11 @@ You are changing **slippage checks**, **`max_spread` / `belief_price`**, hybrid 
 
 ## Product rule (invariant L9)
 
+For registered hooks, also follow
+[NE1398 net execution floors](./AGENTS_NET_EXECUTION_FLOORS.md): execute requires
+positive `min_return` and compares it against post-hook output. L9 remains the
+market-spread check below; passing it does not establish a post-hook receive floor.
+
 One shared implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs). Pool-only swaps are `book_net_return = 0`.
 
 | Mode | Pass condition |

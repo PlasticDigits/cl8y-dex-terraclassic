@@ -229,6 +229,7 @@ cloud_agent_ensure_dockerd() {
 }
 
 cloud_agent_docker_compose() {
+  export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
   if groups 2>/dev/null | grep -qw docker; then
     docker compose "$@"
   else

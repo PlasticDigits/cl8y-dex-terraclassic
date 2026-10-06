@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod adversarial_token;
 #[cfg(test)]
+mod issue_1398_tests;
+#[cfg(test)]
 mod route_tax_1381_tests;
 
 #[cfg(test)]
@@ -459,10 +461,17 @@ mod helpers {
     }
 
     pub fn swap_a_to_b(app: &mut App, env: &TestEnv, sender: &Addr, amount: Uint128) {
+        let hooks: dex_common::pair::HooksResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::GetHooks {},
+            )
+            .unwrap();
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
-            min_return: None,
+            min_return: (!hooks.hooks.is_empty()).then_some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: None,
@@ -485,10 +494,17 @@ mod helpers {
     }
 
     pub fn swap_b_to_a(app: &mut App, env: &TestEnv, sender: &Addr, amount: Uint128) {
+        let hooks: dex_common::pair::HooksResponse = app
+            .wrap()
+            .query_wasm_smart(
+                env.pair.to_string(),
+                &dex_common::pair::QueryMsg::GetHooks {},
+            )
+            .unwrap();
         let swap_msg = cosmwasm_std::to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
-            min_return: None,
+            min_return: (!hooks.hooks.is_empty()).then_some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: None,
@@ -9504,7 +9520,7 @@ mod audit_invariant_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
-            min_return: None,
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: None,
@@ -12516,7 +12532,7 @@ mod new_feature_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
-            min_return: None,
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: None,
@@ -14186,7 +14202,7 @@ mod reentrancy_tests {
         let swap_msg = to_json_binary(&dex_common::pair::Cw20HookMsg::Swap {
             belief_price: None,
             max_spread: Some(cosmwasm_std::Decimal::one()),
-            min_return: None,
+            min_return: Some(Uint128::one()),
             to: None,
             deadline: None,
             hybrid: None,

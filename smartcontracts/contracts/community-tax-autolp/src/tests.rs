@@ -89,6 +89,7 @@ fn tax_token_contract() -> Box<dyn Contract<Empty>> {
 enum MockPairQuery {
     Pair {},
     LastHook {},
+    Pool {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -100,6 +101,21 @@ enum MockPairExecute {
         slippage_tolerance: Option<Decimal>,
         receiver: Option<String>,
         deadline: Option<u64>,
+    },
+    SetLpToken {
+        token: String,
+    },
+    SetReentry {
+        target: String,
+        config_update: bool,
+    },
+    SetReserves {
+        tax: Uint128,
+        quote: Uint128,
+        shares: Uint128,
+    },
+    SetIssuanceBps {
+        bps: u128,
     },
     /// Test helper: quote raw the swap will pay. Below this, `min_return` fails.
     SetFloorOutput {
@@ -121,15 +137,44 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
         deps.storage.set(b"quote", msg.2.as_bytes());
         deps.storage.set(b"self", env.contract.address.as_bytes());
         deps.storage.set(b"floor", &u128::MAX.to_be_bytes());
+        for key in [b"tax_reserve".as_slice(), b"quote_reserve", b"shares"] {
+            deps.storage.set(key, &1_000_000_000u128.to_be_bytes());
+        }
+        deps.storage.set(b"issuance_bps", &10_000u128.to_be_bytes());
         Ok(cosmwasm_std::Response::new())
     }
     fn exec(
         deps: cosmwasm_std::DepsMut,
-        _env: cosmwasm_std::Env,
-        _info: cosmwasm_std::MessageInfo,
+        env: cosmwasm_std::Env,
+        info: cosmwasm_std::MessageInfo,
         msg: MockPairExecute,
     ) -> StdResult<cosmwasm_std::Response> {
         match msg {
+            MockPairExecute::SetReentry {
+                target,
+                config_update,
+            } => {
+                deps.storage.set(b"reentry", target.as_bytes());
+                if config_update {
+                    deps.storage.set(b"config_reentry", b"1");
+                }
+                Ok(cosmwasm_std::Response::new())
+            }
+            MockPairExecute::SetLpToken { token } => {
+                deps.storage.set(b"lp", token.as_bytes());
+                Ok(cosmwasm_std::Response::new())
+            }
+            MockPairExecute::SetReserves { tax, quote, shares } => {
+                deps.storage.set(b"tax_reserve", &tax.u128().to_be_bytes());
+                deps.storage
+                    .set(b"quote_reserve", &quote.u128().to_be_bytes());
+                deps.storage.set(b"shares", &shares.u128().to_be_bytes());
+                Ok(cosmwasm_std::Response::new())
+            }
+            MockPairExecute::SetIssuanceBps { bps } => {
+                deps.storage.set(b"issuance_bps", &bps.to_be_bytes());
+                Ok(cosmwasm_std::Response::new())
+            }
             MockPairExecute::SetFloorOutput { amount } => {
                 deps.storage.set(b"floor", &amount.u128().to_be_bytes());
                 Ok(cosmwasm_std::Response::new())
@@ -171,6 +216,10 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
                         let dest = to.unwrap_or(rcv.sender);
                         if !quote.is_empty() && !floor.is_zero() && floor != Uint128::new(u128::MAX)
                         {
+                            let tax = stored_u128(deps.storage, b"tax_reserve") + rcv.amount.u128();
+                            let other = stored_u128(deps.storage, b"quote_reserve") - floor.u128();
+                            deps.storage.set(b"tax_reserve", &tax.to_be_bytes());
+                            deps.storage.set(b"quote_reserve", &other.to_be_bytes());
                             let pay = WasmMsgExec {
                                 contract_addr: quote,
                                 msg: to_json_binary(&Cw20ExecuteMsg::Transfer {
@@ -192,9 +241,74 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
                     _ => Ok(cosmwasm_std::Response::new()),
                 }
             }
-            MockPairExecute::ProvideLiquidity { .. } => {
+            MockPairExecute::ProvideLiquidity {
+                assets,
+                slippage_tolerance,
+                receiver,
+                ..
+            } => {
+                let tax = stored_u128(deps.storage, b"tax_reserve");
+                let quote = stored_u128(deps.storage, b"quote_reserve");
+                let shares = stored_u128(deps.storage, b"shares");
+                let a = assets[0].amount.multiply_ratio(shares, tax);
+                let b = assets[1].amount.multiply_ratio(shares, quote);
+                let minted = a.min(b);
+                let tolerance = slippage_tolerance
+                    .ok_or_else(|| cosmwasm_std::StdError::generic_err("LP tolerance missing"))?;
+                if minted < a.max(b) * (Decimal::one() - tolerance) {
+                    return Err(cosmwasm_std::StdError::generic_err(
+                        "LP ratio tolerance exceeded",
+                    ));
+                }
+                let minted =
+                    minted.multiply_ratio(stored_u128(deps.storage, b"issuance_bps"), 10_000u128);
+                let lp = String::from_utf8(deps.storage.get(b"lp").unwrap()).unwrap();
+                let mut response = cosmwasm_std::Response::new();
+                if let Some(target) = deps.storage.get(b"reentry") {
+                    let msg = if deps.storage.get(b"config_reentry").is_some() {
+                        ExecuteMsg::UpdateConfig {
+                            pair: None,
+                            router: None,
+                            quote_token: None,
+                            threshold: Some(Uint128::one()),
+                            lp_recipient: None,
+                            skim_max_spread: None,
+                            skim_min_return: None,
+                        }
+                    } else {
+                        ExecuteMsg::SkimToLp {}
+                    };
+                    response = response.add_message(cosmwasm_std::WasmMsg::Execute {
+                        contract_addr: String::from_utf8(target).unwrap(),
+                        msg: to_json_binary(&msg)?,
+                        funds: vec![],
+                    });
+                }
+                for asset in assets {
+                    let AssetInfo::Token { contract_addr } = asset.info else {
+                        unreachable!()
+                    };
+                    response = response.add_message(cosmwasm_std::WasmMsg::Execute {
+                        contract_addr,
+                        msg: to_json_binary(&Cw20ExecuteMsg::TransferFrom {
+                            owner: info.sender.to_string(),
+                            recipient: env.contract.address.to_string(),
+                            amount: asset.amount,
+                        })?,
+                        funds: vec![],
+                    });
+                }
+                deps.storage
+                    .set(b"shares", &(shares + minted.u128()).to_be_bytes());
                 deps.storage.set(b"provided", b"1");
-                Ok(cosmwasm_std::Response::new())
+                Ok(response.add_message(cosmwasm_std::WasmMsg::Execute {
+                    contract_addr: lp,
+                    msg: to_json_binary(&Cw20ExecuteMsg::Mint {
+                        recipient: receiver.unwrap_or(info.sender.to_string()),
+                        amount: minted,
+                    })?,
+                    funds: vec![],
+                }))
             }
         }
     }
@@ -217,7 +331,35 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
                         },
                     ],
                     contract_addr: env.contract.address,
-                    liquidity_token: Addr::unchecked("lp"),
+                    liquidity_token: Addr::unchecked(
+                        String::from_utf8(
+                            deps.storage
+                                .get(b"lp")
+                                .unwrap_or_else(|| b"lp-token".to_vec()),
+                        )
+                        .unwrap(),
+                    ),
+                })
+            }
+            MockPairQuery::Pool {} => {
+                let token = String::from_utf8(deps.storage.get(b"token").unwrap()).unwrap();
+                let other = String::from_utf8(deps.storage.get(b"other").unwrap()).unwrap();
+                to_json_binary(&dex_common::pair::PoolResponse {
+                    assets: [
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: token,
+                            },
+                            amount: Uint128::new(stored_u128(deps.storage, b"tax_reserve")),
+                        },
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: other,
+                            },
+                            amount: Uint128::new(stored_u128(deps.storage, b"quote_reserve")),
+                        },
+                    ],
+                    total_share: Uint128::new(stored_u128(deps.storage, b"shares")),
                 })
             }
             MockPairQuery::LastHook {} => {
@@ -227,6 +369,10 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
         }
     }
     Box::new(ContractWrapper::new(exec, inst, query))
+}
+
+fn stored_u128(storage: &dyn cosmwasm_std::Storage, key: &[u8]) -> u128 {
+    u128::from_be_bytes(storage.get(key).unwrap().try_into().unwrap())
 }
 
 struct WasmMsgExec {
@@ -280,6 +426,21 @@ fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
                     },
                 })
             }
+            FactoryQuery::IsCodeIdWhitelisted { code_id } => {
+                to_json_binary(&dex_common::factory::CodeIdWhitelistedResponse {
+                    code_id,
+                    whitelisted: true,
+                })
+            }
+            FactoryQuery::BlacklistCheck(_) => {
+                to_json_binary(&dex_common::blacklist::BlacklistCheckResponse {
+                    blocked: false,
+                    wallet_blacklisted: false,
+                    blacklisted_tokens: vec![],
+                    pair_blacklisted: false,
+                    blacklisted_pairs: vec![],
+                })
+            }
             _ => Err(cosmwasm_std::StdError::generic_err("unsupported")),
         }
     }
@@ -295,6 +456,7 @@ struct Harness {
     autolp: Addr,
     pair: Addr,
     pair_code: u64,
+    lp: Addr,
 }
 
 fn setup(pair_at_init: bool) -> Harness {
@@ -366,6 +528,35 @@ fn setup(pair_at_init: bool) -> Harness {
             None,
         )
         .unwrap();
+    let lp = app
+        .instantiate_contract(
+            quote_code,
+            manager.clone(),
+            &cw20_base::msg::InstantiateMsg {
+                name: "LP shares".into(),
+                symbol: "LPS".into(),
+                decimals: 6,
+                initial_balances: vec![],
+                mint: Some(cw20::MinterResponse {
+                    minter: pair.to_string(),
+                    cap: None,
+                }),
+                marketing: None,
+            },
+            &[],
+            "lp",
+            None,
+        )
+        .unwrap();
+    app.execute_contract(
+        manager.clone(),
+        pair.clone(),
+        &MockPairExecute::SetLpToken {
+            token: lp.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
     app.execute_contract(manager.clone(), factory.clone(), &pair.to_string(), &[])
         .unwrap();
 
@@ -404,6 +595,7 @@ fn setup(pair_at_init: bool) -> Harness {
         autolp,
         pair,
         pair_code,
+        lp,
     }
 }
 
@@ -721,6 +913,7 @@ fn skim_below_threshold_is_noop() {
 #[test]
 fn skim_sets_max_spread_floor_and_permissionless() {
     let mut h = setup(true);
+    set_swap_output(&mut h, 1_000_000);
     h.app
         .execute_contract(
             h.manager.clone(),
@@ -752,12 +945,13 @@ fn skim_sets_max_spread_floor_and_permissionless() {
             ..
         } => {
             assert_eq!(max_spread, Some(default_skim_max_spread()));
-            assert!(min_return.is_none());
+            assert_eq!(min_return, Some(Uint128::new(990_000)));
         }
         other => panic!("expected swap hook, got {other:?}"),
     }
     assert!(!cfg(&h).skimming);
-    assert_eq!(bal(&h.app, &h.token, h.autolp.as_str()), 1_000_000);
+    assert_eq!(bal(&h.app, &h.token, h.autolp.as_str()), 0);
+    assert_eq!(bal(&h.app, &h.lp, h.manager.as_str()), 999_000);
 }
 
 #[test]
@@ -884,7 +1078,7 @@ fn skim_then_provide_when_quote_leg_present() {
             h.quote.clone(),
             &Cw20ExecuteMsg::Transfer {
                 recipient: h.pair.to_string(),
-                amount: Uint128::new(400_000),
+                amount: Uint128::new(1_000_000),
             },
             &[],
         )
@@ -894,7 +1088,7 @@ fn skim_then_provide_when_quote_leg_present() {
             h.manager.clone(),
             h.pair.clone(),
             &MockPairExecute::SetFloorOutput {
-                amount: Uint128::new(400_000),
+                amount: Uint128::new(1_000_000),
             },
             &[],
         )
@@ -980,3 +1174,30 @@ fn instantiate_with_pair_registers_token() {
     let h = setup(true);
     assert_eq!(listed_pair(&h).as_deref(), Some(h.pair.as_str()));
 }
+
+fn set_swap_output(h: &mut Harness, amount: u128) {
+    h.app
+        .execute_contract(
+            h.manager.clone(),
+            h.quote.clone(),
+            &Cw20ExecuteMsg::Transfer {
+                recipient: h.pair.to_string(),
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+    h.app
+        .execute_contract(
+            h.manager.clone(),
+            h.pair.clone(),
+            &MockPairExecute::SetFloorOutput {
+                amount: Uint128::new(amount),
+            },
+            &[],
+        )
+        .unwrap();
+}
+
+#[path = "lp_policy_tests.rs"]
+mod lp_policy_tests;

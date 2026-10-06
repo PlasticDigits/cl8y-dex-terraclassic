@@ -19,14 +19,30 @@ Product decision (2026-08-23): `pair` must be factory-listed **and** have the ta
 
 ## Invariants **M610-1–M610-8**
 
+Current [#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398)
+behavior also follows [NE1398-9](./AGENTS_NET_EXECUTION_FLOORS.md): explicit
+manager pair binding captures reserve/share economics, and permissionless skim
+validates that anchor before constructing positive swap and minimum minted-LP
+floors. Missing/stale policy, missing provide leg or insufficient LP reverts the
+whole swap/provide. Empty pools can bind but cannot skim until initialized and
+explicitly rebound. Existing instances without policy must be rebound by the
+stored manager; permissionless spot refresh is forbidden. Query sister `GetConfig`
+and `GetLpPolicy` before rebinding. Current launcher instances stamp the human
+manager, who can execute sister `UpdateConfig { pair: <same pair> }` directly.
+Token settings with an unchanged pair are a no-op (#1237) and do not initialize
+policy. A legacy token-owned sister needs an explicit authorized proxy/migration
+path; do not impersonate its stored manager or assert human direct binding works.
+Source checks:
+`make verify-issue-1398`, [QA checklist](../docs/qa/issue-1398/README.md).
+
 1. **M610-1 — factory-listed tax pair.** `pair` on instantiate or `UpdateConfig` must succeed `factory.Pair { asset_infos }` for the **immutable launcher factory** and include **`cfg.token` as one of the two `asset_infos`**. Store only the factory-returned `contract_addr`. Reject native-only / wrong-token / non-factory contracts. Same check as token `RegisterListedPair` (**T592-9**). Setting `pair` also executes `register_listed_pair` on the tax token ([#633](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/633) **R633-3** / [`AGENTS_COMMUNITY_TAX_AUTOREGISTER.md`](./AGENTS_COMMUNITY_TAX_AUTOREGISTER.md)).
 2. **M610-2 — immutable factory.** Factory is stamped from the launcher at instantiate. Manager **cannot** `UpdateConfig` factory (closes fake-registry spoof).
-3. **M610-3 — skim floor.** `SkimToLp` always sets `max_spread` (default **100 bps**, hard cap **200 bps**). Optional manager `skim_min_return`. Never leave both `None`. Permissionless caller cannot pass or loosen the floor. Manager cannot set `skim_max_spread` above 200 bps. `UpdateConfig { skim_min_return: 0 }` clears a leftover hostile absolute floor (seed-path `#625` / **C623-8**).
+3. **M610-3 — skim floor.** `SkimToLp` always sets `max_spread` (default **100 bps**, hard cap **200 bps**). An optional manager `skim_min_return` can strengthen the anchor-derived positive floor (#1398); clearing it cannot remove the computed floor. Never leave both `None`. Permissionless caller cannot pass or loosen the floor. Manager cannot set `skim_max_spread` above 200 bps. `UpdateConfig { skim_min_return: 0 }` clears a leftover hostile absolute floor (seed-path `#625` / **C623-8**).
 4. **M610-4 — floor revert keeps tax.** Swap that violates `max_spread` / `min_return` reverts the tx. Tax stays on AutoLP. `SKIMMING` rolls back with the tx.
 5. **M610-5 — T592-10 unchanged.** `SkimToLp` stays permissionless and is **never** called from token `Transfer` / `Send` or pair `AfterSwap`. Do not add pair/router FoT math (**H-01**).
 6. **M610-6 — merge.** Omitted `UpdateConfig` fields keep their previous values (including pair, factory, floor). Token `UpdateSettings.autolp` dirty-detects via sister `GetConfig` and must **not** emit `UpdateConfig` (or re-`register_listed_pair`) when the effective config is unchanged (**T592-4** / [#1237](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1237)).
 7. **M610-7 — reject on set.** Fake pair / wrong listed pair revert on instantiate or `UpdateConfig`, not only on skim. `poc_autolp_manager_can_skim_to_fake_pair` is inverted.
-8. **M610-8 — reentrancy residual.** `SKIMMING` is true for the swap submsg (pair hook calling `SkimToLp` → `Reentrancy`). Reply clears the lock **before** provide messages. A listed pair's provide hook could call `SkimToLp` again in the same tx. Factory+token-side listing is what keeps that pair in the CL8Y set.
+8. **M610-8 — reentrancy lock.** `SKIMMING` stays true through both swap and provide submessages; nested skim and config updates fail. Only successful provide reply with sufficient newly minted LP clears the lock. Failure rolls back the complete transaction (#1398).
 
 Live LocalTerra `SkimToLp` vs a factory pair (floor + fake-pair reject) is the named tax-on suite: [`AGENTS_CW20_CODE_ID_TAX_ON.md`](./AGENTS_CW20_CODE_ID_TAX_ON.md) / `make verify-issue-623` (**C623-8**). `#601` smoke still leaves AutoLP `null`.
 

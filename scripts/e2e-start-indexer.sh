@@ -72,10 +72,12 @@ if [[ "$CORS_CHANGED" -eq 1 ]]; then
 fi
 
 echo "[e2e-start-indexer] starting indexer (log: ${INDEXER_LOG})"
+INDEXER_MIGRATION_BIN="$REPO_ROOT/indexer/target/release/cl8y-dex-indexer" \
+  bash "$REPO_ROOT/scripts/indexer-migrate.sh"
 set -a
 # shellcheck disable=SC1091
 source "$REPO_ROOT/indexer/.env"
 set +a
-nohup "$REPO_ROOT/indexer/target/release/cl8y-dex-indexer" >"$INDEXER_LOG" 2>&1 &
+nohup bash "$REPO_ROOT/scripts/indexer-run.sh" "$REPO_ROOT/indexer/target/release/cl8y-dex-indexer" >"$INDEXER_LOG" 2>&1 &
 echo $! >"$INDEXER_PID_FILE"
 _wait_indexer_up

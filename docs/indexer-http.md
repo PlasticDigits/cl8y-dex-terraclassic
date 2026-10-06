@@ -73,6 +73,46 @@ curl -sS "$INDEXER/swagger-ui/"
 
 `sort=volume_24h` on `/api/v1/pairs` compares raw quote. `sort=volume_usd_24h` and `sort=liquidity_usd` are NULLS LAST. `created_at` is indexer first-seen.
 
+## Public-chain-linked evidence daily
+
+`GET /api/v1/evidence/daily?day=YYYY-MM-DD` exports one UTC day of indexed
+`swap`/`wrap`/`limit`/`lp` activity. Schema **2** identifies its policy with
+`privacy_policy=public-chain-linked-no-actor-identifiers`. Actors and actor hashes
+are omitted. Public tx hashes, block metadata, order IDs, contract addresses and
+exact economic amounts remain; chain lookups can reconstruct actors and link
+activity across days. This export **does not provide anonymity**. This policy
+supersedes the old #1205 actor-hash/shareable-redaction description; no actor HMAC,
+key or rotation epoch exists.
+
+`surface` accepts one value, a comma list or repeated query keys. Limit defaults
+to **500** and clamps to **1–1000**; an unparseable limit uses the default. Invalid
+or future day, unknown surface, unsupported format and malformed cursor return
+**400**. Wrap rows represent wrap/unwrap treasury fees, not principal. Limit fills
+stay separate from swaps (L10). Gem rows are included.
+
+New `e2.` cursors bind the day, normalized surfaces and full six-part keyset order;
+maximum encoded length is **2048 bytes**. Changed day/surfaces and old `e1.` cursors
+return **400**. Restart legacy pagination without a cursor. Same-scope replay is
+allowed; cursors do not authenticate callers or freeze a database snapshot.
+
+The evidence route has a dedicated **2**-request admission budget per process,
+independent of socket IP or forwarded headers; saturation returns **429**. Pool
+acquire is capped at **250 ms**, transaction-local SQL execution at **1500 ms**,
+lock wait at **500 ms** and HTTP execution at **3 s**. Unavailable/expired work
+returns **503** without partial pages. Six source branches select at most
+`limit + 1` candidates each before merge; underlying rows scanned are bounded by
+SQL runtime, not that candidate count. See [E1397](../skills/AGENTS_EVIDENCE_EXPORT_PRIVACY.md)
+and [verification guidance](qa/issue-1397/README.md).
+
+```bash
+curl -sS -G "$INDEXER/api/v1/evidence/daily" \
+  --data-urlencode "day=2026-06-10" \
+  --data-urlencode "surface=swap,wrap" \
+  --data-urlencode "limit=100"
+# Verify .schema_version == 2 and the exact .privacy_policy before consuming rows.
+# Follow .next_cursor using the same day/surfaces; back off after 429 or 503.
+```
+
 ## Example curls
 
 ```bash

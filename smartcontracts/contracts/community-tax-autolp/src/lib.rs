@@ -7,12 +7,15 @@
 //! **M610-1–M610-8** ([#610](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/610)):
 //! `pair` must be a CL8Y factory-listed pool that includes this tax token.
 //! Factory is immutable (launcher pin). Skim always sets a spread floor
-//! (`max_spread` default 100 bps, cap 200 bps; optional `min_return`).
+//! (`max_spread` default 100 bps, cap 200 bps; positive policy-derived `min_return`).
 //! Binding `pair` also executes `register_listed_pair` on the tax token
-//! (**#633** / **R633-3**). Re-bind of the same pair is idempotent.
+//! (**#633** / **R633-3**). Explicit manager binding also refreshes approved
+//! reserves per LP share (#1398); permissionless skim cannot refresh that anchor.
+//! The lock remains held through provision and minimum minted-LP validation.
 
 pub mod contract;
 pub mod error;
+pub mod lp_guard;
 pub mod msg;
 pub mod pair;
 pub mod spread;

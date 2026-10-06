@@ -73,10 +73,10 @@ class QueryEvidence:
             evidence["contract_versions"][label] = json.loads(base64.b64decode(raw["data"]))
         if not self.baseline:
             assert evidence["contract_versions"]["router"] == {
-                "contract": "cl8y-dex-router", "version": "1.3.1"}, "Expected reviewed router release"
+                "contract": "cl8y-dex-router", "version": "1.4.0"}, "Expected reviewed router release"
             for label in evidence["pairs"]:
                 assert evidence["contract_versions"][label] == {
-                    "contract": "cl8y-dex-pair", "version": "1.20.0"}, "Expected reviewed pair release"
+                    "contract": "cl8y-dex-pair", "version": "1.21.0"}, "Expected reviewed pair release"
         stored = chain.store(self.args.probe)
         info = chain.query("wasm", "code-info", str(stored["code_id"]))
         assert info["checksum"].lower() == stored["sha256"], "Stored probe checksum mismatch"

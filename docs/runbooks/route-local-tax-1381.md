@@ -129,11 +129,11 @@ sequence. `--max-total-fee-uluna` bounds cumulative transaction fees (default
 `deployment.env` contains public application pins/registries for the handoff,
 not secret credentials. This PR's source review does not run any production mode.
 
-The rollout retains official contract addresses. It targets router **1.3.1**, community
-tax tokens **1.3.0**, factory **1.11.0**, pair **1.20.0**, and launcher **1.0.0**.
+The rollout retains official contract addresses. It targets router **1.4.0**, community
+tax tokens **1.3.0**, factory **1.12.0**, pair **1.21.0**, and launcher **1.0.0**.
 Production factory 1.10.0 has a different stored hash from the repository artifact;
-this PR changes only factory CW2 metadata relative to repository code, to 1.11.0,
-to permit its reviewed upgrade. Review the exact deployed artifact hash rather
+The integrated factory 1.12.0 release also includes bounded hook admission
+(#1398); its version permits the reviewed upgrade. Review the exact deployed artifact hash rather
 than inferring wasm equivalence from a shared version label. The
 [read-only baseline and release targets](../qa/issue-1381-rollout/README.md#release-targets-and-read-only-baseline)
 record the observed code IDs; re-probe them before a new production plan.
@@ -259,9 +259,9 @@ router address and reject every inventoried stored binding mismatch before mutat
 
 ## Funded reverse provider gas validation (#1422)
 
-Router **1.3.1** reuses immutable query-local capability/pair lookup metadata;
+Router **1.4.0** reuses immutable query-local capability/pair lookup metadata;
 all amount-specific previews and fresh final sufficiency validation remain real
-queries. Pair **1.20.0** remains the reviewed bounded-reverse target. These targets
+queries. Pair **1.21.0** remains the reviewed bounded-reverse target. These targets
 supersede old router 1.3.0/pair 1.19.0 rollout plans in
 [#1384](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1384) and
 [#1386](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1386).

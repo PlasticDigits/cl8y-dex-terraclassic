@@ -24,7 +24,8 @@ pub enum SwapOperation {
         /// Opt-in greedy book-first on this hop (GitLab #708). Mutually exclusive with `hybrid`; omitted-field default is not shipped (#718).
         #[serde(default)]
         greedy: Option<GreedySwapParams>,
-        /// Per-hop minimum net ask output when this hop has `book_input > 0` without `belief_price`.
+        /// Signed per-hop minimum net ask output. Required for registered pair hooks
+        /// (#1398), and for `book_input > 0` without `belief_price`.
         #[serde(default)]
         min_return: Option<Uint128>,
     },

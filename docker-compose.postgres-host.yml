@@ -1,0 +1,8 @@
+# Explicit Linux-only workaround: never name this docker-compose.override.yml.
+# COMPOSE_FILE=docker-compose.yml:docker-compose.postgres-host.yml
+# The database binds only loopback, including IPv6. No LAN/firewall exemption.
+services:
+  postgres:
+    network_mode: host
+    ports: !reset []
+    command: ["postgres", "-c", "listen_addresses=127.0.0.1,::1"]

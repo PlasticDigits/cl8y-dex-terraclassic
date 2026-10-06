@@ -1,9 +1,11 @@
 mod api;
 mod config;
+mod database_security;
 mod db;
 mod hybrid_limits;
 mod indexer;
 mod lcd;
+mod qa_guard;
 mod startup;
 
 use config::Config;
@@ -18,19 +20,22 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
 
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() > 1 && args[1] == "seed-qa" {
-        return run_seed_qa(&args[2..]).await;
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    // Argument validation must happen before loading credentials or opening a connection.
+    match args.first().map(String::as_str) {
+        Some("seed-qa") => run_seed_qa(&args[1..]).await,
+        Some("migrate") if args.len() == 1 => run_migrations().await,
+        Some("rebuild-positions") if args.len() == 1 => run_rebuild_positions().await,
+        Some("backfill-gt-event-reserves") if args.len() == 1 => {
+            run_backfill_gt_event_reserves().await
+        }
+        Some("--help" | "-h") if args.len() == 1 => {
+            eprintln!("Usage: cl8y-dex-indexer [migrate|seed-qa|rebuild-positions|backfill-gt-event-reserves]\nServer mode requires pre-applied migrations and least-privilege DATABASE_URL.");
+            Ok(())
+        }
+        None => run_server().await,
+        _ => anyhow::bail!("unknown command or unexpected arguments; use --help"),
     }
-    if args.len() > 1 && args[1] == "rebuild-positions" {
-        return run_rebuild_positions().await;
-    }
-    if args.len() > 1 && args[1] == "backfill-gt-event-reserves" {
-        return run_backfill_gt_event_reserves().await;
-    }
-
-    run_server().await
 }
 
 fn load_config_or_exit() -> Config {
@@ -43,54 +48,110 @@ fn load_config_or_exit() -> Config {
     }
 }
 
-async fn run_seed_qa(args: &[String]) -> anyhow::Result<()> {
-    let config = load_config_or_exit();
+enum SeedArguments {
+    Help,
+    Clean,
+    Check,
+    Seed(SeedQaConfig),
+}
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&config.database_url)
-        .await?;
-
-    sqlx::migrate!().run(&pool).await?;
-
-    if args.iter().any(|a| a == "--clean") {
-        seed_qa::clean(&pool).await?;
-        return Ok(());
-    }
-
-    let mut seed_config = SeedQaConfig::default();
-
+fn parse_seed_arguments(args: &[String]) -> anyhow::Result<SeedArguments> {
+    let mut config = SeedQaConfig::default();
+    let mut clean = false;
+    let mut check = false;
+    let mut help = false;
+    let mut has_seed_options = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
-            "--weeks" => {
+            "--clean" => clean = true,
+            "--check" => check = true,
+            "--help" | "-h" => help = true,
+            "--weeks" | "--swaps-per-day" => {
+                has_seed_options = true;
+                let option = args[i].as_str();
                 i += 1;
-                seed_config.span_weeks = args
+                let number: u32 = args
                     .get(i)
-                    .and_then(|v| v.parse().ok())
-                    .expect("--weeks requires a number");
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| anyhow::anyhow!("{option} requires a positive integer"))?;
+                let max = if option == "--weeks" { 520 } else { 86400 };
+                anyhow::ensure!(
+                    number > 0 && number <= max,
+                    "{option} must be between 1 and {max}"
+                );
+                if option == "--weeks" {
+                    config.span_weeks = number;
+                } else {
+                    config.swaps_per_day = number;
+                }
             }
-            "--swaps-per-day" => {
-                i += 1;
-                seed_config.swaps_per_day = args
-                    .get(i)
-                    .and_then(|v| v.parse().ok())
-                    .expect("--swaps-per-day requires a number");
-            }
-            "--help" | "-h" => {
-                print_seed_qa_help();
-                return Ok(());
-            }
-            other => {
-                eprintln!("Unknown argument: {}", other);
-                print_seed_qa_help();
-                std::process::exit(1);
-            }
+            _ => anyhow::bail!("unknown seed-qa argument; use seed-qa --help"),
         }
         i += 1;
     }
+    anyhow::ensure!(
+        !((clean || check) && has_seed_options) && !(clean && check),
+        "--clean and --check cannot be combined with seed options or each other"
+    );
+    if help {
+        Ok(SeedArguments::Help)
+    } else if clean {
+        Ok(SeedArguments::Clean)
+    } else if check {
+        Ok(SeedArguments::Check)
+    } else {
+        Ok(SeedArguments::Seed(config))
+    }
+}
 
-    seed_qa::run(&pool, seed_config).await?;
+async fn run_seed_qa(args: &[String]) -> anyhow::Result<()> {
+    let operation = parse_seed_arguments(args)?;
+    if matches!(operation, SeedArguments::Help) {
+        print_seed_qa_help();
+        return Ok(());
+    }
+    dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL is required for seed-qa"))?;
+    let run_mode = std::env::var("RUN_MODE").ok();
+    let qa_database_name = std::env::var("QA_DATABASE_NAME").ok();
+    qa_guard::validate_seed_target(
+        run_mode.as_deref(),
+        &database_url,
+        qa_database_name.as_deref(),
+    )?;
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await?;
+    database_security::verify_qa(&pool, qa_database_name.as_deref().unwrap()).await?;
+    match operation {
+        SeedArguments::Clean => seed_qa::clean(&pool)
+            .await
+            .map_err(anyhow::Error::from_boxed)?,
+        SeedArguments::Seed(config) => seed_qa::run(&pool, config)
+            .await
+            .map_err(anyhow::Error::from_boxed)?,
+        SeedArguments::Check => (),
+        SeedArguments::Help => unreachable!(),
+    }
+    Ok(())
+}
+
+async fn run_migrations() -> anyhow::Result<()> {
+    // Deliberately independent of full server configuration and chain connectivity.
+    dotenvy::dotenv().ok();
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL is required for migrate"))?;
+    let runtime_role =
+        std::env::var("INDEXER_RUNTIME_ROLE").unwrap_or_else(|_| "dex_indexer_runtime".to_owned());
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&database_url)
+        .await?;
+    database_security::migrate_and_grant(&pool, &runtime_role).await?;
+    tracing::info!("Database migrations applied and runtime grants reconciled");
     Ok(())
 }
 
@@ -100,8 +161,10 @@ async fn run_rebuild_positions() -> anyhow::Result<()> {
         .max_connections(5)
         .connect(&config.database_url)
         .await?;
-    sqlx::migrate!().run(&pool).await?;
-    let n = indexer::position_tracker::rebuild_all_positions_from_swaps(&pool).await?;
+    database_security::verify_runtime(&pool).await?;
+    let n = indexer::position_tracker::rebuild_all_positions_from_swaps(&pool)
+        .await
+        .map_err(anyhow::Error::from_boxed)?;
     tracing::info!(
         swaps_replayed = n,
         "rebuilt trader_positions from swap_events"
@@ -115,7 +178,7 @@ async fn run_backfill_gt_event_reserves() -> anyhow::Result<()> {
         .max_connections(5)
         .connect(&config.database_url)
         .await?;
-    sqlx::migrate!().run(&pool).await?;
+    database_security::verify_runtime(&pool).await?;
     let stats = indexer::gt_event_reserves::backfill_all(&pool).await?;
     tracing::info!(
         pairs = stats.pairs,
@@ -139,6 +202,11 @@ Options:
   --weeks <N>           Time span to cover (default: 4)
   --swaps-per-day <N>   Swaps per pair per day (default: 24)
   --clean               Remove all seeded data and rebuild candles
+  --check               Validate isolated QA identity and schema without writes
+
+Requires explicit RUN_MODE=dev/qa/test/local, dedicated dex_indexer_qa role,
+QA_DATABASE_NAME matching the isolated local database, and a QA identity marker.
+Prepare its schema with the standalone migrate command before seeding.
   -h, --help            Show this help"
     );
 }
@@ -160,8 +228,8 @@ async fn run_server() -> anyhow::Result<()> {
         .connect(&config.database_url)
         .await?;
 
-    sqlx::migrate!().run(&pool).await?;
-    tracing::info!("Database migrations applied");
+    database_security::verify_runtime(&pool).await?;
+    tracing::info!("Database runtime privileges and schema readiness verified");
 
     match crate::db::queries::usdt_quote_usd::backfill_null_usdt_quote_usd(
         &pool,
@@ -255,8 +323,4 @@ async fn run_server() -> anyhow::Result<()> {
 
     tracing::info!("Shutdown complete");
     Ok(())
-}
-
-mod anyhow {
-    pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 }

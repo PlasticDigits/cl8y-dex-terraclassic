@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--container", default="cl8y-dex-terraclassic-localterra-1")
     parser.add_argument("--artifacts", type=Path, default=Path(__file__).resolve().parents[2] / "smartcontracts/artifacts")
     parser.add_argument("--probe", type=Path, default=Path(__file__).with_name("fixtures") / "reverse-query-probe/target/wasm32-unknown-unknown/release/reverse_query_probe.wasm")
-    parser.add_argument("--router-version", default="1.3.1", help="Expected reviewed router cw2 version (historical comparison only)")
+    parser.add_argument("--router-version", default="1.4.0", help="Expected reviewed router cw2 version (historical comparison only)")
     parser.add_argument("--code-cache", type=Path)
     parser.add_argument("--evidence-file", required=True, type=Path)
     args = parser.parse_args()
@@ -82,7 +82,7 @@ def main():
 
     pair_versions = {pair: version(pair) for pair in pairs}
     router_version = version(router)
-    assert all(value == {"contract": "cl8y-dex-pair", "version": "1.20.0"}
+    assert all(value == {"contract": "cl8y-dex-pair", "version": "1.21.0"}
                for value in pair_versions.values()), pair_versions
     assert router_version == {"contract": "cl8y-dex-router", "version": args.router_version}, router_version
     evidence = {"utc": datetime.now(timezone.utc).isoformat(), "chain_id": "localterra",

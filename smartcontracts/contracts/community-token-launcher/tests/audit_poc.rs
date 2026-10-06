@@ -25,8 +25,8 @@ use cl8y_community_token_launcher::msg::{
     InvoiceHookMsg as LauncherInvoice,
 };
 use dex_common::factory::PairResponse;
-use dex_common::pair::Cw20HookMsg as PairHook;
-use dex_common::types::{AssetInfo, PairInfo};
+use dex_common::pair::{Cw20HookMsg as PairHook, PoolResponse};
+use dex_common::types::{Asset, AssetInfo, PairInfo};
 
 const UST1_INVOICE: u128 = 50_000_000;
 
@@ -36,6 +36,7 @@ const UST1_INVOICE: u128 = 50_000_000;
 #[serde(rename_all = "snake_case")]
 pub enum MockPairQuery {
     Pair {},
+    Pool {},
 }
 
 fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
@@ -64,6 +65,30 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
         msg: MockPairQuery,
     ) -> StdResult<Binary> {
         match msg {
+            // Pair binding now approves initialized reserves/share economics
+            // (#1398). This admission fixture exposes a typed synthetic pool;
+            // real skim rollback/issuance is tested by the AutoLP crate.
+            MockPairQuery::Pool {} => {
+                let token = String::from_utf8(deps.storage.get(b"token").unwrap()).unwrap();
+                let other = String::from_utf8(deps.storage.get(b"other").unwrap()).unwrap();
+                to_json_binary(&PoolResponse {
+                    assets: [
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: token,
+                            },
+                            amount: Uint128::new(1_000_000),
+                        },
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: other,
+                            },
+                            amount: Uint128::new(1_000_000),
+                        },
+                    ],
+                    total_share: Uint128::new(1_000_000),
+                })
+            }
             MockPairQuery::Pair {} => {
                 let token = String::from_utf8(deps.storage.get(b"token").unwrap()).unwrap();
                 let other = String::from_utf8(deps.storage.get(b"other").unwrap()).unwrap();
@@ -77,7 +102,7 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
                         },
                     ],
                     contract_addr: env.contract.address,
-                    liquidity_token: Addr::unchecked("lp"),
+                    liquidity_token: Addr::unchecked("mock_lp_token"),
                 })
             }
         }
@@ -115,7 +140,7 @@ fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
         msg: MockFactoryQuery,
     ) -> StdResult<Binary> {
         match msg {
-            MockFactoryQuery::Pair { .. } => {
+            MockFactoryQuery::Pair { asset_infos } => {
                 let pair = String::from_utf8(
                     deps.storage
                         .get(b"pair")
@@ -124,16 +149,9 @@ fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
                 .unwrap();
                 to_json_binary(&PairResponse {
                     pair: PairInfo {
-                        asset_infos: [
-                            AssetInfo::Token {
-                                contract_addr: "x".to_string(),
-                            },
-                            AssetInfo::Token {
-                                contract_addr: "y".to_string(),
-                            },
-                        ],
+                        asset_infos,
                         contract_addr: Addr::unchecked(pair),
-                        liquidity_token: Addr::unchecked("lp"),
+                        liquidity_token: Addr::unchecked("mock_lp_token"),
                     },
                 })
             }
@@ -1208,4 +1226,14 @@ fn poc_autolp_manager_can_skim_to_fake_pair() {
     assert_eq!(cfg.pair, Some(listed.clone()));
     assert_eq!(cfg.factory, hub.factory);
     assert!(cfg.skim_max_spread > cosmwasm_std::Decimal::zero());
+    let policy: Option<cl8y_community_tax_autolp::state::LpPolicy> = hub
+        .app
+        .wrap()
+        .query_wasm_smart(autolp, &AutoLpQuery::GetLpPolicy {})
+        .unwrap();
+    let policy = policy.expect("manager binding approves the initialized listed-pair policy");
+    assert_eq!(policy.pair, listed);
+    assert_eq!(policy.quote, hub.ust1);
+    assert_eq!(policy.tax_reserve, Uint128::new(1_000_000));
+    assert_eq!(policy.total_share, Uint128::new(1_000_000));
 }

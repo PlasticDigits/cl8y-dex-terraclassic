@@ -1230,7 +1230,7 @@ mod issue1389_tests {
                         cost.set(
                             cost.get()
                                 + if hybrid.book_input.is_zero()
-                                    && matches!(version.as_str(), "1.19.0" | "1.20.0")
+                                    && matches!(version.as_str(), "1.19.0" | "1.20.0" | "1.21.0")
                                 {
                                     1
                                 } else {
@@ -1314,7 +1314,7 @@ mod issue1389_tests {
 
     #[test]
     fn issue1389_legacy_missing_malformed_and_future_pair_versions_reserve_maximum() {
-        for version in ["1.18.0", "missing", "malformed", "1.21.0"] {
+        for version in ["1.18.0", "missing", "malformed", "1.22.0"] {
             let (result, calls, work) =
                 run_version(version, 4, 0, Uint128::new(1_000_000), false, false);
             assert!(result
@@ -1334,6 +1334,60 @@ mod issue1389_tests {
             run_version("1.19.0", 4, 0, Uint128::new(1_000_000), false, false);
         assert!(result.is_ok());
         assert_eq!((calls, work), (8, 8));
+    }
+
+    #[test]
+    fn issue_1398_router_1_4_migration_preserves_funding_v1_and_route_state() {
+        let mut deps = mock_dependencies();
+        set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.3.0").unwrap();
+        FACTORY
+            .save(deps.as_mut().storage, &Addr::unchecked("factory"))
+            .unwrap();
+        WRAP_MAPPER
+            .save(deps.as_mut().storage, &Addr::unchecked("wrap_mapper"))
+            .unwrap();
+        LAST_ROUTE_ID.save(deps.as_mut().storage, &42).unwrap();
+        let before = query_config(deps.as_ref()).unwrap();
+        assert_eq!(before.funding_version, 1);
+        assert_eq!(before.settlement_version, 1);
+        migrate(
+            deps.as_mut(),
+            cosmwasm_std::testing::mock_env(),
+            crate::msg::MigrateMsg {},
+        )
+        .unwrap();
+        assert_eq!(
+            cw2::get_contract_version(deps.as_ref().storage)
+                .unwrap()
+                .version,
+            "1.4.0"
+        );
+        assert_eq!(query_config(deps.as_ref()).unwrap(), before);
+        assert_eq!(allocate_route_id(deps.as_mut().storage).unwrap(), 43);
+    }
+
+    #[test]
+    fn issue_1398_reviewed_pair_1_21_retains_pool_and_greedy_reverse_accounting() {
+        // The actual 1.21.0 pair inverse uses one raw forward validation for
+        // pool-only requests. Its hook config precheck has a separate eight-hook
+        // bound; output-deducting hooks reject before the inverse is attempted.
+        for backwards in [false, true] {
+            for mode in [0, 1] {
+                let (result, calls, work) =
+                    run_version("1.21.0", 4, mode, Uint128::new(1_000_000), backwards, false);
+                assert_eq!(result.unwrap().amount, Uint128::new(1_000_000));
+                let expected = if mode == 0 { 8 } else { 16 };
+                assert_eq!((calls, work), (expected, expected));
+                assert!(work <= crate::reverse_query::MAX_REVERSE_SIMULATIONS_PER_REQUEST);
+            }
+        }
+        let (result, calls, work) =
+            run_version("1.21.0", 4, 2, Uint128::new(1_000_000), false, false);
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("REVERSE_QUERY_BUDGET_EXCEEDED"));
+        assert_eq!((calls, work), (2, 64)); // full declared-book costs preserved
     }
 
     #[test]

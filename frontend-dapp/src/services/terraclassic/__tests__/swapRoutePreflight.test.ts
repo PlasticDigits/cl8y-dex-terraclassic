@@ -10,7 +10,7 @@ vi.mock('@/services/terraclassic/pair', () => ({
 
 import { getPair } from '@/services/terraclassic/factory'
 import { simulateHybridSwap } from '@/services/terraclassic/pair'
-import { preflightSwapRouteSpread } from '@/services/terraclassic/swapRoutePreflight'
+import { preflightSwapRouteSpread, computeDirectHybridMinReturn } from '@/services/terraclassic/swapRoutePreflight'
 import type { SwapOperation } from '@/services/terraclassic/router'
 
 const mockedGetPair = vi.mocked(getPair)
@@ -84,5 +84,42 @@ describe('preflightSwapRouteSpread', () => {
 
     const result = await preflightSwapRouteSpread(ops, '1000', '0.005', { trader: WALLET })
     expect(result.anyHopExceedsMaxSpread).toBe(false)
+  })
+})
+
+describe('direct post-hook net floor (#1398)', () => {
+  it('signs the post-hook quote for pool-only swaps', async () => {
+    mockedSim.mockResolvedValueOnce({ return_amount: '900', pool_return_amount: '1000' } as never)
+    expect(await computeDirectHybridMinReturn(PAIR, { token: { contract_addr: TOKEN_A } }, '1000', undefined, 1)).toBe(
+      '891'
+    )
+    expect(mockedSim).toHaveBeenCalledWith(
+      PAIR,
+      { token: { contract_addr: TOKEN_A } },
+      '1000',
+      expect.objectContaining({ pool_input: '1000', book_input: '0' }),
+      undefined
+    )
+  })
+
+  it('uses total post-hook output for a mixed split', async () => {
+    mockedSim.mockResolvedValueOnce({
+      return_amount: '900',
+      pool_return_amount: '500',
+      book_return_amount: '500',
+    } as never)
+    const hybrid = { pool_input: '500', book_input: '500', max_maker_fills: 8, book_start_hint: null }
+    expect(await computeDirectHybridMinReturn(PAIR, { token: { contract_addr: TOKEN_A } }, '1000', hybrid, 1)).toBe(
+      '891'
+    )
+  })
+
+  it('blocks signing when deductions or rounding leave no positive output', async () => {
+    for (const amount of ['0', '1']) {
+      mockedSim.mockResolvedValueOnce({ return_amount: amount } as never)
+      await expect(
+        computeDirectHybridMinReturn(PAIR, { token: { contract_addr: TOKEN_A } }, '1000', undefined, 1)
+      ).rejects.toThrow('no receivable output')
+    }
   })
 })
