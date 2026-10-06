@@ -327,7 +327,7 @@ pub async fn get_or_discover_pair(
                     )
                 ) =>
             {
-                return Err(e)
+                return Err(e);
             }
             Err(e) => {
                 // Preserve availability for compatible foreign events whose contract
@@ -352,6 +352,7 @@ pub async fn discover_new_pair(
     let permit = match state.begin(factory_addr, pair_contract_addr) {
         Ok(permit) => permit,
         Err(BeginError::Cached(reason)) => {
+            lcd.require_verified_chain().await?;
             tracing::debug!(outcome = "cached_rejection", ?reason, "Pair discovery");
             return Err(DiscoverPairError::RejectedCached {
                 pair_address: pair_contract_addr.to_string(),
@@ -365,6 +366,9 @@ pub async fn discover_new_pair(
         }
     };
 
+    // Admission bounds identity probes as well as contract queries. Cached negative
+    // evidence is separately re-attested before it is returned above.
+    lcd.require_verified_chain().await?;
     tracing::debug!("Discovering new pair at {}", pair_contract_addr);
 
     let pair_info: PairInfo = match lcd
@@ -447,8 +451,8 @@ mod tests {
     use super::*;
     use base64::Engine;
     use serde_json::json;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use wiremock::matchers::{method, path_regex};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -536,8 +540,9 @@ mod tests {
     #[tokio::test]
     async fn verify_factory_provenance_rejects_unlisted_pair() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, true).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(ATTACKER_PAIR).asset_infos;
 
         let err = verify_factory_provenance(&lcd, FACTORY, ATTACKER_PAIR, &assets)
@@ -553,8 +558,9 @@ mod tests {
     #[tokio::test]
     async fn verify_factory_provenance_accepts_factory_listed_pair() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, true).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(CANONICAL_PAIR).asset_infos;
 
         verify_factory_provenance(&lcd, FACTORY, CANONICAL_PAIR, &assets)
@@ -565,8 +571,9 @@ mod tests {
     #[tokio::test]
     async fn verify_factory_provenance_fails_closed_when_factory_empty() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, false).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(ATTACKER_PAIR).asset_infos;
 
         verify_factory_provenance(&lcd, "", ATTACKER_PAIR, &assets)
@@ -577,8 +584,9 @@ mod tests {
     #[tokio::test]
     async fn verify_factory_provenance_fails_when_factory_has_no_pair() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         mount_pair_and_factory_mocks(&server, true, false).await;
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let assets = sample_pair_info(ATTACKER_PAIR).asset_infos;
 
         let err = verify_factory_provenance(&lcd, FACTORY, ATTACKER_PAIR, &assets)
@@ -590,6 +598,7 @@ mod tests {
     #[tokio::test]
     async fn discover_new_pair_negative_caches_unlisted_pair() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let factory_hits = Arc::new(AtomicUsize::new(0));
         let hits = factory_hits.clone();
 
@@ -626,7 +635,7 @@ mod tests {
         // Pool is unused on the reject path (fails before sync_single_pair).
         let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1/unused")
             .expect("lazy pool");
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
 
         let err1 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -654,7 +663,9 @@ mod tests {
     #[tokio::test]
     async fn lcd_pair_not_found_does_not_fan_out_to_other_endpoints() {
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -681,7 +692,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30000,
+            "columbus-5",
+        );
         let err = lcd
             .query_contract::<serde_json::Value>(FACTORY, &json!({"pair": {"asset_infos": []}}))
             .await
@@ -700,6 +716,7 @@ mod tests {
     #[tokio::test]
     async fn discover_new_pair_negative_caches_non_pair_contract() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let hits = Arc::new(AtomicUsize::new(0));
         let h = hits.clone();
 
@@ -718,7 +735,7 @@ mod tests {
 
         let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1/unused")
             .expect("lazy pool");
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
 
         let err1 = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -752,7 +769,9 @@ mod tests {
     #[tokio::test]
     async fn lcd_unknown_variant_pair_does_not_fan_out() {
         let server_a = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_a, "columbus-5").await;
         let server_b = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server_b, "columbus-5").await;
         let hits_b = Arc::new(AtomicUsize::new(0));
         let b = hits_b.clone();
 
@@ -775,7 +794,12 @@ mod tests {
             .mount(&server_b)
             .await;
 
-        let lcd = LcdClient::new(vec![server_a.uri(), server_b.uri()], 5000, 30000);
+        let lcd = LcdClient::new(
+            vec![server_a.uri(), server_b.uri()],
+            5000,
+            30000,
+            "columbus-5",
+        );
         let err = lcd
             .query_contract::<serde_json::Value>(ATTACKER_PAIR, &json!({"pair": {}}))
             .await
@@ -856,7 +880,8 @@ mod tests {
     #[tokio::test]
     async fn discover_new_pair_invalid_inputs_never_reach_lcd() {
         let server = MockServer::start().await;
-        let lcd = LcdClient::new(vec![server.uri()], 100, 0);
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
+        let lcd = LcdClient::new(vec![server.uri()], 100, 0, "columbus-5");
         let pool = unused_pool();
         for pair in [
             "",
@@ -887,6 +912,7 @@ mod tests {
     #[tokio::test]
     async fn discover_new_pair_transient_timeout_never_negative_caches() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let hits = Arc::new(AtomicUsize::new(0));
         let h = hits.clone();
         Mock::given(method("GET"))
@@ -902,7 +928,7 @@ mod tests {
             })
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 500, 0);
+        let lcd = LcdClient::new(vec![server.uri()], 500, 0, "columbus-5");
         let pool = unused_pool();
         let first = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -934,6 +960,7 @@ mod tests {
     #[tokio::test]
     async fn discover_new_pair_oversized_response_remains_retryable() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let hits = Arc::new(AtomicUsize::new(0));
         let h = hits.clone();
         Mock::given(method("GET"))
@@ -948,7 +975,7 @@ mod tests {
             })
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 1000, 0);
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 0, "columbus-5");
         let pool = unused_pool();
         let err = discover_new_pair(&pool, &lcd, FACTORY, ATTACKER_PAIR)
             .await
@@ -971,6 +998,7 @@ mod tests {
     #[tokio::test]
     async fn discover_new_pair_concurrent_duplicate_admission_is_bounded() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .respond_with(
                 ResponseTemplate::new(500)
@@ -979,7 +1007,7 @@ mod tests {
             )
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 1000, 0);
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 0, "columbus-5");
         let pool = unused_pool();
         let mut tasks = tokio::task::JoinSet::new();
         for _ in 0..20 {
@@ -1006,12 +1034,25 @@ mod tests {
             }
         }
         assert!(deferred > 0);
-        assert_eq!(server.received_requests().await.unwrap().len(), 1);
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.url.path().contains("/smart/"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            requests.len(),
+            3,
+            "one admitted pair query and two identity probes"
+        );
     }
 
     #[tokio::test]
     async fn discover_new_pair_foreign_flood_limits_lcd_work_without_cross_factory_starvation() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .respond_with(
                 ResponseTemplate::new(500)
@@ -1019,7 +1060,7 @@ mod tests {
             )
             .mount(&server)
             .await;
-        let lcd = LcdClient::new(vec![server.uri()], 1000, 0);
+        let lcd = LcdClient::new(vec![server.uri()], 1000, 0, "columbus-5");
         let pool = unused_pool();
         let started = std::time::Instant::now();
         let mut deferred = 0;
@@ -1034,7 +1075,16 @@ mod tests {
                 deferred += 1;
             }
         }
-        let hits = server.received_requests().await.unwrap().len();
+        let requests = server.received_requests().await.unwrap();
+        let hits = requests
+            .iter()
+            .filter(|r| r.url.path().contains("/smart/"))
+            .count();
+        assert_eq!(
+            requests.len(),
+            hits * 3,
+            "deferred discoveries perform no identity or contract HTTP work"
+        );
         assert_eq!(hits + deferred, 200);
         assert!(hits <= 33 + (started.elapsed().as_secs_f64() * 8.0) as usize);
         // A different factory receives its own fresh budget even on the same LCD.
@@ -1048,7 +1098,18 @@ mod tests {
             ),
             "{err}"
         );
-        assert_eq!(server.received_requests().await.unwrap().len(), hits + 1);
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.url.path().contains("/smart/"))
+                .count(),
+            hits + 1
+        );
+        assert!(
+            requests.len() <= (hits + 1) * 3 + 1,
+            "cached rejection adds at most one identity probe"
+        );
         // Cached rejects remain cheap after admission exhaustion.
         let err = discover_new_pair(&pool, &lcd, FACTORY, &synthetic_address(0))
             .await
@@ -1057,6 +1118,17 @@ mod tests {
             err.downcast_ref::<DiscoverPairError>(),
             Some(DiscoverPairError::RejectedCached { .. })
         ));
-        assert_eq!(server.received_requests().await.unwrap().len(), hits + 1);
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.url.path().contains("/smart/"))
+                .count(),
+            hits + 1
+        );
+        assert!(
+            requests.len() <= (hits + 1) * 3 + 1,
+            "cached rejection adds at most one identity probe"
+        );
     }
 }

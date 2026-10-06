@@ -32,7 +32,7 @@ TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:4
 TERRAD_HOST_KEY="${CLUNC_USDT_ADMIN_KEY}"
 TERRAD_HOST_EXPECTED_ADDR="${CLUNC_USDT_ADMIN_ADDR}"
 
-LCD_URL="${CLUNC_USDT_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${CLUNC_USDT_LCD_URL%/}}"
 MATH_PY="$SCRIPT_DIR/lib/clunc-usdt-lp-math.py"
 INDEXER_ORACLE="${CLUNC_USDT_INDEXER_ORACLE}"
 FACTORY="${CLUNC_USDT_FACTORY}"
@@ -261,6 +261,10 @@ echo "USDT/\$:    $USDT_USD"
 echo "DRY_RUN:   ${DRY_RUN:-0}"
 echo ""
 
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $FACTORY $CLUNC $USDT"
+terrad_host_attest || die "chain/protocol trust preflight failed"
+
 echo "[preflight] token_info + code IDs + whitelist + minter"
 CLUNC_INFO="$(token_info "$CLUNC")"
 USDT_INFO="$(token_info "$USDT")"
@@ -317,7 +321,7 @@ BAL_USDT="$(cw20_balance "$USDT" "$ADMIN_ADDR")"
 echo "  balances: uluna=$HAVE_ULUNA cLUNC=$BAL_CLUNC USDT=$BAL_USDT"
 
 echo ""
-echo "[oracle] $INDEXER_ORACLE"
+echo "[oracle] configured endpoint"
 ORACLE_JSON="$(fetch_lunc_oracle)" || die "LUNC/USD oracle failed"
 LUNC_USD="$(jq -r '.lunc_usd' <<<"$ORACLE_JSON")"
 echo "  LUNC/USD=$LUNC_USD  age=$(jq -r '.age_sec // "n/a"' <<<"$ORACLE_JSON")s"

@@ -8,7 +8,8 @@ use crate::config::Config;
 /// Emit non-secret startup configuration at INFO level.
 pub fn log_startup_config(config: &Config) {
     tracing::info!("Starting CL8Y DEX indexer (RUN_MODE={:?})", config.run_mode);
-    tracing::info!("LCD endpoints: {:?}", config.lcd_urls);
+    tracing::info!(expected_chain_id = %config.expected_chain_id, "Required chain identity");
+    tracing::info!("LCD endpoint count: {}", config.lcd_urls.len());
     tracing::info!("Factory: {}", config.factory_address);
     tracing::info!(
         "Rate limits: global={} RPS, LCD-heavy={} RPS",
@@ -34,6 +35,7 @@ mod tests {
     fn test_config_with_password(password: &str) -> Config {
         Config {
             run_mode: RunMode::Dev,
+            expected_chain_id: "columbus-5".to_string(),
             database_url: format!(
                 "postgres://cl8y_user:{password}@127.0.0.1:5432/dex_indexer_test"
             ),
@@ -83,6 +85,20 @@ mod tests {
             trading_route_tax_data_hashes: Default::default(),
             trading_tax_free_code_ids: Default::default(),
         }
+    }
+
+    /// Endpoint URLs may carry credentials; report only the configured count (#1392).
+    #[traced_test]
+    #[test]
+    fn startup_logs_do_not_contain_lcd_credentials() {
+        const SECRET: &str = "SYNTHETIC_LCD_CREDENTIAL_1392";
+        let mut config = test_config_with_password("synthetic_database_password");
+        config.lcd_urls = vec![format!(
+            "https://user:{SECRET}@lcd.example/?api_key={SECRET}"
+        )];
+        log_startup_config(&config);
+        assert!(!logs_contain(SECRET));
+        assert!(!logs_contain("lcd.example"));
     }
 
     /// GitLab #433 (SEC-F13): startup INFO logs must not echo DATABASE_URL credentials.

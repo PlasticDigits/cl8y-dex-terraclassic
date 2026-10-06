@@ -92,6 +92,10 @@ async fn discover_with_lcd(
     if !addr.starts_with("terra1") {
         return TradingTax::Ordinary { code_id: None };
     }
+    if lcd.require_verified_chain().await.is_err() {
+        invalidate_instance(lcd.cache_namespace(), addr);
+        return TradingTax::Unavailable;
+    }
     // Code identity is live, not TTL-cached. A migration must invalidate even a tax-free
     // verdict immediately. Capability/rates retain their bounded TTL only within that identity.
     let result = tokio::time::timeout(QUERY_TIMEOUT, async {
@@ -288,11 +292,24 @@ mod tests {
 
     #[test]
     fn discovery_cache_cannot_cross_lcd_client_or_chain_lifetimes() {
-        let first = crate::lcd::LcdClient::new(vec!["http://chain-a.invalid".into()], 100, 100);
+        let first = crate::lcd::LcdClient::new(
+            vec!["http://chain-a.invalid".into()],
+            100,
+            100,
+            "columbus-5",
+        );
         let clone = first.clone();
-        let second = crate::lcd::LcdClient::new(vec!["http://chain-b.invalid".into()], 100, 100);
-        assert_eq!(first.cache_namespace(), clone.cache_namespace());
-        assert_ne!(first.cache_namespace(), second.cache_namespace());
+        let second = crate::lcd::LcdClient::new(
+            vec!["http://chain-b.invalid".into()],
+            100,
+            100,
+            "columbus-5",
+        );
+        assert_eq!(first.chain_cache_namespace(), clone.chain_cache_namespace());
+        assert_ne!(
+            first.chain_cache_namespace(),
+            second.chain_cache_namespace()
+        );
     }
 
     const TOKEN: &str = "terra1synthetictoken";
@@ -319,6 +336,7 @@ mod tests {
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         let instance = std::sync::Arc::new(SyntheticInstance::default());
         instance.code.store(202, SeqCst);
         *instance.hash.lock().unwrap() = "abcdef".into();
@@ -377,7 +395,7 @@ mod tests {
             })
             .mount(&server)
             .await;
-        let lcd = crate::lcd::LcdClient::new(vec![server.uri()], 1000, 1000);
+        let lcd = crate::lcd::LcdClient::new(vec![server.uri()], 1000, 1000, "columbus-5");
         (server, instance, lcd)
     }
 

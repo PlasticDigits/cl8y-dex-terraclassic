@@ -137,6 +137,7 @@ async fn mount_smart_mock(
     responder: impl Fn(&Request) -> ResponseTemplate + Send + Sync + 'static,
 ) -> MockServer {
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(responder)

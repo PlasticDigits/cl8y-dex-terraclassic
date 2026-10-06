@@ -211,6 +211,7 @@ mod tests {
     #[tokio::test]
     async fn successful_probe_sets_ok_true() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -222,7 +223,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let health = FeeDiscountRegistryHealth::configured();
         probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
 
@@ -235,6 +236,7 @@ mod tests {
     #[tokio::test]
     async fn repeated_lcd_failure_increments_counter() {
         let server = MockServer::start().await;
+        crate::lcd::mock_chain_identity(&server, "columbus-5").await;
         Mock::given(method("GET"))
             .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/"))
             .respond_with(
@@ -244,7 +246,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000);
+        let lcd = LcdClient::new(vec![server.uri()], 5000, 30000, "columbus-5");
         let health = FeeDiscountRegistryHealth::configured();
         probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;
         probe_fee_discount_registry_once(&lcd, "terra1feediscount", &health).await;

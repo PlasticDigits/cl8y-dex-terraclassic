@@ -147,6 +147,9 @@ CLUNC=synthetic-clunc; CUSTC=synthetic-custc
 ADMIN_KEY=synthetic-key; ADMIN_ADDR=synthetic-wallet; MSIG_KEY=synthetic-msig; SIGNER1=synthetic-1; SIGNER2=synthetic-2; SWAP_GAS=5000000
 LUNC_USD=0.00005; USTC_USD=0.005; lunc_usd=0.00005; ustc_usd=0.005; fdusd_usd=1; venus=0.02
 CLUNC_USDT_ORACLE_RETRIES=1; CLUNC_LP_ORACLE_RETRIES=1; CLUNC_LP_SKIP_CROSS_CHECK=1; ORACLE_RB_SKIP_CROSS_CHECK=1; ORACLE_RB_ORACLE_RETRIES=1
+# Chain identity is exercised by test-chain-attestation.py; accept it here
+# so this fixture specifically proves independent oracle rejection.
+terrad_host_attest() {{ :; }}
 terrad_host_tx() {{ touch '{marker}'; echo '{{"txhash":"synthetic"}}'; }}
 terrad_host_exec() {{ touch '{marker}'; echo '{{"txhash":"synthetic","code":0,"body":{{"messages":[{{"@type":"synthetic","contract":"synthetic-token"}}]}}}}'; }}
 terrad_host_exec_retry() {{ terrad_host_exec "$@"; }}

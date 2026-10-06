@@ -311,6 +311,19 @@ Implementation/reviewer checklist: [issue-1380 QA](qa/issue-1380/README.md).
 Third-party agent contract: [playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md).
 Verification: `make verify-issue-1380` plus `569`, `689`, `655`, `664`, `1263`.
 
+## Chain attestation (#1392)
+
+General LCD data has an explicit expected network before discovery, analytics or
+financial-preflight use. **NET1392-1–NET1392-10** are defined in the
+[agent playbook](../skills/AGENTS_CHAIN_ATTESTATION.md) and apply to startup,
+endpoint failover/recovery, cache namespaces and treasury transaction retries.
+The [endpoint policy](runbooks/chain-attestation.md) documents configuration,
+immutable code corroboration and same-chain malicious-provider residuals.
+Run `make verify-issue-1392`; record the [agent checklist](qa/issue-1392/README.md)
+and [verification receipt](qa/issue-1392/verification.md). Expected/observed chain
+metadata is a provenance boundary, not light-client certification, retroactive
+historical attestation or automatic database isolation between deployments.
+
 ## Oracle integrity and hub containment (#1391)
 
 These supersede legacy X6 conversion defaults and H2/H3/H8 self-valued TVL ranking.

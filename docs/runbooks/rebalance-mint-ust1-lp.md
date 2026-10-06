@@ -67,6 +67,12 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 | `UST1_LP_SWAP_MAX_SPREAD` | Rebalance swap `max_spread` (default `0.20`) |
 | `UST1_LP_SWAP_MAX_ITERS` | Live rebalance swaps after mint (default `3`) |
 
+## Endpoint identity preflight (#1392)
+
+Apply the shared [chain-attestation policy](chain-attestation.md) before reads,
+dry-run planning and every transaction attempt. Failed or stale LCD/RPC identity
+cannot authorize a tick. Review [the verification checklist](../qa/issue-1392/README.md).
+
 ## Oracle safety (#1391)
 
 Live inputs require fresh certified CEX quorum and exact identity/age. Rechecks

@@ -39,7 +39,7 @@ source "$SCRIPT_DIR/lib/terrad-host.sh"
 
 TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 TERRAD_HOST_NODE="${TERRAD_HOST_NODE:-https://terra-classic-rpc.publicnode.com:443}"
-LCD_URL="${CLUNC_LP_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${CLUNC_LP_LCD_URL%/}}"
 MATH_PY="$SCRIPT_DIR/lib/clunc-custc-lp-math.py"
 INDEXER="${CLUNC_LP_INDEXER%/}"
 FACTORY="${CLUNC_LP_FACTORY}"
@@ -316,6 +316,7 @@ ge() {
 }
 
 fetch_oracles() {
+  terrad_host_attest || return 1
   python3 "$MATH_PY" --fetch-oracles <<EOF
 {
   "mode": "fetch-oracles",
@@ -513,6 +514,10 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
 fi
 
 [[ "$ADMIN_ADDR" != "$TREASURY" ]] || die "ops wallet must not be the CMM treasury"
+
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $FACTORY $CLUNC $CUSTC $PAIR $LP_PIN $TREASURY $WRAP_MAPPER"
+terrad_host_attest || die "chain/protocol trust preflight failed"
 
 echo "[preflight] tokens + pair"
 SYM_CLUNC="$(token_symbol "$CLUNC")"

@@ -6,18 +6,19 @@ use std::net::IpAddr;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use axum::{Json, http::StatusCode};
-use bigdecimal::{ToPrimitive, num_bigint::BigUint};
+use axum::{http::StatusCode, Json};
+use bigdecimal::{num_bigint::BigUint, ToPrimitive};
 use serde_json::Value;
 
 use super::{
-    AppState, best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
+    best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
     hybrid_route_opt::QuoteTrader,
     route_exact_output_admission::AdmissionController,
     route_exact_output_reference as reference, route_graph, route_paths,
     route_solver::{
         self, FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, SolveRouteParams,
     },
+    AppState,
 };
 
 type Error = (StatusCode, String);
@@ -216,7 +217,9 @@ async fn solve_inner(
             "Exact-output sizing requires router forward validation".into(),
         ));
     }
-    let snap = route_graph::get_route_graph_snapshot(&state.pool).await?;
+    let snap =
+        route_graph::get_route_graph_snapshot(&state.pool, &state.lcd.chain_cache_namespace())
+            .await?;
     let start = route_solver::resolve_id(&snap.addr_to_id, &q.token_in).ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,

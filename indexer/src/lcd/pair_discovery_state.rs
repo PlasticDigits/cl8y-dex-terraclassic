@@ -300,9 +300,11 @@ mod tests {
         assert_eq!(factory.rejections.len(), factory.insertion_fifo.len());
         let queued: HashSet<_> = factory.insertion_fifo.iter().collect();
         assert_eq!(queued.len(), factory.insertion_fifo.len());
-        assert!(queued
-            .iter()
-            .all(|key| factory.rejections.contains_key(*key)));
+        assert!(
+            queued
+                .iter()
+                .all(|key| factory.rejections.contains_key(*key))
+        );
     }
 
     #[test]
@@ -392,9 +394,11 @@ mod tests {
             assert_queue_consistent(factory);
             assert!(!factory.rejections.contains_key("pair-0"));
         }
-        assert!(inner.factories["factory-15"]
-            .rejections
-            .contains_key("pair-99999"));
+        assert!(
+            inner.factories["factory-15"]
+                .rejections
+                .contains_key("pair-99999")
+        );
     }
 
     #[test]
@@ -552,10 +556,10 @@ mod tests {
     #[test]
     fn client_clones_share_state_new_clients_start_fresh() {
         use crate::lcd::LcdClient;
-        let first = LcdClient::new(vec!["http://127.0.0.1:1".into()], 10, 10);
+        let first = LcdClient::new(vec!["http://127.0.0.1:1".into()], 10, 10, "columbus-5");
         let clone = first.clone();
-        let second = LcdClient::new(vec!["http://127.0.0.1:1".into()], 10, 10);
-        let changed = LcdClient::new(vec!["http://127.0.0.1:2".into()], 10, 10);
+        let second = LcdClient::new(vec!["http://127.0.0.1:1".into()], 10, 10, "columbus-5");
+        let changed = LcdClient::new(vec!["http://127.0.0.1:2".into()], 10, 10, "columbus-5");
         assert!(Arc::ptr_eq(
             &first.pair_discovery_state(),
             &clone.pair_discovery_state()

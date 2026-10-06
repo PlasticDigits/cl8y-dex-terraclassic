@@ -4,7 +4,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::api::AppState;
 use crate::api::db_orderbook_sim::{self, MirrorLoadMeta};
 use crate::api::hybrid_route_opt::{
     self, HopDescriptor, HybridSimError, HybridSimSource, OptimizationMeta,
@@ -13,9 +12,10 @@ use crate::api::route_graph::{self, RouteGraphSnapshot};
 use crate::api::route_paths;
 use crate::api::route_solve_progress;
 use crate::api::route_solver::{
-    FidelityCheck, GET_DEFAULT_MAX_HOPS, RouteHop, RouteQuoteKind, RouteSolveResponse,
     apply_hybrid_by_hop, build_hops_and_ops, build_intermediate_tokens, quote_kind_after_sim,
+    FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, GET_DEFAULT_MAX_HOPS,
 };
+use crate::api::AppState;
 use axum::http::StatusCode;
 use sqlx::PgPool;
 
@@ -220,7 +220,9 @@ pub(crate) async fn candidate_tax_addresses(
     token_in: &str,
     token_out: &str,
 ) -> Result<Vec<String>, (StatusCode, String)> {
-    let graph = route_graph::get_route_graph_snapshot(&state.pool).await?;
+    let graph =
+        route_graph::get_route_graph_snapshot(&state.pool, &state.lcd.chain_cache_namespace())
+            .await?;
     Ok(
         enumerate_path_candidates(&graph, token_in, token_out, GET_DEFAULT_MAX_HOPS)
             .await?
@@ -621,7 +623,7 @@ async fn preload_mirrors_with_progress(
     let mut mirrors = HashMap::new();
     if progress_key.is_some() {
         use crate::api::db_orderbook_sim::{
-            DbSimError, HopMirror, MirrorFreshness, load_hop_mirror,
+            load_hop_mirror, DbSimError, HopMirror, MirrorFreshness,
         };
         use crate::db::queries::pairs;
         use chrono::Utc;
@@ -969,7 +971,9 @@ pub(crate) async fn solve_global_best_execution_inner(
             "Loading token graph…",
         );
     }
-    let snapshot = route_graph::get_route_graph_snapshot(&state.pool).await?;
+    let snapshot =
+        route_graph::get_route_graph_snapshot(&state.pool, &state.lcd.chain_cache_namespace())
+            .await?;
     let graph_ms = graph_start.elapsed().as_millis();
 
     let enum_start = Instant::now();
@@ -1183,7 +1187,7 @@ fn apply_tax_rank_fields(
 
 #[cfg(test)]
 mod concurrent_solve_tests {
-    use super::{CandidateEval, RouteHop, SOLVE_CONCURRENCY, merge_candidate_evaluations};
+    use super::{merge_candidate_evaluations, CandidateEval, RouteHop, SOLVE_CONCURRENCY};
     use crate::api::route_solver::{RouteQuoteKind, RouteSolveResponse};
     use std::time::{Duration, Instant};
 

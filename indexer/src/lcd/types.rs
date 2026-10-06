@@ -18,6 +18,7 @@ pub struct Block {
 
 #[derive(Debug, Deserialize)]
 pub struct BlockHeader {
+    pub chain_id: String,
     pub height: String,
     pub time: String,
 }

@@ -37,6 +37,7 @@ pub fn test_config() -> Config {
     load_test_env();
     Config {
         run_mode: cl8y_dex_indexer::config::RunMode::Dev,
+        expected_chain_id: "columbus-5".to_string(),
         database_url: env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
             "postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer_test".into()
         }),
@@ -1075,6 +1076,7 @@ pub async fn build_test_app_with_vfdusd(
         test_config().lcd_urls.clone(),
         test_config().lcd_timeout_ms,
         test_config().lcd_cooldown_ms,
+        "columbus-5",
     );
     let config = test_config();
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
@@ -1124,6 +1126,7 @@ pub async fn build_test_app_with_venus(
         test_config().lcd_urls.clone(),
         test_config().lcd_timeout_ms,
         test_config().lcd_cooldown_ms,
+        "columbus-5",
     );
     let config = test_config();
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
@@ -1178,6 +1181,7 @@ pub async fn build_test_app_with_oracle_prices_and_config(
         config.lcd_urls.clone(),
         config.lcd_timeout_ms,
         config.lcd_cooldown_ms,
+        config.expected_chain_id.clone(),
     );
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     if let Some(price) = ustc_price {

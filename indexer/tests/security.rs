@@ -499,6 +499,7 @@ async fn limit_cancellations_negative_and_zero_limit_clamp_to_one() {
 #[tokio::test]
 async fn lcd_failure_returns_sanitized_502_body() {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(ResponseTemplate::new(500).set_body_string("internal LCD failure"))
@@ -841,6 +842,7 @@ fn dev_dual_zero_rate_limits_load_without_clamp() {
 #[tokio::test]
 async fn blacklist_check_lcd_failure_returns_sanitized_502() {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(ResponseTemplate::new(503).set_body_string("upstream unavailable"))
@@ -1002,6 +1004,7 @@ fn csv_addrs(n: usize, prefix: &str) -> String {
 #[tokio::test]
 async fn blacklist_check_tokens_over_cap_returns_400() {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -1032,6 +1035,7 @@ async fn blacklist_check_tokens_over_cap_returns_400() {
 #[tokio::test]
 async fn blacklist_check_pairs_over_cap_returns_400() {
     let mock = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&mock, "columbus-5").await;
     Mock::given(method("GET"))
         .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({

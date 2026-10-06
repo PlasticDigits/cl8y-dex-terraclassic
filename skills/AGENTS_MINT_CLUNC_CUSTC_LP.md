@@ -38,6 +38,13 @@ CLUNC_LP_BURN_ONLY=1 CLUNC_LP_YES=1 ./scripts/mint-clunc-custc-lp.sh
 - [`AGENTS_REBALANCE_MINT_UST1_LP.md`](./AGENTS_REBALANCE_MINT_UST1_LP.md) — UST1 extra-minter mint + leftover burn
 - [`AGENTS_KEY_CUSTODY.md`](./AGENTS_KEY_CUSTODY.md) — 2-of-3 roster
 
+## Chain attestation (#1392)
+
+Apply [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md), the
+[shared endpoint policy](../docs/runbooks/chain-attestation.md) and
+[agent review/verification checklist](../docs/qa/issue-1392/README.md).
+Failover and retries never waive network identity; dry runs also attest.
+
 ## #1391 price-health invariants
 
 Use [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md) for all financial

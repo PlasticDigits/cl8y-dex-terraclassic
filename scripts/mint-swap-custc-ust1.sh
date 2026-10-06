@@ -41,7 +41,7 @@ TERRAD_HOST_CHAIN_ID="${TERRAD_HOST_CHAIN_ID:-columbus-5}"
 # Hybrid solver hops can sim low vs execute; 1.6 matches this workload better than 1.4.
 TERRAD_HOST_GAS_ADJUSTMENT="${TERRAD_HOST_GAS_ADJUSTMENT:-1.6}"
 
-LCD_URL="${CUSTC_UST1_LCD_URL%/}"
+LCD_URL="${TERRAD_HOST_LCD_URL:-${CUSTC_UST1_LCD_URL%/}}"
 INDEXER="${CUSTC_UST1_INDEXER%/}"
 MATH_PY="$SCRIPT_DIR/lib/custc-ust1-buyback-math.py"
 HOOK_PY="$SCRIPT_DIR/lib/ust1-clunc-buyback-math.py"
@@ -263,6 +263,8 @@ broadcast_admin() {
 }
 
 broadcast_msig() {
+  terrad_host_attest || return 1
+
   validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
@@ -378,7 +380,7 @@ print_header() {
   echo "cUSTC → UST1 best-solver buyback"
   echo "=============================================="
   echo "Router:     $ROUTER"
-  echo "RPC:        $TERRAD_HOST_NODE"
+  echo "RPC:        configured endpoint"
   echo "Treasury:   $TREASURY"
   echo "Admin key:  $ADMIN_KEY ($ADMIN_ADDR)"
   echo "Multisig:   $MSIG_KEY ($MSIG_ADDR)"
@@ -428,6 +430,7 @@ warn_wrap_solvency() {
 }
 
 one_tick() {
+  terrad_host_attest || return 1
   local ustc_usd fdusd_usd venus mint_raw have need quote est min_recv hops hook_json hook_b64 send_msg
   local before after delta hop_returns marks
   local state swapped_raw swapped_usd rounds
@@ -477,6 +480,8 @@ one_tick() {
   [[ "$min_recv" != "0" ]] || die "min_receive is 0 (quote too small for slippage $SLIP%)"
   echo "  min_receive=$min_recv (${SLIP}% floor of $est)"
 
+  TERRAD_HOST_IDENTITY_CONTRACTS+=" $(jq -r '[(.hops[]?.pair // empty), (.router_operations[]?.terra_swap.offer_asset_info.token.contract_addr // empty), (.router_operations[]?.terra_swap.ask_asset_info.token.contract_addr // empty)] | unique | join(" ")' <<<"$quote")"
+  terrad_host_attest || return 1
   echo "[hop-sim] pair hybrid_simulation for #334 book min_return"
   hop_returns="$(sim_hop_returns "$quote" "$mint_raw")"
   echo "  hop_returns=$hop_returns"
@@ -576,6 +581,10 @@ python3 "$MATH_PY" validate-randomization --usd "$MINT_USD" --percent "$AMOUNT_J
 
 print_header
 echo ""
+# Attest before any financial reads/preparation, including dry runs.
+TERRAD_HOST_IDENTITY_CONTRACTS="${TERRAD_HOST_IDENTITY_CONTRACTS:-} $CUSTC_UST1_FACTORY $ROUTER $UST1 $CUSTC $VFDUSD $TREASURY"
+terrad_host_attest || die "chain/protocol trust preflight failed"
+
 echo "[preflight] tokens + extra minter $MSIG_ADDR"
 DEC_CUSTC="$(token_decimals "$CUSTC")"
 DEC_UST1="$(token_decimals "$UST1")"

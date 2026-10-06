@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use cl8y_dex_indexer::db::queries::state;
 use cl8y_dex_indexer::indexer::{block_indexer, oracle, parser::process_block_txs};
 use cl8y_dex_indexer::lcd::{LcdClient, TxResponse};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use serial_test::serial;
 use sqlx::PgPool;
 use wiremock::matchers::{method, path, path_regex, query_param};
@@ -60,7 +60,7 @@ fn tx(hash: &str, events: Vec<Value>) -> TxResponse {
 }
 
 fn lcd(server: &MockServer) -> LcdClient {
-    LcdClient::new(vec![server.uri()], 1000, 1)
+    LcdClient::new(vec![server.uri()], 1000, 1, "columbus-5")
 }
 
 async fn seed(pool: &PgPool) -> i32 {
@@ -136,7 +136,7 @@ async fn mount_block(server: &MockServer, height: i64, hash: &str, txs: &[TxResp
         )))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "block_id": {"hash": hash},
-            "block": {"header": {"height": height.to_string(),"time": time().to_rfc3339()}}
+            "block": {"header": {"chain_id": "columbus-5", "height": height.to_string(),"time": time().to_rfc3339()}}
         })))
         .mount(server)
         .await;
@@ -156,6 +156,7 @@ async fn mixed_amounts_reconcile_rows_fees_positions_liquidity_and_daily_evidenc
     let pool = common::setup_pool().await;
     let pair = seed(&pool).await;
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let mut events = vec![swap(
         PAIR,
         "1000000",
@@ -445,6 +446,7 @@ async fn poison_replays_advance_checkpoint_and_next_block_without_retry_failure(
     let pool = common::setup_pool().await;
     seed(&pool).await;
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     state::set_indexer_checkpoint(&pool, 1394, "prev1394")
         .await
         .unwrap();
@@ -489,6 +491,7 @@ async fn infrastructure_failure_holds_checkpoint_then_retry_preserves_exactly_on
     let pool = common::setup_pool().await;
     let pair = seed(&pool).await;
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let unknown = "terra1unknownamountintegritytokenxxxxxxxxxxxxxxxxxxxxxxxx";
     let txs = [tx(
         "retry1395",
@@ -561,6 +564,7 @@ async fn numeric_boundaries_and_18_decimal_assets_persist_without_rounding() {
         .await
         .unwrap();
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let txs = [tx(
         "boundary1395",
         vec![
@@ -691,6 +695,7 @@ async fn reorg_guard_and_cursor_replay_preserve_valid_ordinals_and_fee_dedup() {
     let pool = common::setup_pool().await;
     seed(&pool).await;
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let txs = [tx(
         "reorg1395",
         vec![
@@ -786,6 +791,7 @@ async fn malformed_columnar_order_keeps_neighbor_amounts_attached_to_original_id
     let pool = common::setup_pool().await;
     seed(&pool).await;
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     // Contract batch events place action headers before parallel field columns.
     // Invalid middle entries must never shift the last price/fee onto another order.
     let placement = event(
@@ -907,6 +913,7 @@ async fn overflowing_reconstructed_reserves_reject_only_affected_action_and_chec
     .await
     .unwrap();
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let txs = [tx(
         "reserves1395",
         vec![
@@ -969,6 +976,7 @@ async fn maximum_raw_buy_and_sell_preserve_76_digit_realized_pnl_and_replay_once
         .await
         .unwrap();
     let server = MockServer::start().await;
+    common::lcd_mock::mock_chain_identity(&server, "columbus-5").await;
     let txs = [tx(
         "widepnl1395",
         vec![
