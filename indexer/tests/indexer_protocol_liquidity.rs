@@ -95,15 +95,15 @@ async fn insert_reserves(
 }
 
 async fn insert_oracle(pool: &sqlx::PgPool, ticker: &str, price: &str) {
-    sqlx::query(
-        "INSERT INTO oracle_prices (ticker, price_usd, source, fetched_at)
-         VALUES ($1, $2, 'average', NOW())",
+    cl8y_dex_indexer::db::queries::oracle::record_observation(
+        pool,
+        cl8y_dex_indexer::indexer::oracle::OracleTicker::parse(ticker).unwrap(),
+        Some(&bd(price)),
+        &["kucoin".into(), "mexc".into()],
+        "fresh",
     )
-    .bind(ticker)
-    .bind(bd(price))
-    .execute(pool)
     .await
-    .expect("oracle");
+    .expect("certified synthetic oracle");
 }
 
 #[serial]
@@ -225,8 +225,8 @@ async fn t4_ust1_uses_hub_not_dollar() {
     insert_reserves(&pool, pair, "10000000", "20000000", now).await;
     insert_oracle(&pool, "ustc", "0.01").await;
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
-         VALUES ('ust1', $1, 0.98, NOW())",
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at, as_of, quality)
+         VALUES ('ust1', $1, 0.98, NOW(), NOW(), 'bounded_spot')",
     )
     .bind(ust1)
     .execute(&pool)
@@ -251,11 +251,12 @@ async fn t5_ustr_uses_hub_not_2_5x() {
     let now = Utc::now();
     let ust1 = insert_cw20(&pool, "terra1ust1569b", "UST1", 6).await;
     let ustr = insert_cw20(&pool, "terra1ustr569", "USTR", 18).await;
+    insert_oracle(&pool, "ustc", "0.01").await;
     let pair = insert_pair(&pool, "terra1ustrust1", ust1, ustr).await;
     insert_reserves(&pool, pair, "10000000", "100000000000000000000", now).await;
     sqlx::query(
-        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at)
-         VALUES ('ust1', $1, 0.98, NOW()), ('ustr', $2, 0.012, NOW())",
+        "INSERT INTO hub_prices (ticker, asset_id, price_usd, updated_at, as_of, quality)
+         VALUES ('ust1', $1, 0.98, NOW(), NOW(), 'bounded_spot'), ('ustr', $2, 0.012, NOW(), NOW(), 'bounded_spot')",
     )
     .bind(ust1)
     .bind(ustr)
@@ -750,7 +751,7 @@ async fn q1380_outage_partial_recovery_and_real_withdrawal() {
     assert_eq!(recovered.total_liquidity_usd, good.total_liquidity_usd);
     assert_eq!(recovered.quality.status, "fresh");
     assert!(recovered.quality.generation > lost.quality.generation);
-    sqlx::query("DELETE FROM oracle_prices")
+    sqlx::query("DELETE FROM oracle_state")
         .execute(&pool)
         .await
         .unwrap();

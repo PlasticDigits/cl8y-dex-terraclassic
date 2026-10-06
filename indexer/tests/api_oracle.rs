@@ -21,7 +21,10 @@ async fn oracle_price_catalog_lists_tickers() {
     assert!(meta.contains("ustc"));
     assert!(meta.contains("lunc"));
     assert!(meta.contains("vfdusd"));
-    assert!(meta.contains("FDUSD"), "catalog must identify CEX FDUSD: {meta}");
+    assert!(
+        meta.contains("FDUSD"),
+        "catalog must identify CEX FDUSD: {meta}"
+    );
     assert!(
         meta.contains("CEX") || meta.contains("MEXC"),
         "catalog must say the vfdusd snapshot is CEX FDUSD: {meta}"
@@ -281,6 +284,8 @@ async fn oracle_history_returns_stored_prices_per_ticker() {
     assert_eq!(ustc_resp.status_code(), StatusCode::OK);
     let ustc_body: serde_json::Value = ustc_resp.json();
     assert_eq!(ustc_body["prices"].as_array().unwrap().len(), 2);
+    assert_eq!(ustc_body["prices"][0]["certified"], false);
+    assert_eq!(ustc_body["prices"][0]["source_count"], 0);
 
     let lunc_resp = server.get("/api/v1/oracle/history/lunc").await;
     assert_eq!(lunc_resp.status_code(), StatusCode::OK);
@@ -419,4 +424,214 @@ async fn pair_stats_includes_volume_usd() {
 
     let body: serde_json::Value = resp.json();
     assert!(body.get("volume_usd").is_some());
+}
+
+#[tokio::test]
+async fn oracle_quality_rejects_stale_future_and_no_quorum_and_recovers() {
+    use cl8y_dex_indexer::{db::queries::oracle, indexer::oracle::OracleTicker};
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    let price = BigDecimal::from_str("0.00512").unwrap();
+    let sources = vec!["kucoin".into(), "mexc".into()];
+    oracle::record_observation(&pool, OracleTicker::Ustc, Some(&price), &sources, "fresh")
+        .await
+        .unwrap();
+    assert!(oracle::record_observation_at(
+        &pool,
+        OracleTicker::Ustc,
+        Some(&price),
+        &sources,
+        "fresh",
+        chrono::Utc::now() - chrono::Duration::seconds(301)
+    )
+    .await
+    .is_err());
+    assert!(oracle::record_observation_at(
+        &pool,
+        OracleTicker::Ustc,
+        Some(&price),
+        &sources,
+        "fresh",
+        chrono::Utc::now() + chrono::Duration::seconds(10)
+    )
+    .await
+    .is_err());
+    let app = common::build_test_app(pool.clone()).await;
+    let server = TestServer::new(app);
+    let body: serde_json::Value = server.get("/api/v1/oracle/price/ustc").await.json();
+    assert_eq!(body["quality"], "fresh");
+    assert_eq!(body["source_count"], 2);
+    assert_eq!(body["source_policy"], "cex-quorum-v1");
+    let history: serde_json::Value = server.get("/api/v1/oracle/history/ustc").await.json();
+    assert_eq!(history["prices"][0]["certified"], true);
+    assert_eq!(history["prices"][0]["source_count"], 2);
+    assert!(body["as_of"].as_str().is_some());
+    for offset in ["- interval '301 seconds'", "+ interval '10 seconds'"] {
+        sqlx::query(&format!(
+            "UPDATE oracle_state SET as_of=NOW() {offset} WHERE ticker='ustc'"
+        ))
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert!(oracle::get_latest_average_price(&pool, OracleTicker::Ustc)
+            .await
+            .unwrap()
+            .is_none());
+        let body: serde_json::Value = server.get("/api/v1/oracle/price/ustc").await.json();
+        assert_eq!(body["quality"], "stale");
+        assert!(body["price_usd"].is_null());
+        assert_eq!(body["source_count"], 0);
+    }
+    oracle::record_observation(&pool, OracleTicker::Ustc, None, &[], "degraded")
+        .await
+        .unwrap();
+    assert!(oracle::get_latest_average_price(&pool, OracleTicker::Ustc)
+        .await
+        .unwrap()
+        .is_none());
+    let body: serde_json::Value = server.get("/api/v1/oracle/price/ustc").await.json();
+    assert_eq!(body["quality"], "degraded");
+    assert!(body["price_usd"].is_null());
+    oracle::record_observation(&pool, OracleTicker::Ustc, None, &[], "unavailable")
+        .await
+        .unwrap();
+    let body: serde_json::Value = server.get("/api/v1/oracle/price/ustc").await.json();
+    assert_eq!(body["quality"], "unavailable");
+    oracle::record_observation(&pool, OracleTicker::Ustc, Some(&price), &sources, "fresh")
+        .await
+        .unwrap();
+    assert!(oracle::get_latest_average_price(&pool, OracleTicker::Ustc)
+        .await
+        .unwrap()
+        .is_some());
+    assert!(oracle::record_observation(
+        &pool,
+        OracleTicker::Ustc,
+        Some(&price),
+        &["mexc".into()],
+        "fresh"
+    )
+    .await
+    .is_err());
+    assert!(oracle::record_observation(
+        &pool,
+        OracleTicker::Ustc,
+        Some(&price),
+        &["mexc".into(), "mexc".into()],
+        "fresh"
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
+async fn oracle_invalid_source_never_persists_and_legacy_average_is_unavailable() {
+    use cl8y_dex_indexer::{db::queries::oracle, indexer::oracle::OracleTicker};
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    for value in [
+        "0",
+        "-1",
+        "1000001",
+        "0.0000000000001",
+        "1000000.0000000000000001",
+        "0.000000000000999999999",
+        "NaN",
+    ] {
+        if let Ok(price) = BigDecimal::from_str(value) {
+            assert!(
+                oracle::insert_price(&pool, OracleTicker::Ustc, &price, "mexc")
+                    .await
+                    .is_err()
+            );
+        }
+    }
+    let valid = BigDecimal::from_str("0.01").unwrap();
+    for source in ["spoof", "average", "MEXC", "../mexc", "venus_bsc"] {
+        assert!(
+            oracle::insert_price(&pool, OracleTicker::Ustc, &valid, source)
+                .await
+                .is_err()
+        );
+    }
+    assert!(
+        oracle::insert_price(&pool, OracleTicker::Vfdusd, &valid, "kucoin")
+            .await
+            .is_err()
+    );
+    for time in [
+        chrono::Utc::now() - chrono::Duration::seconds(301),
+        chrono::Utc::now() + chrono::Duration::seconds(10),
+    ] {
+        assert!(
+            oracle::insert_price_at(&pool, OracleTicker::Ustc, &valid, "mexc", time)
+                .await
+                .is_err()
+        );
+    }
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM oracle_prices")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    sqlx::query(
+        "INSERT INTO oracle_prices(ticker,price_usd,source) VALUES ('ustc',0.01,'average')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert!(oracle::get_latest_average_price(&pool, OracleTicker::Ustc)
+        .await
+        .unwrap()
+        .is_none());
+    let app = common::build_test_app(pool).await;
+    let server = TestServer::new(app);
+    let body: serde_json::Value = server.get("/api/v1/oracle/price/ustc").await.json();
+    assert_eq!(body["quality"], "unavailable");
+    assert!(body["price_usd"].is_null());
+}
+
+#[tokio::test]
+async fn venus_expired_or_spoofed_snapshot_is_unavailable_to_financial_callers() {
+    use cl8y_dex_indexer::indexer::venus_vfdusd::VenusVfdusdSnapshot;
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    for kind in ["expired", "future", "spoof"] {
+        let mut snapshot = VenusVfdusdSnapshot::new_now(BigDecimal::from_str("0.023").unwrap());
+        match kind {
+            "expired" => snapshot.fetched_at -= chrono::Duration::seconds(301),
+            "future" => snapshot.fetched_at += chrono::Duration::seconds(10),
+            _ => snapshot.vtoken = "0x0000000000000000000000000000000000000000".into(),
+        }
+        let app = common::build_test_app_with_venus(pool.clone(), None, Some(snapshot)).await;
+        let server = TestServer::new(app);
+        let body: serde_json::Value = server.get("/api/v1/oracle/price/vfdusd/venus").await.json();
+        assert_eq!(body["quality"], "stale");
+        assert!(body["fdusd_per_vfdusd"].is_null());
+    }
+}
+
+#[tokio::test]
+async fn oracle_schema_rejects_null_price_and_fabricated_quorum() {
+    let pool = common::setup_pool().await;
+    common::clean_db(&pool).await;
+    for (price, sources) in [
+        (None, vec!["mexc", "kucoin"]),
+        (Some(BigDecimal::from(1)), vec!["mexc", "mexc"]),
+        (Some(BigDecimal::from(1)), vec!["mexc", "mexc", "kucoin"]),
+        (Some(BigDecimal::from(1)), vec!["mexc", "spoof"]),
+    ] {
+        assert!(sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('ustc',$1,'fresh',$2,NOW())")
+            .bind(price).bind(sources).execute(&pool).await.is_err());
+    }
+    for sources in [
+        vec!["mexc", "mexc"],
+        vec!["mexc", "mexc", "kucoin"],
+        vec!["mexc", "spoof"],
+    ] {
+        assert!(sqlx::query("INSERT INTO oracle_prices(ticker,price_usd,source,accepted_sources) VALUES('ustc',1,'average',$1)")
+            .bind(sources).execute(&pool).await.is_err());
+    }
+    assert!(sqlx::query("INSERT INTO oracle_state(ticker,price_usd,quality,accepted_sources,as_of) VALUES('vfdusd',1,'fresh',ARRAY['kucoin','mexc'],NOW())")
+        .execute(&pool).await.is_err(), "unlisted KuCoin cannot certify FDUSD");
 }

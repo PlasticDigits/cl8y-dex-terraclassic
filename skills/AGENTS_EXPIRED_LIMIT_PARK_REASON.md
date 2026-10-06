@@ -17,6 +17,7 @@ Use when integrating bots, indexers, or dApp copy against **`EXPIRED_LIMIT_CLAIM
 
 ## Rules of thumb
 
+0. **`unfillable` / `Unfillable` (#1399)** means the entire remaining escrow cannot yield a positive-cost fill; it is claimable and is not proof the order never traded. Follow [UF1399](./AGENTS_UNFILLABLE_LIMIT_ORDERS.md) and [the QA checklist](../docs/qa/issue-1399/README.md).
 1. **Read `reason` first** — query JSON and wasm attr both use **snake_case** (`dust_filled`, …). Rust variant names stay PascalCase (`DustFilled`). Do not classify parks from `expires_at` or `force_expired` alone.
 2. **`dust_filled` / `DustFilled` ⇒ near-complete fill** — remaining is sub-`LIMIT_ORDER_DUST_FLUSH_THRESHOLD` (10). Book a fill; do not treat as zero-fill expiry.
 3. **`force_expired=true` means “not a TTL expiry”** — historical / inverted naming. Kept for back-compat; prefer `reason`.

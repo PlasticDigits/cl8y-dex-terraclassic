@@ -29,7 +29,7 @@ UST1 lists the DEX 2-of-3 as an extra minter (same as [`rebalance-mint-ust1-lp.m
 
 ## Stop condition
 
-Indexer LUNC oracle: `GET https://indexer.dex.cl8y.com/api/v1/oracle/price/lunc` (`UST1_CLUNC_LUNC_USD` to pin).
+Indexer LUNC oracle: `GET https://indexer.dex.cl8y.com/api/v1/oracle/price/lunc` (`UST1_CLUNC_LUNC_USD` to pin for `DRY_RUN=1` only).
 
 Stop when
 
@@ -94,3 +94,12 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`multisig1`, `multis
 Apply the shared [chain-attestation policy](chain-attestation.md) before reads,
 dry-run planning and every transaction attempt. Failed or stale LCD/RPC identity
 cannot authorize a tick. Review [the verification checklist](../qa/issue-1392/README.md).
+
+## Oracle safety (#1391)
+
+Live inputs require fresh certified CEX quorum and exact identity/age. Rechecks
+before transaction preparation abort degraded inputs or >1% movement from the
+plan. Manual numeric oracle overrides are **dry-run only**; they cannot fabricate
+healthy live observations. See [policy and agent checklist](../qa/issue-1391/README.md)
+and [agent playbook](../../skills/AGENTS_ORACLE_SAFETY.md). Strategy seed ratios
+remain explicit strategy assumptions, not certified hub prices.

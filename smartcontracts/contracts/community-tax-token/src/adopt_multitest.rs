@@ -100,7 +100,7 @@ fn source_fixture() -> Box<dyn Contract<Empty>> {
     Box::new(ContractWrapper::new(exec, inst, query))
 }
 
-fn balance(app: &App, token: &Addr, who: &str) -> u128 {
+pub(super) fn balance(app: &App, token: &Addr, who: &str) -> u128 {
     let r: BalanceResponse = app
         .wrap()
         .query_wasm_smart(
@@ -118,7 +118,7 @@ enum TaxMapProbe {
     TaxMap {},
 }
 
-fn adopt_msg(manager: &str) -> AdoptMigrateMsg {
+pub(super) fn adopt_msg(manager: &str) -> AdoptMigrateMsg {
     AdoptMigrateMsg {
         manager: manager.into(),
         treasury: "treasury".into(),
@@ -137,7 +137,7 @@ fn adopt_msg(manager: &str) -> AdoptMigrateMsg {
     }
 }
 
-fn spawn_source(
+pub(super) fn spawn_source(
     cw2_name: &str,
     write_tax_map: bool,
     write_snapshot: bool,

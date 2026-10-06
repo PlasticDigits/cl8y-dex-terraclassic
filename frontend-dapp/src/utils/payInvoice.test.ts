@@ -65,6 +65,17 @@ function deps(overrides?: Partial<PayInvoiceQuoteDeps>): PayInvoiceQuoteDeps {
 }
 
 describe('quotePayInvoice (GitLab #595)', () => {
+  it('fails closed on deterministic route rejection without reverse or forward fallback (#1390)', async () => {
+    const d = deps({
+      getRouteSolve: vi.fn(async () => {
+        throw new Error('Indexer API error: 422 Unprocessable Entity')
+      }),
+    })
+    const quote = await quotePayInvoice({ invoice: INVOICE, payToken: CLUNC, slippagePercent: 1 }, d)
+    expect(quote).toEqual({ status: 'unavailable', disableReason: PAY_INVOICE_NO_ROUTE })
+    expect(d.reverseSimulate).not.toHaveBeenCalled()
+    expect(d.forwardSimulate).not.toHaveBeenCalled()
+  })
   it('invoice token + sufficient balance → payRaw = invoice, 0 hops', async () => {
     const q = await quotePayInvoice({
       invoice: INVOICE,

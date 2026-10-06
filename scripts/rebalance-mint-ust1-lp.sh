@@ -22,8 +22,10 @@
 #
 # Never commit TERRAD_HOST_KEYRING_PASS.
 set -euo pipefail
+shopt -s inherit_errexit
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/oracle-safety.sh"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=lib/ust1-lp-rebalance-defaults.sh
 source "$SCRIPT_DIR/lib/ust1-lp-rebalance-defaults.sh"
@@ -165,11 +167,16 @@ asset_amount_for() {
 
 fetch_ustc_usd() {
   if [[ -n "${UST1_LP_USTC_USD:-}" ]]; then
-    printf '%s' "$UST1_LP_USTC_USD"
-    return 0
+    oracle_safety_override "$UST1_LP_USTC_USD"
+    return $?
   fi
-  curl -sS --connect-timeout 10 --max-time 20 "$UST1_LP_INDEXER_ORACLE" \
-    | jq -er '.price_usd // empty'
+  oracle_safety_fetch "$UST1_LP_INDEXER_ORACLE" "ustc"
+}
+
+validate_financial_marks() {
+  local current
+  current="$(fetch_ustc_usd)" || return 1
+  oracle_safety_movement "$current" "$USTC_USD"
 }
 
 prompt_keyring_pass() {
@@ -187,6 +194,7 @@ prompt_keyring_pass() {
 }
 
 broadcast_admin() {
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1"
   shift
   local out tx_hash
@@ -206,6 +214,8 @@ broadcast_admin() {
 
 broadcast_msig() {
   terrad_host_attest || return 1
+
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2

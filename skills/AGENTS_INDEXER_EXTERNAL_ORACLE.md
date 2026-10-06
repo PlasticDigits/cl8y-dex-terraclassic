@@ -1,3 +1,7 @@
+> Current #1391 safety contract: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md)
+> and [policy/checklist](../docs/qa/issue-1391/README.md) supersede legacy conversion
+> defaults and self-valued TVL eligibility. Run `make verify-issue-1391`.
+
 # Agent playbook: Indexer external USTC/LUNC/CEX-FDUSD oracle (GitLab #515 / #550 / #579 / #580)
 
 Audience: third-party agents touching indexer USD reference prices, Protocol oracle UI, or integrator docs that mention `/api/v1/oracle/price`.
@@ -19,7 +23,7 @@ Audience: third-party agents touching indexer USD reference prices, Protocol ora
 | **X3** | Fetcher symbols must match ticker (USTC≠LUNC≠FDUSD CEX ids). Path `vfdusd` polls CEX FDUSD; logs/`display_name` are **FDUSD/USD**, never `vFDUSD/USD` ([#580](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/580)). |
 | **X4** | Volume USD uses the **P522-Q catalog** ([#548](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/548) / [#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556) hub USD for UST1/USTR). Overview `ustc_price_usd` stays the **USTC** handle. Do **not** convert DEX volume with vFDUSD/FDUSD. Never use `OracleTicker::Vfdusd` as `usd_per_human` for symbol `VFDUSD`. |
 | **X5** | Advisory reference — never settlement authority. |
-| **X6** | Non-finite f64 → safe BigDecimal before insert. |
+| **X6** | Reject invalid/out-of-range values before insert; never substitute zero (#1391). |
 | **X7** | Oracle `reqwest` client sends a stable descriptive User-Agent (`cl8y-dex-indexer/<CARGO_PKG_VERSION> (+https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic)`). CoinGecko **403 User-Agent required** is `MissingUserAgent`, **not** `RateLimited` (429). Do not spoof browsers, rotate UAs, put secrets in the UA, or delete the CoinGecko source. |
 
 Do not confuse with on-chain **TWAP** ([`docs/twap-oracle.md`](../docs/twap-oracle.md)) or **UST1 window oracle** ([`AGENTS_UST1_WINDOW_UI.md`](./AGENTS_UST1_WINDOW_UI.md)).

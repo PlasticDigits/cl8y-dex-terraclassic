@@ -14,6 +14,7 @@ USDT = "terra1z0xe7t5ymmltg4vju8tghkq0pewy4et548ta23nlu9zxtl950uyqkv8mv4"
 
 CURL = r'''#!/usr/bin/env python3
 import base64, json, os, runpy, sys
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 url = next(arg for arg in sys.argv[1:] if arg.startswith("http"))
 if runpy.run_path(os.environ["MOCK_CHAIN_FIXTURE"])["respond"](url):
@@ -58,8 +59,24 @@ elif "/smart/" in url:
     print(json.dumps({"data":data}))
 elif "/balances/" in url:
     print('{"balance":{"amount":"100000000000000"}}')
+elif "/oracle/price/" in url:
+    ticker = "vfdusd" if "vfdusd" in url else "ustc"
+    stamp = datetime.now(timezone.utc)
+    quality = "fresh"
+    if mode == "stale-oracle": stamp -= timedelta(seconds=301)
+    if mode == "future-oracle": stamp += timedelta(seconds=30)
+    if mode == "degraded-oracle": quality = "degraded"
+    price = "1" if ticker == "vfdusd" else "0.00573"
+    if mode == "nan-oracle": price = "NaN"
+    data = dict(ticker=ticker,quote_asset="FDUSD" if ticker == "vfdusd" else "USTC",
+        quality=quality,as_of=stamp.isoformat(),source_policy="cex-quorum-v1",max_age_seconds=300,
+        quorum=2,source_count=2,accepted_sources=["mexc","coingecko"] if ticker == "vfdusd" else ["kucoin","mexc"],price_usd=price,
+        venus=dict(quality="fresh",source="venus_bsc",vtoken="0xc4ef4229fec74ccfe17b2bdef7715fac740ba0ba",
+                   fetched_at=stamp.isoformat(),fdusd_per_vfdusd="1"))
+    if mode == "missing-quality": data.pop("quality")
+    print(json.dumps(data))
 else:
-    print('{"price_usd":"0.00573"}')
+    raise SystemExit("unexpected mock URL")
 '''
 
 TERRAD = r'''#!/usr/bin/env python3
@@ -109,7 +126,7 @@ print(json.dumps({"body": {"messages": [{}]}}))
 
 class BuybackFailures(unittest.TestCase):
     def run_tick(self, mode, *, live=False, loop=False, target_met=False, randomized=False, ticks=1,
-                 prepare_mode=None, node_override=None):
+                 prepare_mode=None, node_override=None, manual_override=False):
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
             # End a failed loop after its first tick, without waiting an hour.
@@ -136,7 +153,7 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
                 DRY_RUN="0" if live else "1",
                 CUSTC_UST1_LOOP="1" if loop else "0", CUSTC_UST1_YES="1",
                 CUSTC_UST1_UST1=USDT, CUSTC_UST1_VFDUSD=USDT,
-                CUSTC_UST1_VFDUSD_USD="1", CUSTC_UST1_MINT_USD="50",
+                CUSTC_UST1_MINT_USD="50",
                 CUSTC_UST1_AMOUNT_JITTER_PERCENT="20" if randomized else "0",
                 CUSTC_UST1_TARGET_USD="4000", CUSTC_UST1_DEST="cmm",
                 CUSTC_UST1_STATE_FILE=str(work / "state.json"),
@@ -148,6 +165,8 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
                 TMPDIR=str(work),
                 MOCK_CMM_BALANCE="4000000000000000000000" if target_met else "0",
             )
+            if manual_override:
+                env["CUSTC_UST1_VFDUSD_USD"] = "1"
             if node_override:
                 env["TERRAD_HOST_NODE"] = node_override
             result = subprocess.run(
@@ -169,6 +188,20 @@ raise SystemExit(77 if count >= int(os.environ["MOCK_TICKS"]) else 0)
                         self.assertNotIn("→ msig", result.stderr)
                         if loop:
                             self.assertIn("tick failed", result.stderr)
+
+    def test_unsafe_oracle_never_prepares_transaction(self):
+        for mode in ("stale-oracle","future-oracle","degraded-oracle","nan-oracle","missing-quality"):
+            with self.subTest(mode=mode):
+                result=self.run_tick(mode,live=True,prepare_mode="permanent")
+                self.assertNotEqual(result.returncode,0,result.stdout+result.stderr)
+                self.assertEqual(self.prepare_calls,[])
+                self.assertNotIn("→ msig",result.stderr)
+
+    def test_live_manual_override_is_rejected(self):
+        result=self.run_tick("valid",live=True,manual_override=True,prepare_mode="permanent")
+        self.assertNotEqual(result.returncode,0)
+        self.assertEqual(self.prepare_calls,[])
+        self.assertIn("dry-run only",result.stderr)
 
     def test_valid_preview_builds_floor_and_quotes_before_mint(self):
         result = self.run_tick("valid")

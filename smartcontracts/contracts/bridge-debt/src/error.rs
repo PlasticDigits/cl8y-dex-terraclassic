@@ -6,6 +6,20 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
+    #[error("Invalid migration identity or unsupported version")]
+    InvalidMigration {},
+    #[error("Market implementation is not approved or pinned")]
+    UnapprovedImplementation {},
+    #[error("Underlying minter permissions changed or issuer is not authorized")]
+    UnderlyingMinterMismatch {},
+    #[error("Issuance is disabled or paused")]
+    IssuanceDisabled {},
+    #[error("Invalid issuance limits or attempted epoch reset")]
+    InvalidLimits {},
+    #[error("Market issuance limit exceeded")]
+    IssuanceLimit {},
+    #[error("No pending upgrade")]
+    NoPendingUpgrade {},
     #[error("Unauthorized")]
     Unauthorized {},
 

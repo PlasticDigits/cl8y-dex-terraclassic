@@ -45,3 +45,8 @@ Use [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md) and the shared
 [endpoint policy](../docs/runbooks/chain-attestation.md). A signing `--chain-id`
 is not node attestation. Run `make verify-issue-1392`; recheck identity on each
 tick and retry, including dry runs. Never treat a skipped check as deployment evidence.
+
+Current price validation: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md),
+[O1391 policy/checklist](../docs/qa/issue-1391/README.md). Live source/age/quorum
+validation is mandatory before preparation; numeric overrides are dry-run only.
+Run `make verify-issue-1391` and record unavailable checks explicitly.

@@ -4,7 +4,7 @@
 #
 # Who signs what (keys already on this machine):
 #   cl8ydeploy     store + instantiate the two new contracts
-#   multisig_2of3  USDT add_minter, register the debt market, Issue 10k USDT
+#   multisig_2of3  USDT add_minter, approve code, register + cap market, Issue 10k
 #                  (signers: multisig1 + multisig2)
 #   cl8y2_admin    mint 10k UST1 to itself, create the pair, provide LP to itself,
 #                  then CW20-transfer that LP to the CMM treasury
@@ -55,6 +55,8 @@ TREASURY="${TREASURY:-terra16j5u6ey7a84g40sr3gd94nzg5w5fm45046k9s2347qhfpwm5fr6s
 # 10_000 whole tokens. USDT is 18 decimals; UST1 is 6.
 USDT_RAW="${USDT_RAW:-10000000000000000000000}"
 UST1_RAW="${UST1_RAW:-10000000000}"
+# Review input, not a value learned from the implementation being approved.
+REVIEWED_USDT_CODE_ID="${REVIEWED_USDT_CODE_ID:-10184}"
 
 LIVE=0
 if [[ "${USDT_UST1_LP_YES:-0}" == "1" ]]; then
@@ -392,6 +394,8 @@ UST1_INFO="$(lcd_smart "$(lcd_smart_raw "$UST1" '{"token_info":{}}')")"
 
 USDT_CODE="$(lcd_get "${LCD%/}/cosmwasm/wasm/v1/contract/${USDT}" | jq -r '.contract_info.code_id')"
 UST1_CODE="$(lcd_get "${LCD%/}/cosmwasm/wasm/v1/contract/${UST1}" | jq -r '.contract_info.code_id')"
+[[ "$REVIEWED_USDT_CODE_ID" =~ ^[1-9][0-9]*$ && "$USDT_CODE" == "$REVIEWED_USDT_CODE_ID" ]] \
+  || die "USDT code $USDT_CODE differs from reviewed code $REVIEWED_USDT_CODE_ID; review implementation before any transaction"
 for id in "$USDT_CODE" "$UST1_CODE"; do
   ok="$(lcd_smart "$(lcd_smart_raw "$FACTORY" "$(jq -nc --argjson id "$id" '{is_code_id_whitelisted:{code_id:$id}}')")" | jq -r '.whitelisted')"
   [[ "$ok" == "true" ]] || die "code_id $id is not factory-whitelisted"
@@ -478,39 +482,50 @@ fi
 
 echo "[multisig] USDT minter + debt market + Issue to $ADMIN_ADDR"
 if [[ "$LIVE" == "1" ]]; then
-  minters="$(lcd_smart "$(lcd_smart_raw "$USDT" '{"minters":{}}')" | jq -r '.minters[]?' || true)"
-  primary="$(lcd_smart "$(lcd_smart_raw "$USDT" '{"minter":{}}')" | jq -r '.minter')"
-  if [[ "$primary" != "$ISSUER" && "$minters" != *"$ISSUER"* ]]; then
-    msig_exec "$USDT" "$(jq -nc --arg m "$ISSUER" '{add_minter:{minter:$m}}')" "add_minter issuer on USDT"
-  else
-    echo "  issuer already a USDT minter"
-  fi
-
-  cfg="$(lcd_smart "$(lcd_smart_raw "$ISSUER" '{"config":{}}')")"
-  if [[ "$(jq -r '.debt_code_id // empty' <<<"$cfg")" != "$DEBT_CODE_ID" ]]; then
-    msig_exec "$ISSUER" "$(jq -nc --argjson id "$DEBT_CODE_ID" '{set_debt_code_id:{code_id:$id}}')" \
-      "set_debt_code_id $DEBT_CODE_ID"
-  else
-    echo "  debt code id already set"
-  fi
-
   market_raw="$(lcd_smart_raw "$ISSUER" "$(jq -nc --arg u "$USDT" '{market:{underlying:$u}}')")" || true
-  if echo "$market_raw" | grep -qi 'not found\|Unknown market\|unknown market'; then
+  if echo "$market_raw" | grep -qi 'bridge_debt::state::Market.*not found\|Unknown market'; then
+    cfg="$(lcd_smart "$(lcd_smart_raw "$ISSUER" '{"config":{}}')")"
+    jq -e 'has("pending_owner")' <<<"$cfg" >/dev/null \
+      || die "issuer lacks the market-pin protocol; review and migrate it before setup mutations"
+    minters="$(lcd_smart "$(lcd_smart_raw "$USDT" '{"minters":{}}')")"
+    primary="$(lcd_smart "$(lcd_smart_raw "$USDT" '{"minter":{}}')" | jq -r '.minter')"
+    if [[ "$primary" != "$ISSUER" ]] && ! jq -e --arg m "$ISSUER" '.minters | index($m) != null' <<<"$minters" >/dev/null; then
+      msig_exec "$USDT" "$(jq -nc --arg m "$ISSUER" '{add_minter:{minter:$m}}')" "add_minter issuer on USDT"
+    fi
+    if [[ "$(jq -r '.debt_code_id // empty' <<<"$cfg")" != "$DEBT_CODE_ID" ]]; then
+      msig_exec "$ISSUER" "$(jq -nc --argjson id "$DEBT_CODE_ID" '{set_debt_code_id:{code_id:$id}}')" \
+        "set_debt_code_id $DEBT_CODE_ID"
+    fi
+    # Approve reviewed code only for a new registration, never to repair drift.
+    msig_exec "$ISSUER" "$(jq -nc --argjson id "$REVIEWED_USDT_CODE_ID" \
+      '{approve_underlying_code:{code_id:$id,multi_minter:true}}')" \
+      "approve reviewed USDT implementation $REVIEWED_USDT_CODE_ID (multi-minter)"
     msig_exec "$ISSUER" "$(jq -nc --arg u "$USDT" --arg d "$DEBT" \
       '{register_market:{underlying:$u,debt_token:$d}}')" "register USDT market"
-  elif echo "$market_raw" | jq -e '.data.debt_token' >/dev/null 2>&1; then
-    echo "  market already registered"
   else
-    # Query error string varies. Try parsed data; otherwise register once.
-    if lcd_smart "$market_raw" | jq -e '.debt_token' >/dev/null 2>&1; then
-      echo "  market already registered"
-    else
-      msig_exec "$ISSUER" "$(jq -nc --arg u "$USDT" --arg d "$DEBT" \
-        '{register_market:{underlying:$u,debt_token:$d}}')" "register USDT market"
-    fi
+    lcd_smart "$market_raw" | jq -e '.debt_token' >/dev/null \
+      || die "cannot determine existing market; refusing setup mutations"
+    echo "  market already registered"
+  fi
+
+  market="$(lcd_smart "$(lcd_smart_raw "$ISSUER" "$(jq -nc --arg u "$USDT" '{market:{underlying:$u}}')")")"
+  jq -e --arg d "$DEBT" --argjson code "$USDT_CODE" --argjson debt_code "$DEBT_CODE_ID" \
+    '.debt_token == $d and .pins.underlying_code_id == $code and .pins.debt_code_id == $debt_code' \
+    <<<"$market" >/dev/null || die "existing market identity/code pins differ; use reviewed upgrade procedure"
+  [[ "$(jq -r '.paused' <<<"$market")" == "false" && "$(jq -r '.pending_upgrade == null' <<<"$market")" == "true" ]] \
+    || die "market paused or pending upgrade; resolve separately before issuance"
+  limits="$(jq -nc --arg a "$USDT_RAW" \
+    '{max_per_issue:$a,max_outstanding:$a,epoch_seconds:86400,max_per_epoch:$a}')"
+  if [[ "$(jq -cS '.limits' <<<"$market")" != "$(jq -cS . <<<"$limits")" ]]; then
+    [[ "$(jq -r '.limits == null' <<<"$market")" == "true" ]] \
+      || die "existing issuance limits differ; review separately instead of silently widening caps"
+    msig_exec "$ISSUER" "$(jq -nc --arg u "$USDT" --argjson l "$limits" \
+      '{configure_market:{underlying:$u,limits:$l,paused:false}}')" \
+      "configure finite 10k USDT caps, fixed UTC 86400-second epochs"
   fi
 else
-  echo "  [dry] add_minter $ISSUER on USDT, set_debt_code_id, register_market, issue"
+  echo "  [dry] add_minter $ISSUER on USDT, set_debt_code_id, approve_underlying_code $USDT_CODE (multi_minter=true), register_market"
+  echo "  [dry] configure_market max_per_issue=max_outstanding=max_per_epoch=$USDT_RAW, epoch_seconds=86400; issue"
 fi
 
 admin_usdt="$(cw20_balance "$USDT" "$ADMIN_ADDR")"
@@ -523,6 +538,7 @@ echo "  CMM USDT-Bridge-Debt now=$debt_now"
 if py_ge "$debt_now" "$USDT_RAW"; then
   echo "  skip USDT issue (CMM already holds 10,000 debt)"
 elif [[ "$LIVE" == "1" ]]; then
+  [[ "$debt_now" == "0" ]] || die "partial existing debt requires a reviewed issuance plan; refusing to over-issue"
   msig_exec "$ISSUER" "$(jq -nc --arg u "$USDT" --arg r "$ADMIN_ADDR" --arg a "$USDT_RAW" \
     '{issue:{underlying:$u,recipient:$r,amount:$a}}')" \
     "issue $USDT_RAW USDT → $ADMIN_ADDR and debt → CMM"

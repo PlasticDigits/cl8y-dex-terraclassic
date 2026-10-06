@@ -714,3 +714,52 @@ async fn route_exact_output_present_standard_reference_unavailable_fails_closed(
                 .is_none())
     );
 }
+
+/// #1390: reverse sizing preserves authoritative protocol-trader preview rejection.
+#[serial]
+#[tokio::test]
+async fn route_exact_output_protocol_exempt_guard_rejection_is_observable() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_with_mirror(&pool).await;
+    let (r0, r1) = (1_000_000_000u128, 1_000_000_000u128);
+    reserves(&pool, "terra1pairrouteabc", r0, r1, 30).await;
+    let mock = forward_tax_mock(
+        vec![(seed.token_a.clone(), seed.token_b.clone(), r0, r1, 30)],
+        false,
+        std::collections::HashMap::from([(seed.token_b.clone(), (0, 0))]),
+        false,
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"/cosmwasm/wasm/v1/contract/.*/smart/.*"))
+        .and(|request: &Request| {
+            let q = lcd_mock::smart_query_from_request(request);
+            q.get("simulate_swap_operations").is_some() || q.get("is_protocol_exempt").is_some()
+        })
+        .respond_with(|request: &Request| {
+            let q = lcd_mock::smart_query_from_request(request);
+            if q.get("is_protocol_exempt").is_some() {
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"data":{"manager":false,"protocol":true}}))
+            } else {
+                ResponseTemplate::new(500).set_body_string(
+                    "query wasm contract failed: router swap requires a non-exempt trader",
+                )
+            }
+        })
+        .with_priority(1)
+        .mount(&mock)
+        .await;
+    let server = TestServer::new(
+        common::build_test_app_with_price_and_config(pool, None, config(&mock)).await,
+    );
+    for endpoint in ["solve", "solve/best"] {
+        let response = server.get(&format!(
+            "/api/v1/route/{endpoint}?token_in={}&token_out={}&amount_out=1000000&trader=terra1synthetictrader1390xxxxxxxxxxxxxxxxx",
+            seed.token_a, seed.token_b,
+        )).await;
+        response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        assert!(response.text().contains("router_preview_rejected"));
+        assert!(!response.text().contains("required_amount_in"));
+    }
+}

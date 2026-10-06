@@ -6,7 +6,7 @@ use std::os::unix::io::AsRawFd;
 use std::sync::Once;
 
 use axum::Router;
-use cl8y_dex_indexer::api::{build_router, AppState};
+use cl8y_dex_indexer::api::{AppState, build_router};
 use cl8y_dex_indexer::config::Config;
 use cl8y_dex_indexer::lcd::LcdClient;
 use sqlx::PgPool;
@@ -155,6 +155,8 @@ async fn clean_db_tables(pool: &PgPool) {
         "TRUNCATE TABLE
             venus_vfdusd_rates,
             oracle_prices,
+            oracle_state,
+            hub_price_references,
             hook_events,
             limit_order_cancellations,
             limit_order_placements,
@@ -1079,6 +1081,15 @@ pub async fn build_test_app_with_vfdusd(
     let config = test_config();
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     if let Some(price) = vfdusd_price {
+        cl8y_dex_indexer::db::queries::oracle::record_observation(
+            &pool,
+            cl8y_dex_indexer::indexer::oracle::OracleTicker::Vfdusd,
+            Some(&price),
+            &["mexc".into(), "coingecko".into()],
+            "fresh",
+        )
+        .await
+        .expect("certify synthetic fixture quote");
         *oracle_prices.vfdusd.write().await = Some(price);
     }
     let state = AppState {
@@ -1120,6 +1131,15 @@ pub async fn build_test_app_with_venus(
     let config = test_config();
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     if let Some(price) = vfdusd_cex {
+        cl8y_dex_indexer::db::queries::oracle::record_observation(
+            &pool,
+            cl8y_dex_indexer::indexer::oracle::OracleTicker::Vfdusd,
+            Some(&price),
+            &["mexc".into(), "coingecko".into()],
+            "fresh",
+        )
+        .await
+        .expect("certify synthetic fixture quote");
         *oracle_prices.vfdusd.write().await = Some(price);
     }
     let venus_vfdusd = cl8y_dex_indexer::indexer::venus_vfdusd::new_shared_venus();
@@ -1165,9 +1185,27 @@ pub async fn build_test_app_with_oracle_prices_and_config(
     );
     let oracle_prices = cl8y_dex_indexer::indexer::oracle::OraclePriceHandles::new();
     if let Some(price) = ustc_price {
+        cl8y_dex_indexer::db::queries::oracle::record_observation(
+            &pool,
+            cl8y_dex_indexer::indexer::oracle::OracleTicker::Ustc,
+            Some(&price),
+            &["mexc".into(), "coingecko".into()],
+            "fresh",
+        )
+        .await
+        .expect("certify synthetic fixture quote");
         *oracle_prices.ustc.write().await = Some(price);
     }
     if let Some(price) = lunc_price {
+        cl8y_dex_indexer::db::queries::oracle::record_observation(
+            &pool,
+            cl8y_dex_indexer::indexer::oracle::OracleTicker::Lunc,
+            Some(&price),
+            &["mexc".into(), "coingecko".into()],
+            "fresh",
+        )
+        .await
+        .expect("certify synthetic fixture quote");
         *oracle_prices.lunc.write().await = Some(price);
     }
     let state = AppState {

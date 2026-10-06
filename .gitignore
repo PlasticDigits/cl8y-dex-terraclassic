@@ -67,3 +67,5 @@ cw20-codeid-audits/codeids/*/layer-a-lcd.json
 cw20-codeid-audits/codeids/*/layer-b-lt.json
 
 # help
+# Issue1393 compiler/runtime metadata is captured in redacted QA receipts.
+/smartcontracts/artifacts/issue1393-*.json

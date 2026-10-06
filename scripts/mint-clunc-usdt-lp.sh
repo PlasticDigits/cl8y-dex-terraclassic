@@ -190,7 +190,9 @@ prompt_keyring_pass() {
 broadcast_admin() {
   local label="$1"
   shift
-  local out tx_hash
+  local out tx_hash current
+  current="$(fetch_lunc_oracle)" || die "fresh source quorum required before transaction preparation"
+  python3 "$SCRIPT_DIR/lib/oracle_safety.py" movement "$(jq -r '.lunc_usd' <<<"$current")" "$LUNC_USD"     || die "oracle moved; recompute LP plan"
   echo "  → $label" >&2
   TERRAD_HOST_KEY="$ADMIN_KEY"
   TERRAD_HOST_EXPECTED_ADDR="$ADMIN_ADDR"
@@ -209,9 +211,10 @@ broadcast_admin() {
 fetch_lunc_oracle() {
   local raw parsed tries="${CLUNC_USDT_ORACLE_RETRIES:-4}" i
   if [[ -n "${CLUNC_USDT_LUNC_USD:-}" ]]; then
-    python3 "$MATH_PY" --parse-oracle --max-age 999999999 <<EOF
-{"ticker":"lunc","price_usd":"${CLUNC_USDT_LUNC_USD}","sources":[{"source":"average","fetched_at":"$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"}]}
-EOF
+    [[ "${DRY_RUN:-0}" == "1" ]] || die "CLUNC_USDT_LUNC_USD is only allowed with DRY_RUN=1"
+    local override
+    override="$(python3 "$SCRIPT_DIR/lib/oracle_safety.py" override "$CLUNC_USDT_LUNC_USD")" || return 1
+    jq -nc --arg px "$override" '{ok:true,lunc_usd:$px,age_sec:null,quality:"manual_dry_run",errors:[]}'
     return 0
   fi
   for ((i = 1; i <= tries; i++)); do

@@ -13,6 +13,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from route_tax_rollout_checks import funded_capability_error, router_binding_error, router_settings, router_settlement_error
+
 
 class RolloutError(RuntimeError):
     pass
@@ -21,8 +23,8 @@ class RolloutError(RuntimeError):
 SPECS = {
     "factory": ("cl8y-dex-factory", "1.11.0", "cl8y_dex_factory.wasm"),
     "pair": ("cl8y-dex-pair", "1.19.0", "cl8y_dex_pair.wasm"),
-    "router": ("cl8y-dex-router", "1.2.0", "cl8y_dex_router.wasm"),
-    "token": ("crates.io:cl8y-community-tax-token", "1.2.0", "cl8y_community_tax_token.wasm"),
+    "router": ("cl8y-dex-router", "1.3.0", "cl8y_dex_router.wasm"),
+    "token": ("crates.io:cl8y-community-tax-token", "1.3.0", "cl8y_community_tax_token.wasm"),
     "launcher": ("crates.io:cl8y-community-token-launcher", "1.0.0", "cl8y_community_token_launcher.wasm"),
     "cmm": ("crates.io:treasury", "0.2.2", "treasury.wasm"),
 }
@@ -181,7 +183,14 @@ class Rollout:
         launcher_config = self.chain.smart(c["launcher"], {"get_config": {}})
         require(str(factory_config["governance"]) == c["governance"], "Factory governance mismatch")
         require(router_config["factory"] == launcher_config["factory"] == c["factory"], "Configured factory mismatch")
-        require(launcher_config.get("router") == c["router"], "Launcher router mismatch")
+        require(launcher_config.get("router") == c["router"], "Launcher router mismatch; immediate rollout requires in-place migration")
+        # Version selects an available query schema; actual wasm trust uses hashes.
+        if version_tuple(instances["router"]["cw2"]["version"]) >= (1, 2, 0):
+            error = funded_capability_error(router_config)
+            require(error is None, error)
+        if not instances["router"]["needs_migrate"]:
+            error = router_settlement_error(router_config)
+            require(error is None, error)
         whitelist, cursor = [], None
         for _ in range(16):
             page = self.chain.smart(c["factory"], {"get_whitelisted_code_ids": {"start_after": cursor, "limit": 30}})
@@ -235,10 +244,17 @@ class Rollout:
                 require(address not in self.explicit_tokens and address != c.get("alpha"), "Explicit token is not community-tax implementation")
                 continue
             cfg = self.chain.smart(address, {"get_config": {}})
-            if cfg["factory"] != c["factory"] or cfg.get("router") != c["router"]:
-                require(address not in paired_assets and address not in self.explicit_tokens and address != c.get("alpha"), "Explicit/paired token factory/router mismatch")
+            if cfg["factory"] != c["factory"]:
+                require(address not in paired_assets and address not in self.explicit_tokens and address != c.get("alpha"), "Explicit/paired token factory mismatch")
                 continue
+            # Also validate unpaired instances discovered through launcher code IDs.
+            # Silently skipping these would leave obsolete settlement authority live.
+            error = router_binding_error(cfg, c["router"])
+            require(error is None, f"{error}: {address}")
             item = self._instance(address, "token")
+            if version_tuple(item["cw2"]["version"]) >= (1, 2, 0):
+                error = funded_capability_error(self.chain.smart(address, {"route_tax_capability": {}}), c["router"])
+                require(error is None, f"{error}: {address}")
             require(item["admin"] in (c["governance"], c["cmm"], *c.get("eoa_admins", {}).keys()), "Unsupported token wasm admin")
             item.update(config=cfg, features=self.chain.smart(address, {"get_features": {}}),
                         supply=self.chain.smart(address, {"token_info": {}})["total_supply"])
@@ -351,6 +367,9 @@ class Rollout:
             require(int(current["code_id"]) in allowed, "Unexpected code changed after planning")
             live_version = self.chain.version(item["address"])
             allowed_version = item["cw2"]
+            if int(current["code_id"]) == item["code_id"]:
+                require(self.chain.code_hash(item["code_id"]).lower() == item["sha256"],
+                        "Planned code checksum changed after planning")
             if int(current["code_id"]) != item["code_id"]:
                 role = item["role"]
                 require(role in self.artifacts and self.chain.code_hash(int(current["code_id"])).lower() == self.artifacts[role].sha256,
@@ -363,8 +382,14 @@ class Rollout:
             expected["pair_code_id"] = self.state["codes"]["pair"]
         require(fc == expected, "Factory settings changed after planning")
         rc = self.chain.smart(c["router"], {"config": {}})
-        require({k: v for k, v in rc.items() if k != "funding_version"} ==
-                {k: v for k, v in inv["router_config"].items() if k != "funding_version"}, "Router settings changed after planning")
+        require(router_settings(rc) == router_settings(inv["router_config"]), "Router settings changed after planning")
+        router_version = self.chain.version(c["router"])["version"]
+        if version_tuple(router_version) >= (1, 2, 0):
+            error = funded_capability_error(rc)
+            require(error is None, error)
+        if version_tuple(router_version) >= (1, 3, 0):
+            error = router_settlement_error(rc)
+            require(error is None, error)
         lc = self.chain.smart(c["launcher"], {"get_config": {}})
         expected = dict(inv["launcher_config"])
         if self.state["operations"].get("launcher:template", {}).get("tx_hash"):
@@ -376,6 +401,9 @@ class Rollout:
         for token in inv["tokens"]:
             require(self.chain.smart(token["address"], {"get_config": {}}) == token["config"], "Token settings changed after planning")
             require(self.chain.smart(token["address"], {"get_features": {}}) == token["features"], "Token features changed after planning")
+            if version_tuple(self.chain.version(token["address"])["version"]) >= (1, 2, 0):
+                error = funded_capability_error(self.chain.smart(token["address"], {"route_tax_capability": {}}), c["router"])
+                require(error is None, error)
         for pair in inv["pairs"]:
             if pair["address"] not in inv["affected_pairs"]:
                 continue
@@ -459,7 +487,10 @@ class Rollout:
             if role in self.artifacts:
                 actual = self._instance(item["address"], role)
                 require(not actual["needs_migrate"], f"{role} migration incomplete")
-        require(self.chain.smart(c["router"], {"config": {}}) == {**inv["router_config"], "funding_version": 1}, "Router configuration changed")
+        router_config = self.chain.smart(c["router"], {"config": {}})
+        require(router_settings(router_config) == router_settings(inv["router_config"]), "Router configuration changed")
+        error = funded_capability_error(router_config) or router_settlement_error(router_config)
+        require(error is None, error)
         launcher = self.chain.smart(c["launcher"], {"get_config": {}})
         require(launcher == {**inv["launcher_config"], "token_code_id": self.state["codes"]["token"]}, "Launcher configuration changed unexpectedly")
         for token in inv["tokens"]:
@@ -473,7 +504,8 @@ class Rollout:
                 require(self.chain.smart(token["address"], {"token_info": {}})["total_supply"] == token["supply"],
                         "Token supply changed; reconcile concurrent activity before cutover")
             cap = self.chain.smart(token["address"], {"route_tax_capability": {}})
-            require(cap["funding_version"] == 1 and cap["router"] == c["router"], "Token route funding capability mismatch")
+            error = funded_capability_error(cap, c["router"])
+            require(error is None, error)
             require(cap["buy_bps"] == token["config"]["buy_bps"] and cap["sell_bps"] == token["config"]["sell_bps"], "Tax capability rates changed")
             for pair in inv["pairs"]:
                 if not any(asset["token"]["contract_addr"] == token["address"] for asset in pair["assets"]):

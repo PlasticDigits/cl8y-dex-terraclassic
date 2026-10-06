@@ -47,3 +47,8 @@ Apply [NET1392 invariants](AGENTS_CHAIN_ATTESTATION.md), the
 [shared endpoint policy](../docs/runbooks/chain-attestation.md) and
 [agent review/verification checklist](../docs/qa/issue-1392/README.md).
 Failover and retries never waive network identity; dry runs also attest.
+
+Current price validation: [AGENTS_ORACLE_SAFETY.md](AGENTS_ORACLE_SAFETY.md),
+[O1391 policy/checklist](../docs/qa/issue-1391/README.md). Live source/age/quorum
+validation is mandatory before preparation; numeric overrides are dry-run only.
+Run `make verify-issue-1391` and record unavailable checks explicitly.

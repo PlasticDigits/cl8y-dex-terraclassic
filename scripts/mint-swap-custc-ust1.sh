@@ -28,6 +28,7 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib/oracle-safety.sh"
 # shellcheck source=lib/custc-ust1-buyback-defaults.sh
 source "$SCRIPT_DIR/lib/custc-ust1-buyback-defaults.sh"
 # Use an independent Columbus-5 RPC for this buyback. Set before the shared
@@ -192,37 +193,39 @@ is_minter() {
 
 fetch_ustc_usd() {
   if [[ -n "${CUSTC_UST1_USTC_USD:-}" ]]; then
-    printf '%s' "$CUSTC_UST1_USTC_USD"
-    return 0
+    oracle_safety_override "$CUSTC_UST1_USTC_USD"
+    return $?
   fi
-  curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-    "$CUSTC_UST1_INDEXER_USTC" | jq -er '.price_usd // empty'
+  oracle_safety_fetch "$CUSTC_UST1_INDEXER_USTC" "ustc"
 }
 
 # Prints: fdusd_usd \t venus_rate  (or dies). Pin CUSTC_UST1_VFDUSD_USD to skip both.
 fetch_vfdusd_marks() {
   local raw fdusd venus
   if [[ -n "${CUSTC_UST1_VFDUSD_USD:-}" ]]; then
-    # Direct USD per 1 human vFDUSD (already Venus × FDUSD). Venus=1 dummy for the CLI.
-    printf '%s\t%s' "$CUSTC_UST1_VFDUSD_USD" "1"
+    fdusd="$(oracle_safety_override "$CUSTC_UST1_VFDUSD_USD")" || return 1
+    printf '%s\t%s' "$fdusd" "1"
     return 0
   fi
-  raw="$(curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-    "$CUSTC_UST1_INDEXER_VFDUSD")" || die "vFDUSD oracle request failed"
-  fdusd="${CUSTC_UST1_FDUSD_USD:-}"
-  venus="${CUSTC_UST1_FDUSD_PER_VFDUSD:-}"
-  if [[ -z "$fdusd" ]]; then
-    fdusd="$(jq -er '.price_usd // empty' <<<"$raw")" || die "vFDUSD oracle missing price_usd"
+  raw="$(curl -fsS --connect-timeout 10 --max-time 20 "$CUSTC_UST1_INDEXER_VFDUSD")" || return 1
+  fdusd="$(python3 "$ORACLE_SAFETY_PY" quote vfdusd <<<"$raw")" || return 1
+  venus="$(jq -c '.venus' <<<"$raw" | python3 "$ORACLE_SAFETY_PY" venus)" || return 1
+  if [[ -n "${CUSTC_UST1_FDUSD_USD:-}" ]]; then
+    fdusd="$(oracle_safety_override "$CUSTC_UST1_FDUSD_USD")" || return 1
   fi
-  if [[ -z "$venus" ]]; then
-    venus="$(jq -er '.venus.fdusd_per_vfdusd // empty' <<<"$raw" 2>/dev/null || true)"
-  fi
-  if [[ -z "$venus" || "$venus" == "null" ]]; then
-    venus="$(curl -sS --connect-timeout 10 --max-time 20 -H "User-Agent: $HTTP_UA" \
-      "${INDEXER}/api/v1/oracle/price/vfdusd/venus" | jq -er '.fdusd_per_vfdusd // empty')" \
-      || die "Venus fdusd_per_vfdusd missing (do not assume 1 vFDUSD = 1 FDUSD)"
+  if [[ -n "${CUSTC_UST1_FDUSD_PER_VFDUSD:-}" ]]; then
+    venus="$(oracle_safety_override "$CUSTC_UST1_FDUSD_PER_VFDUSD")" || return 1
   fi
   printf '%s\t%s' "$fdusd" "$venus"
+}
+
+validate_financial_marks() {
+  local current marks
+  current="$(fetch_ustc_usd)" || return 1
+  oracle_safety_movement "$current" "$ustc_usd" || return 1
+  marks="$(fetch_vfdusd_marks)" || return 1
+  oracle_safety_movement "${marks%%$'\t'*}" "$fdusd_usd" || return 1
+  oracle_safety_movement "${marks#*$'\t'}" "$venus"
 }
 
 prompt_keyring_pass() {
@@ -240,6 +243,7 @@ prompt_keyring_pass() {
 }
 
 broadcast_admin() {
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1"
   shift
   local out tx_hash
@@ -260,6 +264,8 @@ broadcast_admin() {
 
 broadcast_msig() {
   terrad_host_attest || return 1
+
+  validate_financial_marks || die "unsafe financial marks; no transaction prepared"
   local label="$1" contract="$2" msg="$3"
   local workdir unsigned sig1 sig2 signed out tx_hash code
   echo "  → msig $label" >&2

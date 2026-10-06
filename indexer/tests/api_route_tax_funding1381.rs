@@ -284,3 +284,150 @@ async fn funded_quote_cache_and_progress_keep_actual_gross_amount_identity() {
         ));
     }
 }
+
+/// #1390: protocol infrastructure cannot impersonate a route trader. The indexer
+/// must expose the preview identity rejection without a route estimate.
+#[serial]
+#[tokio::test]
+async fn protocol_exempt_trader_guard_rejection_is_observable_on_all_forward_apis() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    let mock = mock_tax_lcd(&seed.token_b, Some(1), false).await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/[^/]+/smart/.+$"))
+        .and(|req: &Request| {
+            let q = smart_query_from_request(req);
+            q.get("simulate_swap_operations").is_some() || q.get("is_protocol_exempt").is_some()
+        })
+        .respond_with(|req: &Request| {
+            let q = smart_query_from_request(req);
+            if q.get("is_protocol_exempt").is_some() {
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"data":{"manager":false,"protocol":true}}))
+            } else {
+                ResponseTemplate::new(500).set_body_string(
+                    "query wasm contract failed: router swap requires a non-exempt trader",
+                )
+            }
+        })
+        .with_priority(1)
+        .mount(&mock)
+        .await;
+    let app = common::build_test_app_with_price_and_config(pool, None, config(&mock, true)).await;
+    let server = TestServer::new(app);
+    let trader = "terra1synthetictrader1390xxxxxxxxxxxxxxxxx";
+    for endpoint in ["solve", "solve/best"] {
+        for pool_only in ["true", "false"] {
+            let response = server.get(&format!(
+                "/api/v1/route/{endpoint}?token_in={}&token_out={}&amount_in=1010000&pool_only={pool_only}&trader={trader}",
+                seed.token_a, seed.token_c
+            )).await;
+            response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+            assert!(response.text().contains("router_preview_rejected"));
+            assert!(!response.text().contains("estimated_amount_out"));
+        }
+    }
+    let response = server
+        .post("/api/v1/route/solve")
+        .json(&json!({
+            "token_in":seed.token_a, "token_out":seed.token_c,
+            "amount_in":"1010000", "trader":trader
+        }))
+        .await;
+    response.assert_status(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(response.text().contains("router_preview_rejected"));
+}
+
+#[serial]
+#[tokio::test]
+async fn best_execution_keeps_valid_alternative_after_tax_preview_rejection() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_multi_path(&pool).await;
+    let mock = mock_tax_lcd(&seed.token_b, Some(1), false).await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/cosmwasm/wasm/v1/contract/terra1router1381/smart/.+$"))
+        .respond_with(|request: &Request| {
+            let q = smart_query_from_request(request);
+            if let Some(sim) = q.get("simulate_swap_operations") {
+                if sim["operations"].as_array().unwrap().len() > 1 {
+                    return ResponseTemplate::new(500).set_body_string(
+                        "query wasm contract failed: Official router hop requires a trusted non-exempt trader",
+                    );
+                }
+                ResponseTemplate::new(200).set_body_json(json!({"data":{"amount":"900000"}}))
+            } else {
+                ResponseTemplate::new(200).set_body_json(json!({"data":{"funding_version":1}}))
+            }
+        })
+        .with_priority(1)
+        .mount(&mock).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, config(&mock, true)).await;
+    let server = TestServer::new(app);
+    let response = server
+        .get(&format!(
+            "/api/v1/route/solve/best?token_in={}&token_out={}&amount_in=1010000",
+            seed.token_a, seed.token_c,
+        ))
+        .await;
+    response.assert_status_ok();
+    let body: Value = response.json();
+    assert_eq!(body["hops"].as_array().unwrap().len(), 1);
+    assert_eq!(body["estimated_amount_out"], "900000");
+}
+
+/// Structural GET/POST accept endpoints, not a caller-selected asset path. POST
+/// overrides hybrid quantities on the discovered hops; it cannot replace their assets.
+#[serial]
+#[tokio::test]
+async fn amountless_get_post_cannot_inject_a_repeated_capable_asset_path() {
+    let pool = common::setup_pool().await;
+    let seed = common::seed_route_solve_2hop(&pool).await;
+    let mock = mock_tax_lcd(&seed.token_b, Some(1), false).await;
+    let app = common::build_test_app_with_price_and_config(pool, None, config(&mock, true)).await;
+    let server = TestServer::new(app);
+    let cycle = [
+        seed.token_a.clone(),
+        seed.token_b.clone(),
+        seed.token_a.clone(),
+        seed.token_b.clone(),
+        seed.token_c.clone(),
+    ];
+    let attempted_ops: Vec<_> = cycle
+        .windows(2)
+        .map(|assets| {
+            json!({"terra_swap":{
+                "offer_asset_info":{"token":{"contract_addr":assets[0]}},
+                "ask_asset_info":{"token":{"contract_addr":assets[1]}},"hybrid":null
+            }})
+        })
+        .collect();
+    let get = server
+        .get(&format!(
+            "/api/v1/route/solve?token_in={}&token_out={}&path={}&pairs=untrusted-cycle",
+            seed.token_a,
+            seed.token_c,
+            cycle.join(",")
+        ))
+        .await;
+    get.assert_status_ok();
+    let post = server
+        .post("/api/v1/route/solve")
+        .json(&json!({
+            "token_in":seed.token_a,"token_out":seed.token_c,
+            "path":cycle,"pairs":["untrusted-cycle"],"router_operations":attempted_ops,
+            "hybrid_by_hop":[null,null]
+        }))
+        .await;
+    post.assert_status_ok();
+    for body in [get.json::<Value>(), post.json::<Value>()] {
+        assert_eq!(body["quote_kind"], "indexer_route_only");
+        assert!(body["estimated_amount_out"].is_null());
+        let hops = body["hops"].as_array().unwrap();
+        assert_eq!(hops.len(), 2);
+        assert_eq!(hops[0]["offer_token"], seed.token_a);
+        assert_eq!(hops[0]["ask_token"], seed.token_b);
+        assert_eq!(hops[1]["offer_token"], seed.token_b);
+        assert_eq!(hops[1]["ask_token"], seed.token_c);
+        assert_eq!(body["router_operations"].as_array().unwrap().len(), 2);
+    }
+}

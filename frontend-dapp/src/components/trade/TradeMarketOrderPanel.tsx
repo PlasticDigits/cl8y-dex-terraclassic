@@ -39,6 +39,7 @@ import {
   DIRECT_HYBRID_AMOUNT_RECONCILED_COPY,
 } from '@/utils/directHybridQuote'
 import { quoteCw20ViaRouteSolve } from '@/utils/cw20RouteSolveQuote'
+import { isIndexerRouteValidationError } from '@/utils/indexerErrors'
 import { humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
 import { sounds } from '@/lib/sounds'
 import { SlippageProtectionPresets } from '@/components/common/SlippageProtectionPresets'
@@ -337,7 +338,8 @@ export function TradeMarketOrderPanel({
               routeSlippagePercent: quoted.routeSlippagePercent,
             }
           }
-        } catch {
+        } catch (error) {
+          if (isIndexerRouteValidationError(error)) throw error
           /* pool-only fallback below */
         }
       }

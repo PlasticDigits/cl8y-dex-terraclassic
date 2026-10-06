@@ -1,0 +1,374 @@
+{
+  "utc": "2026-10-05T07:41:49.475489+00:00",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "router": "terra1qg5ega6dykkxc307y25pecuufrjkxkaggkkxh7nad0vhyhtuhw3slg2he2",
+  "token": "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+  "codes": {
+    "cl8y_dex_factory": {
+      "code_id": 1,
+      "sha256": "2a7efd5c74f774a623406b5fc510b285d52de23a5f0fd3d2277a82aa65e634da"
+    },
+    "cl8y_dex_pair": {
+      "code_id": 2,
+      "sha256": "4ad54cd3b9a5ff3d28b80bfec21800b39fee97ca9295bb524353db7590005bba"
+    },
+    "cl8y_dex_router": {
+      "code_id": 3,
+      "sha256": "072ee7196e690653431f528f50cb56247ecb8596a07f8971bf78247da7418cd2"
+    },
+    "cw20_mintable": {
+      "code_id": 4,
+      "sha256": "c77ffcdb0039041fbd071c76efb547232314ce8ccf219c3bf5b7fabd4cf7d4a4"
+    },
+    "cl8y_community_tax_token": {
+      "code_id": 5,
+      "sha256": "79dddc1cfbf2443f9347b69386956c540103c64b98780d576c0a5184a79fb104"
+    }
+  },
+  "checks": [
+    {
+      "name": "cyclic forward/reverse/execute cooldown 0",
+      "status": "PASS",
+      "path": [
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+        "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja"
+      ],
+      "txhash": "f6be4d1ffb4ec9cb20bcceaa2aa3414c39d3e4b297fa6078cbc7fb66561bec01"
+    },
+    {
+      "name": "cyclic forward/reverse/execute cooldown 0",
+      "status": "PASS",
+      "path": [
+        "terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+        "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja"
+      ],
+      "txhash": "7b897c706234d80d447acb3d25a6a361fb0de3eeb7b5439edee55661c98e2097"
+    },
+    {
+      "name": "cyclic forward/reverse/execute cooldown 1",
+      "status": "PASS",
+      "path": [
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+        "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja"
+      ],
+      "txhash": "57309a6643890a92895dc916f3db49aa331f1e29ea517fca1eb347eb793561f9"
+    },
+    {
+      "name": "cyclic forward/reverse/execute cooldown 1",
+      "status": "PASS",
+      "path": [
+        "terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+        "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja"
+      ],
+      "txhash": "516afef342874d338b59211ccef2463506434b8664e1d10af8904480e5768d6e"
+    },
+    {
+      "name": "cyclic forward/reverse/execute cooldown 5",
+      "status": "PASS",
+      "path": [
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+        "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja"
+      ],
+      "txhash": "776eb0ba1e8651e01514afec42bd19a6886de8bdb1ff0c001b32af7fc2bbd659"
+    },
+    {
+      "name": "cyclic forward/reverse/execute cooldown 5",
+      "status": "PASS",
+      "path": [
+        "terra1zwv6feuzhy6a9wekh96cd57lsarmqlwxdypdsplw6zhfncqw6ftqynf7kp",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja",
+        "terra1ghd753shjuwexxywmgs4xz7x2q732vcnkm6h2pyv9s6ah3hylvrqcmwekl",
+        "terra172v738ut05le2272gm6akv9hw2jqfwfkm7ej7ndy53skxq757s5sraz2ja"
+      ],
+      "txhash": "7a987ba7b41031c8527187c27a18f83b32485506cbe3c67988fdbe0d13877602"
+    },
+    {
+      "name": "zero-rate capable cycle rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "owned input restoration above lowered cap",
+      "status": "PASS",
+      "gross": 100,
+      "residue": 1,
+      "txhash": "2000750579c3ec107db221a2fe60019efbed28f85b097e74b771802499cf0242"
+    },
+    {
+      "name": "owned input restoration above lowered cap",
+      "status": "PASS",
+      "gross": 101,
+      "residue": 0,
+      "txhash": "caee69943e1bc4933ad6307756126f3a23ba7b5bb8ce4fafdb61be37181fa62f"
+    },
+    {
+      "name": "owned input restoration above lowered cap",
+      "status": "PASS",
+      "gross": 100,
+      "residue": 1,
+      "txhash": "5fe19d4937c816416088abeb6a38869b14c135fbba43907123627aa821cfcf52"
+    },
+    {
+      "name": "bought output capped payer",
+      "status": "PASS",
+      "txhash": "dcfba70b022b4d553cf4b2435b0c7fd0467de872800019106e3dbe7f78af9a35"
+    },
+    {
+      "name": "bought output capped other recipient",
+      "status": "PASS",
+      "txhash": "8c1fb14b0dd392c5a9f492a046d185d0a8987ba6607cdd3dde33a0f31db4a381"
+    },
+    {
+      "name": "protocol-exempt buy/sell previews rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "ordinary guarded intermediate buy/sell",
+      "status": "PASS",
+      "txhash": "7b7a8577c6d995c93578434207a952e55c80f2b0e2b7ef23cd6ed3efa39795d2"
+    },
+    {
+      "name": "independent same-transaction routes cooldown and atomic rollback",
+      "status": "PASS",
+      "txhash": "a4f9b84406b309a3bb9fa110f6103f2169c459b6738b3be2be4998453668707f"
+    }
+  ],
+  "status": "PASS",
+  "receipts": [
+    {
+      "txhash": "1e377998e192bdd39f1db232f2727df7b9948b567baed3d6889eb071ce430786",
+      "height": "3145",
+      "code": 0,
+      "gas_used": "267893"
+    },
+    {
+      "txhash": "fc156258e7a2b3c598101bfc56daaf935528f9672bcd7cb7ba4e0cf929fe0d39",
+      "height": "3170",
+      "code": 0,
+      "gas_used": "968532"
+    },
+    {
+      "txhash": "06188e4eecd61789c87e475b27bf381712bf0bc6745324a64037d0679fd1017b",
+      "height": "3175",
+      "code": 0,
+      "gas_used": "125957"
+    },
+    {
+      "txhash": "c6f3b4c31c0e6052883db3ff1cb94db9f33d237a3a1a9d3df97b33b9d4707aae",
+      "height": "3177",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "10a413b22a00f3b608799a88b6bef8a7fdc0a4ef26f671c9655f0b17eb6e1bf4",
+      "height": "3194",
+      "code": 0,
+      "gas_used": "144665"
+    },
+    {
+      "txhash": "b56fffd1bd54fb233ff647d06a43ad3d09b25bdedcfbce5b66944ae023440e59",
+      "height": "3197",
+      "code": 0,
+      "gas_used": "943249"
+    },
+    {
+      "txhash": "0451bac0c79c478311fb6dfb586ca7fd499f87060e47b4332b56b642ea15e5b3",
+      "height": "3199",
+      "code": 0,
+      "gas_used": "968604"
+    },
+    {
+      "txhash": "048470acec0b066643bf7c099e0fd496c05a31823850094f04bbf6aa3a685ffe",
+      "height": "3215",
+      "code": 0,
+      "gas_used": "125957"
+    },
+    {
+      "txhash": "2a625b8c7bc92b0d57bcbeb969114e9b1909cbd6e9a2d0ccd6408444871ed88a",
+      "height": "3234",
+      "code": 0,
+      "gas_used": "144668"
+    },
+    {
+      "txhash": "cfc7e9516f743549b8d0696fdaa15b5bad44ac432115f4d2287e1ff5f4b179c9",
+      "height": "3238",
+      "code": 0,
+      "gas_used": "145539"
+    },
+    {
+      "txhash": "b51f4fd7b14ac785b329be0faf4d3baedcab1d6348b148fb345c99eb7038b4eb",
+      "height": "3241",
+      "code": 0,
+      "gas_used": "945866"
+    },
+    {
+      "txhash": "6c2dd796a8de10e8e18165bc5f5eb90c4b829402633d60c05379bdfa9418bb8d",
+      "height": "3275",
+      "code": 0,
+      "gas_used": "178223"
+    },
+    {
+      "txhash": "24cdaecdb48e77bdcfdc714716c5d8e493133554679bcd0ba67d25adeb1863fc",
+      "height": "3341",
+      "code": 0,
+      "gas_used": "150812"
+    },
+    {
+      "txhash": "fb08a4f5082397c8e968eeb75321fa802eb9d60cde5fdff5b2e9d442c60e82cc",
+      "height": "3353",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "c819e092c25c2574b7ba62d3a8848d873509ccb140f01830a1fe2a3152084184",
+      "height": "3378",
+      "code": 0,
+      "gas_used": "316659"
+    },
+    {
+      "txhash": "f6be4d1ffb4ec9cb20bcceaa2aa3414c39d3e4b297fa6078cbc7fb66561bec01",
+      "height": "3501",
+      "code": 5,
+      "gas_used": "310109"
+    },
+    {
+      "txhash": "7b897c706234d80d447acb3d25a6a361fb0de3eeb7b5439edee55661c98e2097",
+      "height": "3807",
+      "code": 5,
+      "gas_used": "288440"
+    },
+    {
+      "txhash": "f2ac09556e511bf15736ec2a1f2f1690b6e67ac29d0d72d1d7cdf1ed04bebfaf",
+      "height": "3864",
+      "code": 0,
+      "gas_used": "316672"
+    },
+    {
+      "txhash": "57309a6643890a92895dc916f3db49aa331f1e29ea517fca1eb347eb793561f9",
+      "height": "4083",
+      "code": 5,
+      "gas_used": "296961"
+    },
+    {
+      "txhash": "516afef342874d338b59211ccef2463506434b8664e1d10af8904480e5768d6e",
+      "height": "4349",
+      "code": 5,
+      "gas_used": "288440"
+    },
+    {
+      "txhash": "bc6df5f907d0709bfb161112ac2bdb28effd5b782ab9e751a21382fcd641789e",
+      "height": "4378",
+      "code": 0,
+      "gas_used": "316672"
+    },
+    {
+      "txhash": "776eb0ba1e8651e01514afec42bd19a6886de8bdb1ff0c001b32af7fc2bbd659",
+      "height": "4425",
+      "code": 5,
+      "gas_used": "296961"
+    },
+    {
+      "txhash": "7a987ba7b41031c8527187c27a18f83b32485506cbe3c67988fdbe0d13877602",
+      "height": "4557",
+      "code": 5,
+      "gas_used": "288440"
+    },
+    {
+      "txhash": "e352608871382e29bbe3a37d74ecabe90253776c79618b2303225312ef1bb94d",
+      "height": "4643",
+      "code": 0,
+      "gas_used": "316456"
+    },
+    {
+      "txhash": "a0468c99cab970c86462957bba7a958d11c9ebcb4af30d1121c1f3e26ddfd2d2",
+      "height": "4646",
+      "code": 0,
+      "gas_used": "316648"
+    },
+    {
+      "txhash": "2000750579c3ec107db221a2fe60019efbed28f85b097e74b771802499cf0242",
+      "height": "4800",
+      "code": 0,
+      "gas_used": "2025733"
+    },
+    {
+      "txhash": "caee69943e1bc4933ad6307756126f3a23ba7b5bb8ce4fafdb61be37181fa62f",
+      "height": "5034",
+      "code": 0,
+      "gas_used": "1789070"
+    },
+    {
+      "txhash": "5fe19d4937c816416088abeb6a38869b14c135fbba43907123627aa821cfcf52",
+      "height": "5224",
+      "code": 0,
+      "gas_used": "2027421"
+    },
+    {
+      "txhash": "e0e69e083156d9faf86debc6aa698b94ceb72ea0f5a6dec11291450c8862f4a5",
+      "height": "5311",
+      "code": 0,
+      "gas_used": "178223"
+    },
+    {
+      "txhash": "dcfba70b022b4d553cf4b2435b0c7fd0467de872800019106e3dbe7f78af9a35",
+      "height": "5389",
+      "code": 5,
+      "gas_used": "1522602"
+    },
+    {
+      "txhash": "8c1fb14b0dd392c5a9f492a046d185d0a8987ba6607cdd3dde33a0f31db4a381",
+      "height": "5546",
+      "code": 5,
+      "gas_used": "1523286"
+    },
+    {
+      "txhash": "3a3c3d30c585632b186412de39b8798be14733edde1b57fc125f9b5d5b0e771a",
+      "height": "5714",
+      "code": 0,
+      "gas_used": "316734"
+    },
+    {
+      "txhash": "be8f4f94201db5579b6a9e91b305e7ebf4db90c3d6c20a82363ec1584cc889cc",
+      "height": "5718",
+      "code": 0,
+      "gas_used": "178253"
+    },
+    {
+      "txhash": "576cc1173bfbab352faa8000c7a1eb259530d762bfc2e05611847a5b78e7534b",
+      "height": "5720",
+      "code": 0,
+      "gas_used": "138082"
+    },
+    {
+      "txhash": "7b7a8577c6d995c93578434207a952e55c80f2b0e2b7ef23cd6ed3efa39795d2",
+      "height": "5746",
+      "code": 0,
+      "gas_used": "3246283"
+    },
+    {
+      "txhash": "28c9e17d952993146a6c4b21d9c49fc4f674fd70278c0ff0b7da394df5af6630",
+      "height": "5751",
+      "code": 0,
+      "gas_used": "178286"
+    },
+    {
+      "txhash": "71b7f4dffd610f6cab2060d19ad0e3be71572ed03e91d5b9b2aa16ec016cd04d",
+      "height": "5753",
+      "code": 0,
+      "gas_used": "150818"
+    },
+    {
+      "txhash": "a4f9b84406b309a3bb9fa110f6103f2169c459b6738b3be2be4998453668707f",
+      "height": "5922",
+      "code": 5,
+      "gas_used": "2838563"
+    }
+  ]
+}

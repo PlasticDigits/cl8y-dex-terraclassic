@@ -127,6 +127,10 @@ pub enum ContractError {
     #[error("Limit order amount too small after maker fee")]
     LimitOrderMakerFeeExceedsAmount {},
 
+    /// Whole remaining escrow cannot support positive fill/payment under matching arithmetic.
+    #[error("Limit order remaining cannot support a positive fill and payment")]
+    LimitOrderUnfillable {},
+
     /// Post–maker-fee remaining below the L16 / L24 dust floor (#1219).
     #[error("Limit order amount too small: remaining {actual} is below minimum {min}")]
     LimitOrderAmountTooSmall { min: String, actual: String },

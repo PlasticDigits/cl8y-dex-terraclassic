@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -26,6 +27,65 @@ use tokio::sync::RwLock;
 use crate::db::queries::oracle as db_oracle;
 
 pub type SharedPrice = Arc<RwLock<Option<BigDecimal>>>;
+
+/// #1391: a quote requires two independent feeds agreeing within 10%, with a
+/// five minute maximum age. Bounds are representability/sanity limits, not pegs.
+pub const ORACLE_MAX_AGE_SECS: i64 = 300;
+pub const ORACLE_MIN_PRICE: f64 = 1e-12;
+pub const ORACLE_MAX_PRICE: f64 = 1e6;
+pub const ORACLE_QUORUM: usize = 2;
+pub const ORACLE_SOURCE_POLICY: &str = "cex-quorum-v1";
+const MAX_INLIER_RATIO: f64 = 1.1;
+
+pub fn validate_price(value: f64) -> Result<f64, OracleError> {
+    if value.is_finite() && (ORACLE_MIN_PRICE..=ORACLE_MAX_PRICE).contains(&value) {
+        Ok(value)
+    } else {
+        Err(OracleError::Parse(
+            "price is nonfinite, nonpositive or outside supported bounds".into(),
+        ))
+    }
+}
+
+/// Choose a unique largest agreeing cluster. A lone feed or ambiguous competing
+/// clusters cannot certify a price; a gross outlier cannot contaminate two peers.
+fn aggregate_sources(results: &[(&str, Result<f64, OracleError>)]) -> Option<(f64, Vec<String>)> {
+    let mut values: Vec<_> = results
+        .iter()
+        .filter_map(|(source, result)| {
+            result
+                .as_ref()
+                .ok()
+                .and_then(|value| validate_price(*value).ok())
+                .map(|value| (*source, value))
+        })
+        .collect();
+    let mut seen = std::collections::HashSet::new();
+    values.retain(|(source, _)| {
+        matches!(*source, "kucoin" | "mexc" | "coingecko") && seen.insert(*source)
+    });
+    values.sort_by(|a, b| a.1.total_cmp(&b.1));
+    let mut best = Vec::new();
+    let mut ambiguous = false;
+    for start in 0..values.len() {
+        let cluster: Vec<_> = values[start..]
+            .iter()
+            .take_while(|(_, value)| *value / values[start].1 <= MAX_INLIER_RATIO)
+            .cloned()
+            .collect();
+        if cluster.len() > best.len() {
+            best = cluster;
+            ambiguous = false;
+        } else if cluster.len() == best.len() && cluster != best {
+            ambiguous = true;
+        }
+    }
+    if best.len() < ORACLE_QUORUM || ambiguous {
+        return None;
+    }
+    let mean = best.iter().map(|(_, p)| p).sum::<f64>() / best.len() as f64;
+    Some((mean, best.into_iter().map(|(s, _)| s.to_string()).collect()))
+}
 
 /// Stable descriptive User-Agent for CEX / CoinGecko polls (GitLab #579).
 /// Compile-time crate version only — no env, tokens, emails, or hostnames.
@@ -62,6 +122,8 @@ pub struct OraclePriceHandles {
     pub ustc: SharedPrice,
     pub lunc: SharedPrice,
     pub vfdusd: SharedPrice,
+    accepted_at: Arc<RwLock<[Option<DateTime<Utc>>; 3]>>,
+    invalidated_at: Arc<RwLock<[Option<DateTime<Utc>>; 3]>>,
 }
 
 impl OraclePriceHandles {
@@ -70,6 +132,43 @@ impl OraclePriceHandles {
             ustc: new_shared_price(),
             lunc: new_shared_price(),
             vfdusd: new_shared_price(),
+            accepted_at: Arc::new(RwLock::new([None; 3])),
+            invalidated_at: Arc::new(RwLock::new([None; 3])),
+        }
+    }
+
+    async fn publish(
+        &self,
+        ticker: OracleTicker,
+        price: Option<BigDecimal>,
+        as_of: Option<DateTime<Utc>>,
+    ) {
+        // Hold timestamps while writing the price so expiry cannot race publication.
+        let mut times = self.accepted_at.write().await;
+        times[ticker as usize] = as_of;
+        self.invalidated_at.write().await[ticker as usize] = if price.is_none() && as_of.is_none() {
+            Some(Utc::now())
+        } else {
+            None
+        };
+        *self.for_ticker(ticker).write().await = price;
+    }
+
+    /// Reject a durable quote after this process observed a failed publication,
+    /// even if DB SELECT remains available while its writes are failing.
+    pub async fn invalidates(&self, ticker: OracleTicker, as_of: Option<DateTime<Utc>>) -> bool {
+        self.invalidated_at.read().await[ticker as usize]
+            .is_some_and(|failed_at| as_of.is_none_or(|time| time <= failed_at))
+    }
+
+    async fn expire(&self, now: DateTime<Utc>) {
+        let times = self.accepted_at.read().await;
+        for ticker in OracleTicker::ALL {
+            if times[ticker as usize].is_none_or(|time| {
+                time > now || now - time > chrono::Duration::seconds(ORACLE_MAX_AGE_SECS)
+            }) {
+                *self.for_ticker(ticker).write().await = None;
+            }
         }
     }
 
@@ -169,15 +268,21 @@ pub async fn run_oracle_loop(pool: PgPool, poll_interval_ms: u64, prices: Oracle
     let client = build_oracle_http_client();
 
     for ticker in OracleTicker::ALL {
-        if let Ok(Some(price)) = db_oracle::get_latest_average_price(&pool, ticker).await {
-            tracing::info!(
-                "Oracle: loaded cached {} price from DB: {}",
-                ticker.display_name(),
-                price
-            );
-            *prices.for_ticker(ticker).write().await = Some(price);
+        if let Ok(Some(state)) = db_oracle::get_oracle_state(&pool, ticker).await {
+            if state.is_fresh_at(Utc::now()) {
+                prices.publish(ticker, state.price_usd, state.as_of).await;
+            }
         }
     }
+    // Expire independently of upstream request duration and configured poll interval.
+    let expiry_prices = prices.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        loop {
+            interval.tick().await;
+            expiry_prices.expire(Utc::now()).await;
+        }
+    });
 
     let interval = Duration::from_millis(poll_interval_ms);
     let mut tick_count: u64 = 0;
@@ -202,8 +307,10 @@ async fn poll_ticker(
     fetch_coingecko: bool,
 ) {
     let results = fetch_all_sources(client, ticker, fetch_coingecko).await;
+    // Local HTTP observation time, never an invented exchange trade timestamp.
+    // DB delays must not renew the freshness of a completed poll.
+    let as_of = Utc::now();
 
-    let mut ok_prices: Vec<f64> = Vec::new();
     for (source, result) in &results {
         match result {
             Ok(price) => {
@@ -213,9 +320,15 @@ async fn poll_ticker(
                     source,
                     price
                 );
-                ok_prices.push(*price);
+                let source_price = match f64_to_bd(*price) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        tracing::warn!(ticker = ticker.as_str(), source, %error, "Rejected invalid source price");
+                        continue;
+                    }
+                };
                 if let Err(e) =
-                    db_oracle::insert_price(pool, ticker, &f64_to_bd(*price), source).await
+                    db_oracle::insert_price_at(pool, ticker, &source_price, source, as_of).await
                 {
                     tracing::error!(
                         "Oracle: failed to store {} {} price: {}",
@@ -249,32 +362,48 @@ async fn poll_ticker(
         }
     }
 
-    if !ok_prices.is_empty() {
-        let avg = ok_prices.iter().sum::<f64>() / ok_prices.len() as f64;
-        let avg_bd = f64_to_bd(avg);
-
-        tracing::info!(
-            "Oracle: {} avg ${:.8} from {}/{} sources",
-            ticker.display_name(),
-            avg,
-            ok_prices.len(),
-            results.len()
-        );
-
-        if let Err(e) = db_oracle::insert_price(pool, ticker, &avg_bd, "average").await {
-            tracing::error!(
-                "Oracle: failed to store {} average price: {}",
-                ticker.as_str(),
-                e
-            );
-        }
-
-        *prices.for_ticker(ticker).write().await = Some(avg_bd);
-    } else {
+    let observation = aggregate_sources(&results)
+        .and_then(|(price, sources)| f64_to_bd(price).ok().map(|price| (price, sources)));
+    let (price, sources, quality) = match observation {
+        Some((price, sources)) => (Some(price), sources, "fresh"),
+        None => (
+            None,
+            Vec::new(),
+            if results.iter().any(|(_, r)| r.is_ok()) {
+                "degraded"
+            } else {
+                "unavailable"
+            },
+        ),
+    };
+    if quality != "fresh" {
         tracing::warn!(
-            "Oracle: all sources failed for {}, retaining last known price",
-            ticker.display_name()
+            ticker = ticker.as_str(),
+            quality,
+            policy = ORACLE_SOURCE_POLICY,
+            "Oracle quote unavailable: no unique agreeing source quorum"
         );
+    }
+    match db_oracle::record_observation_at(pool, ticker, price.as_ref(), &sources, quality, as_of)
+        .await
+    {
+        Ok(as_of) => prices.publish(ticker, price, Some(as_of)).await,
+        Err(error) => {
+            tracing::error!(
+                "Oracle {} could not persist quality: {}",
+                ticker.as_str(),
+                error
+            );
+            prices.publish(ticker, None, None).await;
+            // A simpler write can still work if average history insertion failed.
+            if let Err(invalidation_error) = db_oracle::invalidate_observation(pool, ticker).await {
+                tracing::error!(
+                    "Oracle {} could not persist invalidation: {}",
+                    ticker.as_str(),
+                    invalidation_error
+                );
+            }
+        }
     }
 }
 
@@ -301,7 +430,8 @@ async fn fetch_all_sources(
     }
     results.push(("mexc", mx_res));
 
-    if include_coingecko {
+    // FDUSD has only two providers: skipping CoinGecko would intentionally lose quorum.
+    if include_coingecko || ticker == OracleTicker::Vfdusd {
         let cg_res = fetch_coingecko(client, ticker).await;
         results.push(("coingecko", cg_res));
     }
@@ -309,9 +439,11 @@ async fn fetch_all_sources(
     results
 }
 
-fn f64_to_bd(val: f64) -> BigDecimal {
+fn f64_to_bd(val: f64) -> Result<BigDecimal, OracleError> {
     use std::str::FromStr;
-    BigDecimal::from_str(&format!("{:.18}", val)).unwrap_or_default()
+    validate_price(val)?;
+    BigDecimal::from_str(&format!("{:.18}", val))
+        .map_err(|_| OracleError::Parse("price conversion failed".into()))
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -349,7 +481,17 @@ async fn fetch_kucoin(client: &Client, ticker: OracleTicker) -> Result<f64, Orac
         "https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={}",
         symbol
     );
-    let resp: KucoinResponse = client.get(&url).send().await?.json().await?;
+    fetch_kucoin_url(client, &url).await
+}
+
+async fn fetch_kucoin_url(client: &Client, url: &str) -> Result<f64, OracleError> {
+    let resp: KucoinResponse = client
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
 
     if resp.code != "200000" {
         return Err(OracleError::Parse(format!(
@@ -363,6 +505,7 @@ async fn fetch_kucoin(client: &Client, ticker: OracleTicker) -> Result<f64, Orac
         .ok_or_else(|| OracleError::Parse("KuCoin: missing price field".into()))?
         .parse::<f64>()
         .map_err(|e| OracleError::Parse(format!("KuCoin: invalid price: {}", e)))
+        .and_then(validate_price)
 }
 
 // --- MEXC ---
@@ -377,12 +520,23 @@ async fn fetch_mexc(client: &Client, ticker: OracleTicker) -> Result<f64, Oracle
         "https://api.mexc.com/api/v3/ticker/price?symbol={}",
         ticker.mexc_symbol()
     );
-    let resp: MexcResponse = client.get(&url).send().await?.json().await?;
+    fetch_mexc_url(client, &url).await
+}
+
+async fn fetch_mexc_url(client: &Client, url: &str) -> Result<f64, OracleError> {
+    let resp: MexcResponse = client
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
 
     resp.price
         .ok_or_else(|| OracleError::Parse("MEXC: missing price field".into()))?
         .parse::<f64>()
         .map_err(|e| OracleError::Parse(format!("MEXC: invalid price: {}", e)))
+        .and_then(validate_price)
 }
 
 // --- CoinGecko (fallback) ---
@@ -441,6 +595,7 @@ async fn fetch_coingecko_url(
         .and_then(|v| serde_json::from_value::<CoinGeckoUsd>(v.clone()).ok())
         .and_then(|t| t.usd)
         .ok_or_else(|| OracleError::Parse(format!("CoinGecko: missing {coin_id}.usd field")))
+        .and_then(validate_price)
 }
 
 fn coingecko_body_is_rate_limited(body: &str) -> bool {
@@ -458,6 +613,213 @@ fn coingecko_body_asks_for_user_agent(body: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_prices_and_conversion_are_rejected() {
+        for value in [
+            f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            0.0,
+            -0.01,
+            1e-20,
+            1e7,
+            f64::MAX,
+        ] {
+            assert!(validate_price(value).is_err());
+            assert!(f64_to_bd(value).is_err());
+        }
+        assert!(validate_price(1e-12).is_ok());
+        assert!(validate_price(1e6).is_ok());
+        assert!(validate_price("1e999".parse::<f64>().unwrap()).is_err());
+    }
+
+    #[test]
+    fn quorum_all_outage_combinations_and_recovery() {
+        let names = ["kucoin", "mexc", "coingecko"];
+        for successes in 0u8..8 {
+            let results: Vec<_> = names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| {
+                    (
+                        *name,
+                        if successes & (1 << index) != 0 {
+                            Ok(0.01)
+                        } else {
+                            Err(OracleError::RateLimited)
+                        },
+                    )
+                })
+                .collect();
+            assert_eq!(
+                aggregate_sources(&results).is_some(),
+                successes.count_ones() >= 2
+            );
+        }
+        let accepted = aggregate_sources(&[
+            ("kucoin", Ok(0.01)),
+            ("mexc", Ok(0.0101)),
+            ("coingecko", Ok(999.0)),
+        ])
+        .unwrap();
+        assert_eq!(accepted.1, vec!["kucoin", "mexc"]);
+        assert!((accepted.0 - 0.01005).abs() < 1e-12);
+        assert!(aggregate_sources(&[
+            ("kucoin", Ok(1.0)),
+            ("mexc", Ok(1.09)),
+            ("coingecko", Ok(1.18))
+        ])
+        .is_none());
+        assert!(aggregate_sources(&[("kucoin", Ok(1.0)), ("mexc", Ok(f64::NAN))]).is_none());
+        assert!(aggregate_sources(&[("mexc", Ok(1.0)), ("mexc", Ok(1.0))]).is_none());
+        assert!(aggregate_sources(&[("mexc", Ok(1.0)), ("spoof", Ok(1.0))]).is_none());
+    }
+
+    #[tokio::test]
+    async fn failed_publication_invalidates_durable_quote_and_recovers() {
+        let handles = OraclePriceHandles::new();
+        let before = Utc::now();
+        assert!(!handles.invalidates(OracleTicker::Ustc, Some(before)).await);
+        handles.publish(OracleTicker::Ustc, None, None).await;
+        assert!(handles.invalidates(OracleTicker::Ustc, Some(before)).await);
+        assert!(handles.invalidates(OracleTicker::Ustc, None).await);
+        handles
+            .publish(
+                OracleTicker::Ustc,
+                Some(BigDecimal::from(1)),
+                Some(Utc::now()),
+            )
+            .await;
+        assert!(!handles.invalidates(OracleTicker::Ustc, Some(before)).await);
+        // A persisted degraded observation retains its own honest quality.
+        handles
+            .publish(OracleTicker::Ustc, None, Some(Utc::now()))
+            .await;
+        assert!(!handles.invalidates(OracleTicker::Ustc, None).await);
+    }
+
+    #[tokio::test]
+    async fn expiration_and_future_replay_clear_handles() {
+        let prices = OraclePriceHandles::new();
+        let now = Utc::now();
+        prices
+            .publish(OracleTicker::Ustc, Some(BigDecimal::from(1)), Some(now))
+            .await;
+        prices.expire(now + chrono::Duration::seconds(300)).await;
+        assert!(prices.ustc.read().await.is_some());
+        prices.expire(now + chrono::Duration::seconds(301)).await;
+        assert!(prices.ustc.read().await.is_none());
+        prices
+            .publish(
+                OracleTicker::Lunc,
+                Some(BigDecimal::from(1)),
+                Some(now + chrono::Duration::seconds(1)),
+            )
+            .await;
+        prices.expire(now).await;
+        assert!(prices.lunc.read().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn all_cex_parsers_reject_invalid_and_http_error_payloads() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+        let healthy = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/kucoin"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"code":"200000", "data":{"price":"0.01"}})),
+            )
+            .mount(&healthy)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/mexc"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"price":"0.0101"})),
+            )
+            .mount(&healthy)
+            .await;
+        assert_eq!(
+            fetch_kucoin_url(
+                &build_oracle_http_client(),
+                &format!("{}/kucoin", healthy.uri())
+            )
+            .await
+            .unwrap(),
+            0.01
+        );
+        assert_eq!(
+            fetch_mexc_url(
+                &build_oracle_http_client(),
+                &format!("{}/mexc", healthy.uri())
+            )
+            .await
+            .unwrap(),
+            0.0101
+        );
+        for invalid in ["NaN", "Infinity", "1e999", "-1", "0", "1000001"] {
+            let server = MockServer::start().await;
+            Mock::given(method("GET"))
+                .and(path("/kucoin"))
+                .respond_with(
+                    ResponseTemplate::new(200).set_body_json(
+                        serde_json::json!({"code":"200000", "data":{"price":invalid}}),
+                    ),
+                )
+                .mount(&server)
+                .await;
+            Mock::given(method("GET"))
+                .and(path("/mexc"))
+                .respond_with(
+                    ResponseTemplate::new(200).set_body_json(serde_json::json!({"price":invalid})),
+                )
+                .mount(&server)
+                .await;
+            let client = build_oracle_http_client();
+            assert!(
+                fetch_kucoin_url(&client, &format!("{}/kucoin", server.uri()))
+                    .await
+                    .is_err()
+            );
+            assert!(fetch_mexc_url(&client, &format!("{}/mexc", server.uri()))
+                .await
+                .is_err());
+        }
+        for invalid in ["-1", "0", "1e999", "1000001"] {
+            let server = MockServer::start().await;
+            Mock::given(method("GET"))
+                .and(path("/cg"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_body_string(format!(r#"{{"terrausd":{{"usd":{invalid}}}}}"#)),
+                )
+                .mount(&server)
+                .await;
+            assert!(fetch_coingecko_url(
+                &build_oracle_http_client(),
+                &format!("{}/cg", server.uri()),
+                "terrausd"
+            )
+            .await
+            .is_err());
+        }
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/mexc"))
+            .respond_with(
+                ResponseTemplate::new(500).set_body_json(serde_json::json!({"price":"1"})),
+            )
+            .mount(&server)
+            .await;
+        assert!(fetch_mexc_url(
+            &build_oracle_http_client(),
+            &format!("{}/mexc", server.uri())
+        )
+        .await
+        .is_err());
+    }
 
     #[test]
     fn ticker_parse_accepts_known() {
@@ -548,32 +910,18 @@ mod tests {
 
     #[test]
     fn test_f64_to_bd() {
-        let bd = f64_to_bd(0.00512);
+        let bd = f64_to_bd(0.00512).unwrap();
         assert!(bd > BigDecimal::from(0));
         let s = bd.to_string();
         assert!(s.starts_with("0.005"));
     }
 
     #[test]
-    fn test_average_calculation() {
-        let prices = vec![0.00510, 0.00512, 0.00514];
-        let avg = prices.iter().sum::<f64>() / prices.len() as f64;
-        assert!((avg - 0.00512).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_average_single_source() {
-        let prices = vec![0.00512];
-        let avg = prices.iter().sum::<f64>() / prices.len() as f64;
-        assert!((avg - 0.00512).abs() < 1e-10);
-    }
-
-    #[test]
-    fn f64_to_bd_non_finite_defaults_to_zero() {
+    fn f64_to_bd_rejects_non_finite() {
         let nan_bd = f64_to_bd(f64::NAN);
-        assert_eq!(nan_bd, BigDecimal::from(0));
+        assert!(nan_bd.is_err());
         let inf_bd = f64_to_bd(f64::INFINITY);
-        assert_eq!(inf_bd, BigDecimal::from(0));
+        assert!(inf_bd.is_err());
     }
 
     #[test]

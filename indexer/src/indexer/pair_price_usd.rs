@@ -381,12 +381,20 @@ pub fn catalog_usd_per_human_identity(
 
 /// PostgreSQL `NUMERIC(38, 18)` requires `|x| < 10^20`.
 pub fn fits_numeric_38_18(value: &BigDecimal) -> bool {
-    value.abs() < ten_pow_i32(20)
+    // PostgreSQL rounds to the column's scale before checking integer precision.
+    // A value just below 10^20 can round up and overflow (#1395).
+    value
+        .with_scale_round(18, bigdecimal::RoundingMode::HalfUp)
+        .abs()
+        < ten_pow_i32(20)
 }
 
 /// PostgreSQL `NUMERIC(78, 18)` requires `|x| < 10^60` (human candle OHLC).
 pub fn fits_numeric_78_18(value: &BigDecimal) -> bool {
-    value.abs() < ten_pow_i32(60)
+    value
+        .with_scale_round(18, bigdecimal::RoundingMode::HalfUp)
+        .abs()
+        < ten_pow_i32(60)
 }
 
 /// Which factory leg a candle USD print describes ([#1315](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1315)).
@@ -1066,6 +1074,20 @@ mod tests {
         .is_none());
         assert!(fits_numeric_38_18(&bd("99999999999999999999.99")));
         assert!(!fits_numeric_38_18(&ten_pow_i32(20)));
+    }
+
+    #[test]
+    fn issue1395_numeric_bounds_check_postgres_rounded_value() {
+        let max = bd("99999999999999999999.999999999999999999");
+        let round_up = bd("99999999999999999999.9999999999999999996");
+        assert!(fits_numeric_38_18(&max));
+        assert!(fits_numeric_38_18(&(-max)));
+        assert!(!fits_numeric_38_18(&round_up));
+        assert!(!fits_numeric_38_18(&(-round_up.clone())));
+        let max_wide = bd(&("9".repeat(60) + "." + &"9".repeat(18)));
+        let round_up_wide = bd(&("9".repeat(60) + "." + &"9".repeat(18) + "6"));
+        assert!(fits_numeric_78_18(&max_wide));
+        assert!(!fits_numeric_78_18(&round_up_wide));
     }
 
     #[test]

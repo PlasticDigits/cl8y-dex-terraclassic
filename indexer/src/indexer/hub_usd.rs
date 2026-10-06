@@ -7,7 +7,7 @@
 //!    using the constant-product **reserve** spot (not last swap print).
 //! 4. `usd(USTR)` from the max USD-TVL factory pair vs already-priced cUSTC or UST1.
 //!
-//! Ranking is **humanized USD TVL** (sum of both legs), not raw reserve integers.
+//! Ranking and the floor use only **independently priced leg depth**, never self-valued TVL.
 //! Ties: highest TVL, then lexicographic pair contract address.
 //! Dust below `tvl_floor` (default $100), stale/missing/`reserve_*=0` rows, same-asset
 //! legs, and symbol-spoof natives are skipped. Advisory only — not settlement.
@@ -65,6 +65,7 @@ pub struct HubUsdConfig {
     pub cl8y_address: String,
     /// Registry USDT CW20 pin (advisory $1 pair USD, GitLab #1258). Not a hub ticker.
     pub usdt_address: String,
+    /// Legacy env name HUB_USD_TVL_FLOOR; applied only to independently priced leg USD depth (#1391).
     pub tvl_floor: BigDecimal,
     pub max_staleness: Duration,
 }
@@ -143,6 +144,8 @@ pub struct HubMark {
     pub source_pair_id: Option<i32>,
     pub source_pair_address: Option<String>,
     pub tvl_usd: Option<BigDecimal>,
+    pub priced_leg_depth_usd: Option<BigDecimal>,
+    pub as_of: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -154,17 +157,18 @@ pub struct HubUsdSnapshot {
 }
 
 fn addr_eq(a: &str, b: &str) -> bool {
-    a.trim().eq_ignore_ascii_case(b.trim())
+    a == b && !a.is_empty()
 }
 
 /// Hub cUSTC = configured CW20 **or** native `uusd` (1:1 wrap / USTC). Not symbol match.
 pub fn is_hub_custc(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
     if let Some(d) = asset.denom.as_deref() {
-        if d == "uusd" {
+        if !asset.is_cw20 && asset.contract_address.is_none() && d == "uusd" {
             return true;
         }
     }
     asset.is_cw20
+        && asset.denom.is_none()
         && asset
             .contract_address
             .as_deref()
@@ -173,6 +177,7 @@ pub fn is_hub_custc(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
 
 pub fn is_hub_ust1(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
     asset.is_cw20
+        && asset.denom.is_none()
         && asset
             .contract_address
             .as_deref()
@@ -181,6 +186,7 @@ pub fn is_hub_ust1(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
 
 pub fn is_hub_ustr(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
     asset.is_cw20
+        && asset.denom.is_none()
         && asset
             .contract_address
             .as_deref()
@@ -189,6 +195,11 @@ pub fn is_hub_ustr(asset: &AssetRef, cfg: &HubUsdConfig) -> bool {
 
 pub fn same_asset(a: &AssetRef, b: &AssetRef) -> bool {
     a.id == b.id
+        || (a.is_cw20
+            && b.is_cw20
+            && a.contract_address.is_some()
+            && a.contract_address == b.contract_address)
+        || (!a.is_cw20 && !b.is_cw20 && a.denom.is_some() && a.denom == b.denom)
 }
 
 pub fn reserves_usable(pair: &ReservePair) -> bool {
@@ -197,7 +208,8 @@ pub fn reserves_usable(pair: &ReservePair) -> bool {
 
 pub fn is_stale(now: DateTime<Utc>, snapshot_at: DateTime<Utc>, max: Duration) -> bool {
     let age = now.signed_duration_since(snapshot_at);
-    age.num_milliseconds() > max.as_millis() as i64
+    age.num_milliseconds() < 0
+        || age.num_milliseconds() > max.as_millis().min(i64::MAX as u128) as i64
 }
 
 /// USD of `token` implied by CPAMM reserves vs an already-priced `other` leg.
@@ -238,14 +250,18 @@ struct Candidate {
     pair_address: String,
     price_usd: BigDecimal,
     tvl_usd: BigDecimal,
+    priced_leg_depth_usd: BigDecimal,
+    as_of: DateTime<Utc>,
     asset_id: i32,
 }
 
 fn pick_best(mut cands: Vec<Candidate>) -> Option<Candidate> {
-    cands.sort_by(|a, b| match b.tvl_usd.cmp(&a.tvl_usd) {
-        std::cmp::Ordering::Equal => a.pair_address.cmp(&b.pair_address),
-        o => o,
-    });
+    cands.sort_by(
+        |a, b| match b.priced_leg_depth_usd.cmp(&a.priced_leg_depth_usd) {
+            std::cmp::Ordering::Equal => a.pair_address.cmp(&b.pair_address),
+            o => o,
+        },
+    );
     cands.into_iter().next()
 }
 
@@ -262,7 +278,18 @@ fn candidate_for_token(
         if token_is_0 { token_usd } else { other_usd },
         if token_is_0 { other_usd } else { token_usd },
     )?;
-    if &tvl < tvl_floor {
+    let other = if token_is_0 {
+        &pair.asset_1
+    } else {
+        &pair.asset_0
+    };
+    let reserve = if token_is_0 {
+        &pair.reserve_1
+    } else {
+        &pair.reserve_0
+    };
+    let priced_leg_depth_usd = humanize_raw_amount(reserve, other.decimals)? * other_usd;
+    if &priced_leg_depth_usd < tvl_floor {
         return None;
     }
     Some(Candidate {
@@ -270,6 +297,8 @@ fn candidate_for_token(
         pair_address: pair.pair_address.clone(),
         price_usd: token_usd.clone(),
         tvl_usd: tvl,
+        priced_leg_depth_usd,
+        as_of: pair.snapshot_at,
         asset_id: token_id,
     })
 }
@@ -321,9 +350,14 @@ fn resolve_token_vs_priced_hub(
             } else {
                 continue;
             };
-        let other_usd = hub_usd(other)?;
-        let token_usd =
-            usd_from_reserves(token.decimals, other.decimals, r_token, r_other, &other_usd)?;
+        let Some(other_usd) = hub_usd(other) else {
+            continue;
+        };
+        let Some(token_usd) =
+            usd_from_reserves(token.decimals, other.decimals, r_token, r_other, &other_usd)
+        else {
+            continue;
+        };
         if let Some(c) = candidate_for_token(
             pair,
             token_is_0,
@@ -343,6 +377,8 @@ fn resolve_token_vs_priced_hub(
         source_pair_id: Some(best.pair_id),
         source_pair_address: Some(best.pair_address),
         tvl_usd: Some(best.tvl_usd),
+        priced_leg_depth_usd: Some(best.priced_leg_depth_usd),
+        as_of: Some(best.as_of),
     })
 }
 
@@ -359,6 +395,8 @@ pub fn resolve_lunc_hub_mark(
         source_pair_id: None,
         source_pair_address: None,
         tvl_usd: None,
+        priced_leg_depth_usd: None,
+        as_of: None,
     })
 }
 
@@ -385,6 +423,8 @@ pub fn resolve_hub_usd(
         source_pair_id: None,
         source_pair_address: None,
         tvl_usd: None,
+        priced_leg_depth_usd: None,
+        as_of: None,
     });
 
     snap.ust1 = resolve_token_vs_priced_hub(
@@ -737,51 +777,45 @@ mod tests {
         let c = cfg();
         let custc = cw20(2, "cUSTC", 6, "terra1custc");
         let ust1 = cw20(1, "UST1", 6, "terra1ust1");
-        let a = pair(
-            1,
-            "terra1bbb",
+        let ustr = cw20(3, "USTR", 18, "terra1ustr");
+        // Factory allows one canonical UST1/cUSTC pair and two distinct USTR anchors.
+        let bootstrap = pair(
+            11,
+            "terra1canonical",
             ust1.clone(),
             custc.clone(),
             "250000000",
             "50000000000",
             now,
         );
-        let b = pair(2, "terra1aaa", ust1, custc, "250000000", "50000000000", now);
-        let snap = resolve_hub_usd(now, &c, Some(&bd("0.005")), &[a, b], Some(2));
-        assert_eq!(
-            snap.ust1.unwrap().source_pair_address.as_deref(),
-            Some("terra1aaa")
-        );
-        let snap2 = resolve_hub_usd(
+        let a = pair(
+            1,
+            "terra1bbb",
+            ustr.clone(),
+            custc,
+            "25000000000000000000000",
+            "50000000000",
             now,
-            &c,
-            Some(&bd("0.005")),
-            &[
-                pair(
-                    2,
-                    "terra1aaa",
-                    cw20(1, "UST1", 6, "terra1ust1"),
-                    cw20(2, "cUSTC", 6, "terra1custc"),
-                    "250000000",
-                    "50000000000",
-                    now,
-                ),
-                pair(
-                    1,
-                    "terra1bbb",
-                    cw20(1, "UST1", 6, "terra1ust1"),
-                    cw20(2, "cUSTC", 6, "terra1custc"),
-                    "250000000",
-                    "50000000000",
-                    now,
-                ),
-            ],
-            Some(2),
         );
-        assert_eq!(
-            snap2.ust1.unwrap().source_pair_address.as_deref(),
-            Some("terra1aaa")
+        let b = pair(
+            2,
+            "terra1aaa",
+            ustr,
+            ust1,
+            "25000000000000000000000",
+            "250000000",
+            now,
         );
+        for inventory in [
+            vec![bootstrap.clone(), a.clone(), b.clone()],
+            vec![b, a, bootstrap],
+        ] {
+            let mark = resolve_hub_usd(now, &c, Some(&bd("0.005")), &inventory, Some(2))
+                .ustr
+                .unwrap();
+            assert_eq!(mark.source_pair_address.as_deref(), Some("terra1aaa"));
+            assert_eq!(mark.priced_leg_depth_usd, Some(bd("250")));
+        }
     }
 
     #[test]
@@ -873,5 +907,48 @@ mod tests {
         let ustr_usd = usd_f(&snap.ustr.unwrap().price_usd);
         assert!((ust1_usd - 1.0).abs() < 1e-9);
         assert!((ustr_usd - ust1_usd / 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn issue1391_depth_does_not_count_self_valued_token_leg() {
+        let now = Utc::now();
+        let c = cfg();
+        let p = pair(
+            11,
+            "canonical",
+            cw20(1, "UST1", 6, "terra1ust1"),
+            cw20(2, "cUSTC", 6, "terra1custc"),
+            "1000000",
+            "15000000000",
+            now,
+        );
+        // $75 independently priced depth, $150 implied total TVL: reject.
+        let snap = resolve_hub_usd(now, &c, Some(&bd("0.005")), &[p], Some(2));
+        assert!(snap.ust1.is_none());
+    }
+
+    #[test]
+    fn issue1391_rejects_future_reserves_and_malformed_or_renamed_identity() {
+        let now = Utc::now();
+        let c = cfg();
+        let mut spoof = cw20(2, "cUSTC", 6, "terra1attacker");
+        spoof.denom = Some("uusd".into());
+        assert!(!is_hub_custc(&spoof, &c));
+        assert!(!is_hub_ust1(&cw20(1, "UST1", 6, "TERRA1UST1"), &c));
+        assert!(!is_hub_ust1(&cw20(1, "UST1", 6, "terra1ust1 "), &c));
+        let future = pair(
+            11,
+            "canonical",
+            cw20(1, "UST1", 6, "terra1ust1"),
+            cw20(2, "cUSTC", 6, "terra1custc"),
+            "250000000",
+            "50000000000",
+            now + chrono::Duration::seconds(1),
+        );
+        assert!(
+            resolve_hub_usd(now, &c, Some(&bd("0.005")), &[future], Some(2))
+                .ust1
+                .is_none()
+        );
     }
 }

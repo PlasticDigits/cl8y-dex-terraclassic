@@ -1,8 +1,9 @@
 mod chain_identity;
+pub mod pair_discovery_state;
 pub mod types;
-pub use chain_identity::{valid_chain_id, ChainIdentityHealth, EndpointIdentity};
 #[cfg(test)]
 pub(crate) use chain_identity::mock_chain_identity;
+pub use chain_identity::{ChainIdentityHealth, EndpointIdentity, valid_chain_id};
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -12,6 +13,7 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use tokio::sync::RwLock;
 
+use pair_discovery_state::PairDiscoveryState;
 pub use types::*;
 
 /// Limit the decoded HTTP body before allocating/deserializing an untrusted snapshot.
@@ -127,6 +129,7 @@ struct LcdClientInner {
     cooldown_duration: Duration,
     discovery_namespace: usize,
     expected_chain_id: String,
+    pair_discovery_state: Arc<PairDiscoveryState>,
 }
 
 impl LcdClient {
@@ -169,6 +172,7 @@ impl LcdClient {
                 cooldown_duration: Duration::from_millis(cooldown_ms),
                 discovery_namespace: NEXT_NAMESPACE
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                pair_discovery_state: Arc::new(PairDiscoveryState::default()),
             }),
         }
     }
@@ -285,7 +289,9 @@ impl LcdClient {
                     // Node identity and block payload must agree independently (#1392).
                     // Historical blocks retain their original timestamps; identity has no age exemption.
                     if path.starts_with("/cosmos/base/tendermint/v1beta1/blocks/") {
-                        if let Err(e) = chain_identity::validate_block_chain(&text, self.expected_chain_id()) {
+                        if let Err(e) =
+                            chain_identity::validate_block_chain(&text, self.expected_chain_id())
+                        {
                             errors.push(format!("endpoint[{idx}]: {e}"));
                             self.mark_failed(idx).await;
                             let mut eps = self.inner.endpoints.write().await;
@@ -344,6 +350,21 @@ impl LcdClient {
             ep.cooldown_until = Some(Instant::now() + self.inner.cooldown_duration);
             ep.verified = false;
         }
+    }
+
+    /// Process-local identity: isolates bounded discovery caches by LCD client/chain.
+    pub(crate) fn cache_namespace(&self) -> usize {
+        self.inner.discovery_namespace
+    }
+
+    /// Clones share discovery evidence; a newly configured client starts fresh.
+    pub(crate) fn pair_discovery_state(&self) -> Arc<PairDiscoveryState> {
+        Arc::clone(&self.inner.pair_discovery_state)
+    }
+
+    /// Fixed discovery outcomes; no event address or factory becomes a metric label.
+    pub fn pair_discovery_counters(&self) -> pair_discovery_state::DiscoveryCounters {
+        self.inner.pair_discovery_state.counters()
     }
 
     pub async fn get_code_data_hash(&self, code_id: u64) -> Result<String, LcdError> {
@@ -720,8 +741,8 @@ mod tests {
 
     #[tokio::test]
     async fn rate_limit_429_cools_down_and_fails_over() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -827,8 +848,8 @@ mod tests {
 
     #[tokio::test]
     async fn wasm_query_reject_does_not_fan_out() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -879,8 +900,8 @@ mod tests {
 
     #[tokio::test]
     async fn infra_500_still_fans_out() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -921,8 +942,8 @@ mod tests {
 
     #[tokio::test]
     async fn gateway_502_cools_down_and_fails_over() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;

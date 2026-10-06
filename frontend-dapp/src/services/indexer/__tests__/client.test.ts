@@ -14,6 +14,14 @@ async function loadModule() {
 }
 
 describe('indexer client fetchJson', () => {
+  it('does not transport-retry deterministic route preview rejection (#1390)', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('router_preview_rejected', { status: 422, statusText: 'Unprocessable Entity' })
+    )
+    const client = await loadModule()
+    await expect(client.getRouteSolve('terra1a', 'terra1b', '1000')).rejects.toThrow('Indexer API error: 422')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
   it('fetches and parses JSON', async () => {
     const mockData = { total_volume_24h: 100 }
     vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mockData), { status: 200 }))

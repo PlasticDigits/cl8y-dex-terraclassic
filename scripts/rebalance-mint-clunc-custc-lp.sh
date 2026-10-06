@@ -159,7 +159,12 @@ prompt_keyring_pass() {
 broadcast_from() {
   local key="$1" expected="$2" label="$3"
   shift 3
-  local out tx_hash
+  local out tx_hash current
+  current="$(fetch_oracles_ok)" || die "fresh source quorum required before transaction preparation"
+  python3 "$SCRIPT_DIR/lib/oracle_safety.py" movement "$(jq -r '.lunc_usd' <<<"$current")" "$LUNC_USD" \
+    || die "LUNC oracle moved; recompute LP plan"
+  python3 "$SCRIPT_DIR/lib/oracle_safety.py" movement "$(jq -r '.ustc_usd' <<<"$current")" "$USTC_USD" \
+    || die "USTC oracle moved; recompute LP plan"
   echo "  → $label" >&2
   TERRAD_HOST_KEY="$key"
   TERRAD_HOST_EXPECTED_ADDR="$expected"

@@ -18,7 +18,9 @@ use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 /// Fixture identity is explicit; no production client bypass is available.
 pub async fn mock_chain_identity(server: &MockServer, chain: &str) {
     Mock::given(method("GET"))
-        .and(wiremock::matchers::path("/cosmos/base/tendermint/v1beta1/node_info"))
+        .and(wiremock::matchers::path(
+            "/cosmos/base/tendermint/v1beta1/node_info",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "default_node_info":{"network":chain}
         })))

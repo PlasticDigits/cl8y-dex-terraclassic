@@ -68,6 +68,7 @@ pub struct GlobalStats {
 
 /// Rebuild token rolling windows from offer-side `swap_events`, then zero idle rows.
 /// Offer-side only (`GROUP BY offer_asset_id`) — do not sum both legs (GitLab #577 **D1**).
+/// Raw sums remain exact in widened aggregate storage (#1395); USD caps are separate.
 pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
     let now = Utc::now();
     let cutoff_24h = now - chrono::Duration::hours(24);
@@ -81,7 +82,7 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
              SELECT
                offer_asset_id AS asset_id,
                $1 AS "window",
-               LEAST(COALESCE(SUM(offer_amount), 0), POWER(10::numeric, 38) - 1) AS volume,
+               COALESCE(SUM(offer_amount), 0) AS volume,
                LEAST(COALESCE(SUM(volume_usd), 0), POWER(10::numeric, 20) - POWER(10::numeric, -18)) AS volume_usd,
                COUNT(*) AS trade_count,
                COUNT(DISTINCT sender) AS unique_traders,
@@ -122,6 +123,7 @@ pub async fn refresh_token_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
 }
 
 /// Rebuild rolling 24h quote-side + USD volume per pair (materialized table for pair list sort).
+/// Raw quote sums remain exact in widened aggregate storage (#1395).
 /// `volume_usd` is SUM(swap_events.volume_usd) of priced legs only (GitLab #692 / PVol).
 /// Unpriced activity → NULL (do not COALESCE to 0). Overflow ≥ 10^20 → NULL.
 /// Idle pairs (no 24h swaps) zero quote **and** USD (#577 D3).
@@ -141,10 +143,7 @@ pub async fn refresh_pair_volumes(pool: &PgPool) -> Result<(), sqlx::Error> {
                   NOW()
            FROM (
              SELECT se.pair_id,
-                    LEAST(
-                      COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0),
-                      POWER(10::numeric, 38) - 1
-                    ) AS volume_quote,
+                    COALESCE(SUM(CASE WHEN se.offer_asset_id = p.asset_0_id THEN se.return_amount ELSE se.offer_amount END), 0) AS volume_quote,
                     SUM(se.volume_usd) FILTER (WHERE se.volume_usd IS NOT NULL AND se.volume_usd > 0) AS volume_usd
              FROM swap_events se
              INNER JOIN pairs p ON p.id = se.pair_id
@@ -226,6 +225,7 @@ pub async fn refresh_pair_volumes_30d(pool: &PgPool) -> Result<(), sqlx::Error> 
 
 /// Rebuild rolling 24h/7d/30d global overview stats (materialized single-row table).
 /// Aggregates run here (~5 min), never on the /overview request path (GitLab #550 / AC7).
+/// Raw offer sums remain exact in widened aggregate storage (#1395).
 pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
     let now = Utc::now();
     let cutoff_24h = now - chrono::Duration::hours(24);
@@ -240,7 +240,7 @@ pub async fn refresh_global_stats(pool: &PgPool) -> Result<(), sqlx::Error> {
                active_pairs_24h, unique_traders_24h
            )
            SELECT 1,
-                  LEAST(COALESCE(SUM(offer_amount) FILTER (WHERE block_timestamp >= $1), 0), POWER(10::numeric, 38) - 1),
+                  COALESCE(SUM(offer_amount) FILTER (WHERE block_timestamp >= $1), 0),
                   LEAST(COALESCE(SUM(volume_usd) FILTER (WHERE block_timestamp >= $1), 0), POWER(10::numeric, 20) - POWER(10::numeric, -18)),
                   COUNT(*) FILTER (WHERE block_timestamp >= $1),
                   NOW(),
@@ -431,10 +431,10 @@ pub async fn backfill_swap_volume_usd(pool: &PgPool) -> Result<u64, sqlx::Error>
     let res = sqlx::query(
         r#"
 WITH latest_oracle AS (
-    SELECT DISTINCT ON (ticker) ticker, price_usd
-    FROM oracle_prices
-    WHERE source = 'average'
-    ORDER BY ticker, fetched_at DESC
+    SELECT ticker, price_usd FROM oracle_state
+    WHERE quality = 'fresh' AND cardinality(accepted_sources) >= 2
+      AND price_usd BETWEEN 0.000000000001 AND 1000000
+      AND as_of BETWEEN NOW() - INTERVAL '300 seconds' AND NOW()
 ),
 ustc AS (
     SELECT price_usd FROM latest_oracle WHERE ticker = 'ustc'
@@ -451,16 +451,17 @@ catalog AS (
             WHEN a.denom = 'uluna' THEN (SELECT price_usd FROM lunc)
             WHEN NOT a.is_cw20 AND a.denom IS NOT NULL AND a.denom NOT IN ('uusd', 'uluna') THEN NULL
             WHEN hp.price_usd IS NOT NULL AND hp.price_usd > 0 THEN hp.price_usd
-            WHEN UPPER(a.symbol) IN ('USTC', 'CUSTC')
-                 AND (a.denom = 'uusd' OR a.contract_address IS NOT NULL)
+            WHEN a.is_cw20 AND a.denom IS NULL AND a.contract_address = $1
                 THEN (SELECT price_usd FROM ustc)
-            WHEN UPPER(a.symbol) IN ('LUNC', 'CLUNC')
-                 AND (a.denom = 'uluna' OR a.contract_address IS NOT NULL)
+            WHEN a.is_cw20 AND a.denom IS NULL AND a.contract_address = $2
                 THEN (SELECT price_usd FROM lunc)
             ELSE NULL
         END AS usd_per_human
     FROM assets a
     LEFT JOIN hub_prices hp ON hp.asset_id = a.id
+      AND hp.quality IN ('bounded_spot', 'external_quorum')
+      AND hp.as_of BETWEEN NOW() - INTERVAL '20 seconds' AND NOW()
+      AND EXISTS (SELECT 1 FROM latest_oracle WHERE ticker = CASE WHEN hp.ticker = 'lunc' THEN 'lunc' ELSE 'ustc' END)
 ),
 priced AS (
     SELECT
@@ -497,6 +498,8 @@ FROM priced pr
 WHERE se.id = pr.id
 "#,
     )
+    .bind(std::env::var("HUB_CUSTC_ADDRESS").unwrap_or_else(|_| crate::config::DEFAULT_HUB_CUSTC_ADDRESS.into()))
+    .bind(std::env::var("HUB_CLUNC_ADDRESS").unwrap_or_else(|_| crate::config::DEFAULT_HUB_CLUNC_ADDRESS.into()))
     .execute(pool)
     .await?;
     super::traders::refresh_trader_total_volume_usd(pool).await?;

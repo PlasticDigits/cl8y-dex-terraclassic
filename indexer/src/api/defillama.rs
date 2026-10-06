@@ -11,19 +11,19 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
+use axum::Json;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use super::{AppState, internal_err};
+use super::{internal_err, AppState};
 use crate::db::queries::defillama as daily_q;
 use crate::indexer::defillama::{
+    daily_headline_usd, daily_usd_field_fail_closed, naive_utc_day, parse_utc_day_timestamp,
     COLUMBUS5_FACTORY, DAILY_ASSET_TICKERS, UST1_ADDRESS, UST1_DECIMALS, USTR_ADDRESS,
-    USTR_DECIMALS, daily_headline_usd, daily_usd_field_fail_closed, naive_utc_day,
-    parse_utc_day_timestamp,
+    USTR_DECIMALS,
 };
 use crate::indexer::protocol_fees::FeeSource;
 
@@ -82,6 +82,10 @@ pub struct DefillamaAssetRow {
     pub trade_count: i64,
     pub fees_usd: Option<String>,
     pub price_usd: Option<String>,
+    /// Historical advisory mark sampled during rollup; never a current financial oracle.
+    pub price_as_of: Option<String>,
+    pub price_quality: String,
+    pub oracle_grade: bool,
     pub circulating: Option<String>,
 }
 
@@ -144,6 +148,9 @@ fn empty_asset_row(ticker: &str) -> DefillamaAssetRow {
             trade_count: 0,
             fees_usd: Some("0".to_string()),
             price_usd: None,
+            price_as_of: None,
+            price_quality: "unavailable".into(),
+            oracle_grade: false,
             circulating: None,
         },
         _ => DefillamaAssetRow {
@@ -159,6 +166,9 @@ fn empty_asset_row(ticker: &str) -> DefillamaAssetRow {
             trade_count: 0,
             fees_usd: Some("0".to_string()),
             price_usd: None,
+            price_as_of: None,
+            price_quality: "unavailable".into(),
+            oracle_grade: false,
             circulating: None,
         },
     }
@@ -174,10 +184,17 @@ fn map_asset_row(ticker: &str, row: Option<&daily_q::DailyAssetRow>) -> Defillam
     out.trade_count = row.trade_count;
     out.fees_usd =
         daily_usd_field_fail_closed(row.fee_event_count, row.fee_unpriced_count, &row.fees_usd);
+    out.price_as_of = row.price_as_of.map(|v| v.to_rfc3339());
+    out.price_quality = if row.price_usd.is_some() && row.price_as_of.is_some() {
+        "historical_advisory_snapshot"
+    } else {
+        "unavailable"
+    }
+    .into();
     out.price_usd = row
         .price_usd
         .as_ref()
-        .filter(|p| *p > &BigDecimal::from(0))
+        .filter(|p| *p > &BigDecimal::from(0) && row.price_as_of.is_some())
         .map(|p| p.to_string());
     out.circulating = row
         .circulating_raw

@@ -21,7 +21,7 @@ UST1, cUSTC, and USTR list the DEX 2-of-3 as an **extra minter**. Primary minter
 
 ## Price
 
-- Oracle: `GET https://indexer.dex.cl8y.com/api/v1/oracle/price/ustc` (override `UST1_LP_USTC_USD`).
+- Oracle: `GET https://indexer.dex.cl8y.com/api/v1/oracle/price/ustc` (dry-run-only override `UST1_LP_USTC_USD`).
 - Target UST1/cUSTC = **cUSTC per UST1** = `1 / USTC_USD`.
 - USTR fair value for **LP sizing** = **2.5 × USTC** (`USTR_PER_USTC` in this script only). Not a display oracle — Charts/Protocol USD uses DEX hub marks ([#556](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/556)). Do not swap UST1/USTR.
 - After the cUSTC-pair swap, the script refuses to provide if the pool is still outside **0.1%**.
@@ -72,3 +72,12 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. All file-keyring keys (`multisig1`, `mu
 Apply the shared [chain-attestation policy](chain-attestation.md) before reads,
 dry-run planning and every transaction attempt. Failed or stale LCD/RPC identity
 cannot authorize a tick. Review [the verification checklist](../qa/issue-1392/README.md).
+
+## Oracle safety (#1391)
+
+Live inputs require fresh certified CEX quorum and exact identity/age. Rechecks
+before transaction preparation abort degraded inputs or >1% movement from the
+plan. Manual numeric oracle overrides are **dry-run only**; they cannot fabricate
+healthy live observations. See [policy and agent checklist](../qa/issue-1391/README.md)
+and [agent playbook](../../skills/AGENTS_ORACLE_SAFETY.md). Strategy seed ratios
+remain explicit strategy assumptions, not certified hub prices.

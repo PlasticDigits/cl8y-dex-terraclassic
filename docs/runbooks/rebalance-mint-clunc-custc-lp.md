@@ -94,3 +94,30 @@ Never commit `TERRAD_HOST_KEYRING_PASS`. File-keyring keys (`cl8y2_admin`, `cl8y
 Apply the shared [endpoint policy](chain-attestation.md) before financial reads
 and each transaction preparation/retry. Review [NET1392 checks](../qa/issue-1392/README.md);
 dry-run preserves its no-broadcast behavior and performs identity preflight.
+
+## Oracle safety (#1391)
+
+Live inputs require fresh certified CEX quorum and exact identity/age. Rechecks
+before transaction preparation abort degraded inputs or >1% movement from the
+plan. Manual numeric oracle overrides are **dry-run only**; they cannot fabricate
+healthy live observations. See [policy and agent checklist](../qa/issue-1391/README.md)
+and [agent playbook](../../skills/AGENTS_ORACLE_SAFETY.md). Strategy seed ratios
+remain explicit strategy assumptions, not certified hub prices.
+
+## Oracle integrity (#1391)
+
+Follow [the oracle safety runbook](indexer-external-oracle.md) and
+[agent invariants](../../skills/AGENTS_ORACLE_SAFETY.md). Numeric prices
+alone are insufficient: these scripts require fresh CEX quorum, exact quote
+identity and valid timestamps, with a maximum observation age of 300 seconds.
+Each transaction entry point refreshes source health and rejects movement over
+1% from the planned LUNC/USTC prices before preparation. Recompute the plan after
+rejection. `CLUNC_LP_SKIP_CROSS_CHECK=1` skips only the extra live exchange probe;
+it cannot bypass indexer quorum, identity, freshness or hub consistency checks.
+
+Hub cUSTC/LUNC checks require canonical wrap addresses, fresh `external_quorum`
+quality and the documented hub policy. Hub rows remain advisory and never supply
+the financial price. Run `python3 scripts/qa/test-oracle-lp-consumers.py` for
+synthetic failure/control receipts, plus `bash scripts/qa/test-clunc-custc-lp.sh`.
+Record unavailable operator signing/deployment checks as SKIP with a reason;
+executed failures remain FAIL.
