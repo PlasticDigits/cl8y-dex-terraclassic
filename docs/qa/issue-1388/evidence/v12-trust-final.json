@@ -1,0 +1,222 @@
+{
+  "utc": "2026-10-05T08:36:11.031439+00:00",
+  "status": "PASS",
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "fixture": "/tmp/dex-1388/v12-funding-final.json",
+  "router": "terra14wy47tgjgjl3pls4kp323t0lnsnn36vj9q8feec2dmaf4sw0e6gsu45sh0",
+  "replacement": "terra12q9rgle5z4rtrzmsehup6e9q9cvk2kaznppx0y8cn7hs7tjpwj7st33uqj",
+  "code": {
+    "code_id": 19,
+    "sha256": "9cc854e42d786eee5040d887b3c06eaebd23c27af4637bb19cadaf9cea43eddd"
+  },
+  "checks": [
+    {
+      "name": "opaque contract admin recovery setup",
+      "status": "PASS",
+      "txhash": "7CAA4FD935BA845AF656E83407430AC66F50C8E0D9F3E66C4A15B9D15A49A481"
+    },
+    {
+      "name": "rotation rejection",
+      "status": "PASS",
+      "candidate": "terra12q9rgle5z4rtrzmsehup6e9q9cvk2kaznppx0y8cn7hs7tjpwj7st33uqj",
+      "txhash": "A2669EF5B5511AD8DC5128B6606AC9A55C9CFDE31547F0E8B72B2DBC5648118E"
+    },
+    {
+      "name": "rotation rejection",
+      "status": "PASS",
+      "candidate": "terra12q9rgle5z4rtrzmsehup6e9q9cvk2kaznppx0y8cn7hs7tjpwj7st33uqj",
+      "txhash": "BDB650C00EB84D57458BEEEF62916D08ADD89E2160648A4CA8EB2360EE8D1395"
+    },
+    {
+      "name": "rotation rejection",
+      "status": "PASS",
+      "candidate": "terra1f7gtzplrwg8ccyj2f2dutuzknf0w7fv4je8lqj9m7hkpc9nkvd0qte4eml",
+      "txhash": "F4161C75C99896DB5AF85C0BA2EE86DA99AD25B8DA6AF4A4A95AD4C02C47A3B3"
+    },
+    {
+      "name": "rotation rejection",
+      "status": "PASS",
+      "candidate": "terra1duf77ccl4ea5e9wk4swy8w8v93d3m9st2f2eshahlpjjydyz5dcq7xsa94",
+      "txhash": "96BB4A962B87A07EBE7FE2F70F57318CA86FEDAA126DEF41F4E3E078D7E9808F"
+    },
+    {
+      "name": "rotation success",
+      "status": "PASS",
+      "candidate": "terra12q9rgle5z4rtrzmsehup6e9q9cvk2kaznppx0y8cn7hs7tjpwj7st33uqj",
+      "txhash": "13035389FF7E74548CB411635EE01114860C6520C852B4AF1A6E9220E1D9976A"
+    },
+    {
+      "name": "stale route rollback",
+      "status": "PASS",
+      "txhash": "77E0DDA1F877B748FAA19D668FCEC162E07E69DBADD73FDD8AD3585331263CB3"
+    },
+    {
+      "name": "recovered funded route",
+      "status": "PASS",
+      "txhash": "3A3E3ED238503845254B0E987D8FA17B2BAB34CE232A43CF310427C356DE3C96"
+    },
+    {
+      "name": "revoke router",
+      "status": "PASS",
+      "txhash": "C7E5CF3991060248FA140B485FA427C26842A1522A6067D1361AADF0A04515F3"
+    },
+    {
+      "name": "stale route rollback",
+      "status": "PASS",
+      "txhash": "D65CEAE5DFC8A389A5E5A401CF2CAC838B526B72EB2E04A2A8B328A98456C444"
+    },
+    {
+      "name": "rotation success",
+      "status": "PASS",
+      "candidate": "terra12q9rgle5z4rtrzmsehup6e9q9cvk2kaznppx0y8cn7hs7tjpwj7st33uqj",
+      "txhash": "7352F398C8DEB7F0778B5D51D4949AE3763387F8ED48566D4CF30F07E3F878E1"
+    },
+    {
+      "name": "recovered funded route",
+      "status": "PASS",
+      "txhash": "0CF246D0D32548C1F275F41227A9F5508D3E0923F3DC00EA72A452BD8B481F52"
+    }
+  ],
+  "receipts": [
+    {
+      "txhash": "787C06F5611CE0644D138C0110637D0170707004C3D16B13CA07A3A5EB9B7159",
+      "height": "7132",
+      "code": 0,
+      "gas_used": "173704"
+    },
+    {
+      "txhash": "1CF80239127AD86B548CDD4F302009E94D47098A77C3354D06F15629585D407F",
+      "height": "7140",
+      "code": 0,
+      "gas_used": "173984"
+    },
+    {
+      "txhash": "565DEBD6CBF89F5CD57F6DA1C25CB6EC2A1DE49BFB41A0358DEB6851681520C2",
+      "height": "7143",
+      "code": 0,
+      "gas_used": "187139"
+    },
+    {
+      "txhash": "7CAA4FD935BA845AF656E83407430AC66F50C8E0D9F3E66C4A15B9D15A49A481",
+      "height": "7145",
+      "code": 0,
+      "gas_used": "65357"
+    },
+    {
+      "txhash": "A2669EF5B5511AD8DC5128B6606AC9A55C9CFDE31547F0E8B72B2DBC5648118E",
+      "height": "7148",
+      "code": 5,
+      "gas_used": "197719"
+    },
+    {
+      "txhash": "BDB650C00EB84D57458BEEEF62916D08ADD89E2160648A4CA8EB2360EE8D1395",
+      "height": "7152",
+      "code": 5,
+      "gas_used": "269893"
+    },
+    {
+      "txhash": "F4161C75C99896DB5AF85C0BA2EE86DA99AD25B8DA6AF4A4A95AD4C02C47A3B3",
+      "height": "7161",
+      "code": 5,
+      "gas_used": "269936"
+    },
+    {
+      "txhash": "96BB4A962B87A07EBE7FE2F70F57318CA86FEDAA126DEF41F4E3E078D7E9808F",
+      "height": "7165",
+      "code": 5,
+      "gas_used": "201975"
+    },
+    {
+      "txhash": "13035389FF7E74548CB411635EE01114860C6520C852B4AF1A6E9220E1D9976A",
+      "height": "7168",
+      "code": 0,
+      "gas_used": "371192"
+    },
+    {
+      "txhash": "F69C6B020B3A80ABF7D4D90556F6464C6955F783B388EB87E5B90AD4977A6153",
+      "height": "7173",
+      "code": 0,
+      "gas_used": "178349"
+    },
+    {
+      "txhash": "95FEE57A3993E552060007C9BDA3C5F88027FD44B7DEE853836AE80A09B34BC7",
+      "height": "7175",
+      "code": 0,
+      "gas_used": "149751"
+    },
+    {
+      "txhash": "77E0DDA1F877B748FAA19D668FCEC162E07E69DBADD73FDD8AD3585331263CB3",
+      "height": "7178",
+      "code": 5,
+      "gas_used": "576062"
+    },
+    {
+      "txhash": "7147A2A096675651D9BB147576A5D08E7E6E912FA6C7DA1CB3F29E70DE8404C2",
+      "height": "7182",
+      "code": 0,
+      "gas_used": "178346"
+    },
+    {
+      "txhash": "6B134834AB88FFD4D17AF610AC7451C570A61A7A785390EE14E6F60EEE30E840",
+      "height": "7184",
+      "code": 0,
+      "gas_used": "149751"
+    },
+    {
+      "txhash": "3A3E3ED238503845254B0E987D8FA17B2BAB34CE232A43CF310427C356DE3C96",
+      "height": "7187",
+      "code": 0,
+      "gas_used": "1865308"
+    },
+    {
+      "txhash": "C7E5CF3991060248FA140B485FA427C26842A1522A6067D1361AADF0A04515F3",
+      "height": "7190",
+      "code": 0,
+      "gas_used": "218045"
+    },
+    {
+      "txhash": "A3547025F2AC3DFA990AA97C9CB30B29E10296DD56A885C2F54D31CB91556CEB",
+      "height": "7194",
+      "code": 0,
+      "gas_used": "178346"
+    },
+    {
+      "txhash": "56EC6006958FB06066CDC33324A39051B1C82B666845E11BF7C6367F3CE25DA0",
+      "height": "7196",
+      "code": 0,
+      "gas_used": "149562"
+    },
+    {
+      "txhash": "D65CEAE5DFC8A389A5E5A401CF2CAC838B526B72EB2E04A2A8B328A98456C444",
+      "height": "7199",
+      "code": 5,
+      "gas_used": "575485"
+    },
+    {
+      "txhash": "7352F398C8DEB7F0778B5D51D4949AE3763387F8ED48566D4CF30F07E3F878E1",
+      "height": "7203",
+      "code": 0,
+      "gas_used": "368326"
+    },
+    {
+      "txhash": "ADF0A37AD1DF5F2F3D81F6061169F598EC4BAA919005C484A64479A493053BED",
+      "height": "7207",
+      "code": 0,
+      "gas_used": "178346"
+    },
+    {
+      "txhash": "A232CE17148613AF8ED74BA5C08B2B41BB35B5E3D1DAF3FDE85285DBD33EF968",
+      "height": "7214",
+      "code": 0,
+      "gas_used": "149751"
+    },
+    {
+      "txhash": "0CF246D0D32548C1F275F41227A9F5508D3E0923F3DC00EA72A452BD8B481F52",
+      "height": "7217",
+      "code": 0,
+      "gas_used": "1865369"
+    }
+  ],
+  "production_execution": false
+}

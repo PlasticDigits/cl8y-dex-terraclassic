@@ -117,7 +117,7 @@ Reference implementation: [`limitBookInsertHint.ts`](../frontend-dapp/src/utils/
 
 ## Limit book clean (GitLab #263) {#limit-book-clean-gitlab-263}
 
-Permissionless pair execute **`clean_limit_book`** parks time-expired and/or governance **dust** orders into **`EXPIRED_LIMIT_CLAIMS`** (no CW20 in that tx — makers use **`claim_expired_limit_order`** later). **Not** factory **`sweep`** (excess CW20 recovery).
+Permissionless pair execute **`clean_limit_book`** parks time-expired, governance **dust**, or economically unfillable orders (#1399) into **`EXPIRED_LIMIT_CLAIMS`** (no CW20 in that tx — makers use **`claim_expired_limit_order`** later). **Not** factory **`sweep`** (excess CW20 recovery).
 
 | Field | Meaning |
 |-------|---------|
@@ -125,9 +125,9 @@ Permissionless pair execute **`clean_limit_book`** parks time-expired and/or gov
 | `max_orders` | 1…**100** (`MAX_LIMIT_CLEAN_ORDERS_HARD_CAP`) |
 | `start_hint` | Optional order id to start the DLL walk; invalid/absent → **head** |
 
-Query **`limit_clean_config`** for per-side `min_remaining_token0` (asks) / `min_remaining_token1` (bids). **0** disables force-clean on that side. Governance: factory **`set_pair_limit_clean_config`**.
+Query **`limit_clean_config`** for per-side `min_remaining_token0` (asks) / `min_remaining_token1` (bids). **0** disables governance dust cleanup on that side; economically unfillable rows remain eligible (#1399). Governance: factory **`set_pair_limit_clean_config`**.
 
-**Pause:** blocked while `is_paused` (invariant **L6**). **Indexer:** `limit_order_expired_parked` still drives **`parked_expired`**; parks emit **`reason=expired`** or **`reason=force_cleaned`** ([#504](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/504)); historical **`force_expired=true`** remains on force-clean parks.
+**Pause:** blocked while `is_paused` (invariant **L6**). **Indexer:** `limit_order_expired_parked` still drives **`parked_expired`**; parks emit **`reason=expired`**, **`reason=force_cleaned`** or **`reason=unfillable`** ([#504](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/504)); historical **`force_expired=true`** remains on force-clean parks.
 
 Canonical: [limit-orders.md § Permissionless limit book clean](./limit-orders.md#permissionless-limit-book-clean), [§ Park reason](./limit-orders.md#expired-limit-park-reason-gitlab-504), invariant **L15** in [contracts-security-audit.md](./contracts-security-audit.md), [`limit_book_clean.rs`](../smartcontracts/contracts/pair/src/limit_book_clean.rs). **No in-repo watcher** — operators may cron `clean_limit_book` from indexer backlog signals ([`skills/AGENTS_LOCALNET_TRADING_SWARM.md`](../skills/AGENTS_LOCALNET_TRADING_SWARM.md)).
 
@@ -137,7 +137,7 @@ During hybrid **`match_bids` / `match_asks`**, post-fill remainders **`0 < remai
 
 **vs #263:** `CleanLimitBook` is permissionless, governance-threshold, and async; match-time flush is proactive with a fixed **10**-unit protocol threshold at fill time.
 
-**Integrator (#504):** a parked row is **not** “expired unfilled.” Query **`expired_limit_refund`** returns **`reason`**; dust flush is **`dust_filled`**. Do not infer fill from `expires_at == null` alone (blacklist / force-clean also clear it). Prefer **`reason`** once the pair wasm includes #504; legacy poll-diff workaround (`filled ≈ last_on_book_remaining − refund.remaining`) is race-prone and only for pre-#504 rows.
+**Integrator (#504):** a parked row is **not** “expired unfilled.” Query **`expired_limit_refund`** returns **`reason`**; dust flush is **`dust_filled`**. Do not infer fill from `expires_at == null` alone (blacklist / force-clean / unfillable also clear it). Prefer **`reason`** once the pair wasm includes #504; legacy poll-diff workaround (`filled ≈ last_on_book_remaining − refund.remaining`) is race-prone and only for pre-#504 rows.
 
 **Indexer:** `limit_order_expired_parked` still maps to lifecycle **`parked_expired`**; parse wasm **`reason`** when available (follow-up OK). Historical **`force_expired=true`** remains on non-TTL parks.
 
@@ -147,13 +147,22 @@ Canonical: [limit-orders.md § Match-time dust flush](./limit-orders.md#match-ti
 
 Each batch / ladder / retail rung must rest with **post–maker-fee remaining ≥ 10** (`LIMIT_ORDER_DUST_FLUSH_THRESHOLD`). Undersize reverts the **whole** `send` with **`LimitOrderAmountTooSmall`** (message includes the minimum `10`) — not `Overflow: Cannot Sub`, and not a partial `LimitInsertStepsExceeded` skip. Descending ladders (`start_price > end_price`) are valid; integrators must not sort start &lt; end. Official dApp copy: **Minimum size is 10 units**.
 
-**Open liveness gap — [Forgejo #1225](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1225), invariant [L26](./contracts-security-audit.md):** the human-scale price gate in [limit_placement.rs](../smartcontracts/packages/dex-common/src/limit_placement.rs) accepts MIN_LIMIT_PRICE, while pair [match_asks](../smartcontracts/contracts/pair/src/orderbook.rs) and indexer [db_orderbook_sim](../indexer/src/api/db_orderbook_sim.rs) skip zero-cost rows without unlinking them. Default CleanLimitBook thresholds are 0/0, so a live, no-expiry minimum-price row can stay at the ask head. A book_start_hint past the row only helps that taker; it does not clear the book. The placement size floor in [#1219](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1219) does not enforce remaining × price ≥ 1. See the pair and indexer paths plus required parity/scan tests in [limit-orders.md](./limit-orders.md#unfillable-in-band-floor-orders-forgejo-1225) and [security invariant L26](./contracts-security-audit.md). The proposed omitted-parameter greedy default [#718](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/718) remains gated on resolution.
+**Economic fillability ([#1399](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1399), continuation of closed #1225; [L26](./contracts-security-audit.md)):** the price band and 10-unit size floor are separate from positive-payment validation. Every post-fee batch/ladder rung and remaining-escrow reprice must be payable. Legacy invalid rows park under default zero clean thresholds through bounded matching or clean pagination, preserving claims; valid orders retain zero-cost skips for a small taker. Pair execute/simulation and indexer use the same raw fixed-point math and scan ceiling. Follow [UF1399](../skills/AGENTS_UNFILLABLE_LIMIT_ORDERS.md) and the [QA checklist](./qa/issue-1399/README.md). Greedy defaults remain a separate #718 policy.
 
 Canonical: [limit-orders.md § Place](./limit-orders.md#place--cancel-limit-gitlab-206), invariant **L24**, [`skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md`](../skills/AGENTS_LIMIT_ORDER_BATCH_LADDER.md).
 
 ## Parked refund `reason` (GitLab #504) {#expired-limit-park-reason-gitlab-504}
 
-LCD query **`{ "expired_limit_refund": { "order_id": N } }`** returns optional **`reason`** as snake_case JSON: `expired` | `dust_filled` | `force_cleaned` | `blacklisted` (or omitted on pre-#504 rows). Same strings on wasm `reason=`. Claim execute is unchanged and reason-agnostic.
+LCD query **`{ "expired_limit_refund": { "order_id": N } }`** returns optional **`reason`** as snake_case JSON: `expired` | `dust_filled` | `force_cleaned` | `blacklisted` | `unfillable` (or omitted on pre-#504 rows). Same strings on wasm `reason=`. Claim execute is unchanged and reason-agnostic.
+
+| `reason` | Meaning |
+| --- | --- |
+| `unfillable` (`Unfillable`) | Entire remaining escrow cannot support a positive-cost fill. Legacy default clean and bounded match walks can park it; post-fill unpayable tails also park. Owner claims remaining escrow; this reason does not prove the order never traded. |
+
+On #1399 wasm, validate economic fillability on every post-fee rung and reprice,
+and preserve zero-cost skips for healthy orders facing a small taker. Source and
+agent invariants: [UF1399-1–UF1399-10](../skills/AGENTS_UNFILLABLE_LIMIT_ORDERS.md).
+Verification: [agent checklist](./qa/issue-1399/README.md) and `make verify-issue-1399`.
 
 Full table + invariants: [limit-orders.md § Park reason discriminator](./limit-orders.md#expired-limit-park-reason-gitlab-504).
 

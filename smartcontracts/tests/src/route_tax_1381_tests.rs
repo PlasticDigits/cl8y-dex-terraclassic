@@ -577,6 +577,7 @@ fn issue1381_authenticated_context_legacy_rejection_and_route_cooldown() {
             f.trader.clone(),
             t.clone(),
             &tax::ExecuteMsg::RouteTransfer {
+                slot: 0,
                 recipient: f.trader.to_string(),
                 amount: Uint128::one()
             },
@@ -798,3 +799,39 @@ fn issue1381_exemptions_bind_only_the_trader_for_each_route_token() {
 // contract deployment and pool setup.
 #[path = "route_tax_1390_tests.rs"]
 mod issue1390;
+
+#[test]
+fn issue1388_canonical_nonce_is_monotonic_and_failed_route_rolls_back() {
+    let mut f = fixture(true, true, true, 0, false);
+    let ops = operations(&f, false, false, 100_000);
+    let config = |f: &Fixture| -> router::ConfigResponse {
+        f.app
+            .wrap()
+            .query_wasm_smart(&f.env.router, &router::QueryMsg::Config {})
+            .unwrap()
+    };
+    assert_eq!(config(&f).last_route_id, 0);
+    assert_eq!(config(&f).settlement_version, route_tax::SETTLEMENT_VERSION);
+    for expected in 1..=2 {
+        let q = quote(&f, 100_000, ops.clone());
+        execute(&mut f, 100_000, ops.clone(), q).unwrap();
+        assert_eq!(config(&f).last_route_id, expected);
+    }
+    let before = f
+        .assets
+        .iter()
+        .map(|token| query_cw20_balance(&f.app, token, &f.trader))
+        .collect::<Vec<_>>();
+    assert!(execute(&mut f, 100_000, ops.clone(), Uint128::MAX).is_err());
+    assert_eq!(config(&f).last_route_id, 2);
+    assert_eq!(
+        before,
+        f.assets
+            .iter()
+            .map(|token| query_cw20_balance(&f.app, token, &f.trader))
+            .collect::<Vec<_>>()
+    );
+    let q = quote(&f, 100_000, ops.clone());
+    execute(&mut f, 100_000, ops, q).unwrap();
+    assert_eq!(config(&f).last_route_id, 3);
+}

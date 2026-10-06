@@ -49,6 +49,7 @@ pub use protocol_top_pairs::reset_protocol_top_pairs_cache;
 pub use protocol_volume::reset_protocol_volume_cache;
 mod pairs;
 mod route_exact_output;
+mod route_exact_output_admission;
 mod route_exact_output_reference;
 mod route_graph;
 #[allow(unused_imports)] // re-exported for integration tests

@@ -208,9 +208,23 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::RouteTransfer { recipient, amount } => {
-            tax::execute_route_transfer(deps, env, info, recipient, amount)
-        }
+        ExecuteMsg::RotateRouter {
+            router,
+            expected_code_id,
+            expected_checksum,
+        } => crate::router_trust::rotate(
+            deps,
+            env,
+            info,
+            router,
+            expected_code_id,
+            expected_checksum,
+        ),
+        ExecuteMsg::RouteTransfer {
+            slot,
+            recipient,
+            amount,
+        } => tax::execute_route_transfer(deps, env, info, slot, recipient, amount),
         ExecuteMsg::Transfer { recipient, amount } => {
             execute_transfer(deps, env, info, recipient, amount)
         }

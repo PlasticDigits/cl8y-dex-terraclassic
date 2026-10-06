@@ -768,7 +768,7 @@ fn route_context(
             &dex_common::route_tax::RouterQueryMsg::RouteTaxContext {},
         )
         .map_err(|_| ContractError::RouteTaxContext {})?;
-    if ctx.funding_version != dex_common::route_tax::FUNDING_VERSION {
+    if ctx.funding_version != dex_common::route_tax::FUNDING_VERSION || ctx.route_id == 0 {
         return Err(ContractError::RouteTaxContext {});
     }
     Ok(ctx)
@@ -782,6 +782,7 @@ pub fn execute_route_transfer(
     deps: DepsMut,
     env: Env,
     info: cosmwasm_std::MessageInfo,
+    slot: u32,
     recipient: String,
     amount: Uint128,
 ) -> Result<Response, ContractError> {
@@ -791,11 +792,9 @@ pub fn execute_route_transfer(
     }
     let to = deps.api.addr_validate(&recipient)?;
     let ctx = route_context(deps.as_ref(), &config)?;
-    if !ctx
-        .transfers
-        .iter()
-        .any(|x| x.token == env.contract.address && x.recipient == to && x.amount == amount)
-    {
+    if !ctx.transfers.iter().any(|x| {
+        x.slot == slot && x.token == env.contract.address && x.recipient == to && x.amount == amount
+    }) {
         return Err(ContractError::RouteTaxContext {});
     }
     // The live router publishes exactly one original-input residue, computed as
@@ -825,6 +824,7 @@ pub fn execute_route_transfer(
         to_bal,
         restore_owned_input,
     )?;
+    crate::router_trust::consume(deps.storage, &info.sender, &ctx, slot)?;
     sub_balance(deps.storage, &info.sender, amount)?;
     add_balance(deps.storage, &to, amount)?;
     Ok(Response::new()

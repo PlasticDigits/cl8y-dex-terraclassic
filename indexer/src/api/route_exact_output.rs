@@ -2,17 +2,18 @@
 //! assumed monotonic. No executable response cache: every exact target gets fresh validation.
 
 use std::collections::{HashMap, HashSet};
+use std::net::IpAddr;
 use std::sync::OnceLock;
 use std::time::Duration;
 
 use axum::{Json, http::StatusCode};
 use bigdecimal::{ToPrimitive, num_bigint::BigUint};
 use serde_json::Value;
-use tokio::sync::Semaphore;
 
 use super::{
     AppState, best_execution, community_tax_rank as tax, db_orderbook_sim as dbsim,
     hybrid_route_opt::QuoteTrader,
+    route_exact_output_admission::AdmissionController,
     route_exact_output_reference as reference, route_graph, route_paths,
     route_solver::{
         self, FidelityCheck, RouteHop, RouteQuoteKind, RouteSolveResponse, SolveRouteParams,
@@ -22,7 +23,6 @@ use super::{
 type Error = (StatusCode, String);
 pub const TIME_BUDGET: Duration = Duration::from_secs(20);
 pub const VALIDATION_TIMEOUT: Duration = Duration::from_secs(3);
-pub const MAX_CONCURRENT_REQUESTS: usize = 4;
 pub const PATH_WORK_BUDGET: u64 = 100_000;
 pub const MAX_GRAPH_PAIRS: usize = 8192;
 pub const OPTIMALITY_SCOPE: &str = "minimum raw offer within the first 5 feasible fresh pool-only simple paths among 32 hop-count-ordered structural paths, at most 4 hops; indexed snapshot minimum, fresh router validation required; excludes hybrid books and unsupported legacy-tax hops; route-local v1 taxes sized per hop";
@@ -157,25 +157,13 @@ pub(crate) async fn solve(
     q: &SolveRouteParams,
     target: u128,
     trader: &QuoteTrader,
+    client: Option<IpAddr>,
 ) -> Result<Json<Value>, Error> {
-    static LIMIT: OnceLock<Semaphore> = OnceLock::new();
-    let _permit = LIMIT
-        .get_or_init(|| Semaphore::new(MAX_CONCURRENT_REQUESTS))
-        .try_acquire()
-        .map_err(|_| {
-            (
-                StatusCode::TOO_MANY_REQUESTS,
-                "Exact-output sizing is busy; retry shortly".into(),
-            )
-        })?;
-    tokio::time::timeout(TIME_BUDGET, solve_inner(state, q, target, trader))
+    static LIMIT: OnceLock<AdmissionController> = OnceLock::new();
+    LIMIT
+        .get_or_init(AdmissionController::default)
+        .run(client, TIME_BUDGET, solve_inner(state, q, target, trader))
         .await
-        .map_err(|_| {
-            (
-                StatusCode::GATEWAY_TIMEOUT,
-                "Exact-output sizing timed out; retry".into(),
-            )
-        })?
 }
 
 /// Router previews validate route trader identity and tax arithmetic, not stateful launch

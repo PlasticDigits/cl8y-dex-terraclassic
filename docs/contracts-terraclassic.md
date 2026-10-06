@@ -446,3 +446,5 @@ Design record: [#603](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/i
 ### LaunchGuards (T592-11 / #608)
 
 Cooldown is **per user wallet**. Listed pairs, router, factory, this token, and AutoLP are not cooldown subjects — one sell must not halt the pair. `max_wallet` does **not** apply when `to` is a listed pair or other protocol-exempt address (provide `TransferFrom` after organic sells; sell-to-pair exit bypass). User Buy / Transfer still hit the cap. `trading_enabled=false` still blocks both sides (H-5 residual). Same-wallet in-block batch may still cooldown (11611 **D11**).
+
+Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.

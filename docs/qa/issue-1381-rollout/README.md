@@ -17,7 +17,7 @@ before preparing a new manifest; these observations are not migration receipts.
 | Component | Observed code / CW2 | Reviewed rollout action |
 |---|---|---|
 | Factory | 11629 / 1.10.0 | Store/migrate reviewed 1.11.0. The PR changes CW2 metadata only relative to repository factory code; live 1.10.0 has a different hash from the prior repository artifact, so a same-version migration is rejected. |
-| Router | 11640 / 1.1.0 | Store/migrate funding-version-1 router 1.2.0. |
+| Router | 11640 / 1.1.0 | Store/migrate funding-version-1 router 1.3.0. |
 | Pair template | 11676 / 1.18.0 | Store reviewed 1.19.0, rotate factory template and migrate inventoried behind-version pairs. |
 | Launcher | 11632 / 1.0.0 | Retain compatible wasm, rotate `token_code_id`, preserve AutoLP/unrelated configuration. |
 | CMM | 11667 / 0.2.2 | Existing dispatcher meets the prerequisite; use actual `migrate_owned_contract` for its tokens, with no unnecessary CMM upgrade. |

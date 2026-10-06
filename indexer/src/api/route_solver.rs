@@ -6,12 +6,13 @@
 //! - `POST /api/v1/route/solve`: BFS discovery (max **4 hops**), optional `hybrid_by_hop` merged into ops.
 
 use std::collections::{HashMap, VecDeque};
+use std::net::SocketAddr;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use axum::Json;
-use axum::extract::{Query, State};
+use axum::extract::{ConnectInfo, Query, State};
 use axum::http::StatusCode;
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utoipa::{IntoParams, ToSchema};
@@ -1044,10 +1045,18 @@ async fn execute_hybrid_route_solve(
 async fn exact_output_get(
     state: &AppState,
     q: &SolveRouteParams,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let target = crate::api::route_exact_output::validate_request(q)?;
     let trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;
-    crate::api::route_exact_output::solve(state, q, target, &trader).await
+    crate::api::route_exact_output::solve(
+        state,
+        q,
+        target,
+        &trader,
+        crate::api::route_exact_output_admission::client_key(peer),
+    )
+    .await
 }
 
 /// Retail / integrator best-execution route: server-chosen hybrid splits (GitLab #189).
@@ -1070,9 +1079,10 @@ async fn exact_output_get(
 pub async fn solve_route_best(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if q.amount_out.is_some() {
-        return exact_output_get(&state, &q).await;
+        return exact_output_get(&state, &q, peer).await;
     }
     let Some(amount_raw) = q
         .amount_in
@@ -1117,9 +1127,10 @@ pub async fn solve_route_best(
 pub async fn solve_route(
     State(state): State<AppState>,
     Query(q): Query<SolveRouteParams>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if q.amount_out.is_some() {
-        return exact_output_get(&state, &q).await;
+        return exact_output_get(&state, &q, peer).await;
     }
     let amount_raw = parse_amount_in(q.amount_in.as_ref());
     let quote_trader = parse_quote_trader(q.trader.clone(), q.sender.clone())?;

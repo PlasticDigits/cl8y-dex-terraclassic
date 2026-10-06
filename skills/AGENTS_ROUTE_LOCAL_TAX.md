@@ -76,3 +76,7 @@ Launch-guard refinement: [LG1390](AGENTS_ROUTE_LAUNCH_GUARDS.md) rejects repeate
 capable assets, authenticates original-input restoration and aligns protocol-trader
 preview rejection. [Agent checks](../docs/qa/issue-1390/README.md):
 `make verify-issue-1390` alongside this funding verifier.
+
+Router replacement, revocation and single-use settlement follow
+[RTTRUST1388-1–RTTRUST1388-10](AGENTS_ROUTER_TRUST_LIFECYCLE.md)
+and the [recovery runbook](../docs/runbooks/router-trust-1388.md).

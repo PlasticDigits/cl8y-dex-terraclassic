@@ -1,5 +1,19 @@
 # Testing
 
+Pair discovery rejection isolation and bounded admission
+[#1394](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1394):
+`make verify-issue-1394` repeats focused discovery tests at default/high
+parallelism, runs the full library, bounded-cache benchmark and Postgres discovery
+test/retest. See [agent acceptance checklist](qa/issue-1394/README.md) and
+[PD1394-1–PD1394-10](../skills/AGENTS_PAIR_DISCOVERY_CACHE.md). Complete runnable
+checks first; unavailable checks may yield **PASS with explicit skips**, but
+executed failures remain FAIL and skipped criteria stay unverified. Synthetic
+tests do not establish production deployment or flood acceptance. Getter tests
+cover admission waiting and later retry after legacy transient soft skips; direct
+discovery preserves typed transient errors/counters without negative caching.
+The failed event may still be omitted under the unchanged ingestion policy;
+admission pressure must not introduce an additional event drop.
+
 Route-local tax funding [#1381](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1381):
 `make verify-issue-1381` runs protocol/accounting, trading discovery/API and
 frontend gross-budget checks twice, then static checks and isolated LocalTerra
@@ -740,3 +754,16 @@ Follow [LG1390](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md),
 [RT1381](../skills/AGENTS_ROUTE_LOCAL_TAX.md), and
 [the agent checklist](qa/issue-1390/README.md) for repeated-capable routes,
 original-input refunds, protocol-exempt trader rejection and explicit skips.
+
+Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.
+
+- [Reverse-query availability #1389](../skills/AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](qa/issue-1389/README.md).
+
+## Event amount integrity (#1395)
+
+Run `make verify-issue-1395` against an isolated Postgres database configured in
+`indexer/.env`. It exercises strict parser boundaries, bounded diagnostics,
+partial malformed blocks, retry/replay accounting, exact 38-digit quantities,
+multihop fee identities, recovery and daily evidence. See the
+[agent checklist and unavailable-check skip policy](qa/issue-1395/README.md) and
+[third-party agent playbook](../skills/AGENTS_INDEXER_EVENT_AMOUNTS.md).
