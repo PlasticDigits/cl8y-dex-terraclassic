@@ -1958,3 +1958,8 @@ verify-issue-1388:
 .PHONY: verify-issue-1394
 verify-issue-1394:
 	bash scripts/verify-issue-1394.sh
+
+# Forgejo #1397 — schema-2 evidence policy, query budgets and cancellation recovery.
+.PHONY: verify-issue-1397
+verify-issue-1397:
+	bash scripts/qa/verify-issue-1397.sh

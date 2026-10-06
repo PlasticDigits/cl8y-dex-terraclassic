@@ -1,11 +1,13 @@
-//! GitLab #1205 — `GET /api/v1/evidence/daily` redacted UTC-day export.
+//! Forgejo #1397 / #1205 — public-chain-linked UTC-day evidence without actor identifiers.
 
 mod common;
 
 use std::net::SocketAddr;
 
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use axum_test::TestServer;
+use base64::Engine;
 use bigdecimal::BigDecimal;
 use chrono::{NaiveDate, TimeZone, Utc};
 use cl8y_dex_indexer::db::queries::protocol_fees as fee_q;
@@ -13,7 +15,9 @@ use cl8y_dex_indexer::indexer::protocol_fees::{FeeEventDraft, FeeSource};
 use common::{build_test_app, seed_db, setup_pool};
 use serde_json::Value;
 use serial_test::serial;
+use sha2::{Digest, Sha256};
 use std::str::FromStr;
+use tower::ServiceExt;
 
 const DAY: &str = "2026-06-10";
 const SENDER: &str = "terra1evidencesenderaaaaaaaaaaaa";
@@ -162,7 +166,15 @@ fn assert_no_actor_leak(body: &str) {
             "response must not contain actor bech32 {addr}"
         );
     }
-    for key in ["sender", "receiver", "maker", "owner", "provider"] {
+    for key in [
+        "actor",
+        "actor_hash",
+        "sender",
+        "receiver",
+        "maker",
+        "owner",
+        "provider",
+    ] {
         assert!(!body.contains(&format!("\"{key}\"")), "forbidden key {key}");
     }
 }
@@ -181,7 +193,7 @@ async fn evidence_daily_all_surfaces_and_redaction() {
     .fetch_one(&pool)
     .await
     .unwrap();
-    let app = build_test_app(pool).await;
+    let app = build_test_app(pool.clone()).await;
     let server = TestServer::new(app);
 
     let resp = server
@@ -191,6 +203,11 @@ async fn evidence_daily_all_surfaces_and_redaction() {
     let body = resp.text();
     assert_no_actor_leak(&body);
     let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["schema_version"], 2);
+    assert_eq!(
+        v["privacy_policy"],
+        "public-chain-linked-no-actor-identifiers"
+    );
     assert_eq!(v["day"], DAY);
     assert_eq!(v["timezone"], "UTC");
     assert_eq!(v["complete"], true);
@@ -217,27 +234,7 @@ async fn evidence_daily_all_surfaces_and_redaction() {
     assert!(!wrap_kinds.contains(&"ust1_mint"));
     let swap_count = events.iter().filter(|e| e["surface"] == "swap").count();
     assert_eq!(swap_count as i64, db_swap);
-    let hashes: Vec<_> = events
-        .iter()
-        .filter_map(|e| e.get("actor_hash").and_then(|h| h.as_str()))
-        .collect();
-    for h in &hashes {
-        assert_eq!(h.len(), 32);
-    }
-    let wrap_rows = events.iter().filter(|e| e["surface"] == "wrap");
-    for w in wrap_rows {
-        assert!(w.get("actor_hash").is_none());
-    }
-    let swap_hash = events
-        .iter()
-        .find(|e| e["tx_hash"] == "tx-swap-mid")
-        .unwrap()["actor_hash"]
-        .as_str()
-        .unwrap();
-    let place_hash = events.iter().find(|e| e["kind"] == "place").unwrap()["actor_hash"]
-        .as_str()
-        .unwrap();
-    assert_eq!(swap_hash, place_hash);
+    assert!(events.iter().all(|e| e.get("actor_hash").is_none()));
     let offer = events
         .iter()
         .find(|e| e["tx_hash"] == "tx-swap-mid")
@@ -246,6 +243,37 @@ async fn evidence_daily_all_surfaces_and_redaction() {
         .unwrap();
     assert_eq!(offer, "1000000000000000000");
     assert!(!offer.contains('e') && !offer.contains('E'));
+
+    // Schema 1's unsalted digest was reversible by enumerating public actors.
+    let legacy_digest = |actor: &str| {
+        Sha256::digest(actor.as_bytes())[..16]
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    };
+    let published_legacy_hash = legacy_digest(SENDER);
+    let dictionary_match = [PROVIDER, MAKER, SENDER]
+        .into_iter()
+        .find(|candidate| legacy_digest(candidate) == published_legacy_hash);
+    assert_eq!(dictionary_match, Some(SENDER));
+    assert!(!body.contains(&published_legacy_hash));
+
+    // Removing this shortcut does not anonymize retained public transaction IDs.
+    // The indexed public transaction fixture still joins directly to its actor.
+    let public_tx = events
+        .iter()
+        .find(|e| e["tx_hash"] == "tx-swap-mid")
+        .unwrap()["tx_hash"]
+        .as_str()
+        .unwrap();
+    let linked_actor: String =
+        sqlx::query_scalar("SELECT sender FROM swap_events WHERE tx_hash = $1 LIMIT 1")
+            .bind(public_tx)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(linked_actor, SENDER);
+
     assert_eq!(
         events
             .iter()
@@ -373,6 +401,31 @@ async fn evidence_daily_surface_filters() {
         .map(|e| e["surface"].as_str().unwrap())
         .collect();
     assert_eq!(surfaces, ["swap", "wrap"].into_iter().collect());
+
+    let first = server
+        .get(&format!(
+            "/api/v1/evidence/daily?day={DAY}&surface=swap,lp&limit=1"
+        ))
+        .await;
+    first.assert_status_ok();
+    let first: Value = first.json();
+    let cursor = first["next_cursor"].as_str().unwrap();
+    let reference = server
+        .get(&format!(
+            "/api/v1/evidence/daily?day={DAY}&surface=swap,lp&cursor={cursor}"
+        ))
+        .await;
+    reference.assert_status_ok();
+    let reference: Value = reference.json();
+    for canonical_equivalent in ["surface=lp,swap", "surface=LP&surface=swap&surface=lp"] {
+        let replay = server
+            .get(&format!(
+                "/api/v1/evidence/daily?day={DAY}&{canonical_equivalent}&cursor={cursor}"
+            ))
+            .await;
+        replay.assert_status_ok();
+        assert_eq!(replay.json::<Value>()["events"], reference["events"]);
+    }
 }
 
 #[serial]
@@ -404,6 +457,10 @@ async fn evidence_daily_bad_requests() {
         .await
         .assert_status_bad_request();
     server
+        .get(&format!("/api/v1/evidence/daily?day={DAY}&format=xml"))
+        .await
+        .assert_status_bad_request();
+    server
         .get(&format!(
             "/api/v1/evidence/daily?day={DAY}&cursor=not-valid"
         ))
@@ -420,6 +477,14 @@ async fn evidence_daily_bad_requests() {
     server
         .get(&format!(
             "/api/v1/evidence/daily?day={DAY}&surface=swap%27%20UNION%20SELECT%20sender%20FROM%20swap_events"
+        ))
+        .await
+        .assert_status_bad_request();
+
+    let oversized_cursor = format!("e2.{}", "A".repeat(2046));
+    server
+        .get(&format!(
+            "/api/v1/evidence/daily?day={DAY}&cursor={oversized_cursor}"
         ))
         .await
         .assert_status_bad_request();
@@ -488,6 +553,60 @@ async fn evidence_daily_limit_clamp_and_pagination() {
     let page2 = v2["events"].as_array().unwrap();
     assert_eq!(page2.len(), 2);
     assert_eq!(v2["has_more"], false);
+    assert!(cursor.starts_with("e2."));
+    // Stateless cursors permit repeat requests within their original scope.
+    let replay = server
+        .get(&format!(
+            "/api/v1/evidence/daily?day={DAY}&surface=swap&limit=3&cursor={cursor}"
+        ))
+        .await;
+    replay.assert_status_ok();
+    assert_eq!(replay.json::<Value>()["events"], v2["events"]);
+    for scope in [
+        "day=2026-06-09&surface=swap",
+        "day=2026-06-11&surface=swap",
+        "day=2026-06-10&surface=lp",
+        "day=2026-06-10&surface=swap,lp",
+        "day=2026-06-10",
+    ] {
+        server
+            .get(&format!("/api/v1/evidence/daily?{scope}&cursor={cursor}"))
+            .await
+            .assert_status_bad_request();
+    }
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(cursor.strip_prefix("e2.").unwrap())
+        .unwrap();
+    let original: Value = serde_json::from_slice(&payload).unwrap();
+    for (field, invalid) in [
+        ("block_height", serde_json::json!(-1)),
+        ("row_id", serde_json::json!(0)),
+        ("ordinal", serde_json::json!(-1)),
+        ("tx_hash", serde_json::json!("")),
+        ("surface", serde_json::json!("invalid")),
+        ("kind", serde_json::json!("invalid")),
+    ] {
+        let mut forged = original.clone();
+        forged[field] = invalid;
+        let forged = format!(
+            "e2.{}",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(serde_json::to_vec(&forged).unwrap())
+        );
+        server
+            .get(&format!(
+                "/api/v1/evidence/daily?day={DAY}&surface=swap&cursor={forged}"
+            ))
+            .await
+            .assert_status_bad_request();
+    }
+    let legacy_cursor = cursor.replacen("e2.", "e1.", 1);
+    server
+        .get(&format!(
+            "/api/v1/evidence/daily?day={DAY}&surface=swap&cursor={legacy_cursor}"
+        ))
+        .await
+        .assert_status_bad_request();
     for e in page2 {
         assert!(!page1.contains(e["tx_hash"].as_str().unwrap()));
     }
@@ -701,9 +820,9 @@ async fn evidence_daily_db_error_is_sanitized() {
     let resp = server
         .get(&format!("/api/v1/evidence/daily?day={DAY}"))
         .await;
-    assert_eq!(resp.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(resp.status_code(), StatusCode::SERVICE_UNAVAILABLE);
     let body = resp.text();
-    assert_eq!(body, "Internal server error");
+    assert_eq!(body, "Evidence export unavailable");
     assert!(!body.to_ascii_lowercase().contains("sqlx"));
 }
 
@@ -722,8 +841,12 @@ async fn evidence_daily_global_rate_limit_returns_429() {
 
     let url = format!("/api/v1/evidence/daily?day={DAY}");
     let mut saw_429 = false;
-    for _ in 0..40 {
-        let resp = server.get(&url).await;
+    for i in 0..40 {
+        let resp = server
+            .get(&url)
+            .add_header("x-forwarded-for", format!("192.0.2.{}", i + 1))
+            .add_header("x-real-ip", format!("198.51.100.{}", i + 1))
+            .await;
         if resp.status_code() == StatusCode::TOO_MANY_REQUESTS {
             saw_429 = true;
             assert!(resp.headers().get("retry-after").is_some());
@@ -731,4 +854,240 @@ async fn evidence_daily_global_rate_limit_returns_429() {
         }
     }
     assert!(saw_429, "global governor should 429 the evidence route");
+}
+
+fn evidence_request(surface: &str) -> Request<Body> {
+    Request::builder()
+        .uri(format!(
+            "/api/v1/evidence/daily?day={DAY}&surface={surface}"
+        ))
+        .body(Body::empty())
+        .unwrap()
+}
+
+/// Wait for actual PostgreSQL lock contention rather than assuming that spawned
+/// requests already acquired their export permits after an arbitrary sleep.
+/// Match the prefix: pg_stat_activity truncates SQL before the FROM table name.
+async fn wait_for_blocked_exports(pool: &sqlx::PgPool, count: i64) {
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let blocked: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM pg_stat_activity
+                 WHERE datname = current_database() AND state = 'active'
+                   AND wait_event_type = 'Lock' AND query LIKE 'SELECT * FROM (%'",
+            )
+            .fetch_one(pool)
+            .await
+            .unwrap();
+            if blocked >= count {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("exports should reach the deliberately locked evidence query");
+}
+
+#[serial]
+#[tokio::test]
+async fn evidence_daily_admission_timeout_isolated_from_ordinary_api_and_other_routers() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    let app = build_test_app(pool.clone()).await;
+    let independent_app = build_test_app(pool.clone()).await;
+    let server = TestServer::builder().http_transport().build(
+        app.clone()
+            .into_make_service_with_connect_info::<SocketAddr>(),
+    );
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
+    let swap_url = server
+        .server_url(&format!("/api/v1/evidence/daily?day={DAY}&surface=swap"))
+        .unwrap();
+
+    let mut locked = pool.begin().await.unwrap();
+    sqlx::query("LOCK TABLE swap_events IN ACCESS EXCLUSIVE MODE")
+        .execute(&mut *locked)
+        .await
+        .unwrap();
+    let started = std::time::Instant::now();
+    let first = tokio::spawn(
+        client
+            .get(swap_url.clone())
+            .header("x-forwarded-for", "192.0.2.1")
+            .send(),
+    );
+    let second = tokio::spawn(
+        client
+            .get(swap_url)
+            .header("x-forwarded-for", "192.0.2.2")
+            .send(),
+    );
+    wait_for_blocked_exports(&pool, 2).await;
+
+    // Forwarded-header spoofing cannot buy another export slot on the same
+    // socket server. Admission rejects promptly instead of queueing a query.
+    for forwarded in ["192.0.2.3", "192.0.2.4"] {
+        let overload = tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            client
+                .get(
+                    server
+                        .server_url(&format!("/api/v1/evidence/daily?day={DAY}&surface=wrap"))
+                        .unwrap(),
+                )
+                .header("x-forwarded-for", forwarded)
+                .header("x-real-ip", forwarded)
+                .send(),
+        )
+        .await
+        .expect("saturated export admission must fail promptly")
+        .unwrap();
+        assert_eq!(overload.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(overload.headers().get("retry-after").is_some());
+    }
+
+    // A real ordinary DB-backed API request retains access to pool connections.
+    let pairs = server.get("/api/v1/pairs").await;
+    pairs.assert_status_ok();
+    let pairs: Value = pairs.json();
+    assert!(!pairs["items"].as_array().unwrap().is_empty());
+    // Independently built routers have their own export admission slots.
+    let other_router = independent_app
+        .oneshot(evidence_request("wrap"))
+        .await
+        .unwrap();
+    assert_eq!(other_router.status(), StatusCode::OK);
+
+    for task in [first, second] {
+        let response = task.await.unwrap().unwrap();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = response.text().await.unwrap();
+        assert!(!body.is_empty());
+        for internal in ["sqlx", "postgres", "swap_events", "SELECT", "connection"] {
+            assert!(!body.contains(internal), "timeout must sanitize {internal}");
+        }
+    }
+    assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    // Timeout releases both permits while the source table remains locked.
+    let recovered = app.clone().oneshot(evidence_request("wrap")).await.unwrap();
+    assert_eq!(recovered.status(), StatusCode::OK);
+    locked.rollback().await.unwrap();
+    assert_eq!(
+        app.oneshot(evidence_request("swap"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn evidence_daily_cancelled_export_holds_slot_until_bounded_work_settles() {
+    let pool = setup_pool().await;
+    seed_db(&pool).await;
+    let app = build_test_app(pool.clone()).await;
+    let server = TestServer::builder().http_transport().build(
+        app.clone()
+            .into_make_service_with_connect_info::<SocketAddr>(),
+    );
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
+    let swap_url = server
+        .server_url(&format!("/api/v1/evidence/daily?day={DAY}&surface=swap"))
+        .unwrap();
+    let mut locked = pool.begin().await.unwrap();
+    sqlx::query("LOCK TABLE swap_events IN ACCESS EXCLUSIVE MODE")
+        .execute(&mut *locked)
+        .await
+        .unwrap();
+    let cancelled = tokio::spawn(client.get(swap_url.clone()).send());
+    let survivor = tokio::spawn(client.get(swap_url).send());
+    wait_for_blocked_exports(&pool, 2).await;
+    cancelled.abort();
+    assert!(cancelled.await.unwrap_err().is_cancelled());
+
+    // The cancelled HTTP caller must not free its slot while the shielded
+    // database worker is still blocked. Otherwise repeated aborts bypass the
+    // export limit by accumulating abandoned SQL queries.
+    let busy = server
+        .get(&format!("/api/v1/evidence/daily?day={DAY}&surface=wrap"))
+        .await;
+    assert_eq!(busy.status_code(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(
+        survivor.await.unwrap().unwrap().status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    tokio::time::timeout(std::time::Duration::from_secs(4), async {
+        loop {
+            let replacement = app.clone().oneshot(evidence_request("wrap")).await.unwrap();
+            match replacement.status() {
+                StatusCode::OK => break,
+                StatusCode::TOO_MANY_REQUESTS => {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await
+                }
+                status => panic!("unexpected recovery status: {status}"),
+            }
+        }
+    })
+    .await
+    .expect("cancelled export must release its permit after bounded work settles");
+    locked.rollback().await.unwrap();
+    assert_eq!(
+        app.oneshot(evidence_request("swap"))
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::OK
+    );
+}
+
+#[serial]
+#[tokio::test]
+async fn evidence_daily_large_day_caps_pages_without_gaps_or_duplicates() {
+    let pool = setup_pool().await;
+    let seed = seed_db(&pool).await;
+    sqlx::query(
+        "INSERT INTO swap_events
+         (pair_id, swap_index, block_height, block_timestamp, tx_hash, sender,
+          offer_asset_id, ask_asset_id, offer_amount, return_amount, price)
+         SELECT $1, i, 1000 + i, $2, 'tx-bulk-' || lpad(i::text, 4, '0'), $3,
+                $4, $5, 1000000000000000000, 950000, 0.95
+         FROM generate_series(1, 2500) AS i",
+    )
+    .bind(seed.pair_id)
+    .bind(ts(12))
+    .bind(SENDER)
+    .bind(seed.asset_0_id)
+    .bind(seed.asset_1_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let server = TestServer::new(build_test_app(pool).await);
+    let mut cursor = None;
+    let mut collected = Vec::new();
+    for expected_size in [1000, 1000, 500] {
+        let mut url = format!("/api/v1/evidence/daily?day={DAY}&surface=swap&limit=10000");
+        if let Some(cursor) = &cursor {
+            url.push_str(&format!("&cursor={cursor}"));
+        }
+        let response = server.get(&url).await;
+        response.assert_status_ok();
+        let body = response.text();
+        assert_no_actor_leak(&body);
+        let page: Value = response.json();
+        let events = page["events"].as_array().unwrap();
+        assert_eq!(events.len(), expected_size);
+        for event in events {
+            assert_eq!(event["offer_amount"], "1000000000000000000");
+            collected.push(event["tx_hash"].as_str().unwrap().to_owned());
+        }
+        assert_eq!(page["has_more"], expected_size == 1000);
+        cursor = page["next_cursor"].as_str().map(str::to_owned);
+    }
+    assert!(cursor.is_none());
+    let expected = (1..=2500)
+        .map(|i| format!("tx-bulk-{i:04}"))
+        .collect::<Vec<_>>();
+    assert_eq!(collected, expected);
 }
