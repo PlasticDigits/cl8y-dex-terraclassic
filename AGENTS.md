@@ -19,6 +19,13 @@ operator actions. Script verification does not establish production deployment.
 
 Guidance for AI coding agents working in this repository.
 
+For indexer pair discovery and LCD rejection handling, preserve
+[PD1394-1–PD1394-10](skills/AGENTS_PAIR_DISCOVERY_CACHE.md) and run
+`make verify-issue-1394`. The [agent checklist](docs/qa/issue-1394/README.md)
+permits unavailable checks to remain explicit skips while runnable checks pass;
+executed failures remain FAIL. Client namespaces are local isolation, not remote
+chain attestation or production acceptance.
+
 ## Git commits
 
 ### Commit identity (who signs the commit)

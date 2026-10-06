@@ -1,3 +1,4 @@
+pub mod pair_discovery_state;
 pub mod types;
 
 use std::sync::Arc;
@@ -8,6 +9,7 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use tokio::sync::RwLock;
 
+use pair_discovery_state::PairDiscoveryState;
 pub use types::*;
 
 /// Limit the decoded HTTP body before allocating/deserializing an untrusted snapshot.
@@ -116,6 +118,7 @@ struct LcdClientInner {
     client: Client,
     cooldown_duration: Duration,
     discovery_namespace: usize,
+    pair_discovery_state: Arc<PairDiscoveryState>,
 }
 
 impl LcdClient {
@@ -142,6 +145,7 @@ impl LcdClient {
                 cooldown_duration: Duration::from_millis(cooldown_ms),
                 discovery_namespace: NEXT_NAMESPACE
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                pair_discovery_state: Arc::new(PairDiscoveryState::default()),
             }),
         }
     }
@@ -305,6 +309,16 @@ impl LcdClient {
     /// Process-local identity: isolates bounded discovery caches by LCD client/chain.
     pub(crate) fn cache_namespace(&self) -> usize {
         self.inner.discovery_namespace
+    }
+
+    /// Clones share discovery evidence; a newly configured client starts fresh.
+    pub(crate) fn pair_discovery_state(&self) -> Arc<PairDiscoveryState> {
+        Arc::clone(&self.inner.pair_discovery_state)
+    }
+
+    /// Fixed discovery outcomes; no event address or factory becomes a metric label.
+    pub fn pair_discovery_counters(&self) -> pair_discovery_state::DiscoveryCounters {
+        self.inner.pair_discovery_state.counters()
     }
 
     pub async fn get_code_data_hash(&self, code_id: u64) -> Result<String, LcdError> {
@@ -676,8 +690,8 @@ mod tests {
 
     #[tokio::test]
     async fn rate_limit_429_cools_down_and_fails_over() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -776,8 +790,8 @@ mod tests {
 
     #[tokio::test]
     async fn wasm_query_reject_does_not_fan_out() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -821,8 +835,8 @@ mod tests {
 
     #[tokio::test]
     async fn infra_500_still_fans_out() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
@@ -856,8 +870,8 @@ mod tests {
 
     #[tokio::test]
     async fn gateway_502_cools_down_and_fails_over() {
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
         use wiremock::matchers::path_regex;
 
         let server_a = MockServer::start().await;
