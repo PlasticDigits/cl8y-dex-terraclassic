@@ -835,3 +835,208 @@ fn issue1388_canonical_nonce_is_monotonic_and_failed_route_rolls_back() {
     execute(&mut f, 100_000, ops, q).unwrap();
     assert_eq!(config(&f).last_route_id, 3);
 }
+
+// #1398 shares the real community-tax route fixture so hook pricing is tested
+// together with authorized gross funding, token buy/sell taxes, and nonce state.
+fn issue_1398_install_final_route_hook(f: &mut Fixture) -> (Addr, Addr) {
+    let sink = Addr::unchecked("issue1398_route_fee_sink");
+    let code = f.app.store_code(tax_hook_contract_with_reply());
+    let hook = f
+        .app
+        .instantiate_contract(
+            code,
+            f.env.governance.clone(),
+            &cl8y_dex_tax_hook::msg::InstantiateMsg {
+                recipient: sink.to_string(),
+                tax_percentage_bps: 1000,
+                tax_token: f.assets.last().unwrap().to_string(),
+                admin: f.env.governance.to_string(),
+            },
+            &[],
+            "issue1398_route_fee_hook",
+            None,
+        )
+        .unwrap();
+    f.app
+        .execute_contract(
+            f.env.governance.clone(),
+            hook.clone(),
+            &cl8y_dex_tax_hook::msg::ExecuteMsg::UpdateAllowedPairs {
+                add: vec![f.pairs.last().unwrap().to_string()],
+                remove: vec![],
+            },
+            &[],
+        )
+        .unwrap();
+    f.app
+        .execute_contract(
+            f.env.governance.clone(),
+            f.env.factory.clone(),
+            &dex_common::factory::ExecuteMsg::SetPairHooks {
+                pair: f.pairs.last().unwrap().to_string(),
+                hooks: vec![hook.to_string()],
+            },
+            &[],
+        )
+        .unwrap();
+    (hook, sink)
+}
+
+fn issue_1398_route_balance_snapshot(f: &Fixture, hook: &Addr, sink: &Addr) -> Vec<Uint128> {
+    let mut accounts = f.pairs.clone();
+    accounts.extend([
+        f.trader.clone(),
+        f.env.user.clone(),
+        f.env.router.clone(),
+        f.env.treasury.clone(),
+        hook.clone(),
+        sink.clone(),
+    ]);
+    f.assets
+        .iter()
+        .flat_map(|token| {
+            accounts
+                .iter()
+                .map(|account| query_cw20_balance(&f.app, token, account))
+        })
+        .collect()
+}
+
+fn issue_1398_assert_route_hook_floor(greedy: bool, final_tax: bool) {
+    let mut f = fixture(true, true, final_tax, 0, false);
+    let last = f.pairs.len() - 1;
+    if greedy {
+        let info: dex_common::types::PairInfo = f
+            .app
+            .wrap()
+            .query_wasm_smart(&f.pairs[last], &pair::QueryMsg::Pair {})
+            .unwrap();
+        let maker_asset = asset_info_token(f.assets.last().unwrap());
+        let side = if info.asset_infos[0] == maker_asset {
+            pair::LimitOrderSide::Ask
+        } else {
+            pair::LimitOrderSide::Bid
+        };
+        f.app
+            .execute_contract(
+                f.env.user.clone(),
+                f.assets.last().unwrap().clone(),
+                &cw20::Cw20ExecuteMsg::Send {
+                    contract: f.pairs[last].to_string(),
+                    amount: Uint128::new(40_000),
+                    msg: to_json_binary(&pair::Cw20HookMsg::PlaceLimitOrderBatch {
+                        side,
+                        orders: vec![pair::LimitOrderPlacementItem {
+                            price: Decimal::one(),
+                            amount: Uint128::new(40_000),
+                            max_adjust_steps: 32,
+                            expires_at: None,
+                            hint_after_order_id: None,
+                        }],
+                    })
+                    .unwrap(),
+                },
+                &[],
+            )
+            .unwrap();
+    }
+    let gross = 100_000;
+    let mut ops = operations(&f, greedy, false, gross);
+    // A separate signed floor remains necessary on the hook-bearing final hop,
+    // even when the route already has a positive overall minimum_receive.
+    for operation in &mut ops {
+        if let router::SwapOperation::TerraSwap { min_return, .. } = operation {
+            *min_return = Some(Uint128::one());
+        }
+    }
+    let before_hook = quote(&f, gross, ops.clone());
+    let (hook, sink) = issue_1398_install_final_route_hook(&mut f);
+    let net = quote(&f, gross, ops.clone());
+    assert!(net > Uint128::zero() && net < before_hook);
+    let snapshot = issue_1398_route_balance_snapshot(&f, &hook, &sink);
+    let nonce = |f: &Fixture| {
+        f.app
+            .wrap()
+            .query_wasm_smart::<router::ConfigResponse>(&f.env.router, &router::QueryMsg::Config {})
+            .unwrap()
+            .last_route_id
+    };
+    let nonce_before = nonce(&f);
+    for minimum in [None, Some(Uint128::zero()), Some(net + Uint128::one())] {
+        let mut rejected = ops.clone();
+        if let router::SwapOperation::TerraSwap { min_return, .. } = &mut rejected[last] {
+            *min_return = minimum;
+        }
+        let error = execute(&mut f, gross, rejected, net).unwrap_err();
+        if minimum.is_none() || minimum == Some(Uint128::zero()) {
+            assert!(
+                error.contains("positive") || error.contains("min_return"),
+                "{error}"
+            );
+        } else {
+            assert!(error.contains("Min return assertion"), "{error}");
+        }
+        assert_eq!(
+            issue_1398_route_balance_snapshot(&f, &hook, &sink),
+            snapshot,
+            "failed route restores every payer, maker, pool, sink and treasury balance"
+        );
+        assert_eq!(nonce(&f), nonce_before);
+        assert_eq!(
+            quote(&f, gross, ops.clone()),
+            net,
+            "rollback preserves reserves and maker liquidity"
+        );
+    }
+    if let router::SwapOperation::TerraSwap { min_return, .. } = &mut ops[last] {
+        *min_return = Some(net);
+    }
+    let input_before = query_cw20_balance(&f.app, &f.assets[0], &f.trader);
+    let output_before = query_cw20_balance(&f.app, f.assets.last().unwrap(), &f.trader);
+    let response = execute_to_response(&mut f, gross, ops, net, None).unwrap();
+    assert_eq!(
+        query_cw20_balance(&f.app, f.assets.last().unwrap(), &f.trader) - output_before,
+        net,
+        "net router quote equals settled trader output after hook and token taxes"
+    );
+    let input_spent = input_before - query_cw20_balance(&f.app, &f.assets[0], &f.trader);
+    assert!(input_spent > Uint128::zero() && input_spent <= Uint128::new(gross));
+    assert_eq!(nonce(&f), nonce_before + 1);
+    assert!(query_cw20_balance(&f.app, f.assets.last().unwrap(), &sink) > Uint128::zero());
+    assert_eq!(
+        query_cw20_balance(&f.app, f.assets.last().unwrap(), &hook),
+        Uint128::zero()
+    );
+    if greedy {
+        assert!(
+            response.events.iter().any(|event| event
+                .attributes
+                .iter()
+                .any(
+                    |attribute| attribute.key == "action" && attribute.value == "limit_order_fill"
+                )),
+            "greedy regression must exercise an actual maker fill"
+        );
+    }
+    for token in &f.assets {
+        assert_eq!(
+            query_cw20_balance(&f.app, token, &f.env.router),
+            Uint128::zero(),
+            "route leaves no hook-dependent router residue"
+        );
+    }
+}
+
+#[test]
+fn issue_1398_taxed_route_hook_missing_exceeding_and_exact_net_floor() {
+    for final_tax in [false, true] {
+        issue_1398_assert_route_hook_floor(false, final_tax);
+    }
+}
+
+#[test]
+fn issue_1398_greedy_taxed_route_hook_missing_exceeding_and_exact_net_floor() {
+    for final_tax in [false, true] {
+        issue_1398_assert_route_hook_floor(true, final_tax);
+    }
+}

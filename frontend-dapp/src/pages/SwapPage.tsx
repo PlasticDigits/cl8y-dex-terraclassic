@@ -1333,19 +1333,17 @@ export default function SwapPage() {
         if (hybrid) {
           hybrid = hybridParamsWithSubmitCap(hybrid)
         }
-        const directMinReturn =
-          hybrid && BigInt(hybrid.book_input) > 0n
-            ? await computeDirectHybridMinReturn(
-                selectedDirectPair.contract_addr,
-                tokenAssetInfo(fromToken),
-                payRaw,
-                hybrid,
-                slippageTolerance,
-                quoteTrader
-              )
-            : reverseQuoteActive
-              ? (submitMinReceived ?? undefined)
-              : undefined
+        let directMinReturn = await computeDirectHybridMinReturn(
+          selectedDirectPair.contract_addr,
+          tokenAssetInfo(fromToken),
+          payRaw,
+          hybrid,
+          slippageTolerance,
+          quoteTrader
+        )
+        if (reverseQuoteActive && submitMinReceived != null && BigInt(submitMinReceived) > BigInt(directMinReturn)) {
+          directMinReturn = submitMinReceived
+        }
         return swap(address, fromToken, selectedDirectPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
           hybrid,
           minReturn: directMinReturn,

@@ -14,7 +14,7 @@ pub struct InstantiateMsg {
     pub lp_recipient: String,
     /// Optional skim `max_spread`. Omit → 100 bps. Hard cap 200 bps.
     pub skim_max_spread: Option<Decimal>,
-    /// Optional absolute skim `min_return` (quote raw). Omit → `max_spread` only.
+    /// Optional absolute skim `min_return` (quote raw). The approved LP-policy floor always applies.
     pub skim_min_return: Option<Uint128>,
 }
 
@@ -41,6 +41,9 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(ConfigResponse)]
     GetConfig {},
+    /// Manager-approved economic anchor; None on legacy/unbound deployments.
+    #[returns(Option<crate::state::LpPolicy>)]
+    GetLpPolicy {},
 }
 
 #[cw_serde]

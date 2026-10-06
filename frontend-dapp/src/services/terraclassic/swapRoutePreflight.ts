@@ -146,21 +146,27 @@ export async function preflightSwapRouteSpread(
   }
 }
 
-/** Slippage floor from `hybrid_simulation` with the submit hybrid split (GitLab #334 direct single-hop). */
+/** Signed post-hook net floor for direct pool/hybrid swaps (#1398 / #334). */
 export async function computeDirectHybridMinReturn(
   pairAddress: string,
   offerAssetInfo: AssetInfo,
   offerAmount: string,
-  hybrid: HybridSwapParams,
+  hybrid: HybridSwapParams | undefined,
   slippagePercent: number,
   quoteTrader?: QuoteTraderOptions
-): Promise<string | undefined> {
-  if (BigInt(hybrid.book_input) === 0n) return undefined
-  const sim = await simulateHybridSwap(pairAddress, offerAssetInfo, offerAmount, hybrid, quoteTrader)
+): Promise<string> {
+  const sim = await simulateHybridSwap(
+    pairAddress,
+    offerAssetInfo,
+    offerAmount,
+    hybrid ?? poolOnlyHybridParams(offerAmount),
+    quoteTrader
+  )
   const computed = applySlippagePercentFloor(sim.return_amount, slippagePercent)
-  return computed != null && !hybridBookRequiresSlippageFloor(BigInt(hybrid.book_input), null, computed)
-    ? computed
-    : undefined
+  if (computed == null || BigInt(computed) <= 0n) {
+    throw new Error('The quote has no receivable output. Try a different amount.')
+  }
+  return computed
 }
 
 /** Attach per-hop `min_return` from slippage on simulated hop output (GitLab #334). */

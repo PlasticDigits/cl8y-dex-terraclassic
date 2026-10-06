@@ -46,9 +46,20 @@ block implementation review; runtime protections and credential boundaries
 remain enforced. Agents own verification and followups.
 
 Pair pool reverse cost depends on exact raw cw2 identity: `cl8y-dex-pair`
-versions `1.19.0` and `1.20.0` permit cost one. Legacy/missing/malformed/failed
+versions `1.19.0`, `1.20.0`, and the explicitly reviewed `1.21.0` permit cost one. Legacy/missing/malformed/failed
 or unknown identities reserve the shared 32-call maximum, including greedy
 seeds. Never infer safety from a larger version number. Metadata adds at most
 one raw pair query per hop. Legacy greedy seeds leave no remaining search
 slot after final validation reservation, so they return a budget error before
 any greedy forward call. Tests cover legacy 1.18.0 and unknown future versions.
+
+For [#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398), pair
+`1.21.0` preserves the exact integer pool inverse and its single raw forward
+validation. Its hook config precheck is independently capped at eight queries;
+output-deducting hooks reject reverse pricing before inverse execution. Declared
+book requests still reserve 32 simulations. Unknown future `1.22.0` remains
+opaque; never infer accounting from a greater version. The reviewed-version
+regression is `issue_1398_reviewed_pair_1_21_retains_pool_and_greedy_reverse_accounting`,
+with real taxed-route reverse regressions in `route_tax_1381_tests.rs`.
+See [net execution floors](AGENTS_NET_EXECUTION_FLOORS.md) and
+[#1398 verification](../docs/qa/issue-1398/README.md).

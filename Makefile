@@ -1946,6 +1946,11 @@ verify-issue-1390:
 	bash scripts/qa/verify-issue-1390.sh
 
 # #1399 economic fillability, bounded legacy eviction, parity and retest.
+# #1398 net execution floors, quote parity, bounded hooks and AutoLP rollback.
+.PHONY: verify-issue-1398
+verify-issue-1398:
+	bash scripts/verify-issue-1398.sh
+
 .PHONY: verify-issue-1399
 verify-issue-1399:
 	bash scripts/verify-issue-1399.sh

@@ -168,6 +168,10 @@ Full table + invariants: [limit-orders.md § Park reason discriminator](./limit-
 
 ## Slippage: `max_spread` and `belief_price` (hybrid)
 
+Hooked swaps also require the positive post-hook `min_return` described
+[below](#net-execution-floors-and-hook-pricing-1398). The formulas in this section
+are market-spread guards; their gross basis does not guarantee post-hook delivery.
+
 Slippage checks run in the pair after the book leg and pool leg are computed. See [ADR 0001](./adr/0001-hybrid-quoting-and-routing.md) for the high-level rule. Canonical implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, [GitLab **#197**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/197)). Pool-only swaps are the special case `book_return_net = 0`.
 
 **Without `belief_price`:** The check compares `max_spread` to `(spread_cmp + book_shortfall) / total_gross_out` (strict `>` fails), where `spread_cmp = min(pool_spread, pool_gross)`, `total_gross_out = pool_gross + book_return_net`, and when both legs are present `book_shortfall = max(0, pool_net × book_input / pool_input − book_return_net)` using the pool’s realized **net** rate as the book reference ([#273](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/273)). Hybrid with **`declared_pool_input > 0`** and `book_input > 0` also requires **`declared_pool_input ≥ 10%` of `offer_amount`** (min 1 raw unit) and **`pool_net_return > 0`** before execute ([#307](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/307)); pair and router reject early on the declared split. **Pure-book** intent (`declared_pool_input = 0`) is not bounded by this metric — on **execute**, set `belief_price` or pair `min_return` on the swap hook (router: per-hop `min_return` on `terra_swap` when `book_input > 0`, plus optional final `minimum_receive`; see [#334](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/334)).
@@ -175,6 +179,70 @@ Slippage checks run in the pair after the book leg and pool leg are computed. Se
 **With `belief_price`:** Expected output is `offer_amount / belief_price` (in ask units). `belief_price` must be strictly positive and must produce `expected_return >= 1` raw unit; otherwise the swap (and `HybridSimulation` when `bp = 0` or `1/bp` underflows) is rejected ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)). Actual output used in the inequality is `book_return_net + pool_net_to_receiver + pool_commission` (pool commission to treasury counts on the “actual” side). The material-pool floor ([#307](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/307)) is skipped only when `belief_price` is **usable**; a dummy dust-floor belief does not skip L9 or #307.
 
 These are **execution** semantics; all quoting uses `HybridSimulation` / `HybridReverseSimulation` (invariant L8; legacy `Simulation` removed in [#190](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/190)). Frontend preflight mirrors the no-belief formula in [`swapMaxSpread.ts`](../frontend-dapp/src/utils/swapMaxSpread.ts) — see [`docs/swap-max-spread-ux.md`](./swap-max-spread-ux.md).
+
+## Net execution floors and hook pricing (#1398)
+
+This source protocol is pair **1.21.0**, factory **1.12.0**, router **1.4.0**
+and community-tax AutoLP **1.1.0**. Confirm deployed versions before relying on the changed quote
+and signing semantics. Router 1.3.0 → 1.4.0 migration preserves configuration,
+nonce and route funding/settlement version 1. Historical route-tax rollout plans
+explicitly targeting 1.3.0 must not be reused as this PR's artifact plan.
+
+Every swap on a pair with registered hooks requires an explicit positive
+`min_return`, including pool-only, declared hybrid, greedy and router hops.
+The pair compares it against `book_net + pool_net - sum(ask_hook_deductions)`.
+`max_spread` and `belief_price` retain the existing L9 market-price behavior.
+A router's final `minimum_receive` protects final delivery separately and cannot
+replace a hooked hop's signed floor. Router per-hop floors retain route Buy-tax
+adjustment; do not fabricate a smaller floor to avoid rejection.
+
+Official Swap/Trade direct execution derives a fresh positive floor from the
+post-hook forward quote for both pool-only and book-inclusive execution. Reverse
+Swap signing keeps the larger of the requested target floor and the fresh quote
+floor. A zero/dust receive after rounding blocks signing.
+
+`HybridSimulation.return_amount` now reports that post-hook pair output. Its
+`book_return_amount`, `pool_return_amount` and protocol commission fields retain
+their pre-hook values. Each recognized matching ask-token tax/burn hook deducts
+`floor(pre_hook_return * bps / 10000)`, independently; no tax is applied again to
+the already adjusted quote. Router forward simulation consumes the post-hook
+amount before its route Buy-tax preview. Swap `return_amount` and
+`AfterSwap.return_asset.amount` remain pre-hook, while swap `net_return_amount`
+reports the post-hook payout. Update consumers that previously equated the
+forward quote with the gross event field.
+
+The supported config shapes are tax, burn and LP-burn. A failed or unrecognized
+`GetConfig` query fails pricing explicitly in quote and execute. A known LP-burn
+hook does not deduct ask tokens from the quote, and its existing callback behavior is unchanged. A forward
+quote is not a guarantee that a later hook callback can execute.
+Reverse queries explicitly reject matching nonzero tax/burn deductions until a
+bounded hook-aware inverse is supported; they never return a gross-output offer
+as a sufficient net offer. Hook-free, zero-rate, mismatching-token and supported
+LP-only reverse pricing retain their existing bounded behavior.
+
+All pair hook lists contain at most eight unique validated addresses. Factory
+`SetPairHooks` and pair `UpdateHooks` reject invalid replacements atomically.
+Oversized or duplicate legacy lists block settlement before hook pricing; repair
+them through a complete governance replacement, with no implicit truncation or
+deduplication. The limit bounds dispatch/query count, not arbitrary hook code gas.
+
+Community-tax AutoLP binds manager-approved reserve-per-share economics when
+the manager explicitly selects a pair. Permissionless skim validates this anchor
+and requires positive quote output and minimum newly minted LP, with bounded
+provide ratio tolerance. Missing/stale policy, missing liquidity leg or minted-LP
+shortage reverts the entire swap/provide transaction. The skim lock remains held
+through provide completion. Existing instances require manager pair rebinding to
+initialize the new policy; initialization from a permissionless current spot is
+forbidden. Inspect sister `GetConfig.manager` and `GetLpPolicy` first. Current
+launcher instances use the human manager, who can explicitly call sister
+`UpdateConfig` with the same pair. An unchanged pair through token settings is a
+no-op (#1237), not policy initialization; token-owned legacy managers require a
+separately authorized proxy/migration path. See [the AutoLP playbook](../skills/AGENTS_COMMUNITY_TAX_AUTOLP.md).
+
+Review invariants **NE1398-1–NE1398-10** in
+[the agent playbook](../skills/AGENTS_NET_EXECUTION_FLOORS.md) and run
+`make verify-issue-1398` using
+[the acceptance checklist](./qa/issue-1398/README.md).
 
 ## Route discovery and quotes (L8)
 

@@ -73,6 +73,9 @@ pub enum ExecuteMsg {
     SetPairCreationFee {
         fee_uluna: Uint128,
     },
+    /// Replace hooks on one registered pair. Governance only.
+    /// At most [`crate::hook::MAX_PAIR_HOOKS`] unique validated addresses;
+    /// order is preserved and invalid input is rejected before forwarding.
     SetPairHooks {
         pair: String,
         hooks: Vec<String>,

@@ -3,6 +3,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ContractError {
+    #[error("Hook-bearing swap requires a positive net min_return; max_spread alone does not bound hook deductions")]
+    HookNetMinimumRequired {},
+
     #[error("{0}")]
     Std(#[from] StdError),
 
