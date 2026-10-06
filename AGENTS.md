@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Route launch guards and owned refunds
+
+Follow [skills/AGENTS_ROUTE_LAUNCH_GUARDS.md](skills/AGENTS_ROUTE_LAUNCH_GUARDS.md)
+(**LG1390-1–LG1390-8**, [#1390](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1390)).
+Repeated capable assets are rejected; only authenticated original-input residue
+returned to its payer may skip the wallet cap. Run `make verify-issue-1390`;
+[agent checklist and explicit skip policy](docs/qa/issue-1390/README.md).
+
 ## Current route-tax protocol
 
 For routed community-tax swaps, use

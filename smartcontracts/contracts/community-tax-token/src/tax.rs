@@ -83,6 +83,17 @@ pub fn is_official_router(config: &Config, addr: &Addr) -> bool {
     config.router.as_ref() == Some(addr)
 }
 
+/// Protocol addresses cannot stand in for a wallet at either route boundary.
+/// Keep discovery/preview and execution on the same token-specific policy.
+fn is_route_trader(
+    storage: &dyn Storage,
+    self_addr: &Addr,
+    config: &Config,
+    trader: &Addr,
+) -> bool {
+    !is_official_router(config, trader) && !is_protocol_exempt(storage, self_addr, trader)
+}
+
 /// `trader` on `Cw20HookMsg::Swap` — the official router already sets this to the
 /// user who invoked `execute_swap_operations` (fee-discount path). Not trusted
 /// until `from` is [`is_official_router`].
@@ -122,7 +133,7 @@ pub fn hop_trader_addr(
     }
     let raw = send_msg.and_then(swap_hook_trader)?;
     let trader = Addr::unchecked(raw);
-    if trader == *from || is_protocol_exempt(storage, self_addr, &trader) {
+    if !is_route_trader(storage, self_addr, config, &trader) {
         return None;
     }
     Some(trader)
@@ -281,6 +292,7 @@ fn apply_launch_guards(
     kind: &TaxKind,
     credit_to: Uint128,
     to_new_balance: Uint128,
+    restore_owned_input: bool,
 ) -> Result<(), ContractError> {
     if !features.launch_guards {
         return Ok(());
@@ -308,7 +320,8 @@ fn apply_launch_guards(
     // protocol-exempt address (provide, sell-to-pair, router, AutoLP, self).
     // User wallets on Buy / Transfer stay capped (H608-5).
     if let Some(max) = guards.max_wallet {
-        if !is_protocol_exempt(storage, self_addr, to)
+        if !restore_owned_input
+            && !is_protocol_exempt(storage, self_addr, to)
             && !to_new_balance.is_zero()
             && to_new_balance > max
             && credit_to > Uint128::zero()
@@ -512,6 +525,9 @@ pub fn apply_transfer(
     if is_listed_pair(deps.storage, from) && is_official_router(&config, to) {
         if let Ok(ctx) = route_context(deps.as_ref(), &config) {
             if ctx.pair == *from && ctx.ask_token == *self_addr {
+                if !is_route_trader(deps.storage, self_addr, &config, &ctx.trader) {
+                    return Err(ContractError::RouterTraderRequired {});
+                }
                 trade_kind = TaxKind::Buy;
                 trade_bps = config.buy_bps;
                 hop = Some(ctx.trader);
@@ -577,6 +593,7 @@ pub fn apply_transfer(
         &trade_kind,
         credit,
         to_bal_after,
+        false,
     )?;
 
     BALANCES.save(deps.storage, from, &from_bal_after)?;
@@ -688,6 +705,7 @@ pub fn route_capability(
 
 pub fn route_preview(
     deps: Deps,
+    self_addr: &Addr,
     kind: dex_common::route_tax::RouteTaxKind,
     amount: Uint128,
     trader: Option<String>,
@@ -701,6 +719,14 @@ pub fn route_preview(
         ));
     }
     let trader = trader.map(|t| deps.api.addr_validate(&t)).transpose()?;
+    if trader
+        .as_ref()
+        .is_some_and(|t| !is_route_trader(deps.storage, self_addr, &c, t))
+    {
+        return Err(cosmwasm_std::StdError::generic_err(
+            ContractError::RouterTraderRequired {}.to_string(),
+        ));
+    }
     let exempt = trader
         .as_ref()
         .is_some_and(|t| is_manager_exempt(deps.storage, t));
@@ -750,7 +776,8 @@ fn route_context(
 
 /// Settlement is authorized by the router's live transaction state, never a
 /// caller-supplied trader/recipient. Final delivery and owned rounding refunds
-/// bypass a second buy tax, while max-wallet protection remains enforced.
+/// bypass a second buy tax. Only authenticated original-input restoration to
+/// the payer bypasses max-wallet; all purchased credits remain capped (#1390).
 pub fn execute_route_transfer(
     deps: DepsMut,
     env: Env,
@@ -770,6 +797,15 @@ pub fn execute_route_transfer(
     }) {
         return Err(ContractError::RouteTaxContext {});
     }
+    // The live router publishes exactly one original-input residue, computed as
+    // authorized gross minus economic input and tax. Match its token, amount and
+    // original payer; neither purchased residue nor third-party output qualifies.
+    let restore_owned_input = to == ctx.trader
+        && ctx.original_input_refund.as_ref().is_some_and(|refund| {
+            refund.token == env.contract.address
+                && refund.recipient == to
+                && refund.amount == amount
+        });
     let features = FEATURES.load(deps.storage)?;
     let to_bal = BALANCES
         .may_load(deps.storage, &to)?
@@ -786,6 +822,7 @@ pub fn execute_route_transfer(
         &TaxKind::Honest,
         amount,
         to_bal,
+        restore_owned_input,
     )?;
     crate::router_trust::consume(deps.storage, &info.sender, &ctx, slot)?;
     sub_balance(deps.storage, &info.sender, amount)?;
@@ -795,3 +832,7 @@ pub fn execute_route_transfer(
         .add_attribute("amount", amount)
         .add_attribute("recipient", to))
 }
+
+#[cfg(test)]
+#[path = "route_tax_tests.rs"]
+mod route_tax_tests;

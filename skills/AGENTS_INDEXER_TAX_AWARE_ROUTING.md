@@ -68,3 +68,8 @@ make verify-issue-624   # leftover LocalTerra catalog + route/solve bps after !4
 - Double-count sell extra-debit on You Receive (Max already reserved leftover).
 
 Retail Playwright on the LocalTerra tax/EMBER pair asserts You Receive **net** (not raw pair debit): [`AGENTS_E2E_COMMUNITY_TAX_TX.md`](./AGENTS_E2E_COMMUNITY_TAX_TX.md) (**E622-5**, [#622](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/622)).
+
+Launch-guard refinement: [LG1390](AGENTS_ROUTE_LAUNCH_GUARDS.md) defines
+repeated-capable-asset rejection, authenticated original-input restoration and
+protocol-trader preview/error parity. [Agent checks](../docs/qa/issue-1390/README.md):
+`make verify-issue-1390`.

@@ -116,6 +116,7 @@ vi.mock('@/services/indexer/client', () => {
 })
 
 import * as pair from '@/services/terraclassic/pair'
+import { simulateMultiHopSwap } from '@/services/terraclassic/router'
 import * as indexerClient from '@/services/indexer/client'
 
 vi.mock('@/lib/sounds', () => ({
@@ -381,5 +382,30 @@ describe('TradeMarketOrderPanel submit snapshot (GitLab #360 / #501)', () => {
     const err = await screen.findByTestId('trade-market-quote-error')
     expect(err).toHaveTextContent(/reach the chain/i)
     expect(err).not.toHaveTextContent(/lcd fail/i)
+  })
+
+  it('keeps deterministic route rejection closed instead of quoting a viable pool fallback (#1390)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+    vi.mocked(indexerClient.getRouteSolve).mockRejectedValue(new Error('Indexer API error: 422 Unprocessable Entity'))
+    vi.mocked(pair.simulateSwap).mockResolvedValue({
+      return_amount: '1000000',
+      spread_amount: '0',
+      commission_amount: '0',
+    })
+    renderWithProviders(
+      <TradeMarketOrderPanel
+        pairAddr={PAIR_ADDR}
+        selectedPair={selectedPair}
+        pairs={[selectedPair]}
+        side="ask"
+        isPaused={false}
+      />
+    )
+    await user.type(screen.getByTestId('limit-order-escrow-amount-input'), '1')
+    await vi.advanceTimersByTimeAsync(SIM_QUOTE_DEBOUNCE_MS + 50)
+    await screen.findByTestId('trade-market-quote-error')
+    expect(screen.queryByTestId('trade-market-quote')).not.toBeInTheDocument()
+    expect(pair.simulateSwap).not.toHaveBeenCalled()
+    expect(simulateMultiHopSwap).not.toHaveBeenCalled()
   })
 })

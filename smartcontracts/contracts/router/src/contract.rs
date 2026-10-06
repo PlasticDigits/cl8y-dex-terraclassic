@@ -275,6 +275,7 @@ fn execute_swap_operations(
             .ok_or(ContractError::WrapMapperNotSet {})?;
     }
 
+    crate::route_tax::validate_asset_path(deps.as_ref(), &operations, Some(&input_token))?;
     let factory = FACTORY.load(deps.storage)?;
     blacklist_guard::assert_router_swap_not_blacklisted(
         deps.as_ref(),
@@ -332,6 +333,7 @@ fn execute_swap_operations(
         gross: amount,
         economic: funded.economic,
         transfers: vec![],
+        original_input_refund: refunds.first().cloned(),
         acquired_tokens: vec![],
     };
     SWAP_STATE.save(
@@ -600,6 +602,7 @@ fn reply_swap_hop(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         gross: hop_output,
         economic: funded.economic,
         transfers: vec![],
+        original_input_refund: state.tax_context.original_input_refund.clone(),
         acquired_tokens: state.tax_context.acquired_tokens.clone(),
     };
     SWAP_STATE.save(deps.storage, &state)?;
@@ -835,6 +838,7 @@ fn simulate_swap_operations(
         )));
     }
 
+    crate::route_tax::validate_asset_path(deps, &operations, None)?;
     let factory = FACTORY.load(deps.storage)?;
     let mut current_amount = offer_amount;
 
@@ -978,6 +982,7 @@ fn query_reverse_simulate_swap_operations(
         )));
     }
 
+    crate::route_tax::validate_asset_path(deps, &operations, None)?;
     let factory = FACTORY.load(deps.storage)?;
     let mut current_amount = ask_amount;
     let mut budget = crate::reverse_query::ReverseQueryBudget::default();

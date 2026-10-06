@@ -1923,6 +1923,11 @@ verify-issue-1395:
 verify-issue-1380:
 	bash scripts/qa/verify-issue-1380.sh
 
+# Forgejo #1390 — cyclic capable assets, owned refunds and launch-guard parity.
+.PHONY: verify-issue-1390
+verify-issue-1390:
+	bash scripts/qa/verify-issue-1390.sh
+
 # #1399 economic fillability, bounded legacy eviction, parity and retest.
 .PHONY: verify-issue-1399
 verify-issue-1399:

@@ -142,7 +142,11 @@ import {
 import { resolveCommunityTaxPreviewQuery } from '@/utils/communityTaxPreviewQuery'
 import { resolveSwapRoutePairAddresses } from '@/utils/resolveSwapRoutePairAddresses'
 import { humanizeUserFacingError, humanizeUserFacingErrorFromUnknown } from '@/utils/humanizeUserFacingError'
-import { isIndexerPairNotFoundError, isIndexerUnavailableError } from '@/utils/indexerErrors'
+import {
+  isIndexerPairNotFoundError,
+  isIndexerRouteValidationError,
+  isIndexerUnavailableError,
+} from '@/utils/indexerErrors'
 import {
   MARKET_DATA_SERVICE_OUTAGE_TITLE,
   SWAP_MARKET_DATA_OUTAGE_LEAD,
@@ -867,6 +871,7 @@ export default function SwapPage() {
             })
           }
         } catch (e) {
+          if (isIndexerRouteValidationError(e)) throw e
           noteIndexerFailure(e)
           /* H596-5: BFS fallback below; 100% hop still blocks submit */
         }
@@ -967,6 +972,7 @@ export default function SwapPage() {
             }
           }
         } catch (e) {
+          if (isIndexerRouteValidationError(e)) throw e
           noteIndexerFailure(e)
           /* pool-only fallback */
         }

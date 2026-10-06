@@ -747,6 +747,14 @@ policy](qa/issue-1380/README.md), [invariants](indexer-invariants.md#protocol-li
 and [agent playbook](../skills/AGENTS_PROTOCOL_LIQUIDITY_QUALITY.md). Use an isolated
 Postgres database and unique `TEST_DB_LOCK_FILE` for parallel worktrees.
 
+## Route launch-guard parity (#1390)
+
+Run `make verify-issue-1390` and the existing `make verify-issue-1381` regression.
+Follow [LG1390](../skills/AGENTS_ROUTE_LAUNCH_GUARDS.md),
+[RT1381](../skills/AGENTS_ROUTE_LOCAL_TAX.md), and
+[the agent checklist](qa/issue-1390/README.md) for repeated-capable routes,
+original-input refunds, protocol-exempt trader rejection and explicit skips.
+
 Router trust lifecycle (#1388): [RTTRUST1388-1–RTTRUST1388-10](../skills/AGENTS_ROUTER_TRUST_LIFECYCLE.md); [recovery and migration](runbooks/router-trust-1388.md); `make verify-issue-1388`.
 
 - [Reverse-query availability #1389](../skills/AGENTS_REVERSE_QUERY_BUDGET.md) — bounded pair/router work, socket-peer exact-output admission and checked Observe; `make verify-issue-1389`; [agent checklist and explicit skip policy](qa/issue-1389/README.md).

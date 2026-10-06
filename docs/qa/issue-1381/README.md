@@ -32,7 +32,10 @@ python3 scripts/qa/localterra-route-tax-1381.py \
 The verifier tests and retests contract funding/accounting, trading discovery and
 Postgres APIs, actual frontend hooks/pages/invoice budgets, then checks format,
 frontend lint/types/build, documentation and isolated chain execution, including atomic invoice/native wrap/unwrap flows. The chain
-script creates its own factory/router/pools/accounts. It signs only on LocalTerra
+script creates its own factory/router/pools/accounts. `--isolated-owner` funds a fresh
+synthetic setup signer for parallel QA; the verifier enables it. Only rejected
+CheckTx sequence mismatches have bounded retries, never accepted transactions
+or ambiguous transport errors. It signs only on LocalTerra
 with the test keyring and rejects every other chain. Its output includes raw gas,
 code hashes, public receipts and synthetic token accounting, never private keys.
 

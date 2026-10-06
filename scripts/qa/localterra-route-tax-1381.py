@@ -26,6 +26,14 @@ class LocalTerra:
         self.code_cache = code_cache
         self.stored_codes = json.loads(code_cache.read_text()) if code_cache and code_cache.exists() else {}
 
+    @property
+    def owner_key(self):
+        return self.default_key
+
+    @owner_key.setter
+    def owner_key(self, key):
+        self.default_key = key
+
     def command(self, *parts, stdin=None):
         result = subprocess.run(["docker", "exec", "-i", self.container, *parts], input=stdin,
                                 capture_output=True, timeout=90)
@@ -52,7 +60,7 @@ class LocalTerra:
                 "--keyring-backend", "test", "--chain-id", "localterra", "--gas", "12000000",
                 "--fees", "500000000uluna", "--node", "http://127.0.0.1:26657",
                 "--broadcast-mode", "sync", "-y", "--output", "json"))
-            if (response.get("code", 0) and
+            if (int(response.get("code", 0)) == 32 and
                     "account sequence mismatch" in response.get("raw_log", "") and attempt < 7):
                 time.sleep(0.25 * (attempt + 1))
                 continue
@@ -143,6 +151,8 @@ class LocalTerra:
         key = "issue1381-" + str(time.time_ns())
         self.command("terrad", "keys", "add", key, "--keyring-backend", "test", "--output", "json")
         address = self.address(key)
+        if isinstance(funding, int):
+            funding = str(funding) + "uluna"
         self.tx("bank", "send", self.default_key, address, funding)
         return key, address
 
@@ -165,6 +175,8 @@ def main():
     parser.add_argument("--legacy-artifacts", type=Path,
                         help="Optional reviewed earlier router/token wasm for actual migration checks")
     parser.add_argument("--code-cache", type=Path, help="Reuse checksum-verified test-chain stores on retest")
+    parser.add_argument("--isolated-owner", action="store_true",
+                        help="Fund a fresh synthetic setup signer to avoid shared-test1 sequence races")
     parser.add_argument("--evidence-file", required=True, type=Path)
     args = parser.parse_args()
     chain = LocalTerra(args.container, args.code_cache)
