@@ -23,7 +23,7 @@ def main():
     assert fixture["chain_id"] == "localterra" and fixture["status"] == "PASS"
     chain = module.LocalTerra(args.container)
     chain.owner_key = fixture.get("owner_key", "test1")
-    owner, sink = chain.address(chain.owner_key), chain.address("test2")
+    owner, sink = chain.address(chain.owner_key), chain.address(fixture.get("sink_key", "test2"))
     router, factory = fixture["router"], fixture["factory"]
     ust1, cl8y = fixture["tokens"]["UST1"], fixture["tokens"]["CL8Y"]
     guard = chain.instantiate(fixture["codes"]["cl8y_community_tax_token"]["code_id"], {
