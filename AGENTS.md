@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Net execution floors and bounded hooks
+
+For pair/router slippage, hook settlement, quotes, hook admission/recovery or
+community-tax AutoLP behavior, follow
+[skills/AGENTS_NET_EXECUTION_FLOORS.md](skills/AGENTS_NET_EXECUTION_FLOORS.md)
+(**NE1398-1–NE1398-10**, [#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398)).
+Hooked swaps require a positive post-hook `min_return`; existing market-spread
+metrics remain separate. Run `make verify-issue-1398`; use the
+[agent checklist and explicit skip policy](docs/qa/issue-1398/README.md).
+
 ## Route launch guards and owned refunds
 
 Follow [skills/AGENTS_ROUTE_LAUNCH_GUARDS.md](skills/AGENTS_ROUTE_LAUNCH_GUARDS.md)

@@ -613,17 +613,14 @@ export function TradeMarketOrderPanel({
         if (hopHybrid) {
           hopHybrid = hybridParamsWithSubmitCap(hopHybrid)
         }
-        const directMinReturn =
-          hopHybrid && BigInt(hopHybrid.book_input) > 0n
-            ? await computeDirectHybridMinReturn(
-                selectedPair.contract_addr,
-                tokenAssetInfo(fromToken),
-                payRaw,
-                hopHybrid,
-                slippageTolerance,
-                quoteTrader
-              )
-            : undefined
+        const directMinReturn = await computeDirectHybridMinReturn(
+          selectedPair.contract_addr,
+          tokenAssetInfo(fromToken),
+          payRaw,
+          hopHybrid,
+          slippageTolerance,
+          quoteTrader
+        )
         return swap(address, fromToken, selectedPair.contract_addr, payRaw, undefined, maxSpread, undefined, {
           hybrid: hopHybrid,
           minReturn: directMinReturn,

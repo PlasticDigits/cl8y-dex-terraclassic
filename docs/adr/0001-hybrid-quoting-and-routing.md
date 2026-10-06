@@ -16,6 +16,14 @@ Router and pair legacy `Simulation` queries were pool-only while Pattern C execu
 
 ## Consequences
 
+- [#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398) adds a
+  positive post-hook `min_return` requirement for every hooked execute, while L9
+  market-spread math retains its existing basis. Forward quotes report post-hook
+  `return_amount`; reverse pricing with matching nonzero tax/burn deductions
+  fails explicitly until a bounded hook-aware inverse exists. See
+  [net execution floors](../integrators.md#net-execution-floors-and-hook-pricing-1398)
+  and [the agent playbook](../../skills/AGENTS_NET_EXECUTION_FLOORS.md).
+
 - CosmWasm queries do not persist book expiry cleanup; simulation skips expired orders without unlinking storage, matching execute only when the visible walk is unchanged.
 - `max_spread` / `belief_price` checks on execute use hybrid **total** gross output (pool gross + book net to taker) for the no-belief denominator; belief path uses full input vs book net + pool gross. Shared implementation: [`dex_common::max_spread`](../smartcontracts/packages/dex-common/src/max_spread.rs) (invariant **L9**, GitLab **#197**). Zero and dust-floor `belief_price` (`expected_return < 1` raw unit) are invalid ([#1230](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1230)) — typed contract error, not a CosmWasm panic and not a silent pass.
 - **Greedy book-first ([GitLab #708](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/708), leftovers [#709](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/709) / [#710](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/710)):** opt-in `greedy: { max_maker_fills, book_start_hint }` on pair `Swap` / router `TerraSwap`. Distinct from Pattern C (`HybridSwapParams`). Current `hybrid: None` + `greedy: None` stays pool-only (**G1**); [#718](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/718) tracks the proposed default flip and is not shipped. Not an on-chain split search (**G4**). Official dApp remains on `GET /route/solve`. Pair **query** uses the same `resolve_swap_hybrid_mode` mutex as execute (**G11** / #709). Book-then-pool fills emit `greedy_stop=remainder_to_pool` (not `empty`). Invariants **G1–G14**: [`skills/AGENTS_GREEDY_BOOK_FIRST.md`](../../skills/AGENTS_GREEDY_BOOK_FIRST.md).

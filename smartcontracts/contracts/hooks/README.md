@@ -13,7 +13,13 @@ These contracts implement `HookMsg::AfterSwap` callbacks registered on pairs via
 3. Net return to the swap receiver is `total_return − sum(hook fees)`.
 4. `AfterSwap` on tax-hook records attrs (`settled_by_pair`); burn-hook burns tokens the pair forwarded in the same transaction.
 
-LP-burn hook is unchanged: governance/treasury **pre-funds LP tokens** on the hook; burns are proportional to swap output on the configured `target_pair` only.
+LP-burn behavior is unchanged: governance/treasury **pre-funds LP tokens** on the hook; burns are proportional to swap output on the configured `target_pair` only.
+
+For [#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398), hooked
+swaps require positive post-hook `min_return`, and forward hybrid quotes include
+recognized tax/burn ask deductions. Unknown hook pricing fails explicitly.
+See [NE1398 invariants](../../../skills/AGENTS_NET_EXECUTION_FLOORS.md) and
+[the verification checklist](../../../docs/qa/issue-1398/README.md).
 
 ## `AfterSwap.commission_amount` (invariant L7)
 

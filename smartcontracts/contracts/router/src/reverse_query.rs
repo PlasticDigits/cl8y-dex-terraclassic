@@ -12,6 +12,9 @@ pub const MAX_PAIR_HYBRID_REVERSE_SIMULATIONS: u32 = dex_common::pair::MAX_HYBRI
 
 /// Legacy pair pool reverse used the same 32-simulation search as declared
 /// hybrids. Only reviewed exact cw2 versions may receive the optimized cost.
+/// 1.21.0 retains the exact pool inverse and one raw forward validation; its
+/// separately bounded hook config precheck rejects output-deducting hooks before
+/// inverse execution. Declared-book searches retain their full 32-call ceiling.
 /// Missing, malformed, unknown or failed identity reads reserve the opaque max.
 pub(crate) fn pool_reverse_cost(deps: Deps, pair: &Addr) -> u32 {
     let known = deps
@@ -22,7 +25,7 @@ pub(crate) fn pool_reverse_cost(deps: Deps, pair: &Addr) -> u32 {
         .and_then(|raw| cosmwasm_std::from_json::<cw2::ContractVersion>(raw).ok())
         .is_some_and(|version| {
             version.contract == "cl8y-dex-pair"
-                && matches!(version.version.as_str(), "1.19.0" | "1.20.0")
+                && matches!(version.version.as_str(), "1.19.0" | "1.20.0" | "1.21.0")
         });
     if known {
         1

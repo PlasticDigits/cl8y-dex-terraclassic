@@ -8,8 +8,8 @@ use cosmwasm_std::{
 use cw20::{BalanceResponse, Cw20Coin, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use dex_common::factory::{PairResponse, QueryMsg as FactoryQuery};
-use dex_common::pair::{greedy_swap_params, Cw20HookMsg, QueryMsg as PairQuery};
-use dex_common::types::{AssetInfo, PairInfo};
+use dex_common::pair::{greedy_swap_params, Cw20HookMsg, PoolResponse, QueryMsg as PairQuery};
+use dex_common::types::{Asset, AssetInfo, PairInfo};
 
 use crate::msg::{
     AutoLpConfig, ConfigResponse, ExecuteMsg, FeaturesResponse, InstantiateMsg, InvoiceHookMsg,
@@ -86,7 +86,32 @@ fn mock_pair_contract() -> Box<dyn Contract<Empty>> {
                         },
                     ],
                     contract_addr: env.contract.address,
-                    liquidity_token: Addr::unchecked("lp"),
+                    liquidity_token: Addr::unchecked("mock_lp_token"),
+                })
+            }
+            // AutoLP binding approves a reserves/share policy (#1398). This
+            // identity-only fixture exposes an initialized synthetic pool;
+            // actual skim issuance/rollback is exercised with the real pair
+            // in community-tax-autolp::tests::lp_policy_tests.
+            PairQuery::Pool {} => {
+                let token = String::from_utf8(deps.storage.get(b"token").unwrap()).unwrap();
+                let other = String::from_utf8(deps.storage.get(b"other").unwrap()).unwrap();
+                to_json_binary(&PoolResponse {
+                    assets: [
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: token,
+                            },
+                            amount: Uint128::new(GENESIS),
+                        },
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: other,
+                            },
+                            amount: Uint128::new(GENESIS),
+                        },
+                    ],
+                    total_share: Uint128::new(GENESIS),
                 })
             }
             _ => to_json_binary(&Empty {}),
@@ -145,7 +170,7 @@ fn mock_factory_contract() -> Box<dyn Contract<Empty>> {
                             },
                         ],
                         contract_addr: Addr::unchecked(pair),
-                        liquidity_token: Addr::unchecked("lp"),
+                        liquidity_token: Addr::unchecked("mock_lp_token"),
                     },
                 })
             }

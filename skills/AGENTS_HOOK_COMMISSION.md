@@ -8,9 +8,14 @@
 |-------|-----------|
 | `AfterSwap.commission_amount` | **Total** protocol commission in the **ask asset**: pool treasury fee + sum of book **taker** fees for the tx. |
 | `AfterSwap.spread_amount` | **Pool leg only** (unchanged). |
-| `AfterSwap.return_asset.amount` | Book net + pool net to receiver. |
+| `AfterSwap.return_asset.amount` | Book net + pool net **before** ask-token hook deductions. |
 
 `HybridSimulation` / `HybridReverseSimulation` `commission_amount` uses the **same total** so quotes match hook callbacks.
+
+[#1398](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1398) keeps this
+callback basis while forward `HybridSimulation.return_amount` becomes post-hook.
+Hooked swaps require a positive post-hook `min_return`; follow
+[NE1398 net execution floors](./AGENTS_NET_EXECUTION_FLOORS.md).
 
 ## Breaking change
 

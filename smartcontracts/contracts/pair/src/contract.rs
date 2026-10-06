@@ -32,7 +32,9 @@ use crate::state::{
 };
 use dex_common::fee_discount;
 use dex_common::hook::{HookCallMsg, HookExecuteMsg};
-use dex_common::hook_settlement::{collect_fee_hook_deductions, fee_settlement_transfer_messages};
+use dex_common::hook_settlement::{
+    collect_fee_hook_deductions, fee_settlement_transfer_messages, net_return_after_hooks,
+};
 use dex_common::lp_symbol::lp_token_instantiate_meta;
 use dex_common::max_spread::{self, CheckMaxSpreadError, MaxSpreadInputs};
 use dex_common::oracle::{
@@ -52,7 +54,7 @@ const CONTRACT_NAME: &str = "cl8y-dex-pair";
 /// (#1224 / #1322). 1.19.0 fixes integer pool reverse sizing (#1376),
 /// with no storage rewrite. 1.20.0 improves declared reverse probe selection and
 /// checks Observe horizons (#1389). The cw2 guard rejects newer versions.
-const CONTRACT_VERSION: &str = "1.20.0";
+const CONTRACT_VERSION: &str = "1.21.0";
 const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1;
 /// First 1000 LP tokens are permanently burned on the initial deposit
 /// to prevent share-inflation griefing attacks where an attacker donates
@@ -1046,6 +1048,14 @@ fn execute_swap(
         return Err(ContractError::ZeroAmount {});
     }
 
+    let hooks = HOOKS.load(deps.storage)?;
+    dex_common::hook::validate_stored_hooks(&hooks)?;
+    // #1398: max_spread retains its market metric; hook-bearing swaps must sign
+    // a separate positive floor on the settled ask-token output.
+    if !hooks.is_empty() && !min_return.is_some_and(|m| !m.is_zero()) {
+        return Err(ContractError::HookNetMinimumRequired {});
+    }
+
     let mode = resolve_swap_hybrid_mode(hybrid, greedy)
         .map_err(|reason| ContractError::InvalidHybridParams { reason })?;
 
@@ -1336,7 +1346,6 @@ fn execute_swap(
 
     let hook_commission_amount = total_commission;
 
-    let hooks = HOOKS.load(deps.storage)?;
     let fee_deductions =
         collect_fee_hook_deductions(deps.as_ref(), &hooks, ask_token_addr, total_return)?;
     let hook_fee_total: Uint128 = fee_deductions
@@ -2109,10 +2118,7 @@ fn execute_update_hooks(
         return Err(ContractError::Unauthorized {});
     }
 
-    let validated_hooks: Vec<Addr> = hooks
-        .iter()
-        .map(|h| deps.api.addr_validate(h))
-        .collect::<StdResult<Vec<Addr>>>()?;
+    let validated_hooks = dex_common::hook::validate_pair_hooks(deps.api, &hooks)?;
 
     HOOKS.save(deps.storage, &validated_hooks)?;
 
@@ -2510,7 +2516,7 @@ fn scale_hybrid_template(
 /// discount registry per iteration, so simulation query gas stays bounded
 /// (GitLab #238 guardrail). For one-shot forward quotes use `simulate_hybrid_swap`.
 #[allow(clippy::too_many_arguments)]
-fn simulate_hybrid_swap_with_fee(
+fn simulate_hybrid_swap_before_hooks_with_fee(
     deps: Deps,
     env: &Env,
     input_amount: Uint128,
@@ -2705,6 +2711,40 @@ fn simulate_hybrid_swap_with_fee(
     })
 }
 
+/// Forward pricing includes the same supported hook deductions as settlement.
+#[allow(clippy::too_many_arguments)]
+fn simulate_hybrid_swap_with_fee(
+    deps: Deps,
+    env: &Env,
+    input_amount: Uint128,
+    hybrid: Option<&HybridSwapParams>,
+    greedy: Option<&GreedySwapParams>,
+    offer_asset_info: &AssetInfo,
+    effective_fee_bps: u16,
+    belief_price: Option<Decimal>,
+) -> Result<HybridSimulationResponse, ContractError> {
+    let mut sim = simulate_hybrid_swap_before_hooks_with_fee(
+        deps,
+        env,
+        input_amount,
+        hybrid,
+        greedy,
+        offer_asset_info,
+        effective_fee_bps,
+        belief_price,
+    )?;
+    let pair = PAIR_INFO.load(deps.storage)?;
+    let ask = if offer_asset_info.equal(&pair.asset_infos[0]) {
+        &pair.asset_infos[1]
+    } else {
+        &pair.asset_infos[0]
+    };
+    let hooks = HOOKS.load(deps.storage)?;
+    let deductions = collect_fee_hook_deductions(deps, &hooks, token_addr(ask), sim.return_amount)?;
+    sim.return_amount = net_return_after_hooks(sim.return_amount, &deductions)?;
+    Ok(sim)
+}
+
 /// Forward hybrid quote. Resolves the CL8Y fee-tier discount once (read-only; no
 /// deregister side-effects) then runs the core sim. `trader`/`sender` omitted →
 /// full pair fee (backward compatible). GitLab #238 invariant **L8**.
@@ -2792,6 +2832,21 @@ fn query_hybrid_reverse_simulation(
         ));
     };
 
+    // #1398: inverse pool/book probes assume protocol-net output. Multiple
+    // independently floored hook fees can make raw-unit net output non-monotone;
+    // never advertise that legacy inverse as a settled-net guarantee.
+    let hooks = HOOKS.load(deps.storage)?;
+    if !collect_fee_hook_deductions(
+        deps,
+        &hooks,
+        token_addr(&ask_asset.info),
+        Uint128::new(10_000),
+    )?
+    .is_empty()
+    {
+        return Err(StdError::generic_err("reverse simulation unsupported for output-deducting hooks; use forward net quote and min_return"));
+    }
+
     let ask_target = ask_asset.amount;
     if ask_target.is_zero() {
         return Ok(HybridReverseSimulationResponse {
@@ -2831,7 +2886,7 @@ fn query_hybrid_reverse_simulation(
     };
 
     let run_sim = |offer: Uint128| -> StdResult<HybridSimulationResponse> {
-        simulate_hybrid_swap_with_fee(
+        simulate_hybrid_swap_before_hooks_with_fee(
             deps,
             env,
             offer,
@@ -3954,6 +4009,7 @@ mod reverse_issue1376_tests {
             DISCOUNT_REGISTRY
                 .save(deps.as_mut().storage, &None)
                 .unwrap();
+            HOOKS.save(deps.as_mut().storage, &vec![]).unwrap();
             for (ask_info, offer_info, target, expected) in [
                 (
                     large_token.clone(),
@@ -4325,3 +4381,7 @@ mod observe_issue1389_tests {
         assert!(result.price_a_cumulatives[1] > Uint256::zero());
     }
 }
+
+#[cfg(test)]
+#[path = "hook_bounds_tests.rs"]
+mod hook_bounds_tests;

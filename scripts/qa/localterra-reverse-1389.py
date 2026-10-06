@@ -80,9 +80,9 @@ def main():
 
     pair_versions = {pair: version(pair) for pair in pairs}
     router_version = version(router)
-    assert all(value == {"contract": "cl8y-dex-pair", "version": "1.20.0"}
+    assert all(value == {"contract": "cl8y-dex-pair", "version": "1.21.0"}
                for value in pair_versions.values()), pair_versions
-    assert router_version["version"] == "1.3.0", router_version
+    assert router_version["version"] == "1.4.0", router_version
     evidence = {"utc": datetime.now(timezone.utc).isoformat(), "chain_id": "localterra",
         "synthetic_only": True, "gas_scope": "transaction including test-wrapper overhead",
         "codes": codes, "probe_code": probe_code, "factory": factory, "router": router,
