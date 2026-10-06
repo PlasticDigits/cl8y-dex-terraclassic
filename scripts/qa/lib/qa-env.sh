@@ -16,7 +16,11 @@ qa_load_env() {
   set +a
 
   if [ "${QA_SHARED_HOST:-}" = "1" ]; then
-    export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml:docker-compose.qa-shared-host.yml}"
+    if [[ -z "${COMPOSE_FILE:-}" || "$COMPOSE_FILE" == docker-compose.yml ]]; then
+      export COMPOSE_FILE=docker-compose.yml:docker-compose.qa-shared-host.yml
+    fi
+  else
+    export COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
   fi
 }
 

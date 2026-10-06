@@ -84,8 +84,9 @@ _start_indexer_tmux() {
       return 0
     fi
   fi
+  bash "$REPO_ROOT/scripts/indexer-migrate.sh"
   cloud_agent_tmux_cmd new-session -d -s "$session" -c "$REPO_ROOT/indexer" \
-    "export PATH=\"/usr/local/cargo/bin:\$HOME/.cargo/bin:\$PATH\"; cargo run --release; exec bash -l"
+    "export PATH=\"/usr/local/cargo/bin:\$HOME/.cargo/bin:\$PATH\"; bash \"$REPO_ROOT/scripts/indexer-run.sh\" cargo run --release; exec bash -l"
   echo "[setup-cloud-localterra] indexer starting in tmux '$session' (port 3001)"
 }
 

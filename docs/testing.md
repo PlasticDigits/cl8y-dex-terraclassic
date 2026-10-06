@@ -239,7 +239,7 @@ See also [`docs/deployment-guide.md`](./deployment-guide.md) and [`docs/runbooks
 ### Indexer (Rust)
 
 - **Unit tests (`cargo test --lib`):** parser stress tests, candle OHLC merge invariants, position clamping, oracle `f64` conversion, CG ticker shape validation — **no database required**.
-- **Integration tests (`cargo test --tests`):** require PostgreSQL (set `TEST_DATABASE_URL` or use the default URL with valid credentials). They assert API allowlists, caps, CORS, rate limiting (429), sanitized 500 responses, and sanitized **502** LCD bodies ([#239](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239); [`indexer/tests/security.rs`](../indexer/tests/security.rs), [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
+- **Integration tests (`cargo test --tests`):** require a dedicated QA PostgreSQL role and marked control database (private `indexer/.env.qa`). They assert API allowlists, caps, CORS, rate limiting (429), sanitized 500 responses, and sanitized **502** LCD bodies ([#239](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/239); [`indexer/tests/security.rs`](../indexer/tests/security.rs), [`skills/AGENTS_INDEXER_API_LCD_SECURITY.md`](../skills/AGENTS_INDEXER_API_LCD_SECURITY.md)).
 
 ```bash
 cd indexer
@@ -251,32 +251,40 @@ Run those on the **host** (after `make setup-indexer-postgres` when needed). Do 
 
 #### Local Postgres setup (agents)
 
-**Agent playbook:** [`skills/AGENTS_LOCAL_POSTGRES_DEV.md`](../skills/AGENTS_LOCAL_POSTGRES_DEV.md) — default user `cl8y_legal`, superuser bootstrap via `setup-postgres-dev-databases.sh`, `make reset` when an old Docker volume still has `postgres:postgres`, and what `deploy-dex-local` writes to `indexer/.env`.
+Follow [the Postgres playbook](../skills/AGENTS_LOCAL_POSTGRES_DEV.md),
+[DB1396-1–DB1396-10](../skills/AGENTS_INDEXER_DATABASE_ISOLATION.md) and
+[the role transition runbook](./runbooks/indexer-database-isolation.md).
+The old `cl8y_legal` shared administrative test/runtime configuration is legacy.
+Configure explicit nondefault credentials, run `make setup-indexer-postgres`,
+and keep runtime, migrator and QA env files separate. No shared resets or migration
+checksum edits to bypass failures.
 
-**Stack prerequisite (invariant PG-1):** The indexer and integration tests authenticate as **`cl8y_legal`**. Compose creates that role on a fresh volume (`POSTGRES_USER=cl8y_legal`). External or legacy Postgres that only ships **`postgres:postgres`** must either run [`scripts/setup-postgres-dev-databases.sh`](../scripts/setup-postgres-dev-databases.sh) (auto-creates `cl8y_legal` when `POSTGRES_SUPERUSER` is reachable) or provision the role manually — see [GitLab **#245**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/245) QA note and the skill § Stack prerequisite.
+#### Worktree isolation and test parallelism
 
-#### Shared Postgres and test parallelism
+Helpers authenticate the dedicated QA role against the admin-owned marked
+`dex_indexer_test` control DB, which they never migrate or truncate. Each test
+binary/process creates a random disposable child DB and strictly applies its own
+migrations. Independent worktrees/binaries can run concurrently. Within each binary,
+fixtures remain shared, so keep `--test-threads=1` (or existing `#[serial]` guards).
+Child databases remain for inspection; dispose only of the dedicated test cluster
+or individually verified inactive QA-owned child databases.
 
-Integration tests call [`tests/common/mod.rs`](../indexer/tests/common/mod.rs) helpers that **truncate and re-seed** the same database. With default Cargo/Rust test parallelism, multiple integration test **binaries** and multiple **tests per binary** can run concurrently against that DB, which can surface as duplicate unique keys (e.g. on `assets.denom`) or foreign-key violations—not application bugs.
-
-`seed_db` / `clean_db` take an exclusive **file lock** (`/tmp/cl8y-dex-indexer-test.seed.lock`, override with `TEST_DB_LOCK_FILE`) so parallel `cargo test` processes on one host do not interleave truncate/insert (GitLab **#210** orderbook verification). Prefer serialized execution anyway:
-
-When using a **single** shared test database (typical local or QA host), prefer serialized execution:
-
-```bash
+```sh
 cd indexer
-export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgres://cl8y_legal:cl8y_legal@127.0.0.1:5432/dex_indexer_test}"
 cargo test --tests -j 1 -- --test-threads=1
 ```
 
-- **`-j 1`** — run one integration test crate at a time (reduces cross-crate contention).
-- **`--test-threads=1`** — run tests inside each binary one at a time (reduces intra-crate contention).
+Tests load private `.env.qa` without replacing explicitly injected test credentials.
+The role has LOGIN/CREATEDB but no administrative attributes/memberships; it cannot
+connect to the runtime DB. The runtime has application DML and no schema/migration
+privileges. Local `make indexer-dev` runs a separate migration job first; production
+must use its own separately configured migration process before server rollout.
 
-Start Postgres (`docker compose up -d postgres`) and run `./scripts/setup-postgres-dev-databases.sh` (or `make deploy-local`) so `dex_indexer_test` exists before the first run.
-
-**Cursor Cloud Agent (no wasm deploy):** `make setup-indexer-postgres` then `make test-indexer-integration` — see [`AGENTS.md`](../AGENTS.md) § Indexer integration tests (Postgres-only) and [GitLab **#335**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/work_items/335).
-
-See [Indexer invariants](./indexer-invariants.md) for the full matrix and the same note under **Running tests**.
+Run `make verify-issue-1396` for fresh real ACL/socket checks, binary no-contact
+seed guards, concurrent child DB isolation and API regression checks. Follow
+[the agent checklist](./qa/issue-1396/README.md); unavailable checks may be explicit
+SKIP with overall PASS WITH SKIPS. Executed failures remain FAIL. Source/local
+checks do not establish production role or networking acceptance.
 
 **Stubs, mocks, and test stand-ins:** intentional test doubles are cataloged in [GitLab issue #105](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/105) and summarized under [P2 testing epic (#199)](./testing.md#p2-testing-epic-gitlab-199). Key indexer spots: `indexer/tests/common/lcd_mock.rs` (LCD HTTP stub only) vs `indexer/src/api/orderbook_sim.rs` (**production** AMM curve-walk for CG/CMC — not the on-chain FIFO book; see **#210**). Agent playbook: [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
 
@@ -356,7 +364,7 @@ Longer-running tests are kept out of the default `npm run test:run` suite. **Cha
 make test-charts-integration
 ```
 
-This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integration.sh): ensures the target database exists, applies `sqlx migrate run`, seeds fixtures idempotently, verifies indexer `/health`, then `npm run test:integration` via `scripts/with-node.sh`. If host `sqlx migrate` times out, the script retries on the compose Postgres network by mounting **`indexer/migrations` only** (not `indexer/`), so Docker cannot create root-owned `indexer/target` lock files. Limit-order pool ref tests ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) also need LocalTerra LCD reachable (defaults `http://localhost:1317`; override `VITE_TERRA_LCD_URL` / `VITE_TERRA_RPC_URL` — same as [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)).
+This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integration.sh): requires an explicitly prepared isolated QA database, verifies it with `seed-qa --check`, then seeds fixtures idempotently, verifies indexer `/health`, then `npm run test:integration` via `scripts/with-node.sh`. Prepare schema beforehand in a separate migration process; the fixture runner never creates or migrates a database. Limit-order pool ref tests ([GitLab **#166**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/166)) also need LocalTerra LCD reachable (defaults `http://localhost:1317`; override `VITE_TERRA_LCD_URL` / `VITE_TERRA_RPC_URL` — same as [`frontend-dapp/.env.example`](../frontend-dapp/.env.example)).
 
 **Fixture invariants**
 
@@ -366,7 +374,7 @@ This runs [`scripts/test-charts-integration.sh`](../scripts/test-charts-integrat
 | Fixture candle `open_time` inside indexer default API window (90-day lookback when `from`/`to` omitted) | Seed SQL refreshes to current UTC hour on each run; see [`docs/indexer-invariants.md`](indexer-invariants.md) |
 | Limit-order pool-ref pair (EMBER/CORAL) | Resolved from factory via LCD when LocalTerra is up; see [`limitOrderIntegrationConstants.ts`](../frontend-dapp/src/test/limitOrderIntegrationConstants.ts) and GitLab **#166** |
 
-Override the database with `CHARTS_INT_DATABASE_URL` (defaults to `DATABASE_URL` / `dex_indexer` from [`scripts/lib/postgres-dev.env`](../scripts/lib/postgres-dev.env)); override indexer URL with `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`). **Charts** tests (5) need Postgres + indexer only. **Limit-order** tests (2) run when the script resolves the factory pair into `VITE_LIMIT_ORDER_INTEGRATION_*`; otherwise Vitest skips them — full **7/7** needs LocalTerra LCD (`http://127.0.0.1:1317`) after `make deploy-local`. See GitLab [**#205**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) and [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
+Override the database with `CHARTS_INT_DATABASE_URL` (required explicit isolated QA target), `QA_DATABASE_NAME` and explicit local `RUN_MODE`; the same authenticated seed/clean guard applies before fixture writes; override indexer URL with `VITE_INDEXER_URL` (default `http://127.0.0.1:3001`). **Charts** tests (5) need Postgres + indexer only. **Limit-order** tests (2) run when the script resolves the factory pair into `VITE_LIMIT_ORDER_INTEGRATION_*`; otherwise Vitest skips them — full **7/7** needs LocalTerra LCD (`http://127.0.0.1:1317`) after `make deploy-local`. See GitLab [**#205**](https://gitlab.com/PlasticDigits/cl8y-dex-terraclassic/-/issues/205) and [`skills/AGENTS_TESTING_P2_EPIC.md`](../skills/AGENTS_TESTING_P2_EPIC.md).
 
 **Manual steps** (when debugging individual phases):
 

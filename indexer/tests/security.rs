@@ -1,5 +1,40 @@
 mod common;
 
+// Runtime Config is intentionally evaluated without this test binary's QA
+// capability. Restore it before any isolated integration database setup.
+fn without_qa_credentials<T>(read: impl FnOnce() -> T) -> T {
+    struct Restore(Vec<(&'static str, Option<std::ffi::OsString>)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            for (key, value) in &self.0 {
+                match value {
+                    Some(value) => std::env::set_var(key, value),
+                    None => std::env::remove_var(key),
+                }
+            }
+        }
+    }
+    let keys = [
+        "MIGRATION_DATABASE_URL",
+        "MIGRATOR_DATABASE_URL",
+        "DATABASE_ADMIN_URL",
+        "TEST_DATABASE_ADMIN_URL",
+        "TEST_DATABASE_URL",
+        "POSTGRES_SUPERUSER_PASSWORD",
+        "POSTGRES_MIGRATOR_PASSWORD",
+        "POSTGRES_QA_PASSWORD",
+    ];
+    let _restore = Restore(
+        keys.into_iter()
+            .map(|key| (key, std::env::var_os(key)))
+            .collect(),
+    );
+    for key in keys {
+        std::env::remove_var(key);
+    }
+    read()
+}
+
 use std::env;
 use std::net::SocketAddr;
 
@@ -555,13 +590,17 @@ async fn prod_lcd_heavy_rate_limit_enforced_when_env_zero() {
     }
     env::set_var("RUN_MODE", "prod");
     env::set_var("LCD_URLS", "https://lcd.example.com");
-    env::set_var("DATABASE_URL", "postgres://localhost/db");
+    env::set_var("EXPECTED_CHAIN_ID", "columbus-5");
+    env::set_var(
+        "DATABASE_URL",
+        "postgres://dex_indexer_runtime:synthetic-config-secret@localhost/dex_indexer",
+    );
     env::set_var("FACTORY_ADDRESS", "terra1factory");
     env::set_var("CORS_ORIGINS", "https://app.example.com");
     env::set_var("RATE_LIMIT_RPS", "0");
     env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
 
-    let prod_config = Config::from_env().expect("prod config from env");
+    let prod_config = without_qa_credentials(Config::from_env).expect("prod config from env");
     assert_eq!(prod_config.run_mode, RunMode::Prod);
     assert_eq!(
         prod_config.rate_limit_lcd_heavy_rps,
@@ -827,12 +866,16 @@ fn dev_dual_zero_rate_limits_load_without_clamp() {
     ] {
         env::remove_var(key);
     }
-    env::set_var("DATABASE_URL", "postgres://localhost/db");
+    env::set_var("EXPECTED_CHAIN_ID", "columbus-5");
+    env::set_var(
+        "DATABASE_URL",
+        "postgres://dex_indexer_runtime:synthetic-config-secret@localhost/dex_indexer",
+    );
     env::set_var("FACTORY_ADDRESS", "terra1factory");
     env::set_var("CORS_ORIGINS", "http://localhost:5173");
     env::set_var("RATE_LIMIT_RPS", "0");
     env::set_var("RATE_LIMIT_LCD_HEAVY_RPS", "0");
-    let c = Config::from_env().expect("dev dual-zero config");
+    let c = without_qa_credentials(Config::from_env).expect("dev dual-zero config");
     assert_eq!(c.run_mode, RunMode::Dev);
     assert_eq!(c.rate_limit_rps, 0);
     assert_eq!(c.rate_limit_lcd_heavy_rps, 0);

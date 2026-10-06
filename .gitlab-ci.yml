@@ -204,9 +204,9 @@ test-frontend-build:
 # Phase 2a (GitLab #421): Postgres-backed indexer integration suite — the full `indexer/tests/`
 # suite that test-indexer-lib skips. Uses a `postgres` service container (no DinD / no LocalTerra).
 # The harness (indexer/tests/common/mod.rs::setup_pool) runs sqlx::migrate!() itself, so the service
-# only needs to provision the cl8y_legal role + dex_indexer_test DB. Serial (-j1 + --test-threads=1):
-# the suite shares one dex_indexer_test DB and api_hooks false-fails under parallel access
-# (docs/qa-invariants.md). The remaining Phase-2 row (scheduled DinD-LocalTerra Playwright E2E) is
+# provisions the dedicated dex_indexer_qa CREATEDB role and admin-owned marked control DB.
+# Each integration binary migrates a fresh disposable child database; tests inside a binary
+# remain serial (-j1 + --test-threads=1), while worktrees/binaries own separate histories. The remaining Phase-2 row (scheduled DinD-LocalTerra Playwright E2E) is
 # tracked separately under #421.
 test-indexer-integration:
   extends: .test-rules-default-branch
@@ -217,11 +217,11 @@ test-indexer-integration:
       alias: postgres
   variables:
     RUSTFLAGS: "-A dead_code"
-    # Passed to the postgres service (auto-creates the role + DB) and consumed by the suite.
-    POSTGRES_DB: dex_indexer_test
-    POSTGRES_USER: cl8y_legal
-    POSTGRES_PASSWORD: cl8y_legal
-    TEST_DATABASE_URL: "postgres://cl8y_legal:cl8y_legal@postgres:5432/dex_indexer_test"
+    # Bootstrap administrator belongs only to the disposable service; tests use QA.
+    POSTGRES_DB: postgres
+    POSTGRES_USER: cl8y_ci
+    POSTGRES_PASSWORD: cl8y_ci
+    TEST_DATABASE_ADMIN_URL: "postgres://dex_indexer_qa:ci-qa-disposable@postgres:5432/dex_indexer_test"
   rules:
     - !reference [.test-rules-default-branch, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -229,12 +229,21 @@ test-indexer-integration:
         - indexer/**/*
         - .gitlab-ci.yml
   before_script:
-    - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config
-    # PgPool::connect does not retry — wait for the service to accept TCP before cargo test runs.
-    - 'for i in $(seq 1 30); do (echo > /dev/tcp/postgres/5432) 2>/dev/null && break; echo "waiting for postgres ($i)"; sleep 2; done'
+    - apt-get update && apt-get install -y --no-install-recommends libssl-dev pkg-config postgresql-client
+    - 'for i in $(seq 1 30); do pg_isready -h postgres -U cl8y_ci -d postgres && break; sleep 2; done'
+    - |
+      test ! -e indexer/.env.qa
+      PGPASSWORD="$POSTGRES_PASSWORD" psql -h postgres -U cl8y_ci -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+      CREATE ROLE dex_indexer_qa LOGIN CREATEDB NOSUPERUSER NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS PASSWORD 'ci-qa-disposable';
+      CREATE ROLE dex_indexer_runtime NOLOGIN NOCREATEDB NOSUPERUSER NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
+      CREATE DATABASE dex_indexer_test;
+      COMMENT ON DATABASE dex_indexer_test IS 'cl8y-dex:isolated-qa:v1';
+      REVOKE ALL ON DATABASE dex_indexer_test FROM PUBLIC;
+      GRANT CONNECT ON DATABASE dex_indexer_test TO dex_indexer_qa;
+      REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+      SQL
   script:
-    # Equivalent to `make test-indexer-integration` (the postgres service replaces
-    # setup-indexer-postgres). Serial; the harness migrates the empty DB on first connect.
+    # A fresh database/history per binary; no shared SQLx migration state.
     - cd indexer && cargo test --locked --tests -j 1 -- --test-threads=1
 
 # --- Build stage (#325) ---

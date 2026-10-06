@@ -28,7 +28,7 @@ class FunctionalRunnerTests(unittest.TestCase):
             "CI_COMMIT_SHA": "a" * 40,
             "PATH": str(self.root / "bin") + ":" + os.environ["PATH"],
             "RUSTUP_HOME": str(self.root / "no-toolchain"),
-            "TEST_DATABASE_URL": "postgres://cl8y_ci:cl8y_ci@postgres:5432/dex_indexer_ci_test",
+            "TEST_DATABASE_ADMIN_URL": "postgres://dex_indexer_qa:ci-qa-disposable@postgres:5432/dex_indexer_test",
             "GITLEAKS_SCAN_SCRIPT": str(self.root / "bin" / "scanner"),
         }
         self.stub("cargo", '[ "${CARGO_FAIL:-0}" != 1 ]')
@@ -41,6 +41,7 @@ class FunctionalRunnerTests(unittest.TestCase):
         self.stub("vite", 'mkdir -p dist', directory=app_bins)
         self.stub("scanner", '[ "${SCANNER_FAIL:-0}" != 1 ]')
         self.stub("pg_isready", "exit 0")
+        self.stub("psql", 'cat >/dev/null; [ "${PSQL_FAIL:-0}" != 1 ]')
         self.run_job("init")
 
     def stub(self, name, command, *, directory=None):
@@ -119,8 +120,14 @@ class FunctionalRunnerTests(unittest.TestCase):
         self.run_job("aggregate", success=False)
 
     def test_host_database_and_dotenv_override_rejected(self):
-        self.run_job("indexer-postgres", success=False, TEST_DATABASE_URL="postgres://localhost/prod")
+        self.run_job("indexer-postgres", success=False, TEST_DATABASE_ADMIN_URL="postgres://localhost/prod")
         (self.root / "indexer" / ".env").write_text("TEST_DATABASE_URL=postgres://localhost/prod\n")
+        self.run_job("indexer-postgres", success=False)
+
+    def test_qa_dotenv_and_failed_role_bootstrap_are_rejected(self):
+        self.run_job("indexer-postgres", success=False, PSQL_FAIL="1")
+        self.assertFalse((self.root / ".ci-functional" / "indexer-postgres").exists())
+        (self.root / "indexer" / ".env.qa").write_text("TEST_DATABASE_ADMIN_URL=postgres://localhost/prod\n")
         self.run_job("indexer-postgres", success=False)
 
     def test_symlinked_receipt_rejected(self):

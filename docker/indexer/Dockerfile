@@ -44,7 +44,10 @@ ENV GIT_SHA=${GIT_SHA} \
 
 EXPOSE 3001
 
-# Required at runtime (Coolify env): DATABASE_URL, FACTORY_ADDRESS, CORS_ORIGINS,
+# Run `cl8y-dex-indexer migrate` in a separate one-shot job with the migrator's
+# DATABASE_URL before starting this server. Never inject migrator/bootstrap/QA
+# credentials into the server; startup verifies the runtime ACL and schema.
+# Required at runtime (Coolify env): runtime DATABASE_URL, FACTORY_ADDRESS, CORS_ORIGINS,
 # RUN_MODE=prod, EXPECTED_CHAIN_ID, LCD_URLS (non-default). See docs/runbooks/mainnet-soft-launch.md
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${API_PORT}/health" >/dev/null || exit 1

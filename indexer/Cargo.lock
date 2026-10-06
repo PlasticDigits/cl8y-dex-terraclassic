@@ -353,6 +353,7 @@ dependencies = [
 name = "cl8y-dex-indexer"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
  "axum-test",
  "base64",
