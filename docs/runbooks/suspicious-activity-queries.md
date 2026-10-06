@@ -25,7 +25,7 @@ export LCD="http://127.0.0.1:1317"
 ```
 
 2. **Read-only** — discovery queries do not mutate chain or DB state.
-3. **Redacted daily export vs this runbook** — `GET /api/v1/evidence/daily?day=YYYY-MM-DD` ([#1205](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1205)) returns shareable, actor-hashed JSON for one UTC day. It is **not** a substitute for wallet-level triage here; keep using leaderboard, trader trades, and SQL below when you need full bech32 addresses.
+3. **Public-chain-linked daily export vs this runbook** — `GET /api/v1/evidence/daily?day=YYYY-MM-DD` ([#1397](https://git.cl8y.com/code/cl8y-dex-terraclassic/issues/1397), superseding #1205 privacy) returns schema-2 JSON without actor addresses or digests. It retains public transaction/block/order/pair identifiers, so chain joins can reconstruct wallets; do not describe it as anonymous or wallet-private. See [the policy](../qa/issue-1397/README.md). For wallet-level triage, use leaderboard, trader trades and the SQL below.
 4. **Thresholds are tunable** — adjust `INTERVAL`, `LIMIT`, and `HAVING` counts for incident severity; document chosen values in the incident tracker.
 5. **Escalation** — discovery alone is **not** grounds for blacklist. After confirming abnormal patterns, follow [blacklist-decision.md](./blacklist-decision.md) and [emergency-commands.md](./emergency-commands.md).
 

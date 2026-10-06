@@ -621,6 +621,13 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
     let lcd_heavy_router =
         apply_rate_limit_layer(lcd_heavy_router, config.rate_limit_lcd_heavy_rps);
 
+    let evidence_router = Router::new()
+        .route("/api/v1/evidence/daily", get(evidence::get_evidence_daily))
+        .route_layer(axum::middleware::from_fn_with_state(
+            std::sync::Arc::new(tokio::sync::Semaphore::new(evidence::MAX_CONCURRENT_EXPORTS)),
+            evidence::admit_export,
+        ));
+
     let api_router = Router::new()
         .route("/health", get(health))
         .route(
@@ -715,7 +722,7 @@ pub fn build_router(state: AppState, config: &Config) -> Router {
             "/api/v1/defillama/daily",
             get(defillama::get_defillama_daily),
         )
-        .route("/api/v1/evidence/daily", get(evidence::get_evidence_daily))
+        .merge(evidence_router)
         .route("/api/v1/hub-prices", get(hub_prices::get_hub_prices))
         .route(
             "/api/v1/hub-prices/{ticker}",

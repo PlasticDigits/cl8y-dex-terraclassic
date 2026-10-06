@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Verification for Forgejo #1205 — redacted UTC-day evidence JSON export.
+# Verification for Forgejo #1205 — UTC-day evidence accounting.
+# Schema-2 privacy and budgets supersede the original policy; see #1397.
 # Requires Postgres (bootstraps indexer/.env when missing). A skipped cargo
 # run is a failure: static greps alone do not prove the UNION decode or pages.
 set -euo pipefail
@@ -27,7 +28,7 @@ run_step() {
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  Forgejo #1205 — GET /api/v1/evidence/daily"
+echo "  Forgejo #1205 accounting — GET /api/v1/evidence/daily (schema 2)"
 echo "════════════════════════════════════════════════════════════════"
 
 if [ ! -f "$REPO_ROOT/indexer/.env" ]; then
@@ -66,9 +67,13 @@ start = text.find("let lcd_heavy_router = Router::new()")
 end = text.find("apply_rate_limit_layer(lcd_heavy_router")
 block = text[start:end]
 assert "/api/v1/evidence/daily" not in block, "evidence route is on lcd_heavy_router"
-api = text[text.find("let api_router = Router::new()"):text.find(".merge(lcd_heavy_router)")]
-assert "/api/v1/evidence/daily" in api, "evidence route missing from global api_router"
-print("router membership ok")
+start = text.find("let evidence_router = Router::new()")
+assert start >= 0, "evidence router missing"
+end = text.find("let api_router = Router::new()", start)
+assert end > start, "cannot locate evidence router boundary"
+assert "/api/v1/evidence/daily" in text[start:end], "evidence route missing from dedicated router"
+assert ".merge(evidence_router)" in text[end:], "dedicated evidence router is not merged"
+print("dedicated evidence router membership ok; run verify-issue-1397 for budgets")
 PY
   '
 

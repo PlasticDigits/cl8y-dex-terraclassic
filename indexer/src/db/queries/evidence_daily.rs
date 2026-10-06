@@ -1,4 +1,5 @@
-//! UTC-day redacted evidence rows for `GET /api/v1/evidence/daily` (Forgejo #1205).
+//! UTC-day public-chain-linked evidence rows (Forgejo #1397 / #1205).
+//! Actor identities are never selected; public transaction metadata remains.
 //!
 //! Every UNION arm uses the same column aliases. Postgres names a UNION from the
 //! first arm only, so a `surface=limit` / `lp` / `wrap` request (no swap arm)
@@ -8,8 +9,9 @@
 //! is the source primary key and is not part of the JSON body. It breaks ties
 //! when two pair swaps in one tx share `swap_index` (unique per pair, not per tx).
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Timelike, Utc};
 use sqlx::{FromRow, PgPool, Postgres, QueryBuilder};
+use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EvidenceSortKey {
@@ -31,7 +33,6 @@ pub struct EvidenceRawRow {
     pub row_id: i64,
     pub block_timestamp: DateTime<Utc>,
     pub pair_address: Option<String>,
-    pub actor: Option<String>,
     pub offer_amount: Option<sqlx::types::BigDecimal>,
     pub return_amount: Option<sqlx::types::BigDecimal>,
     pub pool_return_amount: Option<sqlx::types::BigDecimal>,
@@ -80,6 +81,18 @@ fn push_window(
     day_start: DateTime<Utc>,
     day_end: DateTime<Utc>,
 ) {
+    // Calendar-day equality lets the ordered UTC-day indexes avoid unrelated
+    // history and sorts. Keep the raw range too, and preserve arbitrary windows.
+    if day_start.time().num_seconds_from_midnight() == 0
+        && day_start.time().nanosecond() == 0
+        && day_end.signed_duration_since(day_start) == chrono::Duration::days(1)
+    {
+        qb.push("(");
+        qb.push(column);
+        qb.push(" AT TIME ZONE 'UTC')::date = ");
+        qb.push_bind(day_start.date_naive());
+        qb.push(" AND ");
+    }
     qb.push(column);
     qb.push(" >= ");
     qb.push_bind(day_start);
@@ -89,7 +102,40 @@ fn push_window(
     qb.push_bind(day_end);
 }
 
-/// One UTC calendar day `[day_start, day_end)`, optional surfaces, keyset cursor, `limit+1` rows.
+const EVIDENCE_ORDER: &str =
+    "block_height ASC, tx_hash ASC, surface ASC, kind ASC, ordinal ASC, row_id ASC";
+
+fn finish_source(qb: &mut QueryBuilder<Postgres>, cursor: Option<&EvidenceSortKey>, limit: i64) {
+    qb.push(") evidence_source");
+    if let Some(c) = cursor {
+        // The cursor belongs inside each source's LIMIT. Applying it only to
+        // the bounded UNION would truncate later pages of dense days.
+        qb.push(" WHERE (block_height, tx_hash, surface, kind, ordinal, row_id) > (");
+        qb.push_bind(c.block_height);
+        qb.push(", ");
+        qb.push_bind(c.tx_hash.clone());
+        qb.push(", ");
+        qb.push_bind(c.surface.clone());
+        qb.push(", ");
+        qb.push_bind(c.kind.clone());
+        qb.push(", ");
+        qb.push_bind(c.ordinal);
+        qb.push(", ");
+        qb.push_bind(c.row_id);
+        qb.push(")");
+    }
+    qb.push(" ORDER BY ");
+    qb.push(EVIDENCE_ORDER);
+    qb.push(" LIMIT ");
+    qb.push_bind(limit);
+    qb.push(")");
+}
+
+/// One UTC calendar day `[day_start, day_end)`, optional surfaces and keyset cursor.
+/// The caller passes its page size + 1 (maximum 1001) for the completion sentinel.
+/// Each of the six sources contributes at most that many rows before the global
+/// merge. All database work uses transaction-local timeouts; dropping a cancelled
+/// future drops SQLx's transaction and queues rollback before pool reuse.
 pub async fn list_evidence_rows(
     pool: &PgPool,
     day_start: DateTime<Utc>,
@@ -98,6 +144,9 @@ pub async fn list_evidence_rows(
     cursor: Option<&EvidenceSortKey>,
     limit: i64,
 ) -> Result<Vec<EvidenceRawRow>, sqlx::Error> {
+    if !(1..=1001).contains(&limit) {
+        return Err(sqlx::Error::Protocol("invalid evidence fetch limit".into()));
+    }
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("SELECT * FROM (");
     let mut first = true;
 
@@ -108,7 +157,7 @@ pub async fn list_evidence_rows(
         first = false;
         qb.push(
             r"
-        SELECT s.block_height,
+        (SELECT * FROM (SELECT s.block_height,
                s.tx_hash::text AS tx_hash,
                'swap'::text AS surface,
                'swap'::text AS kind,
@@ -116,7 +165,6 @@ pub async fn list_evidence_rows(
                s.id AS row_id,
                s.block_timestamp,
                p.contract_address::text AS pair_address,
-               s.sender::text AS actor,
                s.offer_amount,
                s.return_amount,
                s.pool_return_amount,
@@ -145,6 +193,7 @@ pub async fn list_evidence_rows(
         WHERE ",
         );
         push_window(&mut qb, "s.block_timestamp", day_start, day_end);
+        finish_source(&mut qb, cursor, limit);
     }
 
     if surfaces.lp {
@@ -154,7 +203,7 @@ pub async fn list_evidence_rows(
         first = false;
         qb.push(
             r"
-        SELECT le.block_height,
+        (SELECT * FROM (SELECT le.block_height,
                le.tx_hash::text AS tx_hash,
                'lp'::text AS surface,
                le.event_type::text AS kind,
@@ -162,7 +211,6 @@ pub async fn list_evidence_rows(
                le.id AS row_id,
                le.block_timestamp,
                p.contract_address::text AS pair_address,
-               le.provider::text AS actor,
                NULL::numeric AS offer_amount,
                NULL::numeric AS return_amount,
                NULL::numeric AS pool_return_amount,
@@ -189,6 +237,7 @@ pub async fn list_evidence_rows(
         WHERE ",
         );
         push_window(&mut qb, "le.block_timestamp", day_start, day_end);
+        finish_source(&mut qb, cursor, limit);
     }
 
     if surfaces.limit {
@@ -198,7 +247,7 @@ pub async fn list_evidence_rows(
         first = false;
         qb.push(
             r"
-        SELECT pl.block_height,
+        (SELECT * FROM (SELECT pl.block_height,
                pl.tx_hash::text AS tx_hash,
                'limit'::text AS surface,
                'place'::text AS kind,
@@ -206,7 +255,6 @@ pub async fn list_evidence_rows(
                pl.id AS row_id,
                pl.block_timestamp,
                p.contract_address::text AS pair_address,
-               pl.owner::text AS actor,
                NULL::numeric AS offer_amount,
                NULL::numeric AS return_amount,
                NULL::numeric AS pool_return_amount,
@@ -233,11 +281,12 @@ pub async fn list_evidence_rows(
         WHERE ",
         );
         push_window(&mut qb, "pl.block_timestamp", day_start, day_end);
+        finish_source(&mut qb, cursor, limit);
 
         qb.push(" UNION ALL ");
         qb.push(
             r"
-        SELECT c.block_height,
+        (SELECT * FROM (SELECT c.block_height,
                c.tx_hash::text AS tx_hash,
                'limit'::text AS surface,
                'cancel'::text AS kind,
@@ -245,7 +294,6 @@ pub async fn list_evidence_rows(
                c.id AS row_id,
                c.block_timestamp,
                p.contract_address::text AS pair_address,
-               c.owner::text AS actor,
                NULL::numeric AS offer_amount,
                NULL::numeric AS return_amount,
                NULL::numeric AS pool_return_amount,
@@ -272,11 +320,12 @@ pub async fn list_evidence_rows(
         WHERE ",
         );
         push_window(&mut qb, "c.block_timestamp", day_start, day_end);
+        finish_source(&mut qb, cursor, limit);
 
         qb.push(" UNION ALL ");
         qb.push(
             r"
-        SELECT f.block_height,
+        (SELECT * FROM (SELECT f.block_height,
                f.tx_hash::text AS tx_hash,
                'limit'::text AS surface,
                'fill'::text AS kind,
@@ -284,7 +333,6 @@ pub async fn list_evidence_rows(
                f.id AS row_id,
                f.block_timestamp,
                p.contract_address::text AS pair_address,
-               f.maker::text AS actor,
                NULL::numeric AS offer_amount,
                NULL::numeric AS return_amount,
                NULL::numeric AS pool_return_amount,
@@ -311,6 +359,7 @@ pub async fn list_evidence_rows(
         WHERE ",
         );
         push_window(&mut qb, "f.block_timestamp", day_start, day_end);
+        finish_source(&mut qb, cursor, limit);
     }
 
     if surfaces.wrap {
@@ -320,7 +369,7 @@ pub async fn list_evidence_rows(
         first = false;
         qb.push(
             r"
-        SELECT e.block_height,
+        (SELECT * FROM (SELECT e.block_height,
                e.tx_hash::text AS tx_hash,
                'wrap'::text AS surface,
                e.source::text AS kind,
@@ -328,7 +377,6 @@ pub async fn list_evidence_rows(
                e.id AS row_id,
                e.block_timestamp,
                NULL::text AS pair_address,
-               NULL::text AS actor,
                NULL::numeric AS offer_amount,
                NULL::numeric AS return_amount,
                NULL::numeric AS pool_return_amount,
@@ -356,35 +404,36 @@ pub async fn list_evidence_rows(
           AND ",
         );
         push_window(&mut qb, "e.block_timestamp", day_start, day_end);
+        finish_source(&mut qb, cursor, limit);
     }
 
     if first {
         return Ok(vec![]);
     }
 
-    qb.push(") u");
-    if let Some(c) = cursor {
-        qb.push(" WHERE (u.block_height, u.tx_hash, u.surface, u.kind, u.ordinal, u.row_id) > (");
-        qb.push_bind(c.block_height);
-        qb.push(", ");
-        qb.push_bind(c.tx_hash.clone());
-        qb.push(", ");
-        qb.push_bind(c.surface.clone());
-        qb.push(", ");
-        qb.push_bind(c.kind.clone());
-        qb.push(", ");
-        qb.push_bind(c.ordinal);
-        qb.push(", ");
-        qb.push_bind(c.row_id);
-        qb.push(")");
-    }
-    qb.push(
-        " ORDER BY u.block_height ASC, u.tx_hash ASC, u.surface ASC, u.kind ASC, u.ordinal ASC, u.row_id ASC LIMIT ",
-    );
+    qb.push(") u ORDER BY ");
+    qb.push(EVIDENCE_ORDER);
+    qb.push(" LIMIT ");
     qb.push_bind(limit);
 
-    let query = qb.build_query_as::<EvidenceRawRow>();
-    query.fetch_all(pool).await
+    // Bound queueing separately from server work without changing the shared
+    // pool settings for unrelated endpoints.
+    let mut connection = tokio::time::timeout(Duration::from_millis(250), pool.acquire())
+        .await
+        .map_err(|_| sqlx::Error::PoolTimedOut)??;
+    let mut transaction = sqlx::Connection::begin(&mut *connection).await?;
+    sqlx::query("SET LOCAL statement_timeout = '1500ms'")
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("SET LOCAL lock_timeout = '500ms'")
+        .execute(&mut *transaction)
+        .await?;
+    let rows = qb
+        .build_query_as::<EvidenceRawRow>()
+        .fetch_all(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(rows)
 }
 
 #[cfg(test)]
