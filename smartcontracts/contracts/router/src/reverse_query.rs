@@ -6,6 +6,32 @@ use std::collections::BTreeMap;
 
 use cosmwasm_std::{Addr, Deps, StdError, StdResult, Uint128};
 
+use crate::msg::SwapOperation;
+
+/// Four-hop populated greedy reverse can exhaust provider gas despite obeying
+/// simulation counts. Admit at most three total hops if any hop is greedy,
+/// before querying book state, capability, factory or pair contracts. This
+/// state-independent policy also rejects empty-book and mixed four-hop routes;
+/// admission does not establish a gas guarantee for every shorter book.
+pub const MAX_GREEDY_REVERSE_ROUTE_HOPS: usize = 3;
+
+pub(crate) fn validate_route_support(operations: &[SwapOperation]) -> StdResult<()> {
+    if operations.len() > MAX_GREEDY_REVERSE_ROUTE_HOPS
+        && operations.iter().any(|operation| {
+            matches!(
+                operation,
+                SwapOperation::TerraSwap {
+                    greedy: Some(_),
+                    ..
+                }
+            )
+        })
+    {
+        return Err(StdError::generic_err("GREEDY_REVERSE_ROUTE_UNSUPPORTED"));
+    }
+    Ok(())
+}
+
 pub const MAX_REVERSE_SIMULATIONS_PER_HOP: u32 = 33;
 pub const MAX_REVERSE_SIMULATIONS_PER_REQUEST: u32 = 96;
 pub const MAX_PAIR_HYBRID_REVERSE_SIMULATIONS: u32 = dex_common::pair::MAX_HYBRID_REVERSE_SIM_CALLS;

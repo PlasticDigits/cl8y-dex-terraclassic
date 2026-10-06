@@ -63,3 +63,5 @@ regression is `issue_1398_reviewed_pair_1_21_retains_pool_and_greedy_reverse_acc
 with real taxed-route reverse regressions in `route_tax_1381_tests.rs`.
 See [net execution floors](AGENTS_NET_EXECUTION_FLOORS.md) and
 [#1398 verification](../docs/qa/issue-1398/README.md).
+
+Router 1.5.0 adds [GR1428](AGENTS_GREEDY_REVERSE_SUPPORT.md): any greedy reverse route has at most three total hops, independent of book occupancy. Four-hop pool reverse and forward/execution retain their existing caps.

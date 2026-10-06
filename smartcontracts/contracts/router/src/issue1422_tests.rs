@@ -4,7 +4,7 @@ use cosmwasm_std::{
     from_json, testing::mock_dependencies, ContractResult, StdError, SystemResult, WasmQuery,
 };
 use dex_common::{route_tax as tax, types::AssetInfo};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
 
 type MockDeps = cosmwasm_std::OwnedDeps<
     cosmwasm_std::MemoryStorage,
@@ -21,12 +21,14 @@ struct Calls {
     reverse: usize,
     forward: usize,
     previews: Vec<PreviewCall>,
+    greedy_probes: BTreeSet<(String, Uint128)>,
 }
 #[derive(Clone, Copy, PartialEq)]
 enum Fault {
     None,
     FreshPreview,
     InsufficientForward,
+    InsufficientGreedyValidation,
     UntrustedRouter,
     UnknownOrdinary,
     LegacyTax,
@@ -133,6 +135,7 @@ fn fixture(fault: Fault) -> (MockDeps, Rc<RefCell<Calls>>) {
                         pair::QueryMsg::HybridSimulation {
                             offer_asset,
                             hybrid,
+                            greedy,
                             trader,
                             sender,
                             ..
@@ -142,9 +145,20 @@ fn fixture(fault: Fault) -> (MockDeps, Rc<RefCell<Calls>>) {
                                 Some("trader" | "protocol-exempt")
                             ));
                             assert_eq!(sender.as_deref(), Some("sender"));
-                            assert_eq!(hybrid.unwrap().pool_input, offer_asset.amount);
+                            if greedy.is_some() {
+                                assert!(hybrid.is_none());
+                            } else {
+                                assert_eq!(hybrid.unwrap().pool_input, offer_asset.amount);
+                            }
                             calls.forward += 1;
-                            let amount = if fault == Fault::InsufficientForward {
+                            let repeated_greedy_probe = greedy.is_some()
+                                && !calls
+                                    .greedy_probes
+                                    .insert((contract_addr.clone(), offer_asset.amount));
+                            let amount = if fault == Fault::InsufficientForward
+                                || (fault == Fault::InsufficientGreedyValidation
+                                    && repeated_greedy_probe)
+                            {
                                 Uint128::zero()
                             } else {
                                 offer_asset.amount
@@ -367,4 +381,86 @@ fn issue1422_repeated_capable_path_rejects_before_pair_work() {
         .to_string()
         .contains("repeated route-tax-capable asset"));
     assert_eq!(calls.borrow().factory, 0);
+}
+
+#[test]
+fn issue1428_supported_greedy_reverse_preserves_gross_trader_and_fresh_validation() {
+    let target = Uint128::new(1_000_000);
+    for fault in [Fault::None, Fault::InsufficientGreedyValidation] {
+        let (deps, calls) = fixture(fault);
+        let mut ops = operations();
+        for op in &mut ops {
+            let SwapOperation::TerraSwap {
+                greedy, min_return, ..
+            } = op
+            else {
+                unreachable!()
+            };
+            *greedy = Some(pair::greedy_swap_params(8, None));
+            *min_return = Some(Uint128::one());
+        }
+        let result = query_reverse_simulate_swap_operations(
+            deps.as_ref(),
+            &Addr::unchecked("router"),
+            target,
+            ops,
+            Some("trader".into()),
+            Some("sender".into()),
+        );
+        if fault == Fault::None {
+            let gross = result.unwrap().amount;
+            assert!(
+                gross > target,
+                "tax funding must be included in the payer's gross input"
+            );
+            assert!(expected_forward(gross) >= target);
+            assert!(expected_forward(gross - Uint128::one()) < target);
+        } else {
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("REVERSE_FORWARD_INSUFFICIENT"));
+        }
+        let recorded = calls.borrow();
+        assert_eq!(
+            (recorded.factory, recorded.reverse, recorded.forward),
+            (3, 3, 9)
+        );
+        assert_eq!(recorded.previews.len(), 8);
+        assert!(recorded
+            .previews
+            .iter()
+            .all(|call| call.3.as_deref() == Some("trader")));
+    }
+}
+
+#[test]
+fn issue1428_four_hop_greedy_forward_retains_funded_quote_parity() {
+    let (deps, calls) = fixture(Fault::None);
+    let gross = Uint128::new(1_000_000);
+    let mut ops = operations();
+    ops.push(SwapOperation::TerraSwap {
+        offer_asset_info: asset(3),
+        ask_asset_info: asset(4),
+        hybrid: None,
+        greedy: None,
+        min_return: Some(Uint128::one()),
+    });
+    for op in &mut ops {
+        let SwapOperation::TerraSwap { greedy, .. } = op else {
+            unreachable!()
+        };
+        *greedy = Some(pair::greedy_swap_params(8, None));
+    }
+    let forward = query_simulate_swap_operations(
+        deps.as_ref(),
+        &Addr::unchecked("router"),
+        gross,
+        ops,
+        Some("trader".into()),
+        Some("sender".into()),
+    )
+    .unwrap();
+    assert_eq!(forward.amount, expected_forward(gross));
+    assert_eq!(calls.borrow().forward, 4);
 }

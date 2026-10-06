@@ -974,6 +974,9 @@ fn query_reverse_simulate_swap_operations(
         )));
     }
 
+    // Reject unsupported greedy shapes before any external query. Book contents
+    // and trader tax exemptions cannot alter the reverse admission policy.
+    crate::reverse_query::validate_route_support(&operations)?;
     crate::route_tax::validate_asset_path(deps, &operations, None)?;
     let mut quote =
         crate::route_quote::QuoteContext::new(deps, FACTORY.load(deps.storage)?, router);
@@ -1337,9 +1340,9 @@ mod issue1389_tests {
     }
 
     #[test]
-    fn issue_1398_router_1_4_migration_preserves_funding_v1_and_route_state() {
+    fn issue1428_router_1_5_migration_preserves_funding_v1_and_route_state() {
         let mut deps = mock_dependencies();
-        set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.3.0").unwrap();
+        set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.4.0").unwrap();
         FACTORY
             .save(deps.as_mut().storage, &Addr::unchecked("factory"))
             .unwrap();
@@ -1360,7 +1363,7 @@ mod issue1389_tests {
             cw2::get_contract_version(deps.as_ref().storage)
                 .unwrap()
                 .version,
-            "1.4.0"
+            "1.5.0"
         );
         assert_eq!(query_config(deps.as_ref()).unwrap(), before);
         assert_eq!(allocate_route_id(deps.as_mut().storage).unwrap(), 43);
@@ -1374,9 +1377,9 @@ mod issue1389_tests {
         for backwards in [false, true] {
             for mode in [0, 1] {
                 let (result, calls, work) =
-                    run_version("1.21.0", 4, mode, Uint128::new(1_000_000), backwards, false);
+                    run_version("1.21.0", 3, mode, Uint128::new(1_000_000), backwards, false);
                 assert_eq!(result.unwrap().amount, Uint128::new(1_000_000));
-                let expected = if mode == 0 { 8 } else { 16 };
+                let expected = if mode == 0 { 6 } else { 12 };
                 assert_eq!((calls, work), (expected, expected));
                 assert!(work <= crate::reverse_query::MAX_REVERSE_SIMULATIONS_PER_REQUEST);
             }
@@ -1403,14 +1406,14 @@ mod issue1389_tests {
                 let (result, calls, work) = run(4, 0, target, backwards, false);
                 assert_eq!(result.unwrap().amount, target);
                 assert_eq!((calls, work), (8, 8));
-                let (result, calls, work) = run(4, 1, target, backwards, false);
+                let (result, calls, work) = run(3, 1, target, backwards, false);
                 assert_eq!(result.unwrap().amount, target);
                 let expected = if target.is_zero() {
-                    4
+                    3
                 } else if target == Uint128::one() {
-                    12
+                    9
                 } else {
-                    16
+                    12
                 };
                 assert_eq!((calls, work), (expected, expected));
             }
@@ -1438,9 +1441,61 @@ mod issue1389_tests {
             assert!(calls <= work);
             match result {
                 Ok(quote) => assert_eq!(quote.amount, Uint128::new(1_000_000)),
-                Err(error) => assert!(error.to_string().contains("REVERSE_QUERY_BUDGET_EXCEEDED")),
+                Err(error) => {
+                    assert!(
+                        error.to_string().contains("REVERSE_QUERY_BUDGET_EXCEEDED")
+                            || error
+                                .to_string()
+                                .contains("GREEDY_REVERSE_ROUTE_UNSUPPORTED")
+                    );
+                }
             }
         }
+    }
+
+    #[test]
+    fn issue1428_four_hop_greedy_admission_rejects_before_all_external_queries() {
+        // No factory/config is stored and every external query panics. Rejection
+        // must depend only on the route shape, regardless of tax/book metadata,
+        // amount, identity, direction, or which hop requests greedy execution.
+        let mut deps = mock_dependencies();
+        deps.querier
+            .update_wasm(|_| panic!("admission queried a contract"));
+        for backwards in [false, true] {
+            for greedy_hop in 0..4 {
+                for trader in [None, Some("trader".to_string())] {
+                    for target in [Uint128::zero(), Uint128::one(), Uint128::MAX] {
+                        let mut mixed = operations(4, 0, backwards);
+                        let SwapOperation::TerraSwap { greedy, .. } = &mut mixed[greedy_hop] else {
+                            unreachable!()
+                        };
+                        *greedy = Some(pair::greedy_swap_params(8, None));
+                        let error = query_reverse_simulate_swap_operations(
+                            deps.as_ref(),
+                            &Addr::unchecked("router"),
+                            target,
+                            mixed,
+                            trader.clone(),
+                            Some("sender".to_string()),
+                        )
+                        .unwrap_err();
+                        assert!(error
+                            .to_string()
+                            .contains("GREEDY_REVERSE_ROUTE_UNSUPPORTED"));
+                    }
+                }
+            }
+        }
+        let (result, calls, work) = run(4, 1, Uint128::one(), false, false);
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("GREEDY_REVERSE_ROUTE_UNSUPPORTED"));
+        assert_eq!((calls, work), (0, 0));
+        // Pool-only reverse keeps the existing four-hop boundary.
+        let (result, calls, work) = run(4, 0, Uint128::one(), false, false);
+        assert_eq!(result.unwrap().amount, Uint128::one());
+        assert_eq!((calls, work), (8, 8));
     }
 
     #[test]

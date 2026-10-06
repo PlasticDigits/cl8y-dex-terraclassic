@@ -1,0 +1,61 @@
+{
+  "chain_id": "localterra",
+  "synthetic_only": true,
+  "checks": [
+    {
+      "name": "invoice atomic rollback",
+      "status": "PASS",
+      "txhash": "6f4356d82a07639ea906d6eb66f9fc93f17a475d1bb06e891ee1068cee45a494",
+      "gas_used": "3358342",
+      "authorized_gross": "53470550063747698249",
+      "invoice_raw": "50000000",
+      "quote": {
+        "amount": "50249973"
+      }
+    },
+    {
+      "name": "taxed route plus exact feature invoice",
+      "status": "PASS",
+      "txhash": "69bf6c55ec637a1d47304d7e0902e039fb4e0dd878144bac56dbdaa61f178a89",
+      "gas_used": "3432555",
+      "authorized_gross": "53470550063747698249",
+      "invoice_raw": "50000000",
+      "quote": {
+        "amount": "50249973"
+      }
+    }
+  ],
+  "status": "PASS",
+  "receipts": [
+    {
+      "txhash": "985f2e7633d7e0d5b0807253bb4eaaf8ec8c0343463efda220c49e4ec9ffb3db",
+      "height": "6080",
+      "code": 0,
+      "gas_used": "178259"
+    },
+    {
+      "txhash": "a0eeefac196dcb2bf077497a8e2376736e40e4632cbc25db7fbe3f3c7aedd8ec",
+      "height": "6083",
+      "code": 0,
+      "gas_used": "248382"
+    },
+    {
+      "txhash": "04462dad2d5d6576ef821631baea680fc778e771354e889f4ead7780c5120bdd",
+      "height": "6086",
+      "code": 0,
+      "gas_used": "138092"
+    },
+    {
+      "txhash": "6f4356d82a07639ea906d6eb66f9fc93f17a475d1bb06e891ee1068cee45a494",
+      "height": "6113",
+      "code": 5,
+      "gas_used": "3358342"
+    },
+    {
+      "txhash": "69bf6c55ec637a1d47304d7e0902e039fb4e0dd878144bac56dbdaa61f178a89",
+      "height": "6156",
+      "code": 0,
+      "gas_used": "3432555"
+    }
+  ]
+}
